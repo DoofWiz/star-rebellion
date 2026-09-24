@@ -46,10 +46,30 @@ GDD systems implemented in this variant:
   zoom (wheel/pinch/buttons), an execution follow-cam, a minimap, and asteroid
   clusters; movement distances roughly doubled.
 
+**HUD & interaction model** (overhauled after first playtest): the right sidebar
+is information only — a pilot dossier for the selected ship (profile, service
+record, traits, nerve state, loadout, treated as a vertical slice of the full
+game's pilot system) plus compact rosters with layered shield/armor/hull bars
+and color-coded nerve text. All controls appear contextually on the
+battlefield: the maneuver dial opens beside the selected ship during planning,
+a radial action ring opens around each of your ships at its activation, and
+attacks pause on a bottom dock where the defense difficulty stacks up modifier
+by modifier over the target, you pick a weapon (or tap another contact to
+retarget) and press ATTACK, and your own modifiers then stack up before the
+visible d100 roll. Locks are signposted with dashed traces, a diamond on the
+locked ship and a numbered badge for lock level. The bullseye is a visible
+centerline down the firing arc: the closer a target flies to it, the bigger
+the scaling aim bonus and crit chance. The mission opens with a short fly-in
+cutscene (skippable) and pilots exchange comm chatter on kills, hits, panic
+and the instructor's death.
+
+The pre-overhaul flow (auto-resolved attacks, sidebar controls) is preserved
+at commit `09dff6e` (tag `combat-gdd-autoresolve`) if we want to revert or
+compare.
+
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
-abilities yet), fire targeting is automatic (locked target first), bombs and
-torpedoes are out (no large targets in this mission), and there are no
-gunships, jamming or shield-sharing yet.
+abilities yet), bombs and torpedoes are out (no large targets in this
+mission), and there are no gunships, jamming or shield-sharing yet.
 
 ## Prototypes
 
