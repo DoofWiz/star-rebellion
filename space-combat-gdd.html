@@ -482,6 +482,7 @@ const CRITS=[
 /* ---------- weapon & target selection (auto) ---------- */
 function validShot(s,t,wkey){
   const w=WPN[wkey];
+  if(!CLS[s.cls].wpns.includes(wkey))return false;
   if(!inArc(s,t)||dist(s,t)>w.rng)return false;
   if(w.needsLock&&!(s.lock&&s.lock.target===t.id&&s.lock.level>=1))return false;
   if(wkey!=='plasma'&&s.ammo[wkey]!==undefined&&s.ammo[wkey]<=0)return false;
@@ -505,7 +506,7 @@ function chooseAttack(s){
     const hp=t.shd+t.arm+t.hull;
     if(validShot(s,t,'missile')&&hp>=20)return {t,wkey:'missile'};
     if(validShot(s,t,'ballistic')&&(s.lock&&s.lock.target===t.id||bearing(s,t)<=BULLS||band(dist(s,t))===1))return {t,wkey:'ballistic'};
-    if(CLS[s.cls].wpns.includes('plasma')&&validShot(s,t,'plasma'))return {t,wkey:'plasma'};
+    if(validShot(s,t,'plasma'))return {t,wkey:'plasma'};
   }
   return null;
 }
@@ -775,6 +776,18 @@ function attackUpdate(now){
   }
   attackQ=null;
   endRound();
+}
+/* safety net: an unexpected error in a phase update must never freeze the
+   round — skip the faulty step and keep the sequence moving */
+function recoverPhase(e){
+  log('<span class="h">⚠ engagement computer fault — step skipped</span>');
+  try{
+    if(phase==='ATTACK'&&attackQ){attackQ.cur=null;attackQ.nextAt=performance.now()+150;}
+    else if(phase==='ATTACK'){endRound();}
+    else if(phase==='EXEC'&&exec){awaitAction=null;pendingLockPick=false;nextExec();}
+  }catch(e2){
+    phase='PLANNING';exec=null;attackQ=null;awaitAction=null;syncUI();
+  }
 }
 function endRound(){
   for(const s of ships){s.tokens.evade=false;s.tokens.broll=false;s.plan={man:null};}
@@ -1243,8 +1256,8 @@ function render(now){
   vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.5)');
   ctx.fillStyle=vg;ctx.fillRect(0,0,cssW,cssH);
 
-  if(phase==='EXEC')execUpdate(now);
-  if(phase==='ATTACK')attackUpdate(now);
+  if(phase==='EXEC'){try{execUpdate(now);}catch(e){recoverPhase(e);}}
+  if(phase==='ATTACK'){try{attackUpdate(now);}catch(e){recoverPhase(e);}}
 
   requestAnimationFrame(render);
 }
