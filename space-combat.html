@@ -260,7 +260,7 @@
           <div class="howto">
             Each round: <b>1.</b> select a ship (card or battlefield), <b>2.</b> set its maneuver on
             the dial and pick an action — <b>Focus</b> steadies gunnery and evasion, <b>Evade</b> adds
-            one guaranteed dodge, <b>Lock</b> re-rolls misses and arms Hammer's torpedoes —
+            one guaranteed dodge, <b>Lock</b> re-rolls misses and arms Hammer's missiles —
             then <b>3.</b> execute. All ships move at once; guns resolve by initiative.
             Front arc only, three range bands: close range adds a die, long range favors the defender.
           </div>
@@ -563,7 +563,7 @@ function startAttack(s){
     torpsFx.push({x:s.x+Math.cos(s.h)*16,y:s.y+Math.sin(s.h)*16,tx:t.x,ty:t.y,t0:now,dur:tt});
     atk.tApply=now+tt; atk.tEnd=now+tt+(RM?350:700);
     sWhoosh();
-    log(nameSpan(s)+' <span class="a">launches a torpedo at</span> '+nameSpan(t));
+    log(nameSpan(s)+' <span class="a">launches a missile at</span> '+nameSpan(t));
   } else {
     const n=res.dice, fly=RM?200:Math.max(240,d/0.9);
     for(let i=0;i<n;i++){
@@ -605,7 +605,7 @@ function applyAttack(atk){
     if(sd>0&&t.shd===0) addFloater(t.x,t.y-58,'SHIELDS DOWN','#ff9d9d');
     shake=Math.max(shake,RM?0:(res.torp?10:4));
     if(res.torp)sBoom(true); else sHit();
-    log(nameSpan(s)+' → '+nameSpan(t)+rtxt+'<span class="d">'+res.hits+' hits / '+res.ev+' evaded ·</span> <span class="a">'+res.dmg+' dmg</span>'+(res.torp?' <span class="a">[TORPEDO]</span>':''));
+    log(nameSpan(s)+' → '+nameSpan(t)+rtxt+'<span class="d">'+res.hits+' hits / '+res.ev+' evaded ·</span> <span class="a">'+res.dmg+' dmg</span>'+(res.torp?' <span class="a">[MISSILE]</span>':''));
     if(t.hull<=0)destroyShip(t);
   }
   syncUI();
@@ -1160,7 +1160,7 @@ function ordersHTML(s){
       '<span class="lb">ATK</span> '+s.atk+' · <span class="lb">AGI</span> '+s.agi+
       ' · <span class="lb">SHD</span> '+s.shd+'/'+s.maxShd+' · <span class="lb">HULL</span> '+s.hull+'/'+s.maxHull+
       '<br><span class="lb">INITIATIVE</span> '+s.init+
-      (s.cls==='anvil'?' · <span class="lb">TORPS</span> '+s.torps:'')+'</div>';
+      (s.cls==='anvil'?' · <span class="lb">MSLS</span> '+s.torps:'')+'</div>';
   }
   // dial
   const cols=['L','l','S','r','R','K'];
@@ -1193,7 +1193,7 @@ function ordersHTML(s){
     const t=ships.find(x=>x.id===s.plan.lockTarget);
     h+='<div class="legend">Locking: <b style="color:var(--heg)">'+(t?t.name:'?')+'</b></div>';
   }
-  h+='<div class="legend">FOCUS +hit &amp; +evade chance · EVADE +1 sure dodge · LOCK re-roll misses'+(s.cls==='anvil'?', arms torpedoes (R2–3)':'')+'</div>';
+  h+='<div class="legend">FOCUS +hit &amp; +evade chance · EVADE +1 sure dodge · LOCK re-roll misses'+(s.cls==='anvil'?', arms missiles (R2–3)':'')+'</div>';
   return h;
 }
 function syncUI(){
