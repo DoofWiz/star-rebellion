@@ -7,6 +7,50 @@ what's fun over time.
 The working game design document is reassembled in [`docs/GDD.md`](docs/GDD.md)
 (canonical source lives in the designer's Notion).
 
+**Branch layout**: `claude/star-rebellion-combat-rexyta` carries the traditional
+X-Wing-style prototype (`space-combat.html`); this branch
+(`claude/star-rebellion-combat-gdd`) additionally carries the GDD-faithful
+variant (`space-combat-gdd.html`) so the two rulesets can be compared and
+evolved side by side.
+
+### `space-combat-gdd.html` — Mission: Take Out Instructor (GDD-faithful variant)
+
+The "Take Out Instructor" mission from the GDD's space combat mission list:
+Commandant Dral Vex, a veteran Hegemony flight instructor, is running a live
+exercise with four green cadets. Eliminate the instructor to win; his cadets are
+likely to panic and flee once he falls.
+
+GDD systems implemented in this variant:
+
+- **d100 resolution** — every shot builds a target number from the defender's
+  evasion profile, evasive actions, range band, deflection angle (tail shots are
+  easier, beam shots harder), asteroid cover and pilot nerve; the attacker's
+  modifiers (aim, weapon accuracy, stacked locks, bullseye, cool/panic, close
+  range) are subtracted, and the full math is printed in the combat log.
+- **Shield / Armor / Hull** durability layers.
+- **Weapon types** — plasma (unlimited, soaked by shields), ballistic (limited
+  bursts, bypasses shields, 25% crit chance with a small crit table: engines,
+  targeting, pilot rattled), missiles (very limited, require a lock).
+- **Stacking locks** — the Lock action repeats to +8 to-hit per level (max 3);
+  missiles consume a lock level. Rocks block sensor locks and foul firing lines.
+- **Sequential initiative** — ships move one at a time in ascending initiative
+  and each pilot chooses an action at their activation (Lock / Evade / Steady /
+  Barrel Roll for pilots who know it); attacks then resolve in descending
+  initiative. Cool pilots gain initiative, panicking pilots lose it.
+- **Pilots** — aim stat, a Cool↔Panicking spectrum moved by taking fire, kills,
+  lost wingmen and steadying; traits (Lucky, Veteran, Green cadets who cap low
+  and break when the instructor dies, and a "Friends with…" pair that never
+  recovers if the friend is lost); pilot-experience maneuvers (loop, barrel
+  roll) per the GDD, so K-turns belong to pilots rather than dials here.
+- **Large battlespace** — ~3.3× the original map with camera pan (drag/WASD),
+  zoom (wheel/pinch/buttons), an execution follow-cam, a minimap, and asteroid
+  clusters; movement distances roughly doubled.
+
+Still simplified: the GDD's Activation phase is folded into Execution (no ship
+abilities yet), fire targeting is automatic (locked target first), bombs and
+torpedoes are out (no large targets in this mission), and there are no
+gunships, jamming or shield-sharing yet.
+
 ## Prototypes
 
 ### `space-combat.html` — Skirmish: Operation Picket Break
