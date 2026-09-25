@@ -175,9 +175,15 @@
   #panelScroll{flex:1;overflow-y:auto;min-height:0;padding:12px 10px 6px;}
   .sec-h{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:800;margin:0 0 7px;padding:6px 9px;border-radius:3px;background:linear-gradient(90deg,#131d38,rgba(19,29,56,0));}
   .sec-h.crew{color:var(--reb);border-left:3px solid var(--reb);}
+  .sec-h.rSol{color:var(--amber);border-left:3px solid var(--amber);margin-top:14px;}
+  .sec-h.rMar{color:var(--purple);border-left:3px solid var(--purple);margin-top:14px;}
+  .sec-h.rSup{color:var(--good);border-left:3px solid var(--good);margin-top:14px;}
   .sec-h.fleet{color:var(--blue);border-left:3px solid var(--blue);margin-top:14px;}
   .group{background:#0c1322;border:1px solid var(--line-soft);border-radius:5px;padding:7px;}
   .rrow{display:flex;align-items:center;gap:9px;background:#121b34;border:1px solid #1b2747;border-left:3px solid var(--reb);border-radius:4px;padding:6px 9px;margin-bottom:6px;cursor:pointer;}
+  .rrow.rSol{border-left-color:var(--amber);}
+  .rrow.rMar{border-left-color:var(--purple);}
+  .rrow.rSup{border-left-color:var(--good);}
   .rrow:last-child{margin-bottom:0;}
   .rrow:hover{border-color:var(--amber);}
   .rrow .rname{font-weight:700;font-size:12px;flex:1;}
@@ -266,8 +272,14 @@
 
     <aside id="panel">
       <div id="panelScroll">
-        <div class="sec-h crew">Rebels</div>
-        <div class="group" id="crewList"></div>
+        <div class="sec-h crew">Pilots</div>
+        <div class="group" id="pilotList"></div>
+        <div class="sec-h rSol">Soldiers</div>
+        <div class="group" id="soldierList"></div>
+        <div class="sec-h rMar" id="marHead" hidden>Marines</div>
+        <div class="group" id="marineList" hidden></div>
+        <div class="sec-h rSup">Support</div>
+        <div class="group" id="supportList"></div>
         <div class="sidehint">double-click for personnel file</div>
         <div class="sec-h fleet">Flight</div>
         <div class="group" id="fleetList"></div>
@@ -292,8 +304,11 @@
    ===================================================================== */
 
 const COMBAT_URL='https://claude.ai/artifact/Jrfx3qfbYW1og1VTh1MnFt';
+const GROUND_URL='https://claude.ai/artifact/PQNjhANVf7s1YoX9EcTsto';
 const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
+const RANKS_ENL=['Recruit','Private','Private First Class','Specialist','Corporal','Sergeant','Staff Sergeant','Sgt. First Class','Master Sergeant','Sergeant Major'];
 const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
+const rankFor=p=>((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
 const C=n=>'<span class="rc" title="Credits">'+n+'⬡</span>';
@@ -413,7 +428,7 @@ function renderNews(){
   el.scrollTop=el.scrollHeight;
 }
 function levelUp(p){
-  while(p.xp>=1){p.xp-=1;p.level++;news('<b>'+p.name+'</b> promoted in the field — now '+rankOf(p.level)+'.','p');sAlert();}
+  while(p.xp>=1){p.xp-=1;p.level++;news('<b>'+p.name+'</b> promoted in the field — now '+rankFor(p)+'.','p');sAlert();}
 }
 
 /* ---------- source events (some open missions) ---------- */
@@ -480,6 +495,10 @@ const MPOOL={
   garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:60,s:25,xp:0.12}},
+  stealcross:{name:'Steal the Cross',from:'Scout Report · Brakka',need:3,days:2,riskTxt:'Moderate',
+    play:true,url:GROUND_URL,playTxt:'Fight it on the ground',ground:true,
+    desc:'Dustfall keeps one FT-4 Cross on the pad behind the sheriff’s HQ. The FT-4 is built for frontier sheriffs who need something cheap and reliable to deter smugglers and gangs in their turf. When you strap more guns and missiles to it however, it becomes rather useful in a pinch. Sheriff Reeve enforces Hegemony law here. Put Sera on the stick and walk her to the pad.',
+    rew:{cross:1,c:120,s:30,xp:0.2}},
   orehaul:{name:'Dreymar Ore Heist',from:'Scout Report · Dreymar',need:2,days:3,riskTxt:'Moderate',
     desc:'A company ore barge runs unescorted on payday. The miners will swear they saw nothing.',
     rew:{c:90,s:50,xp:0.15}},
@@ -524,7 +543,7 @@ const PLANETDEF=[
   {id:'kess',name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
   {id:'brakka',name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
-   sit:'Dust, herders, and one understaffed garrison that files reports nobody reads.'},
+   sit:'Dust, herders, and the frontier town of Dustfall — where Sheriff Reeve keeps Hegemony law and one FT-4 Cross on the pad.'},
   {id:'callis',name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
    sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
   {id:'meridian',name:'Meridian',kind:'CORE · Capital',pop:'2.1B',x:0.86,y:0.30,known:true,scout:14,core:true,
@@ -688,13 +707,15 @@ function advanceDay(){
 /* ---------- missions ---------- */
 function launchMission(m,pilotIds){
   const pilots=G.people.filter(p=>pilotIds.includes(p.id));
-  const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).slice(0,pilots.length);
-  if(pilots.length<m.need||usable.length<m.need)return false;
+  const usable=m.ground?
+    G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).slice(0,1):
+    G.fighters.filter(f=>!f.out&&f.hull>=60).slice(0,pilots.length);
+  if(pilots.length<m.need||usable.length<(m.ground?1:m.need))return false;
   for(const p of pilots)p.assign='mission';
   for(const f of usable)f.out=true;
   m.state='prog';
   m.progress={daysLeft:m.days,pilots:pilotIds,fighters:usable.map(f=>f.id)};
-  news('<b>'+m.name+'</b> — strike team away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'.','a');
+  news('<b>'+m.name+'</b> — '+(m.ground?'ground team':'strike team')+' away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'.','a');
   sLaunch();
   closeWin();syncUI();
   return true;
@@ -717,11 +738,17 @@ function resolveMission(m){
         rew.push('+1 fighter');
       } else {G.credits+=150;rew.push('no berth — sold for '+C(150));}
     }
+    if(m.rew.cross){
+      if(G.fighters.length<fighterCap()){
+        G.fighters.push({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85,out:false});
+        rew.push('+FT-4 Cross');
+      } else {G.credits+=200;rew.push('no berth — Cross fenced for '+C(200));}
+    }
     for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
     G.renown=Math.min(100,G.renown+20);
     G.morale=Math.min(100,G.morale+6);
     m.state='done';m.meta='SUCCESS';
-    news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. Flight XP awarded.','g');
+    news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
   } else {
     const hurt=pilots[Math.floor(rng()*pilots.length)];
@@ -730,7 +757,7 @@ function resolveMission(m){
     if(f)f.hull=Math.max(15,f.hull-30);
     G.morale=Math.max(0,G.morale-8);
     m.state='avail';m.progress=null;
-    news('<b>'+m.name+'</b> — FAILED. The escort was waiting. '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
+    news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
     sAlert();
   }
   m.progress=null;
@@ -848,7 +875,7 @@ function scoutPlanet(id){
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
-  if(id==='brakka'){addMission('garrison');lines.push('The garrison’s watch rotation is a joke. There’s a raid in this.');}
+  if(id==='brakka'){addMission('stealcross');lines.push('A sheriff town called Dustfall. One FT-4 Cross on the pad, and the deputies patrol like the war’s already won. There’s a theft in this.');}
   else if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
   else if(id==='volund'){addMission('foundry');lines.push('A clerk in freight control sells manifests. There’s a job here.');}
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
@@ -1638,13 +1665,13 @@ function renderWin(){
   else if(winMode==='newmission'){
     const m=winArg;
     card.classList.add('narrow');
-    const rew=[m.rew&&m.rew.c?C(m.rew.c):null,m.rew&&m.rew.s?S(m.rew.s):null,m.rew&&m.rew.i?I(m.rew.i):null,m.rew&&m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
+    const rew=[m.rew&&m.rew.cross?'+FT-4 Cross':null,m.rew&&m.rew.c?C(m.rew.c):null,m.rew&&m.rew.s?S(m.rew.s):null,m.rew&&m.rew.i?I(m.rew.i):null,m.rew&&m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
     h='<div class="winHead"><span class="wt">New Mission · '+(m.from||'the network')+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
       '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
       '<div class="mdesc">'+m.desc+'</div>'+
-      '<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
+      '<div class="mmeta">'+m.need+(m.ground?' soldiers':' pilots')+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
       '<button class="dbtn" data-mplan="'+m.id+'">Plan it now.</button>'+
-      (m.play?'<a class="dbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Fly it yourself ↗ <span style="color:var(--dim)">(combat prototype — results don’t carry back yet)</span></a>':'')+
+      (m.play?'<a class="dbtn" style="display:block;text-decoration:none" href="'+(m.url||COMBAT_URL)+'" target="_blank" rel="noopener">'+(m.playTxt||'Fly it yourself')+' ↗ <span style="color:var(--dim)">(combat prototype — results don’t carry back yet)</span></a>':'')+
       '<button class="dbtn" data-close>Noted. It’ll keep on the board.</button>'+
       '</div>';
   }
@@ -1666,10 +1693,10 @@ function renderWin(){
         '<span class="mstate">'+(m.state==='done'?(m.meta||'COMPLETE'):m.state==='prog'?(m.progress.daysLeft+'d remaining'):m.state==='locked'?'LOCKED':m.state==='sim'?'SIMULATOR':'AVAILABLE')+'</span></div>'+
         '<div class="mdesc">'+m.desc+'</div>';
       if(m.state==='avail'){
-        const rew=[m.rew.c?C(m.rew.c):null,m.rew.s?S(m.rew.s):null,m.rew.i?I(m.rew.i):null,m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
-        h+='<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
+        const rew=[m.rew.cross?'+FT-4 Cross':null,m.rew.c?C(m.rew.c):null,m.rew.s?S(m.rew.s):null,m.rew.i?I(m.rew.i):null,m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
+        h+='<div class="mmeta">'+m.need+(m.ground?' soldiers':' pilots')+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
           '<button class="sbtn" data-plan="'+m.id+'">Plan Mission</button>'+
-          (m.play?' <a class="sbtn" style="display:inline-block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Fly it yourself ↗</a>'+
+          (m.play?' <a class="sbtn" style="display:inline-block;text-decoration:none" href="'+(m.url||COMBAT_URL)+'" target="_blank" rel="noopener">'+(m.playTxt||'Fly it yourself')+' ↗</a>'+
             '<span class="pdesc" style="margin-left:8px">combat prototype — results don’t carry back yet</span>':'');
       }
       if(m.state==='sim')h+='<a class="sbtn" style="display:inline-block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Enter Simulator ↗</a>';
@@ -1680,14 +1707,20 @@ function renderWin(){
   else if(winMode==='plan'){
     const m=winArg;
     card.classList.add('narrow');
-    const eligible=G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');
-    const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).length;
+    const eligible=m.ground?
+      G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'):
+      G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');
+    const usable=m.ground?
+      G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).length:
+      G.fighters.filter(f=>!f.out&&f.hull>=60).length;
     h='<div class="winHead"><span class="wt">Plan · '+m.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="pdesc">Needs '+m.need+' pilots and '+m.need+' flight-ready fighters (hull ≥ 60%). Ready: <b style="color:var(--text)">'+usable+'</b>.</div>';
+      '<div class="pdesc">'+(m.ground?
+        'Needs '+m.need+' soldiers and the Graf flight-ready (hull ≥ 60%). Graf ready: <b style="color:var(--text)">'+(usable?'yes':'no')+'</b>.':
+        'Needs '+m.need+' pilots and '+m.need+' flight-ready fighters (hull ≥ 60%). Ready: <b style="color:var(--text)">'+usable+'</b>.')+'</div>';
     for(const p of eligible){
       h+='<label class="prow" style="cursor:pointer"><input type="checkbox" class="pcheck" data-pk="'+p.id+'">'+
         '<span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span>'+
-        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankOf(p.level)+' · lvl '+p.level+'</span></span></label>';
+        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankFor(p)+' · lvl '+p.level+'</span></span></label>';
     }
     h+='<button class="sbtn" id="launchBtn" style="width:100%;margin-top:8px;padding:10px" disabled>Launch</button></div>';
   }
@@ -1699,7 +1732,7 @@ function renderWin(){
       '<div class="dz-head">'+
       '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
       '<div><div class="dz-name">'+p.name+'</div>'+
-      '<div class="dz-rank">'+rankOf(p.level)+'</div>'+
+      '<div class="dz-rank">'+rankFor(p)+'</div>'+
       '<div class="dz-sub">'+p.role+(p.injured?' · <span style="color:var(--heg)">INJURED '+p.injured+'d</span>':'')+'</div>'+
       '</div></div>'+
       '<div class="dz-bio">“'+p.bio+'”</div>';
@@ -1777,12 +1810,18 @@ function syncUI(){
   const prog=G.missions.filter(m=>m.state==='prog').length;
   const building=G.rooms.filter(r=>r.build).length;
   $('dockNote').textContent=[prog?prog+' mission'+(prog>1?'s':'')+' out':null,building?building+' building':null].filter(Boolean).join(' · ');
-  $('crewList').innerHTML=G.people.map(p=>{
+  const crewRow=(p,cls)=>{
     const st=p.injured?'INJURED':p.assign.startsWith('station:')?(STLBL[p.assign.slice(8)]||'POST'):p.assign.toUpperCase();
     const stc=p.injured?'var(--heg)':p.assign==='mission'?'var(--blue)':p.assign==='train'?'var(--purple)':p.assign.startsWith('station:')?'var(--good)':'var(--dim)';
-    return '<div class="rrow" data-person="'+p.id+'" tabindex="0"><span class="rname">'+p.name+'</span>'+
-      '<span class="rsub">'+p.role+' L'+p.level+'</span><span class="rsub" style="color:'+stc+'">'+st+'</span></div>';
-  }).join('');
+    return '<div class="rrow'+(cls?' '+cls:'')+'" data-person="'+p.id+'" tabindex="0"><span class="rname">'+p.name+'</span>'+
+      '<span class="rsub">L'+p.level+'</span><span class="rsub" style="color:'+stc+'">'+st+'</span></div>';
+  };
+  $('pilotList').innerHTML=G.people.filter(p=>p.role==='Pilot').map(p=>crewRow(p,'')).join('');
+  $('soldierList').innerHTML=G.people.filter(p=>p.role==='Soldier').map(p=>crewRow(p,'rSol')).join('');
+  const marines=G.people.filter(p=>p.role==='Marine');
+  $('marHead').hidden=$('marineList').hidden=!marines.length;
+  $('marineList').innerHTML=marines.map(p=>crewRow(p,'rMar')).join('');
+  $('supportList').innerHTML=G.people.filter(p=>p.role!=='Pilot'&&p.role!=='Soldier'&&p.role!=='Marine').map(p=>crewRow(p,'rSup')).join('');
   $('fleetList').innerHTML=G.fighters.map(f=>{
     let cells='<span class="hcells">';
     for(let i=0;i<10;i++)cells+='<span class="hcell'+(i*10<f.hull?' on':'')+'"></span>';
@@ -1905,9 +1944,11 @@ $('winsB').addEventListener('click',ev=>{
   if(t.classList.contains('pcheck')){
     const m=winArg;
     const n=[...document.querySelectorAll('.pcheck:checked')].length;
-    const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).length;
+    const usable=m.ground?
+      G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).length:
+      G.fighters.filter(f=>!f.out&&f.hull>=60).length;
     const btn=$('launchBtn');
-    if(btn)btn.disabled=!(n===m.need&&usable>=m.need);
+    if(btn)btn.disabled=!(n===m.need&&usable>=(m.ground?1:m.need));
     return;
   }
   if(t.id==='launchBtn'){
@@ -2030,6 +2071,10 @@ function boot(data){
     if(!G.planets)G.planets=PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base}));
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    // refresh static mission fields (play links, ground flags) from the pool
+    for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
+    const bk=G.planets&&G.planets.find(p=>p.id==='brakka');
+    if(bk&&bk.scouted&&!G.missions.some(m=>m.id==='stealcross'))addMission('stealcross');
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
       if(s.pendingEvent){

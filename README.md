@@ -1,7 +1,8 @@
 # Star Rebellion
 
-Prototypes and experiments for Star Rebellion's space combat. Combat is inspired by
-the rules of the X-Wing miniatures game, adapted for a video game; we'll iterate on
+Prototypes and experiments for Star Rebellion: space combat (inspired by the
+rules of the X-Wing miniatures game, adapted for a video game), the Haven Rock
+base-management layer, and gridless WeGo ground combat. We'll iterate on
 what's fun over time.
 
 The working game design document is reassembled in [`docs/GDD.md`](docs/GDD.md)
@@ -139,9 +140,9 @@ a large starmap — core worlds are always known but expensive, frontier worlds
 are cheap or entirely uncharted, and the player starts with access to only
 Veray Yards and Relay Kess near the base. **Intel is spent to scout** a world,
 which grants access (missions, sources, signals there) and a pathfinder report
-with whatever the scouts found: new missions (Brakka's garrison, Dreymar's ore
-barge, Volund's manifests), source candidates (Marr on Callis, Customs Chief
-Renn on Meridian), caches, or honest duds. Scout costs scale with the world:
+with whatever the scouts found: new missions (Brakka's Steal the Cross ground
+op, Dreymar's ore barge, Volund's manifests), source candidates (Marr on
+Callis, Customs Chief Renn on Meridian), caches, or honest duds. Scout costs scale with the world:
 a wild rock runs 3 intel, the Capital 14. *GDD note*: the GDD defines Intel as
 a passive early-warning meter for Hegemony action; this makes it a spendable
 currency. Reconciliation candidate: the unspent reserve doubles as the warning
@@ -156,6 +157,60 @@ instead of the simulator link.
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
 abilities yet), bombs and torpedoes are out (no large targets in this
 mission), and there are no gunships, jamming or shield-sharing yet.
+
+The sidebar roster is split by role — **Pilots**, **Soldiers**, a **Marines**
+section that only appears once a marine is recruited, and **Support** — plus
+the Flight list. Pilots carry officer ranks; soldiers and marines use US Army
+enlisted ranks (Recruit → Sergeant Major) via `rankFor()`.
+
+### `ground-combat.html` — Mission: Steal the Cross (first ground scenario)
+
+First pass at ground combat, playable from Brakka's scout report in the base
+layer ("Fight it on the ground") or standalone. Rev Level 1 framing: the squad
+are civilians with stolen Aklis and no armor; the opposition is basically
+police with civilian-grade gear.
+
+**The ruleset** is a WeGo real-time-tactics cousin of the space game — Door
+Kickers / Frozen Synapse planning with Desperados-style western staging — kept
+deliberately familiar: the same round skeleton (plan orders → simultaneous
+execution → engagement resolved unit-by-unit on the shared d20 VS panel with
+visible TN/ATK stacks and an interactive ATTACK button), the same radial
+order ring, dossier-style HUD language, camera/minimap, and synth audio.
+Differences from space:
+
+- **No grid.** Movement is free-aim inside a ring: **Move** (~150u, gun stays
+  up), **Sprint** (~300u, can't shoot, +2 TN harder to hit), **Hold** (braced
+  +2 ATK and an overwatch snap-shot at anyone crossing the lane, −2 ATK).
+- **Cover & LOS** — buildings block sight and movement outright; barrels,
+  crates and troughs give +3 TN, wagons +5; the tower marksman's high angle
+  degrades cover by 2.
+- **Calm/alerted town** — deputies patrol obliviously until a shot is fired
+  or they spot a rebel (320u, 460u for the tower); until then you can position
+  and even loot quietly. Alert flips the AI to cover-seeking advances, with
+  Sheriff Reeve hunting Sera specifically.
+- **Akli jams** — a natural 1 on the die jams the rifle for a round (clear it
+  early with the radial's Un-jam action, or fall back to the Cowboy).
+- **Morale** — dropping Sheriff Reeve breaks deputies' nerve; they can throw
+  down their guns and surrender (and stop blocking extraction).
+- **Loot lives on the map** — saloon till, bank strongbox, store crates, the
+  HQ gun locker, a stable cache, plus whatever downed lawmen drop (the
+  Sheriff's scattergun included). A Loot order spends the unit's round;
+  nothing is granted free on the end screen.
+
+**The scenario**: Joss lands the Graf at the LZ in an intro cutscene (letterbox,
+dust, squad walk-out, camera pan to the objective). Dax, Runa and Kel escort
+Sera Kest — sidearm only, frail, must survive — across Dustfall to the FT-4
+Cross on the pad behind the sheriff's HQ. She needs two protected rounds to
+hotwire it, flies it out, and then the squad extracts at the Graf, which stays
+shut while lawmen stand within 300u of the ramp. Defeat if Sera goes down or
+the whole squad does. Hostiles: Sheriff Reeve (scattergun, tough), five
+deputies (revolvers/carbines), and Dep. Wren with a Long Iron on the water
+tower.
+
+Base ↔ ground wiring is still one-way (the mission link opens the artifact;
+results don't carry back), same as the space sim link. The base's abstract
+resolver can also run the op off-screen: it needs 3 soldiers plus the Graf
+flight-ready, and success berths the stolen Cross ("Dustfall") in the hangar.
 
 ## Prototypes
 
