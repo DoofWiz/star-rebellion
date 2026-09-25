@@ -5,6 +5,38 @@ rules of the X-Wing miniatures game, adapted for a video game), the Haven Rock
 base-management layer, and gridless WeGo ground combat. We'll iterate on
 what's fun over time.
 
+## `game/` — the unified game
+
+The three layers now run as **one playable game** (`game/index.html` +
+`game/js/`), no longer separate prototypes linking out to each other:
+
+- **Scene kernel** (`js/core.js`) — one render loop, one shared WebAudio
+  engine, and a scene manager hosting `base`, `space` and `ground` as
+  modules ported from the prototypes (scoped CSS + DOM so nothing collides).
+- **Missions are led in person.** Playable missions offer *"Fly it
+  yourself" / "Fight it on the ground"* alongside *"Send a team"* (the old
+  abstract dice resolver). Leading one hands the combat scene a mission
+  spec built from the real campaign: the soldiers you picked with
+  level-derived aim, the armory's weapons (a looted Scattergun rides along
+  on the squad lead), your actual pilots, and your actual hangar — hull
+  state carried in, and yes, **Joss can fly Marta into the Take Out
+  Instructor fight** (new `graf` ship class: slow, tough, door guns), with
+  the cadet opposition scaling to your flight size.
+- **Results carry back.** The debrief applies everything: XP earned shot by
+  shot, injuries (downed-but-won = infirmary days; downed in a defeat risks
+  capture; a destroyed fighter forces an eject roll — 15% lost), everything
+  physically looted (credits, supplies, weapons into the armory), the stolen
+  Cross berthing as *Dustfall*, fighter hull damage, mission days elapsing
+  through the full day tick, renown and morale.
+- **Durable saves** — the campaign persists in `localStorage` (plus the hot
+  snapshot); reload mid-combat and you resume at Haven Rock with the mission
+  still on the board.
+- The Training Hall's simulator now runs the space scene in-engine with the
+  default cast and no consequences.
+
+The three standalone prototypes below remain in the repo untouched as
+references and iteration history.
+
 The working game design document is reassembled in [`docs/GDD.md`](docs/GDD.md)
 (canonical source lives in the designer's Notion).
 
