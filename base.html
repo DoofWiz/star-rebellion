@@ -354,7 +354,7 @@ function newGame(){
       {id:'petra',name:'Petra Voss',role:'Pilot',level:2,xp:0.36,assign:'rest',injured:0,ship:'d2',bio:'Quietly relieved everyone came home.'},
       {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['rifle','pistol'],bio:'Ex-dock enforcer. Good in a corridor.'},
       {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['charge','pistol'],bio:'Demolitions. Do not startle her.'},
-      {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'rest',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
+      {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'station:store',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
     ],
     sources:[
       {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',mx:0.40,my:0.34,level:1,cult:35,risk:55,
@@ -367,16 +367,10 @@ function newGame(){
     missions:[
       {id:'toi',name:'Take Out Instructor',state:'done',from:'Ferren Halt',
        desc:'Vex eliminated. His cadets scattered.',meta:'COMPLETE'},
-      {id:'sim',name:'Sim Deck · Instructor Raid',state:'sim',from:'Flight Simulator',
-       desc:'Refly the Vex engagement in the hangar simulator.'},
-      {id:'intercept',name:'Intercept Transport',state:'avail',from:'Ferren Halt',
-       need:2,days:3,riskTxt:'Moderate',
-       desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
-       rew:{c:150,s:35,xp:0.15},progress:null},
       {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
        desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
     ],
-    candidateDay:4,candidateDone:false,recruitN:0,
+    candidateDay:4,candidateDone:false,recruitN:0,misPopQ:[],
     news:[],
   };
 }
@@ -388,7 +382,18 @@ function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
 function sourceCap(){return 2+roomsOf('comms').length;}
 function fighterCap(){return 3+roomsOf('bay').length;}
 function bunkCap(){return 6+3*roomsOf('quarters').length;}
-function medStaff(){return G.people.filter(p=>p.assign==='medbay'&&!p.injured);}
+/* Support crew man stations; a room without its operator underperforms */
+const STAFFABLE={
+  command:{post:'Flight Coordinator',perk:'+5% mission success'},
+  store:{post:'Quartermaster',perk:'repairs cost 1▤ instead of 2▤'},
+  workshop:{post:'Crew Chief',perk:'repairs 15%/day instead of 8%'},
+  infirmary:{post:'Medic',perk:'injuries heal twice as fast'},
+  comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
+  training:{post:'Drill Instructor',perk:'+50% training XP'},
+};
+const STLBL={command:'CMD',store:'STORES',workshop:'WKSHP',infirmary:'MEDBAY',comms:'COMMS',training:'DRILL'};
+function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!p.injured);}
+function medStaff(){return staffOf('infirmary');}
 function news(html,cls){
   G.news.push({day:G.day,html,cls:cls||'d'});
   if(G.news.length>80)G.news.shift();
@@ -446,6 +451,9 @@ const SRC_EVENTS={
 };
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
+  intercept:{name:'Intercept Transport',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
+    desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
+    rew:{c:150,s:35,xp:0.15}},
   tanker:{name:'Tanker Grab',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
     desc:'Halt’s manifests were real: a fuel tanker, twice the load, half the escort. Take it whole.',
     rew:{c:80,s:60,xp:0.15}},
@@ -461,14 +469,17 @@ const MPOOL={
 };
 const SIGNALS={
   halt:[
+    {kind:'mission',mid:'intercept',text:'“A supply transport crosses my sector Thursday. Light escort. I have the schedule, if you have the nerve.”'},
+    {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
     {kind:'cache',text:'“Pallet miscount in bay six. Forty crates of it. Nobody misses what was never counted.”',
      apply(){G.supplies+=40;return 'Recovered '+S(40)+' from bay six. Mira is thrilled.';}},
+    {kind:'recruitS',text:'“The tower coordinator got passed over, same as me. He’d run your flight deck better than theirs.”'},
     {kind:'mission',mid:'fighters',text:'“Pad nine, every third night. Two Talons, fueled, and a sentry who reads on shift.”'},
-    {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
   ],
   vokk:[
     {kind:'credits',text:'“A discretionary fund has been… discreet. Consider it a donation from the Hegemony to itself.”',
      apply(){G.credits+=120;return 'The Senator’s laundering clears '+C(120)+'.';}},
+    {kind:'recruitS',text:'“My aide has seen too much to stay and too little to be arrested. Take him before someone else does.”'},
     {kind:'intel',text:'“Committee minutes, pre-redaction. Read them before they don’t exist.”',
      apply(){G.intel+=2;return 'Parliament whispers become '+I(2)+'.';}},
   ],
@@ -476,7 +487,12 @@ const SIGNALS={
     {kind:'intel',text:'“The survey satellites blink for six minutes on Thursdays. I may have caused that.”',
      apply(){G.intel+=3;return 'Marr’s blind spot yields '+I(3)+'.';}},
     {kind:'mission',mid:'chart'},
+    {kind:'recruitS',text:'“My lab technician asks fewer questions than she answers. She’d be safer with you.”'},
   ],
+};
+const RECRUITS={
+  Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
+  Support:[['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
 };
 function rollSignal(src){
   if(src.signal||src.pendingEvent)return;
@@ -497,14 +513,16 @@ function followSignal(src){
     addMission(sig.mid);
     return 'New mission on the board: <b>'+MPOOL[sig.mid].name+'</b>.';
   }
-  if(sig.kind==='recruit'){
-    if(G.people.length>=bunkCap())return 'No bunks left. The dockhands stay dockhands — build an annex.';
+  if(sig.kind==='recruit'||sig.kind==='recruitS'){
+    if(G.people.length>=bunkCap())return 'No bunks left. They stay where they are — build an annex first.';
     G.recruitN++;
-    const names=[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']];
-    const nm=names[(G.recruitN-1)%names.length];
-    G.people.push({id:'rec'+G.recruitN,name:nm[0],role:'Soldier',level:1,xp:0,assign:'rest',injured:0,equip:['pistol'],bio:nm[1]});
-    news('<b>'+nm[0]+'</b> takes the oath in the storeroom. One more of us.','g');
-    return '<b>'+nm[0]+'</b> is vetted and in. A bunk is theirs.';
+    const role=sig.kind==='recruit'?'Soldier':'Support';
+    const nm=RECRUITS[role][(G.recruitN-1)%RECRUITS[role].length];
+    const p={id:'rec'+G.recruitN,name:nm[0],role,level:1,xp:0,assign:'rest',injured:0,bio:nm[1]};
+    if(role==='Soldier')p.equip=['pistol'];
+    G.people.push(p);
+    news('<b>'+nm[0]+'</b> ('+role+') takes the oath in the storeroom. One more of us.','g');
+    return '<b>'+nm[0]+'</b> is vetted and in. A bunk is theirs — '+(role==='Support'?'assign them a station from their file.':'arm them from the rack.');
   }
   return sig.apply?sig.apply():'';
 }
@@ -513,6 +531,8 @@ function addMission(mid){
   const m=Object.assign({id:mid,state:'avail',progress:null},MPOOL[mid]);
   G.missions.splice(G.missions.length-1,0,m);
   news('Mission available: <b>'+m.name+'</b> ('+m.from+').','a');
+  G.misPopQ=G.misPopQ||[];
+  G.misPopQ.push(mid);
   sAlert();
 }
 function maybeQueueEvent(src){
@@ -540,18 +560,20 @@ function advanceDay(){
       if(cell.dig<=0){G.grid[r][c]={t:'floor'};news('Excavation done. One more chamber that’s ours.','g');}
     }
   }
-  const rate=hasRoom('workshop')?15:5;
+  const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
+  const repCost=staffOf('store').length?1:2;
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
-    if(G.supplies>=2){G.supplies-=2;f.hull=Math.min(100,f.hull+rate);}
+    if(G.supplies>=repCost){G.supplies-=repCost;f.hull=Math.min(100,f.hull+rate);}
   }
+  const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
     if(p.injured>0){
       p.injured-=(hasRoom('infirmary')&&medStaff().length)?2:1;
       if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
       continue;
     }
-    if(p.assign==='train'&&hasRoom('training')){p.xp+=0.06;levelUp(p);}
+    if(p.assign==='train'&&hasRoom('training')){p.xp+=xpRate;levelUp(p);}
     if(p.assign==='rest')G.morale=Math.min(100,G.morale+0.5);
   }
   for(const src of G.sources){
@@ -572,7 +594,8 @@ function advanceDay(){
       news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Decide something before the Hegemony does.','h');
     }
   }
-  if(hasRoom('comms'))G.intel+=roomsOf('comms').length;
+  if(hasRoom('comms')&&staffOf('comms').length)G.intel+=roomsOf('comms').length;
+  else if(hasRoom('comms'))news('The comms array hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
   for(const m of G.missions){
     if(m.state!=='prog')continue;
     m.progress.daysLeft--;
@@ -617,7 +640,8 @@ function launchMission(m,pilotIds){
 function resolveMission(m){
   const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
-  const ok=rng()<Math.min(0.9,0.45+avgLvl*0.08+G.morale*0.002);
+  const cmdBonus=staffOf('command').length?0.05:0;
+  const ok=rng()<Math.min(0.92,0.45+avgLvl*0.08+G.morale*0.002+cmdBonus);
   for(const p of pilots)p.assign='rest';
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   if(ok){
@@ -988,40 +1012,62 @@ function enterRoomView(rm){
   syncUI();
 }
 function exitRoomView(){viewRoom=null;$('roomViewBar').hidden=true;}
+function staffLine(key){
+  if(!STAFFABLE[key])return '';
+  const st=staffOf(key)[0];
+  return st?('<br>'+STAFFABLE[key].post+': <b style="color:var(--good)">'+st.name+'</b>')
+    :('<br><span style="color:var(--heg)">'+STAFFABLE[key].post+' post empty</span> — '+STAFFABLE[key].perk+' when filled');
+}
 function renderRoomBar(){
   const rm=viewRoom;if(!rm)return;
   const R=ROOMS[rm.key];
   let info='';
   if(rm.key==='hangar'||rm.key==='bay'){
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(hasRoom('workshop')?'15':'5')+'%/day at '+S(2)+' each';
+    const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+S(staffOf('store').length?1:2)+' each';
   } else if(rm.key==='barracks'||rm.key==='quarters'){
-    info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+'<br>Recruits come through the network — work your sources.';
+    info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
+      '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
   } else if(rm.key==='store'){
-    info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+'<br>Armory: '+G.armory.map(a=>a.name+' ×'+a.n).join(' · ');
+    info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+
+      '<br>Armory: '+G.armory.map(a=>a.name+' ×'+a.n).join(' · ')+staffLine('store');
   } else if(rm.key==='infirmary'){
-    const staff=medStaff(),patients=G.people.filter(p=>p.injured>0);
-    info='On station: '+(staff.length?staff.map(p=>p.name).join(', '):'<span style="color:var(--heg)">nobody — assign Support crew</span>')+
-      '<br>Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none');
+    const patients=G.people.filter(p=>p.injured>0);
+    info='Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none')+staffLine('infirmary');
   } else if(rm.key==='training'){
     const tr=G.people.filter(p=>p.assign==='train');
-    info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.');
+    info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+staffLine('training');
   } else if(rm.key==='comms'){
-    info='+'+roomsOf('comms').length+' intel/day · source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap();
+    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+staffLine('comms');
   } else if(rm.key==='command'){
-    info='Renown '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk);
+    info='Renown '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk)+staffLine('command');
+  } else if(rm.key==='workshop'){
+    info='Repair pace '+(staffOf('workshop').length?15:8)+'%/day'+staffLine('workshop');
   }
   let acts='';
   if(rm.key==='command')acts='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-  if(rm.key==='hangar')acts='<a class="pbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Sim Deck — fly the Instructor Raid ↗</a>';
+  if(rm.key==='training')acts='<a class="pbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Simulator — refly the Instructor Raid ↗</a>';
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
-    '<button class="pbtn" data-backbase>← Back to the base</button>';
+    '<button class="pbtn" data-backbase>← Back to the base</button>'+
+    '<div class="pophint">double-click a rebel in the room for their file</div>';
 }
+let rvFigs=[],rvParts=[],rvLast=0;
 function renderRoomView(now){
   const rm=viewRoom;
   const Sx=Math.min(cssW,cssH*1.6)/560;
   const cx=cssW/2,cy=cssH*0.56;
   const col=ROOMS[rm.key].col;
+  const dtv=Math.min(0.05,(now-(rvLast||now))/1000);rvLast=now;
+  rvFigs=[];
+  const addFig=(fx,fy,p,fcol)=>{
+    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol);
+    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:18,pid:p.id});
+  };
+  const spark=(fx,fy,scol)=>{
+    if(RM)return;
+    rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||'#ffe08a'});
+  };
   // big floor
   ctx.save();
   ctx.translate(cx,cy);
@@ -1051,7 +1097,7 @@ function renderRoomView(now){
         ctx.fillStyle='rgba(20,32,60,0.9)';ctx.fillRect(bx-26,by+68,52,5);
         ctx.fillStyle=f.hull>=100?'#7dd97b':f.hull>=60?'#ffb454':'#ff4f5e';
         ctx.fillRect(bx-26,by+68,52*f.hull/100,5);
-        if(f.hull<100&&!RM&&rng()<0.1){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.arc(bx+(rng()-0.5)*40,by+(rng()-0.5)*20,1.5,0,7);ctx.fill();}
+        if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
       } else {
         ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
         ctx.fillStyle='rgba(87,168,255,0.5)';
@@ -1067,7 +1113,7 @@ function renderRoomView(now){
       ctx.fillStyle='rgba(255,220,160,'+(0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)))+')';
       ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
     }
-    figure(-120,50,3,'Mira');figure(130,30,3,'');
+    staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,'#9fe0a8'));
   } else if(rm.key==='barracks'||rm.key==='quarters'){
     const cap=bunkCap();
     const resters=G.people.filter(p=>p.assign==='rest'&&!p.injured);
@@ -1083,6 +1129,7 @@ function renderRoomView(now){
         ctx.beginPath();ctx.arc(bx+24,by,5,0,7);ctx.fill();
         ctx.font='600 10px "Exo 2"';ctx.textAlign='center';
         ctx.fillStyle='rgba(160,220,230,0.75)';ctx.fillText(p.name.split(' ')[0],bx,by+24);
+        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:22,pid:p.id});
       }
     }
   } else if(rm.key==='store'){
@@ -1100,7 +1147,7 @@ function renderRoomView(now){
       ctx.font='700 12px "IBM Plex Mono"';ctx.textAlign='left';
       ctx.fillStyle='#ffb454';ctx.fillText(a.ic+' ×'+a.n,158,-60+i*16);
     });
-    figure(-160,60,3,'Mira');
+    staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,'#9fe0a8'));
   } else if(rm.key==='workshop'){
     const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
     ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=2;
@@ -1109,11 +1156,12 @@ function renderRoomView(now){
       fighterTop(0,-8,3,-0.3,true);
       ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
       ctx.fillStyle='#ffd9a0';ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,44);
-      if(!RM&&rng()<0.25){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.arc((rng()-0.5)*90,(rng()-0.5)*30-10,1.6,0,7);ctx.fill();}
+      if(rng()<0.12)spark((rng()-0.5)*80,-6);
     } else {
       ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
       ctx.fillStyle='rgba(255,180,84,0.5)';ctx.fillText('LIFT EMPTY — nothing broken. For once.',0,0);
     }
+    staffOf('workshop').forEach((p,i)=>addFig(-110+i*40,50,p,'#ffd9a0'));
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
     for(let i=0;i<2;i++){
@@ -1127,13 +1175,14 @@ function renderRoomView(now){
         ctx.beginPath();ctx.arc(bx+28,by-1,6,0,7);ctx.fill();
         ctx.font='600 10px "Exo 2"';ctx.textAlign='center';
         ctx.fillStyle='rgba(255,180,180,0.85)';ctx.fillText(p.name.split(' ')[0]+' · '+p.injured+'d',bx,by+28);
+        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:24,pid:p.id});
       }
     }
     const staff=medStaff();
-    staff.forEach((p,i)=>figure(-40+i*80,70,3,p.name.split(' ')[0],'#9fe0a8'));
+    staff.forEach((p,i)=>addFig(-40+i*60,70,p,'#9fe0a8'));
     if(!staff.length){
       ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-      ctx.fillStyle='rgba(255,120,120,0.6)';ctx.fillText('UNSTAFFED — assign Support crew from their file',0,105);
+      ctx.fillStyle='rgba(255,120,120,0.6)';ctx.fillText('MEDIC POST EMPTY — post Support crew from their file',0,105);
     }
   } else if(rm.key==='training'){
     ctx.strokeStyle='rgba(201,135,255,0.5)';ctx.lineWidth=2;
@@ -1141,12 +1190,20 @@ function renderRoomView(now){
     const tr=G.people.filter(p=>p.assign==='train');
     tr.forEach((p,i)=>{
       const a=i*2.1+now*0.0012;
-      figure(Math.cos(a)*40,Math.sin(a)*20,3,p.name.split(' ')[0]);
+      addFig(Math.cos(a)*40,Math.sin(a)*20,p);
     });
     if(!tr.length){
       ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
       ctx.fillStyle='rgba(201,135,255,0.5)';ctx.fillText('EMPTY MATS — assign rebels from their files',0,4);
     }
+    staffOf('training').forEach((p,i)=>addFig(90+i*40,-50,p,'#c9a8ff'));
+    // the simulator pod lives here
+    ctx.strokeStyle='rgba(87,215,226,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(-190,-70,70,44,10);ctx.stroke();
+    ctx.fillStyle='rgba(87,215,226,'+(0.15+0.12*pul)+')';
+    ctx.beginPath();ctx.roundRect(-184,-64,58,32,8);ctx.fill();
+    ctx.font='700 10px "Exo 2"';ctx.textAlign='center';
+    ctx.fillStyle='rgba(87,215,226,0.85)';ctx.fillText('SIMULATOR',-155,-14);
   } else if(rm.key==='comms'){
     ctx.strokeStyle='rgba(87,215,226,0.7)';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(0,-30,26,Math.PI*0.85,Math.PI*2.05);ctx.stroke();
@@ -1162,7 +1219,18 @@ function renderRoomView(now){
       px===-100?ctx.moveTo(px,vy):ctx.lineTo(px,vy);
     }
     ctx.stroke();
+    staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,'#8fd8e0'));
   }
+  // room-local sparks (persistent particles, not per-frame flicker)
+  for(const p of rvParts){p.life+=dtv;p.x+=p.vx*dtv;p.y+=p.vy*dtv;p.vy+=160*dtv;}
+  rvParts=rvParts.filter(p=>p.life<p.max);
+  for(const p of rvParts){
+    const k=1-p.life/p.max;
+    ctx.globalAlpha=Math.max(0,k);
+    ctx.fillStyle=p.col;
+    ctx.beginPath();ctx.arc(p.x,p.y,1.4+k*1.4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.globalAlpha=1;
   ctx.restore();
 }
 
@@ -1318,7 +1386,15 @@ function layoutTilePop(){
 
 /* ---------- windows ---------- */
 function openWin(mode,arg){winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
-function closeWin(){winMode=null;winArg=null;$('winsB').hidden=true;}
+function closeWin(){
+  winMode=null;winArg=null;$('winsB').hidden=true;
+  // a freshly discovered mission announces itself once the channel closes
+  if(started&&G&&G.misPopQ&&G.misPopQ.length){
+    const mid=G.misPopQ.shift();
+    const m=G.missions.find(x=>x.id===mid);
+    if(m&&m.state==='avail')openWin('newmission',m);
+  }
+}
 function meter(cls,label,val){
   return '<div class="meter '+cls+'"><span class="ml">'+label+'</span><span class="mt"><i style="width:'+Math.min(100,val)+'%"></i></span><span class="mv">'+Math.round(val)+'</span></div>';
 }
@@ -1370,6 +1446,18 @@ function renderWin(){
     }
     h='<div class="winHead"><span class="wt">Comm Burst · '+src.name+'</span><button class="winX" data-close>✕</button></div>'+
       '<div class="winBody"><canvas id="commStatic"></canvas><div class="commBody"><div class="commline sys">carrier locked · lag 4.2s · voices masked</div>'+body+'</div></div>';
+  }
+  else if(winMode==='newmission'){
+    const m=winArg;
+    card.classList.add('narrow');
+    const rew=[m.rew&&m.rew.c?C(m.rew.c):null,m.rew&&m.rew.s?S(m.rew.s):null,m.rew&&m.rew.i?I(m.rew.i):null,m.rew&&m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
+    h='<div class="winHead"><span class="wt">New Mission · '+(m.from||'the network')+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
+      '<div class="mdesc">'+m.desc+'</div>'+
+      '<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
+      '<button class="dbtn" data-mplan="'+m.id+'">Plan it now.</button>'+
+      '<button class="dbtn" data-close>Noted. It’ll keep on the board.</button>'+
+      '</div>';
   }
   else if(winMode==='candidate'){
     card.classList.add('narrow');
@@ -1442,14 +1530,27 @@ function renderWin(){
       }
       if(!(p.equip||[]).length)h+='<div class="pdesc">Empty-handed. Fix that before the ground war.</div>';
     } else {
-      h+='<div class="dz-sec">Station</div><div class="pdesc">'+(p.assign==='medbay'?'On station in the infirmary.':'Keeping the base running.')+'</div>';
+      const st=p.assign.startsWith('station:')?p.assign.slice(8):null;
+      h+='<div class="dz-sec">Station</div><div class="pdesc">'+
+        (st?('On station: <b style="color:var(--good)">'+ROOMS[st].name+'</b> — '+STAFFABLE[st].post+'. '+STAFFABLE[st].perk+'.')
+           :'Unassigned. A room without its operator underperforms — post them somewhere.')+'</div>';
     }
     if(!p.injured&&p.assign!=='mission'){
       h+='<div class="dz-sec">Assignment</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
         '<button class="achip'+(p.assign==='rest'?' on':'')+'" data-as="rest:'+p.id+'">Rest</button>'+
-        '<button class="achip'+(p.assign==='train'?' on':'')+'" data-as="train:'+p.id+'" '+(hasRoom('training')?'':'disabled title="Needs a Training Hall"')+'>Train</button>'+
-        (p.role==='Support'?'<button class="achip'+(p.assign==='medbay'?' on':'')+'" data-as="medbay:'+p.id+'" '+(hasRoom('infirmary')?'':'disabled title="Needs an Infirmary"')+'>Medbay</button>':'')+
-        '</div>';
+        '<button class="achip'+(p.assign==='train'?' on':'')+'" data-as="train:'+p.id+'" '+(hasRoom('training')?'':'disabled title="Needs a Training Hall"')+'>Train</button>';
+      if(p.role==='Support'){
+        for(const key in STAFFABLE){
+          if(!hasRoom(key))continue;
+          const holder=staffOf(key)[0];
+          const mine=p.assign==='station:'+key;
+          const taken=holder&&holder.id!==p.id;
+          h+='<button class="achip'+(mine?' on':'')+'" data-as="station:'+key+':'+p.id+'" '+
+            (taken?'disabled title="'+holder.name+' holds this post"':'title="'+STAFFABLE[key].perk+'"')+'>'+
+            STAFFABLE[key].post+'</button>';
+        }
+      }
+      h+='</div>';
     }
     h+='<div class="dz-sub" style="margin-top:12px">XP '+pct+'% to next grade · manual promotion arrives with the persistent campaign</div></div>';
   }
@@ -1483,8 +1584,8 @@ function syncUI(){
   const building=G.rooms.filter(r=>r.build).length;
   $('dockNote').textContent=[prog?prog+' mission'+(prog>1?'s':'')+' out':null,building?building+' building':null].filter(Boolean).join(' · ');
   $('crewList').innerHTML=G.people.map(p=>{
-    const st=p.injured?'INJURED':p.assign.toUpperCase();
-    const stc=p.injured?'var(--heg)':p.assign==='mission'?'var(--blue)':p.assign==='train'?'var(--purple)':p.assign==='medbay'?'var(--good)':'var(--dim)';
+    const st=p.injured?'INJURED':p.assign.startsWith('station:')?(STLBL[p.assign.slice(8)]||'POST'):p.assign.toUpperCase();
+    const stc=p.injured?'var(--heg)':p.assign==='mission'?'var(--blue)':p.assign==='train'?'var(--purple)':p.assign.startsWith('station:')?'var(--good)':'var(--dim)';
     return '<div class="rrow" data-person="'+p.id+'" tabindex="0"><span class="rname">'+p.name+'</span>'+
       '<span class="rsub">'+p.role+' L'+p.level+'</span><span class="rsub" style="color:'+stc+'">'+st+'</span></div>';
   }).join('');
@@ -1500,14 +1601,42 @@ function syncUI(){
 }
 
 /* ---------- input ---------- */
+function figAt(px,py){
+  let best=null,bd=1e9;
+  for(const f of rvFigs){
+    const d=Math.hypot(px-f.x,py-f.y);
+    if(d<f.r&&d<bd){bd=d;best=f;}
+  }
+  return best;
+}
 cv.addEventListener('pointermove',ev=>{
   const r=cv.getBoundingClientRect();
-  hoverCell=viewRoom?null:cssToCell(ev.clientX-r.left,ev.clientY-r.top);
+  const px=ev.clientX-r.left,py=ev.clientY-r.top;
+  if(viewRoom){
+    hoverCell=null;
+    cv.style.cursor=figAt(px,py)?'pointer':'default';
+    return;
+  }
+  cv.style.cursor='pointer';
+  hoverCell=cssToCell(px,py);
 });
 cv.addEventListener('pointerleave',()=>{hoverCell=null;});
 cv.addEventListener('click',ev=>{
   if(!started)return;
-  if(viewRoom)return;
+  if(viewRoom){
+    const r=cv.getBoundingClientRect();
+    const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
+    if(f){
+      sClick();
+      const key='fig:'+f.pid,now=performance.now();
+      if(lastTap.key===key&&now-lastTap.t<380){
+        lastTap={key:null,t:0};
+        const p=G.people.find(x=>x.id===f.pid);
+        if(p)openWin('person',p);
+      } else lastTap={key,t:now};
+    }
+    return;
+  }
   const r=cv.getBoundingClientRect();
   const cell=cssToCell(ev.clientX-r.left,ev.clientY-r.top);
   sClick();
@@ -1614,9 +1743,13 @@ $('winsB').addEventListener('click',ev=>{
   if(cand){if(cand==='yes')acceptCandidate();else{news('The dead drop is burned. Marr never hears back.','d');closeWin();}return;}
   const plan=t.getAttribute('data-plan');
   if(plan){const m=G.missions.find(x=>x.id===plan);if(m)openWin('plan',m);return;}
+  const mplan=t.getAttribute('data-mplan');
+  if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openWin('plan',m);return;}
   const as=t.getAttribute('data-as');
   if(as){
-    const [mode,pid]=as.split(':');
+    const parts=as.split(':');
+    const mode=parts[0]==='station'?'station:'+parts[1]:parts[0];
+    const pid=parts[parts.length-1];
     const p=G.people.find(x=>x.id===pid);
     if(p&&!p.injured&&p.assign!=='mission'){p.assign=mode;syncUI();}
     return;
@@ -1674,6 +1807,7 @@ function seedNews(){
   news('Operation <b>Take Out Instructor</b> — SUCCESS. Cmdt. Dral Vex eliminated.','g');
   news('Salvage in: '+C(180)+' · '+S(40)+' · '+I(2)+'. Fighters on the lift.','d');
   news('Halt says the yards are “crawling with counter-intelligence.” He would know. He’s the nervous type.','h');
+  news('The board is quiet. Work the sources — missions, supplies and recruits all come through the network.','a');
 }
 
 /* ---------- snapshot / boot ---------- */
@@ -1687,6 +1821,8 @@ function boot(data){
   if(data&&data.G&&data.started){
     G=data.G;started=true;
     $('debrief').hidden=true;
+    G.misPopQ=G.misPopQ||[];
+    for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
       if(s.pendingEvent){
