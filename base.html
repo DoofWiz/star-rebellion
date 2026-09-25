@@ -81,14 +81,23 @@
   .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,5,11,.7);backdrop-filter:blur(2px);padding:14px;overflow:auto;z-index:11;}
   .winCard{width:560px;max-width:96vw;max-height:88%;display:flex;flex-direction:column;background:var(--panel);border:1px solid #2a3a5f;border-radius:6px;box-shadow:0 14px 60px rgba(0,0,0,.7);}
   .winCard.narrow{width:410px;}
+  .winCard.wide{width:880px;}
   .winHead{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;}
   .winHead .wt{flex:1;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);}
   .winX{background:none;border:1px solid var(--line);color:var(--dim);border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;}
   .winX:hover{color:var(--heg);border-color:var(--heg);}
   .winBody{padding:13px;overflow-y:auto;min-height:0;}
   /* galaxy map */
-  #galaxyCv{display:block;width:100%;height:250px;background:#05070f;border:1px solid var(--line-soft);border-radius:4px;cursor:pointer;}
+  #galaxyCv{display:block;width:100%;height:400px;background:#05070f;border:1px solid var(--line-soft);border-radius:4px;cursor:pointer;}
   .maphint{font-size:9.5px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin:6px 0 10px;text-align:center;}
+  .plcard{background:#0d1428;border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:4px;padding:10px 12px;margin-top:10px;}
+  .plcard.locked{border-left-color:#3a4560;}
+  .plcard.unknown{border-left-color:var(--purple);}
+  .plcard .prow2{display:flex;align-items:baseline;gap:9px;}
+  .plcard .plname{font-weight:800;font-size:13.5px;}
+  .plcard .plkind{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;flex:1;}
+  .plcard .placcess{font-family:var(--font-mono);font-size:10px;}
+  .plsit{font-size:11px;color:var(--dim);line-height:1.5;margin:6px 0 8px;font-style:italic;}
   /* comm window */
   #commStatic{display:block;width:100%;height:54px;background:#020409;border:1px solid var(--line-soft);border-radius:4px 4px 0 0;}
   .commBody{border:1px solid var(--line-soft);border-top:none;border-radius:0 0 4px 4px;background:#060b16;padding:12px;}
@@ -213,7 +222,7 @@
     <span class="sub">Hidden Base · <span id="dayLbl">Day 1</span></span>
     <span class="res c" title="Credits"><span class="ic">⬡</span><span id="resC">0</span></span>
     <span class="res s" title="Supplies"><span class="ic">▤</span><span id="resS">0</span></span>
-    <span class="res i" title="Intel"><span class="ic">◈</span><span id="resI">0</span></span>
+    <span class="res i" title="Intel — spend it to scout worlds; the reserve is our early warning"><span class="ic">◈</span><span id="resI">0</span></span>
     <div id="revLamp"><span class="n" id="revNum">1</span><div class="lamptip" id="revTip"></div></div>
     <span class="spacer"></span>
     <button class="chipbtn" id="muteBtn" aria-pressed="false">Sound: On</button>
@@ -223,7 +232,7 @@
     <div id="stage">
       <canvas id="cv"></canvas>
       <div id="navRow">
-        <button class="navbtn" id="navSources">Sources<span class="badge" id="srcBadge" hidden>0</span></button>
+        <button class="navbtn" id="navSources">Galaxy<span class="badge" id="srcBadge" hidden>0</span></button>
         <button class="navbtn" id="navMissions">Missions<span class="badge" id="misBadge" hidden>0</span></button>
       </div>
       <div id="dayBanner"><div class="big" id="dayBannerTxt">Day 2</div></div>
@@ -357,10 +366,10 @@ function newGame(){
       {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'station:store',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
     ],
     sources:[
-      {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',mx:0.40,my:0.34,level:1,cult:35,risk:55,
+      {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,
        inc:{s:6},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
        bio:'Passed over for promotion twice. Wants the yards to burn, quietly. Very jumpy since the Vex hit.'},
-      {id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'Capital Parliament',mx:0.76,my:0.58,level:1,cult:20,risk:15,
+      {id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,
        inc:{c:25},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
        bio:'Votes loyal, funds otherwise. Terrified of audits.'},
     ],
@@ -370,7 +379,8 @@ function newGame(){
       {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
        desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
     ],
-    candidateDay:4,candidateDone:false,recruitN:0,misPopQ:[],
+    planets:PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base})),
+    recruitN:0,misPopQ:[],candQ:[],
     news:[],
   };
 }
@@ -466,6 +476,15 @@ const MPOOL={
   chart:{name:'Chart the Cordon',from:'Prof. Marr',need:2,days:2,riskTxt:'Low',
     desc:'Fly Marr’s survey corridor and map what the Hegemony thinks is hidden.',
     rew:{i:4,xp:0.1}},
+  garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
+    desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
+    rew:{c:60,s:25,xp:0.12}},
+  orehaul:{name:'Dreymar Ore Heist',from:'Scout Report · Dreymar',need:2,days:3,riskTxt:'Moderate',
+    desc:'A company ore barge runs unescorted on payday. The miners will swear they saw nothing.',
+    rew:{c:90,s:50,xp:0.15}},
+  foundry:{name:'Volund Manifest Job',from:'Scout Report · Volund',need:2,days:3,riskTxt:'High',
+    desc:'Freight manifests from the Forge — every convoy, every escort, every gap. Worth more than the steel.',
+    rew:{c:120,i:3,xp:0.2}},
 };
 const SIGNALS={
   halt:[
@@ -489,6 +508,48 @@ const SIGNALS={
     {kind:'mission',mid:'chart'},
     {kind:'recruitS',text:'“My lab technician asks fewer questions than she answers. She’d be safer with you.”'},
   ],
+};
+/* ---------- the galaxy: worlds, access, scouting ----------
+   Access means we can operate there: missions, sources, signals.
+   Intel buys access — a wild rock costs pocket change, a core world
+   costs a fortune. Unspent intel doubles as our early-warning buffer,
+   which is what the GDD originally used it for. */
+const PLANETDEF=[
+  {id:'haven',name:'Haven Rock',kind:'Hidden Base',x:0.10,y:0.78,base:true,known:true,access:true,
+   sit:'Home. Nobody knows it exists. Keep it that way.'},
+  {id:'veray',name:'Veray Yards',kind:'Industrial World',pop:'40M',x:0.30,y:0.55,known:true,access:true,
+   sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
+  {id:'kess',name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
+   sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
+  {id:'brakka',name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
+   sit:'Dust, herders, and one understaffed garrison that files reports nobody reads.'},
+  {id:'callis',name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
+   sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
+  {id:'meridian',name:'Meridian',kind:'CORE · Capital',pop:'2.1B',x:0.86,y:0.30,known:true,scout:14,core:true,
+   sit:'Parliament, the fleets, the Empress’ shadow. Every camera works. Every clerk has a price.'},
+  {id:'volund',name:'Volund Forge',kind:'CORE · Foundry World',pop:'800M',x:0.76,y:0.62,known:true,scout:12,core:true,
+   sit:'The Hegemony’s arsenal. Foundries the size of seas, and freight manifests worth more than gold.'},
+  {id:'halcyon',name:'Halcyon',kind:'CORE · Resort World',pop:'60M',x:0.90,y:0.55,known:true,scout:10,core:true,
+   sit:'Where Hegemony brass unbuckle their sidearms. The revolution isn’t ready for Halcyon. Yet.'},
+  {id:'dreymar',name:'Dreymar',kind:'Mining World',pop:'2M',x:0.48,y:0.62,scout:4,
+   sit:'Ore barges, company scrip, and miners who already hate the right people.'},
+  {id:'sable',name:'Sable',kind:'Wild World',pop:'—',x:0.33,y:0.24,scout:3,
+   sit:'Nothing but weather — and an abandoned Hegemony listening post, still warm.'},
+  {id:'nyx',name:'Nyx Shadowport',kind:'Pirate Haven',pop:'50K',x:0.63,y:0.82,scout:5,
+   sit:'Smugglers, deserters, and people who shoot well and ask late.'},
+  {id:'tarsis',name:'Tarsis',kind:'Farm World',pop:'5M',x:0.68,y:0.14,scout:5,
+   sit:'Grain oceans and quotas nobody meets. They hide food from the levy. They’d hide us.'},
+  {id:'oubli',name:'Oubliette',kind:'Dead Colony',pop:'0',x:0.14,y:0.16,scout:4,
+   sit:'A colony that stopped answering forty years ago. Empty streets. One transmitter, still powered.'},
+];
+const SRCPOS={halt:'veray',vokk:'kess',marr:'callis',renn:'meridian'};
+const CANDS={
+  marr:{id:'marr',name:'Prof. Etta Marr',type:'Scientist',loc:'Callis Institute',level:1,cult:10,risk:20,inc:{i:1},
+    bio:'Astrophysicist with cordoned-sector clearance and a brother in a labor camp.',
+    pitch:'<b>Prof. Etta Marr</b>, astrophysicist, Callis Institute. Cordoned-sector clearance, a brother in a labor camp, and a dead drop that found us the day we got eyes on Callis. She’s offering hers.'},
+  renn:{id:'renn',name:'Customs Chief Renn',type:'Officer · Customs',loc:'Meridian Docks',level:1,cult:15,risk:30,inc:{c:30},
+    bio:'Skims the skimmers at the Capital’s docks. Now skims for us.',
+    pitch:'<b>Customs Chief Renn</b> runs Meridian’s freight inspections and a private retirement fund. Our scouts caught the fund. He’d rather pay us than the auditors.'},
 };
 const RECRUITS={
   Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
@@ -602,7 +663,6 @@ function advanceDay(){
     if(m.progress.daysLeft<=0)resolveMission(m);
     else news(m.name+' — strike team checks in. '+m.progress.daysLeft+' day'+(m.progress.daysLeft>1?'s':'')+' out.','d');
   }
-  if(!G.candidateDone&&G.day>=G.candidateDay){G.candidateDone=true;openWin('candidate');}
   G.renown=Math.min(100,G.renown+2+G.sources.filter(s=>s.alive).reduce((a,s)=>a+s.level,0));
   if(G.renown>=100&&!G.revNoted){
     G.revNoted=true;
@@ -753,19 +813,53 @@ function srcCutLoose(src){
   closeWin();openWin('sources');
   syncUI();
 }
-function acceptCandidate(){
+function acceptCandidate(id){
+  const cd=CANDS[id];
+  if(!cd)return closeWin();
+  if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
   if(G.sources.filter(s=>s.alive).length>=sourceCap()){
-    news('No capacity to run another source safely. Marr walks.','h');
+    news('No capacity to run another source safely. '+cd.name+' walks.','h');
   } else {
-    G.sources.push({id:'marr',name:'Prof. Etta Marr',type:'Scientist',loc:'Callis Institute',mx:0.60,my:0.20,level:1,cult:10,risk:20,
-      inc:{i:1},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
-      bio:'Astrophysicist with cordoned-sector clearance and a brother in a labor camp.'});
-    news('<b>Prof. Etta Marr</b> joins the network. Intel starts flowing.','g');
+    G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
+      JSON.parse(JSON.stringify(cd))));
+    news('<b>'+cd.name+'</b> joins the network.','g');
     G.risk=Math.min(100,G.risk+4);
   }
   closeWin();syncUI();
 }
 function openComm(src,payload){openWin('comm',{src,payload});}
+
+/* ---------- scouting ---------- */
+function pdef(id){return PLANETDEF.find(p=>p.id===id);}
+function pst(id){return G.planets.find(p=>p.id===id);}
+function srcMapPos(src,w,h){
+  const pl=pdef(SRCPOS[src.id]||'veray');
+  const i=G.sources.filter(s=>s.alive&&(SRCPOS[s.id]||'veray')===pl.id).findIndex(s=>s.id===src.id);
+  return [w*pl.x+34+i*18,h*pl.y+2+i*12];
+}
+function scoutPlanet(id){
+  const d=pdef(id),st=pst(id);
+  if(!d||!st||st.access||G.intel<d.scout)return;
+  G.intel-=d.scout;
+  const wasKnown=st.known;
+  st.known=true;st.access=true;st.scouted=true;
+  news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
+  const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
+  // what the scouts turned up
+  if(id==='brakka'){addMission('garrison');lines.push('The garrison’s watch rotation is a joke. There’s a raid in this.');}
+  else if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
+  else if(id==='volund'){addMission('foundry');lines.push('A clerk in freight control sells manifests. There’s a job here.');}
+  else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
+  else if(id==='meridian'){G.candQ.push('renn');lines.push('Our people flagged a customs chief with expensive habits and flexible loyalties.');}
+  else if(id==='sable'){G.intel+=3;lines.push('The listening post still works. We stripped its logs: '+I(3)+' recovered.');}
+  else if(id==='tarsis'){G.supplies+=40;G.morale=Math.min(100,G.morale+4);lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(40)+'. The crew eats well tonight.');}
+  else if(id==='nyx'){G.credits+=40;lines.push('The shadowport takes all kinds. First introductions cost us nothing and paid '+C(40)+' in fenced salvage. Recruits drink here.');}
+  else if(id==='oubli'){G.intel+=1;lines.push('Empty streets. Forty years of dust. One transmitter, still powered, still listening. We left it that way. '+I(1)+'.');}
+  else if(id==='halcyon'){G.renown=Math.min(100,G.renown+8);lines.push('Brass, beaches, and no idea we were there. Knowing Halcyon exists for us is worth renown alone.');}
+  sBuild();
+  openWin('comm',{src:{name:'Pathfinder Team',loc:d.name},payload:{lines}});
+  saveSnap();syncUI();
+}
 /* ---------- audio ---------- */
 let AC=null,muted=false,noiseBuf=null,master=null;
 function ac(){
@@ -1244,37 +1338,90 @@ function drawGalaxy(now){
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
   c2.fillStyle='#05070f';c2.fillRect(0,0,w,h);
-  // spiral dust
-  for(let i=0;i<130;i++){
-    const a=i*0.55,rad=8+i*1.35;
-    const x=w*0.5+Math.cos(a)*rad*1.6,y=h*0.5+Math.sin(a)*rad*0.62;
+  // the core glows in the upper right; the verge is dark
+  let cg=c2.createRadialGradient(w*0.86,h*0.38,20,w*0.86,h*0.38,w*0.5);
+  cg.addColorStop(0,'rgba(255,180,120,0.10)');cg.addColorStop(1,'rgba(255,180,120,0)');
+  c2.fillStyle=cg;c2.fillRect(0,0,w,h);
+  for(let i=0;i<260;i++){
+    const a=i*0.53,rad=6+i*0.85;
+    const x=w*0.55+Math.cos(a)*rad*1.7,y=h*0.45+Math.sin(a)*rad*0.6;
     if(x<0||x>w||y<0||y>h)continue;
-    c2.fillStyle='rgba(140,170,230,'+(0.05+((i*13)%10)/90)+')';
-    c2.beginPath();c2.arc(x,y,((i*7)%3)/2+0.5,0,7);c2.fill();
+    c2.fillStyle='rgba(140,170,230,'+(0.04+((i*13)%10)/110)+')';
+    c2.beginPath();c2.arc(x,y,((i*7)%3)/2+0.4,0,7);c2.fill();
   }
-  // haven
-  const hx=w*0.18,hy=h*0.74;
-  c2.fillStyle='#ffb454';
-  c2.beginPath();c2.moveTo(hx,hy-6);c2.lineTo(hx+5,hy+4);c2.lineTo(hx-5,hy+4);c2.closePath();c2.fill();
-  c2.font='700 9px "Exo 2"';c2.textAlign='center';
-  c2.fillStyle='rgba(255,180,84,0.85)';c2.fillText('HAVEN ROCK',hx,hy+16);
+  const pul=t=>0.5+0.5*Math.sin(now*0.004+t);
+  // planets
+  for(const d of PLANETDEF){
+    const st=pst(d.id);
+    const x=w*d.x,y=h*d.y;
+    const selHere=srcSel&&srcSel.t==='p'&&srcSel.id===d.id;
+    if(!st.known){
+      // uncharted signal
+      const p=pul(x);
+      c2.strokeStyle='rgba(201,135,255,'+(0.25+0.3*p)+')';
+      c2.lineWidth=1;
+      c2.beginPath();c2.arc(x,y,5+3*p,0,7);c2.stroke();
+      c2.font='700 10px "IBM Plex Mono"';c2.textAlign='center';
+      c2.fillStyle='rgba(201,135,255,'+(0.5+0.3*p)+')';c2.fillText('?',x,y+3.5);
+      c2.font='600 8px "Exo 2"';
+      c2.fillStyle='rgba(113,128,156,0.6)';c2.fillText('UNCHARTED',x,y+18);
+      if(selHere){c2.strokeStyle='#ffb454';c2.beginPath();c2.arc(x,y,14,0,7);c2.stroke();}
+      continue;
+    }
+    if(d.base){
+      c2.fillStyle='#ffb454';
+      c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+6,y+5);c2.lineTo(x-6,y+5);c2.closePath();c2.fill();
+      c2.font='700 9px "Exo 2"';c2.textAlign='center';
+      c2.fillStyle='rgba(255,180,84,0.9)';c2.fillText('HAVEN ROCK',x,y+18);
+      continue;
+    }
+    const R=d.core?9:d.kind==='Waystation'?4:6;
+    const bodyCol=d.core?'#ffca7a':st.access?'#7db8ff':'#5a6a8c';
+    const glow=c2.createRadialGradient(x,y,1,x,y,R*2.4);
+    glow.addColorStop(0,d.core?'rgba(255,200,130,0.5)':'rgba(87,168,255,'+(st.access?0.35:0.12)+')');
+    glow.addColorStop(1,'rgba(0,0,0,0)');
+    c2.fillStyle=glow;c2.beginPath();c2.arc(x,y,R*2.4,0,7);c2.fill();
+    c2.fillStyle=bodyCol;
+    c2.beginPath();c2.arc(x,y,R,0,7);c2.fill();
+    if(d.core){c2.strokeStyle='rgba(255,200,130,0.55)';c2.lineWidth=1.2;
+      c2.beginPath();c2.ellipse(x,y,R+6,R*0.4+2,-0.35,0,Math.PI*2);c2.stroke();}
+    if(st.access){
+      c2.strokeStyle='rgba(87,215,226,0.8)';c2.lineWidth=1.4;
+      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();
+    } else {
+      c2.strokeStyle='rgba(120,135,165,0.5)';c2.lineWidth=1.2;c2.setLineDash([3,4]);
+      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();c2.setLineDash([]);
+      // tiny padlock
+      c2.strokeStyle='rgba(160,175,205,0.8)';c2.lineWidth=1.1;
+      c2.strokeRect(x+R+4,y-R-9,6,5);
+      c2.beginPath();c2.arc(x+R+7,y-R-9,2.4,Math.PI,0);c2.stroke();
+    }
+    if(selHere){c2.strokeStyle='#ffb454';c2.lineWidth=1.6;c2.beginPath();c2.arc(x,y,R+9,0,7);c2.stroke();}
+    c2.font='600 9.5px "Exo 2"';c2.textAlign='center';
+    c2.fillStyle=st.access?'rgba(205,216,236,0.95)':'rgba(150,165,195,0.8)';
+    c2.fillText(d.name,x,y-R-9);
+    c2.font='600 7.5px "Exo 2"';
+    c2.fillStyle='rgba(113,128,156,0.75)';
+    c2.fillText(st.access?d.kind.toUpperCase():('SCOUT '+d.scout+'◈'),x,y+R+12);
+  }
+  // sources ride their worlds
+  const hx=w*pdef('haven').x,hy=h*pdef('haven').y;
   for(const s of G.sources){
     if(!s.alive)continue;
-    const x=w*s.mx,y=h*s.my;
-    c2.strokeStyle='rgba(87,215,226,0.18)';c2.setLineDash([3,5]);
+    const [x,y]=srcMapPos(s,w,h);
+    c2.strokeStyle='rgba(87,215,226,0.16)';c2.setLineDash([3,5]);
     c2.beginPath();c2.moveTo(hx,hy);c2.lineTo(x,y);c2.stroke();c2.setLineDash([]);
     const hot=s.risk>60,attn=s.pendingEvent||s.signal;
-    const pul=0.5+0.5*Math.sin(now*0.004+x);
+    const p=pul(x);
     c2.fillStyle=hot?'#ff4f5e':'#57d7e2';
-    c2.beginPath();c2.arc(x,y,4,0,7);c2.fill();
+    c2.beginPath();c2.arc(x,y,3.4,0,7);c2.fill();
     c2.strokeStyle=hot?'rgba(255,79,94,0.6)':'rgba(87,215,226,0.5)';
-    c2.lineWidth=1.4;
-    c2.beginPath();c2.arc(x,y,7+(attn?3*pul:0),0,7);c2.stroke();
-    if(attn){c2.strokeStyle='rgba(255,180,84,'+(0.4+0.5*pul)+')';c2.beginPath();c2.arc(x,y,12+4*pul,0,7);c2.stroke();}
-    if(srcSel===s.id){c2.strokeStyle='#ffb454';c2.lineWidth=1.6;c2.beginPath();c2.arc(x,y,16,0,7);c2.stroke();}
-    c2.font='600 9.5px "Exo 2"';
-    c2.fillStyle='rgba(205,216,236,0.9)';c2.fillText(s.name,x,y-14);
-    c2.fillStyle='rgba(113,128,156,0.8)';c2.fillText(s.loc,x,y+20);
+    c2.lineWidth=1.2;
+    c2.beginPath();c2.arc(x,y,6+(attn?2.5*p:0),0,7);c2.stroke();
+    if(attn){c2.strokeStyle='rgba(255,180,84,'+(0.4+0.5*p)+')';c2.beginPath();c2.arc(x,y,10+3*p,0,7);c2.stroke();}
+    if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle='#ffb454';c2.lineWidth=1.5;c2.beginPath();c2.arc(x,y,13,0,7);c2.stroke();}
+    c2.font='600 8.5px "Exo 2"';c2.textAlign='center';
+    c2.fillStyle='rgba(160,230,240,0.9)';c2.fillText(s.name.split(' ').pop(),x,y-10);
   }
 }
 function drawCommStatic(now){
@@ -1392,7 +1539,10 @@ function closeWin(){
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
     const mid=G.misPopQ.shift();
     const m=G.missions.find(x=>x.id===mid);
-    if(m&&m.state==='avail')openWin('newmission',m);
+    if(m&&m.state==='avail'){openWin('newmission',m);return;}
+  }
+  if(started&&G&&G.candQ&&G.candQ.length){
+    openWin('candidate',G.candQ.shift());
   }
 }
 function meter(cls,label,val){
@@ -1420,12 +1570,35 @@ function renderWin(){
   card.classList.remove('narrow');
   let h='';
   if(winMode==='sources'){
+    card.classList.add('wide');
     const alive=G.sources.filter(s=>s.alive);
-    if(!srcSel||!alive.some(s=>s.id===srcSel))srcSel=alive.length?alive[0].id:null;
-    const s=alive.find(x=>x.id===srcSel);
-    h='<div class="winHead"><span class="wt">Source Network · '+alive.length+'/'+sourceCap()+'</span><button class="winX" data-close>✕</button></div>'+
-      '<div class="winBody"><canvas id="galaxyCv"></canvas><div class="maphint">the network, as the galaxy sees it — tap a contact</div>'+
-      (s?sourceDetailHTML(s):'<div class="pdesc">No sources. We’re blind out there.</div>')+'</div>';
+    const accessN=G.planets.filter(p=>p.access).length;
+    if(!srcSel)srcSel={t:'s',id:alive.length?alive[0].id:null};
+    let detail='';
+    if(srcSel.t==='s'){
+      const s=alive.find(x=>x.id===srcSel.id);
+      detail=s?sourceDetailHTML(s):'<div class="pdesc">No sources. We’re blind out there.</div>';
+    } else {
+      const d=pdef(srcSel.id),st=pst(srcSel.id);
+      if(d&&st){
+        const cls=st.access?'':st.known?' locked':' unknown';
+        detail='<div class="plcard'+cls+'"><div class="prow2">'+
+          '<span class="plname">'+(st.known?d.name:'Uncharted Signal')+'</span>'+
+          '<span class="plkind">'+(st.known?(d.kind+(d.pop?' · pop '+d.pop:'')):'the Verge · origin unknown')+'</span>'+
+          '<span class="placcess" style="color:'+(st.access?'var(--reb)':'var(--dim)')+'">'+(st.access?'ACCESS':'NO ACCESS')+'</span></div>'+
+          '<div class="plsit">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
+          (st.access?'':'<button class="sbtn'+(G.intel>=d.scout?' attn':'')+'" data-scout="'+d.id+'" '+(G.intel>=d.scout?'':'disabled')+'>Scout & gain access · '+I(d.scout)+'</button>'+
+            (G.intel<d.scout?'<span class="pdesc" style="margin-left:8px">not enough intel — work the network</span>':''))+
+          '</div>';
+        // sources stationed there
+        const here=alive.filter(s2=>(SRCPOS[s2.id]||'veray')===d.id);
+        if(st.access&&here.length)detail+=here.map(sourceDetailHTML).join('');
+      }
+    }
+    h='<div class="winHead"><span class="wt">Galaxy · '+accessN+' worlds accessible · network '+alive.length+'/'+sourceCap()+'</span><button class="winX" data-close>✕</button></div>'+
+      '<div class="winBody"><canvas id="galaxyCv"></canvas>'+
+      '<div class="maphint">core worlds burn bright and cost dear · faint signals are uncharted · '+I('')+' buys access</div>'+
+      detail+'</div>';
   }
   else if(winMode==='comm'){
     const {src,payload}=winArg;
@@ -1460,11 +1633,13 @@ function renderWin(){
       '</div>';
   }
   else if(winMode==='candidate'){
+    const cd=CANDS[winArg]||CANDS.marr;
     card.classList.add('narrow');
+    const inc=[cd.inc.c?C(cd.inc.c):null,cd.inc.s?S(cd.inc.s):null,cd.inc.i?I(cd.inc.i):null].filter(Boolean).join(' · ');
     h='<div class="winHead"><span class="wt">Approach · Potential Source</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="commline" style="color:var(--text)"><b>Prof. Etta Marr</b>, astrophysicist, Callis Institute. Cordoned-sector clearance, a brother in a labor camp, and a dead drop that found us first. She’s offering her eyes. Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
-      '<button class="dbtn" data-cand="yes">Take her on. ('+I(1)+'/day · exposure +4)</button>'+
-      '<button class="dbtn" data-cand="no">Too dangerous. Burn the drop.</button>'+
+      '<div class="commline" style="color:var(--text)">'+cd.pitch+' Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
+      '<button class="dbtn" data-cand="'+cd.id+'">Take them on. ('+inc+'/day · exposure +4)</button>'+
+      '<button class="dbtn" data-cand="no">Too dangerous. Burn the contact.</button>'+
       '</div>';
   }
   else if(winMode==='missions'){
@@ -1692,10 +1867,18 @@ $('winsB').addEventListener('click',ev=>{
     let best=null,bd=1e9;
     for(const s of G.sources){
       if(!s.alive)continue;
-      const d=Math.hypot(px-r.width*s.mx,py-r.height*s.my);
-      if(d<30&&d<bd){bd=d;best=s;}
+      const [sx2,sy2]=srcMapPos(s,r.width,r.height);
+      const d=Math.hypot(px-sx2,py-sy2);
+      if(d<16&&d<bd){bd=d;best={t:'s',id:s.id};}
     }
-    if(best){srcSel=best.id;sClick();renderWin();}
+    if(!best){
+      for(const pd of PLANETDEF){
+        if(pd.base)continue;
+        const d=Math.hypot(px-r.width*pd.x,py-r.height*pd.y);
+        if(d<26&&d<bd){bd=d;best={t:'p',id:pd.id};}
+      }
+    }
+    if(best){srcSel=best;sClick();renderWin();}
     return;
   }
   const t=ev.target.closest('button,a,input');
@@ -1740,7 +1923,9 @@ $('winsB').addEventListener('click',ev=>{
     }
   }
   const cand=t.getAttribute('data-cand');
-  if(cand){if(cand==='yes')acceptCandidate();else{news('The dead drop is burned. Marr never hears back.','d');closeWin();}return;}
+  if(cand){if(cand==='no'){news('The contact is burned. They never hear back.','d');closeWin();}else acceptCandidate(cand);return;}
+  const scout=t.getAttribute('data-scout');
+  if(scout){scoutPlanet(scout);return;}
   const plan=t.getAttribute('data-plan');
   if(plan){const m=G.missions.find(x=>x.id===plan);if(m)openWin('plan',m);return;}
   const mplan=t.getAttribute('data-mplan');
@@ -1822,6 +2007,8 @@ function boot(data){
     G=data.G;started=true;
     $('debrief').hidden=true;
     G.misPopQ=G.misPopQ||[];
+    G.candQ=G.candQ||[];
+    if(!G.planets)G.planets=PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base}));
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
@@ -1838,7 +2025,10 @@ function boot(data){
     renderNews();
   } else {
     G=newGame();
-    if(location.hash==='#deploy'){$('debrief').hidden=true;started=true;seedNews();}
+    if(location.hash==='#deploy'||location.hash==='#galaxy'){
+      $('debrief').hidden=true;started=true;seedNews();
+      if(location.hash==='#galaxy')openWin('sources');
+    }
   }
   syncUI();renderNews();
   requestAnimationFrame(render);

@@ -134,10 +134,24 @@ spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
   training, source income/risk/events/burns, mission resolution, candidate
   approaches, renown toward Revolution Level 2, and a news feed.
 
+**Galaxy & Intel** (design addition, not yet in the GDD): the Galaxy screen is
+a large starmap — core worlds are always known but expensive, frontier worlds
+are cheap or entirely uncharted, and the player starts with access to only
+Veray Yards and Relay Kess near the base. **Intel is spent to scout** a world,
+which grants access (missions, sources, signals there) and a pathfinder report
+with whatever the scouts found: new missions (Brakka's garrison, Dreymar's ore
+barge, Volund's manifests), source candidates (Marr on Callis, Customs Chief
+Renn on Meridian), caches, or honest duds. Scout costs scale with the world:
+a wild rock runs 3 intel, the Capital 14. *GDD note*: the GDD defines Intel as
+a passive early-warning meter for Hegemony action; this makes it a spendable
+currency. Reconciliation candidate: the unspent reserve doubles as the warning
+buffer, so aggressive scouting trades away early warning.
+
 Open questions: economy tuning (incomes vs. build costs), whether missions
 should consume supplies to launch, base Alerts (the GDD's Hegemony raids) as
-the pressure valve for high player risk, and wiring real state hand-off
-between base and combat scenes instead of the simulator link.
+the pressure valve for high player risk — now naturally tied to the intel
+reserve — and wiring real state hand-off between base and combat scenes
+instead of the simulator link.
 
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
 abilities yet), bombs and torpedoes are out (no large targets in this
