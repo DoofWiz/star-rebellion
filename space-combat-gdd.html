@@ -234,9 +234,10 @@
             <b>Battlespace</b>: drag / WASD to pan, wheel or pinch to zoom, minimap to jump.
             <b>Double-click any fighter</b> (on the field or the roster) for its pilot dossier
             and ship readout. <b>Planning</b>: pick a ship — its dial opens beside it.
-            <b>Execution</b>: ships move by initiative; yours get an action ring. Locks need
-            the target ahead of you and in weapons range, stack +2 to-hit per level (missiles
-            also gain guidance), and break if the target slips behind you. Evade and Repair
+            <b>Execution</b>: ships move by initiative; yours get an action ring. Locks are
+            acquired on targets inside your firing cone at lock range, stack +2 to-hit per
+            level (missiles also gain guidance), and are lost only when the target ends up
+            behind you. Evade and Repair
             open deeper options — angle shield segments, patch hull, clear criticals.
             <b>Attack</b>: the VS panel builds both sides into a live hit chance, then a d20
             decides it. Shields cover fore and aft zones; ballistic ignores them. Hull damage
@@ -288,7 +289,7 @@ const W=4200,H=3000,MARGIN=120;
 const RU=300,SU=150;
 const ARCH=0.55;                       // narrowed firing arc (~31.5deg half)
 const BULLS_LIM=0.21;
-const LOCK_RNG=900,LOCK_ARC=Math.PI/2; // lock: front hemisphere, weapons range
+const LOCK_RNG=900,LOCK_ARC=ARCH; // lock: acquire in the firing cone; LOST only when target ends up behind
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TURNS={L:-Math.PI/2,l:-Math.PI/4,S:0,r:Math.PI/4,R:Math.PI/2};
 const TSYM={L:'↰',l:'↖',S:'↑',r:'↗',R:'↱',K:'↺'};

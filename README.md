@@ -105,6 +105,40 @@ preserved at commit `09dff6e` (tag `combat-gdd-autoresolve`), the first
 interactive-HUD version at `1be59fd`, and the d100→d20 shield-zone iteration
 at `b78577f`, if we want to revert or compare.
 
+### `base.html` — Haven Rock (base management layer)
+
+The hub the player returns to between missions, per the GDD's Base Management
+spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
+
+- **The base** — a fixed, expandable isometric map of a hidden rock hideout.
+  Starting rooms (Command, Hangar, Barracks, Storeroom); rubble chambers can be
+  excavated and open floors built out (Comms Array, Workshop, Infirmary,
+  Training Hall, Hangar Bay), with costs in credits/supplies and multi-day
+  construction. Controls stay contextual: clicking a tile opens its popup.
+- **Sources** — the GDD's spy-network loop: Ferren Halt (the depot manager who
+  sold out Vex — jumpy, high risk) and Sen. Vokk, plus a recruitable Scientist
+  approach. Each has level, cultivation and risk meters, daily income
+  (money/supplies/intel), Visit vs. Contact, cultivation dialogue events with
+  contextually strong/neutral/weak answers, burn checks when risk runs hot,
+  and the Silence (assassin confirmation) and Cut Loose options with their
+  network-wide costs.
+- **Missions** — source-generated board: the completed Instructor op, the
+  GDD's Intercept Transport (assign pilots + flight-ready fighters, multi-day
+  auto-resolution with injuries and fighter damage on failure), the locked
+  Steal the Strider foot mission, and a Sim Deck entry that links to the space
+  combat prototype.
+- **Roster & fleet** — rebels with roles, levels/ranks/XP, Rest/Train
+  assignments, injuries; fighters repair daily (faster with a Workshop) at a
+  supplies cost.
+- **Time** — an Advance Day tick drives construction, excavation, repairs,
+  training, source income/risk/events/burns, mission resolution, candidate
+  approaches, renown toward Revolution Level 2, and a news feed.
+
+Open questions: economy tuning (incomes vs. build costs), whether missions
+should consume supplies to launch, base Alerts (the GDD's Hegemony raids) as
+the pressure valve for high player risk, and wiring real state hand-off
+between base and combat scenes instead of the simulator link.
+
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
 abilities yet), bombs and torpedoes are out (no large targets in this
 mission), and there are no gunships, jamming or shield-sharing yet.

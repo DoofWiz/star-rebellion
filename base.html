@@ -1,0 +1,1194 @@
+<title>Haven Rock</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#04060d; --panel:#0b1020; --panel2:#111a33; --line:#1d2a45; --line-soft:#16203a;
+    --text:#cdd8ec; --dim:#71809c; --amber:#ffb454; --reb:#57d7e2; --heg:#ff4f5e;
+    --good:#7dd97b; --purple:#c987ff; --blue:#57a8ff;
+    --font-ui:"Exo 2",system-ui,sans-serif; --font-mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  html,body{height:100%;}
+  [hidden]{display:none!important;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;overflow:hidden;}
+  #app{height:100%;display:flex;flex-direction:column;min-height:0;}
+  #topbar{display:flex;align-items:center;gap:14px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
+  #topbar h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber);white-space:nowrap;}
+  #topbar .sub{font-size:11px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
+  .res{display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12.5px;white-space:nowrap;}
+  .res .ic{font-size:13px;}
+  .res.c .ic{color:var(--amber);} .res.s .ic{color:var(--good);} .res.i .ic{color:var(--reb);}
+  .pill{border:1px solid var(--line);border-radius:3px;padding:3px 9px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+  .pill.rev{color:var(--purple);border-color:#4d3a6b;}
+  .pill.risk{color:var(--heg);border-color:#5a2730;}
+  .pill.risk.low{color:var(--dim);border-color:var(--line);}
+  #topbar .spacer{flex:1;}
+  .chipbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:4px 10px;border-radius:3px;cursor:pointer;}
+  .chipbtn:hover{border-color:var(--amber);color:var(--amber);}
+  .chipbtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  #main{flex:1;display:flex;min-height:0;}
+  #stage{flex:1;position:relative;min-width:0;min-height:0;overflow:hidden;}
+  #cv{display:block;width:100%;height:100%;cursor:pointer;touch-action:none;}
+  /* nav chips over the stage */
+  #navRow{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:8px;}
+  .navbtn{position:relative;background:rgba(10,15,30,0.92);border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:8px 16px;border-radius:3px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.4);}
+  .navbtn:hover{border-color:var(--amber);color:var(--amber);}
+  .navbtn .badge{position:absolute;top:-7px;right:-7px;background:var(--heg);color:#fff;font-size:9px;font-weight:800;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;}
+  /* bottom dock */
+  #ctlDock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .dockcard{background:rgba(10,15,30,0.94);border:1px solid var(--line);border-radius:5px;padding:9px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 30px rgba(0,0,0,.5);}
+  #dayBtn{background:linear-gradient(180deg,#3a2a10,#2a1e0a);border:1px solid var(--amber);color:var(--amber);font-family:var(--font-ui);font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:10px 24px;border-radius:3px;cursor:pointer;}
+  #dayBtn:hover{filter:brightness(1.3);}
+  #dayBtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
+  .docknote{font-size:10.5px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
+  /* day banner */
+  #dayBanner{position:absolute;left:0;right:0;top:40%;text-align:center;z-index:9;pointer-events:none;opacity:0;transition:opacity .35s ease;}
+  #dayBanner.show{opacity:1;}
+  #dayBanner .big{font-size:30px;font-weight:800;letter-spacing:.32em;text-transform:uppercase;color:#fff;text-shadow:0 0 22px rgba(255,180,84,.5);}
+  /* tile popup */
+  .pop{position:absolute;z-index:6;background:rgba(10,15,30,0.95);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 30px rgba(0,0,0,.55);padding:11px;width:236px;}
+  .pop .ptitle{font-weight:800;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;color:var(--amber);}
+  .pop .pdesc{font-size:11px;color:var(--dim);line-height:1.5;margin-bottom:8px;}
+  .pbtn{display:block;width:100%;text-align:left;background:#0d1530;border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11.5px;font-weight:600;padding:7px 9px;border-radius:3px;cursor:pointer;margin-bottom:5px;}
+  .pbtn:hover:not(:disabled){border-color:var(--reb);color:var(--reb);}
+  .pbtn:disabled{opacity:.38;cursor:default;}
+  .pbtn .cost{float:right;font-family:var(--font-mono);font-size:10px;color:var(--dim);}
+  .pbtn small{display:block;font-weight:400;font-size:9.5px;color:var(--dim);margin-top:2px;}
+  /* overlays / windows */
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,5,11,.7);backdrop-filter:blur(2px);padding:14px;overflow:auto;z-index:11;}
+  .winCard{width:540px;max-width:96vw;max-height:88%;display:flex;flex-direction:column;background:var(--panel);border:1px solid #2a3a5f;border-radius:6px;box-shadow:0 14px 60px rgba(0,0,0,.7);}
+  .winCard.narrow{width:400px;}
+  .winHead{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;}
+  .winHead .wt{flex:1;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);}
+  .winX{background:none;border:1px solid var(--line);color:var(--dim);border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;}
+  .winX:hover{color:var(--heg);border-color:var(--heg);}
+  .winBody{padding:13px;overflow-y:auto;min-height:0;}
+  /* source cards */
+  .scard{background:#0d1428;border:1px solid var(--line-soft);border-left:3px solid var(--reb);border-radius:4px;padding:10px 12px;margin-bottom:9px;}
+  .scard.warn{border-left-color:var(--heg);}
+  .scard .srow{display:flex;align-items:baseline;gap:9px;}
+  .scard .sname{font-weight:800;font-size:13.5px;}
+  .scard .stype{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;flex:1;}
+  .scard .slvl{font-family:var(--font-mono);font-size:10px;color:var(--purple);}
+  .sbio{font-size:11px;color:var(--dim);font-style:italic;margin:5px 0 7px;line-height:1.45;}
+  .meter{display:flex;align-items:center;gap:7px;margin-bottom:4px;}
+  .meter .ml{font-size:9px;letter-spacing:.12em;color:var(--dim);width:74px;text-transform:uppercase;}
+  .meter .mt{flex:1;height:7px;background:#1a2340;border-radius:2px;position:relative;overflow:hidden;}
+  .meter .mt i{position:absolute;top:0;bottom:0;left:0;border-radius:2px;}
+  .meter.cult i{background:var(--purple);} .meter.srisk i{background:var(--heg);}
+  .meter .mv{font-family:var(--font-mono);font-size:9.5px;color:var(--dim);width:28px;text-align:right;}
+  .sinc{font-family:var(--font-mono);font-size:10.5px;color:var(--good);margin:4px 0 8px;}
+  .sacts{display:flex;gap:6px;flex-wrap:wrap;}
+  .sbtn{background:#0d1530;border:1px solid var(--line);color:var(--text);font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:6px 10px;border-radius:3px;cursor:pointer;}
+  .sbtn:hover:not(:disabled){border-color:var(--reb);color:var(--reb);}
+  .sbtn.danger:hover:not(:disabled){border-color:var(--heg);color:var(--heg);}
+  .sbtn:disabled{opacity:.35;cursor:default;}
+  .sbtn.attn{border-color:var(--amber);color:var(--amber);animation:pulse 1.6s infinite;}
+  @keyframes pulse{50%{filter:brightness(1.45);}}
+  /* mission cards */
+  .mcard{background:#0d1428;border:1px solid var(--line-soft);border-left:3px solid var(--amber);border-radius:4px;padding:10px 12px;margin-bottom:9px;}
+  .mcard.done{border-left-color:var(--good);opacity:.75;}
+  .mcard.locked{border-left-color:#3a4560;opacity:.6;}
+  .mcard.prog{border-left-color:var(--blue);}
+  .mcard .mrow{display:flex;align-items:baseline;gap:9px;}
+  .mcard .mname{font-weight:800;font-size:13.5px;}
+  .mcard .mfrom{font-size:10px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;flex:1;}
+  .mcard .mstate{font-family:var(--font-mono);font-size:10px;color:var(--blue);}
+  .mdesc{font-size:11px;color:var(--dim);line-height:1.5;margin:5px 0 7px;}
+  .mmeta{font-family:var(--font-mono);font-size:10px;color:var(--text);margin-bottom:7px;}
+  .mmeta .rw{color:var(--good);}
+  /* people rows in windows */
+  .prow{display:flex;align-items:center;gap:10px;background:#121b34;border:1px solid #1b2747;border-radius:4px;padding:7px 10px;margin-bottom:6px;}
+  .prow .pl{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;border:2px solid var(--reb);color:var(--reb);background:#0d1530;}
+  .prow .pinfo{flex:1;min-width:0;}
+  .prow .pname{font-weight:700;font-size:12.5px;}
+  .prow .psub{font-size:9.5px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;}
+  .prow .pxp{height:3px;background:#232f4e;border-radius:2px;margin-top:4px;position:relative;overflow:hidden;width:110px;}
+  .prow .pxp i{position:absolute;inset:0;background:var(--purple);display:block;}
+  .achip{font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:2px;padding:2px 6px;color:var(--dim);}
+  .achip.on{color:var(--reb);border-color:#2a5560;}
+  .achip.hurt{color:var(--heg);border-color:#5a2730;}
+  .pcheck{width:16px;height:16px;accent-color:var(--amber);}
+  /* dialogue */
+  .dlg-text{font-size:12.5px;line-height:1.6;margin-bottom:12px;}
+  .dlg-text b{color:var(--reb);}
+  .dbtn{display:block;width:100%;text-align:left;background:#0d1530;border:1px solid var(--line);color:var(--text);font-size:11.5px;line-height:1.45;padding:9px 11px;border-radius:3px;cursor:pointer;margin-bottom:6px;}
+  .dbtn:hover{border-color:var(--amber);color:var(--amber);}
+  /* sidebar */
+  #panel{flex:0 0 300px;display:flex;flex-direction:column;min-height:0;background:#080d19;border-left:1px solid var(--line);}
+  #panelScroll{flex:1;overflow-y:auto;min-height:0;padding:12px 10px 6px;}
+  .sec-h{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:800;margin:0 0 7px;padding:6px 9px;border-radius:3px;background:linear-gradient(90deg,#131d38,rgba(19,29,56,0));}
+  .sec-h.sel{color:var(--amber);border-left:3px solid var(--amber);}
+  .sec-h.crew{color:var(--reb);border-left:3px solid var(--reb);margin-top:14px;}
+  .sec-h.fleet{color:var(--blue);border-left:3px solid var(--blue);margin-top:14px;}
+  .group{background:#0c1322;border:1px solid var(--line-soft);border-radius:5px;padding:7px;}
+  #selInfo{font-size:11.5px;line-height:1.55;color:var(--dim);padding:4px 3px;}
+  #selInfo b{color:var(--text);}
+  #selInfo .tag{color:var(--amber);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;}
+  .rrow{display:flex;align-items:center;gap:9px;background:#121b34;border:1px solid #1b2747;border-left:3px solid var(--reb);border-radius:4px;padding:6px 9px;margin-bottom:6px;cursor:pointer;}
+  .rrow:last-child{margin-bottom:0;}
+  .rrow:hover{border-color:var(--amber);}
+  .rrow .rname{font-weight:700;font-size:12px;flex:1;}
+  .rrow .rsub{font-size:9px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;}
+  .frow{display:flex;align-items:center;gap:8px;background:#121b34;border:1px solid #1b2747;border-left:3px solid var(--blue);border-radius:4px;padding:6px 9px;margin-bottom:6px;}
+  .frow .fname{font-weight:700;font-size:12px;flex:1;}
+  .hcells{display:flex;gap:2px;}
+  .hcell{width:9px;height:8px;border-radius:1.5px;background:#1a2340;}
+  .hcell.on{background:var(--amber);}
+  .frow .fout{font-size:9px;color:var(--blue);font-weight:800;letter-spacing:.08em;}
+  #logbox{flex:0 0 168px;border-top:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#0a101f;}
+  #logbox .sec-h{margin:8px 10px 4px;color:var(--dim);border-left:3px solid #2a3a5f;}
+  #log{flex:1;overflow-y:auto;padding:0 12px 10px;font-family:var(--font-mono);font-size:10.5px;line-height:1.6;color:var(--dim);}
+  #log .d{color:var(--dim);} #log .a{color:var(--amber);} #log .g{color:var(--good);}
+  #log .h{color:var(--heg);} #log .r{color:var(--reb);} #log .p{color:var(--purple);}
+  #log p{margin:0 0 3px;}
+  #log .day{color:#3f4c6b;}
+  /* debrief overlay */
+  .brief{max-width:620px;background:var(--panel);border:1px solid var(--line);padding:24px 28px;box-shadow:0 0 60px rgba(0,0,0,.6);}
+  .brief .eyebrow{font-size:11px;letter-spacing:.22em;color:var(--good);text-transform:uppercase;font-weight:700;}
+  .brief h2{margin:6px 0 2px;font-size:25px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+  .brief h2 .k{color:var(--amber);}
+  .brief p{line-height:1.55;max-width:60ch;}
+  .rewline{border-left:3px solid var(--good);padding:6px 12px;margin:13px 0;background:rgba(125,217,123,.05);font-family:var(--font-mono);font-size:12px;}
+  .howto{font-size:12.5px;color:var(--dim);line-height:1.6;margin-top:8px;}
+  .howto b{color:var(--text);}
+  #enterBtn{margin-top:16px;width:100%;background:linear-gradient(180deg,#2a3a12,#1d2a0c);border:1px solid var(--good);color:var(--good);font-family:var(--font-ui);font-size:14px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;padding:12px;cursor:pointer;border-radius:3px;}
+  #enterBtn:hover{filter:brightness(1.25);}
+  @media (max-width:900px){
+    body{overflow:auto;}
+    #app{height:auto;min-height:100%;}
+    #main{flex-direction:column;}
+    #stage{height:60vh;min-height:360px;flex:0 0 auto;}
+    #panel{flex:1 1 auto;border-left:none;border-top:1px solid var(--line);}
+    #logbox{flex:0 0 auto;max-height:170px;}
+    .winCard{width:96vw;}
+  }
+</style>
+
+<div id="app">
+  <header id="topbar">
+    <h1>Star Rebellion</h1>
+    <span class="sub">Haven Rock · Hidden Base · <span id="dayLbl">Day 1</span></span>
+    <span class="res c"><span class="ic">⬡</span><span id="resC">0</span></span>
+    <span class="res s"><span class="ic">▤</span><span id="resS">0</span></span>
+    <span class="res i"><span class="ic">◈</span><span id="resI">0</span> intel</span>
+    <span class="pill rev" id="revPill">REV LVL 1 · 0/100</span>
+    <span class="pill risk low" id="riskPill">RISK 0</span>
+    <span class="spacer"></span>
+    <button class="chipbtn" id="muteBtn" aria-pressed="false">Sound: On</button>
+    <button class="chipbtn" id="restartBtn">Restart</button>
+  </header>
+  <div id="main">
+    <div id="stage">
+      <canvas id="cv"></canvas>
+      <div id="navRow">
+        <button class="navbtn" id="navSources">Sources<span class="badge" id="srcBadge" hidden>0</span></button>
+        <button class="navbtn" id="navMissions">Missions<span class="badge" id="misBadge" hidden>0</span></button>
+        <button class="navbtn" id="navRoster">Roster</button>
+      </div>
+      <div id="dayBanner"><div class="big" id="dayBannerTxt">Day 2</div></div>
+      <div class="pop" id="tilePop" hidden></div>
+      <div id="ctlDock"><div class="dockcard"><button id="dayBtn">Advance Day ▸</button><span class="docknote" id="dockNote"></span></div></div>
+
+      <div class="overlay" id="winsB" hidden><div class="winCard" id="winCardB"></div></div>
+
+      <div class="overlay" id="debrief">
+        <div class="brief">
+          <div class="eyebrow">Mission Report · Operation Complete</div>
+          <h2>Instructor <span class="k">Down</span></h2>
+          <p>Commandant Dral Vex is dead in the Veray Drift, and the Hegemony's pilot pipeline
+          in this sector died with him. The flight is home. The fighters need patching, the
+          cadet survivors are telling stories, and Ferren Halt — the depot manager who sold
+          Vex out — is asking whether anyone noticed.</p>
+          <div class="rewline">SALVAGE +180 ⬡ &nbsp;·&nbsp; SUPPLIES +40 ▤ &nbsp;·&nbsp; INTEL +2 ◈ &nbsp;·&nbsp; Flight XP awarded</div>
+          <div class="howto">
+            <b>This is your base.</b> Click rooms to inspect and act; click rubble to
+            excavate and empty floors to build. <b>Sources</b> feed you money, supplies,
+            intel — and missions. Cultivate them, and silence them before they burn.
+            <b>Missions</b> spend pilots and days. When you're set, <b>Advance Day</b> and
+            the rebellion moves: construction, repairs, training, incomes, risks, results.
+          </div>
+          <button id="enterBtn">Enter the Base</button>
+        </div>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <div id="panelScroll">
+        <div class="sec-h sel">Selected</div>
+        <div class="group" id="selInfo">Nothing selected — click a room, a rebel, or a fighter.</div>
+        <div class="sec-h crew">Rebels</div>
+        <div class="group" id="crewList"></div>
+        <div class="sec-h fleet">Flight</div>
+        <div class="group" id="fleetList"></div>
+      </div>
+      <div id="logbox">
+        <div class="sec-h">News &amp; Reports</div>
+        <div id="log" aria-live="polite"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =====================================================================
+   STAR REBELLION — Haven Rock, the base layer
+   The management hub the player returns to between missions, per the
+   GDD: fixed expandable base map, Sources (cultivation / risk / burn /
+   silence), source-generated missions, rebel roster and assignments,
+   fleet repair, day-tick time advance, news. Vertical slice following
+   Operation Take Out Instructor.
+   ===================================================================== */
+
+const COMBAT_URL='https://claude.ai/artifact/Jrfx3qfbYW1og1VTh1MnFt';
+const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
+const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let rng=Math.random;
+
+/* ---------- room & build definitions ---------- */
+const ROOMS={
+  command:{name:'Command Center',col:'#ffb454',desc:'The heart of the rebellion. Mission planning and source handling run from here.'},
+  hangar:{name:'Hangar',col:'#57a8ff',desc:'Berths for the strike flight. Fighters are rearmed and launched from here.'},
+  barracks:{name:'Barracks',col:'#57d7e2',desc:'Bunks for the rebels. Rest restores morale.'},
+  store:{name:'Storeroom',col:'#7dd97b',desc:'Supplies, rations, spare parts.'},
+  comms:{name:'Comms Array',col:'#57d7e2',desc:'+1 intel/day · room for one more source in the network.'},
+  workshop:{name:'Workshop',col:'#ffb454',desc:'Fighter repairs at 15%/day instead of 5%.'},
+  infirmary:{name:'Infirmary',col:'#7dd97b',desc:'Injuries heal twice as fast.'},
+  training:{name:'Training Hall',col:'#c987ff',desc:'Assigned rebels gain experience daily.'},
+  bay:{name:'Hangar Bay',col:'#57a8ff',desc:'+1 fighter berth.'},
+};
+const BUILDS={
+  comms:{c:120,s:30,days:2},
+  workshop:{c:100,s:40,days:2},
+  infirmary:{c:90,s:30,days:2},
+  training:{c:80,s:25,days:1},
+  bay:{c:60,s:50,days:1},
+};
+const EXCAVATE={s:10,days:1};
+
+/* ---------- state ---------- */
+let G=null, sel=null, tilePopAt=null, winMode=null, winArg=null, started=false;
+
+function newGame(){
+  const rows=8,cols=11;
+  const grid=[];
+  for(let r=0;r<rows;r++){grid.push([]);for(let c=0;c<cols;c++)grid[r].push({t:'rock'});}
+  const setT=(r,c,t)=>{grid[r][c]={t};};
+  // corridor spine + branches
+  for(let c=1;c<=8;c++)setT(4,c,'floor');
+  setT(3,3,'floor');setT(2,3,'floor');setT(5,3,'floor');setT(3,6,'floor');
+  // rubble frontier
+  [[4,0],[5,1],[5,2],[1,3],[5,7],[4,9],[3,7],[3,8],[6,4],[6,5],[2,6],[2,7],[1,4],[6,3]].forEach(([r,c])=>setT(r,c,'rubble'));
+  const rooms=[
+    {key:'command',r:2,c:4,w:2,h:2},
+    {key:'hangar',r:2,c:1,w:2,h:2},
+    {key:'barracks',r:5,c:4,w:2,h:1},
+    {key:'store',r:5,c:6,w:1,h:1},
+  ];
+  for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
+  return {
+    day:1,credits:430,supplies:160,intel:5,renown:24,risk:12,morale:72,
+    rows,cols,grid,rooms,
+    fighters:[
+      {id:'vg',name:'Vanguard',cls:'GR-4 Viper',hull:55,out:false},
+      {id:'d1',name:'Dagger 1',cls:'SF-11 Talon',hull:80,out:false},
+      {id:'d2',name:'Dagger 2',cls:'SF-11 Talon',hull:100,out:false},
+    ],
+    people:[
+      {id:'sera',name:'Sera Kest',role:'Pilot',level:3,xp:0.55,assign:'rest',injured:0,bio:'Flight lead. Lucky, and knows it.'},
+      {id:'joss',name:'Joss Marrek',role:'Pilot',level:4,xp:0.78,assign:'rest',injured:0,bio:'Claims the Vex kill. Loudly.'},
+      {id:'petra',name:'Petra Voss',role:'Pilot',level:2,xp:0.36,assign:'rest',injured:0,bio:'Quietly relieved everyone came home.'},
+      {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,bio:'Ex-dock enforcer. Good in a corridor.'},
+      {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,bio:'Demolitions. Do not startle her.'},
+      {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'rest',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
+    ],
+    sources:[
+      {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,
+       inc:{s:6},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,
+       bio:'Passed over for promotion twice. Wants the yards to burn, quietly. Very jumpy since the Vex hit.'},
+      {id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'Capital Parliament',level:1,cult:20,risk:15,
+       inc:{c:25},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,
+       bio:'Votes loyal, funds otherwise. Terrified of audits.'},
+    ],
+    missions:[
+      {id:'toi',name:'Take Out Instructor',state:'done',from:'Ferren Halt',
+       desc:'Commandant Vex eliminated. His cadets scattered.',meta:'COMPLETE'},
+      {id:'sim',name:'Sim Deck · Instructor Raid',state:'sim',from:'Flight Simulator',
+       desc:'Refly the Vex engagement in the hangar simulator (opens the space combat build).'},
+      {id:'intercept',name:'Intercept Transport',state:'avail',from:'Ferren Halt',kind:'auto',
+       need:2,days:3,riskTxt:'Moderate',
+       desc:'A Hegemony supply transport crosses the drift with light escort. Destroy the escort, disable and board her, take everything that isn’t bolted down.',
+       rew:{c:150,s:35,xp:0.15},progress:null},
+      {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
+       desc:'A robotic mech could be reprogrammed if we can steal it. Requires a ground assault team — future build.'},
+    ],
+    candidateDay:4,candidateDone:false,
+    news:[],
+  };
+}
+
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+function hasRoom(key){return G.rooms.some(r=>r.key===key&&!r.build);}
+function sourceCap(){return 2+(hasRoom('comms')?1:0);}
+function fighterCap(){return 3+G.rooms.filter(r=>r.key==='bay'&&!r.build).length;}
+function news(html,cls){
+  G.news.push({day:G.day,html,cls:cls||'d'});
+  if(G.news.length>80)G.news.shift();
+  renderNews();
+}
+function renderNews(){
+  const el=$('log');
+  el.innerHTML=G.news.map(n=>'<p><span class="day">D'+n.day+'</span> <span class="'+n.cls+'">'+n.html+'</span></p>').join('');
+  el.scrollTop=el.scrollHeight;
+}
+function levelUp(p){
+  while(p.xp>=1){p.xp-=1;p.level++;news('<b>'+p.name+'</b> promoted in the field — now '+rankOf(p.level)+'.','p');sAlert();}
+}
+
+/* ---------- source events (cultivation dialogue) ---------- */
+const SRC_EVENTS={
+  halt:[
+    {text:'<b>Halt:</b> “They held a memorial for Vex at the yards. Everyone watched everyone. I think Kessler looked at me twice. He looked at me TWICE.”',
+     opts:[
+       ['“Twice is nothing. You reported the loss like everyone else. Walk me through your day, slowly.”','strong'],
+       ['“Stay off the comms for a while.”','neutral'],
+       ['“If Kessler is a problem, we can make him disappear too.”','weak'],
+     ]},
+    {text:'<b>Halt:</b> “The replacement instructor requisitioned double fuel stocks. Double! Something’s moving through my yard next month and nobody tells me anything.”',
+     opts:[
+       ['“That’s exactly why we need you where you are. Get me the manifests and we’ll owe you.”','strong'],
+       ['“Noted. Keep watching.”','neutral'],
+       ['“Double fuel? You should skim some for us.”','weak'],
+     ]},
+  ],
+  vokk:[
+    {text:'<b>Vokk:</b> “The Treasury audit passed my office by one floor. ONE floor. I have a family, you understand. I never agreed to be brave.”',
+     opts:[
+       ['“You’re not brave, Senator — you’re careful, and careful people survive. We’ll route the next transfer through three shells.”','strong'],
+       ['“Audits pass. Hold steady.”','neutral'],
+       ['“Bravery wasn’t optional, Senator.”','weak'],
+     ]},
+    {text:'<b>Vokk:</b> “There is a vote next session — expanded patrol funding for the drift. If I vote no, someone might ask why. If I vote yes, your little fleet feels it.”',
+     opts:[
+       ['“Vote yes. Loudly. A patriot above suspicion is worth more than one patrol lane.”','strong'],
+       ['“Abstain. Be sick that day.”','neutral'],
+       ['“Vote no. We need the lanes clear.”','weak'],
+     ]},
+  ],
+  marr:[
+    {text:'<b>Marr:</b> “My grant renewal requires a loyalty attestation this cycle. I’ve signed it, obviously. I need to know that you people understand what that signature costs me.”',
+     opts:[
+       ['“It costs you nothing with us, Professor. Paper loyalty keeps you publishing — and publishing keeps you useful.”','strong'],
+       ['“Understood. Sign whatever they put in front of you.”','neutral'],
+       ['“Signatures are signatures. Results are what we pay for.”','weak'],
+     ]},
+  ],
+};
+function maybeQueueEvent(src){
+  if(src.pendingEvent)return;
+  const pool=SRC_EVENTS[src.id];
+  if(!pool||!pool.length)return;
+  if(rng()<0.3){src.pendingEvent=pool[src.eventsSeen%pool.length];}
+}
+
+/* ---------- day advance ---------- */
+function advanceDay(){
+  if(phaseLocked())return;
+  G.day++;
+  closeTilePop();closeWin();
+  const D=[];
+  // construction
+  for(const rm of G.rooms){
+    if(rm.build){
+      rm.build.days--;
+      if(rm.build.days<=0){
+        delete rm.build;
+        news(ROOMS[rm.key].name+' completed.','g');sBuild();
+      }
+    }
+  }
+  // excavation
+  for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
+    const cell=G.grid[r][c];
+    if(cell.t==='rubble'&&cell.dig){
+      cell.dig--;
+      if(cell.dig<=0){G.grid[r][c]={t:'floor'};news('Excavation complete — new chamber opened.','g');}
+    }
+  }
+  // repairs
+  const rate=hasRoom('workshop')?15:5;
+  for(const f of G.fighters){
+    if(f.out||f.hull>=100)continue;
+    if(G.supplies>=2){G.supplies-=2;f.hull=Math.min(100,f.hull+rate);}
+  }
+  // training & rest
+  for(const p of G.people){
+    if(p.injured>0){
+      p.injured-=hasRoom('infirmary')?2:1;
+      if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
+      continue;
+    }
+    if(p.assign==='train'&&hasRoom('training')){p.xp+=0.06;levelUp(p);}
+    if(p.assign==='rest')G.morale=Math.min(100,G.morale+0.5);
+  }
+  // sources
+  for(const src of G.sources){
+    if(!src.alive)continue;
+    src.visited=false;src.contacted=false;
+    if(src.inc.c)G.credits+=src.inc.c;
+    if(src.inc.s)G.supplies+=src.inc.s;
+    if(src.inc.i)G.intel+=src.inc.i;
+    src.risk=Math.min(100,src.risk+(src.level===1?2:src.level===2?1:0.5));
+    maybeQueueEvent(src);
+    if(src.risk>70&&rng()<(src.risk-70)/220){
+      src.alive=false;
+      G.risk=Math.min(100,G.risk+15);
+      G.morale=Math.max(0,G.morale-6);
+      news('<b>'+src.name+'</b> has been BURNED — Hegemony counter-intelligence took them at '+src.loc+'. Our own exposure grows.','h');
+      sAlert();
+    } else if(src.risk>70){
+      news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Consider silencing them.','h');
+    }
+  }
+  if(hasRoom('comms'))G.intel+=1;
+  // missions in progress
+  for(const m of G.missions){
+    if(m.state!=='prog')continue;
+    m.progress.daysLeft--;
+    if(m.progress.daysLeft<=0)resolveMission(m);
+    else news(m.name+' — strike team reports in. '+m.progress.daysLeft+' day'+(m.progress.daysLeft>1?'s':'')+' out.','d');
+  }
+  // candidate source approach
+  if(!G.candidateDone&&G.day>=G.candidateDay){
+    G.candidateDone=true;
+    openWin('candidate');
+  }
+  // renown
+  const rGain=2+G.sources.filter(s=>s.alive).reduce((a,s)=>a+s.level,0);
+  G.renown=Math.min(100,G.renown+rGain);
+  if(G.renown>=100&&!G.revNoted){
+    G.revNoted=true;
+    news('The movement stirs across three worlds. <b>Revolution Level 2</b> is within reach — the Hegemony’s intelligence agency has opened a file. (Future build.)','p');
+  }
+  // ambient flavor
+  const FLAVOR=[
+    'Hegemony patrol schedules shift in the Veray Drift — twice the sweeps, half the coverage.',
+    'A cadet who fled the Vex engagement has deserted. Rumor says he’s telling stories in dockside bars.',
+    'Grain barges delayed again at the Capital. Queues. Grumbling. Good.',
+    'Mira recounts the storeroom. Finds three bolts missing. Files a report with herself.',
+    'Someone has painted the rebellion’s mark on a water tower two systems away.',
+  ];
+  if(rng()<0.5)news(FLAVOR[Math.floor(rng()*FLAVOR.length)],'d');
+  // day banner
+  $('dayBannerTxt').textContent='Day '+G.day;
+  $('dayBanner').classList.add('show');
+  setTimeout(()=>$('dayBanner').classList.remove('show'),RM?400:1100);
+  sDay();
+  saveSnap();syncUI();
+}
+function phaseLocked(){return !started;}
+
+/* ---------- missions ---------- */
+function launchMission(m,pilotIds){
+  const pilots=G.people.filter(p=>pilotIds.includes(p.id));
+  const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).slice(0,pilots.length);
+  if(pilots.length<m.need||usable.length<m.need)return false;
+  for(const p of pilots)p.assign='mission';
+  for(const f of usable)f.out=true;
+  m.state='prog';
+  m.progress={daysLeft:m.days,pilots:pilotIds,fighters:usable.map(f=>f.id)};
+  news('<b>'+m.name+'</b> — strike team away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'.','a');
+  sLaunch();
+  closeWin();syncUI();
+  return true;
+}
+function resolveMission(m){
+  const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
+  const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
+  const pSucc=Math.min(0.9,0.45+avgLvl*0.08+G.morale*0.002);
+  const ok=rng()<pSucc;
+  for(const p of pilots){p.assign='rest';}
+  for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
+  if(ok){
+    if(m.rew.c)G.credits+=m.rew.c;
+    if(m.rew.s)G.supplies+=m.rew.s;
+    for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
+    G.renown=Math.min(100,G.renown+20);
+    G.morale=Math.min(100,G.morale+6);
+    m.state='done';m.meta='SUCCESS';
+    news('<b>'+m.name+'</b> — SUCCESS. '+(m.rew.c?'+'+m.rew.c+'⬡ ':'')+(m.rew.s?'+'+m.rew.s+'▤ ':'')+'Flight XP awarded.','g');
+    sBuild();
+  } else {
+    const hurt=pilots[Math.floor(rng()*pilots.length)];
+    hurt.injured=hasRoom('infirmary')?2:4;
+    const f=G.fighters.find(x=>x.id===m.progress.fighters[0]);
+    if(f)f.hull=Math.max(15,f.hull-30);
+    G.morale=Math.max(0,G.morale-8);
+    m.state='avail';m.progress=null;
+    news('<b>'+m.name+'</b> — FAILED. The escort was waiting. '+hurt.name+' injured; '+(f?f.name+' shot up.':''),'h');
+    sAlert();
+  }
+  m.progress=null;
+}
+
+/* ---------- source actions ---------- */
+function srcVisit(src){
+  if(src.visited)return;
+  src.visited=true;
+  src.cult=Math.min(100,src.cult+10);
+  src.risk=Math.min(100,src.risk+6);
+  G.risk=Math.min(100,G.risk+1);
+  news('You travel to '+src.loc+' and meet '+src.name+' in person. They needed that.','d');
+  checkCultLevel(src);
+  syncUI();renderWin();
+}
+function srcContact(src){
+  if(src.pendingEvent){openWin('dialogue',src);return;}
+  if(src.contacted)return;
+  src.contacted=true;
+  src.cult=Math.min(100,src.cult+3);
+  news('Coded exchange with '+src.name+'. Nothing urgent. They know we’re listening.','d');
+  checkCultLevel(src);
+  syncUI();renderWin();
+}
+function srcAnswer(src,kind){
+  src.pendingEvent=null;
+  src.eventsSeen++;
+  src.contacted=true;
+  if(kind==='strong'){src.cult=Math.min(100,src.cult+22);src.risk=Math.max(0,src.risk-5);news(src.name+' steadies. Cultivation deepens.','g');}
+  else if(kind==='neutral'){src.cult=Math.min(100,src.cult+8);news(src.name+' acknowledges. The line holds.','d');}
+  else {src.cult=Math.max(0,src.cult-10);src.risk=Math.min(100,src.risk+8);news(src.name+' goes quiet for a long moment. That landed badly.','h');}
+  checkCultLevel(src);
+  closeWin();openWin('sources');
+}
+function checkCultLevel(src){
+  if(src.cult>=100&&src.level<3){
+    src.level++;src.cult=0;src.risk=Math.max(0,src.risk-15);
+    for(const k in src.inc)src.inc[k]=Math.round(src.inc[k]*1.6);
+    news('<b>'+src.name+'</b> has climbed higher — source level '+src.level+'. Better access, better take.','p');
+    sBuild();
+  }
+}
+function srcSilence(src){
+  src.alive=false;
+  G.morale=Math.max(0,G.morale-10);
+  news('The assassin reports: <b>'+src.name+'</b> will not be talking to anyone. The trail is cold. The crew heard about it anyway.','h');
+  sAlert();
+  closeWin();openWin('sources');
+  syncUI();
+}
+function srcCutLoose(src){
+  src.alive=false;
+  G.morale=Math.max(0,G.morale-6);
+  for(const o of G.sources)if(o.alive&&o!==src)o.cult=Math.max(0,o.cult-20);
+  news('<b>'+src.name+'</b> cut loose — codes burned, dead drops abandoned. The rest of the network feels the chill.','h');
+  closeWin();openWin('sources');
+  syncUI();
+}
+function acceptCandidate(){
+  if(G.sources.filter(s=>s.alive).length>=sourceCap()){
+    news('No capacity to run another source safely. Prof. Marr walks away.','h');
+  } else {
+    G.sources.push({id:'marr',name:'Prof. Etta Marr',type:'Scientist',loc:'Callis Institute',level:1,cult:10,risk:20,
+      inc:{i:1},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,
+      bio:'Astrophysicist with cordoned-sector clearance and a brother in a Hegemony labor camp.'});
+    news('<b>Prof. Etta Marr</b> joins the network. Intel begins to flow.','g');
+    G.risk=Math.min(100,G.risk+4);
+  }
+  closeWin();syncUI();
+}
+/* ---------- audio (compact) ---------- */
+let AC=null,muted=false,noiseBuf=null,master=null;
+function ac(){
+  if(!AC){
+    AC=new (window.AudioContext||window.webkitAudioContext)();
+    const comp=AC.createDynamicsCompressor();
+    comp.threshold.value=-16;comp.ratio.value=6;
+    master=AC.createGain();master.gain.value=0.9;
+    master.connect(comp);comp.connect(AC.destination);
+    const len=AC.sampleRate*1.2;noiseBuf=AC.createBuffer(1,len,AC.sampleRate);
+    const d=noiseBuf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  }
+  return AC;
+}
+function envG(v,t,at){
+  const g=AC.createGain();
+  const t0=AC.currentTime+(at||0);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(v,t0+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+t);
+  g.connect(master);return g;
+}
+function osc(type,f0,f1,v,t,at){
+  if(muted||!AC)return;
+  const o=AC.createOscillator();o.type=type;
+  const t0=AC.currentTime+(at||0);
+  o.frequency.setValueAtTime(f0,t0);
+  if(f1)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t0+t);
+  o.connect(envG(v,t,at));o.start(t0);o.stop(t0+t+0.05);
+}
+function nz(ft,fr,q,v,t,at,sw){
+  if(muted||!AC)return;
+  const s=AC.createBufferSource(),f=AC.createBiquadFilter();
+  s.buffer=noiseBuf;f.type=ft;f.frequency.setValueAtTime(fr,AC.currentTime+(at||0));f.Q.value=q;
+  if(sw)f.frequency.exponentialRampToValueAtTime(sw,AC.currentTime+(at||0)+t);
+  s.connect(f).connect(envG(v,t,at));
+  s.start(AC.currentTime+(at||0));s.stop(AC.currentTime+(at||0)+t+0.05);
+}
+function sDay(){osc('sine',90,45,0.28,0.5);nz('bandpass',400,2,0.1,0.5,0,1200);}
+function sBuild(){osc('triangle',220,110,0.16,0.3);osc('triangle',330,165,0.1,0.34,0.05);}
+function sAlert(){osc('square',880,880,0.06,0.08);osc('square',660,660,0.06,0.1,0.1);}
+function sLaunch(){nz('bandpass',200,2,0.14,0.7,0,1800);osc('sine',60,140,0.14,0.6);}
+function sClick(){osc('square',1400,1200,0.02,0.04);}
+
+/* ---------- iso canvas ---------- */
+const cv=$('cv'),ctx=cv.getContext('2d');
+let dpr=1,cssW=0,cssH=0,hoverCell=null,worldT=0;
+const TW2=34,TH2=17,ELEV=16;
+function fitCanvas(){
+  const r=cv.parentElement.getBoundingClientRect();
+  dpr=Math.min(window.devicePixelRatio||1,2);
+  cssW=r.width;cssH=r.height;
+  cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
+}
+addEventListener('resize',fitCanvas);
+function isoParams(){
+  const extW=(G.cols+G.rows)*TW2+80,extH=(G.cols+G.rows)*TH2+120;
+  const S=Math.max(0.7,Math.min(1.5,Math.min((cssW-40)/extW,(cssH-160)/extH)));
+  const ox=cssW/2-((G.cols-1)-(G.rows-1))*TW2*S/2;
+  const oy=(cssH-((G.cols-1+G.rows-1)*TH2)*S)/2+10;
+  return {S,ox,oy};
+}
+function cellToCss(r,c){
+  const {S,ox,oy}=isoParams();
+  return [ox+(c-r)*TW2*S, oy+(c+r)*TH2*S, S];
+}
+function cssToCell(px,py){
+  const {S,ox,oy}=isoParams();
+  const u=(px-ox)/S,v=(py-oy)/S;
+  const c=Math.round((u/TW2+v/TH2)/2);
+  const r=Math.round((v/TH2-u/TW2)/2);
+  if(r<0||r>=G.rows||c<0||c>=G.cols)return null;
+  return {r,c};
+}
+function diamond(x,y,S,inset){
+  const w=TW2*S-(inset||0),h=TH2*S-(inset||0)*0.5;
+  ctx.beginPath();
+  ctx.moveTo(x,y-h);ctx.lineTo(x+w,y);ctx.lineTo(x,y+h);ctx.lineTo(x-w,y);
+  ctx.closePath();
+}
+function roomAt(r,c){
+  const cell=G.grid[r][c];
+  if(cell.t!=='room')return null;
+  return G.rooms.find(rm=>r>=rm.r&&r<rm.r+rm.h&&c>=rm.c&&c<rm.c+rm.w&&rm.key===cell.room);
+}
+function shade(hex,f){
+  const n=parseInt(hex.slice(1),16);
+  const r=Math.min(255,Math.round(((n>>16)&255)*f)),g=Math.min(255,Math.round(((n>>8)&255)*f)),b=Math.min(255,Math.round((n&255)*f));
+  return 'rgb('+r+','+g+','+b+')';
+}
+function render(now){
+  worldT=now;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  // cavern backdrop
+  const bg=ctx.createRadialGradient(cssW/2,cssH*0.45,60,cssW/2,cssH*0.45,Math.max(cssW,cssH)*0.75);
+  bg.addColorStop(0,'#0a0f1e');bg.addColorStop(1,'#03050b');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,cssW,cssH);
+  if(!G){requestAnimationFrame(render);return;}
+  // draw rows back-to-front
+  for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
+    const cell=G.grid[r][c];
+    const [x,y,S]=cellToCss(r,c);
+    if(cell.t==='rock'){
+      // low bedrock hump
+      diamond(x,y,S,2);
+      ctx.fillStyle='#0d1322';ctx.fill();
+      ctx.strokeStyle='rgba(40,55,90,0.25)';ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle='rgba(60,80,120,0.12)';
+      ctx.beginPath();ctx.arc(x+((r*7+c*13)%17-8)*S,y+((r*11+c*5)%9-4)*S,1.6*S,0,7);ctx.fill();
+      continue;
+    }
+    if(cell.t==='rubble'){
+      diamond(x,y,S,2);
+      ctx.fillStyle='#161d30';ctx.fill();
+      ctx.strokeStyle='rgba(90,110,150,0.35)';ctx.lineWidth=1;ctx.stroke();
+      ctx.strokeStyle='rgba(120,140,180,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(x-10*S,y-2*S);ctx.lineTo(x-2*S,y+3*S);ctx.moveTo(x+4*S,y-4*S);ctx.lineTo(x+11*S,y+1*S);
+      ctx.stroke();
+      if(cell.dig){
+        ctx.strokeStyle='rgba(255,180,84,0.8)';ctx.lineWidth=1.4;
+        diamond(x,y,S,5);ctx.stroke();
+        ctx.fillStyle='#ffb454';ctx.font='700 9px "IBM Plex Mono"';ctx.textAlign='center';
+        ctx.fillText(cell.dig+'d',x,y+3);
+      }
+      continue;
+    }
+    // floor / room base
+    const rm=roomAt(r,c);
+    const col=rm?ROOMS[rm.key].col:'#2a3654';
+    diamond(x,y,S,1);
+    const fg=ctx.createLinearGradient(x,y-TH2*S,x,y+TH2*S);
+    if(rm){fg.addColorStop(0,shade(col,0.22));fg.addColorStop(1,shade(col,0.10));}
+    else {fg.addColorStop(0,'#1b2440');fg.addColorStop(1,'#131a30');}
+    ctx.fillStyle=fg;ctx.fill();
+    ctx.strokeStyle=rm?shade(col,0.55):'rgba(90,110,160,0.4)';
+    ctx.lineWidth=1;ctx.stroke();
+    if(rm&&rm.build){
+      ctx.save();ctx.clip();
+      ctx.strokeStyle='rgba(255,180,84,0.35)';ctx.lineWidth=2;
+      for(let k=-3;k<=3;k++){ctx.beginPath();ctx.moveTo(x+k*10*S-20,y-20);ctx.lineTo(x+k*10*S+20,y+20);ctx.stroke();}
+      ctx.restore();
+    }
+  }
+  // room features + labels (drawn after floors)
+  for(const rm of G.rooms){
+    const cr=rm.r+(rm.h-1)/2,cc=rm.c+(rm.w-1)/2;
+    const [x,y,S]=cellToCss(cr,cc);
+    const col=ROOMS[rm.key].col;
+    const pul=0.6+0.4*Math.sin(worldT*0.002+rm.r+rm.c);
+    if(!rm.build){
+      if(rm.key==='command'){
+        ctx.strokeStyle='rgba(255,180,84,'+(0.35+0.3*pul)+')';ctx.lineWidth=1.6;
+        ctx.beginPath();ctx.ellipse(x,y-6*S,11*S,5.5*S,0,0,Math.PI*2);ctx.stroke();
+        ctx.strokeStyle='rgba(255,180,84,0.25)';
+        ctx.beginPath();ctx.ellipse(x,y-6*S,6*S,3*S,0,0,Math.PI*2);ctx.stroke();
+      } else if(rm.key==='hangar'){
+        for(let i=0;i<Math.min(3,G.fighters.length);i++){
+          const f=G.fighters[i];
+          const fx=x+(i-1)*16*S,fy=y+(i-1)*4*S-4*S;
+          ctx.save();ctx.translate(fx,fy);ctx.rotate(-0.5);ctx.globalAlpha=f.out?0.18:0.9;
+          ctx.fillStyle=f.out?'#3a4560':'#8fa5c4';
+          ctx.beginPath();ctx.moveTo(7*S,0);ctx.lineTo(-5*S,-4*S);ctx.lineTo(-3*S,0);ctx.lineTo(-5*S,4*S);ctx.closePath();ctx.fill();
+          if(!f.out){
+            ctx.fillStyle=f.hull>=100?'#7dd97b':f.hull>=60?'#ffb454':'#ff4f5e';
+            ctx.beginPath();ctx.arc(-7*S,0,1.8*S,0,7);ctx.fill();
+          }
+          ctx.restore();
+        }
+      } else if(rm.key==='comms'){
+        ctx.strokeStyle='rgba(87,215,226,'+(0.3+0.4*pul)+')';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.arc(x,y-8*S,5*S,Math.PI*0.9,Math.PI*1.9);ctx.stroke();
+        ctx.beginPath();ctx.arc(x,y-8*S,(8+3*pul)*S,Math.PI*1.15,Math.PI*1.65);ctx.stroke();
+      } else if(rm.key==='barracks'){
+        ctx.fillStyle='rgba(87,215,226,0.25)';
+        for(let i=0;i<3;i++){ctx.fillRect(x-12*S+i*9*S,y-3*S,6*S,4*S);}
+      } else if(rm.key==='store'){
+        ctx.fillStyle='rgba(125,217,123,0.3)';
+        ctx.fillRect(x-6*S,y-5*S,5*S,4*S);ctx.fillRect(x+1*S,y-3*S,5*S,4*S);
+      } else if(rm.key==='workshop'){
+        if(!RM&&rng()<0.06){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.arc(x+(rng()-0.5)*10*S,y-2*S,1.2,0,7);ctx.fill();}
+        ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=1.4;
+        ctx.strokeRect(x-6*S,y-6*S,12*S,6*S);
+      } else if(rm.key==='infirmary'){
+        ctx.strokeStyle='rgba(125,217,123,0.7)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(x-4*S,y-4*S);ctx.lineTo(x+4*S,y-4*S);ctx.moveTo(x,y-8*S);ctx.lineTo(x,y);ctx.stroke();
+      } else if(rm.key==='training'){
+        ctx.strokeStyle='rgba(201,135,255,0.55)';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.arc(x,y-4*S,4.5*S,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.arc(x,y-4*S,1.6*S,0,Math.PI*2);ctx.stroke();
+      } else if(rm.key==='bay'){
+        ctx.strokeStyle='rgba(87,168,255,0.5)';ctx.lineWidth=1.2;
+        ctx.strokeRect(x-8*S,y-5*S,16*S,7*S);
+      }
+    }
+    // label
+    ctx.font='700 '+Math.round(9.5*S)+'px "Exo 2"';
+    ctx.textAlign='center';
+    ctx.fillStyle=rm.build?'rgba(255,180,84,0.8)':shade(col,1.15);
+    const ly=y+TH2*S*(rm.h===1?0.6:1.15)+8;
+    ctx.fillText(ROOMS[rm.key].name.toUpperCase()+(rm.build?' · '+rm.build.days+'d':''),x,ly);
+  }
+  // hover + selection
+  if(hoverCell){
+    const [x,y,S]=cellToCss(hoverCell.r,hoverCell.c);
+    diamond(x,y,S,1);
+    ctx.strokeStyle='rgba(255,180,84,0.7)';ctx.lineWidth=1.6;ctx.stroke();
+  }
+  if(sel&&sel.type==='cell'){
+    const [x,y,S]=cellToCss(sel.r,sel.c);
+    diamond(x,y,S,0);
+    ctx.strokeStyle='rgba(255,180,84,0.95)';ctx.lineWidth=2;ctx.stroke();
+  }
+  // vignette
+  const vg=ctx.createRadialGradient(cssW/2,cssH/2,Math.min(cssW,cssH)*0.4,cssW/2,cssH/2,Math.max(cssW,cssH)*0.75);
+  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.55)');
+  ctx.fillStyle=vg;ctx.fillRect(0,0,cssW,cssH);
+  layoutTilePop();
+  requestAnimationFrame(render);
+}
+
+/* ---------- tile popup ---------- */
+function openTilePop(r,c){
+  tilePopAt={r,c};
+  sel={type:'cell',r,c};
+  renderTilePop();
+  syncUI();
+}
+function closeTilePop(){tilePopAt=null;$('tilePop').hidden=true;}
+function renderTilePop(){
+  if(!tilePopAt)return;
+  const {r,c}=tilePopAt;
+  const cell=G.grid[r][c];
+  const el=$('tilePop');
+  let h='';
+  if(cell.t==='rock'){
+    h='<div class="ptitle">Bedrock</div><div class="pdesc">Solid rock. Excavation crews can only work faces already opened by rubble.</div>';
+  } else if(cell.t==='rubble'){
+    h='<div class="ptitle">Collapsed Chamber</div>';
+    if(cell.dig)h+='<div class="pdesc">Excavation underway — '+cell.dig+' day'+(cell.dig>1?'s':'')+' remaining.</div>';
+    else h+='<div class="pdesc">Rubble from the original diggings. Clear it to open a new chamber.</div>'+
+      '<button class="pbtn" data-dig '+(G.supplies>=EXCAVATE.s?'':'disabled')+'>Excavate <span class="cost">'+EXCAVATE.s+'▤ · '+EXCAVATE.days+'d</span></button>';
+  } else if(cell.t==='floor'){
+    h='<div class="ptitle">Open Chamber</div><div class="pdesc">Cleared and powered. Ready to build.</div>';
+    for(const k in BUILDS){
+      const b=BUILDS[k];
+      const afford=G.credits>=b.c&&G.supplies>=b.s;
+      h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+ROOMS[k].name+
+        '<span class="cost">'+b.c+'⬡ '+b.s+'▤ · '+b.days+'d</span><small>'+ROOMS[k].desc+'</small></button>';
+    }
+  } else {
+    const rm=roomAt(r,c);
+    const R=ROOMS[rm.key];
+    h='<div class="ptitle">'+R.name+(rm.build?' — building, '+rm.build.days+'d left':'')+'</div><div class="pdesc">'+R.desc+'</div>';
+    if(!rm.build){
+      if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
+      if(rm.key==='hangar'||rm.key==='bay'){
+        for(const f of G.fighters)h+='<div class="pdesc" style="margin:2px 0">'+f.name+' — '+(f.out?'ON MISSION':'hull '+f.hull+'%')+'</div>';
+        h+='<div class="pdesc">Repairs '+(hasRoom('workshop')?'15':'5')+'%/day, 2▤ each.</div>'+
+          '<a class="pbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Sim Deck — fly the Instructor Raid ↗</a>';
+      }
+      if(rm.key==='barracks')h+='<div class="pdesc">Crew morale: <b style="color:var(--text)">'+Math.round(G.morale)+'</b>. Rest restores it.</div>';
+      if(rm.key==='store')h+='<div class="pdesc">'+G.credits+'⬡ · '+G.supplies+'▤ · '+G.intel+'◈ intel on hand.</div>';
+      if(rm.key==='training')h+='<button class="pbtn" data-open="roster">Assign Rebels</button>';
+      if(rm.key==='comms')h+='<button class="pbtn" data-open="sources">Source Network</button>';
+    }
+  }
+  el.innerHTML=h;
+  el.hidden=false;
+  layoutTilePop();
+}
+function layoutTilePop(){
+  if(!tilePopAt)return;
+  const el=$('tilePop');
+  if(el.hidden)return;
+  const [x,y]=cellToCss(tilePopAt.r,tilePopAt.c);
+  const r=el.getBoundingClientRect();
+  let px=x+40,py=y-r.height/2;
+  if(px+r.width>cssW-8)px=x-r.width-40;
+  px=Math.max(8,Math.min(cssW-r.width-8,px));
+  py=Math.max(8,Math.min(cssH-r.height-8,py));
+  el.style.left=px+'px';el.style.top=py+'px';
+}
+
+/* ---------- windows ---------- */
+function openWin(mode,arg){winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
+function closeWin(){winMode=null;winArg=null;$('winsB').hidden=true;}
+function meter(cls,label,val){
+  return '<div class="meter '+cls+'"><span class="ml">'+label+'</span><span class="mt"><i style="width:'+Math.min(100,val)+'%"></i></span><span class="mv">'+Math.round(val)+'</span></div>';
+}
+function renderWin(){
+  const card=$('winCardB');
+  card.classList.remove('narrow');
+  let h='';
+  if(winMode==='sources'){
+    const alive=G.sources.filter(s=>s.alive);
+    h='<div class="winHead"><span class="wt">Source Network · '+alive.length+'/'+sourceCap()+'</span><button class="winX" data-close>✕</button></div><div class="winBody">';
+    if(!alive.length)h+='<div class="pdesc">No sources. The rebellion is blind.</div>';
+    for(const s of alive){
+      const inc=[s.inc.c?('+'+s.inc.c+'⬡'):null,s.inc.s?('+'+s.inc.s+'▤'):null,s.inc.i?('+'+s.inc.i+'◈'):null].filter(Boolean).join(' · ');
+      h+='<div class="scard'+(s.risk>60?' warn':'')+'">'+
+        '<div class="srow"><span class="sname">'+s.name+'</span><span class="stype">'+s.type+' · '+s.loc+'</span><span class="slvl">LVL '+s.level+'</span></div>'+
+        '<div class="sbio">“'+s.bio+'”</div>'+
+        meter('cult','Cultivation',s.cult)+meter('srisk','Risk',s.risk)+
+        '<div class="sinc">'+inc+' per day</div>'+
+        '<div class="sacts">'+
+        '<button class="sbtn'+(s.pendingEvent?' attn':'')+'" data-sc="'+s.id+'" '+((s.contacted&&!s.pendingEvent)?'disabled':'')+'>'+(s.pendingEvent?'✉ Contact — they need an answer':'Contact')+'</button>'+
+        '<button class="sbtn" data-sv="'+s.id+'" '+(s.visited?'disabled':'')+'>Visit (+cult, +risk)</button>'+
+        (s.risk>=50?'<button class="sbtn danger" data-ss="'+s.id+'">Silence…</button>':'')+
+        '<button class="sbtn danger" data-sl="'+s.id+'">Cut Loose</button>'+
+        '</div></div>';
+    }
+    h+='</div>';
+  }
+  else if(winMode==='dialogue'){
+    const s=winArg;
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Secure Channel · '+s.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="dlg-text">'+s.pendingEvent.text+'</div>'+
+      s.pendingEvent.opts.map((o,i)=>'<button class="dbtn" data-ans="'+i+'">'+o[0]+'</button>').join('')+
+      '</div>';
+  }
+  else if(winMode==='candidate'){
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Approach · Potential Source</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="dlg-text"><b>Prof. Etta Marr</b>, astrophysicist at the Callis Institute, has made contact through a dead drop. '+
+      'She holds cordoned-sector survey clearance — and a brother in a Hegemony labor camp. She offers intelligence. '+
+      'Capacity: '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+' sources.</div>'+
+      '<button class="dbtn" data-cand="yes">Take her on. (+1 intel/day · network risk +4)</button>'+
+      '<button class="dbtn" data-cand="no">Too dangerous. Burn the drop.</button>'+
+      '</div>';
+  }
+  else if(winMode==='missions'){
+    h='<div class="winHead"><span class="wt">Mission Board</span><button class="winX" data-close>✕</button></div><div class="winBody">';
+    for(const m of G.missions){
+      const cls=m.state==='done'?'done':m.state==='locked'?'locked':m.state==='prog'?'prog':'';
+      h+='<div class="mcard '+cls+'"><div class="mrow"><span class="mname">'+m.name+'</span><span class="mfrom">'+(m.from||'')+'</span>'+
+        '<span class="mstate">'+(m.state==='done'?(m.meta||'COMPLETE'):m.state==='prog'?(m.progress.daysLeft+'d remaining'):m.state==='locked'?'LOCKED':m.state==='sim'?'SIMULATOR':'AVAILABLE')+'</span></div>'+
+        '<div class="mdesc">'+m.desc+'</div>';
+      if(m.state==='avail')h+='<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · <span class="rw">'+(m.rew.c?'+'+m.rew.c+'⬡ ':'')+(m.rew.s?'+'+m.rew.s+'▤ ':'')+'+XP</span></div>'+
+        '<button class="sbtn" data-plan="'+m.id+'">Plan Mission</button>';
+      if(m.state==='sim')h+='<a class="sbtn" style="display:inline-block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Enter Simulator ↗</a>';
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  else if(winMode==='plan'){
+    const m=winArg;
+    card.classList.add('narrow');
+    const eligible=G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');
+    const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).length;
+    h='<div class="winHead"><span class="wt">Plan · '+m.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="pdesc">Needs '+m.need+' pilots and '+m.need+' flight-ready fighters (hull ≥ 60%). Ready fighters: <b style="color:var(--text)">'+usable+'</b>.</div>';
+    for(const p of eligible){
+      h+='<label class="prow" style="cursor:pointer"><input type="checkbox" class="pcheck" data-pk="'+p.id+'">'+
+        '<span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span>'+
+        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankOf(p.level)+' · lvl '+p.level+'</span></span></label>';
+    }
+    h+='<button class="sbtn" id="launchBtn" style="width:100%;margin-top:8px;padding:10px" disabled>Launch</button></div>';
+  }
+  else if(winMode==='roster'){
+    h='<div class="winHead"><span class="wt">Rebel Roster</span><button class="winX" data-close>✕</button></div><div class="winBody">';
+    for(const p of G.people){
+      const pct=Math.round(p.xp*100);
+      h+='<div class="prow"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span>'+
+        '<span class="pinfo"><span class="pname">'+p.name+'</span> <span class="psub">· '+p.role+' · '+rankOf(p.level)+' · lvl '+p.level+'</span>'+
+        '<span class="pxp" title="XP '+pct+'%"><i style="width:'+pct+'%"></i></span></span>';
+      if(p.injured)h+='<span class="achip hurt">INJURED '+p.injured+'d</span>';
+      else if(p.assign==='mission')h+='<span class="achip on">ON MISSION</span>';
+      else {
+        h+='<button class="achip'+(p.assign==='rest'?' on':'')+'" data-as="rest:'+p.id+'">Rest</button>'+
+           '<button class="achip'+(p.assign==='train'?' on':'')+'" data-as="train:'+p.id+'" '+(hasRoom('training')?'':'disabled title="Requires Training Hall"')+'>Train</button>';
+      }
+      h+='</div>';
+    }
+    h+='<div class="pdesc" style="margin-top:6px">Training needs a Training Hall. Rest restores squad morale ('+Math.round(G.morale)+').</div></div>';
+  }
+  else if(winMode==='silence'){
+    const s=winArg;
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Silence · '+s.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="dlg-text">The assassin waits by the airlock, helmet under one arm. <br><br>“Say the word, Commander. '+
+      s.name.split(' ')[0]+' stops being a risk tonight — and stops being anything else, too. No trail. No trial.”</div>'+
+      '<button class="dbtn" data-kill="'+s.id+'">Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.</button>'+
+      '<button class="dbtn" data-close>Not yet. Send them back to the shadows.</button>'+
+      '</div>';
+  }
+  card.innerHTML=h;
+}
+
+/* ---------- sidebar ---------- */
+function selInfoHTML(){
+  if(!sel)return 'Nothing selected — click a room, a rebel, or a fighter.';
+  if(sel.type==='cell'){
+    const cell=G.grid[sel.r][sel.c];
+    if(cell.t==='room'){
+      const rm=roomAt(sel.r,sel.c);
+      return '<span class="tag">'+ROOMS[rm.key].name+'</span><br>'+ROOMS[rm.key].desc+(rm.build?'<br><b>Under construction — '+rm.build.days+'d left.</b>':'');
+    }
+    if(cell.t==='floor')return '<span class="tag">Open Chamber</span><br>Powered and ready to build.';
+    if(cell.t==='rubble')return '<span class="tag">Collapsed Chamber</span><br>'+(cell.dig?'Excavating — '+cell.dig+'d left.':'Clearable rubble.');
+    return '<span class="tag">Bedrock</span><br>Solid rock.';
+  }
+  if(sel.type==='person'){
+    const p=G.people.find(x=>x.id===sel.id);
+    if(!p)return '';
+    return '<span class="tag">'+p.name+'</span><br>'+p.role+' · '+rankOf(p.level)+' · level '+p.level+' · XP '+Math.round(p.xp*100)+'%<br>'+
+      (p.injured?'<b style="color:var(--heg)">Injured — '+p.injured+'d.</b><br>':'')+
+      '<i style="color:var(--dim)">“'+p.bio+'”</i><br>Manage assignments in the Roster.';
+  }
+  if(sel.type==='fighter'){
+    const f=G.fighters.find(x=>x.id===sel.id);
+    if(!f)return '';
+    return '<span class="tag">'+f.name+'</span><br>'+f.cls+'<br>Hull '+f.hull+'%'+(f.out?' · <b style="color:var(--blue)">on mission</b>':'')+
+      '<br>Repairs '+(hasRoom('workshop')?'15':'5')+'%/day at 2▤.';
+  }
+  return '';
+}
+function syncUI(){
+  $('dayLbl').textContent='Day '+G.day;
+  $('resC').textContent=Math.round(G.credits);
+  $('resS').textContent=Math.round(G.supplies);
+  $('resI').textContent=Math.round(G.intel);
+  $('revPill').textContent='REV LVL 1 · '+Math.round(G.renown)+'/100';
+  const rp=$('riskPill');
+  rp.textContent='RISK '+Math.round(G.risk);
+  rp.className='pill risk'+(G.risk<35?' low':'');
+  const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.risk>70)).length;
+  $('srcBadge').hidden=!srcAttn;$('srcBadge').textContent=srcAttn;
+  const misAvail=G.missions.filter(m=>m.state==='avail').length;
+  $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
+  const prog=G.missions.filter(m=>m.state==='prog').length;
+  const building=G.rooms.filter(r=>r.build).length;
+  $('dockNote').textContent=[prog?prog+' mission'+(prog>1?'s':'')+' out':null,building?building+' building':null].filter(Boolean).join(' · ');
+  $('selInfo').innerHTML=selInfoHTML();
+  $('crewList').innerHTML=G.people.map(p=>{
+    const st=p.injured?'INJURED':p.assign.toUpperCase();
+    const stc=p.injured?'var(--heg)':p.assign==='mission'?'var(--blue)':p.assign==='train'?'var(--purple)':'var(--dim)';
+    return '<div class="rrow" data-person="'+p.id+'" tabindex="0"><span class="rname">'+p.name+'</span>'+
+      '<span class="rsub">'+p.role+' L'+p.level+'</span><span class="rsub" style="color:'+stc+'">'+st+'</span></div>';
+  }).join('');
+  $('fleetList').innerHTML=G.fighters.map(f=>{
+    let cells='<span class="hcells">';
+    for(let i=0;i<10;i++)cells+='<span class="hcell'+(i*10<f.hull?' on':'')+'"></span>';
+    cells+='</span>';
+    return '<div class="frow" data-fighter="'+f.id+'"><span class="fname">'+f.name+'</span>'+(f.out?'<span class="fout">OUT</span>':cells)+'</div>';
+  }).join('');
+  if(winMode)renderWin();
+  if(tilePopAt)renderTilePop();
+}
+
+/* ---------- input ---------- */
+cv.addEventListener('pointermove',ev=>{
+  const r=cv.getBoundingClientRect();
+  hoverCell=cssToCell(ev.clientX-r.left,ev.clientY-r.top);
+});
+cv.addEventListener('pointerleave',()=>{hoverCell=null;});
+cv.addEventListener('click',ev=>{
+  if(!started)return;
+  const r=cv.getBoundingClientRect();
+  const cell=cssToCell(ev.clientX-r.left,ev.clientY-r.top);
+  sClick();
+  if(!cell){closeTilePop();sel=null;syncUI();return;}
+  openTilePop(cell.r,cell.c);
+});
+$('tilePop').addEventListener('click',ev=>{
+  const t=ev.target.closest('button');
+  if(!t||t.disabled)return;
+  const {r,c}=tilePopAt||{};
+  sClick();
+  if(t.hasAttribute('data-dig')){
+    G.supplies-=EXCAVATE.s;
+    G.grid[r][c].dig=EXCAVATE.days;
+    news('Excavation crew breaks ground on a collapsed chamber.','d');
+    renderTilePop();syncUI();return;
+  }
+  const bk=t.getAttribute('data-build');
+  if(bk){
+    const b=BUILDS[bk];
+    G.credits-=b.c;G.supplies-=b.s;
+    G.grid[r][c]={t:'room',room:bk};
+    G.rooms.push({key:bk,r,c,w:1,h:1,build:{days:b.days}});
+    news('Construction begins: '+ROOMS[bk].name+' ('+b.days+'d).','a');
+    sBuild();
+    renderTilePop();syncUI();return;
+  }
+  const open=t.getAttribute('data-open');
+  if(open){closeTilePop();openWin(open);return;}
+});
+$('winsB').addEventListener('click',ev=>{
+  if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
+  const t=ev.target.closest('button,a,input');
+  if(!t)return;
+  if(t.classList.contains('pcheck')){
+    const m=winArg;
+    const n=[...document.querySelectorAll('.pcheck:checked')].length;
+    const usable=G.fighters.filter(f=>!f.out&&f.hull>=60).length;
+    const btn=$('launchBtn');
+    if(btn)btn.disabled=!(n===m.need&&usable>=m.need);
+    return;
+  }
+  if(t.id==='launchBtn'){
+    const ids=[...document.querySelectorAll('.pcheck:checked')].map(x=>x.getAttribute('data-pk'));
+    launchMission(winArg,ids);
+    return;
+  }
+  sClick();
+  const sc=t.getAttribute('data-sc');
+  if(sc){const s=G.sources.find(x=>x.id===sc);if(s)srcContact(s);return;}
+  const sv=t.getAttribute('data-sv');
+  if(sv){const s=G.sources.find(x=>x.id===sv);if(s)srcVisit(s);return;}
+  const ss=t.getAttribute('data-ss');
+  if(ss){const s=G.sources.find(x=>x.id===ss);if(s)openWin('silence',s);return;}
+  const sl=t.getAttribute('data-sl');
+  if(sl){const s=G.sources.find(x=>x.id===sl);if(s)srcCutLoose(s);return;}
+  const kill=t.getAttribute('data-kill');
+  if(kill){const s=G.sources.find(x=>x.id===kill);if(s)srcSilence(s);return;}
+  const ans=t.getAttribute('data-ans');
+  if(ans!==null&&winMode==='dialogue'){srcAnswer(winArg,winArg.pendingEvent.opts[+ans][1]);return;}
+  const cand=t.getAttribute('data-cand');
+  if(cand){if(cand==='yes')acceptCandidate();else{news('The dead drop is burned. Prof. Marr never hears back.','d');closeWin();}return;}
+  const plan=t.getAttribute('data-plan');
+  if(plan){const m=G.missions.find(x=>x.id===plan);if(m)openWin('plan',m);return;}
+  const as=t.getAttribute('data-as');
+  if(as){
+    const [mode,pid]=as.split(':');
+    const p=G.people.find(x=>x.id===pid);
+    if(p&&!p.injured&&p.assign!=='mission'){p.assign=mode;syncUI();}
+    return;
+  }
+});
+document.getElementById('panel').addEventListener('click',ev=>{
+  const pr=ev.target.closest('[data-person]');
+  if(pr){sel={type:'person',id:pr.getAttribute('data-person')};closeTilePop();syncUI();return;}
+  const fr=ev.target.closest('[data-fighter]');
+  if(fr){sel={type:'fighter',id:fr.getAttribute('data-fighter')};closeTilePop();syncUI();return;}
+});
+$('navSources').addEventListener('click',()=>{sClick();openWin('sources');});
+$('navMissions').addEventListener('click',()=>{sClick();openWin('missions');});
+$('navRoster').addEventListener('click',()=>{sClick();openWin('roster');});
+$('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
+addEventListener('keydown',ev=>{if(ev.key==='Escape'){closeWin();closeTilePop();}});
+$('muteBtn').addEventListener('click',()=>{
+  muted=!muted;
+  $('muteBtn').textContent='Sound: '+(muted?'Off':'On');
+  $('muteBtn').setAttribute('aria-pressed',String(muted));
+});
+$('restartBtn').addEventListener('click',()=>{
+  if(!started)return;
+  G=newGame();sel=null;closeWin();closeTilePop();
+  news('Command log reset. Day 1 at Haven Rock.','a');
+  saveSnap();syncUI();
+});
+$('enterBtn').addEventListener('click',()=>{
+  try{ac().resume();}catch(e){}
+  $('debrief').hidden=true;
+  started=true;
+  seedNews();
+  saveSnap();syncUI();
+});
+
+function seedNews(){
+  news('Operation <b>Take Out Instructor</b> — SUCCESS. Cmdt. Dral Vex eliminated in the Veray Drift.','g');
+  news('Salvage processed: +180⬡, +40▤, +2◈. Fighters in for repairs.','d');
+  news('Ferren Halt reports the yards are “crawling with counter-intelligence.” His risk is climbing.','h');
+}
+
+/* ---------- snapshot / boot ---------- */
+let lastSnap=null;
+function saveSnap(){
+  try{lastSnap={G:JSON.parse(JSON.stringify(G)),started};}catch(e){}
+}
+try{window.claude?.hot?.snapshot?.(()=>lastSnap);}catch(e){}
+function boot(data){
+  fitCanvas();
+  if(data&&data.G&&data.started){
+    G=data.G;started=true;
+    $('debrief').hidden=true;
+    renderNews();
+  } else {
+    G=newGame();
+    if(location.hash==='#deploy'){
+      $('debrief').hidden=true;started=true;seedNews();
+    }
+  }
+  syncUI();renderNews();
+  requestAnimationFrame(render);
+}
+try{
+  window.claude?.hot?.ready ? window.claude.hot.ready(d=>boot(d??null)) : boot((window.claude?.hot?.data)??null);
+}catch(e){boot(null);}
+</script>
