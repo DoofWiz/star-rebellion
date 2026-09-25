@@ -170,42 +170,50 @@ layer ("Fight it on the ground") or standalone. Rev Level 1 framing: the squad
 are civilians with stolen Aklis and no armor; the opposition is basically
 police with civilian-grade gear.
 
-**The ruleset** is a WeGo real-time-tactics cousin of the space game — Door
-Kickers / Frozen Synapse planning with Desperados-style western staging — kept
-deliberately familiar: the same round skeleton (plan orders → simultaneous
-execution → engagement resolved unit-by-unit on the shared d20 VS panel with
-visible TN/ATK stacks and an interactive ATTACK button), the same radial
-order ring, dossier-style HUD language, camera/minimap, and synth audio.
-Differences from space:
+**The ruleset** is a hybrid RTT — Desperados/Shadow Tactics real-time staging
+out of combat, Door Kickers / Frozen Synapse WeGo rounds in it — kept
+deliberately familiar to the space game. **Out of combat time runs free**:
+right-click (or tap the ground) and the squad follows in loose formation,
+auto-looting anything they pass; deputies drift their beats in real time;
+Sera's hotwire ticks on a timer. The moment the law is alerted — spotted,
+shot at, or the player clicks a lawman to open the fight — time drops into
+the round skeleton the space game uses: plan orders → simultaneous execution
+→ engagement resolved unit-by-unit on the shared d20 VS panel with visible
+TN/ATK stacks and an interactive ATTACK button, with the same radial order
+ring, HUD language, camera/minimap, and synth audio. Clear the street and
+time runs free again for the mop-up. In-combat specifics:
 
 - **No grid.** Movement is free-aim inside a ring: **Move** (~150u, gun stays
   up), **Sprint** (~300u, can't shoot, +2 TN harder to hit), **Hold** (braced
   +2 ATK and an overwatch snap-shot at anyone crossing the lane, −2 ATK).
-- **Cover & LOS** — buildings block sight and movement outright; barrels,
-  crates and troughs give +3 TN, wagons +5; the tower marksman's high angle
-  degrades cover by 2.
-- **Calm/alerted town** — deputies patrol obliviously until a shot is fired
-  or they spot a rebel (320u, 460u for the tower); until then you can position
-  and even loot quietly. Alert flips the AI to cover-seeking advances, with
-  Sheriff Reeve hunting Sera specifically.
+- **Cover & LOS** — buildings block sight, movement and bullets outright
+  (tracers clip at walls); barrels, crates and troughs give +3 TN, wagons +5;
+  the tower marksman's high angle degrades cover by 2. Cover is signposted:
+  units hugging cover show a green shield pip, and while plotting a move the
+  cover pockets in reach are ringed, with a COVER tag on a hovered
+  destination that qualifies.
 - **Akli jams** — a natural 1 on the die jams the rifle for a round (clear it
   early with the radial's Un-jam action, or fall back to the Cowboy).
 - **Morale** — dropping Sheriff Reeve breaks deputies' nerve; they can throw
-  down their guns and surrender (and stop blocking extraction).
+  down their guns and surrender (and stop counting as hostiles).
 - **Loot lives on the map** — saloon till, bank strongbox, store crates, the
   HQ gun locker, a stable cache, plus whatever downed lawmen drop (the
-  Sheriff's scattergun included). A Loot order spends the unit's round;
-  nothing is granted free on the end screen.
+  Sheriff's scattergun included). In combat a Loot order spends the round and
+  sweeps a small AOE (~95u) around the unit; out of combat the squad simply
+  hoovers up whatever they walk past. Nothing is granted free on the end
+  screen.
 
 **The scenario**: Joss lands the Graf at the LZ in an intro cutscene (letterbox,
 dust, squad walk-out, camera pan to the objective). Dax, Runa and Kel escort
 Sera Kest — sidearm only, frail, must survive — across Dustfall to the FT-4
-Cross on the pad behind the sheriff's HQ. She needs two protected rounds to
-hotwire it, flies it out, and then the squad extracts at the Graf, which stays
-shut while lawmen stand within 300u of the ramp. Defeat if Sera goes down or
-the whole squad does. Hostiles: Sheriff Reeve (scattergun, tough), five
-deputies (revolvers/carbines), and Dep. Wren with a Long Iron on the water
-tower.
+Cross on the pad behind the sheriff's HQ. She needs two protected rounds (or a
+quiet stretch of real time) to hotwire it, flies it out, and the squad heads
+home: under fire they extract by standing in the LZ ring while no lawman is
+within 300u; once no hostiles remain a big **Extract** button appears and
+plays a boarding cinematic — the squad runs up the ramp and the Graf lifts
+off. Defeat if Sera goes down or the whole squad does. Hostiles: Sheriff
+Reeve (scattergun, tough), five deputies (revolvers/carbines), and Dep. Wren
+with a Long Iron on the water tower.
 
 Base ↔ ground wiring is still one-way (the mission link opens the artifact;
 results don't carry back), same as the space sim link. The base's abstract

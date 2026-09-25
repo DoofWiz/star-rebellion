@@ -49,6 +49,9 @@
   #executeBtn:hover:not(:disabled),#attackBtn:hover{border-color:var(--amber);color:var(--amber);}
   #executeBtn:disabled{opacity:.45;cursor:default;}
   #attackBtn{background:linear-gradient(180deg,#71321f,#4c1f16);border-color:#a35232;}
+  #extractBtn{background:linear-gradient(180deg,#2c5a3a,#1a3c26);border:1px solid #4a9a66;color:#d9ffe6;font-family:var(--font-ui);font-weight:800;font-size:15px;letter-spacing:.14em;text-transform:uppercase;padding:13px 44px;border-radius:5px;cursor:pointer;animation:extGlow 1.6s ease-in-out infinite;}
+  #extractBtn:hover{border-color:var(--amber);color:var(--amber);}
+  @keyframes extGlow{0%,100%{box-shadow:0 0 0 rgba(125,217,123,0);}50%{box-shadow:0 0 22px rgba(125,217,123,.5);}}
   #holdBtn{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:9px 12px;border-radius:4px;cursor:pointer;}
   #holdBtn:hover{color:var(--text);border-color:var(--dim);}
   .wchip{background:#0d1530;border:1px solid var(--line);color:var(--text);font-family:var(--font-mono);font-size:10px;padding:6px 9px;border-radius:3px;cursor:pointer;}
@@ -138,12 +141,14 @@
           bodies between her and the shooting. Once she reaches the pad she needs
           <b>two full rounds</b> to hotwire it out from under them. Then walk the squad back to
           the Graf and lift — as long as no lawman is standing on the ramp.</p>
-          <p class="fine">Plan every rebel&#8217;s order, then execute — everyone moves at once.
+          <p class="fine">While the town is quiet you move in <b>real time</b> — right-click (or tap
+          the ground) and the squad follows, scooping up any loot they pass. The moment the law wakes,
+          time drops into rounds: plan every rebel&#8217;s order, then execute — everyone moves at once.
           <b>Move</b> keeps your gun up · <b>Sprint</b> goes twice as far but you can&#8217;t shoot and you&#8217;re
           harder to hit · <b>Hold</b> braces your aim and watches a lane — anyone crossing it eats a snap
-          shot. Keep to barrels and wagons: cover turns hits into misses. The town hasn&#8217;t noticed
-          you yet. Anything worth taking — tills, strongboxes, lockers — has to be looted on the
-          ground, by hand. Akli rifles run dirty: a roll of 1 jams the action.</p>
+          shot. Keep to barrels and wagons: cover turns hits into misses (the green rings show where it
+          is). Akli rifles run dirty: a roll of 1 jams the action. Clear the street and time runs free
+          again — sweep the town, then hit <b>Extract</b>.</p>
           <button id="enterBtn">Hit the Ground</button>
         </div>
       </div>
@@ -189,7 +194,7 @@
 
 /* ---------- constants ---------- */
 const W=2400,H=1600;
-const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_R=56;
+const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135;
 const PAD={x:2180,y:1080,r:95};      // the Cross's pad, hotwire zone
 const LZ={x:300,y:1330,r:130};       // Graf ramp, extraction zone
 const HOT_ROUNDS=2;
@@ -281,8 +286,9 @@ function initUnits(){
 }
 
 /* ---------- state ---------- */
-let phase='BRIEF';       // BRIEF, CUTSCENE, PLANNING, EXEC, ENGAGE, GAMEOVER
+let phase='BRIEF';       // BRIEF, CUTSCENE, FREE, PLANNING, EXEC, ENGAGE, EXTRACT, GAMEOVER
 let round=0,started=false,town='calm';
+let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0;
 let selId=null,pickMode=null,radialOn=false,radialSub=null;
 let execT0=0,engageQ=null;
 let hot=0,crossAway=false,crossFx=null,grafState='landed';
@@ -309,6 +315,10 @@ function segBlocked(x1,y1,x2,y2){
   return false;
 }
 function losBlocked(a,b){return segBlocked(a.x,a.y,b.x,b.y);}
+function inCoverAt(x,y){
+  for(const p of PROPS)if(Math.hypot(p.x-x,p.y-y)<PROPDEF[p.kind].r+34)return true;
+  return false;
+}
 function coverOf(s,t){
   // best prop hugging the target that sits between shooter and target
   if(t.elev)return {v:2,lab:'TOWER RAILING'};
@@ -498,6 +508,12 @@ function alertTown(why){
   if(caller&&caller.lines)say(caller,caller.lines[caller.lines.length-1]);
   const reeve=U.find(u=>u.id==='reeve');
   if(reeve&&!reeve.down)setTimeout(()=>sayRandom(reeve),1400);
+  if(phase==='FREE'){
+    haltSquad();
+    log('<span class="a">Time drops into rounds — plan every rebel’s move.</span>');
+    startPlanning();
+    return;
+  }
   syncUI();
 }
 function spotCheck(){
@@ -611,6 +627,139 @@ function pickCoverMove(u,tgt,r,toward){
   return best;
 }
 
+/* ---------- free move (real time, out of combat) ---------- */
+function combatActive(){return town==='alerted'&&hostilesActive().length>0;}
+function haltSquad(){for(const u of U){u.rtPath=null;}}
+function setRt(u,tx,ty,spd){
+  const d=moveDest(u,tx,ty,1e9)||{x:tx,y:ty};
+  const p=pathFor(u,d.x,d.y);
+  u.rtPath=p?p.slice(1):null;
+  u.rtSpd=spd||RT_SPEED;
+}
+function squadMoveTo(pt){
+  const offs=[[0,0],[36,20],[-32,28],[22,-32]];
+  let i=0;
+  for(const u of U){
+    if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
+    const o=offs[i%offs.length];i++;
+    setRt(u,pt.x+o[0],pt.y+o[1]);
+  }
+  rtPing={x:pt.x,y:pt.y,t0:performance.now()};
+  sTick();
+}
+function lootsWithin(u,r){
+  return lootMarks.filter(m=>!m.taken&&Math.hypot(u.x-m.x,u.y-m.y)<r);
+}
+function collectLoot(u,m){
+  m.taken=true;sLoot();
+  if(m.c)tally.c+=m.c;
+  if(m.s)tally.s+=m.s;
+  if(m.items)tally.items.push(...m.items);
+  addFloater(m.x,m.y-30,'+ '+m.take,'#7dd97b');
+  log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
+  syncUI();
+}
+function enterFree(msg){
+  phase='FREE';
+  selId=null;pickMode=null;radialOn=false;engageQ=null;hotT=0;
+  for(const u of U){u.order=null;u.braced=0;u.sprinted=0;u.path=null;u.rtPath=null;}
+  if(msg)log(msg);
+  if(!freeHinted){
+    freeHinted=true;
+    log('<span class="d">Right-click (or tap the ground) and the squad follows, scooping up anything lootable on the way. Gunfire drops time into rounds.</span>');
+  }
+  saveSnap();
+  syncUI();
+}
+function extractReady(){
+  return crossAway&&hostilesActive().length===0&&
+    U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
+}
+function rtStep(u,dt){
+  if(!u.rtPath||!u.rtPath.length)return;
+  let remain=(u.rtSpd||RT_SPEED)*dt;
+  while(remain>0&&u.rtPath&&u.rtPath.length){
+    const nxt=u.rtPath[0];
+    const dx=nxt.x-u.x,dy=nxt.y-u.y;
+    const d=Math.hypot(dx,dy);
+    if(d<=remain){u.x=nxt.x;u.y=nxt.y;u.rtPath.shift();remain-=d;}
+    else {u.x+=dx/d*remain;u.y+=dy/d*remain;u.face=Math.atan2(dy,dx);remain=0;}
+  }
+  if(u.rtPath&&!u.rtPath.length)u.rtPath=null;
+}
+function rtUpdate(now,dt){
+  for(const u of U){
+    if(u.down||u.surr||u.extracted||u.away)continue;
+    if(u.side==='reb')rtStep(u,dt);
+    else if(phase==='FREE'&&!u.fixed&&town==='calm'){
+      // lawmen drift their beats in real time
+      if(u.rtPath)rtStep(u,dt);
+      else if(u.patrol&&rng()<0.003){
+        const p=u.patrol[rint(0,u.patrol.length-1)];
+        setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),58);
+      }
+    }
+  }
+  if(phase!=='FREE')return;
+  // auto-loot on the walk
+  for(const u of U){
+    if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
+    for(const m of lootsWithin(u,AUTO_LOOT))collectLoot(u,m);
+  }
+  // hotwire runs on a timer out of combat
+  const sera=U.find(x=>x.id==='sera');
+  if(!crossAway&&sera&&!sera.down&&!sera.extracted&&dist(sera,PAD)<PAD.r){
+    if(!sera.reached){sera.reached=true;log('<span class="g">Sera is at the Cross.</span>');say(sera,'I’m at the panel. Give me a minute.');syncUI();}
+    hotT+=dt;
+    if(hotT>=4.5){
+      hotT=0;hot++;sSpark();
+      addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'#ffb454');
+      if(hot>=HOT_ROUNDS)doCrossAway();
+    }
+  } else hotT=0;
+  // spotting sweep
+  if(now-lastSpotT>320){lastSpotT=now;spotCheck();}
+}
+/* ---------- extraction cinematic ---------- */
+function startExtract(){
+  if(phase!=='FREE'||!extractReady())return;
+  phase='EXTRACT';
+  document.getElementById('app').classList.add('cine');
+  selId=null;pickMode=null;radialOn=false;
+  camGoal={x:LZ.x+120,y:LZ.y-40,z:1.0};
+  extractFx={stage:'board',t0:performance.now()};
+  let i=0;
+  for(const u of U){
+    if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
+    setRt(u,LZ.x+96+(i%2)*22,LZ.y-18+i*20,150);i++;
+  }
+  log('<b>Joss</b> <span class="d">(comms):</span> Ramp’s down. All aboard — quick and quiet.');
+  sTick();syncUI();
+}
+function extractUpdate(now,dt){
+  for(const u of U){
+    if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
+    rtStep(u,dt);
+    if(!u.rtPath&&Math.hypot(u.x-LZ.x,u.y-LZ.y)<130){
+      u.extracted=1;
+      addFloater(u.x,u.y-36,'ABOARD','#7dd97b');
+      sThud();
+      syncUI();
+    }
+  }
+  const aboard=U.filter(u=>u.side==='reb'&&u.id!=='sera').every(u=>u.extracted||u.down);
+  if(extractFx.stage==='board'&&aboard){
+    extractFx={stage:'lift',t0:now};
+    grafState='gone';
+    sTakeoff();
+    for(let i=0;i<30;i++)parts.push({x:LZ.x+(rng()-0.5)*220,y:LZ.y+(rng()-0.5)*170,vx:(rng()-0.5)*200,vy:-rng()*50,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:1000});
+    camGoal={x:LZ.x,y:LZ.y-80,z:0.85};
+  }
+  if(extractFx.stage==='lift'&&now-extractFx.t0>3400){
+    document.getElementById('app').classList.remove('cine');
+    gameOver(true);
+  }
+}
 /* ---------- round flow ---------- */
 function startPlanning(){
   phase='PLANNING';round++;
@@ -620,10 +769,8 @@ function startPlanning(){
     if(u.jam>0){u.jam--;if(u.jam===0){log(nameSpan(u)+' works the Akli’s action clear.');}}
   }
   aiPlan();
+  haltSquad();
   selId=null;pickMode=null;radialOn=false;
-  if(round===1){
-    log('<span class="d">Round 1 — the town hasn’t noticed you. Move careful, loot what you can reach.</span>');
-  }
   saveSnap();
   syncUI();
 }
@@ -824,15 +971,7 @@ function endRound(){
   for(const u of U){
     if(u.side!=='reb'||u.down||!u.order)continue;
     if(u.order.type==='loot'){
-      const m=lootMarks.find(x=>x.id===u.order.lootId&&!x.taken);
-      if(m&&Math.hypot(u.x-m.x,u.y-m.y)<LOOT_R+14){
-        m.taken=true;sLoot();
-        if(m.c)tally.c+=m.c;
-        if(m.s)tally.s+=m.s;
-        if(m.items)tally.items.push(...m.items);
-        addFloater(m.x,m.y-30,'+ '+m.take,'#7dd97b');
-        log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
-      }
+      for(const m of lootsWithin(u,LOOT_AOE))collectLoot(u,m);
     }
     if(u.order.type==='clear'&&u.jam){u.jam=0;log(nameSpan(u)+' strips and clears the Akli.');}
   }
@@ -867,6 +1006,10 @@ function endRound(){
     if(soldiers.every(u=>u.extracted||u.down)&&soldiers.some(u=>u.extracted)){gameOver(true);return;}
   }
   if(phase==='GAMEOVER')return;
+  if(!combatActive()){
+    enterFree(town==='alerted'?'<span class="g">The street is clear.</span> Time runs free again — sweep the town, then bring everyone home.':null);
+    return;
+  }
   startPlanning();
 }
 function doCrossAway(){
@@ -921,6 +1064,18 @@ function gameOver(win,why){
   syncUI();
 }
 /* ---------- effects ---------- */
+function clipShot(x1,y1,x2,y2){
+  // stop a tracer at the first wall it meets
+  const d=Math.hypot(x2-x1,y2-y1),n=Math.max(2,Math.ceil(d/9));
+  for(let i=1;i<=n;i++){
+    const t=i/n;
+    if(ptBlocked(x1+(x2-x1)*t,y1+(y2-y1)*t,0)){
+      const tb=(i-0.5)/n;
+      return {x:x1+(x2-x1)*tb,y:y1+(y2-y1)*tb,wall:true};
+    }
+  }
+  return {x:x2,y:y2,wall:false};
+}
 function fireFx(s,t,wkey,hit){
   const w=WPN[wkey];
   const ang=Math.atan2(t.y-s.y,t.x-s.x);
@@ -929,10 +1084,13 @@ function fireFx(s,t,wkey,hit){
     const spread=w.pellets?(i-2)*0.09:(hit?0:(rng()-0.5)*0.16)+(rng()-0.5)*0.03;
     const a=ang+spread;
     const d=dist(s,t)+(hit?0:rint(40,120));
-    const ex=s.x+Math.cos(a)*d,ey=s.y+Math.sin(a)*d;
-    tracers.push({x1:s.x+Math.cos(a)*14,y1:s.y+Math.sin(a)*14,x2:ex,y2:ey,
+    const mx=s.x+Math.cos(a)*14,my=s.y+Math.sin(a)*14;
+    const end=clipShot(mx,my,s.x+Math.cos(a)*d,s.y+Math.sin(a)*d);
+    const ex=end.x,ey=end.y;
+    tracers.push({x1:mx,y1:my,x2:ex,y2:ey,
       t0:performance.now()+i*(w.pellets?0:90),dur:110,col:s.side==='reb'?'#ffe9b0':'#ffc9a0'});
-    for(let k=0;k<4;k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:'#b09a78',t0:performance.now()+i*90,dur:500});
+    const dcol=end.wall?'#8a7a60':'#b09a78';
+    for(let k=0;k<(end.wall?6:4);k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:dcol,t0:performance.now()+i*90,dur:500});
   }
   parts.push({x:s.x+Math.cos(ang)*16,y:s.y+Math.sin(ang)*16,vx:0,vy:0,r:9,a:0.9,col:'#ffd27d',t0:performance.now(),dur:90,flash:1});
   casings.push({x:s.x,y:s.y,vx:(rng()-0.5)*40-Math.cos(ang)*30,vy:-40-rng()*30,t0:performance.now()});
@@ -1190,9 +1348,18 @@ function drawTowerTop(){
   if(wren)drawUnit(wren);
 }
 function drawGraf(){
-  ctx.save();ctx.translate(grafPos.x,grafPos.y);ctx.rotate(grafPos.a);
+  let sc=1,sh=8,ox=0,oy=0;
+  if(extractFx&&extractFx.stage==='lift'){
+    const t=Math.min(1,(performance.now()-extractFx.t0)/3200);
+    const e=t*t;
+    sc=1+t*0.3;sh=8+t*70;
+    ox=-e*1500;oy=e*260;
+    if(t>=1)return;
+  }
+  ctx.save();ctx.translate(grafPos.x+ox,grafPos.y+oy);ctx.rotate(grafPos.a);
+  ctx.scale(sc,sc);
   ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.beginPath();ctx.roundRect(-80+8,-46+10,160,92,16);ctx.fill();
+  ctx.beginPath();ctx.roundRect(-80+sh,-46+sh,160,92,16);ctx.fill();
   ctx.fillStyle='#2b3a4c';
   ctx.beginPath();ctx.roundRect(-80,-46,160,92,16);ctx.fill();
   ctx.strokeStyle='#16202c';ctx.lineWidth=3;ctx.stroke();
@@ -1289,8 +1456,9 @@ function drawUnit(u){
   }
   const sera=u.id==='sera';
   if(sera&&!crossAway&&dist(u,PAD)<PAD.r){
+    const hp2=Math.min(1,(hot+(phase==='FREE'?hotT/4.5:0))/HOT_ROUNDS);
     ctx.strokeStyle='rgba(255,180,84,0.9)';ctx.lineWidth=3.4;
-    ctx.beginPath();ctx.arc(0,0,18,-Math.PI/2,-Math.PI/2+Math.PI*2*(hot/HOT_ROUNDS));ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,18,-Math.PI/2,-Math.PI/2+Math.PI*2*hp2);ctx.stroke();
     ctx.strokeStyle='rgba(255,180,84,0.25)';ctx.lineWidth=3.4;
     ctx.beginPath();ctx.arc(0,0,18,0,7);ctx.stroke();
     if(rng()<0.15)parts.push({x:u.x+(rng()-0.5)*16,y:u.y-4,vx:(rng()-0.5)*40,vy:-30-rng()*30,r:1.2,a:0.9,col:'#ffe9a0',t0:now,dur:300});
@@ -1332,6 +1500,17 @@ function drawUnit(u){
     ctx.strokeStyle='rgba(125,217,123,0.7)';ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(0,0,13,u.face-0.5,u.face+0.5);ctx.stroke();
   }
+  // in-cover pip
+  if(!u.surr&&inCoverAt(u.x,u.y)){
+    ctx.save();ctx.translate(-13,-13);ctx.scale(0.62,0.62);
+    ctx.strokeStyle='rgba(125,217,123,0.95)';ctx.lineWidth=2.6;ctx.lineJoin='round';
+    ctx.beginPath();
+    ctx.moveTo(0,-10);ctx.lineTo(8,-6);ctx.lineTo(8,2);
+    ctx.quadraticCurveTo(8,8,0,11);
+    ctx.quadraticCurveTo(-8,8,-8,2);
+    ctx.lineTo(-8,-6);ctx.closePath();ctx.stroke();
+    ctx.restore();
+  }
   if(u.jam){
     ctx.font='800 12px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='#ffb454';
     ctx.fillText('!',13,-10);
@@ -1349,7 +1528,7 @@ function drawUnit(u){
   ctx.restore();
 }
 function drawOrders(){
-  if(phase!=='PLANNING')return;
+  if(phase!=='PLANNING'){drawPing();return;}
   for(const u of U){
     if(u.side!=='reb'||!u.order||u.down||u.extracted||u.away)continue;
     const o=u.order;
@@ -1366,11 +1545,10 @@ function drawOrders(){
       ctx.fillStyle=o.type==='move'?'rgba(255,180,84,0.85)':'rgba(255,120,80,0.85)';
       ctx.fillText(o.type.toUpperCase(),o.tx,o.ty-12);
     } else if(o.type==='loot'){
-      const m=lootMarks.find(x=>x.id===o.lootId);
-      if(m){
-        ctx.strokeStyle='rgba(125,217,123,0.7)';ctx.lineWidth=2;ctx.setLineDash([4,5]);
-        ctx.beginPath();ctx.moveTo(u.x,u.y);ctx.lineTo(m.x,m.y);ctx.stroke();ctx.setLineDash([]);
-      }
+      ctx.strokeStyle='rgba(125,217,123,0.6)';ctx.lineWidth=2;ctx.setLineDash([4,5]);
+      ctx.beginPath();ctx.arc(u.x,u.y,LOOT_AOE,0,7);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='rgba(125,217,123,0.06)';
+      ctx.beginPath();ctx.arc(u.x,u.y,LOOT_AOE,0,7);ctx.fill();
     }
   }
   // pick rings
@@ -1382,6 +1560,13 @@ function drawOrders(){
     ctx.strokeStyle=pickMode==='move'?'rgba(255,180,84,0.6)':'rgba(255,120,80,0.6)';
     ctx.lineWidth=2;ctx.setLineDash([10,8]);
     ctx.beginPath();ctx.arc(sel.x,sel.y,r,0,7);ctx.stroke();ctx.setLineDash([]);
+    // show every cover pocket in reach
+    for(const p of PROPS){
+      const def=PROPDEF[p.kind];
+      if(Math.hypot(p.x-sel.x,p.y-sel.y)>r+def.r+40)continue;
+      ctx.strokeStyle='rgba(125,217,123,0.4)';ctx.lineWidth=1.6;ctx.setLineDash([3,5]);
+      ctx.beginPath();ctx.arc(p.x,p.y,def.r+34,0,7);ctx.stroke();ctx.setLineDash([]);
+    }
     if(hoverW){
       const d=moveDest(sel,hoverW.x,hoverW.y,r);
       if(d){
@@ -1392,10 +1577,24 @@ function drawOrders(){
           for(let i=1;i<p.length;i++)ctx.lineTo(p[i].x,p[i].y);
           ctx.stroke();ctx.setLineDash([]);
           ctx.beginPath();ctx.arc(d.x,d.y,5,0,7);ctx.stroke();
+          if(inCoverAt(d.x,d.y)){
+            ctx.font='800 11px "IBM Plex Mono"';ctx.textAlign='center';
+            ctx.fillStyle='rgba(125,217,123,0.95)';
+            ctx.fillText('◖ COVER',d.x,d.y-14);
+          }
         }
       }
     }
   }
+  drawPing();
+}
+function drawPing(){
+  if(!rtPing)return;
+  const t=(performance.now()-rtPing.t0)/500;
+  if(t<1){
+    ctx.strokeStyle='rgba(255,180,84,'+(0.8*(1-t))+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(rtPing.x,rtPing.y,8+t*26,0,7);ctx.stroke();
+  } else rtPing=null;
 }
 function drawFx(now){
   for(const tr of tracers){
@@ -1683,14 +1882,18 @@ function endCutscene(){
   for(const u of U)if(u.side==='reb'){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
   cs=null;
   camGoal={x:LZ.x+240,y:LZ.y-180,z:0.9};
-  startPlanning();
+  enterFree(null);
 }
 /* ---------- main render ---------- */
 let hoverW=null;
 function render(now){
   requestAnimationFrame(render);
   try{
+    const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
+    lastFrame=now;
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
+    if(phase==='FREE')rtUpdate(now,dt);
+    if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
     if(camGoal){
@@ -1746,8 +1949,10 @@ function recover(e){
 /* ---------- input ---------- */
 let drag=null,pinch=null,moved=false;
 const ptrs=new Map();
+cv.addEventListener('contextmenu',ev=>ev.preventDefault());
 cv.addEventListener('pointerdown',ev=>{
   cv.setPointerCapture(ev.pointerId);
+  if(ev.button===2){moved=false;return;}
   ptrs.set(ev.pointerId,{x:ev.offsetX,y:ev.offsetY});
   if(ptrs.size===1){drag={x:ev.offsetX,y:ev.offsetY,cx:cam.x,cy:cam.y};moved=false;}
   else if(ptrs.size===2){
@@ -1788,6 +1993,21 @@ cv.addEventListener('pointerup',ev=>{
   if(wasDrag)return;
   ac();if(AC&&AC.state==='suspended')AC.resume();
   const px=ev.offsetX,py=ev.offsetY;
+  if(phase==='FREE'){
+    // right-click or a tap on open ground sends the squad; the walk is real time
+    const u=unitAtCss(px,py);
+    if(ev.button!==2&&u){
+      if(u.side==='law'&&!u.surr&&town==='calm'){
+        // the player picks the moment the shooting starts
+        haltSquad();
+        alertTown('The squad steps out, guns up — you chose the moment.');
+        return;
+      }
+      camGoal={x:u.x,y:u.y,z:Math.max(cam.z,0.9)};sTick();return;
+    }
+    squadMoveTo(cssToWorld(px,py));
+    return;
+  }
   if(phase==='PLANNING'){
     const sel=U.find(x=>x.id===selId);
     if(pickMode&&sel){
@@ -1831,32 +2051,22 @@ document.getElementById('radial').addEventListener('click',ev=>{
   else if(act==='sprint'){pickMode='sprint';radialOn=false;}
   else if(act==='hold'){s.order={type:'hold'};selId=null;radialOn=false;}
   else if(act==='loot'){
-    const m=nearestLoot(s);
-    if(m){s.order={type:'loot',lootId:m.id};selId=null;radialOn=false;}
+    if(lootsWithin(s,LOOT_AOE).length){s.order={type:'loot'};selId=null;radialOn=false;}
   }
   else if(act==='clear'){s.order={type:'clear'};selId=null;radialOn=false;sJamClr();}
   else if(act==='cancel'){s.order=null;selId=null;radialOn=false;}
   syncUI();
 });
-function nearestLoot(u){
-  let best=null,bd=1e9;
-  for(const m of lootMarks){
-    if(m.taken)continue;
-    const d=Math.hypot(u.x-m.x,u.y-m.y);
-    if(d<LOOT_R&&d<bd){bd=d;best=m;}
-  }
-  return best;
-}
 document.getElementById('pickPill').addEventListener('click',()=>{pickMode=null;radialOn=!!selId;syncUI();});
 /* ---------- HUD sync ---------- */
 function $(id){return document.getElementById(id);}
 function radialHTML(s){
-  const m=nearestLoot(s);
+  const nl=lootsWithin(s,LOOT_AOE).length;
   const acts=[
     ['move','⊕','Move',false],
     ['sprint','⇻','Sprint',false],
     ['hold','⌖','Hold',false],
-    ['loot','▤','Loot',!m],
+    ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
   acts.push(['cancel','✕','Clear',false]);
@@ -1869,6 +2079,10 @@ function radialHTML(s){
   }).join('');
 }
 function dockHTML(){
+  if(phase==='FREE'){
+    if(extractReady())return '<div class="dockcard"><button id="extractBtn">▲ Extract</button></div>';
+    return '<div class="dockcard"><span class="docklabel">right-click to move the squad · they loot what they pass'+(crossAway?'':' · get <b>Sera</b> to the pad')+'</span></div>';
+  }
   if(phase==='PLANNING'){
     const squad=plotted();
     const done=squad.filter(u=>u.order).length;
@@ -1899,6 +2113,7 @@ function statusOf(u){
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return ['HOTWIRING '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'var(--amber)'];
   if(u.jam)return ['JAMMED','var(--amber)'];
   if(phase==='PLANNING'&&u.side==='reb')return u.order?[u.order.type.toUpperCase(),'var(--reb)']:['NO ORDERS','var(--dim)'];
+  if(phase==='FREE'&&u.side==='reb')return u.rtPath?['MOVING','var(--reb)']:['READY','var(--dim)'];
   return ['','var(--dim)'];
 }
 function unitRow(u){
@@ -1913,7 +2128,7 @@ function unitRow(u){
     '<span class="t"><span class="nm">'+u.name+'</span><span class="st" style="color:'+stc+'">'+st+'</span></span>'+cells+'</div>';
 }
 function syncUI(){
-  $('phaseName').textContent=phase==='PLANNING'?'Planning':phase==='EXEC'?'Execution':phase==='ENGAGE'?'Engagement':phase==='CUTSCENE'?'Insertion':phase==='GAMEOVER'?'Debrief':'Briefing';
+  $('phaseName').textContent=phase==='FREE'?'Free Move':phase==='PLANNING'?'Planning':phase==='EXEC'?'Execution':phase==='ENGAGE'?'Engagement':phase==='CUTSCENE'?'Insertion':phase==='EXTRACT'?'Extraction':phase==='GAMEOVER'?'Debrief':'Briefing';
   $('roundNum').textContent='ROUND '+Math.max(1,round);
   const tp=$('townPill');
   tp.textContent=town==='calm'?'Town is calm':'Town alerted';
@@ -1949,13 +2164,14 @@ function syncUI(){
   }
   $('pickPill').hidden=!pickMode;
   const dock=$('ctlDock');
-  const dh=(phase==='PLANNING'||phase==='ENGAGE')?dockHTML():'';
+  const dh=(phase==='PLANNING'||phase==='ENGAGE'||phase==='FREE')?dockHTML():'';
   dock.hidden=!dh;
   if(dh)dock.innerHTML=dh;
 }
 /* ---------- DOM events ---------- */
 document.getElementById('ctlDock').addEventListener('click',ev=>{
   if(ev.target.id==='executeBtn')execute();
+  else if(ev.target.id==='extractBtn')startExtract();
   else if(ev.target.id==='attackBtn')playerAttack();
   else if(ev.target.id==='holdBtn')playerHold();
   else {
@@ -2032,12 +2248,12 @@ function resetGame(withCine){
     started=true;
     cam={x:LZ.x+240,y:LZ.y-180,z:0.9};clampCam();camGoal=null;
     log('<span class="d">Squad on the ground at the Graf LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
-    startPlanning();
+    enterFree(null);
   }
 }
 let lastSnap=null;
 function saveSnap(){
-  if(phase!=='PLANNING'&&phase!=='GAMEOVER')return;
+  if(phase!=='PLANNING'&&phase!=='GAMEOVER'&&phase!=='FREE')return;
   lastSnap={round,started,town,hot,crossAway,tally:JSON.parse(JSON.stringify(tally)),
     end:gameEnd?{win:gameEnd.win}:null,
     loots:lootMarks.map(m=>({id:m.id,x:m.x,y:m.y,label:m.label,take:m.take,c:m.c,s:m.s,items:m.items,taken:m.taken,drop:m.drop})),
@@ -2062,6 +2278,7 @@ function boot(data){
     }
     cam={x:LZ.x+240,y:LZ.y-180,z:0.9};clampCam();
     if(data.end){round++;gameOver(data.end.win);}
+    else if(town!=='alerted'||!hostilesActive().length){round=data.round||0;freeHinted=true;enterFree(null);}
     else startPlanning();
   } else if(location.hash==='#deploy'){
     $('briefing').hidden=true;
