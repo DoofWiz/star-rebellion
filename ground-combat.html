@@ -277,7 +277,7 @@ const LOOTS=[
 function mkU(o){
   return Object.assign({face:0,down:0,surr:0,jam:0,wound:0,braced:0,sprinted:0,owUsed:0,
     order:null,extracted:0,away:0,elev:0,frail:0,sheriff:0,fixed:0,guard:0,
-    manning:0,cower:0,det:0,scanT:Math.random()*7,
+    manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,
     px:0,py:0,path:null,wkey:null},o);
 }
 let U=[];
@@ -291,7 +291,7 @@ function initUnits(){
       lines:['I’ve poached under worse moons than this.','Tower. Rifle. Watch the tower.','Wind’s with us. Take the shot.']}),
     mkU({id:'sera',name:'Sera Kest',  first:'Sera',side:'reb',x:LZ.x+16,y:LZ.y+34,hp:55, maxhp:55, aim:1,def:9, wpns:['cowboy'],frail:1,
       lines:['Just get me to that Cross in one piece.','I fly things. I don’t shoot things. Mostly.','Two rounds at the panel. Keep them off me.']}),
-    mkU({id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1900,y:880,hp:140,maxhp:140,aim:3,def:11,wpns:['scatter'],sheriff:1,
+    mkU({id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1906,y:730,hp:140,maxhp:140,aim:3,def:11,wpns:['scatter'],sheriff:1,office:1,
       lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']}),
     mkU({id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:80,maxhp:80,aim:2,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
       lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']}),
@@ -378,33 +378,83 @@ function chipCover(prop,dmg){
     sThud();
   }
 }
+/* nav grid: coarse BFS with string-pulled smoothing, so any point in town
+   can route to any other around the buildings */
+const NAV_CS=40,NAV_W=Math.ceil(W/NAV_CS),NAV_H=Math.ceil(H/NAV_CS);
+const navBlocked=new Uint8Array(NAV_W*NAV_H);
+function navInit(){
+  for(let cy=0;cy<NAV_H;cy++)for(let cx=0;cx<NAV_W;cx++){
+    navBlocked[cy*NAV_W+cx]=ptBlocked(cx*NAV_CS+NAV_CS/2,cy*NAV_CS+NAV_CS/2,14)?1:0;
+  }
+}
+function freeCellNear(x,y){
+  const cx0=Math.min(NAV_W-1,Math.max(0,Math.floor(x/NAV_CS)));
+  const cy0=Math.min(NAV_H-1,Math.max(0,Math.floor(y/NAV_CS)));
+  if(!navBlocked[cy0*NAV_W+cx0])return cy0*NAV_W+cx0;
+  for(let r=1;r<9;r++){
+    for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+      if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;
+      const cx=cx0+dx,cy=cy0+dy;
+      if(cx<0||cy<0||cx>=NAV_W||cy>=NAV_H)continue;
+      if(!navBlocked[cy*NAV_W+cx])return cy*NAV_W+cx;
+    }
+  }
+  return -1;
+}
+function navPath(x0,y0,x1,y1){
+  const s=freeCellNear(x0,y0),g=freeCellNear(x1,y1);
+  if(s<0||g<0)return null;
+  const prev=new Int32Array(NAV_W*NAV_H).fill(-1);
+  prev[s]=s;
+  let q=[s],found=(s===g);
+  while(q.length&&!found){
+    const nq=[];
+    for(const c of q){
+      const cx=c%NAV_W,cy=(c/NAV_W)|0;
+      for(let dy=-1;dy<=1&&!found;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;
+        const nx=cx+dx,ny=cy+dy;
+        if(nx<0||ny<0||nx>=NAV_W||ny>=NAV_H)continue;
+        const n=ny*NAV_W+nx;
+        if(prev[n]!==-1||navBlocked[n])continue;
+        if(dx&&dy&&(navBlocked[cy*NAV_W+nx]||navBlocked[ny*NAV_W+cx]))continue;
+        prev[n]=c;
+        if(n===g){found=true;break;}
+        nq.push(n);
+      }
+      if(found)break;
+    }
+    q=nq;
+  }
+  if(!found)return null;
+  const pts=[];
+  for(let c=g;c!==s;c=prev[c])pts.push({x:(c%NAV_W)*NAV_CS+NAV_CS/2,y:((c/NAV_W)|0)*NAV_CS+NAV_CS/2});
+  pts.reverse();
+  pts.push({x:x1,y:y1});
+  // string-pull: greedily skip to the furthest visible waypoint
+  const out=[];
+  let cur={x:x0,y:y0},i=0;
+  while(i<pts.length){
+    let j=pts.length-1;
+    while(j>i&&segBlocked(cur.x,cur.y,pts[j].x,pts[j].y))j--;
+    cur=pts[j];out.push(cur);i=j+1;
+  }
+  return out;
+}
 function pathFor(u,tx,ty){
-  // straight line, or one perpendicular detour waypoint around buildings
   if(!segBlocked(u.x,u.y,tx,ty))return [{x:u.x,y:u.y},{x:tx,y:ty}];
+  // one graceful detour first (keeps short hops curvy), then the nav grid
   const mx=(u.x+tx)/2,my=(u.y+ty)/2;
   const ang=Math.atan2(ty-u.y,tx-u.x)+Math.PI/2;
-  for(const off of [90,-90,170,-170,250,-250]){
+  for(const off of [90,-90,170,-170]){
     const wx=mx+Math.cos(ang)*off,wy=my+Math.sin(ang)*off;
     if(wx<20||wx>W-20||wy<20||wy>H-20)continue;
     if(ptBlocked(wx,wy,14))continue;
     if(!segBlocked(u.x,u.y,wx,wy)&&!segBlocked(wx,wy,tx,ty))return [{x:u.x,y:u.y},{x:wx,y:wy},{x:tx,y:ty}];
   }
-  // L-shaped doglegs, then a swing through the main street
-  const cands=[[u.x,ty],[tx,u.y],[u.x,824],[tx,824]];
-  for(const [wx,wy] of cands){
-    if(wx<20||wx>W-20||wy<20||wy>H-20)continue;
-    if(ptBlocked(wx,wy,14))continue;
-    if(!segBlocked(u.x,u.y,wx,wy)&&!segBlocked(wx,wy,tx,ty))return [{x:u.x,y:u.y},{x:wx,y:wy},{x:tx,y:ty}];
-  }
-  for(const [wx,wy] of cands){
-    if(ptBlocked(wx,wy,14)||segBlocked(u.x,u.y,wx,wy))continue;
-    for(const [vx,vy] of cands){
-      if(ptBlocked(vx,vy,14))continue;
-      if(!segBlocked(wx,wy,vx,vy)&&!segBlocked(vx,vy,tx,ty))
-        return [{x:u.x,y:u.y},{x:wx,y:wy},{x:vx,y:vy},{x:tx,y:ty}];
-    }
-  }
-  return null;
+  const p=navPath(u.x,u.y,tx,ty);
+  if(!p)return null;
+  return [{x:u.x,y:u.y},...p];
 }
 function pathLen(p){let L=0;for(let i=1;i<p.length;i++)L+=Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y);return L;}
 function pathPoint(p,t){
@@ -471,6 +521,7 @@ function shieldBlocks(shooter,gunner){
 function wpnsOf(s){return s.manning?['laser']:s.wpns;}
 function validShot(s,t,wkey){
   if(t.side==='civ')return false;
+  if(s.office||t.office)return false;
   if(!wpnsOf(s).includes(wkey))return false;
   if(wkey==='akli'&&s.jam)return false;
   if(t.down||t.surr||t.extracted||t.away)return false;
@@ -598,7 +649,7 @@ function alertTown(why){
 function spotCheck(){
   if(town==='alerted')return;
   for(const l of U){
-    if(l.side!=='law'||l.down||l.surr)continue;
+    if(l.side!=='law'||l.down||l.surr||l.office)continue;
     const see=l.elev?460:320;
     for(const r of U){
       if(r.side!=='reb'||r.down||r.extracted||r.away)continue;
@@ -626,7 +677,7 @@ function detUpdate(dt){
     if(r.side!=='reb'||r.down||r.extracted||r.away)continue;
     let rate=0,seer=null;
     for(const l of U){
-      if(l.side!=='law'||l.down||l.surr)continue;
+      if(l.side!=='law'||l.down||l.surr||l.office)continue;
       const f=seesPoint(l,r.x,r.y,sneak);
       if(f>0){
         const rr=(45+95*f)*(inCoverAt(r.x,r.y)?0.6:1);
@@ -685,7 +736,7 @@ const COVER_PTS=[];
 function aiPlan(){
   let turretClaimed=false;
   for(const u of U){
-    if(u.side!=='law'||u.down||u.surr)continue;
+    if(u.side!=='law'||u.down||u.surr||u.office)continue;
     u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];
     if(!u.manning)u.braced=0;
     if(u.manning){u.order={type:'hold'};u.braced=1;continue;}
@@ -864,6 +915,22 @@ function tryLaunch(){
     syncUI();
   }
 }
+function checkReeve(){
+  const r=U.find(u=>u.id==='reeve');
+  if(!r||!r.office||r.down)return;
+  const padThreat=U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&Math.hypot(u.x-PAD.x,u.y-PAD.y)<420);
+  const lastMan=alliesUp('law')===1;
+  if(!padThreat&&!lastMan&&!crossAway)return;
+  r.office=0;
+  r.x=1880;r.y=588;   // out the north door of the HQ, between his gun and his ship
+  unstick(r);
+  r.face=Math.atan2(PAD.y-r.y,PAD.x-r.x);
+  addFloater(r.x,r.y-46,'THE SHERIFF','#ff4f5e');
+  log('<span class="h">Sheriff Reeve kicks his office door open</span> — scattergun first.');
+  say(r,'Nobody touches that ship!',3600);
+  if(town==='calm')alertTown('The Sheriff himself is on the boards.');
+  syncUI();
+}
 function extractReady(){
   return crossAway&&hostilesActive().length===0&&
     U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
@@ -1001,10 +1068,20 @@ function startPlanning(){
   aiPlan();
   haltSquad();
   selId=null;pickMode=null;radialOn=false;
+  autoAdvance();
   saveSnap();
   syncUI();
 }
-function plotted(){return U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);}
+function hotwiring(u){return u.id==='sera'&&!crossAway&&hot<HOT_ROUNDS&&dist(u,PAD)<PAD.r;}
+function autoAdvance(){
+  // hand the player the next rebel who still needs orders, like the space game
+  const nxt=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u));
+  if(nxt){
+    selId=nxt.id;radialOn=true;pickMode=null;
+    camGoal={x:nxt.x,y:nxt.y,z:Math.max(cam.z,0.9)};
+  } else {selId=null;radialOn=false;}
+}
+function plotted(){return U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!hotwiring(u));}
 function execute(){
   if(phase!=='PLANNING')return;
   sTick();
@@ -1351,7 +1428,7 @@ function explode(x,y){
   for(let k=0;k<14;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.4,col:'#3a3430',t0:performance.now(),dur:1300});
   parts.push({x,y,vx:0,vy:0,r:60,a:0.85,col:'#ffe9b0',t0:performance.now(),dur:160,flash:1});
   for(const u of U){
-    if(u.side==='civ'||u.down||u.extracted||u.away)continue;
+    if(u.side==='civ'||u.down||u.extracted||u.away||u.office)continue;
     const d=Math.hypot(u.x-x,u.y-y);
     if(d<135){
       const dmg=Math.round((45+rng()*25)*(1-d/135*0.55));
@@ -1762,7 +1839,7 @@ function drawWork(now){
 function drawVision(){
   if(phase!=='FREE'||town!=='calm')return;
   for(const l of U){
-    if(l.side!=='law'||l.down||l.surr)continue;
+    if(l.side!=='law'||l.down||l.surr||l.office)continue;
     const R=sightRange(l);
     const rays=[];
     for(let i=0;i<=12;i++){
@@ -1989,7 +2066,7 @@ function drawLoots(){
   }
 }
 function drawUnit(u){
-  if(u.extracted||u.away)return;
+  if(u.extracted||u.away||u.office)return;
   const now=performance.now();
   if(u.side==='civ'){
     // unmistakably not a combatant: pale, unarmed, unbarred
@@ -2505,7 +2582,7 @@ function render(now){
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
-    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE')civStep(dt);
+    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkReeve();}
     exploTick(now);
     if(camGoal){
       cam.x=lerp(cam.x,camGoal.x,0.06);cam.y=lerp(cam.y,camGoal.y,0.06);cam.z=lerp(cam.z,camGoal.z,0.06);
@@ -2594,7 +2671,7 @@ cv.addEventListener('pointermove',ev=>{
 function unitAtCss(px,py){
   let best=null,bd=1e9;
   for(const u of U){
-    if(u.down||u.extracted||u.away||u.csHide)continue;
+    if(u.down||u.extracted||u.away||u.csHide||u.office)continue;
     const [ux,uy]=worldToCss(u.x,u.y);
     const d=Math.hypot(px-ux,py-uy);
     if(d<22&&d<bd){bd=d;best=u;}
@@ -2647,7 +2724,8 @@ cv.addEventListener('pointerup',ev=>{
       if(d&&pathFor(sel,d.x,d.y)){
         sel.order={type:pickMode,tx:d.x,ty:d.y};
         sTick();
-        pickMode=null;selId=null;radialOn=false;
+        pickMode=null;
+        autoAdvance();
         syncUI();
       }
       return;
@@ -2684,13 +2762,13 @@ document.getElementById('radial').addEventListener('click',ev=>{
   sTick();
   if(act==='move'){pickMode='move';radialOn=false;}
   else if(act==='sprint'){pickMode='sprint';radialOn=false;}
-  else if(act==='hold'){s.order={type:'hold'};selId=null;radialOn=false;}
+  else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='loot'){
-    if(lootsWithin(s,LOOT_AOE).length){s.order={type:'loot'};selId=null;radialOn=false;}
+    if(lootsWithin(s,LOOT_AOE).length){s.order={type:'loot'};autoAdvance();}
   }
-  else if(act==='man'){s.order={type:'man'};selId=null;radialOn=false;}
-  else if(act==='leave'){s.order={type:'leave'};selId=null;radialOn=false;}
-  else if(act==='clear'){s.order={type:'clear'};selId=null;radialOn=false;sJamClr();}
+  else if(act==='man'){s.order={type:'man'};autoAdvance();}
+  else if(act==='leave'){s.order={type:'leave'};autoAdvance();}
+  else if(act==='clear'){s.order={type:'clear'};sJamClr();autoAdvance();}
   else if(act==='cancel'){s.order=null;selId=null;radialOn=false;}
   syncUI();
 });
@@ -2757,6 +2835,7 @@ function statusOf(u){
   if(u.down)return ['DOWN','var(--heg)'];
   if(u.surr)return ['SURRENDERED','var(--dim)'];
   if(u.manning)return ['ON TURRET','var(--reb)'];
+  if(u.office)return ['IN HIS OFFICE','var(--dim)'];
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return ['HOTWIRING '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'var(--amber)'];
   if(u.jam)return ['JAMMED','var(--amber)'];
   if(phase==='PLANNING'&&u.side==='reb')return u.order?[u.order.type.toUpperCase(),'var(--reb)']:['NO ORDERS','var(--dim)'];
@@ -2918,11 +2997,12 @@ function saveSnap(){
     decals:decals.slice(0,30),
     loots:lootMarks.map(m=>({id:m.id,x:m.x,y:m.y,label:m.label,take:m.take,c:m.c,s:m.s,items:m.items,taken:m.taken,drop:m.drop})),
     units:U.map(u=>({id:u.id,x:u.x,y:u.y,face:u.face,hp:u.hp,aim:u.aim,down:u.down,surr:u.surr,jam:u.jam,
-      wound:u.wound,extracted:u.extracted,away:u.away,reached:u.reached,manning:u.manning,cower:u.cower}))};
+      wound:u.wound,extracted:u.extracted,away:u.away,reached:u.reached,manning:u.manning,cower:u.cower,office:u.office}))};
 }
 try{window.claude?.hot?.snapshot?.(()=>lastSnap);}catch(e){}
 function boot(data){
   fitCanvas();
+  navInit();
   COVER_PTS.push(...coverPoints());
   initState();
   if(data&&data.units&&data.started){

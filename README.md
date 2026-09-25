@@ -195,6 +195,10 @@ Clear the street and time runs free again for the mop-up.
 - **No grid.** Movement is free-aim inside a ring: **Move** (~150u, gun stays
   up), **Sprint** (~300u, can't shoot, +2 TN harder to hit), **Hold** (braced
   +2 ATK and an overwatch snap-shot at anyone crossing the lane, −2 ATK).
+  Planning auto-advances the selection to the next rebel without orders,
+  space-combat style. Routing runs on a coarse nav-grid BFS with string-pull
+  smoothing, so squad clicks, AI falls-backs and the extraction run all path
+  cleanly around buildings from anywhere in town.
 - **Cover: high value, destructible** — fuel drums, cargo crates and charge
   stations give +4 TN, trucks +6; buildings block sight, movement and bullets
   outright (tracers clip at walls). Missed shots chew into the cover that
@@ -238,7 +242,11 @@ stretch of real time) while a soldier **releases the docking clamps** and
 **pulls the fuel line** — the Cross flies only when all three are done. The
 law contests it: once alerted, guard deputies fall back on the pad, one mans
 the turret, and Wren's Long Iron covers the approach from the condenser
-tower. Under fire the squad extracts by standing in the LZ ring while no
+tower. Sheriff Reeve starts **holed up in his office** — untargetable,
+uninvolved, keeping deputy morale intact — and kicks the door open with his
+scattergun only when a rebel closes on the pad (or he's the last lawman
+standing), so the boss fight happens at the objective instead of on the
+street. Under fire the squad extracts by standing in the LZ ring while no
 lawman is near; once no hostiles remain a pulsing **Extract** button plays
 the boarding cinematic at double speed. Defeat if Sera goes down or the whole
 squad does.
