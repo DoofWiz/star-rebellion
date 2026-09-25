@@ -81,9 +81,29 @@ Maneuver distances grew 25%, weapon and explosion effects got heavier
 into turns with stretched engine flares, and planning/decision moments play in
 subtle slow time (dimmed drift, slowed ambient motion, cool-blue tint).
 
+**Iteration 4** (third playtest round): shields are now two independent
+**segments** (fore/aft) — Angle Shield re-points a segment at the other zone
+(max two segments per zone, purple second ring when stacked), Boost Shield
+always feeds the segment wherever it is angled, and damage strips the visiting
+segment before the zone's own. Exactly **one critical per attack** (hull
+damage grants it, or a through-armor crit proc — never both). **Locks**
+acquire against any target in the front hemisphere within weapons range and
+still break when the target slips behind. The firing arc narrowed ~20%.
+**Missiles** gain a guidance bonus (+1 to hit per lock level on top of the
+lock bonus). The sidebar is info-glance only: color-coded section bars and
+numberless segmented cells (5 HP per cell); **double-clicking any fighter**
+opens a two-window readout — a pilot dossier (big level numeral with an XP
+ring, US-style rank, traits, nerve) and a ship systems panel (rendered
+silhouette, exact durability numbers, visual weapon cards with per-weapon
+to-hit modifiers and ammo cells, criticals, sensors). Audio rebuilt on a
+compressed master bus with layered synthesis: dual-osc plasma, thumping
+tracer bursts, sub-drop explosions with crackle tails, FM shield pings,
+two-tone lock beeps and a dice rattle on the d20.
+
 The pre-overhaul flow (auto-resolved attacks, sidebar controls, d100) is
-preserved at commit `09dff6e` (tag `combat-gdd-autoresolve`), and the first
-interactive-HUD version at `1be59fd`, if we want to revert or compare.
+preserved at commit `09dff6e` (tag `combat-gdd-autoresolve`), the first
+interactive-HUD version at `1be59fd`, and the d100→d20 shield-zone iteration
+at `b78577f`, if we want to revert or compare.
 
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
 abilities yet), bombs and torpedoes are out (no large targets in this
