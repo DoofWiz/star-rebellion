@@ -305,7 +305,7 @@ function dialViper(){const d=[];for(let s=1;s<=4;s++)d.push([s,'S']);for(let s=1
 function dialTalon(){const d=[];for(let s=2;s<=5;s++)d.push([s,'S']);for(let s=2;s<=4;s++){d.push([s,'l']);d.push([s,'r']);}for(let s=2;s<=3;s++){d.push([s,'L']);d.push([s,'R']);}return d;}
 function dialFled(){const d=[];for(let s=1;s<=3;s++)d.push([s,'S']);for(let s=1;s<=2;s++){d.push([s,'l']);d.push([s,'r']);}d.push([1,'L']);d.push([1,'R']);return d;}
 const CLS={
-  viper:{label:'GR-4 Viper',role:'Multi-role Starfighter',init:3,tn:11,size:1.15,shdF:15,shdR:15,arm:20,hull:40,dial:dialViper,maxSpd:4,
+  viper:{label:'FT-4 Cross',role:'Multi-role Starfighter',init:3,tn:11,size:1.15,shdF:15,shdR:15,arm:20,hull:40,dial:dialViper,maxSpd:4,
     wpns:['plasma','ballistic','missile'],dmg:{plasma:[8,14],ballistic:[12,18],missile:[26,36]},ammo:{ballistic:6,missile:2}},
   talon:{label:'SF-11 Talon',role:'Interceptor',init:4,tn:13,size:1.0,shdF:8,shdR:8,arm:10,hull:25,dial:dialTalon,maxSpd:5,
     wpns:['plasma','missile'],dmg:{plasma:[9,15],missile:[26,36]},ammo:{missile:1}},

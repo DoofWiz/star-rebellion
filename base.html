@@ -244,12 +244,13 @@
 
       <div class="overlay" id="debrief">
         <div class="brief">
-          <div class="eyebrow">Mission Report · Operation Complete</div>
-          <h2>Instructor <span class="k">Down</span></h2>
-          <p>Vex is dead in the drift and his flight school died with him. The fighters came
-          home full of holes, the pilots came home full of themselves, and Ferren Halt — the
-          man who sold Vex out — hasn't slept since.</p>
-          <div class="rewline">SALVAGE <span class="rc">+180 ⬡</span> · <span class="rs">+40 ▤</span> · <span class="ri">+2 ◈</span> · Flight XP awarded</div>
+          <div class="eyebrow">Commander's Log · Day One</div>
+          <h2>Haven <span class="k">Rock</span></h2>
+          <p>This is the whole revolution: a rock nobody's charted, two pilots, three rifles
+          that jam, one real starfighter and a hauler we welded seats into. The Hegemony
+          doesn't know we exist. Good. Neither do the people we're doing this for — yet.
+          Two contacts feed us scraps. Everything starts from scraps.</p>
+          <div class="rewline">2 PILOTS · 3 SOLDIERS · FT-4 CROSS · GRAF TYPE 1 HAULER · 6× AKLI AR · 4× COWBOY</div>
           <div class="howto">
             <b>This is Haven Rock.</b> Click a room to see what it offers; double-click to
             step inside. Rubble can be cleared, empty chambers built out.
@@ -258,7 +259,7 @@
             come from. Double-click any rebel for their file. When you've made your moves,
             <b>advance the day</b> and live with them.
           </div>
-          <button id="enterBtn">Enter the Base</button>
+          <button id="enterBtn">Begin</button>
         </div>
       </div>
     </div>
@@ -322,8 +323,9 @@ const BUILDS={
 };
 const EXCAVATE={s:10,days:1};
 const SHIPSTATS={
-  viper:{label:'GR-4 Viper · Multi-role',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
+  cross:{label:'FT-4 Cross · Multi-role Starfighter',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
   talon:{label:'SF-11 Talon · Interceptor',shd:'8F / 8A',arm:10,hull:25,wpns:[['Plasma','rc0'],['Missile ×1','rc2']]},
+  graf:{label:'Graf Type 1 Hauler · Troop Transport (converted)',shd:'10F / 10A',arm:25,hull:60,wpns:[['Door guns','rc1']]},
 };
 
 /* ---------- state ---------- */
@@ -345,37 +347,33 @@ function newGame(){
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   return {
-    day:1,credits:430,supplies:160,intel:5,renown:24,risk:12,morale:72,
+    day:1,credits:250,supplies:120,intel:3,renown:8,risk:10,morale:65,
     rows,cols,grid,rooms,
     fighters:[
-      {id:'vg',name:'Vanguard',cls:'viper',hull:55,out:false},
-      {id:'d1',name:'Dagger 1',cls:'talon',hull:80,out:false},
-      {id:'d2',name:'Dagger 2',cls:'talon',hull:100,out:false},
+      {id:'cross',name:'Vanguard',cls:'cross',hull:100,out:false},
+      {id:'graf',name:'Marta',cls:'graf',hull:90,out:false},
     ],
     armory:[
-      {id:'rifle',name:'Scrap Rifle',n:3,ic:'≠'},
-      {id:'pistol',name:'Sidearm',n:5,ic:'⌐'},
-      {id:'charge',name:'Det Charge',n:2,ic:'✹'},
+      {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
+      {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
-      {id:'sera',name:'Sera Kest',role:'Pilot',level:3,xp:0.55,assign:'rest',injured:0,ship:'vg',bio:'Flight lead. Lucky, and knows it.'},
-      {id:'joss',name:'Joss Marrek',role:'Pilot',level:4,xp:0.78,assign:'rest',injured:0,ship:'d1',bio:'Claims the Vex kill. Loudly.'},
-      {id:'petra',name:'Petra Voss',role:'Pilot',level:2,xp:0.36,assign:'rest',injured:0,ship:'d2',bio:'Quietly relieved everyone came home.'},
-      {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['rifle','pistol'],bio:'Ex-dock enforcer. Good in a corridor.'},
-      {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['charge','pistol'],bio:'Demolitions. Do not startle her.'},
+      {id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'cross',bio:'Flight lead, such as the flight is. Lucky, and knows it.'},
+      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'graf',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
+      {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
+      {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
+      {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
       {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'station:store',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
     ],
     sources:[
       {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,
        inc:{s:6},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
-       bio:'Passed over for promotion twice. Wants the yards to burn, quietly. Very jumpy since the Vex hit.'},
+       bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.'},
       {id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,
        inc:{c:25},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
        bio:'Votes loyal, funds otherwise. Terrified of audits.'},
     ],
     missions:[
-      {id:'toi',name:'Take Out Instructor',state:'done',from:'Ferren Halt',
-       desc:'Vex eliminated. His cadets scattered.',meta:'COMPLETE'},
       {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
        desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
     ],
@@ -421,7 +419,7 @@ function levelUp(p){
 /* ---------- source events (some open missions) ---------- */
 const SRC_EVENTS={
   halt:[
-    {text:'<b>HALT:</b> “They held a memorial for Vex at the yards. Everyone watched everyone. I think Kessler looked at me twice. He looked at me TWICE.”',
+    {text:'<b>HALT:</b> “Internal security walked the yards today. Random inspection, they said. Kessler looked at me twice. He looked at me TWICE.”',
      opts:[
        ['“Twice is nothing. You reported the loss like everyone else. Walk me through your day, slowly.”','strong'],
        ['“Stay off the comms for a while.”','neutral'],
@@ -461,6 +459,9 @@ const SRC_EVENTS={
 };
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
+  toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',play:true,
+    desc:'A Hegemony flight instructor — Commandant Dral Vex — trains the next class of killers over the drift, four cadets at a time. Kill the teacher before the lessons take.',
+    rew:{c:100,i:2,xp:0.2}},
   intercept:{name:'Intercept Transport',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
     desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
     rew:{c:150,s:35,xp:0.15}},
@@ -488,6 +489,7 @@ const MPOOL={
 };
 const SIGNALS={
   halt:[
+    {kind:'mission',mid:'toi',text:'“The flight instructor, Vex. Every pilot who’ll ever shoot at you learns it from him — and he runs his little academy over MY yard. Just saying.”'},
     {kind:'mission',mid:'intercept',text:'“A supply transport crosses my sector Thursday. Light escort. I have the schedule, if you have the nerve.”'},
     {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
     {kind:'cache',text:'“Pallet miscount in bay six. Forty crates of it. Nobody misses what was never counted.”',
@@ -670,7 +672,7 @@ function advanceDay(){
   }
   const FLAVOR=[
     'Hegemony patrols double in the drift. Coverage halves. Typical.',
-    'A cadet who fled the Vex fight has deserted. He tells the story better every bar.',
+    'A Hegemony cadet washed out and deserted. The stories he tells about his instructor are worth listening to.',
     'Grain barges late at the Capital again. Queues breed questions. Good.',
     'Mira recounts the storeroom. Finds three bolts missing. Opens an investigation into herself.',
     'Someone painted our mark on a water tower two systems over. Wasn’t us. That’s the point.',
@@ -984,6 +986,19 @@ function fighterTop(x,y,S,rot,alive,col){
   ctx.strokeStyle='rgba(200,219,245,0.7)';ctx.lineWidth=1;ctx.stroke();
   ctx.restore();
 }
+function craftTop(cls,x,y,S,rot,col){
+  if(cls==='graf'){
+    ctx.save();ctx.translate(x,y);ctx.rotate(rot);
+    ctx.fillStyle=col||'#98a68b';
+    ctx.beginPath();ctx.roundRect(-14*S,-7*S,26*S,14*S,3*S);ctx.fill();
+    ctx.strokeStyle='rgba(205,220,190,0.65)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#141820';
+    ctx.beginPath();ctx.roundRect(7*S,-4*S,6*S,8*S,2*S);ctx.fill();
+    ctx.strokeStyle='rgba(140,155,125,0.8)';
+    ctx.beginPath();ctx.moveTo(-5*S,-7*S);ctx.lineTo(-5*S,7*S);ctx.stroke();
+    ctx.restore();
+  } else fighterTop(x,y,S,rot,true,col);
+}
 
 /* ---------- base map render ---------- */
 function renderBase(now){
@@ -1046,7 +1061,7 @@ function renderBase(now){
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
           ctx.globalAlpha=f.out?0.2:0.9;
-          fighterTop(x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,!f.out,f.out?'#3a4560':'#8fa5c4');
+          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,f.out?'#3a4560':undefined);
           ctx.globalAlpha=1;
           if(!f.out){
             ctx.fillStyle=f.hull>=100?'#7dd97b':f.hull>=60?'#ffb454':'#ff4f5e';
@@ -1140,7 +1155,7 @@ function renderRoomBar(){
   }
   let acts='';
   if(rm.key==='command')acts='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-  if(rm.key==='training')acts='<a class="pbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Simulator — refly the Instructor Raid ↗</a>';
+  if(rm.key==='training')acts='<a class="pbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Simulator — dogfight exercise ↗</a>';
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
     '<button class="pbtn" data-backbase>← Back to the base</button>'+
@@ -1185,7 +1200,7 @@ function renderRoomView(now){
       ctx.setLineDash([]);
       const f=G.fighters[i];
       if(f&&!f.out){
-        fighterTop(bx,by,3.4,-0.5,true);
+        craftTop(f.cls,bx,by,3.4,-0.5);
         ctx.font='700 12px "Exo 2"';ctx.textAlign='center';
         ctx.fillStyle='#a0dce6';ctx.fillText(f.name,bx,by+62);
         ctx.fillStyle='rgba(20,32,60,0.9)';ctx.fillRect(bx-26,by+68,52,5);
@@ -1247,7 +1262,7 @@ function renderRoomView(now){
     ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=2;
     ctx.strokeRect(-70,-30,140,46);
     if(wounded){
-      fighterTop(0,-8,3,-0.3,true);
+      craftTop(wounded.cls,0,-8,3,-0.3);
       ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
       ctx.fillStyle='#ffd9a0';ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,44);
       if(rng()<0.12)spark((rng()-0.5)*80,-6);
@@ -1629,6 +1644,7 @@ function renderWin(){
       '<div class="mdesc">'+m.desc+'</div>'+
       '<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
       '<button class="dbtn" data-mplan="'+m.id+'">Plan it now.</button>'+
+      (m.play?'<a class="dbtn" style="display:block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Fly it yourself ↗ <span style="color:var(--dim)">(combat prototype — results don’t carry back yet)</span></a>':'')+
       '<button class="dbtn" data-close>Noted. It’ll keep on the board.</button>'+
       '</div>';
   }
@@ -1652,7 +1668,9 @@ function renderWin(){
       if(m.state==='avail'){
         const rew=[m.rew.c?C(m.rew.c):null,m.rew.s?S(m.rew.s):null,m.rew.i?I(m.rew.i):null,m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
         h+='<div class="mmeta">'+m.need+' pilots · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
-          '<button class="sbtn" data-plan="'+m.id+'">Plan Mission</button>';
+          '<button class="sbtn" data-plan="'+m.id+'">Plan Mission</button>'+
+          (m.play?' <a class="sbtn" style="display:inline-block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Fly it yourself ↗</a>'+
+            '<span class="pdesc" style="margin-left:8px">combat prototype — results don’t carry back yet</span>':'');
       }
       if(m.state==='sim')h+='<a class="sbtn" style="display:inline-block;text-decoration:none" href="'+COMBAT_URL+'" target="_blank" rel="noopener">Enter Simulator ↗</a>';
       h+='</div>';
@@ -1701,7 +1719,8 @@ function renderWin(){
       h+='<div class="dz-sec">Equipment</div>';
       for(const eq of (p.equip||[])){
         const a=G.armory.find(x=>x.id===eq);
-        if(a)h+='<div class="eqrow"><span class="eqi">'+a.ic+'</span>'+a.name+'</div>';
+        if(a)h+='<div class="eqrow"><span class="eqi">'+a.ic+'</span><span><b>'+a.name+'</b>'+
+          (a.desc?'<br><span style="font-size:9.5px;color:var(--dim)">'+a.desc+'</span>':'')+'</span></div>';
       }
       if(!(p.equip||[]).length)h+='<div class="pdesc">Empty-handed. Fix that before the ground war.</div>';
     } else {
@@ -1989,10 +2008,10 @@ $('enterBtn').addEventListener('click',()=>{
   saveSnap();syncUI();
 });
 function seedNews(){
-  news('Operation <b>Take Out Instructor</b> — SUCCESS. Cmdt. Dral Vex eliminated.','g');
-  news('Salvage in: '+C(180)+' · '+S(40)+' · '+I(2)+'. Fighters on the lift.','d');
-  news('Halt says the yards are “crawling with counter-intelligence.” He would know. He’s the nervous type.','h');
-  news('The board is quiet. Work the sources — missions, supplies and recruits all come through the network.','a');
+  news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
+  news('Inventory logged: one FT-4 Cross, one converted Graf hauler, six Aklis, four Cowboys. Mira signed for all of it. Twice.','d');
+  news('Two contacts on the wire: Halt at the Veray yards, the Senator through Relay Kess. Scraps, for now.','d');
+  news('The board is empty. Work the sources — missions, supplies and recruits all come through the network.','a');
 }
 
 /* ---------- snapshot / boot ---------- */
@@ -2010,6 +2029,7 @@ function boot(data){
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base}));
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
+    for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
       if(s.pendingEvent){
