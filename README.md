@@ -174,46 +174,74 @@ police with civilian-grade gear.
 out of combat, Door Kickers / Frozen Synapse WeGo rounds in it — kept
 deliberately familiar to the space game. **Out of combat time runs free**:
 right-click (or tap the ground) and the squad follows in loose formation,
-auto-looting anything they pass; deputies drift their beats in real time;
-Sera's hotwire ticks on a timer. The moment the law is alerted — spotted,
-shot at, or the player clicks a lawman to open the fight — time drops into
-the round skeleton the space game uses: plan orders → simultaneous execution
-→ engagement resolved unit-by-unit on the shared d20 VS panel with visible
-TN/ATK stacks and an interactive ATTACK button, with the same radial order
-ring, HUD language, camera/minimap, and synth audio. Clear the street and
-time runs free again for the mop-up. In-combat specifics:
+auto-looting anything they pass; deputies drift their beats and sweep their
+eyes in real time; Sera's hotwire and the pad work tick on timers. The moment
+the law is alerted, time drops into the round skeleton the space game uses:
+plan orders → simultaneous execution → engagement resolved unit-by-unit on
+the shared d20 VS panel, radial order ring, camera/minimap and synth audio.
+Clear the street and time runs free again for the mop-up.
 
+- **Stealth & detection** — while the town is calm every lawman projects a
+  drawn sight cone (amber = full range, inner red band = the reduced range at
+  which they spot a sneaking rebel). Standing in a cone with line of sight
+  fills a detection gauge above the rebel — faster up close, slower in cover
+  — which decays out of sight; a full gauge raises the town. A **Sneak**
+  toggle (button or `C`) halves speed and profile. The player can also open
+  the fight deliberately by clicking a lawman.
+- **Turn & target telegraphy** — in the engagement phase the acting unit gets
+  a pulsing ring in its side's color, a marching-ants targeting line runs to
+  its target, the target wears a rotating reticle, and the VS panel counts
+  "ACTION k OF n".
 - **No grid.** Movement is free-aim inside a ring: **Move** (~150u, gun stays
   up), **Sprint** (~300u, can't shoot, +2 TN harder to hit), **Hold** (braced
   +2 ATK and an overwatch snap-shot at anyone crossing the lane, −2 ATK).
-- **Cover & LOS** — buildings block sight, movement and bullets outright
-  (tracers clip at walls); barrels, crates and troughs give +3 TN, wagons +5;
-  the tower marksman's high angle degrades cover by 2. Cover is signposted:
-  units hugging cover show a green shield pip, and while plotting a move the
-  cover pockets in reach are ringed, with a COVER tag on a hovered
-  destination that qualifies.
-- **Akli jams** — a natural 1 on the die jams the rifle for a round (clear it
-  early with the radial's Un-jam action, or fall back to the Cowboy).
-- **Morale** — dropping Sheriff Reeve breaks deputies' nerve; they can throw
-  down their guns and surrender (and stop counting as hostiles).
-- **Loot lives on the map** — saloon till, bank strongbox, store crates, the
-  HQ gun locker, a stable cache, plus whatever downed lawmen drop (the
-  Sheriff's scattergun included). In combat a Loot order spends the round and
-  sweeps a small AOE (~95u) around the unit; out of combat the squad simply
-  hoovers up whatever they walk past. Nothing is granted free on the end
-  screen.
+- **Cover: high value, destructible** — fuel drums, cargo crates and charge
+  stations give +4 TN, trucks +6; buildings block sight, movement and bullets
+  outright (tracers clip at walls). Missed shots chew into the cover that
+  soaked them: every prop has hit points, and when it shreds ("COVER
+  DESTROYED") it becomes rubble worth nothing. Cover is signposted with green
+  shield pips, ringed cover pockets while plotting, and a COVER tag on
+  qualifying destinations.
+- **The laser turret** — one fixed emplacement covering the pad approach.
+  Either side can man it (radial "Man Gun" in combat, click it in free move;
+  the law sends a guard sprinting for it when the alarm goes). It fires a
+  brutal beam, and a frontal energy shield blocks all shots from its facing
+  arc — which tracks where it shoots — so it has to be flanked, blasted with
+  a canister, or starved of gunners.
+- **Fuel canisters** — red environmental explosives clustered near the pad
+  (and one by the motor pool). Shoot one deliberately (tap it to retarget
+  during engagement) or let a stray round find it: a big blast that wounds
+  everyone nearby, wrecks cover, and chain-detonates its neighbours.
+- **Akli jams** — a natural 1 jams the rifle for a round (Un-jam action or
+  fall back to the Cowboy). **Morale** — dropping Sheriff Reeve breaks
+  deputies' nerve into surrenders.
+- **Loot lives on the map** — cantina till, assay strongbox, outfitter
+  crates, the HQ gun locker, a motor-pool cache, plus whatever downed lawmen
+  drop. In combat a Loot order sweeps a ~95u AOE; in free move the squad
+  hoovers up whatever they walk past.
+- **Neutral civilians** — pale, unarmed townsfolk wander the streets; when
+  the shooting starts they flee town or hit the dirt ("CIVILIAN — DOWN
+  FLAT"). They can't be targeted and blasts spare them.
 
-**The scenario**: Joss lands the Graf at the LZ in an intro cutscene (letterbox,
-dust, squad walk-out, camera pan to the objective). Dax, Runa and Kel escort
-Sera Kest — sidearm only, frail, must survive — across Dustfall to the FT-4
-Cross on the pad behind the sheriff's HQ. She needs two protected rounds (or a
-quiet stretch of real time) to hotwire it, flies it out, and the squad heads
-home: under fire they extract by standing in the LZ ring while no lawman is
-within 300u; once no hostiles remain a big **Extract** button appears and
-plays a boarding cinematic — the squad runs up the ramp and the Graf lifts
-off. Defeat if Sera goes down or the whole squad does. Hostiles: Sheriff
-Reeve (scattergun, tough), five deputies (revolvers/carbines), and Dep. Wren
-with a Long Iron on the water tower.
+**The map** is a sci-fi frontier outpost with western bones: corrugated-metal
+and solar-panel roofs, a flickering holo-sign on the Dry Comet cantina, an
+assay office, an outfitter, a motor pool of utility trucks and charge
+stations, street lamps, a comms mast on the sheriff's HQ, a condenser tower
+with a marksman on it — and still a tumbleweed. The Cross sits on a floodlit
+pad in the **far north-east corner, diagonal from the LZ**, so the whole town
+is between the squad and the prize.
+
+**The scenario**: Joss lands the Graf in an intro cutscene, then Dax, Runa
+and Kel escort Sera Kest (sidearm only, frail, must survive) across Dustfall.
+At the pad three jobs run in parallel: Sera hotwires (two rounds or a quiet
+stretch of real time) while a soldier **releases the docking clamps** and
+**pulls the fuel line** — the Cross flies only when all three are done. The
+law contests it: once alerted, guard deputies fall back on the pad, one mans
+the turret, and Wren's Long Iron covers the approach from the condenser
+tower. Under fire the squad extracts by standing in the LZ ring while no
+lawman is near; once no hostiles remain a pulsing **Extract** button plays
+the boarding cinematic at double speed. Defeat if Sera goes down or the whole
+squad does.
 
 Base ↔ ground wiring is still one-way (the mission link opens the artifact;
 results don't carry back), same as the space sim link. The base's abstract
