@@ -63,9 +63,27 @@ the scaling aim bonus and crit chance. The mission opens with a short fly-in
 cutscene (skippable) and pilots exchange comm chatter on kills, hits, panic
 and the instructor's death.
 
-The pre-overhaul flow (auto-resolved attacks, sidebar controls) is preserved
-at commit `09dff6e` (tag `combat-gdd-autoresolve`) if we want to revert or
-compare.
+**Iteration 3** (second playtest round): resolution moved from d100 to **d20**
+with a visible hit % once modifiers are summed; attacker and defender now share
+one **VS panel** (sword = attacker, shield = defender, blue = player / red =
+enemy, matching icons hover over the ships). Shields split into **front/rear
+zones** shown as arcs around the hull (no shield bar) — attacks deplete only
+the zone they strike, and ballistic still bypasses both. **Locks break** the
+moment the target slips behind the locker's front hemisphere. Hull damage now
+inflicts **named criticals** (Secondary Engine Failure locks out top-speed
+maneuvers, Control Surfaces Shredded kills hard turns, Ammo Feed Jam,
+Shield Emitter Fried, Targeting Array Damage, Cockpit Breach), cleared only by
+the new **Repair** action's Field Repair; Repair also boosts a shield zone by
+15% of total, and **Evade** expanded into Fly Defensive or **Angle Shields**
+(stack one zone onto the other). *Steady* is now **Lock In** (+35 nerve).
+Maneuver distances grew 25%, weapon and explosion effects got heavier
+(flashes, shockwave rings, tracer streams, screen flash on kills), ships bank
+into turns with stretched engine flares, and planning/decision moments play in
+subtle slow time (dimmed drift, slowed ambient motion, cool-blue tint).
+
+The pre-overhaul flow (auto-resolved attacks, sidebar controls, d100) is
+preserved at commit `09dff6e` (tag `combat-gdd-autoresolve`), and the first
+interactive-HUD version at `1be59fd`, if we want to revert or compare.
 
 Still simplified: the GDD's Activation phase is folded into Execution (no ship
 abilities yet), bombs and torpedoes are out (no large targets in this
