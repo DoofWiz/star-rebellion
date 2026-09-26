@@ -415,6 +415,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-ground #topbar h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber);white-space:nowrap;}
 #sc-ground #topbar .sub{font-size:11px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
 #sc-ground #topbar .spacer{flex:1;}
+#sc-ground #tutCard{position:absolute;top:14px;left:14px;z-index:9;width:270px;background:rgba(10,15,30,0.95);border:1px solid var(--amber);border-radius:6px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+#sc-ground #tutCard .tut-step{font-size:9px;font-weight:800;letter-spacing:.22em;color:var(--amber);margin-bottom:5px;}
+#sc-ground #tutCard .tut-text{font-size:11.5px;line-height:1.55;color:var(--text);}
+#sc-ground #tutCard .tut-text b{color:var(--amber);}
 #sc-ground #townPill{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;padding:4px 12px;border-radius:20px;border:1px solid var(--good);color:var(--good);}
 #sc-ground #townPill.alert{border-color:var(--heg);color:var(--heg);animation:pillPulse 1.1s ease-in-out infinite;}
 @keyframes pillPulse{0%,100%{box-shadow:0 0 0 rgba(255,79,94,0);}50%{box-shadow:0 0 14px rgba(255,79,94,.55);}}
@@ -541,22 +545,22 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 
       <div class="overlay" id="debrief">
         <div class="brief">
-          <div class="eyebrow">Commander's Log · Day One</div>
-          <h2>Haven <span class="k">Rock</span></h2>
-          <p>This is the whole revolution: a rock nobody's charted, two pilots, three rifles
-          that jam, one real starfighter and a hauler we welded seats into. The Hegemony
-          doesn't know we exist. Good. Neither do the people we're doing this for — yet.
-          Two contacts feed us scraps. Everything starts from scraps.</p>
-          <div class="rewline">2 PILOTS · 3 SOLDIERS · FT-4 CROSS · GRAF TYPE 1 HAULER · 6× AKLI AR · 4× COWBOY</div>
+          <div class="eyebrow">Commander's Log · Before Day One</div>
+          <h2>Take the <span class="k">Rock</span></h2>
+          <p>There's a rock out past the drift — an old smuggler bolt-hole with a hangar cave,
+          a bunker, and no name on any chart. It's everything a revolution needs to be born in.
+          One problem: a crew of Vult gang squatters found it first, and they are not the
+          negotiating kind. This is the whole revolution right now — two pilots, three rifles
+          that jam, and a hauler we welded seats into. Home is on the other side of one fight.</p>
+          <div class="rewline">2 PILOTS · 3 SOLDIERS · GRAF TYPE 1 HAULER · 6× AKLI AR · 4× COWBOY</div>
           <div class="howto">
-            <b>This is Haven Rock.</b> Click a room to see what it offers; double-click to
-            step inside. Rubble can be cleared, empty chambers built out.
-            <b>Sources</b> keep us fed and keep us warned — work them on the galaxy map, and
-            when one sends a signal, decide if it's worth following. That's where missions
-            come from. Double-click any rebel for their file. When you've made your moves,
-            <b>advance the day</b> and live with them.
+            <b>This is the opening op — and the tutorial.</b> Joss puts the Marta down on the
+            landing flat; from there the game walks you through movement, stealth, orders,
+            the gunfight and the objectives, one step at a time. Clear the squatters, raise
+            the signal, and Haven Rock is yours: a command centre, a hangar with one spare
+            berth, and bunks for five.
           </div>
-          <button id="enterBtn">Begin</button>
+          <button id="enterBtn">Take the Rock</button>
         </div>
       </div>
     </div>
@@ -671,8 +675,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 <div class="scene" id="sc-ground" hidden>
 <div id="app">
   <header id="topbar">
-    <h1>Steal the Cross</h1>
-    <span class="sub">Dustfall · Brakka — Revolution I</span>
+    <h1 id="gTitle">Steal the Cross</h1>
+    <span class="sub" id="gSub">Dustfall · Brakka — Revolution I</span>
     <span id="townPill">Town is calm</span>
     <span class="spacer"></span>
     <button class="chipbtn" id="zoomOut" title="Zoom out">−</button>
@@ -688,6 +692,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
       <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
       <div id="csBanner"><div class="big">Steal the Cross</div><div class="small">Sheriff&#8217;s law is Hegemony law</div></div>
       <button class="chipbtn" id="csSkip" hidden>Skip &#9656;</button>
+      <div id="tutCard" hidden>
+        <div class="tut-step" id="tutStep">TUTORIAL 1/7</div>
+        <div class="tut-text" id="tutText"></div>
+      </div>
       <div id="radial" hidden></div>
       <button id="pickPill" hidden>Pick a destination · tap to cancel</button>
       <div id="ctlDock" hidden></div>
@@ -734,7 +742,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
         <div id="objList"></div>
         <div class="sec-h">Squad</div>
         <div class="group" id="rosterR"></div>
-        <div class="sec-h law">Sheriff&#8217;s Men</div>
+        <div class="sec-h law" id="foeHead">Sheriff&#8217;s Men</div>
         <div class="group" id="rosterE"></div>
         <div class="sec-h lt">Loot Carried</div>
         <div class="lootTally" id="lootTally">Nothing yet — check tills, crates and lockers.</div>

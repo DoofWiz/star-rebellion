@@ -39,6 +39,7 @@ const ROOMS={
   quarters:{name:'Barracks Annex',col:'#57d7e2',desc:'Three more bunks. The rebellion keeps growing.'},
 };
 const BUILDS={
+  store:{c:50,s:20,days:1},
   comms:{c:120,s:30,days:2},
   workshop:{c:100,s:40,days:2},
   infirmary:{c:90,s:30,days:2},
@@ -62,20 +63,18 @@ function newGame(){
   for(let r=0;r<rows;r++){grid.push([]);for(let c=0;c<cols;c++)grid[r].push({t:'rock'});}
   const setT=(r,c,t)=>{grid[r][c]={t};};
   for(let c=1;c<=8;c++)setT(4,c,'floor');
-  setT(3,3,'floor');setT(2,3,'floor');setT(5,3,'floor');setT(3,6,'floor');
+  setT(3,3,'floor');setT(2,3,'floor');setT(5,3,'floor');setT(3,6,'floor');setT(5,6,'floor');
   [[4,0],[5,1],[5,2],[1,3],[5,7],[4,9],[3,7],[3,8],[6,4],[6,5],[2,6],[2,7],[1,4],[6,3]].forEach(([r,c])=>setT(r,c,'rubble'));
   const rooms=[
     {key:'command',r:2,c:4,w:2,h:2},
     {key:'hangar',r:2,c:1,w:2,h:2},
     {key:'barracks',r:5,c:4,w:2,h:1},
-    {key:'store',r:5,c:6,w:1,h:1},
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   return {
-    day:1,credits:250,supplies:120,intel:3,renown:8,risk:10,morale:65,
+    day:1,credits:250,supplies:120,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[
-      {id:'cross',name:'Vanguard',cls:'cross',hull:100,out:false},
       {id:'graf',name:'Marta',cls:'graf',hull:90,out:false},
     ],
     armory:[
@@ -83,12 +82,11 @@ function newGame(){
       {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
-      {id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'cross',bio:'Flight lead, such as the flight is. Lucky, and knows it.'},
+      {id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',bio:'Flight lead, such as the flight is. Lucky, and knows it.'},
       {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'graf',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
       {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
       {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
       {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
-      {id:'mira',name:'Mira Osk',role:'Support',level:2,xp:0.1,assign:'station:store',injured:0,bio:'Quartermaster. Counts every bolt twice.'},
     ],
     sources:[
       {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,
@@ -113,8 +111,8 @@ const $=id=>byId(id);
 function hasRoom(key){return G.rooms.some(r=>r.key===key&&!r.build);}
 function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
 function sourceCap(){return 2+roomsOf('comms').length;}
-function fighterCap(){return 3+roomsOf('bay').length;}
-function bunkCap(){return 6+3*roomsOf('quarters').length;}
+function fighterCap(){return 2+roomsOf('bay').length;}
+function bunkCap(){return 5+3*roomsOf('quarters').length;}
 /* Support crew man stations; a room without its operator underperforms */
 const STAFFABLE={
   command:{post:'Flight Coordinator',perk:'+5% mission success'},
@@ -284,7 +282,7 @@ const CANDS={
 };
 const RECRUITS={
   Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
-  Support:[['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
+  Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
 };
 function rollSignal(src){
   if(src.signal||src.pendingEvent)return;
@@ -1722,14 +1720,32 @@ $('restartBtn').addEventListener('click',()=>{
 });
 $('enterBtn').addEventListener('click',()=>{
   A.wake();
+  if(!G.introDone){launchIntro();return;}
   $('debrief').hidden=true;
   started=true;
   seedNews();
   saveSnap();syncUI();
 });
+function introSpec(){
+  const soldiers=G.people.filter(p=>p.role==='Soldier').slice(0,3);
+  const pilots=G.people.filter(p=>p.role==='Pilot');
+  const spare=pilots.find(p=>p.id==='sera')||pilots[0];
+  const grafP=pilots.find(p=>p.id!==spare.id)||pilots[0];
+  return {kind:'ground',missionId:'haven',scenario:'haven',days:0,
+    squad:soldiers.map(p=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
+      aim:soldierAim(p),hp:100,wpns:['akli','cowboy']})),
+    pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0]},
+    grafPilot:{id:grafP.id,name:grafP.name,first:grafP.name.split(' ')[0]}};
+}
+function launchIntro(){
+  $('debrief').hidden=true;
+  closeWin();closeTilePop();
+  SR.mission=introSpec();
+  SR.go('ground',{mission:SR.mission});
+}
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
-  news('Inventory logged: one FT-4 Cross, one converted Graf hauler, six Aklis, four Cowboys. Mira signed for all of it. Twice.','d');
+  news('Inventory logged: one converted Graf hauler, six Aklis, four Cowboys, and a rock with our name on it. No starfighter. Yet.','d');
   news('Two contacts on the wire: Halt at the Veray yards, the Senator through Relay Kess. Scraps, for now.','d');
   news('The board is empty. Work the sources — missions, supplies and recruits all come through the network.','a');
 }
@@ -1783,6 +1799,39 @@ function addArmoryItem(name){
 function applyDebrief(r){
   if(!r)return;
   SR.mission=null;
+  if(r.missionId==='haven'){
+    if(r.win){
+      G.introDone=true;started=true;
+      $('debrief').hidden=true;
+      for(const pr of r.people||[]){
+        const p=G.people.find(x=>x.id===pr.id);
+        if(!p)continue;
+        if(pr.xp){p.xp+=pr.xp;levelUp(p);}
+        if(pr.state==='injured'){
+          p.injured=pr.dur||2;
+          news('<b>'+p.name+'</b> took the rock the hard way \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
+        }
+      }
+      if(r.loot){
+        if(r.loot.c)G.credits+=r.loot.c;
+        if(r.loot.s)G.supplies+=r.loot.s;
+        for(const it of r.loot.items||[])addArmoryItem(it);
+      }
+      news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
+      seedNews();
+      sBuild();
+      saveSnap();syncUI();
+      return;
+    }
+    // thrown back: no lasting harm, the Marta pulls everyone out. Go again.
+    news('The squatters held the rock. Everyone made it back to the Marta \u2014 patch up and go again.','h');
+    started=false;
+    const ov=$('debrief');ov.hidden=false;
+    const h2=ov.querySelector('h2');if(h2)h2.innerHTML='Take the <span class="k">Rock</span> \u2014 Again';
+    const eb=ov.querySelector('#enterBtn');if(eb)eb.textContent='Go Again';
+    saveSnap();syncUI();
+    return;
+  }
   if(r.sim){
     news('Sim deck run logged \u2014 '+(r.win?'clean sweep of the drone flight.':'the drones took the round.'),'d');
     saveSnap();syncUI();return;
@@ -1790,7 +1839,7 @@ function applyDebrief(r){
   const m=G.missions.find(x=>x.id===r.missionId);
   // the mission days pass while they are in the field
   for(const pr of r.people||[]){const p=G.people.find(x=>x.id===pr.id);if(p)p.assign='mission';}
-  for(let d=0;d<(r.days||1);d++)advanceDay();
+  for(let d=0;d<(r.days===undefined?1:r.days);d++)advanceDay();
   for(const pr of r.people||[]){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
@@ -1816,6 +1865,8 @@ function applyDebrief(r){
   if(r.win&&r.cross){
     if(G.fighters.length<fighterCap()){
       G.fighters.push({id:'dustfall',name:'Dustfall',cls:'cross',hull:85,out:false});
+      const orphan=G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
+      if(orphan)orphan.ship='dustfall';
       got.push('the FT-4 Cross \u201cDustfall\u201d');
     } else {G.credits+=200;got.push('no berth \u2014 the Cross fenced for '+C(200));}
   }
@@ -1865,6 +1916,7 @@ let booted=false;
 function restoreCampaign(data){
   if(data&&data.campaign&&data.started){
     G=data.campaign;started=true;
+    if(G.introDone===undefined)G.introDone=true;
     $('debrief').hidden=true;
     G.misPopQ=G.misPopQ||[];
     G.candQ=G.candQ||[];
@@ -1900,7 +1952,7 @@ function enter(params){
     if(!restoreCampaign(SR.loadSave())){
       G=newGame();
       if(location.hash==='#deploy'||location.hash==='#test'){
-        $('debrief').hidden=true;started=true;seedNews();
+        $('debrief').hidden=true;started=true;G.introDone=true;seedNews();
       }
     }
   }

@@ -33,6 +33,23 @@ The three layers now run as **one playable game** (`game/index.html` +
   still on the board.
 - The Training Hall's simulator now runs the space scene in-engine with the
   default cast and no consequences.
+- **The opening mission** — *Take the Rock* — starts every new campaign: the
+  crew arrives at an uncharted smuggler bolt-hole to find Vult gang squatters
+  dug in around a campfire. It's the tutorial: the ground scene's scenario
+  system loads a rocky 1800×1200 map (boulders are indestructible cover, a
+  wrecked freighter, a hangar cave), and an amber step card teaches movement,
+  sneaking and sight cones, opening the fight, WeGo orders, the engagement
+  panel, destructible cover and canisters, and the objective loop — clear
+  the six squatters (Boss Craw anchors their morale), then raise the rebel
+  signal at the bunker door to found the base. Losing costs nothing: the
+  Marta pulls everyone out and the prologue re-offers itself.
+- **The reduced day one** the intro establishes: a command centre, a hangar
+  with the Marta and **one spare berth** (capacity 2, +1 per bay), and
+  **bunks for five** — exactly the starting crew, so recruitment needs an
+  annex. There is no starting starfighter and no storeroom (now buildable):
+  the campaign's first arcs are stealing the Cross on Brakka — which arms
+  the space game — and building the rock out. Mira Osk now arrives as the
+  first Support recruit instead of starting aboard.
 
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
