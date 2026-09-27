@@ -57,6 +57,16 @@ The three layers now run as **one playable game** (`game/index.html` +
   the campaign's first arcs are stealing the Cross on Brakka — which arms
   the space game — and building the rock out. Mira Osk now arrives as the
   first Support recruit instead of starting aboard.
+- **Player-facing briefings.** Every mission brief (base prologue, ground,
+  space) now reads like a mission screen instead of a design note: short
+  in-world flavour, an **Objectives** list, and a roster-style **team view**
+  — one card per character with their role and iconed weapon chips (shared
+  `SR.ui` helpers in `core.js`, per-scenario `brief` data in `ground.js`).
+  The old caps-lock loadout line and the how-to-play text walls are gone;
+  what guidance remains is one line of controls, with the prologue's amber
+  step card still teaching in play. Buttons are consistent everywhere: the
+  green mission-start button always says **Start**, the end-of-mission
+  button always says **Continue**.
 
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.

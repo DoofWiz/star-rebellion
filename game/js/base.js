@@ -1761,6 +1761,12 @@ function introSpec(){
     squad:soldiers.map(p=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
       aim:soldierAim(p),hp:100,wpns:['akli','cowboy']}))};
 }
+function renderIntroSquad(){
+  const el=$('introSquad');
+  if(!el)return;
+  el.innerHTML=introSpec().squad.map(sp=>
+    SR.ui.squadCard({name:sp.name,role:'Soldier',chips:SR.ui.gearChips(sp.wpns)})).join('');
+}
 function launchIntro(){
   $('debrief').hidden=true;
   closeWin();closeTilePop();
@@ -1849,11 +1855,11 @@ function applyDebrief(r){
       return;
     }
     // thrown back: no lasting harm, the Marta pulls everyone out. Go again.
-    news('The squatters held the rock. Everyone made it back to the Marta \u2014 patch up and go again.','h');
+    news('The squatters held the rock. Everyone made it back down the canyon \u2014 patch up and go again.','h');
     started=false;
     const ov=$('debrief');ov.hidden=false;
     const h2=ov.querySelector('h2');if(h2)h2.innerHTML='Take the <span class="k">Rock</span> \u2014 Again';
-    const eb=ov.querySelector('#enterBtn');if(eb)eb.textContent='Go Again';
+    renderIntroSquad();
     saveSnap();syncUI();
     return;
   }
@@ -1990,6 +1996,7 @@ function enter(params){
       }
     }
   }
+  if(!G.introDone)renderIntroSquad();
   if(params&&params.debrief)applyDebrief(params.debrief);
   saveSnap();
   syncUI();renderNews();
@@ -2004,6 +2011,6 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{addMission,leadMission,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
-      ablePilots,openWin,closeWin}};
+      ablePilots,openWin,closeWin,renderIntroSquad}};
 }
 })();

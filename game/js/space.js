@@ -860,7 +860,7 @@ function gameOver(win){
   }
   byId('endscreen').hidden=false;
   pendingResult=buildResult(win);
-  byId('endRestartBtn').textContent=(CTX&&!CTX.sim)?'Return to Haven Rock':'Exit Simulator';
+  byId('endRestartBtn').textContent='Continue';
   syncUI();
 }
 let pendingResult=null;
@@ -2114,6 +2114,33 @@ $('deployBtn').addEventListener('click',()=>{
 });
 
 /* ---------- scene lifecycle ---------- */
+function flightChips(cls){
+  const c=CLS[cls]||CLS.viper;
+  return c.wpns.map(w=>{
+    const g=SR.ui.gearChips([w])[0];
+    if(c.ammo[w])g.label+=' ×'+c.ammo[w];
+    return g;
+  });
+}
+function briefUI(){
+  byId('spObj').innerHTML=SR.ui.objRows([
+    'Shoot down Commandant Vex',
+    {sub:1,text:'His cadets are green — expect them to break when he falls.'},
+  ]);
+  let cards;
+  if(CTX&&CTX.flight&&CTX.flight.length){
+    cards=CTX.flight.slice(0,4).map(f=>{
+      const cls=CLS[f.cls]?f.cls:'viper';
+      return SR.ui.squadCard({name:f.name,pilot:true,chips:flightChips(cls),
+        role:(f.fighterName?f.fighterName+' · ':'')+CLS[cls].label});
+    });
+  } else {
+    cards=DEPLOY.filter(d=>d[3]==='reb').map(d=>
+      SR.ui.squadCard({name:d[7].pname,pilot:true,chips:flightChips(d[2]),
+        role:d[1]+' · '+CLS[d[2]].label}));
+  }
+  byId('spFlight').innerHTML=cards.join('');
+}
 function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven Rock */}
 function enter(params){
   CTX=(params&&params.mission)||SR.mission||null;
@@ -2124,8 +2151,7 @@ function enter(params){
   byId('endscreen').hidden=true;
   started=false;
   phase='BRIEFING';
-  const bt=byId('deployBtn');
-  if(bt)bt.textContent=(CTX&&CTX.sim)?'Enter the Sim':'Begin Attack Run';
+  briefUI();
   byId('briefing').hidden=false;
   if(params&&params.test){
     byId('briefing').hidden=true;

@@ -56,6 +56,18 @@ stealcross:{
   title:'Steal the Cross',sub:'Dustfall \u00b7 Brakka \u2014 Revolution I',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
   banner:['Steal the Cross','Sheriff\u2019s law is Hegemony law'],
+  brief:{
+    eyebrow:'Ground Operation \u00b7 Dustfall, Brakka',
+    flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff\u2019s HQ. Sheriff Reeve enforces Hegemony law here. We enforce ours.',
+    objectives:[
+      'Get Sera Kest to the Cross on the pad north-east of town',
+      'Cover her while she hotwires it \u2014 two rounds at the panel',
+      'Release the docking clamps and pull the fuel line',
+      'Get the squad back to the Graf and lift off',
+      {sub:1,text:'Sera carries only a sidearm \u2014 keep her clear of the shooting.'},
+    ],
+    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The pad turret is armoured from the front; take it from the side. Stray shots set off the red fuel canisters.',
+  },
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
   LZ:{x:300,y:1330,r:130},PAD:{x:2130,y:330,r:95},
@@ -139,6 +151,16 @@ haven:{
   title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
   banner:['Take the Rock','Every war starts with a kicked-in door'],
+  brief:{
+    eyebrow:'Prologue · The Drift',
+    flavour:'A smuggler bolt-hole cut into a mountain: a hangar cave, a command room, bunks in the stone — and a crew of <b>Vult gang squatters</b> living in all of it. Three soldiers, two guns each, one door.',
+    objectives:[
+      'Clear the squatters holding the rock — outside, then room by room',
+      'Take the command room from Boss Craw',
+      'Raise the rebel signal at the command console',
+    ],
+    hint:'Your first op — the card in the corner will walk you through each order as you need it.',
+  },
   lzLabel:'',
   LZ:{x:250,y:1060,r:90},
   camp:{x:920,y:960},
@@ -1493,13 +1515,13 @@ function gameOver(win,why){
       for(const it of tally.items)lh2+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
     }
     byId('endLoot').innerHTML=lh2;
-    byId('endRestartBtn').textContent=win?'Enter Haven Rock':'Fall Back to the Marta';
+    byId('endRestartBtn').textContent='Continue';
     byId('endscreen').hidden=false;
     pendingResult=buildResult(win);
     syncUI();
     return;
   }
-  byId('endRestartBtn').textContent='Return to Haven Rock';
+  byId('endRestartBtn').textContent='Continue';
   byId('endEyebrow').textContent=win?'Mission Report · Dustfall':'Mission Report · It went wrong';
   byId('endTitle').textContent=win?'The Cross Is Ours':'Mission Failed';
   let txt;
@@ -3288,7 +3310,7 @@ const TUT=[
    done:()=>town==='alerted'},
   {text:'<b>Plan the round.</b> Each rebel takes one order — <b>Move</b> keeps the gun up, <b>Sprint</b> goes far but can’t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings are cover. Then hit <b>Execute</b>.',
    done:()=>tutFlags.executed||hostilesActive().length===0},
-  {text:'<b>Engagement:</b> shots resolve one at a time on the maths panel. Tap another squatter to retarget — or tap a <b>red canister</b> to blow it — then hit <b>ATTACK</b>.',
+  {text:'<b>Engagement:</b> shots resolve one at a time on the attack panel. Tap another squatter to retarget — or tap a <b>red canister</b> to blow it — then hit <b>ATTACK</b>.',
    done:()=>tutFlags.attacked||hostilesActive().length===0},
   {text:'Cover soaks fire and <b>shreds</b> — crates die, boulders don’t. Corridors are overwatch country: a held gun owns a hallway. Drop <b>Boss Craw</b> and the rest lose their nerve. Clear every squatter, outside and in.',
    done:()=>hostilesActive().length===0},
@@ -3306,26 +3328,22 @@ function tutTick(){
   if(st.textContent!==label||!tx.innerHTML){st.textContent=label;tx.innerHTML=TUT[tutIdx].text;}
 }
 /* ---------- scenario chrome ---------- */
-let BRIEF0=null;
 function scenarioUI(){
   byId('gTitle').textContent=SCN.title;
   byId('gSub').textContent=SCN.sub;
   byId('foeHead').textContent=SCN.foesLabel;
-  const ov=byId('briefing');
-  const eb=ov.querySelector('.eyebrow'),h2=ov.querySelector('h2'),ps=ov.querySelectorAll('p'),bt=byId('enterBtn');
-  if(!BRIEF0)BRIEF0={eb:eb.innerHTML,h2:h2.innerHTML,p0:ps[0].innerHTML,p1:ps[1].innerHTML,p2:ps[2].innerHTML,bt:bt.textContent};
-  if(SCN.mode==='haven'){
-    eb.innerHTML='Prologue · Haven Rock — the Tutorial Op';
-    h2.innerHTML='Take the Rock';
-    ps[0].innerHTML='A smuggler bolt-hole cut into a mountain out past the drift: a hangar cave, a command room, bunks in the stone — and a crew of <b>Vult gang squatters</b> living in all of it. Your three soldiers walk in from the canyon with the rifles on their backs. There is no ship. There is no backup. There is one door.';
-    ps[1].innerHTML='<b>Clear every squatter</b> — the watch outside, then room by room through the corridors. Boss Craw is holed up in the command room and will come out shooting. When the rock is clear, put a soldier on the command console and <b>raise the signal</b>: that’s the moment Haven Rock becomes ours.';
-    ps[2].innerHTML='This is the opening op and the tutorial in one — the <b>amber card</b> in the corner walks you through movement, stealth, orders, the gunfight and the objective, one step at a time. Nobody is lost if it goes wrong: the squad falls back down the canyon and you go again.';
-    bt.textContent='Kick the Door In';
-  } else {
-    eb.innerHTML=BRIEF0.eb;h2.innerHTML=BRIEF0.h2;
-    ps[0].innerHTML=BRIEF0.p0;ps[1].innerHTML=BRIEF0.p1;ps[2].innerHTML=BRIEF0.p2;
-    bt.textContent=BRIEF0.bt;
-  }
+  const B=SCN.brief||{};
+  byId('gEyebrow').textContent=B.eyebrow||'Ground Operation';
+  byId('gTitleB').textContent=SCN.title;
+  byId('gFlavour').innerHTML=B.flavour||'';
+  byId('gObj').innerHTML=SR.ui.objRows(B.objectives||[]);
+  const hint=byId('gHint');
+  hint.innerHTML=B.hint||'';
+  hint.hidden=!B.hint;
+  const spec=CTX||defaultSpec();
+  const cards=(spec.squad||[]).map(sp=>SR.ui.squadCard({name:sp.name,role:'Soldier',chips:SR.ui.gearChips(sp.wpns||['akli','cowboy'])}));
+  if(spec.pilot)cards.push(SR.ui.squadCard({name:spec.pilot.name,role:'Pilot',pilot:true,chips:SR.ui.gearChips(['cowboy'])}));
+  byId('gSquad').innerHTML=cards.join('');
 }
 let navFor=null;
 function enter(params){

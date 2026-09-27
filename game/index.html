@@ -12,6 +12,21 @@ html,body{height:100%;}
 [hidden]{display:none!important;}
 body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;overflow:hidden;}
   .scene{position:fixed;inset:0;}
+/* ===== shared briefing furniture (all scenes) ===== */
+.ovh{font-size:10px;letter-spacing:.24em;text-transform:uppercase;font-weight:800;color:var(--dim);margin:14px 0 6px;}
+.ovObj .orow{display:flex;gap:9px;align-items:baseline;font-size:12.5px;color:var(--text);padding:3px 0;line-height:1.45;}
+.ovObj .orow .tick{color:var(--amber);font-family:var(--font-mono);flex:0 0 12px;}
+.ovObj .orow.sub{color:var(--dim);font-size:11px;}
+.ovSquad{display:flex;flex-wrap:wrap;gap:8px;}
+.sqCard{flex:1 1 150px;min-width:140px;background:#121b34;border:1px solid #1b2747;border-left:3px solid var(--reb);border-radius:4px;padding:7px 9px;box-sizing:border-box;}
+.sqCard .sqn{font-weight:700;font-size:12.5px;color:var(--text);}
+.sqCard .sqr{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:1px 0 6px;}
+.sqCard .sqw{display:flex;flex-wrap:wrap;gap:4px;}
+.sqCard .wch{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:10px;color:var(--amber);background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.3);border-radius:3px;padding:1px 6px;}
+.sqCard .wch svg{flex:0 0 auto;opacity:.9;}
+.sqCard.pilot{border-left-color:var(--amber);}
+.ovfine{font-size:11px;color:var(--dim);line-height:1.6;margin-top:12px;}
+#sc-ground .ovCard p.ovfine,#sc-space .brief p.ovfine,#sc-base .brief p.ovfine{font-size:11px;color:var(--dim);line-height:1.6;margin:12px 0 0;}
 /* ===== scene: base ===== */
 #sc-base #app{height:100%;display:flex;flex-direction:column;min-height:0;}
 #sc-base #topbar{position:relative;display:flex;align-items:center;gap:14px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;z-index:14;}
@@ -468,8 +483,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-ground .ovCard p{margin:0 0 12px;font-size:13px;line-height:1.65;color:var(--text);}
 #sc-ground .ovCard p b{color:var(--amber);}
 #sc-ground .ovCard .fine{font-size:11.5px;color:var(--dim);line-height:1.6;}
-#sc-ground #enterBtn,#sc-ground #endRestartBtn{width:100%;margin-top:10px;background:linear-gradient(180deg,#2b3c66,#1c2a4c);border:1px solid #3f5b96;color:#eaf2ff;font-family:var(--font-ui);font-weight:800;font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;}
-#sc-ground #enterBtn:hover,#sc-ground #endRestartBtn:hover{border-color:var(--amber);color:var(--amber);}
+#sc-ground #enterBtn{width:100%;margin-top:14px;background:linear-gradient(180deg,#2a3a12,#1d2a0c);border:1px solid var(--good);color:var(--good);font-family:var(--font-ui);font-weight:800;font-size:14px;letter-spacing:.22em;text-transform:uppercase;padding:12px;border-radius:3px;cursor:pointer;}
+#sc-ground #enterBtn:hover{filter:brightness(1.25);}
+#sc-ground #endRestartBtn{width:100%;margin-top:10px;background:linear-gradient(180deg,#2b3c66,#1c2a4c);border:1px solid #3f5b96;color:#eaf2ff;font-family:var(--font-ui);font-weight:800;font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;}
+#sc-ground #endRestartBtn:hover{border-color:var(--amber);color:var(--amber);}
 #sc-ground .lootline{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;padding:5px 2px;border-bottom:1px dashed var(--line-soft);}
 #sc-ground .lootline span:last-child{color:var(--amber);}
 #sc-ground #panel{flex:0 0 252px;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#0b1122,#080d1a);border-left:1px solid var(--line);}
@@ -550,18 +567,17 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
           <p>There's a rock out past the drift — an old smuggler bolt-hole cut into a mountain:
           a hangar cave, a command bunker, bunks in the stone, and no name on any chart. It's
           everything a revolution needs to be born in. One problem: a crew of Vult gang
-          squatters found it first, and they are not the negotiating kind. This is the whole
-          revolution right now — five of us, three rifles that jam, and a one-way ride from a
-          smuggler who didn't ask questions. Home is on the other side of one fight.</p>
-          <div class="rewline">3 SOLDIERS ON FOOT · 6× AKLI AR · 4× COWBOY · NO SHIP. YET.</div>
-          <div class="howto">
-            <b>This is the opening op — and the tutorial.</b> The soldiers walk in from the
-            canyon; the game teaches movement, stealth, orders, the gunfight and the objective,
-            one step at a time. Clear the squatters outside, push into the corridors, take the
-            command room, raise the signal — and Haven Rock is yours: a command centre, bunks
-            for five, and a hangar cave with a <b>derelict hauler</b> waiting to be restored.
+          squatters found it first, and they are not the negotiating kind. Home is on the
+          other side of one fight.</p>
+          <div class="ovh">Objectives</div>
+          <div class="ovObj" id="introObj">
+            <div class="orow"><span class="tick">&#9656;</span><span>Clear the squatters holding the rock &#8212; outside, then room by room</span></div>
+            <div class="orow"><span class="tick">&#9656;</span><span>Take the command room from Boss Craw</span></div>
+            <div class="orow"><span class="tick">&#9656;</span><span>Raise the rebel signal at the command console</span></div>
           </div>
-          <button id="enterBtn">Take the Rock</button>
+          <div class="ovh">The Team</div>
+          <div class="ovSquad" id="introSquad"></div>
+          <button id="enterBtn">Start</button>
         </div>
       </div>
     </div>
@@ -628,21 +644,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
           cadets leave the academy shooting straight. Right now he's running a live exercise
           in the Veray Drift with four green cadets and no escort. Kill the instructor and the
           Hegemony's next class of pilots dies with him.</p>
-          <div class="objective">OBJECTIVE — Eliminate Commandant Vex. His cadets are green; expect them to break when he falls.</div>
-          <div class="howto">
-            <b>Battlespace</b>: drag / WASD to pan, wheel or pinch to zoom, minimap to jump.
-            <b>Double-click any fighter</b> (on the field or the roster) for its pilot dossier
-            and ship readout. <b>Planning</b>: pick a ship — its dial opens beside it.
-            <b>Execution</b>: ships move by initiative; yours get an action ring. Locks are
-            acquired on targets inside your firing cone at lock range, stack +2 to-hit per
-            level (missiles also gain guidance), and are lost only when the target ends up
-            behind you. Evade and Repair
-            open deeper options — angle shield segments, patch hull, clear criticals.
-            <b>Attack</b>: the VS panel builds both sides into a live hit chance, then a d20
-            decides it. Shields cover fore and aft zones; ballistic ignores them. Hull damage
-            inflicts one named critical per attack until someone field-repairs.
-          </div>
-          <button id="deployBtn">Begin Attack Run</button>
+          <div class="ovh">Objectives</div>
+          <div class="ovObj" id="spObj"></div>
+          <div class="ovh">Your Flight</div>
+          <div class="ovSquad" id="spFlight"></div>
+          <p class="ovfine">Drag to pan, scroll to zoom. Double-click any fighter for its pilot and ship.</p>
+          <button id="deployBtn">Start</button>
         </div>
       </div>
 
@@ -651,7 +658,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
           <div class="eyebrow" id="endEyebrow">Mission Report</div>
           <h2 id="endTitle">—</h2>
           <p id="endText">—</p>
-          <button id="endRestartBtn" class="chipbtn" style="width:100%;padding:12px;font-size:13px;">Return to Haven Rock</button>
+          <button id="endRestartBtn" class="chipbtn" style="width:100%;padding:12px;font-size:13px;">Continue</button>
         </div>
       </div>
     </div>
@@ -702,28 +709,15 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
       <div id="ctlDock" hidden></div>
       <div class="overlay" id="briefing">
         <div class="ovCard">
-          <div class="eyebrow">Ground Operation · Signal from Halt</div>
-          <h2>Steal the Cross</h2>
-          <p>Dustfall keeps one <b>FT-4 Cross</b> on the pad behind the sheriff&#8217;s HQ.
-          The FT-4 is built for frontier sheriffs — cheap, reliable, made to scare off
-          smugglers. Strap more guns and missiles to it and it becomes rather useful in a pinch.
-          Sheriff Reeve enforces Hegemony law here. We enforce ours.</p>
-          <p><b>Get Sera Kest to the Cross</b> on the pad at the far north-east of town. She
-          carries a sidearm and not much else — keep bodies between her and the shooting. She
-          needs <b>two rounds at the panel</b> to hotwire it, and while she works, someone else
-          has to <b>release the docking clamps</b> and <b>pull the fuel line</b> before the ship
-          can fly. Then walk the squad back to the Graf and lift.</p>
-          <p class="fine">While the town is quiet you move in <b>real time</b> — right-click and the
-          squad follows, scooping up loot they pass. The law&#8217;s <b>sight cones</b> are drawn on the
-          ground; linger in one and the eye above your rebel fills toward a full alarm. <b>Sneak</b>
-          (C) halves your pace and your profile. When the law wakes, time drops into rounds:
-          <b>Move</b> keeps your gun up · <b>Sprint</b> goes far but can&#8217;t shoot · <b>Hold</b> braces
-          and overwatches. Cover turns hits into misses — and shreds under fire, so don&#8217;t trust a
-          crate forever. Mind the <b>laser turret</b> by the pad: shielded from the front, soft from
-          the flanks, and either side can man it. The red <b>fuel canisters</b> go up if anyone
-          shoots them. Akli rifles jam on a roll of 1. Clear the street and time runs free again —
-          then hit <b>Extract</b>.</p>
-          <button id="enterBtn">Hit the Ground</button>
+          <div class="eyebrow" id="gEyebrow">Ground Operation</div>
+          <h2 id="gTitleB">&#8212;</h2>
+          <p id="gFlavour"></p>
+          <div class="ovh">Objectives</div>
+          <div class="ovObj" id="gObj"></div>
+          <div class="ovh">The Team</div>
+          <div class="ovSquad" id="gSquad"></div>
+          <p class="ovfine" id="gHint"></p>
+          <button id="enterBtn">Start</button>
         </div>
       </div>
       <div class="overlay" id="endscreen" hidden>
@@ -732,7 +726,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
           <h2 id="endTitle">—</h2>
           <p id="endText">—</p>
           <div id="endLoot"></div>
-          <button id="endRestartBtn">Return to Haven Rock</button>
+          <button id="endRestartBtn">Continue</button>
         </div>
       </div>
     </div>
