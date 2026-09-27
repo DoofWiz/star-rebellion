@@ -216,12 +216,18 @@ haven:{
       lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']},
     {id:'vult',name:'Vult',first:'Vult',side:'law',x:1000,y:900,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:1000,y:900},{x:880,y:930}],
       lines:['Somebody\u2019s sniffin\u2019 round the flat\u2026','WHO LIT THAT UP?!']},
+    {id:'brek',name:'Brek',first:'Brek',side:'law',x:925,y:712,hp:75,maxhp:75,aim:2,def:10,wpns:['cowboy'],guard:1,patrol:[{x:925,y:712},{x:920,y:692}],
+      lines:['Nobody comes through my door.','THE DOOR! They\u2019re at the DOOR!']},
     {id:'pike',name:'Pike',first:'Pike',side:'law',x:860,y:300,hp:75,maxhp:75,aim:2,def:9,wpns:['carbine'],patrol:[{x:860,y:300},{x:760,y:200},{x:980,y:390}],
       lines:['The wreck\u2019s mine, I called it.','They\u2019re INSIDE!'] },
+    {id:'mox',name:'Mox',first:'Mox',side:'law',x:1000,y:210,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:1000,y:210},{x:700,y:170}],
+      lines:['That hauler\u2019s worth more\u2019n all of us.','They\u2019re in the CAVE!']},
     {id:'rzek',name:'Rzek',first:'Rzek',side:'law',x:990,y:620,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:990,y:620},{x:870,y:610},{x:1120,y:640}],
       lines:['Heard somethin\u2019 down the hall\u2026','They\u2019ve got RIFLES!']},
     {id:'sarn',name:'Sarn',first:'Sarn',side:'law',x:1330,y:640,hp:75,maxhp:75,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1330,y:640},{x:1270,y:600}],
       lines:['Bunks\u2019re ours. Boss said.','Boss! COMPANY!']},
+    {id:'hasp',name:'Hasp',first:'Hasp',side:'law',x:1125,y:530,hp:70,maxhp:70,aim:2,def:9,wpns:['carbine'],guard:1,patrol:[{x:1125,y:530},{x:1120,y:458}],
+      lines:['Boss said watch the hall. I watch the hall.','BOSS! GUNS IN THE HALL!']},
   ];},
   civs(){return [];},
 },
@@ -552,6 +558,7 @@ function computeATK(s,t,wkey,snap){
   v+=s.aim;e.push(['TRIGGER SKILL',s.aim,true]);
   if(w.atk){v+=w.atk;e.push([w.name.toUpperCase(),w.atk]);}
   if(s.braced&&!snap){v+=2;e.push(['BRACED',2]);}
+  if(s.ambush&&!snap){v+=2;e.push(['AMBUSH',2]);}
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
@@ -651,6 +658,23 @@ function alertTown(why){
   }
   syncUI();
 }
+function startAmbush(t){
+  // the attack action out of free move: everyone with a shot opens fire first
+  const shooters=U.filter(s=>s.side==='reb'&&!s.down&&!s.extracted&&!s.away&&
+    wpnsOf(s).some(w=>validShot(s,t,w)));
+  if(!shooters.length)return false;
+  haltSquad();
+  for(const s of shooters)s.ambush=1;
+  shooters.sort((a,b)=>(b.aim*3+rint(0,4))-(a.aim*3+rint(0,4)));
+  phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
+  engageQ={list:shooters,idx:0,cur:null,nextAt:performance.now()+300,forceT:t};
+  log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
+    ' fire from ambush.</span>');
+  alertTown('Rebel guns spoke first.');
+  camGoal={x:t.x,y:t.y,z:Math.max(cam.z,0.95)};
+  syncUI();
+  return true;
+}
 function spotCheck(){
   if(town==='alerted')return;
   for(const l of U){
@@ -667,10 +691,12 @@ function spotCheck(){
 }
 /* ---------- stealth & detection (free move) ---------- */
 const VIS_ARC=0.95;
+const NEAR_R=120,NEAR_SNEAK=70; // point-blank: noticed cone or no cone
 function sightRange(l){return l.elev?520:360;}
 function seesPoint(l,x,y,sneaking){
-  const R=sightRange(l)*(sneaking?0.55:1);
   const d=Math.hypot(x-l.x,y-l.y);
+  if(d<(sneaking?NEAR_SNEAK:NEAR_R)&&!segBlocked(l.x,l.y,x,y))return 1;
+  const R=sightRange(l)*(sneaking?0.55:1);
   if(d>R)return 0;
   if(Math.abs(angNorm(Math.atan2(y-l.y,x-l.x)-l.face))>VIS_ARC)return 0;
   if(segBlocked(l.x,l.y,x,y))return 0;
@@ -685,7 +711,8 @@ function detUpdate(dt){
       if(l.side!=='law'||l.down||l.surr||l.office)continue;
       const f=seesPoint(l,r.x,r.y,sneak);
       if(f>0){
-        const rr=(45+95*f)*(inCoverAt(r.x,r.y)?0.6:1);
+        // quadratic in proximity: brushing past someone fills the eye fast
+        const rr=(40+60*f+130*f*f)*(inCoverAt(r.x,r.y)?0.6:1);
         if(rr>rate){rate=rr;seer=l;}
       }
     }
@@ -1300,7 +1327,13 @@ function attackUpdate(now){
     if(q.idx>=q.list.length){engageQ=null;endRound();return;}
     const s=q.list[q.idx++];
     if(s.down||s.surr||(s.jam&&wpnsOf(s).length===1&&wpnsOf(s)[0]==='akli')){return;}
-    const pk=pickTarget(s);
+    let pk=null;
+    // an ambush volley concentrates on the mark the player picked while they still stand
+    if(q.forceT&&!q.forceT.down&&!q.forceT.surr){
+      const w=bestWeapon(s,q.forceT);
+      if(w)pk={t:q.forceT,wkey:w};
+    }
+    if(!pk)pk=pickTarget(s);
     if(!pk)return;
     q.cur=makeCur(s,pk.t,pk.wkey);
     camGoal={x:(s.x+pk.t.x)/2,y:(s.y+pk.t.y)/2,z:Math.max(cam.z,0.95)};
@@ -1414,6 +1447,7 @@ function retarget(t){
 }
 /* ---------- end of round ---------- */
 function endRound(){
+  for(const u of U)u.ambush=0; // surprise is spent with the first volley
   // loot pickups
   for(const u of U){
     if(u.side!=='reb'||u.down||!u.order)continue;
@@ -2078,6 +2112,13 @@ function drawVision(){
       ctx.lineTo(l.x+(r[0]-l.x)*k,l.y+(r[1]-l.y)*k);
     }
     ctx.closePath();ctx.fill();
+    // point-blank ring — inside it they notice you, cone or no cone
+    ctx.fillStyle='rgba(255,80,80,0.06)';
+    ctx.beginPath();ctx.arc(l.x,l.y,NEAR_R,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,80,80,0.3)';ctx.lineWidth=1;
+    ctx.setLineDash([4,6]);
+    ctx.beginPath();ctx.arc(l.x,l.y,NEAR_R,0,Math.PI*2);ctx.stroke();
+    ctx.setLineDash([]);
   }
 }
 function drawEngageFocus(now){
@@ -2997,8 +3038,7 @@ cv.addEventListener('pointerup',ev=>{
     if(ev.button!==2&&u){
       if(u.side==='law'&&!u.surr&&town==='calm'){
         // the player picks the moment the shooting starts
-        haltSquad();
-        alertTown('The squad steps out, guns up — you chose the moment.');
+        if(!startAmbush(u))addFloater(u.x,u.y-30,'NO SHOT','#71809c');
         return;
       }
       camGoal={x:u.x,y:u.y,z:Math.max(cam.z,0.9)};sTick();return;
@@ -3095,7 +3135,7 @@ function dockHTML(){
   if(phase==='FREE'){
     const sneakBtn='<button class="chipbtn" id="sneakBtn" aria-pressed="'+sneak+'" '+(town!=='calm'?'disabled':'')+'>'+(sneak?'Sneaking':'Sneak')+'</button>';
     if(extractReady())return '<div class="dockcard">'+sneakBtn+'<button id="extractBtn">▲ Extract</button></div>';
-    return '<div class="dockcard">'+sneakBtn+'<span class="docklabel">right-click to move · they loot what they pass'+(crossAway?'':' · watch the sight cones')+'</span></div>';
+    return '<div class="dockcard">'+sneakBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
   }
   if(phase==='PLANNING'){
     const squad=plotted();
@@ -3306,7 +3346,7 @@ const TUT=[
    done:()=>tutFlags.moved},
   {text:'Those <b>amber cones</b> are squatter sightlines — the red inner band still catches you while sneaking. Press <b>C</b> (or the Sneak button) to go low; the eye above a rebel fills as they’re noticed.',
    done:()=>tutFlags.sneaked||town==='alerted'},
-  {text:'Start the fight on your terms: <b>click a squatter</b> to open fire, or let the detection eye fill. Either way, time drops into rounds.',
+  {text:'Start the fight on your terms: <b>click a squatter</b> and everyone with a clear shot opens fire — an <b>ambush</b>, with a bonus on the volley. Or let the detection eye fill. Either way, time drops into rounds.',
    done:()=>town==='alerted'},
   {text:'<b>Plan the round.</b> Each rebel takes one order — <b>Move</b> keeps the gun up, <b>Sprint</b> goes far but can’t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings are cover. Then hit <b>Execute</b>.',
    done:()=>tutFlags.executed||hostilesActive().length===0},
@@ -3387,8 +3427,9 @@ if(location.hash==='#test'){
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
     get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},
+    get engageQ(){return engageQ;},
     fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

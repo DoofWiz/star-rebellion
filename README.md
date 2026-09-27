@@ -43,9 +43,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   hallways. An amber step card teaches movement, sneaking and sight cones,
   opening the fight, WeGo orders, the engagement panel, destructible cover
   and overwatch corridors. Boss Craw is holed up in the command room and
-  storms out when the squad closes on it; clear all six squatters and patch
-  the rebel signal through the base antenna at the command console to found
-  the base. Losing costs nothing: the squad falls back down the canyon and
+  storms out when the squad closes on it; clear all nine squatters — two
+  camped outside, the rest holed up room by room (a door guard in the entry
+  corridor, scavengers in the hangar cave, a hall guard outside command) —
+  and patch the rebel signal through the base antenna at the command console
+  to found the base. Losing costs nothing: the squad falls back down the canyon and
   the prologue re-offers itself. In the hangar cave sits a **derelict Graf
   Type 1 Hauler** — after founding, restore it from the hangar (60⬡ 40▤,
   two days) and it becomes the Marta.
@@ -57,6 +59,13 @@ The three layers now run as **one playable game** (`game/index.html` +
   the campaign's first arcs are stealing the Cross on Brakka — which arms
   the space game — and building the rock out. Mira Osk now arrives as the
   first Support recruit instead of starting aboard.
+- **Stealth with teeth, and an attack action.** In free move, tapping an
+  enemy now opens fire: every rebel with a clear shot joins an **ambush
+  volley** (+2 ATK on the surprise shots, concentrated on the mark you
+  picked) before time drops into rounds — no shot, no alert. Detection got
+  a **point-blank ring** (drawn dashed around each enemy): inside ~120px
+  they notice you cone or no cone, and the eye fills quadratically faster
+  the closer you are, so you can no longer stroll past a guard's shoulder.
 - **Player-facing briefings.** Every mission brief (base prologue, ground,
   space) now reads like a mission screen instead of a design note: short
   in-world flavour, an **Objectives** list, and a roster-style **team view**
