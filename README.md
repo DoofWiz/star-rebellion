@@ -33,18 +33,25 @@ The three layers now run as **one playable game** (`game/index.html` +
   still on the board.
 - The Training Hall's simulator now runs the space scene in-engine with the
   default cast and no consequences.
-- **The opening mission** — *Take the Rock* — starts every new campaign: the
-  crew arrives at an uncharted smuggler bolt-hole to find Vult gang squatters
-  dug in around a campfire. It's the tutorial: the ground scene's scenario
-  system loads a rocky 1800×1200 map (boulders are indestructible cover, a
-  wrecked freighter, a hangar cave), and an amber step card teaches movement,
-  sneaking and sight cones, opening the fight, WeGo orders, the engagement
-  panel, destructible cover and canisters, and the objective loop — clear
-  the six squatters (Boss Craw anchors their morale), then raise the rebel
-  signal at the bunker door to found the base. Losing costs nothing: the
-  Marta pulls everyone out and the prologue re-offers itself.
+- **The opening mission** — *Take the Rock* — starts every new campaign:
+  three soldiers walk in from the canyon on foot (no ship yet) toward a
+  smuggler bolt-hole cut into a mountain. The scenario system generates the
+  map's walls at runtime from a solid massif minus carved rooms, so the
+  fight moves from a natural exterior (boulders, a worn trail, the squatter
+  watch-camp at the blast-door mouth) into **interior corridors**: hangar
+  cave, main hall, barracks and command room, connected by held-gun-owns-it
+  hallways. An amber step card teaches movement, sneaking and sight cones,
+  opening the fight, WeGo orders, the engagement panel, destructible cover
+  and overwatch corridors. Boss Craw is holed up in the command room and
+  storms out when the squad closes on it; clear all six squatters and patch
+  the rebel signal through the base antenna at the command console to found
+  the base. Losing costs nothing: the squad falls back down the canyon and
+  the prologue re-offers itself. In the hangar cave sits a **derelict Graf
+  Type 1 Hauler** — after founding, restore it from the hangar (60⬡ 40▤,
+  two days) and it becomes the Marta.
 - **The reduced day one** the intro establishes: a command centre, a hangar
-  with the Marta and **one spare berth** (capacity 2, +1 per bay), and
+  holding only the derelict hauler (**one spare berth**; capacity 2, +1 per
+  bay), and
   **bunks for five** — exactly the starting crew, so recruitment needs an
   annex. There is no starting starfighter and no storeroom (now buildable):
   the campaign's first arcs are stealing the Cross on Brakka — which arms

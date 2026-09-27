@@ -74,16 +74,15 @@ function newGame(){
   return {
     day:1,credits:250,supplies:120,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
-    fighters:[
-      {id:'graf',name:'Marta',cls:'graf',hull:90,out:false},
-    ],
+    fighters:[],
+    wreck:{restored:false,restoring:0},
     armory:[
       {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
       {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
       {id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',bio:'Flight lead, such as the flight is. Lucky, and knows it.'},
-      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'graf',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
+      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
       {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
       {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
       {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
@@ -348,6 +347,17 @@ function advanceDay(){
     if(cell.t==='rubble'&&cell.dig){
       cell.dig--;
       if(cell.dig<=0){G.grid[r][c]={t:'floor'};news('Excavation done. One more chamber that’s ours.','g');}
+    }
+  }
+  if(G.wreck&&!G.wreck.restored&&G.wreck.restoring){
+    G.wreck.restoring--;
+    if(G.wreck.restoring<=0){
+      G.wreck.restored=true;
+      G.fighters.push({id:'graf',name:'Marta',cls:'graf',hull:70,out:false});
+      const joss=G.people.find(p=>p.id==='joss');
+      if(joss&&!G.fighters.some(f=>f.id===joss.ship))joss.ship='graf';
+      news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Type 1 Hauler with door guns and opinions.','g');
+      sBuild();
     }
   }
   const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
@@ -756,6 +766,11 @@ function renderBase(now){
         ctx.strokeStyle='rgba(255,180,84,0.25)';
         ctx.beginPath();ctx.ellipse(x,y-6*S,6*S,3*S,0,0,Math.PI*2);ctx.stroke();
       } else if(rm.key==='hangar'){
+        if(G.wreck&&!G.wreck.restored){
+          ctx.globalAlpha=0.55;
+          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,'#3a3f46');
+          ctx.globalAlpha=1;
+        }
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
           ctx.globalAlpha=f.out?0.2:0.9;
@@ -832,6 +847,7 @@ function renderRoomBar(){
   if(rm.key==='hangar'||rm.key==='bay'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
     info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+S(staffOf('store').length?1:2)+' each';
+    if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'||rm.key==='quarters'){
     info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
@@ -854,6 +870,10 @@ function renderRoomBar(){
   let acts='';
   if(rm.key==='command')acts='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
   if(rm.key==='training')acts='<button class="pbtn" data-simulator>Simulator — dogfight exercise ▸</button>';
+  if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
+    if(G.wreck.restoring)acts='<button class="pbtn" disabled>Restoring the hauler — '+G.wreck.restoring+'d left. Joss hasn’t slept.</button>';
+    else acts='<button class="pbtn" data-restore '+((G.credits>=60&&G.supplies>=40)?'':'disabled')+'>Restore the derelict hauler — 60⬡ 40▤ · 2 days</button>';
+  }
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
     '<button class="pbtn" data-backbase>← Back to the base</button>'+
@@ -897,6 +917,15 @@ function renderRoomView(now){
       ctx.beginPath();ctx.moveTo(bx,by-45);ctx.lineTo(bx+80,by);ctx.lineTo(bx,by+45);ctx.lineTo(bx-80,by);ctx.closePath();ctx.stroke();
       ctx.setLineDash([]);
       const f=G.fighters[i];
+      if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
+        ctx.globalAlpha=0.6;
+        craftTop('graf',bx,by,3.4,-0.5,'#3a3f46');
+        ctx.globalAlpha=1;
+        ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';
+        ctx.fillStyle='rgba(255,180,84,0.75)';
+        ctx.fillText(G.wreck.restoring?'RESTORING · '+G.wreck.restoring+'D':'DERELICT',bx,by+62);
+        continue;
+      }
       if(f&&!f.out){
         craftTop(f.cls,bx,by,3.4,-0.5);
         ctx.font='700 12px "Exo 2"';ctx.textAlign='center';
@@ -1199,7 +1228,7 @@ function renderTilePop(){
     h='<div class="ptitle">'+R.name+(rm.build?' — building, '+rm.build.days+'d left':'')+'</div><div class="pdesc">'+R.desc+'</div>';
     if(!rm.build){
       if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-      if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+'.</div>';
+      if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</div>';
       if(rm.key==='barracks'||rm.key==='quarters')h+='<div class="pdesc">Bunks '+G.people.length+'/'+bunkCap()+'.</div>';
       if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+'</div>';
       h+='<div class="pophint">double-click to step inside</div>';
@@ -1728,14 +1757,9 @@ $('enterBtn').addEventListener('click',()=>{
 });
 function introSpec(){
   const soldiers=G.people.filter(p=>p.role==='Soldier').slice(0,3);
-  const pilots=G.people.filter(p=>p.role==='Pilot');
-  const spare=pilots.find(p=>p.id==='sera')||pilots[0];
-  const grafP=pilots.find(p=>p.id!==spare.id)||pilots[0];
   return {kind:'ground',missionId:'haven',scenario:'haven',days:0,
     squad:soldiers.map(p=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-      aim:soldierAim(p),hp:100,wpns:['akli','cowboy']})),
-    pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0]},
-    grafPilot:{id:grafP.id,name:grafP.name,first:grafP.name.split(' ')[0]}};
+      aim:soldierAim(p),hp:100,wpns:['akli','cowboy']}))};
 }
 function launchIntro(){
   $('debrief').hidden=true;
@@ -1745,7 +1769,7 @@ function launchIntro(){
 }
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
-  news('Inventory logged: one converted Graf hauler, six Aklis, four Cowboys, and a rock with our name on it. No starfighter. Yet.','d');
+  news('Inventory logged: six Aklis, four Cowboys, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
   news('Two contacts on the wire: Halt at the Veray yards, the Senator through Relay Kess. Scraps, for now.','d');
   news('The board is empty. Work the sources — missions, supplies and recruits all come through the network.','a');
 }
@@ -1818,6 +1842,7 @@ function applyDebrief(r){
         for(const it of r.loot.items||[])addArmoryItem(it);
       }
       news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
+      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
       seedNews();
       sBuild();
       saveSnap();syncUI();
@@ -1900,6 +1925,14 @@ function applyDebrief(r){
   saveSnap();syncUI();
 }
 ROOT.addEventListener('click',ev=>{
+  const rst=ev.target.closest('[data-restore]');
+  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=60&&G.supplies>=40){
+    G.credits-=60;G.supplies-=40;G.wreck.restoring=2;
+    news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
+    sBuild();saveSnap();syncUI();
+    if(viewRoom)renderRoomBar();
+    return;
+  }
   const sim=ev.target.closest('[data-simulator]');
   if(sim){
     sClick();closeWin();closeTilePop();
@@ -1917,6 +1950,7 @@ function restoreCampaign(data){
   if(data&&data.campaign&&data.started){
     G=data.campaign;started=true;
     if(G.introDone===undefined)G.introDone=true;
+    if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
     $('debrief').hidden=true;
     G.misPopQ=G.misPopQ||[];
     G.candQ=G.candQ||[];

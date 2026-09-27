@@ -62,6 +62,12 @@ stealcross:{
   TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:585,r:26},
   panTo:{x:1870,y:190},
   guardPt:{x:2130,y:370},
+  hasGraf:true,
+  bossTrigger:{x:2130,y:330,r:420},
+  bossDoor:{x:1880,y:588},
+  bossFloat:'THE SHERIFF',
+  bossLog:'<span class="h">Sheriff Reeve kicks his office door open</span> \u2014 scattergun first.',
+  bossAlert:'The Sheriff himself is on the boards.',
   work:[
     {id:'clamp',x:2022,y:360,label:'DOCKING CLAMPS',verb:'releases the docking clamps'},
     {id:'fuel', x:2192,y:426,label:'FUEL LINE',verb:'pulls the fuel line'},
@@ -128,59 +134,109 @@ stealcross:{
   ];},
 },
 haven:{
-  mode:'haven',W:1800,H:1200,style:'rock',
-  hasPad:false,hasTower:false,hasTurret:false,tumbleweed:false,tutorial:true,
+  mode:'haven',W:1600,H:1200,style:'rock',
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
   title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
   banner:['Take the Rock','Every war starts with a kicked-in door'],
-  csLine:'That\u2019s the rock. I\u2019ll hold the flat \u2014 go introduce yourselves.',
-  lzLabel:'LANDING FLAT',
-  LZ:{x:250,y:1000,r:110},
-  camp:{x:1000,y:650},
-  panTo:{x:1300,y:470},
-  guardPt:{x:1330,y:600},
-  work:[
-    {id:'flag',x:1265,y:600,label:'RAISE THE SIGNAL',verb:'runs the rebel signal up over Haven Rock',needClear:1},
+  lzLabel:'',
+  LZ:{x:250,y:1060,r:90},
+  camp:{x:920,y:960},
+  panTo:{x:925,y:640},
+  guardPt:{x:990,y:620},
+  door:{x:925,y:788},
+  derelict:{x:850,y:280,a:-0.35},
+  bossTrigger:{x:1125,y:470,r:280},
+  bossDoor:{x:1125,y:480},
+  bossFloat:'BOSS CRAW',
+  bossLog:'<span class="h">Boss Craw storms out of the command room</span> \u2014 scattergun and spit.',
+  bossAlert:'Craw\u2019s roar rattles the corridors.',
+  solids:[{x:620,y:80,w:900,h:710},{x:0,y:40,w:620,h:180}],
+  opens:[
+    {x:660, y:140,w:380,h:290,label:'HANGAR CAVE'},
+    {x:880, y:430,w:110,h:130},
+    {x:820, y:560,w:340,h:120,label:'MAIN HALL'},
+    {x:880, y:680,w:90, h:110},
+    {x:1160,y:600,w:90, h:60},
+    {x:1250,y:560,w:190,h:140,label:'BARRACKS'},
+    {x:1080,y:430,w:90, h:130},
+    {x:1090,y:200,w:310,h:230,label:'COMMAND'},
   ],
-  bldgs:[
-    {x:1250,y:380,w:260,h:180,name:'COMMAND BUNKER',solar:1},
-    {x:600, y:180,w:300,h:170,name:'HANGAR CAVE'},
-    {x:1350,y:760,w:150,h:110,name:'BARRACKS HUT'},
-    {x:1180,y:820,w:140,h:100,name:''},
-    {x:520, y:640,w:230,h:130,name:'WRECKED FREIGHTER',mast:1},
+  bldgs:[],
+  work:[
+    {id:'flag',x:1245,y:300,label:'RAISE THE SIGNAL',verb:'patches the rebel signal through the base antenna',needClear:1},
   ],
   props:[
-    {x:300, y:760, kind:'rock'},{x:880,y:420,kind:'rock'},{x:1120,y:540,kind:'rock'},
-    {x:1580,y:620, kind:'rock'},{x:760,y:940,kind:'rock'},{x:1660,y:980,kind:'rock'},
-    {x:520, y:470, kind:'rock'},
-    {x:940, y:660, kind:'crate'},{x:1020,y:700,kind:'crate'},{x:1300,y:600,kind:'crate'},
-    {x:860, y:600, kind:'barrel'},{x:1420,y:540,kind:'barrel'},
-    {x:960, y:770, kind:'wagon',a:0.3},
-    {x:1180,y:660, kind:'canister'},{x:680,y:560,kind:'canister'},
+    {x:350, y:700, kind:'rock'},{x:500,y:900,kind:'rock'},{x:300,y:500,kind:'rock'},
+    {x:1200,y:950, kind:'rock'},{x:1440,y:880,kind:'rock'},{x:180,y:820,kind:'rock'},
+    {x:700, y:1080,kind:'rock'},{x:1560,y:1050,kind:'rock'},{x:1100,y:850,kind:'rock'},
+    {x:890, y:940, kind:'crate'},{x:960,y:975,kind:'crate'},
+    {x:840, y:985, kind:'barrel'},
+    {x:1010,y:925, kind:'canister'},
+    {x:1130,y:1000,kind:'wagon',a:0.4},
+    {x:760, y:380, kind:'crate'},{x:980,y:180,kind:'crate'},
+    {x:700, y:200, kind:'barrel'},
+    {x:960, y:400, kind:'canister'},
+    {x:1000,y:620, kind:'crate'},
+    {x:1380, y:600,kind:'crate'},
+    {x:1150,y:260, kind:'crate'},
   ],
   loots:[
-    {id:'stash',  x:980, y:620, label:'Squatter stash', take:'56 \u25c8 credits',c:56},
-    {id:'scrap',  x:600, y:590, label:'Scrap crates',   take:'16 \u25a4 supplies',s:16},
-    {id:'rations',x:1290,y:900, label:'Ration crates',  take:'12 \u25a4 supplies',s:12},
-    {id:'cave',   x:650, y:390, label:'Cave cache',     take:'22 \u25c8 credits',c:22},
+    {id:'stash',  x:920, y:905, label:'Squatter stash',take:'56 \u25c8 credits',c:56},
+    {id:'scrap',  x:700, y:360, label:'Hauler parts',  take:'18 \u25a4 supplies',s:18},
+    {id:'rations',x:1395,y:660, label:'Ration crates', take:'12 \u25a4 supplies',s:12},
+    {id:'lockbox',x:1330,y:240, label:'Smuggler lockbox',take:'30 \u25c8 credits',c:30},
   ],
   foes(){return [
-    {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1310,y:620,hp:120,maxhp:120,aim:3,def:10,wpns:['scatter'],sheriff:1,guard:1,patrol:[{x:1310,y:620},{x:1220,y:640}],
-      lines:['This rock is CLAIMED, you hear?!','Vult gang runs this drift!','Burn their bird!']},
-    {id:'vult',name:'Vult',first:'Vult',side:'law',x:980,y:700,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:980,y:700},{x:1120,y:760},{x:880,y:760}],
-      lines:['Somebody\u2019s sniffin\u2019 round the flat\u2026','WHO LIT THAT UP?!']},
-    {id:'rzek',name:'Rzek',first:'Rzek',side:'law',x:1260,y:900,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:1260,y:900},{x:1430,y:900}],
-      lines:['Heard a hauler. Anybody hear a hauler?','They\u2019ve got RIFLES!']},
-    {id:'sarn',name:'Sarn',first:'Sarn',side:'law',x:1350,y:650,hp:75,maxhp:75,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1350,y:650},{x:1220,y:560}],
-      lines:['Bunker\u2019s ours. Boss said.','Boss! Company!']},
-    {id:'odo',name:'Odo',first:'Odo',side:'law',x:700,y:860,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:700,y:860},{x:560,y:960},{x:840,y:900}],
+    {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1245,y:330,hp:120,maxhp:120,aim:3,def:10,wpns:['scatter'],sheriff:1,office:1,
+      lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']},
+    {id:'odo',name:'Odo',first:'Odo',side:'law',x:900,y:960,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
       lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']},
-    {id:'pike',name:'Pike',first:'Pike',side:'law',x:640,y:720,hp:75,maxhp:75,aim:2,def:9,wpns:['carbine'],patrol:[{x:640,y:720},{x:770,y:690}],
-      lines:['The wreck\u2019s mine, I called it.','Not the wreck! NOT THE WRECK!']},
+    {id:'vult',name:'Vult',first:'Vult',side:'law',x:1000,y:900,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:1000,y:900},{x:880,y:930}],
+      lines:['Somebody\u2019s sniffin\u2019 round the flat\u2026','WHO LIT THAT UP?!']},
+    {id:'pike',name:'Pike',first:'Pike',side:'law',x:860,y:300,hp:75,maxhp:75,aim:2,def:9,wpns:['carbine'],patrol:[{x:860,y:300},{x:760,y:200},{x:980,y:390}],
+      lines:['The wreck\u2019s mine, I called it.','They\u2019re INSIDE!'] },
+    {id:'rzek',name:'Rzek',first:'Rzek',side:'law',x:990,y:620,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:990,y:620},{x:870,y:610},{x:1120,y:640}],
+      lines:['Heard somethin\u2019 down the hall\u2026','They\u2019ve got RIFLES!']},
+    {id:'sarn',name:'Sarn',first:'Sarn',side:'law',x:1330,y:640,hp:75,maxhp:75,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1330,y:640},{x:1270,y:600}],
+      lines:['Bunks\u2019re ours. Boss said.','Boss! COMPANY!']},
   ];},
   civs(){return [];},
 },
 };
+function genWalls(solids,opens){
+  const out=[];
+  for(const so of solids){
+    let act=[];
+    const flush=keep=>{
+      for(const t of act)if(!keep||!keep.includes(t))out.push({x:t.x,y:t.y0,w:t.w,h:t.y1-t.y0,terrain:1});
+      act=keep||[];
+    };
+    for(let y=so.y;y<so.y+so.h;y+=10){
+      const y2=Math.min(so.y+so.h,y+10);
+      let iv=[[so.x,so.x+so.w]];
+      for(const op of opens){
+        if(op.y>=y2||op.y+op.h<=y)continue;
+        const niv=[];
+        for(const [a2,b2] of iv){
+          if(op.x>=b2||op.x+op.w<=a2){niv.push([a2,b2]);continue;}
+          if(op.x>a2)niv.push([a2,op.x]);
+          if(op.x+op.w<b2)niv.push([op.x+op.w,b2]);
+        }
+        iv=niv;
+      }
+      const nact=[];
+      for(const [a2,b2] of iv){
+        const m=act.find(t=>t.x===a2&&t.w===b2-a2&&t.y1===y);
+        if(m){m.y1=y2;nact.push(m);}
+        else nact.push({x:a2,w:b2-a2,y0:y,y1:y2});
+      }
+      flush(nact);
+    }
+    flush(null);
+  }
+  return out;
+}
 function initScenario(id){
   SCN=SCENARIOS[id]||SCENARIOS.stealcross;
   W=SCN.W;H=SCN.H;
@@ -188,7 +244,7 @@ function initScenario(id){
   PAD=SCN.PAD||OFFMAP;
   TOWER=SCN.TOWER||OFFMAP;
   TURRET=SCN.TURRET||{x:-99999,y:-99999,r:26};
-  BLDGS=SCN.bldgs;
+  BLDGS=SCN.gen?genWalls(SCN.solids,SCN.opens).concat(SCN.bldgs||[]):SCN.bldgs;
   LOOTS=SCN.loots;
   genScatter();
 }
@@ -223,10 +279,13 @@ function initUnits(){
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:10,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
-  const pilotU=mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-    x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,wpns:['cowboy'],frail:1,lines:PILOT_LINES});
+  const roster=[...squad];
+  if(spec.pilot){
+    roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+  }
   U=[
-    ...squad,pilotU,
+    ...roster,
     ...SCN.foes().map(mkU),
     ...SCN.civs().map(mkU),
   ];
@@ -854,20 +913,22 @@ function tryLaunch(){
     syncUI();
   }
 }
-function checkReeve(){
-  const r=U.find(u=>u.id==='reeve');
-  if(!r||!r.office||r.down)return;
-  const padThreat=U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&Math.hypot(u.x-PAD.x,u.y-PAD.y)<420);
+function checkBoss(){
+  const r=U.find(u=>u.side==='law'&&u.office&&!u.down);
+  if(!r||!SCN.bossTrigger)return;
+  const tp=SCN.bossTrigger;
+  const threat=U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&Math.hypot(u.x-tp.x,u.y-tp.y)<tp.r);
   const lastMan=alliesUp('law')===1;
-  if(!padThreat&&!lastMan&&!crossAway)return;
+  if(!threat&&!lastMan&&!crossAway)return;
   r.office=0;
-  r.x=1880;r.y=588;   // out the north door of the HQ, between his gun and his ship
+  r.x=SCN.bossDoor.x;r.y=SCN.bossDoor.y;
   unstick(r);
-  r.face=Math.atan2(PAD.y-r.y,PAD.x-r.x);
-  addFloater(r.x,r.y-46,'THE SHERIFF','#ff4f5e');
-  log('<span class="h">Sheriff Reeve kicks his office door open</span> — scattergun first.');
-  say(r,'Nobody touches that ship!',3600);
-  if(town==='calm')alertTown('The Sheriff himself is on the boards.');
+  const near=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted);
+  if(near)r.face=Math.atan2(near.y-r.y,near.x-r.x);
+  addFloater(r.x,r.y-46,SCN.bossFloat,'#ff4f5e');
+  log(SCN.bossLog);
+  say(r,r.lines[r.lines.length-1],3600);
+  if(town==='calm')alertTown(SCN.bossAlert);
   syncUI();
 }
 function extractReady(){
@@ -1342,8 +1403,8 @@ function gameOver(win,why){
     byId('endEyebrow').textContent='Prologue · Haven Rock';
     byId('endTitle').textContent=win?'Haven Rock Is Ours':'Thrown Back';
     byId('endText').textContent=win?
-      'The squatters are gone and the rebel signal flies over the bunker. It isn’t much — a command centre, a hangar cave with one spare berth, bunks for five — but it’s ours, and nobody knows it exists. Day one of the rest of the war starts now.':
-      'The squatters held. Everyone fell back to the Marta — bruised, furious, and alive. Patch up, come around, and take the rock. There is no revolution without a home.';
+      'The squatters are gone and the rebel signal hums through the mountain’s own antenna. It isn’t much — a command centre, bunks for five, a hangar cave — but it’s ours, and nobody knows it exists. And under a decade of dust in that cave: a derelict Graf Type 1 Hauler. Joss is already talking to it. Day one of the rest of the war starts now.':
+      'The squatters held. The squad fell back down the canyon — bruised, furious, and alive. Catch your breath, come around, and take the rock. There is no revolution without a home.';
     let lh2='';
     if(win){
       lh2+='<div class="lootline"><span>Haven Rock</span><span>SECURED</span></div>';
@@ -1572,6 +1633,7 @@ function genScatter(){
 }
 /* ---------- drawing ---------- */
 function drawGroundHaven(){
+  const now=performance.now();
   ctx.fillStyle='#131820';
   ctx.fillRect(0,0,W,H);
   for(const p of patches){
@@ -1591,9 +1653,40 @@ function drawGroundHaven(){
     ctx.fillStyle='rgba(90,110,96,0.22)';
     ctx.beginPath();ctx.arc(sc2.x,sc2.y,sc2.r,0,7);ctx.fill();
   }
-  // trail from the flat up to the camp
-  ctx.strokeStyle='rgba(70,80,96,0.4)';ctx.lineWidth=48;
-  ctx.beginPath();ctx.moveTo(LZ.x,LZ.y-60);ctx.quadraticCurveTo(620,860,SCN.camp.x-60,SCN.camp.y+60);ctx.stroke();
+  // worn trail: map edge -> squatter camp -> base mouth
+  ctx.strokeStyle='rgba(70,80,96,0.4)';ctx.lineWidth=46;ctx.lineCap='round';
+  ctx.beginPath();
+  ctx.moveTo(LZ.x-30,H+20);
+  ctx.quadraticCurveTo(LZ.x+40,LZ.y,620,940);
+  ctx.quadraticCurveTo(SCN.camp.x-40,SCN.camp.y+40,SCN.door.x,SCN.door.y+10);
+  ctx.stroke();ctx.lineCap='butt';
+  // carved interior: plated floors under the mountain
+  for(const op of SCN.opens){
+    ctx.fillStyle='#171d26';
+    ctx.fillRect(op.x,op.y,op.w,op.h);
+    ctx.strokeStyle='rgba(87,168,255,0.06)';ctx.lineWidth=1;
+    for(let gx=op.x+40;gx<op.x+op.w;gx+=40){ctx.beginPath();ctx.moveTo(gx,op.y);ctx.lineTo(gx,op.y+op.h);ctx.stroke();}
+    for(let gy=op.y+40;gy<op.y+op.h;gy+=40){ctx.beginPath();ctx.moveTo(op.x,gy);ctx.lineTo(op.x+op.w,gy);ctx.stroke();}
+    ctx.strokeStyle='rgba(120,140,170,0.14)';ctx.lineWidth=2;
+    ctx.strokeRect(op.x+1,op.y+1,op.w-2,op.h-2);
+    // stains
+    ctx.fillStyle='rgba(0,0,0,0.18)';
+    ctx.beginPath();ctx.ellipse(op.x+op.w*0.3,op.y+op.h*0.6,op.w*0.12,op.h*0.1,0.4,0,7);ctx.fill();
+  }
+  // dying interior striplights
+  for(const op of SCN.opens){
+    if(op.w<120)continue;
+    const flick=Math.sin(now*0.017+op.x)>-0.85?1:0.2;
+    ctx.fillStyle='rgba(150,220,255,'+(0.05*flick)+')';
+    ctx.fillRect(op.x+8,op.y+6,op.w-16,4);
+  }
+  // room names, faint stencils on the floor
+  ctx.font='700 15px "IBM Plex Mono"';ctx.textAlign='center';
+  for(const op of SCN.opens){
+    if(!op.label)continue;
+    ctx.fillStyle='rgba(160,175,200,0.22)';
+    ctx.fillText(op.label,op.x+op.w/2,op.y+26);
+  }
   // scorch marks
   for(const d of decals){
     const g=ctx.createRadialGradient(d.x,d.y,4,d.x,d.y,d.r);
@@ -1601,8 +1694,18 @@ function drawGroundHaven(){
     ctx.fillStyle=g;
     ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();
   }
+  // blast door mouth
+  const dr=SCN.door;
+  ctx.fillStyle='#0e1218';
+  ctx.fillRect(dr.x-52,dr.y-8,104,18);
+  ctx.strokeStyle='rgba(255,180,84,0.6)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(dr.x-52,dr.y+10);ctx.lineTo(dr.x-52,dr.y-26);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(dr.x+52,dr.y+10);ctx.lineTo(dr.x+52,dr.y-26);ctx.stroke();
+  const dg=ctx.createRadialGradient(dr.x,dr.y+14,6,dr.x,dr.y+14,110);
+  dg.addColorStop(0,'rgba(255,190,110,0.10)');dg.addColorStop(1,'rgba(255,190,110,0)');
+  ctx.fillStyle=dg;
+  ctx.beginPath();ctx.arc(dr.x,dr.y+14,110,0,7);ctx.fill();
   // squatter campfire
-  const now=performance.now();
   const fg=ctx.createRadialGradient(SCN.camp.x,SCN.camp.y,4,SCN.camp.x,SCN.camp.y,120);
   const fl=0.10+0.04*Math.sin(now*0.013)+0.02*Math.sin(now*0.031);
   fg.addColorStop(0,'rgba(255,150,60,'+fl+')');fg.addColorStop(1,'rgba(255,150,60,0)');
@@ -1611,13 +1714,10 @@ function drawGroundHaven(){
   for(let k=0;k<5;k++){const a2=k*1.256;ctx.beginPath();ctx.arc(SCN.camp.x+Math.cos(a2)*16,SCN.camp.y+Math.sin(a2)*13,4,0,7);ctx.fill();}
   ctx.fillStyle='rgba(255,190,90,'+(0.6+0.3*Math.sin(now*0.02))+')';
   ctx.beginPath();ctx.arc(SCN.camp.x,SCN.camp.y-2,5,0,7);ctx.fill();
-  // landing flat
-  ctx.strokeStyle='rgba(87,215,226,0.4)';ctx.lineWidth=3;ctx.setLineDash([16,12]);
-  ctx.beginPath();ctx.arc(LZ.x,LZ.y,LZ.r,0,7);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='rgba(87,215,226,0.05)';
-  ctx.beginPath();ctx.arc(LZ.x,LZ.y,LZ.r,0,7);ctx.fill();
-  ctx.fillStyle='rgba(87,215,226,0.55)';ctx.font='700 15px "IBM Plex Mono"';ctx.textAlign='center';
-  ctx.fillText(SCN.lzLabel,LZ.x,LZ.y+LZ.r+24);
+  // the way in, marked
+  ctx.fillStyle='rgba(87,215,226,0.4)';ctx.font='700 13px "IBM Plex Mono"';ctx.textAlign='center';
+  ctx.fillText('\u25b2',LZ.x,LZ.y+40);
+  ctx.fillText('APPROACH',LZ.x,LZ.y+58);
 }
 function drawGround(){
   if(SCN.style==='rock'){drawGroundHaven();return;}
@@ -1906,6 +2006,21 @@ function drawEngageFocus(now){
 function drawBldgs(){
   const now=performance.now();
   for(const b of BLDGS){
+    if(b.terrain){
+      const v=(b.x*7+b.y*13)%3;
+      ctx.fillStyle=v===0?'#262d38':v===1?'#242b35':'#28303b';
+      ctx.fillRect(b.x,b.y,b.w,b.h);
+      ctx.strokeStyle='rgba(10,14,20,0.4)';ctx.lineWidth=1.5;
+      ctx.strokeRect(b.x+0.5,b.y+0.5,b.w-1,b.h-1);
+      // speckle
+      ctx.fillStyle='rgba(150,165,185,0.07)';
+      for(let k=0;k<Math.min(10,(b.w*b.h)/6000);k++){
+        const px2=b.x+((b.x*31+k*137)%Math.max(1,b.w-8))+4;
+        const py2=b.y+((b.y*17+k*211)%Math.max(1,b.h-8))+4;
+        ctx.fillRect(px2,py2,5,3);
+      }
+      continue;
+    }
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.fillRect(b.x+8,b.y+10,b.w,b.h);
     ctx.fillStyle='#15120e';
@@ -1991,6 +2106,34 @@ function drawTowerTop(){
   ctx.restore();
   const wren=U.find(u=>u.id==='wren');
   if(wren)drawUnit(wren);
+}
+function drawDerelict(){
+  const d=SCN.derelict;
+  ctx.save();ctx.translate(d.x,d.y);ctx.rotate(d.a||0);
+  ctx.globalAlpha=0.9;
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath();ctx.roundRect(-74,-40,160,92,16);ctx.fill();
+  ctx.fillStyle='#333b45';
+  ctx.beginPath();ctx.roundRect(-80,-46,160,92,16);ctx.fill();
+  ctx.strokeStyle='#161c24';ctx.lineWidth=3;ctx.stroke();
+  // one engine pod gone, one hanging
+  ctx.fillStyle='#2a323c';
+  ctx.beginPath();ctx.roundRect(-88,36,60,22,8);ctx.fill();
+  ctx.strokeStyle='rgba(120,90,54,0.5)';ctx.lineWidth=2;
+  ctx.strokeRect(-84,-58,52,18); // the missing pod's mounting scar
+  // rust streaks + missing panels
+  ctx.fillStyle='rgba(122,74,40,0.45)';
+  ctx.fillRect(-52,-30,34,10);ctx.fillRect(6,10,40,12);ctx.fillRect(-20,-46,14,20);
+  ctx.fillStyle='#12161c';
+  ctx.fillRect(-8,-30,26,16);ctx.fillRect(30,-10,20,14);
+  ctx.fillStyle='rgba(159,214,255,0.15)';
+  ctx.beginPath();ctx.roundRect(52,-18,24,36,6);ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.rotate(-(d.a||0));
+  ctx.font='700 10px "IBM Plex Mono"';ctx.textAlign='center';
+  ctx.fillStyle='rgba(255,180,84,0.55)';
+  ctx.fillText('DERELICT HAULER',0,-62);
+  ctx.restore();
 }
 function drawGraf(){
   let sc=1,sh=8,ox=0,oy=0;
@@ -2502,7 +2645,7 @@ function drawMinimap(){
     ctx.fillRect(r.x+300*sx,r.y+764*sy,1560*sx,120*sy);
   }
   for(const b of BLDGS){
-    ctx.fillStyle='rgba(70,54,34,0.9)';
+    ctx.fillStyle=b.terrain?'rgba(58,68,84,0.9)':'rgba(70,54,34,0.9)';
     ctx.fillRect(r.x+b.x*sx,r.y+b.y*sy,b.w*sx,b.h*sy);
   }
   ctx.strokeStyle='rgba(87,215,226,0.7)';
@@ -2534,7 +2677,8 @@ function startCutscene(){
   bn.querySelector('.small').textContent=SCN.banner[1];
   byId('csSkip').hidden=false;
   cs={t0:performance.now(),fired:{}};
-  grafPos.x=-500;grafPos.y=H+300;grafState='flying';
+  if(SCN.hasGraf){grafPos.x=-500;grafPos.y=H+300;grafState='flying';}
+  else {grafPos.x=-99999;grafPos.y=-99999;grafState='landed';}
   for(const u of U)if(u.side==='reb'){u.csHide=true;}
   cam={x:LZ.x,y:LZ.y,z:Math.max(fitZoom()*0.95,0.85)};clampCam();camGoal=null;
   syncUI();
@@ -2542,6 +2686,28 @@ function startCutscene(){
 function csEvent(key,t,el,fn){if(el>=t&&!cs.fired[key]){cs.fired[key]=1;fn();}}
 function csUpdate(now){
   const el=(now-cs.t0)/1000;
+  if(!SCN.hasGraf){
+    // no ship yet: the squad walks in from the map edge on foot
+    const walkers=U.filter(u=>u.side==='reb');
+    for(let wi=0;wi<walkers.length;wi++){
+      const u=walkers[wi];
+      const st=0.5+wi*0.6;
+      if(el>st){
+        u.csHide=false;
+        const t=Math.min(1,(el-st)/2.2);
+        u.x=u.spawnX;
+        u.y=lerp(H+70,u.spawnY,ease(t));
+        u.face=-Math.PI/2;
+      }
+    }
+    csEvent('wb1',2.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,'That’s the rock. Squatters and all. Let’s go take our home.',3400);});
+    csEvent('pan',3.8,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
+    csEvent('banner',4.6,el,()=>{byId('csBanner').classList.add('show');});
+    csEvent('banneroff',7.4,el,()=>{byId('csBanner').classList.remove('show');});
+    csEvent('back',7.6,el,()=>{camGoal={x:LZ.x+240,y:LZ.y-160,z:0.9};});
+    if(el>8.8)endCutscene();
+    return;
+  }
   // Graf flies in and settles
   if(el<3.2){
     const t=ease(Math.min(1,el/3.2));
@@ -2597,7 +2763,7 @@ function render(now){
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
-    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkReeve();}
+    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();}
     tutTick();
     exploTick(now);
     if(camGoal){
@@ -2621,7 +2787,8 @@ function render(now){
     drawProps();
     if(SCN.hasTurret)drawTurret(now);
     if(SCN.hasTower)drawTowerBase();
-    drawGraf();
+    if(SCN.hasGraf)drawGraf();
+    if(SCN.derelict)drawDerelict();
     if(SCN.hasPad)drawCross(now);
     // downed first, then live
     for(const u of U)if(u.down&&!u.fixed)drawUnit(u);
@@ -2886,9 +3053,9 @@ function syncUI(){
     const flag=WORK.find(w=>w.id==='flag');
     const cleared=downN>=foesAll.length&&foesAll.length>0;
     objs=[
-      {t:'Move the squad up from the landing flat',done:tutFlags.moved||town==='alerted',now:!(tutFlags.moved||town==='alerted')},
+      {t:'Move up the canyon to the base mouth',done:tutFlags.moved||town==='alerted',now:!(tutFlags.moved||town==='alerted')},
       {t:'Clear the squatters off the rock \u2014 '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
-      {t:'Raise the signal at the command bunker',done:!!(flag&&flag.done),now:cleared},
+      {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
     ];
   } else {
   const wClamp=WORK.find(w=>w.id==='clamp'),wFuel=WORK.find(w=>w.id==='fuel');
@@ -3013,7 +3180,9 @@ function resetGame(withCine){
   else {
     started=true;
     cam={x:LZ.x+240,y:LZ.y-180,z:0.9};clampCam();camGoal=null;
-    log('<span class="d">Squad on the ground at the Graf LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
+    log(SCN.mode==='haven'?
+      '<span class="d">Three of you, on foot, at the bottom of the canyon. The base mouth is up the trail past the squatter camp.</span>':
+      '<span class="d">Squad on the ground at the Graf LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
     enterFree(null);
   }
 }
@@ -3022,7 +3191,7 @@ function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven
 let tutFlags={moved:0,sneaked:0,executed:0,attacked:0};
 let tutIdx=0;
 const TUT=[
-  {text:'<b>Right-click</b> (or tap the ground) and the squad moves in real time. Walk them up the trail toward the camp.',
+  {text:'<b>Right-click</b> (or tap the ground) and the squad moves in real time. Walk them up the canyon toward the squatter camp at the base mouth.',
    done:()=>tutFlags.moved},
   {text:'Those <b>amber cones</b> are squatter sightlines — the red inner band still catches you while sneaking. Press <b>C</b> (or the Sneak button) to go low; the eye above a rebel fills as they’re noticed.',
    done:()=>tutFlags.sneaked||town==='alerted'},
@@ -3032,9 +3201,9 @@ const TUT=[
    done:()=>tutFlags.executed||hostilesActive().length===0},
   {text:'<b>Engagement:</b> shots resolve one at a time on the maths panel. Tap another squatter to retarget — or tap a <b>red canister</b> to blow it — then hit <b>ATTACK</b>.',
    done:()=>tutFlags.attacked||hostilesActive().length===0},
-  {text:'Cover soaks fire and <b>shreds</b> — crates die, boulders don’t. Drop <b>Boss Craw</b> and the rest lose their nerve. Clear every squatter off the rock.',
+  {text:'Cover soaks fire and <b>shreds</b> — crates die, boulders don’t. Corridors are overwatch country: a held gun owns a hallway. Drop <b>Boss Craw</b> and the rest lose their nerve. Clear every squatter, outside and in.',
    done:()=>hostilesActive().length===0},
-  {text:'The rock is yours. Walk a soldier to the bunker door and <b>raise the signal</b>.',
+  {text:'The rock is yours. Push inside, walk a soldier to the command-room console, and <b>raise the signal</b>.',
    done:()=>false},
 ];
 function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0};tutIdx=0;}
@@ -3057,12 +3226,11 @@ function scenarioUI(){
   const eb=ov.querySelector('.eyebrow'),h2=ov.querySelector('h2'),ps=ov.querySelectorAll('p'),bt=byId('enterBtn');
   if(!BRIEF0)BRIEF0={eb:eb.innerHTML,h2:h2.innerHTML,p0:ps[0].innerHTML,p1:ps[1].innerHTML,p2:ps[2].innerHTML,bt:bt.textContent};
   if(SCN.mode==='haven'){
-    const pn=(CTX&&CTX.pilot&&CTX.pilot.first)||'Sera';
     eb.innerHTML='Prologue · Haven Rock — the Tutorial Op';
     h2.innerHTML='Take the Rock';
-    ps[0].innerHTML='An old smuggler bolt-hole out past the drift: a hangar cave, a command bunker, bunks cut into stone — and a crew of <b>Vult gang squatters</b> squatting in all of it. They shoot at silhouettes. The rock doesn’t care who wins. It will be somebody’s home tonight.';
-    ps[1].innerHTML='<b>Clear every squatter off the rock.</b> Keep <b>'+pn+'</b> alive — a sidearm and nerves is all she carries. When the camp is broken, walk a soldier to the bunker door and <b>raise the signal</b>: that’s the moment Haven Rock becomes ours.';
-    ps[2].innerHTML='This is the opening op and the tutorial in one — the <b>amber card</b> in the corner walks you through movement, stealth, orders, the gunfight and the objective, one step at a time. Nobody is lost if it goes wrong: the Marta pulls everyone out and you go again.';
+    ps[0].innerHTML='A smuggler bolt-hole cut into a mountain out past the drift: a hangar cave, a command room, bunks in the stone — and a crew of <b>Vult gang squatters</b> living in all of it. Your three soldiers walk in from the canyon with the rifles on their backs. There is no ship. There is no backup. There is one door.';
+    ps[1].innerHTML='<b>Clear every squatter</b> — the watch outside, then room by room through the corridors. Boss Craw is holed up in the command room and will come out shooting. When the rock is clear, put a soldier on the command console and <b>raise the signal</b>: that’s the moment Haven Rock becomes ours.';
+    ps[2].innerHTML='This is the opening op and the tutorial in one — the <b>amber card</b> in the corner walks you through movement, stealth, orders, the gunfight and the objective, one step at a time. Nobody is lost if it goes wrong: the squad falls back down the canyon and you go again.';
     bt.textContent='Kick the Door In';
   } else {
     eb.innerHTML=BRIEF0.eb;h2.innerHTML=BRIEF0.h2;
