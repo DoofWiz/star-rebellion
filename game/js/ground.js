@@ -51,7 +51,7 @@ const PROPDEF={
 /* ---------- scenarios ---------- */
 const SCENARIOS={
 stealcross:{
-  mode:'stealcross',W:2400,H:1600,style:'town',
+  mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
   title:'Steal the Cross',sub:'Dustfall \u00b7 Brakka \u2014 Revolution I',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
@@ -134,7 +134,7 @@ stealcross:{
   ];},
 },
 haven:{
-  mode:'haven',W:1600,H:1200,style:'rock',
+  mode:'haven',W:1600,H:1200,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
   title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
@@ -674,6 +674,86 @@ function detUpdate(dt){
       return;
     }
   }
+}
+/* ---------- fog of war ---------- */
+const VIEW_R=560,FOG_SCALE=0.5;
+let fogCv=null,fogCtx=null,memCv=null,memCtx=null,visPolys=[],visT=0,visUnits=new Set();
+function fogInit(){
+  fogCv=document.createElement('canvas');
+  fogCv.width=Math.ceil(W*FOG_SCALE);fogCv.height=Math.ceil(H*FOG_SCALE);
+  fogCtx=fogCv.getContext('2d');
+  memCv=document.createElement('canvas');
+  memCv.width=fogCv.width;memCv.height=fogCv.height;
+  memCtx=memCv.getContext('2d');
+  visPolys=[];visUnits=new Set();visT=0;
+}
+function castPoly(u){
+  const pts=[];
+  for(let i=0;i<=56;i++){
+    const a=i/56*Math.PI*2;
+    const ca=Math.cos(a),sa=Math.sin(a);
+    let r=VIEW_R;
+    for(let d=26;d<VIEW_R;d+=16){
+      if(ptBlocked(u.x+ca*d,u.y+sa*d,0)){r=d+10;break;}
+    }
+    pts.push([u.x+ca*r,u.y+sa*r]);
+  }
+  return pts;
+}
+function updateVision(now){
+  if(!SCN||!SCN.fog||!fogCtx)return;
+  if(now-visT<130)return;
+  visT=now;
+  visPolys=[];
+  const seers=U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.csHide);
+  for(const u of seers)visPolys.push(castPoly(u));
+  memCtx.setTransform(FOG_SCALE,0,0,FOG_SCALE,0,0);
+  memCtx.fillStyle='#fff';
+  for(const p of visPolys){
+    memCtx.beginPath();
+    p.forEach((q,i)=>i?memCtx.lineTo(q[0],q[1]):memCtx.moveTo(q[0],q[1]));
+    memCtx.closePath();memCtx.fill();
+  }
+  memCtx.setTransform(1,0,0,1,0,0);
+  visUnits=new Set();
+  for(const t of U){
+    if(t.side==='reb'){visUnits.add(t.id);continue;}
+    for(const u2 of seers){
+      if(dist(u2,t)<VIEW_R&&!losBlocked(u2,t)){visUnits.add(t.id);break;}
+    }
+  }
+  for(const m of lootMarks){
+    if(m.taken||m.spotted)continue;
+    for(const u2 of seers){
+      if(Math.hypot(u2.x-m.x,u2.y-m.y)<VIEW_R&&!segBlocked(u2.x,u2.y,m.x,m.y)){m.spotted=1;break;}
+    }
+  }
+  if(engageQ&&engageQ.cur&&engageQ.cur.t&&engageQ.cur.t.id)visUnits.add(engageQ.cur.t.id);
+}
+function unitSeen(u){
+  if(!SCN||!SCN.fog||phase==='CUTSCENE')return true;
+  return u.side==='reb'||visUnits.has(u.id);
+}
+function drawFog(){
+  if(!SCN.fog||phase==='CUTSCENE'||!fogCtx)return;
+  fogCtx.setTransform(1,0,0,1,0,0);
+  fogCtx.globalCompositeOperation='source-over';
+  fogCtx.clearRect(0,0,fogCv.width,fogCv.height);
+  fogCtx.fillStyle='rgba(4,7,13,0.93)';
+  fogCtx.fillRect(0,0,fogCv.width,fogCv.height);
+  fogCtx.globalCompositeOperation='destination-out';
+  fogCtx.globalAlpha=0.55;
+  fogCtx.drawImage(memCv,0,0);
+  fogCtx.globalAlpha=1;
+  fogCtx.setTransform(FOG_SCALE,0,0,FOG_SCALE,0,0);
+  for(const p of visPolys){
+    fogCtx.beginPath();
+    p.forEach((q,i)=>i?fogCtx.lineTo(q[0],q[1]):fogCtx.moveTo(q[0],q[1]));
+    fogCtx.closePath();fogCtx.fill();
+  }
+  fogCtx.setTransform(1,0,0,1,0,0);
+  fogCtx.globalCompositeOperation='source-over';
+  ctx.drawImage(fogCv,0,0,fogCv.width,fogCv.height,0,0,W,H);
 }
 function setSneak(on){
   if(sneak===on)return;
@@ -1951,6 +2031,7 @@ function drawVision(){
   if(phase!=='FREE'||town!=='calm')return;
   for(const l of U){
     if(l.side!=='law'||l.down||l.surr||l.office)continue;
+    if(!unitSeen(l))continue;
     const R=sightRange(l);
     const rays=[];
     for(let i=0;i<=12;i++){
@@ -2105,7 +2186,7 @@ function drawTowerTop(){
   ctx.fillText('CONDENSER',0,-TOWER.r-8);
   ctx.restore();
   const wren=U.find(u=>u.id==='wren');
-  if(wren)drawUnit(wren);
+  if(wren&&unitSeen(wren))drawUnit(wren);
 }
 function drawDerelict(){
   const d=SCN.derelict;
@@ -2607,6 +2688,7 @@ function drawBubbles(now){
     const t=(now-b.t0)/b.dur;
     if(t>=1)continue;
     const s=b.unit;
+    if(!unitSeen(s))continue;
     const [px,py]=worldToCss(s.x,s.y);
     if(px<-100||px>cssW+100||py<-100||py>cssH+100)continue;
     const alpha=t<0.08?t/0.08:t>0.85?(1-t)/0.15:1;
@@ -2653,12 +2735,13 @@ function drawMinimap(){
   ctx.strokeStyle='rgba(87,168,255,0.7)';
   ctx.beginPath();ctx.arc(r.x+PAD.x*sx,r.y+PAD.y*sy,PAD.r*sx,0,7);ctx.stroke();
   for(const m of lootMarks){
-    if(m.taken)continue;
+    if(m.taken||(SCN.fog&&!m.spotted))continue;
     ctx.fillStyle='rgba(255,180,84,0.8)';
     ctx.fillRect(r.x+m.x*sx-1.5,r.y+m.y*sy-1.5,3,3);
   }
   for(const u of U){
     if(u.extracted||u.away)continue;
+    if(!unitSeen(u))continue;
     ctx.fillStyle=u.down?'rgba(120,120,130,0.6)':u.surr?'rgba(154,164,180,0.7)':u.side==='reb'?(u.id==='sera'?'#ffb454':'#57d7e2'):'#ff4f5e';
     ctx.beginPath();ctx.arc(r.x+u.x*sx,r.y+u.y*sy,u.down?1.6:2.6,0,7);ctx.fill();
   }
@@ -2763,7 +2846,7 @@ function render(now){
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
-    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();}
+    if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
     tutTick();
     exploTick(now);
     if(camGoal){
@@ -2791,10 +2874,11 @@ function render(now){
     if(SCN.derelict)drawDerelict();
     if(SCN.hasPad)drawCross(now);
     // downed first, then live
-    for(const u of U)if(u.down&&!u.fixed)drawUnit(u);
-    for(const u of U)if(!u.down&&!u.fixed&&!u.csHide)drawUnit(u);
+    for(const u of U)if(u.down&&!u.fixed&&unitSeen(u))drawUnit(u);
+    for(const u of U)if(!u.down&&!u.fixed&&!u.csHide&&unitSeen(u))drawUnit(u);
     drawBldgs();
     if(SCN.hasTower)drawTowerTop();
+    drawFog();
     if(phase==='ENGAGE')drawEngageFocus(now);
     drawOrders();
     drawFx(now);
@@ -2855,6 +2939,7 @@ function unitAtCss(px,py){
   let best=null,bd=1e9;
   for(const u of U){
     if(u.down||u.extracted||u.away||u.csHide||u.office)continue;
+    if(!unitSeen(u))continue;
     const [ux,uy]=worldToCss(u.x,u.y);
     const d=Math.hypot(px-ux,py-uy);
     if(d<22&&d<bd){bd=d;best=u;}
@@ -3074,7 +3159,10 @@ function syncUI(){
   if(town==='calm'){
     $('rosterE').innerHTML='<div class="objrow"><span class="tick">◌</span><span>'+(SCN.mode==='haven'?'The squatters don’t know you’re here — yet.':'No contacts. The town suspects nothing — yet.')+'</span></div>';
   } else {
-    $('rosterE').innerHTML=U.filter(u=>u.side==='law').map(unitRow).join('');
+    $('rosterE').innerHTML=U.filter(u=>u.side==='law').map(u=>{
+      if(unitSeen(u)||u.down||u.surr)return unitRow(u);
+      return '<div class="urow law gone"><span class="t"><span class="nm">Contact</span><span class="st" style="color:var(--dim)">NO VISUAL</span></span></div>';
+    }).join('');
   }
   let lt='';
   if(tally.c)lt+='<b>◈ '+tally.c+'</b> credits · ';
@@ -3167,6 +3255,7 @@ function initState(){
   turret={gunner:null,face:Math.PI};
   sneak=false;launchNagged=false;
   floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];
+  fogInit();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;radialOn=false;extractFx=null;
   grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
@@ -3281,7 +3370,8 @@ if(location.hash==='#test'){
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
     get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},
     fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,
+      completeWork,gameOver,alertTown,unitSeen,
+      seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }
 })();

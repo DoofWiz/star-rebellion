@@ -282,6 +282,16 @@ Clear the street and time runs free again for the mop-up.
 - **Neutral civilians** — pale, unarmed townsfolk wander the streets; when
   the shooting starts they flee town or hit the dirt ("CIVILIAN — DOWN
   FLAT"). They can't be targeted and blasts spare them.
+- **Fog of war** — three states across both ground scenarios: unseen is
+  near-black, explored terrain stays as dimmed memory, and current
+  visibility is real line-of-sight vision polygons cast from each standing
+  rebel (~560u, throttled raycasts into a half-res fog canvas). Buildings
+  and canyon walls cast vision shadows; corridor doorways spill sight into
+  the rooms beyond. Moving enemies, their sight cones, speech bubbles,
+  minimap dots and click-targeting all respect visibility — unseen
+  hostiles list as "Contact — NO VISUAL" — while static loot is revealed
+  once spotted and remembered after. Cutscenes bypass the fog; engagement
+  targets are always rendered.
 
 **The map** is a sci-fi frontier outpost with western bones: corrugated-metal
 and solar-panel roofs, a flickering holo-sign on the Dry Comet cantina, an
