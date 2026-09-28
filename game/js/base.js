@@ -346,26 +346,23 @@ function followSignal(src){
     if(sig.mid==='depotrun')G.onboard='done';
     return txt;
   }
-  if(sig.kind==='recruitSera'){
-    if(G.people.length>=bunkCap())return 'No bunk for a new pilot. Clear one, then raise Cass again.';
-    G.people.push({id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
-      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'});
-    G.onboard='crossready';
-    news('<b>Sera Kest</b> (Pilot) steps off Cass’s freighter with one bag and a flight jacket. One more of us.','g');
-    return '<b>Sera Kest</b> is in and drawing a bunk. A pilot with Hegemony survey hours — exactly the stick the Dustfall job needs.';
-  }
-  if(sig.kind==='recruit'||sig.kind==='recruitS'){
-    if(G.people.length>=bunkCap())return 'No bunks left. They stay where they are — build an annex first.';
-    G.recruitN++;
-    const role=sig.kind==='recruit'?'Soldier':'Support';
-    const nm=RECRUITS[role][(G.recruitN-1)%RECRUITS[role].length];
-    const p={id:'rec'+G.recruitN,name:nm[0],role,level:1,xp:0,assign:'rest',injured:0,bio:nm[1]};
-    if(role==='Soldier')p.equip=['pistol'];
-    G.people.push(p);
-    news('<b>'+nm[0]+'</b> ('+role+') takes the oath in the storeroom. One more of us.','g');
-    return '<b>'+nm[0]+'</b> is vetted and in. A bunk is theirs — '+(role==='Support'?'assign them a station from their file.':'arm them from the rack.');
-  }
   return sig.apply?sig.apply():'';
+}
+function openRecruitOffer(src,sig){
+  let p,must=false,line;
+  if(sig.kind==='recruitSera'){
+    must=true;
+    p={id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
+      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'};
+    line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
+  } else {
+    const role=sig.kind==='recruit'?'Soldier':'Support';
+    const nm=RECRUITS[role][G.recruitN%RECRUITS[role].length];
+    p={id:'rec'+(G.recruitN+1),name:nm[0],role,level:1,xp:0,assign:'rest',injured:0,bio:nm[1]};
+    if(role==='Soldier')p.equip=['pistol'];
+    line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
+  }
+  openWin('recruit',{p,must,line});
 }
 function addMission(mid){
   if(G.missions.some(m=>m.id===mid))return;
@@ -386,6 +383,7 @@ function maybeQueueEvent(src){
 /* ---------- day advance ---------- */
 function advanceDay(){
   if(!started)return;
+  const attn0=new Set(G.sources.filter(x=>x.alive&&(x.pendingEvent||x.signal)).map(x=>x.id));
   G.day++;
   closeTilePop();closeWin();exitRoomView();
   for(const rm of G.rooms){
@@ -473,6 +471,8 @@ function advanceDay(){
     G.revNoted=true;
     news('Three worlds now whisper our name. <b>Revolution Level 2</b> is coming — and so is their intelligence agency. (Future build.)','p');
   }
+  const newAttn=G.sources.find(x=>x.alive&&(x.pendingEvent||x.signal)&&!attn0.has(x.id));
+  if(newAttn){flashMsg('◉ <b>'+newAttn.name+'</b> wants to talk');sAlert();}
   const FLAVOR=[
     'Hegemony patrols double in the drift. Coverage halves. Typical.',
     'A Hegemony cadet washed out and deserted. The stories he tells about his instructor are worth listening to.',
@@ -1238,16 +1238,26 @@ function drawGalaxy(now){
     c2.strokeStyle='rgba(87,215,226,0.16)';c2.setLineDash([3,5]);
     c2.beginPath();c2.moveTo(hx,hy);c2.lineTo(x,y);c2.stroke();c2.setLineDash([]);
     const hot=s.risk>60,attn=s.pendingEvent||s.signal;
-    const p=pul(x);
-    c2.fillStyle=hot?'#ff4f5e':'#57d7e2';
-    c2.beginPath();c2.arc(x,y,3.4,0,7);c2.fill();
-    c2.strokeStyle=hot?'rgba(255,79,94,0.6)':'rgba(87,215,226,0.5)';
-    c2.lineWidth=1.2;
-    c2.beginPath();c2.arc(x,y,6+(attn?2.5*p:0),0,7);c2.stroke();
-    if(attn){c2.strokeStyle='rgba(255,180,84,'+(0.4+0.5*p)+')';c2.beginPath();c2.arc(x,y,10+3*p,0,7);c2.stroke();}
+    // a source is a voice, not a world: green radio-mast icon
+    const col=hot?'#ff4f5e':'#7dd97b';
+    c2.fillStyle=col;
+    c2.beginPath();c2.arc(x,y,2.6,0,7);c2.fill();
+    c2.lineWidth=1.4;c2.lineCap='round';
+    c2.strokeStyle=hot?'rgba(255,79,94,0.85)':'rgba(125,217,123,0.85)';
+    for(const rr of [5.5,9]){c2.beginPath();c2.arc(x,y,rr,-Math.PI/4-0.55,-Math.PI/4+0.55);c2.stroke();}
+    if(attn){ // signal waiting: waves emanate
+      const tt=(now*0.0011)%1;
+      for(const k of [0,0.5]){
+        const q=(tt+k)%1;
+        c2.strokeStyle='rgba(125,217,123,'+(0.6*(1-q)).toFixed(3)+')';
+        c2.beginPath();c2.arc(x,y,10+q*13,-Math.PI/4-0.75,-Math.PI/4+0.75);c2.stroke();
+      }
+    }
+    c2.lineCap='butt';
     if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle='#ffb454';c2.lineWidth=1.5;c2.beginPath();c2.arc(x,y,13,0,7);c2.stroke();}
-    c2.font='600 8.5px "Exo 2"';c2.textAlign='center';
-    c2.fillStyle='rgba(160,230,240,0.9)';c2.fillText(s.name.split(' ').pop(),x,y-10);
+    c2.font='600 8.5px "Exo 2"';c2.textAlign='left';
+    c2.fillStyle=hot?'rgba(255,150,160,0.9)':'rgba(190,240,190,0.92)';c2.fillText(s.name.split(' ').pop(),x+13,y+4);
+    c2.textAlign='center';
   }
 }
 function drawCommStatic(now){
@@ -1294,6 +1304,7 @@ function render(now){
   layoutTilePop();
   if(winMode==='sources')drawGalaxy(now);
   if(winMode==='comm')drawCommStatic(now);
+  updateGuide();
 }
 
 /* ---------- tile popup ---------- */
@@ -1356,6 +1367,67 @@ function layoutTilePop(){
   el.style.left=px+'px';el.style.top=py+'px';
 }
 
+/* ---------- flash banner + guided pointers ---------- */
+let flashTO=null;
+function flashMsg(html){
+  const el=$('flashB');
+  $('flashTxt').innerHTML=html;
+  el.classList.add('show');
+  clearTimeout(flashTO);
+  flashTO=setTimeout(()=>el.classList.remove('show'),2800);
+}
+function pointAt(rc,label){
+  const el=$('tutPtr');
+  el.hidden=false;
+  el.querySelector('.tp-label').textContent=label;
+  el.style.left=(rc.left+rc.width/2)+'px';
+  // targets low on the screen get the pointer beneath them, arrow up
+  const below=rc.top>innerHeight*0.62;
+  el.classList.toggle('below',below);
+  el.querySelector('.tp-arrow').textContent=below?'\u25b2':'\u25bc';
+  el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(4,rc.top-58)+'px';
+}
+function updateGuide(){
+  const el=$('tutPtr');
+  if(!el)return;
+  if(!started||!G||SR.active!=='base'){el.hidden=true;return;}
+  // step 1: the sources tutorial — walk the player to Cass
+  if(G.onboard==='contact'){
+    if(winMode==='sources'){
+      const cass=G.sources.find(x=>x.id==='cass'&&x.alive);
+      const g=$('galaxyCv');
+      if(cass&&g){
+        if(!(srcSel&&srcSel.t==='s'&&srcSel.id==='cass')){
+          const r=g.getBoundingClientRect();
+          const [sx,sy]=srcMapPos(cass,r.width,r.height);
+          pointAt({left:r.left+sx-8,top:r.top+sy-4,width:16,height:8},'Select Cass Wender');
+          return;
+        }
+        const btn=ROOT.querySelector('[data-sc="cass"]');
+        if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
+      }
+      el.hidden=true;return;
+    }
+    if(!winMode&&!viewRoom){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
+    el.hidden=true;return;
+  }
+  // the hangar guide: the derelict hauler is a base mission of its own
+  if(G.guideHangar&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&!winMode){
+    if(viewRoom&&viewRoom.key==='hangar'){
+      const rb=ROOT.querySelector('[data-restore]');
+      if(rb){pointAt(rb.getBoundingClientRect(),'Restore the hauler');return;}
+    } else if(!viewRoom){
+      const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
+      if(rm){
+        const [x,y]=cellToCss(rm.r+(rm.h-1)/2,rm.c+(rm.w-1)/2);
+        const cvr=$('cv').getBoundingClientRect();
+        pointAt({left:cvr.left+x-10,top:cvr.top+y-14,width:20,height:20},'The Hangar');
+        return;
+      }
+    }
+  }
+  el.hidden=true;
+}
 /* ---------- windows ---------- */
 function openWin(mode,arg){winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
 function closeWin(){
@@ -1436,8 +1508,7 @@ function renderWin(){
       body=payload.lines.map(l=>'<div class="commline">'+l+'</div>').join('');
       if(payload.signal){
         body+='<div class="commline warn" style="margin-top:9px"><b>SIGNAL:</b> '+payload.signal.text+'</div>'+
-          '<button class="dbtn" data-follow>Follow it up.</button>'+
-          '<button class="dbtn" data-ignore>Let it lie.</button>';
+          '<button class="dbtn" data-follow><b>Acknowledge</b></button>';
       } else {
         body+='<button class="dbtn" data-close style="margin-top:9px">Close channel.</button>';
       }
@@ -1453,9 +1524,35 @@ function renderWin(){
       '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
       '<div class="mdesc">'+m.desc+'</div>'+
       '<div class="mmeta">'+m.need+(m.ground?(m.need>1?' soldiers':' soldier'):(m.need>1?' pilots':' pilot'))+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
-      (m.lead?'<button class="dbtn" data-mlead="'+m.id+'"><b>'+(m.leadTxt||'Fly it yourself')+'</b> — take command in the field.</button>':'')+
-      '<button class="dbtn" data-mplan="'+m.id+'">Send a team without you.</button>'+
-      '<button class="dbtn" data-close>Noted. It’ll keep on the board.</button>'+
+      (canAttempt(m)?'':precondHTML(m))+
+      '<button class="dbtn" '+(m.lead?'data-mlead':'data-mplan')+'="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
+      '<button class="dbtn" data-close>Later</button>'+
+      '</div>';
+  }
+  else if(winMode==='cassIntro'){
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Incoming Transmission</span></div><div class="winBody">'+
+      '<div class="commline sys">carrier locked · unregistered freighter · voice known</div>'+
+      '<div class="commline" style="color:var(--text)">“Told you the rock was worth it. This channel stays open — I hear things worth hearing, and now you’re somebody worth telling. Raise me when you’re ready to listen.”</div>'+
+      '<div class="pdesc" style="margin-top:9px">First contact on the wire: <b style="color:var(--text)">Cass Wender</b>, the smuggler who flew you in. Open the <b style="color:var(--good)">Source Network</b> and raise him.</div>'+
+      '<button class="dbtn" data-close style="margin-top:9px">Understood</button></div>';
+  }
+  else if(winMode==='recruit'){
+    const {p,must,line}=winArg;
+    card.classList.add('narrow');
+    const pct=Math.round(p.xp*100);
+    const full=G.people.length>=bunkCap();
+    h='<div class="winHead"><span class="wt">New Recruit!</span>'+(must?'':'<button class="winX" data-rec-no>✕</button>')+'</div><div class="winBody">'+
+      (line?'<div class="commline" style="margin-bottom:11px">'+line+'</div>':'')+
+      '<div class="dz-head">'+
+      '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
+      '<div><div class="dz-name">'+p.name+'</div><div class="dz-rank">'+rankFor(p)+'</div><div class="dz-sub">'+p.role+'</div></div></div>'+
+      '<div class="dz-bio">“'+p.bio+'”</div>'+
+      '<div class="dz-sec">Terms</div><div class="pdesc">One bunk ('+G.people.length+'/'+bunkCap()+' filled)'+
+        (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</div>'+
+      (full?'<div class="pdesc" style="color:var(--heg)">No bunks free — build a quarters annex first.</div>':'')+
+      '<button class="dbtn" data-rec-accept '+(full&&!must?'disabled':'')+'><b>Recruit</b></button>'+
+      (must?'':'<button class="dbtn" data-rec-no>Dismiss</button>')+
       '</div>';
   }
   else if(winMode==='candidate'){
@@ -1489,22 +1586,24 @@ function renderWin(){
   else if(winMode==='plan'){
     const m=winArg;
     card.classList.add('narrow');
-    const eligible=m.ground?
-      G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'):
-      G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');
-    const usable=m.ground?
-      G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).length:
-      G.fighters.filter(f=>!f.out&&f.hull>=60).length;
-    const pilotsOk=!m.ground||ablePilots().length>=2;
+    const roster=m.ground?
+      G.people.filter(p=>p.role==='Soldier'||p.role==='Marine'):
+      G.people.filter(p=>p.role==='Pilot');
     h='<div class="winHead"><span class="wt">'+(planLead?'Lead · ':'Plan · ')+m.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="pdesc">'+(m.ground?
-        'Needs '+m.need+' soldiers, the Graf flight-ready (hull ≥ 60%), and two able pilots — one flies the Graf, one comes home in the Cross. Graf ready: <b style="color:var(--text)">'+(usable?'yes':'no')+'</b> · pilots: <b style="color:var(--text)">'+(pilotsOk?'yes':'no')+'</b>.':
-        'Needs '+m.need+' pilot'+(m.need>1?'s':'')+' and '+m.need+' flight-ready fighter'+(m.need>1?'s':'')+' (hull ≥ 60%). Ready: <b style="color:var(--text)">'+usable+'</b>.')+
-      (planLead?' You run it on the ground yourself — what happens out there is on you.':'')+'</div>';
-    for(const p of eligible){
-      h+='<label class="prow" style="cursor:pointer"><input type="checkbox" class="pcheck" data-pk="'+p.id+'">'+
+      '<div class="pdesc">Pick '+m.need+(m.ground?' soldier'+(m.need>1?'s':''):' pilot'+(m.need>1?'s':''))+'.'+
+      (planLead?' You take the field with them.':' They go without you.')+'</div>'+
+      precondHTML(m)+
+      (m.ground&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring?
+        '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 60⬡ 40▤ and two days.</div>'+
+        '<button class="dbtn" data-gohangar>Go to the Hangar ▸</button>':'')+
+      (m.ground&&!grafReady()&&G.wreck&&G.wreck.restoring?
+        '<div class="pdesc" style="color:var(--amber);margin-top:8px">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</div>':'')+
+      '<div class="dz-sec">'+(m.ground?'Soldiers':'Pilots')+'</div>';
+    for(const p of roster){
+      const why=p.injured?('INJURED '+p.injured+'d'):(p.assign==='mission'?'ON MISSION':null);
+      h+='<label class="prow'+(why?' off':'')+'" style="cursor:'+(why?'default':'pointer')+'"><input type="checkbox" class="pcheck" data-pk="'+p.id+'" '+(why?'disabled':'')+'>'+
         '<span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span>'+
-        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankFor(p)+' · lvl '+p.level+'</span></span></label>';
+        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankFor(p)+' · lvl '+p.level+(why?' · <span class="pwhy">'+why+'</span>':'')+'</span></span></label>';
     }
     h+='<button class="sbtn" id="launchBtn" style="width:100%;margin-top:8px;padding:10px" disabled>'+(planLead?'Go — take the field':'Launch')+'</button></div>';
   }
@@ -1590,6 +1689,7 @@ function syncUI(){
   const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length
     +(G.onboard==='contact'?1:0); // the first contact is waiting — point the new player at the network
   $('srcBadge').hidden=!srcAttn;$('srcBadge').textContent=srcAttn;
+  $('navSources').classList.toggle('wire',srcAttn>0);
   const misAvail=G.missions.filter(m=>m.state==='avail').length;
   $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
   const prog=G.missions.filter(m=>m.state==='prog').length;
@@ -1729,12 +1829,8 @@ $('winsB').addEventListener('click',ev=>{
   if(t.classList.contains('pcheck')){
     const m=winArg;
     const n=[...ROOT.querySelectorAll('.pcheck:checked')].length;
-    const pilotsOk=!m.ground||ablePilots().length>=2;
-    const usable=m.ground?
-      G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).length:
-      G.fighters.filter(f=>!f.out&&f.hull>=60).length;
     const btn=$('launchBtn');
-    if(btn)btn.disabled=!(n===m.need&&usable>=(m.ground?1:m.need)&&pilotsOk);
+    if(btn)btn.disabled=!(n===m.need&&canAttempt(m));
     return;
   }
   if(t.id==='launchBtn'){
@@ -1759,6 +1855,12 @@ $('winsB').addEventListener('click',ev=>{
     const ans=t.getAttribute('data-ans');
     if(ans!==null&&payload.event){srcAnswer(src,+ans);return;}
     if(t.hasAttribute('data-follow')){
+      const sig=src.signal;
+      if(sig&&(sig.kind==='recruit'||sig.kind==='recruitS'||sig.kind==='recruitSera')){
+        src.signal=null;
+        openRecruitOffer(src,sig);
+        syncUI();return;
+      }
       const line=followSignal(src);
       openComm(src,{lines:[line]});
       syncUI();return;
@@ -1768,6 +1870,25 @@ $('winsB').addEventListener('click',ev=>{
       openComm(src,{lines:['You let it lie. Some doors are better left shut — or opened later.']});
       syncUI();return;
     }
+  }
+  if(t.hasAttribute('data-rec-accept')&&winMode==='recruit'){
+    const {p,must}=winArg;
+    if(G.people.length>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
+    if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
+    G.people.push(p);
+    if(p.id==='sera')G.onboard='crossready';
+    news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
+    sBuild();saveSnap();closeWin();syncUI();return;
+  }
+  if(t.hasAttribute('data-rec-no')&&winMode==='recruit'){
+    news('You passed on '+winArg.p.name+'. They never knew.','d');
+    closeWin();syncUI();return;
+  }
+  if(t.hasAttribute('data-gohangar')){
+    const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
+    closeWin();
+    if(rm){G.guideHangar=1;enterRoomView(rm);}
+    syncUI();return;
   }
   const cand=t.getAttribute('data-cand');
   if(cand){if(cand==='no'){news('The contact is burned. They never hear back.','d');closeWin();}else acceptCandidate(cand);return;}
@@ -1851,12 +1972,31 @@ function discoverCass(){
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
   news('Inventory logged: six Aklis, four Cowboys, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
-  news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in. He knows things worth knowing — open the <b>Source Network</b> from the command room and raise him.','a');
+  news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in.','a');
 }
 
 /* ---------- leading missions in person ---------- */
 let planLead=false;
 function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');}
+function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission').length;}
+function readyFighters(){return G.fighters.filter(f=>!f.out&&f.hull>=60).length;}
+function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
+function precondList(m){
+  if(m.ground)return [
+    {ok:availSoldiers()>=m.need,label:m.need+' Rebel Soldier'+(m.need>1?'s':'')+' Available'},
+    {ok:ablePilots().length>=2,label:'1 Starfighter Pilot Available'},
+    {ok:grafReady(),label:'1 Hauler Available'},
+  ];
+  return [
+    {ok:ablePilots().length>=m.need,label:m.need+' Starfighter Pilot'+(m.need>1?'s':'')+' Available'},
+    {ok:readyFighters()>=m.need,label:m.need+' Starfighter'+(m.need>1?'s':'')+' Available'},
+  ];
+}
+function canAttempt(m){return precondList(m).every(c=>c.ok);}
+function precondHTML(m){
+  return '<div class="dz-sec">Pre Conditions</div>'+precondList(m).map(c=>
+    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'\u2713':'\u2717')+'</span><span>'+c.label+'</span></div>').join('');
+}
 function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)));}
 function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)));}
 function leadMission(m,ids){
@@ -1924,6 +2064,7 @@ function applyDebrief(r){
       news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
       discoverCass();
       seedNews();
+      openWin('cassIntro');
       sBuild();
       saveSnap();syncUI();
       return;
@@ -2007,7 +2148,7 @@ function applyDebrief(r){
 ROOT.addEventListener('click',ev=>{
   const rst=ev.target.closest('[data-restore]');
   if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=60&&G.supplies>=40){
-    G.credits-=60;G.supplies-=40;G.wreck.restoring=2;
+    G.credits-=60;G.supplies-=40;G.wreck.restoring=2;G.guideHangar=0;
     news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
     sBuild();saveSnap();syncUI();
     if(viewRoom)renderRoomBar();

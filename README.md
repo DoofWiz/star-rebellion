@@ -63,8 +63,9 @@ The three layers now run as **one playable game** (`game/index.html` +
 - **The onboarding chain** walks the player through every system in order:
   the game opens in *Take the Rock*, winning it grants the base and the
   derelict dropship, and only then does the base layer begin. Founding the
-  base discovers the first source (the network badge points there):
-  **Cass Wender**, the
+  base pops an **Incoming Transmission** window and a guided
+  tutorial-arrow chain (Galaxy tab → Cass's marker → Contact) that walks
+  the player into their first contact: **Cass Wender**, the
   smuggler who flew the squad in. His first Contact reveals *Steal the
   Cross* — but the plan needs two pilots and the base has one, so Cass asks
   around; advance the day and his ✉ signal delivers **Sera Kest**, the
@@ -75,6 +76,20 @@ The three layers now run as **one playable game** (`game/index.html` +
   5 and queues **Ferren Halt** and **Senator Vokk** as source candidates
   (the approach flow), opening the mid-game network. Scripted signals
   re-arm if let lie, so the chain can't dead-end.
+- **Onboarding UX.** Sources draw as green radio-mast icons on the galaxy
+  map (they're voices, not worlds), with emanating waves — echoed by a
+  ping on the Galaxy tab — whenever one has a signal waiting, plus an
+  on-screen flash ("◉ Cass Wender wants to talk") the player can't miss.
+  Signals resolve with a single **Acknowledge**. Recruit signals open a
+  **New Recruit!** window with the candidate's dossier and
+  Recruit/Dismiss (Sera, the onboarding recruit, is Recruit-only). A
+  discovered mission offers **Arrange Mission** (greyed until it can
+  actually be attempted) or **Later**, and the mission-planning window
+  states **Pre Conditions** as check-boxes (e.g. *3 Rebel Soldiers
+  Available · 1 Starfighter Pilot Available · 1 Hauler Available*), lists
+  unavailable crew greyed-out with the reason, and a **Go to the Hangar**
+  button plus arrow walks the player to the derelict-hauler restoration
+  when that's what's missing.
 - **Cook the Depots** is a second space scenario (`SCENS` switch in
   `space.js`): one starfighter against **four orbital fuel depots**
   guarded by three **RQ-7 sentry drones**. Depots are structures — they

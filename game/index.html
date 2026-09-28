@@ -69,6 +69,31 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-base .navbtn{position:relative;background:rgba(10,15,30,0.92);border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:8px 16px;border-radius:3px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,.4);}
 #sc-base .navbtn:hover{border-color:var(--amber);color:var(--amber);}
 #sc-base .navbtn .badge{position:absolute;top:-7px;right:-7px;background:var(--heg);color:#fff;font-size:9px;font-weight:800;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;}
+#sc-base .navbtn.wire{border-color:var(--good);color:var(--good);}
+#sc-base .navbtn.wire::after{content:'';position:absolute;inset:-3px;border:1.5px solid var(--good);border-radius:5px;animation:wirePing 1.6s ease-out infinite;pointer-events:none;}
+@keyframes wirePing{0%{opacity:.8;transform:scale(1);}100%{opacity:0;transform:scale(1.3);}}
+#sc-base #flashB{position:absolute;left:0;right:0;top:28%;text-align:center;z-index:30;pointer-events:none;opacity:0;transition:opacity .3s ease;}
+#sc-base #flashB.show{opacity:1;}
+#sc-base #flashB .fb{display:inline-block;background:rgba(8,14,28,.96);border:1px solid var(--good);color:var(--good);font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:10px 22px;border-radius:4px;box-shadow:0 0 30px rgba(125,217,123,.3);}
+#sc-base #flashB .fb b{color:#d9ffe6;}
+#sc-base #tutPtr{position:absolute;z-index:60;pointer-events:none;transform:translateX(-50%);}
+#sc-base #tutPtr .tp-in{display:flex;flex-direction:column;align-items:center;animation:tpBob 1s ease-in-out infinite;}
+#sc-base #tutPtr .tp-label{background:rgba(20,26,48,.96);border:1px solid var(--amber);color:var(--amber);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:3px;margin-bottom:4px;white-space:nowrap;}
+#sc-base #tutPtr .tp-arrow{font-size:20px;color:var(--amber);text-shadow:0 0 12px rgba(255,180,84,.9);line-height:1;}
+#sc-base #tutPtr.below .tp-in{flex-direction:column-reverse;}
+#sc-base #tutPtr.below .tp-label{margin-bottom:0;margin-top:4px;}
+@keyframes tpBob{50%{transform:translateY(6px);}}
+#sc-base .dbtn:disabled{opacity:.38;cursor:default;}
+#sc-base .dbtn:disabled:hover{border-color:var(--line);color:var(--text);}
+#sc-base .pcRow{display:flex;gap:9px;align-items:center;font-size:12px;padding:3px 0;}
+#sc-base .pcRow .pcbox{width:15px;height:15px;border-radius:3px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;border:1px solid var(--line);font-family:var(--font-mono);}
+#sc-base .pcRow.ok{color:var(--text);}
+#sc-base .pcRow.ok .pcbox{border-color:var(--good);color:var(--good);background:rgba(125,217,123,.08);}
+#sc-base .pcRow.no{color:var(--dim);}
+#sc-base .pcRow.no .pcbox{border-color:var(--heg);color:var(--heg);background:rgba(255,79,94,.06);}
+#sc-base .prow.off{opacity:.45;}
+#sc-base .prow.off:hover{border-color:#1b2747;}
+#sc-base .pwhy{font-size:9px;color:var(--heg);letter-spacing:.05em;text-transform:uppercase;}
 #sc-base #ctlDock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:6px;}
 #sc-base .dockcard{background:rgba(10,15,30,0.94);border:1px solid var(--line);border-radius:5px;padding:9px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 30px rgba(0,0,0,.5);}
 #sc-base #dayBtn{background:linear-gradient(180deg,#3a2a10,#2a1e0a);border:1px solid var(--amber);color:var(--amber);font-family:var(--font-ui);font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:10px 24px;border-radius:3px;cursor:pointer;}
@@ -561,6 +586,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
       <div class="overlay" id="winsB" hidden><div class="winCard" id="winCardB"></div></div>
 
     </div>
+    <div id="flashB"><div class="fb" id="flashTxt"></div></div>
+    <div id="tutPtr" hidden><div class="tp-in"><div class="tp-label"></div><div class="tp-arrow">&#9660;</div></div></div>
 
     <aside id="panel">
       <div id="panelScroll">
