@@ -112,6 +112,13 @@ The three layers now run as **one playable game** (`game/index.html` +
   damage** on hits that land through it (values up again: +8 to +10), and
   a rebel's **level** now makes them harder to hit (+1 TN per two levels,
   capped +3).
+- **No early fail state.** A failed *Steal the Cross* offers **Retry
+  Mission** on the endscreen — the run never happened, the town resets —
+  alongside Continue; and a lost ground fight now costs injury days, not
+  people, so the young campaign can't strand itself. Every soldier and
+  the mission pilot also carry one **Stim**: a chip beside their guns in
+  the engagement dock that spends the firing turn to recover 30% of max
+  hp.
 - **Debug menu.** Both combat topbars carry a purple **Debug** button — a
   home for cheats and dev conveniences. For now it holds **Skip Mission**,
   which instantly wins the loaded mission with the full result applied

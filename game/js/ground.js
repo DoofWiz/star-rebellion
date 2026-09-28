@@ -313,11 +313,11 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:12,cool:65,
-    level:sp.level||1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,stims:1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   const roster=[...squad];
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
     ...roster,
@@ -1489,6 +1489,17 @@ function throwNade(s,gx,gy){
   camGoal={x:gx,y:gy,z:Math.max(cam.z,0.9)};
   syncUI();
 }
+function useStim(s){
+  if(!s.stims||s.hp>=s.maxhp)return;
+  s.stims--;
+  const heal=Math.round(s.maxhp*0.3);
+  s.hp=Math.min(s.maxhp,s.hp+heal);
+  addFloater(s.x,s.y-40,'+'+heal+' STIM','#7dd97b');
+  log(nameSpan(s)+' <span class="g">slams a stim</span> — +'+heal+' hp.');
+  sLoot();
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+450;}
+  syncUI();
+}
 function playerHold(){
   const c=engageQ&&engageQ.cur;
   if(!c||c.stage!=='await')return;
@@ -1637,12 +1648,14 @@ function gameOver(win,why){
     }
     byId('endLoot').innerHTML=lh2;
     byId('endRestartBtn').textContent='Continue';
+    byId('endRetryBtn').hidden=true;
     byId('endscreen').hidden=false;
     pendingResult=buildResult(win);
     syncUI();
     return;
   }
   byId('endRestartBtn').textContent='Continue';
+  byId('endRetryBtn').hidden=!(SCN.mode==='stealcross'&&!win);
   byId('endEyebrow').textContent=win?'Mission Report · Dustfall':'Mission Report · It went wrong';
   byId('endTitle').textContent=win?'The Cross Is Ours':'Mission Failed';
   let txt;
@@ -1677,7 +1690,7 @@ function buildResult(win){
   for(const u of U){
     if(u.side!=='reb')continue;
     let state='ok';
-    if(u.down)state=haven?(win?'injured':'ok'):(win?'injured':(rng()<0.6?'lost':'injured'));
+    if(u.down)state=haven?(win?'injured':'ok'):'injured'; // nobody is buried this early in the war
     const xp=Math.round(((u.xpGain||0)+(win?0.12:0.03))*100)/100;
     people.push({id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)});
   }
@@ -3297,12 +3310,13 @@ function dockHTML(){
   if(c&&c.stage==='await'){
     const canNade=c.s.side==='reb'&&NADES>0&&!c.s.manning;
     let chips='';
-    if(wpnsOf(c.s).length>1||canNade){
+    if(wpnsOf(c.s).length>1||canNade||c.s.stims>0){
       for(const w of wpnsOf(c.s)){
         const ok=validShot(c.s,c.t,w);
         chips+='<button class="wchip'+(w===c.wkey?' sel':'')+'" data-wsel="'+w+'" '+(ok?'':'disabled')+'>'+WPN[w].name+'</button>';
       }
       if(canNade)chips+='<button class="wchip'+(pickMode==='nadeToss'?' sel':'')+'" data-nade>✸ BLAM ×'+NADES+'</button>';
+      if(c.s.side==='reb'&&c.s.stims>0)chips+='<button class="wchip" data-stim '+(c.s.hp>=c.s.maxhp?'disabled':'')+'>⚕ STIM ×'+c.s.stims+'</button>';
     }
     const pct=pctFor(c.need);
     return '<div class="dockcard"><span class="docklabel">'+c.s.first+' → <b>'+c.t.name+'</b></span>'+
@@ -3405,6 +3419,10 @@ byId('ctlDock').addEventListener('click',ev=>{
   else if(ev.target.id==='extractBtn')startExtract();
   else if(ev.target.id==='attackBtn')playerAttack();
   else if(ev.target.id==='holdBtn')playerHold();
+  else if(ev.target.closest('[data-stim]')){
+    const c=engageQ&&engageQ.cur;
+    if(c&&c.stage==='await'&&!ev.target.closest('[data-stim]').disabled)useStim(c.s);
+  }
   else if(ev.target.closest('[data-nade]')){
     if(engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
       pickMode=(pickMode==='nadeToss')?null:'nadeToss';
@@ -3448,6 +3466,12 @@ $('muteBtn').addEventListener('click',ev=>{
   ev.currentTarget.textContent='Sound: '+(A.muted()?'Off':'On');
 });
 $('restartBtn').addEventListener('click',()=>{resetGame(false);});
+$('endRetryBtn').addEventListener('click',()=>{
+  // the failed run never happened: reset the town and go again
+  byId('endscreen').hidden=true;
+  byId('endRetryBtn').hidden=true;
+  enter({mission:CTX});
+});
 $('endRestartBtn').addEventListener('click',()=>{
   if(SCN&&SCN.mode==='haven'&&gameEnd&&!gameEnd.win){
     // no base to fall back to until the rock falls — set up and go again
@@ -3612,7 +3636,7 @@ if(location.hash==='#test'){
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

@@ -522,6 +522,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-ground .ovCard .fine{font-size:11.5px;color:var(--dim);line-height:1.6;}
 #sc-ground #enterBtn{width:100%;margin-top:14px;background:linear-gradient(180deg,#2a3a12,#1d2a0c);border:1px solid var(--good);color:var(--good);font-family:var(--font-ui);font-weight:800;font-size:14px;letter-spacing:.22em;text-transform:uppercase;padding:12px;border-radius:3px;cursor:pointer;}
 #sc-ground #enterBtn:hover{filter:brightness(1.25);}
+#sc-ground #endRetryBtn{width:100%;margin-top:14px;background:linear-gradient(180deg,#2a3a12,#1d2a0c);border:1px solid var(--good);color:var(--good);font-family:var(--font-ui);font-weight:800;font-size:14px;letter-spacing:.22em;text-transform:uppercase;padding:12px;border-radius:3px;cursor:pointer;}
+#sc-ground #endRetryBtn:hover{filter:brightness(1.25);}
 #sc-ground #endRestartBtn{width:100%;margin-top:10px;background:linear-gradient(180deg,#2b3c66,#1c2a4c);border:1px solid #3f5b96;color:#eaf2ff;font-family:var(--font-ui);font-weight:800;font-size:13px;letter-spacing:.12em;text-transform:uppercase;padding:12px;border-radius:4px;cursor:pointer;}
 #sc-ground #endRestartBtn:hover{border-color:var(--amber);color:var(--amber);}
 #sc-ground .lootline{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:12px;padding:5px 2px;border-bottom:1px dashed var(--line-soft);}
@@ -746,6 +748,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
           <h2 id="endTitle">—</h2>
           <p id="endText">—</p>
           <div id="endLoot"></div>
+          <button id="endRetryBtn" hidden>Retry Mission</button>
           <button id="endRestartBtn">Continue</button>
         </div>
       </div>
