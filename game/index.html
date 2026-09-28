@@ -609,7 +609,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 <div id="app">
   <header id="topbar">
     <h1>Star Rebellion</h1>
-    <span class="sub">Mission · Take Out Instructor · Veray Drift</span>
+    <span class="sub" id="spSub">Mission</span>
     <span class="spacer"></span>
     <button class="chipbtn" id="zoomOut" title="Zoom out">−</button>
     <button class="chipbtn" id="zoomIn" title="Zoom in">+</button>
@@ -638,12 +638,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 
       <div class="overlay" id="briefing">
         <div class="brief">
-          <div class="eyebrow">Source Intel · Disgruntled Depot Manager</div>
-          <h2>Take Out <span class="k">Instructor</span></h2>
-          <p>Commandant Dral Vex trains every Hegemony fighter pilot in this sector, and his
-          cadets leave the academy shooting straight. Right now he's running a live exercise
-          in the Veray Drift with four green cadets and no escort. Kill the instructor and the
-          Hegemony's next class of pilots dies with him.</p>
+          <div class="eyebrow" id="spEyebrow">Space Operation</div>
+          <h2 id="spTitle">&#8212;</h2>
+          <p id="spFlavour"></p>
           <div class="ovh">Objectives</div>
           <div class="ovObj" id="spObj"></div>
           <div class="ovh">Your Flight</div>

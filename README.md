@@ -53,12 +53,29 @@ The three layers now run as **one playable game** (`game/index.html` +
   two days) and it becomes the Marta.
 - **The reduced day one** the intro establishes: a command centre, a hangar
   holding only the derelict hauler (**one spare berth**; capacity 2, +1 per
-  bay), and
-  **bunks for five** — exactly the starting crew, so recruitment needs an
-  annex. There is no starting starfighter and no storeroom (now buildable):
-  the campaign's first arcs are stealing the Cross on Brakka — which arms
-  the space game — and building the rock out. Mira Osk now arrives as the
+  bay), and **bunks for five** — four starting crew (Joss and the three
+  soldiers) plus one spare bunk the onboarding fills. There is no starting
+  starfighter and no storeroom (now buildable). Mira Osk now arrives as the
   first Support recruit instead of starting aboard.
+- **The onboarding chain** walks the player through every system in order.
+  Founding the base discovers the first source: **Cass Wender**, the
+  smuggler who flew the squad in. His first Contact reveals *Steal the
+  Cross* — but the plan needs two pilots and the base has one, so Cass asks
+  around; advance the day and his ✉ signal delivers **Sera Kest**, the
+  campaign's second pilot (the recruitment loop, taught by doing). Restore
+  the Marta, steal the Cross, and a second source reaches out as thanks:
+  **Maro Venn**, cantina keeper of the Dry Comet, whose signal opens *Cook
+  the Depots* — the first space combat mission. Winning it raises intel by
+  5 and queues **Ferren Halt** and **Senator Vokk** as source candidates
+  (the approach flow), opening the mid-game network. Scripted signals
+  re-arm if let lie, so the chain can't dead-end.
+- **Cook the Depots** is a second space scenario (`SCENS` switch in
+  `space.js`): one starfighter against **four orbital fuel depots**
+  guarded by three **RQ-7 sentry drones**. Depots are structures — they
+  don't move, act, or panic, take "tank rupture" instead of subsystem
+  criticals, and go up in oversized fireballs; drones fly the standard AI
+  but feel no fear. Win by destroying all four depots; the objective line
+  tracks the count.
 - **Stealth with teeth, and an attack action.** In free move, tapping an
   enemy now opens fire: every rebel with a clear shot joins an **ambush
   volley** (+2 ATK on the surprise shots, concentrated on the mark you

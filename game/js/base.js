@@ -81,20 +81,13 @@ function newGame(){
       {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
-      {id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',bio:'Flight lead, such as the flight is. Lucky, and knows it.'},
       {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
       {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
       {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
       {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
     ],
-    sources:[
-      {id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,
-       inc:{s:6},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
-       bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.'},
-      {id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,
-       inc:{c:25},alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,
-       bio:'Votes loyal, funds otherwise. Terrified of audits.'},
-    ],
+    sources:[],
+    onboard:'intro',
     missions:[
       {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
        desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
@@ -202,9 +195,12 @@ const MPOOL={
   garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:60,s:25,xp:0.12}},
-  stealcross:{name:'Steal the Cross',from:'Scout Report · Brakka',need:3,days:2,riskTxt:'Moderate',
+  depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',
+    desc:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
+    rew:{i:5,xp:0.2}},
+  stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
     lead:'ground',leadTxt:'Fight it on the ground',ground:true,
-    desc:'Dustfall keeps one FT-4 Cross on the pad behind the sheriff’s HQ. The FT-4 is built for frontier sheriffs who need something cheap and reliable to deter smugglers and gangs in their turf. When you strap more guns and missiles to it however, it becomes rather useful in a pinch. Sheriff Reeve enforces Hegemony law here. Put Sera on the stick and walk her to the pad.',
+    desc:'Dustfall keeps one FT-4 Cross on the pad behind the sheriff’s HQ. The FT-4 is built for frontier sheriffs who need something cheap and reliable to deter smugglers and gangs in their turf. When you strap more guns and missiles to it however, it becomes rather useful in a pinch. Sheriff Reeve enforces Hegemony law here. Walk a pilot to the pad and fly it home.',
     rew:{cross:1,c:120,s:30,xp:0.2}},
   orehaul:{name:'Dreymar Ore Heist',from:'Scout Report · Dreymar',need:2,days:3,riskTxt:'Moderate',
     desc:'A company ore barge runs unescorted on payday. The miners will swear they saw nothing.',
@@ -270,8 +266,28 @@ const PLANETDEF=[
   {id:'oubli',name:'Oubliette',kind:'Dead Colony',pop:'0',x:0.14,y:0.16,scout:4,
    sit:'A colony that stopped answering forty years ago. Empty streets. One transmitter, still powered.'},
 ];
-const SRCPOS={halt:'veray',vokk:'kess',marr:'callis',renn:'meridian'};
+const SRCPOS={cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian'};
+/* the scripted first contacts of the campaign */
+const STORY_SRC={
+  cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:4},
+    bio:'Flew you in and didn’t ask questions. Knows every pad, every price, and every sheriff’s bad habit between here and the core.'},
+  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:12},
+    bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
+};
+function addStorySource(id){
+  if(G.sources.some(s=>s.id===id))return G.sources.find(s=>s.id===id);
+  const src=Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
+    JSON.parse(JSON.stringify(STORY_SRC[id])));
+  G.sources.push(src);
+  return src;
+}
 const CANDS={
+  halt:{id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,inc:{s:6},
+    bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.',
+    pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Brakka depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
+  vokk:{id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,inc:{c:25},
+    bio:'Votes loyal, funds otherwise. Terrified of audits.',
+    pitch:'<b>Senator Adria Vokk</b> votes loyal and funds otherwise. Her courier found ours at Relay Kess with a first payment and one condition: no one ever says her name aloud.'},
   marr:{id:'marr',name:'Prof. Etta Marr',type:'Scientist',loc:'Callis Institute',level:1,cult:10,risk:20,inc:{i:1},
     bio:'Astrophysicist with cordoned-sector clearance and a brother in a labor camp.',
     pitch:'<b>Prof. Etta Marr</b>, astrophysicist, Callis Institute. Cordoned-sector clearance, a brother in a labor camp, and a dead drop that found us the day we got eyes on Callis. She’s offering hers.'},
@@ -283,7 +299,29 @@ const RECRUITS={
   Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
   Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
 };
+/* the campaign's scripted first signals — they re-arm if let lie */
+function storySignal(src){
+  if(src.signal||src.pendingEvent)return false;
+  if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
+    src.signal={kind:'mission',mid:'stealcross',
+      text:'“You want to matter out here, you need wings. Dustfall — sheriff town on Brakka — keeps one FT-4 Cross on the pad behind the HQ and a fat opinion of itself. I can get you the pad layout.”'};
+    G.onboard='revealed';
+    return true;
+  }
+  if(src.id==='cass'&&G.onboard==='seraoffered'&&!G.people.some(p=>p.id==='sera')){
+    src.signal={kind:'recruitSera',
+      text:'“Found your stick. Sera Kest — ex-Hegemony survey pilot, grounded for attitude, hungrier to fly than anyone I ever hauled. She’s on my next run if you’ll have her.”'};
+    return true;
+  }
+  if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
+    src.signal={kind:'mission',mid:'depotrun',
+      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Brakka feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
+    return true;
+  }
+  return false;
+}
 function rollSignal(src){
+  if(storySignal(src))return;
   if(src.signal||src.pendingEvent)return;
   const pool=SIGNALS[src.id];
   if(!pool)return;
@@ -300,7 +338,21 @@ function followSignal(src){
   if(!sig)return '';
   if(sig.kind==='mission'){
     addMission(sig.mid);
-    return 'New mission on the board: <b>'+MPOOL[sig.mid].name+'</b>.';
+    let txt='New mission on the board: <b>'+MPOOL[sig.mid].name+'</b>.';
+    if(sig.mid==='stealcross'&&(G.onboard==='revealed'||G.onboard==='contact')){
+      G.onboard='pilotwait';
+      txt+=' One catch — the plan needs two pilots and we have one. Cass is already asking around; give him a day.';
+    }
+    if(sig.mid==='depotrun')G.onboard='done';
+    return txt;
+  }
+  if(sig.kind==='recruitSera'){
+    if(G.people.length>=bunkCap())return 'No bunk for a new pilot. Clear one, then raise Cass again.';
+    G.people.push({id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
+      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'});
+    G.onboard='crossready';
+    news('<b>Sera Kest</b> (Pilot) steps off Cass’s freighter with one bag and a flight jacket. One more of us.','g');
+    return '<b>Sera Kest</b> is in and drawing a bunk. A pilot with Hegemony survey hours — exactly the stick the Dustfall job needs.';
   }
   if(sig.kind==='recruit'||sig.kind==='recruitS'){
     if(G.people.length>=bunkCap())return 'No bunks left. They stay where they are — build an annex first.';
@@ -394,6 +446,20 @@ function advanceDay(){
       news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Decide something before the Hegemony does.','h');
     }
   }
+  // candidates who found the network full try again when a slot opens
+  if(G.candWait&&G.candWait.length&&G.sources.filter(s=>s.alive).length<sourceCap()){
+    G.candQ.push(...G.candWait);G.candWait=[];
+  }
+  // the network comes through: Cass finds the pilot the Dustfall job needs
+  if((G.onboard==='pilotwait'||G.onboard==='seraoffered')&&!G.people.some(p=>p.id==='sera')){
+    const cass=G.sources.find(s=>s.id==='cass'&&s.alive);
+    if(cass){
+      const first=G.onboard==='pilotwait';
+      G.onboard='seraoffered';
+      storySignal(cass);
+      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Source Network.','a');sAlert();}
+    }
+  }
   if(hasRoom('comms')&&staffOf('comms').length)G.intel+=roomsOf('comms').length;
   else if(hasRoom('comms'))news('The comms array hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
   for(const m of G.missions){
@@ -438,6 +504,22 @@ function launchMission(m,pilotIds){
   closeWin();syncUI();
   return true;
 }
+/* story consequences of finished jobs — fires however the mission was run */
+function missionAftermath(mid){
+  if(mid==='stealcross'&&!G.sources.some(s=>s.id==='venn')){
+    const venn=addStorySource('venn');
+    G.onboard='friend';
+    storySignal(venn);
+    news('Word crosses the drift ahead of us: <b>Maro Venn</b>, keeper of the Dry Comet cantina in Dustfall, is asking after the crew that humbled Reeve. A new source — and he’s already signalling.','g');
+    sAlert();
+  }
+  if(mid==='depotrun'&&!G.postDepot){
+    G.postDepot=true;
+    news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
+    G.candQ.push('halt');
+    G.candQ.push('vokk');
+  }
+}
 function resolveMission(m){
   const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
@@ -468,6 +550,7 @@ function resolveMission(m){
     m.state='done';m.meta='SUCCESS';
     news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
+    missionAftermath(m.id);
   } else {
     const hurt=pilots[Math.floor(rng()*pilots.length)];
     hurt.injured=(hasRoom('infirmary')&&medStaff().length)?2:4;
@@ -565,7 +648,8 @@ function acceptCandidate(id){
   if(!cd)return closeWin();
   if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
   if(G.sources.filter(s=>s.alive).length>=sourceCap()){
-    news('No capacity to run another source safely. '+cd.name+' walks.','h');
+    news('No capacity to run another source safely. <b>'+cd.name+'</b> will wait — grow the network (a comms array adds capacity) and they’ll come back around.','h');
+    (G.candWait=G.candWait||[]).push(cd.id);
   } else {
     G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
       JSON.parse(JSON.stringify(cd))));
@@ -1368,7 +1452,7 @@ function renderWin(){
     h='<div class="winHead"><span class="wt">New Mission · '+(m.from||'the network')+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
       '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
       '<div class="mdesc">'+m.desc+'</div>'+
-      '<div class="mmeta">'+m.need+(m.ground?' soldiers':' pilots')+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
+      '<div class="mmeta">'+m.need+(m.ground?(m.need>1?' soldiers':' soldier'):(m.need>1?' pilots':' pilot'))+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
       (m.lead?'<button class="dbtn" data-mlead="'+m.id+'"><b>'+(m.leadTxt||'Fly it yourself')+'</b> — take command in the field.</button>':'')+
       '<button class="dbtn" data-mplan="'+m.id+'">Send a team without you.</button>'+
       '<button class="dbtn" data-close>Noted. It’ll keep on the board.</button>'+
@@ -1393,7 +1477,7 @@ function renderWin(){
         '<div class="mdesc">'+m.desc+'</div>';
       if(m.state==='avail'){
         const rew=[m.rew.cross?'+FT-4 Cross':null,m.rew.c?C(m.rew.c):null,m.rew.s?S(m.rew.s):null,m.rew.i?I(m.rew.i):null,m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
-        h+='<div class="mmeta">'+m.need+(m.ground?' soldiers':' pilots')+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
+        h+='<div class="mmeta">'+m.need+(m.ground?(m.need>1?' soldiers':' soldier'):(m.need>1?' pilots':' pilot'))+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
           (m.lead?'<button class="sbtn" data-mlead="'+m.id+'">'+(m.leadTxt||'Fly it yourself')+'</button> ':'')+
           '<button class="sbtn" data-plan="'+m.id+'">Send a Team</button>';
       }
@@ -1415,7 +1499,7 @@ function renderWin(){
     h='<div class="winHead"><span class="wt">'+(planLead?'Lead · ':'Plan · ')+m.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
       '<div class="pdesc">'+(m.ground?
         'Needs '+m.need+' soldiers, the Graf flight-ready (hull ≥ 60%), and two able pilots — one flies the Graf, one comes home in the Cross. Graf ready: <b style="color:var(--text)">'+(usable?'yes':'no')+'</b> · pilots: <b style="color:var(--text)">'+(pilotsOk?'yes':'no')+'</b>.':
-        'Needs '+m.need+' pilots and '+m.need+' flight-ready fighters (hull ≥ 60%). Ready: <b style="color:var(--text)">'+usable+'</b>.')+
+        'Needs '+m.need+' pilot'+(m.need>1?'s':'')+' and '+m.need+' flight-ready fighter'+(m.need>1?'s':'')+' (hull ≥ 60%). Ready: <b style="color:var(--text)">'+usable+'</b>.')+
       (planLead?' You run it on the ground yourself — what happens out there is on you.':'')+'</div>';
     for(const p of eligible){
       h+='<label class="prow" style="cursor:pointer"><input type="checkbox" class="pcheck" data-pk="'+p.id+'">'+
@@ -1773,11 +1857,15 @@ function launchIntro(){
   SR.mission=introSpec();
   SR.go('ground',{mission:SR.mission});
 }
+function discoverCass(){
+  if(G.sources.some(s=>s.id==='cass'))return;
+  addStorySource('cass');
+  if(G.onboard==='intro'||G.onboard===undefined)G.onboard='contact';
+}
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
   news('Inventory logged: six Aklis, four Cowboys, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
-  news('Two contacts on the wire: Halt at the Veray yards, the Senator through Relay Kess. Scraps, for now.','d');
-  news('The board is empty. Work the sources — missions, supplies and recruits all come through the network.','a');
+  news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in. He knows things worth knowing — open the <b>Source Network</b> from the command room and raise him.','a');
 }
 
 /* ---------- leading missions in person ---------- */
@@ -1849,6 +1937,7 @@ function applyDebrief(r){
       }
       news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
       news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
+      discoverCass();
       seedNews();
       sBuild();
       saveSnap();syncUI();
@@ -1896,7 +1985,9 @@ function applyDebrief(r){
   if(r.win&&r.cross){
     if(G.fighters.length<fighterCap()){
       G.fighters.push({id:'dustfall',name:'Dustfall',cls:'cross',hull:85,out:false});
-      const orphan=G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
+      const flew=(r.people||[]).map(pr=>pr.id);
+      const orphan=G.people.find(p=>p.role==='Pilot'&&flew.includes(p.id)&&!G.fighters.some(f=>f.id===p.ship))
+        ||G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
       if(orphan)orphan.ship='dustfall';
       got.push('the FT-4 Cross \u201cDustfall\u201d');
     } else {G.credits+=200;got.push('no berth \u2014 the Cross fenced for '+C(200));}
@@ -1921,6 +2012,7 @@ function applyDebrief(r){
       G.morale=Math.min(100,G.morale+6);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
       sBuild();
+      missionAftermath(m.id);
     } else {
       m.state='avail';m.progress=null;
       G.morale=Math.max(0,G.morale-8);
@@ -1957,6 +2049,7 @@ function restoreCampaign(data){
     G=data.campaign;started=true;
     if(G.introDone===undefined)G.introDone=true;
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
+    if(G.onboard===undefined)G.onboard='done';
     $('debrief').hidden=true;
     G.misPopQ=G.misPopQ||[];
     G.candQ=G.candQ||[];
@@ -1992,7 +2085,8 @@ function enter(params){
     if(!restoreCampaign(SR.loadSave())){
       G=newGame();
       if(location.hash==='#deploy'||location.hash==='#test'){
-        $('debrief').hidden=true;started=true;G.introDone=true;seedNews();
+        $('debrief').hidden=true;started=true;G.introDone=true;
+        discoverCass();seedNews();
       }
     }
   }

@@ -36,6 +36,7 @@ function dialViper(){const d=[];for(let s=1;s<=4;s++)d.push([s,'S']);for(let s=1
 function dialTalon(){const d=[];for(let s=2;s<=5;s++)d.push([s,'S']);for(let s=2;s<=4;s++){d.push([s,'l']);d.push([s,'r']);}for(let s=2;s<=3;s++){d.push([s,'L']);d.push([s,'R']);}return d;}
 function dialFled(){const d=[];for(let s=1;s<=3;s++)d.push([s,'S']);for(let s=1;s<=2;s++){d.push([s,'l']);d.push([s,'r']);}d.push([1,'L']);d.push([1,'R']);return d;}
 function dialGraf(){const d=[];for(let s=1;s<=2;s++)d.push([s,'S']);for(let s=1;s<=2;s++){d.push([s,'l']);d.push([s,'r']);}return d;}
+function dialDrone(){const d=[];for(let s=1;s<=4;s++)d.push([s,'S']);for(let s=1;s<=3;s++){d.push([s,'l']);d.push([s,'r']);}d.push([1,'L']);d.push([1,'R']);return d;}
 const CLS={
   viper:{label:'FT-4 Cross',role:'Multi-role Starfighter',init:3,tn:11,size:1.15,shdF:15,shdR:15,arm:20,hull:40,dial:dialViper,maxSpd:4,
     wpns:['plasma','ballistic','missile'],dmg:{plasma:[8,14],ballistic:[12,18],missile:[26,36]},ammo:{ballistic:6,missile:2}},
@@ -47,8 +48,14 @@ const CLS={
     wpns:['plasma'],dmg:{plasma:[7,12]},ammo:{}},
   graf:{label:'Graf Type 1 Hauler',role:'Troop Transport (converted)',init:1,tn:9,size:1.4,shdF:10,shdR:10,arm:25,hull:60,dial:dialGraf,maxSpd:2,
     wpns:['ballistic'],dmg:{ballistic:[10,16]},ammo:{ballistic:10}},
+  depot:{label:'Fuel Depot',role:'Hegemony Orbital Fuel Store',init:0,tn:8,size:1.7,shdF:0,shdR:0,arm:8,hull:55,dial:()=>[[1,'S']],maxSpd:1,
+    wpns:[],dmg:{},ammo:{},struct:1,mute:1},
+  drone:{label:'RQ-7 Sentry',role:'Combat Drone',init:2,tn:10,size:0.9,shdF:0,shdR:0,arm:6,hull:16,dial:dialDrone,maxSpd:4,
+    wpns:['plasma'],dmg:{plasma:[6,11]},ammo:{},mute:1},
 };
+function isStruct(s){return !!CLS[s.cls].struct;}
 const TRAITDESC={
+  'Drone':'A flight computer with a gun. Feels nothing, fears nothing, flees nothing.',
   'Lucky':'Things just miss them. −1 enemy difficulty, +1 to their own attacks.',
   'Ace Training':'Academy loop certification — the ↺ maneuver is on their dial.',
   'Friends: Joss':'Flies better knowing Joss is out there. Much worse if he isn’t.',
@@ -112,6 +119,7 @@ function nerve(s){
   return st==='cool'?['COOL','#57d7e2']:st==='panic'?['PANICKING','#ff4f5e']:['STEADY','#c7a86a'];
 }
 function adjCool(s,d,why){
+  if(CLS[s.cls].mute)return; // no nerve to rattle
   const p=s.pilot,pre=coolState(s);
   p.cool=Math.max(0,Math.min(100,p.cool+d));
   if(p.traits.includes('Veteran'))p.cool=Math.max(40,p.cool);
@@ -137,6 +145,41 @@ const DEPLOY=[
   ['E4','Cadet 3','fled','heg',3400,1120,Math.PI*0.75,{pname:'Cadet Sooli',first:'SOOLI',age:21,aim:2,cool:55,traits:['Green'],mans:[],level:0,xp:0.5,bio:'The only cadet Vex has ever almost complimented.'}],
   ['E5','Cadet 4','fled','heg',3380,1420,Math.PI*0.75,{pname:'Cadet Werrin',first:'WERRIN',age:19,aim:1,cool:45,traits:['Green'],mans:[],level:0,xp:0,bio:'First live exercise. First time past the moons.'}],
 ];
+/* ---------- scenarios ---------- */
+const SCENS={
+  instructor:{
+    sub:'Mission · Take Out Instructor · Veray Drift',
+    banner:['Take Out Instructor','Eliminate Commandant Vex'],
+    brief:{
+      eyebrow:'Source Intel · Ferren Halt',
+      title:'Take Out Instructor',
+      flavour:'Commandant Dral Vex trains every Hegemony fighter pilot in this sector, and his cadets leave the academy shooting straight. Right now he’s running a live exercise in the Veray Drift with four green cadets and no escort. Kill the instructor and the Hegemony’s next class of pilots dies with him.',
+      objectives:['Shoot down Commandant Vex',
+        {sub:1,text:'His cadets are green — expect them to break when he falls.'}],
+    },
+  },
+  depot:{
+    sub:'Mission · Cook the Depots · Brakka Orbit',
+    banner:['Cook the Depots','The patrols fly on what you burn'],
+    brief:{
+      eyebrow:'A Favour Returned · Maro Venn',
+      title:'Cook the Depots',
+      flavour:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. Tonight nothing guards them but sentry drones. Burn the fuel and be gone before anything with a pilot shows up.',
+      objectives:['Destroy all four fuel depots',
+        {sub:1,text:'The sentry drones will come for you — outfly them or gun them down.'}],
+    },
+  },
+};
+let SCEN='instructor';
+const DEPLOY_DEPOT=[
+  ['D1','Depot 1','depot','heg',1750,1500,0.3,{pname:'Fuel Depot 1',first:'D-1',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Sixty thousand tonnes of patrol fuel in a can.'}],
+  ['D2','Depot 2','depot','heg',2500,720,-0.4,{pname:'Fuel Depot 2',first:'D-2',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'The reason the drift patrols never run dry.'}],
+  ['D3','Depot 3','depot','heg',3050,1950,0.8,{pname:'Fuel Depot 3',first:'D-3',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Painted with a fading Hegemony crest and a NO SMOKING sign.'}],
+  ['D4','Depot 4','depot','heg',3650,1050,-0.9,{pname:'Fuel Depot 4',first:'D-4',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Topped off yesterday. Unfortunate timing.'}],
+  ['R1','Sentry 1','drone','heg',2300,1250,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
+  ['R2','Sentry 2','drone','heg',2950,1000,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
+  ['R3','Sentry 3','drone','heg',2800,2100,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
+];
 let CTX=null; // mission spec from the base layer (null => sim/default cast)
 function deploy(withCutscene){
   if(CTX&&CTX.flight&&CTX.flight.length){
@@ -152,11 +195,16 @@ function deploy(withCutscene){
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
       return sh;
     });
-    const nCad=Math.max(2,Math.min(4,flight.length));
-    for(const d of DEPLOY){
-      if(d[3]!=='heg')continue;
-      if(d[0]!=='E1'&&(+d[0].slice(1)-1)>nCad)continue;
-      ships.push(mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7]))));
+    if(SCEN==='depot'){
+      for(const d of DEPLOY_DEPOT)
+        ships.push(mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7]))));
+    } else {
+      const nCad=Math.max(2,Math.min(4,flight.length));
+      for(const d of DEPLOY){
+        if(d[3]!=='heg')continue;
+        if(d[0]!=='E1'&&(+d[0].slice(1)-1)>nCad)continue;
+        ships.push(mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7]))));
+      }
     }
   } else {
     ships=DEPLOY.map(d=>mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7]))));
@@ -191,6 +239,7 @@ function startCutscene(){
   const now=performance.now();
   cs={t0:now,skipped:false,bannerShown:false,saidA:false,saidB:false};
   for(const s of ships){
+    if(isStruct(s))continue; // stations don't fly in — they were always here
     const delay=s.faction==='reb'?({P1:0,P2:0.3,P3:0.55}[s.id]||0):({E1:2.3,E2:2.5,E3:2.65,E4:2.8,E5:2.95}[s.id]||2.3);
     s.cs={tx:s.x,ty:s.y,sx:s.x-Math.cos(s.h)*1500,sy:s.y-Math.sin(s.h)*1500,d0:delay,d1:delay+1.5};
     s.x=s.cs.sx;s.y=s.cs.sy;
@@ -213,7 +262,7 @@ function csUpdate(now){
   }
   if(t>1.1&&!cs.saidA){cs.saidA=true;const p=ships.find(x=>x.id==='P1');if(p)say(p,'start');}
   if(t>2.2&&t<2.3&&!cs.cut){cs.cut=true;cam={x:3200,y:1200,z:0.38};camGoal=null;clampCam();}
-  if(t>3.5&&!cs.saidB){cs.saidB=true;const v=ships.find(x=>x.id==='E1');if(v)say(v,'start');}
+  if(t>3.5&&!cs.saidB){cs.saidB=true;if(SCEN==='instructor'){const v=ships.find(x=>x.id==='E1');if(v)say(v,'start');}}
   if(t>4.4&&!cs.fit){cs.fit=true;camGoal={x:W*0.47,y:H*0.6,z:Math.max(fitZoom()*0.95,0.24)};}
   if(t>4.8&&!cs.bannerShown){cs.bannerShown=true;byId('csBanner').classList.add('show');}
   if(t>6.6)endCutscene();
@@ -304,6 +353,7 @@ const CHAT={
 };
 function say(s,key){
   if(!s)return;
+  if(CLS[s.cls].mute)return; // drones and structures have nothing to say
   if(!s.alive&&key!=='victory')return;
   const now=performance.now();
   if(now-s.pilot.lastSay<3500)return;
@@ -379,6 +429,12 @@ function applicableCrits(s){
   return out;
 }
 function applyCritical(s,why){
+  if(isStruct(s)){ // a fuel can has no subsystems — a crit just bites deeper
+    s.hull=Math.max(0,s.hull-4);
+    addFloater(s.x,s.y-46,'TANK RUPTURE -4','#ff4f5e');
+    log('<span class="h">⚠ Tank rupture</span> on '+nameSpan(s)+' — fuel bleeds into the dark.');
+    return null;
+  }
   const opts=applicableCrits(s);
   if(!opts.length){
     s.hull=Math.max(0,s.hull-2);
@@ -419,8 +475,9 @@ function chooseAttack(s){
   let order=foes.slice().sort((a,b)=>dist(s,a)-dist(s,b));
   const lockT=foes.find(f=>s.lock&&s.lock.target===f.id);
   if(s.faction==='reb'){
-    const vex=foes.find(f=>f.id==='E1');
-    order=[...(lockT?[lockT]:[]),...(vex?[vex]:[]),...order].filter((v,i,a)=>a.indexOf(v)===i);
+    const prio=SCEN==='depot'?foes.filter(f=>isStruct(f)).sort((a,b)=>dist(s,a)-dist(s,b)):
+      foes.filter(f=>f.id==='E1');
+    order=[...(lockT?[lockT]:[]),...prio,...order].filter((v,i,a)=>a.indexOf(v)===i);
   } else {
     order.sort((a,b)=>(totalShield(a)+a.arm+a.hull)-(totalShield(b)+b.arm+b.hull));
     order=[...(lockT?[lockT]:[]),...order].filter((v,i,a)=>a.indexOf(v)===i);
@@ -552,8 +609,8 @@ function doAction(s,act){
 function executeRound(){
   if(phase!=='PLANNING')return;
   if(ships.some(s=>s.alive&&s.faction==='reb'&&!s.plan.man))return;
-  for(const s of ships){if(s.alive&&s.faction==='heg')s.plan.man=aiManeuver(s);}
-  const order=ships.filter(s=>s.alive).sort((a,b)=>effInit(a)-effInit(b)||(a.faction==='heg'?-1:1)-(b.faction==='heg'?-1:1));
+  for(const s of ships){if(s.alive&&s.faction==='heg'&&!isStruct(s))s.plan.man=aiManeuver(s);}
+  const order=ships.filter(s=>s.alive&&!isStruct(s)).sort((a,b)=>effInit(a)-effInit(b)||(a.faction==='heg'?-1:1)-(b.faction==='heg'?-1:1));
   exec={order,idx:0,stage:'focus',t0:performance.now()};
   hoverMan=null;lockPickMode=false;radialMenu='root';
   phase='EXEC';
@@ -612,7 +669,7 @@ function nextExec(){
   exec.stage='focus';exec.t0=performance.now();
 }
 function startAttackPhase(){
-  const order=ships.filter(s=>s.alive).sort((a,b)=>effInit(b)-effInit(a)||(a.faction==='reb'?-1:1)-(b.faction==='reb'?-1:1));
+  const order=ships.filter(s=>s.alive&&!isStruct(s)).sort((a,b)=>effInit(b)-effInit(a)||(a.faction==='reb'?-1:1)-(b.faction==='reb'?-1:1));
   attackQ={order,idx:0,cur:null,nextAt:performance.now()+350};
   phase='ATTACK';
   syncUI();
@@ -780,15 +837,17 @@ function applyCtx(c){
   syncUI();
 }
 function destroyShip(t,killer){
-  if(killer&&killer.faction==='reb'&&t.faction==='heg')killer.pilot.xpGain=(killer.pilot.xpGain||0)+(t.id==='E1'?0.45:0.22);
+  if(killer&&killer.faction==='reb'&&t.faction==='heg')
+    killer.pilot.xpGain=(killer.pilot.xpGain||0)+((SCEN==='instructor'&&t.id==='E1')?0.45:isStruct(t)?0.3:0.22);
   t.alive=false;
   if(infoShip===t.id)closeInfo();
   if(selId===t.id)selId=killer&&killer.faction==='reb'?killer.id:selId;
-  explode(t.x,t.y,t.size);
+  explode(t.x,t.y,t.size*(isStruct(t)?1.5:1));
   flashT=performance.now();
-  shake=Math.max(shake,RM?0:18);
-  sBoom(false);
-  log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">destroyed!</span>');
+  shake=Math.max(shake,RM?0:isStruct(t)?26:18);
+  sBoom(isStruct(t));
+  if(isStruct(t))log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">goes up</span> — the fuel cooks off in a fireball they’ll see from Dustfall.');
+  else log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">destroyed!</span>');
   if(killer&&killer.alive){adjCool(killer,12,'kill');say(killer,'kill');}
   for(const m of ships){
     if(!m.alive||m.faction!==t.faction||m===t)continue;
@@ -799,7 +858,7 @@ function destroyShip(t,killer){
       log(nameSpan(m)+' <span class="h">watches their friend die — they will not recover</span>');
     }
   }
-  if(t.id==='E1'){
+  if(SCEN==='instructor'&&t.id==='E1'){
     for(const m of ships)if(m.alive&&m.faction==='heg'&&m.pilot.traits.includes('Green'))adjCool(m,-45,'instructor down');
     const cad=ships.filter(m=>m.alive&&m.faction==='heg'&&m.id!=='E1');
     if(cad.length)say(cad[Math.floor(rng()*cad.length)],'vexdown');
@@ -826,10 +885,15 @@ function endRound(){
       log(nameSpan(s)+' <span class="d">spools their drive and flees the sector</span>');
     }
   }
-  const vex=ships.find(s=>s.id==='E1');
   const rebAlive=ships.some(s=>s.alive&&s.faction==='reb');
-  if(!vex.alive){gameOver(true);return;}
-  if(!rebAlive){gameOver(false);return;}
+  if(SCEN==='depot'){
+    if(!ships.some(s=>isStruct(s)&&s.alive)){gameOver(true);return;}
+    if(!rebAlive){gameOver(false);return;}
+  } else {
+    const vex=ships.find(s=>s.id==='E1');
+    if(!vex.alive){gameOver(true);return;}
+    if(!rebAlive){gameOver(false);return;}
+  }
   round++;
   phase='PLANNING';
   camFitPlayers(false);
@@ -843,7 +907,20 @@ function gameOver(win){
   const t=byId('endTitle'),x=byId('endText');
   const fled=ships.filter(s=>s.fledOut).length;
   const killedCadets=ships.filter(s=>s.faction==='heg'&&!s.alive&&!s.fledOut&&s.id!=='E1').length;
-  if(win){
+  if(SCEN==='depot'){
+    if(win){
+      t.textContent='Depots Burned';t.className='win';
+      const drones=ships.filter(s=>s.cls==='drone'&&!s.alive).length;
+      x.textContent='Four fireballs over Brakka after '+round+' rounds, and every patrol in the sector suddenly counting its fuel. '
+        +(drones?drones+' sentry drone'+(drones>1?'s':'')+' shot down along the way. ':'')
+        +'Venn’s intel was good — and what the depots’ manifests told us on the way in is worth even more.';
+      log('<span class="g">— MISSION COMPLETE · all depots destroyed —</span>');
+    } else {
+      t.textContent='Flight Lost';t.className='loss';
+      x.textContent='The drones did exactly what they were built to do. The depots stand, the patrols fly on, and the Cross is scrap over Brakka.';
+      log('<span class="h">— MISSION FAILED · flight lost —</span>');
+    }
+  } else if(win){
     const p=ships.find(s=>s.id==='P1');if(p&&p.alive)say(p,'victory');
     t.textContent='Instructor Down';t.className='win';
     const lost=ships.filter(s=>s.faction==='reb'&&!s.alive).map(s=>s.name);
@@ -1025,11 +1102,17 @@ function shipPath(cls){
       extra:c=>{c.moveTo(0,-6);c.lineTo(-3,-11);c.lineTo(-8,-10);c.moveTo(0,6);c.lineTo(-3,11);c.lineTo(-8,10);},canopy:[4,0,3.2,2.2]};
     case 'graf':return {body:[[15,-4],[15,4],[10,7],[-13,7],[-16,4],[-16,-4],[-13,-7],[10,-7]],
       extra:c=>{c.moveTo(-6,-7);c.rect(-14,-11,10,4);c.moveTo(-6,7);c.rect(-14,7,10,4);},canopy:[11,0,2.4,3.2]};
+    case 'depot':return {body:[[11,-5],[5,-11],[-5,-11],[-11,-5],[-11,5],[-5,11],[5,11],[11,5]],
+      extra:c=>{c.moveTo(11,-3);c.rect(11,-3,5,6);c.moveTo(-16,-3);c.rect(-16,-3,5,6);c.moveTo(-3,-16);c.rect(-3,-16,6,5);c.moveTo(-3,11);c.rect(-3,11,6,5);},canopy:[0,0,3.4,3.4]};
+    case 'drone':return {body:[[11,0],[3,-3],[-5,-8],[-9,-6],[-6,0],[-9,6],[-5,8],[3,3]],
+      extra:null,canopy:[3,0,2,1.4]};
   }
 }
 function shipColors(s){
   if(s.faction==='reb')return {hull:'#8fa5c4',edge:'#c8dbf5',acc:'#ffb454',glow:'rgba(87,215,226,'};
   if(s.cls==='fled')return {hull:'#5d6470',edge:'#8b93a2',acc:'#ff9d3d',glow:'rgba(255,150,80,'};
+  if(s.cls==='depot')return {hull:'#6a6146',edge:'#a89a6c',acc:'#ffb454',glow:'rgba(255,180,84,'};
+  if(s.cls==='drone')return {hull:'#3f4a58',edge:'#7e8ea0',acc:'#ff4f5e',glow:'rgba(255,90,80,'};
   return {hull:'#4c5563',edge:'#7d8798',acc:'#ff4f5e',glow:'rgba(255,90,80,'};
 }
 function iconBoost(){return Math.max(1,Math.min(2.8,0.55/cam.z));}
@@ -1591,8 +1674,9 @@ function render(now){
   for(const r of rocks){ctx.beginPath();ctx.arc(mm.x+r.x*msc,mm.y+r.y*msc,Math.max(1.2,r.r*msc),0,Math.PI*2);ctx.fill();}
   for(const s of ships){
     if(!s.alive)continue;
-    ctx.fillStyle=s.faction==='reb'?'#57d7e2':(s.id==='E1'?'#ffb454':'#ff4f5e');
-    ctx.beginPath();ctx.arc(mm.x+s.x*msc,mm.y+s.y*msc,s.id==='E1'?3:2.2,0,Math.PI*2);ctx.fill();
+    const mark=(SCEN==='instructor'&&s.id==='E1')||isStruct(s);
+    ctx.fillStyle=s.faction==='reb'?'#57d7e2':(mark?'#ffb454':'#ff4f5e');
+    ctx.beginPath();ctx.arc(mm.x+s.x*msc,mm.y+s.y*msc,mark?3:2.2,0,Math.PI*2);ctx.fill();
   }
   ctx.strokeStyle='rgba(255,180,84,0.7)';
   ctx.strokeRect(mm.x+(cam.x-cssW/(2*cam.z))*msc,mm.y+(cam.y-cssH/(2*cam.z))*msc,cssW/cam.z*msc,cssH/cam.z*msc);
@@ -1995,9 +2079,17 @@ function dockHTML(){
 function syncUI(){
   $('phaseName').textContent=phase==='PLANNING'?'Planning':phase==='EXEC'?'Execution':phase==='ATTACK'?'Attack':phase==='CUTSCENE'?'Approach':phase==='GAMEOVER'?'Debrief':'—';
   $('roundNum').textContent='ROUND '+round;
-  const vex=ships.find(s=>s.id==='E1');
   const ol=$('objline');
-  if(vex){ol.textContent=vex.alive?'Objective: eliminate Cmdt. Dral Vex':'Objective complete — instructor eliminated';ol.className=vex.alive?'':'done';}
+  if(SCEN==='depot'){
+    const tot=ships.filter(s=>isStruct(s)).length;
+    const down=ships.filter(s=>isStruct(s)&&!s.alive).length;
+    const won=tot>0&&down>=tot;
+    ol.textContent=won?'Objective complete — all depots destroyed':'Objective: destroy the fuel depots — '+down+'/'+(tot||4);
+    ol.className=won?'done':'';
+  } else {
+    const vex=ships.find(s=>s.id==='E1');
+    if(vex){ol.textContent=vex.alive?'Objective: eliminate Cmdt. Dral Vex':'Objective complete — instructor eliminated';ol.className=vex.alive?'':'done';}
+  }
   $('rosterR').innerHTML=ships.filter(s=>s.faction==='reb').map(rosterRow).join('');
   $('rosterE').innerHTML=ships.filter(s=>s.faction==='heg').map(rosterRow).join('');
   const sel=ships.find(s=>s.id===selId);
@@ -2123,10 +2215,11 @@ function flightChips(cls){
   });
 }
 function briefUI(){
-  byId('spObj').innerHTML=SR.ui.objRows([
-    'Shoot down Commandant Vex',
-    {sub:1,text:'His cadets are green — expect them to break when he falls.'},
-  ]);
+  const B=SCENS[SCEN].brief;
+  byId('spEyebrow').textContent=B.eyebrow;
+  byId('spTitle').textContent=B.title;
+  byId('spFlavour').textContent=B.flavour;
+  byId('spObj').innerHTML=SR.ui.objRows(B.objectives);
   let cards;
   if(CTX&&CTX.flight&&CTX.flight.length){
     cards=CTX.flight.slice(0,4).map(f=>{
@@ -2144,6 +2237,11 @@ function briefUI(){
 function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven Rock */}
 function enter(params){
   CTX=(params&&params.mission)||SR.mission||null;
+  SCEN=(CTX&&CTX.missionId==='depotrun')?'depot':'instructor';
+  byId('spSub').textContent=SCENS[SCEN].sub;
+  const bn=byId('csBanner');
+  bn.querySelector('.big').textContent=SCENS[SCEN].banner[0];
+  bn.querySelector('.small').textContent=SCENS[SCEN].banner[1];
   fitCanvas();
   $('muteBtn').textContent='Sound: '+(A.muted()?'Off':'On');
   $('muteBtn').setAttribute('aria-pressed',String(A.muted()));
@@ -2169,7 +2267,7 @@ SR.register('space',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
-    get pendingResult(){return pendingResult;},
+    get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
     fn:{deploy,gameOver,destroyShip,
       forceEnd(win){gameOver(win);}}};
 }
