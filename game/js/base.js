@@ -2009,7 +2009,8 @@ function leadMission(m,ids){
     const grafPilot=pilots.find(p=>p.ship==='graf')||pilots[1];
     const spare=pilots.find(p=>p.id!==grafPilot.id);
     const scatter=G.armory.find(a=>a.id==='scatter'&&a.n>0);
-    SR.mission={kind:'ground',missionId:m.id,days:m.days,
+    const blam=G.armory.find(a=>a.id==='blam');
+    SR.mission={kind:'ground',missionId:m.id,days:m.days,nades:blam?blam.n:0,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0]},
@@ -2104,6 +2105,13 @@ function applyDebrief(r){
     if(r.loot.c){G.credits+=r.loot.c;got.push(C(r.loot.c));}
     if(r.loot.s){G.supplies+=r.loot.s;got.push(S(r.loot.s));}
     for(const it of r.loot.items||[]){addArmoryItem(it);got.push(it);}
+  }
+  if(r.kind==='ground'&&r.nades!==undefined){
+    const a=G.armory.find(x=>x.id==='blam');
+    if(a)a.n=r.nades;
+    else if(r.nades>0)G.armory.push({id:'blam',name:'BLAM Frag Grenade',n:r.nades,ic:'✸',
+      desc:'Cheap, loud, and honest about it. Thrown one round, felt the next.'});
+    if(r.nades>0&&!a)got.push('BLAM frags ×'+r.nades);
   }
   if(r.win&&r.cross){
     if(G.fighters.length<fighterCap()){

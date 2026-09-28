@@ -90,6 +90,20 @@ The three layers now run as **one playable game** (`game/index.html` +
   unavailable crew greyed-out with the reason, and a **Go to the Hangar**
   button plus arrow walks the player to the derelict-hauler restoration
   when that's what's missing.
+- **Ground combat depth pass.** Every weapon hits ~20% harder and the
+  laser turret is a genuine threat (42–62 damage, ATK +4); Dustfall's
+  deputies drop to 55–60 hp while Sheriff Reeve keeps his 140. Cover is
+  worth more (+6 to +8 TN), with new crates and a boulder flanking the
+  clamp and fuel-line objectives — both of which now complete in **one
+  combat round** via the explicit **Work** order (hotwire stays two).
+  Ground units carry the **Cool/Panic** nerve system: staying Cool earns
+  +1 to hit, taking hits and losing allies erodes nerve, and a Panicking
+  unit — rebel or lawman — can do nothing but **Lock In** (+35 nerve) until
+  they steady. **Take Cover** doubles the cover bonus for the round. And
+  the **BLAM Frag Grenade** arrives: throw it up to 300px in planning, it
+  lands primed and detonates as the *next* round's execution opens (smart
+  lawmen scatter); two BLAM crates sit in Dustfall's streets, and spares
+  ride home to the armory for future missions.
 - **Debug menu.** Both combat topbars carry a purple **Debug** button — a
   home for cheats and dev conveniences. For now it holds **Skip Mission**,
   which instantly wins the loaded mission with the full result applied

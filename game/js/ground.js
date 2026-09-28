@@ -18,6 +18,7 @@ const nz=(...a)=>A.nz(...a);
 /* ---------- constants ---------- */
 let W=2400,H=1600;
 const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135,SNEAK_SPEED=72;
+const NADE_R=300,NADE_BLAST=110;
 const HOT_ROUNDS=2;
 const SHIELD_ARC=1.15;               // half-angle of the turret's frontal shield
 const OFFMAP={x:-99999,y:-99999,r:1};
@@ -32,20 +33,20 @@ function lerp(a,b,t){return a+(b-a)*t;}
 function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
 
 const WPN={
-  akli:   {name:'Akli AR',            d0:20,d1:32,rng:540,atk:1,jam:true,shots:3},
-  cowboy: {name:'Cowboy',             d0:15,d1:25,rng:280,atk:0,shots:1},
-  carbine:{name:'Peacekeeper Carbine',d0:17,d1:27,rng:430,atk:1,shots:2},
-  scatter:{name:'Scattergun',         d0:26,d1:46,rng:215,atk:2,shots:1,falloff:true,pellets:true},
-  longiron:{name:'Long Iron',         d0:24,d1:38,rng:920,atk:2,shots:1},
-  laser:  {name:'Laser Turret',       d0:30,d1:44,rng:720,atk:3,shots:1,beam:true},
+  akli:   {name:'Akli AR',            d0:24,d1:38,rng:540,atk:1,jam:true,shots:3},
+  cowboy: {name:'Cowboy',             d0:18,d1:30,rng:280,atk:0,shots:1},
+  carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
+  scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
+  longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
+  laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
 };
 const PROPDEF={
-  barrel:  {r:15,cov:4,hp:55, lab:'FUEL DRUMS'},
-  crate:   {r:19,cov:4,hp:45, lab:'CARGO CRATES'},
-  trough:  {r:26,cov:4,hp:70, lab:'CHARGE STATION'},
-  wagon:   {r:42,cov:6,hp:150,lab:'TRUCK'},
+  barrel:  {r:15,cov:6,hp:55, lab:'FUEL DRUMS'},
+  crate:   {r:19,cov:6,hp:45, lab:'CARGO CRATES'},
+  trough:  {r:26,cov:6,hp:70, lab:'CHARGE STATION'},
+  wagon:   {r:42,cov:8,hp:150,lab:'TRUCK'},
   canister:{r:12,cov:0,hp:1,  lab:'FUEL CANISTER'},
-  rock:    {r:26,cov:5,       lab:'BOULDER'},   // no hp: stone does not shred
+  rock:    {r:26,cov:7,       lab:'BOULDER'},   // no hp: stone does not shred
 };
 
 /* ---------- scenarios ---------- */
@@ -111,6 +112,7 @@ stealcross:{
     {x:1638,y:352, kind:'wagon', a:0.42},
     {x:2242,y:560, kind:'barrel'},
     {x:1948,y:282, kind:'crate'},{x:1902,y:372,kind:'rock'},
+    {x:1990,y:315, kind:'crate'},{x:2252,y:398,kind:'crate'},
     {x:2040,y:540, kind:'canister'},{x:1880,y:500,kind:'canister'},
     {x:2226,y:452, kind:'canister'},
     {x:1560,y:1010,kind:'canister'},
@@ -122,21 +124,23 @@ stealcross:{
     {id:'crateB',   x:984, y:1076,label:'Outfitter crates',take:'14 \u25a4 supplies',    s:14},
     {id:'locker',   x:1742,y:884, label:'HQ gun locker',  take:'Scattergun + shell box', items:['Scattergun','Shell box']},
     {id:'feed',     x:1312,y:1084,label:'Motor pool cache',take:'26 \u25c8 credits',     c:26},
+    {id:'blamA',    x:1608,y:942, label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
+    {id:'blamB',    x:1092,y:1112,label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
   ],
   foes(){return [
-    {id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1906,y:730,hp:140,maxhp:140,aim:3,def:11,wpns:['scatter'],sheriff:1,office:1,
+    {id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1906,y:730,hp:140,maxhp:140,aim:3,def:11,cool:90,wpns:['scatter'],sheriff:1,office:1,
       lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']},
-    {id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:80,maxhp:80,aim:2,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
+    {id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
       lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']},
-    {id:'cobb', name:'Dep. Cobb', first:'Cobb', side:'law',x:700,y:788,hp:80,maxhp:80,aim:2,def:10,wpns:['cowboy'],patrol:[{x:700,y:788},{x:560,y:830}],
+    {id:'cobb', name:'Dep. Cobb', first:'Cobb', side:'law',x:700,y:788,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],patrol:[{x:700,y:788},{x:560,y:830}],
       lines:['Strangers on the west road!','I ain\u2019t paid enough for this.']},
-    {id:'marsh',name:'Dep. Marsh',first:'Marsh',side:'law',x:520,y:860,hp:80,maxhp:80,aim:2,def:10,wpns:['cowboy'],patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
+    {id:'marsh',name:'Dep. Marsh',first:'Marsh',side:'law',x:520,y:860,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
       lines:['Something came down south of town\u2026','They\u2019re armed! Guns! GUNS!']},
-    {id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', side:'law',x:1300,y:1100,hp:80,maxhp:80,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
+    {id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', side:'law',x:1300,y:1100,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
       lines:['Motor pool clear\u2026 mostly.','Fall back to the pad!']},
-    {id:'stack',name:'Dep. Stack',first:'Stack',side:'law',x:2080,y:540,hp:80,maxhp:80,aim:2,def:10,wpns:['cowboy'],guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
+    {id:'stack',name:'Dep. Stack',first:'Stack',side:'law',x:2080,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
       lines:['Pad\u2019s secure, Sheriff.','They want the ship! They want the ship!']},
-    {id:'wren', name:'Dep. Wren', first:'Wren', side:'law',x:1562,y:436,hp:70,maxhp:70,aim:4,def:12,wpns:['longiron'],elev:1,fixed:1,
+    {id:'wren', name:'Dep. Wren', first:'Wren', side:'law',x:1562,y:436,hp:55,maxhp:55,aim:4,def:12,wpns:['longiron'],elev:1,fixed:1,
       lines:['I can see the whole street from up here.','Say when, Sheriff.']},
   ];},
   civs(){return [
@@ -211,7 +215,7 @@ haven:{
     {id:'lockbox',x:1330,y:240, label:'Smuggler lockbox',take:'30 \u25c8 credits',c:30},
   ],
   foes(){return [
-    {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1245,y:330,hp:120,maxhp:120,aim:3,def:10,wpns:['scatter'],sheriff:1,office:1,
+    {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1245,y:330,hp:120,maxhp:120,aim:3,def:10,cool:85,wpns:['scatter'],sheriff:1,office:1,
       lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']},
     {id:'odo',name:'Odo',first:'Odo',side:'law',x:900,y:960,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
       lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']},
@@ -280,10 +284,12 @@ function initScenario(id){
 
 /* ---------- units ---------- */
 function mkU(o){
-  return Object.assign({face:0,down:0,surr:0,jam:0,wound:0,braced:0,sprinted:0,owUsed:0,xpGain:0,
+  const u=Object.assign({face:0,down:0,surr:0,jam:0,wound:0,braced:0,sprinted:0,owUsed:0,xpGain:0,
     order:null,extracted:0,away:0,elev:0,frail:0,sheriff:0,fixed:0,guard:0,
-    manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,
+    manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,cool:55,bunkered:0,
     px:0,py:0,path:null,wkey:null},o);
+  u.cool0=u.cool;
+  return u;
 }
 let U=[];
 const REB_LINES={
@@ -306,12 +312,12 @@ function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
-    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:10,
+    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:10,cool:65,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   const roster=[...squad];
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,cool:45,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
     ...roster,
@@ -325,6 +331,7 @@ function initUnits(){
 let phase='BRIEF';       // BRIEF, CUTSCENE, FREE, PLANNING, EXEC, ENGAGE, EXTRACT, GAMEOVER
 let round=0,started=false,town='calm';
 let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0;
+let NADES=0,nades=[],dmgRound=new Set();
 let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null,radialOn=false,radialSub=null;
 let execT0=0,engageQ=null;
@@ -548,8 +555,10 @@ function computeTN(s,t){
   else if(d>w.rng*0.4){v+=2;e.push(['RANGE',2]);}
   if(t.sprinted){v+=2;e.push(['SPRINTING',2]);}
   const cov=coverOf(s,t);
-  if(cov){v+=cov.v;e.push([cov.lab,cov.v]);}
+  if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
   if(t.manning){v+=2;e.push(['GUN SHIELD EDGE',2]);}
+  if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
+  if(coolStateG(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
   if(t.wound){v-=1;e.push(['TARGET WOUNDED',-1]);}
   if(t.frail){v-=1;e.push(['UNTRAINED',-1]);}
   return {total:v,entries:e,cover:cov};
@@ -560,6 +569,7 @@ function computeATK(s,t,wkey,snap){
   if(w.atk){v+=w.atk;e.push([w.name.toUpperCase(),w.atk]);}
   if(s.braced&&!snap){v+=2;e.push(['BRACED',2]);}
   if(s.ambush&&!snap){v+=2;e.push(['AMBUSH',2]);}
+  if(coolStateG(s)==='cool'){v+=1;e.push(['COOL',1]);}
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
@@ -599,12 +609,16 @@ function applyShot(s,t,wkey,snap){
 function woundUnit(s,t,dmg,crit){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
   t.hp-=dmg;
+  dmgRound.add(t.id);
+  adjCoolG(t,-16,'took a hit');
   if(crit&&!t.wound&&t.hp>0){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED','#ff8f9a');}
   addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?'#ff6a75':'#ffd27d');
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
   if(by&&by.side==='reb'&&t.side==='law')by.xpGain=(by.xpGain||0)+0.2;
+  if(by)adjCoolG(by,12,'confirmed kill');
+  for(const m of U)if(m.side===t.side&&m!==t)adjCoolG(m,-15,t.first+' down');
   t.hp=0;t.down=1;t.order=null;t.braced=0;
   if(t.manning){t.manning=0;turret.gunner=null;log('The <b>laser turret</b> stands unmanned.');}
   sThud();
@@ -814,6 +828,23 @@ function setSneak(on){
             '<span class="d">Squad moves upright — full pace, full profile.</span>');
   sTick();syncUI();
 }
+function coolStateG(u){return u.cool>=70?'cool':u.cool<=30?'panic':'steady';}
+function adjCoolG(u,d,why){
+  if(!u||u.side==='civ'||u.down||u.surr||u.extracted||u.away)return;
+  const pre=coolStateG(u);
+  u.cool=Math.max(0,Math.min(100,u.cool+d));
+  if(u.sheriff)u.cool=Math.max(40,u.cool); // bosses do not break
+  const post=coolStateG(u);
+  if(pre!=='panic'&&post==='panic'){
+    addFloater(u.x,u.y-52,'PANICKING','#ff4f5e');
+    log(nameSpan(u)+' <span class="h">is panicking</span>'+(why?' <span class="d">('+why+')</span>':''));
+    if(u.side==='reb'&&u.order&&u.order.type!=='lockin'){
+      if(u.order.type==='grenade')NADES++;
+      u.order=null;
+    }
+  }
+  if(pre==='panic'&&post!=='panic')addFloater(u.x,u.y-52,'STEADIED','#7dd97b');
+}
 function moraleCheck(){
   const sheriffDown=U.some(u=>u.sheriff&&(u.down||u.surr));
   for(const u of U){
@@ -851,8 +882,9 @@ function aiPlan(){
   let turretClaimed=false;
   for(const u of U){
     if(u.side!=='law'||u.down||u.surr||u.office)continue;
-    u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];
+    u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];u.bunkered=0;
     if(!u.manning)u.braced=0;
+    if(coolStateG(u)==='panic'&&town==='alerted'){u.order={type:'lockin'};continue;}
     if(u.manning){u.order={type:'hold'};u.braced=1;continue;}
     if(u.fixed){u.order={type:'hold'};u.braced=1;continue;}
     if(town==='calm'){
@@ -923,8 +955,9 @@ function pickCoverMove(u,tgt,r,toward){
     if(!pathFor(u,c.x,c.y))continue;
     const dNow=dist(u,tgt),dNew=Math.hypot(c.x-tgt.x,c.y-tgt.y);
     let s=toward?(dNow-dNew):(dNew-dNow);
-    const covered=coverOf(tgt,{x:c.x,y:c.y,def:10,elev:0,sprinted:0,wound:0,frail:0});
+    const covered=coverOf(tgt,{x:c.x,y:c.y,def:10,elev:0,sprinted:0,wound:0,frail:0,bunkered:0,cool:50});
     if(covered)s+=90;
+    for(const g of nades)if(Math.hypot(c.x-g.x,c.y-g.y)<NADE_BLAST+24)s-=170; // nobody stands on a live grenade twice
     const w=WPN[u.wpns[0]];
     if(dNew<w.rng*0.9&&!segBlocked(c.x,c.y,tgt.x,tgt.y))s+=70;
     if(dNew<90)s-=120; // don't hug the enemy
@@ -974,6 +1007,7 @@ function collectLoot(u,m){
   m.taken=true;sLoot();
   if(m.c)tally.c+=m.c;
   if(m.s)tally.s+=m.s;
+  if(m.nades){NADES+=m.nades;}
   if(m.items)tally.items.push(...m.items);
   addFloater(m.x,m.y-30,'+ '+m.take,'#7dd97b');
   log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
@@ -982,7 +1016,13 @@ function collectLoot(u,m){
 function enterFree(msg){
   phase='FREE';
   selId=null;pickMode=null;radialOn=false;engageQ=null;hotT=0;
+  for(const g of nades.splice(0)){
+    log('<span class="a">A primed BLAM cooks off in the quiet.</span>');
+    explode(g.x,g.y,{r:NADE_BLAST,d0:32,d1:52});
+  }
   for(const u of U){
+    u.bunkered=0;
+    u.cool=Math.max(u.cool,u.cool0);
     if(u.manning){u.braced=1;u.order={type:'hold'};u.path=null;u.rtPath=null;continue;}
     u.order=null;u.braced=0;u.sprinted=0;u.path=null;u.rtPath=null;
   }
@@ -1193,7 +1233,7 @@ function startPlanning(){
   phase='PLANNING';round++;
   for(const u of U){
     if(u.side!=='reb')continue;
-    u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;
+    u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
     if(u.jam>0){u.jam--;if(u.jam===0){log(nameSpan(u)+' works the Akli’s action clear.');}}
   }
   aiPlan();
@@ -1219,6 +1259,13 @@ function execute(){
   sTick();
   phase='EXEC';execT0=performance.now();
   selId=null;pickMode=null;radialOn=false;
+  // armed grenades from earlier rounds go off as the round opens
+  const armed=nades.filter(g=>g.armRound<round);
+  nades=nades.filter(g=>g.armRound>=round);
+  for(const g of armed){
+    log('<span class="a">The BLAM cooks off!</span>');
+    explode(g.x,g.y,{r:NADE_BLAST,d0:32,d1:52});
+  }
   for(const u of U){
     u.px=u.x;u.py=u.y;u.path=null;
     if(u.down||u.surr||u.extracted||u.away)continue;
@@ -1232,6 +1279,26 @@ function execute(){
       const seat=moveDest(u,TURRET.x,TURRET.y+6,MOVE_R+60);
       if(seat)u.path=pathFor(u,seat.x,seat.y);
       u.sprinted=0;u.braced=0;
+    } else if(o&&o.type==='work'){
+      const wp=WORK.find(w=>w.id===o.wp);
+      if(wp&&Math.hypot(u.x-wp.x,u.y-wp.y)>40){
+        const d=moveDest(u,wp.x,wp.y,MOVE_R+60);
+        if(d)u.path=pathFor(u,d.x,d.y);
+      }
+      u.sprinted=0;u.braced=0;
+    } else if(o&&o.type==='lockin'){
+      u.sprinted=0;u.braced=0;
+      adjCoolG(u,35,'locked in');
+      addFloater(u.x,u.y-40,'LOCKED IN','#7dd97b');
+    } else if(o&&o.type==='cover'){
+      u.sprinted=0;u.braced=0;u.bunkered=1;
+      addFloater(u.x,u.y-40,'TAKING COVER','#7de3ec');
+    } else if(o&&o.type==='grenade'){
+      u.sprinted=0;u.braced=0;
+      u.face=Math.atan2(o.ty-u.y,o.tx-u.x);
+      nades.push({x:o.tx,y:o.ty,fx:u.x,fy:u.y,t0:performance.now(),armRound:round});
+      log(nameSpan(u)+' lobs a <b>BLAM frag</b> — it lands, primed.');
+      sTick();
     } else if(o&&o.type==='hold'){u.braced=1;u.sprinted=0;}
     else u.sprinted=0;
   }
@@ -1254,6 +1321,7 @@ function execUpdate(now){
     lastOw=slice;
     for(const h of U){
       if(!h.braced||h.owUsed||h.down||h.surr||h.extracted||h.away)continue;
+      if(coolStateG(h)==='panic')continue;
       if(h.side==='law'&&town!=='alerted')continue;
       for(const m of U){
         if(m.side===h.side||m.down||m.surr||m.extracted||m.away||!m.path)continue;
@@ -1286,7 +1354,8 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='grenade'))continue;
+    if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
     const anyT=U.some(t=>t.side!==s.side&&wpnsOf(s).some(w=>validShot(s,t,w)));
@@ -1465,14 +1534,20 @@ function endRound(){
        ((u.order&&u.order.type==='man')||u.goingTurret)){manTurret(u);}
     u.goingTurret=0;
   }
-  // pad work: clamps and fuel line (a soldier standing on the point, not firing)
+  // pad work: one round with a soldier on the point (Work order, Hold, or standing fast)
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
     const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&
-      (!u.order||u.order.type==='hold')&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+      (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)completeWork(wp,worker);
   }
+  // a round without taking fire steadies the nerve
+  for(const u of U){
+    if(u.side==='civ'||u.down||u.surr||u.extracted||u.away)continue;
+    if(!dmgRound.has(u.id))adjCoolG(u,6,null);
+  }
+  dmgRound=new Set();
   // hotwire
   const sera=U.find(u=>u.id==='sera');
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
@@ -1598,20 +1673,21 @@ function buildResult(win){
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:!haven&&!!win,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:!haven&&!!win,nades:NADES,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
-function explode(x,y){
+function explode(x,y,opt){
+  const R=(opt&&opt.r)||135,D0=(opt&&opt.d0)||45,D1=(opt&&opt.d1)||70;
   sBoomBig();shake=performance.now();
-  decals.push({x,y,r:52+rng()*14});
+  decals.push({x,y,r:(R/135)*(52+rng()*14)});
   for(let k=0;k<26;k++)parts.push({x:x+(rng()-0.5)*40,y:y+(rng()-0.5)*40,vx:(rng()-0.5)*260,vy:-rng()*160,r:2.5+rng()*4,a:0.8,col:k%3?'#ff9a3c':'#ffd27d',t0:performance.now(),dur:520});
   for(let k=0;k<14;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.4,col:'#3a3430',t0:performance.now(),dur:1300});
   parts.push({x,y,vx:0,vy:0,r:60,a:0.85,col:'#ffe9b0',t0:performance.now(),dur:160,flash:1});
   for(const u of U){
     if(u.side==='civ'||u.down||u.extracted||u.away||u.office)continue;
     const d=Math.hypot(u.x-x,u.y-y);
-    if(d<135){
-      const dmg=Math.round((45+rng()*25)*(1-d/135*0.55));
+    if(d<R){
+      const dmg=Math.round((D0+rng()*(D1-D0))*(1-d/R*0.55));
       woundUnit(null,u,dmg,false);
       if(!u.down)log(nameSpan(u)+' is caught in the blast — <b>-'+dmg+'</b>.');
     }
@@ -1620,8 +1696,8 @@ function explode(x,y){
     if(p.dead)continue;
     const d=Math.hypot(p.x-x,p.y-y);
     if(d<10)continue; // the one that just went up
-    if(p.kind==='canister'&&d<150){p.dead=true;exploQ.push({x:p.x,y:p.y,at:performance.now()+120+rng()*160});}
-    else if(d<140&&PROPDEF[p.kind].hp!==undefined)chipCover(p,120);
+    if(p.kind==='canister'&&d<R+15){p.dead=true;exploQ.push({x:p.x,y:p.y,at:performance.now()+120+rng()*160});}
+    else if(d<R+5&&PROPDEF[p.kind].hp!==undefined)chipCover(p,120);
   }
   if(town==='calm')alertTown('Half the town heard that.');
 }
@@ -2474,6 +2550,12 @@ function drawUnit(u){
     ctx.font='800 12px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='#ffb454';
     ctx.fillText('!',13,-10);
   }
+  if(town==='alerted'&&!u.down&&!u.surr&&coolStateG(u)==='panic'){
+    const bl=0.5+0.5*Math.sin(performance.now()*0.012);
+    ctx.font='800 13px "IBM Plex Mono"';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,79,94,'+(0.5+0.5*bl).toFixed(2)+')';
+    ctx.fillText('!!',-13,-10);
+  }
   if(crouch)ctx.scale(1/0.82,1/0.82);
   // detection gauge — a lawman is getting curious
   if(u.side==='reb'&&u.det>0.5&&town==='calm'){
@@ -2499,6 +2581,27 @@ function drawUnit(u){
   ctx.fillText(u.first.toUpperCase(),0,R+14);
   ctx.restore();
 }
+function drawNades(now){
+  for(const g of nades){
+    const fl=Math.min(1,(now-g.t0)/650);
+    const ax=lerp(g.fx,g.x,fl),ay=lerp(g.fy,g.y,fl)-Math.sin(fl*Math.PI)*46;
+    if(fl<1){
+      ctx.fillStyle='#d8e2f2';
+      ctx.beginPath();ctx.arc(ax,ay,4,0,7);ctx.fill();
+      continue;
+    }
+    const bl=0.5+0.5*Math.sin(now*0.01);
+    ctx.strokeStyle='rgba(255,120,80,'+(0.25+0.3*bl).toFixed(2)+')';
+    ctx.lineWidth=1.5;ctx.setLineDash([5,6]);
+    ctx.beginPath();ctx.arc(g.x,g.y,NADE_BLAST,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,120,80,'+(0.04+0.04*bl).toFixed(2)+')';
+    ctx.beginPath();ctx.arc(g.x,g.y,NADE_BLAST,0,7);ctx.fill();
+    ctx.fillStyle=bl>0.5?'#ff4f5e':'#d8e2f2';
+    ctx.beginPath();ctx.arc(g.x,g.y,4.5,0,7);ctx.fill();
+    ctx.font='700 8px "IBM Plex Mono"';ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,120,80,0.85)';ctx.fillText('BLAM',g.x,g.y-10);
+  }
+}
 function drawOrders(){
   if(phase!=='PLANNING'){drawPing();return;}
   for(const u of U){
@@ -2516,6 +2619,12 @@ function drawOrders(){
       ctx.font='600 9px "IBM Plex Mono"';ctx.textAlign='center';
       ctx.fillStyle=o.type==='move'?'rgba(255,180,84,0.85)':'rgba(255,120,80,0.85)';
       ctx.fillText(o.type.toUpperCase(),o.tx,o.ty-12);
+    } else if(o.type==='grenade'){
+      ctx.strokeStyle='rgba(255,120,80,0.7)';ctx.lineWidth=1.6;ctx.setLineDash([4,5]);
+      ctx.beginPath();ctx.moveTo(u.x,u.y);ctx.lineTo(o.tx,o.ty);ctx.stroke();
+      ctx.beginPath();ctx.arc(o.tx,o.ty,NADE_BLAST,0,7);ctx.stroke();ctx.setLineDash([]);
+      ctx.font='600 9px "IBM Plex Mono"';ctx.textAlign='center';
+      ctx.fillStyle='rgba(255,120,80,0.85)';ctx.fillText('BLAM',o.tx,o.ty-8);
     } else if(o.type==='loot'){
       ctx.strokeStyle='rgba(125,217,123,0.6)';ctx.lineWidth=2;ctx.setLineDash([4,5]);
       ctx.beginPath();ctx.arc(u.x,u.y,LOOT_AOE,0,7);ctx.stroke();ctx.setLineDash([]);
@@ -2526,7 +2635,7 @@ function drawOrders(){
   // pick rings
   const sel=U.find(x=>x.id===selId);
   if(sel&&pickMode){
-    const r=pickMode==='move'?MOVE_R:SPRINT_R;
+    const r=pickMode==='move'?MOVE_R:pickMode==='nade'?NADE_R:SPRINT_R;
     ctx.fillStyle=pickMode==='move'?'rgba(255,180,84,0.06)':'rgba(255,120,80,0.05)';
     ctx.beginPath();ctx.arc(sel.x,sel.y,r,0,7);ctx.fill();
     ctx.strokeStyle=pickMode==='move'?'rgba(255,180,84,0.6)':'rgba(255,120,80,0.6)';
@@ -2931,6 +3040,7 @@ function render(now){
     drawVision();
     drawLoots();
     drawWork(now);
+    drawNades(now);
     drawProps();
     if(SCN.hasTurret)drawTurret(now);
     if(SCN.hasTower)drawTowerBase();
@@ -3049,6 +3159,22 @@ cv.addEventListener('pointerup',ev=>{
   }
   if(phase==='PLANNING'){
     const sel=U.find(x=>x.id===selId);
+    if(pickMode==='nade'&&sel){
+      const wpt=cssToWorld(px,py);
+      let dx=wpt.x-sel.x,dy=wpt.y-sel.y;
+      const dd=Math.hypot(dx,dy)||1;
+      if(dd>NADE_R){dx*=NADE_R/dd;dy*=NADE_R/dd;}
+      const gx=sel.x+dx,gy=sel.y+dy;
+      if(ptBlocked(gx,gy,8)){addFloater(gx,gy-16,'NO LANDING','#71809c');return;}
+      if(sel.order&&sel.order.type==='grenade')NADES++; // re-aiming refunds the last one
+      sel.order={type:'grenade',tx:gx,ty:gy};
+      NADES--;
+      sTick();
+      pickMode=null;
+      autoAdvance();
+      syncUI();
+      return;
+    }
     if(pickMode&&sel){
       const wpt=cssToWorld(px,py);
       const d=moveDest(sel,wpt.x,wpt.y,pickMode==='move'?MOVE_R:SPRINT_R);
@@ -3094,13 +3220,23 @@ byId('radial').addEventListener('click',ev=>{
   if(act==='move'){pickMode='move';radialOn=false;}
   else if(act==='sprint'){pickMode='sprint';radialOn=false;}
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
+  else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
+  else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
+  else if(act==='nade'){if(NADES>0){pickMode='nade';radialOn=false;}}
+  else if(act==='work'){
+    const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+    if(wp){s.order={type:'work',wp:wp.id};autoAdvance();}
+  }
   else if(act==='loot'){
     if(lootsWithin(s,LOOT_AOE).length){s.order={type:'loot'};autoAdvance();}
   }
   else if(act==='man'){s.order={type:'man'};autoAdvance();}
   else if(act==='leave'){s.order={type:'leave'};autoAdvance();}
   else if(act==='clear'){s.order={type:'clear'};sJamClr();autoAdvance();}
-  else if(act==='cancel'){s.order=null;selId=null;radialOn=false;}
+  else if(act==='cancel'){
+    if(s.order&&s.order.type==='grenade')NADES++;
+    s.order=null;selId=null;radialOn=false;
+  }
   syncUI();
 });
 byId('pickPill').addEventListener('click',()=>{pickMode=null;radialOn=!!selId;syncUI();});
@@ -3114,17 +3250,30 @@ function radialHTML(s){
       return '<button class="rbtn" data-ract="'+a[0]+'" style="left:'+x+'px;top:'+y+'px"><span class="ric">'+a[1]+'</span>'+a[2]+'</button>';
     }).join('');
   }
+  if(coolStateG(s)==='panic'){
+    // panic: nothing works but gritting your teeth
+    return [['lockin','◎','Lock In',false],['cancel','✕','Clear',false]].map((a,i)=>{
+      const ang=-Math.PI/2+i*Math.PI;
+      const x=Math.cos(ang)*86,y=Math.sin(ang)*86;
+      return '<button class="rbtn" data-ract="'+a[0]+'" style="left:'+x+'px;top:'+y+'px"><span class="ric">'+a[1]+'</span>'+a[2]+'</button>';
+    }).join('');
+  }
   const nl=lootsWithin(s,LOOT_AOE).length;
   const acts=[
     ['move','⊕','Move',false],
     ['sprint','⇻','Sprint',false],
     ['hold','⌖','Hold',false],
+    ['cover','▣','Take Cover',!inCoverAt(s.x,s.y)],
+    ['lockin','◎','Lock In',false],
     ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
+  if(NADES>0)acts.push(['nade','✸','BLAM ×'+NADES,false]);
+  const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+  if(wp&&s.id!=='sera')acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
   acts.push(['cancel','✕','Clear',false]);
-  const R=86;
+  const R=96;
   return acts.map((a,i)=>{
     const ang=-Math.PI/2+i*(Math.PI*2/acts.length);
     const x=Math.cos(ang)*R,y=Math.sin(ang)*R;
@@ -3141,7 +3290,7 @@ function dockHTML(){
   if(phase==='PLANNING'){
     const squad=plotted();
     const done=squad.filter(u=>u.order).length;
-    return '<div class="dockcard"><span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast</span>'+
+    return '<div class="dockcard"><span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast'+(NADES>0?' · ✸ BLAM ×'+NADES:'')+'</span>'+
       '<button id="executeBtn">Execute Round</button></div>';
   }
   const c=engageQ&&engageQ.cur;
@@ -3168,6 +3317,7 @@ function statusOf(u){
   if(u.manning)return ['ON TURRET','var(--reb)'];
   if(u.office)return ['IN HIS OFFICE','var(--dim)'];
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return ['HOTWIRING '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'var(--amber)'];
+  if(coolStateG(u)==='panic'&&!u.down&&!u.surr&&town==='alerted')return ['PANICKING','var(--heg)'];
   if(u.jam)return ['JAMMED','var(--amber)'];
   if(phase==='PLANNING'&&u.side==='reb')return u.order?[u.order.type.toUpperCase(),'var(--reb)']:['NO ORDERS','var(--dim)'];
   if(phase==='FREE'&&u.side==='reb')return u.rtPath?['MOVING','var(--reb)']:['READY','var(--dim)'];
@@ -3337,6 +3487,7 @@ function initState(){
   WORK=SCN.work.map(w=>Object.assign({},w,{done:false,t:0}));
   PROPS=SCN.props.map(pr=>Object.assign({},pr,{hp:PROPDEF[pr.kind].hp,dead:false}));
   turret={gunner:null,face:Math.PI};
+  NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
   sneak=false;launchNagged=false;
   floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];
   fogInit();
@@ -3450,6 +3601,7 @@ if(location.hash==='#test'){
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
     get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},
     get engageQ(){return engageQ;},
+    get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,
       seen(){return [...visUnits];},
