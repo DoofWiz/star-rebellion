@@ -153,7 +153,7 @@ haven:{
   banner:['Take the Rock','Every war starts with a kicked-in door'],
   brief:{
     eyebrow:'Prologue · The Drift',
-    flavour:'A smuggler bolt-hole cut into a mountain: a hangar cave, a command room, bunks in the stone — and a crew of <b>Vult gang squatters</b> living in all of it. Three soldiers, two guns each, one door.',
+    flavour:'A smuggler bolt-hole cut into a mountain, with no name on any chart: a hangar cave, a command room, bunks in the stone — and a crew of <b>Vult gang squatters</b> living in all of it. Three soldiers, two guns each, one door. Home is on the other side of one fight.',
     objectives:[
       'Clear the squatters holding the rock — outside, then room by room',
       'Take the command room from Boss Craw',
@@ -3288,7 +3288,15 @@ $('muteBtn').addEventListener('click',ev=>{
   ev.currentTarget.textContent='Sound: '+(A.muted()?'Off':'On');
 });
 $('restartBtn').addEventListener('click',()=>{resetGame(false);});
-$('endRestartBtn').addEventListener('click',()=>{SR.endMission(pendingResult||buildResult(false));});
+$('endRestartBtn').addEventListener('click',()=>{
+  if(SCN&&SCN.mode==='haven'&&gameEnd&&!gameEnd.win){
+    // no base to fall back to until the rock falls — set up and go again
+    byId('endscreen').hidden=true;
+    enter({mission:CTX});
+    return;
+  }
+  SR.endMission(pendingResult||buildResult(false));
+});
 $('enterBtn').addEventListener('click',()=>{
   A.wake();
   $('briefing').hidden=true;

@@ -47,8 +47,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   camped outside, the rest holed up room by room (a door guard in the entry
   corridor, scavengers in the hangar cave, a hall guard outside command) —
   and patch the rebel signal through the base antenna at the command console
-  to found the base. Losing costs nothing: the squad falls back down the canyon and
-  the prologue re-offers itself. In the hangar cave sits a **derelict Graf
+  to found the base. A new campaign boots **straight into this mission** —
+  no base screen first; Haven Rock is seen for the first time only once
+  it's won, and the topbar Restart relaunches the campaign from this same
+  briefing. Losing costs nothing: the mission resets in place and the
+  squad goes again. In the hangar cave sits a **derelict Graf
   Type 1 Hauler** — after founding, restore it from the hangar (60⬡ 40▤,
   two days) and it becomes the Marta.
 - **The reduced day one** the intro establishes: a command centre, a hangar
@@ -57,8 +60,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   soldiers) plus one spare bunk the onboarding fills. There is no starting
   starfighter and no storeroom (now buildable). Mira Osk now arrives as the
   first Support recruit instead of starting aboard.
-- **The onboarding chain** walks the player through every system in order.
-  Founding the base discovers the first source: **Cass Wender**, the
+- **The onboarding chain** walks the player through every system in order:
+  the game opens in *Take the Rock*, winning it grants the base and the
+  derelict dropship, and only then does the base layer begin. Founding the
+  base discovers the first source (the network badge points there):
+  **Cass Wender**, the
   smuggler who flew the squad in. His first Contact reveals *Steal the
   Cross* — but the plan needs two pilots and the base has one, so Cass asks
   around; advance the day and his ✉ signal delivers **Sera Kest**, the

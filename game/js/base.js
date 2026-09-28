@@ -1587,7 +1587,8 @@ function syncUI(){
   $('revNum').textContent='1';
   $('revTip').innerHTML='<b>Revolution Level 1</b> — criminals, as far as the Hegemony cares.<br>Renown '+Math.round(G.renown)+'/100 toward Level 2.<br>Network exposure: '+Math.round(G.risk)+'.';
   $('revLamp').classList.toggle('hot',G.renown>=90);
-  const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length;
+  const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length
+    +(G.onboard==='contact'?1:0); // the first contact is waiting — point the new player at the network
   $('srcBadge').hidden=!srcAttn;$('srcBadge').textContent=srcAttn;
   const misAvail=G.missions.filter(m=>m.state==='avail').length;
   $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
@@ -1828,16 +1829,8 @@ $('restartBtn').addEventListener('click',()=>{
   if(!started)return;
   SR.wipeSave();
   G=newGame();closeWin();closeTilePop();exitRoomView();
-  news('Command log reset. Day 1 at Haven Rock.','a');
-  saveSnap();syncUI();
-});
-$('enterBtn').addEventListener('click',()=>{
-  A.wake();
-  if(!G.introDone){launchIntro();return;}
-  $('debrief').hidden=true;
-  started=true;
-  seedNews();
-  saveSnap();syncUI();
+  started=false;
+  launchIntro();
 });
 function introSpec(){
   const soldiers=G.people.filter(p=>p.role==='Soldier').slice(0,3);
@@ -1845,14 +1838,7 @@ function introSpec(){
     squad:soldiers.map(p=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
       aim:soldierAim(p),hp:100,wpns:['akli','cowboy']}))};
 }
-function renderIntroSquad(){
-  const el=$('introSquad');
-  if(!el)return;
-  el.innerHTML=introSpec().squad.map(sp=>
-    SR.ui.squadCard({name:sp.name,role:'Soldier',chips:SR.ui.gearChips(sp.wpns)})).join('');
-}
 function launchIntro(){
-  $('debrief').hidden=true;
   closeWin();closeTilePop();
   SR.mission=introSpec();
   SR.go('ground',{mission:SR.mission});
@@ -1920,7 +1906,6 @@ function applyDebrief(r){
   if(r.missionId==='haven'){
     if(r.win){
       G.introDone=true;started=true;
-      $('debrief').hidden=true;
       for(const pr of r.people||[]){
         const p=G.people.find(x=>x.id===pr.id);
         if(!p)continue;
@@ -1943,12 +1928,9 @@ function applyDebrief(r){
       saveSnap();syncUI();
       return;
     }
-    // thrown back: no lasting harm, the Marta pulls everyone out. Go again.
+    // thrown back: no lasting harm, no base to return to. The mission retries in place.
     news('The squatters held the rock. Everyone made it back down the canyon \u2014 patch up and go again.','h');
     started=false;
-    const ov=$('debrief');ov.hidden=false;
-    const h2=ov.querySelector('h2');if(h2)h2.innerHTML='Take the <span class="k">Rock</span> \u2014 Again';
-    renderIntroSquad();
     saveSnap();syncUI();
     return;
   }
@@ -2050,7 +2032,6 @@ function restoreCampaign(data){
     if(G.introDone===undefined)G.introDone=true;
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
     if(G.onboard===undefined)G.onboard='done';
-    $('debrief').hidden=true;
     G.misPopQ=G.misPopQ||[];
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base}));
@@ -2085,13 +2066,14 @@ function enter(params){
     if(!restoreCampaign(SR.loadSave())){
       G=newGame();
       if(location.hash==='#deploy'||location.hash==='#test'){
-        $('debrief').hidden=true;started=true;G.introDone=true;
+        started=true;G.introDone=true;
         discoverCass();seedNews();
       }
     }
   }
-  if(!G.introDone)renderIntroSquad();
   if(params&&params.debrief)applyDebrief(params.debrief);
+  // a campaign that hasn't taken the rock yet lives in the mission, not the base
+  if(!G.introDone){launchIntro();return;}
   saveSnap();
   syncUI();renderNews();
 }
@@ -2105,6 +2087,6 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{addMission,leadMission,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
-      ablePilots,openWin,closeWin,renderIntroSquad}};
+      ablePilots,openWin,closeWin,launchIntro}};
 }
 })();
