@@ -3305,6 +3305,19 @@ $('enterBtn').addEventListener('click',()=>{
   startCutscene();
 });
 $('csSkip').addEventListener('click',()=>{if(cs)endCutscene();});
+/* ---------- debug menu ---------- */
+$('dbgBtn').addEventListener('click',()=>{
+  const m=$('dbgMenu');m.hidden=!m.hidden;
+  $('dbgBtn').setAttribute('aria-pressed',String(!m.hidden));
+});
+$('dbgSkip').addEventListener('click',()=>{
+  $('dbgMenu').hidden=true;$('dbgBtn').setAttribute('aria-pressed','false');
+  if(phase==='GAMEOVER')return;
+  if(cs)endCutscene();
+  $('briefing').hidden=true;
+  started=true;
+  gameOver(true);
+});
 addEventListener('keydown',ev=>{
   if(SR.active!=='ground')return;
   if(ev.key==='Escape'){

@@ -90,6 +90,10 @@ The three layers now run as **one playable game** (`game/index.html` +
   unavailable crew greyed-out with the reason, and a **Go to the Hangar**
   button plus arrow walks the player to the derelict-hauler restoration
   when that's what's missing.
+- **Debug menu.** Both combat topbars carry a purple **Debug** button — a
+  home for cheats and dev conveniences. For now it holds **Skip Mission**,
+  which instantly wins the loaded mission with the full result applied
+  (founding, the Cross, rewards, story hooks).
 - **Cook the Depots** is a second space scenario (`SCENS` switch in
   `space.js`): one starfighter against **four orbital fuel depots**
   guarded by three **RQ-7 sentry drones**. Depots are structures — they

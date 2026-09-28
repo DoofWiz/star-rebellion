@@ -2198,6 +2198,19 @@ $('muteBtn').addEventListener('click',()=>{
 });
 function restart(){byId('endscreen').hidden=true;deploy(true);}
 $('restartBtn').addEventListener('click',()=>{if(started)restart();});
+/* ---------- debug menu ---------- */
+$('dbgBtn').addEventListener('click',()=>{
+  const m=byId('dbgMenu');m.hidden=!m.hidden;
+  $('dbgBtn').setAttribute('aria-pressed',String(!m.hidden));
+});
+$('dbgSkip').addEventListener('click',()=>{
+  byId('dbgMenu').hidden=true;$('dbgBtn').setAttribute('aria-pressed','false');
+  if(phase==='GAMEOVER')return;
+  byId('briefing').hidden=true;
+  if(!started){started=true;deploy(false);}
+  else if(cs)endCutscene();
+  gameOver(true);
+});
 $('endRestartBtn').addEventListener('click',()=>{SR.endMission(pendingResult||buildResult(false));});
 $('deployBtn').addEventListener('click',()=>{
   A.wake();

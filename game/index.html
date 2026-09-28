@@ -260,7 +260,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 }
 /* ===== scene: space ===== */
 #sc-space #app{height:100%;display:flex;flex-direction:column;min-height:0;}
-#sc-space #topbar{display:flex;align-items:center;gap:12px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
+#sc-space #topbar{position:relative;display:flex;align-items:center;gap:12px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
 #sc-space #topbar h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber);white-space:nowrap;}
 #sc-space #topbar .sub{font-size:11px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
 #sc-space #topbar .spacer{flex:1;}
@@ -449,12 +449,24 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-space .lb{transition:none;}
 #sc-space #csBanner{transition:none;}
 }
+#sc-space #dbgBtn[aria-pressed="true"]{border-color:var(--purple);color:var(--purple);}
+#sc-space #dbgMenu{position:absolute;top:calc(100% + 4px);right:8px;z-index:60;background:rgba(10,15,30,0.97);border:1px solid var(--purple);border-radius:5px;padding:6px;min-width:216px;box-shadow:0 10px 40px rgba(0,0,0,.6);}
+#sc-space #dbgMenu .dbgHead{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--purple);font-weight:800;padding:2px 6px 6px;}
+#sc-space .dbgItem{display:block;width:100%;text-align:left;background:#141028;border:1px solid #3a2f5e;color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;padding:7px 9px;border-radius:3px;cursor:pointer;margin-bottom:4px;}
+#sc-space .dbgItem:last-child{margin-bottom:0;}
+#sc-space .dbgItem:hover{border-color:var(--purple);color:var(--purple);}
 /* ===== scene: ground ===== */
 #sc-ground #app{height:100%;display:flex;flex-direction:column;min-height:0;}
-#sc-ground #topbar{display:flex;align-items:center;gap:12px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
+#sc-ground #topbar{position:relative;display:flex;align-items:center;gap:12px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
 #sc-ground #topbar h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber);white-space:nowrap;}
 #sc-ground #topbar .sub{font-size:11px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
 #sc-ground #topbar .spacer{flex:1;}
+#sc-ground #dbgBtn[aria-pressed="true"]{border-color:var(--purple);color:var(--purple);}
+#sc-ground #dbgMenu{position:absolute;top:calc(100% + 4px);right:8px;z-index:60;background:rgba(10,15,30,0.97);border:1px solid var(--purple);border-radius:5px;padding:6px;min-width:216px;box-shadow:0 10px 40px rgba(0,0,0,.6);}
+#sc-ground #dbgMenu .dbgHead{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--purple);font-weight:800;padding:2px 6px 6px;}
+#sc-ground .dbgItem{display:block;width:100%;text-align:left;background:#141028;border:1px solid #3a2f5e;color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;padding:7px 9px;border-radius:3px;cursor:pointer;margin-bottom:4px;}
+#sc-ground .dbgItem:last-child{margin-bottom:0;}
+#sc-ground .dbgItem:hover{border-color:var(--purple);color:var(--purple);}
 #sc-ground #tutCard{position:absolute;top:14px;left:14px;z-index:9;width:270px;background:rgba(10,15,30,0.95);border:1px solid var(--amber);border-radius:6px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
 #sc-ground #tutCard .tut-step{font-size:9px;font-weight:800;letter-spacing:.22em;color:var(--amber);margin-bottom:5px;}
 #sc-ground #tutCard .tut-text{font-size:11.5px;line-height:1.55;color:var(--text);}
@@ -623,7 +635,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
     <button class="chipbtn" id="zoomFit">Fit</button>
     <button class="chipbtn" id="followBtn" aria-pressed="true">Follow: On</button>
     <button class="chipbtn" id="muteBtn" aria-pressed="false">Sound: On</button>
+    <button class="chipbtn" id="dbgBtn" aria-pressed="false">Debug</button>
     <button class="chipbtn" id="restartBtn">Restart</button>
+    <div id="dbgMenu" hidden><div class="dbgHead">Debug</div><button class="dbgItem" id="dbgSkip">Skip Mission &#8212; instant win</button></div>
   </header>
   <div id="main">
     <div id="stage">
@@ -696,7 +710,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
     <button class="chipbtn" id="zoomFit">Fit</button>
     <button class="chipbtn" id="followBtn" aria-pressed="true">Follow: On</button>
     <button class="chipbtn" id="muteBtn" aria-pressed="false">Sound: On</button>
+    <button class="chipbtn" id="dbgBtn" aria-pressed="false">Debug</button>
     <button class="chipbtn" id="restartBtn">Restart</button>
+    <div id="dbgMenu" hidden><div class="dbgHead">Debug</div><button class="dbgItem" id="dbgSkip">Skip Mission &#8212; instant win</button></div>
   </header>
   <div id="main">
     <div id="stage">
