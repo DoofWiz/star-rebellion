@@ -2013,7 +2013,7 @@ function leadMission(m,ids){
     SR.mission={kind:'ground',missionId:m.id,days:m.days,nades:blam?blam.n:0,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
-      pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0]},
+      pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0],level:spare.level},
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
     const pilots=G.people.filter(p=>ids.includes(p.id));

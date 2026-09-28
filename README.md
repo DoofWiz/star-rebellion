@@ -100,10 +100,15 @@ The three layers now run as **one playable game** (`game/index.html` +
   +1 to hit, taking hits and losing allies erodes nerve, and a Panicking
   unit — rebel or lawman — can do nothing but **Lock In** (+35 nerve) until
   they steady. **Take Cover** doubles the cover bonus for the round. And
-  the **BLAM Frag Grenade** arrives: throw it up to 300px in planning, it
-  lands primed and detonates as the *next* round's execution opens (smart
+  the **BLAM Frag Grenade** is thrown from the engagement dock — a weapon
+  chip beside the rifle and revolver during a soldier's firing turn; pick
+  a landing point within 300px and it replaces that soldier's shot, lands
+  primed, and detonates as the *next* round's execution opens (smart
   lawmen scatter); two BLAM crates sit in Dustfall's streets, and spares
-  ride home to the armory for future missions.
+  ride home to the armory for future missions. Cover also **soaks 25% of
+  damage** on hits that land through it (values up again: +8 to +10), and
+  a rebel's **level** now makes them harder to hit (+1 TN per two levels,
+  capped +3).
 - **Debug menu.** Both combat topbars carry a purple **Debug** button — a
   home for cheats and dev conveniences. For now it holds **Skip Mission**,
   which instantly wins the loaded mission with the full result applied

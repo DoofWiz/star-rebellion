@@ -41,12 +41,12 @@ const WPN={
   laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
 };
 const PROPDEF={
-  barrel:  {r:15,cov:6,hp:55, lab:'FUEL DRUMS'},
-  crate:   {r:19,cov:6,hp:45, lab:'CARGO CRATES'},
-  trough:  {r:26,cov:6,hp:70, lab:'CHARGE STATION'},
-  wagon:   {r:42,cov:8,hp:150,lab:'TRUCK'},
+  barrel:  {r:15,cov:8,hp:55, lab:'FUEL DRUMS'},
+  crate:   {r:19,cov:8,hp:45, lab:'CARGO CRATES'},
+  trough:  {r:26,cov:8,hp:70, lab:'CHARGE STATION'},
+  wagon:   {r:42,cov:10,hp:150,lab:'TRUCK'},
   canister:{r:12,cov:0,hp:1,  lab:'FUEL CANISTER'},
-  rock:    {r:26,cov:7,       lab:'BOULDER'},   // no hp: stone does not shred
+  rock:    {r:26,cov:9,       lab:'BOULDER'},   // no hp: stone does not shred
 };
 
 /* ---------- scenarios ---------- */
@@ -313,11 +313,11 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:10,cool:65,
-    wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   const roster=[...squad];
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,cool:45,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,cool:45,level:(spec.pilot.level||2),wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
     ...roster,
@@ -561,6 +561,10 @@ function computeTN(s,t){
   if(coolStateG(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
   if(t.wound){v-=1;e.push(['TARGET WOUNDED',-1]);}
   if(t.frail){v-=1;e.push(['UNTRAINED',-1]);}
+  if(t.side==='reb'&&(t.level||1)>=2){
+    const xb=Math.min(3,Math.floor((t.level||1)/2));
+    v+=xb;e.push(['COMBAT EXPERIENCE',xb]);
+  }
   return {total:v,entries:e,cover:cov};
 }
 function computeATK(s,t,wkey,snap){
@@ -600,6 +604,7 @@ function applyShot(s,t,wkey,snap){
     if(s.side==='reb')say(s,'Jam! Clearing it — cover me!');
   } else if(hit){
     dmg=rollDamage(s,t,wkey,crit);
+    if(tn.cover&&tn.cover.prop)dmg=Math.max(1,Math.round(dmg*0.75));
     woundUnit(s,t,dmg,crit);
   } else if(tn.cover&&tn.cover.prop){
     chipCover(tn.cover.prop,Math.round(rollDamage(s,t,wkey,false)*0.7));
@@ -838,10 +843,7 @@ function adjCoolG(u,d,why){
   if(pre!=='panic'&&post==='panic'){
     addFloater(u.x,u.y-52,'PANICKING','#ff4f5e');
     log(nameSpan(u)+' <span class="h">is panicking</span>'+(why?' <span class="d">('+why+')</span>':''));
-    if(u.side==='reb'&&u.order&&u.order.type!=='lockin'){
-      if(u.order.type==='grenade')NADES++;
-      u.order=null;
-    }
+    if(u.side==='reb'&&u.order&&u.order.type!=='lockin')u.order=null;
   }
   if(pre==='panic'&&post!=='panic')addFloater(u.x,u.y-52,'STEADIED','#7dd97b');
 }
@@ -1293,12 +1295,6 @@ function execute(){
     } else if(o&&o.type==='cover'){
       u.sprinted=0;u.braced=0;u.bunkered=1;
       addFloater(u.x,u.y-40,'TAKING COVER','#7de3ec');
-    } else if(o&&o.type==='grenade'){
-      u.sprinted=0;u.braced=0;
-      u.face=Math.atan2(o.ty-u.y,o.tx-u.x);
-      nades.push({x:o.tx,y:o.ty,fx:u.x,fy:u.y,t0:performance.now(),armRound:round});
-      log(nameSpan(u)+' lobs a <b>BLAM frag</b> — it lands, primed.');
-      sTick();
     } else if(o&&o.type==='hold'){u.braced=1;u.sprinted=0;}
     else u.sprinted=0;
   }
@@ -1354,7 +1350,7 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='grenade'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
@@ -1460,10 +1456,12 @@ function attackUpdate(now){
         log(nameSpan(c.s)+'’s <span class="a">Akli jams on the trigger.</span>');
         if(c.s.side==='reb')say(c.s,'Jam! Of course it jams NOW.');
       } else if(c.hit){
-        const dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+        const soaked=!!(c.tn.cover&&c.tn.cover.prop);
+        if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
         c.dmg=dmg;
         woundUnit(c.s,c.t,dmg,c.crit);
-        log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(c.crit?' <span class="a">(critical)</span>':'')+'.');
+        log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
       } else {
         log(nameSpan(c.s)+' misses '+nameSpan(c.t)+'.');
         if(c.tn.cover&&c.tn.cover.prop)chipCover(c.tn.cover.prop,Math.round(rollDamage(c.s,c.t,c.wkey,false)*0.7));
@@ -1477,6 +1475,18 @@ function playerAttack(){
   if(!c||c.stage!=='await')return;
   tutFlags.attacked=1;
   sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
+}
+function throwNade(s,gx,gy){
+  NADES--;
+  nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:performance.now(),armRound:round});
+  s.face=Math.atan2(gy-s.y,gx-s.x);
+  log(nameSpan(s)+' lobs a <b>BLAM frag</b> — it lands, primed.');
+  addFloater(gx,gy-14,'PRIMED','#ff9a5e');
+  sTick();
+  pickMode=null;
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+500;}
+  camGoal={x:gx,y:gy,z:Math.max(cam.z,0.9)};
+  syncUI();
 }
 function playerHold(){
   const c=engageQ&&engageQ.cur;
@@ -2201,6 +2211,12 @@ function drawVision(){
 function drawEngageFocus(now){
   const c=engageQ&&engageQ.cur;
   if(!c)return;
+  if(pickMode==='nadeToss'&&c.stage==='await'){
+    ctx.fillStyle='rgba(255,154,94,0.05)';
+    ctx.beginPath();ctx.arc(c.s.x,c.s.y,NADE_R,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(255,154,94,0.6)';ctx.lineWidth=2;ctx.setLineDash([10,8]);
+    ctx.beginPath();ctx.arc(c.s.x,c.s.y,NADE_R,0,7);ctx.stroke();ctx.setLineDash([]);
+  }
   const sCol=c.s.side==='reb'?'#57a8ff':'#ff4f5e';
   // whose action it is
   const pr=16+Math.sin(now*0.007)*2.5;
@@ -2619,12 +2635,6 @@ function drawOrders(){
       ctx.font='600 9px "IBM Plex Mono"';ctx.textAlign='center';
       ctx.fillStyle=o.type==='move'?'rgba(255,180,84,0.85)':'rgba(255,120,80,0.85)';
       ctx.fillText(o.type.toUpperCase(),o.tx,o.ty-12);
-    } else if(o.type==='grenade'){
-      ctx.strokeStyle='rgba(255,120,80,0.7)';ctx.lineWidth=1.6;ctx.setLineDash([4,5]);
-      ctx.beginPath();ctx.moveTo(u.x,u.y);ctx.lineTo(o.tx,o.ty);ctx.stroke();
-      ctx.beginPath();ctx.arc(o.tx,o.ty,NADE_BLAST,0,7);ctx.stroke();ctx.setLineDash([]);
-      ctx.font='600 9px "IBM Plex Mono"';ctx.textAlign='center';
-      ctx.fillStyle='rgba(255,120,80,0.85)';ctx.fillText('BLAM',o.tx,o.ty-8);
     } else if(o.type==='loot'){
       ctx.strokeStyle='rgba(125,217,123,0.6)';ctx.lineWidth=2;ctx.setLineDash([4,5]);
       ctx.beginPath();ctx.arc(u.x,u.y,LOOT_AOE,0,7);ctx.stroke();ctx.setLineDash([]);
@@ -2635,7 +2645,7 @@ function drawOrders(){
   // pick rings
   const sel=U.find(x=>x.id===selId);
   if(sel&&pickMode){
-    const r=pickMode==='move'?MOVE_R:pickMode==='nade'?NADE_R:SPRINT_R;
+    const r=pickMode==='move'?MOVE_R:SPRINT_R;
     ctx.fillStyle=pickMode==='move'?'rgba(255,180,84,0.06)':'rgba(255,120,80,0.05)';
     ctx.beginPath();ctx.arc(sel.x,sel.y,r,0,7);ctx.fill();
     ctx.strokeStyle=pickMode==='move'?'rgba(255,180,84,0.6)':'rgba(255,120,80,0.6)';
@@ -3159,22 +3169,6 @@ cv.addEventListener('pointerup',ev=>{
   }
   if(phase==='PLANNING'){
     const sel=U.find(x=>x.id===selId);
-    if(pickMode==='nade'&&sel){
-      const wpt=cssToWorld(px,py);
-      let dx=wpt.x-sel.x,dy=wpt.y-sel.y;
-      const dd=Math.hypot(dx,dy)||1;
-      if(dd>NADE_R){dx*=NADE_R/dd;dy*=NADE_R/dd;}
-      const gx=sel.x+dx,gy=sel.y+dy;
-      if(ptBlocked(gx,gy,8)){addFloater(gx,gy-16,'NO LANDING','#71809c');return;}
-      if(sel.order&&sel.order.type==='grenade')NADES++; // re-aiming refunds the last one
-      sel.order={type:'grenade',tx:gx,ty:gy};
-      NADES--;
-      sTick();
-      pickMode=null;
-      autoAdvance();
-      syncUI();
-      return;
-    }
     if(pickMode&&sel){
       const wpt=cssToWorld(px,py);
       const d=moveDest(sel,wpt.x,wpt.y,pickMode==='move'?MOVE_R:SPRINT_R);
@@ -3198,6 +3192,16 @@ cv.addEventListener('pointerup',ev=>{
   }
   if(phase==='ENGAGE'){
     const wpt=cssToWorld(px,py);
+    if(pickMode==='nadeToss'&&engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
+      const s=engageQ.cur.s;
+      let dx=wpt.x-s.x,dy=wpt.y-s.y;
+      const dd=Math.hypot(dx,dy)||1;
+      if(dd>NADE_R){dx*=NADE_R/dd;dy*=NADE_R/dd;}
+      const gx=s.x+dx,gy=s.y+dy;
+      if(ptBlocked(gx,gy,8)){addFloater(gx,gy-16,'NO LANDING','#71809c');return;}
+      throwNade(s,gx,gy);
+      return;
+    }
     for(const p of PROPS){
       if(p.kind==='canister'&&!p.dead&&Math.hypot(wpt.x-p.x,wpt.y-p.y)<20){retargetCanister(p);return;}
     }
@@ -3222,7 +3226,6 @@ byId('radial').addEventListener('click',ev=>{
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
-  else if(act==='nade'){if(NADES>0){pickMode='nade';radialOn=false;}}
   else if(act==='work'){
     const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
     if(wp){s.order={type:'work',wp:wp.id};autoAdvance();}
@@ -3233,10 +3236,7 @@ byId('radial').addEventListener('click',ev=>{
   else if(act==='man'){s.order={type:'man'};autoAdvance();}
   else if(act==='leave'){s.order={type:'leave'};autoAdvance();}
   else if(act==='clear'){s.order={type:'clear'};sJamClr();autoAdvance();}
-  else if(act==='cancel'){
-    if(s.order&&s.order.type==='grenade')NADES++;
-    s.order=null;selId=null;radialOn=false;
-  }
+  else if(act==='cancel'){s.order=null;selId=null;radialOn=false;}
   syncUI();
 });
 byId('pickPill').addEventListener('click',()=>{pickMode=null;radialOn=!!selId;syncUI();});
@@ -3267,7 +3267,6 @@ function radialHTML(s){
     ['lockin','◎','Lock In',false],
     ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
-  if(NADES>0)acts.push(['nade','✸','BLAM ×'+NADES,false]);
   const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
   if(wp&&s.id!=='sera')acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
@@ -3295,17 +3294,20 @@ function dockHTML(){
   }
   const c=engageQ&&engageQ.cur;
   if(c&&c.stage==='await'){
+    const canNade=c.s.side==='reb'&&NADES>0&&!c.s.manning;
     let chips='';
-    if(wpnsOf(c.s).length>1){
+    if(wpnsOf(c.s).length>1||canNade){
       for(const w of wpnsOf(c.s)){
         const ok=validShot(c.s,c.t,w);
         chips+='<button class="wchip'+(w===c.wkey?' sel':'')+'" data-wsel="'+w+'" '+(ok?'':'disabled')+'>'+WPN[w].name+'</button>';
       }
+      if(canNade)chips+='<button class="wchip'+(pickMode==='nadeToss'?' sel':'')+'" data-nade>✸ BLAM ×'+NADES+'</button>';
     }
     const pct=pctFor(c.need);
     return '<div class="dockcard"><span class="docklabel">'+c.s.first+' → <b>'+c.t.name+'</b></span>'+
       chips+'<button id="attackBtn">Attack · '+pct+'%</button><button id="holdBtn">Hold Fire</button></div>'+
-      '<div class="docklabel" style="background:rgba(10,15,30,0.8);padding:4px 10px;border-radius:3px;">tap another lawman — or a fuel canister — to retarget</div>';
+      '<div class="docklabel" style="background:rgba(10,15,30,0.8);padding:4px 10px;border-radius:3px;">'+
+      (pickMode==='nadeToss'?'tap the ground to throw the BLAM — it goes off next round':'tap another lawman — or a fuel canister — to retarget')+'</div>';
   }
   return '';
 }
@@ -3402,6 +3404,12 @@ byId('ctlDock').addEventListener('click',ev=>{
   else if(ev.target.id==='extractBtn')startExtract();
   else if(ev.target.id==='attackBtn')playerAttack();
   else if(ev.target.id==='holdBtn')playerHold();
+  else if(ev.target.closest('[data-nade]')){
+    if(engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
+      pickMode=(pickMode==='nadeToss')?null:'nadeToss';
+      sTick();syncUI();
+    }
+  }
   else {
     const wc=ev.target.closest('[data-wsel]');
     if(wc&&!wc.disabled&&engageQ&&engageQ.cur&&engageQ.cur.stage==='await'){
@@ -3603,7 +3611,7 @@ if(location.hash==='#test'){
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }
