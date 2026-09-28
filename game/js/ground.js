@@ -130,17 +130,17 @@ stealcross:{
   foes(){return [
     {id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1906,y:730,hp:140,maxhp:140,aim:3,def:11,cool:90,wpns:['scatter'],sheriff:1,office:1,
       lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']},
-    {id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
+    {id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
       lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']},
-    {id:'cobb', name:'Dep. Cobb', first:'Cobb', side:'law',x:700,y:788,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],patrol:[{x:700,y:788},{x:560,y:830}],
+    {id:'cobb', name:'Dep. Cobb', first:'Cobb', side:'law',x:700,y:788,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:700,y:788},{x:560,y:830}],
       lines:['Strangers on the west road!','I ain\u2019t paid enough for this.']},
-    {id:'marsh',name:'Dep. Marsh',first:'Marsh',side:'law',x:520,y:860,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
+    {id:'marsh',name:'Dep. Marsh',first:'Marsh',side:'law',x:520,y:860,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
       lines:['Something came down south of town\u2026','They\u2019re armed! Guns! GUNS!']},
-    {id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', side:'law',x:1300,y:1100,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
+    {id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', side:'law',x:1300,y:1100,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
       lines:['Motor pool clear\u2026 mostly.','Fall back to the pad!']},
-    {id:'stack',name:'Dep. Stack',first:'Stack',side:'law',x:2080,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['cowboy'],guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
+    {id:'stack',name:'Dep. Stack',first:'Stack',side:'law',x:2080,y:540,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
       lines:['Pad\u2019s secure, Sheriff.','They want the ship! They want the ship!']},
-    {id:'wren', name:'Dep. Wren', first:'Wren', side:'law',x:1562,y:436,hp:55,maxhp:55,aim:4,def:12,wpns:['longiron'],elev:1,fixed:1,
+    {id:'wren', name:'Dep. Wren', first:'Wren', side:'law',x:1562,y:436,hp:55,maxhp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,
       lines:['I can see the whole street from up here.','Say when, Sheriff.']},
   ];},
   civs(){return [
@@ -312,12 +312,12 @@ function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
-    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:10,cool:65,
+    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:12,cool:65,
     level:sp.level||1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   const roster=[...squad];
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:9,cool:45,level:(spec.pilot.level||2),wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
     ...roster,
@@ -585,6 +585,7 @@ function rollDamage(s,t,wkey,crit){
   const w=WPN[wkey];
   let d=rint(w.d0,w.d1);
   if(w.falloff)d=Math.round(d*(1-0.55*Math.min(1,dist(s,t)/w.rng)));
+  if(s&&s.side==='law'&&!s.sheriff)d=Math.round(d*0.85); // rank-and-file shoot to scare
   if(crit)d=Math.round(d*1.5);
   return d;
 }
@@ -929,7 +930,7 @@ function aiPlan(){
     }
     if(u.guard&&!inRng&&!crossAway&&dist(u,GP)<=260){u.order={type:'hold'};u.braced=1;continue;}
     if(inRng&&(!hurt||rng()<0.5)){
-      if(rng()<(u.sheriff?0.35:0.6)){u.order={type:'hold'};u.braced=1;}
+      if(rng()<(u.sheriff?0.35:0.5)){u.order={type:'hold'};u.braced=1;}
       else {
         // sidestep toward nearer cover, still shooting afterwards
         const d=pickCoverMove(u,tgt,MOVE_R,!hurt);

@@ -92,7 +92,10 @@ The three layers now run as **one playable game** (`game/index.html` +
   when that's what's missing.
 - **Ground combat depth pass.** Every weapon hits ~20% harder and the
   laser turret is a genuine threat (42–62 damage, ATK +4); Dustfall's
-  deputies drop to 55–60 hp while Sheriff Reeve keeps his 140. Cover is
+  deputies drop to 55–60 hp **and aim 1** (the tower sniper to aim 3),
+  rank-and-file law damage lands at 85%, and rebel soldiers carry a
+  harder base profile (12) — cover is where fights are won, the open is
+  where they're lost. Sheriff Reeve keeps his 140. Cover is
   worth more (+6 to +8 TN), with new crates and a boulder flanking the
   clamp and fuel-line objectives — both of which now complete in **one
   combat round** via the explicit **Work** order (hotwire stays two).
