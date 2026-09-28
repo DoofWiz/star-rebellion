@@ -48,10 +48,10 @@ const CLS={
     wpns:['plasma'],dmg:{plasma:[7,12]},ammo:{}},
   graf:{label:'Graf Type 1 Hauler',role:'Troop Transport (converted)',init:1,tn:9,size:1.4,shdF:10,shdR:10,arm:25,hull:60,dial:dialGraf,maxSpd:2,
     wpns:['ballistic'],dmg:{ballistic:[10,16]},ammo:{ballistic:10}},
-  depot:{label:'Fuel Depot',role:'Hegemony Orbital Fuel Store',init:0,tn:8,size:1.7,shdF:0,shdR:0,arm:8,hull:55,dial:()=>[[1,'S']],maxSpd:1,
+  depot:{label:'Fuel Depot',role:'Hegemony Orbital Fuel Store',init:0,tn:8,size:1.7,shdF:0,shdR:0,arm:3,hull:24,dial:()=>[[1,'S']],maxSpd:1,
     wpns:[],dmg:{},ammo:{},struct:1,mute:1},
-  drone:{label:'RQ-7 Sentry',role:'Combat Drone',init:2,tn:10,size:0.9,shdF:0,shdR:0,arm:6,hull:16,dial:dialDrone,maxSpd:4,
-    wpns:['plasma'],dmg:{plasma:[6,11]},ammo:{},mute:1},
+  drone:{label:'RQ-7 Sentry',role:'Combat Drone',init:2,tn:10,size:0.9,shdF:0,shdR:0,arm:2,hull:10,dial:dialDrone,maxSpd:4,
+    wpns:['plasma'],dmg:{plasma:[3,7]},ammo:{},mute:1},
 };
 function isStruct(s){return !!CLS[s.cls].struct;}
 const TRAITDESC={
@@ -176,9 +176,9 @@ const DEPLOY_DEPOT=[
   ['D2','Depot 2','depot','heg',2500,720,-0.4,{pname:'Fuel Depot 2',first:'D-2',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'The reason the drift patrols never run dry.'}],
   ['D3','Depot 3','depot','heg',3050,1950,0.8,{pname:'Fuel Depot 3',first:'D-3',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Painted with a fading Hegemony crest and a NO SMOKING sign.'}],
   ['D4','Depot 4','depot','heg',3650,1050,-0.9,{pname:'Fuel Depot 4',first:'D-4',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Topped off yesterday. Unfortunate timing.'}],
-  ['R1','Sentry 1','drone','heg',2300,1250,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
-  ['R2','Sentry 2','drone','heg',2950,1000,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
-  ['R3','Sentry 3','drone','heg',2800,2100,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:2,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
+  ['R1','Sentry 1','drone','heg',2300,1250,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
+  ['R2','Sentry 2','drone','heg',2950,1000,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
+  ['R3','Sentry 3','drone','heg',2800,2100,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
 ];
 let CTX=null; // mission spec from the base layer (null => sim/default cast)
 function deploy(withCutscene){

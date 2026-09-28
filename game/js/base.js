@@ -195,7 +195,7 @@ const MPOOL={
   garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:60,s:25,xp:0.12}},
-  depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',
+  depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
     desc:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
     rew:{i:5,xp:0.2}},
   stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
@@ -493,7 +493,7 @@ function launchMission(m,pilotIds){
   const pilots=G.people.filter(p=>pilotIds.includes(p.id));
   const usable=m.ground?
     G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).slice(0,1):
-    G.fighters.filter(f=>!f.out&&f.hull>=60).slice(0,pilots.length);
+    G.fighters.filter(f=>!f.out&&f.hull>=60&&(m.fighterReq!=='starfighter'||f.cls!=='graf')).slice(0,pilots.length);
   if(pilots.length<m.need||usable.length<(m.ground?1:m.need))return false;
   for(const p of pilots)p.assign='mission';
   for(const f of usable)f.out=true;
@@ -1429,7 +1429,10 @@ function updateGuide(){
   el.hidden=true;
 }
 /* ---------- windows ---------- */
-function openWin(mode,arg){winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
+function openWin(mode,arg){
+  // first look at the galaxy: the network primer comes up once, then never again
+  if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
+  winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
 function closeWin(){
   winMode=null;winArg=null;$('winsB').hidden=true;
   // a freshly discovered mission announces itself once the channel closes
@@ -1462,9 +1465,55 @@ function sourceDetailHTML(s){
     '<button class="sbtn danger" data-sl="'+s.id+'">Cut Loose</button>'+
     '</div></div>';
 }
+/* ---------- sources field manual (the ? button) ---------- */
+const tutP=t=>'<div class="tutP">'+t+'</div>';
+const tutS=(hd,b)=>'<div class="tutStep"><div class="th">'+hd+'</div><div class="tb">'+b+'</div></div>';
+const TUT_PAGES=[
+  {t:'Sources',h:
+    tutP('You can\'t build a rebellion without knowing what\'s happening.')+
+    tutP('Across the galaxy, there are people who have access to information, resources and opportunities that the rebellion could never reach on its own.')+
+    tutP('These people are your <b>Sources</b>.')+
+    tutP('A Source is someone inside Hegemony society who is willing to help your cause. They might be a politician, an officer, a scientist, a smuggler — or simply someone with access to something you need.')+
+    tutP('Every Source is tied to a location. The more Sources you find, the more of the galaxy you can see and influence.')},
+  {t:'What Sources Provide',h:
+    tutP('Every Source provides something useful to the rebellion.')+
+    tutP('Depending on who they are and what access they have, a Source may provide:')+
+    tutS('Money','Funding for the rebellion. Some Sources can provide regular income, but doing so may put them at greater risk.')+
+    tutS('Supplies','Equipment, weapons and other basic supplies that your forces need to operate.')+
+    tutS('Intel','Information about Hegemony activity. More Intel gives you greater warning of what the Hegemony is planning, and can also be spent to gain access to new locations.')+
+    tutP('Sources can also generate <b>Missions</b>. The right Source might give you an opportunity that would otherwise be impossible to find.')},
+  {t:'Cultivation',h:
+    tutP('A Source isn\'t useful just because they are willing to help.')+
+    tutP('The more you work with a Source, the more they trust you — and the more they are willing to risk for the rebellion.')+
+    tutP('This is <b>Cultivation</b>.')+
+    tutP('Visit or contact your Sources to build your relationship with them. They may have requests, doubts or demands of their own. How you respond can improve — or damage — their trust in the rebellion.')+
+    tutP('Fill their Cultivation meter and the Source will gain a level.')+
+    tutP('A higher-level Source can provide greater benefits, unlock new opportunities and gain access to more valuable information.')+
+    tutP('The more you cultivate a Source, the more useful they become.')},
+  {t:'Risk',h:
+    tutP('Every Source is taking a risk by helping you.')+
+    tutP('The <b>Risk</b> meter represents how close a Source is to being discovered by the Hegemony. The more attention they attract, the higher their Risk becomes.')+
+    tutP('A nervous Source may make mistakes. The Hegemony may start asking questions. Eventually, the Source may be <b>Burned</b>.')+
+    tutP('A Burned Source has been discovered as a traitor and is no longer safe to use. Their loss also increases the risk to the wider rebellion.')+
+    tutP('Cultivation makes a Source more valuable — but keeping them involved also means keeping them alive.')},
+  {t:'Making Contact',h:
+    tutP('When you need to deal with a Source, you have two options:')+
+    tutS('Visit','Meet the Source in person. This gives you more opportunities to build trust, but puts you at greater risk.')+
+    tutS('Contact','Communicate remotely. This is safer, but may not be possible forever as the Revolution grows and Hegemony surveillance increases.')+
+    tutP('Either way, speaking with a Source can lead to new opportunities, requests or Missions.')+
+    tutP('Keep an eye on your Sources. They may have something important to tell you.')},
+  {t:'When a Source Is Burned',h:
+    tutP('Sometimes, a Source becomes too dangerous to keep alive.')+
+    tutP('If their Risk becomes critical, you can <b>Cut Loose</b> the Source before the Hegemony discovers them.')+
+    tutP('This ends the relationship and removes the immediate danger — but you lose the Source permanently, along with everything they could have provided.')+
+    tutP('There is another option.')+
+    tutP('An <b>Assassin</b> can be sent to silence a Source. This removes them and eliminates their Risk, but the Source is gone forever.')+
+    tutP('There is no getting them back.')+
+    tutP('Every Source you cultivate is an asset to the rebellion. Every asset can become a liability.')},
+];
 function renderWin(){
   const card=$('winCardB');
-  card.classList.remove('narrow');
+  card.classList.remove('narrow','wide');
   let h='';
   if(winMode==='sources'){
     card.classList.add('wide');
@@ -1492,10 +1541,33 @@ function renderWin(){
         if(st.access&&here.length)detail+=here.map(sourceDetailHTML).join('');
       }
     }
-    h='<div class="winHead"><span class="wt">Galaxy · '+accessN+' worlds accessible · network '+alive.length+'/'+sourceCap()+'</span><button class="winX" data-close>✕</button></div>'+
+    h='<div class="winHead"><span class="wt">Galaxy · '+accessN+' worlds accessible · network '+alive.length+'/'+sourceCap()+'</span><button class="winQ" data-srchelp title="How sources work">?</button><button class="winX" data-close>✕</button></div>'+
       '<div class="winBody"><canvas id="galaxyCv"></canvas>'+
       '<div class="maphint">core worlds burn bright and cost dear · faint signals are uncharted · '+I('')+' buys access</div>'+
       detail+'</div>';
+  }
+  else if(winMode==='srcTutIntro'){
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Build Your Network</span><button class="winQ" data-srchelp title="Learn more">?</button></div><div class="winBody">'+
+      tutP('Your Sources are the foundation of your intelligence network.')+
+      tutS('1. Find Sources','Discover people willing to help the rebellion.')+
+      tutS('2. Cultivate Them','Build their trust to increase their level and improve what they provide.')+
+      tutS('3. Use Their Access','Gain Money, Supplies, Intel and new opportunities.')+
+      tutS('4. Take the Risk','The more valuable a Source becomes, the more important it is to keep them safe.')+
+      tutS('5. Know When to Let Go','A Source who has become too dangerous may need to be Cut Loose — or Silenced.')+
+      tutP('A strong intelligence network will give the rebellion the information and resources it needs to survive.')+
+      tutP('But every person in that network is a person who can be discovered...')+
+      '<div class="pdesc">Click the <b style="color:var(--good)">?</b> button to learn more.</div>'+
+      '<button class="dbtn" data-srctut-done style="margin-top:6px"><b>Understood</b></button></div>';
+  }
+  else if(winMode==='srcTut'){
+    card.classList.add('narrow');
+    const pg=Math.max(0,Math.min(TUT_PAGES.length-1,(winArg&&winArg.page)||0));
+    const P=TUT_PAGES[pg];
+    h='<div class="winHead"><span class="wt">'+P.t+'</span><button class="winX" data-tut-close>✕</button></div><div class="winBody">'+P.h+
+      '<div class="tutNav"><button class="tutArr" data-tut-prev '+(pg===0?'disabled':'')+'>◀</button>'+
+      '<span class="pgs">'+(pg+1)+' / '+TUT_PAGES.length+'</span>'+
+      '<button class="tutArr" data-tut-next '+(pg===TUT_PAGES.length-1?'disabled':'')+'>▶</button></div></div>';
   }
   else if(winMode==='comm'){
     const {src,payload}=winArg;
@@ -1840,6 +1912,10 @@ $('winsB').addEventListener('click',ev=>{
     return;
   }
   sClick();
+  if(t.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
+  if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){openWin('sources');return;}
+  if(t.hasAttribute('data-tut-prev')){openWin('srcTut',{page:((winArg&&winArg.page)||0)-1});return;}
+  if(t.hasAttribute('data-tut-next')){openWin('srcTut',{page:((winArg&&winArg.page)||0)+1});return;}
   const sc=t.getAttribute('data-sc');
   if(sc){const s=G.sources.find(x=>x.id===sc);if(s){sComm();srcContact(s);}return;}
   const sv=t.getAttribute('data-sv');
@@ -1980,6 +2056,7 @@ let planLead=false;
 function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');}
 function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission').length;}
 function readyFighters(){return G.fighters.filter(f=>!f.out&&f.hull>=60).length;}
+function readyStarfighters(){return G.fighters.filter(f=>f.cls!=='graf'&&!f.out&&f.hull>=60).length;}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 function precondList(m){
   if(m.ground)return [
@@ -1987,9 +2064,11 @@ function precondList(m){
     {ok:ablePilots().length>=2,label:'1 Starfighter Pilot Available'},
     {ok:grafReady(),label:'1 Hauler Available'},
   ];
+  const star=m.fighterReq==='starfighter';
   return [
     {ok:ablePilots().length>=m.need,label:m.need+' Starfighter Pilot'+(m.need>1?'s':'')+' Available'},
-    {ok:readyFighters()>=m.need,label:m.need+' Starfighter'+(m.need>1?'s':'')+' Available'},
+    {ok:(star?readyStarfighters():readyFighters())>=m.need,
+      label:m.need+' Starfighter'+(m.need>1?'s':'')+' Available'+(star?' — the Marta won’t do':'')},
   ];
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
@@ -2017,7 +2096,7 @@ function leadMission(m,ids){
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
     const pilots=G.people.filter(p=>ids.includes(p.id));
-    const ready=G.fighters.filter(f=>!f.out&&f.hull>=60);
+    const ready=G.fighters.filter(f=>!f.out&&f.hull>=60&&(m.fighterReq!=='starfighter'||f.cls!=='graf'));
     if(pilots.length<m.need||ready.length<pilots.length)return;
     const used=new Set();
     const flight=pilots.map(p=>{
@@ -2236,6 +2315,6 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{addMission,leadMission,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
-      ablePilots,openWin,closeWin,launchIntro}};
+      ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt}};
 }
 })();

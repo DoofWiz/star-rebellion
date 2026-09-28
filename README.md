@@ -90,6 +90,14 @@ The three layers now run as **one playable game** (`game/index.html` +
   unavailable crew greyed-out with the reason, and a **Go to the Hangar**
   button plus arrow walks the player to the derelict-hauler restoration
   when that's what's missing.
+- **The sources field manual.** The first time the Galaxy opens, a
+  one-time **Build Your Network** primer lays out the loop in five steps
+  (find sources → cultivate them → use their access → take the risk →
+  know when to let go) and points at the green **?** button now living in
+  the Galaxy header. The ? opens a six-page manual — *Sources · What
+  Sources Provide · Cultivation · Risk · Making Contact · When a Source
+  Is Burned* — paged with ◀ ▶ arrows at the bottom of each window and
+  closing back onto the galaxy map.
 - **Ground combat depth pass.** Every weapon hits ~20% harder and the
   laser turret is a genuine threat (42–62 damage, ATK +4); Dustfall's
   deputies drop to 55–60 hp **and aim 1** (the tower sniper to aim 3),
@@ -129,7 +137,13 @@ The three layers now run as **one playable game** (`game/index.html` +
   don't move, act, or panic, take "tank rupture" instead of subsystem
   criticals, and go up in oversized fireballs; drones fly the standard AI
   but feel no fear. Win by destroying all four depots; the objective line
-  tracks the count.
+  tracks the count. The mission **requires a starfighter** — the Marta
+  hauler doesn't qualify (the precondition row says so, and both launch
+  paths filter her out), which is exactly what the stolen Cross is for.
+  The opposition is deliberately soft for a first space fight: depots are
+  fragile fuel bladders (24 hull, armor 3), and each drone is
+  individually weak — 10 hull, light armor, aim 1, and a popgun plasma
+  battery (3–7 damage).
 - **Stealth with teeth, and an attack action.** In free move, tapping an
   enemy now opens fire: every rebel with a clear shot joins an **ambush
   volley** (+2 ATK on the surprise shots, concentrated on the mark you
