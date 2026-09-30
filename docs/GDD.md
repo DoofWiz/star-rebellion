@@ -514,6 +514,43 @@ acts:
 At 100 the **escalation animation** plays once and the lamp shows 2. All weights are tuning
 values. Old saves are clamped to 40 when first loaded.
 
+### Resources, hangar and fuel (built)
+- **Materials** (⚙) pay for construction, excavation, repairs and restoring the hauler. **Supplies**
+  (▤) remain for people-related costs (infirmary, training hall, barracks annex). **Fuel** (◐)
+  is burned per ship on every sortie: Marta 4, FT-4 Cross 6, Talon 6. A trickle of +1 Fuel a day
+  weeps from the hangar-cave tanks so the player can't soft-lock.
+- Sources and missions can pay Materials and Fuel (Steal Fuel-type jobs, tanker grabs, ore, quarry
+  and timber ops).
+- The hangar starts with **four landing pads**; each Hangar Bay adds one.
+
+### Mission planning (built)
+- A mission is a **type** (ground, space or off-screen) plus a story. The type sets its
+  requirements; a mission can override them (Steal the Cross needs 3 soldiers, a transport
+  with its pilot, and a pilot for the prize). Each mission lists **objectives** and is tied
+  to a **source**, a **location** and, where relevant, a **region**.
+- The **briefing board** shows narrative, objectives, reward and Pre Conditions, with slots for the
+  Team (soldiers), Transport (+ its pilot, one transport seats 4 soldiers), and any extra pilots,
+  or for space sorties a Flight of pilot + ship pairs. Fill slots by clicking the roster or
+  dragging; filled slots are clicked to clear. Choosing a pilot pulls in their ship and vice
+  versa. **Auto-fill** is available.
+- Playable missions are played: **Start** launches the scene. Missions with no scenario yet
+  are off-screen jobs: **Launch** sends the team and resolves in days. Once a mission has a real
+  scenario, the off-screen option disappears.
+
+### Mission flow (built)
+Play → extract → **return-to-base cinematic** → **reward screen** (objectives, loot, crew XP and
+injuries, Revolution progress, liberation gained) → the mission's source **calls back
+automatically** in the usual comm window. Fixed mission rewards now apply to ground missions
+too, on top of loot.
+
+### Opportunities (built)
+Our own intelligence turns up leads in any world at **Access 2+**, but only while the
+**Comms Array is built and staffed** (the Comms Array stands in for the Intelligence Center until
+the base rework). A lead shows as an amber diamond on the galaxy map; clicking it reads the
+briefing and adds it to the mission board; the marker stays until the job is done. One
+lead per world at a time, at most four open. Higher Access means more frequent, richer leads;
+leads in liberation worlds target a region and add liberation.
+
 ### Missions
 - Missions come from Sources and from Intelligence (map markers, from Access 2). Alerts are
   Level 2.

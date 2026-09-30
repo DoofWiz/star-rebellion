@@ -90,7 +90,12 @@ Original scope:
 - Add **Materials** and **Fuel** to the resource model. Fuel is consumed by ship missions.
   *(Not yet built.)*
 
-### Phase 2 — Mission framework
+### Phase 2 — Mission framework — **built** (Directives skipped: WIP in the docs)
+Built: mission types with requirements and objectives, the briefing/planning board with
+team, transport, pilot and ship slots (click or drag), Fuel and Materials, the four-pad hangar,
+the arrival cinematic, reward screen and automatic source call-back, and Opportunities
+(Access 2+, staffed Comms Array, persistent map markers). See `docs/GDD.md` §8.
+Original scope:
 - Data-driven **mission type + narrative wrapper**, so a designer can chain missions
   under a Source. This is the docs' central authoring idea.
 - Planning window: **Team + Assets + transport slot**, click or drag from the roster,

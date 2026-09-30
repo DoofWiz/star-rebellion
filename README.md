@@ -171,6 +171,15 @@ The three layers now run as **one playable game** (`game/index.html` +
   across many worlds, liberation, Access and Support (no daily trickle); filling it plays
   the **Level 2 escalation** animation. See `docs/GDD.md` §8 and `docs/ROADMAP.md`.
 
+- **Mission planning and flow (Phase 2).** Every mission opens a **briefing board** with
+  its story, objectives and reward plus slots for the team, a transport and its pilot, and any
+  extra pilots (space sorties use pilot + ship pairs). Click or drag from the roster;
+  **Auto-fill** is there if you'd rather not. Sorties burn **Fuel** (◐) and building or
+  repairing costs **Materials** (⚙). After a mission: a return-to-base cinematic, a **reward
+  screen**, then the source calls back on its own. Your own **intelligence** surfaces
+  **Opportunities**, amber diamonds on the galaxy map, once a world reaches Access 2 and the Comms
+  Array is staffed. The hangar starts with four landing pads.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

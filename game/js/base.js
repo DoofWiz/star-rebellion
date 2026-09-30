@@ -351,6 +351,14 @@ const MEXTRA={
   orehaul:{objectives:['Intercept the ore barge','Take the payroll and the ore']},
   foundry:{objectives:['Copy the Forge freight manifests']},
 };
+MEXTRA.stealcross.after=['<b>WENDER:</b> “You actually did it. A Cross, flying, and a sheriff who will never live it down. The cantinas are already talking. Keep your head down and your ears open. Somebody in Dustfall is going to want to thank you.”'];
+MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Brakka watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
+MEXTRA.toi.after=['<b>HALT:</b> “The academy is in uproar. Vex is dead and nobody at the yards will say his name. Let me see what they do next.”'];
+MEXTRA.intercept.after=['<b>HALT:</b> “Supply transport missing, manifest clerk drinking at noon. You are a natural disaster, Commander.”'];
+MEXTRA.tanker.after=['<b>HALT:</b> “They are blaming the weather. The weather has an alibi. More soon.”'];
+MEXTRA.skim.after=['<b>VOKK:</b> “The transfer cleared. I will pretend I do not know why. Please do not contact me this week.”'];
+MEXTRA.fighters.after=['<b>HALT:</b> “Pad nine is a crime scene and I am a witness. Keep the Talon. I never saw it.”'];
+MEXTRA.chart.after=['<b>MARR:</b> “Your charts are better than ours. I will lose my own copy. Thank you.”'];
 for(const k in MEXTRA)Object.assign(MPOOL[k],MEXTRA[k]);
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
 const SEATS={graf:4};     // troop seats per transport
@@ -599,6 +607,7 @@ function advanceDay(){
   }
   if(hasRoom('comms')&&staffOf('comms').length)G.intel+=roomsOf('comms').length;
   else if(hasRoom('comms'))news('The comms array hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
+  genOpportunities();
   for(const m of G.missions){
     if(m.state!=='prog')continue;
     m.progress.daysLeft--;
@@ -620,6 +629,7 @@ function advanceDay(){
   setTimeout(()=>$('dayBanner').classList.remove('show'),RM?400:1100);
   sDay();
   saveSnap();syncUI();
+  if(!HOLD&&!winMode)nextReport();
 }
 
 /* ---------- missions ---------- */
@@ -654,6 +664,33 @@ function missionAftermath(mid){
     G.candQ.push('vokk');
     syncLocalOps('brakka',true);
   }
+}
+/* ---------- mission flow: arrive → reward screen → the source calls back ---------- */
+let RQ=[],HOLD=false;
+function buildReport(m,win,got,people,cr,arrive){
+  let follow=null;
+  if(win&&m.src){
+    const src=G.sources.find(x=>x.id===m.src&&x.alive);
+    if(src)follow={src:src.id,lines:m.after||['<b>'+src.name.split(' ').pop().toUpperCase()+':</b> “Word travels. Well done.”']};
+  }
+  return {m,win,got,people:people||[],cr:cr||null,arrive:!!arrive,follow};
+}
+function queueReport(rpt){
+  if(rpt.arrive)RQ.push({t:'arrive',rpt});
+  RQ.push({t:'reward',rpt});
+  if(rpt.follow)RQ.push({t:'follow',rpt});
+}
+function nextReport(){
+  const n=RQ.shift();
+  if(!n)return false;
+  if(n.t==='arrive')openWin('arrive',n.rpt);
+  else if(n.t==='reward')openWin('reward',n.rpt);
+  else{
+    const src=G.sources.find(x=>x.id===n.rpt.follow.src&&x.alive);
+    if(!src)return nextReport();
+    sComm();openComm(src,{lines:n.rpt.follow.lines});
+  }
+  return true;
 }
 /* pay out a mission's fixed reward (ships are handled by each caller) */
 function applyRew(rw,got){
@@ -691,7 +728,8 @@ function resolveMission(m){
     for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
     G.morale=Math.min(100,G.morale+6);
     m.state='done';m.meta='SUCCESS';
-    missionCredit(m);
+    const cr=missionCredit(m);
+    queueReport(buildReport(m,true,rew,pilots.map(p=>({name:p.name,xp:m.rew.xp||0.1})),cr,false));
     news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
     missionAftermath(m.id);
@@ -702,6 +740,7 @@ function resolveMission(m){
     if(f)f.hull=Math.max(15,f.hull-30);
     G.morale=Math.max(0,G.morale-8);
     m.state='avail';m.progress=null;
+    queueReport(buildReport(m,false,[],[{name:hurt.name,xp:0,state:'injured'}],null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
     sAlert();
   }
@@ -843,6 +882,66 @@ function scoutPlanet(id){
   openWin('locBrief',{id,lines});
   saveSnap();syncUI();
 }
+/* ---------- Opportunities: leads our own intelligence turns up ----------
+   Need Access 2+ in a world and a staffed Comms Array (our Intelligence Center for now).
+   A lead shows on the galaxy map; click it to read it and put it on the mission board.
+   The marker stays until the job is done. */
+const OPP_TPL=[
+  {name:'Ambush the Supply Convoy',days:2,rew:{s:40,m:20},obj:['Intercept the convoy near {where}','Take the cargo'],
+   intro:'Our listeners caught a convoy schedule out of {loc}: two haulers, one escort and a driver who hums. It passes {where} at dusk.',
+   desc:'A supply convoy on a predictable route through {where}. Hit it, take the cargo, and be gone before the escort calls it in.'},
+  {name:'Skim a Fuel Hauler',days:2,rew:{f:35,c:30},obj:['Shadow the hauler out of {where}','Siphon her tanks'],
+   intro:'A fuel hauler out of {loc} runs light on escorts every third night, and someone in the depot sells us the timing.',
+   desc:'A fuel hauler with a thin escort near {where}. Take what she carries before the depot notices the shortfall.'},
+  {name:'Tap a Comm Relay',days:2,rew:{i:3},obj:['Reach the relay above {where}','Plant the tap and leave'],
+   intro:'A relay above {loc} carries patrol traffic almost in the clear. A tap would tell us where they are going next.',
+   desc:'A patrol relay over {where}. Plant a tap and we read their traffic for weeks.'},
+  {name:'Loot the Customs Shed',days:2,rew:{c:90,m:15},obj:['Reach the customs shed at {where}','Empty the impound lockers'],
+   intro:'Impounded goods pile up in a shed at {where}, guarded by a clerk and a padlock. Half of it was stolen from people like us.',
+   desc:'An impound shed at {where}. Take the valuables and be gone before inventory day.'},
+  {name:'Hit a Prisoner Transfer',days:2,rew:{c:40,s:25},obj:['Intercept the transfer','Free the prisoners'],
+   intro:'A transport of detained dissidents leaves {where} at midnight. The guards are bored and the locks are cheap.',
+   desc:'A prisoner transfer out of {where}. Free the detainees, and take whatever the guards were carrying.'},
+];
+function oppText(t,o){
+  const d=pdef(o.loc),r=o.region&&d.regions&&d.regions.find(x=>x.id===o.region);
+  return t.replace(/\{loc\}/g,d.name).replace(/\{where\}/g,r?r.name:d.name);
+}
+function oppsEligible(){return hasRoom('comms')&&staffOf('comms').length>0;}
+function genOpportunities(){
+  G.opps=(G.opps||[]).filter(o=>!o.done);
+  G.missions=G.missions.filter(m=>!(m.opp&&m.state==='done'));
+  if(!oppsEligible()||G.opps.length>=4)return;
+  for(const d of PLANETDEF){
+    const st=pst(d.id);
+    if(!st||d.base||!st.access||(st.acc||0)<2)continue;
+    if(G.opps.some(o=>o.loc===d.id))continue;
+    if(rng()>0.10+0.04*((st.acc||0)-2))continue;
+    const ti=Math.floor(rng()*OPP_TPL.length);
+    const scale=1+0.25*((st.acc||0)-2);
+    const rew={};for(const k in OPP_TPL[ti].rew)rew[k]=Math.round(OPP_TPL[ti].rew[k]*scale);
+    let region=null;
+    if(d.regions){
+      const open=d.regions.filter(r=>((st.lib&&st.lib[r.id])||0)<Math.min(100,locCap(st)));
+      if(open.length)region=open[Math.floor(rng()*open.length)];
+    }
+    G.oppN=(G.oppN||0)+1;
+    G.opps.push({id:'opp'+G.oppN,loc:d.id,region:region?region.id:null,tpl:ti,found:false,done:false,rew});
+    news('Intelligence: a lead has surfaced at <b>'+d.name+'</b>. It is marked on the galaxy map.','a');
+    flashMsg('\u25c6 New lead at <b>'+d.name+'</b>');sAlert();
+    break;
+  }
+}
+function oppMission(o){
+  const t=OPP_TPL[o.tpl],d=pdef(o.loc);
+  return {id:o.id,state:'avail',progress:null,opp:true,name:t.name,from:'Intelligence \u00b7 '+d.name,need:2,days:t.days,
+    riskTxt:d.sec>=3?'Moderate':'Low',desc:oppText(t.desc,o),objectives:t.obj.map(x=>oppText(x,o)),
+    rew:Object.assign({xp:0.12},o.rew),loc:o.loc,region:o.region||undefined,lib:o.region?15:undefined,type:'abstract'};
+}
+function openOpp(id){
+  const o=(G.opps||[]).find(x=>x.id===id);
+  if(o)openWin('opp',o);
+}
 /* ---------- Access, Support, Liberation, and the road to Level 2 ---------- */
 function raiseAccess(id){
   const d=pdef(id),st=pst(id);
@@ -905,15 +1004,19 @@ function syncLocalOps(id,quiet){
 /* every finished mission feeds the progress meter; a new location is worth the most */
 function missionCredit(m){
   let gain=3;
+  const info={gain:0,lib:null,first:false};
+  if(m.opp){const o=(G.opps||[]).find(x=>x.id===m.id);if(o)o.done=true;}
   const st=m.loc?pst(m.loc):null,d=m.loc?pdef(m.loc):null;
   if(st){
     st.ops=(st.ops||0)+1;
+    info.first=st.ops===1;
     gain+=st.ops===1?5:st.ops===2?2:0;
     if(m.region&&m.lib&&d&&d.regions){
       const r=d.regions.find(x=>x.id===m.region);
       const cur=st.lib[m.region]||0,cap=locCap(st);
       const to=Math.max(cur,Math.min(cap,cur+m.lib));
       st.lib[m.region]=to;
+      info.lib={region:r.name,from:cur,to,capped:to>=cap&&to<100};
       if(to>cur){
         gain+=(to-cur)*0.08;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
@@ -924,6 +1027,8 @@ function missionCredit(m){
   revGain(gain);
   news('Revolution progress +'+(Math.round(gain*10)/10)+' ('+Math.round(G.renown)+'/100).','d');
   if(m.loc)syncLocalOps(m.loc);
+  info.gain=Math.round(gain*10)/10;
+  return info;
 }
 /* ---------- audio ---------- */
 function sDay(){osc('sine',90,45,0.28,0.5);nz('bandpass',400,2,0.1,0.5,0,1200);}
@@ -1403,6 +1508,7 @@ function locStatsHTML(d,st){
     '<div class="lstat"><span class="ll">Support</span><span class="lp sup">'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,'⚑',i=>SUP_COL[Math.max(0,sup-1)]):'<span class="pdesc">no population</span>')+'</span></div>'+
     '<div class="lstat"><span class="ll">Liberation</span><span class="lp">'+(lib===null?'<span class="pdesc">no liberation front charted</span>':libWheel(lib))+'</span></div>'+
   '</div>';
+  if(!d.base&&(st.acc||0)>=2)h+='<div class="pdesc" style="margin:2px 0 6px">'+(oppsEligible()?'Our intelligence is watching this world for leads.':'Leads from our own intelligence need a <b>staffed Comms Array</b>.')+'</div>';
   if(d.regions){
     h+='<div class="dz-sec">Regions</div>'+d.regions.map(r=>{
       const pct=(st.lib&&st.lib[r.id])||0;
@@ -1497,6 +1603,15 @@ function drawGalaxy(now){
     c2.font='600 7.5px "Exo 2"';
     c2.fillStyle='rgba(113,128,156,0.75)';
     c2.fillText(st.access?d.kind.toUpperCase():('SCOUT '+d.scout+'◈'),x,y+R+12);
+  }
+  // intelligence leads: amber diamonds that stay until the job is done
+  for(const o of (G.opps||[])){
+    if(o.done)continue;
+    const pd=pdef(o.loc),x=w*pd.x+20,y=h*pd.y-16,p=pul(x+y);
+    c2.fillStyle='rgba(255,180,84,'+(0.65+0.3*p)+')';
+    c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+5.5,y);c2.lineTo(x,y+7);c2.lineTo(x-5.5,y);c2.closePath();c2.fill();
+    if(!o.found){c2.strokeStyle='rgba(255,180,84,'+(0.25+0.3*p)+')';c2.lineWidth=1;c2.beginPath();c2.arc(x,y,9+3*p,0,7);c2.stroke();}
+    c2.font='700 8px "Exo 2"';c2.textAlign='center';c2.fillStyle='rgba(255,200,130,.9)';c2.fillText(o.found?'LEAD · ON BOARD':'NEW LEAD',x,y+19);
   }
   // sources ride their worlds
   const hx=w*pdef('haven').x,hy=h*pdef('haven').y;
@@ -1700,9 +1815,12 @@ function updateGuide(){
 function openWin(mode,arg){
   // first look at the galaxy: the network primer comes up once, then never again
   if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
-  winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;}
+  winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;
+  if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
+}
 function closeWin(){
   winMode=null;winArg=null;$('winsB').hidden=true;
+  if(started&&G&&RQ.length&&nextReport())return;
   // a freshly discovered mission announces itself once the channel closes
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
     const mid=G.misPopQ.shift();
@@ -1818,7 +1936,7 @@ function renderWin(){
     }
     h='<div class="winHead"><span class="wt">Galaxy · '+accessN+' worlds accessible · network '+alive.length+'/'+sourceCap()+'</span><button class="winQ" data-srchelp title="How sources work">?</button><button class="winX" data-close>✕</button></div>'+
       '<div class="winBody"><canvas id="galaxyCv"></canvas>'+
-      '<div class="maphint">core worlds burn bright and cost dear · faint signals are uncharted · '+I('')+' buys access</div>'+
+      '<div class="maphint">core worlds burn bright and cost dear · faint signals are uncharted · \u25c6 amber diamonds are intelligence leads · '+I('')+' buys access</div>'+
       detail+'</div>';
   }
   else if(winMode==='srcTutIntro'){
@@ -1874,6 +1992,40 @@ function renderWin(){
       '<button class="dbtn" data-mplan="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
       '<button class="dbtn" data-close>Later</button>'+
       '</div>';
+  }
+  else if(winMode==='opp'){
+    const o=winArg,t=OPP_TPL[o.tpl],d=pdef(o.loc),mm=G.missions.find(x=>x.id===o.id);
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Intelligence Lead \u00b7 '+d.name+'</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
+      '<div class="mcard" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+t.name+'</span></div>'+
+      '<div class="mwhere">'+whereHTML({loc:o.loc,region:o.region})+' \u00b7 from our own intelligence</div>'+
+      '<div class="mdesc">'+oppText(t.intro,o)+'</div></div>'+
+      '<div class="mmeta">Expected: '+bundleHTML(o.rew)+' +XP'+(o.region?' \u00b7 pushes liberation in '+d.regions.find(r=>r.id===o.region).name:'')+'</div>'+
+      (mm?'<button class="dbtn" data-mplan="'+mm.id+'"><b>Brief & Plan</b></button>':
+        '<button class="dbtn" data-oppadd="'+o.id+'"><b>Add to the Mission Board</b></button>')+
+      '<button class="dbtn" data-close>Later</button></div>';
+  }
+  else if(winMode==='arrive'){
+    card.classList.add('narrow');
+    h='<div class="winBody arrive"><div class="arrsky"><i class="arrstar s1"></i><i class="arrstar s2"></i><i class="arrstar s3"></i><div class="arrship">\u25b2</div><div class="arrrock"></div></div>'+
+      '<div class="arrtxt">'+(winArg.win?'Returning to Haven Rock':'Limping back to Haven Rock')+'</div>'+
+      '<button class="sbtn" data-close style="margin:8px auto 0;display:block">Skip</button></div>';
+  }
+  else if(winMode==='reward'){
+    const rp=winArg,m=rp.m;
+    card.classList.add('narrow');
+    const crew=rp.people.map(p=>'<div class="rwrow"><span>'+p.name+'</span><span>'+(p.state==='lost'?'<b style="color:var(--heg)">LOST</b>':p.state==='injured'?'<span style="color:var(--heg)">injured</span>':'')+(p.xp?' <span class="rxp">XP +'+Math.round(p.xp*100)+'%</span>':'')+'</span></div>').join('');
+    h='<div class="winHead"><span class="wt">'+(rp.win?'Mission Complete':'Mission Failed')+'</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
+      '<div class="mcard '+(rp.win?'done':'')+'" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
+      (whereHTML(m)?'<div class="mwhere">'+whereHTML(m)+'</div>':'')+'</div>'+
+      (rp.win?'<div class="dz-sec">Objectives</div>'+(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(').map(o=>'<div class="orow"><span class="tick" style="color:var(--good)">\u2713</span>'+o+'</div>').join(''):
+        '<div class="pdesc" style="margin:6px 0">The job stays on the board. Regroup and try again.</div>')+
+      '<div class="dz-sec">'+(rp.win?'Rewards':'Recovered')+'</div><div class="mmeta">'+(rp.got.length?rp.got.join(' \u00b7 '):'Nothing.')+'</div>'+
+      (crew?'<div class="dz-sec">Crew</div>'+crew:'')+
+      (rp.cr?'<div class="dz-sec">The revolution</div><div class="rwrow"><span>Revolution progress</span><span class="rxp">+'+rp.cr.gain+'</span></div>'+
+        (rp.cr.first?'<div class="rwrow"><span>First operation in '+(pdef(m.loc)||{}).name+'</span><span class="rxp">noticed</span></div>':'')+
+        (rp.cr.lib?'<div class="rwrow"><span>'+rp.cr.lib.region+' liberation</span><span class="rxp">'+rp.cr.lib.from+'% \u2192 '+rp.cr.lib.to+'%'+(rp.cr.lib.capped?' (capped)':'')+'</span></div>':''):'')+
+      '<button class="dbtn" data-close style="margin-top:10px"><b>Continue</b></button></div>';
   }
   else if(winMode==='locBrief'){
     const d=pdef(winArg.id),st=pst(winArg.id);
@@ -2169,6 +2321,11 @@ $('winsB').addEventListener('click',ev=>{
     const g=ev.target,r=g.getBoundingClientRect();
     const px=ev.clientX-r.left,py=ev.clientY-r.top;
     let best=null,bd=1e9;
+    for(const o of (G.opps||[])){
+      if(o.done)continue;
+      const pd=pdef(o.loc),d=Math.hypot(px-(r.width*pd.x+20),py-(r.height*pd.y-16));
+      if(d<14&&d<bd){bd=d;best={t:'o',id:o.id};}
+    }
     for(const s of G.sources){
       if(!s.alive)continue;
       const [sx2,sy2]=srcMapPos(s,r.width,r.height);
@@ -2182,6 +2339,7 @@ $('winsB').addEventListener('click',ev=>{
         if(d<26&&d<bd){bd=d;best={t:'p',id:pd.id};}
       }
     }
+    if(best&&best.t==='o'){sClick();openOpp(best.id);return;}
     if(best){srcSel=best;sClick();renderWin();}
     return;
   }
@@ -2256,6 +2414,19 @@ $('winsB').addEventListener('click',ev=>{
   if(scout){scoutPlanet(scout);return;}
   const raise=t.getAttribute('data-raise');
   if(raise){raiseAccess(raise);return;}
+  const oppadd=t.getAttribute('data-oppadd');
+  if(oppadd){
+    const o=(G.opps||[]).find(x=>x.id===oppadd);
+    if(o&&!G.missions.some(m=>m.id===o.id)){
+      o.found=true;
+      const m=oppMission(o);
+      G.missions.splice(G.missions.length-1,0,m);
+      news('Mission available: <b>'+m.name+'</b> ('+m.from+').','a');
+      sAlert();
+      openWin('opp',o);
+    }
+    return;
+  }
   const mplan=t.getAttribute('data-mplan');
   if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openPlan(m);return;}
   const as=t.getAttribute('data-as');
@@ -2607,7 +2778,10 @@ function applyDebrief(r){
   const m=G.missions.find(x=>x.id===r.missionId);
   // the mission days pass while they are in the field
   for(const pr of r.people||[]){const p=G.people.find(x=>x.id===pr.id);if(p)p.assign='mission';}
+  HOLD=true;
   for(let d=0;d<(r.days===undefined?1:r.days);d++)advanceDay();
+  HOLD=false;
+  const pinfo=[];
   for(const pr of r.people||[]){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
@@ -2615,6 +2789,7 @@ function applyDebrief(r){
     if(pr.xp){p.xp+=pr.xp;levelUp(p);}
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
+    pinfo.push({name:p.name,xp:pr.xp||0,state});
     if(state==='lost'){
       G.people=G.people.filter(x=>x.id!==p.id);
       G.morale=Math.max(0,G.morale-10);
@@ -2659,7 +2834,8 @@ function applyDebrief(r){
   if(m){
     if(r.win){
       m.state='done';m.meta='SUCCESS';
-      missionCredit(m);
+      const cr=missionCredit(m);
+      queueReport(buildReport(m,true,got,pinfo,cr,true));
       G.morale=Math.min(100,G.morale+6);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
       sBuild();
@@ -2667,11 +2843,13 @@ function applyDebrief(r){
     } else {
       m.state='avail';m.progress=null;
       G.morale=Math.max(0,G.morale-8);
+      queueReport(buildReport(m,false,got,pinfo,null,true));
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
       sAlert();
     }
   }
   saveSnap();syncUI();
+  nextReport();
 }
 ROOT.addEventListener('click',ev=>{
   const rst=ev.target.closest('[data-restore]');
@@ -2713,6 +2891,7 @@ function restoreCampaign(data){
       if(!st.lib)st.lib={};
       if(st.ops===undefined)st.ops=0;
     }
+    G.opps=G.opps||[];
     if(G.materials===undefined)G.materials=80;
     if(G.fuel===undefined)G.fuel=40;
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
