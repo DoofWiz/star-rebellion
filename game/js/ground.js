@@ -38,6 +38,9 @@ const WPN={
   carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
   scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
   longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
+  fists:  {name:'Riot Fists',          d0:22,d1:36,rng:70, atk:1,shots:2},
+  cruiser:{name:'Cruiser Pulse Cannon',d0:18,d1:30,rng:480,atk:1,shots:2},
+  dispersal:{name:'Dispersal Turret',  d0:14,d1:24,rng:340,atk:1,shots:3},
   strider:{name:'Strider Autocannon',d0:16,d1:26,rng:460,atk:0,shots:4},
   laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
 };
@@ -179,8 +182,9 @@ stealfuel:{
   guardPt:{x:1700,y:470},
   work:[],
   waves:[
-    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — two guards, bailing out fast.',
+    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
      foes:[
+       {id:'pcw',name:'Police Cruiser',first:'Cruiser',side:'law',x:2120,y:560,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,lines:['Unit 4, responding.']},
        {id:'dill',name:'Guard Dill',first:'Dill',side:'law',x:2150,y:640,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']},
        {id:'corr',name:'Guard Corr',first:'Corr',side:'law',x:2150,y:720,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']},
      ]},
@@ -258,11 +262,14 @@ autofactory:{
   blastR:330,safeR:400,
   guardPt:{x:1860,y:560},
   work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
-  detWave:{log:'<span class="h">The riot response lands at the gate</span> \u2014 a shield line, a rifleman, and a lot of shouting.',
+  detWave:{log:'<span class="h">A Riot Transport Cruiser screams in through the gate.</span>',
     foes:[
-      {id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',x:740,y:430,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
-      {id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',x:700,y:520,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
-      {id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',x:760,y:340,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+      {id:'rtc1',name:'Riot Transport Cruiser',first:'Cruiser',side:'law',x:700,y:470,hp:150,maxhp:150,aim:0,def:7,wpns:[],vehicle:1,
+       deploy:[
+        {id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
+        {id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
+        {id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+       ],lines:[]},
     ]},
   bldgs:[
     {x:1700,y:240, w:320,h:230,name:'POWER PLANT'},
@@ -295,6 +302,7 @@ autofactory:{
     {id:'pb03',name:'Policebot PB-03',first:'PB-03',side:'law',x:1680,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']},
     {id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',side:'law',x:1860,y:588,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the breaker.','Shields up!']},
     {id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',side:'law',x:2020,y:900,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']},
+    {id:'strid1',name:'Strider Mk I',first:'Strider',side:'law',x:1180,y:950,hp:240,maxhp:240,aim:1,def:8,wpns:['strider'],auto:1,autoType:'strider',hackRounds:3,big:1,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']},
   ];},
   civs(){return [
     {id:'civ1',name:'Line Worker',first:'worker',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -355,6 +363,7 @@ rescue:{
     {id:'rr4',name:'Riot Rifleman Dace',first:'Dace',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:620}],lines:['Cell block is sealed.','Rifles up!']},
     {id:'oake',name:'Patrolman Oake',first:'Oake',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the toll office.','Hands where I can see them!']},
     {id:'bray',name:'Patrolman Bray',first:'Bray',side:'law',x:1700,y:920,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1700,y:920},{x:1850,y:840}],lines:['Barge side is clear.','Stop right there!']},
+    {id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',side:'law',x:1640,y:524,hp:95,maxhp:95,aim:1,def:10,wpns:['fists'],auto:1,autoType:'bruiser',hackRounds:2,heavy:1,guard:1,lines:['Please remain calm.','Non-compliance detected.']},
   ];},
   civs(){return [
     {id:'civ1',name:'Barge Hand',first:'barge hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -419,6 +428,7 @@ intel:{
     {id:'rr7',name:'Riot Rifleman Wick',first:'Wick',side:'law',x:1400,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']},
     {id:'elm',name:'Patrolman Elm',first:'Elm',side:'law',x:1200,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']},
     {id:'pb33',name:'Policebot PB-33',first:'PB-33',side:'law',x:1800,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
+    {id:'pc1',name:'Police Cruiser',first:'Cruiser',side:'law',x:1050,y:1180,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],lines:['Unit 9, responding.']},
   ];},
   civs(){return [
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -480,6 +490,7 @@ strider:{
     {id:'rr8',name:'Riot Rifleman Garr',first:'Garr',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']},
     {id:'elm2',name:'Patrolman Voss',first:'Voss',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']},
     {id:'pb43',name:'Policebot PB-43',first:'PB-43',side:'law',x:1700,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
+    {id:'rdc1',name:'Riot Dispersal Cruiser',first:'Cruiser',side:'law',x:1450,y:690,hp:170,maxhp:170,aim:1,def:7,wpns:['dispersal'],vehicle:1,guard:1,lines:['Dispersal turret deployed.']},
   ];},
   civs(){return [
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -622,7 +633,8 @@ function mkU(o){
   const u=Object.assign({face:0,down:0,surr:0,jam:0,wound:0,braced:0,sprinted:0,owUsed:0,xpGain:0,
     order:null,extracted:0,away:0,elev:0,frail:0,sheriff:0,fixed:0,guard:0,
     manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,cool:55,bunkered:0,
-    px:0,py:0,path:null,wkey:null},o);
+    px:0,py:0,path:null,wkey:null,ally:0,hacked:0,hackProg:0,hackT:0,hackTid:null,heavy:0,vehicle:0,big:0,
+    autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0)},o);
   u.cool0=u.cool;
   return u;
 }
@@ -648,7 +660,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
-    level:sp.level||1,stims:sp.big?0:1,spec:sp.spec||null,big:sp.big?1:0,auto:sp.big?1:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   const roster=[...squad];
   if((SCN.mode==='rescue'||SCN.mode==='strider')&&spec.vip){
@@ -1006,6 +1018,7 @@ function downUnit(t,by){
   checkDefeat();
 }
 function dropLoot(t){
+  if(t.auto||t.vehicle)return;   // scrap, not spoils
   const m={id:'drop_'+t.id,x:t.x+10,y:t.y+10,label:t.name+'’s effects',drop:1};
   if(t.sheriff){m.c=136;m.items=['Scattergun'];m.take='Scattergun + 136 ◈';}
   else if(t.wpns[0]==='carbine'){m.c=rint(24,56);m.items=['Peacekeeper Carbine'];m.take='Carbine + credits';}
@@ -1249,12 +1262,17 @@ const COVER_PTS=[];
 function aiPlan(){
   let turretClaimed=false;
   for(const u of U){
-    if(u.side!=='law'||u.down||u.surr||u.office)continue;
+    if((u.side!=='law'&&!u.ally)||u.down||u.surr||u.office)continue;
     u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];u.bunkered=0;
     if(!u.manning)u.braced=0;
     if(coolStateG(u)==='panic'&&town==='alerted'){u.order={type:'lockin'};continue;}
     if(u.manning){u.order={type:'hold'};u.braced=1;continue;}
     if(u.fixed){u.order={type:'hold'};u.braced=1;continue;}
+    if(!wpnsOf(u).length){   // an unarmed transport cruiser: it unloads, then sits there
+      if(u.deploy&&!u.deployed&&town==='alerted')deployUnits(u);
+      u.order={type:'hold'};u.braced=1;continue;
+    }
+    if(u.ally&&town==='calm'){u.order=null;continue;}
     if(town==='calm'){
       if(u.patrol&&rng()<0.7){
         const p=u.patrol[rint(0,u.patrol.length-1)];
@@ -1265,7 +1283,7 @@ function aiPlan(){
       continue;
     }
     // alerted
-    const targets=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&!(r.manning&&shieldBlocks(u,r)));
+    const targets=u.ally?U.filter(r=>r.side==='law'&&!r.down&&!r.surr&&!r.office):U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&!(r.manning&&shieldBlocks(u,r)));
     if(!targets.length){u.order={type:'hold'};u.braced=1;continue;}
     // one guard runs for the empty turret
     if(u.guard&&!u.sheriff&&!turret.gunner&&!turretClaimed&&dist(u,TURRET)<620){
@@ -1512,6 +1530,62 @@ function checkBoss(){
   if(town==='calm')alertTown(SCN.bossAlert);
   syncUI();
 }
+/* ---------- hacking Autos (Field Technician) ----------
+   A Field Technician within range and in line of sight can hack an enemy Auto (Policebot, Bruiser,
+   Strider). It takes 1-3 rounds, or ~4 real seconds a round in free move. A hacked Auto fights for
+   us on its own; if it survives and extracts it joins the roster. */
+const HACK_R=300;
+let hackArm=false;
+function canHack(s,t){
+  return !!(s&&t&&s.spec==='fieldtech'&&!s.down&&!s.extracted&&!s.away&&!s.manning&&
+    t.side==='law'&&t.auto&&t.hackRounds&&!t.down&&!t.surr&&dist(s,t)<=HACK_R&&!losBlocked(s,t));
+}
+function hackTargets(s){return U.filter(t=>canHack(s,t));}
+function hackFlip(s,t){
+  t.side='reb';t.ally=1;t.hacked=1;t.order=null;t.hackProg=0;t.braced=0;t.path=null;t.rtPath=null;t.guard=0;t.patrol=null;
+  addFloater(t.x,t.y-50,'HACKED','#7de3ec');
+  log(nameSpan(s)+' <span class="g">takes control of</span> <b>'+t.name+'</b>. It fights for us now.');
+  say(s,t.first+' is ours.');
+  sSpark();
+  s.xpGain=(s.xpGain||0)+0.15;
+  s.order=null;s.hackTid=null;
+  syncUI();
+}
+function hackResolve(){
+  for(const t of U)t.hackedNow=0;
+  for(const u of U){
+    if(u.side!=='reb'||!u.order||u.order.type!=='hack')continue;
+    const t=U.find(x=>x.id===u.order.tid);
+    if(u.down||!t||!canHack(u,t)){u.order=null;continue;}
+    t.hackedNow=1;
+    t.hackProg=(t.hackProg||0)+1;
+    addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,'#7de3ec');
+    if(t.hackProg>=t.hackRounds)hackFlip(u,t);
+    else log(nameSpan(u)+' works on <b>'+t.name+'</b> — <span class="a">'+t.hackProg+'/'+t.hackRounds+'</span>.');
+  }
+  for(const t of U)if(t.hackProg>0&&!t.hackedNow&&t.side==='law')t.hackProg=0;
+}
+function startFreeHack(t){
+  const tech=U.find(x=>canHack(x,t));
+  hackArm=false;
+  if(!tech){addFloater(t.x,t.y-40,'NO TECH IN RANGE','#71809c');syncUI();return;}
+  tech.hackTid=t.id;t.hackT=0;tech.rtPath=null;
+  log(nameSpan(tech)+' starts hacking <b>'+t.name+'</b>. Hold position.');
+  syncUI();
+}
+function hackFreeStep(dt){
+  for(const s of U){
+    if(!s.hackTid)continue;
+    const t=U.find(x=>x.id===s.hackTid);
+    if(!t||!canHack(s,t)||s.rtPath){if(t)addFloater(t.x,t.y-50,'HACK BROKEN','#ff9a5c');s.hackTid=null;if(t)t.hackProg=0;continue;}
+    t.hackT+=dt;
+    if(t.hackT>=4){
+      t.hackT=0;t.hackProg++;
+      addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,'#7de3ec');
+      if(t.hackProg>=t.hackRounds)hackFlip(s,t);
+    }
+  }
+}
 /* ---------- Steal Fuel objectives ---------- */
 function fuelGuards(){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,PAD)<PAD.r+40);}
 function fuelReach(){
@@ -1548,6 +1622,10 @@ function fuelUpdate(now){
     camGoal={x:PAD.x-100,y:PAD.y+40,z:0.85};
     alertTown('The Marta’s engines wake the whole depot.');
   }
+}
+function deployUnits(v){
+  v.deployed=1;
+  spawnFoes(v.deploy.map((d,i)=>Object.assign({},d,{x:v.x+(i-1)*34,y:v.y+44})),'<span class="h">'+v.name+' disgorges its riot squad.</span>');
 }
 function spawnFoes(list,msg){
   for(const f of list){
@@ -1690,6 +1768,7 @@ function rtUpdate(now,dt){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
     for(const m of lootsWithin(u,AUTO_LOOT))collectLoot(u,m);
   }
+  hackFreeStep(dt);
   fuelReach();
   if(fs&&fs.landed&&!fs.done){
     if(fuelGuards()){fs.pumpT+=dt;if(fs.pumpT>=6){fs.pumpT=0;fuelPumpStep();}}
@@ -1796,13 +1875,13 @@ function startPlanning(){
 function hotwiring(u){return u.id==='sera'&&!crossAway&&hot<HOT_ROUNDS&&dist(u,PAD)<PAD.r;}
 function autoAdvance(){
   // hand the player the next rebel who still needs orders, like the space game
-  const nxt=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u));
+  const nxt=U.find(u=>u.side==='reb'&&!u.ally&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u));
   if(nxt){
     selId=nxt.id;radialOn=true;pickMode=null;
     camGoal={x:nxt.x,y:nxt.y,z:Math.max(cam.z,0.9)};
   } else {selId=null;radialOn=false;}
 }
-function plotted(){return U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!hotwiring(u));}
+function plotted(){return U.filter(u=>u.side==='reb'&&!u.ally&&!u.down&&!u.extracted&&!u.away&&!hotwiring(u));}
 function execute(){
   if(phase!=='PLANNING')return;
   tutFlags.executed=1;
@@ -1898,7 +1977,7 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='hack'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
@@ -1964,7 +2043,7 @@ function attackUpdate(now){
     c.revealA=Math.min(rows,c.atk.entries.length);
     if(c.revealA>=c.atk.entries.length&&el>c.atk.entries.length*230+140){
       c.need=needFor(c.tn.total,c.atk.total);
-      if(c.s.side==='reb'){c.stage='await';syncUI();}
+      if(c.s.side==='reb'&&!c.s.ally){c.stage='await';syncUI();}
       else {c.stage='think';c.stageAt=now;}
     }
   } else if(c.stage==='think'){
@@ -2087,6 +2166,7 @@ function retarget(t){
 /* ---------- end of round ---------- */
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
+  hackResolve();
   // loot pickups
   for(const u of U){
     if(u.side!=='reb'||u.down||!u.order)continue;
@@ -2285,7 +2365,8 @@ function buildResult(win){
     people.push({id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)});
   }
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
-  return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
+  const gained=win?U.filter(u=>u.hacked&&u.extracted&&!u.down).map(u=>({type:u.autoType,name:u.name})):[];
+  return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
     win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
@@ -3148,7 +3229,7 @@ function drawUnit(u){
   ctx.beginPath();ctx.ellipse(2,4,9,6,0,0,7);ctx.fill();
   const crouch=sneak&&u.side==='reb'&&phase==='FREE'&&town==='calm';
   if(crouch)ctx.scale(0.82,0.82);
-  const R=u.big?15:u.sheriff?9.5:8;
+  const R=u.vehicle?13:u.big?15:u.heavy?11:u.sheriff?9.5:8;
   let body,line;
   if(u.side==='reb'){body=sera?'#6b4a1c':'#1c4a56';line=sera?'#ffb454':'#57d7e2';}
   else if(u.auto){body='#2a3542';line='#7fb2ff';}
@@ -3165,6 +3246,12 @@ function drawUnit(u){
     ctx.strokeStyle='#0c0f14';ctx.lineWidth=3;
     ctx.beginPath();ctx.moveTo(2,-3);ctx.lineTo(R+7,-3);ctx.stroke();
   }
+  if(u.vehicle){
+    ctx.fillStyle='#2b3440';ctx.beginPath();ctx.roundRect(-28,-15,56,30,6);ctx.fill();
+    ctx.strokeStyle=line;ctx.lineWidth=2;ctx.stroke();
+    ctx.fillStyle='rgba(255,90,80,0.7)';ctx.fillRect(-4,-17,8,3);ctx.fillStyle='rgba(90,140,255,0.7)';ctx.fillRect(-4,14,8,3);
+  }
+  if(u.hacked){ctx.strokeStyle='rgba(125,227,236,0.95)';ctx.lineWidth=2;ctx.setLineDash([4,3]);ctx.beginPath();ctx.arc(0,0,R+5,0,7);ctx.stroke();ctx.setLineDash([]);}
   ctx.fillStyle='#dcc9a8';
   ctx.beginPath();ctx.arc(3,0,3.4,0,7);ctx.fill();
   if(u.shield){
@@ -3797,6 +3884,7 @@ cv.addEventListener('pointerup',ev=>{
     // right-click or a tap on open ground sends the squad; the walk is real time
     const u=unitAtCss(px,py);
     if(ev.button!==2&&u){
+      if(hackArm&&u.side==='law'&&u.auto){startFreeHack(u);return;}
       if(u.side==='law'&&!u.surr&&town==='calm'){
         // the player picks the moment the shooting starts
         if(!startAmbush(u))addFloater(u.x,u.y-30,'NO SHOT','#71809c');
@@ -3809,6 +3897,12 @@ cv.addEventListener('pointerup',ev=>{
   }
   if(phase==='PLANNING'){
     const sel=U.find(x=>x.id===selId);
+    if(pickMode==='hack'&&sel){
+      const t=unitAtCss(px,py);
+      if(t&&canHack(sel,t)){sel.order={type:'hack',tid:t.id};sTick();pickMode=null;autoAdvance();syncUI();}
+      else addFloater(sel.x,sel.y-40,'PICK A HACKABLE AUTO IN RANGE','#71809c');
+      return;
+    }
     if(pickMode&&sel){
       const wpt=cssToWorld(px,py);
       const d=moveDest(sel,wpt.x,wpt.y,pickMode==='move'?MOVE_R:SPRINT_R);
@@ -3863,6 +3957,7 @@ byId('radial').addEventListener('click',ev=>{
   sTick();
   if(act==='move'){pickMode='move';radialOn=false;}
   else if(act==='sprint'){pickMode='sprint';radialOn=false;}
+  else if(act==='hack'){pickMode='hack';radialOn=false;}
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
@@ -3910,6 +4005,7 @@ function radialHTML(s){
   const wp=WORK.find(w=>!w.done&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
   if(wp&&s.id!=='sera'&&!s.vip)acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
+  if(hackTargets(s).length)acts.push(['hack','⌨','Hack',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
   acts.push(['cancel','✕','Clear',false]);
   const R=96;
@@ -3922,7 +4018,9 @@ function radialHTML(s){
 }
 function dockHTML(){
   if(phase==='FREE'){
-    const sneakBtn='<button class="chipbtn" id="sneakBtn" aria-pressed="'+sneak+'" '+(town!=='calm'?'disabled':'')+'>'+(sneak?'Sneaking':'Sneak')+'</button>';
+    const hasTech=U.some(x=>x.spec==='fieldtech'&&!x.down&&!x.extracted&&!x.away);
+    const sneakBtn='<button class="chipbtn" id="sneakBtn" aria-pressed="'+sneak+'" '+(town!=='calm'?'disabled':'')+'>'+(sneak?'Sneaking':'Sneak')+'</button>'+
+      (hasTech&&U.some(x=>x.side==="law"&&x.auto&&x.hackRounds&&!x.down)?'<button class="chipbtn" id="hackBtn" aria-pressed="'+hackArm+'">'+(hackArm?'Tap an Auto…':'Hack')+'</button>':'');
     if(extractReady())return '<div class="dockcard">'+sneakBtn+'<button id="extractBtn">▲ Extract</button></div>';
     const callBtn=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
     const detBtn=(fac&&fac.planted&&!fac.detonated)?'<button id="detBtn" '+(facUnsafe()?'class="unsafe"':'')+'>✸ Detonate'+(facUnsafe()?' · clear the blast zone':'')+'</button>':'';
@@ -4081,6 +4179,7 @@ function syncUI(){
 byId('ctlDock').addEventListener('click',ev=>{
   if(ev.target.id==='executeBtn')execute();
   else if(ev.target.id==='sneakBtn')setSneak(!sneak);
+  else if(ev.target.id==='hackBtn'){hackArm=!hackArm;syncUI();}
   else if(ev.target.id==='extractBtn')startExtract();
   else if(ev.target.id==='callBtn')callTransport();
   else if(ev.target.id==='detBtn')facDetonate();
@@ -4303,10 +4402,10 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get ix(){return ix;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    fn:{validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};

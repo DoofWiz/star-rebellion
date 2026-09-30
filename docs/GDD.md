@@ -597,6 +597,18 @@ aim). The rest are listed as "later" from the docs (Gunner, Commando, Assault, C
 Demolitions Specialist, Marksman, Commander, Driver; Leader, Bomber, Fire Support, Flight Engineer,
 Shipbuster). Support specialties are still to come.
 
+### Level 1 enemies, vehicles and hacking (built, Phase 4)
+- **Enemy roster:** Patrolman, Auto Policebot, Riot Shieldman (front-blocking shield), Riot Rifleman,
+  **Riot Bruiser** (melee, 95 hp), **Strider Mk I** (240 hp autocannon, patrols the Autoworks), and
+  three cruisers: **Police Cruiser** (pulse cannon), **Riot Dispersal Cruiser** (turret) and
+  **Riot Transport Cruiser** (unarmed; it arrives with the response wave and **unloads a riot squad**
+  the next round). Machines drop scrap, not credits.
+- **Hacking Autos.** A **Field Technician** within 300 units and in line of sight can hack an enemy
+  Auto (Policebot 1 round, Bruiser 2, Strider 3): the **Hack** radial action in combat, or the **Hack**
+  chip then tap in free move (about 4 seconds a round, silent). The hacker has to stay alive and on
+  target. A hacked Auto **fights for us on its own**, and if it survives and **extracts** it **joins
+  the roster** as an Auto (no bunk, keeps its stats) and can be fielded in later squads.
+
 ### Steal the Strider (built, Tier 1) and Autos on the roster
 Offered by **Tessaly Brandt** once the Autoworks' Power Plant is gone. Played at **Menk Crossing**
 (region: Menk Crossing, +15% liberation, capped by Access/Support):

@@ -18,7 +18,15 @@ const nz=(...a)=>A.nz(...a);
 const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
 const RANKS_ENL=['Recruit','Private','Private First Class','Specialist','Corporal','Sergeant','Staff Sergeant','Sgt. First Class','Master Sergeant','Sergeant Major'];
 const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
-const rankFor=p=>p.auto?'Strider':((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
+/* Autos: robots that fight for us. Stats here seed the ground scene. */
+const AUTOS={
+  policebot:{label:'Policebot',hp:45,def:9,wpn:'cowboy',big:0,heavy:0,bio:'A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'},
+  bruiser:{label:'Bruiser',hp:95,def:10,wpn:'fists',big:0,heavy:1,bio:'A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'},
+  strider:{label:'Strider',hp:220,def:8,wpn:'strider',big:1,heavy:0,bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'},
+};
+const autoOf=p=>AUTOS[p.auto]||AUTOS.strider;
+const autoKey=p=>AUTOS[p.auto]?p.auto:'strider';
+const rankFor=p=>p.auto?autoOf(p).label:((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
 const C=n=>'<span class="rc" title="Credits">'+n+'⬡</span>';
@@ -2905,8 +2913,8 @@ function startPlan(){
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
-        aim:soldierAim(p),hp:p.auto?220:100,def:p.auto?8:undefined,big:!!p.auto,
-        wpns:p.auto?['strider']:(scatter&&i===squad.findIndex(q=>!q.auto))?['scatter','akli','cowboy']:['akli','cowboy']})),
+        aim:soldierAim(p),hp:p.auto?autoOf(p).hp:100,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+        wpns:p.auto?[autoOf(p).wpn]:(scatter&&i===squad.findIndex(q=>!q.auto))?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
@@ -3036,10 +3044,16 @@ function applyDebrief(r){
   }
   if(r.win&&m)applyRew(m.rew,got);
   if(r.win&&m&&m.vip&&m.vip.strider&&r.vipOut&&!G.people.some(p=>p.id==='strider')){
-    G.people.push({id:'strider',name:m.vip.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:1,
-      bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'});
+    G.people.push({id:'strider',name:m.vip.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'strider',bio:AUTOS.strider.bio});
     got.push('<b>'+m.vip.name+'</b> joins the roster');
     news('<b>'+m.vip.name+'</b>, a reprogrammed Strider Mk I, joins the rebellion. It does not need a bunk.','g');
+  }
+  for(const g of r.gained||[]){
+    const A=AUTOS[g.type];if(!A)continue;
+    if(G.people.some(p=>p.name===g.name))continue;
+    G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:g.type,bio:A.bio});
+    got.push('<b>'+g.name+'</b> (hacked) joins the roster');
+    news('<b>'+g.name+'</b>, a hacked '+A.label+', joins the rebellion. It does not need a bunk.','g');
   }
   if(r.win&&m&&m.bonus&&r.quiet){applyRew(m.bonus,got);got.push('<b>stealth bonus</b>');}
   if(m){
@@ -3104,6 +3118,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
+    for(const p of G.people)if(p.auto===1)p.auto='strider';
     G.missions=G.missions.filter(m=>!(m.id==='strider'&&m.state==='locked'));
     if(G.materials===undefined)G.materials=80;
     if(G.fuel===undefined)G.fuel=40;
