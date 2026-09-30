@@ -24,6 +24,12 @@ let rng=Math.random;
 const C=n=>'<span class="rc" title="Credits">'+n+'⬡</span>';
 const S=n=>'<span class="rs" title="Supplies">'+n+'▤</span>';
 const I=n=>'<span class="ri" title="Intel">'+n+'◈</span>';
+const M=n=>'<span class="rm" title="Materials">'+n+'⚙</span>';
+const F=n=>'<span class="rf" title="Fuel">'+n+'◐</span>';
+/* a reward/cost bundle → chips */
+function bundleHTML(b){
+  return [b.c?C(b.c):'',b.s?S(b.s):'',b.m?M(b.m):'',b.f?F(b.f):'',b.i?I(b.i):''].filter(Boolean).join(' ');
+}
 
 /* ---------- rooms & builds (copy in the commander's voice) ---------- */
 const ROOMS={
@@ -39,15 +45,18 @@ const ROOMS={
   quarters:{name:'Barracks Annex',col:'#57d7e2',desc:'Three more bunks. The rebellion keeps growing.'},
 };
 const BUILDS={
-  store:{c:50,s:20,days:1},
-  comms:{c:120,s:30,days:2},
-  workshop:{c:100,s:40,days:2},
-  infirmary:{c:90,s:30,days:2},
-  training:{c:80,s:25,days:1},
-  bay:{c:60,s:50,days:1},
-  quarters:{c:70,s:30,days:1},
+  store:{c:50,m:20,days:1},
+  comms:{c:120,m:30,days:2},
+  workshop:{c:100,m:40,days:2},
+  infirmary:{c:90,m:20,s:15,days:2},
+  training:{c:80,m:25,s:10,days:1},
+  bay:{c:60,m:50,days:1},
+  quarters:{c:70,m:30,s:15,days:1},
 };
-const EXCAVATE={s:10,days:1};
+const EXCAVATE={m:10,days:1};
+/* fuel burned per ship on a sortie */
+const FUEL_COST={graf:4,cross:6,talon:6};
+const fuelOf=f=>FUEL_COST[f.cls]||5;
 const SHIPSTATS={
   cross:{label:'FT-4 Cross · Multi-role Starfighter',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
   talon:{label:'SF-11 Talon · Interceptor',shd:'8F / 8A',arm:10,hull:25,wpns:[['Plasma','rc0'],['Missile ×1','rc2']]},
@@ -72,7 +81,7 @@ function newGame(){
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   return {
-    day:1,credits:250,supplies:120,intel:3,renown:8,risk:10,morale:65,introDone:false,
+    day:1,credits:250,supplies:120,materials:100,fuel:60,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[],
     wreck:{restored:false,restoring:0},
@@ -103,12 +112,12 @@ const $=id=>byId(id);
 function hasRoom(key){return G.rooms.some(r=>r.key===key&&!r.build);}
 function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
 function sourceCap(){return 2+roomsOf('comms').length;}
-function fighterCap(){return 2+roomsOf('bay').length;}
+function fighterCap(){return 4+roomsOf('bay').length;}   // four landing pads from the start, one per hangar tile
 function bunkCap(){return 5+3*roomsOf('quarters').length;}
 /* Support crew man stations; a room without its operator underperforms */
 const STAFFABLE={
   command:{post:'Flight Coordinator',perk:'+5% mission success'},
-  store:{post:'Quartermaster',perk:'repairs cost 1▤ instead of 2▤'},
+  store:{post:'Quartermaster',perk:'repairs cost 1⚙ instead of 2⚙'},
   workshop:{post:'Crew Chief',perk:'repairs 15%/day instead of 8%'},
   infirmary:{post:'Medic',perk:'injuries heal twice as fast'},
   comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
@@ -321,10 +330,39 @@ const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
 MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=20;
 MPOOL.depotrun.region='orbit';MPOOL.depotrun.lib=20;
+/* a mission TYPE fixes its shape (what it needs, how it plays); each mission adds its own story.
+   `req` can override the type's default: team size, transports, prize pilots, ship class. */
+const MTYPES={
+  ground:{label:'Ground operation',req:m=>({team:m.need,teamRole:'Soldier',transport:1,prize:0})},
+  space:{label:'Space sortie',req:m=>({team:m.need,teamRole:'Pilot',ships:m.need,starfighter:m.fighterReq==='starfighter'})},
+  abstract:{label:'Off-screen job',req:m=>({team:m.need,teamRole:'Pilot',ships:m.need,starfighter:false})},
+};
+const MEXTRA={
+  stealcross:{src:'cass',req:{team:3,teamRole:'Soldier',transport:1,prize:1},
+    objectives:['Reach the FT-4 Cross on the pad behind the sheriff’s HQ','Hotwire her, release the clamps and pull the fuel line','Get the Cross and the squad out of Dustfall']},
+  depotrun:{src:'venn',objectives:['Destroy all four orbital fuel depots','Survive the sentry drones']},
+  toi:{src:'halt',objectives:['Eliminate Commandant Dral Vex','(Optional) Bring every pilot home']},
+  intercept:{src:'halt',objectives:['Destroy or scatter the escort','Board the transport and strip her cargo']},
+  tanker:{src:'halt',objectives:['Disable the tanker’s escort','Take the tanker whole']},
+  skim:{src:'vokk',objectives:['Escort the transfer for two days']},
+  fighters:{src:'halt',objectives:['Reach pad nine unseen','Fly a Talon out']},
+  chart:{src:'marr',objectives:['Fly the survey corridor','Map the cordon']},
+  garrison:{objectives:['Breach the garrison','Empty the armory racks']},
+  orehaul:{objectives:['Intercept the ore barge','Take the payroll and the ore']},
+  foundry:{objectives:['Copy the Forge freight manifests']},
+};
+for(const k in MEXTRA)Object.assign(MPOOL[k],MEXTRA[k]);
+const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
+const SEATS={graf:4};     // troop seats per transport
+MPOOL.tanker.rew.f=60;MPOOL.intercept.rew.m=25;MPOOL.orehaul.rew.m=45;MPOOL.foundry.rew.m=30;MPOOL.garrison.rew.m=20;
 for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
   MPOOL['op_'+d.id+'_'+r.id]={name:r.op.name,from:'Local network · '+d.name,need:2,days:2,
-    riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20};
+    riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20,
+    objectives:['Reach the target in '+r.name,'Strike, then get clear'],type:'abstract'};
 }
+const OPX={op_menk_saltreach:{m:30},op_menk_kilnridge:{m:35},op_ballakan_canopy:{m:45},op_ballakan_sawmill:{m:30},op_brakka_flats:{m:25},op_brakka_orbit:{f:25}};
+for(const k in OPX)if(MPOOL[k])Object.assign(MPOOL[k].rew,OPX[k]);
+
 function mkPlanet(d){
   const acc=d.access&&!d.base?1:0;
   return {id:d.id,known:!!d.known,access:!!d.access,scouted:!!d.access&&!d.base,acc,sup:d.sup||0,lib:{},ops:0};
@@ -363,6 +401,7 @@ const CANDS={
     bio:'Skims the skimmers at the Capital’s docks. Now skims for us.',
     pitch:'<b>Customs Chief Renn</b> runs Meridian’s freight inspections and a private retirement fund. Our scouts caught the fund. He’d rather pay us than the auditors.'},
 };
+STORY_SRC.cass.inc.f=2;CANDS.halt.inc.f=3;
 CANDS.tess={id:'tess',name:'Tessaly Brandt',type:'Union Steward · Saltreach',loc:'Saltreach, Menk',level:1,cult:15,risk:25,inc:{s:5},
   bio:'Runs the quarry workers’ mutual-aid fund out of a crawler cab. Has buried more friends than she can name.',
   pitch:'<b>Tessaly Brandt</b> stewards an illegal mutual-aid fund in the Saltreach pits. Her crews have heard rumours of a rebellion and want to know if it’s real. She would like to be the first to find out.'};
@@ -372,6 +411,7 @@ CANDS.pell={id:'pell',name:'Orrin Pell',type:'Harbourmaster · Tollgate Landing'
 CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger Town',loc:'Ledger Town, Parity IV',level:1,cult:10,risk:35,inc:{i:1},
   bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
   pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
+CANDS.tess.inc.m=3;CANDS.pell.inc.m=3;
 SRC_EVENTS.tess=[
   {text:'<b>BRANDT:</b> “The company posted a new quota. Ten percent up, same crews, same crushers. People keep asking if you’re real. I told them you were. Don’t make a liar of me.”',
    opts:[['“Tell them the crushers will be quiet by the end of the week. Tell them who is coming, not when.”','strong'],['“Keep them steady. We’re working on it.”','neutral'],['“Real enough. Get them to stop asking.”','weak']]},
@@ -507,10 +547,11 @@ function advanceDay(){
     }
   }
   const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
+  G.fuel+=1;   // the old hangar-cave tanks weep a little every day
   const repCost=staffOf('store').length?1:2;
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
-    if(G.supplies>=repCost){G.supplies-=repCost;f.hull=Math.min(100,f.hull+rate);}
+    if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,f.hull+rate);}
   }
   const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
@@ -527,6 +568,8 @@ function advanceDay(){
     src.visited=false;src.contacted=false;
     if(src.inc.c)G.credits+=src.inc.c;
     if(src.inc.s)G.supplies+=src.inc.s;
+    if(src.inc.m)G.materials+=src.inc.m;
+    if(src.inc.f)G.fuel+=src.inc.f;
     if(src.inc.i)G.intel+=src.inc.i;
     src.risk=Math.min(100,src.risk+(src.level===1?2:src.level===2?1:0.5));
     maybeQueueEvent(src);
@@ -580,17 +623,17 @@ function advanceDay(){
 }
 
 /* ---------- missions ---------- */
-function launchMission(m,pilotIds){
-  const pilots=G.people.filter(p=>pilotIds.includes(p.id));
-  const usable=m.ground?
-    G.fighters.filter(f=>f.cls==='graf'&&!f.out&&f.hull>=60).slice(0,1):
-    G.fighters.filter(f=>!f.out&&f.hull>=60&&(m.fighterReq!=='starfighter'||f.cls!=='graf')).slice(0,pilots.length);
-  if(pilots.length<m.need||usable.length<(m.ground?1:m.need))return false;
+function launchMission(m){
+  const pslots=PL.slots.filter(sl=>sl.acc==='pilot');
+  const pilots=pslots.map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
+  const ships=pslots.map(sl=>G.fighters.find(f=>f.id===PL.v['rs'+sl.key.slice(2)]));
+  if(pilots.some(x=>!x)||ships.some(x=>!x))return false;
   for(const p of pilots)p.assign='mission';
-  for(const f of usable)f.out=true;
+  for(const f of ships)f.out=true;
   m.state='prog';
-  m.progress={daysLeft:m.days,pilots:pilotIds,fighters:usable.map(f=>f.id)};
-  news('<b>'+m.name+'</b> — '+(m.ground?'ground team':'strike team')+' away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'.','a');
+  m.progress={daysLeft:m.days,pilots:pilots.map(p=>p.id),fighters:ships.map(f=>f.id)};
+  G.fuel-=plFuel();
+  news('<b>'+m.name+'</b> \u2014 strike team away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'. '+F(plFuel())+' burned.','a');
   sLaunch();
   closeWin();syncUI();
   return true;
@@ -612,6 +655,17 @@ function missionAftermath(mid){
     syncLocalOps('brakka',true);
   }
 }
+/* pay out a mission's fixed reward (ships are handled by each caller) */
+function applyRew(rw,got){
+  if(!rw)return;
+  if(rw.c)G.credits+=rw.c;
+  if(rw.s)G.supplies+=rw.s;
+  if(rw.m)G.materials+=rw.m;
+  if(rw.f)G.fuel+=rw.f;
+  if(rw.i)G.intel+=rw.i;
+  const b=bundleHTML(rw);
+  if(b)got.push(b);
+}
 function resolveMission(m){
   const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
@@ -621,9 +675,7 @@ function resolveMission(m){
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   if(ok){
     let rew=[];
-    if(m.rew.c){G.credits+=m.rew.c;rew.push(C(m.rew.c));}
-    if(m.rew.s){G.supplies+=m.rew.s;rew.push(S(m.rew.s));}
-    if(m.rew.i){G.intel+=m.rew.i;rew.push(I(m.rew.i));}
+    applyRew(m.rew,rew);
     if(m.rew.fighter){
       if(G.fighters.length<fighterCap()){
         G.fighters.push({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70,out:false});
@@ -1112,7 +1164,7 @@ function renderRoomBar(){
   let info='';
   if(rm.key==='hangar'||rm.key==='bay'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+S(staffOf('store').length?1:2)+' each';
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+M(staffOf('store').length?1:2)+' each';
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'||rm.key==='quarters'){
     info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
@@ -1138,7 +1190,7 @@ function renderRoomBar(){
   if(rm.key==='training')acts='<button class="pbtn" data-simulator>Simulator — dogfight exercise ▸</button>';
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)acts='<button class="pbtn" disabled>Restoring the hauler — '+G.wreck.restoring+'d left. Joss hasn’t slept.</button>';
-    else acts='<button class="pbtn" data-restore '+((G.credits>=60&&G.supplies>=40)?'':'disabled')+'>Restore the derelict hauler — 60⬡ 40▤ · 2 days</button>';
+    else acts='<button class="pbtn" data-restore '+((G.credits>=60&&G.materials>=40)?'':'disabled')+'>Restore the derelict hauler — 60⬡ 40⚙ · 2 days</button>';
   }
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
@@ -1541,7 +1593,7 @@ function renderTilePop(){
       if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
       if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</div>';
       if(rm.key==='barracks'||rm.key==='quarters')h+='<div class="pdesc">Bunks '+G.people.length+'/'+bunkCap()+'.</div>';
-      if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+'</div>';
+      if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
       h+='<div class="pophint">double-click to step inside</div>';
     }
   } else {
@@ -1553,14 +1605,14 @@ function renderTilePop(){
       h='<div class="ptitle">Collapsed Chamber</div>';
       if(cell.dig)h+='<div class="pdesc">Crew’s on it — '+cell.dig+' day'+(cell.dig>1?'s':'')+' to daylight. Figuratively.</div>';
       else h+='<div class="pdesc">Rubble from the old diggings. Clear it and we’ve got another room.</div>'+
-        '<button class="pbtn" data-dig '+(G.supplies>=EXCAVATE.s?'':'disabled')+'>Excavate <span class="cost">'+S(EXCAVATE.s)+' · '+EXCAVATE.days+'d</span></button>';
+        '<button class="pbtn" data-dig '+(G.materials>=EXCAVATE.m?'':'disabled')+'>Excavate <span class="cost">'+M(EXCAVATE.m)+' · '+EXCAVATE.days+'d</span></button>';
     } else {
       h='<div class="ptitle">Empty Chamber</div><div class="pdesc">Cleared, powered, useless. Give it a job.</div>';
       for(const k in BUILDS){
         const b=BUILDS[k];
-        const afford=G.credits>=b.c&&G.supplies>=b.s;
+        const afford=G.credits>=b.c&&G.materials>=(b.m||0)&&G.supplies>=(b.s||0);
         h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+ROOMS[k].name+
-          '<span class="cost">'+C(b.c)+' '+S(b.s)+' · '+b.days+'d</span><small>'+ROOMS[k].desc+'</small></button>';
+          '<span class="cost">'+bundleHTML(b)+' · '+b.days+'d</span><small>'+ROOMS[k].desc+'</small></button>';
       }
     }
   }
@@ -1667,7 +1719,7 @@ function meter(cls,label,val){
   return '<div class="meter '+cls+'"><span class="ml">'+label+'</span><span class="mt"><i style="width:'+Math.min(100,val)+'%"></i></span><span class="mv">'+Math.round(val)+'</span></div>';
 }
 function incStr(s){
-  return [s.inc.c?C(s.inc.c):null,s.inc.s?S(s.inc.s):null,s.inc.i?I(s.inc.i):null].filter(Boolean).join(' · ')+' <span style="color:var(--dim)">per day</span>';
+  return bundleHTML(s.inc).split(' ').join(' · ')+' <span style="color:var(--dim)">per day</span>';
 }
 function sourceDetailHTML(s){
   return '<div class="scard'+(s.risk>60?' warn':'')+'">'+
@@ -1697,7 +1749,9 @@ const TUT_PAGES=[
     tutP('Every Source provides something useful to the rebellion.')+
     tutP('Depending on who they are and what access they have, a Source may provide:')+
     tutS('Money','Funding for the rebellion. Some Sources can provide regular income, but doing so may put them at greater risk.')+
-    tutS('Supplies','Equipment, weapons and other basic supplies that your forces need to operate.')+
+    tutS('Supplies','Food, medicine and other basic comforts that your people need to keep going.')+
+    tutS('Materials','Spare parts and raw material for building rooms and repairing ships.')+
+    tutS('Fuel','Burned by every ship you send out. No fuel, no sorties.')+
     tutS('Intel','Information about Hegemony activity. More Intel gives you greater warning of what the Hegemony is planning, and can also be spent to gain access to new locations.')+
     tutP('Sources can also generate <b>Missions</b>. The right Source might give you an opportunity that would otherwise be impossible to find.')},
   {t:'Cultivation',h:
@@ -1812,13 +1866,12 @@ function renderWin(){
   else if(winMode==='newmission'){
     const m=winArg;
     card.classList.add('narrow');
-    const rew=[m.rew&&m.rew.cross?'+FT-4 Cross':null,m.rew&&m.rew.c?C(m.rew.c):null,m.rew&&m.rew.s?S(m.rew.s):null,m.rew&&m.rew.i?I(m.rew.i):null,m.rew&&m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
     h='<div class="winHead"><span class="wt">New Mission · '+(m.from||'the network')+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
       '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
       '<div class="mdesc">'+m.desc+'</div>'+
-      '<div class="mmeta">'+m.need+(m.ground?(m.need>1?' soldiers':' soldier'):(m.need>1?' pilots':' pilot'))+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div></div>'+
+      '<div class="mmeta">'+(whereHTML(m)?whereHTML(m)+' · ':'')+m.days+' days · risk '+m.riskTxt+' · '+rewHTML(m)+'</div></div>'+
       (canAttempt(m)?'':precondHTML(m))+
-      '<button class="dbtn" '+(m.lead?'data-mlead':'data-mplan')+'="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
+      '<button class="dbtn" data-mplan="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
       '<button class="dbtn" data-close>Later</button>'+
       '</div>';
   }
@@ -1871,7 +1924,7 @@ function renderWin(){
   else if(winMode==='candidate'){
     const cd=CANDS[winArg]||CANDS.marr;
     card.classList.add('narrow');
-    const inc=[cd.inc.c?C(cd.inc.c):null,cd.inc.s?S(cd.inc.s):null,cd.inc.i?I(cd.inc.i):null].filter(Boolean).join(' · ');
+    const inc=bundleHTML(cd.inc).split(' ').join(' · ');
     h='<div class="winHead"><span class="wt">Approach · Potential Source</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
       '<div class="commline" style="color:var(--text)">'+cd.pitch+' Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
       '<button class="dbtn" data-cand="'+cd.id+'">Take them on. ('+inc+'/day · exposure +4)</button>'+
@@ -1886,10 +1939,8 @@ function renderWin(){
         '<span class="mstate">'+(m.state==='done'?(m.meta||'COMPLETE'):m.state==='prog'?(m.progress.daysLeft+'d remaining'):m.state==='locked'?'LOCKED':m.state==='sim'?'SIMULATOR':'AVAILABLE')+'</span></div>'+
         '<div class="mdesc">'+m.desc+'</div>';
       if(m.state==='avail'){
-        const rew=[m.rew.cross?'+FT-4 Cross':null,m.rew.c?C(m.rew.c):null,m.rew.s?S(m.rew.s):null,m.rew.i?I(m.rew.i):null,m.rew.fighter?'+1 fighter':null].filter(Boolean).join(' ');
-        h+='<div class="mmeta">'+m.need+(m.ground?(m.need>1?' soldiers':' soldier'):(m.need>1?' pilots':' pilot'))+' · '+m.days+' days · risk '+m.riskTxt+' · '+rew+' +XP</div>'+
-          (m.lead?'<button class="sbtn" data-mlead="'+m.id+'">'+(m.leadTxt||'Fly it yourself')+'</button> ':'')+
-          '<button class="sbtn" data-plan="'+m.id+'">Send a Team</button>';
+        h+='<div class="mmeta">'+(whereHTML(m)?whereHTML(m)+' · ':'')+m.days+' days · risk '+m.riskTxt+' · '+rewHTML(m)+'</div>'+
+          '<button class="sbtn" data-mplan="'+m.id+'">'+(m.lead?'Brief & Start':'Brief & Plan')+'</button>';
       }
       if(m.state==='sim')h+='<button class="sbtn" data-simulator>Enter Simulator ▸</button>';
       h+='</div>';
@@ -1897,28 +1948,8 @@ function renderWin(){
     h+='<div class="pdesc" style="margin-top:4px">Missions come from the network. Work your sources; follow their signals.</div></div>';
   }
   else if(winMode==='plan'){
-    const m=winArg;
-    card.classList.add('narrow');
-    const roster=m.ground?
-      G.people.filter(p=>p.role==='Soldier'||p.role==='Marine'):
-      G.people.filter(p=>p.role==='Pilot');
-    h='<div class="winHead"><span class="wt">'+(planLead?'Lead · ':'Plan · ')+m.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="pdesc">Pick '+m.need+(m.ground?' soldier'+(m.need>1?'s':''):' pilot'+(m.need>1?'s':''))+'.'+
-      (planLead?' You take the field with them.':' They go without you.')+'</div>'+
-      precondHTML(m)+
-      (m.ground&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring?
-        '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 60⬡ 40▤ and two days.</div>'+
-        '<button class="dbtn" data-gohangar>Go to the Hangar ▸</button>':'')+
-      (m.ground&&!grafReady()&&G.wreck&&G.wreck.restoring?
-        '<div class="pdesc" style="color:var(--amber);margin-top:8px">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</div>':'')+
-      '<div class="dz-sec">'+(m.ground?'Soldiers':'Pilots')+'</div>';
-    for(const p of roster){
-      const why=p.injured?('INJURED '+p.injured+'d'):(p.assign==='mission'?'ON MISSION':null);
-      h+='<label class="prow'+(why?' off':'')+'" style="cursor:'+(why?'default':'pointer')+'"><input type="checkbox" class="pcheck" data-pk="'+p.id+'" '+(why?'disabled':'')+'>'+
-        '<span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span>'+
-        '<span class="pinfo"><span class="pname">'+p.name+'</span><br><span class="psub">'+rankFor(p)+' · lvl '+p.level+(why?' · <span class="pwhy">'+why+'</span>':'')+'</span></span></label>';
-    }
-    h+='<button class="sbtn" id="launchBtn" style="width:100%;margin-top:8px;padding:10px" disabled>'+(planLead?'Go — take the field':'Launch')+'</button></div>';
+    card.classList.add('wide');
+    h=planHTML(winArg);
   }
   else if(winMode==='person'){
     const p=winArg;
@@ -1995,6 +2026,8 @@ function syncUI(){
   $('dayLbl').textContent='Day '+G.day;
   $('resC').textContent=Math.round(G.credits);
   $('resS').textContent=Math.round(G.supplies);
+  $('resM').textContent=Math.round(G.materials);
+  $('resF').textContent=Math.round(G.fuel);
   $('resI').textContent=Math.round(G.intel);
   const lvl=G.revLevel||1;
   $('revNum').textContent=lvl;
@@ -2090,7 +2123,7 @@ $('tilePop').addEventListener('click',ev=>{
   sClick();
   if(t.hasAttribute('data-dig')&&tilePopAt&&!tilePopAt.room){
     const {r,c}=tilePopAt;
-    G.supplies-=EXCAVATE.s;
+    G.materials-=EXCAVATE.m;
     G.grid[r][c].dig=EXCAVATE.days;
     news('Excavation crew breaks ground. Dust everywhere.','d');
     renderTilePop();syncUI();return;
@@ -2099,7 +2132,7 @@ $('tilePop').addEventListener('click',ev=>{
   if(bk&&tilePopAt&&!tilePopAt.room){
     const {r,c}=tilePopAt;
     const b=BUILDS[bk];
-    G.credits-=b.c;G.supplies-=b.s;
+    G.credits-=b.c;G.materials-=(b.m||0);G.supplies-=(b.s||0);
     G.grid[r][c]={t:'room',room:bk};
     G.rooms.push({key:bk,r,c,w:1,h:1,build:{days:b.days}});
     news('Construction starts: '+ROOMS[bk].name+' ('+b.days+'d).','a');
@@ -2116,6 +2149,18 @@ $('roomViewBar').addEventListener('click',ev=>{
   if(t.hasAttribute('data-backbase')){exitRoomView();syncUI();return;}
   const open=t.getAttribute('data-open');
   if(open){openWin(open);return;}
+});
+$('winsB').addEventListener('dragstart',ev=>{
+  const c=ev.target.closest('[data-rid]');
+  if(c){ev.dataTransfer.setData('text/plain',c.getAttribute('data-rid'));ev.dataTransfer.effectAllowed='move';}
+});
+$('winsB').addEventListener('dragover',ev=>{if(winMode==='plan'&&ev.target.closest('[data-slot]'))ev.preventDefault();});
+$('winsB').addEventListener('drop',ev=>{
+  const sl=ev.target.closest('[data-slot]');
+  if(!sl||winMode!=='plan'||!PL)return;
+  ev.preventDefault();
+  plDrop(sl.getAttribute('data-slot'),ev.dataTransfer.getData('text/plain'));
+  sClick();renderWin();
 });
 $('winsB').addEventListener('click',ev=>{
   if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
@@ -2140,21 +2185,16 @@ $('winsB').addEventListener('click',ev=>{
     if(best){srcSel=best;sClick();renderWin();}
     return;
   }
+  if(winMode==='plan'&&PL){
+    const slotEl=ev.target.closest('[data-slot]');
+    if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
+    const chip=ev.target.closest('[data-rid]');
+    if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
+  }
   const t=ev.target.closest('button,a,input');
   if(!t)return;
-  if(t.classList.contains('pcheck')){
-    const m=winArg;
-    const n=[...ROOT.querySelectorAll('.pcheck:checked')].length;
-    const btn=$('launchBtn');
-    if(btn)btn.disabled=!(n===m.need&&canAttempt(m));
-    return;
-  }
-  if(t.id==='launchBtn'){
-    const ids=[...ROOT.querySelectorAll('.pcheck:checked')].map(x=>x.getAttribute('data-pk'));
-    if(planLead)leadMission(winArg,ids);
-    else launchMission(winArg,ids);
-    return;
-  }
+  if(t.id==='launchBtn'){startPlan();return;}
+  if(t.hasAttribute('data-autofill')){sClick();plAutoFill();renderWin();return;}
   sClick();
   if(t.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
   if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){openWin('sources');return;}
@@ -2216,12 +2256,8 @@ $('winsB').addEventListener('click',ev=>{
   if(scout){scoutPlanet(scout);return;}
   const raise=t.getAttribute('data-raise');
   if(raise){raiseAccess(raise);return;}
-  const plan=t.getAttribute('data-plan');
-  if(plan){const m=G.missions.find(x=>x.id===plan);if(m){planLead=false;openWin('plan',m);}return;}
   const mplan=t.getAttribute('data-mplan');
-  if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m){planLead=false;openWin('plan',m);}return;}
-  const mlead=t.getAttribute('data-mlead');
-  if(mlead){const m=G.missions.find(x=>x.id===mlead);if(m){planLead=true;openWin('plan',m);}return;}
+  if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openPlan(m);return;}
   const as=t.getAttribute('data-as');
   if(as){
     const parts=as.split(':');
@@ -2298,66 +2334,229 @@ function seedNews(){
 }
 
 /* ---------- leading missions in person ---------- */
-let planLead=false;
 function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');}
 function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission').length;}
 function readyFighters(){return G.fighters.filter(f=>!f.out&&f.hull>=60).length;}
 function readyStarfighters(){return G.fighters.filter(f=>f.cls!=='graf'&&!f.out&&f.hull>=60).length;}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
+/* ---------- mission requirements & the planning board ---------- */
+function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
+function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission');}
+function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&f.hull>=60);}
+function shipPool(r){return G.fighters.filter(f=>!f.out&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
+function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
+function minFuel(m){
+  const r=reqOf(m);
+  const costs=(r.transport?transportPool():shipPool(r)).map(fuelOf).sort((a,b)=>a-b);
+  const n=r.transport?transportSlots(r):(r.ships||r.team);
+  return costs.slice(0,n).reduce((a,b)=>a+b,0)||FUEL_COST.cross*n;
+}
 function precondList(m){
-  if(m.ground)return [
-    {ok:availSoldiers()>=m.need,label:m.need+' Rebel Soldier'+(m.need>1?'s':'')+' Available'},
-    {ok:ablePilots().length>=2,label:'1 Starfighter Pilot Available'},
-    {ok:grafReady(),label:'1 Hauler Available'},
-  ];
-  const star=m.fighterReq==='starfighter';
-  return [
-    {ok:ablePilots().length>=m.need,label:m.need+' Starfighter Pilot'+(m.need>1?'s':'')+' Available'},
-    {ok:(star?readyStarfighters():readyFighters())>=m.need,
-      label:m.need+' Starfighter'+(m.need>1?'s':'')+' Available'+(star?' — the Marta won’t do':'')},
-  ];
+  const r=reqOf(m),out=[];
+  if(r.transport){
+    const T=transportSlots(r),np=T+(r.prize||0);
+    out.push({ok:soldierPool().length>=r.team,label:r.team+' Rebel Soldier'+(r.team>1?'s':'')+' Available'});
+    out.push({ok:ablePilots().length>=np,label:np+' Pilot'+(np>1?'s':'')+' Available'+(r.prize?' — one to fly the hauler, one for the prize':'')});
+    out.push({ok:transportPool().length>=T,label:T+' Hauler'+(T>1?'s':'')+' Available'});
+  } else {
+    const n=r.ships||r.team;
+    out.push({ok:ablePilots().length>=r.team,label:r.team+' Starfighter Pilot'+(r.team>1?'s':'')+' Available'});
+    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'Starfighter':'Ship')+(n>1?'s':'')+' Available'+(r.starfighter?' — the Marta won’t do':'')});
+  }
+  const need=minFuel(m);
+  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need)+' <span style="color:var(--dim)">(have '+Math.floor(G.fuel)+')</span>'});
+  return out;
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
 function precondHTML(m){
   return '<div class="dz-sec">Pre Conditions</div>'+precondList(m).map(c=>
-    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'\u2713':'\u2717')+'</span><span>'+c.label+'</span></div>').join('');
+    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'✓':'✗')+'</span><span>'+c.label+'</span></div>').join('');
 }
-function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)));}
-function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)));}
-function leadMission(m,ids){
+function rewHTML(m){
+  const r=m.rew||{};
+  return [r.cross?'+FT-4 Cross':'',r.fighter?'+1 fighter':'',bundleHTML(r),'+XP'].filter(Boolean).join(' ');
+}
+function whereHTML(m){
+  const d=m.loc&&pdef(m.loc);
+  if(!d)return '';
+  const r=m.region&&d.regions&&d.regions.find(x=>x.id===m.region);
+  return d.name+(r?' · '+r.name:'');
+}
+
+/* PL: the plan in progress. PL.v maps slot key -> person/ship id.
+   Slots: team0.. (soldiers) · tv0/tp0.. (transport + its pilot) · pz0.. (prize pilot)
+          rp0/rs0.. (pilot + ship rows for space sorties) */
+let PL=null;
+function openPlan(m){
+  const r=reqOf(m);
+  PL={m,req:r,v:{},slots:[]};
+  if(r.transport){
+    for(let i=0;i<r.team;i++)PL.slots.push({key:'team'+i,acc:'soldier',label:'Soldier '+(i+1)});
+    for(let i=0;i<transportSlots(r);i++){
+      PL.slots.push({key:'tv'+i,acc:'vehicle',label:'Transport'+(transportSlots(r)>1?' '+(i+1):'')});
+      PL.slots.push({key:'tp'+i,acc:'pilot',label:'Transport pilot'});
+    }
+    for(let i=0;i<(r.prize||0);i++)PL.slots.push({key:'pz'+i,acc:'pilot',label:'Pilot for the prize'});
+  } else {
+    const n=r.ships||r.team;
+    for(let i=0;i<n;i++){
+      PL.slots.push({key:'rp'+i,acc:'pilot',label:'Pilot '+(i+1)});
+      PL.slots.push({key:'rs'+i,acc:'ship',label:'Ship '+(i+1)});
+    }
+  }
+  openWin('plan',m);
+}
+function plUsedIds(){return new Set(Object.values(PL.v));}
+function plAccepts(slot,rid){
+  const kind=rid[0],id=rid.slice(2);
+  if(kind==='p'){
+    const p=G.people.find(x=>x.id===id);if(!p)return false;
+    return slot.acc==='soldier'?(p.role==='Soldier'||p.role==='Marine'):slot.acc==='pilot'?p.role==='Pilot':false;
+  }
+  const f=G.fighters.find(x=>x.id===id);if(!f)return false;
+  return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id):false;
+}
+function plSet(key,rid){
+  const id=rid.slice(2);
+  for(const k in PL.v)if(PL.v[k]===id)delete PL.v[k];
+  PL.v[key]=id;
+  // a pilot brings their ship, a ship brings its pilot (when both are free)
+  const pairs={rp:'rs',rs:'rp',tp:'tv',tv:'tp'};
+  const pre=key.replace(/\d+$/,''),n=key.slice(pre.length),mate=pairs[pre];
+  if(mate&&!PL.v[mate+n]){
+    if(pre==='rp'||pre==='tp'){
+      const p=G.people.find(x=>x.id===id),f=p&&G.fighters.find(x=>x.id===p.ship);
+      const slot=PL.slots.find(x=>x.key===mate+n);
+      if(f&&slot&&plAccepts(slot,'f:'+f.id)&&!plUsedIds().has(f.id))PL.v[mate+n]=f.id;
+    } else {
+      const p=G.people.find(x=>x.role==='Pilot'&&x.ship===id&&!x.injured&&x.assign!=='mission');
+      if(p&&!plUsedIds().has(p.id))PL.v[mate+n]=p.id;
+    }
+  }
+}
+function plPlace(rid){
+  const slot=PL.slots.find(sl=>!PL.v[sl.key]&&plAccepts(sl,rid));
+  if(slot)plSet(slot.key,rid);
+}
+function plDrop(key,rid){
+  const slot=PL.slots.find(sl=>sl.key===key);
+  if(slot&&plAccepts(slot,rid))plSet(key,rid);
+}
+function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]);}
+function plFuel(){
+  let t=0;
+  for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
+  return t;
+}
+function plAutoFill(){
+  PL.v={};
+  const m=PL.m;
+  for(const sl of PL.slots){
+    if(PL.v[sl.key])continue;
+    const used=plUsedIds();
+    let pool=[];
+    if(sl.acc==='soldier')pool=soldierPool().map(p=>'p:'+p.id);
+    else if(sl.acc==='pilot')pool=ablePilots().map(p=>'p:'+p.id);
+    else if(sl.acc==='vehicle')pool=transportPool().map(f=>'f:'+f.id);
+    else pool=shipPool(PL.req).map(f=>'f:'+f.id);
+    const pick=pool.find(r=>!used.has(r.slice(2)));
+    if(pick)plSet(sl.key,pick);
+  }
+}
+function slotOccHTML(sl){
+  const id=PL.v[sl.key];
+  if(!id)return null;
+  if(sl.acc==='vehicle'||sl.acc==='ship'){
+    const f=G.fighters.find(x=>x.id===id);
+    return '<b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</small>';
+  }
+  const p=G.people.find(x=>x.id===id);
+  return '<b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+'</small>';
+}
+function chipHTML(rid){
+  const kind=rid[0],id=rid.slice(2);
+  if(kind==='f'){
+    const f=G.fighters.find(x=>x.id===id);
+    return '<div class="rchip ship" draggable="true" data-rid="'+rid+'"><b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · '+F(fuelOf(f))+'</small></div>';
+  }
+  const p=G.people.find(x=>x.id===id);
+  return '<div class="rchip" draggable="true" data-rid="'+rid+'"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span><span><b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+'</small></span></div>';
+}
+function planHTML(m){
+  const r=PL.req,used=plUsedIds();
+  const left='<div class="planL">'+
+    '<div class="mcard" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+m.name+'</span><span class="mfrom">'+(m.from||'')+'</span></div>'+
+    (whereHTML(m)?'<div class="mwhere">'+whereHTML(m)+' · '+MTYPES[typeOf(m)].label+'</div>':'')+
+    '<div class="mdesc">'+m.desc+'</div></div>'+
+    '<div class="dz-sec">Objectives</div>'+
+    (m.objectives||['Complete the operation']).map((o,i)=>'<div class="orow"><span class="tick">'+(o[0]==='('?'○':'■')+'</span>'+o+'</div>').join('')+
+    '<div class="dz-sec">Reward</div><div class="mmeta">'+rewHTML(m)+' · '+m.days+' day'+(m.days>1?'s':'')+' · risk '+m.riskTxt+'</div>'+
+    precondHTML(m)+
+    (r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring?
+      '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 60⬡ 40⚙ and two days.</div>'+
+      '<button class="dbtn" data-gohangar>Go to the Hangar ▸</button>':'')+
+    (r.transport&&!grafReady()&&G.wreck&&G.wreck.restoring?
+      '<div class="pdesc" style="color:var(--amber);margin-top:8px">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</div>':'')+
+    '</div>';
+  const slotBox=(keys,title)=>{
+    const sls=PL.slots.filter(sl=>keys.includes(sl.acc));
+    if(!sls.length)return '';
+    return '<div class="dz-sec">'+title+'</div>'+sls.map(sl=>{
+      const occ=slotOccHTML(sl);
+      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+(sl.acc==='soldier'||sl.acc==='pilot'?'p:':'f:')+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
+    }).join('');
+  };
+  const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="pdesc">None available.</div>';
+  const right='<div class="planR">'+
+    (r.transport?slotBox(['soldier'],'Team'):'')+
+    (r.transport?slotBox(['vehicle','pilot'],'Transport & pilots'):slotBox(['pilot','ship'],'Flight'))+
+    '<div class="dz-sec">Roster</div><div class="rosterBox">'+
+    (r.transport?'<div class="rh">Soldiers</div>'+avail(soldierPool(),'p:'):'')+
+    '<div class="rh">Pilots</div>'+avail(ablePilots(),'p:')+
+    '<div class="rh">'+(r.transport?'Transports':'Ships')+'</div>'+avail(r.transport?transportPool():shipPool(r),'f:')+
+    '</div></div>';
+  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel;
+  return '<div class="winHead"><span class="wt">Mission Briefing</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+    '<div class="planGrid">'+left+right+'</div>'+
+    '<div class="planFoot"><span class="pdesc">'+(plComplete()?'Fuel burned: '+F(fuel)+' of '+Math.floor(G.fuel):'Fill every slot to go.')+'</span>'+
+    '<button class="sbtn" data-autofill>Auto-fill</button>'+
+    '<button class="sbtn go" id="launchBtn" '+(ok?'':'disabled')+'>'+(m.lead?'Start':'Launch')+'</button></div></div>';
+}
+function startPlan(){
+  const m=PL.m;
+  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel())return;
   sClick();
-  if(m.ground){
-    const squad=G.people.filter(p=>ids.includes(p.id));
-    const pilots=ablePilots();
-    const graf=G.fighters.find(f=>f.cls==='graf'&&!f.out&&f.hull>=60);
-    if(squad.length<m.need||pilots.length<2||!graf)return;
-    const grafPilot=pilots.find(p=>p.ship==='graf')||pilots[1];
-    const spare=pilots.find(p=>p.id!==grafPilot.id);
+  if(!m.lead){launchMission(m);return;}
+  const fuel=plFuel();
+  if(PL.req.transport){
+    const squad=PL.slots.filter(sl=>sl.acc==='soldier').map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
+    const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
+    const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
     const scatter=G.armory.find(a=>a.id==='scatter'&&a.n>0);
     const blam=G.armory.find(a=>a.id==='blam');
+    G.fuel-=fuel;
     SR.mission={kind:'ground',missionId:m.id,days:m.days,nades:blam?blam.n:0,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
-      pilot:{id:spare.id,name:spare.name,first:spare.name.split(' ')[0],level:spare.level},
+      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
-    const pilots=G.people.filter(p=>ids.includes(p.id));
-    const ready=G.fighters.filter(f=>!f.out&&f.hull>=60&&(m.fighterReq!=='starfighter'||f.cls!=='graf'));
-    if(pilots.length<m.need||ready.length<pilots.length)return;
-    const used=new Set();
-    const flight=pilots.map(p=>{
-      const f=ready.find(x=>x.id===p.ship&&!used.has(x.id))||ready.find(x=>!used.has(x.id));
-      used.add(f.id);
-      return {pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
+    const flight=[];
+    for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
+      const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
+      flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:pilotAim(p),cool:Math.min(85,55+p.level*4),traits:p.id==='sera'?['Lucky']:[],
-        cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull};
-    });
+        cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
+    }
+    G.fuel-=fuel;
     SR.mission={kind:'space',missionId:m.id,days:m.days,flight};
   }
   closeWin();closeTilePop();
   saveSnap();
-  SR.go(m.ground?'ground':'space',{mission:SR.mission});
+  SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
 }
+function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)));}
+function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)));}
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box']};
@@ -2456,11 +2655,7 @@ function applyDebrief(r){
       news('<b>'+f.name+'</b> was lost over the drift.','h');
     } else f.hull=Math.max(5,Math.min(100,Math.round(fr.hull)));
   }
-  if(r.win&&m&&r.kind==='space'){
-    if(m.rew.c){G.credits+=m.rew.c;got.push(C(m.rew.c));}
-    if(m.rew.s){G.supplies+=m.rew.s;got.push(S(m.rew.s));}
-    if(m.rew.i){G.intel+=m.rew.i;got.push(I(m.rew.i));}
-  }
+  if(r.win&&m)applyRew(m.rew,got);
   if(m){
     if(r.win){
       m.state='done';m.meta='SUCCESS';
@@ -2480,8 +2675,8 @@ function applyDebrief(r){
 }
 ROOT.addEventListener('click',ev=>{
   const rst=ev.target.closest('[data-restore]');
-  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=60&&G.supplies>=40){
-    G.credits-=60;G.supplies-=40;G.wreck.restoring=2;G.guideHangar=0;
+  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=60&&G.materials>=40){
+    G.credits-=60;G.materials-=40;G.wreck.restoring=2;G.guideHangar=0;
     news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
     sBuild();saveSnap();syncUI();
     if(viewRoom)renderRoomBar();
@@ -2518,6 +2713,8 @@ function restoreCampaign(data){
       if(!st.lib)st.lib={};
       if(st.ops===undefined)st.ops=0;
     }
+    if(G.materials===undefined)G.materials=80;
+    if(G.fuel===undefined)G.fuel=40;
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
@@ -2568,8 +2765,8 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{addMission,leadMission,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{addMission,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
-      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin}};
+      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
 })();

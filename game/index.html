@@ -37,6 +37,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-base .res.c .ic{color:var(--amber);}
 #sc-base .res.s .ic{color:var(--good);}
 #sc-base .res.i .ic{color:var(--reb);}
+#sc-base .res.m .ic{color:#c9b38a;}
+#sc-base .res.f .ic{color:#ff8a5c;}
+#sc-base .rm{color:#c9b38a;}
+#sc-base .rf{color:#ff8a5c;}
 #sc-base #topbar .spacer{flex:1;}
 #sc-base .chipbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:4px 10px;border-radius:3px;cursor:pointer;}
 #sc-base .chipbtn:hover{border-color:var(--amber);color:var(--amber);}
@@ -150,6 +154,28 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-base .plcard .plkind{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;flex:1;}
 #sc-base .plcard .placcess{font-family:var(--font-mono);font-size:10px;}
 #sc-base .plsit{font-size:11px;color:var(--dim);line-height:1.5;margin:6px 0 8px;font-style:italic;}
+#sc-base .rm,#sc-base .rf{font-family:var(--font-mono);}
+#sc-base .planGrid{display:grid;grid-template-columns:1.05fr 1fr;gap:16px;align-items:start;}
+#sc-base .planL .mwhere{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--reb);margin:2px 0 5px;}
+#sc-base .planL .orow{display:flex;gap:8px;font-size:11.5px;line-height:1.45;margin-bottom:3px;}
+#sc-base .planL .orow .tick{color:var(--amber);flex:0 0 12px;font-family:var(--font-mono);}
+#sc-base .slot{display:flex;flex-direction:column;gap:2px;background:#0a1124;border:1px dashed #2a3a5f;border-radius:4px;padding:6px 9px;margin-bottom:5px;cursor:pointer;min-height:38px;}
+#sc-base .slot.filled{border-style:solid;border-color:#2f6b74;background:#0f1d2a;}
+#sc-base .slot .sl{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);}
+#sc-base .slot .sv{font-size:12px;}
+#sc-base .slot .sv em{color:#4c5b7d;font-size:10.5px;}
+#sc-base .slot .sv small,#sc-base .rchip small{display:block;font-size:9.5px;color:var(--dim);letter-spacing:.04em;}
+#sc-base .slot:hover{border-color:var(--amber);}
+#sc-base .rosterBox{max-height:210px;overflow-y:auto;}
+#sc-base .rosterBox .rh{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:6px 0 3px;}
+#sc-base .rchip{display:flex;align-items:center;gap:9px;background:#121b34;border:1px solid #1b2747;border-radius:4px;padding:5px 9px;margin-bottom:4px;cursor:grab;font-size:12px;}
+#sc-base .rchip:hover{border-color:var(--reb);}
+#sc-base .rchip .pl{width:26px;height:26px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10px;border:2px solid var(--reb);}
+#sc-base .rchip.ship{border-left:3px solid var(--blue);}
+#sc-base .planFoot{display:flex;align-items:center;gap:10px;margin-top:12px;border-top:1px solid var(--line-soft);padding-top:10px;}
+#sc-base .planFoot .pdesc{flex:1;}
+#sc-base .planFoot .sbtn.go{background:#12351f;border-color:var(--good);color:#b6f2bd;padding:9px 26px;font-size:12px;}
+#sc-base .planFoot .sbtn.go:disabled{background:#0d1530;border-color:var(--line);color:var(--text);}
 #sc-base .locstats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;margin:2px 0 8px;}
 #sc-base .lstat{display:flex;align-items:center;gap:8px;}
 #sc-base .lstat .ll{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);width:66px;}
@@ -627,7 +653,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
     <h1>Haven Rock</h1>
     <span class="sub">Hidden Base · <span id="dayLbl">Day 1</span></span>
     <span class="res c" title="Credits"><span class="ic">⬡</span><span id="resC">0</span></span>
-    <span class="res s" title="Supplies"><span class="ic">▤</span><span id="resS">0</span></span>
+    <span class="res s" title="Supplies — food, medicine, morale"><span class="ic">▤</span><span id="resS">0</span></span>
+    <span class="res m" title="Materials — build and repair"><span class="ic">⚙</span><span id="resM">0</span></span>
+    <span class="res f" title="Fuel — burned by every sortie"><span class="ic">◐</span><span id="resF">0</span></span>
     <span class="res i" title="Intel — spend it to scout worlds; the reserve is our early warning"><span class="ic">◈</span><span id="resI">0</span></span>
     <div id="revLamp"><span class="n" id="revNum">1</span><div class="lamptip" id="revTip"></div></div>
     <span class="spacer"></span>
