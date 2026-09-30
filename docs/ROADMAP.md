@@ -32,12 +32,33 @@ starfighter squadron and no Heroes yet.
 ## Phases
 
 ### Phase 0 — Design decisions (blocks everything else)
-1. **Level 1 exit.** What ends Level 1: a scripted set piece, or a renown/liberation
-   threshold? Today renown ≥ 100 only prints a "future build" message.
+1. ~~**Level 1 exit.**~~ **Decided:** there is no exit mission. Level 1 ends when
+   accumulated progress fills the Rev Level meter and the player sees an escalation
+   animation into Level 2. See *Progress to Level 2* below.
 2. **Intel semantics.** The docs now define Intel as the currency that buys Access, and
    also as early warning. Confirm scouting stays a spend. Alerts (the warning consumer)
    are Rev 2, so the warning role can wait.
-3. **Reconcile doc conflicts** (see *Doc issues*).
+3. ~~Starting hangar~~ **Decided:** four landing pads from the start. The game
+   currently starts with capacity 2 and one spare berth, so this is a code change.
+4. **Reconcile the remaining doc conflicts** (see *Doc issues*).
+
+### Progress to Level 2 (design, decided)
+There are no hard gates and no set-piece exit. The meter fills from missions across
+**multiple locations**, which is the biggest lever, plus liberation, support and some
+narrative events. The design predicts that by the time it fills, the player has:
+1. been active in several locations and their sources,
+2. expanded the base a fair amount and used the new mechanics,
+3. a decent roster,
+4. several ships,
+5. liberated a region or two within a location, though not necessarily a whole location.
+
+Implementation approach: a single Rev progress meter fed by weighted contributions
+(missions completed per location, region liberation, support, source levels, story
+events). The five predictions above are **tuning targets**, not checks. A playtest
+should reach the escalation animation with roughly that profile, and the design should
+not require it. Missions in a *new* location should count for more than repeats in the
+same one, to push the player to spread out. The current `G.renown` (which counts sources
+and a few missions) is the seed of this.
 
 ### Phase 1 — Location model (the spine of the doc set)
 - Per-location **Security / Access / Support / Liberation**, with regions and
@@ -47,8 +68,10 @@ starfighter squadron and no Heroes yet.
 - First-visit **cinematic briefing** popup (Helva-2 is the template).
 - Effects wired in: Security scales enemy count/toughness and source risk; Access gates
   rarer sources and Opportunities; Support gates liberation progress.
-- Liberation feeds the Revolution Level meter. Add the **Level 1 → 2 progress meter** and
-  the level-complete screen from Phase 0.
+- Liberation feeds the Revolution Level meter. Add the **Level 1 → 2 progress meter**
+  (see *Progress to Level 2*) and the **escalation animation** that plays when it fills.
+  Rev Level 2 content itself stays out of scope, so the animation lands on a
+  "Level 2 — coming soon" state.
 - Add **Materials** and **Fuel** to the resource model. Fuel is consumed by ship missions.
 
 ### Phase 2 — Mission framework
@@ -69,9 +92,13 @@ Each mission needs new ground objective types, so build the objectives first:
   recruit. Needs *escort/release NPC*.
 - **Blow Up Auto Factory** — plant charges, detonate from a safe distance. Needs *plant
   and detonate*.
-- **Steal Intelligence** — hack the databanks, extract. Needs *hack terminal*. The docs
-  require a Field Technician, but Specialties unlock at level 3, so decide whether
-  that gate applies in Level 1.
+- **Steal Intelligence** — hack the databanks, extract. Needs *hack terminal*.
+  **Decided:** the mission can appear on the board but cannot be completed until a
+  soldier of level 3+ holds the **Field Technician** specialty. If the player tries
+  without one, show: *"Missing Field Technician: train a soldier to level 3 and use the
+  Training Center to give them the Field Technician specialty to attempt this
+  mission."* This adds a soft gate to the preconditions UI and makes the Training Center
+  and specialties **in scope** for Level 1 (see Phase 5).
 - **Steal the Strider** — the existing locked mission, and a good Level 1 capstone
   candidate. Infiltrate the warehouse, then guide the mech out.
 
@@ -94,8 +121,14 @@ Each mission needs new ground objective types, so build the objectives first:
 - Barracks (Garrison Officer, Bunks, Quarters), Hangar (Flight Deck Officer, Refuelling
   Station, Maintenance upgrades, *Restore Broken Ship* task), Infirmary, Storeroom.
 - **Gear grid** replacing the flat armory list.
-- **Stretch:** Training Center specialisations (level 3+). It is unclear whether any
-  rebel reaches level 3 inside Level 1.
+- **Training Center and Specialties (now in scope).** Soldiers train at the practice
+  range, pilots at the flight simulator, and Support in the classroom. At level 3 a rebel
+  can take a specialty, which takes days and gives a title plus abilities. Level 1 needs
+  at least **Field Technician**; the rest of the soldier list (Gunner, Commando, Assault,
+  Combat Medic, Demolitions Specialist, Marksman, Commander, Vanguard, Driver) can ship in
+  stages.
+- **Starting hangar:** change to four landing pads to match the docs, and rebalance
+  the onboarding around it (the derelict Marta no longer fills the only spare berth).
 
 ### Phase 6 — Sources as quest chains
 - Add a **location-tied** field to sources, and an authoring format for
@@ -105,8 +138,8 @@ Each mission needs new ground objective types, so build the objectives first:
 - Add missing source types (Double Agent, CEO, Professor, Engineer).
 
 ### Phase 7 — Level 1 capstone, balance, polish
-- Playtest the whole arc from Take the Rock to the Level 1 exit; tune economy against the
-  new resources.
+- Playtest the whole arc from Take the Rock to the escalation animation; tune the economy
+  and the progress-meter weights so a typical run lands near the five predicted markers.
 - Update the README and GDD copy.
 
 ## Suggested order
@@ -121,8 +154,8 @@ Kaver example (written as a Level 3 story) are reference only.
 ## Doc issues to resolve
 - The Base doc's dev note says scope is "Rev levels 1 and 2". The current scope is
   Level 1 only.
-- The Base doc says the player starts with a **4-room hangar**, and the README's day one
-  is one spare berth. Which is intended?
+- The README's reduced day one (capacity 2, one spare berth) contradicts the docs. **The
+  docs are right:** four landing pads.
 - The Base doc lists **Fuel** twice; the second is meant to be **Intel**.
 - The Enemies doc lists Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum under Rev Tier 3,
   but Dustfall (Rev 1) already uses them. It also lists Bureau Officer under Tier 1 and
