@@ -111,6 +111,9 @@ Built: **Steal Fuel** (call-in transport, timed defend, extraction at the landed
 robot enemies).
 **Rescue Dissident** (freeable, recruitable NPC drawn from the recruit pool) and
 **Steal Intelligence** (Field Technician gate, multi-round hack).
+**Mission types are reusable:** the four Tier 1 types (Steal Fuel, Steal Intelligence, Blow Up Auto Factory,
+Rescue Dissident) are deployed in narrative contexts by any matching Source or by Intelligence leads; the Strider
+stays unique. The project owner will design a Steal [Vehicle] type later. See `docs/GDD.md` §8.
 All five Tier 1 missions are now built (**Steal the Strider** added an Auto roster member).
 The Training Center's specialty training (Phase 5) is now built for
 soldiers and pilots; Support specialties and the other specialty effects remain.

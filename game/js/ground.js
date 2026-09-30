@@ -617,8 +617,38 @@ function genWalls(solids,opens){
   }
   return out;
 }
+const KEY_BLDG={intel:'EAST SERVER HALL',stealfuel:'TITHE DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
+/* a mission type replayed in a new narrative context: rename the place, relabel the key building, thicken security with the world's Security level */
+function contextScenario(base,c,sec){
+  const S=Object.assign({},base);
+  if(c){
+    if(c.title)S.title=c.title;
+    if(c.sub)S.sub=c.sub;
+    S.brief=Object.assign({},base.brief,{eyebrow:c.eyebrow||base.brief.eyebrow,flavour:c.flavour||base.brief.flavour});
+    if(c.place)S.csLine=c.place+'. '+String(base.csLine).replace(/^[^.]*\.\s*/,'');
+    const key=KEY_BLDG[base.mode]||KEY_BLDG[base.id];
+    if(key&&c.target&&base.bldgs)S.bldgs=base.bldgs.map(b=>b.name===key?Object.assign({},b,{name:c.target.toUpperCase()}):b);
+    S.place=c.place||'';
+  }
+  const extra=Math.max(0,(sec||1)-2)*2;
+  if(extra>0&&base.foes){
+    const f0=base.foes;
+    S.foes=function(){
+      const L=f0.call(base),pool=L.filter(f=>!f.auto&&!f.vehicle&&!f.shield&&!f.tower&&!f.manning);
+      const out=L.slice();
+      for(let i=0;i<extra&&pool.length;i++){
+        const f=pool[i%pool.length];
+        out.push(Object.assign({},f,{id:f.id+'x'+i,name:f.name.replace(/\S+$/,'Auxiliary'+(i+1)),first:'Aux'+(i+1),x:f.x+30+i*9,y:f.y+22,
+          patrol:f.patrol?f.patrol.map(q=>({x:q.x+30,y:q.y+22})):undefined,guard:0}));
+      }
+      return out;
+    };
+  }
+  return S;
+}
 function initScenario(id){
-  SCN=SCENARIOS[id]||SCENARIOS.stealcross;
+  {const b=SCENARIOS[id]||SCENARIOS.stealcross;
+   SCN=(CTX&&(CTX.ctx||CTX.sec>2))?contextScenario(b,CTX.ctx,CTX.sec):b;}
   W=SCN.W;H=SCN.H;
   LZ=SCN.LZ;
   PAD=SCN.PAD||OFFMAP;
@@ -2431,12 +2461,13 @@ function gameOver(win,why){
   }
   byId('endRestartBtn').textContent='Continue';
   byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue'||SCN.mode==='intel'||SCN.mode==='strider')&&!win);
-  byId('endEyebrow').textContent=win?(ix?'Mission Report · Data Flats':SCN.mode==='strider'?'Mission Report · Menk Crossing':rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  const place=SCN.place||({intel:'Data Flats',autofactory:'Kiln Ridge',stealfuel:'Redrock Flats',rescue:'Tollgate Landing'})[SCN.mode]||'the target';
+  byId('endEyebrow').textContent=win?(ix||fac||fs||(rs&&SCN.mode==='rescue')?'Mission Report · '+place:SCN.mode==='strider'?'Mission Report · Menk Crossing':'Mission Report · Dustfall'):'Mission Report · It went wrong';
   byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
   if(ix){
-    txt=win?'The Field Technician walked off the Data Flats with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left on the Flats. We don\u2019t forget that.':''):
-      'The squad was overrun around the server farm and the Marta lifted with nothing. The databank is still sealed.';
+    txt=win?'The Field Technician walked out of '+place+' with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left behind. We don\u2019t forget that.':''):
+      'The squad was overrun around the target and the Marta lifted with nothing. The databank is still sealed.';
   } else if(SCN.mode==='strider'){
     txt=win?'A Strider Mk I walked up the Marta\u2019s ramp with its face-screen still reading \u201cWe\u2019re all in this together\u201d and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We are in one.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
       (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the Marta lifted empty. The Strider is still chained in its yard.');
@@ -2445,10 +2476,10 @@ function gameOver(win,why){
     txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
       (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
   } else if(fac){
-    txt=win?(fac.quiet?'Nobody on Kiln Ridge saw us come or go. One moment the Autoworks was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the Autoworks is dark. The alarm had already gone, but it made no difference: the line will not turn out another Policebot for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
-      (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the Autoworks and the Marta lifted empty. The line keeps running.');
+    txt=win?(fac.quiet?'Nobody in '+place+' saw us come or go. One moment the plant was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the plant is dark. The alarm had already gone, but it made no difference: the line will not turn out another Auto for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
+      (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the plant and the Marta lifted empty. The line keeps running.');
   } else if(fs){
-    txt=win?'The Marta lifted off Redrock Flats heavy with the tithe: every drop the herders paid, pumped back out of the depot that took it. Somewhere a warden is writing a very long report.'+(left.length?' It cost us: '+left.join(', ')+' left on the apron. We don\u2019t forget that.':''):
+    txt=win?'The Marta lifted off '+place+' heavy with the tithe: every drop the herders paid, pumped back out of the depot that took it. Somewhere a warden is writing a very long report.'+(left.length?' It cost us: '+left.join(', ')+' left on the apron. We don\u2019t forget that.':''):
       'The squad was overrun around the apron and the Marta lifted empty. The depot is still full and the warden is still smug.';
   } else if(win){
     txt='Sera put the FT-4 down at Haven Rock with the fuel light on and a grin she won’t drop for a week. '+
@@ -2474,7 +2505,7 @@ function gameOver(win,why){
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
     for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
   } else if(win&&fac){
-    lh+='<div class="lootline"><span>Kiln Ridge Power Plant</span><span>DESTROYED</span></div>';
+    lh+='<div class="lootline"><span>Power Plant</span><span>DESTROYED</span></div>';
     lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(fac.quiet?'YES \u2014 bonus':'no')+'</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';

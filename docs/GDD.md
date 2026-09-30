@@ -666,21 +666,44 @@ Landing, +15% liberation, capped by Access/Support):
   briefing can name them, and a failed attempt keeps the same person. Dismissed people are
   gone for good. Future rescue and recruit-reward missions should use `holdRecruit()`.
 
+### Mission types and narrative contexts (built)
+The Missions document describes **mission types**, not one-off missions. A type (objectives, rewards,
+scenario) is deployed in a **narrative context** (a world, a region and a target name) by **any Source
+or by our own Intelligence**, and is never "done for good".
+- **Types in `MTYPE_DEFS`:** Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident.
+  Each has target-name variants (e.g. listening post, satellite array, server farm) and text with
+  `{target} {place} {npc}` slots. Every deployment is its own instance (`fuel_3`) with a context
+  (`target, place, locName, sec`), so the same type can sit on the board several times.
+- **Context reaches the ground scene.** The briefing, call-sign line, key building label and the
+  mission report use the context's place and target. Rewards scale ×(1+12% per Security above 1)
+  and Security 3+ worlds add **+2 / +4 / +6 auxiliary guards** (Security 3, 4, 5).
+- **Story first, then the network.** Each Source's first job keeps its scripted story context
+  (Brakka, Kiln Ridge, Tollgate, Data Flats). After that, a Source with a matching specialty
+  (`SRC_OFFERS`: e.g. Tess offers Auto Factory / Fuel / Rescue) sends fresh contexts at any
+  Access 1+ world with regions.
+- **Intelligence leads** (Opportunities) pick a type at random for the world and spawn an
+  instance when accepted. The old regional placeholder ops are retired.
+- **Unique story missions** are not types: Steal the Cross, the Depot Run and Steal the Strider
+  stay one-offs (the Strider is a capstone).
+- **Steal [Vehicle]** (to obtain ships and gear) is a planned new type, to be designed by the
+  project owner.
+
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
 **Comms Array is built and staffed** (the Comms Array stands in for the Intelligence Center until
 the base rework). A lead shows as an amber diamond on the galaxy map; clicking it reads the
 briefing and adds it to the mission board; the marker stays until the job is done. One
 lead per world at a time, at most four open. Higher Access means more frequent, richer leads;
-leads in liberation worlds target a region and add liberation.
+leads in liberation worlds target a region and add liberation. Each lead is a random mission type
+(see Mission types and narrative contexts).
 
 ### Missions
 - Missions come from Sources and from Intelligence (map markers, from Access 2). Alerts are
   Level 2.
 - Every mission is a preset type (objectives and parameters) plus a designer-written
   narrative wrapper, so a Source can run a chain of missions.
-- Level 1 Tier 1 missions: Steal Intelligence, Rescue Dissident, Blow Up Auto Factory,
-  Steal Fuel, and Steal the Strider.
+- Level 1 Tier 1 mission **types**: Steal Intelligence, Rescue Dissident, Blow Up Auto Factory and
+  Steal Fuel (reusable, any source), plus the unique Steal the Strider.
 - **Steal Intelligence** appears on the board but cannot be completed until a **level 3+
   soldier holds the Field Technician specialty.** Attempting it without one shows:
   *"Missing Field Technician: train a soldier to level 3 and use the Training Center to

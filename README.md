@@ -180,6 +180,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   **Opportunities**, amber diamonds on the galaxy map, once a world reaches Access 2 and the Comms
   Array is staffed. The hangar starts with four landing pads.
 
+- **Mission types, not one-offs.** Steal Fuel, Steal Intelligence, Blow Up Auto Factory and Rescue Dissident are
+  reusable *mission types*. Each Source's first job uses its story setting; afterwards any Source with a matching
+  specialty, or our own Intelligence leads, deploy the same type in a new context (another world, region and target
+  name). Rewards scale with Security, and Security 3+ worlds add extra guards. Steal the Cross, the Depot Run and the
+  Strider stay unique story missions. A Steal [Vehicle] type is planned.
 - **Steal Fuel (first Tier 1 mission).** Cass sends you to the Redrock tithe depot on
   Brakka: reach the depot, call the Marta down onto the apron, hold the pumps for five rounds
   while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space
