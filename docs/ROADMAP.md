@@ -26,7 +26,7 @@ starfighter squadron and no Heroes yet.
 | Mission planning | Team + Assets + transport slot, drag/click from roster | Team and preconditions UI, no Assets or transport slot |
 | Ground combat | Stealth, Fire Support (reinforcements, door gunner, strafing, supply drop), hacking Autos | Stealth, cover, nerve, grenades, stims; no fire support, no hacking |
 | Enemies (Rev 1) | Policebot, Patrolman, Riot Shieldman/Rifleman, Riot Bruiser, Cruisers, Strider Mk I; drone starfighters | Dustfall deputies and Sheriff, RQ-7 drones |
-| Base rooms | Room expansion and upgrades; Intelligence Center; Diplomatic Quarter; Training Center | Fixed room list; Comms Array ≈ Intelligence Center; no Diplomatic Quarter |
+| Base rooms | Room expansion and upgrades; Intelligence Center; Diplomatic Quarter; Training Center | Merged rooms, upgrades, Diplomatic Quarter built; gear grid and some upgrades remain |
 | Gear | Slot grid with size-based fit and categories | Flat armory list |
 
 ## Phases
@@ -151,7 +151,11 @@ mission gives yet. See `docs/GDD.md` §8. Original scope:
   *Door Gunner* needs a gunship-type asset. *Strafing Run* needs a starfighter, so it
   is a stretch goal.
 
-### Phase 5 — Base
+### Phase 5 — Base — **in progress**
+Built (first slice): merged rooms, Hangar/Barracks/Intelligence Center expansion and capacity, Storeroom
+Supplies cap, Barracks and Hangar upgrades, Garrison/Flight Deck/Chief Diplomat posts, the Diplomatic
+Quarter and its Support tasks. Remaining: Ready Lounge, Maintenance Bay, Rec Room, Surgery Room, the
+Restore/Patrol tasks, and the **gear grid**. See `docs/GDD.md` §8. Original scope:
 - Turn the fixed room list into the docs' model: adjacent rooms **merge into one bigger
   room**, and rooms take **upgrades**.
 - Rename or split **Comms Array** into the **Intelligence Center** (adjacent rooms add

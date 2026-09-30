@@ -45,12 +45,11 @@ const ROOMS={
   hangar:{name:'Hangar',col:'#57a8ff',desc:'The fighters live here. So does Joss, practically.'},
   barracks:{name:'Barracks',col:'#57d7e2',desc:'Bunks and quiet. People break without both.'},
   store:{name:'Storeroom',col:'#7dd97b',desc:'Everything we own, counted twice by Mira.'},
-  comms:{name:'Comms Array',col:'#57d7e2',desc:'An ear on the galaxy. One more intel a day, room for one more source.'},
+  comms:{name:'Intelligence Center',col:'#57d7e2',desc:'Officers keep an ear on the galaxy. One more intel a day per room, and room for one more source.'},
+  diplo:{name:'Diplomatic Quarter',col:'#e3a6ff',desc:'Diplomats and liaisons win hearts and minds without getting caught at it. A Chief Diplomat runs the tasks.'},
   workshop:{name:'Workshop',col:'#ffb454',desc:'Broken fighters go in. Working fighters come out. Three times the pace.'},
   infirmary:{name:'Infirmary',col:'#7dd97b',desc:'Beds and bacta. People mend twice as fast with someone on station.'},
   training:{name:'Training Hall',col:'#c987ff',desc:'Sweat now, live later.'},
-  bay:{name:'Hangar Bay',col:'#57a8ff',desc:'One more berth for one more fighter. We’ll fill it.'},
-  quarters:{name:'Barracks Annex',col:'#57d7e2',desc:'Three more bunks. The rebellion keeps growing.'},
 };
 const BUILDS={
   store:{c:200,m:80,days:1},
@@ -58,13 +57,26 @@ const BUILDS={
   workshop:{c:400,m:160,days:2},
   infirmary:{c:360,m:80,s:60,days:2},
   training:{c:320,m:100,s:40,days:1},
-  bay:{c:240,m:200,days:1},
-  quarters:{c:280,m:120,s:60,days:1},
+  hangar:{c:240,m:200,days:1},
+  barracks:{c:280,m:120,s:60,days:1},
+  diplo:{c:500,m:160,s:60,days:2},
 };
+/* adjacent rooms of one type merge into a single bigger room; upgrades apply to the whole merged room */
+const UPGRADES={
+  barracks:[
+    {k:'bunks',n:'Bunks',c:260,m:140,days:2,d:'Stack the beds: +2 beds in every barracks room.'},
+    {k:'quarters',n:'Quarters',c:320,m:160,s:60,days:2,d:'Thin partitions, one more bed in each bay: +2 more beds per room.'},
+  ],
+  hangar:[
+    {k:'refuel',n:'Refuelling Station',c:400,m:240,days:2,d:'Dedicated fuel storage and pumps: sorties burn 25% less fuel.'},
+    {k:'arm',n:'Robot Maintenance Arm',c:440,m:260,days:3,d:'A robotic mechanic: ships repair 5% a day faster on the pads.'},
+  ],
+};
+const DIP_COST={c:400,s:60},DIP_DAYS=4;
 const EXCAVATE={m:40,days:1};
 /* fuel burned per ship on a sortie */
 const FUEL_COST={graf:16,cross:24,talon:24};
-const fuelOf=f=>FUEL_COST[f.cls]||5;
+const fuelOf=f=>Math.ceil((FUEL_COST[f.cls]||5)*(hangarUp('refuel')?0.75:1));
 const SHIPSTATS={
   cross:{label:'FT-4 Cross · Multi-role Starfighter',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
   talon:{label:'SF-11 Talon · Interceptor',shd:'8F / 8A',arm:10,hull:25,wpns:[['Plasma','rc0'],['Missile ×1','rc2']]},
@@ -83,9 +95,9 @@ function newGame(){
   setT(3,3,'floor');setT(2,3,'floor');setT(5,3,'floor');setT(3,6,'floor');setT(5,6,'floor');
   [[4,0],[5,1],[5,2],[1,3],[5,7],[4,9],[3,7],[3,8],[6,4],[6,5],[2,6],[2,7],[1,4],[6,3]].forEach(([r,c])=>setT(r,c,'rubble'));
   const rooms=[
-    {key:'command',r:2,c:4,w:2,h:2},
-    {key:'hangar',r:2,c:1,w:2,h:2},
-    {key:'barracks',r:5,c:4,w:2,h:1},
+    {id:'rm_2_4',key:'command',r:2,c:4,w:2,h:2},
+    {id:'rm_2_1',key:'hangar',r:2,c:1,w:2,h:2},
+    {id:'rm_5_4',key:'barracks',r:5,c:4,w:2,h:1},
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   return {
@@ -117,20 +129,50 @@ function newGame(){
 const $=id=>byId(id);
 function hasRoom(key){return G.rooms.some(r=>r.key===key&&!r.build);}
 function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
-function sourceCap(){return 2+roomsOf('comms').length;}
-function fighterCap(){return 4+roomsOf('bay').length;}   // four landing pads from the start, one per hangar tile
-function bunkCap(){return 5+3*roomsOf('quarters').length;}
+/* rooms are rectangles of tiles; same-type rooms that touch are one merged room */
+const roomTiles=rm=>rm.w*rm.h;
+function tilesOf(key){return roomsOf(key).reduce((n,r)=>n+roomTiles(r),0);}
+function roomsAdj(a,b){
+  const rowOv=a.r<b.r+b.h&&b.r<a.r+a.h,colOv=a.c<b.c+b.w&&b.c<a.c+a.w;
+  return (rowOv&&(a.c+a.w===b.c||b.c+b.w===a.c))||(colOv&&(a.r+a.h===b.r||b.r+b.h===a.r));
+}
+function clusterOf(rm){
+  if(rm.build)return [rm];
+  const out=[rm];
+  for(let i=0;i<out.length;i++)for(const o of G.rooms)if(o.key===rm.key&&!o.build&&!out.includes(o)&&roomsAdj(out[i],o))out.push(o);
+  return out.sort((a,b)=>G.rooms.indexOf(a)-G.rooms.indexOf(b));
+}
+const clusterTiles=cl=>cl.reduce((n,r)=>n+roomTiles(r),0);
+function upOf(rm,k){return clusterOf(rm).some(r=>(r.up||[]).includes(k));}
+function hangarUp(k){return G&&G.rooms&&G.rooms.some(r=>r.key==='hangar'&&!r.build&&(r.up||[]).includes(k));}
+function upQueued(rm,k){return (G.upq||[]).some(u=>u.key===rm.key&&u.k===k&&clusterOf(rm).some(r=>u.ids.includes(r.id)));}
+function sourceCap(){return 2+tilesOf('comms');}
+function fighterCap(){return tilesOf('hangar');}   // one landing pad per hangar tile; four from the start
+function bunkCap(){return roomsOf('barracks').reduce((n,r)=>n+roomTiles(r)*(3+((r.up||[]).includes('bunks')?2:0)+((r.up||[]).includes('quarters')?2:0)),0);}
+function supCap(){const t=tilesOf('store');return Math.round(1000+250*t*(1+0.05*Math.max(0,t-1)));}
+function postSlots(key){return key==='infirmary'?Math.max(1,tilesOf('infirmary')):1;}
+function clampSupplies(){
+  if(!G)return;
+  const cap=supCap();
+  if(G.supplies>cap){
+    const lost=Math.round(G.supplies-cap);G.supplies=cap;
+    if(lost>=10)news('The storerooms are full. '+S(lost)+' spoiled or walked off. Build another Storeroom.','d');
+  }
+}
 const bunksUsed=()=>G.people.filter(p=>!p.auto).length;   // Autos don't sleep
 /* Support crew man stations; a room without its operator underperforms */
 const STAFFABLE={
   command:{post:'Flight Coordinator',perk:'+5% mission success'},
+  barracks:{post:'Garrison Officer',perk:'wounded soldiers recover a day faster'},
+  hangar:{post:'Flight Deck Officer',perk:'ships repair 4% a day faster on the pads'},
+  diplo:{post:'Chief Diplomat',perk:'runs diplomatic tasks that raise local Support'},
   store:{post:'Quartermaster',perk:'repairs cost 4⚙ instead of 8⚙'},
   workshop:{post:'Crew Chief',perk:'repairs 15%/day instead of 8%'},
   infirmary:{post:'Medic',perk:'injuries heal twice as fast'},
   comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
   training:{post:'Drill Instructor',perk:'+50% training XP'},
 };
-const STLBL={command:'CMD',store:'STORES',workshop:'WKSHP',infirmary:'MEDBAY',comms:'COMMS',training:'DRILL'};
+const STLBL={barracks:'GARRISON',hangar:'DECK',diplo:'DIPLO',command:'CMD',store:'STORES',workshop:'WKSHP',infirmary:'MEDBAY',comms:'COMMS',training:'DRILL'};
 function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!p.injured);}
 function medStaff(){return staffOf('infirmary');}
 function news(html,cls){
@@ -740,7 +782,21 @@ function advanceDay(){
       sBuild();
     }
   }
-  const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
+  {
+    G.upq=G.upq||[];
+    for(const u of G.upq)u.days--;
+    for(const u of G.upq.filter(x=>x.days<=0))for(const id of u.ids){
+      const rm=G.rooms.find(r=>r.id===id);
+      if(rm){rm.up=rm.up||[];if(!rm.up.includes(u.k))rm.up.push(u.k);}
+      if(id===u.ids[0]){const d=(UPGRADES[u.key]||[]).find(x=>x.k===u.k);news('<b>'+(d?d.n:'Upgrade')+'</b> finished in the '+ROOMS[u.key].name+'.','g');sBuild();}
+    }
+    G.upq=G.upq.filter(u=>u.days>0);
+    G.dip=G.dip||[];
+    for(const t of G.dip)t.days--;
+    for(const t of G.dip.filter(x=>x.days<=0))finishDip(t);
+    G.dip=G.dip.filter(t=>t.days>0);
+  }
+  const rate=(hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0);
   G.fuel+=4;   // the old hangar-cave tanks weep a little every day
   const repCost=staffOf('store').length?4:8;
   for(const f of G.fighters){
@@ -751,7 +807,7 @@ function advanceDay(){
   const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
     if(p.injured>0){
-      p.injured-=(hasRoom('infirmary')&&medStaff().length)?2:1;
+      p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0);
       if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
       continue;
     }
@@ -792,8 +848,8 @@ function advanceDay(){
       if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Source Network.','a');sAlert();}
     }
   }
-  if(hasRoom('comms')&&staffOf('comms').length)G.intel+=roomsOf('comms').length;
-  else if(hasRoom('comms'))news('The comms array hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
+  if(hasRoom('comms')&&staffOf('comms').length)G.intel+=tilesOf('comms');
+  else if(hasRoom('comms'))news('The Intelligence Center hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
   {
     const cass2=G.sources.find(x=>x.id==='cass'&&x.alive);
     if(cass2&&G.postDepot&&!cass2.signal&&!hasStory('stealfuel')&&storySignal(cass2)){
@@ -1088,7 +1144,7 @@ function acceptCandidate(id){
   if(!cd)return closeWin();
   if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
   if(G.sources.filter(s=>s.alive).length>=sourceCap()){
-    news('No capacity to run another source safely. <b>'+cd.name+'</b> will wait — grow the network (a comms array adds capacity) and they’ll come back around.','h');
+    news('No capacity to run another source safely. <b>'+cd.name+'</b> will wait — grow the network (an Intelligence Center room adds capacity) and they’ll come back around.','h');
     (G.candWait=G.candWait||[]).push(cd.id);
   } else {
     G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
@@ -1137,7 +1193,7 @@ function scoutPlanet(id){
   saveSnap();syncUI();
 }
 /* ---------- Opportunities: leads our own intelligence turns up ----------
-   Need Access 2+ in a world and a staffed Comms Array (our Intelligence Center for now).
+   Need Access 2+ in a world and a staffed Intelligence Center.
    A lead shows on the galaxy map; click it to read it and put it on the mission board.
    The marker stays until the job is done. */
 const OPP_TYPES=['fuel','intel','autofactory','rescue'];
@@ -1171,6 +1227,44 @@ function genOpportunities(){
 function openOpp(id){
   const o=(G.opps||[]).find(x=>x.id===id);
   if(o)openWin('opp',o);
+}
+/* ---------- room upgrades and diplomatic tasks ---------- */
+function startUpgrade(rm,k){
+  const d=(UPGRADES[rm.key]||[]).find(x=>x.k===k);
+  if(!d||rm.build||upOf(rm,k)||upQueued(rm,k))return false;
+  if(G.credits<d.c||G.materials<(d.m||0)||G.supplies<(d.s||0))return false;
+  G.credits-=d.c;G.materials-=(d.m||0);G.supplies-=(d.s||0);
+  G.upq=G.upq||[];
+  G.upq.push({key:rm.key,k,ids:clusterOf(rm).map(r=>r.id),days:d.days});
+  news('Upgrade started: <b>'+d.n+'</b> ('+d.days+'d).','a');sBuild();
+  return true;
+}
+function dipTargets(){
+  return PLANETDEF.filter(d=>{const st=pst(d.id);return st&&st.access&&!d.base&&d.pop&&d.pop!=='\u2014'&&d.pop!=='0';});
+}
+function dipCapacity(){return hasRoom('diplo')&&staffOf('diplo').length?tilesOf('diplo'):0;}
+function canDip(id){
+  const st=pst(id);
+  if(!st||!dipCapacity())return 'The Quarter needs a Chief Diplomat.';
+  if((G.dip||[]).length>=dipCapacity())return 'Every diplomat is already out.';
+  if((G.dip||[]).some(t=>t.loc===id))return 'A team is already there.';
+  if((st.sup||0)>=5)return 'Support is already at its peak.';
+  if(G.credits<DIP_COST.c||G.supplies<DIP_COST.s)return 'Cannot afford it.';
+  return '';
+}
+function startDip(id){
+  if(canDip(id))return false;
+  const dip=staffOf('diplo')[0];
+  G.credits-=DIP_COST.c;G.supplies-=DIP_COST.s;
+  G.dip=G.dip||[];
+  G.dip.push({loc:id,days:DIP_DAYS,by:dip?dip.name:'The diplomats',n:(dip&&dip.level>=3)?1:0.5});
+  news('Diplomats leave for <b>'+pdef(id).name+'</b> ('+DIP_DAYS+'d).','a');sBuild();
+  return true;
+}
+function finishDip(t){
+  const d=pdef(t.loc);
+  addSupport(t.loc,t.n);
+  news('<b>'+t.by+'</b>\u2019s people did the rounds in '+d.name+'. Quiet dinners, louder opinions: Support '+(t.n>=1?'+1':'+\u00bd')+'.','p');
 }
 /* ---------- Access, Support, Liberation, and the road to Level 2 ---------- */
 function raiseAccess(id){
@@ -1310,21 +1404,24 @@ function roomAt(r,c){
   if(!cell||cell.t!=='room')return null;
   return G.rooms.find(rm=>r>=rm.r&&r<rm.r+rm.h&&c>=rm.c&&c<rm.c+rm.w&&rm.key===cell.room);
 }
+/* a merged room is drawn as one shape: outline only the tile edges that face outside it */
 function roomOutline(rm){
-  const [tx,ty,S]=cellToCss(rm.r,rm.c);
-  const [rx,ry]=cellToCss(rm.r,rm.c+rm.w-1);
-  const [bx,by]=cellToCss(rm.r+rm.h-1,rm.c+rm.w-1);
-  const [lx,ly]=cellToCss(rm.r+rm.h-1,rm.c);
+  const cl=clusterOf(rm);
+  const has=(r,c)=>cl.some(q=>r>=q.r&&r<q.r+q.h&&c>=q.c&&c<q.c+q.w);
   ctx.beginPath();
-  ctx.moveTo(tx,ty-TH2*S);
-  ctx.lineTo(rx+TW2*S,ry);
-  ctx.lineTo(bx,by+TH2*S);
-  ctx.lineTo(lx-TW2*S,ly);
-  ctx.closePath();
+  for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++){
+    const [x,y,S]=cellToCss(r,c),w=TW2*S,h=TH2*S;
+    if(!has(r-1,c)){ctx.moveTo(x,y-h);ctx.lineTo(x+w,y);}
+    if(!has(r,c+1)){ctx.moveTo(x+w,y);ctx.lineTo(x,y+h);}
+    if(!has(r+1,c)){ctx.moveTo(x,y+h);ctx.lineTo(x-w,y);}
+    if(!has(r,c-1)){ctx.moveTo(x-w,y);ctx.lineTo(x,y-h);}
+  }
 }
 function roomCenter(rm){
-  const cr=rm.r+(rm.h-1)/2,cc=rm.c+(rm.w-1)/2;
-  return cellToCss(cr,cc);
+  const cl=clusterOf(rm);
+  let sr=0,sc=0,n=0;
+  for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++){sr+=r;sc+=c;n++;}
+  return cellToCss(sr/n,sc/n);
 }
 function shade(hex,f){
   const n=parseInt(hex.slice(1),16);
@@ -1408,6 +1505,9 @@ function renderBase(now){
   }
   // rooms as single entities: one outline, one feature, one label
   for(const rm of G.rooms){
+    const cl=clusterOf(rm);
+    if(cl[0]!==rm)continue;   // a merged room is drawn once
+    cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
     const col=ROOMS[rm.key].col;
     roomOutline(rm);
     ctx.strokeStyle=shade(col,0.6);ctx.lineWidth=1.4;ctx.stroke();
@@ -1439,7 +1539,7 @@ function renderBase(now){
         ctx.strokeStyle='rgba(87,215,226,'+(0.3+0.4*pul)+')';ctx.lineWidth=1.4;
         ctx.beginPath();ctx.arc(x,y-8*S,5*S,Math.PI*0.9,Math.PI*1.9);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y-8*S,(8+3*pul)*S,Math.PI*1.15,Math.PI*1.65);ctx.stroke();
-      } else if(rm.key==='barracks'||rm.key==='quarters'){
+      } else if(rm.key==='barracks'){
         ctx.fillStyle='rgba(87,215,226,0.25)';
         for(let i=0;i<3;i++)ctx.fillRect(x-12*S+i*9*S,y-3*S,6*S,4*S);
       } else if(rm.key==='store'){
@@ -1456,15 +1556,17 @@ function renderBase(now){
         ctx.strokeStyle='rgba(201,135,255,0.55)';ctx.lineWidth=1.4;
         ctx.beginPath();ctx.arc(x,y-4*S,4.5*S,0,Math.PI*2);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y-4*S,1.6*S,0,Math.PI*2);ctx.stroke();
-      } else if(rm.key==='bay'){
-        ctx.strokeStyle='rgba(87,168,255,0.5)';ctx.lineWidth=1.2;
-        ctx.strokeRect(x-8*S,y-5*S,16*S,7*S);
+      } else if(rm.key==='diplo'){
+        ctx.strokeStyle='rgba(227,166,255,'+(0.35+0.3*pul)+')';ctx.lineWidth=1.4;
+        ctx.beginPath();ctx.ellipse(x,y-4*S,8*S,4*S,0,0,Math.PI*2);ctx.stroke();
+        ctx.fillStyle='rgba(227,166,255,0.35)';
+        for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.fillRect(x+Math.cos(a)*11*S-1.5*S,y-4*S+Math.sin(a)*5.5*S-1.5*S,3*S,3*S);}
       }
     }
     ctx.font='700 '+Math.round(9.5*S)+'px "Exo 2"';
     ctx.textAlign='center';
     ctx.fillStyle=rm.build?'rgba(255,180,84,0.8)':shade(col,1.15);
-    ctx.fillText(ROOMS[rm.key].name.toUpperCase()+(rm.build?' · '+rm.build.days+'d':''),x,y+TH2*(rm.h===1?0.9:1.6)*isoParams().S+8);
+    ctx.fillText(ROOMS[rm.key].name.toUpperCase()+(rm.build?' · '+rm.build.days+'d':''),x,y+TH2*(cl.h===1?0.9:1.6)*isoParams().S+8);
   }
   // hover / selection: whole-room outlines
   const hovRm=hoverCell?roomAt(hoverCell.r,hoverCell.c):null;
@@ -1498,15 +1600,15 @@ function renderRoomBar(){
   const rm=viewRoom;if(!rm)return;
   const R=ROOMS[rm.key];
   let info='';
-  if(rm.key==='hangar'||rm.key==='bay'){
+  if(rm.key==='hangar'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+M(staffOf('store').length?4:8)+' each';
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' \u00b7 repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
-  } else if(rm.key==='barracks'||rm.key==='quarters'){
-    info='Bunks '+bunksUsed()+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
+  } else if(rm.key==='barracks'){
+    info='Bunks '+bunksUsed()+'/'+bunkCap()+' \u00b7 '+clusterTiles(clusterOf(rm))+' rooms \u00b7 morale '+Math.round(G.morale)+staffLine('barracks')+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
   } else if(rm.key==='store'){
-    info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+
+    info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+'/'+supCap()+' · '+I(Math.round(G.intel))+
       '<br>Armory: '+G.armory.map(a=>a.name+' ×'+a.n).join(' · ')+staffLine('store');
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
@@ -1515,7 +1617,9 @@ function renderRoomBar(){
     const tr=G.people.filter(p=>p.assign==='train');
     info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+staffLine('training');
   } else if(rm.key==='comms'){
-    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+staffLine('comms');
+    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+' \u00b7 '+tilesOf('comms')+' room'+(tilesOf('comms')>1?'s':'')+staffLine('comms');
+  } else if(rm.key==='diplo'){
+    info='Teams out '+(G.dip||[]).length+'/'+dipCapacity()+staffLine('diplo');
   } else if(rm.key==='command'){
     info='Revolution progress '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk)+staffLine('command');
   } else if(rm.key==='workshop'){
@@ -1527,6 +1631,13 @@ function renderRoomBar(){
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)acts='<button class="pbtn" disabled>Restoring the hauler — '+G.wreck.restoring+'d left. Joss hasn’t slept.</button>';
     else acts='<button class="pbtn" data-restore '+((G.credits>=240&&G.materials>=160)?'':'disabled')+'>Restore the derelict hauler — 240⬡ 160⚙ · 2 days</button>';
+  }
+  if(rm.key==='diplo')acts='<button class="pbtn" data-open="diplo">Diplomatic Tasks \u25b8</button>';
+  for(const u of (UPGRADES[rm.key]||[])){
+    const has=upOf(rm,u.k),q=upQueued(rm,u.k);
+    const afford=G.credits>=u.c&&G.materials>=(u.m||0)&&G.supplies>=(u.s||0);
+    acts+=has?'<div class="pdesc">\u2713 <b>'+u.n+'</b> installed.</div>'
+      :'<button class="pbtn" data-up="'+u.k+'" '+((q||!afford)?'disabled':'')+'>'+u.n+(q?' \u2014 building':'<span class="cost">'+bundleHTML(u)+' \u00b7 '+u.days+'d</span>')+'<small>'+u.d+'</small></button>';
   }
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
@@ -1563,7 +1674,7 @@ function renderRoomView(now){
   ctx.strokeStyle='rgba(120,150,200,0.2)';ctx.lineWidth=1;
   ctx.beginPath();ctx.moveTo(0,-130);ctx.lineTo(0,-190);ctx.moveTo(250,0);ctx.lineTo(250,-60);ctx.moveTo(-250,0);ctx.lineTo(-250,-60);ctx.stroke();
   const pul=0.6+0.4*Math.sin(now*0.002);
-  if(rm.key==='hangar'||rm.key==='bay'){
+  if(rm.key==='hangar'){
     const cap=fighterCap();
     for(let i=0;i<cap;i++){
       const bx=(i-(cap-1)/2)*130,by=i%2?40:-20;
@@ -1604,8 +1715,8 @@ function renderRoomView(now){
       ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
     }
     staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,'#9fe0a8'));
-  } else if(rm.key==='barracks'||rm.key==='quarters'){
-    const cap=bunkCap();
+  } else if(rm.key==='barracks'){
+    const cap=Math.min(bunkCap(),12);
     const resters=G.people.filter(p=>p.assign==='rest'&&!p.injured);
     for(let i=0;i<cap;i++){
       const bx=(i%3-1)*140,by=Math.floor(i/3)*54-40;
@@ -1710,6 +1821,12 @@ function renderRoomView(now){
     }
     ctx.stroke();
     staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,'#8fd8e0'));
+  } else if(rm.key==='diplo'){
+    ctx.strokeStyle='rgba(227,166,255,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(0,0,90,40,0,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='rgba(227,166,255,'+(0.10+0.08*pul)+')';ctx.fill();
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.fillStyle='rgba(227,166,255,0.45)';ctx.beginPath();ctx.arc(Math.cos(a)*104,Math.sin(a)*48,5,0,7);ctx.fill();}
+    staffOf('diplo').forEach((p,i)=>addFig(-40+i*40,-30,p,'#e3a6ff'));
   }
   // room-local sparks (persistent particles, not per-frame flicker)
   for(const p of rvParts){p.life+=dtv;p.x+=p.vx*dtv;p.y+=p.vy*dtv;p.vy+=160*dtv;}
@@ -1939,7 +2056,8 @@ function renderTilePop(){
       if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
       if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</div>';
       if(rm.key==='training')h+='<button class="pbtn" data-open="spec">Specialty Training</button>';
-      if(rm.key==='barracks'||rm.key==='quarters')h+='<div class="pdesc">Bunks '+G.people.length+'/'+bunkCap()+'.</div>';
+      if(rm.key==='barracks')h+='<div class="pdesc">Bunks '+bunksUsed()+'/'+bunkCap()+'.</div>';
+      if(rm.key==='diplo')h+='<button class="pbtn" data-open="diplo">Diplomatic Tasks</button>';
       if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
       h+='<div class="pophint">double-click to step inside</div>';
     }
@@ -1958,7 +2076,8 @@ function renderTilePop(){
       for(const k in BUILDS){
         const b=BUILDS[k];
         const afford=G.credits>=b.c&&G.materials>=(b.m||0)&&G.supplies>=(b.s||0);
-        h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+ROOMS[k].name+
+        const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
+        h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+(adj?'Expand the ':'')+ROOMS[k].name+
           '<span class="cost">'+bundleHTML(b)+' · '+b.days+'d</span><small>'+ROOMS[k].desc+'</small></button>';
       }
     }
@@ -2287,6 +2406,20 @@ function renderWin(){
       '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
       '</div>';
   }
+  else if(winMode==='diplo'){
+    const cap=dipCapacity(),out=G.dip||[];
+    const dp=staffOf('diplo')[0];
+    h='<div class="winHead"><span class="wt">Diplomatic Tasks</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
+      '<div class="pdesc" style="margin-bottom:8px">'+(dp?'<b>'+dp.name+'</b> runs the Quarter':'<span style="color:var(--heg)">No Chief Diplomat posted.</span> Assign a Support rebel to the post from their file.')+
+      '. Teams out: '+out.length+'/'+cap+'. Each task costs '+bundleHTML(DIP_COST)+' and takes '+DIP_DAYS+' days; it raises local Support by \u00bd a flag ('+(dp&&dp.level>=3?'a whole flag with a seasoned diplomat':'a level 3 diplomat earns a whole flag')+').</div>'+
+      (out.length?'<div class="dz-sec">Out in the field</div>'+out.map(t=>'<div class="pdesc">'+pdef(t.loc).name+' \u00b7 '+t.days+' day'+(t.days>1?'s':'')+' left</div>').join(''):'')+
+      '<div class="dz-sec">Worlds where we have Access</div>'+
+      dipTargets().map(d=>{
+        const st=pst(d.id),why=canDip(d.id);
+        return '<div class="mcard" style="margin-bottom:6px"><div class="mrow"><span class="mname">'+d.name+'</span><span class="mfrom">'+pipRow(Math.floor(st.sup||0),5,'\u2691',i=>SUP_COL[Math.max(0,Math.floor(st.sup||0)-1)])+'</span></div>'+
+          '<button class="sbtn" data-dip="'+d.id+'" '+(why?'disabled title="'+why+'"':'')+'>Send diplomats <span class="cost">'+bundleHTML(DIP_COST)+' \u00b7 '+DIP_DAYS+'d</span></button>'+(why?'<div class="pdesc">'+why+'</div>':'')+'</div>';
+      }).join('')+'</div>';
+  }
   else if(winMode==='locBrief'){
     const d=pdef(winArg.id),st=pst(winArg.id);
     card.classList.add('narrow');
@@ -2409,11 +2542,12 @@ function renderWin(){
       if(p.role==='Support'){
         for(const key in STAFFABLE){
           if(!hasRoom(key))continue;
-          const holder=staffOf(key)[0];
+          const holders=staffOf(key);
+          const holder=holders[0];
           const mine=p.assign==='station:'+key;
-          const taken=holder&&holder.id!==p.id;
+          const taken=!mine&&holders.length>=postSlots(key);
           h+='<button class="achip'+(mine?' on':'')+'" data-as="station:'+key+':'+p.id+'" '+
-            (taken?'disabled title="'+holder.name+' holds this post"':'title="'+STAFFABLE[key].perk+'"')+'>'+
+            (taken?'disabled title="'+holders.map(x=>x.name).join(', ')+' hold'+(holders.length>1?'':'s')+' this post"':'title="'+STAFFABLE[key].perk+'"')+'>'+
             STAFFABLE[key].post+'</button>';
         }
       }
@@ -2436,6 +2570,8 @@ function renderWin(){
 
 /* ---------- sidebar ---------- */
 function syncUI(){
+  clampSupplies();
+  $('resS').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
   $('dayLbl').textContent='Day '+G.day;
   $('resC').textContent=Math.round(G.credits);
   $('resS').textContent=Math.round(G.supplies);
@@ -2547,7 +2683,10 @@ $('tilePop').addEventListener('click',ev=>{
     const b=BUILDS[bk];
     G.credits-=b.c;G.materials-=(b.m||0);G.supplies-=(b.s||0);
     G.grid[r][c]={t:'room',room:bk};
-    G.rooms.push({key:bk,r,c,w:1,h:1,build:{days:b.days}});
+    const nr={id:'rm_'+r+'_'+c,key:bk,r,c,w:1,h:1,up:[],build:{days:b.days}};
+    const nb=G.rooms.find(o=>o.key===bk&&!o.build&&roomsAdj(nr,o));
+    if(nb)nr.up=(clusterOf(nb).find(x=>(x.up||[]).length)||{up:[]}).up.slice();
+    G.rooms.push(nr);
     news('Construction starts: '+ROOMS[bk].name+' ('+b.days+'d).','a');
     sBuild();
     closeTilePop();syncUI();return;
@@ -2560,6 +2699,8 @@ $('roomViewBar').addEventListener('click',ev=>{
   if(!t)return;
   sClick();
   if(t.hasAttribute('data-backbase')){exitRoomView();syncUI();return;}
+  const up=t.getAttribute('data-up');
+  if(up&&viewRoom){startUpgrade(viewRoom,up);renderRoomBar();syncUI();return;}
   const open=t.getAttribute('data-open');
   if(open){openWin(open);return;}
 });
@@ -2681,6 +2822,8 @@ $('winsB').addEventListener('click',ev=>{
   if(t.hasAttribute('data-rmasset')&&PL){plRemoveAsset();renderWin();return;}
   const amode=t.getAttribute('data-assetmode');
   if(amode&&PL){const [i,md]=amode.split(':');PL.assets[+i].mode=md;renderWin();return;}
+  const dipBtn=t.getAttribute('data-dip');
+  if(dipBtn){startDip(dipBtn);saveSnap();syncUI();renderWin();return;}
   const specBtn=t.getAttribute('data-spec');
   if(specBtn){const [pid,k]=specBtn.split(':');startSpec(pid,k);return;}
   const oppadd=t.getAttribute('data-oppadd');
@@ -3262,6 +3405,14 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
+    G.upq=G.upq||[];G.dip=G.dip||[];
+    for(const rm of G.rooms){
+      if(rm.key==='bay')rm.key='hangar';
+      if(rm.key==='quarters')rm.key='barracks';
+      if(!rm.id)rm.id='rm_'+rm.r+'_'+rm.c;
+      if(!rm.up)rm.up=[];
+    }
+    for(const row of G.grid)for(const cell of row){if(cell.room==='bay')cell.room='hangar';if(cell.room==='quarters')cell.room='barracks';}
     for(const p of G.people)if(p.auto===1)p.auto='strider';
     for(const m of G.missions){
       if(MSTORY[m.id]&&!m.tid){m.tid=MSTORY[m.id];m.story=m.id;m.ctx=Object.assign({place:'',locName:'',sec:1},CTXDEF[m.id]);}
@@ -3329,7 +3480,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

@@ -327,9 +327,11 @@ spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
 
 - **The base** — a fixed, expandable isometric map of a hidden rock hideout.
   Starting rooms (Command, Hangar, Barracks, Storeroom); rubble chambers can be
-  excavated and open floors built out (Comms Array, Workshop, Infirmary,
-  Training Hall, Hangar Bay), with costs in credits/supplies and multi-day
-  construction. Controls stay contextual: clicking a tile opens its popup.
+  excavated and open floors built out (Intelligence Center, Workshop, Infirmary,
+  Training Hall, Diplomatic Quarter, Storeroom), with costs in credits/supplies and multi-day
+  construction. Same-type rooms that touch merge into one bigger room (more landing pads,
+  beds and source slots) and take upgrades such as Bunks or the Refuelling Station.
+  The Diplomatic Quarter's Chief Diplomat sends teams to raise local Support. Controls stay contextual: clicking a tile opens its popup.
 - **Sources** — the GDD's spy-network loop: Ferren Halt (the depot manager who
   sold out Vex — jumpy, high risk) and Sen. Vokk, plus a recruitable Scientist
   approach. Each has level, cultivation and risk meters, daily income

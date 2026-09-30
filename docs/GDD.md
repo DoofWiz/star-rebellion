@@ -666,6 +666,28 @@ Landing, +15% liberation, capped by Access/Support):
   briefing can name them, and a failed attempt keeps the same person. Dismissed people are
   gone for good. Future rescue and recruit-reward missions should use `holdRecruit()`.
 
+### Base rooms (built, Phase 5, first slice)
+- **Rooms merge.** A room is a rectangle of tiles. Rooms of the same type that touch are one merged
+  room: one outline, one label, one set of upgrades (a new room built next to it inherits them). The
+  tile popup says *Expand the X* when the build will merge.
+- **Hangar:** one landing pad per hangar tile (four at the start). **Barracks:** 3 beds per tile
+  (two tiles at the start). **Intelligence Center** (was the Comms Array): +1 source slot and +1
+  Intel a day per tile while staffed. **Storeroom:** caps Supplies at 1000 + 250 per tile (+5% per
+  extra tile); anything over spoils. The old Hangar Bay and Barracks Annex builds are now just
+  expansions of the Hangar and Barracks (old saves convert).
+- **Upgrades** apply to the whole merged room, cost credits and materials, and take days.
+  Barracks: *Bunks* (+2 beds per tile), *Quarters* (+2 more). Hangar: *Refuelling Station*
+  (sorties burn 25% less fuel), *Robot Maintenance Arm* (+5%/day ship repair). Bought from the
+  room's interior view.
+- **Staff posts** (Support rebels): Garrison Officer (wounded soldiers heal a day faster), Flight Deck
+  Officer (+4%/day repairs on the pads), Chief Diplomat. The Infirmary gains one medic post per tile.
+- **Diplomatic Quarter:** a Chief Diplomat sends teams to any world where we have Access
+  (**400 credits + 60 supplies, 4 days**, one team per Quarter tile). A team adds **+½ Support**, or
+  **+1 flag** when the Chief Diplomat is level 3+. Support is what gates liberation, so this is the
+  player's way to grow it without waiting for source events.
+- **Not built yet:** Ready Lounge, Maintenance Bay, Rec Room, Surgery Room, Restore/Patrol tasks,
+  Storeroom capacity for other resources, the gear grid.
+
 ### Mission types and narrative contexts (built)
 The Missions document describes **mission types**, not one-off missions. A type (objectives, rewards,
 scenario) is deployed in a **narrative context** (a world, a region and a target name) by **any Source
@@ -690,8 +712,7 @@ or by our own Intelligence**, and is never "done for good".
 
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
-**Comms Array is built and staffed** (the Comms Array stands in for the Intelligence Center until
-the base rework). A lead shows as an amber diamond on the galaxy map; clicking it reads the
+**Intelligence Center is built and staffed** (internally still the `comms` room). A lead shows as an amber diamond on the galaxy map; clicking it reads the
 briefing and adds it to the mission board; the marker stays until the job is done. One
 lead per world at a time, at most four open. Higher Access means more frequent, richer leads;
 leads in liberation worlds target a region and add liberation. Each lead is a random mission type
