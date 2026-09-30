@@ -38,6 +38,7 @@ const WPN={
   carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
   scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
   longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
+  rocket: {name:'Makeshift Rocket',   d0:55,d1:85,rng:520,atk:0,shots:1},
   fists:  {name:'Riot Fists',          d0:22,d1:36,rng:70, atk:1,shots:2},
   cruiser:{name:'Cruiser Pulse Cannon',d0:18,d1:30,rng:480,atk:1,shots:2},
   dispersal:{name:'Dispersal Turret',  d0:14,d1:24,rng:340,atk:1,shots:3},
@@ -1395,6 +1396,7 @@ function collectLoot(u,m){
   if(m.c)tally.c+=m.c;
   if(m.s)tally.s+=m.s;
   if(m.nades){NADES+=m.nades;}
+  if(m.supply)supplyDrop(u);
   if(m.items)tally.items.push(...m.items);
   addFloater(m.x,m.y-30,'+ '+m.take,'#7dd97b');
   log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
@@ -1530,12 +1532,149 @@ function checkBoss(){
   if(town==='calm')alertTown(SCN.bossAlert);
   syncUI();
 }
+/* ---------- fire support ---------- */
+function fsItems(){
+  if(!FS)return [];
+  const it=[];
+  if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
+  FS.ships.forEach((a,i)=>{
+    if(a.state!=='ready')return;
+    const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner':'Reinforcements';
+    const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
+      a.mode==='doorgun'?'circles for 2 rounds, rakes up to 3 enemies a round':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
+    it.push({key:'s'+i,name:nm+' · '+a.name,sub});
+  });
+  return it;
+}
+function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
+function fsPlace(key,pt){
+  if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL','#71809c');return false;}
+  if(key==='drop'){
+    FS.dropUsed=true;FS.orders.push({kind:'drop',x:pt.x,y:pt.y,landed:false});
+    log('<span class="a">Supply drop called in.</span> It lands as the next round begins.');
+    sTick();return true;
+  }
+  const i=+key.slice(1),a=FS.ships[i];
+  if(!a)return true;
+  if(a.mode==='doorgun'){
+    a.state='active';a.left=2;
+    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner on station for two rounds.');
+    sTakeoff();return true;
+  }
+  if(a.mode==='reinforce'){
+    a.state='called';FS.orders.push({kind:'reinforce',ship:i,x:pt.x,y:pt.y,at:round+1,done:false});
+    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Reinforcements inbound. Down at the start of the next planning.');
+    sTakeoff();return true;
+  }
+  if(!fsDraft){fsDraft={key,x1:pt.x,y1:pt.y};sTick();return false;}
+  const ang=Math.atan2(pt.y-fsDraft.y1,pt.x-fsDraft.x1);
+  a.state='called';FS.orders.push({kind:'strafe',ship:i,x1:fsDraft.x1,y1:fsDraft.y1,ang,done:false});
+  fsDraft=null;
+  log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Strafing run plotted. Keep your heads down at the end of the round.');
+  sTakeoff();return true;
+}
+function fsExecute(){
+  if(!FS)return;
+  for(const o of FS.orders){
+    if(o.kind!=='drop'||o.landed)continue;
+    o.landed=true;FS.n++;
+    lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
+    addFloater(o.x,o.y-34,'SUPPLY DROP','#7dd97b');sLand();
+    log('<span class="g">The supply drop lands.</span> Somebody go and get it.');
+  }
+}
+function supplyDrop(u){
+  const crew=U.filter(x=>x.side==='reb'&&!x.down&&!x.extracted&&!x.away&&!x.auto&&!x.vip);
+  if(!crew.length)return;
+  for(let k=0;k<5;k++)crew[(crew.indexOf(u)<0?0:crew.indexOf(u)+k)%crew.length].stims++;
+  NADES+=2;
+  crew.slice(0,2).forEach(c=>{if(!c.wpns.includes('rocket'))c.wpns.push('rocket');});
+  log('The crate holds <b>5 stims</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
+}
+function dgAttack(a){
+  const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
+  const pick=[];
+  while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
+  if(!pick.length){log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets in view.');return;}
+  const t0=performance.now();
+  for(const t of pick){
+    const hit=rint(1,20)>=9;
+    tracers.push({x1:t.x-260,y1:t.y-260,x2:t.x,y2:t.y,t0,dur:260,col:'#ffd27d'});
+    if(hit){const dmg=rint(16,28);woundUnit(null,t,dmg,false);log('The door gunner hits '+nameSpan(t)+' — <b>'+dmg+'</b>.');}
+    else log('The door gunner misses '+nameSpan(t)+'.');
+  }
+  sShot('carbine');
+}
+function strafeRun(o){
+  const a=FS.ships[o.ship];a.state='spent';o.done=true;
+  const t0=performance.now();
+  for(let k=0;k<10;k++){
+    const x=o.x1+Math.cos(o.ang)*k*90+(rng()-0.5)*70,y=o.y1+Math.sin(o.ang)*k*90+(rng()-0.5)*70;
+    exploQ.push({x,y,at:t0+400+k*140,opt:{r:70,d0:28,d1:44}});
+  }
+  log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> <span class="a">Here she comes.</span> Strafing run!');
+  sTakeoff();
+  camGoal={x:o.x1+Math.cos(o.ang)*400,y:o.y1+Math.sin(o.ang)*400,z:0.8};
+}
+function fsRoundEnd(){
+  if(!FS)return;
+  for(const o of FS.orders)if(o.kind==='strafe'&&!o.done)strafeRun(o);
+  for(const a of FS.ships){
+    if(a.state!=='active')continue;
+    dgAttack(a);
+    a.left--;
+    if(a.left<=0){a.state='spent';log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
+  }
+}
+function mkSquadUnit(sp,x,y){
+  return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
+    level:sp.level||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
+}
+function fsPlanStart(){
+  if(!FS)return;
+  for(const o of FS.orders){
+    if(o.kind!=='reinforce'||o.done||o.at>round)continue;
+    o.done=true;
+    const a=FS.ships[o.ship];a.state='spent';
+    a.soldiers.forEach((sp,j)=>{
+      const u=mkSquadUnit(sp,o.x+(j-0.5)*40,o.y+30);
+      const d=moveDest(u,u.x,u.y,120);if(d){u.x=d.x;u.y=d.y;}
+      u.face=-Math.PI/2;U.push(u);
+    });
+    sLand();
+    addFloater(o.x,o.y-40,'REINFORCEMENTS','#7dd97b');
+    log('<span class="g">'+a.name+' sets down and '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' pile out.</span>');
+  }
+}
+function drawFS(now){
+  if(!FS)return;
+  for(const o of FS.orders){
+    if(o.done||(o.kind==='drop'&&o.landed))continue;
+    ctx.save();
+    if(o.kind==='strafe'){
+      ctx.strokeStyle='rgba(255,170,90,0.7)';ctx.lineWidth=3;ctx.setLineDash([16,10]);
+      ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x1+Math.cos(o.ang)*900,o.y1+Math.sin(o.ang)*900);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='rgba(255,170,90,0.9)';ctx.font='700 12px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillText('STRAFING RUN',o.x1,o.y1-14);
+    } else {
+      ctx.strokeStyle='rgba(125,227,236,'+(0.5+0.3*Math.sin(now*0.006))+')';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(o.x,o.y,26,0,7);ctx.stroke();
+      ctx.fillStyle='rgba(125,227,236,0.85)';ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillText(o.kind==='drop'?'DROP':'REINFORCE',o.x,o.y-34);
+    }
+    ctx.restore();
+  }
+  if(fsDraft){
+    ctx.save();ctx.fillStyle='rgba(255,170,90,0.9)';ctx.beginPath();ctx.arc(fsDraft.x1,fsDraft.y1,6,0,7);ctx.fill();ctx.restore();
+  }
+}
 /* ---------- hacking Autos (Field Technician) ----------
    A Field Technician within range and in line of sight can hack an enemy Auto (Policebot, Bruiser,
    Strider). It takes 1-3 rounds, or ~4 real seconds a round in free move. A hacked Auto fights for
    us on its own; if it survives and extracts it joins the roster. */
 const HACK_R=300;
 let hackArm=false;
+/* fire support: Supply Drop, Strafing Run, Door Gunner, Reinforcements (World in Conflict style) */
+let FS=null,fsMenuOn=false,fsDraft=null;
 function canHack(s,t){
   return !!(s&&t&&s.spec==='fieldtech'&&!s.down&&!s.extracted&&!s.away&&!s.manning&&
     t.side==='law'&&t.auto&&t.hackRounds&&!t.down&&!t.surr&&dist(s,t)<=HACK_R&&!losBlocked(s,t));
@@ -1860,6 +1999,7 @@ function extractUpdate(now,dt){
 /* ---------- round flow ---------- */
 function startPlanning(){
   phase='PLANNING';round++;
+  fsPlanStart();
   for(const u of U){
     if(u.side!=='reb')continue;
     u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
@@ -1887,6 +2027,7 @@ function execute(){
   tutFlags.executed=1;
   sTick();
   phase='EXEC';execT0=performance.now();
+  fsExecute();
   selId=null;pickMode=null;radialOn=false;
   // armed grenades from earlier rounds go off as the round opens
   const armed=nades.filter(g=>g.armRound<round);
@@ -2088,8 +2229,10 @@ function attackUpdate(now){
         if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
         c.dmg=dmg;
         woundUnit(c.s,c.t,dmg,c.crit);
+        if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
         log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
       } else {
+        if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
         log(nameSpan(c.s)+' misses '+nameSpan(c.t)+'.');
         if(c.tn.cover&&c.tn.cover.prop)chipCover(c.tn.cover.prop,Math.round(rollDamage(c.s,c.t,c.wkey,false)*0.7));
       }
@@ -2167,6 +2310,7 @@ function retarget(t){
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
   hackResolve();
+  fsRoundEnd();
   // loot pickups
   for(const u of U){
     if(u.side!=='reb'||u.down||!u.order)continue;
@@ -2404,7 +2548,7 @@ function detonate(p){
 }
 function exploTick(now){
   for(let i=exploQ.length-1;i>=0;i--){
-    if(now>=exploQ[i].at){const q=exploQ.splice(i,1)[0];explode(q.x,q.y);}
+    if(now>=exploQ[i].at){const q=exploQ.splice(i,1)[0];explode(q.x,q.y,q.opt);}
   }
 }
 /* ---------- effects ---------- */
@@ -3777,6 +3921,7 @@ function render(now){
     drawWork(now);
     drawFactory(now);
     drawCage(now);
+    drawFS(now);
     drawNades(now);
     drawProps();
     if(SCN.hasTurret)drawTurret(now);
@@ -3897,6 +4042,12 @@ cv.addEventListener('pointerup',ev=>{
   }
   if(phase==='PLANNING'){
     const sel=U.find(x=>x.id===selId);
+    if(pickMode&&pickMode.startsWith('fs:')){
+      const done=fsPlace(pickMode.slice(3),cssToWorld(px,py));
+      if(done){pickMode=null;fsDraft=null;radialOn=!!selId;}
+      syncUI();
+      return;
+    }
     if(pickMode==='hack'&&sel){
       const t=unitAtCss(px,py);
       if(t&&canHack(sel,t)){sel.order={type:'hack',tid:t.id};sTick();pickMode=null;autoAdvance();syncUI();}
@@ -3958,6 +4109,7 @@ byId('radial').addEventListener('click',ev=>{
   if(act==='move'){pickMode='move';radialOn=false;}
   else if(act==='sprint'){pickMode='sprint';radialOn=false;}
   else if(act==='hack'){pickMode='hack';radialOn=false;}
+  else if(act==='fs'){fsMenuOn=!fsMenuOn;radialOn=true;}
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
@@ -3974,7 +4126,12 @@ byId('radial').addEventListener('click',ev=>{
   else if(act==='cancel'){s.order=null;selId=null;radialOn=false;}
   syncUI();
 });
-byId('pickPill').addEventListener('click',()=>{pickMode=null;radialOn=!!selId;syncUI();});
+byId('pickPill').addEventListener('click',()=>{pickMode=null;fsDraft=null;radialOn=!!selId;syncUI();});
+byId('fsMenu').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-fs]');
+  if(!b)return;
+  pickMode='fs:'+b.getAttribute('data-fs');fsDraft=null;fsMenuOn=false;radialOn=false;sTick();syncUI();
+});
 /* ---------- HUD sync ---------- */
 function $(id){return byId(id);}
 function radialHTML(s){
@@ -4006,6 +4163,7 @@ function radialHTML(s){
   if(wp&&s.id!=='sera'&&!s.vip)acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
   if(hackTargets(s).length)acts.push(['hack','⌨','Hack',false]);
+  if(fsItems().length)acts.push(['fs','✦','Fire Support',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
   acts.push(['cancel','✕','Clear',false]);
   const R=96;
@@ -4170,6 +4328,12 @@ function syncUI(){
     if(s)rad.innerHTML=radialHTML(s);
   }
   $('pickPill').hidden=!pickMode;
+  if(pickMode)$('pickPill').textContent=pickMode==='hack'?'Tap an Auto to hack \u00b7 tap to cancel':pickMode.startsWith('fs:')?(fsDraft?'Tap where the run ends \u00b7 tap to cancel':'Tap a visible spot \u00b7 tap to cancel'):'Pick a destination \u00b7 tap to cancel';
+  const fsm=$('fsMenu');
+  if(phase!=='PLANNING')fsMenuOn=false;
+  const fsl=fsItems();
+  fsm.hidden=!(fsMenuOn&&fsl.length);
+  if(!fsm.hidden)fsm.innerHTML='<div class="fsh">Fire Support</div>'+fsl.map(i=>'<button class="fsbtn" data-fs="'+i.key+'"><b>'+i.name+'</b><small>'+i.sub+'</small></button>').join('');
   const dock=$('ctlDock');
   const dh=(phase==='PLANNING'||phase==='ENGAGE'||phase==='FREE')?dockHTML():'';
   dock.hidden=!dh;
@@ -4281,6 +4445,9 @@ function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  {const A=(CTX&&CTX.assets)||null;
+   FS=A&&(A.drop||(A.ships&&A.ships.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),orders:[],n:0}:null;
+   fsMenuOn=false;fsDraft=null;}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
   fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
@@ -4402,10 +4569,10 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get ix(){return ix;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    fn:{startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};

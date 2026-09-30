@@ -609,6 +609,24 @@ Shipbuster). Support specialties are still to come.
   target. A hacked Auto **fights for us on its own**, and if it survives and **extracts** it **joins
   the roster** as an Auto (no bunk, keeps its stats) and can be fielded in later squads.
 
+### Fire support (built, Phase 4)
+The planning board's **Fire support** area takes assets for ground missions:
+- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it.
+  Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
+  single-target damage, good against vehicles and Striders).
+- **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
+  **Strafing Run** (tap the start, then the heading; ten imprecise blasts along a line at the end of the
+  round, **danger close** to your own people). A spare **Graf** can be a **Door Gunner** (circles two
+  rounds, rakes up to three visible enemies a round) or carry **Reinforcements** (up to two more soldiers,
+  set down at the start of the next planning phase where you call them).
+- In the mission, any soldier's radial **Fire Support** opens a menu top-left; pick an item, then tap a spot
+  you can see. Level 1 only has one Graf, so Door Gunner and Reinforcements wait for a second hauler.
+
+### Space enemies (built, Phase 4)
+Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
+**Drone Pursuers** (fast hunters) and, from round 5, a patrol answer: a manned **VC Mote** fighter and a
+**Drone Mag-Clamper**, whose clamp cuts a ship's top speed by 2 for two rounds.
+
 ### Steal the Strider (built, Tier 1) and Autos on the roster
 Offered by **Tessaly Brandt** once the Autoworks' Power Plant is gone. Played at **Menk Crossing**
 (region: Menk Crossing, +15% liberation, capped by Access/Support):

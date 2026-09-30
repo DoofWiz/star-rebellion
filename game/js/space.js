@@ -52,7 +52,17 @@ const CLS={
     wpns:[],dmg:{},ammo:{},struct:1,mute:1},
   drone:{label:'RQ-7 Sentry',role:'Combat Drone',init:2,tn:10,size:0.9,shdF:0,shdR:0,arm:2,hull:10,dial:dialDrone,maxSpd:4,
     wpns:['plasma'],dmg:{plasma:[3,7]},ammo:{},mute:1},
+  monitor:{label:'Drone Monitor',role:'Patrol Drone',init:2,tn:11,size:0.85,shdF:0,shdR:0,arm:1,hull:8,dial:dialDrone,maxSpd:4,
+    wpns:['plasma'],dmg:{plasma:[2,5]},ammo:{},mute:1,summons:1},
+  pursuer:{label:'Drone Pursuer',role:'Hunter Drone',init:3,tn:11,size:0.95,shdF:0,shdR:0,arm:3,hull:16,dial:dialTalon,maxSpd:5,
+    wpns:['plasma'],dmg:{plasma:[4,8]},ammo:{},mute:1},
+  clamper:{label:'Drone Mag-Clamper',role:'Restraint Drone',init:1,tn:9,size:1.35,shdF:6,shdR:6,arm:8,hull:30,dial:dialGraf,maxSpd:2,
+    wpns:['plasma'],dmg:{plasma:[3,6]},ammo:{},mute:1,clamp:1},
+  mote:{label:'VC Mote Patrolcraft',role:'Manned Patrol Fighter',init:3,tn:12,size:1.0,shdF:6,shdR:6,arm:6,hull:22,dial:dialTalon,maxSpd:5,
+    wpns:['plasma'],dmg:{plasma:[6,10]},ammo:{}},
 };
+const DRONES=['drone','monitor','pursuer','clamper'];
+const isDrone=s=>DRONES.includes(s.cls);
 function isStruct(s){return !!CLS[s.cls].struct;}
 const TRAITDESC={
   'Drone':'A flight computer with a gun. Feels nothing, fears nothing, flees nothing.',
@@ -97,7 +107,7 @@ function zoneShield(s,z){let v=0;for(const k of ['F','R'])if(s.segs[k].at===z)v+
 function totalShield(s){return s.segs.F.val+s.segs.R.val;}
 function maxShield(s){return s.segs.F.max+s.segs.R.max;}
 function critCount(s,id){return s.crits.filter(c=>c===id).length;}
-function maxSpeedOf(s){return Math.max(1,CLS[s.cls].maxSpd-critCount(s,'engine'));}
+function maxSpeedOf(s){return Math.max(1,CLS[s.cls].maxSpd-critCount(s,'engine')-(s.magClamp>0?2:0));}
 function dialAvail(s){
   let d=CLS[s.cls].dial().slice();
   if(s.pilot.mans&&s.pilot.mans.includes('loop'))d.push([3,'K']);
@@ -164,9 +174,9 @@ const SCENS={
     brief:{
       eyebrow:'A Favour Returned · Maro Venn',
       title:'Cook the Depots',
-      flavour:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. Tonight nothing guards them but sentry drones. Burn the fuel and be gone before anything with a pilot shows up.',
+      flavour:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. Tonight nothing guards them but patrol drones: Monitors that shout for help and Pursuers that answer. Burn the fuel and be gone before anything with a pilot shows up.',
       objectives:['Destroy all four fuel depots',
-        {sub:1,text:'The sentry drones will come for you — outfly them or gun them down.'}],
+        {sub:1,text:'Monitors call in Pursuers, and the patrol answers with a manned Mote and a Mag-Clamper that slows you down. Do not linger.'}],
     },
   },
 };
@@ -176,9 +186,9 @@ const DEPLOY_DEPOT=[
   ['D2','Depot 2','depot','heg',2500,720,-0.4,{pname:'Fuel Depot 2',first:'D-2',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'The reason the drift patrols never run dry.'}],
   ['D3','Depot 3','depot','heg',3050,1950,0.8,{pname:'Fuel Depot 3',first:'D-3',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Painted with a fading Hegemony crest and a NO SMOKING sign.'}],
   ['D4','Depot 4','depot','heg',3650,1050,-0.9,{pname:'Fuel Depot 4',first:'D-4',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Topped off yesterday. Unfortunate timing.'}],
-  ['R1','Sentry 1','drone','heg',2300,1250,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
-  ['R2','Sentry 2','drone','heg',2950,1000,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
-  ['R3','Sentry 3','drone','heg',2800,2100,Math.PI*0.75,{pname:'RQ-7 Sentry',first:'RQ-7',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
+  ['R1','Monitor 1','monitor','heg',2300,1250,Math.PI*0.75,{pname:'Drone Monitor',first:'DM-1',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
+  ['R2','Monitor 2','monitor','heg',2950,1000,Math.PI*0.75,{pname:'Drone Monitor',first:'DM-2',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
+  ['R3','Pursuer 1','pursuer','heg',2800,2100,Math.PI*0.75,{pname:'Drone Pursuer',first:'DP-1',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
 ];
 let CTX=null; // mission spec from the base layer (null => sim/default cast)
 function deploy(withCutscene){
@@ -525,6 +535,10 @@ function aiManeuver(s){
 function aiAction(s){
   const foes=ships.filter(x=>x.alive&&x.faction!==s.faction);
   if(coolState(s)==='panic')return {a:'flydef'};
+  if(CLS[s.cls].clamp){
+    const ct=foes.filter(f=>dist(s,f)<=650&&!losBlocked(s,f)&&!f.magClamp).sort((a,b)=>dist(s,a)-dist(s,b))[0];
+    if(ct)return {a:'clamp',t:ct};
+  }
   const tailed=foes.some(f=>inArc(f,s)&&dist(f,s)<=450);
   const safe=!foes.some(f=>inArc(f,s)&&dist(f,s)<=700);
   if(s.id==='E1'&&safe){
@@ -545,7 +559,12 @@ function aiAction(s){
   return {a:'flydef'};
 }
 function doAction(s,act){
-  if(act.a==='lock'&&act.t){
+  if(act.a==='clamp'&&act.t){
+    act.t.magClamp=2;
+    addFloater(act.t.x,act.t.y-40,'MAG-CLAMPED','#ff9d3d');
+    log(nameSpan(s)+' <span class="a">mag-clamps</span> '+nameSpan(act.t)+' <span class="d">\u2014 top speed −2 for two rounds</span>');
+    sLock();
+  } else if(act.a==='lock'&&act.t){
     if(!inLockZone(s,act.t)||losBlocked(s,act.t)){
       log(nameSpan(s)+' <span class="d">lock failed — '+(losBlocked(s,act.t)?'rocks in the way':'target not ahead / out of range')+'</span>');
     } else {
@@ -873,8 +892,38 @@ function recoverPhase(e){
     else if(phase==='EXEC'&&exec){awaitAction=null;lockPickMode=false;nextExec();}
   }catch(e2){phase='PLANNING';exec=null;attackQ=null;awaitAction=null;syncUI();}
 }
+function mkDronePilot(first,name,aim){return mkPilot({pname:name,first,age:'—',aim:aim||1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'});}
+let summonN=0,patrolCalled=false;
+function summonShip(cls,x,y,h,label){
+  summonN++;
+  const id='Z'+summonN,nm=CLS[cls].label;
+  const sh=mkShip(id,nm+' '+summonN,cls,'heg',x,y,h,cls==='mote'?mkPilot({pname:'Patrol Pilot',first:'MOTE-'+summonN,age:27,aim:2,cool:60,traits:[],mans:[],level:1,xp:0,bio:'Local Hegemony patrol pilot. Good at his job, bad at staying calm.'}):mkDronePilot(nm.split(' ').pop().toUpperCase()+'-'+summonN,nm,cls==='pursuer'?2:1));
+  ships.push(sh);
+  addFloater(x,y-30,label||'INBOUND','#ff9d3d');
+  return sh;
+}
+function reinforceStep(){
+  // a Drone Monitor that sees us calls in a Pursuer, once
+  for(const s of ships.slice()){
+    if(!s.alive||!CLS[s.cls].summons||s.called)continue;
+    if(ships.some(r=>r.alive&&r.faction==='reb'&&dist(s,r)<900)){
+      s.called=true;
+      const ex=s.x<W/2?W-MARGIN-260:MARGIN+260,ey=Math.max(MARGIN+260,Math.min(H-MARGIN-260,s.y+(rng()-0.5)*600));
+      const n=summonShip('pursuer',ex,ey,ex>W/2?Math.PI:0,'PURSUER INBOUND');
+      log(nameSpan(s)+' <span class="a">calls for help</span> \u2014 '+nameSpan(n)+' drops out of the dark.');
+    }
+  }
+  // on the depot run, the patrol answers after a few rounds if anything is still burning
+  if(SCEN==='depot'&&!patrolCalled&&round>=5&&ships.some(s=>isStruct(s)&&s.alive)){
+    patrolCalled=true;
+    const m=summonShip('mote',W-MARGIN-300,MARGIN+400,Math.PI*0.8,'PATROL ANSWERS');
+    const c=summonShip('clamper',W-MARGIN-200,MARGIN+700,Math.PI*0.8,'MAG-CLAMPER');
+    log('<span class="h">The depot patrol answers:</span> '+nameSpan(m)+' and '+nameSpan(c)+' are inbound.');
+  }
+}
 function endRound(){
-  for(const s of ships){s.tokens.evade=false;s.tokens.broll=false;s.plan={man:null};}
+  for(const s of ships){s.tokens.evade=false;s.tokens.broll=false;s.plan={man:null};if(s.magClamp>0)s.magClamp--;}
+  reinforceStep();
   for(const s of ships){if(s.alive&&!damagedThisRound.has(s.id))adjCool(s,6,'breathing room');}
   damagedThisRound=new Set();
   for(const s of ships){
@@ -910,9 +959,9 @@ function gameOver(win){
   if(SCEN==='depot'){
     if(win){
       t.textContent='Depots Burned';t.className='win';
-      const drones=ships.filter(s=>s.cls==='drone'&&!s.alive).length;
+      const drones=ships.filter(s=>isDrone(s)&&!s.alive).length;
       x.textContent='Four fireballs over Brakka after '+round+' rounds, and every patrol in the sector suddenly counting its fuel. '
-        +(drones?drones+' sentry drone'+(drones>1?'s':'')+' shot down along the way. ':'')
+        +(drones?drones+' patrol drone'+(drones>1?'s':'')+' shot down along the way. ':'')
         +'Venn’s intel was good — and what the depots’ manifests told us on the way in is worth even more.';
       log('<span class="g">— MISSION COMPLETE · all depots destroyed —</span>');
     } else {
@@ -1104,15 +1153,21 @@ function shipPath(cls){
       extra:c=>{c.moveTo(-6,-7);c.rect(-14,-11,10,4);c.moveTo(-6,7);c.rect(-14,7,10,4);},canopy:[11,0,2.4,3.2]};
     case 'depot':return {body:[[11,-5],[5,-11],[-5,-11],[-11,-5],[-11,5],[-5,11],[5,11],[11,5]],
       extra:c=>{c.moveTo(11,-3);c.rect(11,-3,5,6);c.moveTo(-16,-3);c.rect(-16,-3,5,6);c.moveTo(-3,-16);c.rect(-3,-16,6,5);c.moveTo(-3,11);c.rect(-3,11,6,5);},canopy:[0,0,3.4,3.4]};
-    case 'drone':return {body:[[11,0],[3,-3],[-5,-8],[-9,-6],[-6,0],[-9,6],[-5,8],[3,3]],
+    case 'drone':case 'monitor':return {body:[[11,0],[3,-3],[-5,-8],[-9,-6],[-6,0],[-9,6],[-5,8],[3,3]],
       extra:null,canopy:[3,0,2,1.4]};
+    case 'pursuer':return {body:[[14,0],[4,-4],[-6,-9],[-11,-5],[-8,0],[-11,5],[-6,9],[4,4]],
+      extra:c=>{c.moveTo(6,-3);c.lineTo(-3,-12);c.moveTo(6,3);c.lineTo(-3,12);},canopy:[4,0,2,1.4]};
+    case 'clamper':return {body:[[12,-7],[12,7],[2,11],[-12,9],[-14,0],[-12,-9],[2,-11]],
+      extra:c=>{c.moveTo(12,-7);c.lineTo(17,-11);c.moveTo(12,7);c.lineTo(17,11);},canopy:[5,0,3,2.4]};
+    case 'mote':return {body:[[12,0],[5,-5],[-7,-6],[-11,-3],[-11,3],[-7,6],[5,5]],
+      extra:c=>{c.moveTo(0,-6);c.lineTo(-4,-10);c.moveTo(0,6);c.lineTo(-4,10);},canopy:[4,0,3,2]};
   }
 }
 function shipColors(s){
   if(s.faction==='reb')return {hull:'#8fa5c4',edge:'#c8dbf5',acc:'#ffb454',glow:'rgba(87,215,226,'};
   if(s.cls==='fled')return {hull:'#5d6470',edge:'#8b93a2',acc:'#ff9d3d',glow:'rgba(255,150,80,'};
   if(s.cls==='depot')return {hull:'#6a6146',edge:'#a89a6c',acc:'#ffb454',glow:'rgba(255,180,84,'};
-  if(s.cls==='drone')return {hull:'#3f4a58',edge:'#7e8ea0',acc:'#ff4f5e',glow:'rgba(255,90,80,'};
+  if(isDrone(s))return {hull:'#3f4a58',edge:'#7e8ea0',acc:'#ff4f5e',glow:'rgba(255,90,80,'};
   return {hull:'#4c5563',edge:'#7d8798',acc:'#ff4f5e',glow:'rgba(255,90,80,'};
 }
 function iconBoost(){return Math.max(1,Math.min(2.8,0.55/cam.z));}
@@ -2281,7 +2336,8 @@ SR.register('space',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
-    fn:{deploy,gameOver,destroyShip,
+    fn:{deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+      setRound(n){round=n;},
       forceEnd(win){gameOver(win);}}};
 }
 })();

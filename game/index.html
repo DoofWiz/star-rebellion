@@ -187,6 +187,11 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-base .arrtxt{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--amber);font-weight:800;}
 @keyframes arrLand{0%{top:-30px;opacity:0;}15%{opacity:1;}100%{top:96px;}}
 #sc-base .pchint{margin:-2px 0 7px 26px;font-size:10.5px;line-height:1.45;color:var(--amber);}
+#sc-base .dropchip{background:#0a1124;border:1px dashed #2a3a5f;border-radius:4px;padding:6px 9px;margin-bottom:5px;cursor:pointer;}
+#sc-base .dropchip b{font-size:12px;}#sc-base .dropchip small{display:block;font-size:9.5px;color:var(--dim);}
+#sc-base .dropchip.on{border-style:solid;border-color:var(--good);background:#0f2a1c;}
+#sc-base .dropchip.off{opacity:.5;cursor:default;}
+#sc-base .sbtn.on{border-color:var(--reb);color:var(--reb);}
 #sc-base .locstats{display:grid;grid-template-columns:1fr 1fr;gap:5px 14px;margin:2px 0 8px;}
 #sc-base .lstat{display:flex;align-items:center;gap:8px;}
 #sc-base .lstat .ll{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);width:66px;}
@@ -596,6 +601,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
 #sc-ground #callBtn{background:linear-gradient(180deg,#2c5a3a,#1a3c26);border:1px solid #4a9a66;color:#d9ffe6;font-family:var(--font-ui);font-weight:800;font-size:15px;letter-spacing:.14em;text-transform:uppercase;padding:13px 44px;border-radius:5px;cursor:pointer;animation:extGlow 1.6s ease-in-out infinite;}
 #sc-ground #callBtn:hover{border-color:var(--amber);color:var(--amber);}
 #sc-ground #detBtn{background:linear-gradient(180deg,#6a2a1a,#4a1a10);border:1px solid #c2613f;color:#ffe3d6;font-family:var(--font-ui);font-weight:800;font-size:15px;letter-spacing:.06em;padding:9px 20px;border-radius:4px;cursor:pointer;}
+#sc-ground #fsMenu{position:absolute;top:70px;left:14px;z-index:8;width:280px;background:rgba(11,16,32,.94);border:1px solid #2f6b74;border-radius:5px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.6);}
+#sc-ground #fsMenu .fsh{font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;}
+#sc-ground #fsMenu .fsbtn{display:block;width:100%;text-align:left;background:#0d1530;border:1px solid var(--line);color:var(--text);padding:7px 9px;border-radius:3px;margin-bottom:5px;cursor:pointer;font-family:var(--font-ui);}
+#sc-ground #fsMenu .fsbtn:hover{border-color:var(--reb);}
+#sc-ground #fsMenu .fsbtn b{display:block;font-size:12px;}
+#sc-ground #fsMenu .fsbtn small{display:block;font-size:9.5px;color:var(--dim);line-height:1.4;}
 #sc-ground #detBtn:hover{border-color:var(--amber);color:var(--amber);}
 #sc-ground #detBtn.unsafe{opacity:.55;cursor:not-allowed;filter:saturate(.4);}
 @keyframes extGlow{0%,100%{box-shadow:0 0 0 rgba(125,217,123,0);}50%{box-shadow:0 0 22px rgba(125,217,123,.5);}}
@@ -821,6 +832,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);
       </div>
       <div id="radial" hidden></div>
       <button id="pickPill" hidden>Pick a destination · tap to cancel</button>
+      <div id="fsMenu" hidden></div>
       <div id="ctlDock" hidden></div>
       <div class="overlay" id="briefing">
         <div class="ovCard">

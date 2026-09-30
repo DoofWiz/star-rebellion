@@ -132,7 +132,12 @@ Each mission needs new ground objective types, so build the objectives first:
 - **Steal the Strider** — the existing locked mission, and a good Level 1 capstone
   candidate. Infiltrate the warehouse, then guide the mech out.
 
-### Phase 4 — Rev 1 enemy roster and combat additions
+### Phase 4 — Rev 1 enemy roster and combat additions — **built**
+Built: Riot Bruiser, Strider Mk I and three cruisers (with a deploying transport); hacking Autos (hacked
+Autos fight for us and join the roster); the fire support menu (Supply Drop, Strafing Run, Door Gunner,
+Reinforcements); space Drone Monitor, Pursuer, Mag-Clamper and VC Mote. Bureau Officer and
+Disguise stay at Level 2. Door Gunner and Reinforcements need a second hauler, which no Level 1
+mission gives yet. See `docs/GDD.md` §8. Original scope:
 - **Enemies:** Policebot, Patrolman, Riot Shieldman (frontal immunity), Riot Rifleman,
   Riot Bruiser, police cruisers (three variants), Strider Mk I. Space: Drone Monitor,
   Pursuer, Mag-Clamper, VC Mote Patrolcraft. Security rating scales spawns.

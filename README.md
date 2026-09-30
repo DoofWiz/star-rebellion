@@ -206,6 +206,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   mission fails. It then **joins your roster as an Auto** (no bunk needed) and can fight in later
   squads. All five Tier 1 missions are now in.
 
+- **Phase 4 combat depth.** New Level 1 enemies (Riot Bruiser, Strider Mk I, Police, Dispersal and
+  Transport cruisers), **hacking Autos** with a Field Technician (hacked Autos fight for you and join
+  the roster), a **fire support menu** (Supply Drop, Strafing Run, Door Gunner, Reinforcements) set up on
+  the planning board, and space **Drone Monitors, Pursuers, Mag-Clampers and VC Motes** in Cook the Depots.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

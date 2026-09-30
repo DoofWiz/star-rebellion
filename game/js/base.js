@@ -2534,6 +2534,8 @@ $('winsB').addEventListener('click',ev=>{
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
     const chip=ev.target.closest('[data-rid]');
     if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
+    const dc=ev.target.closest('[data-drop]');
+    if(dc){PL.drop=!PL.drop;sClick();renderWin();return;}
   }
   const t=ev.target.closest('button,a,input');
   if(!t)return;
@@ -2600,6 +2602,10 @@ $('winsB').addEventListener('click',ev=>{
   if(scout){scoutPlanet(scout);return;}
   const raise=t.getAttribute('data-raise');
   if(raise){raiseAccess(raise);return;}
+  if(t.hasAttribute('data-addasset')&&PL){plAddAsset();renderWin();return;}
+  if(t.hasAttribute('data-rmasset')&&PL){plRemoveAsset();renderWin();return;}
+  const amode=t.getAttribute('data-assetmode');
+  if(amode&&PL){const [i,md]=amode.split(':');PL.assets[+i].mode=md;renderWin();return;}
   const specBtn=t.getAttribute('data-spec');
   if(specBtn){const [pid,k]=specBtn.split(':');startSpec(pid,k);return;}
   const oppadd=t.getAttribute('data-oppadd');
@@ -2755,10 +2761,12 @@ function whereHTML(m){
 /* PL: the plan in progress. PL.v maps slot key -> person/ship id.
    Slots: team0.. (soldiers) · tv0/tp0.. (transport + its pilot) · pz0.. (prize pilot)
           rp0/rs0.. (pilot + ship rows for space sorties) */
+const DROP_COST=160;   // supplies for a Supply Drop
+const ridPre=acc=>(acc==='soldier'||acc==='rsoldier'||acc==='pilot'||acc==='apilot')?'p:':'f:';
 let PL=null;
 function openPlan(m){
   const r=reqOf(m);
-  PL={m,req:r,v:{},slots:[]};
+  PL={m,req:r,v:{},slots:[],drop:false,assets:[]};
   if(r.transport){
     for(let i=0;i<r.team;i++)PL.slots.push({key:'team'+i,acc:'soldier',label:'Soldier '+(i+1)});
     for(let i=0;i<transportSlots(r);i++){
@@ -2780,10 +2788,10 @@ function plAccepts(slot,rid){
   const kind=rid[0],id=rid.slice(2);
   if(kind==='p'){
     const p=G.people.find(x=>x.id===id);if(!p)return false;
-    return slot.acc==='soldier'?(p.role==='Soldier'||p.role==='Marine'):slot.acc==='pilot'?p.role==='Pilot':false;
+    return (slot.acc==='soldier'||slot.acc==='rsoldier')?(p.role==='Soldier'||p.role==='Marine'):(slot.acc==='pilot'||slot.acc==='apilot')?p.role==='Pilot':false;
   }
   const f=G.fighters.find(x=>x.id===id);if(!f)return false;
-  return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id):false;
+  return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id):slot.acc==='assetship'?(!f.out&&f.hull>=60):false;
 }
 function plSet(key,rid){
   const id=rid.slice(2);
@@ -2816,17 +2824,48 @@ function plSpecOk(){
   if(!sp)return true;
   return PL.slots.some(sl=>sl.acc==='soldier'&&PL.v[sl.key]&&(G.people.find(p=>p.id===PL.v[sl.key])||{}).spec===sp.key);
 }
+function plAddAsset(){
+  if(!PL.req.transport||PL.assets.length>=2)return;
+  const i=PL.assets.length;
+  PL.assets.push({mode:'doorgun'});
+  PL.slots.push({key:'as'+i+'s',acc:'assetship',label:'Support ship'},{key:'as'+i+'p',acc:'apilot',label:'Support pilot'});
+}
+function plRemoveAsset(){
+  if(!PL.assets.length)return;
+  const i=PL.assets.length-1;
+  PL.slots=PL.slots.filter(sl=>!sl.key.startsWith('as'+i));
+  for(const k of Object.keys(PL.v))if(k.startsWith('as'+i))delete PL.v[k];
+  PL.assets.pop();
+}
+/* a spare Graf can reinforce (carries up to 2 soldiers); a starfighter strafes; otherwise a door gunner */
+function plAssetMode(i){
+  const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
+  if(!f)return null;
+  return SEATS[f.cls]?PL.assets[i].mode:'strafe';
+}
+function plSyncAssets(){
+  PL.assets.forEach((a,i)=>{
+    const want=plAssetMode(i)==='reinforce';
+    const has=PL.slots.some(sl=>sl.key==='as'+i+'r0');
+    if(want&&!has)for(let k=0;k<2;k++)PL.slots.push({key:'as'+i+'r'+k,acc:'rsoldier',label:'Reinforcement '+(k+1)});
+    if(!want&&has){
+      PL.slots=PL.slots.filter(sl=>!sl.key.startsWith('as'+i+'r'));
+      for(const k of Object.keys(PL.v))if(k.startsWith('as'+i+'r'))delete PL.v[k];
+    }
+  });
+}
+const plDropOk=()=>!PL.drop||G.supplies>=DROP_COST;
 function plComplete(){return PL.slots.every(sl=>PL.v[sl.key])&&plSpecOk();}
 function plFuel(){
   let t=0;
-  for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
+  for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
   return t;
 }
 function plAutoFill(){
-  PL.v={};
+  for(const k of Object.keys(PL.v))if(!/^as/.test(k))delete PL.v[k];
   const m=PL.m;
   for(const sl of PL.slots){
-    if(PL.v[sl.key])continue;
+    if(PL.v[sl.key]||/^as/.test(sl.key))continue;
     const used=plUsedIds();
     let pool=[];
     if(sl.acc==='soldier')pool=soldierPool().sort((a,b)=>((b.spec===(PL.req.spec||{}).key)?1:0)-((a.spec===(PL.req.spec||{}).key)?1:0)).map(p=>'p:'+p.id);
@@ -2840,7 +2879,7 @@ function plAutoFill(){
 function slotOccHTML(sl){
   const id=PL.v[sl.key];
   if(!id)return null;
-  if(sl.acc==='vehicle'||sl.acc==='ship'){
+  if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){
     const f=G.fighters.find(x=>x.id===id);
     return '<b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</small>';
   }
@@ -2857,6 +2896,7 @@ function chipHTML(rid){
   return '<div class="rchip" draggable="true" data-rid="'+rid+'"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span><span><b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+(p.spec?' · '+specOf(p):'')+'</small></span></div>';
 }
 function planHTML(m){
+  plSyncAssets();
   const r=PL.req,used=plUsedIds();
   const left='<div class="planL">'+
     '<div class="mcard" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+m.name+'</span><span class="mfrom">'+(m.from||'')+'</span></div>'+
@@ -2877,28 +2917,50 @@ function planHTML(m){
     if(!sls.length)return '';
     return '<div class="dz-sec">'+title+'</div>'+sls.map(sl=>{
       const occ=slotOccHTML(sl);
-      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+(sl.acc==='soldier'||sl.acc==='pilot'?'p:':'f:')+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
+      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
     }).join('');
   };
   const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="pdesc">None available.</div>';
   const right='<div class="planR">'+
     (r.transport?slotBox(['soldier'],'Team'):'')+
     (r.transport?slotBox(['vehicle','pilot'],'Transport & pilots'):slotBox(['pilot','ship'],'Flight'))+
+    (r.transport?assetsHTML():'')+
     '<div class="dz-sec">Roster</div><div class="rosterBox">'+
     (r.transport?'<div class="rh">Soldiers</div>'+avail(soldierPool(),'p:'):'')+
     '<div class="rh">Pilots</div>'+avail(ablePilots(),'p:')+
     '<div class="rh">'+(r.transport?'Transports':'Ships')+'</div>'+avail(r.transport?transportPool():shipPool(r),'f:')+
+    (PL.assets.length?'<div class="rh">Support ships</div>'+avail(G.fighters.filter(f=>!f.out&&f.hull>=60),'f:'):'')+
     '</div></div>';
-  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel;
+  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel&&plDropOk();
   return '<div class="winHead"><span class="wt">Mission Briefing</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
     '<div class="planGrid">'+left+right+'</div>'+
     '<div class="planFoot"><span class="pdesc">'+(plComplete()?'Fuel burned: '+F(fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go.'))+'</span>'+
     '<button class="sbtn" data-autofill>Auto-fill</button>'+
     '<button class="sbtn go" id="launchBtn" '+(ok?'':'disabled')+'>'+(m.lead?'Start':'Launch')+'</button></div></div>';
 }
+function assetsHTML(){
+  let h='<div class="dz-sec">Fire support</div>';
+  const can=G.supplies>=DROP_COST;
+  h+='<div class="dropchip'+(PL.drop?' on':'')+(can?'':' off')+'" '+(can||PL.drop?'data-drop':'')+'><b>Supply Drop</b><small>'+S(DROP_COST)+' \u00b7 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' \u00b7 not enough supplies')+'</small></div>';
+  PL.assets.forEach((a,i)=>{
+    const mode=plAssetMode(i);
+    h+=PL.slots.filter(sl=>sl.key.startsWith('as'+i)).map(sl=>{
+      const occ=slotOccHTML(sl);
+      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
+    }).join('');
+    if(mode)h+='<div class="pdesc" style="margin:0 0 6px">'+(mode==='strafe'?'Strafing Run: a starfighter rakes a line of the battlefield.':'<button class="sbtn'+(a.mode==='doorgun'?' on':'')+'" data-assetmode="'+i+':doorgun">Door Gunner</button> <button class="sbtn'+(a.mode==='reinforce'?' on':'')+'" data-assetmode="'+i+':reinforce">Reinforcements</button> '+(a.mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to two more soldiers where you call it.'))+'</div>';
+  });
+  h+='<div style="margin-top:4px">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?'<button class="sbtn" data-addasset>+ Support ship</button> ':'')+(PL.assets.length?'<button class="sbtn" data-rmasset>Remove last</button>':'')+'</div>';
+  return h;
+}
+function squadEntry(p,scatterFirst){
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
+    aim:soldierAim(p),hp:p.auto?autoOf(p).hp:100,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+    wpns:p.auto?[autoOf(p).wpn]:scatterFirst?['scatter','akli','cowboy']:['akli','cowboy']};
+}
 function startPlan(){
   const m=PL.m;
-  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel())return;
+  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel()||!plDropOk())return;
   sClick();
   if(!m.lead){launchMission(m);return;}
   const fuel=plFuel();
@@ -2909,12 +2971,17 @@ function startPlan(){
     const scatter=G.armory.find(a=>a.id==='scatter'&&a.n>0);
     const blam=G.armory.find(a=>a.id==='blam');
     G.fuel-=fuel;
+    if(PL.drop)G.supplies-=DROP_COST;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
-      squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
-        aim:soldierAim(p),hp:p.auto?autoOf(p).hp:100,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
-        wpns:p.auto?[autoOf(p).wpn]:(scatter&&i===squad.findIndex(q=>!q.auto))?['scatter','akli','cowboy']:['akli','cowboy']})),
+      squad:squad.map((p,i)=>squadEntry(p,!!scatter&&i===squad.findIndex(q=>!q.auto))),
+      assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
+        const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
+        const mode=SEATS[f.cls]?a.mode:'strafe';
+        return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
+          soldiers:mode==='reinforce'?[0,1].map(q=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
+      })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
