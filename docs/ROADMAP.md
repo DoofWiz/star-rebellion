@@ -106,8 +106,10 @@ Original scope:
   from the player's own infiltration, with a map marker that stays afterwards).
 
 ### Phase 3 — Tier 1 mission content — **in progress** (Steal Fuel built)
-Built: **Steal Fuel** (call-in transport, timed defend, extraction at the landed transport).
-Still to do: Rescue Dissident, Blow Up Auto Factory, Steal Intelligence, Steal the Strider.
+Built: **Steal Fuel** (call-in transport, timed defend, extraction at the landed transport) and
+**Blow Up Auto Factory** (charge carrier, plant, blast zone, detonate, stealth bonus; riot shield and
+robot enemies).
+Still to do: Rescue Dissident, Steal Intelligence, Steal the Strider.
 Original scope:
 Each mission needs new ground objective types, so build the objectives first:
 - **Steal Fuel** — reach depot, call in a transport, defend it for 5 rounds. Needs

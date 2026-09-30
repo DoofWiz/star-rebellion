@@ -185,6 +185,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space
   missions never belong to a region.
 
+- **Blow Up Auto Factory (Tier 1).** Tessaly Brandt points you at the Kiln Ridge Autoworks on Menk.
+  Carry an Explosive Charge to the Power Plant, plant it, clear the blast zone and detonate,
+  ideally without the plant ever raising the alarm (stealth bonus). Introduces Policebots and
+  riot shields. Charges come from looting the Redrock depot and the Autoworks' blasting shed.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

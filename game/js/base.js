@@ -358,6 +358,15 @@ MEXTRA.skim.after=['<b>VOKK:</b> “The transfer cleared. I will pretend I do no
 MEXTRA.fighters.after=['<b>HALT:</b> “Pad nine is a crime scene and I am a witness. Keep the Talon. I never saw it.”'];
 MEXTRA.chart.after=['<b>MARR:</b> “Your charts are better than ours. I will lose my own copy. Thank you.”'];
 for(const k in MEXTRA)Object.assign(MPOOL[k],MEXTRA[k]);
+/* Blow Up Auto Factory (Tier 1): needs an Explosive Charge; a stealth bonus for staying unseen */
+MPOOL.autofactory={name:'Blow Up Auto Factory',from:'Tessaly Brandt',src:'tess',need:3,days:2,riskTxt:'Moderate',
+  lead:'ground',ground:true,type:'ground',scenario:'autofactory',
+  loc:'menk',region:'kilnridge',lib:20,
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{id:'charge',n:1,label:'Explosive Charge'}]},
+  desc:'Menk\u2019s salt and labour pour into the Kiln Ridge Autoworks, which turns out Policebots by the thousand. The whole line runs off one Power Plant on the north side. Plant a charge on the main breaker, get clear, and let the lights go out.',
+  objectives:['Plant the explosive at the Power Plant\u2019s main breaker','Detonate it from a safe distance','(Optional) Do it without the enemy realising you were there','Board the Marta'],
+  rew:{c:100,m:40,xp:0.2},bonus:{i:2,c:60},
+  after:['<b>BRANDT:</b> \u201cThe night shift walked out into the salt to watch it burn. Nobody went back in. The foreman is asking who gave the orders, and nobody can remember there being any.\u201d']};
 /* Steal Fuel: the first mission built on the new framework (Tier 1) */
 MPOOL.stealfuel={name:'Steal Fuel',from:'Cass Wender',src:'cass',need:3,days:2,riskTxt:'Moderate',
   lead:'ground',ground:true,type:'ground',scenario:'stealfuel',
@@ -427,6 +436,7 @@ CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger 
   bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
   pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
 CANDS.tess.inc.m=3;CANDS.pell.inc.m=3;
+SIGNALS.tess=[{kind:'mission',mid:'autofactory',text:'\u201cThe Autoworks at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'}];
 SRC_EVENTS.tess=[
   {text:'<b>BRANDT:</b> “The company posted a new quota. Ten percent up, same crews, same crushers. People keep asking if you’re real. I told them you were. Don’t make a liar of me.”',
    opts:[['“Tell them the crushers will be quiet by the end of the week. Tell them who is coming, not when.”','strong'],['“Keep them steady. We’re working on it.”','neutral'],['“Real enough. Get them to stop asking.”','weak']]},
@@ -2552,6 +2562,10 @@ function precondList(m){
     out.push({ok:ablePilots().length>=r.team,label:r.team+' Starfighter Pilot'+(r.team>1?'s':'')+' Available'});
     out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'Starfighter':'Ship')+(n>1?'s':'')+' Available'+(r.starfighter?' — the Marta won’t do':'')});
   }
+  for(const it of r.items||[]){
+    const have=(G.armory.find(a=>a.id===it.id)||{}).n||0;
+    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span style="color:var(--dim)">(have '+have+')</span>'});
+  }
   const need=minFuel(m);
   out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need)+' <span style="color:var(--dim)">(have '+Math.floor(G.fuel)+')</span>'});
   return out;
@@ -2725,6 +2739,7 @@ function startPlan(){
     const blam=G.armory.find(a=>a.id==='blam');
     G.fuel-=fuel;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
+      charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
@@ -2748,10 +2763,12 @@ function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)));}
 function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)));}
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
-    'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box']};
+    'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
+    'Explosive Charge':['charge','Explosive Charge']};
   const hit=map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name];
   const a=G.armory.find(x=>x.id===hit[0]);
   if(a)a.n=(a.n||0)+1;
+  else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n:1,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
   else G.armory.push({id:hit[0],name:hit[1],n:1,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
 }
 function applyDebrief(r){
@@ -2848,7 +2865,12 @@ function applyDebrief(r){
       news('<b>'+f.name+'</b> was lost over the drift.','h');
     } else f.hull=Math.max(5,Math.min(100,Math.round(fr.hull)));
   }
+  if(r.chargeUsed){
+    const ch=G.armory.find(a=>a.id==='charge');
+    if(ch){ch.n=Math.max(0,ch.n-r.chargeUsed);if(!ch.n)G.armory=G.armory.filter(a=>a!==ch);}
+  }
   if(r.win&&m)applyRew(m.rew,got);
+  if(r.win&&m&&m.bonus&&r.quiet){applyRew(m.bonus,got);got.push('<b>stealth bonus</b>');}
   if(m){
     if(r.win){
       m.state='done';m.meta='SUCCESS';
@@ -2910,6 +2932,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
+    if(G.missions.some(m=>m.id==='stealfuel'&&m.state==='done')&&!G.armory.some(a=>a.id==='charge')&&!G.missions.some(m=>m.id==='autofactory'))addArmoryItem('Explosive Charge');
     if(G.materials===undefined)G.materials=80;
     if(G.fuel===undefined)G.fuel=40;
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}

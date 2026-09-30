@@ -215,6 +215,7 @@ stealfuel:{
     {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'16 ▤ supplies',s:16},
     {id:'grain',x:560,y:620,label:'Grain store',take:'22 ▤ supplies',s:22},
     {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
+    {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['Explosive Charge','Explosive Charge']},
   ],
   foes(){return [
     {id:'holt',name:'Guard Holt',first:'Holt',side:'law',x:1250,y:620,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']},
@@ -227,6 +228,76 @@ stealfuel:{
   civs(){return [
     {id:'civ1',name:'Herder',first:'herder',side:'civ',x:430,y:1000,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:430,y:1000},{x:540,y:1090},{x:380,y:1120}]},
     {id:'civ2',name:'Herder',first:'herder',side:'civ',x:900,y:1130,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:900,y:1130},{x:1040,y:1180},{x:800,y:1200}]},
+  ];},
+},
+autofactory:{
+  mode:'autofactory',W:2400,H:1600,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  title:'Blow Up Auto Factory',sub:'Kiln Ridge \u00b7 Menk \u2014 Revolution I',
+  foesLabel:'Security',calmLabel:'Plant is quiet',alertLabel:'Plant alerted',
+  banner:['Blow Up Auto Factory','Every Auto is a policeman we never meet'],
+  brief:{
+    eyebrow:'Ground Operation \u00b7 Kiln Ridge, Menk',
+    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge Autoworks</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
+    objectives:[
+      'Get the explosive charge to the Power Plant\u2019s main breaker',
+      'Plant it',
+      'Get clear of the blast zone, then detonate',
+      'Get the squad back to the Marta',
+      {sub:1,text:'(Optional) Do it without the plant ever raising the alarm.'},
+    ],
+    hint:'One of you carries the charge (marked \u2738). Only the carrier can plant it. Riot shields stop every shot from the front, so flank them. Policebots never panic, but they are flimsy. Stay out of the sight cones and the plant may never know you were here.',
+  },
+  towerLabel:'',
+  lamps:[[820,620],[1500,560],[1870,560],[700,980],[1620,1000]],
+  csLine:'Kiln Ridge. I\u2019ll be at the LZ with the engines warm. Light the fuse and come home.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:260,y:1280,r:130},PAD:{x:1860,y:512,r:60},
+  plant:{x:1700,y:240,w:320,h:230,bx:1860,by:355},
+  blastR:330,safeR:400,
+  guardPt:{x:1860,y:560},
+  work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
+  detWave:{log:'<span class="h">The riot response lands at the gate</span> \u2014 a shield line, a rifleman, and a lot of shouting.',
+    foes:[
+      {id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',x:740,y:430,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
+      {id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',x:700,y:520,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
+      {id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',x:760,y:340,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+    ]},
+  bldgs:[
+    {x:1700,y:240, w:320,h:230,name:'POWER PLANT'},
+    {x:900, y:520, w:560,h:320,name:'AUTO ASSEMBLY'},
+    {x:1500,y:900, w:300,h:180,name:'PARTS STORE',solar:1},
+    {x:560, y:860, w:230,h:150,name:'GUARD POST'},
+    {x:700, y:400, w:150,h:110,name:'GATEHOUSE',solar:1},
+    {x:980, y:1000,w:360,h:130,name:'LOADING DOCK'},
+    {x:1980,y:700, w:210,h:150,name:'FACTORY OFFICE'},
+  ],
+  props:[
+    {x:1580,y:280,kind:'canister'},{x:2060,y:330,kind:'canister'},{x:1640,y:520,kind:'barrel'},{x:2040,y:560,kind:'barrel'},
+    {x:1760,y:560,kind:'crate'},{x:1960,y:540,kind:'crate'},{x:1520,y:620,kind:'crate'},
+    {x:1100,y:900,kind:'crate'},{x:1200,y:900,kind:'crate'},{x:860,y:940,kind:'barrel'},
+    {x:1000,y:880,kind:'wagon',a:0.1},{x:1560,y:760,kind:'wagon',a:-0.3},{x:800,y:600,kind:'wagon',a:0.5},{x:2200,y:900,kind:'wagon',a:0.2},
+    {x:1350,y:1180,kind:'trough'},{x:720,y:1120,kind:'trough'},{x:1680,y:1000,kind:'trough'},
+    {x:700,y:1250,kind:'rock'},{x:1100,y:1300,kind:'rock'},{x:1500,y:1250,kind:'rock'},{x:2000,y:1150,kind:'rock'},{x:500,y:700,kind:'rock'},{x:2250,y:500,kind:'rock'},
+    {x:1250,y:440,kind:'crate'},{x:1400,y:880,kind:'crate'},
+  ],
+  loots:[
+    {id:'safe',x:2080,y:880,label:'Factory office safe',take:'110 \u25c8 credits',c:110},
+    {id:'scrap',x:1580,y:1100,label:'Parts crates',take:'20 \u25a4 supplies',s:20},
+    {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['Explosive Charge']},
+  ],
+  foes(){return [
+    {id:'drew',name:'Patrolman Drew',first:'Drew',side:'law',x:780,y:580,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}],lines:['Gate\u2019s quiet.','Who goes there?']},
+    {id:'pb12',name:'Policebot PB-12',first:'PB-12',side:'law',x:830,y:900,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:830,y:900},{x:830,y:740}],lines:['Please remain calm.','Citizen, drop the weapon.']},
+    {id:'pb07',name:'Policebot PB-07',first:'PB-07',side:'law',x:1030,y:1080,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1030,y:1080},{x:1300,y:1180}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
+    {id:'soll',name:'Patrolman Soll',first:'Soll',side:'law',x:1560,y:860,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1560,y:860},{x:1420,y:1000},{x:1700,y:800}],lines:['Nothing on the east side.','Hands where I can see them!']},
+    {id:'pb03',name:'Policebot PB-03',first:'PB-03',side:'law',x:1680,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']},
+    {id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',side:'law',x:1860,y:588,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the breaker.','Shields up!']},
+    {id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',side:'law',x:2020,y:900,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']},
+  ];},
+  civs(){return [
+    {id:'civ1',name:'Line Worker',first:'worker',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
+    {id:'civ2',name:'Line Worker',first:'worker',side:'civ',x:1400,y:1040,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1400,y:1040},{x:1500,y:1180}]},
   ];},
 },
 haven:{
@@ -393,6 +464,7 @@ function initUnits(){
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:12,cool:65,
     level:sp.level||1,stims:1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+  if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   const roster=[...squad];
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
@@ -417,6 +489,9 @@ let execT0=0,engageQ=null;
 let hot=0,crossAway=false,crossFx=null,grafState='landed';
 /* Steal Fuel: reach the depot, call the Marta down, hold the pumps five rounds, get out */
 let fs=null;
+/* Blow Up Auto Factory: carry the charge, plant it, clear the blast zone, detonate */
+let fac=null;
+const exitOpen=()=>crossAway||(fac&&fac.detonated);
 const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
@@ -613,6 +688,10 @@ function bestWeapon(s,t){
   return best;
 }
 function shieldBlocks(shooter,gunner){
+  if(gunner.shield&&!gunner.down){
+    const a0=Math.atan2(shooter.y-gunner.y,shooter.x-gunner.x);
+    if(Math.abs(angNorm(a0-gunner.face))<1.0)return true;
+  }
   // the turret's frontal plate: no shot lands from inside its facing arc
   if(!gunner.manning)return false;
   const a=Math.atan2(shooter.y-TURRET.y,shooter.x-TURRET.x);
@@ -709,6 +788,11 @@ function downUnit(t,by){
   if(by)adjCoolG(by,12,'confirmed kill');
   for(const m of U)if(m.side===t.side&&m!==t)adjCoolG(m,-15,t.first+' down');
   t.hp=0;t.down=1;t.order=null;t.braced=0;
+  if(t.charge){
+    t.charge=0;
+    const heir=U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&u.id!==t.id).sort((a,b)=>dist(a,t)-dist(b,t))[0];
+    if(heir){heir.charge=1;log(nameSpan(heir)+' picks up the <b>explosive charge</b>.');}
+  }
   if(t.manning){t.manning=0;turret.gunner=null;log('The <b>laser turret</b> stands unmanned.');}
   sThud();
   log(nameSpan(t)+' <span class="h">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
@@ -738,6 +822,7 @@ function dropLoot(t){
 function alertTown(why){
   if(town==='alerted')return;
   town='alerted';alertFlash=performance.now();
+  if(fac&&!fac.detonated)fac.everAlerted=true;
   sAlert();
   log('<span class="h">The town is up.</span> '+why);
   const caller=U.find(u=>u.side==='law'&&!u.down&&!u.surr);
@@ -919,6 +1004,7 @@ function setSneak(on){
 }
 function coolStateG(u){return u.cool>=70?'cool':u.cool<=30?'panic':'steady';}
 function adjCoolG(u,d,why){
+  if(u&&u.auto)return;   // robots do not panic
   if(!u||u.side==='civ'||u.down||u.surr||u.extracted||u.away)return;
   const pre=coolStateG(u);
   u.cool=Math.max(0,Math.min(100,u.cool+d));
@@ -934,7 +1020,7 @@ function adjCoolG(u,d,why){
 function moraleCheck(){
   const sheriffDown=U.some(u=>u.sheriff&&(u.down||u.surr));
   for(const u of U){
-    if(u.side!=='law'||u.down||u.surr||u.sheriff)continue;
+    if(u.side!=='law'||u.down||u.surr||u.sheriff||u.auto)continue;
     let broke=false;
     if(sheriffDown&&rint(1,20)+alliesUp('law')<13)broke=true;
     else if(u.hp<u.maxhp*0.3&&rint(1,20)<7)broke=true;
@@ -1002,6 +1088,7 @@ function aiPlan(){
       if(u.sheriff&&t.id==='sera')d*=0.55;   // Reeve knows what they came for
       if(d<bd){bd=d;tgt=t;}
     }
+    if(u.shield)u.face=Math.atan2(tgt.y-u.y,tgt.x-u.x);   // the riot shield always turns to the threat
     const w=WPN[wpnsOf(u)[0]];
     const inRng=dist(u,tgt)<=w.rng&&!losBlocked(u,tgt);
     const hurt=u.hp<u.maxhp*0.42;
@@ -1149,6 +1236,14 @@ function completeWork(wp,u){
     gameOver(true);
     return;
   }
+  if(wp.id==='plant'){
+    u.charge=0;fac.planted=true;
+    addFloater(wp.x,wp.y-46,'CHARGE SET','#ff9a5c');
+    log('<span class="a">The charge is set.</span> Get everyone out of the blast zone, then detonate.');
+    say(u,'Charge is set. Clear the zone, then blow it.');
+    syncUI();
+    return;
+  }
   tryLaunch();
   syncUI();
 }
@@ -1224,6 +1319,14 @@ function fuelUpdate(now){
     alertTown('The Marta’s engines wake the whole depot.');
   }
 }
+function spawnFoes(list,msg){
+  for(const f of list){
+    const u=mkU(Object.assign({},f));
+    u.face=Math.PI;u.wave=1;
+    U.push(u);
+  }
+  if(msg){log(msg);sAlert();}
+}
 function fuelPumpStep(){
   if(!fs||!fs.landed||fs.done)return;
   if(!fuelGuards()){
@@ -1235,12 +1338,7 @@ function fuelPumpStep(){
   sSpark();
   for(const w of (SCN.waves||[])){
     if(w.at!==fs.pump)continue;
-    for(const f of w.foes){
-      const u=mkU(Object.assign({},f));
-      u.face=Math.PI;u.wave=1;
-      U.push(u);
-    }
-    log(w.log);sAlert();
+    spawnFoes(w.foes,w.log);
   }
   if(fs.pump>=FUEL_ROUNDS){
     fs.done=true;
@@ -1251,7 +1349,55 @@ function fuelPumpStep(){
   } else log('Fuel pumping — <span class="a">'+fs.pump+'/'+FUEL_ROUNDS+'</span>.');
   syncUI();
 }
+/* ---------- Blow Up Auto Factory ---------- */
+function facUnsafe(){
+  const c={x:SCN.plant.bx,y:SCN.plant.by};
+  return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,c)<SCN.safeR);
+}
+function facDetonate(){
+  if(!fac||!fac.planted||fac.detonated)return;
+  if(phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
+  if(facUnsafe()){
+    addFloater(SCN.plant.bx,SCN.plant.by-130,'TOO CLOSE \u2014 CLEAR THE BLAST ZONE','#ff9a5c');
+    log('<span class="a">Too close.</span> Everyone out of the blast zone before you detonate.');
+    return;
+  }
+  fac.quiet=!fac.everAlerted;
+  fac.detonated=true;fac.fx={t0:performance.now()};
+  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole Autoworks goes dark.');
+  explode(SCN.plant.bx,SCN.plant.by,{r:SCN.blastR,d0:80,d1:120});
+  camGoal={x:SCN.plant.bx-80,y:SCN.plant.by+120,z:0.8};
+  const lead=U.find(u=>u.side==='reb'&&!u.down);
+  if(lead)say(lead,'Plant\u2019s gone! Back to the Marta!');
+  if(SCN.detWave)spawnFoes(SCN.detWave.foes,SCN.detWave.log);
+  if(town==='calm')alertTown('The Autoworks goes dark.');
+  syncUI();
+}
+function drawFactory(now){
+  if(!fac)return;
+  const P=SCN.plant;
+  if(fac.planted&&!fac.detonated){
+    ctx.save();
+    ctx.strokeStyle='rgba(255,90,70,'+(0.35+0.25*Math.sin(now*0.008))+')';ctx.lineWidth=3;ctx.setLineDash([14,10]);
+    ctx.beginPath();ctx.arc(P.bx,P.by,SCN.safeR,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,90,70,0.05)';ctx.beginPath();ctx.arc(P.bx,P.by,SCN.safeR,0,7);ctx.fill();
+    if(cam.z>0.45){ctx.font='700 13px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(255,130,100,0.8)';ctx.fillText('BLAST ZONE',P.bx,P.by-SCN.safeR+22);}
+    ctx.restore();
+  }
+  if(fac.detonated){
+    ctx.save();
+    ctx.fillStyle='rgba(8,6,4,0.55)';ctx.fillRect(P.x,P.y,P.w,P.h);
+    const g=ctx.createRadialGradient(P.bx,P.by,10,P.bx,P.by,P.w*0.7);
+    g.addColorStop(0,'rgba(255,140,60,'+(0.35+0.15*Math.sin(now*0.01))+')');g.addColorStop(1,'rgba(255,140,60,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(P.bx,P.by,P.w*0.7,0,7);ctx.fill();
+    ctx.font='700 14px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(255,190,140,0.75)';
+    ctx.fillText('OFFLINE',P.bx,P.by+4);
+    ctx.restore();
+    if(rng()<0.25)parts.push({x:P.x+rng()*P.w,y:P.y+rng()*P.h,vx:(rng()-0.5)*30,vy:-30-rng()*40,r:4+rng()*6,a:0.35,col:'#3a3430',t0:now,dur:1600});
+  }
+}
 function extractReady(){
+  if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   return crossAway&&hostilesActive().length===0&&
     U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
@@ -1317,7 +1463,7 @@ function rtUpdate(now,dt){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
       if(wp.t>=4)completeWork(wp,worker);
@@ -1715,7 +1861,7 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)completeWork(wp,worker);
   }
@@ -1740,7 +1886,7 @@ function endRound(){
   moraleCheck();
   spotCheck();
   // extraction
-  if(crossAway){
+  if(exitOpen()){
     const clear=!hostilesActive().some(l=>Math.hypot(l.x-LZ.x,l.y-LZ.y)<300);
     for(const u of U){
       if(u.side!=='reb'||u.id==='sera'||u.down||u.extracted)continue;
@@ -1812,11 +1958,14 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel')&&!win);
-  byId('endEyebrow').textContent=win?(fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?(fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory')&&!win);
+  byId('endEyebrow').textContent=win?(fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  byId('endTitle').textContent=win?(fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
-  if(fs){
+  if(fac){
+    txt=win?(fac.quiet?'Nobody on Kiln Ridge saw us come or go. One moment the Autoworks was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the Autoworks is dark. The alarm had already gone, but it made no difference: the line will not turn out another Policebot for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
+      (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the Autoworks and the Marta lifted empty. The line keeps running.');
+  } else if(fs){
     txt=win?'The Marta lifted off Redrock Flats heavy with the tithe: every drop the herders paid, pumped back out of the depot that took it. Somewhere a warden is writing a very long report.'+(left.length?' It cost us: '+left.join(', ')+' left on the apron. We don\u2019t forget that.':''):
       'The squad was overrun around the apron and the Marta lifted empty. The depot is still full and the warden is still smug.';
   } else if(win){
@@ -1830,7 +1979,13 @@ function gameOver(win,why){
   }
   byId('endText').textContent=txt;
   let lh='';
-  if(win&&fs){
+  if(win&&fac){
+    lh+='<div class="lootline"><span>Kiln Ridge Power Plant</span><span>DESTROYED</span></div>';
+    lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(fac.quiet?'YES \u2014 bonus':'no')+'</span></div>';
+    if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
+    if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
+    for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
+  } else if(win&&fs){
     lh+='<div class="lootline"><span>Marta\u2019s fuel tanks</span><span>FULL</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
@@ -1862,7 +2017,7 @@ function buildResult(win){
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!(fac&&fac.detonated&&fac.quiet),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -2316,6 +2471,13 @@ function drawTurret(now){
 function drawWork(now){
   for(const wp of WORK){
     ctx.save();ctx.translate(wp.x,wp.y);
+    if(wp.done&&wp.id==='plant'){
+      const bl=fac&&!fac.detonated&&Math.sin(now*0.012)>0;
+      ctx.fillStyle='#2b2f36';ctx.beginPath();ctx.roundRect(-11,-8,22,16,3);ctx.fill();
+      ctx.strokeStyle='#ff9a5c';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle=bl?'#ff4f4f':'#5a2a2a';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();
+      ctx.restore();continue;
+    }
     if(wp.done){
       ctx.strokeStyle='rgba(125,217,123,0.55)';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,10,0,7);ctx.stroke();
@@ -2329,6 +2491,10 @@ function drawWork(now){
       ctx.beginPath();ctx.moveTo(-10,-8);ctx.lineTo(-14,-8);ctx.lineTo(-14,8);ctx.lineTo(-10,8);ctx.stroke();
       ctx.beginPath();ctx.moveTo(10,-8);ctx.lineTo(14,-8);ctx.lineTo(14,8);ctx.lineTo(10,8);ctx.stroke();
       ctx.fillStyle='rgba(255,150,60,0.8)';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();
+    } else if(wp.id==='plant'){
+      ctx.strokeStyle='rgba(255,150,60,'+(0.6+0.3*pul)+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.roundRect(-13,-10,26,20,3);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-7,-3);ctx.lineTo(7,-3);ctx.moveTo(-7,3);ctx.lineTo(7,3);ctx.stroke();
     } else if(wp.id==='fuel'){
       // fuel skid + line running to the ship
       ctx.fillStyle='#33383f';ctx.beginPath();ctx.roundRect(-14,-9,28,18,3);ctx.fill();
@@ -2708,6 +2874,7 @@ function drawUnit(u){
   const R=u.sheriff?9.5:8;
   let body,line;
   if(u.side==='reb'){body=sera?'#6b4a1c':'#1c4a56';line=sera?'#ffb454':'#57d7e2';}
+  else if(u.auto){body='#2a3542';line='#7fb2ff';}
   else {body='#4a3320';line=u.sheriff?'#e8c56a':'#c9a06a';}
   if(u.surr){body='#3a3f4a';line='#9aa4b4';}
   ctx.rotate(u.face);
@@ -2723,6 +2890,10 @@ function drawUnit(u){
   }
   ctx.fillStyle='#dcc9a8';
   ctx.beginPath();ctx.arc(3,0,3.4,0,7);ctx.fill();
+  if(u.shield){
+    ctx.strokeStyle='rgba(170,205,255,0.9)';ctx.lineWidth=4;ctx.lineCap='round';
+    ctx.beginPath();ctx.arc(0,0,R+5,-1.0,1.0);ctx.stroke();
+  }
   if(u.sheriff){
     ctx.strokeStyle='rgba(232,197,106,0.9)';ctx.lineWidth=1.6;
     ctx.beginPath();ctx.arc(0,0,R+3.4,0,7);ctx.stroke();
@@ -3240,6 +3411,7 @@ function render(now){
     drawVision();
     drawLoots();
     drawWork(now);
+    drawFactory(now);
     drawNades(now);
     drawProps();
     if(SCN.hasTurret)drawTurret(now);
@@ -3417,7 +3589,7 @@ byId('radial').addEventListener('click',ev=>{
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
   else if(act==='work'){
-    const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+    const wp=WORK.find(w=>!w.done&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
     if(wp){s.order={type:'work',wp:wp.id};autoAdvance();}
   }
   else if(act==='loot'){
@@ -3457,7 +3629,7 @@ function radialHTML(s){
     ['lockin','◎','Lock In',false],
     ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
-  const wp=WORK.find(w=>!w.done&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+  const wp=WORK.find(w=>!w.done&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
   if(wp&&s.id!=='sera')acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
@@ -3475,13 +3647,15 @@ function dockHTML(){
     const sneakBtn='<button class="chipbtn" id="sneakBtn" aria-pressed="'+sneak+'" '+(town!=='calm'?'disabled':'')+'>'+(sneak?'Sneaking':'Sneak')+'</button>';
     if(extractReady())return '<div class="dockcard">'+sneakBtn+'<button id="extractBtn">▲ Extract</button></div>';
     const callBtn=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
-    return '<div class="dockcard">'+sneakBtn+callBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
+    const detBtn=(fac&&fac.planted&&!fac.detonated)?'<button id="detBtn" '+(facUnsafe()?'class="unsafe"':'')+'>✸ Detonate'+(facUnsafe()?' · clear the blast zone':'')+'</button>':'';
+    return '<div class="dockcard">'+sneakBtn+callBtn+detBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
   }
   if(phase==='PLANNING'){
     const squad=plotted();
     const done=squad.filter(u=>u.order).length;
     const callBtn2=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
-    return '<div class="dockcard">'+callBtn2+'<span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast'+(NADES>0?' · ✸ BLAM ×'+NADES:'')+'</span>'+
+    const detBtn2=(fac&&fac.planted&&!fac.detonated)?'<button id="detBtn" '+(facUnsafe()?'class="unsafe"':'')+'>✸ Detonate'+(facUnsafe()?' · clear the blast zone':'')+'</button>':'';
+    return '<div class="dockcard">'+callBtn2+detBtn2+'<span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast'+(NADES>0?' · ✸ BLAM ×'+NADES:'')+'</span>'+
       '<button id="executeBtn">Execute Round</button></div>';
   }
   const c=engageQ&&engageQ.cur;
@@ -3527,7 +3701,7 @@ function unitRow(u){
   }
   cells+='</span>';
   return '<div class="urow'+(u.side==='law'?' law':'')+(u.id===selId?' sel':'')+((u.down||u.extracted||u.away||u.surr)?' gone':'')+'" data-unit="'+u.id+'">'+
-    '<span class="t"><span class="nm">'+u.name+'</span><span class="st" style="color:'+stc+'">'+st+'</span></span>'+cells+'</div>';
+    '<span class="t"><span class="nm">'+u.name+(u.charge?' \u2738':'')+'</span><span class="st" style="color:'+stc+'">'+st+'</span></span>'+cells+'</div>';
 }
 function syncUI(){
   $('phaseName').textContent=phase==='FREE'?'Free Move':phase==='PLANNING'?'Planning':phase==='EXEC'?'Execution':phase==='ENGAGE'?'Engagement':phase==='CUTSCENE'?'Insertion':phase==='EXTRACT'?'Extraction':phase==='GAMEOVER'?'Debrief':'Briefing';
@@ -3549,6 +3723,15 @@ function syncUI(){
       {t:'Move up the canyon to the base mouth',done:tutFlags.moved||town==='alerted',now:!(tutFlags.moved||town==='alerted')},
       {t:'Clear the squatters off the rock \u2014 '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
       {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
+    ];
+  } else if(fac){
+    const carrier=U.find(u=>u.charge&&!u.down);
+    objs=[
+      {t:'Get the charge to the Power Plant\u2019s main breaker'+(carrier?' \u2014 '+carrier.first+' carries it':''),done:fac.planted,now:!fac.planted},
+      {t:'Plant it',done:fac.planted,now:false},
+      {t:'Clear the blast zone, then detonate',done:fac.detonated,now:fac.planted&&!fac.detonated},
+      {t:'(Optional) Stay unseen until it blows',done:fac.detonated&&fac.quiet,now:false,fail:fac.everAlerted&&!fac.detonated},
+      {t:'Get the squad back to the Marta \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fac.detonated},
     ];
   } else if(fs){
     objs=[
@@ -3603,6 +3786,7 @@ byId('ctlDock').addEventListener('click',ev=>{
   else if(ev.target.id==='sneakBtn')setSneak(!sneak);
   else if(ev.target.id==='extractBtn')startExtract();
   else if(ev.target.id==='callBtn')callTransport();
+  else if(ev.target.id==='detBtn')facDetonate();
   else if(ev.target.id==='attackBtn')playerAttack();
   else if(ev.target.id==='holdBtn')playerHold();
   else if(ev.target.closest('[data-stim]')){
@@ -3701,6 +3885,7 @@ function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
   lootMarks=LOOTS.map(l=>Object.assign({},l,{taken:false}));
@@ -3819,10 +4004,10 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    fn:{callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};

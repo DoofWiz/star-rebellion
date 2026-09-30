@@ -559,6 +559,23 @@ to Redrock Flats' liberation. Failing offers a retry with no cost. The reusable 
 transport, timed defend, extract from wherever the transport lands) are in `ground.js` for the
 next missions.
 
+### Blow Up Auto Factory (built, Tier 1)
+Offered by **Tessaly Brandt** (Menk) once she is a source, or through her signals. Played at
+the **Kiln Ridge Autoworks, Menk** (region: Kiln Ridge, +20% liberation, capped by Access/Support):
+- **Needs an Explosive Charge** in the armory (a Pre Condition). The Redrock depot and a blasting
+  shed at the Autoworks both hold charges. One soldier carries it (marked ✸); if they go down,
+  the nearest rebel picks it up. Only the carrier can plant it.
+- Plant it on the **Power Plant's main breaker**, get everyone out of the **blast zone** (a dashed
+  ring), then **Detonate**. Detonating with anyone inside the zone is refused. The blast hurts
+  anyone in range, wrecks cover and sets off fuel drums.
+- **Optional: stay unseen.** If the plant never raised the alarm before the charge blew, the
+  mission pays a bonus (+2 Intel, +60 credits). The blast then alerts the plant and a riot
+  response lands at the gate; the squad extracts at the Marta.
+- Reward: 100 credits and 40 Materials, plus loot. The charge is used up once planted.
+- **New Level 1 enemies** introduced: **Auto Policebots** (flimsy, never panic), **Patrolmen**,
+  **Riot Shieldmen** (their shield blocks every shot from the front, so flank them) and **Riot
+  Riflemen**. The Riot Bruiser and Bureau Officer are still to come.
+
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
 **Comms Array is built and staffed** (the Comms Array stands in for the Intelligence Center until
