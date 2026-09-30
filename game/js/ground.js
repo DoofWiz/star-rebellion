@@ -38,6 +38,7 @@ const WPN={
   carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
   scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
   longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
+  strider:{name:'Strider Autocannon',d0:16,d1:26,rng:460,atk:0,shots:4},
   laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
 };
 const PROPDEF={
@@ -423,6 +424,67 @@ intel:{
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
   ];},
 },
+strider:{
+  mode:'strider',W:2400,H:1600,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  title:'Steal the Strider',sub:'Menk Crossing · Menk — Revolution I',
+  foesLabel:'Security',calmLabel:'Yard is quiet',alertLabel:'Yard alerted',
+  banner:['Steal the Strider','Walk it out'],
+  brief:{
+    eyebrow:'Ground Operation · Menk Crossing, Menk',
+    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the Autoworks’ Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
+    objectives:[
+      'Reach the holding yard behind the depot',
+      'Override the Strider’s leash panel',
+      'Guide the Strider and the squad back to the Marta',
+      {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
+      {sub:1,text:'If the Strider is destroyed, the mission fails.'},
+    ],
+    hint:'Once the leash is off the Strider follows your orders like any rebel: heavy, tough and loud. Keep it out of sight cones until you need it. Riot shields stop every shot from the front, so flank them.',
+  },
+  towerLabel:'',
+  lamps:[[760,640],[1300,560],[1720,600],[1200,980],[1800,1000]],
+  csLine:'Menk Crossing. I will keep the cargo bay open. Try not to scratch it.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:260,y:1250,r:130},PAD:{x:1720,y:480,r:60},
+  cage:{x:1640,y:340,w:160,h:140,dx:1720,dy:490,label:'HOLDING YARD'},
+  guardPt:{x:1720,y:560},
+  releaseText:{float:'STRIDER ONLINE',log:'The leash panel gives. The Strider stands up, its face-screen cheerfully reading <b>“We’re all in this together.”</b> Get it and the squad back to the Marta.',
+    obj:['Reach the holding yard','Override the Strider’s leash panel','(Optional) Stay unseen','Get the Strider and the squad aboard']},
+  work:[{id:'release',x:1720,y:496,label:'LEASH PANEL',verb:'overrides the Strider’s leash panel',rounds:2}],
+  bldgs:[
+    {x:1240,y:260, w:260,h:180,name:'CROSSING DEPOT'},
+    {x:640, y:560, w:300,h:170,name:'PRECINCT HOUSE'},
+    {x:1040,y:900, w:280,h:160,name:'COMPANY STORE'},
+    {x:1560,y:820, w:320,h:180,name:'WAREHOUSE',solar:1},
+    {x:540, y:330, w:160,h:110,name:'GATEHOUSE'},
+    {x:1800,y:1100,w:200,h:130,name:''},
+  ],
+  props:[
+    {x:1500,y:760,kind:'canister'},{x:1940,y:920,kind:'canister'},
+    {x:1560,y:560,kind:'crate'},{x:1860,y:580,kind:'crate'},{x:1420,y:620,kind:'barrel'},{x:1900,y:380,kind:'barrel'},
+    {x:980,y:660,kind:'crate'},{x:1140,y:780,kind:'crate'},{x:820,y:900,kind:'barrel'},
+    {x:900,y:800,kind:'wagon',a:0.2},{x:1380,y:1000,kind:'wagon',a:-0.3},{x:2040,y:720,kind:'wagon',a:0.4},
+    {x:1250,y:1180,kind:'trough'},{x:720,y:1080,kind:'trough'},
+    {x:600,y:980,kind:'rock'},{x:1100,y:1300,kind:'rock'},{x:1500,y:1260,kind:'rock'},{x:2100,y:1140,kind:'rock'},{x:400,y:720,kind:'rock'},{x:2000,y:280,kind:'rock'},
+  ],
+  loots:[
+    {id:'ledgers',x:1100,y:1050,label:'Company strongbox',take:'300 ◈ credits',c:300},
+    {id:'rations',x:1650,y:1010,label:'Depot rations',take:'80 ▤ supplies',s:80},
+  ],
+  foes(){return [
+    {id:'hask2',name:'Patrolman Hale',first:'Hale',side:'law',x:720,y:470,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']},
+    {id:'pb41',name:'Policebot PB-41',first:'PB-41',side:'law',x:850,y:800,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
+    {id:'pb42',name:'Policebot PB-42',first:'PB-42',side:'law',x:1600,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1600,y:560},{x:1660,y:600}],lines:['Restricted area.','Please stand still.']},
+    {id:'rs6',name:'Riot Shieldman Ysel',first:'Ysel',side:'law',x:1720,y:540,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the walker.','Shields up!']},
+    {id:'rr8',name:'Riot Rifleman Garr',first:'Garr',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']},
+    {id:'elm2',name:'Patrolman Voss',first:'Voss',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']},
+    {id:'pb43',name:'Policebot PB-43',first:'PB-43',side:'law',x:1700,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
+  ];},
+  civs(){return [
+    {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
+  ];},
+},
 haven:{
   mode:'haven',W:1600,H:1200,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
@@ -585,14 +647,15 @@ function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
-    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:12,cool:65,
-    level:sp.level||1,stims:1,spec:sp.spec||null,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
+    level:sp.level||1,stims:sp.big?0:1,spec:sp.spec||null,big:sp.big?1:0,auto:sp.big?1:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   const roster=[...squad];
-  if(SCN.mode==='rescue'&&spec.vip){
+  if((SCN.mode==='rescue'||SCN.mode==='strider')&&spec.vip){
+    const big=!!spec.vip.strider;
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
-      x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:45,maxhp:45,aim:1,def:11,cool:45,level:1,stims:0,
-      wpns:['cowboy'],frail:1,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
+      x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
+      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
   }
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
@@ -1396,8 +1459,8 @@ function completeWork(wp,u){
       v.caged=0;v.away=0;v.order=null;
       v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
-      addFloater(wp.x,wp.y-46,v.first.toUpperCase()+' IS FREE','#7dd97b');
-      log('<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
+      addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:v.first.toUpperCase()+' IS FREE'),'#7dd97b');
+      log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':'<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
       say(v,v.lines[0]);
     }
     syncUI();
@@ -1551,7 +1614,7 @@ function drawCage(now){
     ctx.lineWidth=2;
     for(let x=c.x+20;x<c.x+c.w;x+=20){ctx.beginPath();ctx.moveTo(x,c.y);ctx.lineTo(x,c.y+c.h);ctx.stroke();}
   }
-  if(cam.z>0.5){ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(205,216,236,0.55)';ctx.fillText('DETENTION',c.x+c.w/2,c.y-10);}
+  if(cam.z>0.5){ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(205,216,236,0.55)';ctx.fillText(c.label||'DETENTION',c.x+c.w/2,c.y-10);}
   ctx.restore();
 }
 function drawFactory(now){
@@ -2143,13 +2206,16 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue'||SCN.mode==='intel')&&!win);
-  byId('endEyebrow').textContent=win?(ix?'Mission Report · Data Flats':rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?(ix?'Data Secured':rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue'||SCN.mode==='intel'||SCN.mode==='strider')&&!win);
+  byId('endEyebrow').textContent=win?(ix?'Mission Report · Data Flats':SCN.mode==='strider'?'Mission Report · Menk Crossing':rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
   if(ix){
     txt=win?'The Field Technician walked off the Data Flats with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left on the Flats. We don\u2019t forget that.':''):
       'The squad was overrun around the server farm and the Marta lifted with nothing. The databank is still sealed.';
+  } else if(SCN.mode==='strider'){
+    txt=win?'A Strider Mk I walked up the Marta\u2019s ramp with its face-screen still reading \u201cWe\u2019re all in this together\u201d and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We are in one.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
+      (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the Marta lifted empty. The Strider is still chained in its yard.');
   } else if(rs){
     const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
     txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
@@ -2178,7 +2244,7 @@ function gameOver(win,why){
     for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
   } else if(win&&rs){
     const vn=(U.find(u=>u.vip)||{name:'Prisoner'}).name;
-    lh+='<div class="lootline"><span>'+vn+'</span><span>FREED</span></div>';
+    lh+='<div class="lootline"><span>'+vn+'</span><span>'+(SCN.mode==='strider'?'STOLEN':'FREED')+'</span></div>';
     lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(rs.everAlerted?'no':'YES \u2014 bonus')+'</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
@@ -2221,7 +2287,7 @@ function buildResult(win){
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -3082,7 +3148,7 @@ function drawUnit(u){
   ctx.beginPath();ctx.ellipse(2,4,9,6,0,0,7);ctx.fill();
   const crouch=sneak&&u.side==='reb'&&phase==='FREE'&&town==='calm';
   if(crouch)ctx.scale(0.82,0.82);
-  const R=u.sheriff?9.5:8;
+  const R=u.big?15:u.sheriff?9.5:8;
   let body,line;
   if(u.side==='reb'){body=sera?'#6b4a1c':'#1c4a56';line=sera?'#ffb454':'#57d7e2';}
   else if(u.auto){body='#2a3542';line='#7fb2ff';}
@@ -3947,13 +4013,13 @@ function syncUI(){
       {t:'Extract with the stolen data \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:ix.hacked},
     ];
   } else if(rs){
-    const v=U.find(u=>u.vip);const nm=v?v.first:'the prisoner';
+    const v=U.find(u=>u.vip);const nm=v?v.first:'the prisoner';const RO=SCN.releaseText?SCN.releaseText.obj:null;
     if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
     objs=[
-      {t:'Reach the detention cage',done:rs.reached||rs.released,now:!rs.reached&&!rs.released},
-      {t:'Release '+nm+' from confinement',done:rs.released,now:rs.reached&&!rs.released},
-      {t:'(Optional) Stay unseen',done:rs.released&&!rs.everAlerted&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false},
-      {t:'Get '+nm+' and the squad aboard \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:rs.released},
+      {t:RO?RO[0]:'Reach the detention cage',done:rs.reached||rs.released,now:!rs.reached&&!rs.released},
+      {t:RO?RO[1]:'Release '+nm+' from confinement',done:rs.released,now:rs.reached&&!rs.released},
+      {t:(RO?RO[2]:'(Optional) Stay unseen'),done:rs.released&&!rs.everAlerted&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false},
+      {t:(RO?RO[3]:'Get '+nm+' and the squad aboard')+' \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:rs.released},
     ];
   } else if(fac){
     const carrier=U.find(u=>u.charge&&!u.down);
@@ -4117,7 +4183,7 @@ function initState(){
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
-  rs=SCN.mode==='rescue'?{released:false,everAlerted:false,reached:false}:null;
+  rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
   fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};

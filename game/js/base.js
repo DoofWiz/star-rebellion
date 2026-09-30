@@ -18,7 +18,7 @@ const nz=(...a)=>A.nz(...a);
 const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
 const RANKS_ENL=['Recruit','Private','Private First Class','Specialist','Corporal','Sergeant','Staff Sergeant','Sgt. First Class','Master Sergeant','Sergeant Major'];
 const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
-const rankFor=p=>((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
+const rankFor=p=>p.auto?'Strider':((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
 const C=n=>'<span class="rc" title="Credits">'+n+'⬡</span>';
@@ -98,8 +98,6 @@ function newGame(){
     sources:[],
     onboard:'intro',
     missions:[
-      {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
-       desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
     ],
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,misPopQ:[],candQ:[],
@@ -114,6 +112,7 @@ function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
 function sourceCap(){return 2+roomsOf('comms').length;}
 function fighterCap(){return 4+roomsOf('bay').length;}   // four landing pads from the start, one per hangar tile
 function bunkCap(){return 5+3*roomsOf('quarters').length;}
+const bunksUsed=()=>G.people.filter(p=>!p.auto).length;   // Autos don't sleep
 /* Support crew man stations; a room without its operator underperforms */
 const STAFFABLE={
   command:{post:'Flight Coordinator',perk:'+5% mission success'},
@@ -367,6 +366,16 @@ MPOOL.autofactory={name:'Blow Up Auto Factory',from:'Tessaly Brandt',src:'tess',
   objectives:['Plant the explosive at the Power Plant\u2019s main breaker','Detonate it from a safe distance','(Optional) Do it without the enemy realising you were there','Board the Marta'],
   rew:{c:450,m:160,xp:0.2},bonus:{i:2,c:250},
   after:['<b>BRANDT:</b> \u201cThe night shift walked out into the salt to watch it burn. Nobody went back in. The foreman is asking who gave the orders, and nobody can remember there being any.\u201d']};
+/* Steal the Strider (Tier 1): free a Strider Mk I and walk it out; it joins the roster as an Auto */
+MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',need:3,days:2,riskTxt:'High',
+  lead:'ground',ground:true,type:'ground',scenario:'strider',
+  loc:'menk',region:'menkcross',lib:15,
+  vip:{name:'Strider SK-1',first:'Strider',hp:220,def:8,wpns:['strider'],strider:1},
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0},
+  desc:'With the Power Plant gone, the Autoworks is shipping its last Strider Mk I out of the Crossing depot. It is parked in a locked holding yard, waiting for a hauler. A robotic mech like that could be reprogrammed to fight for us, if we can steal it and guide it out of there on its own two legs.',
+  objectives:['Override the Strider\u2019s leash panel in the holding yard','(Optional) Do it without the enemy realising you were there','Guide the Strider and the squad back to the Marta'],
+  rew:{c:450,m:200,xp:0.3},bonus:{c:300},
+  after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 /* Steal Intelligence (Tier 1): the databank hack needs a Field Technician on the team */
 MPOOL.stealintel={name:'Steal Intelligence',from:'Ione Cask',src:'cask',need:3,days:2,riskTxt:'Moderate',
   lead:'ground',ground:true,type:'ground',scenario:'intel',
@@ -522,6 +531,11 @@ function storySignal(src){
   if(src.id==='cass'&&G.postDepot&&!G.missions.some(m=>m.id==='stealfuel')){
     src.signal={kind:'mission',mid:'stealfuel',
       text:'“Your ships are drinking more than my friends do. Redrock Flats, east of Dustfall: the herders’ fuel tithe all ends up in one depot with a pump house and a bored guard detail. Call your hauler down on their apron and let her drink.”'};
+    return true;
+  }
+  if(src.id==='tess'&&G.missions.some(m=>m.id==='autofactory'&&m.state==='done')&&!G.missions.some(m=>m.id==='stealstrider')){
+    src.signal={kind:'mission',mid:'stealstrider',
+      text:'\u201cThe Autoworks is shutting down for repairs, and they are moving the last Strider out through the Crossing depot. Nobody thinks the thing needs a proper guard; it is bigger than the guards. If somebody can get to its leash panel, it will walk wherever you tell it.\u201d'};
     return true;
   }
   if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
@@ -681,6 +695,10 @@ function advanceDay(){
     const cass2=G.sources.find(x=>x.id==='cass'&&x.alive);
     if(cass2&&G.postDepot&&!cass2.signal&&!G.missions.some(m=>m.id==='stealfuel')&&storySignal(cass2)){
       news('<b>Cass Wender</b> is on the wire again: he has a fuel job.','a');sAlert();
+    }
+    const tess2=G.sources.find(x=>x.id==='tess'&&x.alive);
+    if(tess2&&!tess2.signal&&!G.missions.some(m=>m.id==='stealstrider')&&storySignal(tess2)){
+      news('<b>Tessaly Brandt</b> is on the wire: the Autoworks is moving something big.','a');sAlert();
     }
   }
   genOpportunities();
@@ -1405,7 +1423,7 @@ function renderRoomBar(){
     info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+M(staffOf('store').length?4:8)+' each';
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'||rm.key==='quarters'){
-    info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
+    info='Bunks '+bunksUsed()+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
   } else if(rm.key==='store'){
     info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+I(Math.round(G.intel))+
@@ -2218,14 +2236,14 @@ function renderWin(){
     const {p,must,line}=winArg;
     card.classList.add('narrow');
     const pct=Math.round(p.xp*100);
-    const full=G.people.length>=bunkCap();
+    const full=bunksUsed()>=bunkCap();
     h='<div class="winHead"><span class="wt">New Recruit!</span>'+(must?'':'<button class="winX" data-rec-no>✕</button>')+'</div><div class="winBody">'+
       (line?'<div class="commline" style="margin-bottom:11px">'+line+'</div>':'')+
       '<div class="dz-head">'+
       '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
       '<div><div class="dz-name">'+p.name+'</div><div class="dz-rank">'+rankFor(p)+'</div><div class="dz-sub">'+p.role+'</div></div></div>'+
       '<div class="dz-bio">“'+p.bio+'”</div>'+
-      '<div class="dz-sec">Terms</div><div class="pdesc">One bunk ('+G.people.length+'/'+bunkCap()+' filled)'+
+      '<div class="dz-sec">Terms</div><div class="pdesc">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
         (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</div>'+
       (full?'<div class="pdesc" style="color:var(--heg)">No bunks free — build a quarters annex first.</div>':'')+
       '<button class="dbtn" data-rec-accept '+(full&&!must?'disabled':'')+'><b>Recruit</b></button>'+
@@ -2293,7 +2311,8 @@ function renderWin(){
         if(a)h+='<div class="eqrow"><span class="eqi">'+a.ic+'</span><span><b>'+a.name+'</b>'+
           (a.desc?'<br><span style="font-size:9.5px;color:var(--dim)">'+a.desc+'</span>':'')+'</span></div>';
       }
-      if(!(p.equip||[]).length)h+='<div class="pdesc">Empty-handed. Fix that before the ground war.</div>';
+      if(p.auto)h+='<div class="pdesc">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</div>';
+      else if(!(p.equip||[]).length)h+='<div class="pdesc">Empty-handed. Fix that before the ground war.</div>';
     } else {
       const st=p.assign.startsWith('station:')?p.assign.slice(8):null;
       h+='<div class="dz-sec">Station</div><div class="pdesc">'+
@@ -2550,7 +2569,7 @@ $('winsB').addEventListener('click',ev=>{
   }
   if(t.hasAttribute('data-rec-accept')&&winMode==='recruit'){
     const {p,must}=winArg;
-    if(G.people.length>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
+    if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
     G.people.push(p);
     if(p.id==='sera')G.onboard='crossready';
@@ -2884,9 +2903,10 @@ function startPlan(){
     G.fuel-=fuel;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
-      vip:m.npc?{name:m.npc.name,first:m.npc.first}:undefined,
+      vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
-        aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
+        aim:soldierAim(p),hp:p.auto?220:100,def:p.auto?8:undefined,big:!!p.auto,
+        wpns:p.auto?['strider']:(scatter&&i===squad.findIndex(q=>!q.auto))?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
@@ -3015,6 +3035,12 @@ function applyDebrief(r){
     if(ch){ch.n=Math.max(0,ch.n-r.chargeUsed);if(!ch.n)G.armory=G.armory.filter(a=>a!==ch);}
   }
   if(r.win&&m)applyRew(m.rew,got);
+  if(r.win&&m&&m.vip&&m.vip.strider&&r.vipOut&&!G.people.some(p=>p.id==='strider')){
+    G.people.push({id:'strider',name:m.vip.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:1,
+      bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'});
+    got.push('<b>'+m.vip.name+'</b> joins the roster');
+    news('<b>'+m.vip.name+'</b>, a reprogrammed Strider Mk I, joins the rebellion. It does not need a bunk.','g');
+  }
   if(r.win&&m&&m.bonus&&r.quiet){applyRew(m.bonus,got);got.push('<b>stealth bonus</b>');}
   if(m){
     if(r.win){
@@ -3078,6 +3104,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
+    G.missions=G.missions.filter(m=>!(m.id==='strider'&&m.state==='locked'));
     if(G.materials===undefined)G.materials=80;
     if(G.fuel===undefined)G.fuel=40;
     if(!G.econ4){   // economy rescaled ×4 (Intel is unchanged)

@@ -201,6 +201,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   the databank; without one it explains what you are missing. **Economy rebalanced ×4** around the
   500-credit Rescue reward: start with 1000 credits and scale costs and rewards to match.
 
+- **Steal the Strider (Tier 1).** Tessaly Brandt points you at a Strider Mk I parked at Menk Crossing.
+  Override its leash panel, then guide the walker and the squad back to the Marta; if it dies the
+  mission fails. It then **joins your roster as an Auto** (no bunk needed) and can fight in later
+  squads. All five Tier 1 missions are now in.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

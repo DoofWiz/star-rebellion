@@ -597,6 +597,18 @@ aim). The rest are listed as "later" from the docs (Gunner, Commando, Assault, C
 Demolitions Specialist, Marksman, Commander, Driver; Leader, Bomber, Fire Support, Flight Engineer,
 Shipbuster). Support specialties are still to come.
 
+### Steal the Strider (built, Tier 1) and Autos on the roster
+Offered by **Tessaly Brandt** once the Autoworks' Power Plant is gone. Played at **Menk Crossing**
+(region: Menk Crossing, +15% liberation, capped by Access/Support):
+- A **Strider Mk I** stands in a locked holding yard. Any soldier can **override its leash panel**
+  (two rounds). The override is quiet; it only alarms the depot if the squad was already seen.
+- Once freed the Strider is an **ally you command** like any rebel: 220 hp, heavy autocannon, big and
+  loud. **If it is destroyed the mission fails.** It and the squad must reach the Marta.
+- **Optional: stay unseen** (bonus +300 credits). Reward: 450 credits, 200 Materials.
+- **The Strider joins the roster** (as an Auto: no bunk, no rank, 220 hp, autocannon) and can be put
+  in any future ground squad, where it takes a team slot. This is the first Auto; hacking enemy
+  Autos is still to come.
+
 ### Steal Intelligence (built, Tier 1)
 Offered by **Ione Cask** (Parity IV). Played at the **Data Flats server farm** (region: Data Flats,
 +15% liberation, capped by Access/Support):
