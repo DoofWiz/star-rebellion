@@ -68,7 +68,14 @@ not require it. Missions in a *new* location should count for more than repeats 
 same one, to push the player to spread out. The current `G.renown` (which counts sources
 and a few missions) is the seed of this.
 
-### Phase 1 — Location model (the spine of the doc set)
+### Phase 1 — Location model (the spine of the doc set) — **built**
+Implemented in `game/js/base.js`: Security / Access / Support / Liberation, three new
+liberation-ready worlds (Menk, Ballakan, Parity IV), region liberation with the
+lower-of-Access-and-Support cap, the location briefing popup, Access raising, the progress
+meter and escalation animation, and a source for each new world. Liberation-world
+"local ops" are abstract placeholders for Phase 3. Materials and Fuel were *not* added
+in this pass; they move to the start of Phase 2/3. Numbers are starting values to playtest.
+Original scope:
 - Per-location **Security / Access / Support / Liberation**, with regions and
   settlements inside each location.
 - Galaxy inspector shows helmets, eyes, flags and a liberation wheel; regions are
@@ -81,6 +88,7 @@ and a few missions) is the seed of this.
   Rev Level 2 content itself stays out of scope, so the animation lands on a
   "Level 2 — coming soon" state.
 - Add **Materials** and **Fuel** to the resource model. Fuel is consumed by ship missions.
+  *(Not yet built.)*
 
 ### Phase 2 — Mission framework
 - Data-driven **mission type + narrative wrapper**, so a designer can chain missions

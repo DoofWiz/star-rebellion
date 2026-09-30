@@ -162,6 +162,15 @@ The three layers now run as **one playable game** (`game/index.html` +
   green mission-start button always says **Start**, the end-of-mission
   button always says **Continue**.
 
+- **Level 1 location model.** Every world now has **Security** (Hegemony presence),
+  **Access** (0–5, bought with Intel), **Support** (0–5, raised by Source conversations)
+  and, on three outworlds — **Menk**, **Ballakan** and **Parity IV** — regional
+  **Liberation**. A region's liberation can't pass the lower of the Access and Support
+  caps. First access plays a location briefing; the galaxy card shows the four stats,
+  region bars and the cap. The Revolution lamp is now a progress meter driven by missions
+  across many worlds, liberation, Access and Support (no daily trickle); filling it plays
+  the **Level 2 escalation** animation. See `docs/GDD.md` §8 and `docs/ROADMAP.md`.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

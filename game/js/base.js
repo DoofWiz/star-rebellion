@@ -92,7 +92,7 @@ function newGame(){
       {id:'strider',name:'Steal the Strider',state:'locked',from:'—',
        desc:'A robotic mech, ours if we can walk it out of a warehouse. Needs a ground team with real gear. Not yet.'},
     ],
-    planets:PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base})),
+    planets:PLANETDEF.map(mkPlanet),
     recruitN:0,misPopQ:[],candQ:[],
     news:[],
   };
@@ -241,32 +241,90 @@ const SIGNALS={
 const PLANETDEF=[
   {id:'haven',name:'Haven Rock',kind:'Hidden Base',x:0.10,y:0.78,base:true,known:true,access:true,
    sit:'Home. Nobody knows it exists. Keep it that way.'},
-  {id:'veray',name:'Veray Yards',kind:'Industrial World',pop:'40M',x:0.30,y:0.55,known:true,access:true,
+  {id:'veray',sec:2,sup:2,name:'Veray Yards',kind:'Industrial World',pop:'40M',x:0.30,y:0.55,known:true,access:true,
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
-  {id:'kess',name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
+  {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'brakka',name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
+  {id:'brakka',sec:1,sup:3,name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
    sit:'Dust, herders, and the frontier town of Dustfall — where Sheriff Reeve keeps Hegemony law and one FT-4 Cross on the pad.'},
-  {id:'callis',name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
+  {id:'callis',sec:2,sup:3,name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
    sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
-  {id:'meridian',name:'Meridian',kind:'CORE · Capital',pop:'2.1B',x:0.86,y:0.30,known:true,scout:14,core:true,
+  {id:'meridian',sec:5,sup:1,name:'Meridian',kind:'CORE · Capital',pop:'2.1B',x:0.86,y:0.30,known:true,scout:14,core:true,
    sit:'Parliament, the fleets, the Empress’ shadow. Every camera works. Every clerk has a price.'},
-  {id:'volund',name:'Volund Forge',kind:'CORE · Foundry World',pop:'800M',x:0.76,y:0.62,known:true,scout:12,core:true,
+  {id:'volund',sec:5,sup:1,name:'Volund Forge',kind:'CORE · Foundry World',pop:'800M',x:0.76,y:0.62,known:true,scout:12,core:true,
    sit:'The Hegemony’s arsenal. Foundries the size of seas, and freight manifests worth more than gold.'},
-  {id:'halcyon',name:'Halcyon',kind:'CORE · Resort World',pop:'60M',x:0.90,y:0.55,known:true,scout:10,core:true,
+  {id:'halcyon',sec:4,sup:1,name:'Halcyon',kind:'CORE · Resort World',pop:'60M',x:0.90,y:0.55,known:true,scout:10,core:true,
    sit:'Where Hegemony brass unbuckle their sidearms. The revolution isn’t ready for Halcyon. Yet.'},
-  {id:'dreymar',name:'Dreymar',kind:'Mining World',pop:'2M',x:0.48,y:0.62,scout:4,
+  {id:'dreymar',sec:2,sup:4,name:'Dreymar',kind:'Mining World',pop:'2M',x:0.48,y:0.62,scout:4,
    sit:'Ore barges, company scrip, and miners who already hate the right people.'},
-  {id:'sable',name:'Sable',kind:'Wild World',pop:'—',x:0.33,y:0.24,scout:3,
+  {id:'sable',sec:0,sup:0,name:'Sable',kind:'Wild World',pop:'—',x:0.33,y:0.24,scout:3,
    sit:'Nothing but weather — and an abandoned Hegemony listening post, still warm.'},
-  {id:'nyx',name:'Nyx Shadowport',kind:'Pirate Haven',pop:'50K',x:0.63,y:0.82,scout:5,
+  {id:'nyx',sec:1,sup:3,name:'Nyx Shadowport',kind:'Pirate Haven',pop:'50K',x:0.63,y:0.82,scout:5,
    sit:'Smugglers, deserters, and people who shoot well and ask late.'},
-  {id:'tarsis',name:'Tarsis',kind:'Farm World',pop:'5M',x:0.68,y:0.14,scout:5,
+  {id:'tarsis',sec:2,sup:3,name:'Tarsis',kind:'Farm World',pop:'5M',x:0.68,y:0.14,scout:5,
    sit:'Grain oceans and quotas nobody meets. They hide food from the levy. They’d hide us.'},
-  {id:'oubli',name:'Oubliette',kind:'Dead Colony',pop:'0',x:0.14,y:0.16,scout:4,
+  {id:'oubli',sec:0,sup:0,name:'Oubliette',kind:'Dead Colony',pop:'0',x:0.14,y:0.16,scout:4,
    sit:'A colony that stopped answering forty years ago. Empty streets. One transmitter, still powered.'},
+  /* liberation-ready outworlds: their regions can be won, one local op at a time */
+  {id:'menk',name:'Menk',kind:'Quarry World',pop:'1.4M',x:0.25,y:0.68,scout:4,sec:2,sup:2,lib:true,src:'tess',
+   sit:'Salt flats the colour of bone, and company towns built to feed the crushers. The Hegemony wants the flux salt for its foundries and has never asked what it costs.',
+   brief:'Remote salt-quarry world. Thin air, endless white flats, and a population bound to the crushers by debts their grandparents signed. The Hegemony is grinding Menk down to smelt its warships. Nobody here has ever been asked what they think.',
+   regions:[
+    {id:'saltreach',name:'Saltreach Quarries',kind:'Region',blurb:'Open pits and the crawlers that bleed them.',
+     op:{name:'Jam the Saltreach Crushers',desc:'Sand in the gearboxes, a bad-tempered foreman and a shift that goes home early. Every hour the crushers sit idle is an hour the foundries wait.',c:70,s:20}},
+    {id:'kilnridge',name:'Kiln Ridge',kind:'Region',blurb:'Smelting kilns and the ore convoys that feed them.',
+     op:{name:'Hit the Kiln Ridge Convoy',desc:'Ore convoys crawl the ridge road with a two-man escort and a radio they never answer. They will tonight.',c:90,s:30}},
+    {id:'menkcross',name:'Menk Crossing',kind:'Settlement',blurb:'Transit town: one precinct house, one company store.',
+     op:{name:'Lose the Company Ledgers',desc:'The company store keeps every miner’s debt in a paper ledger. Somebody should misplace them.',c:40,s:40}},
+   ]},
+  {id:'ballakan',name:'Ballakan',kind:'River World',pop:'6M',x:0.60,y:0.50,scout:4,sec:1,sup:3,lib:true,src:'pell',
+   sit:'Jungle the size of continents, one brown river, and the timber barges that carry it to Hegemony shipyards. The law stops at the tollgates.',
+   brief:'Humid river world under unbroken canopy. Timber concessions, barge clans, and a Hegemony that only really governs the tollgates. The forest swallows patrols. The people have never needed a reason to dislike the tolls.',
+   regions:[
+    {id:'canopy',name:'Drowned Canopy',kind:'Region',blurb:'Logging concessions under the flooded canopy.',
+     op:{name:'Cut the Canopy Lines',desc:'Winch lines, feller crawlers and a concession manager who counts trees like credits. Quietly, the lines fail.',c:60,s:35}},
+    {id:'tollgate',name:'Tollgate Landing',kind:'Settlement',blurb:'The river port where every barge pays.',
+     op:{name:'Sink the Tollgate Barge',desc:'The toll barge holds a week of fees. It is scheduled to have an accident.',c:100,s:15}},
+    {id:'sawmill',name:'Sawmill Reach',kind:'Region',blurb:'Mills, dormitories and a payroll run by hand.',
+     op:{name:'Raid the Sawmill Payroll',desc:'The mill pays in cash on the last river day, and the guard changes at noon.',c:110,s:10}},
+   ]},
+  {id:'parity',name:'Parity IV',kind:'Administrative World',pop:'12M',x:0.42,y:0.42,scout:6,sec:3,sup:2,lib:true,src:'cask',
+   sit:'Census towers, archive vaults and cooling fields the size of cities. Everyone on Parity IV is counted, and most of them are counted twice.',
+   brief:'Bureaucratic colony world. Registries, data farms and labour blocks, every citizen catalogued against a quota. The Hegemony’s paperwork is thick here, and so are its patrols.',
+   regions:[
+    {id:'ledger',name:'Ledger Town',kind:'Settlement',blurb:'The registry seat, run by clerks and watched by the Bureau.',
+     op:{name:'Corrupt the Census',desc:'A clerk on the inside, a dozen forged stamps and a quota sheet that suddenly adds up to nothing.',c:70,s:20}},
+    {id:'dataflats',name:'Data Flats',kind:'Region',blurb:'Server farms and cooling fields on the salt plain.',
+     op:{name:'Pull the Data Flats Coolant',desc:'Cut the coolant lines and the servers throttle themselves. The repair crews arrive slowly.',c:50,s:30}},
+    {id:'quota',name:'Quota Blocks',kind:'Region',blurb:'Labour housing, scheduled for ‘reassignment’.',
+     op:{name:'Free the Quota Block',desc:'A night transfer, a locked dormitory and a hundred names someone wants off the list.',c:30,s:50}},
+   ]},
 ];
-const SRCPOS={cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian'};
+const SRCPOS={cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
+
+/* ---------- location model (Security / Access / Support / Liberation) ----------
+   Access (0–5 eyes): Intel buys it. Support (0–5 flags): raised by source events.
+   Liberation (0–100% per region): local ops add it, capped by the LOWER of the
+   Access cap and the Support cap. Tuning values live in ACC_CAP. */
+const ACC_CAP=[0,20,40,60,80,100];
+const SUP_COL=['#2b4a9a','#3f6a9a','#8a6a48','#a24a3a','#b02a2a'];   // low support = dark blue … high = dark red
+const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
+  garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
+for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
+for(const d of PLANETDEF)if(d.regions)for(const r of d.regions){
+  MPOOL['op_'+d.id+'_'+r.id]={name:r.op.name,from:'Local network · '+d.name,need:2,days:2,
+    riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20};
+}
+function mkPlanet(d){
+  const acc=d.access&&!d.base?1:0;
+  return {id:d.id,known:!!d.known,access:!!d.access,scouted:!!d.access&&!d.base,acc,sup:d.sup||0,lib:{},ops:0};
+}
+function locCap(st){return Math.min(ACC_CAP[st.acc||0],ACC_CAP[Math.min(5,Math.floor(st.sup||0))]);}
+function locLib(d,st){
+  if(!d.regions)return null;
+  return Math.round(d.regions.reduce((a,r)=>a+((st.lib&&st.lib[r.id])||0),0)/d.regions.length);
+}
+function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 /* the scripted first contacts of the campaign */
 const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:4},
@@ -295,6 +353,33 @@ const CANDS={
     bio:'Skims the skimmers at the Capital’s docks. Now skims for us.',
     pitch:'<b>Customs Chief Renn</b> runs Meridian’s freight inspections and a private retirement fund. Our scouts caught the fund. He’d rather pay us than the auditors.'},
 };
+CANDS.tess={id:'tess',name:'Tessaly Brandt',type:'Union Steward · Saltreach',loc:'Saltreach, Menk',level:1,cult:15,risk:25,inc:{s:5},
+  bio:'Runs the quarry workers’ mutual-aid fund out of a crawler cab. Has buried more friends than she can name.',
+  pitch:'<b>Tessaly Brandt</b> stewards an illegal mutual-aid fund in the Saltreach pits. Her crews have heard rumours of a rebellion and want to know if it’s real. She would like to be the first to find out.'};
+CANDS.pell={id:'pell',name:'Orrin Pell',type:'Harbourmaster · Tollgate Landing',loc:'Tollgate Landing, Ballakan',level:1,cult:20,risk:15,inc:{c:15},
+  bio:'Collects tolls for the Hegemony and forgets half of them. Knows every barge clan by name.',
+  pitch:'<b>Orrin Pell</b> runs the tollgate at Tollgate Landing and quietly loses about a third of what he collects. A rebellion that remembers him kindly would be worth more than the tolls.'};
+CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger Town',loc:'Ledger Town, Parity IV',level:1,cult:10,risk:35,inc:{i:1},
+  bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
+  pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
+SRC_EVENTS.tess=[
+  {text:'<b>BRANDT:</b> “The company posted a new quota. Ten percent up, same crews, same crushers. People keep asking if you’re real. I told them you were. Don’t make a liar of me.”',
+   opts:[['“Tell them the crushers will be quiet by the end of the week. Tell them who is coming, not when.”','strong'],['“Keep them steady. We’re working on it.”','neutral'],['“Real enough. Get them to stop asking.”','weak']]},
+  {text:'<b>BRANDT:</b> “A foreman beat a boy half to death at Saltreach for dropping a sample tray. Half the pit walked off. If you ever wanted them angry, it’s now.”',
+   opts:[['“Stand with them, Tessaly. Get the boy to a clinic and keep the walkout through shift-change. We’ll make it cost them.”','strong'],['“Keep it peaceful for now.”','neutral'],['“Anger is a resource. Let it burn a few more days.”','weak']]},
+];
+SRC_EVENTS.pell=[
+  {text:'<b>PELL:</b> “The inspectors doubled the barge fees this week. Every hauler on the river is bleeding, and they’d follow a rumour of anyone who’d stop it.”',
+   opts:[['“Then let them hear the rumour, Orrin. Let a few barges ‘lose’ their papers at your gate and see what follows.”','strong'],['“Sit tight. Word travels.”','neutral'],['“Double the fees further. Let them get angry.”','weak']]},
+  {text:'<b>PELL:</b> “A timber agent asked me to keep a manifest ‘unlost’. I said I lose manifests all the time. He said he would check.”',
+   opts:[['“Then lose a real one. Put it somewhere the agent finds it, and let him explain the gap.”','strong'],['“Be careful, Orrin.”','neutral'],['“Leave the barge gate. Come to us.”','weak']]},
+];
+SRC_EVENTS.cask=[
+  {text:'<b>CASK:</b> “The Bureau audited my floor. They read everything. If my records have a hole, the hole has a name, and it’s mine.”',
+   opts:[['“Then we fill the hole, Ione. Tell me which file, and I’ll tell you what goes in it.”','strong'],['“Act normal. Audits end.”','neutral'],['“Burn the evidence. All of it.”','weak']]},
+  {text:'<b>CASK:</b> “I found the labour quota schedule. Blocks of names, all scheduled for ‘reassignment’. Do you want copies, or do you want me to lose the file?”',
+   opts:[['“Copies. And tell the people on them, carefully, who to trust.”','strong'],['“Lose the file, and don’t look at it again.”','neutral'],['“Sell it. Somebody will pay.”','weak']]},
+];
 const RECRUITS={
   Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
   Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
@@ -364,11 +449,12 @@ function openRecruitOffer(src,sig){
   }
   openWin('recruit',{p,must,line});
 }
-function addMission(mid){
+function addMission(mid,quiet){
   if(G.missions.some(m=>m.id===mid))return;
   const m=Object.assign({id:mid,state:'avail',progress:null},MPOOL[mid]);
   G.missions.splice(G.missions.length-1,0,m);
   news('Mission available: <b>'+m.name+'</b> ('+m.from+').','a');
+  if(quiet)return;
   G.misPopQ=G.misPopQ||[];
   G.misPopQ.push(mid);
   sAlert();
@@ -466,11 +552,6 @@ function advanceDay(){
     if(m.progress.daysLeft<=0)resolveMission(m);
     else news(m.name+' — strike team checks in. '+m.progress.daysLeft+' day'+(m.progress.daysLeft>1?'s':'')+' out.','d');
   }
-  G.renown=Math.min(100,G.renown+2+G.sources.filter(s=>s.alive).reduce((a,s)=>a+s.level,0));
-  if(G.renown>=100&&!G.revNoted){
-    G.revNoted=true;
-    news('Three worlds now whisper our name. <b>Revolution Level 2</b> is coming — and so is their intelligence agency. (Future build.)','p');
-  }
   const newAttn=G.sources.find(x=>x.alive&&(x.pendingEvent||x.signal)&&!attn0.has(x.id));
   if(newAttn){flashMsg('◉ <b>'+newAttn.name+'</b> wants to talk');sAlert();}
   const FLAVOR=[
@@ -545,9 +626,9 @@ function resolveMission(m){
       } else {G.credits+=200;rew.push('no berth — Cross fenced for '+C(200));}
     }
     for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
-    G.renown=Math.min(100,G.renown+20);
     G.morale=Math.min(100,G.morale+6);
     m.state='done';m.meta='SUCCESS';
+    missionCredit(m);
     news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
     missionAftermath(m.id);
@@ -602,6 +683,7 @@ function srcAnswer(src,idx){
   const lines=[];
   if(kind==='strong'){
     src.cult=Math.min(100,src.cult+22);src.risk=Math.max(0,src.risk-5);
+    if(SRCPOS[src.id])addSupport(SRCPOS[src.id],0.5);
     lines.push(src.name.split(' ')[0]+' steadies. You can hear it. Cultivation +22, risk −5.');
     if(ev.mission){addMission(ev.mission);lines.push('And they came through: <b>'+MPOOL[ev.mission].name+'</b> is on the board.');}
   } else if(kind==='neutral'){
@@ -622,6 +704,8 @@ function checkCultLevel(src){
     src.level++;src.cult=0;src.risk=Math.max(0,src.risk-15);
     for(const k in src.inc)src.inc[k]=Math.round(src.inc[k]*1.6);
     news('<b>'+src.name+'</b> climbs higher — source level '+src.level+'.','p');
+    revGain(3);
+    if(SRCPOS[src.id])addSupport(SRCPOS[src.id],1);
     sBuild();
     return 'They’ve climbed higher on our behalf — <b>source level '+src.level+'</b>. Better access, better take.';
   }
@@ -673,7 +757,8 @@ function scoutPlanet(id){
   if(!d||!st||st.access||G.intel<d.scout)return;
   G.intel-=d.scout;
   const wasKnown=st.known;
-  st.known=true;st.access=true;st.scouted=true;
+  st.known=true;st.access=true;st.scouted=true;st.acc=Math.max(1,st.acc||0);
+  revGain(2);
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
@@ -686,10 +771,95 @@ function scoutPlanet(id){
   else if(id==='tarsis'){G.supplies+=40;G.morale=Math.min(100,G.morale+4);lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(40)+'. The crew eats well tonight.');}
   else if(id==='nyx'){G.credits+=40;lines.push('The shadowport takes all kinds. First introductions cost us nothing and paid '+C(40)+' in fenced salvage. Recruits drink here.');}
   else if(id==='oubli'){G.intel+=1;lines.push('Empty streets. Forty years of dust. One transmitter, still powered, still listening. We left it that way. '+I(1)+'.');}
-  else if(id==='halcyon'){G.renown=Math.min(100,G.renown+8);lines.push('Brass, beaches, and no idea we were there. Knowing Halcyon exists for us is worth renown alone.');}
+  else if(id==='halcyon'){revGain(4);lines.push('Brass, beaches, and no idea we were there. Knowing Halcyon exists for us is worth progress alone.');}
+  else if(d.lib){
+    G.candQ.push(d.src);
+    syncLocalOps(id,true);
+    lines.push('Our pathfinders mapped '+d.regions.length+' fronts worth contesting: '+d.regions.map(r=>'<b>'+r.name+'</b>').join(', ')+'. Local operations are on the board, and someone on the ground is asking to talk.');
+  }
   sBuild();
-  openWin('comm',{src:{name:'Pathfinder Team',loc:d.name},payload:{lines}});
+  openWin('locBrief',{id,lines});
   saveSnap();syncUI();
+}
+/* ---------- Access, Support, Liberation, and the road to Level 2 ---------- */
+function raiseAccess(id){
+  const d=pdef(id),st=pst(id);
+  if(!d||!st||!st.access||(st.acc||0)>=5)return;
+  const cost=accessCost(d,st);
+  if(G.intel<cost)return;
+  G.intel-=cost;st.acc++;
+  revGain(1);
+  news('<b>'+d.name+'</b>: network Access raised to '+st.acc+'/5.','r');
+  sBuild();
+  syncLocalOps(id);
+  saveSnap();syncUI();renderWin();
+}
+function addSupport(id,n){
+  const d=pdef(id),st=pst(id);
+  if(!d||!st||!st.access||!d.pop||d.pop==='—'||d.pop==='0')return;
+  const before=Math.floor(st.sup||0);
+  st.sup=Math.min(5,(st.sup||0)+n);
+  if(Math.floor(st.sup)>before){
+    revGain(1);
+    news('<b>'+d.name+'</b>: local Support rises to '+Math.floor(st.sup)+'/5.','p');
+    syncLocalOps(id);
+  }
+}
+function revGain(n){
+  if(!G||!(n>0))return;
+  G.renown=Math.min(100,G.renown+n);
+  checkEscalation();
+}
+function checkEscalation(){
+  if(G.renown>=100&&!G.revNoted){
+    G.revNoted=true;G.escPending=true;
+    news('The Hegemony has noticed. <b>Revolution Level 2</b>.','p');
+    if(!winMode)openEscalation();
+  }
+}
+function openEscalation(){
+  if(!G.escPending)return false;
+  G.escPending=false;G.revLevel=2;
+  openWin('escalate');sAlert();
+  return true;
+}
+/* a local op waits on the board for every region that can still move */
+function syncLocalOps(id,quiet){
+  const d=pdef(id),st=pst(id);
+  if(!d||!d.regions||!st||!st.access)return;
+  for(const r of d.regions){
+    const mid='op_'+id+'_'+r.id;
+    const cur=G.missions.find(m=>m.id===mid);
+    if(cur&&cur.state==='done')G.missions.splice(G.missions.indexOf(cur),1);
+    if(G.missions.some(m=>m.id===mid))continue;
+    const pct=(st.lib&&st.lib[r.id])||0;
+    if(pct>=100||pct>=locCap(st))continue;
+    addMission(mid,true);
+    if(!quiet)news('New local op in <b>'+r.name+'</b>, '+d.name+'.','a');
+  }
+}
+/* every finished mission feeds the progress meter; a new location is worth the most */
+function missionCredit(m){
+  let gain=3;
+  const st=m.loc?pst(m.loc):null,d=m.loc?pdef(m.loc):null;
+  if(st){
+    st.ops=(st.ops||0)+1;
+    gain+=st.ops===1?5:st.ops===2?2:0;
+    if(m.region&&m.lib&&d&&d.regions){
+      const r=d.regions.find(x=>x.id===m.region);
+      const cur=st.lib[m.region]||0,cap=locCap(st);
+      const to=Math.max(cur,Math.min(cap,cur+m.lib));
+      st.lib[m.region]=to;
+      if(to>cur){
+        gain+=(to-cur)*0.08;
+        news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
+        if(to>=100){gain+=6;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('⚑ <b>'+r.name+'</b> liberated');}
+      }
+    }
+  }
+  revGain(gain);
+  news('Revolution progress +'+(Math.round(gain*10)/10)+' ('+Math.round(G.renown)+'/100).','d');
+  if(m.loc)syncLocalOps(m.loc);
 }
 /* ---------- audio ---------- */
 function sDay(){osc('sine',90,45,0.28,0.5);nz('bandpass',400,2,0.1,0.5,0,1200);}
@@ -947,7 +1117,7 @@ function renderRoomBar(){
   } else if(rm.key==='comms'){
     info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+staffLine('comms');
   } else if(rm.key==='command'){
-    info='Renown '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk)+staffLine('command');
+    info='Revolution progress '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk)+staffLine('command');
   } else if(rm.key==='workshop'){
     info='Repair pace '+(staffOf('workshop').length?15:8)+'%/day'+staffLine('workshop');
   }
@@ -1154,6 +1324,34 @@ function renderRoomView(now){
   ctx.restore();
 }
 
+/* ---------- location stats (Security / Access / Support / Liberation) ---------- */
+function pipRow(n,max,glyph,colFn){
+  let h='';
+  for(let i=0;i<max;i++)h+='<i class="pip'+(i<n?' on':'')+'"'+(i<n&&colFn?' style="color:'+colFn(i,n)+'"':'')+'>'+glyph+'</i>';
+  return h;
+}
+function libWheel(pct){return '<span class="libwheel" style="--p:'+pct+'%" title="'+pct+'% liberated"><b>'+pct+'</b></span>';}
+function locStatsHTML(d,st){
+  const sup=Math.floor(st.sup||0),cap=locCap(st),lib=locLib(d,st);
+  let h='<div class="locstats">'+
+    '<div class="lstat"><span class="ll">Security</span><span class="lp sec">'+pipRow(d.sec,5,'⛨')+'</span></div>'+
+    '<div class="lstat"><span class="ll">Access</span><span class="lp acc">'+pipRow(st.acc||0,5,'◉')+'</span></div>'+
+    '<div class="lstat"><span class="ll">Support</span><span class="lp sup">'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,'⚑',i=>SUP_COL[Math.max(0,sup-1)]):'<span class="pdesc">no population</span>')+'</span></div>'+
+    '<div class="lstat"><span class="ll">Liberation</span><span class="lp">'+(lib===null?'<span class="pdesc">no liberation front charted</span>':libWheel(lib))+'</span></div>'+
+  '</div>';
+  if(d.regions){
+    h+='<div class="dz-sec">Regions</div>'+d.regions.map(r=>{
+      const pct=(st.lib&&st.lib[r.id])||0;
+      const state=pct>=100?'liberated':pct>0?'contested':'Hegemony';
+      return '<div class="regrow '+state+'"><span class="rn">'+r.name+' <em>'+r.kind+'</em></span><span class="rs">'+(pct>=100?'LIBERATED':pct>0?'CONTESTED':'HEGEMONY')+'</span>'+
+        '<span class="rbar"><i style="width:'+pct+'%"></i><u style="left:'+cap+'%"></u></span><span class="rp">'+pct+'%</span></div>';
+    }).join('');
+    const bind=ACC_CAP[st.acc||0]<=ACC_CAP[Math.min(5,sup)]?'Access':'Support';
+    if(cap<100)h+='<div class="pdesc capnote">Liberation is capped at <b>'+cap+'%</b> by '+bind+' (the lower of Access and Support). '+(bind==='Access'?'Spend Intel to deepen Access.':'Local Sources win hearts and minds.')+'</div>';
+  }
+  return h;
+}
+
 /* ---------- galaxy + comm canvases (drawn while their windows are open) ---------- */
 function drawGalaxy(now){
   const g=$('galaxyCv');
@@ -1222,7 +1420,13 @@ function drawGalaxy(now){
       c2.strokeRect(x+R+4,y-R-9,6,5);
       c2.beginPath();c2.arc(x+R+7,y-R-9,2.4,Math.PI,0);c2.stroke();
     }
-    if(selHere){c2.strokeStyle='#ffb454';c2.lineWidth=1.6;c2.beginPath();c2.arc(x,y,R+9,0,7);c2.stroke();}
+    if(d.regions&&st.access){
+      const lb=locLib(d,st)/100;
+      c2.strokeStyle='rgba(255,90,80,0.25)';c2.lineWidth=2.4;
+      c2.beginPath();c2.arc(x,y,R+8,0,7);c2.stroke();
+      if(lb>0){c2.strokeStyle='#ff5a50';c2.beginPath();c2.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);c2.stroke();}
+    }
+    if(selHere){c2.strokeStyle='#ffb454';c2.lineWidth=1.6;c2.beginPath();c2.arc(x,y,R+12,0,7);c2.stroke();}
     c2.font='600 9.5px "Exo 2"';c2.textAlign='center';
     c2.fillStyle=st.access?'rgba(205,216,236,0.95)':'rgba(150,165,195,0.8)';
     c2.fillText(d.name,x,y-R-9);
@@ -1443,7 +1647,9 @@ function closeWin(){
   }
   if(started&&G&&G.candQ&&G.candQ.length){
     openWin('candidate',G.candQ.shift());
+    return;
   }
+  if(started&&G&&G.escPending)openEscalation();
 }
 function meter(cls,label,val){
   return '<div class="meter '+cls+'"><span class="ml">'+label+'</span><span class="mt"><i style="width:'+Math.min(100,val)+'%"></i></span><span class="mv">'+Math.round(val)+'</span></div>';
@@ -1533,8 +1739,11 @@ function renderWin(){
           '<span class="plkind">'+(st.known?(d.kind+(d.pop?' · pop '+d.pop:'')):'the Verge · origin unknown')+'</span>'+
           '<span class="placcess" style="color:'+(st.access?'var(--reb)':'var(--dim)')+'">'+(st.access?'ACCESS':'NO ACCESS')+'</span></div>'+
           '<div class="plsit">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
+          (st.access?locStatsHTML(d,st):'')+
           (st.access?'':'<button class="sbtn'+(G.intel>=d.scout?' attn':'')+'" data-scout="'+d.id+'" '+(G.intel>=d.scout?'':'disabled')+'>Scout & gain access · '+I(d.scout)+'</button>'+
             (G.intel<d.scout?'<span class="pdesc" style="margin-left:8px">not enough intel — work the network</span>':''))+
+          (st.access&&(st.acc||0)<5?'<button class="sbtn'+(G.intel>=accessCost(d,st)?'':'')+'" data-raise="'+d.id+'" '+(G.intel>=accessCost(d,st)?'':'disabled')+'>Raise Access to '+((st.acc||0)+1)+' · '+I(accessCost(d,st))+'</button>'+
+            (G.intel<accessCost(d,st)?'<span class="pdesc" style="margin-left:8px">more Hegemony presence, more Intel</span>':''):'')+
           '</div>';
         // sources stationed there
         const here=alive.filter(s2=>(SRCPOS[s2.id]||'veray')===d.id);
@@ -1600,6 +1809,26 @@ function renderWin(){
       '<button class="dbtn" '+(m.lead?'data-mlead':'data-mplan')+'="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
       '<button class="dbtn" data-close>Later</button>'+
       '</div>';
+  }
+  else if(winMode==='locBrief'){
+    const d=pdef(winArg.id),st=pst(winArg.id);
+    card.classList.add('narrow');
+    h='<div class="winHead"><span class="wt">Location Briefing · '+d.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
+      '<div class="locbrief"><div class="lbquote">'+(d.brief||d.sit)+'</div>'+
+      '<div class="lbmeta"><span>Population <b>'+(d.pop||'—')+'</b></span>'+(d.regions?'<span>Regions <b>'+d.regions.length+'</b></span>':'')+'<span>'+d.kind+'</span></div>'+
+      locStatsHTML(d,st)+'</div>'+
+      '<div class="dz-sec">Pathfinder report</div>'+
+      winArg.lines.map(l=>'<p class="pdesc" style="margin:0 0 7px;font-size:11.5px;line-height:1.5">'+l+'</p>').join('')+
+      '<button class="dbtn" data-close style="margin-top:8px"><b>Continue</b></button></div>';
+  }
+  else if(winMode==='escalate'){
+    card.classList.add('narrow');
+    h='<div class="winBody escal"><div class="escrings"><i></i><i></i><i></i><span class="escn">2</span></div>'+
+      '<div class="esct">Revolution Level 2</div>'+
+      '<div class="escs">NOTICED</div>'+
+      '<p class="pdesc" style="font-size:12px;line-height:1.6;margin:10px 0">Somewhere in the Hegemony’s bloated institutions, a report has reached the wrong desk. Your raids were never just crime. The Bureau has a file on you now, and the file has a name.</p>'+
+      '<p class="pdesc" style="font-size:10.5px;opacity:.7;margin:0 0 10px">Level 2 content is coming in a future build. Keep building the revolution.</p>'+
+      '<button class="dbtn" data-close><b>Continue</b></button></div>';
   }
   else if(winMode==='cassIntro'){
     card.classList.add('narrow');
@@ -1755,8 +1984,11 @@ function syncUI(){
   $('resC').textContent=Math.round(G.credits);
   $('resS').textContent=Math.round(G.supplies);
   $('resI').textContent=Math.round(G.intel);
-  $('revNum').textContent='1';
-  $('revTip').innerHTML='<b>Revolution Level 1</b> — criminals, as far as the Hegemony cares.<br>Renown '+Math.round(G.renown)+'/100 toward Level 2.<br>Network exposure: '+Math.round(G.risk)+'.';
+  const lvl=G.revLevel||1;
+  $('revNum').textContent=lvl;
+  $('revTip').innerHTML=lvl>=2?
+    '<b>Revolution Level 2</b> — the Hegemony has noticed. Level 2 content is a future build.<br>Network exposure: '+Math.round(G.risk)+'.':
+    '<b>Revolution Level 1</b> — criminals, as far as the Hegemony cares.<br>Progress '+Math.round(G.renown)+'/100 toward Level 2: missions across many worlds, liberated regions, local Support and a growing network.<br>Network exposure: '+Math.round(G.risk)+'.';
   $('revLamp').classList.toggle('hot',G.renown>=90);
   const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length
     +(G.onboard==='contact'?1:0); // the first contact is waiting — point the new player at the network
@@ -1970,6 +2202,8 @@ $('winsB').addEventListener('click',ev=>{
   if(cand){if(cand==='no'){news('The contact is burned. They never hear back.','d');closeWin();}else acceptCandidate(cand);return;}
   const scout=t.getAttribute('data-scout');
   if(scout){scoutPlanet(scout);return;}
+  const raise=t.getAttribute('data-raise');
+  if(raise){raiseAccess(raise);return;}
   const plan=t.getAttribute('data-plan');
   if(plan){const m=G.missions.find(x=>x.id===plan);if(m){planLead=false;openWin('plan',m);}return;}
   const mplan=t.getAttribute('data-mplan');
@@ -2218,7 +2452,7 @@ function applyDebrief(r){
   if(m){
     if(r.win){
       m.state='done';m.meta='SUCCESS';
-      G.renown=Math.min(100,G.renown+20);
+      missionCredit(m);
       G.morale=Math.min(100,G.morale+6);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
       sBuild();
@@ -2262,7 +2496,16 @@ function restoreCampaign(data){
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
     G.candQ=G.candQ||[];
-    if(!G.planets)G.planets=PLANETDEF.map(p=>({id:p.id,known:!!p.known,access:!!p.access,scouted:!!p.access&&!p.base}));
+    if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
+    for(const d of PLANETDEF){
+      let st=G.planets.find(x=>x.id===d.id);
+      if(!st){st=mkPlanet(d);G.planets.push(st);}
+      if(st.acc===undefined)st.acc=st.access&&!d.base?1:0;
+      if(st.sup===undefined)st.sup=d.sup||0;
+      if(!st.lib)st.lib={};
+      if(st.ops===undefined)st.ops=0;
+    }
+    if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
     // refresh static mission fields (play links, ground flags) from the pool
@@ -2315,6 +2558,7 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{addMission,leadMission,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
-      ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt}};
+      ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
+      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin}};
 }
 })();

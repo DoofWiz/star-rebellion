@@ -480,12 +480,34 @@ Each location has four statistics:
   Quarter tasks.
 - **Liberation** (0–100%): derived from the liberation of the location's **regions and
   settlements** (Hegemony-controlled, contested, revolution-controlled).
-- **Scale:** keep the existing worlds and give each 2–4 regions. Only two or three worlds
-  need to be liberation-ready in Level 1; the rest are scouting and mission targets.
+- **Scale:** the existing worlds keep Security, Access and Support but have no regions.
+  Three new **liberation-ready outworlds** carry 3 regions each: **Menk** (quarry world,
+  Security 2), **Ballakan** (river world, Security 1) and **Parity IV** (administrative
+  world, Security 3). The rest are scouting and mission targets.
 - **Liberating a region:** missions in the region add liberation %. Progress is capped by
   **both Access and Support: the lower of the two applies.** (Cap curve per level is a
-  tuning value, initially 20/40/60/80/100%.)
+  tuning value, initially 20/40/60/80/100%.) Reaching 100% in a region therefore needs
+  Access 5 *and* Support 5 in that location.
+- **Raising Access:** costs Intel: `Security + current Access + 1`. The first unlock is the
+  world's scout cost and gives Access 1.
+- **Raising Support:** only by narrative means. Missions do *not* raise Support. A strong
+  answer in a Source conversation gives that location +0.5, and a Source levelling up gives
+  +1. (The Diplomatic Quarter will add tasks later.)
 - First access to a location shows a cinematic briefing popup with its statistics.
+- **Local ops (placeholder).** Until the mission framework lands, each liberation-ready
+  world puts one abstract "local op" on the board per region that can still move
+  (liberation below 100% and below the cap). Each adds 20% to its region. They resolve with
+  the old abstract resolver and will be replaced by real missions.
+
+### Revolution progress meter
+Implemented as one 0–100 meter. It has **no daily trickle**; it only moves when the player
+acts:
+- **Mission success:** +3, plus +5 for the first success in a location and +2 for the second.
+- **Liberation:** +0.08 per % liberated, and +6 when a region reaches 100%.
+- **Access:** +2 for first unlocking a location, +1 per Access level after.
+- **Support:** +1 per Support level gained. **Source level-up:** +3.
+At 100 the **escalation animation** plays once and the lamp shows 2. All weights are tuning
+values. Old saves are clamped to 40 when first loaded.
 
 ### Missions
 - Missions come from Sources and from Intelligence (map markers, from Access 2). Alerts are
@@ -508,7 +530,7 @@ Each location has four statistics:
 - Sources screen UX flow.
 - Unfinished Revolution Level 2 and 4 reward notes, and one Sources player story.
 - Naming: "Hegemony" vs. one occurrence of "Imperium" (Assets section).
-- Enemy tiers: the Enemies doc lists Frontier lawmen under Rev Tier 3 (Dustfall uses them
-  at Level 1) and Bureau Officer under both Tier 1 and Tier 2.
 - Missions doc: tier names are cut off; Tier 1 rewards are blank for several missions.
+  (Resolved: the Outworlder enemies are Level 1 only. Directives are WIP and ignored.
+  Disrupt Comm Towers is Tier 2 and out of Level 1 scope.)
 - Foot combat and boarding action rulesets.
