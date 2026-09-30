@@ -45,17 +45,17 @@ const ROOMS={
   quarters:{name:'Barracks Annex',col:'#57d7e2',desc:'Three more bunks. The rebellion keeps growing.'},
 };
 const BUILDS={
-  store:{c:50,m:20,days:1},
-  comms:{c:120,m:30,days:2},
-  workshop:{c:100,m:40,days:2},
-  infirmary:{c:90,m:20,s:15,days:2},
-  training:{c:80,m:25,s:10,days:1},
-  bay:{c:60,m:50,days:1},
-  quarters:{c:70,m:30,s:15,days:1},
+  store:{c:200,m:80,days:1},
+  comms:{c:480,m:120,days:2},
+  workshop:{c:400,m:160,days:2},
+  infirmary:{c:360,m:80,s:60,days:2},
+  training:{c:320,m:100,s:40,days:1},
+  bay:{c:240,m:200,days:1},
+  quarters:{c:280,m:120,s:60,days:1},
 };
-const EXCAVATE={m:10,days:1};
+const EXCAVATE={m:40,days:1};
 /* fuel burned per ship on a sortie */
-const FUEL_COST={graf:4,cross:6,talon:6};
+const FUEL_COST={graf:16,cross:24,talon:24};
 const fuelOf=f=>FUEL_COST[f.cls]||5;
 const SHIPSTATS={
   cross:{label:'FT-4 Cross · Multi-role Starfighter',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
@@ -81,7 +81,7 @@ function newGame(){
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   return {
-    day:1,credits:250,supplies:120,materials:100,fuel:60,intel:3,renown:8,risk:10,morale:65,introDone:false,
+    day:1,credits:1000,supplies:480,materials:400,fuel:240,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[],
     wreck:{restored:false,restoring:0},
@@ -117,7 +117,7 @@ function bunkCap(){return 5+3*roomsOf('quarters').length;}
 /* Support crew man stations; a room without its operator underperforms */
 const STAFFABLE={
   command:{post:'Flight Coordinator',perk:'+5% mission success'},
-  store:{post:'Quartermaster',perk:'repairs cost 1⚙ instead of 2⚙'},
+  store:{post:'Quartermaster',perk:'repairs cost 4⚙ instead of 8⚙'},
   workshop:{post:'Crew Chief',perk:'repairs 15%/day instead of 8%'},
   infirmary:{post:'Medic',perk:'injuries heal twice as fast'},
   comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
@@ -185,16 +185,16 @@ const SRC_EVENTS={
 const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
     desc:'A Hegemony flight instructor — Commandant Dral Vex — trains the next class of killers over the drift, four cadets at a time. Kill the teacher before the lessons take.',
-    rew:{c:100,i:2,xp:0.2}},
+    rew:{c:400,i:2,xp:0.2}},
   intercept:{name:'Intercept Transport',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
     desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
-    rew:{c:150,s:35,xp:0.15}},
+    rew:{c:600,s:140,xp:0.15}},
   tanker:{name:'Tanker Grab',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
     desc:'Halt’s manifests were real: a fuel tanker, twice the load, half the escort. Take it whole.',
-    rew:{c:80,s:60,xp:0.15}},
+    rew:{c:320,s:240,xp:0.15}},
   skim:{name:'Escort the Skim',from:'Sen. Vokk',need:2,days:2,riskTxt:'Low',
     desc:'Vokk’s shell-company transfer needs quiet guns for two days. Boring flying, beautiful money.',
-    rew:{c:220,xp:0.1}},
+    rew:{c:700,xp:0.1}},
   fighters:{name:'Steal Hegemony Fighters',from:'Ferren Halt',need:2,days:3,riskTxt:'High',
     desc:'Pad nine, every third night: two fueled Talons and one bored sentry. Fly one home.',
     rew:{fighter:1,xp:0.2}},
@@ -203,20 +203,20 @@ const MPOOL={
     rew:{i:4,xp:0.1}},
   garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
-    rew:{c:60,s:25,xp:0.12}},
+    rew:{c:240,s:100,xp:0.12}},
   depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
     desc:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
     rew:{i:5,xp:0.2}},
   stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
     lead:'ground',leadTxt:'Fight it on the ground',ground:true,
     desc:'Dustfall keeps one FT-4 Cross on the pad behind the sheriff’s HQ. The FT-4 is built for frontier sheriffs who need something cheap and reliable to deter smugglers and gangs in their turf. When you strap more guns and missiles to it however, it becomes rather useful in a pinch. Sheriff Reeve enforces Hegemony law here. Walk a pilot to the pad and fly it home.',
-    rew:{cross:1,c:120,s:30,xp:0.2}},
+    rew:{cross:1,c:500,s:120,xp:0.2}},
   orehaul:{name:'Dreymar Ore Heist',from:'Scout Report · Dreymar',need:2,days:3,riskTxt:'Moderate',
     desc:'A company ore barge runs unescorted on payday. The miners will swear they saw nothing.',
-    rew:{c:90,s:50,xp:0.15}},
+    rew:{c:360,s:200,xp:0.15}},
   foundry:{name:'Volund Manifest Job',from:'Scout Report · Volund',need:2,days:3,riskTxt:'High',
     desc:'Freight manifests from the Forge — every convoy, every escort, every gap. Worth more than the steel.',
-    rew:{c:120,i:3,xp:0.2}},
+    rew:{c:480,i:3,xp:0.2}},
 };
 const SIGNALS={
   halt:[
@@ -224,13 +224,13 @@ const SIGNALS={
     {kind:'mission',mid:'intercept',text:'“A supply transport crosses my sector Thursday. Light escort. I have the schedule, if you have the nerve.”'},
     {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
     {kind:'cache',text:'“Pallet miscount in bay six. Forty crates of it. Nobody misses what was never counted.”',
-     apply(){G.supplies+=40;return 'Recovered '+S(40)+' from bay six. Mira is thrilled.';}},
+     apply(){G.supplies+=160;return 'Recovered '+S(160)+' from bay six. Mira is thrilled.';}},
     {kind:'recruitS',text:'“The tower coordinator got passed over, same as me. He’d run your flight deck better than theirs.”'},
     {kind:'mission',mid:'fighters',text:'“Pad nine, every third night. Two Talons, fueled, and a sentry who reads on shift.”'},
   ],
   vokk:[
     {kind:'credits',text:'“A discretionary fund has been… discreet. Consider it a donation from the Hegemony to itself.”',
-     apply(){G.credits+=120;return 'The Senator’s laundering clears '+C(120)+'.';}},
+     apply(){G.credits+=480;return 'The Senator’s laundering clears '+C(480)+'.';}},
     {kind:'recruitS',text:'“My aide has seen too much to stay and too little to be arrested. Take him before someone else does.”'},
     {kind:'intel',text:'“Committee minutes, pre-redaction. Read them before they don’t exist.”',
      apply(){G.intel+=2;return 'Parliament whispers become '+I(2)+'.';}},
@@ -365,8 +365,18 @@ MPOOL.autofactory={name:'Blow Up Auto Factory',from:'Tessaly Brandt',src:'tess',
   req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{id:'charge',n:1,label:'Explosive Charge'}]},
   desc:'Menk\u2019s salt and labour pour into the Kiln Ridge Autoworks, which turns out Policebots by the thousand. The whole line runs off one Power Plant on the north side. Plant a charge on the main breaker, get clear, and let the lights go out.',
   objectives:['Plant the explosive at the Power Plant\u2019s main breaker','Detonate it from a safe distance','(Optional) Do it without the enemy realising you were there','Board the Marta'],
-  rew:{c:100,m:40,xp:0.2},bonus:{i:2,c:60},
+  rew:{c:450,m:160,xp:0.2},bonus:{i:2,c:250},
   after:['<b>BRANDT:</b> \u201cThe night shift walked out into the salt to watch it burn. Nobody went back in. The foreman is asking who gave the orders, and nobody can remember there being any.\u201d']};
+/* Steal Intelligence (Tier 1): the databank hack needs a Field Technician on the team */
+MPOOL.stealintel={name:'Steal Intelligence',from:'Ione Cask',src:'cask',need:3,days:2,riskTxt:'Moderate',
+  lead:'ground',ground:true,type:'ground',scenario:'intel',
+  loc:'parity',region:'dataflats',lib:15,
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0,
+    spec:{key:'fieldtech',label:'Field Technician',hint:'Missing Field Technician: train a soldier to level 3 and use the Training Center to give them the Field Technician specialty to attempt this mission.'}},
+  desc:'The Bureau keeps its Parity IV records on a server farm out on the Data Flats, behind a fence and a handful of Policebots. Ione Cask can get us a map and a time. What we copy out of those racks could be turned against the Hegemony for years. Somebody has to break in and crack the databank.',
+  objectives:['Hack into the Hegemony databanks at the Data Flats server hall','Extract with the stolen data'],
+  rew:{c:400,i:6,xp:0.3},
+  after:['<b>CASK:</b> \u201cThe drive arrived. I have been reading for six hours and I cannot stop shaking. There are names in there, Commander. Names we can protect. Thank you.\u201d']};
 /* Rescue Dissident (Tier 1): the prisoner is drawn from the recruit pool and can join us */
 MPOOL.rescue={name:'Rescue Dissident',from:'Orrin Pell',src:'pell',need:3,days:2,riskTxt:'Moderate',
   lead:'ground',ground:true,type:'ground',scenario:'rescue',npcRole:'Support',
@@ -383,17 +393,17 @@ MPOOL.stealfuel={name:'Steal Fuel',from:'Cass Wender',src:'cass',need:3,days:2,r
   req:{team:3,teamRole:'Soldier',transport:1,prize:0},
   desc:'Every herder on Brakka pays the fuel tithe, and every drop of it ends up in the Redrock depot: tanks, a pump house and a bored guard detail. We need fuel to keep the ships running. Get in, call the Marta down onto the apron, and hold the pumps while she drinks.',
   objectives:['Reach the fuel depot on Redrock Flats','Call in the Marta and land her on the apron','Defend her while the tanks fill (5 rounds)','Board and lift off'],
-  rew:{f:60,c:40,xp:0.2},
+  rew:{f:240,c:300,xp:0.2},
   after:['<b>WENDER:</b> “Full tanks and a depot that will spend a month explaining where the tithe went. The herders are already telling the story. Not bad for a ragged crew with one hauler.”']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
 const SEATS={graf:4};     // troop seats per transport
-MPOOL.tanker.rew.f=60;MPOOL.intercept.rew.m=25;MPOOL.orehaul.rew.m=45;MPOOL.foundry.rew.m=30;MPOOL.garrison.rew.m=20;
+MPOOL.tanker.rew.f=240;MPOOL.intercept.rew.m=100;MPOOL.orehaul.rew.m=180;MPOOL.foundry.rew.m=120;MPOOL.garrison.rew.m=80;
 for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
   MPOOL['op_'+d.id+'_'+r.id]={name:r.op.name,from:'Local network · '+d.name,need:2,days:2,
-    riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20,
+    riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c*4,s:(r.op.s||0)*4,xp:0.12},loc:d.id,region:r.id,lib:20,
     objectives:['Reach the target in '+r.name,'Strike, then get clear'],type:'abstract'};
 }
-const OPX={op_menk_saltreach:{m:30},op_menk_kilnridge:{m:35},op_ballakan_canopy:{m:45},op_ballakan_sawmill:{m:30},op_brakka_flats:{m:25}};
+const OPX={op_menk_saltreach:{m:120},op_menk_kilnridge:{m:140},op_ballakan_canopy:{m:180},op_ballakan_sawmill:{m:120},op_brakka_flats:{m:100}};
 for(const k in OPX)if(MPOOL[k])Object.assign(MPOOL[k].rew,OPX[k]);
 
 function mkPlanet(d){
@@ -408,9 +418,9 @@ function locLib(d,st){
 function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 /* the scripted first contacts of the campaign */
 const STORY_SRC={
-  cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:4},
+  cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
     bio:'Flew you in and didn’t ask questions. Knows every pad, every price, and every sheriff’s bad habit between here and the core.'},
-  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:12},
+  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:48},
     bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
 };
 function addStorySource(id){
@@ -421,30 +431,31 @@ function addStorySource(id){
   return src;
 }
 const CANDS={
-  halt:{id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,inc:{s:6},
+  halt:{id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,inc:{s:24},
     bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.',
     pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Brakka depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
-  vokk:{id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,inc:{c:25},
+  vokk:{id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,inc:{c:100},
     bio:'Votes loyal, funds otherwise. Terrified of audits.',
     pitch:'<b>Senator Adria Vokk</b> votes loyal and funds otherwise. Her courier found ours at Relay Kess with a first payment and one condition: no one ever says her name aloud.'},
   marr:{id:'marr',name:'Prof. Etta Marr',type:'Scientist',loc:'Callis Institute',level:1,cult:10,risk:20,inc:{i:1},
     bio:'Astrophysicist with cordoned-sector clearance and a brother in a labor camp.',
     pitch:'<b>Prof. Etta Marr</b>, astrophysicist, Callis Institute. Cordoned-sector clearance, a brother in a labor camp, and a dead drop that found us the day we got eyes on Callis. She’s offering hers.'},
-  renn:{id:'renn',name:'Customs Chief Renn',type:'Officer · Customs',loc:'Meridian Docks',level:1,cult:15,risk:30,inc:{c:30},
+  renn:{id:'renn',name:'Customs Chief Renn',type:'Officer · Customs',loc:'Meridian Docks',level:1,cult:15,risk:30,inc:{c:120},
     bio:'Skims the skimmers at the Capital’s docks. Now skims for us.',
     pitch:'<b>Customs Chief Renn</b> runs Meridian’s freight inspections and a private retirement fund. Our scouts caught the fund. He’d rather pay us than the auditors.'},
 };
-STORY_SRC.cass.inc.f=2;CANDS.halt.inc.f=3;
-CANDS.tess={id:'tess',name:'Tessaly Brandt',type:'Union Steward · Saltreach',loc:'Saltreach, Menk',level:1,cult:15,risk:25,inc:{s:5},
+STORY_SRC.cass.inc.f=8;CANDS.halt.inc.f=12;
+CANDS.tess={id:'tess',name:'Tessaly Brandt',type:'Union Steward · Saltreach',loc:'Saltreach, Menk',level:1,cult:15,risk:25,inc:{s:20},
   bio:'Runs the quarry workers’ mutual-aid fund out of a crawler cab. Has buried more friends than she can name.',
   pitch:'<b>Tessaly Brandt</b> stewards an illegal mutual-aid fund in the Saltreach pits. Her crews have heard rumours of a rebellion and want to know if it’s real. She would like to be the first to find out.'};
-CANDS.pell={id:'pell',name:'Orrin Pell',type:'Harbourmaster · Tollgate Landing',loc:'Tollgate Landing, Ballakan',level:1,cult:20,risk:15,inc:{c:15},
+CANDS.pell={id:'pell',name:'Orrin Pell',type:'Harbourmaster · Tollgate Landing',loc:'Tollgate Landing, Ballakan',level:1,cult:20,risk:15,inc:{c:60},
   bio:'Collects tolls for the Hegemony and forgets half of them. Knows every barge clan by name.',
   pitch:'<b>Orrin Pell</b> runs the tollgate at Tollgate Landing and quietly loses about a third of what he collects. A rebellion that remembers him kindly would be worth more than the tolls.'};
 CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger Town',loc:'Ledger Town, Parity IV',level:1,cult:10,risk:35,inc:{i:1},
   bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
   pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
-CANDS.tess.inc.m=3;CANDS.pell.inc.m=3;
+CANDS.tess.inc.m=12;CANDS.pell.inc.m=12;
+SIGNALS.cask=[{kind:'mission',mid:'stealintel',text:'\u201cThe Data Flats farm holds the registry backups: every name, every quota, every dissident file. There is a fence, some Policebots, and a terminal bank in the east hall that nobody patrols at night. You will need someone who can actually crack a databank.\u201d'}];
 SIGNALS.pell=[{kind:'mission',mid:'rescue',text:'\u201cThey picked up a voice off the river last night and put it in the tollgate lockup. A lot of barge clans would follow that voice, and the Hegemony knows it. The outpost is thin on guards and thick on locks. If someone could open one, I would make sure nobody saw a thing.\u201d'}];
 SIGNALS.tess=[{kind:'mission',mid:'autofactory',text:'\u201cThe Autoworks at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'}];
 SRC_EVENTS.tess=[
@@ -613,12 +624,13 @@ function advanceDay(){
     }
   }
   const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-  G.fuel+=1;   // the old hangar-cave tanks weep a little every day
-  const repCost=staffOf('store').length?1:2;
+  G.fuel+=4;   // the old hangar-cave tanks weep a little every day
+  const repCost=staffOf('store').length?4:8;
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
     if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,f.hull+rate);}
   }
+  specTick();
   const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
     if(p.injured>0){
@@ -729,6 +741,58 @@ function missionAftermath(mid){
     syncLocalOps('brakka',true);
   }
 }
+/* ---------- specialties (Training Center) ----------
+   At level 3 a soldier or pilot can train into a specialty. Only some have effects yet. */
+const SPECS={
+  Soldier:[
+    {k:'fieldtech',n:'Field Technician',live:1,d:'Sets up field tech, hacks terminals and technical objectives.'},
+    {k:'vanguard',n:'Vanguard',live:1,d:'Expert in all small arms: +1 aim.'},
+    {k:'gunner',n:'Gunner',d:'Heavy, portable or fixed weaponry such as machine guns.'},
+    {k:'commando',n:'Commando',d:'Stealth, attacking from stealth and evading attacks.'},
+    {k:'assault',n:'Assault',d:'Projectile explosive, anti-vehicle and anti-ship weapons.'},
+    {k:'medic',n:'Combat Medic',d:'Healing and reviving downed squad mates.'},
+    {k:'demolitions',n:'Demolitions Specialist',d:'Explosives in missions and for specific objectives.'},
+    {k:'marksman',n:'Marksman',d:'Long-range ballistic and plasma weaponry.'},
+    {k:'commander',n:'Commander',d:'Bonuses for the rest of the mission team.'},
+    {k:'driver',n:'Driver',d:'Handling vehicles.'},
+  ],
+  Pilot:[
+    {k:'dogfighter',n:'Dogfighter',live:1,d:'Combat with other starfighters: +1 aim.'},
+    {k:'leader',n:'Leader',d:'Synergy bonuses for every ship in the wing.'},
+    {k:'bomber',n:'Bomber',d:'Bombs and the ships that carry them.'},
+    {k:'firesupport',n:'Fire Support',d:'Enhanced fire support for ground allies.'},
+    {k:'flighteng',n:'Flight Engineer',d:'Technical buffs to their ship and others.'},
+    {k:'shipbuster',n:'Shipbuster',d:'Torpedoes and attacks on fixed points.'},
+  ],
+};
+const SPEC_DAYS=3;
+const SPECNAME={};for(const r in SPECS)for(const x of SPECS[r])SPECNAME[x.k]=x.n;
+const specRole=p=>(p.role==='Pilot'?'Pilot':(p.role==='Soldier'||p.role==='Marine')?'Soldier':null);
+const specOf=p=>p.spec?SPECNAME[p.spec]:'';
+const inTraining=role=>G.people.find(p=>p.assign==='spec'&&specRole(p)===role);
+function startSpec(pid,k){
+  const p=G.people.find(x=>x.id===pid);
+  if(!p||!hasRoom('training'))return;
+  const role=specRole(p);
+  if(!role||p.level<3||p.spec||p.injured||p.assign==='mission'||inTraining(role))return;
+  const sp=SPECS[role].find(x=>x.k===k);
+  if(!sp||!sp.live)return;
+  p.assign='spec';p.specTrain={k,days:SPEC_DAYS};
+  news('<b>'+p.name+'</b> begins <b>'+sp.n+'</b> training, '+SPEC_DAYS+' days.','a');
+  sBuild();saveSnap();syncUI();renderWin();
+}
+function specTick(){
+  for(const p of G.people){
+    if(p.assign!=='spec'||!p.specTrain)continue;
+    if(p.injured){p.assign='rest';p.specTrain=null;continue;}
+    p.specTrain.days--;
+    if(p.specTrain.days<=0){
+      p.spec=p.specTrain.k;p.specTrain=null;p.assign='rest';
+      news('<b>'+p.name+'</b> graduates: <b>'+SPECNAME[p.spec]+'</b>.','g');
+      sBuild();
+    }
+  }
+}
 /* ---------- mission flow: arrive → reward screen → the source calls back ---------- */
 let RQ=[],HOLD=false;
 function buildReport(m,win,got,people,cr,arrive){
@@ -786,13 +850,13 @@ function resolveMission(m){
       if(G.fighters.length<fighterCap()){
         G.fighters.push({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70,out:false});
         rew.push('+1 fighter');
-      } else {G.credits+=150;rew.push('no berth — sold for '+C(150));}
+      } else {G.credits+=600;rew.push('no berth — sold for '+C(600));}
     }
     if(m.rew.cross){
       if(G.fighters.length<fighterCap()){
         G.fighters.push({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85,out:false});
         rew.push('+FT-4 Cross');
-      } else {G.credits+=200;rew.push('no berth — Cross fenced for '+C(200));}
+      } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
     }
     for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
     G.morale=Math.min(100,G.morale+6);
@@ -938,8 +1002,8 @@ function scoutPlanet(id){
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
   else if(id==='meridian'){G.candQ.push('renn');lines.push('Our people flagged a customs chief with expensive habits and flexible loyalties.');}
   else if(id==='sable'){G.intel+=3;lines.push('The listening post still works. We stripped its logs: '+I(3)+' recovered.');}
-  else if(id==='tarsis'){G.supplies+=40;G.morale=Math.min(100,G.morale+4);lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(40)+'. The crew eats well tonight.');}
-  else if(id==='nyx'){G.credits+=40;lines.push('The shadowport takes all kinds. First introductions cost us nothing and paid '+C(40)+' in fenced salvage. Recruits drink here.');}
+  else if(id==='tarsis'){G.supplies+=160;G.morale=Math.min(100,G.morale+4);lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(160)+'. The crew eats well tonight.');}
+  else if(id==='nyx'){G.credits+=160;lines.push('The shadowport takes all kinds. First introductions cost us nothing and paid '+C(160)+' in fenced salvage. Recruits drink here.');}
   else if(id==='oubli'){G.intel+=1;lines.push('Empty streets. Forty years of dust. One transmitter, still powered, still listening. We left it that way. '+I(1)+'.');}
   else if(id==='halcyon'){revGain(4);lines.push('Brass, beaches, and no idea we were there. Knowing Halcyon exists for us is worth progress alone.');}
   else if(d.lib){
@@ -956,19 +1020,19 @@ function scoutPlanet(id){
    A lead shows on the galaxy map; click it to read it and put it on the mission board.
    The marker stays until the job is done. */
 const OPP_TPL=[
-  {name:'Ambush the Supply Convoy',days:2,rew:{s:40,m:20},obj:['Intercept the convoy near {where}','Take the cargo'],
+  {name:'Ambush the Supply Convoy',days:2,rew:{s:160,m:80},obj:['Intercept the convoy near {where}','Take the cargo'],
    intro:'Our listeners caught a convoy schedule out of {loc}: two haulers, one escort and a driver who hums. It passes {where} at dusk.',
    desc:'A supply convoy on a predictable route through {where}. Hit it, take the cargo, and be gone before the escort calls it in.'},
-  {name:'Skim a Fuel Hauler',days:2,space:true,rew:{f:35,c:30},obj:['Shadow the hauler out of {where}','Siphon her tanks'],
+  {name:'Skim a Fuel Hauler',days:2,space:true,rew:{f:140,c:120},obj:['Shadow the hauler out of {where}','Siphon her tanks'],
    intro:'A fuel hauler out of {loc} runs light on escorts every third night, and someone in the depot sells us the timing.',
    desc:'A fuel hauler with a thin escort near {where}. Take what she carries before the depot notices the shortfall.'},
   {name:'Tap a Comm Relay',days:2,space:true,rew:{i:3},obj:['Reach the relay above {where}','Plant the tap and leave'],
    intro:'A relay above {loc} carries patrol traffic almost in the clear. A tap would tell us where they are going next.',
    desc:'A patrol relay over {where}. Plant a tap and we read their traffic for weeks.'},
-  {name:'Loot the Customs Shed',days:2,rew:{c:90,m:15},obj:['Reach the customs shed at {where}','Empty the impound lockers'],
+  {name:'Loot the Customs Shed',days:2,rew:{c:360,m:60},obj:['Reach the customs shed at {where}','Empty the impound lockers'],
    intro:'Impounded goods pile up in a shed at {where}, guarded by a clerk and a padlock. Half of it was stolen from people like us.',
    desc:'An impound shed at {where}. Take the valuables and be gone before inventory day.'},
-  {name:'Hit a Prisoner Transfer',days:2,rew:{c:40,s:25},obj:['Intercept the transfer','Free the prisoners'],
+  {name:'Hit a Prisoner Transfer',days:2,rew:{c:160,s:100},obj:['Intercept the transfer','Free the prisoners'],
    intro:'A transport of detained dissidents leaves {where} at midnight. The guards are bored and the locks are cheap.',
    desc:'A prisoner transfer out of {where}. Free the detainees, and take whatever the guards were carrying.'},
 ];
@@ -1338,7 +1402,7 @@ function renderRoomBar(){
   let info='';
   if(rm.key==='hangar'||rm.key==='bay'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+M(staffOf('store').length?1:2)+' each';
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+rate+'%/day at '+M(staffOf('store').length?4:8)+' each';
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'||rm.key==='quarters'){
     info='Bunks '+G.people.length+'/'+bunkCap()+' · morale '+Math.round(G.morale)+
@@ -1361,10 +1425,10 @@ function renderRoomBar(){
   }
   let acts='';
   if(rm.key==='command')acts='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-  if(rm.key==='training')acts='<button class="pbtn" data-simulator>Simulator — dogfight exercise ▸</button>';
+  if(rm.key==='training')acts='<button class="pbtn" data-open="spec">Specialty Training ▸</button><button class="pbtn" data-simulator>Simulator — dogfight exercise ▸</button>';
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)acts='<button class="pbtn" disabled>Restoring the hauler — '+G.wreck.restoring+'d left. Joss hasn’t slept.</button>';
-    else acts='<button class="pbtn" data-restore '+((G.credits>=60&&G.materials>=40)?'':'disabled')+'>Restore the derelict hauler — 60⬡ 40⚙ · 2 days</button>';
+    else acts='<button class="pbtn" data-restore '+((G.credits>=240&&G.materials>=160)?'':'disabled')+'>Restore the derelict hauler — 240⬡ 160⚙ · 2 days</button>';
   }
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
@@ -1776,6 +1840,7 @@ function renderTilePop(){
     if(!rm.build){
       if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
       if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</div>';
+      if(rm.key==='training')h+='<button class="pbtn" data-open="spec">Specialty Training</button>';
       if(rm.key==='barracks'||rm.key==='quarters')h+='<div class="pdesc">Bunks '+G.people.length+'/'+bunkCap()+'.</div>';
       if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
       h+='<div class="pophint">double-click to step inside</div>';
@@ -2058,7 +2123,7 @@ function renderWin(){
       '<div class="mdesc">'+m.desc+'</div>'+
       '<div class="mmeta">'+(whereHTML(m)?whereHTML(m)+' · ':'')+m.days+' days · risk '+m.riskTxt+' · '+rewHTML(m)+'</div></div>'+
       (canAttempt(m)?'':precondHTML(m))+
-      '<button class="dbtn" data-mplan="'+m.id+'" '+(canAttempt(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
+      '<button class="dbtn" data-mplan="'+m.id+'" '+(canPlan(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
       '<button class="dbtn" data-close>Later</button>'+
       '</div>';
   }
@@ -2095,6 +2160,31 @@ function renderWin(){
         (rp.cr.first?'<div class="rwrow"><span>First operation in '+(pdef(m.loc)||{}).name+'</span><span class="rxp">noticed</span></div>':'')+
         (rp.cr.lib?'<div class="rwrow"><span>'+rp.cr.lib.region+' liberation</span><span class="rxp">'+rp.cr.lib.from+'% \u2192 '+rp.cr.lib.to+'%'+(rp.cr.lib.capped?' (capped)':'')+'</span></div>':''):'')+
       '<button class="dbtn" data-close style="margin-top:10px"><b>Continue</b></button></div>';
+  }
+  else if(winMode==='spec'){
+    card.classList.add('narrow');
+    const row=(role,label,who)=>{
+      const t=inTraining(role);
+      return '<div class="slot'+(t?' filled':'')+'" style="cursor:default"><span class="sl">'+label+'</span><span class="sv">'+(t?'<b>'+t.name+'</b><small>'+SPECNAME[t.specTrain.k]+' \u00b7 '+t.specTrain.days+' day'+(t.specTrain.days>1?'s':'')+' left</small>':'<em>free</em>')+'</span></div>';
+    };
+    const cards=role=>{
+      const busy=!!inTraining(role);
+      const els=G.people.filter(p=>specRole(p)===role&&p.level>=3&&!p.spec&&p.assign!=='spec');
+      if(!els.length)return '<div class="pdesc" style="margin-bottom:6px">Nobody ready. A specialty needs level 3.</div>';
+      return els.map(p=>{
+        const why=p.injured?'injured':p.assign==='mission'?'on mission':busy?'the slot is busy':'';
+        return '<div class="mcard" style="margin-bottom:6px"><div class="mrow"><span class="mname">'+p.name+'</span><span class="mfrom">'+rankFor(p)+' \u00b7 lvl '+p.level+'</span></div>'+
+          SPECS[role].filter(x=>x.live).map(x=>'<button class="sbtn" style="margin:4px 4px 0 0" data-spec="'+p.id+':'+x.k+'" '+(why?'disabled':'')+' title="'+x.d+'">'+x.n+'</button>').join('')+
+          (why?'<div class="pdesc">'+why+'</div>':'')+'</div>';
+      }).join('');
+    };
+    const later=role=>'<div class="pdesc" style="margin-top:6px">Later: '+SPECS[role].filter(x=>!x.live).map(x=>x.n).join(', ')+'.</div>';
+    h='<div class="winHead"><span class="wt">Specialty Training</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
+      '<div class="pdesc" style="margin-bottom:8px">At level 3 a rebel can train into a specialty ('+SPEC_DAYS+' days). They are out of action while they train.</div>'+
+      (hasRoom('training')?'':'<div class="pdesc" style="color:var(--heg)">No Training Hall built yet.</div>')+
+      '<div class="dz-sec">Practice range \u00b7 soldiers</div>'+row('Soldier','Practice range')+cards('Soldier')+later('Soldier')+
+      '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
+      '</div>';
   }
   else if(winMode==='locBrief'){
     const d=pdef(winArg.id),st=pst(winArg.id);
@@ -2180,7 +2270,7 @@ function renderWin(){
       '<div class="dz-head">'+
       '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
       '<div><div class="dz-name">'+p.name+'</div>'+
-      '<div class="dz-rank">'+rankFor(p)+'</div>'+
+      '<div class="dz-rank">'+rankFor(p)+(p.spec?' \u00b7 <b style="color:var(--reb)">'+specOf(p)+'</b>':'')+'</div>'+
       '<div class="dz-sub">'+p.role+(p.injured?' · <span style="color:var(--heg)">INJURED '+p.injured+'d</span>':'')+'</div>'+
       '</div></div>'+
       '<div class="dz-bio">“'+p.bio+'”</div>';
@@ -2483,6 +2573,8 @@ $('winsB').addEventListener('click',ev=>{
   if(scout){scoutPlanet(scout);return;}
   const raise=t.getAttribute('data-raise');
   if(raise){raiseAccess(raise);return;}
+  const specBtn=t.getAttribute('data-spec');
+  if(specBtn){const [pid,k]=specBtn.split(':');startSpec(pid,k);return;}
   const oppadd=t.getAttribute('data-oppadd');
   if(oppadd){
     const o=(G.opps||[]).find(x=>x.id===oppadd);
@@ -2574,14 +2666,14 @@ function seedNews(){
 }
 
 /* ---------- leading missions in person ---------- */
-function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission');}
-function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission').length;}
+function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
+function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec').length;}
 function readyFighters(){return G.fighters.filter(f=>!f.out&&f.hull>=60).length;}
 function readyStarfighters(){return G.fighters.filter(f=>f.cls!=='graf'&&!f.out&&f.hull>=60).length;}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 /* ---------- mission requirements & the planning board ---------- */
 function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
-function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission');}
+function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
 function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&f.hull>=60);}
 function shipPool(r){return G.fighters.filter(f=>!f.out&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
 function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
@@ -2607,14 +2699,20 @@ function precondList(m){
     const have=(G.armory.find(a=>a.id===it.id)||{}).n||0;
     out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span style="color:var(--dim)">(have '+have+')</span>'});
   }
+  if(r.spec){
+    out.push({ok:soldierPool().some(p=>p.spec===r.spec.key),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint});
+  }
   const need=minFuel(m);
   out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need)+' <span style="color:var(--dim)">(have '+Math.floor(G.fuel)+')</span>'});
   return out;
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
+/* a missing specialty does not block opening the briefing; it explains itself there */
+function canPlan(m){return precondList(m).every(c=>c.ok||c.soft);}
 function precondHTML(m){
   return '<div class="dz-sec">Pre Conditions</div>'+precondList(m).map(c=>
-    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'✓':'✗')+'</span><span>'+c.label+'</span></div>').join('');
+    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'✓':'✗')+'</span><span>'+c.label+'</span></div>'+
+    (!c.ok&&c.hint?'<div class="pchint">'+c.hint+'</div>':'')).join('');
 }
 function rewHTML(m){
   const r=m.rew||{};
@@ -2686,7 +2784,12 @@ function plDrop(key,rid){
   const slot=PL.slots.find(sl=>sl.key===key);
   if(slot&&plAccepts(slot,rid))plSet(key,rid);
 }
-function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]);}
+function plSpecOk(){
+  const sp=PL.req.spec;
+  if(!sp)return true;
+  return PL.slots.some(sl=>sl.acc==='soldier'&&PL.v[sl.key]&&(G.people.find(p=>p.id===PL.v[sl.key])||{}).spec===sp.key);
+}
+function plComplete(){return PL.slots.every(sl=>PL.v[sl.key])&&plSpecOk();}
 function plFuel(){
   let t=0;
   for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
@@ -2699,7 +2802,7 @@ function plAutoFill(){
     if(PL.v[sl.key])continue;
     const used=plUsedIds();
     let pool=[];
-    if(sl.acc==='soldier')pool=soldierPool().map(p=>'p:'+p.id);
+    if(sl.acc==='soldier')pool=soldierPool().sort((a,b)=>((b.spec===(PL.req.spec||{}).key)?1:0)-((a.spec===(PL.req.spec||{}).key)?1:0)).map(p=>'p:'+p.id);
     else if(sl.acc==='pilot')pool=ablePilots().map(p=>'p:'+p.id);
     else if(sl.acc==='vehicle')pool=transportPool().map(f=>'f:'+f.id);
     else pool=shipPool(PL.req).map(f=>'f:'+f.id);
@@ -2715,7 +2818,7 @@ function slotOccHTML(sl){
     return '<b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</small>';
   }
   const p=G.people.find(x=>x.id===id);
-  return '<b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+'</small>';
+  return '<b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+(p.spec?' · '+specOf(p):'')+'</small>';
 }
 function chipHTML(rid){
   const kind=rid[0],id=rid.slice(2);
@@ -2724,7 +2827,7 @@ function chipHTML(rid){
     return '<div class="rchip ship" draggable="true" data-rid="'+rid+'"><b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · '+F(fuelOf(f))+'</small></div>';
   }
   const p=G.people.find(x=>x.id===id);
-  return '<div class="rchip" draggable="true" data-rid="'+rid+'"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span><span><b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+'</small></span></div>';
+  return '<div class="rchip" draggable="true" data-rid="'+rid+'"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span><span><b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+(p.spec?' · '+specOf(p):'')+'</small></span></div>';
 }
 function planHTML(m){
   const r=PL.req,used=plUsedIds();
@@ -2737,7 +2840,7 @@ function planHTML(m){
     '<div class="dz-sec">Reward</div><div class="mmeta">'+rewHTML(m)+' · '+m.days+' day'+(m.days>1?'s':'')+' · risk '+m.riskTxt+'</div>'+
     precondHTML(m)+
     (r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring?
-      '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 60⬡ 40⚙ and two days.</div>'+
+      '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 240⬡ 160⚙ and two days.</div>'+
       '<button class="dbtn" data-gohangar>Go to the Hangar ▸</button>':'')+
     (r.transport&&!grafReady()&&G.wreck&&G.wreck.restoring?
       '<div class="pdesc" style="color:var(--amber);margin-top:8px">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</div>':'')+
@@ -2762,7 +2865,7 @@ function planHTML(m){
   const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel;
   return '<div class="winHead"><span class="wt">Mission Briefing</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
     '<div class="planGrid">'+left+right+'</div>'+
-    '<div class="planFoot"><span class="pdesc">'+(plComplete()?'Fuel burned: '+F(fuel)+' of '+Math.floor(G.fuel):'Fill every slot to go.')+'</span>'+
+    '<div class="planFoot"><span class="pdesc">'+(plComplete()?'Fuel burned: '+F(fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go.'))+'</span>'+
     '<button class="sbtn" data-autofill>Auto-fill</button>'+
     '<button class="sbtn go" id="launchBtn" '+(ok?'':'disabled')+'>'+(m.lead?'Start':'Launch')+'</button></div></div>';
 }
@@ -2782,7 +2885,7 @@ function startPlan(){
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       vip:m.npc?{name:m.npc.name,first:m.npc.first}:undefined,
-      squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
+      squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
@@ -2801,8 +2904,8 @@ function startPlan(){
   saveSnap();
   SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
 }
-function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)));}
-function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)));}
+function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)+(p.spec==='vanguard'?1:0)));}
+function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)+(p.spec==='dogfighter'?1:0)));}
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
@@ -2897,7 +3000,7 @@ function applyDebrief(r){
         ||G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
       if(orphan)orphan.ship='dustfall';
       got.push('the FT-4 Cross \u201cDustfall\u201d');
-    } else {G.credits+=200;got.push('no berth \u2014 the Cross fenced for '+C(200));}
+    } else {G.credits+=800;got.push('no berth \u2014 the Cross fenced for '+C(800));}
   }
   for(const fr of r.fighters||[]){
     const f=G.fighters.find(x=>x.id===fr.fighterId);
@@ -2936,8 +3039,8 @@ function applyDebrief(r){
 }
 ROOT.addEventListener('click',ev=>{
   const rst=ev.target.closest('[data-restore]');
-  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=60&&G.materials>=40){
-    G.credits-=60;G.materials-=40;G.wreck.restoring=2;G.guideHangar=0;
+  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=240&&G.materials>=160){
+    G.credits-=240;G.materials-=160;G.wreck.restoring=2;G.guideHangar=0;
     news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
     sBuild();saveSnap();syncUI();
     if(viewRoom)renderRoomBar();
@@ -2975,9 +3078,16 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
-    if(G.missions.some(m=>m.id==='stealfuel'&&m.state==='done')&&!G.armory.some(a=>a.id==='charge')&&!G.missions.some(m=>m.id==='autofactory'))addArmoryItem('Explosive Charge');
     if(G.materials===undefined)G.materials=80;
     if(G.fuel===undefined)G.fuel=40;
+    if(!G.econ4){   // economy rescaled ×4 (Intel is unchanged)
+      G.econ4=1;
+      for(const k of ['credits','supplies','materials','fuel'])G[k]=Math.round(G[k]*4);
+      for(const src of G.sources)for(const k of ['c','s','m','f'])if(src.inc[k])src.inc[k]*=4;
+      for(const o of G.opps)for(const k of ['c','s','m','f'])if(o.rew&&o.rew[k])o.rew[k]*=4;
+      for(const m of G.missions)if(m.opp)for(const k of ['c','s','m','f'])if(m.rew&&m.rew[k])m.rew[k]*=4;
+    }
+    if(G.missions.some(m=>m.id==='stealfuel'&&m.state==='done')&&!G.armory.some(a=>a.id==='charge')&&!G.missions.some(m=>m.id==='autofactory'))addArmoryItem('Explosive Charge');
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';

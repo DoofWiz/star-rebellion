@@ -118,12 +118,12 @@ stealcross:{
     {x:1560,y:1010,kind:'canister'},
   ],
   loots:[
-    {id:'till',     x:736, y:786, label:'Cantina till',   take:'86 \u25c8 credits',      c:86},
-    {id:'strongbox',x:1196,y:768, label:'Assay strongbox',take:'140 \u25c8 credits',     c:140},
-    {id:'crateA',   x:678, y:862, label:'Outfitter crates',take:'18 \u25a4 supplies',    s:18},
-    {id:'crateB',   x:984, y:1076,label:'Outfitter crates',take:'14 \u25a4 supplies',    s:14},
+    {id:'till',     x:736, y:786, label:'Cantina till',   take:'344 \u25c8 credits',      c:344},
+    {id:'strongbox',x:1196,y:768, label:'Assay strongbox',take:'560 \u25c8 credits',     c:560},
+    {id:'crateA',   x:678, y:862, label:'Outfitter crates',take:'72 \u25a4 supplies',    s:72},
+    {id:'crateB',   x:984, y:1076,label:'Outfitter crates',take:'56 \u25a4 supplies',    s:56},
     {id:'locker',   x:1742,y:884, label:'HQ gun locker',  take:'Scattergun + shell box', items:['Scattergun','Shell box']},
-    {id:'feed',     x:1312,y:1084,label:'Motor pool cache',take:'26 \u25c8 credits',     c:26},
+    {id:'feed',     x:1312,y:1084,label:'Motor pool cache',take:'104 \u25c8 credits',     c:104},
     {id:'blamA',    x:1608,y:942, label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
     {id:'blamB',    x:1092,y:1112,label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
   ],
@@ -211,9 +211,9 @@ stealfuel:{
     {x:1180,y:700,kind:'crate'},{x:1120,y:780,kind:'crate'},
   ],
   loots:[
-    {id:'strongbox',x:1236,y:510,label:'Tithe strongbox',take:'120 ◈ credits',c:120},
-    {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'16 ▤ supplies',s:16},
-    {id:'grain',x:560,y:620,label:'Grain store',take:'22 ▤ supplies',s:22},
+    {id:'strongbox',x:1236,y:510,label:'Tithe strongbox',take:'480 ◈ credits',c:480},
+    {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'64 ▤ supplies',s:64},
+    {id:'grain',x:560,y:620,label:'Grain store',take:'88 ▤ supplies',s:88},
     {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
     {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['Explosive Charge','Explosive Charge']},
   ],
@@ -282,8 +282,8 @@ autofactory:{
     {x:1250,y:440,kind:'crate'},{x:1400,y:880,kind:'crate'},
   ],
   loots:[
-    {id:'safe',x:2080,y:880,label:'Factory office safe',take:'110 \u25c8 credits',c:110},
-    {id:'scrap',x:1580,y:1100,label:'Parts crates',take:'20 \u25a4 supplies',s:20},
+    {id:'safe',x:2080,y:880,label:'Factory office safe',take:'440 \u25c8 credits',c:440},
+    {id:'scrap',x:1580,y:1100,label:'Parts crates',take:'80 \u25a4 supplies',s:80},
     {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['Explosive Charge']},
   ],
   foes(){return [
@@ -343,8 +343,8 @@ rescue:{
   ],
   loots:[
     {id:'locker',x:1340,y:470,label:'Evidence locker',take:'Peacekeeper Carbine',items:['Peacekeeper Carbine']},
-    {id:'tollbox',x:1100,y:1050,label:'Toll box',take:'90 ◈ credits',c:90},
-    {id:'rations',x:1650,y:990,label:'Barge rations',take:'18 ▤ supplies',s:18},
+    {id:'tollbox',x:1100,y:1050,label:'Toll box',take:'360 ◈ credits',c:360},
+    {id:'rations',x:1650,y:990,label:'Barge rations',take:'72 ▤ supplies',s:72},
   ],
   foes(){return [
     {id:'fenn',name:'Patrolman Fenn',first:'Fenn',side:'law',x:720,y:470,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']},
@@ -358,6 +358,69 @@ rescue:{
   civs(){return [
     {id:'civ1',name:'Barge Hand',first:'barge hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
     {id:'civ2',name:'Barge Hand',first:'barge hand',side:'civ',x:800,y:1180,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:800,y:1180},{x:700,y:1100}]},
+  ];},
+},
+intel:{
+  mode:'intel',W:2400,H:1500,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  title:'Steal Intelligence',sub:'Data Flats · Parity IV — Revolution I',
+  foesLabel:'Security',calmLabel:'Farm is quiet',alertLabel:'Farm alerted',
+  banner:['Steal Intelligence','Everything they know, in one drive'],
+  brief:{
+    eyebrow:'Ground Operation · Data Flats, Parity IV',
+    flavour:'The Bureau keeps its Parity IV registry backups on a <b>server farm</b> out on the Data Flats: fences, Policebots and a terminal bank in the east hall. Get your <b>Field Technician</b> to the databank terminal and keep them alive while they crack it.',
+    objectives:[
+      'Reach the databank terminal in the east server hall',
+      'Hack into the Hegemony databanks — three rounds, your Field Technician only',
+      'Extract with the stolen data',
+      {sub:1,text:'Finishing the hack sets off the trace. Expect a response.'},
+    ],
+    hint:'Only the Field Technician (marked ⌨) can work the terminal. Stay out of the sight cones for as long as you can; the hack keeps running only while they stay on the terminal. Riot shields stop every shot from the front, so flank them.',
+  },
+  towerLabel:'',
+  lamps:[[760,560],[1300,520],[1660,600],[1100,900],[1800,900]],
+  csLine:'Data Flats. Engines warm, lights off. Copy fast and come home.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:260,y:1200,r:130},PAD:{x:1660,y:540,r:60},
+  guardPt:{x:1660,y:600},
+  work:[{id:'hack',x:1660,y:540,label:'DATABANK TERMINAL',verb:'cracks the databank and copies the drive',needSpec:'fieldtech',rounds:3}],
+  alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span> — a shield line and two riflemen.',
+    foes:[
+      {id:'rs5',name:'Riot Shieldman Kade',first:'Kade',side:'law',x:640,y:560,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
+      {id:'rr5',name:'Riot Rifleman Saul',first:'Saul',side:'law',x:600,y:640,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the databank!','Shields forward!']},
+      {id:'rr6',name:'Riot Rifleman Petra',first:'Petra',side:'law',x:600,y:480,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+    ]},
+  bldgs:[
+    {x:1500,y:260, w:340,h:230,name:'EAST SERVER HALL'},
+    {x:1000,y:300, w:260,h:200,name:'WEST SERVER HALL'},
+    {x:1750,y:720, w:230,h:150,name:'CONTROL ROOM'},
+    {x:1050,y:800, w:320,h:170,name:'COOLING PLANT',solar:1},
+    {x:640, y:480, w:200,h:130,name:'GUARDHOUSE'},
+    {x:560, y:900, w:220,h:140,name:'STORES'},
+  ],
+  props:[
+    {x:1420,y:600,kind:'crate'},{x:1800,y:560,kind:'crate'},{x:1560,y:660,kind:'barrel'},{x:1900,y:420,kind:'barrel'},
+    {x:900,y:620,kind:'crate'},{x:1300,y:640,kind:'crate'},{x:800,y:1000,kind:'barrel'},
+    {x:1480,y:760,kind:'wagon',a:0.3},{x:780,y:760,kind:'wagon',a:-0.2},{x:1900,y:980,kind:'wagon',a:0.4},
+    {x:1250,y:1160,kind:'trough'},{x:1650,y:1100,kind:'trough'},
+    {x:1000,y:780,kind:'canister'},{x:1420,y:900,kind:'canister'},
+    {x:500,y:700,kind:'rock'},{x:1100,y:1260,kind:'rock'},{x:1500,y:1250,kind:'rock'},{x:2100,y:1100,kind:'rock'},{x:2200,y:500,kind:'rock'},{x:700,y:300,kind:'rock'},
+  ],
+  loots:[
+    {id:'cashbox',x:1830,y:860,label:'Bureau cash box',take:'360 ◈ credits',c:360},
+    {id:'parts',x:700,y:1040,label:'Spare rack parts',take:'72 ▤ supplies',s:72},
+  ],
+  foes(){return [
+    {id:'crane',name:'Patrolman Crane',first:'Crane',side:'law',x:760,y:600,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:760,y:600},{x:900,y:700},{x:720,y:470}],lines:['Gate’s quiet.','Who goes there?']},
+    {id:'pb31',name:'Policebot PB-31',first:'PB-31',side:'law',x:1150,y:640,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1150,y:640},{x:1000,y:700}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
+    {id:'pb32',name:'Policebot PB-32',first:'PB-32',side:'law',x:1620,y:640,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1620,y:640},{x:1720,y:620}],lines:['Restricted area.','Please stand still.']},
+    {id:'rs4',name:'Riot Shieldman Bour',first:'Bour',side:'law',x:1660,y:600,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the terminal.','Shields up!']},
+    {id:'rr7',name:'Riot Rifleman Wick',first:'Wick',side:'law',x:1400,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']},
+    {id:'elm',name:'Patrolman Elm',first:'Elm',side:'law',x:1200,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']},
+    {id:'pb33',name:'Policebot PB-33',first:'PB-33',side:'law',x:1800,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
+  ];},
+  civs(){return [
+    {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
   ];},
 },
 haven:{
@@ -419,10 +482,10 @@ haven:{
     {x:1150,y:260, kind:'crate'},
   ],
   loots:[
-    {id:'stash',  x:920, y:905, label:'Squatter stash',take:'56 \u25c8 credits',c:56},
-    {id:'scrap',  x:700, y:360, label:'Hauler parts',  take:'18 \u25a4 supplies',s:18},
-    {id:'rations',x:1395,y:660, label:'Ration crates', take:'12 \u25a4 supplies',s:12},
-    {id:'lockbox',x:1330,y:240, label:'Smuggler lockbox',take:'30 \u25c8 credits',c:30},
+    {id:'stash',  x:920, y:905, label:'Squatter stash',take:'224 \u25c8 credits',c:224},
+    {id:'scrap',  x:700, y:360, label:'Hauler parts',  take:'72 \u25a4 supplies',s:72},
+    {id:'rations',x:1395,y:660, label:'Ration crates', take:'48 \u25a4 supplies',s:48},
+    {id:'lockbox',x:1330,y:240, label:'Smuggler lockbox',take:'120 \u25c8 credits',c:120},
   ],
   foes(){return [
     {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1245,y:330,hp:120,maxhp:120,aim:3,def:10,cool:85,wpns:['scatter'],sheriff:1,office:1,
@@ -523,7 +586,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:12,cool:65,
-    level:sp.level||1,stims:1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,stims:1,spec:sp.spec||null,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   const roster=[...squad];
   if(SCN.mode==='rescue'&&spec.vip){
@@ -558,7 +621,9 @@ let fs=null;
 let fac=null;
 /* Rescue Dissident: free the prisoner, bring them home; every rescued NPC is a recruit from the pool */
 let rs=null;
-const exitOpen=()=>crossAway||(fac&&fac.detonated)||(rs&&rs.released);
+/* Steal Intelligence: a Field Technician cracks the databank (3 rounds), then the trace trips the alarm */
+let ix=null;
+const exitOpen=()=>crossAway||(fac&&fac.detonated)||(rs&&rs.released)||(ix&&ix.hacked);
 const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
@@ -879,9 +944,9 @@ function downUnit(t,by){
 }
 function dropLoot(t){
   const m={id:'drop_'+t.id,x:t.x+10,y:t.y+10,label:t.name+'’s effects',drop:1};
-  if(t.sheriff){m.c=34;m.items=['Scattergun'];m.take='Scattergun + 34 ◈';}
-  else if(t.wpns[0]==='carbine'){m.c=rint(6,14);m.items=['Peacekeeper Carbine'];m.take='Carbine + credits';}
-  else {m.c=rint(8,18);m.take=m.c+' ◈ credits';}
+  if(t.sheriff){m.c=136;m.items=['Scattergun'];m.take='Scattergun + 136 ◈';}
+  else if(t.wpns[0]==='carbine'){m.c=rint(24,56);m.items=['Peacekeeper Carbine'];m.take='Carbine + credits';}
+  else {m.c=rint(32,72);m.take=m.c+' ◈ credits';}
   lootMarks.push(m);
 }
 
@@ -1292,6 +1357,15 @@ function unmanTurret(u){
   syncUI();
 }
 function workDone(){return WORK.every(w=>w.done);}
+function workStep(wp,u){
+  if(wp.rounds>1){
+    wp.prog=(wp.prog||0)+1;wp.t=0;
+    addFloater(wp.x,wp.y-46,(wp.id==='hack'?'HACK ':'WORK ')+Math.min(wp.prog,wp.rounds)+'/'+wp.rounds,'#7de3ec');
+    sSpark();
+    if(wp.prog<wp.rounds){log(nameSpan(u)+' works the terminal \u2014 <span class="a">'+wp.prog+'/'+wp.rounds+'</span>.');syncUI();return;}
+  }
+  completeWork(wp,u);
+}
 function completeWork(wp,u){
   u.xpGain=(u.xpGain||0)+0.1;
   wp.done=true;wp.t=0;
@@ -1302,6 +1376,18 @@ function completeWork(wp,u){
     log('<span class="g">The rebel signal snaps in the wind over Haven Rock.</span>');
     sBuildup();
     gameOver(true);
+    return;
+  }
+  if(wp.id==='hack'){
+    ix.hacked=true;
+    addFloater(wp.x,wp.y-60,'DATA SECURED','#7dd97b');
+    log('<span class="g">The databank is cracked and the drive is in '+u.first+'\u2019s hand.</span> The trace is already running. Get out.');
+    say(u,'Got it! Drive is in my hand, the trace is live!');
+    sSpark();
+    if(SCN.alarmWave)spawnFoes(SCN.alarmWave.foes,SCN.alarmWave.log);
+    if(town==='calm')alertTown('The databank trace raises the alarm.');
+    camGoal={x:LZ.x+240,y:LZ.y-160,z:0.85};
+    syncUI();
     return;
   }
   if(wp.id==='release'){
@@ -1492,6 +1578,7 @@ function drawFactory(now){
   }
 }
 function extractReady(){
+  if(ix)return ix.hacked&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(rs)return rs.released&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
@@ -1559,10 +1646,10 @@ function rtUpdate(now,dt){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
-      if(wp.t>=4)completeWork(wp,worker);
+      if(wp.t>=4){wp.t=0;workStep(wp,worker);}
     }
   }
   detUpdate(dt);
@@ -1957,9 +2044,9 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
-    if(worker)completeWork(wp,worker);
+    if(worker)workStep(wp,worker);
   }
   // a round without taking fire steadies the nerve
   for(const u of U){
@@ -2056,11 +2143,14 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue')&&!win);
-  byId('endEyebrow').textContent=win?(rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?(rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue'||SCN.mode==='intel')&&!win);
+  byId('endEyebrow').textContent=win?(ix?'Mission Report · Data Flats':rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  byId('endTitle').textContent=win?(ix?'Data Secured':rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
-  if(rs){
+  if(ix){
+    txt=win?'The Field Technician walked off the Data Flats with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left on the Flats. We don\u2019t forget that.':''):
+      'The squad was overrun around the server farm and the Marta lifted with nothing. The databank is still sealed.';
+  } else if(rs){
     const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
     txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
       (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
@@ -2081,7 +2171,12 @@ function gameOver(win,why){
   }
   byId('endText').textContent=txt;
   let lh='';
-  if(win&&rs){
+  if(win&&ix){
+    lh+='<div class="lootline"><span>Bureau registry backups</span><span>COPIED</span></div>';
+    if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
+    if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
+    for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
+  } else if(win&&rs){
     const vn=(U.find(u=>u.vip)||{name:'Prisoner'}).name;
     lh+='<div class="lootline"><span>'+vn+'</span><span>FREED</span></div>';
     lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(rs.everAlerted?'no':'YES \u2014 bonus')+'</span></div>';
@@ -2600,6 +2695,10 @@ function drawWork(now){
       ctx.beginPath();ctx.moveTo(-10,-8);ctx.lineTo(-14,-8);ctx.lineTo(-14,8);ctx.lineTo(-10,8);ctx.stroke();
       ctx.beginPath();ctx.moveTo(10,-8);ctx.lineTo(14,-8);ctx.lineTo(14,8);ctx.lineTo(10,8);ctx.stroke();
       ctx.fillStyle='rgba(255,150,60,0.8)';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();
+    } else if(wp.id==='hack'){
+      ctx.strokeStyle='rgba(125,227,236,'+(0.6+0.3*pul)+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.roundRect(-13,-10,26,18,3);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-7,-3);ctx.lineTo(7,-3);ctx.moveTo(-7,2);ctx.lineTo(3,2);ctx.stroke();
     } else if(wp.id==='plant'){
       ctx.strokeStyle='rgba(255,150,60,'+(0.6+0.3*pul)+')';ctx.lineWidth=3;
       ctx.beginPath();ctx.roundRect(-13,-10,26,20,3);ctx.stroke();
@@ -2622,6 +2721,9 @@ function drawWork(now){
       ctx.beginPath();ctx.moveTo(0,-26);ctx.lineTo(16,-20);ctx.lineTo(0,-14);ctx.closePath();ctx.fill();
     }
     // progress while a soldier works it
+    if(wp.rounds>1){
+      for(let k=0;k<wp.rounds;k++){ctx.fillStyle=k<(wp.prog||0)?'rgba(125,227,236,0.95)':'rgba(125,227,236,0.25)';ctx.beginPath();ctx.arc(-12+k*12,-24,4,0,7);ctx.fill();}
+    }
     if(wp.t>0){
       ctx.strokeStyle='rgba(255,180,84,0.9)';ctx.lineWidth=3;
       ctx.beginPath();ctx.arc(0,0,17,-Math.PI/2,-Math.PI/2+Math.PI*2*Math.min(1,wp.t/4));ctx.stroke();
@@ -3699,7 +3801,7 @@ byId('radial').addEventListener('click',ev=>{
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
   else if(act==='work'){
-    const wp=WORK.find(w=>!w.done&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+    const wp=WORK.find(w=>!w.done&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
     if(wp){s.order={type:'work',wp:wp.id};autoAdvance();}
   }
   else if(act==='loot'){
@@ -3739,7 +3841,7 @@ function radialHTML(s){
     ['lockin','◎','Lock In',false],
     ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
-  const wp=WORK.find(w=>!w.done&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+  const wp=WORK.find(w=>!w.done&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
   if(wp&&s.id!=='sera'&&!s.vip)acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
@@ -3812,7 +3914,7 @@ function unitRow(u){
   }
   cells+='</span>';
   return '<div class="urow'+(u.side==='law'?' law':'')+(u.id===selId?' sel':'')+((u.down||u.extracted||u.away||u.surr)?' gone':'')+'" data-unit="'+u.id+'">'+
-    '<span class="t"><span class="nm">'+u.name+(u.charge?' \u2738':'')+'</span><span class="st" style="color:'+stc+'">'+st+'</span></span>'+cells+'</div>';
+    '<span class="t"><span class="nm">'+u.name+(u.charge?' \u2738':'')+(u.spec==='fieldtech'?' \u2328':'')+'</span><span class="st" style="color:'+stc+'">'+st+'</span></span>'+cells+'</div>';
 }
 function syncUI(){
   $('phaseName').textContent=phase==='FREE'?'Free Move':phase==='PLANNING'?'Planning':phase==='EXEC'?'Execution':phase==='ENGAGE'?'Engagement':phase==='CUTSCENE'?'Insertion':phase==='EXTRACT'?'Extraction':phase==='GAMEOVER'?'Debrief':'Briefing';
@@ -3834,6 +3936,15 @@ function syncUI(){
       {t:'Move up the canyon to the base mouth',done:tutFlags.moved||town==='alerted',now:!(tutFlags.moved||town==='alerted')},
       {t:'Clear the squatters off the rock \u2014 '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
       {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
+    ];
+  } else if(ix){
+    const tech=U.find(u=>u.spec==='fieldtech'&&!u.down);
+    const hk=WORK.find(w=>w.id==='hack');
+    if(!ix.reached&&tech&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,PAD)<260))ix.reached=true;
+    objs=[
+      {t:'Reach the databank terminal'+(tech?' \u2014 '+tech.first+' is the hacker':''),done:ix.reached||ix.hacked,now:!ix.reached&&!ix.hacked},
+      {t:'Hack the databanks \u2014 '+Math.min((hk&&hk.prog)||0,3)+'/3',done:ix.hacked,now:ix.reached&&!ix.hacked},
+      {t:'Extract with the stolen data \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:ix.hacked},
     ];
   } else if(rs){
     const v=U.find(u=>u.vip);const nm=v?v.first:'the prisoner';
@@ -4005,6 +4116,7 @@ function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=SCN.mode==='rescue'?{released:false,everAlerted:false,reached:false}:null;
   fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
@@ -4125,7 +4237,7 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,

@@ -109,8 +109,10 @@ Original scope:
 Built: **Steal Fuel** (call-in transport, timed defend, extraction at the landed transport) and
 **Blow Up Auto Factory** (charge carrier, plant, blast zone, detonate, stealth bonus; riot shield and
 robot enemies).
-**Rescue Dissident** (freeable, recruitable NPC drawn from the recruit pool).
-Still to do: Steal Intelligence, Steal the Strider.
+**Rescue Dissident** (freeable, recruitable NPC drawn from the recruit pool) and
+**Steal Intelligence** (Field Technician gate, multi-round hack).
+Still to do: Steal the Strider. The Training Center's specialty training (Phase 5) is now built for
+soldiers and pilots; Support specialties and the other specialty effects remain.
 Original scope:
 Each mission needs new ground objective types, so build the objectives first:
 - **Steal Fuel** — reach depot, call in a transport, defend it for 5 rounds. Needs

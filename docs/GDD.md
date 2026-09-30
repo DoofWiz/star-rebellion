@@ -519,6 +519,17 @@ acts:
 At 100 the **escalation animation** plays once and the lamp shows 2. All weights are tuning
 values. Old saves are clamped to 40 when first loaded.
 
+### Economy scale (rebalanced ×4, Intel unchanged)
+All credit, supply, material and fuel numbers sit in the range set by Rescue Dissident's 500
+credits: the campaign starts with **1000 credits, 480 supplies, 400 materials, 240 fuel** (Intel 3,
+unchanged: Intel is a count of leads, not a bankroll). Rooms cost 200-480 credits plus
+80-200 materials; restoring the hauler costs 240 credits and 160 materials; a sortie burns
+16-24 fuel per ship; repairs cost 4-8 materials per ship per day; the hangar weeps +4 fuel a
+day; sources pay 12-120 a day depending on type. Tier 1 missions pay roughly 300-700 credits
+(Rescue Dissident 500, Steal the Cross 500, Blow Up Auto Factory 450, Steal Fuel 300 plus 240
+fuel, Steal Intelligence 400 plus 6 Intel), with materials, supplies or fuel as secondary
+rewards. Map loot is scaled the same way. Old saves are multiplied ×4 once on load.
+
 ### Resources, hangar and fuel (built)
 - **Materials** (⚙) pay for construction, excavation, repairs and restoring the hauler. **Supplies**
   (▤) remain for people-related costs (infirmary, training hall, barracks annex). **Fuel** (◐)
@@ -575,6 +586,28 @@ the **Kiln Ridge Autoworks, Menk** (region: Kiln Ridge, +20% liberation, capped 
 - **New Level 1 enemies** introduced: **Auto Policebots** (flimsy, never panic), **Patrolmen**,
   **Riot Shieldmen** (their shield blocks every shot from the front, so flank them) and **Riot
   Riflemen**. The Riot Bruiser and Bureau Officer are still to come.
+
+### Specialties and the Training Center (built)
+At **level 3** a soldier or pilot can train into a **specialty** at the Training Hall's
+**Specialty Training** window (practice range for soldiers, flight simulator for pilots, one slot
+each for now). Training takes **3 days** and the trainee is out of action meanwhile; the
+specialty shows on their dossier, roster chips and planning slots. Only some specialties have
+effects yet: **Field Technician** (cracks databanks), **Vanguard** (+1 aim), **Dogfighter** (+1 pilot
+aim). The rest are listed as "later" from the docs (Gunner, Commando, Assault, Combat Medic,
+Demolitions Specialist, Marksman, Commander, Driver; Leader, Bomber, Fire Support, Flight Engineer,
+Shipbuster). Support specialties are still to come.
+
+### Steal Intelligence (built, Tier 1)
+Offered by **Ione Cask** (Parity IV). Played at the **Data Flats server farm** (region: Data Flats,
++15% liberation, capped by Access/Support):
+- **Gated by a Field Technician.** The mission can be opened and read even without one, but it
+  cannot be started. The briefing explains: *"Missing Field Technician: train a soldier to level 3
+  and use the Training Center to give them the Field Technician specialty to attempt this
+  mission."* The team must include a Field Technician.
+- **Hack the databank:** only the technician can work the terminal in the east server hall, for
+  **three rounds** (about 4 seconds each out of combat). Finishing the hack trips the trace, the
+  farm is alarmed and a riot response arrives at the gate; the squad extracts at the Marta.
+- Reward: 400 credits and **6 Intel**, plus loot.
 
 ### Rescue Dissident (built, Tier 1) and the recruit pool
 Offered by **Orrin Pell** (Ballakan). Played at the **Tollgate security outpost** (region: Tollgate

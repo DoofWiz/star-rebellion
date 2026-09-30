@@ -195,6 +195,12 @@ The three layers now run as **one playable game** (`game/index.html` +
   The prisoner comes from the same pool as your recruits and is offered a place in the
   movement afterwards. Pays 500 credits.
 
+- **Specialty training and Steal Intelligence.** At level 3 a soldier or pilot can train into a
+  specialty at the Training Hall (Field Technician, Vanguard and Dogfighter have effects so far).
+  Ione Cask's **Steal Intelligence** job on Parity IV needs a Field Technician on the team to crack
+  the databank; without one it explains what you are missing. **Economy rebalanced ×4** around the
+  500-credit Rescue reward: start with 1000 credits and scale costs and rewards to match.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 
