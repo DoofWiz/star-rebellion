@@ -241,12 +241,20 @@ const SIGNALS={
 const PLANETDEF=[
   {id:'haven',name:'Haven Rock',kind:'Hidden Base',x:0.10,y:0.78,base:true,known:true,access:true,
    sit:'Home. Nobody knows it exists. Keep it that way.'},
-  {id:'veray',sec:2,sup:2,name:'Veray Yards',kind:'Industrial World',pop:'40M',x:0.30,y:0.55,known:true,access:true,
+  {id:'veray',sec:2,sup:2,name:'Veray Yards',kind:'Industrial World',pop:'40M',x:0.25,y:0.66,known:true,access:true,
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
-  {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
+  {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.13,y:0.58,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'brakka',sec:1,sup:3,name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
-   sit:'Dust, herders, and the frontier town of Dustfall — where Sheriff Reeve keeps Hegemony law and one FT-4 Cross on the pad.'},
+  {id:'brakka',sec:1,sup:3,name:'Brakka',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
+   sit:'Dust, herders and a scatter of frontier towns the Hegemony never bothered to garrison properly. The law is whoever wears the badge. Small stakes, soft targets, and a good place for a rebellion to learn its trade.',
+   regions:[
+    {id:'dustfall',name:'Dustfall',kind:'Settlement',blurb:'A frontier town: one cantina, one landing pad and one sheriff.',
+     op:{name:'Rattle the Dustfall Deputies',desc:'A few well-aimed bottles through the right windows, and the deputies spend a week watching their backs instead of the street.',c:50,s:15}},
+    {id:'flats',name:'Redrock Flats',kind:'Region',blurb:'Herder country, lonely wells and the depot they’re taxed at.',
+     op:{name:'Empty the Tithe Depot',desc:'The tithe depot holds the herders’ forced levy: grain, water credits and ammunition, guarded by people who would rather be somewhere else.',c:60,s:40}},
+    {id:'orbit',name:'Brakka Orbit',kind:'Region',blurb:'Fuel depots and nav beacons in low orbit, feeding every patrol.',
+     op:{name:'Jam the Orbital Beacons',desc:'Four nav beacons keep the patrols on schedule. Without them, the schedule becomes a suggestion.',c:70,s:20}},
+   ]},
   {id:'callis',sec:2,sup:3,name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
    sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
   {id:'meridian',sec:5,sup:1,name:'Meridian',kind:'CORE · Capital',pop:'2.1B',x:0.86,y:0.30,known:true,scout:14,core:true,
@@ -266,7 +274,7 @@ const PLANETDEF=[
   {id:'oubli',sec:0,sup:0,name:'Oubliette',kind:'Dead Colony',pop:'0',x:0.14,y:0.16,scout:4,
    sit:'A colony that stopped answering forty years ago. Empty streets. One transmitter, still powered.'},
   /* liberation-ready outworlds: their regions can be won, one local op at a time */
-  {id:'menk',name:'Menk',kind:'Quarry World',pop:'1.4M',x:0.25,y:0.68,scout:4,sec:2,sup:2,lib:true,src:'tess',
+  {id:'menk',name:'Menk',kind:'Quarry World',pop:'1.4M',x:0.38,y:0.74,scout:4,sec:2,sup:2,lib:true,src:'tess',
    sit:'Salt flats the colour of bone, and company towns built to feed the crushers. The Hegemony wants the flux salt for its foundries and has never asked what it costs.',
    brief:'Remote salt-quarry world. Thin air, endless white flats, and a population bound to the crushers by debts their grandparents signed. The Hegemony is grinding Menk down to smelt its warships. Nobody here has ever been asked what they think.',
    regions:[
@@ -311,7 +319,9 @@ const SUP_COL=['#2b4a9a','#3f6a9a','#8a6a48','#a24a3a','#b02a2a'];   // low supp
 const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
   garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
-for(const d of PLANETDEF)if(d.regions)for(const r of d.regions){
+MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=20;
+MPOOL.depotrun.region='orbit';MPOOL.depotrun.lib=20;
+for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
   MPOOL['op_'+d.id+'_'+r.id]={name:r.op.name,from:'Local network · '+d.name,need:2,days:2,
     riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20};
 }
@@ -599,6 +609,7 @@ function missionAftermath(mid){
     news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
     G.candQ.push('halt');
     G.candQ.push('vokk');
+    syncLocalOps('brakka',true);
   }
 }
 function resolveMission(m){
@@ -762,8 +773,7 @@ function scoutPlanet(id){
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
-  if(id==='brakka'){addMission('stealcross');lines.push('A sheriff town called Dustfall. One FT-4 Cross on the pad, and the deputies patrol like the war’s already won. There’s a theft in this.');}
-  else if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
+  if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
   else if(id==='volund'){addMission('foundry');lines.push('A clerk in freight control sells manifests. There’s a job here.');}
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
   else if(id==='meridian'){G.candQ.push('renn');lines.push('Our people flagged a customs chief with expensive habits and flexible loyalties.');}
@@ -827,7 +837,9 @@ function openEscalation(){
 function syncLocalOps(id,quiet){
   const d=pdef(id),st=pst(id);
   if(!d||!d.regions||!st||!st.access)return;
+  if(d.gate&&!G[d.gate])return;
   for(const r of d.regions){
+    if(!r.op)continue;
     const mid='op_'+id+'_'+r.id;
     const cur=G.missions.find(m=>m.id===mid);
     if(cur&&cur.state==='done')G.missions.splice(G.missions.indexOf(cur),1);
@@ -2500,7 +2512,8 @@ function restoreCampaign(data){
     for(const d of PLANETDEF){
       let st=G.planets.find(x=>x.id===d.id);
       if(!st){st=mkPlanet(d);G.planets.push(st);}
-      if(st.acc===undefined)st.acc=st.access&&!d.base?1:0;
+      if(d.access&&!d.base&&!st.access){st.known=st.access=st.scouted=true;}
+      if(st.acc===undefined||(st.access&&!d.base&&!st.acc))st.acc=st.access&&!d.base?1:0;
       if(st.sup===undefined)st.sup=d.sup||0;
       if(!st.lib)st.lib={};
       if(st.ops===undefined)st.ops=0;
@@ -2510,8 +2523,6 @@ function restoreCampaign(data){
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
-    const bk=G.planets&&G.planets.find(p=>p.id==='brakka');
-    if(bk&&bk.scouted&&!G.missions.some(m=>m.id==='stealcross'))addMission('stealcross');
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
       if(s.pendingEvent){

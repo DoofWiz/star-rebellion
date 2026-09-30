@@ -480,7 +480,12 @@ Each location has four statistics:
   Quarter tasks.
 - **Liberation** (0–100%): derived from the liberation of the location's **regions and
   settlements** (Hegemony-controlled, contested, revolution-controlled).
-- **Scale:** the existing worlds keep Security, Access and Support but have no regions.
+- **Onboarding worlds** (Haven Rock, Brakka, Veray Yards, Relay Kess) sit close together
+  near the base and all start with **Access 1**. Brakka is a general frontier backwater
+  with three regions: **Dustfall** (where *Steal the Cross* happens), **Redrock Flats**
+  and **Brakka Orbit** (*Cook the Depots*). Story missions add liberation to their region;
+  Brakka's repeatable local ops only open once the onboarding is finished.
+- **Scale:** the other existing worlds keep Security, Access and Support but have no regions.
   Three new **liberation-ready outworlds** carry 3 regions each: **Menk** (quarry world,
   Security 2), **Ballakan** (river world, Security 1) and **Parity IV** (administrative
   world, Security 3). The rest are scouting and mission targets.
