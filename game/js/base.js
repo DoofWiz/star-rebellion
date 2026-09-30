@@ -261,8 +261,6 @@ const PLANETDEF=[
      op:{name:'Rattle the Dustfall Deputies',desc:'A few well-aimed bottles through the right windows, and the deputies spend a week watching their backs instead of the street.',c:50,s:15}},
     {id:'flats',name:'Redrock Flats',kind:'Region',blurb:'Herder country, lonely wells and the depot they’re taxed at.',
      op:{name:'Empty the Tithe Depot',desc:'The tithe depot holds the herders’ forced levy: grain, water credits and ammunition, guarded by people who would rather be somewhere else.',c:60,s:40}},
-    {id:'orbit',name:'Brakka Orbit',kind:'Region',blurb:'Fuel depots and nav beacons in low orbit, feeding every patrol.',
-     op:{name:'Jam the Orbital Beacons',desc:'Four nav beacons keep the patrols on schedule. Without them, the schedule becomes a suggestion.',c:70,s:20}},
    ]},
   {id:'callis',sec:2,sup:3,name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
    sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
@@ -328,8 +326,8 @@ const SUP_COL=['#2b4a9a','#3f6a9a','#8a6a48','#a24a3a','#b02a2a'];   // low supp
 const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
   garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
-MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=20;
-MPOOL.depotrun.region='orbit';MPOOL.depotrun.lib=20;
+MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=10;   // a first foothold, not a liberation
+// space combat happens in orbit over a world, never in a region: Cook the Depots has none
 /* a mission TYPE fixes its shape (what it needs, how it plays); each mission adds its own story.
    `req` can override the type's default: team size, transports, prize pilots, ship class. */
 const MTYPES={
@@ -360,6 +358,15 @@ MEXTRA.skim.after=['<b>VOKK:</b> “The transfer cleared. I will pretend I do no
 MEXTRA.fighters.after=['<b>HALT:</b> “Pad nine is a crime scene and I am a witness. Keep the Talon. I never saw it.”'];
 MEXTRA.chart.after=['<b>MARR:</b> “Your charts are better than ours. I will lose my own copy. Thank you.”'];
 for(const k in MEXTRA)Object.assign(MPOOL[k],MEXTRA[k]);
+/* Steal Fuel: the first mission built on the new framework (Tier 1) */
+MPOOL.stealfuel={name:'Steal Fuel',from:'Cass Wender',src:'cass',need:3,days:2,riskTxt:'Moderate',
+  lead:'ground',ground:true,type:'ground',scenario:'stealfuel',
+  loc:'brakka',region:'flats',lib:10,
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0},
+  desc:'Every herder on Brakka pays the fuel tithe, and every drop of it ends up in the Redrock depot: tanks, a pump house and a bored guard detail. We need fuel to keep the ships running. Get in, call the Marta down onto the apron, and hold the pumps while she drinks.',
+  objectives:['Reach the fuel depot on Redrock Flats','Call in the Marta and land her on the apron','Defend her while the tanks fill (5 rounds)','Board and lift off'],
+  rew:{f:60,c:40,xp:0.2},
+  after:['<b>WENDER:</b> “Full tanks and a depot that will spend a month explaining where the tithe went. The herders are already telling the story. Not bad for a ragged crew with one hauler.”']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
 const SEATS={graf:4};     // troop seats per transport
 MPOOL.tanker.rew.f=60;MPOOL.intercept.rew.m=25;MPOOL.orehaul.rew.m=45;MPOOL.foundry.rew.m=30;MPOOL.garrison.rew.m=20;
@@ -368,7 +375,7 @@ for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
     riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c,s:r.op.s||0,xp:0.12},loc:d.id,region:r.id,lib:20,
     objectives:['Reach the target in '+r.name,'Strike, then get clear'],type:'abstract'};
 }
-const OPX={op_menk_saltreach:{m:30},op_menk_kilnridge:{m:35},op_ballakan_canopy:{m:45},op_ballakan_sawmill:{m:30},op_brakka_flats:{m:25},op_brakka_orbit:{f:25}};
+const OPX={op_menk_saltreach:{m:30},op_menk_kilnridge:{m:35},op_ballakan_canopy:{m:45},op_ballakan_sawmill:{m:30},op_brakka_flats:{m:25}};
 for(const k in OPX)if(MPOOL[k])Object.assign(MPOOL[k].rew,OPX[k]);
 
 function mkPlanet(d){
@@ -454,6 +461,11 @@ function storySignal(src){
   if(src.id==='cass'&&G.onboard==='seraoffered'&&!G.people.some(p=>p.id==='sera')){
     src.signal={kind:'recruitSera',
       text:'“Found your stick. Sera Kest — ex-Hegemony survey pilot, grounded for attitude, hungrier to fly than anyone I ever hauled. She’s on my next run if you’ll have her.”'};
+    return true;
+  }
+  if(src.id==='cass'&&G.postDepot&&!G.missions.some(m=>m.id==='stealfuel')){
+    src.signal={kind:'mission',mid:'stealfuel',
+      text:'“Your ships are drinking more than my friends do. Redrock Flats, east of Dustfall: the herders’ fuel tithe all ends up in one depot with a pump house and a bored guard detail. Call your hauler down on their apron and let her drink.”'};
     return true;
   }
   if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
@@ -607,6 +619,12 @@ function advanceDay(){
   }
   if(hasRoom('comms')&&staffOf('comms').length)G.intel+=roomsOf('comms').length;
   else if(hasRoom('comms'))news('The comms array hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
+  {
+    const cass2=G.sources.find(x=>x.id==='cass'&&x.alive);
+    if(cass2&&G.postDepot&&!cass2.signal&&!G.missions.some(m=>m.id==='stealfuel')&&storySignal(cass2)){
+      news('<b>Cass Wender</b> is on the wire again: he has a fuel job.','a');sAlert();
+    }
+  }
   genOpportunities();
   for(const m of G.missions){
     if(m.state!=='prog')continue;
@@ -890,10 +908,10 @@ const OPP_TPL=[
   {name:'Ambush the Supply Convoy',days:2,rew:{s:40,m:20},obj:['Intercept the convoy near {where}','Take the cargo'],
    intro:'Our listeners caught a convoy schedule out of {loc}: two haulers, one escort and a driver who hums. It passes {where} at dusk.',
    desc:'A supply convoy on a predictable route through {where}. Hit it, take the cargo, and be gone before the escort calls it in.'},
-  {name:'Skim a Fuel Hauler',days:2,rew:{f:35,c:30},obj:['Shadow the hauler out of {where}','Siphon her tanks'],
+  {name:'Skim a Fuel Hauler',days:2,space:true,rew:{f:35,c:30},obj:['Shadow the hauler out of {where}','Siphon her tanks'],
    intro:'A fuel hauler out of {loc} runs light on escorts every third night, and someone in the depot sells us the timing.',
    desc:'A fuel hauler with a thin escort near {where}. Take what she carries before the depot notices the shortfall.'},
-  {name:'Tap a Comm Relay',days:2,rew:{i:3},obj:['Reach the relay above {where}','Plant the tap and leave'],
+  {name:'Tap a Comm Relay',days:2,space:true,rew:{i:3},obj:['Reach the relay above {where}','Plant the tap and leave'],
    intro:'A relay above {loc} carries patrol traffic almost in the clear. A tap would tell us where they are going next.',
    desc:'A patrol relay over {where}. Plant a tap and we read their traffic for weeks.'},
   {name:'Loot the Customs Shed',days:2,rew:{c:90,m:15},obj:['Reach the customs shed at {where}','Empty the impound lockers'],
@@ -921,7 +939,7 @@ function genOpportunities(){
     const scale=1+0.25*((st.acc||0)-2);
     const rew={};for(const k in OPP_TPL[ti].rew)rew[k]=Math.round(OPP_TPL[ti].rew[k]*scale);
     let region=null;
-    if(d.regions){
+    if(d.regions&&!OPP_TPL[ti].space){
       const open=d.regions.filter(r=>((st.lib&&st.lib[r.id])||0)<Math.min(100,locCap(st)));
       if(open.length)region=open[Math.floor(rng()*open.length)];
     }
@@ -2706,7 +2724,7 @@ function startPlan(){
     const scatter=G.armory.find(a=>a.id==='scatter'&&a.n>0);
     const blam=G.armory.find(a=>a.id==='blam');
     G.fuel-=fuel;
-    SR.mission={kind:'ground',missionId:m.id,days:m.days,nades:blam?blam.n:0,
+    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,

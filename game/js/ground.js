@@ -150,6 +150,85 @@ stealcross:{
     {id:'civ4',name:'Townsfolk',first:'townsfolk',side:'civ',x:1500,y:1090,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1500,y:1090},{x:1320,y:1120},{x:1560,y:960}]},
   ];},
 },
+stealfuel:{
+  mode:'stealfuel',W:2200,H:1500,style:'town',fog:true,
+  hasPad:false,hasTower:true,hasTurret:false,hasGraf:true,tumbleweed:true,
+  title:'Steal Fuel',sub:'Redrock Flats · Brakka — Revolution I',
+  foesLabel:'Tithe Guard',calmLabel:'Depot is quiet',alertLabel:'Depot alerted',
+  banner:['Steal Fuel','Nothing flies without it'],
+  brief:{
+    eyebrow:'Ground Operation · Redrock Flats, Brakka',
+    flavour:'Every herder on Brakka pays the fuel tithe, and every drop of it ends up in the <b>Redrock tithe depot</b>: tanks, a pump house and a bored guard detail. Nobody has ever tried to take it back. Walk in, call the Marta down onto the loading apron, and keep the pumps safe while she drinks.',
+    objectives:[
+      'Reach the fuel depot on the east side of the flats',
+      'Call in the Marta and bring her down on the loading apron',
+      'Defend her while the fuel lines pump — five rounds',
+      'Get the squad aboard and lift off',
+      {sub:1,text:'The Marta’s engines will wake the whole depot. Expect company.'},
+    ],
+    hint:'Stay out of the guards’ sight cones on the way in. Once the Marta lands, at least one of you has to stand on the apron for the tanks to keep filling. The red drums around the pumps go up if a stray round finds them.',
+  },
+  towerLabel:'WATCHTOWER',
+  lamps:[[1640,360],[1810,540],[1260,560],[900,820],[1560,760]],
+  csLine:'Redrock Flats. I’ll keep her warm and stay out of sight — call me when you’re at the pumps.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:260,y:1190,r:130},PAD:{x:1700,y:440,r:150},
+  TOWER:{x:1330,y:300,r:54},
+  panTo:{x:1500,y:480},
+  guardPt:{x:1700,y:470},
+  work:[],
+  waves:[
+    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — two guards, bailing out fast.',
+     foes:[
+       {id:'dill',name:'Guard Dill',first:'Dill',side:'law',x:2150,y:640,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']},
+       {id:'corr',name:'Guard Corr',first:'Corr',side:'law',x:2150,y:720,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']},
+     ]},
+    {at:3,log:'<span class="h">The depot warden and a second crawler arrive from the north road.</span>',
+     foes:[
+       {id:'hask',name:'Warden Hask',first:'Hask',side:'law',x:1420,y:40,hp:95,maxhp:95,aim:2,def:11,cool:85,wpns:['scatter'],lines:['That tithe is the Hegemony’s!','Nobody drains my tanks.']},
+       {id:'orsk',name:'Guard Orsk',first:'Orsk',side:'law',x:1520,y:40,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['North road is ours!','Warden, they’re on the apron!']},
+       {id:'vell',name:'Guard Vell',first:'Vell',side:'law',x:1320,y:40,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Cover me!','Not the pumps!']},
+     ]},
+  ],
+  bldgs:[
+    {x:1100,y:340, w:280,h:200,name:'TITHE DEPOT',sign:1},
+    {x:1480,y:640, w:220,h:150,name:'PUMP HOUSE',solar:1},
+    {x:760, y:720, w:240,h:160,name:'GUARD POST'},
+    {x:470, y:470, w:200,h:150,name:'GRAIN STORE',solar:1},
+    {x:980, y:1000,w:260,h:150,name:'HAULAGE SHED'},
+    {x:340, y:880, w:130,h:100,name:''},
+    {x:1860,y:860, w:170,h:130,name:'',solar:1},
+  ],
+  props:[
+    {x:1530,y:300,kind:'canister'},{x:1860,y:320,kind:'canister'},{x:1890,y:540,kind:'canister'},{x:1560,y:560,kind:'canister'},
+    {x:900, y:940,kind:'canister'},
+    {x:1620,y:250,kind:'barrel'},{x:1660,y:262,kind:'barrel'},{x:1800,y:590,kind:'barrel'},
+    {x:1580,y:380,kind:'crate'},{x:1810,y:290,kind:'crate'},{x:1620,y:600,kind:'crate'},
+    {x:1410,y:720,kind:'wagon',a:0.3},{x:880,y:590,kind:'wagon',a:-0.2},{x:1250,y:1110,kind:'wagon',a:0.6},
+    {x:1300,y:880,kind:'trough'},{x:720,y:1000,kind:'trough'},
+    {x:700,y:1100,kind:'rock'},{x:1100,y:1240,kind:'rock'},{x:1500,y:1000,kind:'rock'},{x:1950,y:760,kind:'rock'},
+    {x:2000,y:1000,kind:'rock'},{x:620,y:290,kind:'rock'},{x:980,y:260,kind:'rock'},{x:480,y:760,kind:'rock'},
+    {x:1180,y:700,kind:'crate'},{x:1120,y:780,kind:'crate'},
+  ],
+  loots:[
+    {id:'strongbox',x:1236,y:510,label:'Tithe strongbox',take:'120 ◈ credits',c:120},
+    {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'16 ▤ supplies',s:16},
+    {id:'grain',x:560,y:620,label:'Grain store',take:'22 ▤ supplies',s:22},
+    {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
+  ],
+  foes(){return [
+    {id:'holt',name:'Guard Holt',first:'Holt',side:'law',x:1250,y:620,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']},
+    {id:'vane',name:'Guard Vane',first:'Vane',side:'law',x:1000,y:880,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1000,y:880},{x:760,y:940}],lines:['Dust and more dust…','They’re armed! GUNS!']},
+    {id:'tull',name:'Guard Tull',first:'Tull',side:'law',x:720,y:600,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:600},{x:560,y:720}],lines:['Herders don’t come this way.','West road! Raiders!']},
+    {id:'ruck',name:'Guard Ruck',first:'Ruck',side:'law',x:1780,y:300,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],guard:1,patrol:[{x:1780,y:300},{x:1890,y:430},{x:1770,y:560}],lines:['Apron’s secure.','They want the tanks!']},
+    {id:'pike2',name:'Guard Pike',first:'Pike',side:'law',x:1620,y:700,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],guard:1,patrol:[{x:1620,y:700},{x:1760,y:660}],lines:['Pumps are locked.','Fall back to the pumps!']},
+    {id:'hale',name:'Tower Hale',first:'Hale',side:'law',x:1330,y:300,hp:55,maxhp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,lines:['Clear view from up here.','Say when, Warden.']},
+  ];},
+  civs(){return [
+    {id:'civ1',name:'Herder',first:'herder',side:'civ',x:430,y:1000,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:430,y:1000},{x:540,y:1090},{x:380,y:1120}]},
+    {id:'civ2',name:'Herder',first:'herder',side:'civ',x:900,y:1130,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:900,y:1130},{x:1040,y:1180},{x:800,y:1200}]},
+  ];},
+},
 haven:{
   mode:'haven',W:1600,H:1200,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
@@ -336,6 +415,10 @@ let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null,radialOn=false,radialSub=null;
 let execT0=0,engageQ=null;
 let hot=0,crossAway=false,crossFx=null,grafState='landed';
+/* Steal Fuel: reach the depot, call the Marta down, hold the pumps five rounds, get out */
+let fs=null;
+const FUEL_ROUNDS=5;
+const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
 let lootMarks=[];        // includes LOOTS refs + dynamic drops
 let floaters=[],tracers=[],parts=[],bubbles=[],casings=[];
@@ -1104,7 +1187,72 @@ function checkBoss(){
   if(town==='calm')alertTown(SCN.bossAlert);
   syncUI();
 }
+/* ---------- Steal Fuel objectives ---------- */
+function fuelGuards(){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,PAD)<PAD.r+40);}
+function fuelReach(){
+  if(!fs||fs.reached)return;
+  if(U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,PAD)<PAD.r+70)){
+    fs.reached=true;
+    addFloater(PAD.x,PAD.y-70,'DEPOT REACHED','#7dd97b');
+    log('<span class="g">The squad is at the pumps.</span> Call the Marta down onto the apron when you are ready.');
+    const lead=U.find(u=>u.side==='reb'&&!u.down);
+    if(lead)say(lead,'Pumps are right there. Call her in.');
+    sTick();syncUI();
+  }
+}
+function callTransport(){
+  if(!fs||!fs.reached||fs.called||phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
+  fs.called=true;
+  fs.flying={t0:performance.now(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
+  grafState='flying';
+  sTakeoff();
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Inbound to the apron. Keep it clear, I do not land on people.');
+  syncUI();
+}
+function fuelUpdate(now){
+  if(!fs||!fs.flying)return;
+  const t=Math.min(1,(now-fs.flying.t0)/fs.flying.dur),e=ease(t);
+  grafPos.x=lerp(fs.flying.from.x,PAD.x-40,e);
+  grafPos.y=lerp(fs.flying.from.y,PAD.y,e);
+  grafPos.a=lerp(0.12,-0.2,e);
+  if(t>=1){
+    fs.flying=null;fs.landed=true;grafState='landed';
+    sLand();shake=now;
+    for(let i=0;i<26;i++)parts.push({x:PAD.x+(rng()-0.5)*220,y:PAD.y+(rng()-0.5)*170,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
+    log('<span class="g">The Marta is down on the apron and the fuel lines are out.</span> Hold the pumps: '+FUEL_ROUNDS+' rounds.');
+    camGoal={x:PAD.x-100,y:PAD.y+40,z:0.85};
+    alertTown('The Marta’s engines wake the whole depot.');
+  }
+}
+function fuelPumpStep(){
+  if(!fs||!fs.landed||fs.done)return;
+  if(!fuelGuards()){
+    addFloater(PAD.x,PAD.y-60,'PUMPS STALLED — NO ONE ON THE APRON','#ff9a5c');
+    return;
+  }
+  fs.pump++;
+  addFloater(PAD.x,PAD.y-60,'FUEL '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,'#7de3ec');
+  sSpark();
+  for(const w of (SCN.waves||[])){
+    if(w.at!==fs.pump)continue;
+    for(const f of w.foes){
+      const u=mkU(Object.assign({},f));
+      u.face=Math.PI;u.wave=1;
+      U.push(u);
+    }
+    log(w.log);sAlert();
+  }
+  if(fs.pump>=FUEL_ROUNDS){
+    fs.done=true;
+    addFloater(PAD.x,PAD.y-88,'TANKS FULL','#7dd97b');
+    log('<span class="g">The Marta’s tanks are full.</span> '+(hostilesActive().length?'Clear the apron, then everyone aboard.':'Everyone aboard.'));
+    const lead=U.find(u=>u.side==='reb'&&!u.down);
+    if(lead)say(lead,'That is her full! Everybody on the ramp!');
+  } else log('Fuel pumping — <span class="a">'+fs.pump+'/'+FUEL_ROUNDS+'</span>.');
+  syncUI();
+}
 function extractReady(){
+  if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   return crossAway&&hostilesActive().length===0&&
     U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
 }
@@ -1150,6 +1298,11 @@ function rtUpdate(now,dt){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
     for(const m of lootsWithin(u,AUTO_LOOT))collectLoot(u,m);
   }
+  fuelReach();
+  if(fs&&fs.landed&&!fs.done){
+    if(fuelGuards()){fs.pumpT+=dt;if(fs.pumpT>=6){fs.pumpT=0;fuelPumpStep();}}
+    else fs.pumpT=0;
+  }
   // pad work runs on timers out of combat
   const sera=U.find(x=>x.id==='sera');
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
@@ -1190,23 +1343,25 @@ function startExtract(){
   phase='EXTRACT';
   byId('app').classList.add('cine');
   selId=null;pickMode=null;radialOn=false;
-  camGoal={x:LZ.x+120,y:LZ.y-40,z:1.0};
+  const E=exitPt();
+  camGoal={x:E.x+120,y:E.y-40,z:1.0};
   extractFx={stage:'board',t0:performance.now()};
   let i=0;
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
     if(u.manning)unmanTurret(u);
-    setRt(u,LZ.x+96+(i%2)*22,LZ.y-18+i*20,RT_SPEED*2);i++;   // double time to the ramp
+    setRt(u,E.x+96+(i%2)*22,E.y-18+i*20,RT_SPEED*2);i++;   // double time to the ramp
   }
   log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Ramp’s down. All aboard — double time!');
   sTick();syncUI();
 }
 function extractUpdate(now,dt){
+  const E=exitPt();
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
     rtStep(u,dt);
     if(!u.rtPath){
-      if(Math.hypot(u.x-LZ.x,u.y-LZ.y)<130){
+      if(Math.hypot(u.x-E.x,u.y-E.y)<130){
         u.extracted=1;
         addFloater(u.x,u.y-36,'ABOARD','#7dd97b');
         sThud();
@@ -1214,7 +1369,7 @@ function extractUpdate(now,dt){
       } else if(!u.rtRetryAt||now>u.rtRetryAt){
         // path came up short — try again for the ramp
         u.rtRetryAt=now+800;
-        setRt(u,LZ.x+96,LZ.y,RT_SPEED*2);
+        setRt(u,E.x+96,E.y,RT_SPEED*2);
       }
     }
   }
@@ -1223,8 +1378,8 @@ function extractUpdate(now,dt){
     extractFx={stage:'lift',t0:now};
     grafState='gone';
     sTakeoff();
-    for(let i=0;i<30;i++)parts.push({x:LZ.x+(rng()-0.5)*220,y:LZ.y+(rng()-0.5)*170,vx:(rng()-0.5)*200,vy:-rng()*50,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:1000});
-    camGoal={x:LZ.x,y:LZ.y-80,z:0.85};
+    for(let i=0;i<30;i++)parts.push({x:E.x+(rng()-0.5)*220,y:E.y+(rng()-0.5)*170,vx:(rng()-0.5)*200,vy:-rng()*50,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:1000});
+    camGoal={x:E.x,y:E.y-80,z:0.85};
   }
   if(extractFx.stage==='lift'&&now-extractFx.t0>3400){
     byId('app').classList.remove('cine');
@@ -1570,6 +1725,8 @@ function endRound(){
     if(!dmgRound.has(u.id))adjCoolG(u,6,null);
   }
   dmgRound=new Set();
+  fuelReach();
+  fuelPumpStep();
   // hotwire
   const sera=U.find(u=>u.id==='sera');
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
@@ -1655,11 +1812,14 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!(SCN.mode==='stealcross'&&!win);
-  byId('endEyebrow').textContent=win?'Mission Report · Dustfall':'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?'The Cross Is Ours':'Mission Failed';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel')&&!win);
+  byId('endEyebrow').textContent=win?(fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  byId('endTitle').textContent=win?(fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
-  if(win){
+  if(fs){
+    txt=win?'The Marta lifted off Redrock Flats heavy with the tithe: every drop the herders paid, pumped back out of the depot that took it. Somewhere a warden is writing a very long report.'+(left.length?' It cost us: '+left.join(', ')+' left on the apron. We don\u2019t forget that.':''):
+      'The squad was overrun around the apron and the Marta lifted empty. The depot is still full and the warden is still smug.';
+  } else if(win){
     txt='Sera put the FT-4 down at Haven Rock with the fuel light on and a grin she won’t drop for a week. '+
       'Sheriff Reeve’s Hegemony masters will want an explanation he doesn’t have.';
     if(left.length)txt+=' It cost us: '+left.join(', ')+' left on the street. We don’t forget that.';
@@ -1670,7 +1830,12 @@ function gameOver(win,why){
   }
   byId('endText').textContent=txt;
   let lh='';
-  if(win){
+  if(win&&fs){
+    lh+='<div class="lootline"><span>Marta\u2019s fuel tanks</span><span>FULL</span></div>';
+    if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
+    if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
+    for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
+  } else if(win){
     lh+='<div class="lootline"><span>FT-4 Cross starfighter</span><span>SECURED</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
@@ -1697,7 +1862,7 @@ function buildResult(win){
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:!haven&&!!win,nades:NADES,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -1964,6 +2129,7 @@ function drawGround(){
     ctx.fillStyle=p.warm?'rgba(120,90,54,'+p.a+')':'rgba(30,24,16,'+(p.a+0.03)+')';
     ctx.fillRect(p.x,p.y,p.w,p.h);
   }
+  if(SCN.mode==='stealcross'){
   // main street
   ctx.fillStyle='rgba(58,44,28,0.55)';
   ctx.fillRect(300,764,1560,120);
@@ -1981,6 +2147,15 @@ function drawGround(){
   ctx.beginPath();ctx.moveTo(2030,780);ctx.quadraticCurveTo(2110,560,PAD.x,PAD.y+70);ctx.stroke();
   // track from LZ
   ctx.beginPath();ctx.moveTo(LZ.x,LZ.y-90);ctx.quadraticCurveTo(400,1050,470,880);ctx.stroke();
+  } else {
+    // dirt roads: LZ to the depot gate, and the service spur onto the apron
+    ctx.strokeStyle='rgba(58,44,28,0.5)';ctx.lineWidth=70;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(LZ.x,LZ.y-100);ctx.quadraticCurveTo(700,1000,1000,860);ctx.quadraticCurveTo(1300,760,1500,560);ctx.lineTo(PAD.x-60,PAD.y+80);ctx.stroke();
+    ctx.lineWidth=44;
+    ctx.beginPath();ctx.moveTo(1420,730);ctx.lineTo(2160,690);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(1440,80);ctx.quadraticCurveTo(1420,300,1430,420);ctx.stroke();
+    ctx.lineCap='butt';
+  }
   for(const s of scrub){
     ctx.fillStyle='rgba(74,86,44,0.3)';
     ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();
@@ -1993,7 +2168,7 @@ function drawGround(){
     ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();
   }
   // street lamps — cold light in a dust town
-  for(const lp of [[600,772],[1104,880],[1590,772],[2044,880]]){
+  for(const lp of (SCN.mode==='stealcross'?[[600,772],[1104,880],[1590,772],[2044,880]]:(SCN.lamps||[]))){
     const g=ctx.createRadialGradient(lp[0],lp[1],4,lp[0],lp[1],90);
     g.addColorStop(0,'rgba(150,220,255,0.10)');g.addColorStop(1,'rgba(150,220,255,0)');
     ctx.fillStyle=g;
@@ -2325,7 +2500,7 @@ function drawBldgs(){
       ctx.strokeStyle='rgba(87,215,226,'+(0.6*flick)+')';ctx.lineWidth=1;ctx.stroke();
       ctx.font='700 13px "Exo 2"';ctx.textAlign='center';
       ctx.fillStyle='rgba(125,227,236,'+(0.9*flick)+')';
-      ctx.fillText('THE DRY COMET',b.x+b.w/2,b.y+b.h+20);
+      ctx.fillText(b.name,b.x+b.w/2,b.y+b.h+20);
     }
     if(b.name&&!b.sign){
       ctx.font='700 13px "IBM Plex Mono"';ctx.textAlign='center';
@@ -2353,9 +2528,9 @@ function drawTowerTop(){
   ctx.strokeStyle='rgba(87,168,255,0.25)';ctx.lineWidth=2;
   for(let k=0;k<3;k++){ctx.beginPath();ctx.arc(0,0,TOWER.r*0.66,k*2.1,k*2.1+1.2);ctx.stroke();}
   ctx.font='600 10px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(205,216,236,0.4)';
-  ctx.fillText('CONDENSER',0,-TOWER.r-8);
+  ctx.fillText(SCN.towerLabel||'CONDENSER',0,-TOWER.r-8);
   ctx.restore();
-  const wren=U.find(u=>u.id==='wren');
+  const wren=U.find(u=>u.elev&&u.fixed);
   if(wren&&unitSeen(wren))drawUnit(wren);
 }
 function drawDerelict(){
@@ -3039,6 +3214,7 @@ function render(now){
     const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
     lastFrame=now;
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
+    if(phase!=='CUTSCENE')fuelUpdate(now);
     if(phase==='FREE')rtUpdate(now,dt);
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
@@ -3298,12 +3474,14 @@ function dockHTML(){
   if(phase==='FREE'){
     const sneakBtn='<button class="chipbtn" id="sneakBtn" aria-pressed="'+sneak+'" '+(town!=='calm'?'disabled':'')+'>'+(sneak?'Sneaking':'Sneak')+'</button>';
     if(extractReady())return '<div class="dockcard">'+sneakBtn+'<button id="extractBtn">▲ Extract</button></div>';
-    return '<div class="dockcard">'+sneakBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
+    const callBtn=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
+    return '<div class="dockcard">'+sneakBtn+callBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
   }
   if(phase==='PLANNING'){
     const squad=plotted();
     const done=squad.filter(u=>u.order).length;
-    return '<div class="dockcard"><span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast'+(NADES>0?' · ✸ BLAM ×'+NADES:'')+'</span>'+
+    const callBtn2=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
+    return '<div class="dockcard">'+callBtn2+'<span class="docklabel">'+done+'/'+squad.length+' plotted · unplotted stand fast'+(NADES>0?' · ✸ BLAM ×'+NADES:'')+'</span>'+
       '<button id="executeBtn">Execute Round</button></div>';
   }
   const c=engageQ&&engageQ.cur;
@@ -3372,6 +3550,13 @@ function syncUI(){
       {t:'Clear the squatters off the rock \u2014 '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
       {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
     ];
+  } else if(fs){
+    objs=[
+      {t:'Reach the fuel depot',done:fs.reached,now:!fs.reached},
+      {t:'Call in the Marta and land her on the apron',done:fs.landed,now:fs.reached&&!fs.landed},
+      {t:'Defend her while the tanks fill — '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,done:fs.done,now:fs.landed&&!fs.done},
+      {t:'Get the squad aboard — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fs.done},
+    ];
   } else {
   const wClamp=WORK.find(w=>w.id==='clamp'),wFuel=WORK.find(w=>w.id==='fuel');
   objs=[
@@ -3417,6 +3602,7 @@ byId('ctlDock').addEventListener('click',ev=>{
   if(ev.target.id==='executeBtn')execute();
   else if(ev.target.id==='sneakBtn')setSneak(!sneak);
   else if(ev.target.id==='extractBtn')startExtract();
+  else if(ev.target.id==='callBtn')callTransport();
   else if(ev.target.id==='attackBtn')playerAttack();
   else if(ev.target.id==='holdBtn')playerHold();
   else if(ev.target.closest('[data-stim]')){
@@ -3515,6 +3701,7 @@ function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
   lootMarks=LOOTS.map(l=>Object.assign({},l,{taken:false}));
   WORK=SCN.work.map(w=>Object.assign({},w,{done:false,t:0}));
@@ -3632,10 +3819,10 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    fn:{execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};

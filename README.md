@@ -180,6 +180,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   **Opportunities**, amber diamonds on the galaxy map, once a world reaches Access 2 and the Comms
   Array is staffed. The hangar starts with four landing pads.
 
+- **Steal Fuel (first Tier 1 mission).** Cass sends you to the Redrock tithe depot on
+  Brakka: reach the depot, call the Marta down onto the apron, hold the pumps for five rounds
+  while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space
+  missions never belong to a region.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

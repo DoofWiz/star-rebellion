@@ -482,9 +482,14 @@ Each location has four statistics:
   settlements** (Hegemony-controlled, contested, revolution-controlled).
 - **Onboarding worlds** (Haven Rock, Brakka, Veray Yards, Relay Kess) sit close together
   near the base and all start with **Access 1**. Brakka is a general frontier backwater
-  with three regions: **Dustfall** (where *Steal the Cross* happens), **Redrock Flats**
-  and **Brakka Orbit** (*Cook the Depots*). Story missions add liberation to their region;
-  Brakka's repeatable local ops only open once the onboarding is finished.
+  with two regions: **Dustfall** (where *Steal the Cross* happens) and **Redrock Flats**
+  (*Steal Fuel*). Story missions only *start* a region's liberation (*Steal the Cross* adds
+  10%); they never finish one. Brakka's repeatable local ops only open once the onboarding is
+  finished.
+- **Regions are land only.** Space combat is auto-generated in orbit over a location and never
+  belongs to a region, so space missions (Cook the Depots, fuel-hauler skims, relay taps) carry
+  a location but no region and add no liberation, though they still count for Revolution
+  progress.
 - **Scale:** the other existing worlds keep Security, Access and Support but have no regions.
   Three new **liberation-ready outworlds** carry 3 regions each: **Menk** (quarry world,
   Security 2), **Ballakan** (river world, Security 1) and **Parity IV** (administrative
@@ -542,6 +547,17 @@ Play → extract → **return-to-base cinematic** → **reward screen** (objecti
 injuries, Revolution progress, liberation gained) → the mission's source **calls back
 automatically** in the usual comm window. Fixed mission rewards now apply to ground missions
 too, on top of loot.
+
+### Steal Fuel (built, the first Tier 1 mission)
+Given by Cass Wender once the depot run is done (he also reaches out on his own). Played on
+**Redrock Flats, Brakka** as a ground operation: (1) **reach the fuel depot**, (2) **call in
+the Marta**, who flies from the LZ and lands on the loading apron (this wakes the depot),
+(3) **defend her while the tanks fill: 5 rounds** (or ~6 seconds each out of combat), and only
+while at least one rebel holds the apron. Reinforcement waves arrive after rounds 1 and 3,
+(4) **board and lift off**. The mission pays **60 Fuel and 40 credits**, plus loot, and adds 10%
+to Redrock Flats' liberation. Failing offers a retry with no cost. The reusable pieces (call-in
+transport, timed defend, extract from wherever the transport lands) are in `ground.js` for the
+next missions.
 
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
