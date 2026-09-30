@@ -190,6 +190,11 @@ The three layers now run as **one playable game** (`game/index.html` +
   ideally without the plant ever raising the alarm (stealth bonus). Introduces Policebots and
   riot shields. Charges come from looting the Redrock depot and the Autoworks' blasting shed.
 
+- **Rescue Dissident (Tier 1).** Orrin Pell sends you into the Tollgate security outpost on
+  Ballakan to free a prisoner from the detention cage and bring them out alive, ideally unseen.
+  The prisoner comes from the same pool as your recruits and is offered a place in the
+  movement afterwards. Pays 500 credits.
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

@@ -300,6 +300,66 @@ autofactory:{
     {id:'civ2',name:'Line Worker',first:'worker',side:'civ',x:1400,y:1040,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1400,y:1040},{x:1500,y:1180}]},
   ];},
 },
+rescue:{
+  mode:'rescue',W:2200,H:1500,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  title:'Rescue Dissident',sub:'Tollgate Landing · Ballakan — Revolution I',
+  foesLabel:'Security',calmLabel:'Outpost is quiet',alertLabel:'Outpost alerted',
+  banner:['Rescue Dissident','Somebody has to open the door'],
+  brief:{
+    eyebrow:'Ground Operation · Tollgate Landing, Ballakan',
+    flavour:'A well-known voice on the river has been locked in the <b>Tollgate security outpost</b>, waiting for a transfer nobody will ever hear about. Get in, open the cell, and bring them out.',
+    objectives:[
+      'Reach the detention cage behind the guardhouse',
+      'Release the prisoner from confinement',
+      'Bring them and the squad back to the Marta',
+      {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
+      {sub:1,text:'The prisoner is unarmed in all but name. If they go down, the mission fails.'},
+    ],
+    hint:'Stay out of the sight cones and the outpost may never know you were here. The prisoner follows your orders once freed, but is fragile. Riot shields stop every shot from the front, so flank them.',
+  },
+  towerLabel:'',
+  lamps:[[700,520],[1300,470],[1720,560],[1100,900],[1600,930]],
+  csLine:'Tollgate Landing. I’ll be here. Bring them out the way you went in.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:250,y:1150,r:130},PAD:{x:1720,y:470,r:60},
+  cage:{x:1660,y:330,w:120,h:120,dx:1720,dy:470},
+  guardPt:{x:1720,y:540},
+  work:[{id:'release',x:1720,y:476,label:'CELL LOCK',verb:'cuts the lock on the cell'}],
+  bldgs:[
+    {x:1240,y:250, w:260,h:180,name:'GUARDHOUSE'},
+    {x:640, y:560, w:300,h:170,name:'BARRACKS'},
+    {x:1040,y:900, w:280,h:160,name:'TOLL OFFICE'},
+    {x:1560,y:800, w:320,h:180,name:'BARGE SHED',solar:1},
+    {x:540, y:320, w:160,h:110,name:'GATEHOUSE'},
+  ],
+  props:[
+    {x:1500,y:760,kind:'canister'},{x:1920,y:900,kind:'canister'},
+    {x:1560,y:540,kind:'crate'},{x:1800,y:560,kind:'crate'},{x:1420,y:600,kind:'barrel'},{x:1850,y:420,kind:'barrel'},
+    {x:980,y:640,kind:'crate'},{x:1140,y:760,kind:'crate'},{x:820,y:880,kind:'barrel'},
+    {x:900,y:800,kind:'wagon',a:0.2},{x:1380,y:980,kind:'wagon',a:-0.3},{x:1980,y:700,kind:'wagon',a:0.4},
+    {x:1250,y:1160,kind:'trough'},{x:720,y:1050,kind:'trough'},
+    {x:600,y:950,kind:'rock'},{x:1100,y:1260,kind:'rock'},{x:1500,y:1200,kind:'rock'},{x:2050,y:1100,kind:'rock'},{x:400,y:700,kind:'rock'},{x:1900,y:300,kind:'rock'},
+  ],
+  loots:[
+    {id:'locker',x:1340,y:470,label:'Evidence locker',take:'Peacekeeper Carbine',items:['Peacekeeper Carbine']},
+    {id:'tollbox',x:1100,y:1050,label:'Toll box',take:'90 ◈ credits',c:90},
+    {id:'rations',x:1650,y:990,label:'Barge rations',take:'18 ▤ supplies',s:18},
+  ],
+  foes(){return [
+    {id:'fenn',name:'Patrolman Fenn',first:'Fenn',side:'law',x:720,y:470,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']},
+    {id:'pb21',name:'Policebot PB-21',first:'PB-21',side:'law',x:850,y:800,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
+    {id:'pb22',name:'Policebot PB-22',first:'PB-22',side:'law',x:1600,y:520,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1600,y:520},{x:1660,y:560}],lines:['Restricted area.','Please stand still.']},
+    {id:'rs3',name:'Riot Shieldman Orla',first:'Orla',side:'law',x:1720,y:524,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the prisoner.','Shields up!']},
+    {id:'rr4',name:'Riot Rifleman Dace',first:'Dace',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:620}],lines:['Cell block is sealed.','Rifles up!']},
+    {id:'oake',name:'Patrolman Oake',first:'Oake',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the toll office.','Hands where I can see them!']},
+    {id:'bray',name:'Patrolman Bray',first:'Bray',side:'law',x:1700,y:920,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1700,y:920},{x:1850,y:840}],lines:['Barge side is clear.','Stop right there!']},
+  ];},
+  civs(){return [
+    {id:'civ1',name:'Barge Hand',first:'barge hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
+    {id:'civ2',name:'Barge Hand',first:'barge hand',side:'civ',x:800,y:1180,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:800,y:1180},{x:700,y:1100}]},
+  ];},
+},
 haven:{
   mode:'haven',W:1600,H:1200,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
@@ -466,6 +526,11 @@ function initUnits(){
     level:sp.level||1,stims:1,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   const roster=[...squad];
+  if(SCN.mode==='rescue'&&spec.vip){
+    roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
+      x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:45,maxhp:45,aim:1,def:11,cool:45,level:1,stims:0,
+      wpns:['cowboy'],frail:1,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
+  }
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
       x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
@@ -491,7 +556,9 @@ let hot=0,crossAway=false,crossFx=null,grafState='landed';
 let fs=null;
 /* Blow Up Auto Factory: carry the charge, plant it, clear the blast zone, detonate */
 let fac=null;
-const exitOpen=()=>crossAway||(fac&&fac.detonated);
+/* Rescue Dissident: free the prisoner, bring them home; every rescued NPC is a recruit from the pool */
+let rs=null;
+const exitOpen=()=>crossAway||(fac&&fac.detonated)||(rs&&rs.released);
 const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
@@ -823,6 +890,7 @@ function alertTown(why){
   if(town==='alerted')return;
   town='alerted';alertFlash=performance.now();
   if(fac&&!fac.detonated)fac.everAlerted=true;
+  if(rs)rs.everAlerted=true;
   sAlert();
   log('<span class="h">The town is up.</span> '+why);
   const caller=U.find(u=>u.side==='law'&&!u.down&&!u.surr);
@@ -1236,6 +1304,19 @@ function completeWork(wp,u){
     gameOver(true);
     return;
   }
+  if(wp.id==='release'){
+    const v=U.find(x=>x.vip);
+    if(v){
+      v.caged=0;v.away=0;v.order=null;
+      v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
+      rs.released=true;
+      addFloater(wp.x,wp.y-46,v.first.toUpperCase()+' IS FREE','#7dd97b');
+      log('<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
+      say(v,v.lines[0]);
+    }
+    syncUI();
+    return;
+  }
   if(wp.id==='plant'){
     u.charge=0;fac.planted=true;
     addFloater(wp.x,wp.y-46,'CHARGE SET','#ff9a5c');
@@ -1373,6 +1454,20 @@ function facDetonate(){
   if(town==='calm')alertTown('The Autoworks goes dark.');
   syncUI();
 }
+function drawCage(now){
+  if(!rs)return;
+  const c=SCN.cage;
+  ctx.save();
+  ctx.fillStyle='rgba(10,12,16,0.5)';ctx.fillRect(c.x,c.y,c.w,c.h);
+  ctx.strokeStyle=rs.released?'rgba(125,217,123,0.5)':'rgba(200,170,120,0.85)';ctx.lineWidth=3;
+  ctx.strokeRect(c.x,c.y,c.w,c.h);
+  if(!rs.released){
+    ctx.lineWidth=2;
+    for(let x=c.x+20;x<c.x+c.w;x+=20){ctx.beginPath();ctx.moveTo(x,c.y);ctx.lineTo(x,c.y+c.h);ctx.stroke();}
+  }
+  if(cam.z>0.5){ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(205,216,236,0.55)';ctx.fillText('DETENTION',c.x+c.w/2,c.y-10);}
+  ctx.restore();
+}
 function drawFactory(now){
   if(!fac)return;
   const P=SCN.plant;
@@ -1397,6 +1492,7 @@ function drawFactory(now){
   }
 }
 function extractReady(){
+  if(rs)return rs.released&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   return crossAway&&hostilesActive().length===0&&
@@ -1463,7 +1559,7 @@ function rtUpdate(now,dt){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
       if(wp.t>=4)completeWork(wp,worker);
@@ -1861,7 +1957,7 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)completeWork(wp,worker);
   }
@@ -1925,6 +2021,8 @@ function doCrossAway(){
   syncUI();
 }
 function checkDefeat(){
+  const vipU=U.find(u=>u.vip);
+  if(vipU&&vipU.down){gameOver(false,'vip');return;}
   const sera=U.find(u=>u.id==='sera');
   if(sera&&sera.down&&!sera.away){gameOver(false,'sera');return;}
   const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
@@ -1958,11 +2056,15 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory')&&!win);
-  byId('endEyebrow').textContent=win?(fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?(fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue')&&!win);
+  byId('endEyebrow').textContent=win?(rs?'Mission Report · Tollgate Landing':fac?'Mission Report · Kiln Ridge':fs?'Mission Report · Redrock Flats':'Mission Report · Dustfall'):'Mission Report · It went wrong';
+  byId('endTitle').textContent=win?(rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
-  if(fac){
+  if(rs){
+    const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
+    txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
+      (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
+  } else if(fac){
     txt=win?(fac.quiet?'Nobody on Kiln Ridge saw us come or go. One moment the Autoworks was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the Autoworks is dark. The alarm had already gone, but it made no difference: the line will not turn out another Policebot for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
       (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the Autoworks and the Marta lifted empty. The line keeps running.');
   } else if(fs){
@@ -1979,7 +2081,14 @@ function gameOver(win,why){
   }
   byId('endText').textContent=txt;
   let lh='';
-  if(win&&fac){
+  if(win&&rs){
+    const vn=(U.find(u=>u.vip)||{name:'Prisoner'}).name;
+    lh+='<div class="lootline"><span>'+vn+'</span><span>FREED</span></div>';
+    lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(rs.everAlerted?'no':'YES \u2014 bonus')+'</span></div>';
+    if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
+    if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
+    for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
+  } else if(win&&fac){
     lh+='<div class="lootline"><span>Kiln Ridge Power Plant</span><span>DESTROYED</span></div>';
     lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(fac.quiet?'YES \u2014 bonus':'no')+'</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
@@ -2017,7 +2126,7 @@ function buildResult(win){
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   return {kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!(fac&&fac.detonated&&fac.quiet),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -2812,7 +2921,7 @@ function drawLoots(){
   }
 }
 function drawUnit(u){
-  if(u.extracted||u.away||u.office)return;
+  if(u.extracted||(u.away&&!u.caged)||u.office)return;
   const now=performance.now();
   if(u.side==='civ'){
     // unmistakably not a combatant: pale, unarmed, unbarred
@@ -3412,6 +3521,7 @@ function render(now){
     drawLoots();
     drawWork(now);
     drawFactory(now);
+    drawCage(now);
     drawNades(now);
     drawProps();
     if(SCN.hasTurret)drawTurret(now);
@@ -3630,7 +3740,7 @@ function radialHTML(s){
     ['loot','▤',nl>1?'Loot ×'+nl:'Loot',!nl],
   ];
   const wp=WORK.find(w=>!w.done&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
-  if(wp&&s.id!=='sera')acts.push(['work','⚒','Work',false]);
+  if(wp&&s.id!=='sera'&&!s.vip)acts.push(['work','⚒','Work',false]);
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)acts.push(['man','⌬','Man Gun',false]);
   if(s.jam)acts.push(['clear','⚙','Un-jam',false]);
   acts.push(['cancel','✕','Clear',false]);
@@ -3679,6 +3789,7 @@ function dockHTML(){
   return '';
 }
 function statusOf(u){
+  if(u.caged)return ['IN THE CELL','var(--amber)'];
   if(u.away)return ['IN THE AIR','var(--good)'];
   if(u.extracted)return ['EXTRACTED','var(--good)'];
   if(u.down)return ['DOWN','var(--heg)'];
@@ -3723,6 +3834,15 @@ function syncUI(){
       {t:'Move up the canyon to the base mouth',done:tutFlags.moved||town==='alerted',now:!(tutFlags.moved||town==='alerted')},
       {t:'Clear the squatters off the rock \u2014 '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
       {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
+    ];
+  } else if(rs){
+    const v=U.find(u=>u.vip);const nm=v?v.first:'the prisoner';
+    if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
+    objs=[
+      {t:'Reach the detention cage',done:rs.reached||rs.released,now:!rs.reached&&!rs.released},
+      {t:'Release '+nm+' from confinement',done:rs.released,now:rs.reached&&!rs.released},
+      {t:'(Optional) Stay unseen',done:rs.released&&!rs.everAlerted&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false},
+      {t:'Get '+nm+' and the squad aboard \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:rs.released},
     ];
   } else if(fac){
     const carrier=U.find(u=>u.charge&&!u.down);
@@ -3885,6 +4005,7 @@ function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  rs=SCN.mode==='rescue'?{released:false,everAlerted:false,reached:false}:null;
   fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
@@ -4004,7 +4125,7 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,

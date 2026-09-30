@@ -576,6 +576,21 @@ the **Kiln Ridge Autoworks, Menk** (region: Kiln Ridge, +20% liberation, capped 
   **Riot Shieldmen** (their shield blocks every shot from the front, so flank them) and **Riot
   Riflemen**. The Riot Bruiser and Bureau Officer are still to come.
 
+### Rescue Dissident (built, Tier 1) and the recruit pool
+Offered by **Orrin Pell** (Ballakan). Played at the **Tollgate security outpost** (region: Tollgate
+Landing, +15% liberation, capped by Access/Support):
+- **Release the prisoner** from the detention cage (a Work order at the cell lock). Once freed
+  they follow orders like any rebel but are frail; if they go down the mission fails. They must
+  reach the Marta with the squad.
+- **Optional: stay unseen.** Never raising the alarm pays a bonus (+2 Intel).
+- Reward: **500 credits**, bonus XP for the squad (+35%), plus loot; the prisoner is then
+  **offered as a Support recruit**.
+- **One recruit pool.** Anyone we offer, hold for a mission or rescue comes from the same pool
+  as normal recruits (`RECRUITS` in `base.js`, now 8 Soldiers and 9 Support), and each person
+  appears once. A mission that needs an NPC **reserves** a name when it is added, so the
+  briefing can name them, and a failed attempt keeps the same person. Dismissed people are
+  gone for good. Future rescue and recruit-reward missions should use `holdRecruit()`.
+
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
 **Comms Array is built and staffed** (the Comms Array stands in for the Intelligence Center until

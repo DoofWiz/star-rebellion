@@ -367,6 +367,15 @@ MPOOL.autofactory={name:'Blow Up Auto Factory',from:'Tessaly Brandt',src:'tess',
   objectives:['Plant the explosive at the Power Plant\u2019s main breaker','Detonate it from a safe distance','(Optional) Do it without the enemy realising you were there','Board the Marta'],
   rew:{c:100,m:40,xp:0.2},bonus:{i:2,c:60},
   after:['<b>BRANDT:</b> \u201cThe night shift walked out into the salt to watch it burn. Nobody went back in. The foreman is asking who gave the orders, and nobody can remember there being any.\u201d']};
+/* Rescue Dissident (Tier 1): the prisoner is drawn from the recruit pool and can join us */
+MPOOL.rescue={name:'Rescue Dissident',from:'Orrin Pell',src:'pell',need:3,days:2,riskTxt:'Moderate',
+  lead:'ground',ground:true,type:'ground',scenario:'rescue',npcRole:'Support',
+  loc:'ballakan',region:'tollgate',lib:15,
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0},
+  desc:'{npc} has a following on the river and a habit of saying what the tollgates would rather not hear. They are locked in the Tollgate security outpost, waiting for a transfer nobody will ever see. If we bring them out, they could be worth more to us than anyone we own.',
+  objectives:['Release {npc} from the Tollgate lockup','(Optional) Do it without the enemy realising you were there','Bring {npc1} and the squad back to the Marta'],
+  rew:{c:500,xp:0.35},bonus:{i:2},
+  after:['<b>PELL:</b> \u201c{npc} is out, and the whole river knows it by breakfast. Nobody is saying who did it, which is how I know it worked. They will want to meet you.\u201d']};
 /* Steal Fuel: the first mission built on the new framework (Tier 1) */
 MPOOL.stealfuel={name:'Steal Fuel',from:'Cass Wender',src:'cass',need:3,days:2,riskTxt:'Moderate',
   lead:'ground',ground:true,type:'ground',scenario:'stealfuel',
@@ -436,6 +445,7 @@ CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger 
   bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
   pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
 CANDS.tess.inc.m=3;CANDS.pell.inc.m=3;
+SIGNALS.pell=[{kind:'mission',mid:'rescue',text:'\u201cThey picked up a voice off the river last night and put it in the tollgate lockup. A lot of barge clans would follow that voice, and the Hegemony knows it. The outpost is thin on guards and thick on locks. If someone could open one, I would make sure nobody saw a thing.\u201d'}];
 SIGNALS.tess=[{kind:'mission',mid:'autofactory',text:'\u201cThe Autoworks at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'}];
 SRC_EVENTS.tess=[
   {text:'<b>BRANDT:</b> “The company posted a new quota. Ten percent up, same crews, same crushers. People keep asking if you’re real. I told them you were. Don’t make a liar of me.”',
@@ -456,9 +466,34 @@ SRC_EVENTS.cask=[
    opts:[['“Copies. And tell the people on them, carefully, who to trust.”','strong'],['“Lose the file, and don’t look at it again.”','neutral'],['“Sell it. Somebody will pay.”','weak']]},
 ];
 const RECRUITS={
-  Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.']],
-  Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.']],
+  Soldier:[['Tam Reyes','Loader by day. Angry always.'],['Vess Okoro','Talks little, hits precisely.'],['Juno Falk','Stole her first crawler at twelve.'],
+    ['Brix Halloran','Dockyard foreman with a temper and a very good left hook.'],['Nima Sol','Ran salt for a smuggler ring until the ring ran out.'],
+    ['Corvan Pike','Ex-militia, discharged for telling a captain where to put his orders.'],['Dessa Wray','Herder’s daughter. Can hit a moving crawler at four hundred paces.'],['Ruck Andel','Lost his shop to a Hegemony levy. Kept the shotgun.']],
+  Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.'],
+    ['Prof. Ishe Quell','Banned from three universities for asking the wrong questions in the right order.'],['Dov Areth','Pamphleteer. Has been arrested twice and printed both times.'],['Pia Sunde','Union organiser. Knows how to get two hundred people to do one thing quietly.'],
+    ['Yusef Lorne','Registry clerk who read everything he was supposed to file.'],['Dr. Halla Maro','Physician struck off for treating the wrong patients.']],
 };
+/* the recruit pool: anyone we offer, hold for a mission, or rescue comes out of here, once */
+function drawRecruit(role){
+  G.poolHeld=G.poolHeld||[];
+  const names=new Set(G.people.map(p=>p.name));
+  return RECRUITS[role].find(r=>!names.has(r[0])&&!G.poolHeld.includes(r[0]))||null;
+}
+function holdRecruit(role){
+  const r=drawRecruit(role)||RECRUITS[role][0];
+  G.poolHeld=G.poolHeld||[];
+  if(!G.poolHeld.includes(r[0]))G.poolHeld.push(r[0]);
+  return {name:r[0],first:r[0].replace(/^(Prof\.|Dr\.)\s+/,'').split(' ')[0],role,bio:r[1]};
+}
+function bindNpc(m){
+  const t=MPOOL[m.id];
+  if(!t||!m.npc)return;
+  const sub=x=>String(x).replace(/\{npc\}/g,m.npc.name).replace(/\{npc1\}/g,m.npc.first);
+  m.desc=sub(t.desc);
+  if(t.objectives)m.objectives=t.objectives.map(sub);
+  if(t.after)m.after=t.after.map(sub);
+}
+
 /* the campaign's scripted first signals — they re-arm if let lie */
 function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
@@ -522,8 +557,8 @@ function openRecruitOffer(src,sig){
     line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
   } else {
     const role=sig.kind==='recruit'?'Soldier':'Support';
-    const nm=RECRUITS[role][G.recruitN%RECRUITS[role].length];
-    p={id:'rec'+(G.recruitN+1),name:nm[0],role,level:1,xp:0,assign:'rest',injured:0,bio:nm[1]};
+    const nm=holdRecruit(role);
+    p={id:'rec'+(G.recruitN+1),name:nm.name,role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio};
     if(role==='Soldier')p.equip=['pistol'];
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
   }
@@ -532,6 +567,7 @@ function openRecruitOffer(src,sig){
 function addMission(mid,quiet){
   if(G.missions.some(m=>m.id===mid))return;
   const m=Object.assign({id:mid,state:'avail',progress:null},MPOOL[mid]);
+  if(m.npcRole){m.npc=holdRecruit(m.npcRole);bindNpc(m);}
   G.missions.splice(G.missions.length-1,0,m);
   news('Mission available: <b>'+m.name+'</b> ('+m.from+').','a');
   if(quiet)return;
@@ -713,6 +749,11 @@ function nextReport(){
   if(!n)return false;
   if(n.t==='arrive')openWin('arrive',n.rpt);
   else if(n.t==='reward')openWin('reward',n.rpt);
+  else if(n.t==='recruit'){
+    const nm=n.m.npc;
+    const p={id:'rec'+(G.recruitN+1),name:nm.name,role:nm.role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio};
+    openWin('recruit',{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'});
+  }
   else{
     const src=G.sources.find(x=>x.id===n.rpt.follow.src&&x.alive);
     if(!src)return nextReport();
@@ -2740,6 +2781,7 @@ function startPlan(){
     G.fuel-=fuel;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
+      vip:m.npc?{name:m.npc.name,first:m.npc.first}:undefined,
       squad:squad.map((p,i)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
         aim:soldierAim(p),hp:100,wpns:(scatter&&i===0)?['scatter','akli','cowboy']:['akli','cowboy']})),
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
@@ -2876,6 +2918,7 @@ function applyDebrief(r){
       m.state='done';m.meta='SUCCESS';
       const cr=missionCredit(m);
       queueReport(buildReport(m,true,got,pinfo,cr,true));
+      if(m.npc)RQ.push({t:'recruit',m});
       G.morale=Math.min(100,G.morale+6);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
       sBuild();
@@ -2940,6 +2983,7 @@ function restoreCampaign(data){
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
+    for(const m of G.missions)bindNpc(m);
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
       if(s.pendingEvent){

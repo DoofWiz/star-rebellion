@@ -109,7 +109,8 @@ Original scope:
 Built: **Steal Fuel** (call-in transport, timed defend, extraction at the landed transport) and
 **Blow Up Auto Factory** (charge carrier, plant, blast zone, detonate, stealth bonus; riot shield and
 robot enemies).
-Still to do: Rescue Dissident, Steal Intelligence, Steal the Strider.
+**Rescue Dissident** (freeable, recruitable NPC drawn from the recruit pool).
+Still to do: Steal Intelligence, Steal the Strider.
 Original scope:
 Each mission needs new ground objective types, so build the objectives first:
 - **Steal Fuel** — reach depot, call in a transport, defend it for 5 rounds. Needs
