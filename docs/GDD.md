@@ -5,6 +5,11 @@
 > than decisions that have been made. The canonical doc lives in the designer's
 > Notion under Game Concepts; this copy exists so the repo and its prototypes can
 > reference it.
+>
+> **Current scope: Revolution Level 1 only.** Decisions made for it are recorded in
+> [§8](#8-revolution-level-1--design-decisions). The designer's Google Docs (linked from
+> `docs/GDriveMasterSheet`) hold the newer per-system detail; the plan is in
+> [`ROADMAP.md`](ROADMAP.md).
 
 **A game about building a revolution and taking down a fascist regime… in space.**
 
@@ -79,6 +84,10 @@ political action by the Hegemony's bloated institutions.
 
 - Resources are very limited: no starships, only simple vehicles. Field operatives
   have no special equipment. Everything the player has obtained is likely stolen.
+- *Update:* ships are stolen, converted patrol craft and freighters converted into troop
+  transports. Enemies are police and riot police on the ground, autonomous drones in
+  space. No Alerts, no Heroes (both begin at Level 2). Touchstones: *Red Dawn*,
+  *First Blood*. See §8 for how Level 1 ends.
 
 **Level 2 — Noticed.** The revolution has earned the Hegemony's notice; its
 intelligence agency begins investigating growing anti-Hegemony activity. The player
@@ -424,6 +433,74 @@ Structure; details TBD.]*
 
 ---
 
+---
+
+## 8. Revolution Level 1 — Design Decisions
+
+Decisions made with the designer while planning Level 1 (2026-09-30). Source docs are
+linked from `docs/GDriveMasterSheet`.
+
+### Progression to Level 2
+- Level 1 has **no exit mission and no hard gates.** One Revolution progress meter fills
+  over time, and when it fills the player sees an **escalation animation** into Level 2.
+  (Level 2 content is out of scope, so the animation lands on a "coming soon" state.)
+- The biggest contributor is **completing missions across multiple locations**. Liberation,
+  local Support, source levels and some narrative events also contribute. A mission in a
+  new location should count for more than a repeat in the same one.
+- The design *predicts* (does not require) that by then the player: is active in several
+  locations and their sources; has expanded the base a fair amount and used the new
+  mechanics; has a decent roster; has several ships; and has liberated a region or two
+  within a location, not necessarily a whole location. These are playtest tuning targets.
+
+### Starting position
+- The hangar starts with **four landing pads**, one ship per pad. (Supersedes the
+  prototype's reduced day one of capacity 2.) Ships repair slowly on a pad.
+
+### Intel
+- Intel is **the currency that buys Access** to locations and raises Access levels.
+  The early-warning role from the source GDD returns with Alerts at Level 2; it is not a
+  Level 1 mechanic.
+
+### Resources
+- Five resources: **Credits** (can I pay for it), **Supplies** (can I sustain it),
+  **Materials** (can I build or fix it), **Fuel** (can I move it), **Intel** (do I know
+  enough to act).
+- In Level 1 Materials and Fuel matter *lightly*: Fuel is spent when ships fly missions;
+  Materials are spent on base construction and upgrades. Both come from missions
+  (e.g. Steal Fuel), loot, and some sources.
+
+### Locations
+Each location has four statistics:
+- **Security** (0–5 helmets): Hegemony presence. Higher means riskier sources, tougher and
+  more numerous enemies, missions that target the Hegemony more directly, and more Intel
+  needed to raise Access.
+- **Access** (0–5 eyes): the network's reach. Higher unlocks rarer sources, Opportunities
+  (from Access 2), and visibility of Hegemony forces there.
+- **Support** (0–5 flags): population sympathy. Raised by source events and Diplomatic
+  Quarter tasks.
+- **Liberation** (0–100%): derived from the liberation of the location's **regions and
+  settlements** (Hegemony-controlled, contested, revolution-controlled).
+- **Scale:** keep the existing worlds and give each 2–4 regions. Only two or three worlds
+  need to be liberation-ready in Level 1; the rest are scouting and mission targets.
+- **Liberating a region:** missions in the region add liberation %. Progress is capped by
+  **both Access and Support: the lower of the two applies.** (Cap curve per level is a
+  tuning value, initially 20/40/60/80/100%.)
+- First access to a location shows a cinematic briefing popup with its statistics.
+
+### Missions
+- Missions come from Sources and from Intelligence (map markers, from Access 2). Alerts are
+  Level 2.
+- Every mission is a preset type (objectives and parameters) plus a designer-written
+  narrative wrapper, so a Source can run a chain of missions.
+- Level 1 Tier 1 missions: Steal Intelligence, Rescue Dissident, Blow Up Auto Factory,
+  Steal Fuel, and Steal the Strider.
+- **Steal Intelligence** appears on the board but cannot be completed until a **level 3+
+  soldier holds the Field Technician specialty.** Attempting it without one shows:
+  *"Missing Field Technician: train a soldier to level 3 and use the Training Center to
+  give them the Field Technician specialty to attempt this mission."*
+- Specialties (Training Center) are therefore in scope for Level 1, starting with Field
+  Technician.
+
 ## Open Questions & Gaps (from source)
 
 - Full list of space combat missions.
@@ -431,4 +508,7 @@ Structure; details TBD.]*
 - Sources screen UX flow.
 - Unfinished Revolution Level 2 and 4 reward notes, and one Sources player story.
 - Naming: "Hegemony" vs. one occurrence of "Imperium" (Assets section).
+- Enemy tiers: the Enemies doc lists Frontier lawmen under Rev Tier 3 (Dustfall uses them
+  at Level 1) and Bureau Officer under both Tier 1 and Tier 2.
+- Missions doc: tier names are cut off; Tier 1 rewards are blank for several missions.
 - Foot combat and boarding action rulesets.

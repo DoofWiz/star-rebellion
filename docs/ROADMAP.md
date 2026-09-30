@@ -35,12 +35,20 @@ starfighter squadron and no Heroes yet.
 1. ~~**Level 1 exit.**~~ **Decided:** there is no exit mission. Level 1 ends when
    accumulated progress fills the Rev Level meter and the player sees an escalation
    animation into Level 2. See *Progress to Level 2* below.
-2. **Intel semantics.** The docs now define Intel as the currency that buys Access, and
-   also as early warning. Confirm scouting stays a spend. Alerts (the warning consumer)
-   are Rev 2, so the warning role can wait.
+2. ~~**Intel semantics.**~~ **Decided:** Intel is the Access currency only in Level 1; the
+   early-warning role returns with Alerts at Level 2.
 3. ~~Starting hangar~~ **Decided:** four landing pads from the start. The game
    currently starts with capacity 2 and one spare berth, so this is a code change.
-4. **Reconcile the remaining doc conflicts** (see *Doc issues*).
+4. ~~**Resources.**~~ **Decided:** add Materials and Fuel, both used lightly (Fuel per ship
+   mission; Materials for construction and upgrades).
+5. ~~**Galaxy scale.**~~ **Decided:** keep the current worlds and give each 2–4 regions; two
+   or three are liberation-ready in Level 1.
+6. ~~**Liberation rule.**~~ **Decided:** missions add liberation %, capped by the lower of
+   Access and Support.
+7. **Remaining:** the doc conflicts listed under *Doc issues* need your call, but they
+   don't block Phase 1.
+
+Decisions are recorded in `docs/GDD.md` §8. **Phase 0 is complete; Phase 1 is next.**
 
 ### Progress to Level 2 (design, decided)
 There are no hard gates and no set-piece exit. The meter fills from missions across
