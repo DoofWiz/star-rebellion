@@ -1778,7 +1778,7 @@ function fsPlanStart(){
     o.done=true;
     const a=FS.ships[o.ship];a.state='spent';
     a.soldiers.forEach((sp,j)=>{
-      const u=mkSquadUnit(sp,o.x+(j-0.5)*40,o.y+30);
+      const u=mkSquadUnit(sp,o.x+(j-(a.soldiers.length-1)/2)*40,o.y+30);
       const d=moveDest(u,u.x,u.y,120);if(d){u.x=d.x;u.y=d.y;}
       u.face=-Math.PI/2;U.push(u);
     });
