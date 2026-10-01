@@ -29,28 +29,46 @@ const autoKey=p=>AUTOS[p.auto]?p.auto:'strider';
 const rankFor=p=>p.auto?autoOf(p).label:((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
-const C=n=>'<span class="rc" title="Credits">'+n+'⬡</span>';
-const S=n=>'<span class="rs" title="Supplies">'+n+'▤</span>';
-const I=n=>'<span class="ri" title="Intel">'+n+'◈</span>';
-const M=n=>'<span class="rm" title="Materials">'+n+'⚙</span>';
-const F=n=>'<span class="rf" title="Fuel">'+n+'◐</span>';
-/* a reward/cost bundle → chips */
-function bundleHTML(b){
-  return [b.c?C(b.c):'',b.s?S(b.s):'',b.m?M(b.m):'',b.f?F(b.f):'',b.i?I(b.i):''].filter(Boolean).join(' ');
+/* ---------- kit helpers: icons, cost chips, palette ---------- */
+const TH=SR.theme,K=TH.C;                       // K is the live palette (re-synced from the CSS tokens at boot)
+const IC=(n,c)=>'<svg class="sr-ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
+const RES={c:['credits','Credits'],s:['supplies','Supplies'],m:['materials','Materials'],f:['fuel','Fuel'],i:['intel','Intel']};
+const resCost=(k,n,short)=>'<span class="sr-cost'+(short?' is-short':'')+'" style="--c:var(--sr-res-'+RES[k][0]+')" title="'+RES[k][1]+'">'+IC(RES[k][0])+n+'</span>';
+const C=(n,s)=>resCost('c',n,s);
+const S=(n,s)=>resCost('s',n,s);
+const I=(n,s)=>resCost('i',n,s);
+const M=(n,s)=>resCost('m',n,s);
+const F=(n,s)=>resCost('f',n,s);
+/* a reward/cost bundle → chips; `have` (optional) flags the ones we can't pay */
+function bundleList(b,have){
+  const o=[];
+  for(const k of ['c','s','m','f','i'])if(b[k])o.push(resCost(k,b[k],have&&have[k]!==undefined&&have[k]<b[k]));
+  return o;
+}
+function bundleHTML(b,have){return bundleList(b,have).join(' ');}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const WALLET=()=>({c:G.credits,s:G.supplies,m:G.materials,f:G.fuel,i:G.intel});
+/* "Need 8 more materials": the reason a Build button is greyed */
+function needWhy(b){
+  const w=WALLET(),o=[];
+  for(const k of ['c','s','m','f','i'])if(b[k]&&w[k]<b[k])o.push('Need '+Math.ceil(b[k]-w[k])+' more '+RES[k][1].toLowerCase());
+  return o.join(', ');
 }
 
 /* ---------- rooms & builds (copy in the commander's voice) ---------- */
 const ROOMS={
-  command:{name:'Command Center',col:'#ffb454',desc:'Where the revolution gets planned. Sources, missions, bad coffee.'},
-  hangar:{name:'Hangar',col:'#57a8ff',desc:'The fighters live here. So does Joss, practically.'},
-  barracks:{name:'Barracks',col:'#57d7e2',desc:'Bunks and quiet. People break without both.'},
-  store:{name:'Storeroom',col:'#7dd97b',desc:'Everything we own, counted twice by Mira.'},
-  comms:{name:'Intelligence Center',col:'#57d7e2',desc:'Officers keep an ear on the galaxy. One more intel a day per room, and room for one more source.'},
-  diplo:{name:'Diplomatic Quarter',col:'#e3a6ff',desc:'Diplomats and liaisons win hearts and minds without getting caught at it. A Chief Diplomat runs the tasks.'},
-  workshop:{name:'Workshop',col:'#ffb454',desc:'Broken fighters go in. Working fighters come out. Three times the pace.'},
-  infirmary:{name:'Infirmary',col:'#7dd97b',desc:'Beds and bacta. People mend twice as fast with someone on station.'},
-  training:{name:'Training Hall',col:'#c987ff',desc:'Sweat now, live later.'},
+  command:{name:'Command Center',ck:'gold',ic:'base',desc:'Where the revolution gets planned. Sources, missions, bad coffee.'},
+  hangar:{name:'Hangar',ck:'shield',ic:'hangar',desc:'The fighters live here. So does Joss, practically.'},
+  barracks:{name:'Barracks',ck:'rebel',ic:'soldier',desc:'Bunks and quiet. People break without both.'},
+  store:{name:'Storeroom',ck:'go',ic:'supplies',desc:'Everything we own, counted twice by Mira.'},
+  comms:{name:'Intelligence Center',ck:'shield',ic:'comms',desc:'Officers keep an ear on the galaxy. One more intel a day per room, and room for one more source.'},
+  diplo:{name:'Diplomatic Quarter',ck:'rebelHi',ic:'people',desc:'Diplomats and liaisons win hearts and minds without getting caught at it. A Chief Diplomat runs the tasks.'},
+  workshop:{name:'Workshop',ck:'steel',ic:'work',desc:'Broken fighters go in. Working fighters come out. Three times the pace.'},
+  infirmary:{name:'Infirmary',ck:'go',ic:'heart',desc:'Beds and bacta. People mend twice as fast with someone on station.'},
+  training:{name:'Training Hall',ck:'psi',ic:'star',desc:'Sweat now, live later.'},
 };
+/* room colours come from the kit palette (resolved at draw time so the CSS tokens stay the single source) */
+const rcol=key=>K[ROOMS[key].ck]||K.steel;
 const BUILDS={
   store:{c:200,m:80,days:1},
   comms:{c:480,m:120,days:2},
@@ -91,12 +109,13 @@ const GEAR_META={
 const gearMeta=a=>GEAR_META[a.id]||{cat:'Other',sub:'Misc',w:2,h:1};
 const GEAR_COLS=8;
 function gearCapacity(){return 24+12*tilesOf('store');}
-function gearLayout(items){
-  const rows=[];const fits=(r,c,w,h)=>{for(let y=r;y<r+h;y++)for(let x=c;x<c+w;x++){if(x>=GEAR_COLS||(rows[y]&&rows[y][x]))return false;}return true;};
+function gearLayout(items,cols){
+  cols=cols||GEAR_COLS;   // phones lay the grid out four wide
+  const rows=[];const fits=(r,c,w,h)=>{for(let y=r;y<r+h;y++)for(let x=c;x<c+w;x++){if(x>=cols||(rows[y]&&rows[y][x]))return false;}return true;};
   const out=[];
   for(const a of items){
     const m=gearMeta(a);let placed=false;
-    for(let r=0;!placed;r++)for(let c=0;c<=GEAR_COLS-m.w&&!placed;c++)if(fits(r,c,m.w,m.h)){
+    for(let r=0;!placed;r++)for(let c=0;c<=cols-m.w&&!placed;c++)if(fits(r,c,m.w,m.h)){
       for(let y=r;y<r+m.h;y++){rows[y]=rows[y]||[];for(let x=c;x<c+m.w;x++)rows[y][x]=1;}
       out.push({a,m,r,c});placed=true;
     }
@@ -213,18 +232,48 @@ const STAFFABLE={
   comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
   training:{post:'Drill Instructor',perk:'+50% training XP'},
 };
-const STLBL={barracks:'GARRISON',hangar:'DECK',diplo:'DIPLO',command:'CMD',store:'STORES',workshop:'WKSHP',infirmary:'MEDBAY',comms:'COMMS',training:'DRILL'};
+const STLBL={barracks:'Garrison',hangar:'Deck',diplo:'Diplo',command:'Command',store:'Stores',workshop:'Workshop',infirmary:'Medbay',comms:'Comms',training:'Drill'};
 function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!p.injured);}
 function medStaff(){return staffOf('infirmary');}
+/* news classes (saved as d/a/g/h/r/p) → kit tones */
+const NEWS_TONE={d:'',a:'action',g:'good',h:'bad',r:'info',p:'progress'};
+const newsTone=cls=>NEWS_TONE[cls]!==undefined?NEWS_TONE[cls]:'';
 function news(html,cls){
   G.news.push({day:G.day,html,cls:cls||'d'});
   if(G.news.length>80)G.news.shift();
+  feedPush(G.news[G.news.length-1]);
   renderNews();
 }
+/* the full log lives in the "All news" window; #log exists only while it is open */
 function renderNews(){
   const el=$('log');
-  el.innerHTML=G.news.map(n=>'<p><span class="day">D'+n.day+'</span> <span class="'+n.cls+'">'+n.html+'</span></p>').join('');
-  el.scrollTop=el.scrollHeight;
+  if(!el)return;
+  let day=null,h='';
+  for(const n of G.news){
+    if(n.day!==day){day=n.day;h+='<span class="sr-log__day">Day '+n.day+'</span>';}
+    const tn=newsTone(n.cls);
+    h+='<p'+(tn?' class="is-'+tn+'"':'')+'>'+n.html+'</p>';
+  }
+  el.innerHTML=h;
+  const body=el.parentElement,down=()=>{body.scrollTop=body.scrollHeight;};
+  down();requestAnimationFrame(down);
+}
+/* comms feed: the newest lines surface bottom-left for a few seconds, the log keeps everything */
+const FEED_MS=6000;
+let feed=[],feedTO=null;
+function feedPush(n){
+  feed.push({html:n.html,tone:newsTone(n.cls),t:performance.now()});
+  while(feed.length>3)feed.shift();
+  renderFeed();
+}
+function renderFeed(){
+  const box=byId('feedLines');
+  if(!box)return;
+  const now=performance.now();
+  box.innerHTML=feed.map((f,i)=>'<div class="sr-comm'+(f.tone?' sr-comm--'+f.tone:'')+(i<feed.length-1?' is-old':'')+(now-f.t>=FEED_MS?' is-expired':'')+'">'+f.html+'</div>').join('');
+  clearTimeout(feedTO);
+  const live=feed.filter(f=>now-f.t<FEED_MS);
+  if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
 }
 function levelUp(p){
   while(p.xp>=1){p.xp-=1;p.level++;news('<b>'+p.name+'</b> promoted in the field — now '+rankFor(p)+'.','p');sAlert();}
@@ -414,7 +463,7 @@ const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cas
    Liberation (0–100% per region): local ops add it, capped by the LOWER of the
    Access cap and the Support cap. Tuning values live in ACC_CAP. */
 const ACC_CAP=[0,20,40,60,80,100];
-const SUP_COL=['#2b4a9a','#3f6a9a','#8a6a48','#a24a3a','#b02a2a'];   // low support = dark blue … high = dark red
+const supCol=i=>[K.hegDeep,K.heg,K.steel,K.rebelHi,K.rebel][Math.max(0,Math.min(4,i))];   // low support = Hegemony blue … high = rebel red
 const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
   garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
@@ -1109,7 +1158,7 @@ function advanceDay(){
     else news(m.name+' — strike team checks in. '+m.progress.daysLeft+' day'+(m.progress.daysLeft>1?'s':'')+' out.','d');
   }
   const newAttn=G.sources.find(x=>x.alive&&(x.pendingEvent||x.signal)&&!attn0.has(x.id));
-  if(newAttn){flashMsg('◉ <b>'+newAttn.name+'</b> wants to talk');sAlert();}
+  if(newAttn){flashMsg('<b>'+newAttn.name+'</b> wants to talk','friend');sAlert();}
   const FLAVOR=[
     'Hegemony patrols double in the drift. Coverage halves. Typical.',
     'A Hegemony cadet washed out and deserted. The stories he tells about his instructor are worth listening to.',
@@ -1118,9 +1167,7 @@ function advanceDay(){
     'Someone painted our mark on a water tower two systems over. Wasn’t us. That’s the point.',
   ];
   if(rng()<0.5)news(FLAVOR[Math.floor(rng()*FLAVOR.length)],'d');
-  $('dayBannerTxt').textContent='Day '+G.day;
-  $('dayBanner').classList.add('show');
-  setTimeout(()=>$('dayBanner').classList.remove('show'),RM?400:1100);
+  showDayBanner();
   sDay();
   if(!HOLD)chainPrompt();
   saveSnap();syncUI();
@@ -1464,7 +1511,7 @@ function genOpportunities(){
     G.oppN=(G.oppN||0)+1;
     G.opps.push({id:'opp'+G.oppN,loc:d.id,region:region?region.id:null,tid,target:T.variants[Math.floor(rng()*T.variants.length)],found:false,done:false});
     news('Intelligence: a lead has surfaced at <b>'+d.name+'</b>. It is marked on the galaxy map.','a');
-    flashMsg('\u25c6 New lead at <b>'+d.name+'</b>');sAlert();
+    flashMsg('New lead at <b>'+d.name+'</b>','action');sAlert();
     break;
   }
 }
@@ -1631,7 +1678,7 @@ function missionCredit(m){
       if(to>cur){
         gain+=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('⚑ <b>'+r.name+'</b> liberated');}
+        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('<b>'+r.name+'</b> liberated','good');}
       }
     }
   }
@@ -1715,155 +1762,164 @@ function shade(hex,f){
 }
 /* small standing figure */
 function figure(x,y,S,name,col){
-  ctx.fillStyle=col||'#8fd8e0';
+  ctx.fillStyle=col||K.rebelHi;
   ctx.beginPath();ctx.roundRect(x-3*S,y-12*S,6*S,10*S,3*S);ctx.fill();
   ctx.beginPath();ctx.arc(x,y-15*S,3*S,0,Math.PI*2);ctx.fill();
   if(name){
-    ctx.font='600 '+Math.round(9*S)+'px "Exo 2"';
-    ctx.textAlign='center';ctx.fillStyle='rgba(160,220,230,0.8)';
-    ctx.fillText(name,x,y+9*S);
+    ctx.font='700 '+Math.max(Math.round(9*S),Math.ceil(11/rvSx))+'px '+TH.FONT.ui;
+    ctx.textAlign='center';ctx.fillStyle=TH.rgba(K.text2,0.9);
+    ctx.fillText(name,x,y+9*S+3);
   }
 }
 function fighterTop(x,y,S,rot,alive,col){
   ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-  ctx.fillStyle=col||'#8fa5c4';
+  ctx.fillStyle=col||K.steel;
   ctx.beginPath();ctx.moveTo(14*S,0);ctx.lineTo(-8*S,-8*S);ctx.lineTo(-4*S,0);ctx.lineTo(-8*S,8*S);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='rgba(200,219,245,0.7)';ctx.lineWidth=1;ctx.stroke();
+  ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
   ctx.restore();
 }
 function craftTop(cls,x,y,S,rot,col){
   if(cls==='graf'){
     ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-    ctx.fillStyle=col||'#98a68b';
+    ctx.fillStyle=col||K.steel;
     ctx.beginPath();ctx.roundRect(-14*S,-7*S,26*S,14*S,3*S);ctx.fill();
-    ctx.strokeStyle='rgba(205,220,190,0.65)';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#141820';
+    ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=K.ink;
     ctx.beginPath();ctx.roundRect(7*S,-4*S,6*S,8*S,2*S);ctx.fill();
-    ctx.strokeStyle='rgba(140,155,125,0.8)';
+    ctx.strokeStyle=TH.rgba(K.ink,0.8);
     ctx.beginPath();ctx.moveTo(-5*S,-7*S);ctx.lineTo(-5*S,7*S);ctx.stroke();
     ctx.restore();
   } else fighterTop(x,y,S,rot,true,col);
 }
+const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
 /* ---------- base map render ---------- */
 function renderBase(now){
+  const t=RM?0:now/1000,Lb=TH.labelLayer();
   for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
     const cell=G.grid[r][c];
     const [x,y,S]=cellToCss(r,c);
     if(cell.t==='rock'){
       diamond(x,y,S,2);
-      ctx.fillStyle='#0d1322';ctx.fill();
-      ctx.strokeStyle='rgba(40,55,90,0.25)';ctx.lineWidth=1;ctx.stroke();
-      ctx.fillStyle='rgba(60,80,120,0.12)';
+      ctx.fillStyle=TH.rgba(K.ink,0.55);ctx.fill();
+      ctx.strokeStyle=TH.rgba(K.seam,0.22);ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=TH.rgba(K.seam,0.18);
       ctx.beginPath();ctx.arc(x+((r*7+c*13)%17-8)*S,y+((r*11+c*5)%9-4)*S,1.6*S,0,7);ctx.fill();
       continue;
     }
     if(cell.t==='rubble'){
       diamond(x,y,S,2);
-      ctx.fillStyle='#161d30';ctx.fill();
-      ctx.strokeStyle='rgba(90,110,150,0.35)';ctx.lineWidth=1;ctx.stroke();
-      ctx.strokeStyle='rgba(120,140,180,0.3)';
+      ctx.fillStyle=K.night;ctx.fill();
+      ctx.strokeStyle=TH.rgba(K.seam,0.6);ctx.lineWidth=1;ctx.stroke();
+      ctx.strokeStyle=TH.rgba(K.text3,0.45);
       ctx.beginPath();
       ctx.moveTo(x-10*S,y-2*S);ctx.lineTo(x-2*S,y+3*S);ctx.moveTo(x+4*S,y-4*S);ctx.lineTo(x+11*S,y+1*S);
       ctx.stroke();
       if(cell.dig){
-        ctx.strokeStyle='rgba(255,180,84,0.8)';ctx.lineWidth=1.4;
-        diamond(x,y,S,5);ctx.stroke();
-        ctx.fillStyle='#ffb454';ctx.font='700 11px '+SR.theme.FONT.ui;ctx.textAlign='center';
-        ctx.fillText(cell.dig+'d',x,y+3);
+        ctx.strokeStyle=TH.rgba(K.go,0.8);ctx.lineWidth=1.6;ctx.setLineDash([4,4]);
+        diamond(x,y,S,5);ctx.stroke();ctx.setLineDash([]);
+        TH.marker(ctx,x,y+4*S,{icon:'work',color:K.go,t,size:26});
+        Lb.add(cell.dig+'d',x,y+30*S+4,{color:K.go,size:12},1);
       }
       continue;
     }
     const rm=roomAt(r,c);
-    const col=rm?ROOMS[rm.key].col:'#2a3654';
+    const col=rm?rcol(rm.key):null;
     diamond(x,y,S,1);
-    const fg=ctx.createLinearGradient(x,y-TH2*S,x,y+TH2*S);
-    if(rm){fg.addColorStop(0,shade(col,0.22));fg.addColorStop(1,shade(col,0.10));}
-    else {fg.addColorStop(0,'#1b2440');fg.addColorStop(1,'#131a30');}
-    ctx.fillStyle=fg;ctx.fill();
-    if(!rm){ctx.strokeStyle='rgba(90,110,160,0.4)';ctx.lineWidth=1;ctx.stroke();}
+    ctx.fillStyle=(r+c)%2?'#141838':'#171b3f';ctx.fill();
+    if(rm){diamond(x,y,S,1);ctx.fillStyle=TH.rgba(col,rm.build?0.1:0.22);ctx.fill();}
+    diamond(x,y,S,1);ctx.strokeStyle=TH.rgba(K.ink,0.9);ctx.lineWidth=1;ctx.stroke();
     if(rm&&rm.build){
-      ctx.save();ctx.clip();
-      ctx.strokeStyle='rgba(255,180,84,0.35)';ctx.lineWidth=2;
+      ctx.save();diamond(x,y,S,1);ctx.clip();
+      ctx.strokeStyle=TH.rgba(K.gold,0.35);ctx.lineWidth=2;
       for(let k=-3;k<=3;k++){ctx.beginPath();ctx.moveTo(x+k*10*S-20,y-20);ctx.lineTo(x+k*10*S+20,y+20);ctx.stroke();}
       ctx.restore();
     }
   }
-  // rooms as single entities: one outline, one feature, one label
-  for(const rm of G.rooms){
-    const cl=clusterOf(rm);
-    if(cl[0]!==rm)continue;   // a merged room is drawn once
+  // rooms as single entities: one outline, one feature, one marker, one label
+  const leaders=G.rooms.filter(rm=>clusterOf(rm)[0]===rm).map(rm=>({rm,y:roomCenter(rm)[1]})).sort((a,b)=>a.y-b.y);   // far rooms first, so near markers sit on top
+  for(const {rm} of leaders){
+    const cl=clusterOf(rm);   // a merged room is drawn once
     cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
-    const col=ROOMS[rm.key].col;
+    const col=rcol(rm.key);
     roomOutline(rm);
-    ctx.strokeStyle=shade(col,0.6);ctx.lineWidth=1.4;ctx.stroke();
+    ctx.lineWidth=5;ctx.strokeStyle=K.ink;ctx.stroke();
+    ctx.lineWidth=2.5;ctx.strokeStyle=rm.build?TH.rgba(col,0.6):col;ctx.stroke();
     const [x,y,S]=roomCenter(rm);
-    const pul=0.6+0.4*Math.sin(worldT*0.002+rm.r+rm.c);
+    const pul=RM?0.8:0.6+0.4*Math.sin(worldT*0.002+rm.r+rm.c);   // reduced motion: no pulsing
     if(!rm.build){
+      // room-specific furniture sits low in the room; the icon marker rides above it
+      ctx.save();ctx.translate(0,7*S);
       if(rm.key==='command'){
-        ctx.strokeStyle='rgba(255,180,84,'+(0.35+0.3*pul)+')';ctx.lineWidth=1.6;
+        ctx.strokeStyle=TH.rgba(col,0.35+0.3*pul);ctx.lineWidth=1.6;
         ctx.beginPath();ctx.ellipse(x,y-6*S,11*S,5.5*S,0,0,Math.PI*2);ctx.stroke();
-        ctx.strokeStyle='rgba(255,180,84,0.25)';
+        ctx.strokeStyle=TH.rgba(col,0.25);
         ctx.beginPath();ctx.ellipse(x,y-6*S,6*S,3*S,0,0,Math.PI*2);ctx.stroke();
       } else if(rm.key==='hangar'){
         if(G.wreck&&!G.wreck.restored){
           ctx.globalAlpha=0.55;
-          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,'#3a3f46');
+          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,K.seam);
           ctx.globalAlpha=1;
         }
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
-          ctx.globalAlpha=f.out?0.2:0.9;
-          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,f.out?'#3a4560':undefined);
+          ctx.globalAlpha=f.out?0.25:0.95;
+          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,f.out?K.seam:undefined);
           ctx.globalAlpha=1;
           if(!f.out){
-            ctx.fillStyle=f.hull>=100?'#7dd97b':f.hull>=60?'#ffb454':'#ff4f5e';
-            ctx.beginPath();ctx.arc(x+(i-1)*16*S-8*S,y+(i-1)*4*S-4*S,1.6*S,0,7);ctx.fill();
+            ctx.fillStyle=hullCol(f.hull);
+            ctx.beginPath();ctx.arc(x+(i-1)*16*S-8*S,y+(i-1)*4*S-4*S,1.8*S,0,7);ctx.fill();
           }
         }
       } else if(rm.key==='comms'){
-        ctx.strokeStyle='rgba(87,215,226,'+(0.3+0.4*pul)+')';ctx.lineWidth=1.4;
+        ctx.strokeStyle=TH.rgba(col,0.3+0.4*pul);ctx.lineWidth=1.4;
         ctx.beginPath();ctx.arc(x,y-8*S,5*S,Math.PI*0.9,Math.PI*1.9);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y-8*S,(8+3*pul)*S,Math.PI*1.15,Math.PI*1.65);ctx.stroke();
       } else if(rm.key==='barracks'){
-        ctx.fillStyle='rgba(87,215,226,0.25)';
+        ctx.fillStyle=TH.rgba(col,0.4);
         for(let i=0;i<3;i++)ctx.fillRect(x-12*S+i*9*S,y-3*S,6*S,4*S);
       } else if(rm.key==='store'){
-        ctx.fillStyle='rgba(125,217,123,0.3)';
+        ctx.fillStyle=TH.rgba(col,0.45);
         ctx.fillRect(x-6*S,y-5*S,5*S,4*S);ctx.fillRect(x+1*S,y-3*S,5*S,4*S);
       } else if(rm.key==='workshop'){
-        if(!RM&&rng()<0.06){ctx.fillStyle='#ffe08a';ctx.beginPath();ctx.arc(x+(rng()-0.5)*10*S,y-2*S,1.2,0,7);ctx.fill();}
-        ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=1.4;
+        if(!RM&&rng()<0.06){ctx.fillStyle=K.goldHi;ctx.beginPath();ctx.arc(x+(rng()-0.5)*10*S,y-2*S,1.2,0,7);ctx.fill();}
+        ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.4;
         ctx.strokeRect(x-6*S,y-6*S,12*S,6*S);
       } else if(rm.key==='infirmary'){
-        ctx.strokeStyle='rgba(125,217,123,0.7)';ctx.lineWidth=2;
+        ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
         ctx.beginPath();ctx.moveTo(x-4*S,y-4*S);ctx.lineTo(x+4*S,y-4*S);ctx.moveTo(x,y-8*S);ctx.lineTo(x,y);ctx.stroke();
       } else if(rm.key==='training'){
-        ctx.strokeStyle='rgba(201,135,255,0.55)';ctx.lineWidth=1.4;
+        ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.4;
         ctx.beginPath();ctx.arc(x,y-4*S,4.5*S,0,Math.PI*2);ctx.stroke();
         ctx.beginPath();ctx.arc(x,y-4*S,1.6*S,0,Math.PI*2);ctx.stroke();
       } else if(rm.key==='diplo'){
-        ctx.strokeStyle='rgba(227,166,255,'+(0.35+0.3*pul)+')';ctx.lineWidth=1.4;
+        ctx.strokeStyle=TH.rgba(col,0.35+0.3*pul);ctx.lineWidth=1.4;
         ctx.beginPath();ctx.ellipse(x,y-4*S,8*S,4*S,0,0,Math.PI*2);ctx.stroke();
-        ctx.fillStyle='rgba(227,166,255,0.35)';
+        ctx.fillStyle=TH.rgba(col,0.45);
         for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.fillRect(x+Math.cos(a)*11*S-1.5*S,y-4*S+Math.sin(a)*5.5*S-1.5*S,3*S,3*S);}
       }
+      ctx.restore();
+      // the room's icon marker
+      const bs=Math.max(22,Math.round(18+8*S));
+      TH.chunky(ctx,x-bs/2,y-bs*1.05,bs,bs,8,col,{drop:3,line:2.5});
+      TH.icon(ctx,ROOMS[rm.key].ic,x,y-bs*0.55,bs*0.62,K.ink,{weight:2.6});
+    } else {
+      TH.marker(ctx,x,y-2*S,{icon:'work',color:K.gold,t,size:26});
     }
-    ctx.font='700 '+Math.round(9.5*S)+'px "Exo 2"';
-    ctx.textAlign='center';
-    ctx.fillStyle=rm.build?'rgba(255,180,84,0.8)':shade(col,1.15);
-    ctx.fillText(ROOMS[rm.key].name.toUpperCase()+(rm.build?' · '+rm.build.days+'d':''),x,y+TH2*(cl.h===1?0.9:1.6)*isoParams().S+8);
+    const ly=y+TH2*(cl.h===1?0.9:1.6)*S+12;
+    Lb.add(ROOMS[rm.key].name+(rm.build?' · '+rm.build.days+'d':''),x,ly,{color:rm.build?K.gold:col,size:12},rm.build?1:2);
   }
+  Lb.flush(ctx);
   // hover / selection: whole-room outlines
   const hovRm=hoverCell?roomAt(hoverCell.r,hoverCell.c):null;
-  if(hovRm){roomOutline(hovRm);ctx.strokeStyle='rgba(255,180,84,0.75)';ctx.lineWidth=1.8;ctx.stroke();}
+  if(hovRm){roomOutline(hovRm);ctx.lineWidth=2.5;ctx.strokeStyle=TH.rgba(K.gold,0.85);ctx.stroke();}
   else if(hoverCell){
     const [x,y,S]=cellToCss(hoverCell.r,hoverCell.c);
-    diamond(x,y,S,1);ctx.strokeStyle='rgba(255,180,84,0.7)';ctx.lineWidth=1.6;ctx.stroke();
+    diamond(x,y,S,1);ctx.strokeStyle=TH.rgba(K.gold,0.8);ctx.lineWidth=2;ctx.stroke();
   }
   if(tilePopAt){
-    if(tilePopAt.room){roomOutline(tilePopAt.room);ctx.strokeStyle='rgba(255,180,84,0.95)';ctx.lineWidth=2;ctx.stroke();}
-    else {const [x,y,S]=cellToCss(tilePopAt.r,tilePopAt.c);diamond(x,y,S,0);ctx.strokeStyle='rgba(255,180,84,0.95)';ctx.lineWidth=2;ctx.stroke();}
+    if(tilePopAt.room){roomOutline(tilePopAt.room);ctx.strokeStyle=K.gold;ctx.lineWidth=3;ctx.stroke();}
+    else {const [x,y,S]=cellToCss(tilePopAt.r,tilePopAt.c);diamond(x,y,S,0);ctx.strokeStyle=K.gold;ctx.lineWidth=3;ctx.stroke();}
   }
 }
 
@@ -1879,22 +1935,24 @@ function exitRoomView(){viewRoom=null;$('roomViewBar').hidden=true;}
 function staffLine(key){
   if(!STAFFABLE[key])return '';
   const st=staffOf(key)[0];
-  return st?('<br>'+STAFFABLE[key].post+': <b style="color:var(--good)">'+st.name+'</b>')
-    :('<br><span style="color:var(--heg)">'+STAFFABLE[key].post+' post empty</span> — '+STAFFABLE[key].perk+' when filled');
+  return st?('<br>'+STAFFABLE[key].post+': <b class="bs-good">'+st.name+'</b>')
+    :('<br><span class="bs-bad">'+STAFFABLE[key].post+' post empty</span> — '+STAFFABLE[key].perk+' when filled');
 }
+/* an action button that opens a window / runs a room job */
+const rbtn=(attrs,label,dis,cls)=>'<button class="sr-btn'+(cls?' '+cls:'')+'" '+attrs+(dis?' disabled':'')+'>'+label+'</button>';
 function renderRoomBar(){
   const rm=viewRoom;if(!rm)return;
-  const R=ROOMS[rm.key];
+  const R=ROOMS[rm.key],bar=$('roomViewBar');
   let info='';
   if(rm.key==='hangar'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' \u00b7 repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'){
-    info='Bunks '+bunksUsed()+'/'+bunkCap()+' \u00b7 '+clusterTiles(clusterOf(rm))+' rooms \u00b7 morale '+Math.round(G.morale)+staffLine('barracks')+
+    info='Bunks '+bunksUsed()+'/'+bunkCap()+' · '+clusterTiles(clusterOf(rm))+' rooms · morale '+Math.round(G.morale)+staffLine('barracks')+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
   } else if(rm.key==='store'){
-    info=C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+'/'+supCap()+' · '+I(Math.round(G.intel))+
+    info=C(Math.round(G.credits))+' '+S(Math.round(G.supplies))+'/'+supCap()+' '+I(Math.round(G.intel))+
       '<br>Armory: '+G.armory.map(a=>a.name+' ×'+a.n).join(' · ')+staffLine('store');
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
@@ -1903,7 +1961,7 @@ function renderRoomBar(){
     const tr=G.people.filter(p=>p.assign==='train');
     info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+staffLine('training');
   } else if(rm.key==='comms'){
-    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+' \u00b7 '+tilesOf('comms')+' room'+(tilesOf('comms')>1?'s':'')+staffLine('comms');
+    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+' · '+tilesOf('comms')+' room'+(tilesOf('comms')>1?'s':'')+staffLine('comms');
   } else if(rm.key==='diplo'){
     info='Teams out '+(G.dip||[]).length+'/'+dipCapacity()+staffLine('diplo');
   } else if(rm.key==='command'){
@@ -1911,41 +1969,62 @@ function renderRoomBar(){
   } else if(rm.key==='workshop'){
     info='Repair pace '+(staffOf('workshop').length?15:8)+'%/day'+staffLine('workshop');
   }
-  let acts='';
-  if(rm.key==='command')acts='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-  if(rm.key==='training')acts='<button class="pbtn" data-open="spec">Specialty Training ▸</button><button class="pbtn" data-simulator>Simulator — dogfight exercise ▸</button>';
+  /* cards (upgrades, patrols, the derelict) sit in the body; window-openers sit in the foot */
+  let cards='',acts='';
+  if(rm.key==='command')acts=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
+  if(rm.key==='training')acts=rbtn('data-open="spec"','Specialty Training')+rbtn('data-simulator','Simulator — dogfight exercise');
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-    if(G.wreck.restoring)acts='<button class="pbtn" disabled>Restoring the hauler — '+G.wreck.restoring+'d left. Joss hasn’t slept.</button>';
-    else acts='<button class="pbtn" data-restore '+((G.credits>=240&&G.materials>=160)?'':'disabled')+'>Restore the derelict hauler — 240⬡ 160⚙ · 2 days</button>';
+    if(G.wreck.restoring)cards+='<div class="sr-card sr-card--info"><div class="sr-card__title">Restoring the hauler</div><div class="sr-card__body" style="margin-bottom:0">'+G.wreck.restoring+'d left. Joss hasn’t slept.</div></div>';
+    else{
+      const can=G.credits>=240&&G.materials>=160;
+      cards+='<div class="sr-card sr-card--info bs-build"><div class="sr-card__top"><span class="sr-card__title">Restore the derelict hauler</span><span class="sr-tag">2 days</span></div>'+
+        '<div class="bs-build__row" style="margin-top:8px"><span class="sr-card__meta">'+C(240,G.credits<240)+' '+M(160,G.materials<160)+'</span>'+rbtn('data-restore'+(can?'':' title="'+esc(needWhy({c:240,m:160}))+'"'),'Restore',!can,'sr-btn--primary sr-btn--sm')+'</div></div>';
+    }
   }
-  if(rm.key==='diplo')acts='<button class="pbtn" data-open="diplo">Diplomatic Tasks \u25b8</button>';
-  if(rm.key==='store')acts='<button class="pbtn" data-open="gear">Gear Grid \u25b8</button>';
+  if(rm.key==='diplo')acts=rbtn('data-open="diplo"','Diplomatic Tasks');
+  if(rm.key==='store')acts=rbtn('data-open="gear"','Gear Grid');
   if(rm.key==='hangar'){
-    for(const t of (G.patrols||[])){const f=G.fighters.find(x=>x.id===t.fid);acts+='<div class="pdesc">'+(f?f.name:'A ship')+' on patrol \u00b7 '+t.days+'d left</div>';}
+    for(const t of (G.patrols||[])){const f=G.fighters.find(x=>x.id===t.fid);cards+='<div class="sr-tag sr-tag--info">'+IC('ship')+(f?f.name:'A ship')+' on patrol · '+t.days+'d left</div>';}
     for(const f of G.fighters.filter(x=>!x.out)){
       const ok=patrolReady(f);
-      acts+='<button class="pbtn" data-patrol="'+f.id+'" '+(ok?'':'disabled')+'>Patrol local space \u2014 '+f.name+'<span class="cost">'+F(fuelOf(f))+' \u00b7 '+PATROL_DAYS+'d</span><small>'+(ok?'Listen for leads and scavenge what drifts by. Small risk to the hull.':(patrolPilot(f)?(f.hull<60?'Too damaged to fly.':'Not enough fuel.'):'Needs its pilot free.'))+'</small></button>';
+      cards+='<div class="sr-card bs-build"><div class="sr-card__top"><span class="sr-card__title">Patrol local space — '+f.name+'</span><span class="sr-tag">'+PATROL_DAYS+'d</span></div>'+
+        '<div class="sr-card__body">'+(ok?'Listen for leads and scavenge what drifts by. Small risk to the hull.':(patrolPilot(f)?(f.hull<60?'Too damaged to fly.':'Not enough fuel.'):'Needs its pilot free.'))+'</div>'+
+        '<div class="bs-build__row"><span class="sr-card__meta">'+F(fuelOf(f),G.fuel<fuelOf(f))+'</span>'+rbtn('data-patrol="'+f.id+'"'+(ok?'':' title="'+esc(patrolPilot(f)?(f.hull<60?'Too damaged to fly':'Not enough fuel'):'Needs its pilot free')+'"'),'Patrol',!ok,'sr-btn--sm')+'</div></div>';
     }
   }
   for(const u of (UPGRADES[rm.key]||[])){
     const has=upOf(rm,u.k),q=upQueued(rm,u.k);
     const afford=G.credits>=u.c&&G.materials>=(u.m||0)&&G.supplies>=(u.s||0);
     const blk=upBlocked(rm,u);
-    acts+=has?'<div class="pdesc">\u2713 <b>'+u.n+'</b> installed.</div>'
-      :'<button class="pbtn" data-up="'+u.k+'" '+((q||!afford||blk)?'disabled':'')+'>'+u.n+(q?' \u2014 building':'<span class="cost">'+bundleHTML(u)+' \u00b7 '+u.days+'d</span>')+'<small>'+u.d+(blk?' <span style="color:var(--heg)">'+blk+'</span>':'')+'</small></button>';
+    cards+=has?'<div class="sr-tag sr-tag--good">'+IC('check')+u.n+' installed</div>'
+      :'<div class="sr-card sr-card--good bs-build"><div class="sr-card__top"><span class="sr-card__title">'+u.n+'</span><span class="sr-tag">'+u.days+'d</span></div>'+
+        '<div class="sr-card__body">'+u.d+(blk?' <span class="bs-bad">'+blk+'</span>':'')+'</div>'+
+        '<div class="bs-build__row"><span class="sr-card__meta">'+bundleHTML(u,WALLET())+'</span>'+(q?'<span class="sr-tag sr-tag--progress">Building</span>':rbtn('data-up="'+u.k+'"'+(!afford?' title="'+esc(needWhy(u))+'"':blk?' title="'+esc(blk)+'"':''),'Build',!afford||blk,'sr-btn--primary sr-btn--sm'))+'</div></div>';
   }
-  $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
-    '<div class="rvinfo">'+info+'</div>'+acts+
-    '<button class="pbtn" data-backbase>← Back to the base</button>'+
-    '<div class="pophint">'+(SR.touch?'double-tap':'double-click')+' a rebel in the room for their file</div>';
+  bar.style.setProperty('--accent',rcol(rm.key));
+  bar.innerHTML='<div class="sr-window__head"><span class="sr-window__title">'+R.name+'</span><button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-backbase aria-label="Back to the base">'+IC('clear')+'</button></div>'+
+    '<div class="sr-window__body"><p class="bs-desc">'+R.desc+'</p><div class="bs-info">'+info+'</div>'+(cards?'<div class="sr-stack bs-cards">'+cards+'</div>':'')+
+    '<p class="sr-fine">'+(SR.touch?'Double-tap':'Double-click')+' a rebel in the room for their file</p></div>'+
+    '<div class="sr-window__foot bs-foot">'+acts+'<span class="sr-spacer"></span>'+rbtn('data-backbase',IC('back')+'Back to the base','', 'sr-btn--ghost')+'</div>';
 }
-let rvFigs=[],rvParts=[],rvLast=0;
+let rvFigs=[],rvParts=[],rvLast=0,rvSx=1;
 function renderRoomView(now){
   const rm=viewRoom;
-  const Sx=Math.min(cssW,cssH*1.6)/560;
-  const cx=cssW/2,cy=cssH*0.56;
-  const col=ROOMS[rm.key].col;
+  /* the docked room window owns a corner of the stage; the room lives in the rest (beside it, or below it on a phone) */
+  let rx=0,ry=0,rw=cssW,rh=cssH;
+  const bar=$('roomViewBar');
+  if(!bar.hidden){
+    const cr=cv.getBoundingClientRect(),br=bar.getBoundingClientRect();
+    if(br.width&&br.width<cssW*0.55){rx=br.right-cr.left+12;rw=Math.max(240,cssW-rx);}
+    else if(br.height){ry=br.bottom-cr.top+8;rh=Math.max(200,cssH-ry-84);}
+  }
+  const Sx=Math.min(rw/560,rh/340);
+  rvSx=Sx;
+  const cx=rx+rw/2,cy=ry+rh*0.6;
+  const col=rcol(rm.key);
+  const fnt=(px,wt)=>(wt||700)+' '+Math.max(px,Math.ceil(11/Sx))+'px '+TH.FONT.ui;   // never below 11 screen px
   const dtv=Math.min(0.05,(now-(rvLast||now))/1000);rvLast=now;
+  if(RM)now=0;   // reduced motion: the room holds still
   rvFigs=[];
   const addFig=(fx,fy,p,fcol)=>{
     figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol);
@@ -1953,7 +2032,7 @@ function renderRoomView(now){
   };
   const spark=(fx,fy,scol)=>{
     if(RM)return;
-    rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||'#ffe08a'});
+    rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||K.goldHi});
   };
   // big floor
   ctx.save();
@@ -1962,69 +2041,71 @@ function renderRoomView(now){
   ctx.beginPath();
   ctx.moveTo(0,-130);ctx.lineTo(250,0);ctx.lineTo(0,130);ctx.lineTo(-250,0);ctx.closePath();
   const fg=ctx.createLinearGradient(0,-130,0,130);
-  fg.addColorStop(0,shade(col,0.3));fg.addColorStop(1,shade(col,0.12));
+  fg.addColorStop(0,TH.rgba(col,0.26));fg.addColorStop(1,TH.rgba(col,0.1));
+  ctx.fillStyle=K.night;ctx.fill();
   ctx.fillStyle=fg;ctx.fill();
-  ctx.strokeStyle=shade(col,0.7);ctx.lineWidth=2;ctx.stroke();
+  ctx.lineWidth=7;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.lineWidth=3;ctx.strokeStyle=col;ctx.stroke();
   // back walls hint
-  ctx.strokeStyle='rgba(120,150,200,0.2)';ctx.lineWidth=1;
+  ctx.strokeStyle=TH.rgba(K.seam,0.7);ctx.lineWidth=2;
   ctx.beginPath();ctx.moveTo(0,-130);ctx.lineTo(0,-190);ctx.moveTo(250,0);ctx.lineTo(250,-60);ctx.moveTo(-250,0);ctx.lineTo(-250,-60);ctx.stroke();
-  const pul=0.6+0.4*Math.sin(now*0.002);
+  const pul=RM?0.8:0.6+0.4*Math.sin(now*0.002);
   if(rm.key==='hangar'){
     const cap=fighterCap();
     for(let i=0;i<cap;i++){
       const bx=(i-(cap-1)/2)*130,by=i%2?40:-20;
-      ctx.strokeStyle='rgba(87,168,255,0.35)';ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
+      ctx.strokeStyle=TH.rgba(col,0.45);ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
       ctx.beginPath();ctx.moveTo(bx,by-45);ctx.lineTo(bx+80,by);ctx.lineTo(bx,by+45);ctx.lineTo(bx-80,by);ctx.closePath();ctx.stroke();
       ctx.setLineDash([]);
       const f=G.fighters[i];
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
         ctx.globalAlpha=0.6;
-        craftTop('graf',bx,by,3.4,-0.5,'#3a3f46');
+        craftTop('graf',bx,by,3.4,-0.5,K.seam);
         ctx.globalAlpha=1;
-        ctx.font='700 11px '+SR.theme.FONT.ui;ctx.textAlign='center';
-        ctx.fillStyle='rgba(255,180,84,0.75)';
-        ctx.fillText(G.wreck.restoring?'RESTORING · '+G.wreck.restoring+'D':'DERELICT',bx,by+62);
+        ctx.font=fnt(11);ctx.textAlign='center';
+        ctx.fillStyle=K.gold;
+        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,by+62);
         continue;
       }
       if(f&&!f.out){
         craftTop(f.cls,bx,by,3.4,-0.5);
-        ctx.font='700 12px "Exo 2"';ctx.textAlign='center';
-        ctx.fillStyle='#a0dce6';ctx.fillText(f.name,bx,by+62);
-        ctx.fillStyle='rgba(20,32,60,0.9)';ctx.fillRect(bx-26,by+68,52,5);
-        ctx.fillStyle=f.hull>=100?'#7dd97b':f.hull>=60?'#ffb454':'#ff4f5e';
-        ctx.fillRect(bx-26,by+68,52*f.hull/100,5);
+        ctx.font=fnt(12);ctx.textAlign='center';
+        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,by+62);
+        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,by+67,54,7);
+        ctx.fillStyle=hullCol(f.hull);
+        ctx.fillRect(bx-25,by+69,50*f.hull/100,3);
         if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
       } else {
-        ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-        ctx.fillStyle='rgba(87,168,255,0.5)';
-        ctx.fillText(f&&f.out?f.name+' — OUT':'EMPTY BERTH',bx,by+4);
+        ctx.font=fnt(11);ctx.textAlign='center';
+        ctx.fillStyle=K.text3;
+        ctx.fillText(f&&f.out?f.name+' — out':'Empty berth',bx,by+4);
       }
     }
   } else if(rm.key==='command'){
-    ctx.strokeStyle='rgba(255,180,84,'+(0.4+0.3*pul)+')';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(col,0.4+0.3*pul);ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(0,-10,90,42,0,0,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle='rgba(255,180,84,0.25)';
+    ctx.strokeStyle=TH.rgba(col,0.25);
     ctx.beginPath();ctx.ellipse(0,-10,55,25,0,0,Math.PI*2);ctx.stroke();
     for(let i=0;i<14;i++){
-      ctx.fillStyle='rgba(255,220,160,'+(0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)))+')';
+      ctx.fillStyle=TH.rgba(K.goldHi,0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)));
       ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
     }
-    staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,'#9fe0a8'));
+    staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,col));
   } else if(rm.key==='barracks'){
     const cap=Math.min(bunkCap(),12);
     const resters=G.people.filter(p=>p.assign==='rest'&&!p.injured);
     for(let i=0;i<cap;i++){
       const bx=(i%3-1)*140,by=Math.floor(i/3)*54-40;
-      ctx.fillStyle='rgba(87,215,226,0.14)';
+      ctx.fillStyle=TH.rgba(col,0.16);
       ctx.fillRect(bx-40,by-12,80,24);
-      ctx.strokeStyle='rgba(87,215,226,0.4)';ctx.lineWidth=1;ctx.strokeRect(bx-40,by-12,80,24);
+      ctx.strokeStyle=TH.rgba(col,0.5);ctx.lineWidth=1.5;ctx.strokeRect(bx-40,by-12,80,24);
       const p=resters[i];
       if(p){
-        ctx.fillStyle='rgba(143,216,224,0.8)';
+        ctx.fillStyle=K.rebelHi;
         ctx.beginPath();ctx.roundRect(bx-28,by-6,44,11,5);ctx.fill();
         ctx.beginPath();ctx.arc(bx+24,by,5,0,7);ctx.fill();
-        ctx.font='600 10px "Exo 2"';ctx.textAlign='center';
-        ctx.fillStyle='rgba(160,220,230,0.75)';ctx.fillText(p.name.split(' ')[0],bx,by+24);
+        ctx.font=fnt(11,600);ctx.textAlign='center';
+        ctx.fillStyle=K.text2;ctx.fillText(p.name.split(' ')[0],bx,by+26);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:22,pid:p.id});
       }
     }
@@ -2032,56 +2113,56 @@ function renderRoomView(now){
     const stacks=Math.max(2,Math.min(9,Math.round(G.supplies/25)));
     for(let i=0;i<stacks;i++){
       const bx=(i%3-1)*110+((i*37)%23-11),by=Math.floor(i/3)*46-40;
-      ctx.fillStyle='rgba(125,217,123,'+(0.25+((i*7)%10)/40)+')';
+      ctx.fillStyle=TH.rgba(col,0.25+((i*7)%10)/40);
       ctx.fillRect(bx-22,by-16,44,32);
-      ctx.strokeStyle='rgba(125,217,123,0.5)';ctx.lineWidth=1;ctx.strokeRect(bx-22,by-16,44,32);
+      ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.5;ctx.strokeRect(bx-22,by-16,44,32);
     }
     // weapon rack
-    ctx.strokeStyle='rgba(255,180,84,0.6)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(K.gold,0.7);ctx.lineWidth=2;
     ctx.strokeRect(150,-80,80,50);
     G.armory.forEach((a,i)=>{
-      ctx.font='700 12px '+SR.theme.FONT.ui;ctx.textAlign='left';
-      ctx.fillStyle='#ffb454';ctx.fillText(a.ic+' ×'+a.n,158,-60+i*16);
+      ctx.font=fnt(12);ctx.textAlign='left';
+      ctx.fillStyle=K.gold;ctx.fillText(a.ic+' ×'+a.n,158,-60+i*Math.max(16,Math.ceil(13/Sx)));
     });
-    staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,'#9fe0a8'));
+    staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,K.go));
   } else if(rm.key==='workshop'){
     const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
-    ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
     ctx.strokeRect(-70,-30,140,46);
     if(wounded){
       craftTop(wounded.cls,0,-8,3,-0.3);
-      ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-      ctx.fillStyle='#ffd9a0';ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,44);
+      ctx.font=fnt(12);ctx.textAlign='center';
+      ctx.fillStyle=K.text;ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,46);
       if(rng()<0.12)spark((rng()-0.5)*80,-6);
     } else {
-      ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-      ctx.fillStyle='rgba(255,180,84,0.5)';ctx.fillText('LIFT EMPTY — nothing broken. For once.',0,0);
+      ctx.font=fnt(12);ctx.textAlign='center';
+      ctx.fillStyle=K.text2;ctx.fillText('Lift empty — nothing broken. For once.',0,0);
     }
-    staffOf('workshop').forEach((p,i)=>addFig(-110+i*40,50,p,'#ffd9a0'));
+    staffOf('workshop').forEach((p,i)=>addFig(-110+i*40,50,p,K.steel));
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
     for(let i=0;i<2;i++){
       const bx=(i-0.5)*160,by=-10;
-      ctx.fillStyle='rgba(125,217,123,0.12)';ctx.fillRect(bx-45,by-14,90,28);
-      ctx.strokeStyle='rgba(125,217,123,0.45)';ctx.strokeRect(bx-45,by-14,90,28);
+      ctx.fillStyle=TH.rgba(col,0.14);ctx.fillRect(bx-45,by-14,90,28);
+      ctx.strokeStyle=TH.rgba(col,0.55);ctx.lineWidth=1.5;ctx.strokeRect(bx-45,by-14,90,28);
       const p=patients[i];
       if(p){
-        ctx.fillStyle='rgba(255,150,150,0.8)';
+        ctx.fillStyle=K.hazard;
         ctx.beginPath();ctx.roundRect(bx-32,by-7,52,12,6);ctx.fill();
         ctx.beginPath();ctx.arc(bx+28,by-1,6,0,7);ctx.fill();
-        ctx.font='600 10px "Exo 2"';ctx.textAlign='center';
-        ctx.fillStyle='rgba(255,180,180,0.85)';ctx.fillText(p.name.split(' ')[0]+' · '+p.injured+'d',bx,by+28);
+        ctx.font=fnt(11,600);ctx.textAlign='center';
+        ctx.fillStyle=K.hazard;ctx.fillText(p.name.split(' ')[0]+' · '+p.injured+'d',bx,by+30);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:24,pid:p.id});
       }
     }
     const staff=medStaff();
-    staff.forEach((p,i)=>addFig(-40+i*60,70,p,'#9fe0a8'));
+    staff.forEach((p,i)=>addFig(-40+i*60,70,p,K.go));
     if(!staff.length){
-      ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-      ctx.fillStyle='rgba(255,120,120,0.6)';ctx.fillText('MEDIC POST EMPTY — post Support crew from their file',0,105);
+      ctx.font=fnt(12);ctx.textAlign='center';
+      ctx.fillStyle=K.hazard;ctx.fillText('Medic post empty — post Support crew from their file',0,108);
     }
   } else if(rm.key==='training'){
-    ctx.strokeStyle='rgba(201,135,255,0.5)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(0,0,70,0,Math.PI*2);ctx.stroke();
     const tr=G.people.filter(p=>p.assign==='train');
     tr.forEach((p,i)=>{
@@ -2089,39 +2170,39 @@ function renderRoomView(now){
       addFig(Math.cos(a)*40,Math.sin(a)*20,p);
     });
     if(!tr.length){
-      ctx.font='700 11px "Exo 2"';ctx.textAlign='center';
-      ctx.fillStyle='rgba(201,135,255,0.5)';ctx.fillText('EMPTY MATS — assign rebels from their files',0,4);
+      ctx.font=fnt(12);ctx.textAlign='center';
+      ctx.fillStyle=K.text2;ctx.fillText('Empty mats — assign rebels from their files',0,4);
     }
-    staffOf('training').forEach((p,i)=>addFig(90+i*40,-50,p,'#c9a8ff'));
+    staffOf('training').forEach((p,i)=>addFig(90+i*40,-50,p,K.psi));
     // the simulator pod lives here
-    ctx.strokeStyle='rgba(87,215,226,0.6)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(K.shield,0.8);ctx.lineWidth=2;
     ctx.beginPath();ctx.roundRect(-190,-70,70,44,10);ctx.stroke();
-    ctx.fillStyle='rgba(87,215,226,'+(0.15+0.12*pul)+')';
+    ctx.fillStyle=TH.rgba(K.shield,0.15+0.12*pul);
     ctx.beginPath();ctx.roundRect(-184,-64,58,32,8);ctx.fill();
-    ctx.font='700 10px "Exo 2"';ctx.textAlign='center';
-    ctx.fillStyle='rgba(87,215,226,0.85)';ctx.fillText('SIMULATOR',-155,-14);
+    ctx.font=fnt(11);ctx.textAlign='center';
+    ctx.fillStyle=K.shield;ctx.fillText('Simulator',-155,-12);
   } else if(rm.key==='comms'){
-    ctx.strokeStyle='rgba(87,215,226,0.7)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(col,0.8);ctx.lineWidth=2;
     ctx.beginPath();ctx.arc(0,-30,26,Math.PI*0.85,Math.PI*2.05);ctx.stroke();
     for(let k=1;k<=3;k++){
-      ctx.strokeStyle='rgba(87,215,226,'+(0.5-k*0.13)*pul+')';
+      ctx.strokeStyle=TH.rgba(col,(0.5-k*0.13)*pul);
       ctx.beginPath();ctx.arc(0,-40,26+k*(16+6*pul),Math.PI*1.15,Math.PI*1.85);ctx.stroke();
     }
     // waveform
-    ctx.strokeStyle='rgba(87,215,226,0.5)';ctx.lineWidth=1.4;
+    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.6;
     ctx.beginPath();
     for(let px=-100;px<=100;px+=4){
       const vy=60+Math.sin(px*0.11+now*0.006)*8*Math.sin(px*0.023+now*0.001);
       px===-100?ctx.moveTo(px,vy):ctx.lineTo(px,vy);
     }
     ctx.stroke();
-    staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,'#8fd8e0'));
+    staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,K.shield));
   } else if(rm.key==='diplo'){
-    ctx.strokeStyle='rgba(227,166,255,0.6)';ctx.lineWidth=2;
+    ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(0,0,90,40,0,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='rgba(227,166,255,'+(0.10+0.08*pul)+')';ctx.fill();
-    for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.fillStyle='rgba(227,166,255,0.45)';ctx.beginPath();ctx.arc(Math.cos(a)*104,Math.sin(a)*48,5,0,7);ctx.fill();}
-    staffOf('diplo').forEach((p,i)=>addFig(-40+i*40,-30,p,'#e3a6ff'));
+    ctx.fillStyle=TH.rgba(col,0.10+0.08*pul);ctx.fill();
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.fillStyle=TH.rgba(col,0.55);ctx.beginPath();ctx.arc(Math.cos(a)*104,Math.sin(a)*48,5,0,7);ctx.fill();}
+    staffOf('diplo').forEach((p,i)=>addFig(-40+i*40,-30,p,col));
   }
   // room-local sparks (persistent particles, not per-frame flicker)
   for(const p of rvParts){p.life+=dtv;p.x+=p.vx*dtv;p.y+=p.vy*dtv;p.vy+=160*dtv;}
@@ -2137,30 +2218,32 @@ function renderRoomView(now){
 }
 
 /* ---------- location stats (Security / Access / Support / Liberation) ---------- */
-function pipRow(n,max,glyph,colFn){
-  let h='';
-  for(let i=0;i<max;i++)h+='<i class="pip'+(i<n?' on':'')+'"'+(i<n&&colFn?' style="color:'+colFn(i,n)+'"':'')+'>'+glyph+'</i>';
-  return h;
+/* cell pips on the kit's health-cell component; colour is a token, or a fn(i,n) for per-level tints */
+function pipRow(n,max,color){
+  let h='<span class="sr-hp" style="--hp:'+(typeof color==='function'?color(n-1,n):color)+'"><span class="sr-hp__cells">';
+  for(let i=0;i<max;i++)h+='<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>';
+  return h+'</span></span>';
 }
-function libWheel(pct){return '<span class="libwheel" style="--p:'+pct+'%" title="'+pct+'% liberated"><b>'+pct+'</b></span>';}
+function libWheel(pct){return '<span class="bs-wheel" style="--p:'+pct+'" title="'+pct+'% liberated"><b>'+pct+'</b></span>';}
 function locStatsHTML(d,st){
   const sup=Math.floor(st.sup||0),cap=locCap(st),lib=locLib(d,st);
-  let h='<div class="locstats">'+
-    '<div class="lstat"><span class="ll">Security</span><span class="lp sec">'+pipRow(d.sec,5,'⛨')+'</span></div>'+
-    '<div class="lstat"><span class="ll">Access</span><span class="lp acc">'+pipRow(st.acc||0,5,'◉')+'</span></div>'+
-    '<div class="lstat"><span class="ll">Support</span><span class="lp sup">'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,'⚑',i=>SUP_COL[Math.max(0,sup-1)]):'<span class="pdesc">no population</span>')+'</span></div>'+
-    '<div class="lstat"><span class="ll">Liberation</span><span class="lp">'+(lib===null?'<span class="pdesc">no liberation front charted</span>':libWheel(lib))+'</span></div>'+
+  let h='<div class="bs-stats">'+
+    '<div class="bs-stat"><span class="bs-stat__l">Security</span>'+pipRow(d.sec,5,'var(--sr-heg)')+'</div>'+
+    '<div class="bs-stat"><span class="bs-stat__l">Access</span>'+pipRow(st.acc||0,5,'var(--sr-shield)')+'</div>'+
+    '<div class="bs-stat"><span class="bs-stat__l">Support</span>'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,supCol(sup-1)):'<span class="sr-faint">no population</span>')+'</div>'+
+    '<div class="bs-stat"><span class="bs-stat__l">Liberation</span>'+(lib===null?'<span class="sr-faint">no liberation front charted</span>':libWheel(lib))+'</div>'+
   '</div>';
-  if(!d.base&&(st.acc||0)>=2)h+='<div class="pdesc" style="margin:2px 0 6px">'+(oppsEligible()?'Our intelligence is watching this world for leads.':'Leads from our own intelligence need a <b>staffed Comms Array</b>.')+'</div>';
+  if(!d.base&&(st.acc||0)>=2)h+='<p class="sr-fine" style="margin:2px 0 6px">'+(oppsEligible()?'Our intelligence is watching this world for leads.':'Leads from our own intelligence need a <b>staffed Comms Array</b>.')+'</p>';
   if(d.regions){
-    h+='<div class="dz-sec">Regions</div>'+d.regions.map(r=>{
+    h+='<div class="sr-h3">Regions</div>'+d.regions.map(r=>{
       const pct=(st.lib&&st.lib[r.id])||0;
-      const state=pct>=100?'liberated':pct>0?'contested':'Hegemony';
-      return '<div class="regrow '+state+'"><span class="rn">'+r.name+' <em>'+r.kind+'</em></span><span class="rs">'+(pct>=100?'LIBERATED':pct>0?'CONTESTED':'HEGEMONY')+'</span>'+
-        '<span class="rbar"><i style="width:'+pct+'%"></i><u style="left:'+cap+'%"></u></span><span class="rp">'+pct+'%</span></div>';
+      const state=pct>=100?'liberated':pct>0?'contested':'hegemony';
+      const tag=pct>=100?'<span class="sr-tag sr-tag--friend">Liberated</span>':pct>0?'<span class="sr-tag sr-tag--warn">Contested</span>':'<span class="sr-tag sr-tag--foe">Hegemony</span>';
+      return '<div class="bs-region is-'+state+'"><span class="bs-region__n">'+r.name+' <em>'+r.kind+'</em></span>'+tag+
+        '<span class="sr-meter__track bs-region__bar"><span class="sr-meter__fill" style="display:block;width:'+pct+'%;--c:var(--sr-rebel)"></span><u style="left:'+cap+'%"></u></span><span class="bs-region__p">'+pct+'%</span></div>';
     }).join('');
     const bind=ACC_CAP[st.acc||0]<=ACC_CAP[Math.min(5,sup)]?'Access':'Support';
-    if(cap<100)h+='<div class="pdesc capnote">Liberation is capped at <b>'+cap+'%</b> by '+bind+' (the lower of Access and Support). '+(bind==='Access'?'Spend Intel to deepen Access.':'Local Sources win hearts and minds.')+'</div>';
+    if(cap<100)h+='<p class="sr-fine">Liberation is capped at <b>'+cap+'%</b> by '+bind+' (the lower of Access and Support). '+(bind==='Access'?'Spend Intel to deepen Access.':'Local Sources win hearts and minds.')+'</p>';
   }
   return h;
 }
@@ -2174,19 +2257,30 @@ function drawGalaxy(now){
   const c2=g.getContext('2d');
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
-  c2.fillStyle='#05070f';c2.fillRect(0,0,w,h);
+  const t=RM?0:now;
+  /* text with an ink halo so it reads over rings and starfield */
+  const txt=(s,x,y,col,size,wt,al)=>{
+    c2.font=(wt||700)+' '+size+'px '+TH.FONT.ui;c2.textAlign=al||'center';c2.textBaseline='alphabetic';
+    c2.lineJoin='round';c2.lineWidth=4;c2.strokeStyle=TH.rgba(K.ink,0.9);c2.strokeText(s,x,y);
+    c2.fillStyle=col;c2.fillText(s,x,y);
+  };
+  /* labels are queued, then placed by priority at the first spot that doesn't collide with an icon or another label */
+  const labs=[],occ=[];
+  const lab=(s,cands,col,size,wt,pri)=>labs.push({s,cands,col,size,wt,pri});
+  const hold=(x,y,r)=>occ.push({x:x-r,y:y-r,w:2*r,h:2*r});
+  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
   // the core glows in the upper right; the verge is dark
   let cg=c2.createRadialGradient(w*0.86,h*0.38,20,w*0.86,h*0.38,w*0.5);
-  cg.addColorStop(0,'rgba(255,180,120,0.10)');cg.addColorStop(1,'rgba(255,180,120,0)');
+  cg.addColorStop(0,TH.rgba(K.goldHi,0.10));cg.addColorStop(1,TH.rgba(K.goldHi,0));
   c2.fillStyle=cg;c2.fillRect(0,0,w,h);
   for(let i=0;i<260;i++){
     const a=i*0.53,rad=6+i*0.85;
     const x=w*0.55+Math.cos(a)*rad*1.7,y=h*0.45+Math.sin(a)*rad*0.6;
     if(x<0||x>w||y<0||y>h)continue;
-    c2.fillStyle='rgba(140,170,230,'+(0.04+((i*13)%10)/110)+')';
+    c2.fillStyle=TH.rgba(K.steel,0.05+((i*13)%10)/110);
     c2.beginPath();c2.arc(x,y,((i*7)%3)/2+0.4,0,7);c2.fill();
   }
-  const pul=t=>0.5+0.5*Math.sin(now*0.004+t);
+  const pul=q=>0.5+0.5*Math.sin(t*0.004+q);
   // planets
   for(const d of PLANETDEF){
     const st=pst(d.id);
@@ -2195,95 +2289,104 @@ function drawGalaxy(now){
     if(!st.known){
       // uncharted signal
       const p=pul(x);
-      c2.strokeStyle='rgba(201,135,255,'+(0.25+0.3*p)+')';
-      c2.lineWidth=1;
-      c2.beginPath();c2.arc(x,y,5+3*p,0,7);c2.stroke();
-      c2.font='700 11px '+SR.theme.FONT.ui;c2.textAlign='center';
-      c2.fillStyle='rgba(201,135,255,'+(0.5+0.3*p)+')';c2.fillText('?',x,y+3.5);
-      c2.font='600 8px "Exo 2"';
-      c2.fillStyle='rgba(113,128,156,0.6)';c2.fillText('UNCHARTED',x,y+18);
-      if(selHere){c2.strokeStyle='#ffb454';c2.beginPath();c2.arc(x,y,14,0,7);c2.stroke();}
+      c2.strokeStyle=TH.rgba(K.psi,0.35+0.4*p);
+      c2.lineWidth=1.6;
+      c2.beginPath();c2.arc(x,y,6+3*p,0,7);c2.stroke();
+      txt('?',x,y+4,TH.rgba(K.psi,0.7+0.3*p),12,800);
+      hold(x,y,11);
+      lab('Uncharted',[[x,y+24,'center'],[x,y-16,'center'],[x+14,y+4,'left']],K.psi,11,700,4);
+      if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,16,0,7);c2.stroke();}
       continue;
     }
     if(d.base){
-      c2.fillStyle='#ffb454';
-      c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+6,y+5);c2.lineTo(x-6,y+5);c2.closePath();c2.fill();
-      c2.font='700 9px "Exo 2"';c2.textAlign='center';
-      c2.fillStyle='rgba(255,180,84,0.9)';c2.fillText('HAVEN ROCK',x,y+18);
+      c2.fillStyle=K.rebel;c2.strokeStyle=K.ink;c2.lineWidth=2;c2.lineJoin='round';
+      c2.beginPath();c2.moveTo(x,y-8);c2.lineTo(x+7,y+6);c2.lineTo(x-7,y+6);c2.closePath();c2.stroke();c2.fill();
+      hold(x,y,10);
+      lab('Haven Rock',[[x,y+22,'center'],[x+14,y+4,'left']],K.rebelHi,12,800,8);
       continue;
     }
     const R=d.core?9:d.kind==='Waystation'?4:6;
-    const bodyCol=d.core?'#ffca7a':st.access?'#7db8ff':'#5a6a8c';
+    const bodyCol=d.core?K.goldHi:st.access?K.shield:TH.rgba(K.text3,0.8);
     const glow=c2.createRadialGradient(x,y,1,x,y,R*2.4);
-    glow.addColorStop(0,d.core?'rgba(255,200,130,0.5)':'rgba(87,168,255,'+(st.access?0.35:0.12)+')');
+    glow.addColorStop(0,d.core?TH.rgba(K.goldHi,0.5):TH.rgba(K.shield,st.access?0.35:0.12));
     glow.addColorStop(1,'rgba(0,0,0,0)');
     c2.fillStyle=glow;c2.beginPath();c2.arc(x,y,R*2.4,0,7);c2.fill();
     c2.fillStyle=bodyCol;
     c2.beginPath();c2.arc(x,y,R,0,7);c2.fill();
-    if(d.core){c2.strokeStyle='rgba(255,200,130,0.55)';c2.lineWidth=1.2;
+    c2.lineWidth=1.5;c2.strokeStyle=K.ink;c2.stroke();
+    if(d.core){c2.strokeStyle=TH.rgba(K.goldHi,0.6);c2.lineWidth=1.4;
       c2.beginPath();c2.ellipse(x,y,R+6,R*0.4+2,-0.35,0,Math.PI*2);c2.stroke();}
     if(st.access){
-      c2.strokeStyle='rgba(87,215,226,0.8)';c2.lineWidth=1.4;
+      c2.strokeStyle=TH.rgba(K.shield,0.85);c2.lineWidth=1.6;
       c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();
     } else {
-      c2.strokeStyle='rgba(120,135,165,0.5)';c2.lineWidth=1.2;c2.setLineDash([3,4]);
+      c2.strokeStyle=TH.rgba(K.text3,0.6);c2.lineWidth=1.4;c2.setLineDash([3,4]);
       c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();c2.setLineDash([]);
       // tiny padlock
-      c2.strokeStyle='rgba(160,175,205,0.8)';c2.lineWidth=1.1;
+      c2.strokeStyle=TH.rgba(K.text2,0.85);c2.lineWidth=1.3;
       c2.strokeRect(x+R+4,y-R-9,6,5);
       c2.beginPath();c2.arc(x+R+7,y-R-9,2.4,Math.PI,0);c2.stroke();
     }
     if(d.regions&&st.access){
       const lb=locLib(d,st)/100;
-      c2.strokeStyle='rgba(255,90,80,0.25)';c2.lineWidth=2.4;
+      c2.strokeStyle=TH.rgba(K.rebel,0.3);c2.lineWidth=2.6;
       c2.beginPath();c2.arc(x,y,R+8,0,7);c2.stroke();
-      if(lb>0){c2.strokeStyle='#ff5a50';c2.beginPath();c2.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);c2.stroke();}
+      if(lb>0){c2.strokeStyle=K.rebel;c2.beginPath();c2.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);c2.stroke();}
     }
-    if(selHere){c2.strokeStyle='#ffb454';c2.lineWidth=1.6;c2.beginPath();c2.arc(x,y,R+12,0,7);c2.stroke();}
-    c2.font='600 9.5px "Exo 2"';c2.textAlign='center';
-    c2.fillStyle=st.access?'rgba(205,216,236,0.95)':'rgba(150,165,195,0.8)';
-    c2.fillText(d.name,x,y-R-9);
-    c2.font='600 7.5px "Exo 2"';
-    c2.fillStyle='rgba(113,128,156,0.75)';
-    c2.fillText(st.access?d.kind.toUpperCase():('SCOUT '+d.scout+'◈'),x,y+R+12);
+    if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,R+13,0,7);c2.stroke();}
+    hold(x,y,R+5);
+    lab(d.name,[[x,y-R-10,'center'],[x,y+R+16,'center'],[x+R+12,y+4,'left'],[x-R-12,y+4,'right']],st.access?K.text:K.text2,12,700,selHere?9:7);
+    lab(st.access?d.kind:('Scout '+d.scout+' intel'),[[x,y+R+17,'center'],[x,y-R-24,'center']],K.text3,11,600,2);
   }
-  // intelligence leads: amber diamonds that stay until the job is done
+  // intelligence leads: gold diamonds that stay until the job is done
   for(const o of (G.opps||[])){
     if(o.done)continue;
     const pd=pdef(o.loc),x=w*pd.x+20,y=h*pd.y-16,p=pul(x+y);
-    c2.fillStyle='rgba(255,180,84,'+(0.65+0.3*p)+')';
-    c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+5.5,y);c2.lineTo(x,y+7);c2.lineTo(x-5.5,y);c2.closePath();c2.fill();
-    if(!o.found){c2.strokeStyle='rgba(255,180,84,'+(0.25+0.3*p)+')';c2.lineWidth=1;c2.beginPath();c2.arc(x,y,9+3*p,0,7);c2.stroke();}
-    c2.font='700 8px "Exo 2"';c2.textAlign='center';c2.fillStyle='rgba(255,200,130,.9)';c2.fillText(o.found?'LEAD · ON BOARD':'NEW LEAD',x,y+19);
+    c2.fillStyle=TH.rgba(K.gold,0.75+0.25*p);c2.strokeStyle=K.ink;c2.lineWidth=1.5;
+    c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+5.5,y);c2.lineTo(x,y+7);c2.lineTo(x-5.5,y);c2.closePath();c2.stroke();c2.fill();
+    if(!o.found){c2.strokeStyle=TH.rgba(K.gold,0.3+0.3*p);c2.lineWidth=1.2;c2.beginPath();c2.arc(x,y,10+3*p,0,7);c2.stroke();}
+    hold(x,y,8);
+    lab(o.found?'Lead · on board':'New lead',[[x+11,y+4,'left'],[x-11,y+4,'right'],[x,y+22,'center'],[x,y-12,'center']],K.goldHi,11,700,5);
   }
   // sources ride their worlds
   const hx=w*pdef('haven').x,hy=h*pdef('haven').y;
   for(const s of G.sources){
     if(!s.alive)continue;
     const [x,y]=srcMapPos(s,w,h);
-    c2.strokeStyle='rgba(87,215,226,0.16)';c2.setLineDash([3,5]);
+    c2.strokeStyle=TH.rgba(K.go,0.2);c2.lineWidth=1.2;c2.setLineDash([3,5]);
     c2.beginPath();c2.moveTo(hx,hy);c2.lineTo(x,y);c2.stroke();c2.setLineDash([]);
     const hot=s.risk>60,attn=s.pendingEvent||s.signal;
-    // a source is a voice, not a world: green radio-mast icon
-    const col=hot?'#ff4f5e':'#7dd97b';
+    // a source is a voice, not a world: radio-mast icon (green; orange when it is running hot)
+    const col=hot?K.hazard:K.go;
     c2.fillStyle=col;
-    c2.beginPath();c2.arc(x,y,2.6,0,7);c2.fill();
-    c2.lineWidth=1.4;c2.lineCap='round';
-    c2.strokeStyle=hot?'rgba(255,79,94,0.85)':'rgba(125,217,123,0.85)';
+    c2.beginPath();c2.arc(x,y,2.8,0,7);c2.fill();
+    c2.lineWidth=1.6;c2.lineCap='round';
+    c2.strokeStyle=TH.rgba(col,0.9);
     for(const rr of [5.5,9]){c2.beginPath();c2.arc(x,y,rr,-Math.PI/4-0.55,-Math.PI/4+0.55);c2.stroke();}
     if(attn){ // signal waiting: waves emanate
-      const tt=(now*0.0011)%1;
+      const tt=(t*0.0011)%1;
       for(const k of [0,0.5]){
         const q=(tt+k)%1;
-        c2.strokeStyle='rgba(125,217,123,'+(0.6*(1-q)).toFixed(3)+')';
+        c2.strokeStyle=TH.rgba(K.go,0.7*(1-q));
         c2.beginPath();c2.arc(x,y,10+q*13,-Math.PI/4-0.75,-Math.PI/4+0.75);c2.stroke();
       }
     }
     c2.lineCap='butt';
-    if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle='#ffb454';c2.lineWidth=1.5;c2.beginPath();c2.arc(x,y,13,0,7);c2.stroke();}
-    c2.font='600 8.5px "Exo 2"';c2.textAlign='left';
-    c2.fillStyle=hot?'rgba(255,150,160,0.9)':'rgba(190,240,190,0.92)';c2.fillText(s.name.split(' ').pop(),x+13,y+4);
-    c2.textAlign='center';
+    if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,14,0,7);c2.stroke();}
+    hold(x,y,10);
+    lab(s.name.split(' ').pop(),[[x+15,y+4,'left'],[x-15,y+4,'right'],[x,y+24,'center'],[x,y-14,'center']],hot?K.hazard:K.go,11,700,6);
+  }
+  labs.sort((a,b)=>b.pri-a.pri);
+  const placed=occ.slice();
+  for(const l of labs){
+    c2.font=l.wt+' '+l.size+'px '+TH.FONT.ui;
+    const tw=c2.measureText(l.s).width;
+    for(const [x,y,al] of l.cands){
+      const rx=al==='left'?x:al==='right'?x-tw:x-tw/2,r={x:rx-3,y:y-l.size,w:tw+6,h:l.size+5};
+      if(r.x<2||r.x+r.w>w-2||r.y<2||r.y+r.h>h-2)continue;
+      if(placed.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y))continue;
+      placed.push(r);txt(l.s,x,y,l.col,l.size,l.wt,al);break;
+    }
   }
 }
 function drawCommStatic(now){
@@ -2294,23 +2397,24 @@ function drawCommStatic(now){
   const c2=g.getContext('2d');
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
-  c2.fillStyle='#020409';c2.fillRect(0,0,w,h);
+  const t=RM?0:now,nz=RM?()=>0.5:rng;     // reduced motion: a steady line, no flicker
+  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
   for(let i=0;i<240;i++){
-    c2.fillStyle='rgba(120,255,190,'+(rng()*0.22)+')';
-    c2.fillRect(rng()*w,rng()*h,1.5,1.5);
+    c2.fillStyle=TH.rgba(K.rebel,nz()*0.2);
+    c2.fillRect(nz()*w,nz()*h,1.5,1.5);
   }
-  const sy=(now*0.05)%h;
-  c2.fillStyle='rgba(120,255,190,0.07)';c2.fillRect(0,sy,w,7);
-  c2.strokeStyle='rgba(120,255,190,0.5)';c2.lineWidth=1.2;
+  const sy=(t*0.05)%h;
+  c2.fillStyle=TH.rgba(K.rebel,0.08);c2.fillRect(0,sy,w,7);
+  c2.strokeStyle=K.rebel;c2.lineWidth=2;
   c2.beginPath();
   for(let x=0;x<w;x+=3){
-    const y=h/2+Math.sin(x*0.08+now*0.01)*6*rng()+(rng()-0.5)*8;
+    const y=h/2+Math.sin(x*0.08+t*0.01)*6*nz()+(nz()-0.5)*8;
     x===0?c2.moveTo(x,y):c2.lineTo(x,y);
   }
   c2.stroke();
-  c2.font='700 11px '+SR.theme.FONT.ui;c2.textAlign='left';
-  c2.fillStyle='rgba(120,255,190,0.6)';
-  c2.fillText('ENCRYPTED · REBEL NET · '+(winArg&&winArg.src?winArg.src.loc.toUpperCase():''),8,12);
+  c2.font='700 11px '+TH.FONT.ui;c2.textAlign='left';
+  c2.fillStyle=K.text2;
+  c2.fillText('Encrypted · rebel net'+(winArg&&winArg.src?' · '+winArg.src.loc:''),10,15);
 }
 
 /* ---------- main render ---------- */
@@ -2318,18 +2422,18 @@ function render(now){
   worldT=now;
   ctx.setTransform(dpr,0,0,dpr,0,0);
   const bg=ctx.createRadialGradient(cssW/2,cssH*0.45,60,cssW/2,cssH*0.45,Math.max(cssW,cssH)*0.75);
-  bg.addColorStop(0,'#0a0f1e');bg.addColorStop(1,'#03050b');
+  bg.addColorStop(0,K.night);bg.addColorStop(1,K.void);
   ctx.fillStyle=bg;ctx.fillRect(0,0,cssW,cssH);
   if(G){
     if(viewRoom)renderRoomView(now);
     else renderBase(now);
   }
   const vg=ctx.createRadialGradient(cssW/2,cssH/2,Math.min(cssW,cssH)*0.4,cssW/2,cssH/2,Math.max(cssW,cssH)*0.75);
-  vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.55)');
+  vg.addColorStop(0,TH.rgba(K.ink,0));vg.addColorStop(1,TH.rgba(K.ink,0.5));
   ctx.fillStyle=vg;ctx.fillRect(0,0,cssW,cssH);
   layoutTilePop();
   if(winMode==='sources')drawGalaxy(now);
-  if(winMode==='comm')drawCommStatic(now);
+  if(winMode==='comm'||winMode==='cassIntro')drawCommStatic(now);
   updateGuide();
 }
 
@@ -2374,42 +2478,61 @@ function closeTilePop(){tilePopAt=null;$('tilePop').hidden=true;}
 function renderTilePop(){
   if(!tilePopAt)return;
   const el=$('tilePop');
-  let h='';
+  const head=(title,tag)=>'<div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+(tag||'')+'<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-popclose aria-label="Close">'+IC('clear')+'</button></div>';
+  let h='',accent=K.gold;
   if(tilePopAt.room){
     const rm=tilePopAt.room,R=ROOMS[rm.key];
-    h='<div class="ptitle">'+R.name+(rm.build?' — building, '+rm.build.days+'d left':'')+'</div><div class="pdesc">'+R.desc+'</div>';
+    accent=rcol(rm.key);
+    let body='<p class="bs-desc">'+R.desc+'</p>',foot='';
     if(!rm.build){
-      if(rm.key==='command')h+='<button class="pbtn" data-open="missions">Mission Board</button><button class="pbtn" data-open="sources">Source Network</button>';
-      if(rm.key==='hangar')h+='<div class="pdesc">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</div>';
-      if(rm.key==='training')h+='<button class="pbtn" data-open="spec">Specialty Training</button>';
-      if(rm.key==='barracks')h+='<div class="pdesc">Bunks '+bunksUsed()+'/'+bunkCap()+'.</div>';
-      if(rm.key==='diplo')h+='<button class="pbtn" data-open="diplo">Diplomatic Tasks</button>';
-      if(rm.key==='store')h+='<button class="pbtn" data-open="gear">Gear Grid</button>';
-      if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
-      h+='<button class="pbtn" data-enterroom>Step inside \u25b8</button>';
+      if(rm.key==='command')foot+=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
+      if(rm.key==='hangar')body+='<p class="bs-info">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</p>';
+      if(rm.key==='training')foot+=rbtn('data-open="spec"','Specialty Training');
+      if(rm.key==='barracks')body+='<p class="bs-info">Bunks '+bunksUsed()+'/'+bunkCap()+'.</p>';
+      if(rm.key==='diplo')foot+=rbtn('data-open="diplo"','Diplomatic Tasks');
+      if(rm.key==='store'){
+        foot+=rbtn('data-open="gear"','Gear Grid');
+        body+='<p class="bs-info">'+C(Math.round(G.credits))+' '+S(Math.round(G.supplies))+' '+M(Math.round(G.materials))+' '+F(Math.round(G.fuel))+' '+I(Math.round(G.intel))+'</p>';
+      }
+      foot+='<span class="sr-spacer"></span>'+rbtn('data-enterroom','Step inside'+IC('chevron'),'','sr-btn--ghost');
     }
+    h=head(R.name,rm.build?'<span class="sr-tag sr-tag--progress">Building, '+rm.build.days+'d left</span>':'')+
+      '<div class="sr-window__body">'+body+'</div>'+(foot?'<div class="sr-window__foot bs-foot">'+foot+'</div>':'');
   } else {
     const {r,c}=tilePopAt;
     const cell=G.grid[r][c];
     if(cell.t==='rock'){
-      h='<div class="ptitle">Bedrock</div><div class="pdesc">Nobody’s digging through that. Work the faces the rubble already opened.</div>';
+      h=head('Bedrock')+'<div class="sr-window__body"><p class="bs-desc">Nobody’s digging through that. Work the faces the rubble already opened.</p></div>';
     } else if(cell.t==='rubble'){
-      h='<div class="ptitle">Collapsed Chamber</div>';
-      if(cell.dig)h+='<div class="pdesc">Crew’s on it — '+cell.dig+' day'+(cell.dig>1?'s':'')+' to daylight. Figuratively.</div>';
-      else h+='<div class="pdesc">Rubble from the old diggings. Clear it and we’ve got another room.</div>'+
-        '<button class="pbtn" data-dig '+(G.materials>=EXCAVATE.m?'':'disabled')+'>Excavate <span class="cost">'+M(EXCAVATE.m)+' · '+EXCAVATE.days+'d</span></button>';
+      let body='';
+      if(cell.dig)body='<p class="bs-desc">Crew’s on it — '+cell.dig+' day'+(cell.dig>1?'s':'')+' to daylight. Figuratively.</p>';
+      else{
+        const can=G.materials>=EXCAVATE.m;
+        body='<p class="bs-desc">Rubble from the old diggings. Clear it and we’ve got another room.</p>'+
+          '<div class="sr-card sr-card--info"><div class="sr-card__top"><span class="sr-card__title">Excavate</span><span class="sr-tag">'+EXCAVATE.days+'d</span></div>'+
+          '<div class="bs-build__row"><span class="sr-card__meta">'+M(EXCAVATE.m,!can)+'</span>'+rbtn('data-dig'+(can?'':' title="'+esc(needWhy({m:EXCAVATE.m}))+'"'),'Excavate',!can,'sr-btn--primary sr-btn--sm')+'</div></div>';
+      }
+      h=head('Collapsed Chamber')+'<div class="sr-window__body">'+body+'</div>';
     } else {
-      h='<div class="ptitle">Empty Chamber</div><div class="pdesc">Cleared, powered, useless. Give it a job.</div>';
+      let body='<p class="bs-desc">Cleared, powered, useless. Give it a job.</p><div class="sr-stack bs-cards">';
       for(const k in BUILDS){
         const b=buildCostAt(k,r,c);
         const afford=G.credits>=b.c&&G.materials>=(b.m||0)&&G.supplies>=(b.s||0);
         const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
-        h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+(adj?'Expand the ':'')+ROOMS[k].name+
-          '<span class="cost">'+bundleHTML(b)+' · '+b.days+'d</span><small>'+ROOMS[k].desc+'</small></button>';
+        body+='<div class="sr-card sr-card--good bs-build"><div class="sr-card__top"><span class="sr-card__title">'+(adj?'Expand the ':'')+ROOMS[k].name+'</span><span class="sr-tag">'+b.days+'d</span></div>'+
+          '<div class="sr-card__body">'+ROOMS[k].desc+'</div>'+
+          '<div class="bs-build__row"><span class="sr-card__meta">'+bundleHTML(b,WALLET())+'</span>'+rbtn('data-build="'+k+'"'+(afford?'':' title="'+esc(needWhy(b))+'"'),'Build',!afford,'sr-btn--primary sr-btn--sm')+'</div></div>';
       }
+      body+='</div>';
+      h=head('Empty Chamber')+'<div class="sr-window__body">'+body+'</div>';
     }
   }
+  el.style.setProperty('--accent',accent);
+  const keep=el.querySelector('.sr-window__body');
+  const sc=keep?keep.scrollTop:0;
   el.innerHTML=h;
+  const nb=el.querySelector('.sr-window__body');
+  if(nb)nb.scrollTop=sc;
   el.hidden=false;
   layoutTilePop();
 }
@@ -2425,27 +2548,45 @@ function layoutTilePop(){
   if(px+r.width>cssW-8)px=x-r.width-50;
   px=Math.max(8,Math.min(cssW-r.width-8,px));
   py=Math.max(8,Math.min(cssH-r.height-8,py));
+  {   // clear of the Revolution hub that hangs below the bar (it sits at the screen centre, not the stage centre)
+    const hr=$('revHub').getBoundingClientRect(),cr=cv.getBoundingClientRect();
+    const hl=hr.left-cr.left-8,hh=hr.right-cr.left+8,hb=hr.bottom-cr.top+8;
+    if(px<hh&&px+r.width>hl&&py<hb)py=Math.min(hb,Math.max(8,cssH-r.height-8));
+  }
   el.style.left=px+'px';el.style.top=py+'px';
 }
 
 /* ---------- flash banner + guided pointers ---------- */
 let flashTO=null;
-function flashMsg(html){
-  const el=$('flashB');
+const TOAST={friend:['signal','sr-toast--friend'],action:['star','sr-toast--action'],good:['check','']};
+function flashMsg(html,kind){
+  const el=$('flashB'),tk=TOAST[kind||'friend']||TOAST.friend;
+  el.className='sr-toast'+(tk[1]?' '+tk[1]:'');
+  $('flashIco').innerHTML='<use href="#i-'+tk[0]+'"/>';
   $('flashTxt').innerHTML=html;
-  el.classList.add('show');
+  el.hidden=false;
+  el.style.animation='none';void el.offsetWidth;el.style.animation='';   // restart the pop-in
   clearTimeout(flashTO);
-  flashTO=setTimeout(()=>el.classList.remove('show'),2800);
+  flashTO=setTimeout(()=>{el.hidden=true;},2800);
+}
+/* day banner: slams in once per day, then hides itself */
+let bannerTO=null;
+function showDayBanner(){
+  const b=$('dayBanner'),t=$('dayBannerTxt');
+  t.textContent='Day '+G.day;
+  b.hidden=false;
+  t.style.animation='none';void t.offsetWidth;t.style.animation='';
+  clearTimeout(bannerTO);
+  bannerTO=setTimeout(()=>{b.hidden=true;},RM?400:1400);
 }
 function pointAt(rc,label){
   const el=$('tutPtr');
   el.hidden=false;
-  el.querySelector('.tp-label').textContent=label;
+  el.querySelector('.sr-pointer__label').textContent=label;
   el.style.left=(rc.left+rc.width/2)+'px';
   // targets low on the screen get the pointer beneath them, arrow up
   const below=rc.top>innerHeight*0.62;
   el.classList.toggle('below',below);
-  el.querySelector('.tp-arrow').textContent=below?'\u25b2':'\u25bc';
   el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(4,rc.top-58)+'px';
 }
 function updateGuide(){
@@ -2493,11 +2634,11 @@ function updateGuide(){
 function openWin(mode,arg){
   // first look at the galaxy: the network primer comes up once, then never again
   if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
-  winMode=mode;winArg=arg||null;renderWin();$('winsB').hidden=false;
+  winMode=mode;winArg=arg||null;cutArm=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
 function closeWin(){
-  winMode=null;winArg=null;$('winsB').hidden=true;
+  winMode=null;winArg=null;cutArm=null;$('winsB').hidden=true;syncTabs();markShort();
   if(started&&G&&RQ.length&&nextReport())return;
   // a freshly discovered mission announces itself once the channel closes
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
@@ -2512,29 +2653,56 @@ function closeWin(){
   if(started&&G&&chainPrompt())return;
   if(started&&G&&G.escPending)openEscalation();
 }
-function meter(cls,label,val){
-  return '<div class="meter '+cls+'"><span class="ml">'+label+'</span><span class="mt"><i style="width:'+Math.min(100,val)+'%"></i></span><span class="mv">'+Math.round(val)+'</span></div>';
+/* ---------- window furniture (kit chrome; actions live in the foot, primary rightmost) ---------- */
+const wX=(attr)=>'<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" '+(attr||'data-close')+' aria-label="Close">'+IC('clear')+'</button>';
+const wQ=(attr,title)=>'<button class="sr-btn sr-btn--icon sr-btn--sm" style="--c:var(--sr-go);--ct:var(--sr-ink)" '+attr+' aria-label="'+title+'" title="'+title+'">'+IC('help')+'</button>';
+const wHead=(title,o)=>{o=o||{};return '<div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+(o.tags?'<span class="bs-headtags">'+o.tags+'</span>':'')+(o.q||'')+(o.x===false?'':wX(o.x))+'</div>';};
+const wBody=h=>'<div class="sr-window__body">'+h+'</div>';
+const wFoot=(btns,note)=>'<div class="sr-window__foot">'+(note?'<span class="sr-window__note">'+note+'</span>':'')+'<span class="sr-spacer"></span>'+(btns||'')+'</div>';
+const wTag=(label,tone,icon)=>'<span class="sr-tag'+(tone?' sr-tag--'+tone:'')+'">'+(icon?IC(icon):'')+label+'</span>';
+const tutP=t=>'<p class="sr-p">'+t+'</p>';
+const tutS=(hd,b)=>'<div class="sr-h3">'+hd+'</div><p class="sr-p">'+b+'</p>';
+const choice=(n,attrs,html,dis)=>'<button class="sr-choice" '+attrs+(dis?' disabled':'')+'><span class="sr-kbd sr-choice__key">'+n+'</span><span>'+html+'</span></button>';
+const sentence=s=>s?String(s).charAt(0).toUpperCase()+String(s).slice(1).toLowerCase():s;
+const ini=name=>String(name).split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+/* a mission's reward line as chips/tags */
+function rewList(m){
+  const r=m.rew||{},o=[];
+  if(r.cross)o.push(wTag('FT-4 Cross','info','ship'));
+  if(r.fighter)o.push(wTag('+1 fighter','info','ship'));
+  o.push(...bundleList(r));
+  o.push(wTag('+XP','progress'));
+  return o;
 }
-function incStr(s){
-  return bundleHTML(s.inc).split(' ').join(' · ')+' <span style="color:var(--dim)">per day</span>';
+const rewHTML=m=>rewList(m).join(' ');
+const riskTag=m=>wTag('Risk '+String(m.riskTxt).toLowerCase(),/high/i.test(m.riskTxt)?'bad':/low/i.test(m.riskTxt)?'good':'warn');
+/* gear glyphs are saved with the armory; the kit icon is chosen from the item id */
+const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'ballistic',blam:'grenade',charge:'grenade',limpet:'hack'};
+const gearIcon=a=>GEAR_ICON[a.id]||'loot';
+let cutArm=null;
+const accentOf={comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
+const sizeOf={sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+
+function meterRow(label,val,cls){
+  return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
 }
 function sourceDetailHTML(s){
-  return '<div class="scard'+(s.risk>60?' warn':'')+'">'+
-    '<div class="srow"><span class="sname">'+s.name+'</span><span class="stype">'+s.type+' · '+s.loc+'</span><span class="slvl">LVL '+s.level+'</span></div>'+
-    '<div class="sbio">“'+s.bio+'”</div>'+
-    meter('cult','Cultivation',s.cult)+meter('srisk','Risk',s.risk)+
-    '<div class="sinc">'+incStr(s)+'</div>'+
-    '<div class="sacts">'+
-    '<button class="sbtn'+((s.pendingEvent||s.signal)?' attn':'')+'" data-sc="'+s.id+'" '+((s.contacted&&!s.pendingEvent&&!s.signal)?'disabled':'')+'>'+
-      (s.pendingEvent?'✉ Contact — they need an answer':s.signal?'✉ Contact — signal waiting':'Contact')+'</button>'+
-    '<button class="sbtn" data-sv="'+s.id+'" '+(s.visited?'disabled':'')+'>Visit</button>'+
-    (s.risk>=50?'<button class="sbtn danger" data-ss="'+s.id+'">Silence…</button>':'')+
-    '<button class="sbtn danger" data-sl="'+s.id+'">Cut Loose</button>'+
+  const sig=!!(s.pendingEvent||s.signal),hot=s.risk>60;
+  const armed=cutArm===s.id;
+  return '<div class="sr-card sr-card--friend bs-src"'+(hot?' style="--c:var(--sr-c-warn)"':'')+'>'+
+    '<div class="sr-card__top"><span class="sr-avatar" style="width:32px;height:32px">'+IC('signal')+'</span><span class="sr-card__title">'+s.name+'</span>'+wTag('Level '+s.level,'progress')+'</div>'+
+    '<div class="sr-card__meta" style="margin:8px 0 0">'+wTag(s.type)+wTag(s.loc)+'</div>'+
+    '<div class="sr-card__body bs-bio">“'+s.bio+'”</div>'+
+    '<div class="bs-meters">'+meterRow('Cultivation',s.cult)+meterRow('Risk',s.risk,'sr-meter--risk'+(hot?' is-hot':''))+'</div>'+
+    '<div class="sr-card__meta">'+bundleHTML(s.inc)+'<span class="sr-faint bs-per">per day</span></div>'+
+    '<div class="sr-card__acts">'+
+    rbtn('data-sc="'+s.id+'"',IC('signal')+(s.pendingEvent?'Contact — they need an answer':s.signal?'Contact — signal waiting':'Contact'),(s.contacted&&!s.pendingEvent&&!s.signal),'sr-btn--friend'+(sig?' sr-btn--attn':''))+
+    rbtn('data-sv="'+s.id+'"','Visit',s.visited)+
+    (s.risk>=50?rbtn('data-ss="'+s.id+'"','Silence',false,'sr-btn--danger'):'')+
+    rbtn('data-sl="'+s.id+'"',armed?'Confirm: cut loose':'Cut loose',false,'sr-btn--danger')+
     '</div></div>';
 }
 /* ---------- sources field manual (the ? button) ---------- */
-const tutP=t=>'<div class="tutP">'+t+'</div>';
-const tutS=(hd,b)=>'<div class="tutStep"><div class="th">'+hd+'</div><div class="tb">'+b+'</div></div>';
 const TUT_PAGES=[
   {t:'Sources',h:
     tutP('You can\'t build a rebellion without knowing what\'s happening.')+
@@ -2580,47 +2748,51 @@ const TUT_PAGES=[
     tutP('There is no getting them back.')+
     tutP('Every Source you cultivate is an asset to the rebellion. Every asset can become a liability.')},
 ];
+/* dossier header shared by the personnel file and the recruit offer */
+function dossierHead(p,extra){
+  return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
+    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+wTag(rankFor(p),'action')+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>';
+}
 function renderWin(){
   const card=$('winCardB');
-  card.classList.remove('narrow','wide');
-  let h='';
+  let h='',size=sizeOf[winMode]||'',accent=accentOf[winMode]||'';
   if(winMode==='sources'){
-    card.classList.add('wide');
     const alive=G.sources.filter(s=>s.alive);
     const accessN=G.planets.filter(p=>p.access).length;
     if(!srcSel)srcSel={t:'s',id:alive.length?alive[0].id:null};
     let detail='';
     if(srcSel.t==='s'){
       const s=alive.find(x=>x.id===srcSel.id);
-      detail=s?sourceDetailHTML(s):'<div class="pdesc">No sources. We’re blind out there.</div>';
+      detail=s?sourceDetailHTML(s):'<div class="sr-empty">No sources. We’re blind out there.</div>';
     } else {
       const d=pdef(srcSel.id),st=pst(srcSel.id);
       if(d&&st){
-        const cls=st.access?'':st.known?' locked':' unknown';
-        detail='<div class="plcard'+cls+'"><div class="prow2">'+
-          '<span class="plname">'+(st.known?d.name:'Uncharted Signal')+'</span>'+
-          '<span class="plkind">'+(st.known?(d.kind+(d.pop?' · pop '+d.pop:'')):'the Verge · origin unknown')+'</span>'+
-          '<span class="placcess" style="color:'+(st.access?'var(--reb)':'var(--dim)')+'">'+(st.access?'ACCESS':'NO ACCESS')+'</span></div>'+
-          '<div class="plsit">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
+        const cls=st.access?' sr-card--info':st.known?' sr-card--info is-locked':' sr-card--progress';
+        const canScout=G.intel>=d.scout,canRaise=G.intel>=accessCost(d,st);
+        detail='<div class="sr-card'+cls+' bs-planet"><div class="sr-card__top">'+
+          '<span class="sr-card__title">'+(st.known?d.name:'Uncharted Signal')+'</span>'+wTag(st.access?'Access':'No access',st.access?'good':'')+'</div>'+
+          '<div class="sr-card__meta" style="margin:8px 0 0">'+(st.known?wTag(d.kind)+(d.pop?wTag('pop '+d.pop):''):wTag('the Verge · origin unknown'))+'</div>'+
+          '<div class="sr-card__body bs-bio">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
           (st.access?locStatsHTML(d,st):'')+
-          (st.access?'':'<button class="sbtn'+(G.intel>=d.scout?' attn':'')+'" data-scout="'+d.id+'" '+(G.intel>=d.scout?'':'disabled')+'>Scout & gain access · '+I(d.scout)+'</button>'+
-            (G.intel<d.scout?'<span class="pdesc" style="margin-left:8px">not enough intel — work the network</span>':''))+
-          (st.access&&(st.acc||0)<5?'<button class="sbtn'+(G.intel>=accessCost(d,st)?'':'')+'" data-raise="'+d.id+'" '+(G.intel>=accessCost(d,st)?'':'disabled')+'>Raise Access to '+((st.acc||0)+1)+' · '+I(accessCost(d,st))+'</button>'+
-            (G.intel<accessCost(d,st)?'<span class="pdesc" style="margin-left:8px">more Hegemony presence, more Intel</span>':''):'')+
-          '</div>';
+          '<div class="sr-card__acts">'+
+          (st.access?'':rbtn('data-scout="'+d.id+'"','Scout & gain access'+I(d.scout,!canScout),!canScout,'sr-btn--primary'+(canScout?' sr-btn--attn':''))+
+            (canScout?'':'<span class="sr-fine bs-inline">not enough intel — work the network</span>'))+
+          (st.access&&(st.acc||0)<5?rbtn('data-raise="'+d.id+'"','Raise Access to '+((st.acc||0)+1)+I(accessCost(d,st),!canRaise),!canRaise)+
+            (canRaise?'':'<span class="sr-fine bs-inline">more Hegemony presence, more Intel</span>'):'')+
+          '</div></div>';
         // sources stationed there
         const here=alive.filter(s2=>(SRCPOS[s2.id]||'veray')===d.id);
         if(st.access&&here.length)detail+=here.map(sourceDetailHTML).join('');
       }
     }
-    h='<div class="winHead"><span class="wt">Galaxy · '+accessN+' worlds accessible · network '+alive.length+'/'+sourceCap()+'</span><button class="winQ" data-srchelp title="How sources work">?</button><button class="winX" data-close>✕</button></div>'+
-      '<div class="winBody"><canvas id="galaxyCv"></canvas>'+
-      '<div class="maphint">core worlds burn bright and cost dear · faint signals are uncharted · \u25c6 amber diamonds are intelligence leads · '+I('')+' buys access</div>'+
-      detail+'</div>';
+    h=wHead('Galaxy',{tags:wTag(accessN+' worlds accessible','info')+wTag('Network '+alive.length+'/'+sourceCap()),q:wQ('data-srchelp','How sources work')})+
+      wBody('<canvas id="galaxyCv"></canvas>'+
+      '<p class="sr-fine bs-center">core worlds burn bright and cost dear · faint signals are uncharted · gold diamonds are intelligence leads · '+I('')+' buys access</p>'+
+      '<div class="sr-stack bs-cards">'+detail+'</div>');
   }
   else if(winMode==='srcTutIntro'){
-    card.classList.add('narrow');
-    h='<div class="winHead"><span class="wt">Build Your Network</span><button class="winQ" data-srchelp title="Learn more">?</button></div><div class="winBody">'+
+    h=wHead('Build Your Network',{q:wQ('data-srchelp','Learn more'),x:false})+wBody(
       tutP('Your Sources are the foundation of your intelligence network.')+
       tutS('1. Find Sources','Discover people willing to help the rebellion.')+
       tutS('2. Cultivate Them','Build their trust to increase their level and improve what they provide.')+
@@ -2629,345 +2801,373 @@ function renderWin(){
       tutS('5. Know When to Let Go','A Source who has become too dangerous may need to be Cut Loose — or Silenced.')+
       tutP('A strong intelligence network will give the rebellion the information and resources it needs to survive.')+
       tutP('But every person in that network is a person who can be discovered...')+
-      '<div class="pdesc">Click the <b style="color:var(--good)">?</b> button to learn more.</div>'+
-      '<button class="dbtn" data-srctut-done style="margin-top:6px"><b>Understood</b></button></div>';
+      '<p class="sr-fine">Click the '+wTag('?','good')+' button to learn more.</p>')+
+      wFoot(rbtn('data-srchelp','Field manual',false,'sr-btn--ghost')+rbtn('data-srctut-done','Got it',false,'sr-btn--primary'));
   }
   else if(winMode==='srcTut'){
-    card.classList.add('narrow');
     const pg=Math.max(0,Math.min(TUT_PAGES.length-1,(winArg&&winArg.page)||0));
     const P=TUT_PAGES[pg];
-    h='<div class="winHead"><span class="wt">'+P.t+'</span><button class="winX" data-tut-close>✕</button></div><div class="winBody">'+P.h+
-      '<div class="tutNav"><button class="tutArr" data-tut-prev '+(pg===0?'disabled':'')+'>◀</button>'+
-      '<span class="pgs">'+(pg+1)+' / '+TUT_PAGES.length+'</span>'+
-      '<button class="tutArr" data-tut-next '+(pg===TUT_PAGES.length-1?'disabled':'')+'>▶</button></div></div>';
+    h=wHead(P.t,{x:'data-tut-close'})+wBody(P.h)+
+      wFoot('<div class="sr-btngroup">'+rbtn('data-tut-prev aria-label="Previous page"',IC('back'),pg===0,'sr-btn--icon')+rbtn('data-tut-next aria-label="Next page"',IC('chevron'),pg===TUT_PAGES.length-1,'sr-btn--icon')+'</div>','Page '+(pg+1)+' of '+TUT_PAGES.length);
   }
   else if(winMode==='comm'){
     const {src,payload}=winArg;
-    card.classList.add('narrow');
-    let body='';
+    let body='<canvas id="commStatic" class="sr-signal"></canvas>',foot='';
+    const q=t=>'<div class="sr-quote">'+(/^<b>/.test(t)?'':'<div class="sr-quote__who">'+IC('signal')+src.name+'</div>')+t+'</div>';
     if(payload.event){
-      body='<div class="commline">'+payload.event.text+'</div>'+
-        payload.event.opts.map((o,i)=>'<button class="dbtn" data-ans="'+i+'">'+o[0]+'</button>').join('');
+      body+=q(payload.event.text)+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('');
     } else {
-      body=payload.lines.map(l=>'<div class="commline">'+l+'</div>').join('');
+      body+=q(payload.lines[0])+payload.lines.slice(1).map(l=>'<p class="sr-p" style="margin:12px 0 0">'+l+'</p>').join('');
       if(payload.signal){
-        body+='<div class="commline warn" style="margin-top:9px"><b>SIGNAL:</b> '+payload.signal.text+'</div>'+
-          '<button class="dbtn" data-follow><b>Acknowledge</b></button>';
-      } else {
-        body+='<button class="dbtn" data-close style="margin-top:9px">Close channel.</button>';
-      }
+        body+='<div class="sr-tag sr-tag--bad bs-tagwrap"><span><b>Signal:</b> '+payload.signal.text+'</span></div>';
+        foot=rbtn('data-follow','Acknowledge',false,'sr-btn--primary');
+      } else foot=rbtn('data-close','Close channel.',false,'sr-btn--primary');
     }
-    h='<div class="winHead"><span class="wt">Comm Burst · '+src.name+'</span><button class="winX" data-close>✕</button></div>'+
-      '<div class="winBody"><canvas id="commStatic"></canvas><div class="commBody"><div class="commline sys">carrier locked · lag 4.2s · voices masked</div>'+body+'</div></div>';
+    h=wHead('Comm burst',{tags:wTag(src.name,'friend')})+wBody(body)+wFoot(foot,'carrier locked · lag 4.2s · voices masked');
   }
   else if(winMode==='newmission'){
     const m=winArg;
-    card.classList.add('narrow');
-    h='<div class="winHead"><span class="wt">New Mission · '+(m.from||'the network')+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="mcard" style="margin-bottom:10px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
-      '<div class="mdesc">'+m.desc+'</div>'+
-      '<div class="mmeta">'+(whereHTML(m)?whereHTML(m)+' · ':'')+m.days+' days · risk '+m.riskTxt+' · '+rewHTML(m)+'</div></div>'+
-      (canAttempt(m)?'':precondHTML(m))+
-      '<button class="dbtn" data-mplan="'+m.id+'" '+(canPlan(m)?'':'disabled')+' style="margin-top:9px"><b>Arrange Mission</b></button>'+
-      '<button class="dbtn" data-close>Later</button>'+
-      '</div>';
+    h=wHead('New mission',{tags:wTag(m.from||'the network')})+wBody(
+      '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span></div>'+
+      '<div class="sr-card__body">'+m.desc+'</div>'+
+      '<div class="sr-card__meta" style="margin-bottom:0">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div></div>'+
+      (canAttempt(m)?'':precondHTML(m)))+
+      wFoot(rbtn('data-close','Later',false,'sr-btn--ghost')+rbtn('data-mplan="'+m.id+'"','Plan mission',!canPlan(m),'sr-btn--primary'));
   }
   else if(winMode==='opp'){
     const o=winArg,d=pdef(o.loc),mm=G.missions.find(x=>x.oppId===o.id);
-    card.classList.add('narrow');
     if(o.tid&&MTYPE_DEFS[o.tid]){
       const T=MTYPE_DEFS[o.tid];
-      h='<div class="winHead"><span class="wt">Intelligence Lead \u00b7 '+d.name+'</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-        '<div class="mcard" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+T.name+'</span></div>'+
-        '<div class="mwhere">'+whereHTML({loc:o.loc,region:o.region})+' \u00b7 from our own intelligence</div>'+
-        '<div class="mdesc">'+oppText(T.hook,o)+'</div></div>'+
-        '<div class="mmeta">Expected: '+bundleHTML(T.rew)+' +XP'+(o.region?' \u00b7 pushes liberation in '+d.regions.find(r=>r.id===o.region).name:'')+'</div>'+
-        (mm?'<button class="dbtn" data-mplan="'+mm.id+'"><b>Brief & Plan</b></button>':
-          '<button class="dbtn" data-oppadd="'+o.id+'"><b>Add to the Mission Board</b></button>')+
-        '<button class="dbtn" data-close>Later</button></div>';
-    } else h='<div class="winHead"><span class="wt">Intelligence Lead</span><button class="winX" data-close>\u2715</button></div><div class="winBody"><div class="pdesc">This lead has gone cold.</div><button class="dbtn" data-close>Close</button></div>';
+      h=wHead('Intelligence lead',{tags:wTag(d.name)})+wBody(
+        '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+T.name+'</span></div>'+
+        '<div class="sr-card__meta" style="margin:8px 0 0">'+wTag(whereHTML({loc:o.loc,region:o.region}))+wTag('from our own intelligence','info')+'</div>'+
+        '<div class="sr-card__body">'+oppText(T.hook,o)+'</div></div>'+
+        '<div class="sr-h3">Expected</div><div class="sr-card__meta">'+bundleHTML(T.rew)+wTag('+XP','progress')+(o.region?wTag('pushes liberation in '+d.regions.find(r=>r.id===o.region).name,'friend'):'')+'</div>')+
+        wFoot(rbtn('data-close','Later',false,'sr-btn--ghost')+(mm?rbtn('data-mplan="'+mm.id+'"','Plan mission',false,'sr-btn--primary'):rbtn('data-oppadd="'+o.id+'"','Add to the Mission Board',false,'sr-btn--primary')));
+    } else h=wHead('Intelligence lead')+wBody('<p class="sr-p">This lead has gone cold.</p>')+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
   }
   else if(winMode==='arrive'){
-    card.classList.add('narrow');
-    h='<div class="winBody arrive"><div class="arrsky"><i class="arrstar s1"></i><i class="arrstar s2"></i><i class="arrstar s3"></i><div class="arrship">\u25b2</div><div class="arrrock"></div></div>'+
-      '<div class="arrtxt">'+(winArg.win?'Returning to Haven Rock':'Limping back to Haven Rock')+'</div>'+
-      '<button class="sbtn" data-close style="margin:8px auto 0;display:block">Skip</button></div>';
+    h=wHead(winArg.win?'Returning to Haven Rock':'Limping back to Haven Rock',{x:false})+
+      wBody('<div class="bs-arrsky"><i class="bs-arrstar s1"></i><i class="bs-arrstar s2"></i><i class="bs-arrstar s3"></i><div class="bs-arrship">'+IC('ship')+'</div><div class="bs-arrrock"></div></div>')+
+      wFoot(rbtn('data-close','Skip'));
   }
   else if(winMode==='reward'){
     const rp=winArg,m=rp.m;
-    card.classList.add('narrow');
-    const crew=rp.people.map(p=>'<div class="rwrow"><span>'+p.name+'</span><span>'+(p.state==='lost'?'<b style="color:var(--heg)">LOST</b>':p.state==='injured'?'<span style="color:var(--heg)">injured</span>':'')+(p.xp?' <span class="rxp">XP +'+Math.round(p.xp*100)+'%</span>':'')+'</span></div>').join('');
-    h='<div class="winHead"><span class="wt">'+(rp.win?'Mission Complete':'Mission Failed')+'</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-      '<div class="mcard '+(rp.win?'done':'')+'" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+m.name+'</span></div>'+
-      (whereHTML(m)?'<div class="mwhere">'+whereHTML(m)+'</div>':'')+'</div>'+
-      (rp.win?'<div class="dz-sec">Objectives</div>'+(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(').map(o=>'<div class="orow"><span class="tick" style="color:var(--good)">\u2713</span>'+o+'</div>').join(''):
-        '<div class="pdesc" style="margin:6px 0">The job stays on the board. Regroup and try again.</div>')+
-      '<div class="dz-sec">'+(rp.win?'Rewards':'Recovered')+'</div><div class="mmeta">'+(rp.got.length?rp.got.join(' \u00b7 '):'Nothing.')+'</div>'+
-      (crew?'<div class="dz-sec">Crew</div>'+crew:'')+
-      (rp.cr?'<div class="dz-sec">The revolution</div><div class="rwrow"><span>Revolution progress</span><span class="rxp">+'+rp.cr.gain+'</span></div>'+
-        (rp.cr.first?'<div class="rwrow"><span>First operation in '+(pdef(m.loc)||{}).name+'</span><span class="rxp">noticed</span></div>':'')+
-        (rp.cr.lib?'<div class="rwrow"><span>'+rp.cr.lib.region+' liberation</span><span class="rxp">'+rp.cr.lib.from+'% \u2192 '+rp.cr.lib.to+'%'+(rp.cr.lib.capped?' (capped)':'')+'</span></div>':''):'')+
-      '<button class="dbtn" data-close style="margin-top:10px"><b>Continue</b></button></div>';
+    const gotHTML=a=>/^<span class="sr-cost/.test(a)?a:wTag(a,'info');
+    const crew=rp.people.map(p=>'<div class="sr-loot"><span>'+p.name+'</span><b class="bs-rowtags">'+(p.state==='lost'?wTag('Lost','bad'):p.state==='injured'?wTag('Injured','bad'):'')+(p.xp?wTag('XP +'+Math.round(p.xp*100)+'%','progress'):'')+'</b></div>').join('');
+    h=wHead(rp.win?'Mission Complete':'Mission Failed')+
+      '<div class="sr-brief__hero bs-hero"><div>'+wTag(whereHTML(m)||'Haven Rock','progress')+'<h3 class="sr-brief__title">'+m.name+'</h3></div>'+
+      '<span class="sr-stamp '+(rp.win?'sr-stamp--action':'sr-stamp--bad')+'">'+(rp.win?'Secured':'Mission failed')+'</span></div>'+
+      wBody(
+      (rp.win?'<div class="sr-h3">Objectives</div>'+(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(').map(o=>'<div class="sr-obj is-done"><span class="sr-obj__mark">'+IC('check')+'</span><span>'+o+'</span></div>').join(''):
+        '<p class="sr-p">The job stays on the board. Regroup and try again.</p>')+
+      '<div class="sr-h3">'+(rp.win?'Rewards':'Recovered')+'</div><div class="sr-card__meta">'+(rp.got.length?rp.got.map(gotHTML).join(' '):'<span class="sr-faint">Nothing.</span>')+'</div>'+
+      (crew?'<div class="sr-h3">Crew</div><div class="sr-stack">'+crew+'</div>':'')+
+      (rp.cr?'<div class="sr-h3">The revolution</div><div class="sr-stack"><div class="sr-loot"><span>Revolution progress</span><b>+'+rp.cr.gain+'</b></div>'+
+        (rp.cr.first?'<div class="sr-loot"><span>First operation in '+(pdef(m.loc)||{}).name+'</span><b>noticed</b></div>':'')+
+        (rp.cr.lib?'<div class="sr-loot"><span>'+rp.cr.lib.region+' liberation</span><b>'+rp.cr.lib.from+'% → '+rp.cr.lib.to+'%'+(rp.cr.lib.capped?' (capped)':'')+'</b></div>':'')+'</div>':''))+
+      wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
   }
   else if(winMode==='spec'){
-    card.classList.add('narrow');
-    const row=(role,label,who)=>{
+    const row=(role,label)=>{
       const t=inTraining(role);
-      return '<div class="slot'+(t?' filled':'')+'" style="cursor:default"><span class="sl">'+label+'</span><span class="sv">'+(t?'<b>'+t.name+'</b><small>'+SPECNAME[t.specTrain.k]+' \u00b7 '+t.specTrain.days+' day'+(t.specTrain.days>1?'s':'')+' left</small>':'<em>free</em>')+'</span></div>';
+      return '<div class="sr-slot'+(t?' is-filled':'')+'" style="cursor:default"><span><span class="sr-slot__label">'+label+'</span>'+(t?'<span class="sr-slot__name">'+t.name+'</span><span class="bs-sub">'+SPECNAME[t.specTrain.k]+' · '+t.specTrain.days+' day'+(t.specTrain.days>1?'s':'')+' left</span>':'Free')+'</span></div>';
     };
     const cards=role=>{
       const busy=!!inTraining(role);
       const els=G.people.filter(p=>specRole(p)===role&&p.level>=3&&!p.spec&&p.assign!=='spec');
-      if(!els.length)return '<div class="pdesc" style="margin-bottom:6px">Nobody ready. A specialty needs level 3.</div>';
-      return els.map(p=>{
+      if(!els.length)return '<div class="sr-empty">Nobody ready. A specialty needs level 3.</div>';
+      return '<div class="sr-stack">'+els.map(p=>{
         const why=p.injured?'injured':p.assign==='mission'?'on mission':busy?'the slot is busy':G.credits<SPEC_COST?'needs '+SPEC_COST+' credits':'';
-        return '<div class="mcard" style="margin-bottom:6px"><div class="mrow"><span class="mname">'+p.name+'</span><span class="mfrom">'+rankFor(p)+' \u00b7 lvl '+p.level+'</span></div>'+
-          SPECS[role].filter(x=>x.live).map(x=>'<button class="sbtn" style="margin:4px 4px 0 0" data-spec="'+p.id+':'+x.k+'" '+(why?'disabled':'')+' title="'+x.d+'">'+x.n+'</button>').join('')+
-          (why?'<div class="pdesc">'+why+'</div>':'')+'</div>';
-      }).join('');
+        return '<div class="sr-card sr-card--progress"><div class="sr-card__top"><span class="sr-card__title">'+p.name+'</span><span class="bs-from">'+rankFor(p)+' · level '+p.level+'</span></div>'+
+          '<div class="sr-card__acts" style="margin-top:8px">'+SPECS[role].filter(x=>x.live).map(x=>rbtn('data-spec="'+p.id+':'+x.k+'" title="'+esc(x.d)+'"',x.n,!!why,'sr-btn--sm')).join('')+'</div>'+
+          (why?'<p class="sr-fine" style="margin-top:8px">'+sentence(why)+'</p>':'')+'</div>';
+      }).join('')+'</div>';
     };
-    const later=role=>'<div class="pdesc" style="margin-top:6px">Later: '+SPECS[role].filter(x=>!x.live).map(x=>x.n).join(', ')+'.</div>';
-    h='<div class="winHead"><span class="wt">Specialty Training</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-      '<div class="pdesc" style="margin-bottom:8px">At level 3 a rebel can train into a specialty ('+SPEC_DAYS+' days, '+C(SPEC_COST)+'). They are out of action while they train.</div>'+
-      (hasRoom('training')?'':'<div class="pdesc" style="color:var(--heg)">No Training Hall built yet.</div>')+
-      '<div class="dz-sec">Practice range \u00b7 soldiers</div>'+row('Soldier','Practice range')+cards('Soldier')+later('Soldier')+
-      '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
-      '</div>';
+    const later=role=>'<p class="sr-fine">Later: '+SPECS[role].filter(x=>!x.live).map(x=>x.n).join(', ')+'.</p>';
+    h=wHead('Specialty Training')+wBody(
+      '<p class="sr-p">At level 3 a rebel can train into a specialty ('+SPEC_DAYS+' days, '+C(SPEC_COST)+'). They are out of action while they train.</p>'+
+      (hasRoom('training')?'':'<p class="sr-p bs-bad">No Training Hall built yet.</p>')+
+      '<div class="sr-h3">Practice range · soldiers</div>'+row('Soldier','Practice range')+cards('Soldier')+later('Soldier')+
+      '<div class="sr-h3">Flight simulator · pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot'));
   }
   else if(winMode==='chain'){
-    const id=winArg.id,C=CHAINS[id],c=G.chains[id],step=C.steps[c.i];
-    card.classList.add('narrow');
-    const paras=step.text.map(t=>'<p class="pdesc" style="margin:0 0 8px;font-size:12px;line-height:1.55">'+t+'</p>').join('');
-    let btns='';
-    if(step.k==='alert')btns='<button class="dbtn" data-chain="'+id+':yes"><b>'+step.yes+'</b></button><button class="dbtn" data-chain="'+id+':no">'+step.no+'</button>';
+    const id=winArg.id,CH=CHAINS[id],c=G.chains[id],step=CH.steps[c.i];
+    const paras=step.text.map(t=>'<p class="sr-p">'+t+'</p>').join('');
+    let btns='',foot='';
+    if(step.k==='alert')btns=choice(1,'data-chain="'+id+':yes"','<b>'+step.yes+'</b>')+choice(2,'data-chain="'+id+':no"',step.no);
     else if(step.k==='contact'){
       const full=G.sources.filter(x=>x.alive).length>=sourceCap();
-      btns='<button class="dbtn" data-chain="'+id+':ok" '+(full?'disabled':'')+'><b>'+step.ok+'</b></button>'+(full?'<div class="pdesc" style="color:var(--heg)">The network is full. Build another Intelligence Center room or let a source go, then answer.</div>':'');
-    } else if(step.k==='decode')btns=step.choices.map((ch,i)=>'<button class="dbtn" data-chain="'+id+':pick:'+i+'"><b>'+ch[0]+'</b><br><span style="color:var(--dim);font-size:10.5px">'+ch[2]+'</span></button>').join('');
-    h='<div class="winHead"><span class="wt">'+C.name+' \u00b7 '+step.title+'</span></div><div class="winBody">'+paras+btns+'</div>';
+      foot=rbtn('data-chain="'+id+':ok"',step.ok,full,'sr-btn--primary');
+      if(full)btns='<p class="sr-fine bs-bad">The network is full. Build another Intelligence Center room or let a source go, then answer.</p>';
+    } else if(step.k==='decode')btns=step.choices.map((ch,i)=>choice(i+1,'data-chain="'+id+':pick:'+i+'"','<b>'+ch[0]+'</b><br><span class="sr-faint">'+ch[2]+'</span>')).join('');
+    h=wHead(CH.name,{tags:wTag(step.title,'friend'),x:false})+wBody(paras+btns)+(foot?wFoot(foot):'');
   }
   else if(winMode==='gear'){
     const all=G.armory.filter(a=>a.n>0);
     const used=all.reduce((n,a)=>{const m=gearMeta(a);return n+m.w*m.h;},0),cap=gearCapacity();
     const shown=all.filter(a=>GEARCAT==='All'||gearMeta(a).cat===GEARCAT);
-    const lay=gearLayout(shown);
-    const nrows=lay.reduce((n,x)=>Math.max(n,x.r+x.m.h),3);
-    h='<div class="winHead"><span class="wt">Gear Grid</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-      '<div class="pdesc" style="margin-bottom:8px">Slots used '+used+'/'+cap+(used>cap?' <span style="color:var(--heg)">\u2014 overflowing; build another Storeroom</span>':'')+'. Bigger kit takes more slots; duplicates stack.</div>'+
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+GEAR_CATS.map(c=>'<button class="achip'+(GEARCAT===c?' on':'')+'" data-gearcat="'+c+'">'+c+'</button>').join('')+'</div>'+
-      '<div class="geargrid" style="display:grid;grid-template-columns:repeat('+GEAR_COLS+',1fr);grid-auto-rows:62px;gap:4px">'+
-      lay.map(x=>'<div class="gearcell" title="'+(x.a.desc||'').replace(/"/g,'&quot;')+'" style="grid-column:'+(x.c+1)+' / span '+x.m.w+';grid-row:'+(x.r+1)+' / span '+x.m.h+';border:1px solid rgba(125,217,123,0.4);background:rgba(125,217,123,0.08);border-radius:4px;padding:3px 5px;font-size:10px;line-height:1.2;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">'+
-        '<span><b>'+(x.a.ic||'')+' '+x.a.name+'</b></span><span style="color:var(--dim)">'+x.m.sub+' \u00b7 \u00d7'+x.a.n+'</span></div>').join('')+
-      '</div>'+(lay.length?'':'<div class="pdesc">Nothing in this category.</div>')+'</div>';
+    const gcols=ROOT.clientWidth<=900?4:GEAR_COLS;
+    const lay=gearLayout(shown,gcols);
+    h=wHead('Gear Grid')+wBody(
+      '<p class="sr-p">Slots used '+used+'/'+cap+(used>cap?' <span class="bs-bad">— overflowing; build another Storeroom</span>':'')+'. Bigger kit takes more slots; duplicates stack.</p>'+
+      '<div class="bs-chips">'+GEAR_CATS.map(c=>rbtn('data-gearcat="'+c+'" aria-pressed="'+(GEARCAT===c)+'"',c,false,'sr-btn--sm')).join('')+'</div>'+
+      '<div class="bs-geargrid" style="grid-template-columns:repeat('+gcols+',1fr)">'+
+      lay.map(x=>'<div class="bs-gearcell" title="'+esc(x.a.desc||'')+'" style="grid-column:'+(x.c+1)+' / span '+x.m.w+';grid-row:'+(x.r+1)+' / span '+x.m.h+'">'+
+        '<span class="bs-gearcell__n">'+IC(gearIcon(x.a))+'<span>'+x.a.name+'</span></span><span class="bs-sub">'+(x.m.w>1?x.m.sub+' · ':'')+'×'+x.a.n+'</span></div>').join('')+
+      '</div>'+(lay.length?'':'<div class="sr-empty">Nothing in this category.</div>'));
   }
   else if(winMode==='diplo'){
     const cap=dipCapacity(),out=G.dip||[];
     const dp=staffOf('diplo')[0];
-    h='<div class="winHead"><span class="wt">Diplomatic Tasks</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-      '<div class="pdesc" style="margin-bottom:8px">'+(dp?'<b>'+dp.name+'</b> runs the Quarter':'<span style="color:var(--heg)">No Chief Diplomat posted.</span> Assign a Support rebel to the post from their file.')+
-      '. Teams out: '+out.length+'/'+cap+'. Each task costs '+bundleHTML(DIP_COST)+' and takes '+DIP_DAYS+' days; it raises local Support by \u00bd a flag ('+(dp&&dp.level>=3?'a whole flag with a seasoned diplomat':'a level 3 diplomat earns a whole flag')+').</div>'+
-      (out.length?'<div class="dz-sec">Out in the field</div>'+out.map(t=>'<div class="pdesc">'+pdef(t.loc).name+' \u00b7 '+t.days+' day'+(t.days>1?'s':'')+' left</div>').join(''):'')+
-      '<div class="dz-sec">Worlds where we have Access</div>'+
+    h=wHead('Diplomatic Tasks',{tags:wTag('Teams out '+out.length+'/'+cap,'info')})+wBody(
+      '<p class="sr-p">'+(dp?'<b>'+dp.name+'</b> runs the Quarter':'<span class="bs-bad">No Chief Diplomat posted.</span> Assign a Support rebel to the post from their file.')+
+      '. Each task costs '+bundleHTML(DIP_COST)+' and takes '+DIP_DAYS+' days; it raises local Support by ½ a flag ('+(dp&&dp.level>=3?'a whole flag with a seasoned diplomat':'a level 3 diplomat earns a whole flag')+').</p>'+
+      (out.length?'<div class="sr-h3">Out in the field</div><div class="sr-stack">'+out.map(t=>'<div class="sr-tag sr-tag--info">'+pdef(t.loc).name+' · '+t.days+' day'+(t.days>1?'s':'')+' left</div>').join('')+'</div>':'')+
+      '<div class="sr-h3">Worlds where we have Access</div><div class="sr-stack">'+
       dipTargets().map(d=>{
         const st=pst(d.id),why=canDip(d.id);
-        return '<div class="mcard" style="margin-bottom:6px"><div class="mrow"><span class="mname">'+d.name+'</span><span class="mfrom">'+pipRow(Math.floor(st.sup||0),5,'\u2691',i=>SUP_COL[Math.max(0,Math.floor(st.sup||0)-1)])+'</span></div>'+
-          '<button class="sbtn" data-dip="'+d.id+'" '+(why?'disabled title="'+why+'"':'')+'>Send diplomats <span class="cost">'+bundleHTML(DIP_COST)+' \u00b7 '+DIP_DAYS+'d</span></button>'+(why?'<div class="pdesc">'+why+'</div>':'')+'</div>';
-      }).join('')+'</div>';
+        return '<div class="sr-card sr-card--friend"><div class="sr-card__top"><span class="sr-card__title">'+d.name+'</span><span style="margin-left:auto">'+pipRow(Math.floor(st.sup||0),5,supCol(Math.floor(st.sup||0)-1))+'</span></div>'+
+          '<div class="sr-card__meta" style="margin:8px 0">'+bundleHTML(DIP_COST,WALLET())+wTag(DIP_DAYS+'d')+'</div>'+
+          '<div class="sr-card__acts">'+rbtn('data-dip="'+d.id+'"'+(why?' title="'+esc(why)+'"':''),'Send diplomats',!!why)+(why?'<span class="sr-fine bs-inline">'+why+'</span>':'')+'</div></div>';
+      }).join('')+'</div>');
   }
   else if(winMode==='locBrief'){
     const d=pdef(winArg.id),st=pst(winArg.id);
-    card.classList.add('narrow');
-    h='<div class="winHead"><span class="wt">Location Briefing · '+d.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="locbrief"><div class="lbquote">'+(d.brief||d.sit)+'</div>'+
-      '<div class="lbmeta"><span>Population <b>'+(d.pop||'—')+'</b></span>'+(d.regions?'<span>Regions <b>'+d.regions.length+'</b></span>':'')+'<span>'+d.kind+'</span></div>'+
+    h=wHead('Location briefing',{tags:wTag(d.name)})+wBody(
+      '<div class="sr-card sr-card--info"><p class="bs-quote">'+(d.brief||d.sit)+'</p>'+
+      '<div class="sr-card__meta">'+wTag('Population '+(d.pop||'—'))+(d.regions?wTag('Regions '+d.regions.length):'')+wTag(d.kind)+'</div>'+
       locStatsHTML(d,st)+'</div>'+
-      '<div class="dz-sec">Pathfinder report</div>'+
-      winArg.lines.map(l=>'<p class="pdesc" style="margin:0 0 7px;font-size:11.5px;line-height:1.5">'+l+'</p>').join('')+
-      '<button class="dbtn" data-close style="margin-top:8px"><b>Continue</b></button></div>';
+      '<div class="sr-h3">Pathfinder report</div>'+
+      winArg.lines.map(l=>'<p class="sr-p">'+l+'</p>').join(''))+
+      wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
   }
   else if(winMode==='escalate'){
-    card.classList.add('narrow');
-    h='<div class="winBody escal"><div class="escrings"><i></i><i></i><i></i><span class="escn">2</span></div>'+
-      '<div class="esct">Revolution Level 2</div>'+
-      '<div class="escs">NOTICED</div>'+
-      '<p class="pdesc" style="font-size:12px;line-height:1.6;margin:10px 0">Somewhere in the Hegemony’s bloated institutions, a report has reached the wrong desk. Your raids were never just crime. The Bureau has a file on you now, and the file has a name.</p>'+
-      '<p class="pdesc" style="font-size:10.5px;opacity:.7;margin:0 0 10px">Level 2 content is coming in a future build. Keep building the revolution.</p>'+
-      '<button class="dbtn" data-close><b>Continue</b></button></div>';
+    h=wHead('Revolution Level 2')+wBody('<div class="bs-esc"><div class="bs-escrings"><i></i><i></i><i></i><span class="bs-escn">2</span></div>'+
+      '<span class="sr-stamp sr-stamp--foe">Noticed</span>'+
+      '<p class="sr-p" style="margin:18px auto 10px">Somewhere in the Hegemony’s bloated institutions, a report has reached the wrong desk. Your raids were never just crime. The Bureau has a file on you now, and the file has a name.</p>'+
+      '<p class="sr-fine">Level 2 content is coming in a future build. Keep building the revolution.</p></div>')+
+      wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
   }
   else if(winMode==='cassIntro'){
-    card.classList.add('narrow');
-    h='<div class="winHead"><span class="wt">Incoming Transmission</span></div><div class="winBody">'+
-      '<div class="commline sys">carrier locked · unregistered freighter · voice known</div>'+
-      '<div class="commline" style="color:var(--text)">“Told you the rock was worth it. This channel stays open — I hear things worth hearing, and now you’re somebody worth telling. Raise me when you’re ready to listen.”</div>'+
-      '<div class="pdesc" style="margin-top:9px">First contact on the wire: <b style="color:var(--text)">Cass Wender</b>, the smuggler who flew you in. Open the <b style="color:var(--good)">Source Network</b> and raise him.</div>'+
-      '<button class="dbtn" data-close style="margin-top:9px">Understood</button></div>';
+    h=wHead('Incoming transmission',{x:false})+wBody(
+      '<canvas id="commStatic" class="sr-signal"></canvas>'+
+      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. This channel stays open — I hear things worth hearing, and now you’re somebody worth telling. Raise me when you’re ready to listen.”</div>'+
+      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Source Network</b> and raise him.</p>')+
+      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter · voice known');
   }
   else if(winMode==='recruit'){
     const {p,must,line}=winArg;
-    card.classList.add('narrow');
-    const pct=Math.round(p.xp*100);
     const full=bunksUsed()>=bunkCap();
-    h='<div class="winHead"><span class="wt">New Recruit!</span>'+(must?'':'<button class="winX" data-rec-no>✕</button>')+'</div><div class="winBody">'+
-      (line?'<div class="commline" style="margin-bottom:11px">'+line+'</div>':'')+
-      '<div class="dz-head">'+
-      '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
-      '<div><div class="dz-name">'+p.name+'</div><div class="dz-rank">'+rankFor(p)+'</div><div class="dz-sub">'+p.role+'</div></div></div>'+
-      '<div class="dz-bio">“'+p.bio+'”</div>'+
-      '<div class="dz-sec">Terms</div><div class="pdesc">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
-        (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</div>'+
-      (full?'<div class="pdesc" style="color:var(--heg)">No bunks free — build a quarters annex first.</div>':'')+
-      '<button class="dbtn" data-rec-accept '+(full&&!must?'disabled':'')+'><b>Recruit</b></button>'+
-      (must?'':'<button class="dbtn" data-rec-no>Dismiss</button>')+
-      '</div>';
+    h=wHead('New Recruit!',{x:must?false:'data-rec-no'})+wBody(
+      (line?'<div class="sr-quote" style="margin:0 0 16px">'+line+'</div>':'')+
+      dossierHead(p)+
+      '<div class="sr-h3">Terms</div><p class="sr-p">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
+        (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</p>'+
+      (full?'<p class="sr-p bs-bad">No bunks free — build a quarters annex first.</p>':''))+
+      wFoot((must?'':rbtn('data-rec-no','Dismiss',false,'sr-btn--ghost'))+rbtn('data-rec-accept','Recruit',full&&!must,'sr-btn--primary'));
   }
   else if(winMode==='candidate'){
     const cd=CANDS[winArg]||CANDS.marr;
-    card.classList.add('narrow');
-    const inc=bundleHTML(cd.inc).split(' ').join(' · ');
-    h='<div class="winHead"><span class="wt">Approach · Potential Source</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="commline" style="color:var(--text)">'+cd.pitch+' Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
-      '<button class="dbtn" data-cand="'+cd.id+'">Take them on. ('+inc+'/day · exposure +4)</button>'+
-      '<button class="dbtn" data-cand="no">Too dangerous. Burn the contact.</button>'+
-      '</div>';
+    const inc=bundleHTML(cd.inc);
+    h=wHead('Approach',{tags:wTag('Potential source','friend')})+wBody(
+      '<div class="sr-quote" style="margin-top:0"><div class="sr-quote__who">'+IC('signal')+cd.name+'</div>'+cd.pitch+' Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
+      choice(1,'data-cand="'+cd.id+'"','Take them on. ('+inc+'<span class="bs-per">/day · exposure +4</span>)')+
+      choice(2,'data-cand="no"','Too dangerous. Burn the contact.'));
   }
   else if(winMode==='missions'){
-    h='<div class="winHead"><span class="wt">Mission Board</span><button class="winX" data-close>✕</button></div><div class="winBody">';
+    let list='';
     for(const m of G.missions){
-      const cls=m.state==='done'?'done':m.state==='locked'?'locked':m.state==='prog'?'prog':'';
-      h+='<div class="mcard '+cls+'"><div class="mrow"><span class="mname">'+m.name+'</span><span class="mfrom">'+(m.from||'')+'</span>'+
-        '<span class="mstate">'+(m.state==='done'?(m.meta||'COMPLETE'):m.state==='prog'?(m.progress.daysLeft+'d remaining'):m.state==='locked'?'LOCKED':m.state==='sim'?'SIMULATOR':'AVAILABLE')+'</span></div>'+
-        '<div class="mdesc">'+m.desc+'</div>';
+      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':'';
+      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available','friend');
+      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
+        '<div class="sr-card__body">'+m.desc+'</div>';
       if(m.state==='avail'){
-        h+='<div class="mmeta">'+(whereHTML(m)?whereHTML(m)+' · ':'')+m.days+' days · risk '+m.riskTxt+' · '+rewHTML(m)+'</div>'+
-          '<button class="sbtn" data-mplan="'+m.id+'">'+(m.lead?'Brief & Start':'Brief & Plan')+'</button>';
+        list+='<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div>'+
+          '<div class="sr-card__acts">'+rbtn('data-mplan="'+m.id+'"','Plan mission',false,'sr-btn--primary')+'</div>';
       }
-      if(m.state==='sim')h+='<button class="sbtn" data-simulator>Enter Simulator ▸</button>';
-      h+='</div>';
+      if(m.state==='sim')list+='<div class="sr-card__acts">'+rbtn('data-simulator','Enter simulator')+'</div>';
+      list+='</div>';
     }
-    h+='<div class="pdesc" style="margin-top:4px">Missions come from the network. Work your sources; follow their signals.</div></div>';
+    h=wHead('Mission Board')+wBody('<div class="sr-stack bs-cards">'+list+'</div><p class="sr-fine">Missions come from the network. Work your sources; follow their signals.</p>');
   }
   else if(winMode==='plan'){
-    card.classList.add('wide');
-    h=planHTML(winArg);
+    const m=winArg;
+    h=planHTML(m);
   }
   else if(winMode==='person'){
     const p=winArg;
-    card.classList.add('narrow');
     const pct=Math.round(p.xp*100);
-    h='<div class="winHead"><span class="wt">Personnel File</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="dz-head">'+
-      '<div class="lvlring" style="background:conic-gradient(var(--purple) '+pct+'%, #232f4e 0)"><div class="lvlin"><span class="n">'+p.level+'</span><span class="l">LVL</span></div></div>'+
-      '<div><div class="dz-name">'+p.name+'</div>'+
-      '<div class="dz-rank">'+rankFor(p)+(p.spec?' \u00b7 <b style="color:var(--reb)">'+specOf(p)+'</b>':'')+'</div>'+
-      '<div class="dz-sub">'+p.role+(p.injured?' · <span style="color:var(--heg)">INJURED '+p.injured+'d</span>':'')+'</div>'+
-      '</div></div>'+
-      '<div class="dz-bio">“'+p.bio+'”</div>';
+    let b=dossierHead(p,(p.spec?wTag(specOf(p),'friend'):'')+(p.injured?wTag('Injured '+p.injured+' days','bad'):''));
     if(p.role==='Pilot'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
-        const st=SHIPSTATS[f.cls];
-        let cells='<span class="hcells">';
-        for(let i=0;i<10;i++)cells+='<span class="hcell'+(i*10<f.hull?' on':'')+'"></span>';
-        cells+='</span>';
-        h+='<div class="dz-sec">Assigned Craft</div><div class="vcard"><div class="vinfo">'+
-          '<div class="vname">'+f.name+(f.out?' · <span style="color:var(--blue)">ON MISSION</span>':'')+'</div>'+
-          '<div class="vstats">'+st.label+'<br>SHD '+st.shd+' · ARM '+st.arm+' · HULL '+st.hull+'<br>'+
-          st.wpns.map(w=>w[0]).join(' · ')+'</div></div>'+cells+'</div>';
+        const st=SHIPSTATS[f.cls],n=Math.round(f.hull/20);
+        b+='<div class="sr-h3">Assigned craft</div><div class="sr-card sr-card--info"><div class="sr-card__top"><span class="sr-card__title">'+f.name+'</span>'+(f.out?wTag('On mission','info'):'')+'</div>'+
+          '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+st.wpns.map(w=>w[0]).join(' · ')+'</div>'+
+          '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
       }
     } else if(p.role==='Soldier'){
-      h+='<div class="dz-sec">Equipment</div>';
+      b+='<div class="sr-h3">Equipment</div><div class="sr-stack">';
       for(const eq of (p.equip||[])){
         const a=G.armory.find(x=>x.id===eq);
-        if(a)h+='<div class="eqrow"><span class="eqi">'+a.ic+'</span><span><b>'+a.name+'</b>'+
-          (a.desc?'<br><span style="font-size:9.5px;color:var(--dim)">'+a.desc+'</span>':'')+'</span></div>';
+        if(a)b+='<div class="sr-loot"><span style="display:flex;gap:10px;align-items:center">'+IC(gearIcon(a))+'<span><b>'+a.name+'</b>'+(a.desc?'<span class="bs-sub">'+a.desc+'</span>':'')+'</span></span></div>';
       }
-      if(p.auto)h+='<div class="pdesc">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</div>';
-      else if(!(p.equip||[]).length)h+='<div class="pdesc">Empty-handed. Fix that before the ground war.</div>';
+      b+='</div>';
+      if(p.auto)b+='<p class="sr-p">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</p>';
+      else if(!(p.equip||[]).length)b+='<div class="sr-empty">Empty-handed. Fix that before the ground war.</div>';
     } else {
       const st=p.assign.startsWith('station:')?p.assign.slice(8):null;
-      h+='<div class="dz-sec">Station</div><div class="pdesc">'+
-        (st?('On station: <b style="color:var(--good)">'+ROOMS[st].name+'</b> — '+STAFFABLE[st].post+'. '+STAFFABLE[st].perk+'.')
-           :'Unassigned. A room without its operator underperforms — post them somewhere.')+'</div>';
+      b+='<div class="sr-h3">Station</div><p class="sr-p">'+
+        (st?('On station: <b class="bs-good">'+ROOMS[st].name+'</b> — '+STAFFABLE[st].post+'. '+STAFFABLE[st].perk+'.')
+           :'Unassigned. A room without its operator underperforms — post them somewhere.')+'</p>';
     }
     if(!p.injured&&p.assign!=='mission'){
-      h+='<div class="dz-sec">Assignment</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+
-        '<button class="achip'+(p.assign==='rest'?' on':'')+'" data-as="rest:'+p.id+'">Rest</button>'+
-        '<button class="achip'+(p.assign==='train'?' on':'')+'" data-as="train:'+p.id+'" '+(hasRoom('training')?'':'disabled title="Needs a Training Hall"')+'>Train</button>';
+      b+='<div class="sr-h3">Assignment</div><div class="bs-chips">'+
+        rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(p.assign==='rest')+'"','Rest',false,'sr-btn--sm')+
+        rbtn('data-as="train:'+p.id+'" aria-pressed="'+(p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',!hasRoom('training'),'sr-btn--sm');
       if(p.role==='Support'){
         for(const key in STAFFABLE){
           if(!hasRoom(key))continue;
           const holders=staffOf(key);
-          const holder=holders[0];
           const mine=p.assign==='station:'+key;
           const taken=!mine&&holders.length>=postSlots(key);
-          h+='<button class="achip'+(mine?' on':'')+'" data-as="station:'+key+':'+p.id+'" '+
-            (taken?'disabled title="'+holders.map(x=>x.name).join(', ')+' hold'+(holders.length>1?'':'s')+' this post"':'title="'+STAFFABLE[key].perk+'"')+'>'+
-            STAFFABLE[key].post+'</button>';
+          b+=rbtn('data-as="station:'+key+':'+p.id+'" aria-pressed="'+mine+'" '+
+            (taken?'title="'+esc(holders.map(x=>x.name).join(', '))+' hold'+(holders.length>1?'':'s')+' this post"':'title="'+esc(STAFFABLE[key].perk)+'"'),STAFFABLE[key].post,taken,'sr-btn--sm');
         }
       }
-      h+='</div>';
+      b+='</div>';
     }
-    h+='<div class="dz-sub" style="margin-top:12px">XP '+pct+'% to next grade · manual promotion arrives with the persistent campaign</div></div>';
+    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'),'XP '+pct+'% to next grade · manual promotion arrives with the persistent campaign');
   }
   else if(winMode==='silence'){
     const s=winArg;
-    card.classList.add('narrow');
-    h='<div class="winHead"><span class="wt">Silence · '+s.name+'</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-      '<div class="commline" style="color:var(--text)">The assassin waits by the airlock, helmet under one arm.<br><br>“Say the word, Commander. '+
+    h=wHead('Silence',{tags:wTag(s.name)})+wBody(
+      '<div class="sr-quote" style="margin-top:0"><div class="sr-quote__who">'+IC('signal')+'The assassin</div>The assassin waits by the airlock, helmet under one arm.<br><br>“Say the word, Commander. '+
       s.name.split(' ')[0]+' stops being a risk tonight — and stops being anything else, too.”</div>'+
-      '<button class="dbtn" data-kill="'+s.id+'">Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.</button>'+
-      '<button class="dbtn" data-close>Not yet. Back into the shadows.</button>'+
-      '</div>';
+      choice(1,'data-kill="'+s.id+'"','Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.')+
+      choice(2,'data-close','Not yet. Back into the shadows.'));
   }
+  else if(winMode==='news'){
+    h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
+  }
+  card.className='sr-window'+(size?' sr-window--'+size:'')+(accent?' sr-window--'+accent:'');
+  card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');
   card.innerHTML=h;
+  const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
+  if(winMode==='news')renderNews();
+  markWin();
 }
 
-/* ---------- sidebar ---------- */
+/* ---------- top bar, rail, tabs ---------- */
+const ROMAN=['I','II','III','IV','V'];
+const RESKEYS=[['c','credits','resC','resCW'],['s','supplies','resS','resSW'],['m','materials','resM','resMW'],['f','fuel','resF','resFW'],['i','intel','resI','resIW']];
+let lastRes=null,lastRenown=null,risingTO=null;
+/* a value that rose floats its delta above the pill for a moment */
+function resDelta(wrapId,n){
+  const w=$(wrapId);
+  const old=w.querySelector('.sr-res__delta');if(old)old.remove();
+  const d=document.createElement('span');d.className='sr-res__delta';d.textContent='+'+n;
+  w.appendChild(d);
+  setTimeout(()=>d.remove(),1200);
+}
+/* pills turn orange while a cost on screen can't be paid (a plan's fuel, a scouting cost) */
+function markShort(){
+  if(!G)return;
+  const short={};
+  if(winMode==='plan'&&PL){
+    const need=plFuel()||minFuel(PL.m);
+    if(G.fuel<need)short.f=1;
+    if(PL.drop&&G.supplies<DROP_COST)short.s=1;
+  } else if(winMode==='newmission'&&winArg){
+    if(G.fuel<minFuel(winArg))short.f=1;
+  } else if(winMode==='sources'&&srcSel&&srcSel.t==='p'){
+    const d=pdef(srcSel.id),st=pst(srcSel.id);
+    if(d&&st){
+      if(!st.access){if(G.intel<d.scout)short.i=1;}
+      else if((st.acc||0)<5&&G.intel<accessCost(d,st))short.i=1;
+    }
+  }
+  for(const [k,,,wid] of RESKEYS)$(wid).classList.toggle('is-short',!!short[k]);
+}
+function markWin(){markShort();}
+/* the three tabs show where the player is; Base is "no window open" */
+function syncTabs(){
+  const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):'navBase';
+  for(const id of ['navBase','navSources','navMissions'])$(id).setAttribute('aria-selected',String(id===sel));
+}
+const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine'};
 function syncUI(){
   clampSupplies();
-  $('resS').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
-  $('dayLbl').textContent='Day '+G.day;
-  $('resC').textContent=Math.round(G.credits);
-  $('resS').textContent=Math.round(G.supplies);
-  $('resM').textContent=Math.round(G.materials);
-  $('resF').textContent=Math.round(G.fuel);
-  $('resI').textContent=Math.round(G.intel);
-  const lvl=G.revLevel||1;
-  $('revNum').textContent=lvl;
+  $('resSW').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
+  $('dayLbl').textContent=G.day;
+  const cur={c:Math.round(G.credits),s:Math.round(G.supplies),m:Math.round(G.materials),f:Math.round(G.fuel),i:Math.round(G.intel)};
+  for(const [k,,vid,wid] of RESKEYS){
+    $(vid).textContent=cur[k];
+    if(lastRes&&cur[k]>lastRes[k])resDelta(wid,cur[k]-lastRes[k]);
+  }
+  lastRes=cur;
+  // Revolution hub: level numeral, progress ring, tooltip
+  const lvl=G.revLevel||1,hub=$('revHub'),pr=Math.max(0,Math.min(100,G.renown||0));
+  $('revNum').textContent=ROMAN[Math.max(0,Math.min(4,lvl-1))];
+  hub.style.setProperty('--p',pr);
+  hub.setAttribute('aria-label','Revolution Level '+lvl+(lvl>=2?'':', '+Math.round(pr)+'% toward Level 2'));
   $('revTip').innerHTML=lvl>=2?
-    '<b>Revolution Level 2</b> — the Hegemony has noticed. Level 2 content is a future build.<br>Network exposure: '+Math.round(G.risk)+'.':
-    '<b>Revolution Level 1</b> — criminals, as far as the Hegemony cares.<br>Progress '+Math.round(G.renown)+'/100 toward Level 2: missions across many worlds, liberated regions, local Support and a growing network.<br>Network exposure: '+Math.round(G.risk)+'.';
-  $('revLamp').classList.toggle('hot',G.renown>=90);
+    '<b>Revolution Level 2</b>The Hegemony has noticed. Level 2 content is a future build.<br>Network exposure: '+Math.round(G.risk)+'.':
+    '<b>Revolution Level 1</b>Criminals, as far as the Hegemony cares.<br>Progress '+Math.round(G.renown)+'/100 toward Level 2: missions across many worlds, liberated regions, local Support and a growing network.<br>Network exposure: '+Math.round(G.risk)+'.';
+  if(lastRenown!==null&&(G.renown||0)>lastRenown){
+    hub.classList.remove('is-rising');void hub.offsetWidth;hub.classList.add('is-rising');
+    clearTimeout(risingTO);risingTO=setTimeout(()=>hub.classList.remove('is-rising'),1200);
+  }
+  lastRenown=G.renown||0;
   const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length
     +(G.onboard==='contact'?1:0); // the first contact is waiting — point the new player at the network
   $('srcBadge').hidden=!srcAttn;$('srcBadge').textContent=srcAttn;
-  $('navSources').classList.toggle('wire',srcAttn>0);
+  $('navSources').classList.toggle('is-calling',srcAttn>0);
   const misAvail=G.missions.filter(m=>m.state==='avail').length;
   $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
   const prog=G.missions.filter(m=>m.state==='prog').length;
   const building=G.rooms.filter(r=>r.build).length;
-  $('dockNote').textContent=[prog?prog+' mission'+(prog>1?'s':'')+' out':null,building?building+' building':null].filter(Boolean).join(' · ');
-  const crewRow=(p,cls)=>{
-    const st=p.injured?'INJURED':p.assign.startsWith('station:')?(STLBL[p.assign.slice(8)]||'POST'):p.assign.toUpperCase();
-    const stc=p.injured?'var(--heg)':p.assign==='mission'?'var(--blue)':p.assign==='train'?'var(--purple)':p.assign.startsWith('station:')?'var(--good)':'var(--dim)';
-    return '<div class="rrow'+(cls?' '+cls:'')+'" data-person="'+p.id+'" tabindex="0"><span class="rname">'+p.name+'</span>'+
-      '<span class="rsub">L'+p.level+'</span><span class="rsub" style="color:'+stc+'">'+st+'</span></div>';
+  const note=[prog?'<b>'+prog+'</b> mission'+(prog>1?'s':'')+' out':null,building?'<b>'+building+'</b> building':null].filter(Boolean).join(' · ');
+  $('dockNote').innerHTML=note;$('dockNote').hidden=!note;
+  /* crew rail */
+  const crewRow=p=>{
+    const pilot=p.role==='Pilot',marine=p.role==='Marine',sup=!pilot&&!marine&&p.role!=='Soldier';
+    const tone=pilot?'var(--sr-gold)':marine?'var(--sr-c-progress)':sup?'var(--sr-c-good)':'';
+    const ico=roleIcon[p.role]||'support';
+    let tag;
+    if(p.injured)tag='<span class="sr-tag sr-tag--bad" title="Injured, '+p.injured+' day'+(p.injured>1?'s':'')+'" aria-label="Injured, '+p.injured+' days">'+IC('heart')+p.injured+' day'+(p.injured>1?'s':'')+'</span>';
+    else if(p.assign==='mission')tag='<span class="sr-tag sr-tag--info">On mission</span>';
+    else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
+    else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
+    else tag='<span class="sr-tag">Resting</span>';
+    return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span></span><span class="sr-unit__role">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
-  $('pilotList').innerHTML=G.people.filter(p=>p.role==='Pilot').map(p=>crewRow(p,'')).join('');
-  $('soldierList').innerHTML=G.people.filter(p=>p.role==='Soldier').map(p=>crewRow(p,'rSol')).join('');
+  const grp=(listId,countId,people,emptyMsg)=>{
+    $(listId).innerHTML=people.length?people.map(crewRow).join(''):'<div class="sr-empty">'+emptyMsg+'</div>';
+    $(countId).textContent=people.length||'';
+  };
+  grp('pilotList','pilotCount',G.people.filter(p=>p.role==='Pilot'),'No pilots yet. Recruit them through your sources in the Galaxy.');
+  grp('soldierList','soldierCount',G.people.filter(p=>p.role==='Soldier'),'No soldiers yet. Recruit them through your sources in the Galaxy.');
   const marines=G.people.filter(p=>p.role==='Marine');
-  $('marHead').hidden=$('marineList').hidden=!marines.length;
-  $('marineList').innerHTML=marines.map(p=>crewRow(p,'rMar')).join('');
-  $('supportList').innerHTML=G.people.filter(p=>p.role!=='Pilot'&&p.role!=='Soldier'&&p.role!=='Marine').map(p=>crewRow(p,'rSup')).join('');
-  $('fleetList').innerHTML=G.fighters.map(f=>{
-    let cells='<span class="hcells">';
-    for(let i=0;i<10;i++)cells+='<span class="hcell'+(i*10<f.hull?' on':'')+'"></span>';
-    cells+='</span>';
-    return '<div class="frow" data-fighter="'+f.id+'"><span class="fname">'+f.name+'</span>'+(f.out?'<span class="fout">OUT</span>':cells)+'</div>';
-  }).join('');
+  $('marSec').hidden=!marines.length;
+  grp('marineList','marineCount',marines,'');
+  grp('supportList','supportCount',G.people.filter(p=>p.role!=='Pilot'&&p.role!=='Soldier'&&p.role!=='Marine'),'No support crew yet. Recruit them through your sources in the Galaxy.');
+  $('fleetList').innerHTML=G.fighters.length?G.fighters.map(f=>{
+    const n=Math.round(f.hull/20),hc=f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'';
+    const cells='<span class="sr-hp'+hc+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span>';
+    const tag=f.out?'<span class="sr-tag sr-tag--friend">Out</span>':f.hull<100?'<span class="sr-tag sr-tag--warn">'+IC('work')+'Repairing</span>':'';
+    return '<button class="sr-unit" data-fighter="'+f.id+'" style="--c:var(--sr-shield)"><span class="sr-avatar" style="--c:var(--sr-shield)">'+IC('ship')+'</span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+f.name+'</span>'+(f.out?'':cells)+'</span><span class="sr-unit__side">'+tag+'</span></button>';
+  }).join(''):'<div class="sr-empty">'+(G.wreck&&!G.wreck.restored?'No ships yet. Restore the derelict hauler from the Hangar.':'No ships yet. A mission can win us one.')+'</div>';
+  $('fleetCount').textContent=G.fighters.length||'';
+  $('crewHint').textContent=SR.touch?'Tap anyone for their file':'Double-click anyone for their file';
+  $('fleetHint').textContent=SR.touch?'Tap a ship to step into the hangar':'Double-click a ship to step into the hangar';
   if(viewRoom)renderRoomBar();
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
+  syncTabs();markShort();
 }
 
 /* ---------- input ---------- */
@@ -2993,6 +3193,7 @@ cv.addEventListener('pointermove',ev=>{
 cv.addEventListener('pointerleave',()=>{hoverCell=null;});
 cv.addEventListener('click',ev=>{
   if(!started)return;
+  if(shell.classList.contains('is-drawer-open'))setDrawer(false);
   if(viewRoom){
     const r=cv.getBoundingClientRect();
     const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
@@ -3024,6 +3225,7 @@ $('tilePop').addEventListener('click',ev=>{
   const t=ev.target.closest('button');
   if(!t||t.disabled)return;
   sClick();
+  if(t.hasAttribute('data-popclose')){closeTilePop();return;}
   if(t.hasAttribute('data-dig')&&tilePopAt&&!tilePopAt.room){
     const {r,c}=tilePopAt;
     digAt(r,c);
@@ -3053,8 +3255,13 @@ $('roomViewBar').addEventListener('click',ev=>{
 });
 $('winsB').addEventListener('dragstart',ev=>{
   const c=ev.target.closest('[data-rid]');
-  if(c){ev.dataTransfer.setData('text/plain',c.getAttribute('data-rid'));ev.dataTransfer.effectAllowed='move';}
+  if(c){
+    const rid=c.getAttribute('data-rid');
+    ev.dataTransfer.setData('text/plain',rid);ev.dataTransfer.effectAllowed='move';
+    if(winMode==='plan'&&PL)for(const sl of PL.slots)if(!PL.v[sl.key]&&plAccepts(sl,rid)){const el=$('winCardB').querySelector('[data-slot="'+sl.key+'"]');if(el)el.classList.add('is-target');}
+  }
 });
+$('winsB').addEventListener('dragend',()=>{for(const el of $('winCardB').querySelectorAll('.sr-slot.is-target'))el.classList.remove('is-target');});
 $('winsB').addEventListener('dragover',ev=>{if(winMode==='plan'&&ev.target.closest('[data-slot]'))ev.preventDefault();});
 $('winsB').addEventListener('drop',ev=>{
   const sl=ev.target.closest('[data-slot]');
@@ -3089,7 +3296,7 @@ $('winsB').addEventListener('click',ev=>{
       }
     }
     if(best&&best.t==='o'){sClick();openOpp(best.id);return;}
-    if(best){srcSel=best;sClick();renderWin();}
+    if(best){srcSel=best;cutArm=null;sClick();renderWin();}
     return;
   }
   if(winMode==='plan'&&PL){
@@ -3116,7 +3323,13 @@ $('winsB').addEventListener('click',ev=>{
   const ss=t.getAttribute('data-ss');
   if(ss){const s=G.sources.find(x=>x.id===ss);if(s)openWin('silence',s);return;}
   const sl=t.getAttribute('data-sl');
-  if(sl){const s=G.sources.find(x=>x.id===sl);if(s)srcCutLoose(s);return;}
+  if(sl){
+    const s=G.sources.find(x=>x.id===sl);
+    if(!s)return;
+    // cutting a source loose is permanent: the first click arms the button, the second does it
+    if(cutArm!==sl){cutArm=sl;renderWin();setTimeout(()=>{if(cutArm===sl){cutArm=null;if(winMode==='sources')renderWin();}},4000);return;}
+    cutArm=null;srcCutLoose(s);return;
+  }
   const kill=t.getAttribute('data-kill');
   if(kill){const s=G.sources.find(x=>x.id===kill);if(s)srcSilence(s);return;}
   if(winMode==='comm'){
@@ -3220,26 +3433,77 @@ byId('panel').addEventListener('click',ev=>{
   }
   lastTap={key,t:now};
 });
+$('navBase').addEventListener('click',()=>{
+  sClick();
+  if(winMode)closeWin();
+  else if(viewRoom){exitRoomView();syncUI();}
+  else closeTilePop();
+});
 $('navSources').addEventListener('click',()=>{sClick();openWin('sources');});
 $('navMissions').addEventListener('click',()=>{sClick();openWin('missions');});
+$('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
 $('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
+/* phones: the rail is a drawer behind the people tab */
+const shell=ROOT.querySelector('.sr-shell');
+function setDrawer(on){shell.classList.toggle('is-drawer-open',!!on);$('drawerBtn').setAttribute('aria-expanded',String(!!on));}
+$('drawerBtn').addEventListener('click',()=>{sClick();setDrawer(!shell.classList.contains('is-drawer-open'));});
+/* top-bar menu: all news, sound, restart (which asks first) */
+let restartArm=false;
+const menu=$('baseMenu');
+function closeMenu(){
+  menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');
+  restartArm=false;$('restartBtn').querySelector('span').textContent='Restart';
+}
+$('menuBtn').addEventListener('click',ev=>{
+  sClick();
+  if(menu.hidden){menu.hidden=false;$('menuBtn').setAttribute('aria-expanded','true');if(ev.detail===0)$('menuNews').focus();}
+  else closeMenu();
+});
+document.addEventListener('click',ev=>{
+  if(!menu.hidden&&!ev.target.closest('#baseMenu')&&!ev.target.closest('#menuBtn'))closeMenu();
+});
+$('menuNews').addEventListener('click',()=>{closeMenu();sClick();openWin('news');});
+function syncSound(){
+  const off=A.muted();
+  $('soundBtn').setAttribute('aria-label',off?'Sound off':'Sound on');
+  $('soundBtn').title=off?'Sound off':'Sound on';
+  $('soundBtn').querySelector('use').setAttribute('href','#i-sound'+(off?'off':'on'));
+  $('menuSound').querySelector('use').setAttribute('href','#i-sound'+(off?'off':'on'));
+  $('menuSound').querySelector('span').textContent='Sound: '+(off?'off':'on');
+}
+function toggleSound(){A.setMuted(!A.muted());syncSound();}
+$('soundBtn').addEventListener('click',toggleSound);
+$('menuSound').addEventListener('click',toggleSound);
 addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
   if(ev.key==='Escape'){
+    if(!menu.hidden){closeMenu();return;}
     if(winMode)closeWin();
+    else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
+    return;
+  }
+  // Enter presses the window's gold button
+  if(winMode&&ev.key==='Enter'&&!(document.activeElement&&/^(BUTTON|A|INPUT)$/.test(document.activeElement.tagName))){
+    const pb=$('winCardB').querySelector('.sr-window__foot .sr-btn--primary:not(:disabled)');
+    if(pb){ev.preventDefault();pb.click();}
+    return;
+  }
+  // 1-4 pick dialogue answers
+  if(winMode&&/^[1-4]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+    const opts=[...$('winCardB').querySelectorAll('.sr-choice')];
+    const b=opts[+ev.key-1];
+    if(b&&!b.disabled){ev.preventDefault();b.click();}
   }
 });
-$('muteBtn').addEventListener('click',()=>{
-  A.setMuted(!A.muted());
-  $('muteBtn').textContent='Sound: '+(A.muted()?'Off':'On');
-  $('muteBtn').setAttribute('aria-pressed',String(A.muted()));
-});
 $('restartBtn').addEventListener('click',()=>{
-  if(!started)return;
+  if(!started){closeMenu();return;}
+  if(!restartArm){restartArm=true;$('restartBtn').querySelector('span').textContent='Click again to erase your save';return;}
+  closeMenu();
   SR.wipeSave();
   G=newGame();closeWin();closeTilePop();exitRoomView();
+  feed=[];renderFeed();lastRes=null;lastRenown=null;
   started=false;
   launchIntro();
 });
@@ -3287,36 +3551,32 @@ function precondList(m){
   const r=reqOf(m),out=[];
   if(r.transport){
     const T=transportSlots(r),np=T+(r.prize||0);
-    out.push({ok:soldierPool().length>=r.team,label:r.team+' Rebel Soldier'+(r.team>1?'s':'')+' Available'});
-    out.push({ok:ablePilots().length>=np,label:np+' Pilot'+(np>1?'s':'')+' Available'+(r.prize?' — one to fly the hauler, one for the prize':'')});
-    out.push({ok:transportPool().length>=T,label:T+' Hauler'+(T>1?'s':'')+' Available'});
+    out.push({ok:soldierPool().length>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available'});
+    out.push({ok:ablePilots().length>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':'')});
+    out.push({ok:transportPool().length>=T,label:T+' hauler'+(T>1?'s':'')+' available'});
   } else {
     const n=r.ships||r.team;
-    out.push({ok:ablePilots().length>=r.team,label:r.team+' Starfighter Pilot'+(r.team>1?'s':'')+' Available'});
-    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'Starfighter':'Ship')+(n>1?'s':'')+' Available'+(r.starfighter?' — the Marta won’t do':'')});
+    out.push({ok:ablePilots().length>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available'});
+    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — the Marta won’t do':'')});
   }
   for(const it of r.items||[]){
     const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);
-    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span style="color:var(--dim)">(have '+have+')</span>'});
+    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span class="sr-faint">(have '+have+')</span>'});
   }
   if(r.spec){
     out.push({ok:soldierPool().some(p=>p.spec===r.spec.key),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint});
   }
   const need=minFuel(m);
-  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need)+' <span style="color:var(--dim)">(have '+Math.floor(G.fuel)+')</span>'});
+  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need,G.fuel<need)+' <span class="sr-faint">(have '+Math.floor(G.fuel)+')</span>'});
   return out;
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
 /* a missing specialty does not block opening the briefing; it explains itself there */
 function canPlan(m){return precondList(m).every(c=>c.ok||c.soft);}
 function precondHTML(m){
-  return '<div class="dz-sec">Pre Conditions</div>'+precondList(m).map(c=>
-    '<div class="pcRow '+(c.ok?'ok':'no')+'"><span class="pcbox">'+(c.ok?'✓':'✗')+'</span><span>'+c.label+'</span></div>'+
-    (!c.ok&&c.hint?'<div class="pchint">'+c.hint+'</div>':'')).join('');
-}
-function rewHTML(m){
-  const r=m.rew||{};
-  return [r.cross?'+FT-4 Cross':'',r.fighter?'+1 fighter':'',bundleHTML(r),'+XP'].filter(Boolean).join(' ');
+  return '<div class="sr-h3">Before you can go</div>'+precondList(m).map(c=>
+    '<div class="sr-check'+(c.ok?'':' is-no')+'"><span class="sr-check__box">'+IC(c.ok?'check':'clear')+'</span><span>'+c.label+'</span>'+
+    (!c.ok&&c.hint?'<span class="sr-check__why">'+c.hint+'</span>':'')+'</div>').join('');
 }
 function whereHTML(m){
   const d=m.loc&&pdef(m.loc);
@@ -3443,81 +3703,102 @@ function plAutoFill(){
     if(pick)plSet(sl.key,pick);
   }
 }
+const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+IC('ship')+'</span>';
+const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
+const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
+const shipSub=f=>SHIPSTATS[f.cls].label.split(' · ')[0];
+/* a filled slot: avatar, label, name, a line of detail */
 function slotOccHTML(sl){
   const id=PL.v[sl.key];
   if(!id)return null;
   if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){
     const f=G.fighters.find(x=>x.id===id);
-    return '<b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</small>';
+    return shipAvatar()+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+f.name+'</span><span class="bs-sub">'+shipSub(f)+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</span></span>';
   }
   const p=G.people.find(x=>x.id===id);
-  return '<b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+(p.spec?' · '+specOf(p):'')+'</small>';
+  return personAvatar(p)+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+p.name+'</span><span class="bs-sub">'+personSub(p)+'</span></span>';
 }
+const slotHTML=sl=>{
+  const occ=slotOccHTML(sl);
+  return '<div class="sr-slot'+(occ?' is-filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'>'+
+    (occ?occ+'<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-slot__clear" aria-label="Remove" tabindex="-1">'+IC('clear')+'</button>':
+      '<span><span class="sr-slot__label">'+sl.label+'</span>Click or drag a roster entry here</span>')+'</div>';
+};
+/* roster entries: draggable, one click places them in the first slot that takes them */
 function chipHTML(rid){
   const kind=rid[0],id=rid.slice(2);
   if(kind==='f'){
     const f=G.fighters.find(x=>x.id===id);
-    return '<div class="rchip ship" draggable="true" data-rid="'+rid+'"><b>'+f.name+'</b><small>'+SHIPSTATS[f.cls].label.split(' · ')[0]+' · '+F(fuelOf(f))+'</small></div>';
+    return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'" style="--c:var(--sr-shield)">'+shipAvatar()+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+f.name+'</span><span class="sr-unit__role">'+shipSub(f)+'</span></span><span class="sr-unit__side">'+F(fuelOf(f))+'</span></div>';
   }
   const p=G.people.find(x=>x.id===id);
-  return '<div class="rchip" draggable="true" data-rid="'+rid+'"><span class="pl">'+p.name.split(' ').map(w=>w[0]).join('')+'</span><span><b>'+p.name+'</b><small>'+rankFor(p)+' · lvl '+p.level+(p.spec?' · '+specOf(p):'')+'</small></span></div>';
+  return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'"'+(p.role==='Pilot'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
+    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--friend">Available</span></span></div>';
+}
+/* people who can't go right now stay on the list, greyed, with the reason */
+function offHTML(p){
+  const why=p.injured?'Injured, '+p.injured+' day'+(p.injured>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':'';
+  return '<div class="sr-unit is-down"'+(p.role==='Pilot'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
+    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">'+why+'</span></span></div>';
 }
 function planHTML(m){
   plSyncAssets();
   const r=PL.req,used=plUsedIds();
-  const left='<div class="planL">'+
-    '<div class="mcard" style="margin-bottom:8px"><div class="mrow"><span class="mname">'+m.name+'</span><span class="mfrom">'+(m.from||'')+'</span></div>'+
-    (whereHTML(m)?'<div class="mwhere">'+whereHTML(m)+' · '+MTYPES[typeOf(m)].label+'</div>':'')+
-    '<div class="mdesc">'+m.desc+'</div></div>'+
-    '<div class="dz-sec">Objectives</div>'+
-    (m.objectives||['Complete the operation']).map((o,i)=>'<div class="orow"><span class="tick">'+(o[0]==='('?'○':'■')+'</span>'+o+'</div>').join('')+
-    '<div class="dz-sec">Reward</div><div class="mmeta">'+rewHTML(m)+' · '+m.days+' day'+(m.days>1?'s':'')+' · risk '+m.riskTxt+'</div>'+
-    precondHTML(m)+
-    (r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring?
-      '<div class="pdesc" style="color:var(--amber);margin-top:8px">The derelict hauler in the hangar can fly again — restoring it is a base job: 240⬡ 160⚙ and two days.</div>'+
-      '<button class="dbtn" data-gohangar>Go to the Hangar ▸</button>':'')+
-    (r.transport&&!grafReady()&&G.wreck&&G.wreck.restoring?
-      '<div class="pdesc" style="color:var(--amber);margin-top:8px">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</div>':'')+
-    '</div>';
+  const objs=(m.objectives||['Complete the operation']).map(o=>'<div class="sr-obj'+(o[0]==='('?' sr-obj--note':'')+'"><span class="sr-obj__mark"></span><span>'+o+'</span></div>').join('');
+  const hangarNote=(r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring)?
+      '<p class="sr-fine bs-gold">The derelict hauler in the hangar can fly again — restoring it is a base job: '+C(240)+' '+M(160)+' and two days.</p>':
+    (r.transport&&!grafReady()&&G.wreck&&G.wreck.restoring)?
+      '<p class="sr-fine bs-gold">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</p>':'';
   const slotBox=(keys,title)=>{
     const sls=PL.slots.filter(sl=>keys.includes(sl.acc));
     if(!sls.length)return '';
-    return '<div class="dz-sec">'+title+'</div>'+sls.map(sl=>{
-      const occ=slotOccHTML(sl);
-      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
-    }).join('');
+    return '<div class="sr-h3">'+title+'</div><div class="sr-stack">'+sls.map(slotHTML).join('')+'</div>';
   };
-  const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="pdesc">None available.</div>';
+  const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="sr-empty">None available.</div>';
+  const away=list=>list.map(offHTML).join('');
+  const soldiersAll=G.people.filter(p=>p.role==='Soldier'||p.role==='Marine'),pilotsAll=G.people.filter(p=>p.role==='Pilot');
+  const roster='<div class="sr-h3">Roster</div><div class="sr-stack">'+
+    (r.transport?'<span class="bs-rh">Soldiers</span>'+avail(soldierPool(),'p:')+away(soldiersAll.filter(p=>!soldierPool().includes(p)&&(p.injured||p.assign==='mission'||p.assign==='spec'))):'')+
+    '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(p.injured||p.assign==='mission'||p.assign==='spec')))+
+    '<span class="bs-rh">'+(r.transport?'Transports':'Ships')+'</span>'+avail(r.transport?transportPool():shipPool(r),'f:')+
+    (PL.assets.length?'<span class="bs-rh">Support ships</span>'+avail(G.fighters.filter(f=>!f.out&&f.hull>=60),'f:'):'')+
+    '</div>';
+  const left='<div class="planL">'+
+    '<p class="sr-p">'+m.desc+'</p>'+
+    '<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)+' · '+MTYPES[typeOf(m)].label,'info'):'')+(m.from?wTag(m.from):'')+'</div>'+
+    '<div class="sr-h3">Objectives</div>'+objs+
+    precondHTML(m)+
+    '<div class="sr-h3">Reward</div><div class="sr-card__meta">'+rewHTML(m)+'</div>'+hangarNote+
+    '</div><div class="planRo">'+roster+'</div>';
   const right='<div class="planR">'+
     (r.transport?slotBox(['soldier'],'Team'):'')+
     (r.transport?slotBox(['vehicle','pilot'],'Transport & pilots'):slotBox(['pilot','ship'],'Flight'))+
     (r.transport?assetsHTML():'')+
-    '<div class="dz-sec">Roster</div><div class="rosterBox">'+
-    (r.transport?'<div class="rh">Soldiers</div>'+avail(soldierPool(),'p:'):'')+
-    '<div class="rh">Pilots</div>'+avail(ablePilots(),'p:')+
-    '<div class="rh">'+(r.transport?'Transports':'Ships')+'</div>'+avail(r.transport?transportPool():shipPool(r),'f:')+
-    (PL.assets.length?'<div class="rh">Support ships</div>'+avail(G.fighters.filter(f=>!f.out&&f.hull>=60),'f:'):'')+
-    '</div></div>';
+    '</div>';
   const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel&&plDropOk();
-  return '<div class="winHead"><span class="wt">Mission Briefing</span><button class="winX" data-close>✕</button></div><div class="winBody">'+
-    '<div class="planGrid">'+left+right+'</div>'+
-    '<div class="planFoot"><span class="pdesc">'+(plComplete()?'Fuel burned: '+F(fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go.'))+'</span>'+
-    '<button class="sbtn" data-autofill>Auto-fill</button>'+
-    '<button class="sbtn go" id="launchBtn" '+(ok?'':'disabled')+'>'+(m.lead?'Start':'Launch')+'</button></div></div>';
+  const empty=PL.slots.filter(sl=>!PL.v[sl.key]).length;
+  const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
+  const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
+  return wHead('Plan: '+m.name,{tags:riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
+    '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
+    wFoot((needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
+      rbtn('data-autofill','Auto-fill')+
+      rbtn('id="launchBtn"'+(ok?'':' title="'+esc(note.replace(/<[^>]+>/g,''))+'"'),(m.lead?'Start':'Launch'),!ok,'sr-btn--primary sr-btn--lg'),note);
 }
 function assetsHTML(){
-  let h='<div class="dz-sec">Fire support</div>';
+  let h='<div class="sr-h3">Fire support</div><div class="sr-stack">';
   const can=G.supplies>=DROP_COST;
-  h+='<div class="dropchip'+(PL.drop?' on':'')+(can?'':' off')+'" '+(can||PL.drop?'data-drop':'')+'><b>Supply Drop</b><small>'+S(DROP_COST)+' \u00b7 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' \u00b7 not enough supplies')+'</small></div>';
+  h+='<div class="sr-slot'+(PL.drop?' is-filled':'')+(can||PL.drop?'':' is-off')+'" '+(can||PL.drop?'data-drop':'')+'><span><span class="sr-slot__label">Supply drop</span><span class="sr-slot__name">Supply Drop</span>'+
+    '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span></div>';
   PL.assets.forEach((a,i)=>{
     const mode=plAssetMode(i);
-    h+=PL.slots.filter(sl=>sl.key.startsWith('as'+i)).map(sl=>{
-      const occ=slotOccHTML(sl);
-      return '<div class="slot'+(occ?' filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'><span class="sl">'+sl.label+'</span><span class="sv">'+(occ||'<em>click or drag a roster entry here</em>')+'</span></div>';
-    }).join('');
-    if(mode)h+='<div class="pdesc" style="margin:0 0 6px">'+(mode==='strafe'?'Strafing Run: a starfighter rakes a line of the battlefield.':'<button class="sbtn'+(a.mode==='doorgun'?' on':'')+'" data-assetmode="'+i+':doorgun">Door Gunner</button> <button class="sbtn'+(a.mode==='reinforce'?' on':'')+'" data-assetmode="'+i+':reinforce">Reinforcements</button> '+(a.mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to two more soldiers where you call it.'))+'</div>';
+    h+=PL.slots.filter(sl=>sl.key.startsWith('as'+i)).map(slotHTML).join('');
+    if(mode)h+=(mode==='strafe'?'<p class="sr-fine" style="margin:0">Strafing Run: a starfighter rakes a line of the battlefield.</p>':
+      '<div class="bs-chips">'+rbtn('data-assetmode="'+i+':doorgun" aria-pressed="'+(a.mode==='doorgun')+'"','Door Gunner',false,'sr-btn--sm')+rbtn('data-assetmode="'+i+':reinforce" aria-pressed="'+(a.mode==='reinforce')+'"','Reinforcements',false,'sr-btn--sm')+'</div>'+
+      '<p class="sr-fine" style="margin:0">'+(a.mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to two more soldiers where you call it.')+'</p>');
   });
-  h+='<div style="margin-top:4px">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?'<button class="sbtn" data-addasset>+ Support ship</button> ':'')+(PL.assets.length?'<button class="sbtn" data-rmasset>Remove last</button>':'')+'</div>';
+  h+='<div class="bs-chips">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?rbtn('data-addasset','+ Support ship',false,'sr-btn--sm'):'')+(PL.assets.length?rbtn('data-rmasset','Remove last',false,'sr-btn--sm'):'')+'</div></div>';
   return h;
 }
 function squadEntry(p,scatterFirst){
@@ -3814,7 +4095,7 @@ function restoreCampaign(data){
 }
 function enter(params){
   fitCanvas();
-  $('muteBtn').textContent='Sound: '+(A.muted()?'Off':'On');
+  syncSound();setDrawer(false);
   if(!booted){
     booted=true;
     if(!restoreCampaign(SR.loadSave())){
@@ -3832,6 +4113,7 @@ function enter(params){
   syncUI();renderNews();
 }
 function exit(){
+  closeMenu();setDrawer(false);
   closeWin();closeTilePop();
   saveSnap();
 }
