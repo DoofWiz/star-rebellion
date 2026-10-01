@@ -1,4 +1,5 @@
-{
+/* Generated from db.json by tools/db/build.py export-js. Do not edit by hand. */
+window.SR_DB={
  "meta": {"schema_version": 1, "source_of_truth": "Google Docs (Gadgets, Gear and Gunships; Rebels & Recruits; Enemies). This file is the machine-readable copy.", "edit_workflow": "python3 tools/db/build.py export-xlsx  ->  edit in Google Sheets  ->  download .xlsx  ->  python3 tools/db/build.py import-xlsx <file>"},
  "rules": [
   {"key": "tn_base", "value": 12, "note": "Base Target Number = tn_base - ROUNDUP(size / tn_size_divisor), never below tn_floor. A zero-skill pilot in that ship has exactly this TN."},
@@ -84,4 +85,4 @@
   {"id": "dustfall-cross", "name": "Dustfall", "model": "ft-4-cross", "weapon_1": "bls-t-light-repeaters", "weapon_2": "missiles", "notes": "The Cross stolen in onboarding (Steal the Cross). Stock Cross plus a missile system in the second slot."},
   {"id": "marta", "name": "Marta", "model": "graf-hauler", "weapon_1": "door-mounted-gun", "weapon_2": null, "notes": "The derelict Graf Joss restores. Starts with a Door Mounted Gun, per the designer."}
  ]
-}
+};

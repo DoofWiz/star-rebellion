@@ -6,6 +6,7 @@ to and from a spreadsheet so it can be edited in Google Sheets.
 
     python3 tools/db/build.py validate
     python3 tools/db/build.py report
+    python3 tools/db/build.py export-js
     python3 tools/db/build.py export-xlsx  [out.xlsx]
     python3 tools/db/build.py import-xlsx  in.xlsx [--dry-run]
 
@@ -19,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DB_PATH = ROOT / "game" / "data" / "db.json"
+JS_PATH = ROOT / "game" / "data" / "db.js"
 
 # --------------------------------------------------------------------------
 # Schema. One entry per table, in the order they appear in db.json.
@@ -73,6 +75,7 @@ SCHEMA = {
             ("crit_chance", "float", 10, "0 to 1. 0.25 = 25% chance to crit."),
             ("bypasses_shields", "bool", 12, "TRUE if shields do not absorb it."),
             ("needs_lock", "bool", 10, "TRUE if a lock-on is needed to fire."),
+            ("fire_support", "id", 14, "Ground-mission fire support this weapon enables on a ship with a gunner position, e.g. door_gunner. Blank for none."),
             ("special_rules", "text", 60, "Anything the numbers do not cover."),
             ("description", "text", 50, "Flavour text."),
             ("legacy_keys", "text", 14, "Key used in the current code, so the old and new data can be matched."),
@@ -103,6 +106,7 @@ SCHEMA = {
             ("default_weapon_1", "id", 22, "Weapon id in slot 1 on a stock ship. Blank is none."),
             ("default_weapon_2", "id", 22, "Weapon id in slot 2 on a stock ship. Blank is none."),
             ("extra_people", "int", 8, "People who can ride along besides the pilot."),
+            ("gunner_positions", "int", 9, "Gunner positions. A weapon that enables fire support (see Weapons) needs one to be useful."),
             ("fuel_per_sortie", "int", 9, "Fuel burned each mission. Blank for drones and structures."),
             ("special_rules", "text", 60, "Anything the numbers do not cover."),
             ("description", "text", 70, "Flavour text shown to the player."),
@@ -167,6 +171,12 @@ def dumps(db):
     out.append(",\n".join(parts))
     out.append("}")
     return "\n".join(out) + "\n"
+
+
+def js_text(db):
+    """The same data as a plain script, so the game loads it over file:// with no fetch."""
+    return ("/* Generated from db.json by tools/db/build.py export-js. Do not edit by hand. */\n"
+            "window.SR_DB=" + dumps(db).strip() + ";\n")
 
 
 def rules_of(db):
@@ -271,6 +281,8 @@ def validate(db):
         for b in ("bypasses_shields", "needs_lock"):
             if not isinstance(w[b], bool):
                 E("%s: %s must be TRUE or FALSE" % (n, b))
+        if w["fire_support"] not in (None, "door_gunner"):
+            E("%s: unknown fire_support %r (known: door_gunner)" % (n, w["fire_support"]))
 
     for s in db["ships"]:
         n = "ships %r" % s["id"]
@@ -286,7 +298,7 @@ def validate(db):
                 E("%s: %s=%s %s=%s (need 1 <= min <= max)" % (n, a, mx, b, mn))
         if s["straight_max"] is None:
             E("%s: every ship needs a straight speed" % n)
-        for c in ("shield_front", "shield_rear", "armour", "weapon_slots", "hard_points", "extra_people"):
+        for c in ("shield_front", "shield_rear", "armour", "weapon_slots", "hard_points", "extra_people", "gunner_positions"):
             rng("ships", s, c, 0, 9999)
         rng("ships", s, "hull", 1, 9999)
         ref("ships", s, "default_weapon_1", "weapons")
@@ -642,6 +654,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("validate")
     sub.add_parser("report")
+    sub.add_parser("export-js")
     e = sub.add_parser("export-xlsx")
     e.add_argument("out", nargs="?", default="star-rebellion-db.xlsx")
     i = sub.add_parser("import-xlsx")
@@ -649,7 +662,7 @@ def main():
     i.add_argument("--dry-run", action="store_true", help="show what would change without writing db.json")
     a = ap.parse_args()
 
-    if a.cmd in ("validate", "report", "export-xlsx"):
+    if a.cmd in ("validate", "report", "export-xlsx", "export-js"):
         db = load()
         errs = validate(db)
         if errs:
@@ -660,6 +673,13 @@ def main():
         if a.cmd == "validate":
             counts = ", ".join("%s %d" % (t, len(db[t])) for t in TABLE_ORDER)
             print("db.json OK (%s)" % counts)
+            if not JS_PATH.exists() or JS_PATH.read_text(encoding="utf-8") != js_text(db):
+                print("game/data/db.js is out of date. Run: python3 tools/db/build.py export-js")
+                sys.exit(1)
+            print("db.js in sync")
+        elif a.cmd == "export-js":
+            JS_PATH.write_text(js_text(db), encoding="utf-8")
+            print("wrote", JS_PATH)
         elif a.cmd == "report":
             print(report(db))
         else:
@@ -682,7 +702,8 @@ def main():
             print("(dry run, db.json untouched)")
         elif changes:
             DB_PATH.write_text(dumps(new), encoding="utf-8")
-            print("wrote", DB_PATH)
+            JS_PATH.write_text(js_text(new), encoding="utf-8")
+            print("wrote", DB_PATH, "and", JS_PATH)
 
 
 if __name__ == "__main__":
