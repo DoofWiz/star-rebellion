@@ -13,6 +13,12 @@ The three layers now run as **one playable game** (`game/index.html` +
 - **Scene kernel** (`js/core.js`) — one render loop, one shared WebAudio
   engine, and a scene manager hosting `base`, `space` and `ground` as
   modules ported from the prototypes (scoped CSS + DOM so nothing collides).
+- **Plays on a phone (iPhone 12 Pro).** The layout adapts to 390x844 portrait and 844x390 landscape:
+  compact top bars, full-screen windows, and the side panels (crew, objectives, squad, log) become an
+  **Info/Crew drawer** you slide in. Everything is touch-driven: tap the ground to move the squad, tap an
+  enemy to fire, drag to pan, pinch to zoom, tap a room's popup and press *Step inside*, and tap a crew
+  row for their file. An objective strip stays at the top of the map. Open the page in Safari and use
+  *Share → Add to Home Screen* for a full-screen, notch-aware app icon.
 - **Missions are led in person.** Playable missions offer *"Fly it
   yourself" / "Fight it on the ground"* alongside *"Send a team"* (the old
   abstract dice resolver). Leading one hands the combat scene a mission
@@ -185,6 +191,10 @@ The three layers now run as **one playable game** (`game/index.html` +
   specialty, or our own Intelligence leads, deploy the same type in a new context (another world, region and target
   name). Rewards scale with Security, and Security 3+ worlds add extra guards. Steal the Cross, the Depot Run and the
   Strider stay unique story missions. A Steal [Vehicle] type is planned.
+- **Source quest chains.** A unique, location-tied source can run an authored chain. The first, *The Listening
+  Towers* on Parity IV, goes alert, contact, a three-day decode, a blow-or-tap choice, three Disrupt Comm Towers
+  jobs (one per region) and a check-in whose ending depends on how you played. Engineer, CEO, Professor and Double
+  Agent sources now exist too.
 - **Steal Fuel (first Tier 1 mission).** Cass sends you to the Redrock tithe depot on
   Brakka: reach the depot, call the Marta down onto the apron, hold the pumps for five rounds
   while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space

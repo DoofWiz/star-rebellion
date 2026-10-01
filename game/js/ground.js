@@ -310,6 +310,79 @@ autofactory:{
     {id:'civ2',name:'Line Worker',first:'worker',side:'civ',x:1400,y:1040,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1400,y:1040},{x:1500,y:1180}]},
   ];},
 },
+towers:{
+  mode:'towers',W:2200,H:1400,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  title:'Disrupt Comm Towers',sub:'Parity IV — Revolution I',
+  foesLabel:'Security',calmLabel:'Compound is quiet',alertLabel:'Compound alerted',
+  banner:['Disrupt Comm Towers','Take the tower, leave them listening'],
+  brief:{
+    eyebrow:'Ground Operation · Parity IV',
+    flavour:'A comm tower, fenced and guarded. Get a device onto its base: an <b>Explosive Charge</b> drops it, a <b>Data Limpet</b> leaves it standing and lets us listen.',
+    objectives:[
+      'Reach the comm tower',
+      'Attach the device to the tower base',
+      'Get the squad back to the Marta',
+      {sub:1,text:'(Optional) Do it without the compound raising the alarm.'},
+    ],
+    hint:'The carrier (marked ✸) is the only one who can attach the device. If two of you carry different devices, pick which one goes on the tower by who walks up. Stay out of the sight cones and the job is quiet.',
+  },
+  towerLabel:'',
+  lamps:[[760,420],[1300,360],[1760,560],[900,900],[1500,980]],
+  csLine:'Parity IV. Engines warm, lights off. Hang it on the tower and come home.',
+  lzLabel:'MARTA LZ',
+  LZ:{x:240,y:1180,r:130},PAD:{x:1900,y:470,r:60},
+  plant:{x:1730,y:250,w:340,h:300,bx:1900,by:400},
+  blastR:150,safeR:0,instant:1,
+  guardPt:{x:1900,y:520},
+  work:[{id:'plant',x:1900,y:470,label:'COMM TOWER',verb:'attaches the device to the tower base',needCharge:1}],
+  bldgs:[
+    {x:1730,y:250,w:340,h:300,name:'TOWER COMPOUND'},
+    {x:760, y:520,w:260,h:170,name:'RELAY HUT',solar:1},
+    {x:1180,y:820,w:300,h:180,name:'SERVICE DEPOT'},
+    {x:500, y:900,w:220,h:140,name:'GUARD POST'},
+    {x:1500,y:620,w:200,h:130,name:'PYLON SHED',solar:1},
+    {x:1900,y:860,w:240,h:170,name:'CONTROL ANNEX'},
+  ],
+  props:[
+    {x:1650,y:300,kind:'canister'},{x:2090,y:330,kind:'canister'},{x:1700,y:560,kind:'crate'},{x:2040,y:560,kind:'crate'},
+    {x:1000,y:780,kind:'crate'},{x:1100,y:800,kind:'barrel'},{x:640,y:760,kind:'wagon',a:0.2},{x:1380,y:1100,kind:'wagon',a:-0.2},
+    {x:900,y:1150,kind:'trough'},{x:1500,y:1180,kind:'trough'},{x:760,y:1240,kind:'rock'},{x:1250,y:1280,kind:'rock'},
+    {x:1750,y:1100,kind:'rock'},{x:2100,y:1150,kind:'rock'},{x:560,y:520,kind:'rock'},{x:1400,y:480,kind:'barrel'},
+  ],
+  loots:[
+    {id:'cash',x:1980,y:930,label:'Annex cash tin',take:'240 ◈ credits',c:240},
+    {id:'parts',x:1230,y:930,label:'Depot parts bins',take:'60 ▤ supplies',s:60},
+    {id:'cell',x:560,y:980,label:'Guard post locker',take:'Cowboy sidearm',items:['Cowboy']},
+  ],
+  foes(){
+    const v=this.variant||'ledger';
+    const P=(id,nm,x,y,pat)=>({id,name:'Patrolman '+nm,first:nm,side:'law',x,y,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:pat||undefined,lines:['Tower’s quiet.','Who goes there?']});
+    const B=(id,n,x,y,pat,guard)=>({id,name:'Policebot PB-'+n,first:'PB-'+n,side:'law',x,y,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:guard||0,patrol:pat||undefined,lines:['Please remain calm.','Restricted area.']});
+    const RR=(id,nm,x,y,pat,guard)=>({id,name:'Riot Rifleman '+nm,first:nm,side:'law',x,y,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],guard:guard||0,patrol:pat||undefined,lines:['Compound is sealed.','Rifles up!']});
+    const RS=(id,nm,x,y,guard)=>({id,name:'Riot Shieldman '+nm,first:nm,side:'law',x,y,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:guard||0,lines:['Shields up!','Nobody touches the tower.']});
+    if(v==='dataflats')return [
+      B('b1',41,820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',42,1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
+      B('b3',43,1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',44,1480,720,[{x:1480,y:720},{x:1620,y:800}]),
+      RS('s1','Kade',1900,540,1),P('p1','Crane',600,980,[{x:600,y:980},{x:760,y:900}]),
+      {id:'pc1',name:'Police Cruiser',first:'Cruiser',side:'law',x:1050,y:1180,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],lines:['Unit 9, responding.']},
+    ];
+    if(v==='quota')return [
+      RR('r1','Wick',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2','Tarn',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
+      RR('r3','Mek',1800,620,[{x:1800,y:620},{x:1960,y:640}],1),P('p1','Elm',1520,740,[{x:1520,y:740},{x:1620,y:820}]),
+      {id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',side:'law',x:1900,y:540,hp:95,maxhp:95,aim:1,def:10,wpns:['fists'],auto:1,autoType:'bruiser',hackRounds:2,heavy:1,guard:1,lines:['Please remain calm.','Non-compliance detected.']},
+      P('p2','Soll',620,1000,[{x:620,y:1000},{x:760,y:920}]),
+    ];
+    return [
+      P('p1','Drew',820,620,[{x:820,y:620},{x:760,y:780},{x:900,y:540}]),P('p2','Soll',1240,900,[{x:1240,y:900},{x:1100,y:1000},{x:1380,y:860}]),
+      P('p3','Elm',1560,720,[{x:1560,y:720},{x:1700,y:800}]),B('b1',21,1680,640,[{x:1680,y:640},{x:1780,y:600}],1),
+      B('b2',22,900,1060,[{x:900,y:1060},{x:1200,y:1160}]),RR('r1','Brenn',1900,540,null,1),
+    ];
+  },
+  civs(){return [
+    {id:'civ1',name:'Maintenance Clerk',first:'clerk',side:'civ',x:1150,y:1100,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1100},{x:1000,y:1160},{x:1260,y:1080}]},
+  ];},
+},
 rescue:{
   mode:'rescue',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
@@ -617,7 +690,7 @@ function genWalls(solids,opens){
   }
   return out;
 }
-const KEY_BLDG={intel:'EAST SERVER HALL',stealfuel:'TITHE DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
+const KEY_BLDG={towers:'TOWER COMPOUND',intel:'EAST SERVER HALL',stealfuel:'TITHE DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
 /* a mission type replayed in a new narrative context: rename the place, relabel the key building, thicken security with the world's Security level */
 function contextScenario(base,c,sec){
   const S=Object.assign({},base);
@@ -629,12 +702,13 @@ function contextScenario(base,c,sec){
     const key=KEY_BLDG[base.mode]||KEY_BLDG[base.id];
     if(key&&c.target&&base.bldgs)S.bldgs=base.bldgs.map(b=>b.name===key?Object.assign({},b,{name:c.target.toUpperCase()}):b);
     S.place=c.place||'';
+    S.variant=c.variant||'';
   }
   const extra=Math.max(0,(sec||1)-2)*2;
   if(extra>0&&base.foes){
     const f0=base.foes;
     S.foes=function(){
-      const L=f0.call(base),pool=L.filter(f=>!f.auto&&!f.vehicle&&!f.shield&&!f.tower&&!f.manning);
+      const L=f0.call(this),pool=L.filter(f=>!f.auto&&!f.vehicle&&!f.shield&&!f.tower&&!f.manning);
       const out=L.slice();
       for(let i=0;i<extra&&pool.length;i++){
         const f=pool[i%pool.length];
@@ -693,6 +767,12 @@ function initUnits(){
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
     level:sp.level||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
+  if(SCN.mode==='towers'){
+    const devs=[];
+    if((spec.charges||0)>0)devs.push('charge');
+    if((spec.limpets||0)>0)devs.push('limpet');
+    devs.forEach((d,i)=>{if(squad[i]){squad[i].charge=1;squad[i].device=d;}});
+  }
   const roster=[...squad];
   if((SCN.mode==='rescue'||SCN.mode==='strider')&&spec.vip){
     const big=!!spec.vip.strider;
@@ -1448,7 +1528,7 @@ function enterFree(msg){
   if(msg)log(msg);
   if(!freeHinted){
     freeHinted=true;
-    log('<span class="d">Right-click (or tap the ground) and the squad follows, scooping up anything lootable on the way. Gunfire drops time into rounds.</span>');
+    log('<span class="d">'+(SR.touch?'Tap the ground':'Right-click (or tap the ground)')+' and the squad follows, scooping up anything lootable on the way. Gunfire drops time into rounds.</span>');
   }
   saveSnap();
   syncUI();
@@ -1513,6 +1593,24 @@ function completeWork(wp,u){
       log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':'<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
       say(v,v.lines[0]);
     }
+    syncUI();
+    return;
+  }
+  if(wp.id==='plant'&&SCN.mode==='towers'){
+    const method=u.device||'charge';
+    u.charge=0;u.device=null;fac.planted=true;fac.method=method;fac.quiet=!fac.everAlerted;
+    fac.detonated=true;fac.fx={t0:performance.now()};
+    if(method==='charge'){
+      addFloater(wp.x,wp.y-46,'TOWER DOWN','#ff9a5c');
+      log('<span class="g">The charge drops the tower.</span> The compound goes dark. Back to the Marta.');
+      explode(wp.x,wp.y-90,{r:SCN.blastR,d0:1,d1:2});
+    } else {
+      addFloater(wp.x,wp.y-46,'LIMPET ATTACHED','#7de3ec');
+      log('<span class="g">The data limpet latches on.</span> The tower stays up and every packet it carries is ours. Back to the Marta.');
+      sSpark();
+    }
+    say(u,method==='charge'?'Tower’s coming down. Move!':'We’re listening. Go quiet and go home.');
+    if(town==='calm'&&method==='charge')alertTown('A comm tower is destroyed.');
     syncUI();
     return;
   }
@@ -1867,6 +1965,19 @@ function drawCage(now){
 function drawFactory(now){
   if(!fac)return;
   const P=SCN.plant;
+  if(SCN.mode==='towers'){
+    const down=fac.method==='charge';
+    ctx.save();
+    ctx.translate(P.bx,P.by);
+    ctx.strokeStyle=down?'rgba(120,110,100,0.6)':'rgba(190,205,225,0.9)';ctx.lineWidth=3;
+    if(down){ctx.beginPath();ctx.moveTo(-70,70);ctx.lineTo(10,40);ctx.moveTo(-40,70);ctx.lineTo(40,52);ctx.stroke();}
+    else{
+      ctx.beginPath();ctx.moveTo(-30,70);ctx.lineTo(0,-110);ctx.lineTo(30,70);ctx.moveTo(-22,30);ctx.lineTo(22,30);ctx.moveTo(-14,-30);ctx.lineTo(14,-30);ctx.moveTo(-30,70);ctx.lineTo(22,30);ctx.lineTo(-14,-30);ctx.moveTo(30,70);ctx.lineTo(-22,30);ctx.lineTo(14,-30);ctx.stroke();
+      const on=fac.method==='limpet'?'#7de3ec':(Math.sin(now*0.006)>0?'#ff4f4f':'#5a2a2a');
+      ctx.fillStyle=on;ctx.beginPath();ctx.arc(0,-112,6,0,7);ctx.fill();
+    }
+    ctx.restore();
+  }
   if(fac.planted&&!fac.detonated){
     ctx.save();
     ctx.strokeStyle='rgba(255,90,70,'+(0.35+0.25*Math.sin(now*0.008))+')';ctx.lineWidth=3;ctx.setLineDash([14,10]);
@@ -1881,8 +1992,8 @@ function drawFactory(now){
     const g=ctx.createRadialGradient(P.bx,P.by,10,P.bx,P.by,P.w*0.7);
     g.addColorStop(0,'rgba(255,140,60,'+(0.35+0.15*Math.sin(now*0.01))+')');g.addColorStop(1,'rgba(255,140,60,0)');
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(P.bx,P.by,P.w*0.7,0,7);ctx.fill();
-    ctx.font='700 14px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle='rgba(255,190,140,0.75)';
-    ctx.fillText('OFFLINE',P.bx,P.by+4);
+    ctx.font='700 14px "IBM Plex Mono"';ctx.textAlign='center';ctx.fillStyle=fac.method==='limpet'?'rgba(125,227,236,0.85)':'rgba(255,190,140,0.75)';
+    ctx.fillText(fac.method==='limpet'?'TAPPED':'OFFLINE',P.bx,P.by+4);
     ctx.restore();
     if(rng()<0.25)parts.push({x:P.x+rng()*P.w,y:P.y+rng()*P.h,vx:(rng()-0.5)*30,vy:-30-rng()*40,r:4+rng()*6,a:0.35,col:'#3a3430',t0:now,dur:1600});
   }
@@ -2460,10 +2571,10 @@ function gameOver(win,why){
     return;
   }
   byId('endRestartBtn').textContent='Continue';
-  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='rescue'||SCN.mode==='intel'||SCN.mode==='strider')&&!win);
-  const place=SCN.place||({intel:'Data Flats',autofactory:'Kiln Ridge',stealfuel:'Redrock Flats',rescue:'Tollgate Landing'})[SCN.mode]||'the target';
+  byId('endRetryBtn').hidden=!((SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='towers'||SCN.mode==='rescue'||SCN.mode==='intel'||SCN.mode==='strider')&&!win);
+  const place=SCN.place||({intel:'Data Flats',autofactory:'Kiln Ridge',stealfuel:'Redrock Flats',rescue:'Tollgate Landing',towers:'Parity IV'})[SCN.mode]||'the target';
   byId('endEyebrow').textContent=win?(ix||fac||fs||(rs&&SCN.mode==='rescue')?'Mission Report · '+place:SCN.mode==='strider'?'Mission Report · Menk Crossing':'Mission Report · Dustfall'):'Mission Report · It went wrong';
-  byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?'Lights Out':fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?(SCN.mode==='towers'?(fac.method==='limpet'?'Tower Tapped':'Tower Down'):'Lights Out'):fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
   if(ix){
     txt=win?'The Field Technician walked out of '+place+' with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left behind. We don\u2019t forget that.':''):
@@ -2475,6 +2586,9 @@ function gameOver(win,why){
     const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
     txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
       (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
+  } else if(fac&&SCN.mode==='towers'){
+    txt=win?(fac.method==='limpet'?'The limpet is on the tower and the tower does not know it. Every packet that crosses '+place+' now crosses our desk first.':'The tower came down in a shower of sparks and the whole compound went quiet. Somewhere in '+place+' a technician is shouting into a dead handset.')+(fac.quiet?' Nobody saw us come or go.':'')+(left.length?' It cost us: '+left.join(', ')+' left at the compound. We don\u2019t forget that.':''):
+      'The squad was overrun before the device was on the tower and the Marta lifted empty. The tower is still talking.';
   } else if(fac){
     txt=win?(fac.quiet?'Nobody in '+place+' saw us come or go. One moment the plant was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the plant is dark. The alarm had already gone, but it made no difference: the line will not turn out another Auto for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
       (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the plant and the Marta lifted empty. The line keeps running.');
@@ -2505,7 +2619,7 @@ function gameOver(win,why){
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
     for(const it of tally.items)lh+='<div class="lootline"><span>'+it+'</span><span>TAKEN</span></div>';
   } else if(win&&fac){
-    lh+='<div class="lootline"><span>Power Plant</span><span>DESTROYED</span></div>';
+    lh+=SCN.mode==='towers'?'<div class="lootline"><span>Comm tower</span><span>'+(fac.method==='limpet'?'TAPPED':'DESTROYED')+'</span></div>':'<div class="lootline"><span>Power Plant</span><span>DESTROYED</span></div>';
     lh+='<div class="lootline"><span>Stayed unseen</span><span>'+(fac.quiet?'YES \u2014 bonus':'no')+'</span></div>';
     if(tally.c)lh+='<div class="lootline"><span>Credits looted</span><span>◈ '+tally.c+'</span></div>';
     if(tally.s)lh+='<div class="lootline"><span>Supplies looted</span><span>▤ '+tally.s+'</span></div>';
@@ -2543,7 +2657,7 @@ function buildResult(win){
   const gained=win?U.filter(u=>u.hacked&&u.extracted&&!u.down).map(u=>({type:u.autoType,name:u.name})):[];
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&(fac.planted))?1:0,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -2706,7 +2820,11 @@ function camFitSquad(snap){
 function worldToCss(wx,wy){return [(wx-cam.x)*cam.z+cssW/2,(wy-cam.y)*cam.z+cssH/2];}
 function cssToWorld(px,py){return {x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y};}
 const MMW=190;
-function mmRect(){const mmh=Math.round(MMW*H/W);return {x:14,y:cssH-14-mmh,w:MMW,h:mmh};}
+function mmRect(){
+  const phone=cssW<900||cssH<520,land=cssH<520;
+  const w=phone?(land?116:104):MMW,h=Math.round(w*H/W);
+  return phone?{x:cssW-8-w,y:land?8:46,w,h}:{x:14,y:cssH-14-h,w,h};
+}
 /* ---------- ground detail (seeded once) ---------- */
 const patches=[],scrub=[];
 function genScatter(){
@@ -4213,7 +4331,7 @@ function dockHTML(){
     if(extractReady())return '<div class="dockcard">'+sneakBtn+'<button id="extractBtn">▲ Extract</button></div>';
     const callBtn=(fs&&fs.reached&&!fs.called)?'<button id="callBtn">▲ Call in the Marta</button>':'';
     const detBtn=(fac&&fac.planted&&!fac.detonated)?'<button id="detBtn" '+(facUnsafe()?'class="unsafe"':'')+'>✸ Detonate'+(facUnsafe()?' · clear the blast zone':'')+'</button>':'';
-    return '<div class="dockcard">'+sneakBtn+callBtn+detBtn+'<span class="docklabel">right-click to move · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
+    return '<div class="dockcard">'+sneakBtn+callBtn+detBtn+'<span class="docklabel hintlbl">'+(SR.touch?'tap to move':'right-click to move')+' · tap an enemy to open fire'+(crossAway?'':' · watch the sight cones')+'</span></div>';
   }
   if(phase==='PLANNING'){
     const squad=plotted();
@@ -4308,6 +4426,14 @@ function syncUI(){
       {t:(RO?RO[2]:'(Optional) Stay unseen'),done:rs.released&&!rs.everAlerted&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false},
       {t:(RO?RO[3]:'Get '+nm+' and the squad aboard')+' \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:rs.released},
     ];
+  } else if(fac&&SCN.mode==='towers'){
+    const carrier=U.find(u=>u.charge&&!u.down);
+    objs=[
+      {t:'Reach the comm tower'+(carrier?' \u2014 '+carrier.first+' carries the '+(carrier.device==='limpet'?'data limpet':'charge'):''),done:fac.planted,now:!fac.planted},
+      {t:'Attach the device to the tower base',done:fac.planted,now:false},
+      {t:'(Optional) Stay unseen',done:fac.planted&&fac.quiet&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false,fail:fac.everAlerted&&!fac.planted},
+      {t:'Get the squad back to the Marta \u2014 '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fac.detonated},
+    ];
   } else if(fac){
     const carrier=U.find(u=>u.charge&&!u.down);
     objs=[
@@ -4335,6 +4461,7 @@ function syncUI(){
     {t:'Extract the squad at the Graf — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:crossAway},
   ];
   }
+  {const nowO=objs.find(o=>o.now)||objs.find(o=>!o.done);const st=byId('objStrip');if(st){st.hidden=!nowO||phase==='BRIEF'||phase==='CUTSCENE'||phase==='GAMEOVER';if(nowO)st.innerHTML='<b style="color:var(--amber)">\u25b8</b> '+nowO.t;}}
   $('objList').innerHTML=objs.map(o=>'<div class="objrow'+(o.done?' done':o.now?' now':'')+'"><span class="tick">'+(o.done?'✓':'▹')+'</span><span>'+o.t+'</span></div>').join('');
   $('rosterR').innerHTML=U.filter(u=>u.side==='reb').map(unitRow).join('');
   $('foeHead').textContent=SCN.foesLabel;
@@ -4481,7 +4608,7 @@ function initState(){
    fsMenuOn=false;fsDraft=null;}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
-  fac=SCN.mode==='autofactory'?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null}:null;
+  fac=(SCN.mode==='autofactory'||SCN.mode==='towers')?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null,method:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
   lootMarks=LOOTS.map(l=>Object.assign({},l,{taken:false}));
@@ -4516,7 +4643,7 @@ function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven
 let tutFlags={moved:0,sneaked:0,executed:0,attacked:0};
 let tutIdx=0;
 const TUT=[
-  {text:'<b>Right-click</b> (or tap the ground) and the squad moves in real time. Walk them up the canyon toward the squatter camp at the base mouth.',
+  {text:'<b>'+(SR.touch?'Tap the ground':'Right-click')+'</b>'+(SR.touch?'':' (or tap the ground)')+' and the squad moves in real time. Walk them up the canyon toward the squatter camp at the base mouth.',
    done:()=>tutFlags.moved},
   {text:'Those <b>amber cones</b> are squatter sightlines — the red inner band still catches you while sneaking. Press <b>C</b> (or the Sneak button) to go low; the eye above a rebel fills as they’re noticed.',
    done:()=>tutFlags.sneaked||town==='alerted'},

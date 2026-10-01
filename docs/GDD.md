@@ -666,6 +666,15 @@ Landing, +15% liberation, capped by Access/Support):
   briefing can name them, and a failed attempt keeps the same person. Dismissed people are
   gone for good. Future rescue and recruit-reward missions should use `holdRecruit()`.
 
+### Phone support (built)
+iPhone 12 Pro is a supported device (390x844 portrait, 844x390 landscape, safe areas honoured, added to
+the Home Screen it runs full-screen). Phone layout rules: the info panels become a slide-in **drawer**
+(Info/Crew button); windows, briefings and the planning board are full-screen and scroll; the ground and
+space scenes show the current objective in a strip at the top and move the minimap to the top-right;
+hints say *tap* instead of *click*. Input is already pointer-based: tap to move/fire, drag to pan, pinch to
+zoom (ground and space); the base uses a *Step inside* button and tap-to-open crew files instead of
+double-click.
+
 ### Base rooms (built, Phase 5, first slice)
 - **Rooms merge.** A room is a rectangle of tiles. Rooms of the same type that touch are one merged
   room: one outline, one label, one set of upgrades (a new room built next to it inherits them). The
@@ -701,6 +710,28 @@ Landing, +15% liberation, capped by Access/Support):
   warns when full but does not yet refuse loot.
 - **Not built yet:** Storeroom capacity for other resources, Armour items (no armour exists yet at
   Level 1), enforcing the gear-slot limit.
+
+### Sources as quest chains (built, Phase 6)
+A **chain** is a unique source tied to a world (`locId`), authored as data in `CHAINS` in `base.js`.
+Steps run in order: **alert** (a lead the player may answer or snooze for 3 days), **contact** (the
+source's first transmission; acknowledging adds them to the network, which needs a free slot),
+**decode** (wait N days, then a branching choice that can hand over items), **missions** (one instance
+of a mission type per listed region; done when all are done) and **checkin** (the source's next
+check-in, answered like any source event; the ending depends on how the missions went).
+- **Level 1 chain: The Listening Towers (Parity IV).** Starts when Parity IV Access reaches 2.
+  **Hale Doran**, a Signals Authority line engineer (the Engineer source type), reaches out; after a
+  3-day decode the player chooses to **blow** the three relay towers (three Explosive Charges) or
+  **tap** them (three Data Limpets). Three *Disrupt Comm Towers* missions follow, one per region
+  (Ledger Town, Data Flats, Quota Blocks), each with its own guard roster. Then Doran checks in.
+  Ending by the method used in at least two of the three: **blow** gives +5 Intel and +1 Support in
+  Parity IV; **tap** gives +3 Intel and **+2 Intel a day** from Doran. The check-in answer also raises or
+  lowers his cultivation as usual.
+- **Disrupt Comm Towers** is a normal mission type (reward 5 Intel, XP). The squad carries the device;
+  an Explosive Charge drops the tower, a Data Limpet leaves it standing and tapped. If two soldiers
+  carry different devices, who walks up decides which is used. Either completes the objective.
+- **Other source types** from the Sources doc now exist as candidates: **CEO** (Director Ansel Brook,
+  Dreymar), **Professor** (Nell Ostrander, Callis, at Access 2), **Double Agent** (Constable Iko Varr,
+  Veray, at Access 2). All four types (with Engineer) can also offer mission types via `SRC_OFFERS`.
 
 ### Mission types and narrative contexts (built)
 The Missions document describes **mission types**, not one-off missions. A type (objectives, rewards,

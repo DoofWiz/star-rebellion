@@ -88,7 +88,7 @@ window.SR=(function(){
     }
     const prev=active;
     active=name;
-    for(const k in containers)containers[k].hidden=(k!==name);
+    for(const k in containers){containers[k].hidden=(k!==name);containers[k].classList.remove('drawer');}
     scenes[name].enter(params||{},prev);
   }
   function endMission(result){go('base',{debrief:result});}
@@ -150,7 +150,15 @@ window.SR=(function(){
       }).join('');
     },
   };
-  return {register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,
+  /* phones: coarse pointers get tap-first hints and the slide-in info drawer */
+  const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+  document.addEventListener('click',ev=>{
+    const b=ev.target.closest&&ev.target.closest('[data-info]');
+    if(!b)return;
+    const sc=b.closest('.scene');
+    if(sc)sc.classList.toggle('drawer');
+  });
+  return {register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

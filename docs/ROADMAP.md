@@ -173,7 +173,11 @@ Armour items. See `docs/GDD.md` §8. Original scope:
 - **Starting hangar:** change to four landing pads to match the docs, and rebalance
   the onboarding around it (the derelict Marta no longer fills the only spare berth).
 
-### Phase 6 — Sources as quest chains
+### Phone support — **built** (iPhone 12 Pro, portrait and landscape; see `docs/GDD.md` §8)
+
+### Phase 6 — Sources as quest chains — **built**
+Built: the `CHAINS` authoring format, the Parity IV chain *The Listening Towers*, the *Disrupt Comm Towers*
+mission type and Data Limpet item, and the Engineer, CEO, Professor and Double Agent source types. See `docs/GDD.md` §8. Original scope:
 - Add a **location-tied** field to sources, and an authoring format for
   unique, multi-mission sources.
 - Build one full Level 1 chain using the Kaver structure: contact → delayed decode

@@ -404,7 +404,7 @@ const PLANETDEF=[
      op:{name:'Free the Quota Block',desc:'A night transfer, a locked dormitory and a hundred names someone wants off the list.',c:30,s:50}},
    ]},
 ];
-const SRCPOS={cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
+const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
 
 /* ---------- location model (Security / Access / Support / Liberation) ----------
    Access (0–5 eyes): Intel buys it. Support (0–5 flags): raised by source events.
@@ -498,6 +498,14 @@ const MTYPE_DEFS={
     obj:['Release {npc} from the {target}','(Optional) Do it without the enemy realising you were there','Bring {npc1} and the squad back to the Marta'],
     after:['<b>{SRC}:</b> “{npc} is out, and the whole district knows it by breakfast. Nobody is saying who did it, which is how I know it worked. They will want to meet you.”']},
 };
+MTYPE_DEFS.towers={name:'Disrupt Comm Towers',scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
+  variants:['comm tower'],
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{ids:['charge','limpet'],n:1,label:'Explosive Charge or Data Limpet'}]},
+  rew:{i:5,xp:0.3},
+  hook:'The {target} at {place} carries more than it should.',
+  desc:'The data we were given puts a {target} at {place}. It is remote, but it is still guarded. Get a device onto its base before they raise the alarm: an Explosive Charge drops it, a Data Limpet leaves it standing and lets us listen.',
+  obj:['Reach the {target} at {place}','Attach the device to the tower base','Return to the Marta'],
+  after:['<b>{SRC}:</b> \u201cThe tower at {place} has changed. I can hear it in the logs. Two to go.\u201d']};
 /* the first, scripted offer of each type keeps its original story context */
 const MSTORY={stealfuel:'fuel',rescue:'rescue',autofactory:'autofactory',stealintel:'intel'};
 const CTXDEF={
@@ -629,6 +637,170 @@ CANDS.cask={id:'cask',name:'Registrar Ione Cask',type:'Registry Clerk · Ledger 
   bio:'Files the files. Has read every one. Hasn’t slept properly since she found the quota schedules.',
   pitch:'<b>Ione Cask</b> is a registry clerk with access to every name on Parity IV and a conscience she has just discovered. She has copied something. She would like to talk about what happens next.'};
 CANDS.tess.inc.m=12;CANDS.pell.inc.m=12;
+/* the other source types from the Sources doc: CEO, Professor, Double Agent (the Engineer arrives through a chain) */
+CANDS.brook={id:'brook',name:'Director Ansel Brook',type:'CEO \u00b7 Deep Mining Concern',loc:'Dreymar',level:1,cult:10,risk:30,inc:{c:140},
+  bio:'Runs the Dreymar Deep Mining Concern for a board that has never seen a mine. Has been quietly passed over for a rival, and keeps a list.',
+  pitch:'<b>Ansel Brook</b> runs the Deep Mining Concern on Dreymar and would very much like his rival ruined. He will fund anybody who can do it without leaving fingerprints.'};
+CANDS.ostrander={id:'ostrander',name:'Prof. Nell Ostrander',type:'Professor \u00b7 Callis Academy',loc:'Callis Academy',level:1,cult:10,risk:15,inc:{i:1},
+  bio:'Teaches the children of the privileged and has been listening to what they repeat at the dinner table.',
+  pitch:'<b>Nell Ostrander</b> teaches at the Callis Academy for privileged children. The children repeat what their parents say at dinner. She has been writing it all down.'};
+CANDS.varr={id:'varr',name:'Constable Iko Varr',type:'Double Agent \u00b7 Dock Police',loc:'Veray Yards',level:1,cult:10,risk:40,inc:{s:28},
+  bio:'Sworn to the Hegemony, paid by both sides. Reports to us first.',
+  pitch:'<b>Iko Varr</b> is a Hegemony dock constable who has been selling patrol schedules to smugglers for years. He heard we were buying better, and would like to know which side he is on.'};
+for(const k in SRCPOS){const o=CANDS[k]||STORY_SRC[k];if(o)o.locId=SRCPOS[k];}
+SRC_EVENTS.doran=[
+  {text:'<b>DORAN:</b> \u201cThe SHOK squad rotated out and a new one rotated in. They have a very particular opinion of my coffee. I think they are measuring me for a cell.\u201d',
+   opts:[['\u201cThen keep making it. Be the most boring man on Parity IV, and let us worry about the rest.\u201d','strong'],['\u201cStay low.\u201d','neutral'],['\u201cThen get out. Leave the towers.\u201d','weak']]},
+  {text:'<b>DORAN:</b> \u201cThe Bureau rebuilt a relay faster than I thought they could. Somebody is learning from us.\u201d',
+   opts:[['\u201cThen we move faster, Hale. Tell me where they are weak.\u201d','strong'],['\u201cWatch and report.\u201d','neutral'],['\u201cYou should have stopped them.\u201d','weak']]},
+];
+SRC_OFFERS.doran=['autofactory','intel'];
+SRC_OFFERS.brook=['autofactory','fuel'];SRC_OFFERS.ostrander=['intel'];SRC_OFFERS.varr=['fuel','rescue'];
+CANDS.doran={id:'doran',name:'Hale Doran',type:'Engineer \u00b7 Signals Authority',loc:'Parity IV',locId:'parity',level:1,cult:10,risk:40,inc:{m:16},
+  bio:'A line engineer who maintains the Parity relay towers and finally read what they carry. Frightened, precise, and out of time.'};
+
+/* ---------- sources as quest chains (authored, location-tied, multi-mission) ----------
+   A chain is a unique source tied to a world. Steps run in order:
+     alert    a lead the player may answer (yes / not yet)
+     contact  the source's first transmission; acknowledging adds them to the network
+     decode   wait N days, then a branching choice (each choice may hand over items)
+     missions spawn one instance of a mission type per listed region; done when all are done
+     checkin  the source's next check-in, answered like any source event; the ending depends on how the missions went */
+const CHAINS={
+  parity_towers:{
+    name:'The Listening Towers',loc:'parity',src:'doran',trigger:{acc:2},
+    steps:[
+      {k:'alert',title:'A voice on the Signals Authority channel',
+       text:['Your Intelligence Officer slides a printout across the table.',
+        '\u201cCommander, one of our listeners on <b>Parity IV</b> caught a hand-keyed request on a Signals Authority maintenance channel. It is addressed to \u2018the ones standing up\u2019. The sender is a line engineer, mid-level, and the channel is monitored. If we answer, we risk being heard answering.\u201d'],
+       yes:'Make contact. Carefully.',no:'Not yet. Let them wait.'},
+      {k:'contact',title:'Incoming transmission',
+       text:['\u201cYou will not trust me. I would not trust anyone from the Signals Authority either, which is why I am calling you.\u201d',
+        'The voice goes quiet. Static, then a rattle that might be a coffee cup.',
+        '\u201cEvery census packet on Parity IV, every labour roster, every name on every quota block \u2014 it all runs through three relay towers, and the Bureau reads it before the clerks do. I maintain them. I have maintained them for eleven years, and only learned last spring what I was maintaining.\u201d',
+        'Somewhere behind him a door opens and closes.',
+        '\u201cI cannot take them down. There is a SHOK squad billeted in the compound since last month, and they drink all the tea. But I can show you where to climb. Please. My daughter is on Quota Block 9 and her name is on the schedule.\u201d',
+        'A burst of encoded data follows. It will take our people about three days to decode.'],
+       ok:'Acknowledge. Start the decode.'},
+      {k:'decode',days:3,title:'The decode is back',
+       text:['Your Intelligence Officer comes out of a dark room full of tired-looking people.',
+        '\u201cThey found coordinates inside Doran\u2019s data. Three relay towers: one outside <b>Ledger Town</b>, one on the <b>Data Flats</b>, one by the <b>Quota Blocks</b>. All three carry the Bureau\u2019s census feed.\u201d',
+        '\u201cOne of the team wants to clamp a data limpet on each, sit on the feed and read it. The rest say blow them, and make the Bureau deaf. Doran would take either.\u201d'],
+       choices:[
+        ['\u201cWe are here to make life hell for the Hegemony. We blow the towers.\u201d','blow','Three Explosive Charges, cobbled together from the decode lab\u2019s spare parts.',{items:['Explosive Charge','Explosive Charge','Explosive Charge']}],
+        ['\u201cThere is more in those feeds than a bang. We tap them.\u201d','hack','Three Data Limpets, still warm from the lab.',{items:['Data Limpet','Data Limpet','Data Limpet']}]]},
+      {k:'missions',tid:'towers',regions:['ledger','dataflats','quota'],news:'Three towers, three jobs on the board: Ledger Town, the Data Flats and the Quota Blocks.'},
+      {k:'checkin',
+       text:{
+        blow:'<b>DORAN:</b> \u201cThe census feed went dark across the planet for two days. Nobody in Ledger Town could say how many people lived there. The Bureau will rebuild, but for a week they are guessing. Use the week.\u201d',
+        hack:'<b>DORAN:</b> \u201cI have been reading the Bureau\u2019s mail for three days and I have never felt so frightened or so useful. The towers are still up. They have no idea we are in the room.\u201d'},
+       opts:[['\u201cYou did this, Hale. Tell me what you want, and tell me who is on that schedule.\u201d','strong'],['\u201cWell done. Keep your head down.\u201d','neutral'],['\u201cDon\u2019t get comfortable. We will want more.\u201d','weak']],
+       end:{blow:{intel:5,support:1,line:'The census blackout shakes Parity IV: <b>Support +1</b>, and a quiet <b>5 Intel</b> from the confusion.'},
+            hack:{intel:3,income:{i:2},line:'The taps pay out: <b>3 Intel</b> now, and Doran\u2019s source now brings in <b>+2 Intel a day</b>.'}}},
+    ]},
+};
+const chainState=id=>(G.chains||(G.chains={}))[id];
+const chainSrc=id=>G.sources.find(x=>x.id===CHAINS[id].src);
+const chainMissions=id=>G.missions.filter(m=>m.chain===id);
+function chainTick(){
+  G.chains=G.chains||{};
+  for(const id in CHAINS){
+    const C=CHAINS[id],c=G.chains[id];
+    if(!c){
+      const st=pst(C.loc);
+      if(st&&st.access&&(st.acc||0)>=(C.trigger.acc||1)&&G.day>=(C.trigger.day||1)){
+        G.chains[id]={i:0,show:true,flags:{},snooze:0,wait:0};
+        news('<b>'+pdef(C.loc).name+'</b>: someone on the ground is trying to reach us.','a');sAlert();
+      }
+      continue;
+    }
+    if(c.done)continue;
+    const step=C.steps[c.i];
+    if(step.k==='alert'&&!c.show&&c.snooze&&G.day>=c.snooze){c.show=true;c.snooze=0;}
+    if(step.k==='decode'&&c.wait>0){c.wait--;if(c.wait<=0){c.show=true;news('The decode for <b>'+C.name+'</b> is ready.','a');sAlert();}}
+    if(step.k==='missions'){
+      const ms=chainMissions(id);
+      if(ms.length&&ms.every(m=>m.state==='done'))chainAdvance(id);
+    }
+  }
+}
+function chainPrompt(){
+  if(!G||!G.chains||winMode)return false;
+  for(const id in G.chains){const c=G.chains[id];if(c.show&&!c.done){openWin('chain',{id});return true;}}
+  return false;
+}
+function chainEnter(id){
+  const C=CHAINS[id],c=G.chains[id],step=C.steps[c.i];
+  if(step.k==='decode'){c.wait=step.days;c.show=false;}
+  else if(step.k==='missions'){
+    c.show=false;
+    const si=srcInfo(C.src);
+    for(const reg of step.regions){
+      const m=pushMission(spawnMission(step.tid,{loc:C.loc,region:reg,src:C.src,story:'chain:'+id}),true);
+      if(m){m.chain=id;c.mids=(c.mids||[]).concat(m.id);m.from=(si?si.name:'')+' \u00b7 '+C.name;}
+    }
+    news(step.news||'New jobs on the board.','a');sAlert();
+  }
+  else if(step.k==='checkin'){
+    c.show=false;
+    const src=chainSrc(id);
+    const meth=chainMissions(id).map(m=>m.method).filter(Boolean);
+    c.flags.ending=meth.filter(x=>x==='limpet').length>=2?'hack':(meth.length?'blow':(c.flags.stance||'blow'));
+    if(src){
+      src.pendingEvent={text:step.text[c.flags.ending],opts:step.opts,chain:id};
+      news('<b>'+src.name+'</b> wants to talk. The towers are done.','a');sAlert();
+    }
+  }
+}
+function chainAdvance(id){
+  const c=G.chains[id];
+  c.i++;
+  if(c.i>=CHAINS[id].steps.length){c.done=true;return;}
+  chainEnter(id);
+}
+function chainAct(id,act,idx){
+  const C=CHAINS[id],c=G.chains[id];
+  if(!c||c.done)return;
+  const step=C.steps[c.i];
+  if(step.k==='alert'){
+    if(act==='no'){c.show=false;c.snooze=G.day+3;closeWin();return;}
+    chainAdvance(id);
+    renderWin();return;      // the contact window follows straight away
+  }
+  if(step.k==='contact'){
+    const full=G.sources.filter(x=>x.alive).length>=sourceCap();
+    if(full){return;}
+    const def=Object.assign({},CANDS[C.src]);
+    if(!G.sources.some(x=>x.id===C.src))G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,unique:true,chain:id},JSON.parse(JSON.stringify(def))));
+    news('<b>'+def.name+'</b> joins the network.','g');
+    chainAdvance(id);
+    closeWin();syncUI();return;
+  }
+  if(step.k==='decode'){
+    const ch=step.choices[idx];
+    if(!ch)return;
+    c.flags.stance=ch[1];
+    const gift=ch[3]||{};
+    for(const it of (gift.items||[]))addArmoryItem(it);
+    news(ch[2],'g');
+    chainAdvance(id);
+    closeWin();syncUI();return;
+  }
+}
+function chainResolve(id,kind){
+  const C=CHAINS[id],c=G.chains[id],step=C.steps[c.i];
+  const end=step.end[c.flags.ending]||{};
+  const src=chainSrc(id),lines=[];
+  if(end.intel){G.intel+=end.intel;}
+  if(end.support)addSupport(C.loc,end.support);
+  if(end.income&&src)for(const k in end.income)src.inc[k]=(src.inc[k]||0)+end.income[k];
+  if(end.line)lines.push(end.line);
+  c.done=true;c.i=C.steps.length;
+  revGain(3);
+  news('<b>'+C.name+'</b> is complete.','g');
+  return lines;
+}
+
 SRC_EVENTS.tess=[
   {text:'<b>BRANDT:</b> “The company posted a new quota. Ten percent up, same crews, same crushers. People keep asking if you’re real. I told them you were. Don’t make a liar of me.”',
    opts:[['“Tell them the crushers will be quiet by the end of the week. Tell them who is coming, not when.”','strong'],['“Keep them steady. We’re working on it.”','neutral'],['“Real enough. Get them to stop asking.”','weak']]},
@@ -835,6 +1007,7 @@ function advanceDay(){
     for(const t of G.dip)t.days--;
     for(const t of G.dip.filter(x=>x.days<=0))finishDip(t);
     G.dip=G.dip.filter(t=>t.days>0);
+    chainTick();
   }
   const rate=(hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0);
   G.fuel+=4;   // the old hangar-cave tanks weep a little every day
@@ -923,6 +1096,7 @@ function advanceDay(){
   $('dayBanner').classList.add('show');
   setTimeout(()=>$('dayBanner').classList.remove('show'),RM?400:1100);
   sDay();
+  if(!HOLD)chainPrompt();
   saveSnap();syncUI();
   if(!HOLD&&!winMode)nextReport();
 }
@@ -1147,6 +1321,7 @@ function srcAnswer(src,idx){
     src.cult=Math.max(0,src.cult-10);src.risk=Math.min(100,src.risk+8);
     lines.push('A long silence before the channel closes. That landed badly. Cultivation −10, risk +8.');
   }
+  if(ev.chain)for(const l of chainResolve(ev.chain,kind))lines.push(l);
   const lvl=checkCultLevel(src);
   if(lvl)lines.push(lvl);
   rollSignal(src);
@@ -1216,7 +1391,7 @@ function scoutPlanet(id){
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
-  if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
+  if(id==='dreymar'){addMission('orehaul');G.candQ.push('brook');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
   else if(id==='volund'){addMission('foundry');lines.push('A clerk in freight control sells manifests. There’s a job here.');}
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
   else if(id==='meridian'){G.candQ.push('renn');lines.push('Our people flagged a customs chief with expensive habits and flexible loyalties.');}
@@ -1354,6 +1529,7 @@ function raiseAccess(id){
   const cost=accessCost(d,st);
   if(G.intel<cost)return;
   G.intel-=cost;st.acc++;
+  if(st.acc===2){const cid={callis:'ostrander',veray:'varr'}[id];if(cid&&!G.sources.some(x=>x.id===cid)&&!(G.candQ||[]).includes(cid)){G.candQ.push(cid);news('Word reached us from <b>'+d.name+'</b>: someone inside wants to talk.','a');}}
   revGain(1);
   news('<b>'+d.name+'</b>: network Access raised to '+st.acc+'/5.','r');
   sBuild();
@@ -1732,7 +1908,7 @@ function renderRoomBar(){
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
     '<button class="pbtn" data-backbase>← Back to the base</button>'+
-    '<div class="pophint">double-click a rebel in the room for their file</div>';
+    '<div class="pophint">'+(SR.touch?'double-tap':'double-click')+' a rebel in the room for their file</div>';
 }
 let rvFigs=[],rvParts=[],rvLast=0;
 function renderRoomView(now){
@@ -2150,7 +2326,7 @@ function renderTilePop(){
       if(rm.key==='diplo')h+='<button class="pbtn" data-open="diplo">Diplomatic Tasks</button>';
       if(rm.key==='store')h+='<button class="pbtn" data-open="gear">Gear Grid</button>';
       if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
-      h+='<div class="pophint">double-click to step inside</div>';
+      h+='<button class="pbtn" data-enterroom>Step inside \u25b8</button>';
     }
   } else {
     const {r,c}=tilePopAt;
@@ -2273,6 +2449,7 @@ function closeWin(){
     openWin('candidate',G.candQ.shift());
     return;
   }
+  if(started&&G&&chainPrompt())return;
   if(started&&G&&G.escPending)openEscalation();
 }
 function meter(cls,label,val){
@@ -2496,6 +2673,18 @@ function renderWin(){
       '<div class="dz-sec">Practice range \u00b7 soldiers</div>'+row('Soldier','Practice range')+cards('Soldier')+later('Soldier')+
       '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
       '</div>';
+  }
+  else if(winMode==='chain'){
+    const id=winArg.id,C=CHAINS[id],c=G.chains[id],step=C.steps[c.i];
+    card.classList.add('narrow');
+    const paras=step.text.map(t=>'<p class="pdesc" style="margin:0 0 8px;font-size:12px;line-height:1.55">'+t+'</p>').join('');
+    let btns='';
+    if(step.k==='alert')btns='<button class="dbtn" data-chain="'+id+':yes"><b>'+step.yes+'</b></button><button class="dbtn" data-chain="'+id+':no">'+step.no+'</button>';
+    else if(step.k==='contact'){
+      const full=G.sources.filter(x=>x.alive).length>=sourceCap();
+      btns='<button class="dbtn" data-chain="'+id+':ok" '+(full?'disabled':'')+'><b>'+step.ok+'</b></button>'+(full?'<div class="pdesc" style="color:var(--heg)">The network is full. Build another Intelligence Center room or let a source go, then answer.</div>':'');
+    } else if(step.k==='decode')btns=step.choices.map((ch,i)=>'<button class="dbtn" data-chain="'+id+':pick:'+i+'"><b>'+ch[0]+'</b><br><span style="color:var(--dim);font-size:10.5px">'+ch[2]+'</span></button>').join('');
+    h='<div class="winHead"><span class="wt">'+C.name+' \u00b7 '+step.title+'</span></div><div class="winBody">'+paras+btns+'</div>';
   }
   else if(winMode==='gear'){
     const all=G.armory.filter(a=>a.n>0);
@@ -2796,6 +2985,7 @@ $('tilePop').addEventListener('click',ev=>{
     sBuild();
     closeTilePop();syncUI();return;
   }
+  if(t.hasAttribute('data-enterroom')&&tilePopAt&&tilePopAt.room){const rm=tilePopAt.room;closeTilePop();enterRoomView(rm);return;}
   const open=t.getAttribute('data-open');
   if(open){closeTilePop();openWin(open);return;}
 });
@@ -2929,6 +3119,8 @@ $('winsB').addEventListener('click',ev=>{
   if(t.hasAttribute('data-rmasset')&&PL){plRemoveAsset();renderWin();return;}
   const amode=t.getAttribute('data-assetmode');
   if(amode&&PL){const [i,md]=amode.split(':');PL.assets[+i].mode=md;renderWin();return;}
+  const chn=t.getAttribute('data-chain');
+  if(chn){const [cid,act,idx]=chn.split(':');chainAct(cid,act,idx===undefined?undefined:+idx);return;}
   const gcat=t.getAttribute('data-gearcat');
   if(gcat){GEARCAT=gcat;renderWin();return;}
   const dipBtn=t.getAttribute('data-dip');
@@ -2965,7 +3157,7 @@ byId('panel').addEventListener('click',ev=>{
   if(!key)return;
   sClick();
   const now=performance.now();
-  if(lastTap.key===key&&now-lastTap.t<380){
+  if(SR.touch||(lastTap.key===key&&now-lastTap.t<380)){
     lastTap={key:null,t:0};
     if(pr){
       const p=G.people.find(x=>x.id===pr.getAttribute('data-person'));
@@ -3054,7 +3246,7 @@ function precondList(m){
     out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'Starfighter':'Ship')+(n>1?'s':'')+' Available'+(r.starfighter?' — the Marta won’t do':'')});
   }
   for(const it of r.items||[]){
-    const have=(G.armory.find(a=>a.id===it.id)||{}).n||0;
+    const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);
     out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span style="color:var(--dim)">(have '+have+')</span>'});
   }
   if(r.spec){
@@ -3298,10 +3490,11 @@ function startPlan(){
     G.fuel-=fuel;
     if(PL.drop)G.supplies-=DROP_COST;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:blam?blam.n:0,
-      charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
+      charges:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='charge')||{}).n)||0):((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
+      limpets:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='limpet')||{}).n)||0):0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
       sec:m.ctx?m.ctx.sec:undefined,
-      ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,
+      ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,variant:m.region,
         sub:m.ctx.place+' \u00b7 '+m.ctx.locName+' \u2014 Revolution I',
         eyebrow:'Ground Operation \u00b7 '+m.ctx.place+', '+m.ctx.locName,flavour:m.desc}:undefined,
       squad:squad.map((p,i)=>squadEntry(p,!!scatter&&i===squad.findIndex(q=>!q.auto))),
@@ -3333,10 +3526,11 @@ function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)+(p.spec
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
-    'Explosive Charge':['charge','Explosive Charge']};
+    'Explosive Charge':['charge','Explosive Charge'],'Data Limpet':['limpet','Data Limpet']};
   const hit=map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name];
   const a=G.armory.find(x=>x.id===hit[0]);
   if(a)a.n=(a.n||0)+1;
+  else if(hit[0]==='limpet')G.armory.push({id:'limpet',name:'Data Limpet',n:1,ic:'\u25c9',desc:'A palm-sized tap that clamps onto a comm tower and copies every packet that passes. Needs no fuse.'});
   else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n:1,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
   else G.armory.push({id:hit[0],name:hit[1],n:1,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
 }
@@ -3438,6 +3632,11 @@ function applyDebrief(r){
       news('<b>'+f.name+'</b> was lost over the drift.','h');
     } else f.hull=Math.max(5,Math.min(100,Math.round(fr.hull)));
   }
+  if(r.limpetUsed){
+    const lm=G.armory.find(a=>a.id==='limpet');
+    if(lm){lm.n=Math.max(0,lm.n-r.limpetUsed);if(!lm.n)G.armory=G.armory.filter(a=>a!==lm);}
+  }
+  if(r.win&&m&&r.method)m.method=r.method;
   if(r.chargeUsed){
     const ch=G.armory.find(a=>a.id==='charge');
     if(ch){ch.n=Math.max(0,ch.n-r.chargeUsed);if(!ch.n)G.armory=G.armory.filter(a=>a!==ch);}
@@ -3518,7 +3717,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
-    G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];
+    G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];G.chains=G.chains||{};
     for(const rm of G.rooms){
       if(rm.key==='bay')rm.key='hangar';
       if(rm.key==='quarters')rm.key='barracks';
@@ -3550,7 +3749,7 @@ function restoreCampaign(data){
     for(const m of G.missions)bindNpc(m);
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){
-      if(s.pendingEvent){
+      if(s.pendingEvent&&!s.pendingEvent.chain){
         const pool=SRC_EVENTS[s.id];
         s.pendingEvent=pool?pool[s.eventsSeen%pool.length]:null;
       }
@@ -3593,7 +3792,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

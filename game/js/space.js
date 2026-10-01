@@ -1765,7 +1765,7 @@ function layoutPops(){
       let x=px-Math.cos(s.h)*215-r.width/2 - Math.sin(s.h)*85;
       let y=py-Math.sin(s.h)*215-r.height/2 + Math.cos(s.h)*85;
       x=Math.max(8,Math.min(cssW-r.width-8,x));
-      y=Math.max(8,Math.min(cssH-r.height-8,y));
+      y=Math.max(8,Math.min(cssH-r.height-(cssW<900||cssH<520?96:8),y));
       dial.style.left=x+'px';dial.style.top=y+'px';
     }
   }
@@ -2068,7 +2068,7 @@ function dialHTML(s){
     }
     if(any)h+=row;
   }
-  h+='</div><div class="pophint">Hover to preview. ✦ = pilot maneuver. Greyed = critical damage.</div>';
+  h+='</div><div class="pophint">'+(SR.touch?'Tap a maneuver to plot it.':'Hover to preview.')+' ✦ = pilot maneuver. Greyed = critical damage.</div>';
   return h;
 }
 function radialHTML(s){
@@ -2145,6 +2145,7 @@ function syncUI(){
     const vex=ships.find(s=>s.id==='E1');
     if(vex){ol.textContent=vex.alive?'Objective: eliminate Cmdt. Dral Vex':'Objective complete — instructor eliminated';ol.className=vex.alive?'':'done';}
   }
+  {const st=byId('objStrip');if(st){st.hidden=!ol.textContent||phase==='CUTSCENE'||phase==='GAMEOVER';st.textContent=ol.textContent;st.className=ol.className;}}
   $('rosterR').innerHTML=ships.filter(s=>s.faction==='reb').map(rosterRow).join('');
   $('rosterE').innerHTML=ships.filter(s=>s.faction==='heg').map(rosterRow).join('');
   const sel=ships.find(s=>s.id===selId);
@@ -2222,6 +2223,7 @@ byId('panel').addEventListener('click',ev=>{
       const c=attackQ&&attackQ.cur;
       if(lockPickMode&&awaitAction&&s.faction==='heg'&&inLockZone(awaitAction,s)&&!losBlocked(awaitAction,s)){playerAction({a:'lock',t:s});return;}
       if(c&&c.stage==='await'&&s.faction==='heg'&&s!==c.t){const w=bestWeaponFor(c.s,s);if(w){retargetCtx(c,s,w);return;}}
+      if(SR.touch&&selId===s.id){openInfo(s.id);return;}
       selId=s.id;hoverMan=null;
       if(phase==='PLANNING'||phase==='GAMEOVER')camGoal={x:s.x,y:s.y,z:Math.max(cam.z,0.5)};
       syncUI();
