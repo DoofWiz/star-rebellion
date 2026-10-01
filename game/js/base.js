@@ -1756,10 +1756,6 @@ function roomCenter(rm){
   for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++){sr+=r;sc+=c;n++;}
   return cellToCss(sr/n,sc/n);
 }
-function shade(hex,f){
-  const n=parseInt(hex.slice(1),16);
-  return 'rgb('+Math.min(255,Math.round(((n>>16)&255)*f))+','+Math.min(255,Math.round(((n>>8)&255)*f))+','+Math.min(255,Math.round((n&255)*f))+')';
-}
 /* small standing figure */
 function figure(x,y,S,name,col){
   ctx.fillStyle=col||K.rebelHi;
@@ -3531,9 +3527,6 @@ function seedNews(){
 
 /* ---------- leading missions in person ---------- */
 function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
-function availSoldiers(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec').length;}
-function readyFighters(){return G.fighters.filter(f=>!f.out&&f.hull>=60).length;}
-function readyStarfighters(){return G.fighters.filter(f=>f.cls!=='graf'&&!f.out&&f.hull>=60).length;}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 /* ---------- mission requirements & the planning board ---------- */
 function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}

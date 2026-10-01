@@ -822,7 +822,6 @@ let shake=0,alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
 let gameEnd=null;
 
 /* ---------- geometry, LOS, cover ---------- */
-function inRect(px,py,b){return px>=b.x&&px<=b.x+b.w&&py>=b.y&&py<=b.y+b.h;}
 function ptBlocked(px,py,pad){
   for(const b of BLDGS)if(px>=b.x-(pad||0)&&px<=b.x+b.w+(pad||0)&&py>=b.y-(pad||0)&&py<=b.y+b.h+(pad||0))return true;
   return false;
@@ -864,7 +863,7 @@ function chipCover(prop,dmg){
   prop.hp-=dmg;
   if(prop.hp<=0){
     prop.dead=true;
-    addFloater(prop.x,prop.y-24,'COVER DESTROYED','#ff8f9a');
+    addFloater(prop.x,prop.y-24,'COVER DESTROYED',C.hazard);
     log('<span class="b">'+sc(PROPDEF[prop.kind].lab)+' shot to pieces</span> — that cover is gone.');
     for(let k=0;k<10;k++)parts.push({x:prop.x,y:prop.y,vx:(rng()-0.5)*160,vy:-rng()*90,r:2+rng()*3,a:0.6,col:'#6a5636',t0:performance.now(),dur:700});
     sThud();
@@ -1093,7 +1092,7 @@ function applyShot(s,t,wkey,snap){
   let dmg=0;
   if(jammed){
     s.jam=2;
-    addFloater(s.x,s.y-40,'AKLI JAMMED','#ff8f9a');
+    addFloater(s.x,s.y-40,'AKLI JAMMED',C.hazard);
     log(nameSpan(s)+'’s <span class="a">Akli jams</span> — cheap iron runs dirty.');
     if(s.side==='reb')say(s,'Jam! Clearing it — cover me!');
   } else if(hit){
@@ -1110,8 +1109,8 @@ function woundUnit(s,t,dmg,crit){
   t.hp-=dmg;
   dmgRound.add(t.id);
   adjCoolG(t,-16,'took a hit');
-  if(crit&&!t.wound&&t.hp>0){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED','#ff8f9a');}
-  addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?'#ff6a75':'#ffd27d');
+  if(crit&&!t.wound&&t.hp>0){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
+  addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi);
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
@@ -1127,7 +1126,7 @@ function downUnit(t,by){
   if(t.manning){t.manning=0;turret.gunner=null;log('The <b>laser turret</b> stands unmanned.');}
   sThud();
   log(nameSpan(t)+' <span class="b">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  addFloater(t.x,t.y-46,'DOWN','#ff4f5e');
+  addFloater(t.x,t.y-46,'DOWN',C.hazard);
   if(t.side==='law'){
     dropLoot(t);
     if(t.sheriff){
@@ -1344,11 +1343,11 @@ function adjCoolG(u,d,why){
   if(u.sheriff)u.cool=Math.max(40,u.cool); // bosses do not break
   const post=coolStateG(u);
   if(pre!=='panic'&&post==='panic'){
-    addFloater(u.x,u.y-52,'PANICKING','#ff4f5e');
+    addFloater(u.x,u.y-52,'PANICKING',C.hazard);
     log(nameSpan(u)+' <span class="b">is panicking</span>'+(why?' <span class="d">('+why+')</span>':''));
     if(u.side==='reb'&&u.order&&u.order.type!=='lockin')u.order=null;
   }
-  if(pre==='panic'&&post!=='panic')addFloater(u.x,u.y-52,'STEADIED','#7dd97b');
+  if(pre==='panic'&&post!=='panic')addFloater(u.x,u.y-52,'STEADIED',C.go);
 }
 function moraleCheck(){
   const sheriffDown=U.some(u=>u.sheriff&&(u.down||u.surr));
@@ -1360,7 +1359,7 @@ function moraleCheck(){
     if(broke){
       u.surr=1;u.order=null;u.braced=0;
       log(nameSpan(u)+' <span class="g">throws his gun down and surrenders.</span>');
-      addFloater(u.x,u.y-46,'SURRENDERS','#7dd97b');
+      addFloater(u.x,u.y-46,'SURRENDERS',C.go);
       say(u,'Don’t shoot! I’m done, I’m done!');
     }
   }
@@ -1521,7 +1520,7 @@ function collectLoot(u,m){
   if(m.nades){NADES+=m.nades;}
   if(m.supply)supplyDrop(u);
   if(m.items)tally.items.push(...m.items);
-  addFloater(m.x,m.y-30,'+ '+m.take,'#7dd97b');
+  addFloater(m.x,m.y-30,'+ '+m.take,C.go);
   log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
   syncUI();
 }
@@ -1551,7 +1550,7 @@ function manTurret(u){
   u.x=TURRET.x;u.y=TURRET.y;u.rtPath=null;u.path=null;
   u.braced=1;u.order={type:'hold'};u.face=turret.face;
   log(nameSpan(u)+' mans the <b>laser turret</b>.');
-  addFloater(TURRET.x,TURRET.y-42,'TURRET MANNED','#7de3ec');
+  addFloater(TURRET.x,TURRET.y-42,'TURRET MANNED',C.shield);
   sTick();syncUI();
 }
 function unmanTurret(u){
@@ -1566,7 +1565,7 @@ function workDone(){return WORK.every(w=>w.done);}
 function workStep(wp,u){
   if(wp.rounds>1){
     wp.prog=(wp.prog||0)+1;wp.t=0;
-    addFloater(wp.x,wp.y-46,(wp.id==='hack'?'HACK ':'WORK ')+Math.min(wp.prog,wp.rounds)+'/'+wp.rounds,'#7de3ec');
+    addFloater(wp.x,wp.y-46,(wp.id==='hack'?'HACK ':'WORK ')+Math.min(wp.prog,wp.rounds)+'/'+wp.rounds,C.shield);
     sSpark();
     if(wp.prog<wp.rounds){log(nameSpan(u)+' works the terminal \u2014 <span class="a">'+wp.prog+'/'+wp.rounds+'</span>.');syncUI();return;}
   }
@@ -1575,7 +1574,7 @@ function workStep(wp,u){
 function completeWork(wp,u){
   u.xpGain=(u.xpGain||0)+0.1;
   wp.done=true;wp.t=0;
-  addFloater(wp.x,wp.y-30,'✓ '+wp.label,'#7dd97b');
+  addFloater(wp.x,wp.y-30,'✓ '+wp.label,C.go);
   log(nameSpan(u)+' <span class="g">'+wp.verb+'</span>.');
   sSpark();
   if(wp.id==='flag'){
@@ -1586,7 +1585,7 @@ function completeWork(wp,u){
   }
   if(wp.id==='hack'){
     ix.hacked=true;
-    addFloater(wp.x,wp.y-60,'DATA SECURED','#7dd97b');
+    addFloater(wp.x,wp.y-60,'DATA SECURED',C.go);
     log('<span class="g">The databank is cracked and the drive is in '+u.first+'\u2019s hand.</span> The trace is already running. Get out.');
     say(u,'Got it! Drive is in my hand, the trace is live!');
     sSpark();
@@ -1602,7 +1601,7 @@ function completeWork(wp,u){
       v.caged=0;v.away=0;v.order=null;
       v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
-      addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:v.first.toUpperCase()+' IS FREE'),'#7dd97b');
+      addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:v.first.toUpperCase()+' IS FREE'),C.go);
       log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':'<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
       say(v,v.lines[0]);
     }
@@ -1614,11 +1613,11 @@ function completeWork(wp,u){
     u.charge=0;u.device=null;fac.planted=true;fac.method=method;fac.quiet=!fac.everAlerted;
     fac.detonated=true;fac.fx={t0:performance.now()};
     if(method==='charge'){
-      addFloater(wp.x,wp.y-46,'TOWER DOWN','#ff9a5c');
+      addFloater(wp.x,wp.y-46,'TOWER DOWN',C.hazard);
       log('<span class="g">The charge drops the tower.</span> The compound goes dark. Back to the Marta.');
       explode(wp.x,wp.y-90,{r:SCN.blastR,d0:1,d1:2});
     } else {
-      addFloater(wp.x,wp.y-46,'LIMPET ATTACHED','#7de3ec');
+      addFloater(wp.x,wp.y-46,'LIMPET ATTACHED',C.shield);
       log('<span class="g">The data limpet latches on.</span> The tower stays up and every packet it carries is ours. Back to the Marta.');
       sSpark();
     }
@@ -1629,7 +1628,7 @@ function completeWork(wp,u){
   }
   if(wp.id==='plant'){
     u.charge=0;fac.planted=true;
-    addFloater(wp.x,wp.y-46,'CHARGE SET','#ff9a5c');
+    addFloater(wp.x,wp.y-46,'CHARGE SET',C.hazard);
     log('<span class="a">The charge is set.</span> Get everyone out of the blast zone, then detonate.');
     say(u,'Charge is set. Clear the zone, then blow it.');
     syncUI();
@@ -1667,7 +1666,7 @@ function checkBoss(){
   unstick(r);
   const near=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(near)r.face=Math.atan2(near.y-r.y,near.x-r.x);
-  addFloater(r.x,r.y-46,SCN.bossFloat,'#ff4f5e');
+  addFloater(r.x,r.y-46,SCN.bossFloat,C.hazard);
   log(SCN.bossLog);
   say(r,r.lines[r.lines.length-1],3600);
   if(town==='calm')alertTown(SCN.bossAlert);
@@ -1689,7 +1688,7 @@ function fsItems(){
 }
 function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
 function fsPlace(key,pt){
-  if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL','#71809c');return false;}
+  if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL',C.text3);return false;}
   if(key==='drop'){
     FS.dropUsed=true;FS.orders.push({kind:'drop',x:pt.x,y:pt.y,landed:false});
     log('<span class="a">Supply drop called in.</span> It lands as the next round begins.');
@@ -1720,7 +1719,7 @@ function fsExecute(){
     if(o.kind!=='drop'||o.landed)continue;
     o.landed=true;FS.n++;
     lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
-    addFloater(o.x,o.y-34,'SUPPLY DROP','#7dd97b');sLand();
+    addFloater(o.x,o.y-34,'SUPPLY DROP',C.go);sLand();
     log('<span class="g">The supply drop lands.</span> Somebody go and get it.');
   }
 }
@@ -1784,7 +1783,7 @@ function fsPlanStart(){
       u.face=-Math.PI/2;U.push(u);
     });
     sLand();
-    addFloater(o.x,o.y-40,'REINFORCEMENTS','#7dd97b');
+    addFloater(o.x,o.y-40,'REINFORCEMENTS',C.go);
     log('<span class="g">'+a.name+' sets down and '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' pile out.</span>');
   }
 }
@@ -1823,7 +1822,7 @@ function canHack(s,t){
 function hackTargets(s){return U.filter(t=>canHack(s,t));}
 function hackFlip(s,t){
   t.side='reb';t.ally=1;t.hacked=1;t.order=null;t.hackProg=0;t.braced=0;t.path=null;t.rtPath=null;t.guard=0;t.patrol=null;
-  addFloater(t.x,t.y-50,'HACKED','#7de3ec');
+  addFloater(t.x,t.y-50,'HACKED',C.shield);
   log(nameSpan(s)+' <span class="g">takes control of</span> <b>'+t.name+'</b>. It fights for us now.');
   say(s,t.first+' is ours.');
   sSpark();
@@ -1839,7 +1838,7 @@ function hackResolve(){
     if(u.down||!t||!canHack(u,t)){u.order=null;continue;}
     t.hackedNow=1;
     t.hackProg=(t.hackProg||0)+1;
-    addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,'#7de3ec');
+    addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,C.shield);
     if(t.hackProg>=t.hackRounds)hackFlip(u,t);
     else log(nameSpan(u)+' works on <b>'+t.name+'</b> — <span class="a">'+t.hackProg+'/'+t.hackRounds+'</span>.');
   }
@@ -1848,7 +1847,7 @@ function hackResolve(){
 function startFreeHack(t){
   const tech=U.find(x=>canHack(x,t));
   hackArm=false;
-  if(!tech){addFloater(t.x,t.y-40,'NO TECH IN RANGE','#71809c');syncUI();return;}
+  if(!tech){addFloater(t.x,t.y-40,'NO TECH IN RANGE',C.text3);syncUI();return;}
   tech.hackTid=t.id;t.hackT=0;tech.rtPath=null;
   log(nameSpan(tech)+' starts hacking <b>'+t.name+'</b>. Hold position.');
   syncUI();
@@ -1857,11 +1856,11 @@ function hackFreeStep(dt){
   for(const s of U){
     if(!s.hackTid)continue;
     const t=U.find(x=>x.id===s.hackTid);
-    if(!t||!canHack(s,t)||s.rtPath){if(t)addFloater(t.x,t.y-50,'HACK BROKEN','#ff9a5c');s.hackTid=null;if(t)t.hackProg=0;continue;}
+    if(!t||!canHack(s,t)||s.rtPath){if(t)addFloater(t.x,t.y-50,'HACK BROKEN',C.hazard);s.hackTid=null;if(t)t.hackProg=0;continue;}
     t.hackT+=dt;
     if(t.hackT>=4){
       t.hackT=0;t.hackProg++;
-      addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,'#7de3ec');
+      addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,C.shield);
       if(t.hackProg>=t.hackRounds)hackFlip(s,t);
     }
   }
@@ -1872,7 +1871,7 @@ function fuelReach(){
   if(!fs||fs.reached)return;
   if(U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,PAD)<PAD.r+70)){
     fs.reached=true;
-    addFloater(PAD.x,PAD.y-70,'DEPOT REACHED','#7dd97b');
+    addFloater(PAD.x,PAD.y-70,'DEPOT REACHED',C.go);
     log('<span class="g">The squad is at the pumps.</span> Call the Marta down onto the apron when you are ready.');
     const lead=U.find(u=>u.side==='reb'&&!u.down);
     if(lead)say(lead,'Pumps are right there. Call her in.');
@@ -1918,11 +1917,11 @@ function spawnFoes(list,msg){
 function fuelPumpStep(){
   if(!fs||!fs.landed||fs.done)return;
   if(!fuelGuards()){
-    addFloater(PAD.x,PAD.y-60,'PUMPS STALLED — NO ONE ON THE APRON','#ff9a5c');
+    addFloater(PAD.x,PAD.y-60,'PUMPS STALLED — NO ONE ON THE APRON',C.hazard);
     return;
   }
   fs.pump++;
-  addFloater(PAD.x,PAD.y-60,'FUEL '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,'#7de3ec');
+  addFloater(PAD.x,PAD.y-60,'FUEL '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,C.shield);
   sSpark();
   for(const w of (SCN.waves||[])){
     if(w.at!==fs.pump)continue;
@@ -1930,7 +1929,7 @@ function fuelPumpStep(){
   }
   if(fs.pump>=FUEL_ROUNDS){
     fs.done=true;
-    addFloater(PAD.x,PAD.y-88,'TANKS FULL','#7dd97b');
+    addFloater(PAD.x,PAD.y-88,'TANKS FULL',C.go);
     log('<span class="g">The Marta’s tanks are full.</span> '+(hostilesActive().length?'Clear the apron, then everyone aboard.':'Everyone aboard.'));
     const lead=U.find(u=>u.side==='reb'&&!u.down);
     if(lead)say(lead,'That is her full! Everybody on the ramp!');
@@ -1946,7 +1945,7 @@ function facDetonate(){
   if(!fac||!fac.planted||fac.detonated)return;
   if(phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
   if(facUnsafe()){
-    addFloater(SCN.plant.bx,SCN.plant.by-130,'TOO CLOSE \u2014 CLEAR THE BLAST ZONE','#ff9a5c');
+    addFloater(SCN.plant.bx,SCN.plant.by-130,'TOO CLOSE \u2014 CLEAR THE BLAST ZONE',C.hazard);
     log('<span class="a">Too close.</span> Everyone out of the blast zone before you detonate.');
     return;
   }
@@ -2073,7 +2072,7 @@ function rtUpdate(now,dt){
     hotT+=dt;
     if(hotT>=4.5){
       hotT=0;hot++;sSpark();
-      addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'#ffb454');
+      addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
       if(hot>=HOT_ROUNDS)tryLaunch();
     }
   } else hotT=0;
@@ -2126,7 +2125,7 @@ function extractUpdate(now,dt){
     if(!u.rtPath){
       if(Math.hypot(u.x-E.x,u.y-E.y)<130){
         u.extracted=1;
-        addFloater(u.x,u.y-36,'ABOARD','#7dd97b');
+        addFloater(u.x,u.y-36,'ABOARD',C.go);
         sThud();
         syncUI();
       } else if(!u.rtRetryAt||now>u.rtRetryAt){
@@ -2212,10 +2211,10 @@ function execute(){
     } else if(o&&o.type==='lockin'){
       u.sprinted=0;u.braced=0;
       adjCoolG(u,35,'locked in');
-      addFloater(u.x,u.y-40,'LOCKED IN','#7dd97b');
+      addFloater(u.x,u.y-40,'LOCKED IN',C.go);
     } else if(o&&o.type==='cover'){
       u.sprinted=0;u.braced=0;u.bunkered=1;
-      addFloater(u.x,u.y-40,'TAKING COVER','#7de3ec');
+      addFloater(u.x,u.y-40,'TAKING COVER',C.shield);
     } else if(o&&o.type==='hold'){u.braced=1;u.sprinted=0;}
     else u.sprinted=0;
   }
@@ -2363,7 +2362,7 @@ function attackUpdate(now){
       if(c.t.obj){
         if(c.jammed){
           c.s.jam=2;
-          addFloater(c.s.x,c.s.y-40,'AKLI JAMMED','#ff8f9a');
+          addFloater(c.s.x,c.s.y-40,'AKLI JAMMED',C.hazard);
           log(nameSpan(c.s)+'’s <span class="a">Akli jams on the trigger.</span>');
         } else if(c.hit){
           log(nameSpan(c.s)+' puts a round through the <b>fuel canister</b>.');
@@ -2373,7 +2372,7 @@ function attackUpdate(now){
         }
       } else if(c.jammed){
         c.s.jam=2;
-        addFloater(c.s.x,c.s.y-40,'AKLI JAMMED','#ff8f9a');
+        addFloater(c.s.x,c.s.y-40,'AKLI JAMMED',C.hazard);
         log(nameSpan(c.s)+'’s <span class="a">Akli jams on the trigger.</span>');
         if(c.s.side==='reb')say(c.s,'Jam! Of course it jams NOW.');
       } else if(c.hit){
@@ -2404,7 +2403,7 @@ function throwNade(s,gx,gy){
   nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:performance.now(),armRound:round});
   s.face=Math.atan2(gy-s.y,gx-s.x);
   log(nameSpan(s)+' lobs a <b>BLAM frag</b> — it lands, primed.');
-  addFloater(gx,gy-14,'PRIMED','#ff9a5e');
+  addFloater(gx,gy-14,'PRIMED',C.hazard);
   sTick();
   pickMode=null;
   if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+500;}
@@ -2416,7 +2415,7 @@ function useStim(s){
   s.stims--;
   const heal=Math.round(s.maxhp*0.3);
   s.hp=Math.min(s.maxhp,s.hp+heal);
-  addFloater(s.x,s.y-40,'+'+heal+' STIM','#7dd97b');
+  addFloater(s.x,s.y-40,'+'+heal+' STIM',C.go);
   log(nameSpan(s)+' <span class="g">slams a stim</span> — +'+heal+' hp.');
   sLoot();
   if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+450;}
@@ -2438,7 +2437,7 @@ function retargetCanister(p){
   if(!c||c.stage!=='await'||p.dead)return;
   const t=mkObjTarget(p);
   const w=bestWeapon(c.s,t)||c.wkey;
-  if(!validShot(c.s,t,w)){addFloater(p.x,p.y-26,'NO SHOT','#71809c');return;}
+  if(!validShot(c.s,t,w)){addFloater(p.x,p.y-26,'NO SHOT',C.text3);return;}
   engageQ.cur=makeCur(c.s,t,w);
   engageQ.cur.reveal=engageQ.cur.tn.entries.length;
   engageQ.cur.revealA=engageQ.cur.atk.entries.length;
@@ -2450,7 +2449,7 @@ function retargetCanister(p){
 function retarget(t){
   const c=engageQ&&engageQ.cur;
   if(!c||c.stage!=='await'||t.side!=='law'||t.down||t.surr)return;
-  if(t.manning&&shieldBlocks(c.s,t)){addFloater(t.x,t.y-30,'TURRET SHIELD','#57a8ff');return;}
+  if(t.manning&&shieldBlocks(c.s,t)){addFloater(t.x,t.y-30,'TURRET SHIELD',C.shield);return;}
   const w=bestWeapon(c.s,t)||c.wkey;
   if(!validShot(c.s,t,w))return;
   engageQ.cur=makeCur(c.s,t,w);
@@ -2503,7 +2502,7 @@ function endRound(){
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
     if(!sera.reached){sera.reached=true;log('<span class="g">Sera is at the Cross.</span> Keep them off her.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
     hot++;
-    addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'#ffb454');
+    addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
     sSpark();
     if(hot>=HOT_ROUNDS)tryLaunch();
     else log('Sera works the ignition bypass — <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
@@ -2519,7 +2518,7 @@ function endRound(){
         if(clear){
           u.extracted=1;u.order=null;
           log(nameSpan(u)+' <span class="g">is up the Graf’s ramp.</span>');
-          addFloater(u.x,u.y-40,'EXTRACTED','#7dd97b');
+          addFloater(u.x,u.y-40,'EXTRACTED',C.go);
         } else {
           log('<span class="a">Lawmen too close to the Graf — ramp stays shut.</span>');
         }
@@ -3458,8 +3457,6 @@ function sc(t){                               // all-caps game strings read as s
   t=t.toLowerCase().replace(/^\s*[a-z]/,m=>m.toUpperCase());
   return t.replace(NAMED,w=>{const l=w.toLowerCase();return l==='ft-4'?'FT-4':l==='blam'||l==='ar'?l.toUpperCase():w[0].toUpperCase()+l.slice(1);});
 }
-const FCOL={'#7dd97b':'go','#ff4f5e':'hazard','#ff8f9a':'hazard','#ff6a75':'hazard','#ffd27d':'goldHi','#ffb454':'gold','#7de3ec':'shield','#71809c':'text3','#ff9a5c':'hazard','#ff9a5e':'hazard','#57a8ff':'shield'};
-function fcol(c){return FCOL[c]?C[FCOL[c]]:c;}
 function tokR(u){
   let r=Math.max(11,Math.min(15,15*cam.z/0.9));
   if(u.side==='civ')r*=0.62;else if(u.vehicle)r*=1.3;else if(u.big)r*=1.2;
@@ -3655,7 +3652,7 @@ function drawFloaters(now){
     const [x,y]=worldToCss(f.x,f.y);
     if(x<-100||x>cssW+100||y<-60||y>cssH+60)continue;
     ctx.globalAlpha=t<0.1?t/0.1:1-Math.max(0,(t-0.6)/0.4);
-    T.label(ctx,sc(f.text),x,y-34*t,{kind:'float',color:fcol(f.col),size:13});
+    T.label(ctx,sc(f.text),x,y-34*t,{kind:'float',color:f.col,size:13});
   }
   ctx.globalAlpha=1;ctx.restore();
   floaters=floaters.filter(f=>now-f.t0<1500);
@@ -4044,7 +4041,7 @@ cv.addEventListener('pointerup',ev=>{
       if(hackArm&&u.side==='law'&&u.auto){startFreeHack(u);return;}
       if(u.side==='law'&&!u.surr&&town==='calm'){
         // the player picks the moment the shooting starts
-        if(!startAmbush(u))addFloater(u.x,u.y-30,'NO SHOT','#71809c');
+        if(!startAmbush(u))addFloater(u.x,u.y-30,'NO SHOT',C.text3);
         return;
       }
       camGoal=focusGoal(u);sTick();return;
@@ -4063,7 +4060,7 @@ cv.addEventListener('pointerup',ev=>{
     if(pickMode==='hack'&&sel){
       const t=unitAtCss(px,py);
       if(t&&canHack(sel,t)){sel.order={type:'hack',tid:t.id};sTick();pickMode=null;autoAdvance();syncUI();}
-      else addFloater(sel.x,sel.y-40,'PICK A HACKABLE AUTO IN RANGE','#71809c');
+      else addFloater(sel.x,sel.y-40,'PICK A HACKABLE AUTO IN RANGE',C.text3);
       return;
     }
     if(pickMode&&sel){
@@ -4095,7 +4092,7 @@ cv.addEventListener('pointerup',ev=>{
       const dd=Math.hypot(dx,dy)||1;
       if(dd>NADE_R){dx*=NADE_R/dd;dy*=NADE_R/dd;}
       const gx=s.x+dx,gy=s.y+dy;
-      if(ptBlocked(gx,gy,8)){addFloater(gx,gy-16,'NO LANDING','#71809c');return;}
+      if(ptBlocked(gx,gy,8)){addFloater(gx,gy-16,'NO LANDING',C.text3);return;}
       throwNade(s,gx,gy);
       return;
     }
