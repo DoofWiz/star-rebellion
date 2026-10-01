@@ -181,7 +181,10 @@
 }
 /* ===== ground only ===== */
 #sc-ground #pickPill{cursor:pointer;font-family:inherit;}
-#sc-ground #fsMenu{width:min(440px,100%);max-height:min(46%,360px);}
+#sc-ground .sr-fs{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+#sc-ground #fsBtnHost{display:block;position:relative;}
+#sc-ground .sr-fs .sr-badge{top:-8px;right:-8px;}
+#sc-ground #fsMenu{width:min(360px,100%);max-height:min(56vh,420px);overflow:auto;}
 #sc-ground #fsMenu .sr-window__body{padding:12px;}
 #sc-ground #fsMenu .sr-choice{flex-direction:column;gap:2px;}
 #sc-ground #fsMenu .sr-choice .sr-fine{margin:0;font-weight:500;}

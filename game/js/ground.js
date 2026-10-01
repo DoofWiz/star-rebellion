@@ -4419,6 +4419,16 @@ function syncBar(){
   if(pick)HUD.render(PILL,pickText()+' <span class="sr-kbd">Esc</span>');
   if(phase!=='PLANNING')fsMenuOn=false;
   const fsl=fsItems();
+  const fsBox=byId('fsBox'),fsLive=!!FS&&phase!=='BRIEF'&&phase!=='CUTSCENE'&&phase!=='GAMEOVER';
+  fsBox.hidden=!fsLive;
+  if(fsLive){
+    const canCall=phase==='PLANNING'&&fsl.length>0;
+    HUD.render(byId('fsBtnHost'),HUD.btn({id:'fsBtn',label:'Fire support',icon:'firesupport',size:'sm',soft:!canCall,
+      pressed:canCall?fsMenuOn:null,
+      tip:{title:'Fire support',rule:'Call in the support you arranged: a supply drop, a strafing run, a door gunner or reinforcements.'},
+      why:canCall?'':fsl.length?'Calls are made while planning the round.':'Everything arranged for this run has been used.'})+
+      (fsl.length?'<span class="sr-badge">'+fsl.length+'</span>':''));
+  }
   FSM.hidden=!(fsMenuOn&&fsl.length);
   if(!FSM.hidden)HUD.render(FSM,'<div class="sr-window__head"><span class="sr-window__title">Fire support</span></div><div class="sr-window__body sr-stack">'+
     fsl.map(i=>'<button type="button" class="sr-choice" data-fs="'+i.key+'"><b>'+i.name+'</b><span class="sr-fine">'+i.sub+'</span></button>').join('')+'</div>');
@@ -4489,6 +4499,11 @@ DOCK.addEventListener('click',ev=>{
   }
 });
 PILL.addEventListener('click',()=>{pickMode=null;fsDraft=null;hackArm=false;syncUI();});
+byId('fsBox').addEventListener('click',ev=>{
+  const b=ev.target.closest('#fsBtn');
+  if(!b||b.getAttribute('aria-disabled')==='true'||phase!=='PLANNING')return;
+  sTick();fsMenuOn=!fsMenuOn;syncUI();
+});
 FSM.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-fs]');
   if(!b)return;
