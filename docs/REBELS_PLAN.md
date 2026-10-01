@@ -96,11 +96,17 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
   - Not yet threaded: the Marta's pilot and the rescued VIP in ground missions don't carry traits into the combat scene.
   - Test: `node tools/traits-smoke.js` drives every live ground trait through the real combat functions (and fails if one regresses); autoplay seeds 1–3 finish with no page errors, escalation on days 96 / 71 / 92.
 
-### Phase 3 — Skills
+### Phase 3 — Skills — **built**
 - Derive skills (cap 50) from level + `skillXp` + trait/spec modifiers; Soldier/Marine: Aim, Constitution, Agility, Presence; Pilot: Aim, Cunning, Focus, Presence; Support: none; Hero: all.
 - Plumb into combat: Aim → replaces `soldierAim/pilotAim` (keep the 1–5 range the scenes expect, mapped from skill); Constitution → soldier hp (currently flat 100 in `squadEntry`); Agility → on-foot speed; Presence → starting `cool` (ground flat 65, space `55+4·level`) and panic resistance; Cunning → repair/defensive outcomes; Focus → target-number to be hit (space).
 - `skillXp` grows from what the rebel did in the mission (shots → Aim, damage taken → Constitution, sprinting → Agility, staying Cool under fire → Presence), awarded in the debrief.
 - **Done when:** a level-10 soldier measurably differs from level 1 in hp/speed/cool, with each point a small increment (balance in Phase 10).
+- **Built:** skills are derived, not stored: `skill = min(50, 5 + 1.6·(level−1) + earned)`, where earned (`p.sx`, per skill, max +15) comes from missions. Soldier/Marine: Aim, Constitution, Agility, Presence; Pilot: Aim, Cunning, Focus, Presence; Support none; Hero all six (the Hero type itself is Phase 10).
+  - *Curves:* Aim reproduces the old level formulas for soldiers exactly (levels 1–9) and for pilots within one point, then keeps climbing to a new cap of 6; Constitution 100 hp at level 1, about +1.2 hp per point; Agility +0.4% speed per point; Presence raises starting Cool (ground 65→85 cap; pilots 59→85 cap) and shrinks every Cool loss by 0.5% per point; Focus adds up to +3 to the target number against a pilot; Cunning scales shield boosts and field repairs by up to +50%.
+  - *Experience:* ground counts shots and hits (Aim), damage taken (Constitution), move/sprint orders (Agility), and holding Cool under fire or steadying from panic (Presence); space counts shots and hits (Aim), shots that missed them (Focus), shield, repair and evade actions (Cunning), kills and Lock In (Presence). Each scene's result now carries a per-rebel `sk` object; `base.js` turns it into experience (max +1.5 per skill per mission) in `applyDebrief`.
+  - *UI:* the dossier and New Recruit screen show skill bars out of 50.
+  - *Not yet:* Aim still applies to guided weapons for pilots (the doc says unguided only); Support skills stay absent; the Marta's pilot and the VIP don't carry skills into ground missions.
+  - Tests: `node tools/skills-smoke.js` (curves, caps, role sets, squad and flight profiles, debrief training); I also drove one ground and one space mission end to end and checked the results carry `sk`. Autoplay seeds 1–3 unchanged (96 / 71 / 92).
 
 ### Phase 4 — Per-rebel morale
 - `p.morale` 0–100, bands Very Low/Low/Middling/High/Very High, shown as a bar + word in dossier and roster.

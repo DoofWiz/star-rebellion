@@ -94,6 +94,8 @@ let infoShip=null; // ship id whose dossier/ship windows are open
 let hudT=0;        // seconds for HUD pulses; 0 under prefers-reduced-motion
 
 function mkPilot(o){return Object.assign({friendLock:false,lastSay:0},o);}
+/* what a pilot did this mission, in raw points per skill; base.js turns it into experience */
+function psk(s,k,n){if(s&&s.faction==='reb'&&s.pilot){const p=s.pilot;p.sk=p.sk||{};p.sk[k]=(p.sk[k]||0)+n;}}
 function mkShip(id,name,cls,faction,x,y,h,pilot){
   const c=CLS[cls];
   return {id,name,cls,faction,x,y,h,pilot,chatKey:pilot.chatKey||null,
@@ -132,6 +134,7 @@ function nerve(s){
 function adjCool(s,d,why){
   if(CLS[s.cls].mute)return; // no nerve to rattle
   const p=s.pilot,pre=coolState(s);
+  if(d<0&&p.nv)d=Math.round(d*p.nv);
   if(d<0){if(p.traits.includes('Brave'))d=Math.round(d*0.5);if(p.traits.includes('Cowardly'))d=Math.round(d*1.5);}
   p.cool=Math.max(0,Math.min(100,p.cool+d));
   if(p.traits.includes('Veteran'))p.cool=Math.max(40,p.cool);
@@ -201,7 +204,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,
-          aim:f.aim||2,cool:f.cool||60,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}));
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
@@ -403,6 +406,7 @@ function computeTN(s,t){
   if(coolState(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
   if(coolState(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
   if(s.pilot.traits.includes('Lucky')){v-=1;e.push(['LUCKY',-1]);}
+  if(t.pilot.foc){v+=t.pilot.foc;e.push(['FOCUS',t.pilot.foc]);}
   return {total:v,entries:e};
 }
 function computeATK(s,t,wkey){
@@ -588,8 +592,8 @@ function doAction(s,act){
       log(nameSpan(s)+' <span class="d">locks</span> '+nameSpan(act.t)+' <span class="a">[lvl '+s.lock.level+']</span>');
       sLock();
     }
-  } else if(act.a==='flydef'){s.tokens.evade=true;addFloater(s.x,s.y-36,'FLYING DEFENSIVE',C.shield);}
-  else if(act.a==='lockin'){adjCool(s,35,'locked in');addFloater(s.x,s.y-36,'LOCKED IN',C.go);}
+  } else if(act.a==='flydef'){psk(s,'cun',1);s.tokens.evade=true;addFloater(s.x,s.y-36,'FLYING DEFENSIVE',C.shield);}
+  else if(act.a==='lockin'){psk(s,'pre',1);adjCool(s,35,'locked in');addFloater(s.x,s.y-36,'LOCKED IN',C.go);}
   else if(act.a==='broll'){
     const side=rng()<0.5?1:-1;
     const e=clampEnd({x:s.x-Math.sin(s.h)*70*side,y:s.y+Math.cos(s.h)*70*side,h:s.h});
@@ -599,6 +603,7 @@ function doAction(s,act){
     checkLocks();
   }
   else if(act.a==='shiftF'||act.a==='shiftR'){
+    psk(s,'cun',1);
     const seg=s.segs[act.a==='shiftF'?'F':'R'];
     seg.at=seg.at==='F'?'R':'F';
     s.shieldFx=performance.now();s.shieldFxZone=seg.at;
@@ -609,8 +614,9 @@ function doAction(s,act){
     sShield();
   }
   else if(act.a==='boostF'||act.a==='boostR'){
+    psk(s,'cun',1);
     const seg=s.segs[act.a==='boostF'?'F':'R'];
-    const amt=Math.min(seg.max-seg.val,Math.ceil(0.15*maxShield(s)));
+    const amt=Math.min(seg.max-seg.val,Math.ceil(0.15*maxShield(s)*(s.pilot.cun||1)));
     if(amt>0){
       seg.val+=amt;
       s.shieldFx=performance.now();s.shieldFxZone=seg.at;
@@ -621,13 +627,15 @@ function doAction(s,act){
     }
   }
   else if(act.a==='fieldrep'){
-    const amt=Math.ceil(0.15*s.maxHull);
+    psk(s,'cun',1);
+    const amt=Math.ceil(0.15*s.maxHull*(s.pilot.cun||1));
     s.hull=Math.min(s.maxHull,s.hull+amt);
     addFloater(s.x,s.y-36,'HULL +'+amt,C.go);
     log(nameSpan(s)+' <span class="g">field-repairs the hull +'+amt+'</span>');
     say(s,'repair');
   }
   else if(act.a==='fixcrit'&&act.crit){
+    psk(s,'cun',1);
     const i=s.crits.indexOf(act.crit);
     if(i>=0){
       s.crits.splice(i,1);
@@ -843,6 +851,7 @@ function applyCtx(c){
   if(!c.hit){
     addFloater(t.x,t.y-30,'MISS',C.hazard);
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="d">MISS</span>');
+    psk(s,'aim',1);psk(t,'foc',1);
   } else {
     const fromFront=hitsFront(s,t);
     const {sd,ad,hd,zone}=applyDamage(t,c.dmg,WPN[c.wkey].skipShield,fromFront);
@@ -854,6 +863,7 @@ function applyCtx(c){
     if(hd>0){hullHitFx(t,hd);addFloater(t.x,fy,'-'+hd+' HULL',C.gold);fy-=18;}
     if(WPN[c.wkey].skipShield&&totalShield(t)>0)addFloater(t.x,fy,'SHIELDS BYPASSED',C.goldHi);
     adjCool(t,(ad>0||hd>0)?-12:-5,'taking fire');
+    psk(t,'foc',0.3);
     if(hd>=8&&t.alive)say(t,'hit');
     shake=Math.max(shake,RM?0:(c.wkey==='missile'?14:6));
     if(c.wkey==='missile'){flashT=performance.now();sBoom(true);}
@@ -861,6 +871,7 @@ function applyCtx(c){
     else sHit();
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="a">HIT '+c.dmg+'</span>');
     if(s.faction==='reb')s.pilot.xpGain=(s.pilot.xpGain||0)+0.03;
+    psk(s,'aim',1);
     /* exactly one critical per attack: hull damage grants one, or a
        through-armor crit proc grants one — never both */
     if(t.alive&&t.hull>0&&(hd>0||c.crit))
@@ -881,7 +892,7 @@ function destroyShip(t,killer){
   sBoom(isStruct(t));
   if(isStruct(t))log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">goes up</span> — the fuel cooks off in a fireball they’ll see from Dustfall.');
   else log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">destroyed!</span>');
-  if(killer&&killer.alive){adjCool(killer,12,'kill');say(killer,'kill');}
+  if(killer&&killer.alive){psk(killer,'pre',1);adjCool(killer,12,'kill');say(killer,'kill');}
   for(const m of ships){
     if(!m.alive||m.faction!==t.faction||m===t)continue;
     adjCool(m,-18,'wingman lost');
@@ -1015,7 +1026,7 @@ function buildResult(win){
     const dead=sh&&!sh.alive&&!sh.fledOut;
     return {id:f.pilotId,
       xp:Math.round((((sh&&sh.pilot.xpGain)||0)+(win?0.15:0.05))*100)/100,
-      state:dead?'shotdown':'ok'};
+      state:dead?'shotdown':'ok',sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
   });
   const fighters=(CTX.flight||[]).map((f,i)=>{
     const sh=ships.find(x=>x.id==='P'+(i+1));

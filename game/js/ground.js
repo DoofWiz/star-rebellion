@@ -21,8 +21,10 @@ let W=2400,H=1600;
 const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135,SNEAK_SPEED=72;
 /* Character Traits (see rebel.js): units carry their trait keys in u.tr */
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
-const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1);
+const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1);
 const viewMul=u=>hasT(u,'hunter')?1.2:1;
+/* what a rebel did this mission, in raw points per skill; base.js turns it into experience */
+function sk(u,k,n){if(u&&u.side==='reb'&&!u.auto&&!u.ally){u.sk=u.sk||{};u.sk[k]=(u.sk[k]||0)+n;}}
 const NADE_R=300,NADE_BLAST=110;
 const HOT_ROUNDS=2;
 const SHIELD_ARC=1.15;               // half-angle of the turret's frontal shield
@@ -769,8 +771,8 @@ function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
-    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
-    level:sp.level||1,tr:sp.tr||[],stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
+    level:sp.level||1,tr:sp.tr||[],agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1114,6 +1116,7 @@ function applyShot(s,t,wkey,snap){
   const tn=computeTN(s,t),atk=computeATK(s,t,wkey,snap);
   const need=needFor(tn.total,atk.total);
   const roll=rint(1,20);
+  sk(s,'aim',1);
   if(hasT(s,'hothead'))adjCoolG(s,3,'in the fight');
   const jammed=jamRoll(s,wkey,roll);
   const hit=!jammed&&(roll>=need);
@@ -1135,6 +1138,7 @@ function applyShot(s,t,wkey,snap){
 }
 function woundUnit(s,t,dmg,crit){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
+  sk(s,'aim',1);
   if(t.tr&&t.tr.length){
     if(hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
     if(hasT(t,'lucky')&&t.hp-dmg<=0&&rng()<0.05){dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
@@ -1142,6 +1146,7 @@ function woundUnit(s,t,dmg,crit){
     if(hasT(t,'shortfuse'))t.fuse=2;
   }
   t.hp-=dmg;
+  sk(t,'con',dmg/10);
   dmgRound.add(t.id);
   adjCoolG(t,-16,'took a hit');
   if(crit&&!t.wound&&t.hp>0){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
@@ -1375,6 +1380,7 @@ function adjCoolG(u,d,why){
   if(u&&u.auto)return;   // robots do not panic
   if(!u||u.side==='civ'||u.down||u.surr||u.extracted||u.away)return;
   const pre=coolStateG(u);
+  if(d<0&&u.nv)d=Math.round(d*u.nv);
   if(d<0&&u.tr&&u.tr.length){
     if(hasT(u,'brave'))d=Math.round(d*0.5);
     if(hasT(u,'cowardly'))d=Math.round(d*1.5);
@@ -1388,7 +1394,8 @@ function adjCoolG(u,d,why){
     log(nameSpan(u)+' <span class="b">is panicking</span>'+(why?' <span class="d">('+why+')</span>':''));
     if(u.side==='reb'&&u.order&&u.order.type!=='lockin')u.order=null;
   }
-  if(pre==='panic'&&post!=='panic')addFloater(u.x,u.y-52,'STEADIED',C.go);
+  if(pre==='panic'&&post!=='panic'){addFloater(u.x,u.y-52,'STEADIED',C.go);sk(u,'pre',1);}
+  else if(d<0&&post!=='panic')sk(u,'pre',0.25);
 }
 function moraleCheck(){
   const sheriffDown=U.some(u=>u.sheriff&&(u.down||u.surr));
@@ -1808,8 +1815,8 @@ function fsRoundEnd(){
   }
 }
 function mkSquadUnit(sp,x,y){
-  return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
-    level:sp.level||1,tr:sp.tr||[],stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+  return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
+    level:sp.level||1,tr:sp.tr||[],agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2239,6 +2246,7 @@ function execute(){
     if(o&&(o.type==='move'||o.type==='sprint')){
       u.path=pathFor(u,o.tx,o.ty);
       u.sprinted=o.type==='sprint'?1:0;
+      sk(u,'agi',u.sprinted?1:0.5);
       if(u.sprinted&&hasT(u,'reckless'))u.reck=2;
       u.braced=0;
     } else if(o&&o.type==='man'&&dist(u,TURRET)>40){
@@ -2405,6 +2413,7 @@ function attackUpdate(now){
   } else if(c.stage==='fire'){
     if(el>420&&!c.applied){
       c.applied=true;
+      sk(c.s,'aim',1);
       if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
       if(c.t.obj){
         if(c.jammed){
@@ -2721,7 +2730,9 @@ function buildResult(win){
     let state='ok';
     if(u.down)state=haven?(win?'injured':'ok'):'injured'; // nobody is buried this early in the war
     const xp=Math.round(((u.xpGain||0)+(win?0.12:0.03))*100)/100;
-    people.push({id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)});
+    const rec={id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)};
+    if(u.sk){rec.sk={};for(const k in u.sk)rec.sk[k]=Math.round(u.sk[k]*10)/10;}
+    people.push(rec);
   }
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   const gained=win?U.filter(u=>u.hacked&&u.extracted&&!u.down).map(u=>({type:u.autoType,name:u.name})):[];

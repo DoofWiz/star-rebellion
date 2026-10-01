@@ -2759,7 +2759,16 @@ const TUT_PAGES=[
 function dossierHead(p,extra){
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+wTag(rankFor(p),'action')+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+traitCard(p);
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+traitCard(p)+skillsCard(p);
+}
+/* skill bars out of 50: the level sets the base, mission experience adds the rest */
+function skillsCard(p){
+  const ks=Rebel.skillKeys(p);
+  if(!ks.length)return '';
+  return '<div class="sr-h3">Skills</div><div class="sr-stack">'+ks.map(k=>{
+    const v=Rebel.skill(p,k),S=Rebel.SKILLS[k];
+    return '<div class="sr-loot" title="'+esc(S.d)+'"><span>'+S.n+'</span><b>'+v+'<span class="sr-faint"> / '+Rebel.SKILL_CAP+'</span></b></div>';
+  }).join('')+'</div>';
 }
 /* the Character Trait card: designer copy plus a plain-language effect (greyed until the effect is wired in) */
 function traitCard(p){
@@ -3815,7 +3824,7 @@ function assetsHTML(){
 }
 function squadEntry(p,scatterFirst){
   return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),
-    aim:soldierAim(p),hp:p.auto?autoOf(p).hp:100,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+    aim:soldierAim(p),hp:p.auto?autoOf(p).hp:Rebel.hpOf(p),agi:p.auto?1:Rebel.moveMul(p),nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Rebel.coolOf(p,'g'),def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:scatterFirst?['scatter','akli','cowboy']:['akli','cowboy']};
 }
 function startPlan(){
@@ -3854,7 +3863,7 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        aim:pilotAim(p),cool:Math.min(85,55+p.level*4),traits:Rebel.namesFor(p,'s'),
+        aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
@@ -3864,8 +3873,8 @@ function startPlan(){
   saveSnap();
   SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
 }
-function soldierAim(p){return Math.max(1,Math.min(5,2+Math.floor(p.level/3)+(p.spec==='vanguard'?1:0)));}
-function pilotAim(p){return Math.max(1,Math.min(5,1+Math.ceil(p.level/2)+(p.spec==='dogfighter'?1:0)));}
+function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
+function pilotAim(p){return Math.min(6,Rebel.aimOf(p,'s')+(p.spec==='dogfighter'?1:0));}
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
@@ -3886,7 +3895,7 @@ function applyDebrief(r){
       for(const pr of r.people||[]){
         const p=G.people.find(x=>x.id===pr.id);
         if(!p)continue;
-        if(pr.xp)gainXp(p,pr.xp);
+        if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
         if(pr.state==='injured'){
           p.injured=pr.dur||2;
           news('<b>'+p.name+'</b> took the rock the hard way \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
@@ -3927,7 +3936,7 @@ function applyDebrief(r){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
     p.assign='rest';
-    if(pr.xp)gainXp(p,pr.xp);
+    if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
@@ -4140,7 +4149,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

@@ -129,6 +129,45 @@ window.Rebel=(function(){
   /* names of the live traits a scene cares about (space.js tests traits by display name) */
   const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
 
+
+  /* ---------- skills ----------
+     Derived, never stored: level gives a steady base and p.sx (earned in missions, capped) adds the rest.
+     Soldiers and Marines: Aim, Constitution, Agility, Presence. Pilots: Aim, Cunning, Focus, Presence.
+     Support have none; a Hero has all six. Everything caps at 50, and each point is only a small nudge. */
+  const SKILL_CAP=50,SX_CAP=15;
+  const SKILLS={
+    aim:{n:'Aim',d:'Better chance to hit.'},
+    con:{n:'Constitution',d:'More personal health.'},
+    agi:{n:'Agility',d:'Faster on foot.'},
+    pre:{n:'Presence',d:'Stays Cool and resists panic.'},
+    cun:{n:'Cunning',d:'Better repairs and defensive measures.'},
+    foc:{n:'Focus',d:'Harder to hit.'},
+  };
+  const SKILLSET={Soldier:['aim','con','agi','pre'],Marine:['aim','con','agi','pre'],Pilot:['aim','cun','foc','pre'],Hero:['aim','con','agi','cun','foc','pre'],Support:[]};
+  const skillKeys=p=>(p&&!p.auto&&SKILLSET[p.role])||[];
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  function skill(p,k){
+    if(skillKeys(p).indexOf(k)<0)return 0;
+    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0)));
+  }
+  /* what the combat scenes read; the curves keep a fresh rebel where the old level formulas had them */
+  const aimOf=(p,theatre)=>theatre==='s'?clamp(Math.round(2+(skill(p,'aim')-5)/3.2-0.25),1,6):clamp(Math.round(2+(skill(p,'aim')-5)/4.8),1,6);
+  const hpOf=p=>100+Math.round((skill(p,'con')-5)*1.2);
+  const moveMul=p=>1+(skill(p,'agi')-5)*0.004;
+  const coolOf=(p,theatre)=>theatre==='s'?Math.min(85,Math.round(59+(skill(p,'pre')-5)*2)):Math.min(85,Math.round(65+(skill(p,'pre')-5)*0.6));
+  const nerveMul=p=>1-(skill(p,'pre')-5)*0.005;       // scales every Cool loss
+  const focusTN=p=>Math.round((skill(p,'foc')-5)/14);    // added to the number others need to hit them
+  const cunMul=p=>1+(skill(p,'cun')-5)*0.01;            // repairs and shield boosts
+  /* experience from a mission: `sk` maps skill -> raw points the scene counted; gains are small and capped */
+  function trainSkills(p,sk){
+    if(!sk)return;
+    p.sx=p.sx||{};
+    for(const k of skillKeys(p)){
+      if(!sk[k])continue;
+      p.sx[k]=Math.min(SX_CAP,(p.sx[k]||0)+Math.min(1.5,sk[k]*0.05));
+    }
+  }
+
   /* XP is stored as a 0..1 fraction of the way to the next level. Level 20 is the end of the road. */
   function addXp(p,amount){
     if(p.level>=LEVEL_CAP){p.xp=0;return 0;}
@@ -147,8 +186,9 @@ window.Rebel=(function(){
   function migrate(p){
     if(!p.auto&&(p.first===undefined||p.last===undefined)){const s=split(p.name);p.first=s.first;p.last=s.last;}
     if(!p.auto&&p.charTrait===undefined)p.charTrait=AUTHORED[p.id]||hashPick(p);
+    if(!p.auto&&p.sx===undefined)p.sx={};
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP};
 })();
