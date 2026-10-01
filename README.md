@@ -5,6 +5,15 @@ rules of the X-Wing miniatures game, adapted for a video game), the Haven Rock
 base-management layer, and gridless WeGo ground combat. We'll iterate on
 what's fun over time.
 
+## UI kit (`game/ui/`, `tools/ui-kit/`, `docs/ui/`)
+
+All three scenes share one UI kit, "Chunky Ops": `game/ui/sr-theme.css` (tokens and components),
+`sr-theme.js` (canvas palette and HUD drawing helpers), `sr-icons.svg` (inline sprite) and `sr-hud.js`
+(command bar, VS panel, menus, windows). The kit files are generated: edit the sources in
+`tools/ui-kit/` and run `python3 tools/ui-kit/build.py game/ui docs/ui`. `docs/ui/styleguide.html`
+is the living style guide and `docs/ui/HANDOFF.md` the migration spec. Scene-specific layout lives
+in `game/ui/scenes.css`.
+
 ## `game/` — the unified game
 
 The three layers now run as **one playable game** (`game/index.html` +
