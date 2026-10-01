@@ -1186,7 +1186,7 @@ function camFitPlayers(snap){
   const es=ships.filter(s=>s.alive&&s.faction==='heg');
   const all=ps.length?ps.concat(es.slice(0,1)):ships.filter(s=>s.alive);
   if(!all.length)return;
-  const g=frameGoalOf(all,0.7,0,900);
+  const g=frameGoalOf(all,0.7,36,900);
   if(snap){resolveGoal(g);cam={x:g.x,y:g.y,z:g.z};clampCam();camGoal=g;}   // the goal stays, so the first frame re-frames once the bar has been measured
   else camGoal=g;
 }
@@ -2291,7 +2291,7 @@ DOCK.addEventListener('click',ev=>{
   if(b.hasAttribute('data-man')){
     setMan(b.getAttribute('data-man'));
     if(ev.detail===0){                                  // keyboard: keep the focus in the bar
-      const k=DOCK.querySelector('.sr-dial__k.is-active')||DOCK.querySelector('.sr-dial__k:not(:disabled)');
+      const k=DOCK.querySelector('.sr-dial__k.is-active')||DOCK.querySelector('button.sr-dial__k:not(:disabled)');
       const go=DOCK.querySelector('#executeBtn:not(:disabled)');
       const nx=ships.some(x=>x.alive&&x.faction==='reb'&&!x.plan.man);
       const f=(!nx&&go)?go:k;if(f)f.focus();
