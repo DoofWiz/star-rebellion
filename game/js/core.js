@@ -98,6 +98,7 @@ window.SR=(function(){
     if(s&&s.frame){try{s.frame(now);}catch(e){console.error(e);}}
   }
   function boot(){
+    if(window.SR_THEME)window.SR_THEME.sync();
     for(const n in scenes){
       const el=document.getElementById('sc-'+n);
       if(el)containers[n]=el;
@@ -119,34 +120,28 @@ window.SR=(function(){
     ballistic:{n:'Ballistic',i:'shell'},
     missile:{n:'Missile',i:'missile'},
   };
-  const ICO={
-    rifle:'M1 7h9.6V5.4h1.6V7H15v1.8h-3.2l-1 2.6H8.9l.9-2.6H6.3v2H4.6v-2H1z',
-    pistol:'M2 4.6h11.4v2.8H9.4l-1.1 4H5.2l1.1-4H2z',
-    shotgun:'M1 5.6h10.4V4.2h1.8v1.4H15v1.6H1zM1 8.4h9.4l-.8 3H7l.6-2H1z',
-    plasma:'M9.4 1 3.4 9h3.1L5.6 15l6-8H8.5z',
-    shell:'M3.2 6.4a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zM8 6.4a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4zM12.8 6.4a1.7 1.7 0 1 1 0 3.4 1.7 1.7 0 0 1 0-3.4z',
-    missile:'M2.2 11.8 8 9.6l4.6-4.6L14 1l-4 1.4L5.4 7zM3 14l2.4-1.2L4 11.4z',
-    ship:'M8 1l6 13-6-3.4L2 14z',
-  };
-  function icon(k){return ICO[k]?'<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden="true"><path d="'+ICO[k]+'"/></svg>':'';}
+  /* kit sprite names; the sprite is inlined at the top of index.html */
+  const ICON={rifle:'gun',pistol:'pistol',shotgun:'gun',plasma:'plasma',shell:'ballistic',missile:'missile',ship:'ship'};
+  function icon(k){return ICON[k]?'<svg class="sr-ico" aria-hidden="true"><use href="#i-'+ICON[k]+'"/></svg>':'';}
   const ui={
     icon,
     gearChips(list){
       return (list||[]).map(w=>{const g=GEAR[w]||{n:w,i:null};return {icon:g.i,label:g.n};});
     },
     squadCard(o){
-      let h='<div class="sqCard'+(o.pilot?' pilot':'')+'">';
-      h+='<div class="sqn">'+o.name+'</div>';
-      h+='<div class="sqr">'+o.role+'</div>';
-      h+='<div class="sqw">';
-      for(const c of o.chips||[])h+='<span class="wch">'+(c.icon?icon(c.icon):'')+'<span>'+c.label+'</span></span>';
-      h+='</div></div>';
+      const ini=String(o.name||'?').split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      let h='<div class="sr-squadcard"><span class="sr-avatar'+(o.pilot?' sr-avatar--pilot':'')+'">'+ini+'</span><div>';
+      h+='<div class="sr-squadcard__name">'+o.name+'</div>';
+      h+='<div class="sr-squadcard__role">'+(o.role||(o.pilot?'Pilot':''))+'</div>';
+      h+='<div class="sr-squadcard__gear">';
+      for(const c of o.chips||[])h+='<span class="sr-gear">'+(c.icon?icon(c.icon):'')+'<span>'+c.label+'</span></span>';
+      h+='</div></div></div>';
       return h;
     },
     objRows(list){
       return (list||[]).map(o=>{
         const t=(typeof o==='string')?{text:o}:o;
-        return '<div class="orow'+(t.sub?' sub':'')+'"><span class="tick">'+(t.sub?'·':'▸')+'</span><span>'+t.text+'</span></div>';
+        return '<div class="sr-obj'+(t.sub?' sr-obj--note':'')+'"><span class="sr-obj__mark"></span><span>'+t.text+'</span></div>';
       }).join('');
     },
   };
@@ -158,7 +153,7 @@ window.SR=(function(){
     const sc=b.closest('.scene');
     if(sc)sc.classList.toggle('drawer');
   });
-  return {register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
+  return {theme:window.SR_THEME,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

@@ -1769,7 +1769,7 @@ function renderBase(now){
       if(cell.dig){
         ctx.strokeStyle='rgba(255,180,84,0.8)';ctx.lineWidth=1.4;
         diamond(x,y,S,5);ctx.stroke();
-        ctx.fillStyle='#ffb454';ctx.font='700 9px "IBM Plex Mono"';ctx.textAlign='center';
+        ctx.fillStyle='#ffb454';ctx.font='700 11px '+SR.theme.FONT.ui;ctx.textAlign='center';
         ctx.fillText(cell.dig+'d',x,y+3);
       }
       continue;
@@ -1981,7 +1981,7 @@ function renderRoomView(now){
         ctx.globalAlpha=0.6;
         craftTop('graf',bx,by,3.4,-0.5,'#3a3f46');
         ctx.globalAlpha=1;
-        ctx.font='700 11px "IBM Plex Mono"';ctx.textAlign='center';
+        ctx.font='700 11px '+SR.theme.FONT.ui;ctx.textAlign='center';
         ctx.fillStyle='rgba(255,180,84,0.75)';
         ctx.fillText(G.wreck.restoring?'RESTORING · '+G.wreck.restoring+'D':'DERELICT',bx,by+62);
         continue;
@@ -2040,7 +2040,7 @@ function renderRoomView(now){
     ctx.strokeStyle='rgba(255,180,84,0.6)';ctx.lineWidth=2;
     ctx.strokeRect(150,-80,80,50);
     G.armory.forEach((a,i)=>{
-      ctx.font='700 12px "IBM Plex Mono"';ctx.textAlign='left';
+      ctx.font='700 12px '+SR.theme.FONT.ui;ctx.textAlign='left';
       ctx.fillStyle='#ffb454';ctx.fillText(a.ic+' ×'+a.n,158,-60+i*16);
     });
     staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,'#9fe0a8'));
@@ -2198,7 +2198,7 @@ function drawGalaxy(now){
       c2.strokeStyle='rgba(201,135,255,'+(0.25+0.3*p)+')';
       c2.lineWidth=1;
       c2.beginPath();c2.arc(x,y,5+3*p,0,7);c2.stroke();
-      c2.font='700 10px "IBM Plex Mono"';c2.textAlign='center';
+      c2.font='700 11px '+SR.theme.FONT.ui;c2.textAlign='center';
       c2.fillStyle='rgba(201,135,255,'+(0.5+0.3*p)+')';c2.fillText('?',x,y+3.5);
       c2.font='600 8px "Exo 2"';
       c2.fillStyle='rgba(113,128,156,0.6)';c2.fillText('UNCHARTED',x,y+18);
@@ -2308,7 +2308,7 @@ function drawCommStatic(now){
     x===0?c2.moveTo(x,y):c2.lineTo(x,y);
   }
   c2.stroke();
-  c2.font='700 8px "IBM Plex Mono"';c2.textAlign='left';
+  c2.font='700 11px '+SR.theme.FONT.ui;c2.textAlign='left';
   c2.fillStyle='rgba(120,255,190,0.6)';
   c2.fillText('ENCRYPTED · REBEL NET · '+(winArg&&winArg.src?winArg.src.loc.toUpperCase():''),8,12);
 }

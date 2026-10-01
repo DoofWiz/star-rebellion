@@ -1313,7 +1313,7 @@ function drawLockLines(){
   }
 }
 function drawLockBadges(){
-  ctx.font='700 10px "IBM Plex Mono"';
+  ctx.font='700 11px '+SR.theme.FONT.ui;
   for(const s of ships){
     if(!s.alive||!s.lock)continue;
     const t=ships.find(x=>x.id===s.lock.target&&x.alive);
@@ -1359,7 +1359,7 @@ function drawCritPip(s,px,py){
   const x=px+30,y=py-34;
   ctx.fillStyle='rgba(42,14,18,0.9)';ctx.strokeStyle='#ffb454';ctx.lineWidth=1;
   ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#ffb454';ctx.font='800 9px "IBM Plex Mono"';ctx.textAlign='center';
+  ctx.fillStyle='#ffb454';ctx.font='800 11px '+SR.theme.FONT.ui;ctx.textAlign='center';
   ctx.fillText(String(s.crits.length),x,y+3);
 }
 function swordIcon(x,y,col,pulse){
@@ -1420,7 +1420,7 @@ function drawVsPanel(now){
   ctx.strokeStyle='rgba(60,80,130,0.5)';
   ctx.beginPath();ctx.moveTo(x+10,y+28);ctx.lineTo(x+PW-10,y+28);ctx.stroke();
   ctx.beginPath();ctx.moveTo(x+PW/2,y+30);ctx.lineTo(x+PW/2,y+34+maxRows*16);ctx.stroke();
-  ctx.font='600 10px "IBM Plex Mono"';
+  ctx.font='700 11px '+SR.theme.FONT.ui;
   for(let i=0;i<rowsL;i++){
     const [lab,val,base]=c.atk.entries[i];
     const ry=y+42+i*16;
@@ -1436,7 +1436,7 @@ function drawVsPanel(now){
     ctx.fillText((base?'':(val>=0?'+':''))+val,x+PW-14,ry);
   }
   const ty=y+42+maxRows*16+4;
-  ctx.font='800 11px "IBM Plex Mono"';
+  ctx.font='800 11px '+SR.theme.FONT.ui;
   ctx.textAlign='left';ctx.fillStyle='#7de3ec';
   if(c.atk)ctx.fillText('ATK '+c.atk.total,x+14,ty);
   ctx.textAlign='right';ctx.fillStyle='#ffb454';
@@ -1448,14 +1448,14 @@ function drawVsPanel(now){
     if(c.stage==='roll'||c.stage==='verdict'||c.stage==='fire'){
       const settled=c.stage!=='roll';
       const shown=settled?c.roll:rint(1,20);
-      ctx.font='800 13px "IBM Plex Mono"';
+      ctx.font='800 13px '+SR.theme.FONT.ui;
       ctx.fillStyle='#9fb0cc';
       ctx.fillText('HIT '+pct+'% · NEED '+need+'+',x+PW/2-60,ty+22);
-      ctx.font='800 20px "IBM Plex Mono"';
+      ctx.font='800 20px '+SR.theme.FONT.ui;
       ctx.fillStyle=settled?(c.hit?'#7dd97b':'#ff8f9a'):'#ffffff';
       ctx.fillText('d20: '+shown,x+PW/2+92,ty+23);
     } else {
-      ctx.font='800 15px "IBM Plex Mono"';
+      ctx.font='800 15px '+SR.theme.FONT.ui;
       ctx.fillStyle=pct>=60?'#7dd97b':pct>=35?'#ffb454':'#ff8f9a';
       ctx.fillText('HIT CHANCE '+pct+'%  ·  NEED '+need+'+ ON D20',x+PW/2,ty+23);
     }

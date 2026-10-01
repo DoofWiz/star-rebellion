@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Star Rebellion — HUD &amp; UI style guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Exo+2:wght@500;600;700;800&display=swap">
+<style>
+/*@CSS@*/
+
+/* ===== style-guide page chrome (not part of the theme) ===== */
+html{scroll-padding-top:calc(64px + env(safe-area-inset-top,0px));height:auto;}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
+body{margin:0;background:var(--sr-void);color:var(--sr-text);}
+.sg-nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:100;display:flex;align-items:center;gap:6px;padding:10px 20px;
+  background:var(--sr-night);border-bottom:2px solid var(--sr-ink);overflow-x:auto;scrollbar-width:none;}
+.sg-nav__brand{font:400 15px/1 var(--sr-font-display);color:var(--sr-gold);margin-right:14px;white-space:nowrap;}
+.sg-nav a{font:700 13px/1 var(--sr-font-ui);color:var(--sr-text-2);text-decoration:none;padding:8px 10px;border-radius:6px;white-space:nowrap;}
+.sg-nav a:hover{color:var(--sr-text);background:var(--sr-hull);}
+.sg-wrap{max-width:1360px;margin:0 auto;padding:0 20px 80px;}
+.sg-hero{padding:44px 0 24px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px;align-items:end;}
+.sg-hero h1{margin:0;font:400 clamp(40px,6vw,78px)/.95 var(--sr-font-display);color:var(--sr-text);text-shadow:0 5px 0 var(--sr-ink);}
+.sg-hero h1 span{display:block;color:var(--sr-gold);font-size:.5em;margin-top:10px;}
+.sg-hero p{margin:0;font:500 17px/1.6 var(--sr-font-ui);color:var(--sr-text-2);max-width:56ch;}
+.sg-sec{padding-top:56px;}
+.sg-sec>h2{display:flex;align-items:baseline;gap:14px;margin:0 0 6px;font:400 30px/1 var(--sr-font-display);}
+.sg-sec>h2 small{font:700 14px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sg-lede{margin:0 0 22px;font:500 15px/1.6 var(--sr-font-ui);color:var(--sr-text-2);max-width:72ch;}
+.sg-lede b{color:var(--sr-text);}
+.sg-sub{margin:28px 0 12px;font:800 15px/1 var(--sr-font-ui);color:var(--sr-text);}
+.sg-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;}
+.sg-row--top{align-items:flex-start;}
+.sg-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));align-items:start;}
+.sg-board{padding:22px;background:var(--sr-night);border:2px solid var(--sr-ink);border-radius:var(--sr-r-xl);}
+.sg-board--map{background:#151a33 radial-gradient(circle at 20% 30%,#1d2346,transparent 60%);}
+.sg-cap{margin-top:10px;font:600 13px/1.45 var(--sr-font-ui);color:var(--sr-text-3);max-width:60ch;}
+.sg-cap b{color:var(--sr-text-2);}
+.sg-frame{overflow-x:auto;border:2px solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);}
+.sg-frame__inner{min-width:1280px;height:780px;}
+.sg-stateswitch{display:flex;align-items:center;gap:12px;margin:0 0 14px;flex-wrap:wrap;}
+.sg-stateswitch span{font:700 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sg-rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;counter-reset:r;}
+.sg-rule{padding:16px 18px;background:var(--sr-hull);border:2px solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+.sg-rule h3{margin:0 0 6px;font:800 16px/1.25 var(--sr-font-ui);}
+.sg-rule p{margin:0;font:500 14px/1.55 var(--sr-font-ui);color:var(--sr-text-2);}
+.sg-sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;}
+.sg-chip{border:2px solid var(--sr-ink);border-radius:var(--sr-r-lg);overflow:hidden;background:var(--sr-hull);box-shadow:var(--sr-lift);}
+.sg-chip i{display:block;height:64px;border-bottom:2px solid var(--sr-ink);}
+.sg-chip div{padding:9px 11px;}
+.sg-chip b{display:block;font:800 14px/1.2 var(--sr-font-ui);}
+.sg-chip code{font:600 12px/1.4 var(--sr-font-ui);color:var(--sr-text-3);}
+.sg-chip p{margin:4px 0 0;font:600 12px/1.4 var(--sr-font-ui);color:var(--sr-text-2);}
+.sg-type{display:grid;gap:14px;}
+.sg-type__row{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:baseline;padding-bottom:14px;border-bottom:1px solid var(--sr-hull);}
+.sg-type__row code{font:600 12px/1.4 var(--sr-font-ui);color:var(--sr-text-3);}
+.sg-icons{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;}
+.sg-icon{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px 10px;background:var(--sr-hull);border:2px solid var(--sr-ink);border-radius:var(--sr-r);}
+.sg-icon .sr-ico{width:28px;height:28px;}
+.sg-icon span{font:600 11px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sg-icongroup{margin:16px 0 8px;font:800 13px/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.sg-canvas{display:block;width:100%;height:420px;border-radius:var(--sr-r-lg);}
+.sg-legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 18px;margin-top:12px;}
+.sg-legend div{font:600 13px/1.4 var(--sr-font-ui);color:var(--sr-text-2);}
+.sg-legend b{color:var(--sr-text);}
+.sg-inline-window{position:relative;animation:none;}
+.sg-phone{position:relative;width:390px;height:844px;border:10px solid #000;border-radius:44px;overflow:hidden;box-shadow:0 0 0 2px var(--sr-seam),var(--sr-float);background:var(--sr-void);container:sr-app / size;}
+.sg-phone--land{width:844px;height:390px;max-width:100%;}
+.sg-phone>.sr-shell{height:100%;}
+.sg-minimap{display:block;width:200px;height:130px;border:2px solid var(--sr-ink);border-radius:var(--sr-r);background:var(--sr-void);box-shadow:var(--sr-lift);}
+@media (max-width:900px){.sg-hero{grid-template-columns:1fr;gap:16px;padding-top:28px;}.sg-type__row{grid-template-columns:1fr;gap:4px;}}
+</style>
+</head>
+<body class="sr-root">
+<!--@SPRITE@-->
+
+<nav class="sg-nav" aria-label="Sections">
+  <span class="sg-nav__brand">SR // HUD</span>
+  <a href="#ground">Mission HUD</a><a href="#base">Base HUD</a><a href="#phone">Phone</a><a href="#rules">House rules</a><a href="#colour">Colour</a>
+  <a href="#type">Type</a><a href="#icons">Icons</a><a href="#controls">Controls</a><a href="#status">Status</a>
+  <a href="#rail">Rail</a><a href="#mission">Mission parts</a><a href="#windows">Windows</a><a href="#canvas">Canvas kit</a>
+</nav>
+
+<main class="sg-wrap">
+  <header class="sg-hero">
+    <h1>Chunky Ops <span>Star Rebellion HUD &amp; UI, v1</span></h1>
+    <p>A single theme for every scene: thick ink outlines, buttons that press down, gold for anything you can act on, rebel red for your people, cold Hegemony blue for theirs. Everything on this page renders from <b>sr-theme.css</b> and <b>sr-theme.js</b> — the same files Claude Code will drop into the game.</p>
+  </header>
+
+  <!-- ================= GROUND HUD ================= -->
+  <section class="sg-sec" id="ground">
+    <h2>Mission HUD <small>Take the Rock, desktop</small></h2>
+    <p class="sg-lede">Status reads across the top, decisions live in one bottom bar, and the right rail is information only. The phase plate is the loudest thing on screen because "what can I do right now?" is the question the old HUD made hardest to answer. Switch states to see the bar change shape.</p>
+    <div class="sg-stateswitch">
+      <span>State</span>
+      <div class="sr-btngroup" role="group" aria-label="Mission state">
+        <button class="sr-btn sr-btn--sm" data-gstate="free" aria-pressed="false">Free move</button>
+        <button class="sr-btn sr-btn--sm" data-gstate="plan" aria-pressed="true">Planning</button>
+        <button class="sr-btn sr-btn--sm" data-gstate="fight" aria-pressed="false">Engagement</button>
+      </div>
+    </div>
+    <div class="sg-frame"><div class="sg-frame__inner sr-app">
+      <div class="sr-shell" id="gShell">
+        <header class="sr-topbar">
+          <div class="sr-topbar__id">
+            <div class="sr-topbar__title">Take the Rock</div>
+            <div class="sr-topbar__sub">Haven Rock, The Drift — Prologue</div>
+          </div>
+          <div class="sr-topbar__mid">
+            <div class="sr-phase" id="gPhase" data-phase="plan" data-status="alert">
+              <span class="sr-phase__status"><svg class="sr-ico"><use href="#i-panic"/></svg><span class="sr-phase__text" id="gStatus">Camp alerted</span></span>
+              <span class="sr-phase__name" id="gPhaseName">Planning</span>
+              <span class="sr-phase__round">Round 1</span>
+            </div>
+          </div>
+          <div class="sr-topbar__tools">
+            <div class="sr-btngroup sr-desk-only">
+              <button class="sr-btn sr-btn--icon" aria-label="Zoom out"><svg class="sr-ico"><use href="#i-zoomout"/></svg></button>
+              <button class="sr-btn sr-btn--icon" aria-label="Zoom in"><svg class="sr-ico"><use href="#i-zoomin"/></svg></button>
+              <button class="sr-btn sr-btn--icon" aria-label="Fit map"><svg class="sr-ico"><use href="#i-fit"/></svg></button>
+            </div>
+            <button class="sr-btn sr-btn--icon sr-desk-only" aria-label="Follow camera" aria-pressed="true"><svg class="sr-ico"><use href="#i-follow"/></svg></button>
+            <button class="sr-btn sr-btn--icon sr-desk-only" aria-label="Sound on"><svg class="sr-ico"><use href="#i-soundon"/></svg></button>
+            <button class="sr-btn sr-btn--icon" aria-label="Menu: restart, debug"><svg class="sr-ico"><use href="#i-menu"/></svg></button>
+          </div>
+        </header>
+
+        <div class="sr-stage">
+          <canvas id="gMap"></canvas>
+          <template id="vsTpl"><div class="sr-vs">
+              <div class="sr-vs__side">
+                <div class="sr-vs__who"><span class="sr-avatar">KB<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-soldier"/></svg></span></span>
+                  <div><div class="sr-vs__role"><svg class="sr-ico"><use href="#i-sword"/></svg>Attacking</div><div class="sr-vs__name">Kel Brasso</div></div></div>
+                <div class="sr-vs__mods">
+                  <div class="sr-mod"><span>Trigger skill</span><b>2</b></div>
+                  <div class="sr-mod is-plus"><span>Braced (Hold)</span><b>+2</b></div>
+                  <div class="sr-mod is-minus"><span>Panicking</span><b>−1</b></div>
+                </div>
+                <div class="sr-vs__total"><span>Attack</span><b>3</b></div>
+              </div>
+              <div class="sr-vs__mid">
+                <div class="sr-vs__odds is-bad">45<small>%</small></div>
+                <div class="sr-vs__need">Need 12+ on a d20</div>
+                <div class="sr-die" id="gDie"><svg class="sr-ico"><use href="#i-d20"/></svg><b>?</b></div>
+                <div class="sr-vs__step">Shot 1 of 6</div>
+              </div>
+              <div class="sr-vs__side sr-vs__side--foe">
+                <div class="sr-vs__who"><span class="sr-avatar sr-avatar--foe">OD</span>
+                  <div><div class="sr-vs__role"><svg class="sr-ico"><use href="#i-shield"/></svg>Defending</div><div class="sr-vs__name">Odo</div></div></div>
+                <div class="sr-vs__mods">
+                  <div class="sr-mod"><span>Target profile</span><b>12</b></div>
+                  <div class="sr-mod is-plus"><span>Long range</span><b>+3</b></div>
+                  <div class="sr-mod is-plus"><span>Behind crates</span><b>+0</b></div>
+                </div>
+                <div class="sr-vs__total"><span>Defence</span><b>15</b></div>
+              </div>
+            </div></template>
+
+          <div class="sr-slot-tl">
+            <div class="sr-objectives" id="gObj">
+              <div class="sr-objectives__head"><svg class="sr-ico"><use href="#i-star"/></svg>Objectives</div>
+              <div class="sr-obj is-done"><span class="sr-obj__mark"><svg class="sr-ico"><use href="#i-check"/></svg></span><span>Move up the canyon to the base mouth</span></div>
+              <div class="sr-obj is-current"><span class="sr-obj__mark"></span><span>Clear the squatters off the rock</span><span class="sr-obj__count">0/9</span></div>
+              <div class="sr-obj"><span class="sr-obj__mark"></span><span>Raise the signal in the command room</span></div>
+            </div>
+            <div class="sr-coach" id="gCoach">
+              <div class="sr-coach__head"><span class="sr-coach__title" id="gCoachTitle">Plan the round</span>
+                <span class="sr-coach__dots"><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i><i></i></span></div>
+              <div id="gCoachText">Give each rebel one order. <b>Move</b> keeps the gun up, <b>Sprint</b> goes far but can't shoot, <b>Hold</b> fires on anyone crossing the lane. Green shields are cover. Then hit <b>Execute</b>.</div>
+            </div>
+          </div>
+
+          <div class="sr-slot-tr">
+            <button class="sr-btn sr-btn--icon sr-drawerbtn sr-phone-only" aria-label="Squad and enemies"><svg class="sr-ico"><use href="#i-people"/></svg><span class="sr-badge">!</span></button>
+            <canvas class="sr-minimap" id="gMini" aria-label="Minimap"></canvas>
+            <div class="sr-comms">
+              <div class="sr-comm sr-comm--foe is-old" data-g="old"><b>Vult</b> spotted Runa Vel. The camp is up.</div>
+              <div class="sr-comm sr-comm--action" data-g="old">Time drops into rounds. Plan every rebel's move.</div>
+              <div class="sr-comm sr-comm--friend" data-g="old"><b>Dax</b> "Let's make it quick."</div>
+              <div class="sr-comm sr-comm--foe" data-g="fight" hidden><b>Odo</b> hits Kel Brasso for 23. Critical.</div>
+            </div>
+            
+          </div>
+
+          <div class="sr-slot-bc" id="gBottom"></div>
+        </div>
+
+        <aside class="sr-rail">
+          <div class="sr-rail__scroll">
+            <section>
+              <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico"><use href="#i-soldier"/></svg>Squad<span class="sr-section__count">3/3</span></div>
+              <div class="sr-stack">
+                <button class="sr-unit is-selected">
+                  <span class="sr-avatar">DF<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-soldier"/></svg></span></span>
+                  <span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Dax Ferro</span><span class="sr-unit__role">Lv 1</span></span>
+                    <span class="sr-hp"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i></span><span class="sr-hp__num">100</span></span></span>
+                  <span class="sr-unit__side"><span class="sr-ordertag"><svg class="sr-ico"><use href="#i-move"/></svg>Move</span><span class="sr-nerve sr-nerve--cool"><svg class="sr-ico"><use href="#i-cool"/></svg>Cool</span></span>
+                </button>
+                <button class="sr-unit">
+                  <span class="sr-avatar">RV<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-soldier"/></svg></span></span>
+                  <span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Runa Vel</span><span class="sr-unit__role">Lv 1</span></span>
+                    <span class="sr-hp sr-hp--mid"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i></span><span class="sr-hp__num">58</span></span></span>
+                  <span class="sr-unit__side"><span class="sr-ordertag sr-ordertag--none">No orders</span><span class="sr-nerve sr-nerve--steady">Steady</span></span>
+                </button>
+                <button class="sr-unit" id="gKelRow">
+                  <span class="sr-avatar">KB<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-soldier"/></svg></span></span>
+                  <span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Kel Brasso</span><span class="sr-unit__role">Lv 1</span></span>
+                    <span class="sr-hp sr-hp--low"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i></span><span class="sr-hp__num">23</span></span></span>
+                  <span class="sr-unit__side"><span class="sr-ordertag sr-ordertag--none">No orders</span><span class="sr-nerve sr-nerve--panic"><svg class="sr-ico"><use href="#i-panic"/></svg>Panicking</span></span>
+                </button>
+              </div>
+            </section>
+            <section>
+              <div class="sr-section__head sr-section__head--foe"><svg class="sr-ico"><use href="#i-eye"/></svg>Squatters<span class="sr-section__count">3 seen</span></div>
+              <div class="sr-stack">
+                <div class="sr-unit sr-unit--foe"><span class="sr-avatar sr-avatar--foe">OD</span><span class="sr-unit__main"><span class="sr-unit__name">Odo</span>
+                  <span class="sr-hp"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i></span></span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--good"><svg class="sr-ico"><use href="#i-cover"/></svg>Cover</span></span></div>
+                <div class="sr-unit sr-unit--foe"><span class="sr-avatar sr-avatar--foe">VU</span><span class="sr-unit__main"><span class="sr-unit__name">Vult</span>
+                  <span class="sr-hp"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i></span></span></span><span class="sr-unit__side"></span></div>
+                <div class="sr-unit sr-unit--foe"><span class="sr-avatar sr-avatar--foe">BR</span><span class="sr-unit__main"><span class="sr-unit__name">Brek</span>
+                  <span class="sr-hp sr-hp--low"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i></span></span></span><span class="sr-unit__side"><span class="sr-nerve sr-nerve--panic"><svg class="sr-ico"><use href="#i-panic"/></svg>Panicking</span></span></div>
+                <div class="sr-unit sr-unit--ghost"><svg class="sr-ico"><use href="#i-signal"/></svg><span><b>6 contacts</b> out of sight</span></div>
+              </div>
+            </section>
+            <section>
+              <div class="sr-section__head sr-section__head--good"><svg class="sr-ico"><use href="#i-loot"/></svg>Loot carried</div>
+              <div class="sr-stack">
+                <div class="sr-loot" style="--c:var(--sr-res-credits)"><svg class="sr-ico"><use href="#i-credits"/></svg>Credits<b>+40</b></div>
+                <div class="sr-loot" style="--c:var(--sr-hazard)"><svg class="sr-ico"><use href="#i-grenade"/></svg>BLAM frag grenade<b>×1</b></div>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </div></div>
+    <p class="sg-cap"><b>Fixes:</b> the phase is no longer a 12px word in the sidebar corner; orders moved off the battlefield so they can't collide with names; six "Contact — no visual" rows became one line; Restart and Debug moved into the menu; health shows numbers; map labels sit on solid backing and give way to unit names.</p>
+  </section>
+
+  <!-- ================= BASE HUD ================= -->
+  <section class="sg-sec" id="base">
+    <h2>Base HUD <small>Haven Rock, day 3</small></h2>
+    <p class="sg-lede">Same skeleton as a mission. Resources now carry their names and colours, the Revolution Level is the centrepiece: a burning-flag hub with a progress ring that hangs below the bar with resources either side, and <b>Advance day</b> sits where Execute sits in combat: the gold button at the bottom right.</p>
+    <div class="sg-frame"><div class="sg-frame__inner sr-app" style="height:700px">
+      <div class="sr-shell has-revhub" id="bShell">
+        <header class="sr-topbar sr-topbar--hub">
+          <div class="sr-topbar__side"><div class="sr-topbar__id"><div class="sr-topbar__title">Haven Rock</div><div class="sr-topbar__sub">Hidden base</div></div><div class="sr-resbar"><span class="sr-res sr-res--credits" title="Credits — buy, bribe, build"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-credits"/></svg></span><span class="sr-res__txt"><span class="sr-res__val">760</span><span class="sr-res__lbl">Credits</span></span><span class="sr-res__delta">+500</span></span><span class="sr-res sr-res--supplies"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-supplies"/></svg></span><span class="sr-res__txt"><span class="sr-res__val">512</span><span class="sr-res__lbl">Supplies</span></span></span></div></div>
+          <div class="sr-revhub" style="--p:38" tabindex="0" aria-label="Revolution Level 1, 38% to Level 2"><span class="sr-revhub__ring"></span><span class="sr-revhub__core"><svg class="sr-ico"><use href="#i-revflame"/></svg><span class="sr-revhub__lvl">I</span><span class="sr-revhub__lbl">REV</span></span><span class="sr-revhub__tip"><b>Revolution Level 1</b>38% of the way to Level 2. Missions, liberated regions and local support push it up.</span></div>
+          <div class="sr-topbar__side"><div class="sr-resbar"><span class="sr-res sr-res--materials"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-materials"/></svg></span><span class="sr-res__txt"><span class="sr-res__val">232</span><span class="sr-res__lbl">Materials</span></span></span><span class="sr-res sr-res--fuel"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-fuel"/></svg></span><span class="sr-res__txt"><span class="sr-res__val">264</span><span class="sr-res__lbl">Fuel</span></span></span><span class="sr-res sr-res--intel is-short"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-intel"/></svg></span><span class="sr-res__txt"><span class="sr-res__val">3</span><span class="sr-res__lbl">Intel</span></span></span><div class="sr-topbar__tools">
+            <span class="sr-day"><svg class="sr-ico"><use href="#i-day"/></svg>Day <b>3</b></span>
+            <button class="sr-btn sr-btn--icon sr-desk-only" aria-label="Sound on"><svg class="sr-ico"><use href="#i-soundon"/></svg></button>
+            <button class="sr-btn sr-btn--icon" aria-label="Menu"><svg class="sr-ico"><use href="#i-menu"/></svg></button>
+          </div>
+          </header>
+        <div class="sr-stage">
+          <canvas id="bMap"></canvas>
+          <div class="sr-slot-tc">
+            <div class="sr-tabs" role="tablist">
+              <button class="sr-tab" role="tab" aria-selected="true"><svg class="sr-ico"><use href="#i-base"/></svg>Base</button>
+              <button class="sr-tab is-calling" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-galaxy"/></svg>Galaxy</button>
+              <button class="sr-tab" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-missions"/></svg>Missions<span class="sr-badge">1</span></button>
+              <button class="sr-tab sr-drawerbtn sr-phone-only" aria-label="Crew and flight"><svg class="sr-ico"><use href="#i-people"/></svg></button>
+            </div>
+            <div class="sr-toast sr-toast--friend"><svg class="sr-ico"><use href="#i-signal"/></svg><span><b>Cass Wender</b> wants to talk</span></div>
+          </div>
+          <div class="sr-slot-bl">
+            <div class="sr-comms">
+              <div class="sr-comm sr-comm--good is-old"><b>The Marta flies.</b> Joss brought the derelict back from the dead.</div>
+              <div class="sr-comm sr-comm--friend"><b>Sera Kest</b> (pilot) takes the oath. One more of us.</div>
+              <button class="sr-btn sr-btn--ghost sr-btn--sm sr-comms__more"><svg class="sr-ico"><use href="#i-comms"/></svg>All news</button>
+            </div>
+          </div>
+          <div class="sr-slot-br">
+            <div class="sr-cmdbar">
+              <div class="sr-cmdbar__go" style="border-left:0;padding-left:4px">
+                <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
+                <div class="sr-cmdbar__count">Marta repairs finish <b>tomorrow</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="sr-rail">
+          <div class="sr-rail__scroll">
+            <section>
+              <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-pilot"/></svg>Pilots<span class="sr-section__count">2</span></div>
+              <div class="sr-stack">
+                <button class="sr-unit" style="--c:var(--sr-gold)"><span class="sr-avatar sr-avatar--pilot">JM<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-pilot"/></svg></span></span><span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Joss Marrek</span></span><span class="sr-unit__role">Captain, level 3</span></span><span class="sr-unit__side"><span class="sr-tag">Resting</span></span></button>
+                <button class="sr-unit" style="--c:var(--sr-gold)"><span class="sr-avatar sr-avatar--pilot">SK<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-pilot"/></svg></span></span><span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Sera Kest</span></span><span class="sr-unit__role">1st Lieutenant, level 2</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--progress">Training</span></span></button>
+              </div>
+            </section>
+            <section>
+              <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico"><use href="#i-soldier"/></svg>Soldiers<span class="sr-section__count">3</span></div>
+              <div class="sr-stack">
+                <button class="sr-unit"><span class="sr-avatar">DF</span><span class="sr-unit__main"><span class="sr-unit__name">Dax Ferro</span><span class="sr-unit__role">Private, level 1</span></span><span class="sr-unit__side"><span class="sr-tag">Resting</span></span></button>
+                <button class="sr-unit"><span class="sr-avatar">RV</span><span class="sr-unit__main"><span class="sr-unit__name">Runa Vel</span><span class="sr-unit__role">Private, level 1</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad"><svg class="sr-ico"><use href="#i-heart"/></svg>2 days</span></span></button>
+                <button class="sr-unit"><span class="sr-avatar">KB</span><span class="sr-unit__main"><span class="sr-unit__name">Kel Brasso</span><span class="sr-unit__role">Private, level 1</span></span><span class="sr-unit__side"><span class="sr-tag">Resting</span></span></button>
+              </div>
+            </section>
+            <section>
+              <div class="sr-section__head sr-section__head--good"><svg class="sr-ico"><use href="#i-support"/></svg>Support</div>
+              <div class="sr-empty">No support crew yet. Recruit them through your sources in the Galaxy.</div>
+            </section>
+            <section>
+              <div class="sr-section__head sr-section__head--info"><svg class="sr-ico"><use href="#i-ship"/></svg>Flight</div>
+              <div class="sr-stack">
+                <button class="sr-unit" style="--c:var(--sr-shield)"><span class="sr-avatar" style="--c:var(--sr-shield)"><svg class="sr-ico"><use href="#i-ship"/></svg></span><span class="sr-unit__main"><span class="sr-unit__name">Marta</span>
+                  <span class="sr-hp sr-hp--mid"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i></span><span class="sr-hp__num">Hull 75%</span></span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--warn"><svg class="sr-ico"><use href="#i-work"/></svg>Repairing</span></span></button>
+              </div>
+              <div class="sr-railhint">Double-click anyone for their file</div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ================= PHONE ================= -->
+  <section class="sg-sec" id="phone">
+    <h2>Phone <small>iPhone 12 Pro, 390 × 844</small></h2>
+    <p class="sg-lede">The same markup, adapted by container queries on <b>.sr-app</b>, so these frames are the real rules running, not drawings. The rail becomes a drawer behind the <b>people</b> button (tap it), zoom and sound move into pinch and the menu, the base's crew drawer becomes a fourth tab, objectives shrink to the current line, the order bar scrolls sideways, and the camera follows the selected rebel. Resources stack icon-over-number around the Revolution hub.</p>
+    <div class="sg-row sg-row--top" style="gap:28px">
+      <div><div class="sg-phone" id="phG"></div><p class="sg-cap"><b>Mission, planning.</b> Pick destinations by tapping the map; the pill confirms what a tap will do.</p></div>
+      <div><div class="sg-phone" id="phB"></div><p class="sg-cap"><b>Base.</b> Advance day stays bottom-right, under the thumb.</p></div>
+    </div>
+    <div class="sg-sub">Landscape, 844 × 390</div>
+    <div class="sg-phone sg-phone--land" id="phL"></div>
+    <p class="sg-cap"><b>Short screens</b> drop the coach card to keep the map visible; the drawer slides in from the right instead of the bottom.</p>
+  </section>
+
+  <!-- ================= RULES ================= -->
+  <section class="sg-sec" id="rules">
+    <h2>House rules</h2>
+    <p class="sg-lede">Five rules Claude Code should check every screen against. When a design question comes up later, these settle it.</p>
+    <div class="sg-rules">
+      <div class="sg-rule"><h3>Top reads, bottom does</h3><p>The top bar and rail only report. Every choice lives in the bottom command bar or in a window.</p></div>
+      <div class="sg-rule"><h3>Gold means act</h3><p>One gold primary per screen. Whatever advances time — Start, Execute, Attack, Advance day — is gold and sits at the right end.</p></div>
+      <div class="sg-rule"><h3>Red yours, blue theirs</h3><p>Rebel red is the revolution, cold blue is the Hegemony. Danger — low health, panic, misses — is hazard orange, so it never reads as either side.</p></div>
+      <div class="sg-rule"><h3>Nothing whispers</h3><p>Body text 15px, labels 13px, nothing under 12px except keyboard hints. Sentence case, not tracked capitals.</p></div>
+      <div class="sg-rule"><h3>Everything clicks</h3><p>Interactive things have an ink outline, a hard shadow and press down. Disabled things lose all three and say why on hover.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= COLOUR ================= -->
+  <section class="sg-sec" id="colour">
+    <h2>Colour</h2>
+    <p class="sg-lede">Use the meaning tokens (<b>--sr-c-*</b>), not the raw ones, so a colour always says the same thing. The indigo surfaces step up one level each time something sits on top of something else.</p>
+    <div class="sg-sub">Meaning</div>
+    <div class="sg-sw">
+      <div class="sg-chip"><i style="background:var(--sr-gold)"></i><div><b>Signal gold</b><code>--sr-c-action #ffc83a</code><p>Primary buttons, selection, coach cards, current objective.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-rebel)"></i><div><b>Rebel red</b><code>--sr-c-friend #ff4a3d</code><p>Your units and rows, and at full volume, the Revolution hub.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-heg);box-shadow:inset 0 0 24px rgba(156,194,255,.6)"></i><div><b>Hegemony blue</b><code>--sr-c-foe #4f8cff</code><p>Enemies, their searchlight cones, "camp alerted". Hostile tokens get an icy glow.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-hazard)"></i><div><b>Hazard orange</b><code>--sr-c-bad #ff8a1f</code><p>Low health, panic, misses, failed checks, the engagement phase, destructive buttons.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-go)"></i><div><b>Go green</b><code>--sr-c-good #78ec5c</code><p>Done, healthy, cover, supplies.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-shield)"></i><div><b>Signal cyan</b><code>--sr-c-info #36e3f2</code><p>Stealth phase, cool nerve, shields, intel, stance orders.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-psi)"></i><div><b>Psi violet</b><code>--sr-c-progress #b47cff</code><p>XP, levels, cultivation.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-steel)"></i><div><b>Steel</b><code>--sr-steel #b9c5e6</code><p>Materials, neutrals, execution phase.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-fuel)"></i><div><b>Plasma pink</b><code>--sr-res-fuel #ff7ac8</code><p>Fuel only. Moved off orange so orange can mean danger.</p></div></div>
+    </div>
+    <div class="sg-sub">Surfaces &amp; ink</div>
+    <div class="sg-sw">
+      <div class="sg-chip"><i style="background:var(--sr-ink)"></i><div><b>Ink</b><code>#070818</code><p>Every outline and hard shadow.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-void)"></i><div><b>Void</b><code>#0a0c22</code><p>Stage, wells, meter tracks.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-night)"></i><div><b>Night</b><code>#10132e</code><p>Rail, window footers.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-hull)"></i><div><b>Hull</b><code>#1a1f47</code><p>Panels, windows, rows.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-plate)"></i><div><b>Plate</b><code>#252c62</code><p>Buttons, cards, window heads.</p></div></div>
+      <div class="sg-chip"><i style="background:var(--sr-text-3)"></i><div><b>Text 1 / 2 / 3</b><code>#f1f3ff #b3bbe3 #8790c4</code><p>All pass AA on hull at 12px+.</p></div></div>
+    </div>
+  </section>
+
+  <!-- ================= TYPE ================= -->
+  <section class="sg-sec" id="type">
+    <h2>Type</h2>
+    <p class="sg-lede"><b>Bungee</b> is the shouty one: titles, phase names, primary buttons, big numbers. <b>Exo 2</b> does everything else with tabular numerals, so stats line up. The monospace face is gone.</p>
+    <div class="sg-board sg-type">
+      <div class="sg-type__row"><code>Banner · Bungee 56</code><span class="sr-display" style="font-size:56px;color:var(--sr-hazard);-webkit-text-stroke:3px var(--sr-ink);paint-order:stroke fill;text-shadow:0 5px 0 var(--sr-ink)">Engagement</span></div>
+      <div class="sg-type__row"><code>Brief title · Bungee 34</code><span class="sr-display" style="font-size:34px">Steal the Cross</span></div>
+      <div class="sg-type__row"><code>Window title · Bungee 18–24</code><span class="sr-display" style="font-size:22px">Mission briefing</span></div>
+      <div class="sg-type__row"><code>Card title · Exo 2 800 15–18</code><span style="font:800 18px var(--sr-font-ui)">Restore the derelict hauler</span></div>
+      <div class="sg-type__row"><code>Body · Exo 2 500 15</code><span style="font:500 15px/1.6 var(--sr-font-ui);max-width:62ch">Dustfall keeps one FT-4 Cross on the pad behind the sheriff's HQ. Walk a pilot to the pad and fly it home.</span></div>
+      <div class="sg-type__row"><code>Label · Exo 2 800 13</code><span style="font:800 13px var(--sr-font-ui);color:var(--sr-text-2)">Loot carried</span></div>
+      <div class="sg-type__row"><code>Small · Exo 2 600 12</code><span style="font:600 12px var(--sr-font-ui);color:var(--sr-text-3)">Private, level 1</span></div>
+      <div class="sg-type__row"><code>Numbers · tabular</code><span style="font:800 22px var(--sr-font-ui)">1,250 &nbsp; 0/9 &nbsp; 86/100 &nbsp; +2</span></div>
+    </div>
+  </section>
+
+  <!-- ================= ICONS ================= -->
+  <section class="sg-sec" id="icons">
+    <h2>Icons <small id="iconCount"></small></h2>
+    <p class="sg-lede">One 24px grid, chunky 2.25 strokes, all paths so the same data draws in HTML (<b>&lt;use href="#i-move"&gt;</b>) and on the canvas (<b>SR_THEME.icon(ctx,'move',x,y,size,colour)</b>). Built from <b>icons.py</b>; re-run the build to add more.</p>
+    <div id="iconGrid"></div>
+  </section>
+
+  <!-- ================= CONTROLS ================= -->
+  <section class="sg-sec" id="controls">
+    <h2>Controls</h2>
+    <p class="sg-lede">Press and hold any button to feel it go down. Primary buttons switch to Bungee so the commit action looks different from everything else, not just coloured differently.</p>
+    <div class="sg-board">
+      <div class="sg-sub" style="margin-top:0">Buttons</div>
+      <div class="sg-row">
+        <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go">Execute round<svg class="sr-ico"><use href="#i-execute"/></svg></button>
+        <button class="sr-btn sr-btn--primary">Start</button>
+        <button class="sr-btn">Auto-fill</button>
+        <button class="sr-btn sr-btn--friend"><svg class="sr-ico"><use href="#i-signal"/></svg>Contact</button>
+        <button class="sr-btn sr-btn--ghost">Later</button>
+        <button class="sr-btn sr-btn--danger">Cut loose</button>
+        <button class="sr-btn sr-btn--primary" disabled>Start</button>
+      </div>
+      <div class="sg-row" style="margin-top:14px">
+        <button class="sr-btn sr-btn--sm">Small</button>
+        <button class="sr-btn sr-btn--attn">Go to the hangar</button>
+        <button class="sr-btn sr-btn--icon" aria-label="Help"><svg class="sr-ico"><use href="#i-help"/></svg></button>
+        <button class="sr-btn sr-btn--icon" aria-pressed="true" aria-label="Sneak on"><svg class="sr-ico"><use href="#i-sneak"/></svg></button>
+        <div class="sr-btngroup"><button class="sr-btn sr-btn--icon"><svg class="sr-ico"><use href="#i-back"/></svg></button><button class="sr-btn sr-btn--icon"><svg class="sr-ico"><use href="#i-chevron"/></svg></button></div>
+        <span class="sr-pill">Pick a destination <span class="sr-kbd">Esc</span></span>
+      </div>
+      <p class="sg-cap"><b>Primary</b> commits and advances time. <b>Friend</b> is a positive secondary (Contact, Recruit). <b>Ghost</b> is a dismissal. <b>Danger</b> is irreversible (Cut loose, Silence). <b>Attn</b> replaces the old pulse for "the tutorial wants you here". Toggle state uses aria-pressed.</p>
+
+      <div class="sg-sub">Menu</div>
+      <div style="position:relative;height:250px">
+        <div class="sr-menu" style="position:relative;display:inline-block">
+          <div class="sr-menu__head">Mission</div>
+          <button class="sr-menu__item"><svg class="sr-ico"><use href="#i-soundon"/></svg>Sound<span class="sr-kbd">M</span></button>
+          <button class="sr-menu__item"><svg class="sr-ico"><use href="#i-help"/></svg>Controls</button>
+          <div class="sr-menu__sep"></div>
+          <button class="sr-menu__item sr-menu__item--danger"><svg class="sr-ico"><use href="#i-restart"/></svg>Restart mission</button>
+          <button class="sr-menu__item sr-menu__item--debug"><svg class="sr-ico"><use href="#i-debug"/></svg>Debug: skip mission</button>
+        </div>
+      </div>
+      <p class="sg-cap">Restart and Debug leave the top bar. Restart is hazard-coloured and asks to confirm; Debug is dashed violet so it never looks like a real feature.</p>
+
+      <div class="sg-sub">Tabs &amp; badges</div>
+      <div class="sg-row">
+        <div class="sr-tabs" role="tablist">
+          <button class="sr-tab" role="tab" aria-selected="true"><svg class="sr-ico"><use href="#i-base"/></svg>Base</button>
+          <button class="sr-tab is-calling" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-galaxy"/></svg>Galaxy</button>
+          <button class="sr-tab" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-missions"/></svg>Missions<span class="sr-badge">2</span></button>
+        </div>
+      </div>
+      <p class="sg-cap">Green ping (<b>is-calling</b>) means a source has a signal waiting. Red badge means a count of new things.</p>
+    </div>
+  </section>
+
+  <!-- ================= STATUS ================= -->
+  <section class="sg-sec" id="status">
+    <h2>Status</h2>
+    <p class="sg-lede">Small reporting pieces for the top bar and rail.</p>
+    <div class="sg-board">
+      <div class="sg-sub" style="margin-top:0">Phase plate — every combination the game uses</div>
+      <div class="sg-row">
+        <div class="sr-phase" data-phase="free" data-status="calm"><span class="sr-phase__status"><svg class="sr-ico"><use href="#i-eye"/></svg>Camp is quiet</span><span class="sr-phase__name">Free move</span><span class="sr-phase__round">Sneaking</span></div>
+        <div class="sr-phase" data-phase="plan" data-status="alert"><span class="sr-phase__status"><svg class="sr-ico"><use href="#i-panic"/></svg>Alerted</span><span class="sr-phase__name">Planning</span><span class="sr-phase__round">Round 2</span></div>
+        <div class="sr-phase" data-phase="exec" data-status="alert"><span class="sr-phase__status"><svg class="sr-ico"><use href="#i-panic"/></svg>Alerted</span><span class="sr-phase__name">Moving</span><span class="sr-phase__round">Round 2</span></div>
+        <div class="sr-phase" data-phase="fight" data-status="alert"><span class="sr-phase__status"><svg class="sr-ico"><use href="#i-panic"/></svg>Alerted</span><span class="sr-phase__name">Engagement</span><span class="sr-phase__round">Round 2</span></div>
+      </div>
+
+      <div class="sg-sub">Tags</div>
+      <div class="sg-row">
+        <span class="sr-tag sr-tag--friend">Available</span><span class="sr-tag sr-tag--bad"><svg class="sr-ico"><use href="#i-heart"/></svg>Injured, 2 days</span>
+        <span class="sr-tag sr-tag--good"><svg class="sr-ico"><use href="#i-cover"/></svg>Cover +8</span><span class="sr-tag sr-tag--warn">Risk moderate</span>
+        <span class="sr-tag sr-tag--progress"><svg class="sr-ico"><use href="#i-star"/></svg>Level 2</span><span class="sr-tag sr-tag--action">2 days</span>
+        <span class="sr-tag sr-tag--info"><svg class="sr-ico"><use href="#i-intel"/></svg>Scout 7</span><span class="sr-tag sr-tag--solid sr-tag--action">New</span>
+        <span class="sr-gear"><svg class="sr-ico"><use href="#i-gun"/></svg>Akli AR</span><span class="sr-gear"><svg class="sr-ico"><use href="#i-pistol"/></svg>Cowboy</span>
+      </div>
+
+      <div class="sg-sub">Meters</div>
+      <div class="sg-row sg-row--top">
+        <div style="display:grid;gap:10px;width:min(380px,100%)">
+          <div class="sr-meter"><span>Cultivation</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:42%"></span></span><span class="sr-meter__val">42</span></div>
+          <div class="sr-meter sr-meter--risk"><span>Risk</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:30%"></span></span><span class="sr-meter__val">30</span></div>
+          <div class="sr-meter sr-meter--risk is-hot"><span>Risk (hot)</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:74%"></span></span><span class="sr-meter__val">74</span></div>
+        </div>
+        <div style="display:grid;gap:10px">
+          <span class="sr-hp"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i></span><span class="sr-hp__num">100/100</span></span>
+          <span class="sr-hp sr-hp--mid"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i></span><span class="sr-hp__num">58/100</span></span>
+          <span class="sr-hp sr-hp--low"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i><i class="sr-hp__cell"></i></span><span class="sr-hp__num">23/100</span></span>
+        </div>
+        <div style="display:grid;gap:10px">
+          <span class="sr-nerve sr-nerve--cool"><svg class="sr-ico"><use href="#i-cool"/></svg>Cool, +1 to hit</span>
+          <span class="sr-nerve sr-nerve--steady">Steady</span>
+          <span class="sr-nerve sr-nerve--shaken"><svg class="sr-ico"><use href="#i-heart"/></svg>Shaken</span>
+          <span class="sr-nerve sr-nerve--panic"><svg class="sr-ico"><use href="#i-panic"/></svg>Panicking, Lock In only</span>
+        </div>
+        <div class="sr-level" style="--p:64"><b>3</b></div>
+        <div class="sr-revhub sr-revhub--inline" style="--p:38" tabindex="0" aria-label="Revolution Level 1, 38% to Level 2"><span class="sr-revhub__ring"></span><span class="sr-revhub__core"><svg class="sr-ico"><use href="#i-revflame"/></svg><span class="sr-revhub__lvl">I</span><span class="sr-revhub__lbl">REV</span></span></div><div class="sr-revhub sr-revhub--inline" style="--p:82" tabindex="0" aria-label="Revolution Level 2, 82% to Level 2"><span class="sr-revhub__ring"></span><span class="sr-revhub__core"><svg class="sr-ico"><use href="#i-revflame"/></svg><span class="sr-revhub__lvl">II</span><span class="sr-revhub__lbl">REV</span></span></div>
+      </div>
+      <p class="sg-cap">Health turns gold under 60% and orange under 35%, in the rail and over units. Hot risk gets hazard stripes so a burning source can't be missed.</p>
+    </div>
+  </section>
+
+  <!-- ================= RAIL ================= -->
+  <section class="sg-sec" id="rail">
+    <h2>Rail rows</h2>
+    <p class="sg-lede">One row component for rebels, enemies, pilots and ships. The coloured left edge is faction; gold outline is selection; a pulse means "this one is acting now".</p>
+    <div class="sg-grid">
+      <div class="sg-board"><div class="sr-stack">
+        <button class="sr-unit is-selected"><span class="sr-avatar">DF<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-soldier"/></svg></span></span><span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">Selected</span><span class="sr-unit__role">Lv 1</span></span><span class="sr-hp"><span class="sr-hp__cells"><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i><i class="sr-hp__cell is-on"></i></span><span class="sr-hp__num">100</span></span></span><span class="sr-unit__side"><span class="sr-ordertag"><svg class="sr-ico"><use href="#i-hold"/></svg>Hold</span></span></button>
+        <button class="sr-unit is-acting"><span class="sr-avatar">RV</span><span class="sr-unit__main"><span class="sr-unit__name">Acting now</span><span class="sr-unit__role">Firing</span></span><span class="sr-unit__side"><span class="sr-ordertag"><svg class="sr-ico"><use href="#i-attack"/></svg>Attack</span></span></button>
+        <button class="sr-unit is-down"><span class="sr-avatar"><svg class="sr-ico"><use href="#i-skull"/></svg></span><span class="sr-unit__main"><span class="sr-unit__name">Down</span><span class="sr-unit__role">Out of the fight</span></span></button>
+      </div></div>
+      <div class="sg-board"><div class="sr-stack">
+        <div class="sr-unit sr-unit--foe"><span class="sr-avatar sr-avatar--foe">SR</span><span class="sr-unit__main"><span class="sr-unit__name">Sheriff Reeve</span><span class="sr-unit__role">Holed up in his office</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--foe"><svg class="sr-ico"><use href="#i-lock"/></svg>Untargetable</span></span></div>
+        <div class="sr-unit sr-unit--foe is-down"><span class="sr-avatar sr-avatar--foe">DW</span><span class="sr-unit__main"><span class="sr-unit__name">Deputy Wren</span><span class="sr-unit__role">Surrendered</span></span></div>
+        <div class="sr-unit sr-unit--ghost"><svg class="sr-ico"><use href="#i-signal"/></svg><span><b>4 contacts</b> out of sight</span></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ================= MISSION PARTS ================= -->
+  <section class="sg-sec" id="mission">
+    <h2>Mission parts</h2>
+    <p class="sg-lede">The pieces that sit on the battlefield. The coach card is the old amber tutorial step, now a gold sticker with a tail that can point at what it's talking about.</p>
+    <div class="sg-board sg-board--map">
+      <div class="sg-row sg-row--top" style="gap:24px">
+        <div class="sr-coach sr-coach--tail-down">
+          <div class="sr-coach__head"><span class="sr-coach__title">Sneak past</span><span class="sr-coach__dots"><i class="is-on"></i><i class="is-on"></i><i></i><i></i><i></i><i></i><i></i></span></div>
+          Stay out of the <b>blue searchlights</b>. Inside the orange band they'll spot you even while sneaking. Toggle sneak with <span class="sr-kbd">C</span>.
+          <div class="sr-coach__foot"><button class="sr-btn sr-btn--sm">Got it</button></div>
+        </div>
+        <div style="position:relative;width:160px;height:110px">
+          <div class="sr-pointer" style="left:80px;top:10px"><span class="sr-pointer__label">Contact Cass</span><span class="sr-pointer__arrow"></span></div>
+        </div>
+        <div style="display:grid;gap:10px">
+          <div class="sr-toast"><svg class="sr-ico"><use href="#i-check"/></svg><span>Objective complete: <b>clamps released</b></span></div>
+          <div class="sr-toast sr-toast--foe"><svg class="sr-ico"><use href="#i-panic"/></svg><span><b>Brek</b> is panicking</span></div>
+          <div class="sr-toast sr-toast--action"><svg class="sr-ico"><use href="#i-signal"/></svg><span><b>Cass Wender</b> wants to talk</span></div>
+        </div>
+      </div>
+
+      <div class="sg-sub">Command bar — planning</div>
+      <div class="sr-cmdbar" style="display:inline-flex">
+        <div class="sr-cmdbar__who"><span class="sr-avatar">DF</span><div><div class="sr-cmdbar__name">Dax Ferro</div><div class="sr-cmdbar__hint">Choose an order</div></div></div>
+        <div class="sr-orders">
+          <button class="sr-order sr-order--move is-active"><span class="sr-kbd sr-order__key">1</span><svg class="sr-ico"><use href="#i-move"/></svg>Move</button>
+          <button class="sr-order sr-order--move"><span class="sr-kbd sr-order__key">2</span><svg class="sr-ico"><use href="#i-sprint"/></svg>Sprint</button>
+          <button class="sr-order sr-order--stance"><span class="sr-kbd sr-order__key">3</span><svg class="sr-ico"><use href="#i-hold"/></svg>Hold</button>
+          <button class="sr-order sr-order--stance"><span class="sr-kbd sr-order__key">4</span><svg class="sr-ico"><use href="#i-cover"/></svg>Take cover</button>
+          <span class="sr-orders__sep"></span>
+          <button class="sr-order sr-order--nerve"><span class="sr-kbd sr-order__key">5</span><svg class="sr-ico"><use href="#i-lockin"/></svg>Lock in</button>
+          <button class="sr-order sr-order--util"><span class="sr-kbd sr-order__key">6</span><svg class="sr-ico"><use href="#i-loot"/></svg>Loot</button>
+          <button class="sr-order sr-order--util" disabled><span class="sr-kbd sr-order__key">7</span><svg class="sr-ico"><use href="#i-work"/></svg>Work</button>
+          <button class="sr-order"><span class="sr-kbd sr-order__key">X</span><svg class="sr-ico"><use href="#i-clear"/></svg>Clear</button>
+        </div>
+        <div class="sr-cmdbar__go"><button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go">Execute<svg class="sr-ico"><use href="#i-execute"/></svg></button><div class="sr-cmdbar__count"><b>1</b> of 3 ordered</div></div>
+      </div>
+      <div style="position:relative;height:150px">
+        <div class="sr-tip" style="left:300px;top:10px">
+          <div class="sr-tip__title"><svg class="sr-ico" style="color:var(--sr-shield)"><use href="#i-hold"/></svg>Hold<span class="sr-kbd">3</span></div>
+          <div class="sr-tip__rule">Brace and watch a lane. Fire on anyone who crosses it.</div>
+          <div class="sr-tip__nums"><span class="sr-tag sr-tag--good">+2 ATK braced</span><span class="sr-tag sr-tag--bad">−2 ATK snap shot</span></div>
+        </div>
+        <div class="sr-tip" style="left:610px;top:10px">
+          <div class="sr-tip__title"><svg class="sr-ico"><use href="#i-work"/></svg>Work<span class="sr-kbd">7</span></div>
+          <div class="sr-tip__rule">Complete a job at a panel, clamp or fuel line.</div>
+          <div class="sr-tip__why">Get within reach of a job first.</div>
+        </div>
+      </div>
+      <p class="sg-cap">Order icons are tinted by family — <b>red</b> movement, <b>cyan</b> stance, <b>orange</b> combat, <b>violet</b> nerve, <b>green</b> utility — so the bar scans without reading. Number keys 1–7 select. Disabled orders give their reason in the tooltip instead of just greying out.</p>
+
+      <div class="sg-sub">Command bar — engagement (weapons replace orders)</div>
+      <div class="sr-cmdbar" style="display:inline-flex">
+        <div class="sr-cmdbar__who"><span class="sr-avatar">KB</span><div><div class="sr-cmdbar__name">Kel Brasso</div><div class="sr-cmdbar__hint">Pick a weapon or retarget</div></div></div>
+        <div class="sr-orders">
+          <button class="sr-order sr-order--fight is-active"><svg class="sr-ico"><use href="#i-gun"/></svg>Akli AR</button>
+          <button class="sr-order sr-order--fight"><svg class="sr-ico"><use href="#i-pistol"/></svg>Cowboy</button>
+          <button class="sr-order sr-order--fight"><svg class="sr-ico"><use href="#i-grenade"/></svg>Grenade ×1</button>
+          <button class="sr-order sr-order--util"><svg class="sr-ico"><use href="#i-stim"/></svg>Stim ×1</button>
+        </div>
+        <div class="sr-cmdbar__go"><button class="sr-btn sr-btn--primary sr-btn--lg"><svg class="sr-ico"><use href="#i-attack"/></svg>Attack</button><div class="sr-cmdbar__count">Shot <b>1</b> of 6</div></div>
+      </div>
+
+      <div class="sg-sub">Contextual orders</div>
+      <div class="sr-orders" style="display:inline-flex;padding:10px;background:var(--sr-hull);border:2px solid var(--sr-ink);border-radius:var(--sr-r-xl)">
+        <button class="sr-order sr-order--stance"><svg class="sr-ico"><use href="#i-turret"/></svg>Man gun</button>
+        <button class="sr-order sr-order--stance"><svg class="sr-ico"><use href="#i-leave"/></svg>Leave gun</button>
+        <button class="sr-order sr-order--util"><svg class="sr-ico"><use href="#i-unjam"/></svg>Un-jam</button>
+        <button class="sr-order sr-order--util"><svg class="sr-ico"><use href="#i-hack"/></svg>Hack</button>
+        <button class="sr-order sr-order--fight"><svg class="sr-ico"><use href="#i-firesupport"/></svg>Fire support</button>
+        <button class="sr-order sr-order--move"><svg class="sr-ico"><use href="#i-extract"/></svg>Extract</button>
+      </div>
+      <p class="sg-cap">These join the bar only when they apply: next to a turret, with a jammed Akli, near an Auto, with fire support bought, or standing in the LZ. A panicking rebel's bar shrinks to <b>Lock in</b> and <b>Clear</b>.</p>
+
+      <div class="sg-sub">Command bar — space planning (maneuver dial)</div>
+      <div class="sr-cmdbar" style="display:inline-flex">
+        <div class="sr-cmdbar__who"><span class="sr-avatar sr-avatar--pilot">JM<span class="sr-avatar__role"><svg class="sr-ico"><use href="#i-ship"/></svg></span></span><div><div class="sr-cmdbar__name">Joss Marrek</div><div class="sr-cmdbar__hint">Marta. Plot a maneuver</div></div></div>
+        <div class="sr-dial" style="--cols:6">
+          <span class="sr-dial__h">Hard L</span><span class="sr-dial__h">Bank L</span><span class="sr-dial__h">Ahead</span><span class="sr-dial__h">Bank R</span><span class="sr-dial__h">Hard R</span><span class="sr-dial__h">K-turn</span>
+          <button class="sr-dial__k is-empty"></button><button class="sr-dial__k is-empty"></button><button class="sr-dial__k">4</button><button class="sr-dial__k is-empty"></button><button class="sr-dial__k is-empty"></button><button class="sr-dial__k is-empty"></button>
+          <button class="sr-dial__k is-empty"></button><button class="sr-dial__k">3</button><button class="sr-dial__k is-active">3</button><button class="sr-dial__k">3</button><button class="sr-dial__k is-empty"></button><button class="sr-dial__k is-pilot">3</button>
+          <button class="sr-dial__k">2</button><button class="sr-dial__k">2</button><button class="sr-dial__k">2</button><button class="sr-dial__k">2</button><button class="sr-dial__k">2</button><button class="sr-dial__k is-empty"></button>
+          <button class="sr-dial__k" disabled>1</button><button class="sr-dial__k">1</button><button class="sr-dial__k">1</button><button class="sr-dial__k">1</button><button class="sr-dial__k" disabled>1</button><button class="sr-dial__k is-empty"></button>
+        </div>
+        <div class="sr-cmdbar__go"><button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go">Execute<svg class="sr-ico"><use href="#i-execute"/></svg></button><div class="sr-cmdbar__count"><b>1</b> of 2 plotted</div></div>
+      </div>
+      <div class="sg-sub">Command bar — space activation (submenu open)</div>
+      <div class="sr-cmdbar" style="display:inline-flex">
+        <div class="sr-cmdbar__who"><span class="sr-avatar sr-avatar--pilot">SK</span><div><div class="sr-cmdbar__name">Sera Kest</div><div class="sr-cmdbar__hint">Pick an action</div></div></div>
+        <div class="sr-orders">
+          <button class="sr-order sr-order--fight"><svg class="sr-ico"><use href="#i-targetlock"/></svg>Lock</button>
+          <button class="sr-order sr-order--stance is-active"><svg class="sr-ico"><use href="#i-evade"/></svg>Evade ▸</button>
+          <button class="sr-order sr-order--nerve"><svg class="sr-ico"><use href="#i-lockin"/></svg>Lock in</button>
+          <button class="sr-order sr-order--util"><svg class="sr-ico"><use href="#i-work"/></svg>Repair ▸</button>
+          <button class="sr-order sr-order--move"><svg class="sr-ico"><use href="#i-roll"/></svg>Barrel roll</button>
+          <button class="sr-order"><svg class="sr-ico"><use href="#i-pass"/></svg>Pass</button>
+          <span class="sr-orders__sep"></span>
+          <button class="sr-order"><svg class="sr-ico"><use href="#i-back"/></svg>Back</button>
+          <button class="sr-order sr-order--stance"><svg class="sr-ico"><use href="#i-evade"/></svg>Fly defensive</button>
+          <button class="sr-order sr-order--stance"><svg class="sr-ico"><use href="#i-angle"/></svg>Fore → aft</button>
+        </div>
+      </div>
+      <p class="sg-cap">The space radial's submenus (<b>Evade ▸</b>, <b>Repair ▸</b>) expand inline after a separator, with <b>Back</b> first. Violet dial keys are pilot-only maneuvers.</p>
+
+      <div class="sg-sub">VS panel</div>
+      <div id="vsDemo"></div>
+      <div class="sg-row" style="margin-top:12px"><button class="sr-btn sr-btn--sm" id="rollBtn"><svg class="sr-ico"><use href="#i-d20"/></svg>Roll it</button></div>
+      <p class="sg-cap">Recommend moving this from canvas to DOM: it's mostly text, and DOM gets crisp type, the theme and accessibility for free. Modifiers read as plain sentences with a signed number; the hit chance is the biggest thing on it and changes colour with the odds.</p>
+
+      <div class="sg-sub">Stamps</div>
+      <div class="sg-row" style="gap:28px;padding:10px 0">
+        <span class="sr-stamp">Hit</span><span class="sr-stamp sr-stamp--bad">Miss</span><span class="sr-stamp sr-stamp--action">Secured</span><span class="sr-stamp sr-stamp--bad">Mission failed</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= WINDOWS ================= -->
+  <section class="sg-sec" id="windows">
+    <h2>Windows</h2>
+    <p class="sg-lede">One window family replaces winCard, ovCard and brief. Coloured top edge says who it's from: gold for system and missions, cyan for your contacts, red for Hegemony, violet for progression. Bodies never scroll sideways.</p>
+    <div class="sg-grid" style="grid-template-columns:repeat(auto-fill,minmax(440px,1fr))">
+      <div class="sr-window sg-inline-window">
+        <div class="sr-brief__hero">
+          <span class="sr-tag sr-tag--friend"><svg class="sr-ico"><use href="#i-soldier"/></svg>Ground operation, Dustfall</span>
+          <h3 class="sr-brief__title">Steal the Cross</h3>
+        </div>
+        <div class="sr-window__body">
+          <p class="sr-p">Dustfall keeps one <b>FT-4 Cross</b> on the pad behind the sheriff's HQ. Sheriff Reeve enforces Hegemony law here. We enforce ours.</p>
+          <div class="sr-h3">Objectives</div>
+          <div class="sr-obj is-current"><span class="sr-obj__mark"></span><span>Get Sera to the Cross on the north-east pad</span></div>
+          <div class="sr-obj"><span class="sr-obj__mark"></span><span>Cover her while she hotwires it</span><span class="sr-obj__count">2 rounds</span></div>
+          <div class="sr-obj"><span class="sr-obj__mark"></span><span>Release the clamps and pull the fuel line</span></div>
+          <div class="sr-obj"><span class="sr-obj__mark"></span><span>Get the squad back to the Graf and lift off</span></div>
+          <div class="sr-obj sr-obj--note"><span></span><span>Sera carries only a sidearm. Keep her clear of the shooting.</span></div>
+          <div class="sr-h3">The team</div>
+          <div class="sr-team">
+            <div class="sr-squadcard"><span class="sr-avatar">DF</span><div><div class="sr-squadcard__name">Dax Ferro</div><div class="sr-squadcard__role">Soldier</div><div class="sr-squadcard__gear"><span class="sr-gear"><svg class="sr-ico"><use href="#i-gun"/></svg>Akli AR</span><span class="sr-gear"><svg class="sr-ico"><use href="#i-pistol"/></svg>Cowboy</span></div></div></div>
+            <div class="sr-squadcard"><span class="sr-avatar sr-avatar--pilot">SK</span><div><div class="sr-squadcard__name">Sera Kest</div><div class="sr-squadcard__role">Pilot</div><div class="sr-squadcard__gear"><span class="sr-gear"><svg class="sr-ico"><use href="#i-pistol"/></svg>Cowboy</span></div></div></div>
+          </div>
+          <p class="sr-fine">While the town is calm, stay out of the lawmen's sight cones. The pad turret is armoured from the front; take it from the side.</p>
+        </div>
+        <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg">Start</button></div>
+      </div>
+
+      <div style="display:grid;gap:16px">
+        <div class="sr-window sr-window--friend sr-window--sm sg-inline-window">
+          <div class="sr-window__head"><span class="sr-window__title">Comm burst</span><span class="sr-tag sr-tag--friend">Cass Wender</span><button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" aria-label="Close"><svg class="sr-ico"><use href="#i-clear"/></svg></button></div>
+          <div class="sr-window__body">
+            <canvas class="sr-signal" id="sigCv"></canvas>
+            <div class="sr-quote">
+              <div class="sr-quote__who"><svg class="sr-ico"><use href="#i-signal"/></svg>Cass Wender</div>
+              "You want to matter out here, you need wings. Dustfall keeps one FT-4 Cross on the pad behind the HQ and a fat opinion of itself. I can get you the pad layout."
+            </div>
+            <button class="sr-choice"><span class="sr-kbd sr-choice__key">1</span>"Send the layout. We'll take it from there."</button>
+            <button class="sr-choice"><span class="sr-kbd sr-choice__key">2</span>"What's in it for you, Cass?"</button>
+            <p class="sr-fine"><span class="sr-tag sr-tag--progress">Cultivation +3</span> They know we're listening.</p>
+          </div>
+          <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary">Acknowledge</button></div>
+        </div>
+        <div class="sr-window sr-window--sm sg-inline-window">
+          <div class="sr-window__head"><span class="sr-window__title">Build your network</span><button class="sr-btn sr-btn--icon sr-btn--sm" style="--c:var(--sr-go);--ct:var(--sr-ink)" aria-label="Field manual"><svg class="sr-ico"><use href="#i-help"/></svg></button></div>
+          <div class="sr-window__body">
+            <p class="sr-p" style="margin:0">Sources feed the rebellion money, supplies and intel. The more useful a source becomes, the more it costs you if they're found out.</p>
+          </div>
+          <div class="sr-window__foot"><span class="sr-window__note">Page 1 of 6</span><span class="sr-spacer"></span><button class="sr-btn sr-btn--ghost">Field manual</button><button class="sr-btn sr-btn--primary">Got it</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sg-sub">Mission planning</div>
+    <div class="sr-window sr-window--lg sg-inline-window">
+      <div class="sr-window__head"><span class="sr-window__title">Plan: Steal the Cross</span><span class="sr-tag sr-tag--warn">Risk moderate</span><span class="sr-tag sr-tag--action">2 days</span><button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" aria-label="Close"><svg class="sr-ico"><use href="#i-clear"/></svg></button></div>
+      <div class="sr-window__body" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:22px">
+        <div>
+          <div class="sr-h3">Before you can go</div>
+          <div class="sr-check"><span class="sr-check__box"><svg class="sr-ico"><use href="#i-check"/></svg></span>3 soldiers available</div>
+          <div class="sr-check"><span class="sr-check__box"><svg class="sr-ico"><use href="#i-check"/></svg></span>2 pilots: one for the hauler, one for the prize</div>
+          <div class="sr-check is-no"><span class="sr-check__box"><svg class="sr-ico"><use href="#i-clear"/></svg></span>1 hauler flight-ready<span class="sr-check__why">Marta under repair</span></div>
+          <div class="sr-check"><span class="sr-check__box"><svg class="sr-ico"><use href="#i-check"/></svg></span>Fuel for the sortie: <span class="sr-cost" style="--c:var(--sr-fuel)"><svg class="sr-ico"><use href="#i-fuel"/></svg>16</span>&nbsp;of 264</div>
+          <div class="sr-h3">Reward</div>
+          <div class="sg-row" style="gap:8px"><span class="sr-tag sr-tag--info"><svg class="sr-ico"><use href="#i-ship"/></svg>FT-4 Cross</span><span class="sr-cost" style="--c:var(--sr-res-credits)"><svg class="sr-ico"><use href="#i-credits"/></svg>500</span><span class="sr-cost" style="--c:var(--sr-res-supplies)"><svg class="sr-ico"><use href="#i-supplies"/></svg>120</span><span class="sr-tag sr-tag--progress">+XP</span></div>
+          <div class="sr-h3">Roster</div>
+          <div class="sr-stack">
+            <button class="sr-unit"><span class="sr-avatar">KB</span><span class="sr-unit__main"><span class="sr-unit__name">Kel Brasso</span><span class="sr-unit__role">Private, level 1</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--friend">Available</span></span></button>
+            <button class="sr-unit is-down"><span class="sr-avatar">RV</span><span class="sr-unit__main"><span class="sr-unit__name">Runa Vel</span><span class="sr-unit__role">Private, level 1</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">Injured, 2 days</span></span></button>
+          </div>
+        </div>
+        <div>
+          <div class="sr-h3">Team</div>
+          <div class="sr-stack">
+            <div class="sr-slot is-filled"><span class="sr-avatar">DF</span><span><span class="sr-slot__label">Soldier 1</span><span class="sr-slot__name">Dax Ferro</span></span><button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-slot__clear" aria-label="Remove"><svg class="sr-ico"><use href="#i-clear"/></svg></button></div>
+            <div class="sr-slot is-target"><span><span class="sr-slot__label">Soldier 2</span>Click or drag someone from the roster</span></div>
+            <div class="sr-slot"><span><span class="sr-slot__label">Soldier 3</span>Empty</span></div>
+          </div>
+          <div class="sr-h3">Transport &amp; pilots</div>
+          <div class="sr-stack">
+            <div class="sr-slot is-filled"><span class="sr-avatar" style="--c:var(--sr-shield)"><svg class="sr-ico"><use href="#i-ship"/></svg></span><span><span class="sr-slot__label">Transport</span><span class="sr-slot__name">Marta</span></span><span class="sr-tag sr-tag--bad" style="margin-left:auto"><svg class="sr-ico"><use href="#i-work"/></svg>Under repair</span></div>
+            <div class="sr-slot is-filled"><span class="sr-avatar sr-avatar--pilot">JM</span><span><span class="sr-slot__label">Transport pilot</span><span class="sr-slot__name">Joss Marrek</span></span></div>
+            <div class="sr-slot"><span><span class="sr-slot__label">Pilot for the prize</span>Empty</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="sr-window__foot"><span class="sr-window__note">Fill every slot to go. 3 slots empty.</span><span class="sr-spacer"></span><button class="sr-btn sr-btn--attn">Go to the hangar</button><button class="sr-btn">Auto-fill</button><button class="sr-btn sr-btn--primary sr-btn--lg" disabled>Start</button></div>
+    </div>
+
+    <div class="sg-sub">Mission board &amp; source cards</div>
+    <div class="sg-grid">
+      <div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">Steal the Cross</span><span class="sr-tag sr-tag--friend">Available</span></div>
+        <div class="sr-card__body">Walk a pilot to the pad behind the sheriff's HQ and fly the FT-4 home.</div>
+        <div class="sr-card__meta"><span class="sr-tag">Brakka, Dustfall</span><span class="sr-tag sr-tag--action">2 days</span><span class="sr-tag sr-tag--warn">Risk moderate</span></div>
+        <div class="sr-card__acts"><button class="sr-btn sr-btn--primary">Plan mission</button><button class="sr-btn sr-btn--ghost">Later</button></div></div>
+      <div class="sr-card sr-card--friend"><div class="sr-card__top"><span class="sr-avatar" style="width:32px;height:32px"><svg class="sr-ico"><use href="#i-signal"/></svg></span><span class="sr-card__title">Cass Wender</span><span class="sr-tag sr-tag--progress">Level 1</span></div>
+        <div class="sr-card__body">Smuggler. Knows every pad, every price, and every sheriff's bad habit between here and the core.</div>
+        <div style="display:grid;gap:8px;margin-bottom:12px">
+          <div class="sr-meter"><span>Cultivation</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:20%"></span></span><span class="sr-meter__val">20</span></div>
+          <div class="sr-meter sr-meter--risk"><span>Risk</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:20%"></span></span><span class="sr-meter__val">20</span></div>
+        </div>
+        <div class="sr-card__acts"><button class="sr-btn sr-btn--friend sr-btn--attn"><svg class="sr-ico"><use href="#i-signal"/></svg>Contact</button><button class="sr-btn">Visit</button><button class="sr-btn sr-btn--danger">Cut loose</button></div></div>
+      <div class="sr-card sr-card--good"><div class="sr-card__top"><span class="sr-card__title">Refuelling station</span><span class="sr-tag">3 days</span></div>
+        <div class="sr-card__body">Dedicated fuel storage and pumps. Sorties burn 25% less fuel.</div>
+        <div class="sr-card__meta"><span class="sr-cost" style="--c:var(--sr-res-credits)"><svg class="sr-ico"><use href="#i-credits"/></svg>400</span><span class="sr-cost is-short" style="--c:var(--sr-res-materials)"><svg class="sr-ico"><use href="#i-materials"/></svg>240</span></div>
+        <div class="sr-card__acts"><button class="sr-btn sr-btn--primary" disabled>Build</button><span class="sr-window__note" style="align-self:center">Need 8 more materials</span></div></div>
+    </div>
+  </section>
+
+  <!-- ================= CANVAS ================= -->
+  <section class="sg-sec" id="canvas">
+    <h2>Canvas kit</h2>
+    <p class="sg-lede">Everything below is drawn by <b>sr-theme.js</b> helpers, live. Same ink outlines and colour meanings as the DOM. Labels go through a priority layer: unit names win, loot labels nudge aside, and anything that still collides is hidden instead of overlapping.</p>
+    <div class="sg-board sg-board--map" style="padding:0;overflow:hidden"><canvas class="sg-canvas" id="kitCv"></canvas></div>
+    <div class="sg-legend">
+      <div><b>unitToken</b> — friend, selected, acting, ordered, panicking, down; foe (icy glow), targeted</div>
+      <div><b>hpPips</b> — 5 cells, gold under 60%, orange under 35%</div>
+      <div><b>coverPip</b> — half cover outline, full cover filled</div>
+      <div><b>sightCone</b> — Hegemony-blue searchlight, orange near band, orange when alerted</div>
+      <div><b>detectGauge</b> — eye fills gold, orange, then Hegemony blue when you're spotted</div>
+      <div><b>moveRing / plotLine</b> — red move, gold sprint</div>
+      <div><b>marker</b> — objectives and interactables, bobbing gold diamonds</div>
+      <div><b>labelLayer</b> — priority labels with collision handling</div>
+    </div>
+  </section>
+</main>
+
+<script>
+/*@JS@*/
+</script>
+<script>
+(function(){
+'use strict';
+const T=window.SR_THEME;T.sync();
+const C=T.C;
+const $=s=>document.querySelector(s);
+const ICO=(n)=>'<svg class="sr-ico"><use href="#i-'+n+'"/></svg>';
+
+/* ---------- icon grid ---------- */
+const groups={Resources:['credits','supplies','materials','fuel','intel','revflame','revolution','day','signal'],
+  Orders:['move','sprint','hold','cover','lockin','loot','work','sneak','attack','grenade','stim','clear','execute','turret','leave','unjam','hack','firesupport','extract'],
+  'Space actions':['targetlock','evade','angle','boost','patch','roll','pass','dial'],
+  'Weapons & ships':['gun','pistol','plasma','ballistic','missile','ship'],
+  Status:['cool','panic','eye','heart','skull','star','lock','check','sword','shield','d20'],
+  Roles:['soldier','pilot','support','marine'],
+  'Navigation & tools':['people','galaxy','missions','base','hangar','zoomin','zoomout','fit','follow','soundon','soundoff','menu','help','restart','debug','comms','chevron','back']};
+let html='',n=0;
+for(const g in groups){html+='<div class="sg-icongroup">'+g+'</div><div class="sg-icons">';
+  for(const k of groups[g]){if(!T.ICONS[k])continue;n++;html+='<div class="sg-icon">'+ICO(k)+'<span>'+k+'</span></div>';}html+='</div>';}
+$('#iconGrid').innerHTML=html;$('#iconCount').textContent=n+' icons';
+
+/* ---------- canvas sizing ---------- */
+function fit(cv){const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);
+  const w=Math.max(1,Math.round(r.width)),h=Math.max(1,Math.round(r.height));
+  if(cv.width!==w*d||cv.height!==h*d){cv.width=w*d;cv.height=h*d;}
+  const ctx=cv.getContext('2d');ctx.setTransform(d,0,0,d,0,0);return {ctx,w,h};}
+
+/* ---------- terrain (placeholder: map palette is out of scope) ---------- */
+const TER={ground:'#1a1f38',ground2:'#20264a',path:'#2a3157',rock:'#3b4266',rockHi:'#4c5480',wall:'#0f1226',crate:'#4b5a86'};
+function boulder(ctx,x,y,r){ctx.save();ctx.beginPath();for(let i=0;i<7;i++){const a=i/7*Math.PI*2+.3,rr=r*(i%2?0.9:1);ctx.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr*0.85);}ctx.closePath();
+  ctx.fillStyle=C.ink;ctx.translate(0,4);ctx.fill();ctx.translate(0,-4);ctx.fillStyle=TER.rock;ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=C.ink;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-r*.4,y-r*.35);ctx.lineTo(x+r*.1,y-r*.5);ctx.strokeStyle=TER.rockHi;ctx.lineWidth=3;ctx.stroke();ctx.restore();}
+function crate(ctx,x,y,s){T.chunky(ctx,x-s/2,y-s/2,s,s,4,TER.crate,{drop:4,line:2.5});ctx.strokeStyle=T.rgba(C.ink,.6);ctx.lineWidth=2;ctx.strokeRect(x-s/2+6,y-s/2+6,s-12,s-12);}
+
+/* ---------- ground mockup ---------- */
+let gState='plan';
+const gUnits=[
+  {id:'dax',name:'Dax',x:.40,y:.60,side:'friend',hp:100,face:-.6},
+  {id:'runa',name:'Runa',x:.46,y:.66,side:'friend',hp:58,face:-.3},
+  {id:'kel',name:'Kel',x:.33,y:.66,side:'friend',hp:23,face:-.1},
+  {id:'odo',name:'Odo',x:.70,y:.63,side:'foe',hp:100,face:Math.PI},
+  {id:'vult',name:'Vult',x:.62,y:.46,side:'foe',hp:100,face:Math.PI*.85},
+  {id:'brek',name:'Brek',x:.585,y:.20,side:'foe',hp:24,face:Math.PI*.6},
+];
+const U=id=>gUnits.find(u=>u.id===id);
+/* world is a fixed 960x700 design space; each view has its own camera */
+const WW=960,WH=700;
+function drawGround(t,inst){
+  const cv=inst.cv;const {ctx,w,h}=fit(cv);const st=inst.state||gState;
+  const c=inst.cache||(inst.cache={cam:0});
+  ctx.fillStyle=TER.wall;ctx.fillRect(0,0,w,h);
+  /* camera: desktop frames the whole yard; phone follows the selected rebel.
+     Engagement rule: frame the action in the safe area above the bottom dock. */
+  const camT=st==='fight'?-h*.26:0;c.cam+=(camT-c.cam)*.09;
+  let ox,oy;
+  if(inst.follow){const f=U('dax');ox=w/2-f.x*WW;oy=h*(inst.followY||.42)-f.y*WH+c.cam;}
+  else{ox=(w-WW)/2;oy=(h-WH)/2+c.cam;}
+  ctx.save();ctx.translate(ox,oy);
+  const W=WW,H=WH;
+  ctx.fillStyle=TER.ground;ctx.fillRect(-200,-200,W+400,H+400);
+  for(let i=0;i<26;i++){const x=(i*173%W),y=(i*97%H);ctx.fillStyle=TER.ground2;ctx.fillRect(x,y,90+i%3*40,40+i%4*20);}
+  ctx.fillStyle=TER.wall;ctx.beginPath();ctx.moveTo(-200,-200);ctx.lineTo(W*.52,-200);ctx.lineTo(W*.52,H*.28);ctx.lineTo(W*.18,H*.36);ctx.lineTo(-200,H*.32);ctx.fill();
+  ctx.beginPath();ctx.moveTo(W*.66,-200);ctx.lineTo(W+200,-200);ctx.lineTo(W+200,H*.34);ctx.lineTo(W*.80,H*.30);ctx.lineTo(W*.66,H*.28);ctx.fill();
+  T.chunky(ctx,W*.52,H*.02,W*.14,H*.27,6,'#161a36',{drop:0,line:3});
+  ctx.fillStyle=C.gold;ctx.fillRect(W*.53,H*.28,6,10);ctx.fillRect(W*.65-6,H*.28,6,10);
+  ctx.save();ctx.lineCap='round';ctx.strokeStyle=TER.path;ctx.lineWidth=60;ctx.beginPath();ctx.moveTo(W*.05,H*1.05);ctx.quadraticCurveTo(W*.3,H*.55,W*.59,H*.32);ctx.stroke();ctx.restore();
+  [[.12,.5,28],[.24,.86,30],[.55,.82,26],[.86,.55,30],[.80,.86,24],[.2,.42,20]].forEach(b=>boulder(ctx,W*b[0],H*b[1],b[2]));
+  crate(ctx,W*.66,H*.55,40);crate(ctx,W*.58,H*.54,40);
+  ctx.beginPath();ctx.arc(W*.755,H*.47,14,0,Math.PI*2);ctx.fillStyle=C.ink;ctx.fill();ctx.beginPath();ctx.arc(W*.755,H*.47-2,12,0,Math.PI*2);ctx.fillStyle='#e8402f';ctx.fill();
+  T.icon(ctx,'fuel',W*.755,H*.47-2,14,C.ink,{weight:3});
+  T.label(ctx,'Squatter stash',W*.62,H*.40,{kind:'place',size:14,color:T.rgba(C.steel,.75)});
+  T.label(ctx,'Approach',W*.12,H*.94,{kind:'place',size:14,color:T.rgba(C.shield,.6)});
+  ctx.restore();
+  /* fog with vision holes */
+  const fog=c.fog||(c.fog=document.createElement('canvas'));
+  fog.width=cv.width;fog.height=cv.height;const f=fog.getContext('2d');const d=cv.width/w;f.setTransform(d,0,0,d,0,0);
+  f.fillStyle=T.ROLE.fog;f.fillRect(0,0,w,h);f.translate(ox,oy);f.globalCompositeOperation='destination-out';
+  for(const u of gUnits){if(u.side!=='friend')continue;const g=f.createRadialGradient(u.x*W,u.y*H,120,u.x*W,u.y*H,430);g.addColorStop(0,'#000');g.addColorStop(1,'rgba(0,0,0,0)');f.fillStyle=g;f.fillRect(-400,-400,W+800,H+800);}
+  ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(fog,0,0);ctx.restore();
+  ctx.save();ctx.translate(ox,oy);
+  const L=T.labelLayer();
+  if(st==='free'){
+    for(const u of gUnits.filter(u=>u.side==='foe'&&u.id!=='brek')){T.sightCone(ctx,u.x*W,u.y*H,u.face+Math.sin(t*.6+u.x*9)*.25,1.1,230,90,{});}
+    T.detectGauge(ctx,U('runa').x*W,U('runa').y*H-44,.55+Math.sin(t*1.5)*.1);
+  }
+  if(st==='plan'){
+    const dx=U('dax');T.moveRing(ctx,dx.x*W,dx.y*H,190,'move');
+    T.plotLine(ctx,dx.x*W,dx.y*H,W*.52,H*.53,'move',t);T.coverPip(ctx,W*.52+18,H*.53-20,2);
+    T.coverPip(ctx,W*.70+20,H*.63-24,1);
+    T.marker(ctx,W*.575,H*.52,{icon:'loot',color:C.go,t,size:24});
+  }
+  if(st==='fight'){const k=U('kel'),o=U('odo');T.fireLine(ctx,k.x*W,k.y*H,o.x*W,o.y*H,'friend',t);}
+  for(const u of gUnits){
+    const x=u.x*W,y=u.y*H;
+    T.unitToken(ctx,x,y,{side:u.side,r:16,icon:u.side==='foe'?'gun':'soldier',facing:u.face,t,
+      selected:(st!=='fight'&&u.id==='dax'),ordered:(st==='plan'&&u.id==='dax'),
+      acting:(st==='fight'&&u.id==='kel'),targeted:(st==='fight'&&u.id==='odo'),
+      panicking:(st!=='free'&&(u.id==='kel'||u.id==='brek'))});
+    T.hpPips(ctx,x,y-30,{hp:u.hp,max:100});
+    L.add(u.name,x,y+31,{color:u.side==='foe'?C.heg:C.rebel,size:12},3);
+  }
+  L.flush(ctx);
+  ctx.restore();
+  if(inst.mini&&inst.mini.offsetParent){
+    const mm=fit(inst.mini);const m=mm.ctx;m.fillStyle=C.void;m.fillRect(0,0,mm.w,mm.h);
+    m.fillStyle=TER.ground2;m.fillRect(mm.w*.1,mm.h*.25,mm.w*.8,mm.h*.65);m.fillStyle=TER.wall;m.fillRect(mm.w*.52,mm.h*.05,mm.w*.14,mm.h*.25);
+    for(const u of gUnits){m.beginPath();m.arc(u.x*mm.w,u.y*mm.h,4,0,Math.PI*2);m.fillStyle=u.side==='foe'?C.heg:C.rebel;m.fill();m.lineWidth=1.5;m.strokeStyle=C.ink;m.stroke();}
+    m.lineWidth=2;m.strokeStyle=C.gold;m.strokeRect(mm.w*.18,mm.h*.3,mm.w*.6,mm.h*.55);
+  }
+}
+const coach={
+  free:['Sneak in','Right-click to move the squad. Stay out of the <b>blue searchlights</b>, and never step into the orange band. Click an enemy to open fire with an ambush.'],
+  plan:['Plan the round','Give each rebel one order. <b>Move</b> keeps the gun up, <b>Sprint</b> goes far but can\'t shoot, <b>Hold</b> fires on anyone crossing the lane. Green shields are cover. Then hit <b>Execute</b>.'],
+  fight:['Take the shot','Shots resolve one at a time. Pick a weapon, tap another squatter to retarget, or tap a <b>red canister</b> to blow it. Then hit <b>Attack</b>.']};
+function setGround(s){
+  gState=s;
+  document.querySelectorAll('[data-gstate]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.gstate===s?'true':'false'));
+  const ph=$('#gPhase');ph.dataset.phase=s==='free'?'free':s==='plan'?'plan':'fight';ph.dataset.status=s==='free'?'calm':'alert';
+  $('#gPhaseName').textContent=s==='free'?'Free move':s==='plan'?'Planning':'Engagement';
+  $('#gStatus').textContent=s==='free'?'Camp is quiet':'Camp alerted';
+  ph.querySelector('.sr-phase__status use').setAttribute('href',s==='free'?'#i-eye':'#i-panic');
+  ph.querySelector('.sr-phase__round').textContent=s==='free'?'Sneaking':'Round 1';
+  $('#gCoachTitle').textContent=coach[s][0];$('#gCoachText').innerHTML=coach[s][1];
+    $('#gKelRow').classList.toggle('is-acting',s==='fight');
+  $('#gObj').classList.toggle('is-compact',s!=='free');
+  document.querySelectorAll('[data-g="old"]').forEach(e=>e.classList.toggle('is-expired',s==='fight'));
+  document.querySelectorAll('[data-g="fight"]').forEach(e=>e.hidden=s!=='fight');
+  const b=$('#gBottom');
+  if(s==='free')b.innerHTML='<div class="sr-cmdbar"><div class="sr-cmdbar__who" style="border-right:0;min-width:0"><button class="sr-btn sr-btn--icon" aria-pressed="true" aria-label="Sneak">'+ICO('sneak')+'</button><div><div class="sr-cmdbar__name">Sneaking</div><div class="sr-cmdbar__hint">Right-click to move. Click an enemy to ambush. <span class="sr-kbd">C</span> toggles sneak.</div></div></div></div>';
+  else if(s==='plan')b.innerHTML='<span class="sr-pill">Pick a destination for Dax <span class="sr-kbd">Esc</span></span><div class="sr-cmdbar"><div class="sr-cmdbar__who"><span class="sr-avatar">DF</span><div><div class="sr-cmdbar__name">Dax Ferro</div><div class="sr-cmdbar__hint">Choose an order</div></div></div><div class="sr-orders">'+
+    [['move','move','Move',1,1],['move','sprint','Sprint',2],['stance','hold','Hold',3],['stance','cover','Take cover',4],['sep'],['nerve','lockin','Lock in',5],['util','loot','Loot',6],['util','work','Work',7,0,1]].map(o=>o[0]==='sep'?'<span class="sr-orders__sep"></span>':'<button class="sr-order sr-order--'+o[0]+(o[4]?' is-active':'')+'"'+(o[5]?' disabled':'')+'><span class="sr-kbd sr-order__key">'+o[3]+'</span>'+ICO(o[1])+o[2]+'</button>').join('')+
+    '</div><div class="sr-cmdbar__go"><button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go">Execute'+ICO('execute')+'</button><div class="sr-cmdbar__count"><b>1</b> of 3 ordered</div></div></div>';
+  else b.innerHTML=$('#vsTpl').innerHTML+'<div class="sr-cmdbar"><div class="sr-cmdbar__who"><span class="sr-avatar">KB</span><div><div class="sr-cmdbar__name">Kel Brasso</div><div class="sr-cmdbar__hint">Pick a weapon or retarget</div></div></div><div class="sr-orders">'+
+    '<button class="sr-order sr-order--fight is-active">'+ICO('gun')+'Akli AR</button><button class="sr-order sr-order--fight">'+ICO('pistol')+'Cowboy</button><button class="sr-order sr-order--fight">'+ICO('grenade')+'Grenade ×1</button><button class="sr-order sr-order--util">'+ICO('stim')+'Stim ×1</button>'+
+    '</div><div class="sr-cmdbar__go"><button class="sr-btn sr-btn--primary sr-btn--lg">'+ICO('attack')+'Attack</button><div class="sr-cmdbar__count">Shot <b>1</b> of 6</div></div></div>';
+  /* phase banner */
+  const stage=$('#gShell .sr-stage');const old=stage.querySelector('.sr-banner');if(old)old.remove();
+  const bn=document.createElement('div');bn.className='sr-banner';
+  const col=s==='free'?'var(--sr-phase-free)':s==='plan'?'var(--sr-phase-plan)':'var(--sr-phase-fight)';
+  bn.innerHTML='<div class="sr-banner__txt" style="--c:'+col+'">'+(s==='free'?'Free move':s==='plan'?'Planning':'Engagement')+'<span class="sr-banner__sub">'+(s==='free'?'They don\'t know you\'re here':s==='plan'?'Round 1':'Shots resolve one at a time')+'</span></div>';
+  stage.appendChild(bn);setTimeout(()=>bn.remove(),1400);
+}
+document.querySelectorAll('[data-gstate]').forEach(b=>b.addEventListener('click',()=>setGround(b.dataset.gstate)));
+
+/* ---------- base mockup (iso) ---------- */
+function drawBase(t,cv){
+  const {ctx,w,h}=fit(cv);ctx.fillStyle=C.void;ctx.fillRect(0,0,w,h);
+  const k=Math.min(1,w/560),cx=w*.5,cy=h*(w<600?.28:.36),tw=64*k,th=32*k;
+  const iso=(i,j)=>[cx+(i-j)*tw/2,cy+(i+j)*th/2];
+  function tile(i,j,fill,line){const [x,y]=iso(i,j);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+tw/2,y+th/2);ctx.lineTo(x,y+th);ctx.lineTo(x-tw/2,y+th/2);ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=line||1;ctx.strokeStyle=T.rgba(C.ink,.9);ctx.stroke();}
+  for(let i=0;i<9;i++)for(let j=0;j<9;j++)tile(i,j,(i+j)%2?'#141838':'#171b3f');
+  function room(i0,j0,si,sj,col,name,icon){
+    for(let i=i0;i<i0+si;i++)for(let j=j0;j<j0+sj;j++)tile(i,j,T.rgba(col,.22));
+    const a=iso(i0,j0),b=iso(i0+si,j0),c=iso(i0+si,j0+sj),d=iso(i0,j0+sj);
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c[0],c[1]);ctx.lineTo(d[0],d[1]);ctx.closePath();
+    ctx.lineWidth=6;ctx.strokeStyle=C.ink;ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle=col;ctx.stroke();
+    const mx=(a[0]+c[0])/2,my=(a[1]+c[1])/2;
+    const bs=40*Math.max(.75,k);T.chunky(ctx,mx-bs/2,my-bs*.85,bs,bs,10,col,{drop:4,line:2.5});T.icon(ctx,icon,mx,my-bs*.35,bs*.6,C.ink,{weight:2.6});
+    T.label(ctx,name,mx,my+22,{color:col,size:13});
+  }
+  room(1,1,3,2,C.shield,'Hangar','hangar');room(4,2,2,2,C.gold,'Command','base');room(2,4,2,2,C.rebel,'Barracks','soldier');
+  for(const [i,j] of [[6,5],[5,6],[1,6],[6,1]]){const [x,y]=iso(i,j);ctx.save();ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(x,y+4);ctx.lineTo(x+tw/2-4,y+th/2);ctx.lineTo(x,y+th-4);ctx.lineTo(x-tw/2+4,y+th/2);ctx.closePath();ctx.strokeStyle=T.rgba(C.text3,.6);ctx.lineWidth=1.5;ctx.stroke();ctx.restore();}
+  const [ex,ey]=iso(6,5);T.marker(ctx,ex,ey+12,{icon:'work',color:C.go,t,size:26});
+  T.label(ctx,'Dig out',ex,ey+46,{color:C.go,size:12});
+}
+
+/* ---------- VS demo + roll ---------- */
+$('#vsDemo').innerHTML=$('#vsTpl').innerHTML;
+$('#vsDemo .sr-die').id='demoDie';
+$('#rollBtn').addEventListener('click',()=>{
+  const die=$('#demoDie');die.classList.remove('is-hit','is-miss','is-rolling');void die.offsetWidth;die.classList.add('is-rolling');
+  const v=1+Math.floor(Math.random()*20);die.querySelector('b').textContent=v;
+  setTimeout(()=>{die.classList.add(v>=12?'is-hit':'is-miss');
+    const old=$('#vsDemo .sr-stamp');if(old)old.remove();
+    const s=document.createElement('span');s.className='sr-stamp'+(v>=12?'':' sr-stamp--bad');s.textContent=v>=12?'Hit':'Miss';s.style.cssText='position:absolute;margin-left:-120px;margin-top:-40px;font-size:20px';
+    die.parentElement.style.position='relative';die.parentElement.appendChild(s);},420);
+});
+
+/* ---------- signal strip ---------- */
+function drawSignal(t){const {ctx,w,h}=fit($('#sigCv'));ctx.fillStyle=C.void;ctx.fillRect(0,0,w,h);
+  ctx.beginPath();for(let x=0;x<w;x+=3){const y=h/2+Math.sin(x*.09+t*6)*h*.18*Math.sin(x*.013+t)+Math.sin(x*.4+t*13)*3;x?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+  ctx.lineWidth=2;ctx.strokeStyle=C.rebel;ctx.stroke();}
+
+/* ---------- canvas kit ---------- */
+function drawKit(t){
+  const {ctx,w,h}=fit($('#kitCv'));ctx.fillStyle='#161b36';ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,.03)';for(let x=0;x<w;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}for(let y=0;y<h;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+  const L=T.labelLayer();const sx=Math.max(90,(w-60)/8);
+  const row1=[{l:'Friend'},{l:'Selected',selected:1},{l:'Acting',acting:1},{l:'Ordered',ordered:1},{l:'Panicking',panicking:1,hp:30},{l:'Down',down:1,hp:0},{l:'Foe',side:'foe',icon:'gun'},{l:'Targeted',side:'foe',icon:'gun',targeted:1,hp:55}];
+  row1.forEach((u,i)=>{const x=40+sx*i+sx/2,y=90;T.unitToken(ctx,x,y,Object.assign({r:16,facing:-Math.PI/2+Math.sin(t+i)*.4,t},u));if(!u.down)T.hpPips(ctx,x,y-32,{hp:u.hp==null?100:u.hp});L.add(u.l,x,y+34,{color:u.side==='foe'?C.heg:C.rebel},2);});
+  /* sight cone + gauge */
+  const cx=w*.16,cy=h*.72;T.sightCone(ctx,cx,cy,-.3+Math.sin(t*.7)*.3,1.1,170,70,{});T.unitToken(ctx,cx,cy,{side:'foe',icon:'gun',r:14,facing:-.3+Math.sin(t*.7)*.3,t});
+  T.detectGauge(ctx,cx+130,cy-70,((t*.25)%1.2));T.unitToken(ctx,cx+130,cy-30,{r:14,t});
+  const ax=w*.42,ay=h*.72;T.sightCone(ctx,ax,ay,-2.6,1.0,150,60,{alert:1});T.unitToken(ctx,ax,ay,{side:'foe',icon:'gun',r:14,facing:-2.6,t});
+  L.add('Calm cone',cx,cy+30,{color:C.heg},1);L.add('Alerted cone',ax,ay+30,{color:C.hazard},1);
+  /* move ring */
+  const mx=w*.64,my=h*.72;T.moveRing(ctx,mx,my,80,'move');T.plotLine(ctx,mx,my,mx+55,my-45,'move',t);T.unitToken(ctx,mx,my,{r:14,selected:1,t});
+  T.coverPip(ctx,mx+75,my-62,2);T.coverPip(ctx,mx+98,my-62,1);
+  /* marker + overlapping labels demo */
+  const kx=w*.86,ky=h*.70;T.marker(ctx,kx,ky,{icon:'star',t});T.marker(ctx,kx+50,ky+30,{icon:'loot',color:C.go,t,size:22});
+  L.add('Raise signal',kx,ky+30,{color:C.gold},2);L.add('Ration crates',kx+50,ky+52,{color:C.go},1);L.add('Ammo locker',kx+40,ky+48,{color:C.go},0);
+  L.flush(ctx);
+}
+
+/* ---------- phone frames: clone the desktop shells into 390px containers ---------- */
+const views=[{type:'g',cv:$('#gMap'),mini:$('#gMini')},{type:'b',cv:$('#bMap')}];
+function cloneInto(srcShell,frame,type,opts){
+  const cl=srcShell.cloneNode(true);
+  cl.querySelectorAll('.sr-banner').forEach(e=>e.remove());
+  const cv=cl.querySelector('.sr-stage>canvas'),mini=cl.querySelector('.sr-minimap');
+  cl.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+  frame.appendChild(cl);
+  const db=cl.querySelector('.sr-drawerbtn');if(db)db.addEventListener('click',()=>cl.classList.toggle('is-drawer-open'));
+  views.push(Object.assign({type,cv,mini},opts||{}));
+  return cl;
+}
+setGround('plan');
+cloneInto($('#gShell'),$('#phG'),'g',{follow:true,state:'plan',followY:.48});
+cloneInto($('#bShell'),$('#phB'),'b');
+const lc=cloneInto($('#gShell'),$('#phL'),'g',{follow:true,state:'plan',followY:.27});
+document.querySelectorAll('.sr-drawerbtn').forEach(b=>{if(!b.closest('.sg-phone'))b.addEventListener('click',()=>b.closest('.sr-shell').classList.toggle('is-drawer-open'));});
+
+const vis=new Set();const io=new IntersectionObserver(es=>es.forEach(e=>e.isIntersecting?vis.add(e.target):vis.delete(e.target)));
+views.forEach(v=>io.observe(v.cv));['kitCv','sigCv'].forEach(id=>io.observe($('#'+id)));
+const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(now){const t=reduce?0:now/1000;
+  try{
+    for(const v of views){if(!vis.has(v.cv))continue;if(v.type==='g')drawGround(t,v);else drawBase(t,v.cv);}
+    if(vis.has($('#kitCv')))drawKit(t);if(vis.has($('#sigCv')))drawSignal(t);
+  }catch(e){console.error(e);}
+  requestAnimationFrame(frame);}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
