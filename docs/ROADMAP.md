@@ -151,11 +151,12 @@ mission gives yet. See `docs/GDD.md` §8. Original scope:
   *Door Gunner* needs a gunship-type asset. *Strafing Run* needs a starfighter, so it
   is a stretch goal.
 
-### Phase 5 — Base — **in progress**
-Built (first slice): merged rooms, Hangar/Barracks/Intelligence Center expansion and capacity, Storeroom
-Supplies cap, Barracks and Hangar upgrades, Garrison/Flight Deck/Chief Diplomat posts, the Diplomatic
-Quarter and its Support tasks. Remaining: Ready Lounge, Maintenance Bay, Rec Room, Surgery Room, the
-Restore/Patrol tasks, and the **gear grid**. See `docs/GDD.md` §8. Original scope:
+### Phase 5 — Base — **built**
+Built: merged rooms, Hangar/Barracks/Intelligence Center expansion and capacity, Storeroom Supplies cap,
+Barracks and Hangar upgrades including the Ready Lounge, Maintenance Bay and Rec Room conversions,
+the Infirmary Surgery Room, Garrison/Flight Deck/Chief Diplomat posts, the Diplomatic Quarter and its
+Support tasks, Patrol Local Space, and the Gear Grid. Left for later: enforcing the gear-slot limit and
+Armour items. See `docs/GDD.md` §8. Original scope:
 - Turn the fixed room list into the docs' model: adjacent rooms **merge into one bigger
   room**, and rooms take **upgrades**.
 - Rename or split **Comms Array** into the **Intelligence Center** (adjacent rooms add

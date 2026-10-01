@@ -685,8 +685,22 @@ Landing, +15% liberation, capped by Access/Support):
   (**400 credits + 60 supplies, 4 days**, one team per Quarter tile). A team adds **+½ Support**, or
   **+1 flag** when the Chief Diplomat is level 3+. Support is what gates liberation, so this is the
   player's way to grow it without waiting for source events.
-- **Not built yet:** Ready Lounge, Maintenance Bay, Rec Room, Surgery Room, Restore/Patrol tasks,
-  Storeroom capacity for other resources, the gear grid.
+- **Conversions** turn one tile of a merged room into something else (it needs a spare tile, so the
+  room must have been expanded): *Ready Lounge* (hangar: loses a pad; every sortie takes 1 day
+  less, minimum 1), *Maintenance Bay* (hangar: loses a pad; the most damaged ship repairs 10%/day
+  faster), *Rec Room* (barracks, needs 3+ tiles: loses a tile of beds; resting rebels gain morale
+  twice as fast). A conversion is refused if it would leave a ship or rebel without a berth.
+- **Surgery Room** (Infirmary upgrade): with a medic on station, a rebel who would be lost in the field
+  has a 60% chance to survive, out for 6 days.
+- **Patrol Local Space** (Hangar task): a ready ship (hull 60%+, fuel, its pilot free) goes out for 2
+  days; it brings back +1 Intel, often 60-100 Materials of salvage, and a 25% chance of a scrap that
+  costs 10-20% hull. *Restore Broken Ship* was already built.
+- **Gear Grid** (Storeroom, "Gear Grid" button): replaces the flat list. Items have a category
+  (Weapons, Explosives, Armour, Other) and a footprint (a rifle is 3x1, a pistol or grenade 1x1);
+  duplicates stack as one entry with a count; the Storeroom gives 24 slots plus 12 per tile. The grid
+  warns when full but does not yet refuse loot.
+- **Not built yet:** Storeroom capacity for other resources, Armour items (no armour exists yet at
+  Level 1), enforcing the gear-slot limit.
 
 ### Mission types and narrative contexts (built)
 The Missions document describes **mission types**, not one-off missions. A type (objectives, rewards,

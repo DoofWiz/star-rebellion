@@ -66,13 +66,43 @@ const UPGRADES={
   barracks:[
     {k:'bunks',n:'Bunks',c:260,m:140,days:2,d:'Stack the beds: +2 beds in every barracks room.'},
     {k:'quarters',n:'Quarters',c:320,m:160,s:60,days:2,d:'Thin partitions, one more bed in each bay: +2 more beds per room.'},
+    {k:'rec',n:'Rec Room',c:300,m:160,s:80,days:2,conv:1,minTiles:3,d:'Converts one barracks room (its beds) into a rec room: resting rebels recover morale twice as fast. Needs an expansion first.'},
+  ],
+  infirmary:[
+    {k:'surgery',n:'Surgery Room',c:600,m:240,s:100,days:3,d:'When someone would be lost in the field, a staffed surgery gives them a 60% chance to be pulled back from the brink (out for 6 days).'},
   ],
   hangar:[
     {k:'refuel',n:'Refuelling Station',c:400,m:240,days:2,d:'Dedicated fuel storage and pumps: sorties burn 25% less fuel.'},
     {k:'arm',n:'Robot Maintenance Arm',c:440,m:260,days:3,d:'A robotic mechanic: ships repair 5% a day faster on the pads.'},
+    {k:'lounge',n:'Ready Lounge',c:520,m:220,days:3,conv:1,minTiles:2,d:'Converts one landing pad into a standby lounge: pilots get to a mission a day sooner (every sortie takes 1 day less, minimum 1).'},
+    {k:'mbay',n:'Maintenance Bay',c:560,m:320,days:3,conv:1,minTiles:2,d:'Converts one landing pad into a dedicated bay: the most damaged ship moves in and repairs 10% a day faster until it is whole.'},
   ],
 };
 const DIP_COST={c:400,s:60},DIP_DAYS=4;
+/* gear grid: every item has a category and a footprint; duplicates stack as one entry ("x N") */
+const GEAR_CATS=['All','Weapons','Explosives','Armour','Other'];
+const GEAR_META={
+  akli:{cat:'Weapons',sub:'Rifles',w:3,h:1},cowboy:{cat:'Weapons',sub:'Pistols',w:1,h:1},
+  scatter:{cat:'Weapons',sub:'Rifles',w:3,h:1},carbine:{cat:'Weapons',sub:'Rifles',w:3,h:1},
+  shells:{cat:'Other',sub:'Ammunition',w:1,h:1},blam:{cat:'Explosives',sub:'Grenades',w:1,h:1},
+  charge:{cat:'Explosives',sub:'Explosive Charges',w:2,h:1},
+};
+const gearMeta=a=>GEAR_META[a.id]||{cat:'Other',sub:'Misc',w:2,h:1};
+const GEAR_COLS=8;
+function gearCapacity(){return 24+12*tilesOf('store');}
+function gearLayout(items){
+  const rows=[];const fits=(r,c,w,h)=>{for(let y=r;y<r+h;y++)for(let x=c;x<c+w;x++){if(x>=GEAR_COLS||(rows[y]&&rows[y][x]))return false;}return true;};
+  const out=[];
+  for(const a of items){
+    const m=gearMeta(a);let placed=false;
+    for(let r=0;!placed;r++)for(let c=0;c<=GEAR_COLS-m.w&&!placed;c++)if(fits(r,c,m.w,m.h)){
+      for(let y=r;y<r+m.h;y++){rows[y]=rows[y]||[];for(let x=c;x<c+m.w;x++)rows[y][x]=1;}
+      out.push({a,m,r,c});placed=true;
+    }
+  }
+  return out;
+}
+let GEARCAT='All';
 const EXCAVATE={m:40,days:1};
 /* fuel burned per ship on a sortie */
 const FUEL_COST={graf:16,cross:24,talon:24};
@@ -144,11 +174,21 @@ function clusterOf(rm){
 }
 const clusterTiles=cl=>cl.reduce((n,r)=>n+roomTiles(r),0);
 function upOf(rm,k){return clusterOf(rm).some(r=>(r.up||[]).includes(k));}
+function upAny(key,k){return G&&G.rooms&&G.rooms.some(r=>r.key===key&&!r.build&&(r.up||[]).includes(k));}
 function hangarUp(k){return G&&G.rooms&&G.rooms.some(r=>r.key==='hangar'&&!r.build&&(r.up||[]).includes(k));}
 function upQueued(rm,k){return (G.upq||[]).some(u=>u.key===rm.key&&u.k===k&&clusterOf(rm).some(r=>u.ids.includes(r.id)));}
 function sourceCap(){return 2+tilesOf('comms');}
-function fighterCap(){return tilesOf('hangar');}   // one landing pad per hangar tile; four from the start
-function bunkCap(){return roomsOf('barracks').reduce((n,r)=>n+roomTiles(r)*(3+((r.up||[]).includes('bunks')?2:0)+((r.up||[]).includes('quarters')?2:0)),0);}
+function clustersOf(key){
+  const seen=[],out=[];
+  for(const r of roomsOf(key)){if(seen.includes(r))continue;const cl=clusterOf(r);cl.forEach(q=>seen.push(q));out.push(cl);}
+  return out;
+}
+const clUp=(cl,k)=>cl.some(r=>(r.up||[]).includes(k));
+/* conversions (Ready Lounge, Maintenance Bay, Rec Room) turn one tile of a merged room into something else */
+function fighterCap(){return clustersOf('hangar').reduce((n,cl)=>n+clusterTiles(cl)-(clUp(cl,'lounge')?1:0)-(clUp(cl,'mbay')?1:0),0);}   // one landing pad per hangar tile; four from the start
+const bedsPerTile=cl=>3+(clUp(cl,'bunks')?2:0)+(clUp(cl,'quarters')?2:0);
+function bunkCap(){return clustersOf('barracks').reduce((n,cl)=>n+(clusterTiles(cl)-(clUp(cl,'rec')?1:0))*bedsPerTile(cl),0);}
+const missionDays=m=>Math.max(1,(m.days||1)-(hangarUp('lounge')?1:0));
 function supCap(){const t=tilesOf('store');return Math.round(1000+250*t*(1+0.05*Math.max(0,t-1)));}
 function postSlots(key){return key==='infirmary'?Math.max(1,tilesOf('infirmary')):1;}
 function clampSupplies(){
@@ -799,10 +839,12 @@ function advanceDay(){
   const rate=(hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0);
   G.fuel+=4;   // the old hangar-cave tanks weep a little every day
   const repCost=staffOf('store').length?4:8;
+  const worst=hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
-    if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,f.hull+rate);}
+    if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,f.hull+rate+(f===worst?10:0));}
   }
+  patrolTick();
   specTick();
   const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
@@ -812,7 +854,7 @@ function advanceDay(){
       continue;
     }
     if(p.assign==='train'&&hasRoom('training')){p.xp+=xpRate;levelUp(p);}
-    if(p.assign==='rest')G.morale=Math.min(100,G.morale+0.5);
+    if(p.assign==='rest')G.morale=Math.min(100,G.morale+(upAny('barracks','rec')?1:0.5));
   }
   for(const src of G.sources){
     if(!src.alive)continue;
@@ -894,7 +936,7 @@ function launchMission(m){
   for(const p of pilots)p.assign='mission';
   for(const f of ships)f.out=true;
   m.state='prog';
-  m.progress={daysLeft:m.days,pilots:pilots.map(p=>p.id),fighters:ships.map(f=>f.id)};
+  m.progress={daysLeft:missionDays(m),pilots:pilots.map(p=>p.id),fighters:ships.map(f=>f.id)};
   G.fuel-=plFuel();
   news('<b>'+m.name+'</b> \u2014 strike team away: '+pilots.map(p=>p.name.split(' ')[0]).join(', ')+'. '+F(plFuel())+' burned.','a');
   sLaunch();
@@ -1228,11 +1270,50 @@ function openOpp(id){
   const o=(G.opps||[]).find(x=>x.id===id);
   if(o)openWin('opp',o);
 }
+/* ---------- Patrol Local Space (Hangar task) ---------- */
+const PATROL_DAYS=2;
+function patrolPilot(f){return G.people.find(p=>p.role==='Pilot'&&p.ship===f.id&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
+function patrolReady(f){return !f.out&&f.hull>=60&&G.fuel>=fuelOf(f)&&!!patrolPilot(f);}
+function startPatrol(fid){
+  const f=G.fighters.find(x=>x.id===fid);
+  if(!f||!patrolReady(f))return false;
+  const p=patrolPilot(f);
+  G.fuel-=fuelOf(f);f.out=true;p.assign='mission';
+  G.patrols=G.patrols||[];
+  G.patrols.push({fid:f.id,pid:p.id,days:PATROL_DAYS});
+  news('<b>'+f.name+'</b> goes out on patrol with '+p.name+' ('+PATROL_DAYS+'d).','a');sBuild();
+  return true;
+}
+function patrolTick(){
+  G.patrols=G.patrols||[];
+  for(const t of G.patrols)t.days--;
+  for(const t of G.patrols.filter(x=>x.days<=0)){
+    const f=G.fighters.find(x=>x.id===t.fid),p=G.people.find(x=>x.id===t.pid);
+    if(f)f.out=false;
+    if(p&&p.assign==='mission')p.assign='rest';
+    const bits=['<b>'+(f?f.name:'The patrol')+'</b> is back.'];
+    G.intel+=1;bits.push(I(1)+' from what the sensors heard');
+    if(rng()<0.5){const m=60+Math.floor(rng()*5)*10;G.materials+=m;bits.push(M(m)+' salvaged off a drifting wreck');}
+    if(f&&rng()<0.25){const dmg=10+Math.floor(rng()*3)*5;f.hull=Math.max(10,f.hull-dmg);bits.push('a scrap with a Hegemony drone cost '+dmg+'% hull');}
+    news(bits.join(' \u00b7 ')+'.','g');
+  }
+  G.patrols=G.patrols.filter(t=>t.days>0);
+}
 /* ---------- room upgrades and diplomatic tasks ---------- */
+function upBlocked(rm,d){
+  if(!d.conv)return '';
+  const cl=clusterOf(rm),t=clusterTiles(cl);
+  if(t<(d.minTiles||2))return d.minTiles>2?'Needs an expansion first.':'Needs a second room to convert.';
+  const convs=['lounge','mbay'].filter(k=>clUp(cl,k)||upQueued(rm,k)).length;
+  if(rm.key==='hangar'&&(G.fighters.length>fighterCap()-1||t-convs<2))return 'The pad is in use or it is the last one.';
+  if(rm.key==='barracks'&&bunksUsed()>bunkCap()-bedsPerTile(cl))return 'Everyone needs their bunk.';
+  return '';
+}
 function startUpgrade(rm,k){
   const d=(UPGRADES[rm.key]||[]).find(x=>x.k===k);
   if(!d||rm.build||upOf(rm,k)||upQueued(rm,k))return false;
   if(G.credits<d.c||G.materials<(d.m||0)||G.supplies<(d.s||0))return false;
+  if(upBlocked(rm,d))return false;
   G.credits-=d.c;G.materials-=(d.m||0);G.supplies-=(d.s||0);
   G.upq=G.upq||[];
   G.upq.push({key:rm.key,k,ids:clusterOf(rm).map(r=>r.id),days:d.days});
@@ -1633,11 +1714,20 @@ function renderRoomBar(){
     else acts='<button class="pbtn" data-restore '+((G.credits>=240&&G.materials>=160)?'':'disabled')+'>Restore the derelict hauler — 240⬡ 160⚙ · 2 days</button>';
   }
   if(rm.key==='diplo')acts='<button class="pbtn" data-open="diplo">Diplomatic Tasks \u25b8</button>';
+  if(rm.key==='store')acts='<button class="pbtn" data-open="gear">Gear Grid \u25b8</button>';
+  if(rm.key==='hangar'){
+    for(const t of (G.patrols||[])){const f=G.fighters.find(x=>x.id===t.fid);acts+='<div class="pdesc">'+(f?f.name:'A ship')+' on patrol \u00b7 '+t.days+'d left</div>';}
+    for(const f of G.fighters.filter(x=>!x.out)){
+      const ok=patrolReady(f);
+      acts+='<button class="pbtn" data-patrol="'+f.id+'" '+(ok?'':'disabled')+'>Patrol local space \u2014 '+f.name+'<span class="cost">'+F(fuelOf(f))+' \u00b7 '+PATROL_DAYS+'d</span><small>'+(ok?'Listen for leads and scavenge what drifts by. Small risk to the hull.':(patrolPilot(f)?(f.hull<60?'Too damaged to fly.':'Not enough fuel.'):'Needs its pilot free.'))+'</small></button>';
+    }
+  }
   for(const u of (UPGRADES[rm.key]||[])){
     const has=upOf(rm,u.k),q=upQueued(rm,u.k);
     const afford=G.credits>=u.c&&G.materials>=(u.m||0)&&G.supplies>=(u.s||0);
+    const blk=upBlocked(rm,u);
     acts+=has?'<div class="pdesc">\u2713 <b>'+u.n+'</b> installed.</div>'
-      :'<button class="pbtn" data-up="'+u.k+'" '+((q||!afford)?'disabled':'')+'>'+u.n+(q?' \u2014 building':'<span class="cost">'+bundleHTML(u)+' \u00b7 '+u.days+'d</span>')+'<small>'+u.d+'</small></button>';
+      :'<button class="pbtn" data-up="'+u.k+'" '+((q||!afford||blk)?'disabled':'')+'>'+u.n+(q?' \u2014 building':'<span class="cost">'+bundleHTML(u)+' \u00b7 '+u.days+'d</span>')+'<small>'+u.d+(blk?' <span style="color:var(--heg)">'+blk+'</span>':'')+'</small></button>';
   }
   $('roomViewBar').innerHTML='<div class="rvt">'+R.name+'</div><div class="rvd">'+R.desc+'</div>'+
     '<div class="rvinfo">'+info+'</div>'+acts+
@@ -2058,6 +2148,7 @@ function renderTilePop(){
       if(rm.key==='training')h+='<button class="pbtn" data-open="spec">Specialty Training</button>';
       if(rm.key==='barracks')h+='<div class="pdesc">Bunks '+bunksUsed()+'/'+bunkCap()+'.</div>';
       if(rm.key==='diplo')h+='<button class="pbtn" data-open="diplo">Diplomatic Tasks</button>';
+      if(rm.key==='store')h+='<button class="pbtn" data-open="gear">Gear Grid</button>';
       if(rm.key==='store')h+='<div class="pdesc">'+C(Math.round(G.credits))+' · '+S(Math.round(G.supplies))+' · '+M(Math.round(G.materials))+' · '+F(Math.round(G.fuel))+' · '+I(Math.round(G.intel))+'</div>';
       h+='<div class="pophint">double-click to step inside</div>';
     }
@@ -2406,6 +2497,20 @@ function renderWin(){
       '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
       '</div>';
   }
+  else if(winMode==='gear'){
+    const all=G.armory.filter(a=>a.n>0);
+    const used=all.reduce((n,a)=>{const m=gearMeta(a);return n+m.w*m.h;},0),cap=gearCapacity();
+    const shown=all.filter(a=>GEARCAT==='All'||gearMeta(a).cat===GEARCAT);
+    const lay=gearLayout(shown);
+    const nrows=lay.reduce((n,x)=>Math.max(n,x.r+x.m.h),3);
+    h='<div class="winHead"><span class="wt">Gear Grid</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
+      '<div class="pdesc" style="margin-bottom:8px">Slots used '+used+'/'+cap+(used>cap?' <span style="color:var(--heg)">\u2014 overflowing; build another Storeroom</span>':'')+'. Bigger kit takes more slots; duplicates stack.</div>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'+GEAR_CATS.map(c=>'<button class="achip'+(GEARCAT===c?' on':'')+'" data-gearcat="'+c+'">'+c+'</button>').join('')+'</div>'+
+      '<div class="geargrid" style="display:grid;grid-template-columns:repeat('+GEAR_COLS+',1fr);grid-auto-rows:62px;gap:4px">'+
+      lay.map(x=>'<div class="gearcell" title="'+(x.a.desc||'').replace(/"/g,'&quot;')+'" style="grid-column:'+(x.c+1)+' / span '+x.m.w+';grid-row:'+(x.r+1)+' / span '+x.m.h+';border:1px solid rgba(125,217,123,0.4);background:rgba(125,217,123,0.08);border-radius:4px;padding:3px 5px;font-size:10px;line-height:1.2;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden">'+
+        '<span><b>'+(x.a.ic||'')+' '+x.a.name+'</b></span><span style="color:var(--dim)">'+x.m.sub+' \u00b7 \u00d7'+x.a.n+'</span></div>').join('')+
+      '</div>'+(lay.length?'':'<div class="pdesc">Nothing in this category.</div>')+'</div>';
+  }
   else if(winMode==='diplo'){
     const cap=dipCapacity(),out=G.dip||[];
     const dp=staffOf('diplo')[0];
@@ -2699,6 +2804,8 @@ $('roomViewBar').addEventListener('click',ev=>{
   if(!t)return;
   sClick();
   if(t.hasAttribute('data-backbase')){exitRoomView();syncUI();return;}
+  const pat=t.getAttribute('data-patrol');
+  if(pat){startPatrol(pat);renderRoomBar();syncUI();return;}
   const up=t.getAttribute('data-up');
   if(up&&viewRoom){startUpgrade(viewRoom,up);renderRoomBar();syncUI();return;}
   const open=t.getAttribute('data-open');
@@ -2822,6 +2929,8 @@ $('winsB').addEventListener('click',ev=>{
   if(t.hasAttribute('data-rmasset')&&PL){plRemoveAsset();renderWin();return;}
   const amode=t.getAttribute('data-assetmode');
   if(amode&&PL){const [i,md]=amode.split(':');PL.assets[+i].mode=md;renderWin();return;}
+  const gcat=t.getAttribute('data-gearcat');
+  if(gcat){GEARCAT=gcat;renderWin();return;}
   const dipBtn=t.getAttribute('data-dip');
   if(dipBtn){startDip(dipBtn);saveSnap();syncUI();renderWin();return;}
   const specBtn=t.getAttribute('data-spec');
@@ -3188,7 +3297,7 @@ function startPlan(){
     const blam=G.armory.find(a=>a.id==='blam');
     G.fuel-=fuel;
     if(PL.drop)G.supplies-=DROP_COST;
-    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:m.days,nades:blam?blam.n:0,
+    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:blam?blam.n:0,
       charges:((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
       sec:m.ctx?m.ctx.sec:undefined,
@@ -3213,7 +3322,7 @@ function startPlan(){
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
-    SR.mission={kind:'space',missionId:m.id,days:m.days,flight};
+    SR.mission={kind:'space',missionId:m.id,days:missionDays(m),flight};
   }
   closeWin();closeTilePop();
   saveSnap();
@@ -3285,6 +3394,10 @@ function applyDebrief(r){
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
+    if(state==='lost'&&upAny('infirmary','surgery')&&medStaff().length&&rng()<0.6){
+      state='injured';pr.dur=6;
+      news('<b>'+p.name+'</b> should not have made it. The surgery room says otherwise.','g');
+    }
     if(state==='lost'){
       G.people=G.people.filter(x=>x.id!==p.id);
       G.morale=Math.max(0,G.morale-10);
@@ -3405,7 +3518,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
-    G.upq=G.upq||[];G.dip=G.dip||[];
+    G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];
     for(const rm of G.rooms){
       if(rm.key==='bay')rm.key='hangar';
       if(rm.key==='quarters')rm.key='barracks';
@@ -3480,7 +3593,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
