@@ -153,7 +153,7 @@ window.SR=(function(){
     const sc=b.closest('.scene');
     if(sc)sc.classList.toggle('drawer');
   });
-  return {theme:window.SR_THEME,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};
