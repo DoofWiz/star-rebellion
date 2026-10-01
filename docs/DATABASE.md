@@ -4,15 +4,19 @@ The data the game systems draw from (ships, weapons, pilots and the numbers that
 The design docs linked from [GDriveMasterSheet](GDriveMasterSheet) are the source of truth for what
 the numbers should be. `game/data/db.json` is the machine-readable copy of them.
 
-**Status: data only.** Nothing in `game/js` reads this yet. The game still uses its own tables in
-`space.js` (`CLS`, `WPN`) and `base.js` (`FUEL_COST`, hangar cards).
+**Status: the game reads it.** `game/js/data.js` loads `game/data/db.js` (the same data as a script, so it works
+over `file://`) and the space and base scenes build their ship, weapon and fuel tables from it. The old
+hand-written tables (`CLS`/`WPN` in `space.js`, `FUEL_COST`/`SHIPSTATS` in `base.js`) are gone.
 
 ## Files
 
 | File | What it is |
 |---|---|
 | `game/data/db.json` | The database. One row per line so diffs stay readable. |
+| `game/data/db.js` | Generated copy of `db.json` that the page loads. `build.py validate` fails if it is stale. |
+| `game/js/data.js` | `SRDB`: lookups by id or legacy key, plus base TN, skill bonus and movement dial. |
 | `tools/db/build.py` | Validate, report, and convert to and from a spreadsheet. |
+| `tools/space-smoke.js` | Headless test: plays the space scene (`instructor`, `depot`, `flight`, `loadouts`) and reports errors. |
 
 ## Editing in Google Sheets
 
@@ -20,8 +24,10 @@ the numbers should be. `game/data/db.json` is the machine-readable copy of them.
 python3 tools/db/build.py export-xlsx star-rebellion-db.xlsx   # needs: pip install openpyxl
 # upload to Google Drive, open as a Google Sheet, edit, File > Download > .xlsx
 python3 tools/db/build.py import-xlsx star-rebellion-db.xlsx --dry-run   # shows what would change
-python3 tools/db/build.py import-xlsx star-rebellion-db.xlsx
+python3 tools/db/build.py import-xlsx star-rebellion-db.xlsx   # also regenerates game/data/db.js
 ```
+
+After editing `db.json` by hand, run `python3 tools/db/build.py export-js` to refresh `db.js`.
 
 Import refuses to write anything if a cell is the wrong type or the data breaks a rule
 (unknown weapon id, min speed above max, too many default weapons for the slots, and so on) and names
@@ -60,6 +66,26 @@ to-hit bonus  = the pilot's Aim bonus, same formula
 
 The skill-bonus formula is a proposal, not yet in the Rebels & Recruits doc. Initiative comes from the pilot, not
 the ship, and traits or morale may push the effective value outside 1 to 6.
+
+## What the game takes from it
+
+- **Ships:** stats, size (draw scale is `0.7 + 0.09 x size`), movement dial, default weapons, fuel per sortie, passenger
+  seats and gunner positions. Classes keep their old keys (`viper`, `talon`...) so drawing code and mission data still
+  line up; `CLS[key].id` is the database id.
+- **Movement:** engine damage and mag-clamps lower top speed but never below the slowest straight move. A bank or turn
+  whose slowest speed is above the cap drops off the dial, so a Cross with three engine hits can only fly straight at 1.
+- **Weapons:** each ship has slots `w0`, `w1`; any weapon fits any slot. Damage, ammo, range, accuracy, crit, shield
+  bypass and lock all come from the weapon. A ship's loadout is part of the ship, not the model:
+  `G.fighters[i].loadout` lists weapon ids (stock defaults, or the `starting_fleet` entry for named ships such as Dustfall and Marta).
+- **Pilots:** initiative, level and skills. The scripted cast comes from the `pilots` table. Campaign pilots have no
+  skills yet, so `base.js` derives them from level (skill = old aim x 10) and gives Sera, Joss and Petra their
+  database initiative and everyone else a random 1 to 6, saved on the pilot.
+- **Target number:** `base TN + Focus bonus`, shown in the engagement panel as `SIZE n HULL` and `PILOT FOCUS`.
+- **Door Gunner Support:** needs a ship with a gunner position carrying a weapon whose `fire_support` is `door_gunner`.
+  Reinforcements land up to the transport's `extra_people` seats; filling them is optional.
+
+Still in code, because the database has no column for them: the Drone Monitor's call for help and the Mag-Clamper's
+clamp (`BEHAVIOUR` in `space.js`), and the critical-hit table.
 
 ## Seed data to review
 
