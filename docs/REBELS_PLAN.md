@@ -1,6 +1,6 @@
 # Rebels — Implementation Plan
 
-> Source: the "Rebels" design doc on the designer's Google Drive (user stories, 47 Character
+> Source: the "Rebels" design doc on the designer's Google Drive (user stories, 45 Character
 > Traits, ~70 Rebel Traits), read 2026-10-01. Compared against `game/js/base.js`, `ground.js`,
 > `space.js` and `docs/GDD.md` §5. **Plan only, nothing implemented yet.**
 
@@ -80,7 +80,7 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
 - **Done when:** old saves load, a new campaign boots, roster shows names/levels unchanged, `tools/autoplay.js` still finishes a run.
 - **Built:** `game/js/rebel.js` (name pools, `gen`, `addXp` with the level-20 cap, `migrate`), loaded before `base.js`. Recruits now fall back to a generated, unique name when the authored `RECRUITS` list runs out (the old fallback reused `RECRUITS[role][0]`, duplicating a name; the bot hit this five times in seed 1). Level-ups are announced as "reached level N". Not yet in this pass: the `charTrait`/`morale`/`skills`/`rank`/`gear` backfills, which arrive with their own phases. Autoplay: seeds 1–3 finish with no page errors; seed 2 is unchanged, seed 1 escalates on day 98 instead of 101 because of the generated recruits.
 
-### Phase 2 — Character Traits (47)
+### Phase 2 — Character Traits (45) — **built**
 - Registry with `live` flags. Group by what they need:
   - *Ground now:* Clumsy (grenade drop, jam — Akli jams already exist), Nervous (round-1 initiative), Brave/Cowardly (cool delta in `adjCool`), Steady Hands (+1 aim), Short Fuse, Patient/Restless (Hold action, move speed), Neat Freak, Lucky/Unlucky (lethal-hit save, crit chance), Reckless/Cautious (Sprint, damage taken, speed), Perfectionist (+accuracy, acts last — engagement sorts by `aim*3+rint`), Hothead, Self-Preserving, Former Hegemony Soldier, Former Hunter (vision radius), Empathetic (nearby Cool recovery), Loyal.
   - *Base/economy now:* Quick/Slow Learner (XP), Former Mechanic/Engineer/Medic/Doctor (Maintenance Bay, Materials cost, `injured` recovery tick at `base.js` ~L1100), Smuggler (loot roll), Officer (+Intel on mission offer), Academic, Industrialist, Wealthy (credits on recruit), Streetwise/Criminal (Source risk), Charismatic, Pragmatic, Idealist/Cynical (morale rules), Former Pilot (ship assignment), Politician (Diplomatic Quarter task quality).
@@ -88,6 +88,13 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
 - Assign exactly one at generation, weighted so a squad is not all one flavour; Former-X traits bias the bio line.
 - Show in dossier and New Recruit card (quote + one-line effect).
 - **Done when:** every `live` trait has a one-line effect visible in the combat/base log or the dossier, plus a unit-style check in the autoplay bot that the modifier fires.
+- **Built:** all 45 traits are in `rebel.js` (`CT`) with the designer's quote and a one-line effect; every rebel gets exactly one (generated rebels by role-weighted draw, the opening cast by bio: Joss Reckless, Sera Lucky, Dax Cautious, Runa Short Fuse, Kel Former Hunter, everyone else by a stable hash so reloads never change it). The dossier and New Recruit screen show a Character card, greyed "Effect soon" for traits not wired yet.
+  - *Live in ground combat (20):* Clumsy, Nervous, Brave, Cowardly, Steady Hands, Short Fuse, Patient, Restless, Neat Freak, Lucky, Unlucky, Former Hegemony Soldier, Former Hunter, Empathetic, Reckless, Cautious, Perfectionist, Hothead, Loyal, Self-Preserving. Interpretations: Reckless's sprint bonus applies the round *after* sprinting (sprinters can't shoot); "Never surrenders" (Hothead) is moot for rebels.
+  - *Live in space:* Lucky (existing), Steady Hands, Former Pilot, Brave, Cowardly.
+  - *Live in the base:* Quick/Slow Learner (all XP now goes through `gainXp`), Former Medic/Doctor (faster recovery when posted to the Infirmary), Former Mechanic (faster repairs when posted to the Workshop), Wealthy (+250 credits on recruit), Former Smuggler (25% chance of an extra item after a ground win).
+  - *Not live yet (17):* Heavy/Light Sleeper, Strong/Weak, Messy, Former Hegemony Officer, Former Engineer, Streetwise, Academic, Former Criminal, Politician, Industrialist, Intimidating, Pragmatic (each waits on a system that doesn't exist or is a later phase) and Charismatic/Idealist/Cynical (arrive with per-rebel morale, Phase 4).
+  - Not yet threaded: the Marta's pilot and the rescued VIP in ground missions don't carry traits into the combat scene.
+  - Test: `node tools/traits-smoke.js` drives every live ground trait through the real combat functions (and fails if one regresses); autoplay seeds 1–3 finish with no page errors, escalation on days 96 / 71 / 92.
 
 ### Phase 3 — Skills
 - Derive skills (cap 50) from level + `skillXp` + trait/spec modifiers; Soldier/Marine: Aim, Constitution, Agility, Presence; Pilot: Aim, Cunning, Focus, Presence; Support: none; Hero: all.

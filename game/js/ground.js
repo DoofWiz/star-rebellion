@@ -19,6 +19,10 @@ const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas 
 /* ---------- constants ---------- */
 let W=2400,H=1600;
 const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135,SNEAK_SPEED=72;
+/* Character Traits (see rebel.js): units carry their trait keys in u.tr */
+const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
+const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1);
+const viewMul=u=>hasT(u,'hunter')?1.2:1;
 const NADE_R=300,NADE_BLAST=110;
 const HOT_ROUNDS=2;
 const SHIELD_ARC=1.15;               // half-angle of the turret's frontal shield
@@ -766,7 +770,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
-    level:sp.level||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1069,7 +1073,26 @@ function computeATK(s,t,wkey,snap){
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
+  if(s.tr&&s.tr.length){
+    if(hasT(s,'steady')){v+=1;e.push(['STEADY HANDS',1]);}
+    if(hasT(s,'perfectionist')){v+=3;e.push(['PERFECTIONIST',3]);}
+    if(s.braced&&hasT(s,'patient')){v+=2;e.push(['PATIENT',2]);}
+    if(s.braced&&hasT(s,'restless')){v-=2;e.push(['RESTLESS',-2]);}
+    if(t&&t.side==='law'&&hasT(s,'hegsoldier')){v+=2;e.push(['KNOWS THE HEGEMONY',2]);}
+    if(s.wound&&hasT(s,'selfpres')){v-=1;e.push(['PROTECTING THEMSELVES',-1]);}
+  }
   return {total:v,entries:e};
+}
+/* a natural 1 jams a jam-prone weapon (Neat Freak sometimes clears it); Clumsy can jam it any time */
+function jamRoll(s,wkey,roll){
+  if(!WPN[wkey].jam)return false;
+  if(roll===1)return !(hasT(s,'neatfreak')&&rng()<0.25);
+  return hasT(s,'clumsy')&&rng()<0.05;
+}
+function critRoll(roll,t){
+  if(roll===20)return true;
+  if(roll===19&&hasT(t,'unlucky'))return true;
+  return roll>=18&&hasT(t,'reckless')&&t.reck>0;
 }
 function needFor(tn,atk){return Math.max(2,Math.min(19,tn-atk));}
 function pctFor(need){return Math.round((21-need)/20*100);}
@@ -1079,6 +1102,11 @@ function rollDamage(s,t,wkey,crit){
   if(w.falloff)d=Math.round(d*(1-0.55*Math.min(1,dist(s,t)/w.rng)));
   if(s&&s.side==='law'&&!s.sheriff)d=Math.round(d*0.85); // rank-and-file shoot to scare
   if(crit)d=Math.round(d*1.5);
+  if(s&&s.tr&&s.tr.length){
+    if(s.fuse>0&&hasT(s,'shortfuse'))d=Math.round(d*1.1);
+    if(s.reck>0&&hasT(s,'reckless'))d=Math.round(d*1.2);
+    if(t&&t.side==='law'&&hasT(s,'hegsoldier'))d=Math.round(d*1.05);
+  }
   return d;
 }
 function applyShot(s,t,wkey,snap){
@@ -1086,9 +1114,10 @@ function applyShot(s,t,wkey,snap){
   const tn=computeTN(s,t),atk=computeATK(s,t,wkey,snap);
   const need=needFor(tn.total,atk.total);
   const roll=rint(1,20);
-  const jammed=(WPN[wkey].jam&&roll===1);
+  if(hasT(s,'hothead'))adjCoolG(s,3,'in the fight');
+  const jammed=jamRoll(s,wkey,roll);
   const hit=!jammed&&(roll>=need);
-  const crit=roll===20;
+  const crit=critRoll(roll,t);
   let dmg=0;
   if(jammed){
     s.jam=2;
@@ -1106,6 +1135,12 @@ function applyShot(s,t,wkey,snap){
 }
 function woundUnit(s,t,dmg,crit){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
+  if(t.tr&&t.tr.length){
+    if(hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
+    if(hasT(t,'lucky')&&t.hp-dmg<=0&&rng()<0.05){dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
+    if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
+    if(hasT(t,'shortfuse'))t.fuse=2;
+  }
   t.hp-=dmg;
   dmgRound.add(t.id);
   adjCoolG(t,-16,'took a hit');
@@ -1186,7 +1221,7 @@ function startAmbush(t){
   if(!shooters.length)return false;
   haltSquad();
   for(const s of shooters)s.ambush=1;
-  shooters.sort((a,b)=>(b.aim*3+rint(0,4))-(a.aim*3+rint(0,4)));
+  shooters.sort((a,b)=>initKey(b)-initKey(a));
   phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
   engageQ={list:shooters,idx:0,cur:null,nextAt:performance.now()+300,forceT:t};
   log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
@@ -1262,8 +1297,9 @@ function castPoly(u){
   for(let i=0;i<=56;i++){
     const a=i/56*Math.PI*2;
     const ca=Math.cos(a),sa=Math.sin(a);
-    let r=VIEW_R;
-    for(let d=26;d<VIEW_R;d+=16){
+    const VR=VIEW_R*viewMul(u);
+    let r=VR;
+    for(let d=26;d<VR;d+=16){
       if(ptBlocked(u.x+ca*d,u.y+sa*d,0)){r=d+10;break;}
     }
     pts.push([u.x+ca*r,u.y+sa*r]);
@@ -1289,13 +1325,13 @@ function updateVision(now){
   for(const t of U){
     if(t.side==='reb'){visUnits.add(t.id);continue;}
     for(const u2 of seers){
-      if(dist(u2,t)<VIEW_R&&!losBlocked(u2,t)){visUnits.add(t.id);break;}
+      if(dist(u2,t)<VIEW_R*viewMul(u2)&&!losBlocked(u2,t)){visUnits.add(t.id);break;}
     }
   }
   for(const m of lootMarks){
     if(m.taken||m.spotted)continue;
     for(const u2 of seers){
-      if(Math.hypot(u2.x-m.x,u2.y-m.y)<VIEW_R&&!segBlocked(u2.x,u2.y,m.x,m.y)){m.spotted=1;break;}
+      if(Math.hypot(u2.x-m.x,u2.y-m.y)<VIEW_R*viewMul(u2)&&!segBlocked(u2.x,u2.y,m.x,m.y)){m.spotted=1;break;}
     }
   }
   if(engageQ&&engageQ.cur&&engageQ.cur.t&&engageQ.cur.t.id)visUnits.add(engageQ.cur.t.id);
@@ -1339,6 +1375,11 @@ function adjCoolG(u,d,why){
   if(u&&u.auto)return;   // robots do not panic
   if(!u||u.side==='civ'||u.down||u.surr||u.extracted||u.away)return;
   const pre=coolStateG(u);
+  if(d<0&&u.tr&&u.tr.length){
+    if(hasT(u,'brave'))d=Math.round(d*0.5);
+    if(hasT(u,'cowardly'))d=Math.round(d*1.5);
+    if(hasT(u,'loyal')&&why&&/ down$/.test(why))d=Math.round(d*0.5);
+  }
   u.cool=Math.max(0,Math.min(100,u.cool+d));
   if(u.sheriff)u.cool=Math.max(40,u.cool); // bosses do not break
   const post=coolStateG(u);
@@ -1494,7 +1535,7 @@ function setRt(u,tx,ty,spd){
   const d=moveDest(u,tx,ty,1e9)||{x:tx,y:ty};
   const p=pathFor(u,d.x,d.y);
   u.rtPath=p?p.slice(1):null;
-  u.rtSpd=spd||RT_SPEED;
+  u.rtSpd=(spd||RT_SPEED)*speedMul(u);
 }
 function squadMoveTo(pt){
   tutFlags.moved=1;
@@ -1768,7 +1809,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:65,
-    level:sp.level||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2155,6 +2196,8 @@ function startPlanning(){
   for(const u of U){
     if(u.side!=='reb')continue;
     u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
+    if(u.reck>0)u.reck--;
+    if(u.fuse>0)u.fuse--;
     if(u.jam>0){u.jam--;if(u.jam===0){log(nameSpan(u)+' works the Akli’s action clear.');}}
   }
   aiPlan();
@@ -2196,6 +2239,7 @@ function execute(){
     if(o&&(o.type==='move'||o.type==='sprint')){
       u.path=pathFor(u,o.tx,o.ty);
       u.sprinted=o.type==='sprint'?1:0;
+      if(u.sprinted&&hasT(u,'reckless'))u.reck=2;
       u.braced=0;
     } else if(o&&o.type==='man'&&dist(u,TURRET)>40){
       const seat=moveDest(u,TURRET.x,TURRET.y+6,MOVE_R+60);
@@ -2279,11 +2323,13 @@ function buildEngage(){
     list.push(s);
   }
   if(!list.length){endRound();return;}
-  list.sort((a,b)=>(b.aim*3+rint(0,4))-(a.aim*3+rint(0,4)));
+  list.sort((a,b)=>initKey(b)-initKey(a));
   engageQ={list,idx:0,cur:null,nextAt:performance.now()+350};
   phase='ENGAGE';
   syncUI();
 }
+/* who shoots first: aim with a little noise; Nervous rebels hang back in round one, Perfectionists go last */
+function initKey(u){return u.aim*3+rint(0,4)-(hasT(u,'nervous')&&round<=1?3:0)-(hasT(u,'perfectionist')?100:0);}
 function pickTarget(s){
   let best=null,bp=-1e9,bw=null;
   const hasOther=s.side==='law'&&U.some(t=>t.side==='reb'&&t.id!=='sera'&&!t.down&&!t.extracted&&wpnsOf(s).some(w=>validShot(s,t,w)));
@@ -2346,9 +2392,9 @@ function attackUpdate(now){
   } else if(c.stage==='roll'){
     if(el>780){
       c.roll=rint(1,20);
-      c.jammed=(WPN[c.wkey].jam&&c.roll===1);
+      c.jammed=jamRoll(c.s,c.wkey,c.roll);
       c.hit=!c.jammed&&c.roll>=c.need;
-      c.crit=c.roll===20;
+      c.crit=critRoll(c.roll,c.t);
       c.stage='verdict';c.stageAt=now;
     }
   } else if(c.stage==='verdict'){
@@ -2359,6 +2405,7 @@ function attackUpdate(now){
   } else if(c.stage==='fire'){
     if(el>420&&!c.applied){
       c.applied=true;
+      if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
       if(c.t.obj){
         if(c.jammed){
           c.s.jam=2;
@@ -2400,6 +2447,10 @@ function playerAttack(){
 }
 function throwNade(s,gx,gy){
   NADES--;
+  if(hasT(s,'clumsy')&&rng()<0.25){
+    gx=s.x;gy=s.y;
+    log(nameSpan(s)+' <span class="b">fumbles the BLAM</span> <span class="d">(clumsy)</span> \u2014 it drops at their feet.');
+  }
   nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:performance.now(),armRound:round});
   s.face=Math.atan2(gy-s.y,gx-s.x);
   log(nameSpan(s)+' lobs a <b>BLAM frag</b> — it lands, primed.');
@@ -2463,6 +2514,10 @@ function retarget(t){
 /* ---------- end of round ---------- */
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
+  for(const h of U){
+    if(h.side!=='reb'||h.down||h.extracted||h.away||!hasT(h,'empathetic'))continue;
+    for(const m of U)if(m!==h&&m.side==='reb'&&!m.down&&!m.extracted&&!m.away&&dist(h,m)<240)adjCoolG(m,3,'steadied by '+h.first);
+  }
   hackResolve();
   fsRoundEnd();
   // loot pickups
@@ -3608,9 +3663,9 @@ function drawOrders(now){
     const sel=U.find(x=>x.id===selId);
     if(sel&&(pickMode==='move'||pickMode==='sprint')){
       const [sx,sy]=P(sel.x,sel.y);
-      T.moveRing(ctx,sx,sy,(pickMode==='move'?MOVE_R:SPRINT_R)*cam.z,pickMode);
+      T.moveRing(ctx,sx,sy,(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel)*cam.z,pickMode);
       /* every cover pocket in reach */
-      const reach=pickMode==='move'?MOVE_R:SPRINT_R;
+      const reach=(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel);
       for(const p of PROPS){
         const def=PROPDEF[p.kind];
         if(p.dead||def.cov<=0||Math.hypot(p.x-sel.x,p.y-sel.y)>reach+def.r+40)continue;
@@ -4065,7 +4120,7 @@ cv.addEventListener('pointerup',ev=>{
     }
     if(pickMode&&sel){
       const wpt=cssToWorld(px,py);
-      const d=moveDest(sel,wpt.x,wpt.y,pickMode==='move'?MOVE_R:SPRINT_R);
+      const d=moveDest(sel,wpt.x,wpt.y,(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel));
       if(d&&pathFor(sel,d.x,d.y)){
         sel.order={type:pickMode,tx:d.x,ty:d.y};
         sTick();
@@ -4760,6 +4815,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
+      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

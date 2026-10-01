@@ -43,8 +43,91 @@ window.Rebel=(function(){
     do{first=pick(FIRST,r);last=pick(LAST,r);name=first+' '+last;}
     while(taken&&taken.has(name)&&++n<200);
     if(taken&&taken.has(name))name=first+' '+last+' '+(n);
-    return {name,first,last,role,bio:pick(BIO[role]||BIO.Soldier,r)};
+    return {name,first,last,role,bio:pick(BIO[role]||BIO.Soldier,r),charTrait:pickTrait(role,r)};
   }
+
+
+  /* ---------- Character Traits ----------
+     Every rebel is born with exactly one. `live` says whether its effect is wired into the game yet;
+     the others still show on the dossier so the designer's copy is in, and light up as their systems land.
+     where: 'g' ground, 's' space, 'b' base, 'm' morale (arrives with per-rebel morale). */
+  const CT=[
+    {k:'clumsy',n:'Clumsy',q:'[Character] still struggles to put one foot in front of the other.',e:'25% to drop grenades at their feet. 5% to jam a weapon when firing.',live:1,where:'g',w:0.6},
+    {k:'nervous',n:'Nervous',q:'[Character] has never been particularly comfortable with being shot at.',e:'Acts later in the first round of a fight.',live:1,where:'g',w:0.8},
+    {k:'brave',n:'Brave',q:'[Character] has either never been afraid, or is very good at hiding it.',e:'Much harder to panic.',live:1,where:'gs',w:1},
+    {k:'cowardly',n:'Cowardly',q:'[Character] has an excellent survival instinct. Unfortunately, it usually points towards the nearest exit.',e:'Panics more quickly under fire.',live:1,where:'gs',w:0.8},
+    {k:'steady',n:'Steady Hands',q:'[Character] can thread a needle while riding a speeder. Probably.',e:'+1 accuracy with ranged weapons.',live:1,where:'gs',w:1},
+    {k:'heavysleeper',n:'Heavy Sleeper',q:'[Character] could sleep through a bombardment. This has happened.',e:'Slow to recover from exhaustion. Immune to sleep-related morale penalties.',live:0,where:'b',w:0.5},
+    {k:'lightsleeper',n:'Light Sleeper',q:'[Character] wakes at the slightest noise. Usually the wrong noise.',e:'Recovers from exhaustion faster.',live:0,where:'b',w:0.5},
+    {k:'shortfuse',n:'Short Fuse',q:'[Character] has never needed much encouragement to start a fight.',e:'+10% damage for a short time after taking damage.',live:1,where:'g',w:0.8},
+    {k:'patient',n:'Patient',q:'[Character] is perfectly happy to wait. Everyone else is getting rather impatient.',e:'+2 accuracy while holding.',live:1,where:'g',w:0.8},
+    {k:'restless',n:'Restless',q:'[Character] has never understood the appeal of standing still.',e:'+20% movement speed. -2 accuracy while holding.',live:1,where:'g',w:0.8},
+    {k:'neatfreak',n:'Neat Freak',q:'[Character] cleans their weapon more often than they clean themselves.',e:'25% chance to clear a jam on a natural 1.',live:1,where:'g',w:0.8},
+    {k:'messy',n:'Messy',q:'[Character]’s equipment is always somewhere. It is rarely where they left it.',e:'10% chance of losing a piece of gear when a mission starts.',live:0,where:'g',w:0.6},
+    {k:'strong',n:'Strong',q:'[Character] has been lifting heavy things for longer than anyone can remember.',e:'+20% melee damage. Can carry a second primary weapon instead of a secondary.',live:0,where:'g',w:0.7},
+    {k:'weak',n:'Weak',q:'[Character] insists they are stronger than they look. They are not.',e:'-20% melee damage.',live:0,where:'g',w:0.5},
+    {k:'quicklearner',n:'Quick Learner',q:'[Character] has an irritating habit of being good at things after trying them once.',e:'Gains XP 10% faster.',live:1,where:'b',w:0.8},
+    {k:'slowlearner',n:'Slow Learner',q:'[Character] gets there eventually.',e:'Gains XP 10% slower.',live:1,where:'b',w:0.6},
+    {k:'lucky',n:'Lucky',q:'[Character] has survived things that should have killed them. They aren’t sure why.',e:'5% chance to avoid otherwise lethal damage.',live:1,where:'gs',w:0.7},
+    {k:'unlucky',n:'Unlucky',q:'[Character] has started to suspect the universe has something against them.',e:'5% more likely to suffer critical hits.',live:1,where:'gs',w:0.7},
+    {k:'hegsoldier',n:'Former Hegemony Soldier',q:'[Character] spent years enforcing the Hegemony’s laws. They know exactly how it works.',e:'+2 accuracy and +5% damage against Hegemony forces.',live:1,where:'g',w:0.8},
+    {k:'hegofficer',n:'Former Hegemony Officer',q:'[Character] knows how the Hegemony thinks. They also know why it thinks it is so clever.',e:'25% chance of +1 Intel when a mission targeting the Hegemony becomes available.',live:0,where:'b',w:0.6},
+    {k:'smuggler',n:'Former Smuggler',q:'[Character] has moved considerably more illegal cargo than legal cargo.',e:'Small chance to add a random item to mission loot.',live:1,where:'b',w:0.8},
+    {k:'mechanic',n:'Former Mechanic',q:'[Character] can identify most problems by listening to a machine make the wrong noise.',e:'Repairs ships 15% faster when posted to the Workshop.',live:1,where:'b',w:0.8},
+    {k:'engineer',n:'Former Engineer',q:'[Character] has a worrying number of opinions about how things should be built.',e:'Cuts the Materials cost of construction and repairs by 5%.',live:0,where:'b',w:0.7},
+    {k:'medic',n:'Former Medic',q:'[Character] has patched people up in places where there really shouldn’t have been a hospital.',e:'Wounded rebels recover a day faster when posted to the Infirmary.',live:1,where:'b',w:0.7},
+    {k:'doctor',n:'Former Doctor',q:'[Character] went to medical school. Technically, they still have a medical licence.',e:'Wounded rebels recover two days faster when posted to the Infirmary.',live:1,where:'b',w:0.4},
+    {k:'hunter',n:'Former Hunter',q:'[Character] spent years finding things that didn’t want to be found.',e:'Sees 20% further in missions.',live:1,where:'g',w:0.8},
+    {k:'pilot',n:'Former Pilot',q:'[Character] has spent more time in a cockpit than on the ground.',e:'+1 accuracy when flying a ship.',live:1,where:'s',w:0.7},
+    {k:'streetwise',n:'Streetwise',q:'[Character] knows who to talk to, who not to talk to, and when to leave.',e:'Slightly lowers Risk when working with Sources in urban areas.',live:0,where:'b',w:0.6},
+    {k:'academic',n:'Academic',q:'[Character] used to spend their days studying the galaxy. Now they are trying to change it.',e:'Generates extra Intel when posted to a suitable facility.',live:0,where:'b',w:0.6},
+    {k:'criminal',n:'Former Criminal',q:'[Character] insists there is a very important distinction between what they did before and what they do now.',e:'Reduced Risk on criminal operations.',live:0,where:'b',w:0.6},
+    {k:'wealthy',n:'Wealthy',q:'[Character] grew up with considerably more money than most rebels have ever seen.',e:'Brings a small Credits bonus when recruited.',live:1,where:'b',w:0.4},
+    {k:'politician',n:'Politician',q:'[Character] spent years learning how to say absolutely nothing for several hours at a time.',e:'Improves diplomatic and political mission quality.',live:0,where:'b',w:0.4},
+    {k:'industrialist',n:'Industrialist',q:'[Character] knows how to make factories work. They also know how to make them stop.',e:'Improves Materials generation.',live:0,where:'b',w:0.4},
+    {k:'charismatic',n:'Charismatic',q:'[Character] could probably convince you that surrendering was your idea.',e:'Improves recruitment and morale.',live:0,where:'m',w:0.7},
+    {k:'intimidating',n:'Intimidating',q:'[Character] doesn’t have to raise their voice. People tend to listen anyway.',e:'Improves interrogation and coercion missions.',live:0,where:'b',w:0.6},
+    {k:'empathetic',n:'Empathetic',q:'[Character] remembers everyone’s name. Even when they’d rather forget.',e:'Nearby rebels steady a little faster.',live:1,where:'g',w:0.7},
+    {k:'pragmatic',n:'Pragmatic',q:'[Character] doesn’t care what works, provided that it works.',e:'Reduced resource cost on certain operations.',live:0,where:'b',w:0.6},
+    {k:'idealist',n:'Idealist',q:'[Character] genuinely believes the galaxy can be better. This is either admirable or extremely inconvenient.',e:'Higher morale while the rebellion is succeeding, lower after major defeats.',live:0,where:'m',w:0.7},
+    {k:'cynical',n:'Cynical',q:'[Character] has heard every inspiring speech. They remain unconvinced.',e:'Less affected by morale penalties and leadership bonuses.',live:0,where:'m',w:0.7},
+    {k:'reckless',n:'Reckless',q:'[Character] considers ‘that seems dangerous’ a compelling reason to try something.',e:'+20% damage after sprinting. Takes critical hits more easily while at it.',live:1,where:'g',w:0.7},
+    {k:'cautious',n:'Cautious',q:'[Character] likes to have an escape route. Preferably several.',e:'-10% damage taken. -10% movement speed.',live:1,where:'g',w:0.8},
+    {k:'perfectionist',n:'Perfectionist',q:'[Character] would rather miss the shot than take one they aren’t happy with.',e:'+3 accuracy. Always attacks last.',live:1,where:'g',w:0.6},
+    {k:'hothead',n:'Hothead',q:'[Character] has never once walked away from an argument.',e:'Gains Cool when attacking. Never surrenders.',live:1,where:'g',w:0.7},
+    {k:'loyal',n:'Loyal',q:'[Character] didn’t join the rebellion because it was safe. They joined because they chose a side.',e:'Rattled half as much when allies go down.',live:1,where:'g',w:0.8},
+    {k:'selfpres',n:'Self-Preserving',q:'[Character] believes the revolution needs them alive. They may have a point.',e:'Much less likely to be wounded badly. Fights worse once wounded.',live:1,where:'g',w:0.7},
+  ];
+  const CTK={};for(const t of CT)CTK[t.k]=t;
+  const traitText=(t,p)=>t.q.replace(/\[Character\]/g,p&&p.first?p.first:'They');
+  /* base-side traits only make sense for the people who run the base; Support never fights */
+  const ROLEW={
+    Support:t=>/b|m/.test(t.where)?1:0,
+    Pilot:t=>(/s/.test(t.where)?1.4:/g/.test(t.where)?0.9:/m/.test(t.where)?1:0.6),
+    Soldier:t=>(/g/.test(t.where)?1.2:/m/.test(t.where)?1:0.6),
+    Marine:t=>(/g/.test(t.where)?1.2:/m/.test(t.where)?1:0.6),
+  };
+  function pickTrait(role,r){
+    const f=ROLEW[role]||ROLEW.Soldier;
+    const ws=CT.map(t=>t.w*f(t));
+    let x=r()*ws.reduce((a,b)=>a+b,0);
+    for(let i=0;i<CT.length;i++){x-=ws[i];if(x<0)return CT[i].k;}
+    return CT[CT.length-1].k;
+  }
+  /* authored cast keep the traits their bios already imply */
+  const AUTHORED={joss:'reckless',sera:'lucky',dax:'cautious',runa:'shortfuse',kel:'hunter'};
+  function hashPick(p){
+    let h=2166136261;const s=p.id+'|'+p.name;
+    for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+    const r=()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296;};
+    return pickTrait(p.role,r);
+  }
+  /* the traits a rebel carries, as plain keys the combat scenes can test cheaply */
+  const keys=p=>{const a=[];if(p&&p.charTrait)a.push(p.charTrait);if(p&&p.traits)for(const t of p.traits)a.push(t.k);return a;};
+  const has=(p,k)=>!!p&&keys(p).indexOf(k)>=0;
+  const liveTraits=p=>keys(p).map(k=>CTK[k]).filter(t=>t&&t.live);
+  /* names of the live traits a scene cares about (space.js tests traits by display name) */
+  const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
 
   /* XP is stored as a 0..1 fraction of the way to the next level. Level 20 is the end of the road. */
   function addXp(p,amount){
@@ -56,11 +139,16 @@ window.Rebel=(function(){
     return gained;
   }
 
+  /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
+  const xpMult=p=>(has(p,'quicklearner')?1.1:1)*(has(p,'slowlearner')?0.9:1);
+  function gainXp(p,amount){return addXp(p,amount*xpMult(p));}
+
   /* fill in the fields later phases rely on; safe to call on any saved rebel */
   function migrate(p){
     if(!p.auto&&(p.first===undefined||p.last===undefined)){const s=split(p.name);p.first=s.first;p.last=s.last;}
+    if(!p.auto&&p.charTrait===undefined)p.charTrait=AUTHORED[p.id]||hashPick(p);
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,migrate};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor};
 })();

@@ -132,6 +132,7 @@ function nerve(s){
 function adjCool(s,d,why){
   if(CLS[s.cls].mute)return; // no nerve to rattle
   const p=s.pilot,pre=coolState(s);
+  if(d<0){if(p.traits.includes('Brave'))d=Math.round(d*0.5);if(p.traits.includes('Cowardly'))d=Math.round(d*1.5);}
   p.cool=Math.max(0,Math.min(100,p.cool+d));
   if(p.traits.includes('Veteran'))p.cool=Math.max(40,p.cool);
   if(p.traits.includes('Green'))p.cool=Math.min(60,p.cool);
@@ -419,6 +420,8 @@ function computeATK(s,t,wkey){
   const f=bullsFactor(s,t);
   if(f>0.05){const bb=Math.ceil(4*f);v+=bb;e.push(['BULLSEYE',bb]);}
   if(s.pilot.traits.includes('Lucky')){v+=1;e.push(['LUCKY',1]);}
+  if(s.pilot.traits.includes('Steady Hands')){v+=1;e.push(['STEADY HANDS',1]);}
+  if(s.pilot.traits.includes('Former Pilot')){v+=1;e.push(['FORMER PILOT',1]);}
   return {total:v,entries:e,bullsF:f};
 }
 function needFor(tn,atk){return Math.max(2,Math.min(19,tn-atk));}
@@ -1914,7 +1917,7 @@ function dossierHTML(s){
     '<div class="sp-dz__sub">'+esc(s.name)+' · age '+p.age+'</div></div></div>'+
     '<div class="sr-meter sp-nerve" style="--c:'+nc+'"><span>Nerve</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(p.cool)+'%"></span></span><span class="sr-meter__val">'+Math.round(p.cool)+'</span></div>'+
     '<p class="sr-p sp-bio">“'+esc(p.bio)+'”</p>'+
-    (p.traits.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.traits.map(t=>'<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(t)+'</div><div class="sr-card__body">'+esc(TRAITDESC[t]||'')+'</div></div>').join('')+'</div>':'')+
+    (p.traits.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.traits.map(t=>'<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(t)+'</div><div class="sr-card__body">'+esc(TRAITDESC[t]||(Rebel.CT.find(x=>x.n===t)||{}).e||'')+'</div></div>').join('')+'</div>':'')+
     (p.mans&&p.mans.length?'<div class="sr-h3">Pilot maneuvers</div><div class="sp-tags">'+p.mans.map(m=>tag(m==='loop'?'Loop ↺':'Barrel Roll ⇹','progress')).join('')+'</div>':'')+
     '<p class="sr-fine">XP '+pctXP+'% to next grade · manual promotion arrives with the persistent campaign</p>'+
     '</div>';

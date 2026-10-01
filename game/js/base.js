@@ -237,6 +237,7 @@ const STAFFABLE={
 const STLBL={barracks:'Garrison',hangar:'Deck',diplo:'Diplo',command:'Command',store:'Stores',workshop:'Workshop',infirmary:'Medbay',comms:'Comms',training:'Drill'};
 function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!p.injured);}
 function medStaff(){return staffOf('infirmary');}
+const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
 /* news classes (saved as d/a/g/h/r/p) → kit tones */
 const NEWS_TONE={d:'',a:'action',g:'good',h:'bad',r:'info',p:'progress'};
 const newsTone=cls=>NEWS_TONE[cls]!==undefined?NEWS_TONE[cls]:'';
@@ -277,8 +278,8 @@ function renderFeed(){
   const live=feed.filter(f=>now-f.t<FEED_MS);
   if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
 }
-function levelUp(p){
-  const n=Rebel.addXp(p,0);
+function gainXp(p,x){
+  const n=Rebel.gainXp(p,x);
   for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'.','p');sAlert();}
 }
 
@@ -1019,13 +1020,13 @@ function openRecruitOffer(src,sig){
   let p,must=false,line;
   if(sig.kind==='recruitSera'){
     must=true;
-    p={id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
-      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'};
+    p=Rebel.migrate({id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
+      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'});
     line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
-    p={id:'rec'+(G.recruitN+1),name:nm.name,role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio};
+    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio});
     if(role==='Soldier')p.equip=['pistol'];
     if(role==='Pilot')p.ship='';
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
@@ -1094,7 +1095,7 @@ function advanceDay(){
     G.dip=G.dip.filter(t=>t.days>0);
     chainTick();
   }
-  const rate=(hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0);
+  const rate=((hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))*(staffHas('workshop','mechanic')?1.15:1);
   G.fuel+=4;   // the old hangar-cave tanks weep a little every day
   const repCost=staffOf('store').length?4:8;
   const worst=hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
@@ -1107,11 +1108,11 @@ function advanceDay(){
   const xpRate=staffOf('training').length?0.09:0.06;
   for(const p of G.people){
     if(p.injured>0){
-      p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0);
+      p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
       if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
       continue;
     }
-    if(p.assign==='train'&&hasRoom('training')){p.xp+=xpRate;levelUp(p);}
+    if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
     if(p.assign==='rest')G.morale=Math.min(100,G.morale+(upAny('barracks','rec')?1:0.5));
   }
   for(const src of G.sources){
@@ -1292,7 +1293,7 @@ function nextReport(){
   else if(n.t==='reward')openWin('reward',n.rpt);
   else if(n.t==='recruit'){
     const nm=n.m.npc;
-    const p={id:'rec'+(G.recruitN+1),name:nm.name,role:nm.role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio};
+    const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio});
     openWin('recruit',{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'});
   }
   else{
@@ -1335,7 +1336,7 @@ function resolveMission(m){
         rew.push('+FT-4 Cross');
       } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
     }
-    for(const p of pilots){p.xp+=m.rew.xp||0.1;levelUp(p);}
+    for(const p of pilots)gainXp(p,m.rew.xp||0.1);
     G.morale=Math.min(100,G.morale+6);
     m.state='done';m.meta='SUCCESS';
     const cr=missionCredit(m);
@@ -2758,7 +2759,14 @@ const TUT_PAGES=[
 function dossierHead(p,extra){
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+wTag(rankFor(p),'action')+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>';
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+traitCard(p);
+}
+/* the Character Trait card: designer copy plus a plain-language effect (greyed until the effect is wired in) */
+function traitCard(p){
+  const t=Rebel.CTK[p.charTrait];
+  if(!t)return '';
+  return '<div class="sr-h3">Character</div><div class="sr-card sr-card--progress"><div class="sr-card__top"><span class="sr-card__title">'+esc(t.n)+'</span>'+(t.live?'':wTag('Effect soon','info'))+'</div>'+
+    '<div class="sr-card__body">'+esc(Rebel.traitText(t,p))+'<br><span class="sr-faint">'+esc(t.e)+'</span></div></div>';
 }
 function renderWin(){
   const card=$('winCardB');
@@ -3364,6 +3372,7 @@ $('winsB').addEventListener('click',ev=>{
     if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
     G.people.push(Rebel.migrate(p));
+    if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
     if(p.id==='sera')G.onboard='crossready';
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
     sBuild();saveSnap();closeWin();syncUI();return;
@@ -3805,7 +3814,7 @@ function assetsHTML(){
   return h;
 }
 function squadEntry(p,scatterFirst){
-  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),
     aim:soldierAim(p),hp:p.auto?autoOf(p).hp:100,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:scatterFirst?['scatter','akli','cowboy']:['akli','cowboy']};
 }
@@ -3845,7 +3854,7 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        aim:pilotAim(p),cool:Math.min(85,55+p.level*4),traits:p.id==='sera'?['Lucky']:[],
+        aim:pilotAim(p),cool:Math.min(85,55+p.level*4),traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
@@ -3877,7 +3886,7 @@ function applyDebrief(r){
       for(const pr of r.people||[]){
         const p=G.people.find(x=>x.id===pr.id);
         if(!p)continue;
-        if(pr.xp){p.xp+=pr.xp;levelUp(p);}
+        if(pr.xp)gainXp(p,pr.xp);
         if(pr.state==='injured'){
           p.injured=pr.dur||2;
           news('<b>'+p.name+'</b> took the rock the hard way \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
@@ -3918,7 +3927,7 @@ function applyDebrief(r){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
     p.assign='rest';
-    if(pr.xp){p.xp+=pr.xp;levelUp(p);}
+    if(pr.xp)gainXp(p,pr.xp);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
@@ -3940,6 +3949,11 @@ function applyDebrief(r){
     if(r.loot.c){G.credits+=r.loot.c;got.push(C(r.loot.c));}
     if(r.loot.s){G.supplies+=r.loot.s;got.push(S(r.loot.s));}
     for(const it of r.loot.items||[]){addArmoryItem(it);got.push(it);}
+  }
+  if(r.win&&r.kind==='ground'&&(r.people||[]).some(pr=>pr.state!=='lost'&&Rebel.has(G.people.find(x=>x.id===pr.id),'smuggler'))&&rng()<0.25){
+    const it=rng()<0.5?'Cowboy':'Shell box';
+    addArmoryItem(it);got.push(it);
+    news('A former smuggler\u2019s instincts paid off: an extra <b>'+it+'</b> in the haul.','g');
   }
   if(r.kind==='ground'&&r.nades!==undefined){
     const a=G.armory.find(x=>x.id==='blam');
@@ -4126,7 +4140,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,levelUp,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
