@@ -142,3 +142,48 @@
   #sc-base .sr-window__foot .sr-btn--lg{min-height:44px;}
   #sc-base .sr-window__body{padding:12px 16px;}
 }
+/* ===== ground ===== */
+#sc-ground #cv{cursor:crosshair;touch-action:none;}
+/* cinematic letterbox */
+#sc-ground .lb{position:absolute;left:0;right:0;height:0;background:#000;z-index:8;transition:height .6s ease;pointer-events:none;}
+#sc-ground #lbTop{top:0;}
+#sc-ground #lbBot{bottom:0;}
+#sc-ground .cine .lb{height:9%;}
+/* phase banners ride high so they never sit on the acting units; the mission-title banner stays centred */
+#sc-ground .sr-banner{place-items:start center;padding-top:16%;}
+#sc-ground #csBanner{place-items:center;padding:0;opacity:0;transition:opacity .5s ease;z-index:9;}
+#sc-ground #csBanner.show{opacity:1;}
+#sc-ground #csBanner .sr-banner__txt{animation:none;--c:var(--sr-text);text-align:center;}
+#sc-ground #csBanner .big{display:block;}
+#sc-ground #csBanner .small{color:var(--sr-gold);}
+#sc-ground #csSkip{position:absolute;left:50%;bottom:calc(9% + 12px);transform:translateX(-50%);z-index:var(--sr-z-hud);}
+/* comms feed and the full log: spans written by the game's log() */
+#sc-ground .sr-comm .r,#sc-ground .sr-log .r{color:var(--sr-c-friend);font-weight:800;}
+#sc-ground .sr-comm .h,#sc-ground .sr-log .h{color:var(--sr-c-foe);font-weight:800;}
+#sc-ground .sr-comm .a,#sc-ground .sr-log .a{color:var(--sr-c-action);font-weight:700;}
+#sc-ground .sr-comm .g,#sc-ground .sr-log .g{color:var(--sr-c-good);font-weight:700;}
+#sc-ground .sr-comm .b,#sc-ground .sr-log .b{color:var(--sr-c-bad);font-weight:800;}
+#sc-ground .sr-comm .d,#sc-ground .sr-log .d{color:var(--sr-text-3);}
+#sc-ground .sr-comm--bad{--c:var(--sr-c-bad);}
+#sc-ground .sr-log p{margin:0 0 6px;}
+/* bottom slot parts */
+#sc-ground #pickPill{cursor:pointer;font-family:inherit;}
+#sc-ground #fsMenu{width:min(440px,100%);max-height:min(46%,360px);}
+#sc-ground #fsMenu .sr-window__body{padding:12px;}
+#sc-ground #fsMenu .sr-choice{flex-direction:column;gap:2px;}
+#sc-ground #fsMenu .sr-choice .sr-fine{margin:0;font-weight:500;}
+#sc-ground .sr-brief__hero--stamp{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+#sc-ground .sr-brief__hero--stamp .sr-stamp{flex:none;margin:6px 6px 0 0;}
+#sc-ground #endLoot{margin-top:6px;}
+/* rail */
+#sc-ground .sr-rail__close{align-self:flex-end;margin:-4px 0 -12px;}
+#sc-ground .sr-unit .sr-unit__side{min-width:0;}
+#sc-ground .sr-unit--ghost b{font-weight:800;}
+/* phones: the minimap and comms already drop out; the log lives in the menu */
+@container sr-app (max-width:900px) or (max-height:520px){
+  #sc-ground .sr-comms__more{display:none;}
+}
+#sc-ground #gMenu{top:calc(100% + 6px);right:var(--sr-s3);}
+#sc-ground .sr-coach.is-folded{padding:8px 12px;}
+#sc-ground .sr-coach.is-folded .sr-coach__head{margin:0;}
+#sc-ground .sr-coach.is-folded #tutText{display:none;}

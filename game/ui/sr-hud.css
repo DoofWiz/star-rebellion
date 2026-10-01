@@ -1,0 +1,67 @@
+/* =====================================================================
+   SR.hud companion styles (see ui/sr-hud.js). Shared by every mission
+   scene; nothing here is specific to ground or space.
+   Opt in by adding .sr-hud to the scene's .sr-stage.
+   ===================================================================== */
+
+/* HUD slots never swallow canvas clicks; only their children do */
+.sr-stage.sr-hud .sr-slot-tl,.sr-stage.sr-hud .sr-slot-tc,.sr-stage.sr-hud .sr-slot-tr,
+.sr-stage.sr-hud .sr-slot-bl,.sr-stage.sr-hud .sr-slot-bc,.sr-stage.sr-hud .sr-slot-br{pointer-events:none;}
+.sr-stage.sr-hud .sr-slot-tl>*,.sr-stage.sr-hud .sr-slot-tc>*,.sr-stage.sr-hud .sr-slot-tr>*,
+.sr-stage.sr-hud .sr-slot-bl>*,.sr-stage.sr-hud .sr-slot-bc>*,.sr-stage.sr-hud .sr-slot-br>*{pointer-events:auto;}
+
+/* host elements the scene swaps HUD html into (VS panel, command bar) take no box of their own */
+.sr-hud__host{display:contents;}
+
+/* bottom slot: full width minus gutters, children centred and never wider than the stage */
+.sr-stage.sr-hud .sr-slot-bc{left:var(--sr-gutter);right:var(--sr-gutter);transform:none;align-items:center;}
+.sr-hud .sr-slot-bc .sr-cmdbar,.sr-hud .sr-slot-bc .sr-vs{max-width:100%;}
+.sr-hud .sr-cmdbar>*{min-width:0;}
+.sr-hud .sr-orders{min-width:0;overflow-x:auto;overflow-y:hidden;padding-block:6px;margin-block:-6px;scrollbar-width:none;cursor:default;}
+.sr-hud .sr-orders::-webkit-scrollbar{display:none;}
+.sr-hud .sr-orders__sep{flex:none;}
+.sr-hud .sr-order{flex:0 0 auto;}
+.sr-hud .sr-cmdbar__who,.sr-hud .sr-cmdbar__go{flex:none;}
+.sr-hud .sr-cmdbar__who:last-child{border-right:0;min-width:0;}
+.sr-hud .sr-dockspacer{width:1px;}
+
+/* disabled cards stay hoverable for their reason: the tooltip does the hit-testing */
+.sr-hud .sr-order:disabled,.sr-hud .sr-btn:disabled[data-tip]{pointer-events:none;}
+.sr-hud .sr-btn[aria-disabled="true"]:not(:disabled){--c:var(--sr-night);--ct:var(--sr-text-3);box-shadow:inset 0 0 0 1px var(--sr-seam);filter:none;}
+.sr-tip[hidden]{display:none;}
+.sr-tip .sr-tag{height:22px;}
+
+/* VS panel details */
+.sr-vs__mid{position:relative;}
+.sr-vs__stamp{position:absolute;left:0;right:0;top:50%;display:grid;place-items:center;pointer-events:none;z-index:1;}
+.sr-vs__stamp .sr-stamp{font-size:var(--sr-fs-lg);padding:2px 12px;background:var(--sr-void);}
+.sr-vs .is-pending{visibility:hidden;}
+.sr-vs__name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sr-vs__who>div{min-width:0;}
+.sr-vs__mods{min-height:0;}
+
+/* desktop bars that would overflow tighten up in two steps (H.fitBar adds .is-tight / .is-tighter); phones keep the kit's scrolling bar */
+@container sr-app (min-width:901px) and (min-height:521px){
+  .sr-hud .sr-cmdbar.is-tight .sr-order{width:62px;min-height:66px;}
+  .sr-hud .sr-cmdbar.is-tight .sr-cmdbar__who,.sr-hud .sr-cmdbar.is-tighter .sr-cmdbar__who{min-width:0;}
+  .sr-hud .sr-cmdbar.is-tighter .sr-order{width:54px;min-height:62px;padding:6px 1px;}
+  .sr-hud .sr-cmdbar.is-tighter .sr-cmdbar__hint{display:none;}
+  .sr-hud .sr-cmdbar.is-tighter .sr-cmdbar__name{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sr-hud .sr-cmdbar.is-tighter{gap:8px;}
+  .sr-hud .sr-cmdbar.is-bare .sr-cmdbar__who{padding-right:8px;}
+  .sr-hud .sr-cmdbar.is-bare .sr-cmdbar__who>div{display:none;}
+  .sr-hud .sr-cmdbar.is-scroll .sr-orders{padding-right:18px;
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);}
+}
+
+/* short landscape phones: the VS panel and bar must leave room for the fight above them */
+@container sr-app (max-height:520px) and (orientation:landscape){
+  .sr-hud .sr-vs__who .sr-vs__role{display:none;}
+  .sr-hud .sr-vs__side{padding:6px 10px;}
+  .sr-hud .sr-vs__who{margin-bottom:2px;}
+  .sr-hud .sr-vs__total{margin-top:0;padding-top:4px;}
+  .sr-hud .sr-vs__mid{padding:4px 6px;gap:2px;}
+  .sr-hud .sr-die{width:34px;height:34px;margin:0;}
+  .sr-hud .sr-vs__odds{font-size:28px;}
+  .sr-hud .sr-slot-bc .sr-cmdbar{padding:4px 6px;}
+}
