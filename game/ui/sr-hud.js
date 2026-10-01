@@ -10,35 +10,52 @@
    as SR.hud). Styles: ui/sr-hud.css (tooltip behaviour, slot pointer rules,
    command-bar fitting, VS panel details).
 
+   WIRING (see ground.js for the reference implementation)
+     - Put class `sr-hud` on the scene's .sr-stage. Inside .sr-slot-bc keep, top to bottom: a pill (.sr-pill),
+       an optional popover, a host <div class="sr-hud__host" id="vsHost" hidden> and a host
+       <div class="sr-hud__host" id="ctlDock" hidden>. Swap the bar with H.render(dockHost, H.cmdbar({...})).
+     - Call H.tips(sceneRoot) once so every [data-tip] element gets the floating tooltip.
+     - Order cards and weapon cards are plain buttons: put your own data-* attributes in `attrs` and use one
+       delegated click listener on the dock host. Digit keys: click the enabled card whose .sr-order__key matches.
+     - Measure the dock (BOT slot height) when you frame the camera: keep the VS panel + bar above the fight.
+
    COMMAND BAR
-     H.btn({id,label,icon,variant:'primary'|'danger'|'ghost'|'',size:'lg'|'sm'|'',go,disabled,why,pressed,attn,cls,attrs})
+     H.btn({id,label,icon,iconAfter,variant:'primary'|'danger'|'ghost'|'',size:'lg'|'sm'|'',go,disabled,soft,why,
+            pressed,attn,cls,attrs,aria,key,tip})
+        soft = looks disabled (aria-disabled) but stays clickable; why = reason shown in the tooltip
      H.order({ract,key,icon,label,family:'move|stance|nerve|util|fight',active,disabled,why,
               tip:{title,rule,nums:[{t,kind:'good|bad|...'}]},id,attrs})   -> '<button class="sr-order">'
      H.sep()                                  -> '<span class="sr-orders__sep">'
-     H.cmdbar({who:{lead,name,hint}, orders:[html...], go:{html,count}, cls})
-        who.lead  = avatar html or an icon button; count = html under the primary ("<b>1</b> of 3 ordered")
+     H.cmdbar({who:{lead,name,hint}, orders:[html...], go:{html,count,countTip:{title,rule}}, cls})
+        who.lead = avatar html or an icon; count = html under the primary ("<b>1</b> of 3 ordered");
+        omit who/orders/go for a smaller bar
      H.render(host, html)                     -> sets innerHTML only when it changed (keeps hover/focus/animations)
+     H.fitBar(host)                           -> tightens a desktop bar (.is-tight/.is-tighter/.is-bare, then .is-scroll) until the order cards fit; call after render and on resize
      H.tips(root)                             -> one delegated tooltip for every [data-tip] inside root. Disabled
                                                  cards keep their reason ("why") on hover. Call once per scene.
    VS PANEL (DOM replacement for the old canvas panel; docks above the bar in .sr-slot-bc)
      const vs=H.vs(hostEl);  vs.set({a:{name,initials,role,roleIcon,foe,mods:[{label,val,base}],shown,total,totalLabel},
                                       d:{...same...}, odds:{pct,need}|null, die:{face,state:'idle|rolling|hit|miss'},
                                       step:'Shot 1 of 6', stamp:{text,kind:'bad|action|foe|'}|null});  vs.el  vs.destroy()
+        a = attacker (left), d = defender (right); foe:true paints a side in Hegemony blue.
         mods[i].val is a number (base rows are plain, others signed; positive green, negative orange);
-        `shown` = how many rows are revealed so far (the rest keep their height but stay invisible).
+        `shown` = how many rows are revealed so far (the rest keep their height but stay invisible);
+        total is hidden until all rows are shown. Call set() as often as you like; unchanged parts are skipped.
    MENU / WINDOWS
      H.menuHtml(items)  items:[{id,icon,label,kbd,kind:'danger|debug'} | {sep:1} | {head:'text'}]
      H.menuBind(menuEl, buttonEl)             -> toggle on click, closes on outside press / Esc / item pick
-     H.win(root,{id,title,size:'sm|lg',accent:'friend|foe|good|progress',body,foot,onClose}) -> {el,open,close,body}
+     H.win(root,{id,title,size:'sm|lg',accent:'friend|foe|good|progress',body,foot,onOpen,onClose}) -> {el,body,foot,open,close}
+        windows are .sr-scrim children of `root` (the scene's .sr-app); [data-close] elements close them
      H.confirm(root,{title,body,ok,cancel,danger,onOk})    -> modal question window (cancel is ghost, ok primary/danger)
-     H.topWin(root)                           -> the open window inside root (for Esc handling), or null
+     H.topWin(root)                           -> the open H.win inside root (for Esc handling), or null
    FEEDBACK
-     H.banner(stageEl,{text,sub,color})       -> .sr-banner slam, removes itself
+     H.banner(stageEl,{text,sub,color})       -> .sr-banner slam, removes itself (other .sr-banner nodes are left alone)
      H.comms(feedEl,{max:3,ttl:6000})         -> {push(html,kind:'friend|foe|good|action|bad'), clear()}
+                                                 newest `max` lines show, older ones dim, every line expires after ttl
      H.phase(plateEl,{phase:'free|plan|exec|fight',status:'calm|alert',name,text,round,icon})
                                               -> patches .sr-phase (name = plate label, text = status words, icon = status icon name)
    MISC  H.tip(title,rule,why,key) -> ' data-tip=...' attribute string for any element
-     H.esc  H.ico(name,cls)  H.avatar({name,cls,badge})  H.initials(name)  H.reduced (prefers-reduced-motion)
+     H.esc  H.ico(name,cls)  H.avatar({name,initials,cls,badge})  H.initials(name)  H.reduced (prefers-reduced-motion)
    ===================================================================== */
 window.SR_HUD=(function(){
   const ESC={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'};
@@ -92,6 +109,17 @@ window.SR_HUD=(function(){
   function render(host,html){
     if(host.__h===html)return false;
     host.__h=html;host.innerHTML=html;return true;
+  }
+  /* tighten a desktop command bar until its order cards fit without scrolling */
+  function fitBar(host){
+    const bar=host.querySelector('.sr-cmdbar'),o=bar&&bar.querySelector('.sr-orders');
+    if(!bar||!o)return;
+    bar.classList.remove('is-scroll');
+    for(const c of ['','is-tight','is-tighter','is-tighter is-bare']){
+      bar.classList.remove('is-tight','is-tighter','is-bare');if(c)bar.classList.add(...c.split(' '));
+      if(o.scrollWidth<=o.clientWidth+1)return;
+    }
+    bar.classList.add('is-scroll');            // still too wide: scroll, with a fade hint on the right
   }
   /* ---------- tooltips: one floating .sr-tip per scene root ---------- */
   function tips(root){
@@ -276,5 +304,5 @@ window.SR_HUD=(function(){
     const u=el.querySelector('.sr-phase__status use');
     if(u&&o.icon)u.setAttribute('href','#i-'+o.icon);
   }
-  return {esc,ico,initials,avatar,tip,btn,order,sep,cmdbar,render,tips,vs,menuHtml,menuBind,win,topWin,confirm,banner,comms,phase,reduced};
+  return {esc,ico,initials,avatar,tip,btn,order,sep,cmdbar,render,fitBar,tips,vs,menuHtml,menuBind,win,topWin,confirm,banner,comms,phase,reduced};
 })();

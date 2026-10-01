@@ -2585,8 +2585,8 @@ function gameOver(win,why){
     let lh2='';
     if(win){
       lh2+=LL('Haven Rock','Secured');
-      if(tally.c)lh2+=LL('Credits scavenged','\u25c8 '+tally.c,'credits');
-      if(tally.s)lh2+=LL('Supplies scavenged','\u25a4 '+tally.s,'supplies');
+      if(tally.c)lh2+=LL('Credits scavenged','+'+tally.c,'credits');
+      if(tally.s)lh2+=LL('Supplies scavenged','+'+tally.s,'supplies');
       for(const it of tally.items)lh2+=LL(it,'Taken','loot');
     }
     byId('endLoot').innerHTML=lh2;
@@ -2633,8 +2633,8 @@ function gameOver(win,why){
   let lh='';
   const tail=()=>{
     let t='';
-    if(tally.c)t+=LL('Credits looted','\u25c8 '+tally.c,'credits');
-    if(tally.s)t+=LL('Supplies looted','\u25a4 '+tally.s,'supplies');
+    if(tally.c)t+=LL('Credits looted','+'+tally.c,'credits');
+    if(tally.s)t+=LL('Supplies looted','+'+tally.s,'supplies');
     for(const it of tally.items)t+=LL(it,'Taken','loot');
     return t;
   };
@@ -2812,6 +2812,7 @@ function fitCanvas(){
   cssW=r.width;cssH=r.height;
   cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
   clampCam();
+  HUD.fitBar(DOCK);
   measureHud();
 }
 addEventListener('resize',()=>{if(SR.active==='ground')fitCanvas();});
@@ -4173,19 +4174,18 @@ function dockHTML(){
   const detBtn=()=>HUD.btn({id:'detBtn',label:'Detonate',icon:'grenade',variant:'danger',size:'lg',soft:facUnsafe(),why:facUnsafe()?'Clear the blast zone first.':'',tip:{title:'Detonate',rule:'Blow the planted charge once everyone is clear.'}});
   if(phase==='FREE'){
     const hasTech=U.some(x=>x.spec==='fieldtech'&&!x.down&&!x.extracted&&!x.away);
-    const orders=[];
+    const calm=town==='calm';
+    const orders=[HUD.order({id:'sneakBtn',label:'Sneak',icon:'sneak',family:'stance',key:'C',active:sneak,disabled:!calm,why:calm?'':'The alarm is up. Sneaking no longer helps.',
+      tip:{title:'Sneak',rule:'Go low and slow: half the pace, but much harder to spot.'}})];
     if(hasTech&&U.some(x=>x.side==='law'&&x.auto&&x.hackRounds&&!x.down))
       orders.push(HUD.order({id:'hackBtn',label:'Hack',icon:'hack',family:'util',active:hackArm,tip:{title:'Hack',rule:OM.hack.rule}}));
     let go='';
     if(extractReady())go=HUD.btn({id:'extractBtn',label:'Extract',icon:'extract',variant:'primary',size:'lg',go:true,iconAfter:true});
     else if(callBtn)go=HUD.btn({id:'callBtn',label:'Call in the Marta',icon:'ship',variant:'primary',size:'lg',go:true,iconAfter:true});
     else if(detOn)go=detBtn();
-    const calm=town==='calm';
-    const hint=(SR.touch?'Tap to move. Tap an enemy to open fire.':'Right-click to move. Click an enemy to ambush.')+(crossAway?'':' Watch the sight cones.')+
-      (calm&&!SR.touch?' <span class="sr-kbd">C</span> toggles sneak.':'');
+    const hint=(SR.touch?'Tap to move. Tap an enemy to open fire.':'Right-click to move. Click an enemy to ambush.')+(crossAway?'':' Watch the sight cones.');
     return HUD.cmdbar({
-      who:{lead:HUD.btn({id:'sneakBtn',icon:'sneak',cls:'sr-btn--icon',pressed:sneak,disabled:!calm,why:calm?'':'The alarm is up. Sneaking no longer helps.',aria:'Sneak',tip:{title:'Sneak',rule:'Go low and slow: half the pace, but harder to spot.'},key:'C'}),
-        name:sneak?'Sneaking':'Walking',hint},
+      who:{lead:'<span class="sr-avatar">'+HUD.ico('soldier')+'</span>',name:sneak?'Sneaking':'Walking',hint},
       orders,go:go?{html:go}:null});
   }
   if(phase==='PLANNING'){
@@ -4429,6 +4429,7 @@ function syncBar(){
   if(!html&&phase==='ENGAGE'&&c)html='<div class="sr-dockspacer" style="height:'+barH+'px"></div>';   // hold the dock's height while a shot resolves
   DOCK.hidden=!html;
   HUD.render(DOCK,html);
+  HUD.fitBar(DOCK);
   const cb=DOCK.querySelector('.sr-cmdbar');
   if(cb&&cb.offsetHeight)barH=cb.offsetHeight;
 }
@@ -4593,7 +4594,7 @@ addEventListener('keydown',ev=>{
   const win=HUD.topWin(ROOT);
   if(k==='Escape'){
     if(win){const x=win.querySelector('[data-close]');if(x)x.click();return;}
-    if(!menuEl.hidden)return;                         // the menu closes itself
+    if(!menuEl.hidden){menuEl.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');return;}
     if(pickMode){pickMode=null;fsDraft=null;syncUI();}
     else if(hackArm&&phase==='FREE'){hackArm=false;syncUI();}
     else if(fsMenuOn){fsMenuOn=false;syncUI();}
