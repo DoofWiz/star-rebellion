@@ -150,7 +150,7 @@ function newGame(){
     {id:'rm_5_4',key:'barracks',r:5,c:4,w:2,h:1},
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
-  return {
+  const g0={
     day:1,credits:1000,supplies:480,materials:400,fuel:240,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[],
@@ -173,6 +173,8 @@ function newGame(){
     recruitN:0,misPopQ:[],candQ:[],
     news:[],
   };
+  g0.people.forEach(Rebel.migrate);
+  return g0;
 }
 
 /* ---------- helpers ---------- */
@@ -276,7 +278,8 @@ function renderFeed(){
   if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
 }
 function levelUp(p){
-  while(p.xp>=1){p.xp-=1;p.level++;news('<b>'+p.name+'</b> promoted in the field — now '+rankFor(p)+'.','p');sAlert();}
+  const n=Rebel.addXp(p,0);
+  for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'.','p');sAlert();}
 }
 
 /* ---------- source events (some open missions) ---------- */
@@ -895,13 +898,20 @@ const RECRUITS={
 function drawRecruit(role){
   G.poolHeld=G.poolHeld||[];
   const names=new Set(G.people.map(p=>p.name));
-  return RECRUITS[role].find(r=>!names.has(r[0])&&!G.poolHeld.includes(r[0]))||null;
+  return (RECRUITS[role]||[]).find(r=>!names.has(r[0])&&!G.poolHeld.includes(r[0]))||null;
 }
 function holdRecruit(role){
-  const r=drawRecruit(role)||RECRUITS[role][0];
   G.poolHeld=G.poolHeld||[];
+  const r=drawRecruit(role);
+  if(!r){   // the authored names are used up: generate one nobody has met
+    const taken=new Set(G.people.map(p=>p.name).concat(G.poolHeld));
+    const g=Rebel.gen(role,taken,rng);
+    G.poolHeld.push(g.name);
+    return g;
+  }
   if(!G.poolHeld.includes(r[0]))G.poolHeld.push(r[0]);
-  return {name:r[0],first:r[0].replace(/^(Prof\.|Dr\.)\s+/,'').split(' ')[0],role,bio:r[1]};
+  const s=Rebel.split(r[0]);
+  return {name:r[0],first:s.first,last:s.last,role,bio:r[1]};
 }
 function bindNpc(m){
   if(m.tpl){
@@ -3353,7 +3363,7 @@ $('winsB').addEventListener('click',ev=>{
     const {p,must}=winArg;
     if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
-    G.people.push(p);
+    G.people.push(Rebel.migrate(p));
     if(p.id==='sera')G.onboard='crossready';
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
     sBuild();saveSnap();closeWin();syncUI();return;
@@ -4027,6 +4037,7 @@ function restoreCampaign(data){
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
+    for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;}
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
     for(const d of PLANETDEF){

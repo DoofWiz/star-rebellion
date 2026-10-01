@@ -28,16 +28,18 @@ A rebel today is one flat object in `G.people` (`base.js` ~L163, ~L1018):
 | Recruit via missions and a Command Center "Recruit new Revolutionaries" task | Recruits come from Source signals and Rescue Dissident only | New Command Center task |
 | Hero via hidden stat at mission end | Nothing | Whole system |
 
-## 2. Decisions needed before coding (my recommendation first)
+## 2. Decisions (settled 2026-10-01)
 
-1. **Heroes vs. scope.** `GDD.md` and `ROADMAP.md` put Heroes at Rev Level 2+; the Rebels doc has them as a normal mission-end event. *Recommend:* build the hidden stat and the Hero data model now (Phase 9) but keep the New Hero screen off until Level 2 (feature flag), unless you want Heroes in Level 1.
-2. **Marines.** No boarding theatre exists (out of scope for Rev 1). *Recommend:* Marines exist as a type with ranks/skills/gear/specialty, can be recruited by a debug path only, and never appear in Level 1 offers.
-3. **Rank decoupled from level.** Today level-up announces "promoted in the field — now {rank}". *Recommend:* follow the doc: level and rank are separate; the news line becomes "reached level N"; rank comes from mission count.
-4. **Per-rebel morale vs. `G.morale`.** *Recommend:* keep `G.morale` as the **base mood** (average of rebels plus base events) so the existing 12 call sites keep working, and add `p.morale` as the new source of truth for performance. Rec Room, rest, mission wins/losses feed both.
-5. **Injury depth.** Many traits assume critical injuries, physical changes (Lost an Eye/Arm, Limp, Prosthetic) and exhaustion/sleep. Injury today is just days out. *Recommend:* a separate **Injury v2** phase (minor / serious / critical, recovery events) and **drop or reinterpret** the Heavy/Light Sleeper traits unless you want an exhaustion system.
-6. **Traits that need systems we don't have** (melee for Strong/Weak, interrogation missions for Intimidating, gear loss for Messy, per-rebel "Risk"). *Recommend:* implement the trait as data + description now, mark its effect `live:0` (same pattern as `SPECS.live`), and light it up when the system lands.
-7. **XP scale.** Keep `xp` as 0..1 internally (all rewards use it) and show it as 0–100 XP in the UI. Cap level at 20.
-8. **Doc gaps to fix in the doc:** the "Recruit new Revolutionaries" bullet is cut off mid-sentence ("After several days, the…"); "Hegemon" typo; Pilot rank list starts at "Private" though the USAF enlisted ladder starts at Airman Basic (I'll follow the doc); "Failed to Save" mentions Redemption but there is no Redemption trait (Redeemed is the likely match).
+1. **Heroes:** build the hidden stat and Hero data model, but the New Hero screen waits for Rev Level 2.
+2. **Marines:** data-only type for now (ranks, skills, gear, specialty); no Level 1 recruits, no boarding mode.
+3. **Rank decoupled from level:** level-ups are announced as "reached level N"; rank comes from mission count (Phase 5).
+4. **Morale:** `G.morale` stays as the base mood (average of rebels plus base events); `p.morale` is added as the per-rebel source of truth.
+5. **Injury depth:** a separate Injury v2 phase later; traits that depend on it (physical changes, critical injuries, exhaustion) stay `live:0` until then.
+6. **Recruitment:** rebels are recruited by issuing a task in the Command Center. The doc's timing sentence was cut off; the task takes a few days and then opens the multi-card New Recruit screen (timing to tune in Phase 6).
+7. **Pilot ranks:** true to life — the real USAF enlisted ladder (Airman Basic upward), not "Private". Soldier/Support use Army enlisted, Marine uses USMC enlisted.
+8. **Doc gaps** (the "Failed to Save" / Redemption reference, etc.): skipped for now.
+
+Still open, low priority: whether the Heavy/Light Sleeper traits get an exhaustion system or are cut.
 
 ## 3. Architecture
 
@@ -70,12 +72,13 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
 
 ## 4. Phases
 
-### Phase 1 — Data model, names, XP/levels, save migration
+### Phase 1 — Data model, names, XP/levels, save migration — **built**
 - Add `rebel.js`: first/last name pools (~60 + ~60 per flavour, no duplicates in the roster), `genRebel(type)`; keep the authored `RECRUITS` entries as named "story" recruits so existing flavour is not lost (Mira Osk, Sera, etc.); generated rebels get a bio from a small template set.
 - Level cap 20, 100 XP/level; `levelUp` stops at 20, news line reworded (decision 3).
 - Migration in `restoreCampaign` (follows the existing `if(x===undefined)` pattern): backfill `first/last`, `charTrait` (deterministic from id so reloads are stable; Sera keeps Lucky, Joss/Petra keep their space.js traits), `morale` from `G.morale`, `rank` from current level, `skills` from level, `gear` from `equip`.
 - Opening cast (Joss, Dax, Runa, Kel) get authored traits.
 - **Done when:** old saves load, a new campaign boots, roster shows names/levels unchanged, `tools/autoplay.js` still finishes a run.
+- **Built:** `game/js/rebel.js` (name pools, `gen`, `addXp` with the level-20 cap, `migrate`), loaded before `base.js`. Recruits now fall back to a generated, unique name when the authored `RECRUITS` list runs out (the old fallback reused `RECRUITS[role][0]`, duplicating a name; the bot hit this five times in seed 1). Level-ups are announced as "reached level N". Not yet in this pass: the `charTrait`/`morale`/`skills`/`rank`/`gear` backfills, which arrive with their own phases. Autoplay: seeds 1–3 finish with no page errors; seed 2 is unchanged, seed 1 escalates on day 98 instead of 101 because of the generated recruits.
 
 ### Phase 2 — Character Traits (47)
 - Registry with `live` flags. Group by what they need:
