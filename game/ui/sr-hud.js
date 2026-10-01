@@ -210,8 +210,9 @@ window.SR_HUD=(function(){
     return m;
   }
   function win(root,o){
-    let el=o.id?root.querySelector('#'+o.id):null;
-    if(!el){el=document.createElement('div');if(o.id)el.id=o.id;root.appendChild(el);}
+    const old=o.id?root.querySelector('#'+o.id):null;
+    if(old)old.remove();                       // rebuilt fresh so listeners never stack
+    const el=document.createElement('div');if(o.id)el.id=o.id;root.appendChild(el);
     el.className='sr-scrim';el.hidden=true;el.setAttribute('data-srwin','1');
     el.innerHTML='<div class="sr-window'+(o.size?' sr-window--'+o.size:'')+(o.accent?' sr-window--'+o.accent:'')+'" role="dialog" aria-modal="true" aria-label="'+esc(o.title)+'">'+
       '<div class="sr-window__head"><span class="sr-window__title">'+esc(o.title)+'</span>'+
