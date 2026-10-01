@@ -2048,29 +2048,33 @@ function renderRoomView(now){
   const pul=RM?0.8:0.6+0.4*Math.sin(now*0.002);
   if(rm.key==='hangar'){
     const cap=fighterCap();
+    // berths tile the floor: a g×g grid in floor space, each pad a diamond that exactly fits its cell
+    const g=Math.max(2,Math.ceil(Math.sqrt(cap))),bw=250/g*0.86,bh=130/g*0.86,csz=2.4*Math.min(1,2/g);
     for(let i=0;i<cap;i++){
-      const bx=(i-(cap-1)/2)*130,by=i%2?40:-20;
+      const ga=((i%g)+0.5)*2/g-1,gb=(Math.floor(i/g)+0.5)*2/g-1;
+      const bx=(ga-gb)*125,by=(ga+gb)*65;
       ctx.strokeStyle=TH.rgba(col,0.45);ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
-      ctx.beginPath();ctx.moveTo(bx,by-45);ctx.lineTo(bx+80,by);ctx.lineTo(bx,by+45);ctx.lineTo(bx-80,by);ctx.closePath();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bx,by-bh);ctx.lineTo(bx+bw,by);ctx.lineTo(bx,by+bh);ctx.lineTo(bx-bw,by);ctx.closePath();ctx.stroke();
       ctx.setLineDash([]);
-      const f=G.fighters[i];
+      const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
         ctx.globalAlpha=0.6;
-        craftTop('graf',bx,by,3.4,-0.5,K.seam);
+        craftTop('graf',bx,cy0,csz,-0.5,K.seam);
         ctx.globalAlpha=1;
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
-        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,by+62);
+        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
         continue;
       }
       if(f&&!f.out){
-        craftTop(f.cls,bx,by,3.4,-0.5);
+        craftTop(f.cls,bx,cy0,csz,-0.5);
         ctx.font=fnt(12);ctx.textAlign='center';
-        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,by+62);
-        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,by+67,54,7);
+        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
+        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
         ctx.fillStyle=hullCol(f.hull);
-        ctx.fillRect(bx-25,by+69,50*f.hull/100,3);
+        ctx.fillRect(bx-25,ly+9,50*f.hull/100,3);
         if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
+        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:Math.max(26,bh*Sx*0.9),fid:f.id});
       } else {
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.text3;
@@ -2676,8 +2680,9 @@ const riskTag=m=>wTag('Risk '+String(m.riskTxt).toLowerCase(),/high/i.test(m.ris
 const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'ballistic',blam:'grenade',charge:'grenade',limpet:'hack'};
 const gearIcon=a=>GEAR_ICON[a.id]||'loot';
 let cutArm=null;
-const accentOf={comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
-const sizeOf={sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+let shipSheetShip=null;
+const accentOf={comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',ship:'friend',escalate:'foe',reward:'progress',arrive:'good'};
+const sizeOf={sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',ship:'sm',silence:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -3044,6 +3049,12 @@ function renderWin(){
       choice(1,'data-kill="'+s.id+'"','Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.')+
       choice(2,'data-close','Not yet. Back into the shadows.'));
   }
+  else if(winMode==='ship'){
+    const f=winArg,SS=SR.shipSheet;
+    const pilots=G.people.filter(p=>p.role==='Pilot'&&!p.injured);
+    shipSheetShip=SS.make(f.cls,f.name,f.out?100:f.hull,pilots.length?Math.max(...pilots.map(pilotAim)):2);
+    h=SS.html(shipSheetShip,f.name)+wFoot(rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
+  }
   else if(winMode==='news'){
     h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
   }
@@ -3052,6 +3063,7 @@ function renderWin(){
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
+  if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);
   markWin();
 }
 
@@ -3159,7 +3171,7 @@ function syncUI(){
   }).join(''):'<div class="sr-empty">'+(G.wreck&&!G.wreck.restored?'No ships yet. Restore the derelict hauler from the Hangar.':'No ships yet. A mission can win us one.')+'</div>';
   $('fleetCount').textContent=G.fighters.length||'';
   $('crewHint').textContent=SR.touch?'Tap anyone for their file':'Double-click anyone for their file';
-  $('fleetHint').textContent=SR.touch?'Tap a ship to step into the hangar':'Double-click a ship to step into the hangar';
+  $('fleetHint').textContent=SR.touch?'Tap a ship for its stats':'Double-click a ship for its stats';
   if(viewRoom)renderRoomBar();
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
@@ -3195,11 +3207,11 @@ cv.addEventListener('click',ev=>{
     const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
     if(f){
       sClick();
-      const key='fig:'+f.pid,now=performance.now();
+      const key='fig:'+(f.pid||f.fid),now=performance.now();
       if(lastTap.key===key&&now-lastTap.t<380){
         lastTap={key:null,t:0};
-        const p=G.people.find(x=>x.id===f.pid);
-        if(p)openWin('person',p);
+        if(f.fid){const sh=G.fighters.find(x=>x.id===f.fid);if(sh)openWin('ship',sh);}
+        else{const p=G.people.find(x=>x.id===f.pid);if(p)openWin('person',p);}
       } else lastTap={key,t:now};
     }
     return;
@@ -3397,6 +3409,12 @@ $('winsB').addEventListener('click',ev=>{
     }
     return;
   }
+  if(t.hasAttribute('data-visithangar')){
+    const hg=G.rooms.find(r=>r.key==='hangar');
+    closeWin();
+    if(hg)enterRoomView(hg);
+    return;
+  }
   const mplan=t.getAttribute('data-mplan');
   if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openPlan(m);return;}
   const as=t.getAttribute('data-as');
@@ -3422,8 +3440,8 @@ byId('panel').addEventListener('click',ev=>{
       const p=G.people.find(x=>x.id===pr.getAttribute('data-person'));
       if(p)openWin('person',p);
     } else {
-      const hg=G.rooms.find(r=>r.key==='hangar');
-      if(hg)enterRoomView(hg);
+      const f=G.fighters.find(x=>x.id===fr.getAttribute('data-fighter'));
+      if(f)openWin('ship',f);
     }
     return;
   }
@@ -4115,7 +4133,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,levelUp,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{enterRoomView,reqOf,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,levelUp,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

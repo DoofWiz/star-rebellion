@@ -1931,9 +1931,9 @@ function durRow(label,cells,num,hp,note){
     (note?'<div class="sp-dur__note">'+note+'</div>':'')+'</div>';
 }
 const WCOL={plasma:'var(--sr-shield)',ballistic:'var(--sr-gold)',missile:'var(--sr-psi)'};
-function shipHTML(s){
+function shipHTML(s,title){
   const c=CLS[s.cls];
-  let h=winHead('Ship systems')+'<div class="sr-window__body">';
+  let h=winHead(title||'Ship systems')+'<div class="sr-window__body">';
   h+='<div class="sp-sw"><canvas id="shipIconCv" width="208" height="152"></canvas>'+
     '<div><div class="sp-sw__cls">'+c.label+'</div><div class="sp-sw__role">'+c.role+'</div>'+
     '<div class="sp-tags">'+tag('Max speed '+maxSpeedOf(s),'')+tag('Initiative '+effInit(s),'')+'</div></div></div>';
@@ -1979,6 +1979,27 @@ function shipHTML(s){
   h+='</div>';
   return h;
 }
+function paintShipIcon(icv,s){
+  if(!icv)return;
+  const c2=icv.getContext('2d');
+  c2.clearRect(0,0,icv.width,icv.height);
+  c2.save();
+  c2.translate(icv.width/2,icv.height/2);
+  c2.scale(2,2);
+  c2.rotate(-Math.PI/2);
+  paintShipBody(c2,s,1.9*s.size,s.faction==='heg');
+  c2.restore();
+}
+/* the base layer shows the same ship-systems sheet for a hangar fighter (no mission running) */
+SR.shipSheet={
+  make(cls,name,hullPct,aim){
+    const s=mkShip('X',name,CLS[cls]?cls:'viper','reb',0,0,0,mkPilot({pname:'',first:'',age:0,aim:aim||2,cool:60,traits:[],mans:[],level:1,xp:0,bio:''}));
+    s.hull=Math.max(1,Math.round(s.maxHull*Math.max(0,Math.min(100,hullPct))/100));
+    return s;
+  },
+  html(s,title){return shipHTML(s,title);},
+  paint(root,s){paintShipIcon(root.querySelector('#shipIconCv'),s);}
+};
 let infoBack=null;
 function openInfo(id){
   infoShip=id;
@@ -2001,17 +2022,7 @@ function renderInfo(){
   HUD.render(byId('dossierWin'),dossierHTML(s));
   if(HUD.render(byId('shipWin'),shipHTML(s))||!byId('shipWin').__painted){
     byId('shipWin').__painted=1;
-    const icv=byId('shipIconCv');
-    if(icv){
-      const c2=icv.getContext('2d');
-      c2.clearRect(0,0,icv.width,icv.height);
-      c2.save();
-      c2.translate(icv.width/2,icv.height/2);
-      c2.scale(2,2);
-      c2.rotate(-Math.PI/2);
-      paintShipBody(c2,s,1.9*s.size,s.faction==='heg');
-      c2.restore();
-    }
+    paintShipIcon(byId('shipIconCv'),s);
   }
 }
 byId('infoWins').addEventListener('click',ev=>{

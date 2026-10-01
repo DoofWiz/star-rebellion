@@ -199,51 +199,51 @@
 #sc-space .sr-unit.is-down{cursor:default;}
 #sc-space .sr-unit__top{flex-direction:column;align-items:flex-start;gap:3px;}
 #sc-space .sr-unit__side{align-items:flex-end;}
-#sc-space .sp-rows{display:flex;flex-direction:column;gap:4px;margin-top:1px;}
-#sc-space .sp-row{display:flex;align-items:center;gap:7px;}
-#sc-space .sp-row__l{flex:none;width:10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
-#sc-space .sp-row .sr-hp{gap:5px;flex-wrap:nowrap;}
-#sc-space .sp-row .sr-hp__cells{flex-wrap:nowrap;}
+.sp-rows{display:flex;flex-direction:column;gap:4px;margin-top:1px;}
+.sp-row{display:flex;align-items:center;gap:7px;}
+.sp-row__l{flex:none;width:10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sp-row .sr-hp{gap:5px;flex-wrap:nowrap;}
+.sp-row .sr-hp__cells{flex-wrap:nowrap;}
 #sc-space .sr-hp__cell.is-on.is-guest{background:var(--sr-psi);}   /* the stacked, angled-in shield segment */
-#sc-space .sp-tags{display:flex;flex-wrap:wrap;gap:5px;}
-#sc-space .sp-rows+.sp-tags{margin-top:6px;}
-#sc-space .sp-bad{color:var(--sr-c-bad);font-weight:800;}
+.sp-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.sp-rows+.sp-tags{margin-top:6px;}
+.sp-bad{color:var(--sr-c-bad);font-weight:800;}
 /* maneuver dial inside the command bar */
 #sc-space .sr-cmdbar>.sr-dial{align-self:center;}
 #sc-space .sr-dial__k:disabled{pointer-events:none;}
 #sc-space .sr-dial__h{white-space:nowrap;}
 /* info windows: pilot dossier and ship systems side by side */
-#sc-space .sp-wins{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;}
+.sp-wins{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;}
 #sc-space #infoWins .sr-window{max-height:calc(100cqh - 48px);width:min(420px,100%);}
-#sc-space .sp-dz{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
-#sc-space .sp-dz__name{font:800 var(--sr-fs-lg)/1.1 var(--sr-font-ui);}
-#sc-space .sp-dz__tags{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:7px 0 6px;}
-#sc-space .sp-dz__sub{font:600 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text-3);}
-#sc-space .sp-bio{margin:14px 0 4px;font-style:italic;color:var(--sr-text-2);}
-#sc-space .sp-trait{padding:10px 12px;}
-#sc-space .sp-trait .sr-card__body{margin:4px 0 0;}
-#sc-space .sp-sw{display:flex;gap:14px;align-items:center;}
-#sc-space .sp-sw canvas{flex:none;width:104px;height:76px;background:var(--sr-void);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);}
-#sc-space .sp-sw__cls{font:800 var(--sr-fs-md)/1.2 var(--sr-font-ui);}
-#sc-space .sp-sw__role{font:600 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text-3);margin:2px 0 8px;}
-#sc-space .sp-durs{display:grid;gap:8px;}
-#sc-space .sp-dur__l{flex:none;width:58px;font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
-#sc-space .sp-dur .sr-hp__num{margin-left:auto;color:var(--sr-text);}
-#sc-space .sp-dur__note{margin:3px 0 0 65px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
-#sc-space .sp-exp{margin-top:10px;}
-#sc-space .sp-wcard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;}
-#sc-space .sp-wcard.is-off{opacity:.5;filter:saturate(.4);}
-#sc-space .sp-wicon{display:grid;place-items:center;width:38px;height:38px;border-radius:var(--sr-r);color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 45%,transparent);}
-#sc-space .sp-wicon .sr-ico{width:24px;height:24px;}
-#sc-space .sp-winfo .sr-card__title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-#sc-space .sp-wtags{margin-top:2px;font:600 var(--sr-fs-xs)/1.35 var(--sr-font-ui);color:var(--sr-text-3);}
-#sc-space .sp-ammo{margin-top:6px;}
-#sc-space .sp-ammo .sr-hp__cell{width:9px;}
-#sc-space .sp-wnums{text-align:right;}
-#sc-space .sp-wnums .sr-mod{justify-content:flex-end;font-size:var(--sr-fs-lg);}
-#sc-space .sp-wnums small{display:block;margin-top:2px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);white-space:nowrap;}
-#sc-space .sp-crit{display:flex;flex-direction:column;align-items:flex-start;gap:4px;font:600 var(--sr-fs-sm)/1.35 var(--sr-font-ui);color:var(--sr-text-2);}
-#sc-space .sp-nerve{margin:0;}
+.sp-dz{display:flex;align-items:center;gap:16px;margin-bottom:14px;}
+.sp-dz__name{font:800 var(--sr-fs-lg)/1.1 var(--sr-font-ui);}
+.sp-dz__tags{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:7px 0 6px;}
+.sp-dz__sub{font:600 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text-3);}
+.sp-bio{margin:14px 0 4px;font-style:italic;color:var(--sr-text-2);}
+.sp-trait{padding:10px 12px;}
+.sp-trait .sr-card__body{margin:4px 0 0;}
+.sp-sw{display:flex;gap:14px;align-items:center;}
+.sp-sw canvas{flex:none;width:104px;height:76px;background:var(--sr-void);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);}
+.sp-sw__cls{font:800 var(--sr-fs-md)/1.2 var(--sr-font-ui);}
+.sp-sw__role{font:600 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text-3);margin:2px 0 8px;}
+.sp-durs{display:grid;gap:8px;}
+.sp-dur__l{flex:none;width:58px;font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.sp-dur .sr-hp__num{margin-left:auto;color:var(--sr-text);}
+.sp-dur__note{margin:3px 0 0 65px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+.sp-exp{margin-top:10px;}
+.sp-wcard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;}
+.sp-wcard.is-off{opacity:.5;filter:saturate(.4);}
+.sp-wicon{display:grid;place-items:center;width:38px;height:38px;border-radius:var(--sr-r);color:var(--c);background:color-mix(in srgb,var(--c) 15%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 45%,transparent);}
+.sp-wicon .sr-ico{width:24px;height:24px;}
+.sp-winfo .sr-card__title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.sp-wtags{margin-top:2px;font:600 var(--sr-fs-xs)/1.35 var(--sr-font-ui);color:var(--sr-text-3);}
+.sp-ammo{margin-top:6px;}
+.sp-ammo .sr-hp__cell{width:9px;}
+.sp-wnums{text-align:right;}
+.sp-wnums .sr-mod{justify-content:flex-end;font-size:var(--sr-fs-lg);}
+.sp-wnums small{display:block;margin-top:2px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);white-space:nowrap;}
+.sp-crit{display:flex;flex-direction:column;align-items:flex-start;gap:4px;font:600 var(--sr-fs-sm)/1.35 var(--sr-font-ui);color:var(--sr-text-2);}
+.sp-nerve{margin:0;}
 /* phones: the dial shrinks to fit beside Execute */
 @container sr-app (max-width:900px) or (max-height:520px){
   #sc-space .sr-dial{grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));flex:1;min-width:0;gap:3px;}
