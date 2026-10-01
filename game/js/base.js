@@ -79,6 +79,7 @@ const UPGRADES={
   ],
 };
 const DIP_COST={c:400,s:60},DIP_DAYS=4;
+const SPEC_COST=300;
 /* gear grid: every item has a category and a footprint; duplicates stack as one entry ("x N") */
 const GEAR_CATS=['All','Weapons','Explosives','Armour','Other'];
 const GEAR_META={
@@ -312,6 +313,7 @@ const SIGNALS={
     {kind:'mission',mid:'toi',text:'“The flight instructor, Vex. Every pilot who’ll ever shoot at you learns it from him — and he runs his little academy over MY yard. Just saying.”'},
     {kind:'mission',mid:'intercept',text:'“A supply transport crosses my sector Thursday. Light escort. I have the schedule, if you have the nerve.”'},
     {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
+    {kind:'recruitP',text:'\u201cOne of the yard\u2019s test pilots just got written up for landing too gently. Wants out. Wants to fly something that matters.\u201d'},
     {kind:'cache',text:'“Pallet miscount in bay six. Forty crates of it. Nobody misses what was never counted.”',
      apply(){G.supplies+=160;return 'Recovered '+S(160)+' from bay six. Mira is thrilled.';}},
     {kind:'recruitS',text:'“The tower coordinator got passed over, same as me. He’d run your flight deck better than theirs.”'},
@@ -329,6 +331,7 @@ const SIGNALS={
      apply(){G.intel+=3;return 'Marr’s blind spot yields '+I(3)+'.';}},
     {kind:'mission',mid:'chart'},
     {kind:'recruitS',text:'“My lab technician asks fewer questions than she answers. She’d be safer with you.”'},
+    {kind:'recruitP',text:'\u201cThe Institute\u2019s survey pilots are bored out of their minds. One of them keeps asking what we would pay.\u201d'},
   ],
 };
 /* ---------- the galaxy: worlds, access, scouting ----------
@@ -540,7 +543,7 @@ function spawnMission(tid,ctx){
   const m={id:tid+'_'+G.mseq,tid,story:ctx.story||null,state:'avail',progress:null,name:T.name,
     from:ctx.oppId?'Intelligence · '+(d?d.name:''):(si?si.name:'the network'),srcName:si?si.name:'',src:ctx.src||null,oppId:ctx.oppId||null,
     need:3,days:T.days,riskTxt:sec>=3?'High':T.riskTxt,lead:'ground',ground:true,type:'ground',scenario:T.scenario,
-    loc:ctx.loc,region:ctx.region||undefined,lib:T.lib,req:JSON.parse(JSON.stringify(T.req)),rew,bonus:T.bonus,
+    loc:ctx.loc,region:ctx.region||undefined,lib:Math.max(5,Math.round(T.lib*REV_W.libMul/5)*5),req:JSON.parse(JSON.stringify(T.req)),rew,bonus:T.bonus,
     npcRole:T.npcRole,ctx:{target,place:reg?reg.name:(d?d.name:'the target'),locName:d?d.name:'',sec}};
   m.tpl={desc:T.desc,obj:T.obj,after:T.after};
   if(T.npcRole)m.npc=holdRecruit(T.npcRole);
@@ -563,9 +566,19 @@ function offerCtx(src){
     d=opts[Math.floor(rng()*opts.length)];
   }
   const st=pst(d.id);
-  const open=d.regions.filter(r=>((st.lib&&st.lib[r.id])||0)<100);
-  const reg=open.length?open[Math.floor(rng()*open.length)]:d.regions[0];
+  const reg=pickRegion(d,st)||d.regions[0];
   return {src:src.id,loc:d.id,region:reg.id};
+}
+/* the front line has momentum: new work tends to land in the region we are already winning,
+   unless Access or Support already caps it */
+function pickRegion(d,st){
+  const lib=r=>(st.lib&&st.lib[r.id])||0,cap=Math.min(100,locCap(st));
+  const open=d.regions.filter(r=>lib(r)<100);
+  const room=open.filter(r=>lib(r)<cap);
+  const pool=room.length?room:open;
+  if(!pool.length)return null;
+  if(pool.length>1&&rng()<REV_W.momentum)return pool.slice().sort((a,b)=>lib(b)-lib(a))[0];
+  return pool[Math.floor(rng()*pool.length)];
 }
 function makeOffer(src){
   const types=(SRC_OFFERS[src.id]||[]).filter(t=>!G.missions.some(m=>m.src===src.id&&m.tid===t&&(m.state==='avail'||m.state==='prog')));
@@ -796,7 +809,7 @@ function chainResolve(id,kind){
   if(end.income&&src)for(const k in end.income)src.inc[k]=(src.inc[k]||0)+end.income[k];
   if(end.line)lines.push(end.line);
   c.done=true;c.i=C.steps.length;
-  revGain(3);
+  revGain(REV_W.chain);
   news('<b>'+C.name+'</b> is complete.','g');
   return lines;
 }
@@ -826,6 +839,8 @@ const RECRUITS={
   Support:[['Mira Osk','Quartermaster. Counts every bolt twice.'],['Odo Fenn','Ran a Hegemony flight tower for nine years. Defected with the manuals.'],['Aide Corso','Knows which forms make things disappear.'],['Tela Bryn','Lab tech. Fixes what she’s told is unfixable.'],
     ['Prof. Ishe Quell','Banned from three universities for asking the wrong questions in the right order.'],['Dov Areth','Pamphleteer. Has been arrested twice and printed both times.'],['Pia Sunde','Union organiser. Knows how to get two hundred people to do one thing quietly.'],
     ['Yusef Lorne','Registry clerk who read everything he was supposed to file.'],['Dr. Halla Maro','Physician struck off for treating the wrong patients.']],
+  Pilot:[['Kito Vale','Crop-duster, grounded for flying under a Hegemony bridge. Twice.'],['Ansa Pryor','Ferry pilot with a thousand hours and zero patience for protocol.'],['Roan Tideway','Ex-patrol cadet who left the day they asked him to fire on a barge.'],
+    ['Lise Harrow','Salvage hauler. Can set down a freighter on a cargo pad the size of a tablecloth.'],['Dmitri Okun','Racing circuit washout. Fast, rude, and very good.'],['Sable Quinn','Smuggler\u2019s co-pilot. Knows every back channel in the drift.']],
 };
 /* the recruit pool: anyone we offer, hold for a mission, or rescue comes out of here, once */
 function drawRecruit(role){
@@ -908,6 +923,16 @@ function rollSignal(src){
     if(sig.kind==='mission'&&!sig.text)src.signal.text='“I have something. Too big for a dead drop. Come find out.”';
     return;
   }
+  // now and then a source points us at people who want to fight (only while there is a bunk for them)
+  if(rng()<0.16&&bunksUsed()<bunkCap()){
+    const K=[['recruit','\u201cSome of my people have had enough of the Hegemony. They know which end of a rifle is which. Shall I send them your way?\u201d'],
+      ['recruit','\u201cA few dockhands asked the right questions today. Better they ask you than the sheriff.\u201d'],
+      ['recruitS','\u201cThere is someone here with a very good memory and a very bad employer. I think they would be safer with you.\u201d'],
+      ['recruitP','\u201cA freight pilot told me, three drinks in, that she would rather fly for us. I believed her.\u201d']];
+    const k=K[Math.floor(rng()*K.length)];
+    src.signal={kind:k[0],text:k[1]};
+    return;
+  }
   // after the story jobs, a source can offer any type it is able to, again and again
   if(rng()<0.35+0.1*src.level){const off=makeOffer(src);if(off)src.signal=off;}
 }
@@ -939,10 +964,11 @@ function openRecruitOffer(src,sig){
       bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'};
     line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
   } else {
-    const role=sig.kind==='recruit'?'Soldier':'Support';
+    const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
     p={id:'rec'+(G.recruitN+1),name:nm.name,role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio};
     if(role==='Soldier')p.equip=['pistol'];
+    if(role==='Pilot')p.ship='';
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
   }
   openWin('recruit',{p,must,line});
@@ -1169,7 +1195,8 @@ function startSpec(pid,k){
   const role=specRole(p);
   if(!role||p.level<3||p.spec||p.injured||p.assign==='mission'||inTraining(role))return;
   const sp=SPECS[role].find(x=>x.k===k);
-  if(!sp||!sp.live)return;
+  if(!sp||!sp.live||G.credits<SPEC_COST)return;
+  G.credits-=SPEC_COST;
   p.assign='spec';p.specTrain={k,days:SPEC_DAYS};
   news('<b>'+p.name+'</b> begins <b>'+sp.n+'</b> training, '+SPEC_DAYS+' days.','a');
   sBuild();saveSnap();syncUI();renderWin();
@@ -1333,7 +1360,7 @@ function checkCultLevel(src){
     src.level++;src.cult=0;src.risk=Math.max(0,src.risk-15);
     for(const k in src.inc)src.inc[k]=Math.round(src.inc[k]*1.6);
     news('<b>'+src.name+'</b> climbs higher — source level '+src.level+'.','p');
-    revGain(3);
+    revGain(REV_W.srcLevel);
     if(SRCPOS[src.id])addSupport(SRCPOS[src.id],1);
     sBuild();
     return 'They’ve climbed higher on our behalf — <b>source level '+src.level+'</b>. Better access, better take.';
@@ -1387,7 +1414,7 @@ function scoutPlanet(id){
   G.intel-=d.scout;
   const wasKnown=st.known;
   st.known=true;st.access=true;st.scouted=true;st.acc=Math.max(1,st.acc||0);
-  revGain(2);
+  revGain(REV_W.scout);
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
@@ -1432,7 +1459,7 @@ function genOpportunities(){
     let region=null;
     if(d.regions){
       const open=d.regions.filter(r=>((st.lib&&st.lib[r.id])||0)<Math.min(100,locCap(st)));
-      if(open.length)region=open[Math.floor(rng()*open.length)];
+      if(open.length)region=pickRegion(d,st);
     }
     G.oppN=(G.oppN||0)+1;
     G.opps.push({id:'opp'+G.oppN,loc:d.id,region:region?region.id:null,tid,target:T.variants[Math.floor(rng()*T.variants.length)],found:false,done:false});
@@ -1530,7 +1557,7 @@ function raiseAccess(id){
   if(G.intel<cost)return;
   G.intel-=cost;st.acc++;
   if(st.acc===2){const cid={callis:'ostrander',veray:'varr'}[id];if(cid&&!G.sources.some(x=>x.id===cid)&&!(G.candQ||[]).includes(cid)){G.candQ.push(cid);news('Word reached us from <b>'+d.name+'</b>: someone inside wants to talk.','a');}}
-  revGain(1);
+  revGain(REV_W.access);
   news('<b>'+d.name+'</b>: network Access raised to '+st.acc+'/5.','r');
   sBuild();
   syncLocalOps(id);
@@ -1542,7 +1569,7 @@ function addSupport(id,n){
   const before=Math.floor(st.sup||0);
   st.sup=Math.min(5,(st.sup||0)+n);
   if(Math.floor(st.sup)>before){
-    revGain(1);
+    revGain(REV_W.support);
     news('<b>'+d.name+'</b>: local Support rises to '+Math.floor(st.sup)+'/5.','p');
     syncLocalOps(id);
   }
@@ -1583,16 +1610,18 @@ function syncLocalOps(id,quiet){
     if(!quiet)news('New local op in <b>'+r.name+'</b>, '+d.name+'.','a');
   }
 }
+/* Revolution progress weights (tuning values; see docs/GDD.md). Repeats in one location are worth less. */
+const REV_W={momentum:0.55,libMul:1.6,mission:1.2,firstLoc:3,secondLoc:1,midRepeat:0.5,lateRepeat:0.3,lib:0.05,libFull:4,access:0.5,support:0.5,srcLevel:2,scout:1,chain:3};
 /* every finished mission feeds the progress meter; a new location is worth the most */
 function missionCredit(m){
-  let gain=3;
+  let gain=REV_W.mission;
   const info={gain:0,lib:null,first:false};
   if(m.opp||m.oppId){const o=(G.opps||[]).find(x=>x.id===(m.oppId||m.id));if(o)o.done=true;}
   const st=m.loc?pst(m.loc):null,d=m.loc?pdef(m.loc):null;
   if(st){
     st.ops=(st.ops||0)+1;
     info.first=st.ops===1;
-    gain+=st.ops===1?5:st.ops===2?2:0;
+    gain=REV_W.mission*(st.ops<=2?1:st.ops<=5?REV_W.midRepeat:REV_W.lateRepeat)+(st.ops===1?REV_W.firstLoc:st.ops===2?REV_W.secondLoc:0);
     if(m.region&&m.lib&&d&&d.regions){
       const r=d.regions.find(x=>x.id===m.region);
       const cur=st.lib[m.region]||0,cap=locCap(st);
@@ -1600,9 +1629,9 @@ function missionCredit(m){
       st.lib[m.region]=to;
       info.lib={region:r.name,from:cur,to,capped:to>=cap&&to<100};
       if(to>cur){
-        gain+=(to-cur)*0.08;
+        gain+=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=6;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('⚑ <b>'+r.name+'</b> liberated');}
+        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('⚑ <b>'+r.name+'</b> liberated');}
       }
     }
   }
@@ -2305,6 +2334,37 @@ function render(now){
 }
 
 /* ---------- tile popup ---------- */
+function startRestore(){
+  if(!(G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=240&&G.materials>=160))return false;
+  G.credits-=240;G.materials-=160;G.wreck.restoring=2;G.guideHangar=0;
+  news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
+  return true;
+}
+/* expanding a room costs more with every room already in it (+35% per extra tile) */
+function buildCostAt(k,r,c){
+  const b=BUILDS[k];
+  const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
+  const m=adj?1+0.35*Math.max(0,tilesOf(k)-1):1;
+  const out={days:b.days};
+  for(const key of ['c','m','s'])if(b[key])out[key]=Math.round(b[key]*m/5)*5;
+  return out;
+}
+function digAt(r,c){
+  G.materials-=EXCAVATE.m;
+  G.grid[r][c].dig=EXCAVATE.days;
+  news('Excavation crew breaks ground. Dust everywhere.','d');
+}
+function buildAt(r,c,bk){
+  const b=buildCostAt(bk,r,c);
+  G.credits-=b.c;G.materials-=(b.m||0);G.supplies-=(b.s||0);
+  G.grid[r][c]={t:'room',room:bk};
+  const nr={id:'rm_'+r+'_'+c,key:bk,r,c,w:1,h:1,up:[],build:{days:b.days}};
+  const nb=G.rooms.find(o=>o.key===bk&&!o.build&&roomsAdj(nr,o));
+  if(nb)nr.up=(clusterOf(nb).find(x=>(x.up||[]).length)||{up:[]}).up.slice();
+  G.rooms.push(nr);
+  news('Construction starts: '+ROOMS[bk].name+' ('+b.days+'d).','a');
+  sBuild();
+}
 function openTilePop(r,c){
   const rm=roomAt(r,c);
   tilePopAt=rm?{room:rm}:{r,c};
@@ -2341,7 +2401,7 @@ function renderTilePop(){
     } else {
       h='<div class="ptitle">Empty Chamber</div><div class="pdesc">Cleared, powered, useless. Give it a job.</div>';
       for(const k in BUILDS){
-        const b=BUILDS[k];
+        const b=buildCostAt(k,r,c);
         const afford=G.credits>=b.c&&G.materials>=(b.m||0)&&G.supplies>=(b.s||0);
         const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
         h+='<button class="pbtn" data-build="'+k+'" '+(afford?'':'disabled')+'>'+(adj?'Expand the ':'')+ROOMS[k].name+
@@ -2660,7 +2720,7 @@ function renderWin(){
       const els=G.people.filter(p=>specRole(p)===role&&p.level>=3&&!p.spec&&p.assign!=='spec');
       if(!els.length)return '<div class="pdesc" style="margin-bottom:6px">Nobody ready. A specialty needs level 3.</div>';
       return els.map(p=>{
-        const why=p.injured?'injured':p.assign==='mission'?'on mission':busy?'the slot is busy':'';
+        const why=p.injured?'injured':p.assign==='mission'?'on mission':busy?'the slot is busy':G.credits<SPEC_COST?'needs '+SPEC_COST+' credits':'';
         return '<div class="mcard" style="margin-bottom:6px"><div class="mrow"><span class="mname">'+p.name+'</span><span class="mfrom">'+rankFor(p)+' \u00b7 lvl '+p.level+'</span></div>'+
           SPECS[role].filter(x=>x.live).map(x=>'<button class="sbtn" style="margin:4px 4px 0 0" data-spec="'+p.id+':'+x.k+'" '+(why?'disabled':'')+' title="'+x.d+'">'+x.n+'</button>').join('')+
           (why?'<div class="pdesc">'+why+'</div>':'')+'</div>';
@@ -2668,7 +2728,7 @@ function renderWin(){
     };
     const later=role=>'<div class="pdesc" style="margin-top:6px">Later: '+SPECS[role].filter(x=>!x.live).map(x=>x.n).join(', ')+'.</div>';
     h='<div class="winHead"><span class="wt">Specialty Training</span><button class="winX" data-close>\u2715</button></div><div class="winBody">'+
-      '<div class="pdesc" style="margin-bottom:8px">At level 3 a rebel can train into a specialty ('+SPEC_DAYS+' days). They are out of action while they train.</div>'+
+      '<div class="pdesc" style="margin-bottom:8px">At level 3 a rebel can train into a specialty ('+SPEC_DAYS+' days, '+C(SPEC_COST)+'). They are out of action while they train.</div>'+
       (hasRoom('training')?'':'<div class="pdesc" style="color:var(--heg)">No Training Hall built yet.</div>')+
       '<div class="dz-sec">Practice range \u00b7 soldiers</div>'+row('Soldier','Practice range')+cards('Soldier')+later('Soldier')+
       '<div class="dz-sec">Flight simulator \u00b7 pilots</div>'+row('Pilot','Flight simulator')+cards('Pilot')+later('Pilot')+
@@ -2966,23 +3026,13 @@ $('tilePop').addEventListener('click',ev=>{
   sClick();
   if(t.hasAttribute('data-dig')&&tilePopAt&&!tilePopAt.room){
     const {r,c}=tilePopAt;
-    G.materials-=EXCAVATE.m;
-    G.grid[r][c].dig=EXCAVATE.days;
-    news('Excavation crew breaks ground. Dust everywhere.','d');
+    digAt(r,c);
     renderTilePop();syncUI();return;
   }
   const bk=t.getAttribute('data-build');
   if(bk&&tilePopAt&&!tilePopAt.room){
     const {r,c}=tilePopAt;
-    const b=BUILDS[bk];
-    G.credits-=b.c;G.materials-=(b.m||0);G.supplies-=(b.s||0);
-    G.grid[r][c]={t:'room',room:bk};
-    const nr={id:'rm_'+r+'_'+c,key:bk,r,c,w:1,h:1,up:[],build:{days:b.days}};
-    const nb=G.rooms.find(o=>o.key===bk&&!o.build&&roomsAdj(nr,o));
-    if(nb)nr.up=(clusterOf(nb).find(x=>(x.up||[]).length)||{up:[]}).up.slice();
-    G.rooms.push(nr);
-    news('Construction starts: '+ROOMS[bk].name+' ('+b.days+'d).','a');
-    sBuild();
+    buildAt(r,c,bk);
     closeTilePop();syncUI();return;
   }
   if(t.hasAttribute('data-enterroom')&&tilePopAt&&tilePopAt.room){const rm=tilePopAt.room;closeTilePop();enterRoomView(rm);return;}
@@ -3075,7 +3125,7 @@ $('winsB').addEventListener('click',ev=>{
     if(ans!==null&&payload.event){srcAnswer(src,+ans);return;}
     if(t.hasAttribute('data-follow')){
       const sig=src.signal;
-      if(sig&&(sig.kind==='recruit'||sig.kind==='recruitS'||sig.kind==='recruitSera')){
+      if(sig&&(sig.kind==='recruit'||sig.kind==='recruitS'||sig.kind==='recruitP'||sig.kind==='recruitSera')){
         src.signal=null;
         openRecruitOffer(src,sig);
         syncUI();return;
@@ -3678,9 +3728,7 @@ function applyDebrief(r){
 }
 ROOT.addEventListener('click',ev=>{
   const rst=ev.target.closest('[data-restore]');
-  if(rst&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=240&&G.materials>=160){
-    G.credits-=240;G.materials-=160;G.wreck.restoring=2;G.guideHangar=0;
-    news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
+  if(rst&&startRestore()){
     sBuild();saveSnap();syncUI();
     if(viewRoom)renderRoomBar();
     return;
@@ -3792,7 +3840,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,levelUp,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

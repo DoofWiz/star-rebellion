@@ -512,12 +512,37 @@ Each location has four statistics:
 ### Revolution progress meter
 Implemented as one 0–100 meter. It has **no daily trickle**; it only moves when the player
 acts:
-- **Mission success:** +3, plus +5 for the first success in a location and +2 for the second.
-- **Liberation:** +0.08 per % liberated, and +6 when a region reaches 100%.
-- **Access:** +2 for first unlocking a location, +1 per Access level after.
-- **Support:** +1 per Support level gained. **Source level-up:** +3.
-At 100 the **escalation animation** plays once and the lamp shows 2. All weights are tuning
-values. Old saves are clamped to 40 when first loaded.
+- **Mission success:** +1.2, plus +3 for the first success in a location and +1 for the second.
+  Repeats in one location are worth less: the 3rd to 5th count for half, the 6th onward for a quarter.
+- **Liberation:** +0.05 per % liberated, and +4 when a region reaches 100%.
+- **Access:** +1 for first charting a location, +0.5 per Access level after.
+- **Support:** +0.5 per Support level gained. **Source level-up:** +2. **A finished source chain:** +3.
+At 100 the **escalation animation** plays once and the lamp shows 2. All weights live in `REV_W`
+in `base.js` and were tuned in Phase 7 (below). Old saves are clamped to 40 when first loaded.
+
+### Phase 7: playtest and tuning (built)
+`tools/autoplay.js` is a headless **bot player**. It drives the real game code day by day (sources,
+Access, missions with synthetic results, building, staffing, diplomacy, upgrades, patrols) and logs a
+timeline. `tools/sweep.sh` runs it over several seeds; the weights can be overridden with `REVW='{"mission":2}'`.
+What the first runs showed, and what changed:
+- **Too fast.** With the original weights the meter filled in 45-60 days after only ~17 missions,
+  3 worlds, 2 ships and no liberated region. The weights above roughly halve that curve and make
+  *new worlds* matter far more than repeats.
+- **No way to get pilots.** The bot ran out of pilots (only Joss and Sera). The recruit pool now has
+  **Pilots**, offered by sources (Veray, Callis, and a general "people who want to fight" signal).
+- **Liberation stalled.** Offers landed in random regions, so no region ever finished. Offers now have
+  **momentum** (55% chance to land in the region we are already winning, never one capped by Access or
+  Support), and mission liberation yields are x1.6.
+- **Credits piled up** (10-40k idle by day 100). Expanding a room now costs +35% per extra tile and a
+  specialty costs 300 credits. Credits are still comfortable; real sinks (ships, gear, Level 2 content) are
+  Level 2 work.
+- **Result (balanced bot, 6 seeds):** escalation on day 71-108 after 26-43 missions, 4-7 worlds touched,
+  3-4 sources, 12-20 rebels (5-11 soldiers), 2-3 ships, 20+ base tiles, and one liberated region in
+  about half of the runs (the rest have several partly liberated). A human is slower than the bot, so
+  expect about 130-180 days. Ships stay at 2-3 until the *Steal [Vehicle]* type exists.
+
+Two rules the bot made visible: Access 3 caps liberation at 60%, and the whole base is only about 36 tiles,
+so expansions compete for floor space.
 
 ### Economy scale (rebalanced ×4, Intel unchanged)
 All credit, supply, material and fuel numbers sit in the range set by Rescue Dissident's 500

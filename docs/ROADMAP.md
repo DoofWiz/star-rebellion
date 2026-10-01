@@ -184,7 +184,7 @@ mission type and Data Limpet item, and the Engineer, CEO, Professor and Double A
   (3 days) → branching choice → three missions → next check-in. Set it on a Level 1 world.
 - Add missing source types (Double Agent, CEO, Professor, Engineer).
 
-### Phase 7 — Level 1 capstone, balance, polish
+### Phase 7 — Level 1 capstone, balance, polish — **built** (tuned with the autoplay bot, see `docs/GDD.md` §8)
 - Playtest the whole arc from Take the Rock to the escalation animation; tune the economy
   and the progress-meter weights so a typical run lands near the five predicted markers.
 - Update the README and GDD copy.

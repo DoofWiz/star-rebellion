@@ -191,6 +191,9 @@ The three layers now run as **one playable game** (`game/index.html` +
   specialty, or our own Intelligence leads, deploy the same type in a new context (another world, region and target
   name). Rewards scale with Security, and Security 3+ worlds add extra guards. Steal the Cross, the Depot Run and the
   Strider stay unique story missions. A Steal [Vehicle] type is planned.
+- **Playtest bot.** `tools/autoplay.js` plays Level 1 through the real game code (see `docs/GDD.md` §8,
+  *Phase 7*), `tools/sweep.sh` runs it over several seeds and `REVW='{...}'` overrides the progress weights.
+  It is how the meter weights were tuned: escalation now lands around day 70-110 for an efficient bot.
 - **Source quest chains.** A unique, location-tied source can run an authored chain. The first, *The Listening
   Towers* on Parity IV, goes alert, contact, a three-day decode, a blow-or-tap choice, three Disrupt Comm Towers
   jobs (one per region) and a check-in whose ending depends on how you played. Engineer, CEO, Professor and Double
