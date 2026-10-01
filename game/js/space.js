@@ -225,6 +225,7 @@ function deploy(withCutscene){
   exec=null;attackQ=null;awaitAction=null;lockPickMode=false;subMenu='root';infoShip=null;
   logEl.innerHTML='';feed.clear();damagedThisRound=new Set();
   if(withCutscene&&!RM)startCutscene();
+  else if(briefPending){camFitPlayers(true);}   // reduced motion: no cinematic, the briefing comes next
   else {phase='PLANNING';camFitPlayers(true);log('<span class="a">— Round 1 · plot your maneuvers —</span>');saveSnap();}
   syncUI();
 }
@@ -271,12 +272,26 @@ function csUpdate(now){
     s.moveBoost=k>0&&k<1?1:0;
     if(k>0&&k<1&&!RM&&rng()<0.8)parts.push({x:s.x-Math.cos(s.h)*20*s.size,y:s.y-Math.sin(s.h)*20*s.size,vx:-Math.cos(s.h)*60,vy:-Math.sin(s.h)*60,life:0,max:0.4,col:s.faction==='reb'?C.rebelHi:C.hegHi,size:2.4,drag:0.94});
   }
-  if(t>1.1&&!cs.saidA){cs.saidA=true;const p=ships.find(x=>x.id==='P1');if(p)say(p,'start');}
   if(t>2.2&&t<2.3&&!cs.cut){cs.cut=true;cam={x:3200,y:1200,z:0.38};camGoal=null;clampCam();}
-  if(t>3.5&&!cs.saidB){cs.saidB=true;if(SCEN==='instructor'){const v=ships.find(x=>x.id==='E1');if(v)say(v,'start');}}
   if(t>4.4&&!cs.fit){cs.fit=true;camGoal={x:W*0.47,y:H*0.6,z:Math.max(fitZoom()*0.95,0.24)};}
   if(t>4.8&&!cs.bannerShown){cs.bannerShown=true;byId('csBanner').classList.add('show');}
   if(t>6.6)endCutscene();
+}
+/* the opening cinematic comes first; the briefing follows it, and the pilots' lines play once it is dismissed */
+let briefPending=false,introTok=0;
+function openingLines(){
+  const tok=++introTok;
+  const ok=()=>tok===introTok&&SR.active==='space'&&phase==='PLANNING';
+  const p=ships.find(x=>x.id==='P1');if(p)say(p,'start');
+  setTimeout(()=>{if(ok()&&SCEN==='instructor'){const v=ships.find(x=>x.id==='E1');if(v)say(v,'start');}},1800);
+  setTimeout(()=>{if(ok()){const j=ships.find(x=>x.id==='P2');if(j)say(j,'plan');}},3600);
+}
+function beginPlanning(){
+  phase='PLANNING';
+  camFitPlayers(false);
+  log('<span class="a">— Round 1 · plot your maneuvers —</span>');
+  openingLines();
+  saveSnap();syncUI();
 }
 function endCutscene(){
   if(!cs)return;
@@ -285,11 +300,13 @@ function endCutscene(){
   byId('stage').classList.remove('cine');
   byId('csBanner').classList.remove('show');
   byId('csSkip').hidden=true;
-  phase='PLANNING';
-  camFitPlayers(false);
-  log('<span class="a">— Round 1 · plot your maneuvers —</span>');
-  const j=ships.find(x=>x.id==='P2');if(j)say(j,'plan');
-  saveSnap();syncUI();
+  if(briefPending)showBriefing();else beginPlanning();
+}
+function showBriefing(){
+  phase='BRIEFING';
+  byId('briefing').hidden=false;
+  byId('deployBtn').focus({preventScroll:true});
+  syncUI();
 }
 
 /* ---------- geometry ---------- */
@@ -2406,7 +2423,7 @@ $('restartBtn').addEventListener('click',()=>{
 });
 $('dbgSkip').addEventListener('click',()=>{
   if(phase==='GAMEOVER')return;
-  byId('briefing').hidden=true;
+  byId('briefing').hidden=true;briefPending=false;
   if(!started){started=true;deploy(false);}
   else if(cs)endCutscene();
   gameOver(true);
@@ -2415,7 +2432,8 @@ $('endRestartBtn').addEventListener('click',()=>{SR.endMission(pendingResult||bu
 $('deployBtn').addEventListener('click',()=>{
   A.wake();
   byId('briefing').hidden=true;
-  started=true;deploy(true);
+  briefPending=false;
+  beginPlanning();
 });
 HUD.tips(ROOT);
 addEventListener('keydown',ev=>{
@@ -2502,20 +2520,21 @@ function enter(params){
   pendingResult=null;
   byId('endscreen').hidden=true;
   closeInfo();
-  started=false;
+  started=false;introTok++;briefPending=false;
   phase='BRIEFING';
   briefUI();
-  byId('briefing').hidden=false;
-  byId('deployBtn').focus({preventScroll:true});
+  byId('briefing').hidden=true;
   if(params&&params.test){
-    byId('briefing').hidden=true;
     started=true;deploy(false);
     return;
   }
-  syncUI();
+  // cinematic first, then the briefing (see endCutscene)
+  started=true;briefPending=true;
+  deploy(true);
+  if(phase!=='CUTSCENE')showBriefing();      // reduced motion: no cinematic, straight to the briefing
 }
 function exit(){
-  cs=null;exec=null;attackQ=null;
+  cs=null;exec=null;attackQ=null;introTok++;briefPending=false;
   drawerOpen(false);menuEl.hidden=true;
   byId('stage').classList.remove('cine');
   byId('csBanner').classList.remove('show');

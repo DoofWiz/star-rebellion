@@ -3848,7 +3848,6 @@ function csUpdate(now){
         u.face=-Math.PI/2;
       }
     }
-    csEvent('wb1',2.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,'That’s the rock. Squatters and all. Let’s go take our home.',3400);});
     csEvent('pan',3.8,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
     csEvent('banner',4.6,el,()=>{byId('csBanner').classList.add('show');});
     csEvent('banneroff',7.4,el,()=>{byId('csBanner').classList.remove('show');});
@@ -3881,14 +3880,27 @@ function csUpdate(now){
       if(t>=1)u.face=-Math.PI/6;
     }
   }
-  csEvent('b1',4.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,(l.lines&&l.lines[0])||'Move quiet.',3400);});
-  csEvent('b2',6.2,el,()=>log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+SCN.csLine));
-  csEvent('b3',7.0,el,()=>say(U.find(u=>u.id==='sera'),'Just get me to that Cross in one piece.',3400));
   csEvent('pan',8.4,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
   csEvent('banner',9.4,el,()=>{byId('csBanner').classList.add('show');});
   csEvent('banneroff',12.2,el,()=>{byId('csBanner').classList.remove('show');});
   csEvent('back',12.4,el,()=>{camGoal={x:LZ.x+240,y:LZ.y-160,z:0.9};});
   if(el>13.6)endCutscene();
+}
+/* the squad's opening lines play once the player has read the briefing and dismissed it */
+let briefPending=false,dlg=null;
+function startDialog(){dlg={t0:performance.now(),fired:{}};}
+function dlgEvent(key,t,el,fn){if(el>=t&&!dlg.fired[key]){dlg.fired[key]=1;fn();}}
+function dlgUpdate(now){
+  const el=(now-dlg.t0)/1000;
+  if(!SCN.hasGraf){
+    dlgEvent('wb1',0.3,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,'That’s the rock. Squatters and all. Let’s go take our home.',3400);});
+    if(el>0.4)dlg=null;
+    return;
+  }
+  dlgEvent('b1',0.3,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,(l.lines&&l.lines[0])||'Move quiet.',3400);});
+  dlgEvent('b2',2.1,el,()=>log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+SCN.csLine));
+  dlgEvent('b3',2.9,el,()=>say(U.find(u=>u.id==='sera'),'Just get me to that Cross in one piece.',3400));
+  if(el>3)dlg=null;
 }
 function endCutscene(){
   byId('app').classList.remove('cine');
@@ -3898,6 +3910,14 @@ function endCutscene(){
   for(const u of U)if(u.side==='reb'){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
   cs=null;
   camGoal={x:LZ.x+240,y:LZ.y-180,z:0.9};
+  if(briefPending){
+    // the opening cinematic is over: now the briefing
+    phase='BRIEF';
+    $('briefing').hidden=false;
+    $('enterBtn').focus({preventScroll:true});
+    syncUI();
+    return;
+  }
   enterFree(null);
 }
 /* ---------- main render ---------- */
@@ -3907,6 +3927,7 @@ function render(now){
     const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
     lastFrame=now;
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
+    if(dlg){if(phase==='GAMEOVER')dlg=null;else dlgUpdate(now);}
     if(phase!=='CUTSCENE')fuelUpdate(now);
     if(phase==='FREE')rtUpdate(now,dt);
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
@@ -4585,12 +4606,15 @@ $('endRestartBtn').addEventListener('click',()=>{
 $('enterBtn').addEventListener('click',()=>{
   A.wake();
   $('briefing').hidden=true;
+  briefPending=false;
   started=true;
-  startCutscene();
+  enterFree(null);
+  startDialog();
 });
 $('csSkip').addEventListener('click',()=>{if(cs)endCutscene();});
 $('dbgSkip').addEventListener('click',()=>{
   if(phase==='GAMEOVER')return;
+  briefPending=false;
   if(cs)endCutscene();
   $('briefing').hidden=true;
   started=true;
@@ -4749,19 +4773,18 @@ function enter(params){
     resetGame(false);
     return;
   }
-  $('briefing').hidden=false;
-  $('enterBtn').focus({preventScroll:true});
-  phase='BRIEF';
+  // the opening cinematic plays first; the briefing follows it (see endCutscene)
+  $('briefing').hidden=true;
+  dlg=null;briefPending=true;started=true;
   for(const u of U)if(u.side==='reb')u.csHide=true;
-  cam={x:LZ.x+180,y:LZ.y-160,z:0.9};clampCam();camGoal=null;
-  syncUI();
+  startCutscene();
 }
 function exit(){
   byId('app').classList.remove('cine');
   byId('csBanner').classList.remove('show');
   drawerOpen(false);menuEl.hidden=true;
   for(const w of ROOT.querySelectorAll('[data-srwin]'))w.hidden=true;
-  engageQ=null;cs=null;extractFx=null;
+  engageQ=null;cs=null;extractFx=null;dlg=null;briefPending=false;
 }
 SR.register('ground',{enter,exit,frame:render});
 
