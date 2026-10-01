@@ -510,6 +510,10 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   rew:{c:450,m:200,xp:0.3},bonus:{c:300},
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
+/* who carries the job: soldiers and marines (ground combat) or pilots (space combat). Colour and icon match the crew rail. */
+const opKind=m=>{let r=null;try{r=reqOf(m);}catch(e){}return (typeOf(m)==='ground'||(r&&r.teamRole==='Soldier'))?'ground':'space';};
+const OPKIND={ground:{label:'Ground',icon:'soldier',tone:'friend',card:' sr-card--friend'},space:{label:'Space',icon:'ship',tone:'action',card:''}};
+const opTag=m=>{const k=OPKIND[opKind(m)];return '<span class="sr-tag bs-op sr-tag--'+k.tone+'" title="'+(opKind(m)==='ground'?'Soldiers lead this mission':'Pilots lead this mission')+'">'+IC(k.icon)+k.label+'</span>';};
 const SEATS={graf:4};     // troop seats per transport
 /* ---------- mission types ----------
    A TYPE fixes objectives, requirements, the scenario and the base reward. A mission is a type plus a
@@ -2829,7 +2833,7 @@ function renderWin(){
   else if(winMode==='newmission'){
     const m=winArg;
     h=wHead('New mission',{tags:wTag(m.from||'the network')})+wBody(
-      '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span></div>'+
+      '<div class="sr-card'+OPKIND[opKind(m)].card+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+'</div>'+
       '<div class="sr-card__body">'+m.desc+'</div>'+
       '<div class="sr-card__meta" style="margin-bottom:0">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div></div>'+
       (canAttempt(m)?'':precondHTML(m)))+
@@ -2979,9 +2983,9 @@ function renderWin(){
   else if(winMode==='missions'){
     let list='';
     for(const m of G.missions){
-      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':'';
-      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available','friend');
-      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
+      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':OPKIND[opKind(m)].card;
+      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available');
+      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
         '<div class="sr-card__body">'+m.desc+'</div>';
       if(m.state==='avail'){
         list+='<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div>'+
@@ -3791,7 +3795,7 @@ function planHTML(m){
   const empty=PL.slots.filter(sl=>!PL.v[sl.key]).length;
   const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
-  return wHead('Plan: '+m.name,{tags:riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
+  return wHead('Plan: '+m.name,{tags:opTag(m)+riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
     '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
     wFoot((needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
       rbtn('data-autofill','Auto-fill')+

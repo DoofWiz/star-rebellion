@@ -38,6 +38,7 @@
 #sc-base .bs-sub{display:block;margin-top:2px;font:600 12px/1.35 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-from{margin-left:auto;font:600 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-from+.sr-tag{margin-left:0;}
+#sc-base .sr-card__top .bs-op{margin-left:0;}
 #sc-base .bs-per{font:600 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-inline{margin:0;align-self:center;}
 #sc-base .bs-center{text-align:center;margin:8px 0 14px;}
