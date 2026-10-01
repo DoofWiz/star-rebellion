@@ -9,262 +9,13 @@
 <title>Star Rebellion</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Exo+2:wght@500;600;700;800&display=swap">
 <style>
-:root{
-    color-scheme: dark;
-    --bg:#04060d; --panel:#0b1020; --panel2:#111a33; --line:#1d2a45; --line-soft:#16203a;
-    --text:#cdd8ec; --dim:#71809c; --amber:#ffb454; --reb:#57d7e2; --heg:#ff4f5e;
-    --good:#7dd97b; --purple:#c987ff; --blue:#57a8ff;
-    --font-ui:"Exo 2",system-ui,sans-serif; --font-mono:"Exo 2",system-ui,sans-serif;
-  }
-html,body{height:100%;}
+/* page furniture only; every scene is styled by ui/sr-theme.css, ui/sr-hud.css and ui/scenes.css */
+:root{color-scheme:dark;}
+html{height:100%;-webkit-text-size-adjust:100%;touch-action:manipulation;overscroll-behavior:none;}
+body{height:100%;margin:0;background:var(--sr-void);color:var(--sr-text);font-family:var(--sr-font-ui);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 [hidden]{display:none!important;}
-body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;overflow:hidden;}
-  .scene{position:fixed;inset:0;}
-/* ===== scene: space ===== */
-#sc-space #app{height:100%;display:flex;flex-direction:column;min-height:0;}
-#sc-space #topbar{position:relative;display:flex;align-items:center;gap:12px;padding:7px 14px;background:linear-gradient(180deg,#0d1428,#0a0f20);border-bottom:1px solid var(--line);flex:0 0 auto;flex-wrap:wrap;row-gap:4px;}
-#sc-space #topbar h1{margin:0;font-size:14px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--amber);white-space:nowrap;}
-#sc-space #topbar .sub{font-size:11px;letter-spacing:.07em;color:var(--dim);text-transform:uppercase;white-space:nowrap;}
-#sc-space #topbar .spacer{flex:1;}
-#sc-space .chipbtn{background:var(--panel2);border:1px solid var(--line);color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:4px 10px;border-radius:3px;cursor:pointer;}
-#sc-space .chipbtn:hover{border-color:var(--amber);color:var(--amber);}
-#sc-space .chipbtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
-#sc-space .chipbtn[aria-pressed="true"]{border-color:var(--reb);color:var(--reb);}
-#sc-space #main{flex:1;display:flex;min-height:0;}
-#sc-space #stage{flex:1;position:relative;min-width:0;min-height:0;overflow:hidden;}
-#sc-space #cv{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none;}
-#sc-space .lb{position:absolute;left:0;right:0;height:0;background:#000;z-index:8;transition:height .6s ease;pointer-events:none;}
-#sc-space #lbTop{top:0;}
-#sc-space #lbBot{bottom:0;}
-#sc-space .cine .lb{height:9%;}
-#sc-space #csBanner{position:absolute;left:0;right:0;top:38%;text-align:center;z-index:9;pointer-events:none;opacity:0;transition:opacity .5s ease;}
-#sc-space #csBanner.show{opacity:1;}
-#sc-space #csBanner .big{font-size:34px;font-weight:800;letter-spacing:.3em;text-transform:uppercase;color:#fff;text-shadow:0 0 24px rgba(87,215,226,.6);}
-#sc-space #csBanner .small{font-size:13px;letter-spacing:.24em;text-transform:uppercase;color:var(--amber);margin-top:6px;}
-#sc-space #csSkip{position:absolute;top:14px;right:14px;z-index:10;}
-#sc-space .pop{position:absolute;z-index:6;background:rgba(10,15,30,0.94);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 30px rgba(0,0,0,.55);padding:10px;}
-#sc-space .pop .ptitle{font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;color:var(--amber);}
-#sc-space #dialPop{width:216px;}
-#sc-space .dial{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
-#sc-space .dial .colh{text-align:center;font-size:12px;color:var(--dim);padding-bottom:2px;font-family:var(--font-mono);}
-#sc-space .mv{background:#0d1530;border:1px solid var(--line);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:5px 0;border-radius:3px;cursor:pointer;text-align:center;}
-#sc-space .mv:hover:not(:disabled){border-color:var(--reb);color:var(--reb);}
-#sc-space .mv:focus-visible{outline:2px solid var(--reb);outline-offset:1px;}
-#sc-space .mv.sel{background:#173047;border-color:var(--reb);color:var(--reb);font-weight:700;}
-#sc-space .mv.none{visibility:hidden;}
-#sc-space .mv.pm{color:var(--purple);border-color:#4d3a6b;}
-#sc-space .mv:disabled{opacity:.28;cursor:default;}
-#sc-space .pophint{font-size:10px;color:var(--dim);margin-top:6px;line-height:1.45;}
-#sc-space #radial{position:absolute;z-index:7;width:0;height:0;overflow:visible;}
-#sc-space .rbtn{position:absolute;transform:translate(-50%,-50%);width:62px;height:62px;border-radius:50%;
-    background:rgba(13,21,48,0.96);border:1.5px solid var(--line);color:var(--text);
-    font-family:var(--font-ui);font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
-    cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-    box-shadow:0 4px 18px rgba(0,0,0,.5);}
-#sc-space .rbtn .ric{font-size:16px;line-height:1;font-family:var(--font-mono);}
-#sc-space .rbtn:hover:not(:disabled){border-color:var(--amber);color:var(--amber);}
-#sc-space .rbtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
-#sc-space .rbtn:disabled{opacity:.35;cursor:default;}
-#sc-space .rbtn.sub{background:rgba(20,16,44,0.96);border-color:#4d3a6b;}
-#sc-space #lockPill{position:absolute;z-index:7;transform:translate(-50%,-140%);white-space:nowrap;background:rgba(42,18,22,0.95);border:1px solid var(--heg);color:#ffb9b9;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:7px 14px;cursor:pointer;}
-#sc-space #ctlDock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);z-index:6;display:flex;flex-direction:column;align-items:center;gap:6px;max-width:92%;}
-#sc-space .dockcard{background:rgba(10,15,30,0.94);border:1px solid var(--line);border-radius:5px;padding:9px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 30px rgba(0,0,0,.5);flex-wrap:wrap;justify-content:center;}
-#sc-space #executeBtn,#sc-space #attackBtn{background:linear-gradient(180deg,#3a2a10,#2a1e0a);border:1px solid var(--amber);color:var(--amber);font-family:var(--font-ui);font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;padding:10px 22px;border-radius:3px;cursor:pointer;}
-#sc-space #executeBtn:hover:not(:disabled),#sc-space #attackBtn:hover{filter:brightness(1.3);}
-#sc-space #executeBtn:disabled{opacity:.4;cursor:default;filter:saturate(.5);}
-#sc-space #executeBtn:focus-visible,#sc-space #attackBtn:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
-#sc-space #holdBtn{background:var(--panel2);border:1px solid var(--line);color:var(--dim);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:10px 14px;border-radius:3px;cursor:pointer;}
-#sc-space #holdBtn:hover{color:var(--text);border-color:var(--dim);}
-#sc-space .wchip{background:#0d1530;border:1px solid var(--line);color:var(--text);border-radius:3px;font-family:var(--font-mono);font-size:11px;padding:7px 10px;cursor:pointer;}
-#sc-space .wchip.sel{border-color:var(--reb);color:var(--reb);background:#173047;font-weight:600;}
-#sc-space .wchip:disabled{opacity:.35;cursor:default;}
-#sc-space .docklabel{font-size:11px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;}
-#sc-space .docklabel b{color:var(--heg);letter-spacing:.02em;}
-#sc-space .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,5,11,.84);backdrop-filter:blur(3px);padding:16px;overflow:auto;z-index:12;}
-#sc-space .brief{max-width:660px;background:var(--panel);border:1px solid var(--line);padding:24px 28px;box-shadow:0 0 60px rgba(0,0,0,.6);}
-#sc-space .brief .eyebrow{font-size:11px;letter-spacing:.22em;color:var(--heg);text-transform:uppercase;font-weight:700;}
-#sc-space .brief h2{margin:6px 0 2px;font-size:25px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-wrap:balance;}
-#sc-space .brief h2 .k{color:var(--amber);}
-#sc-space .brief p{line-height:1.55;max-width:62ch;}
-#sc-space .brief .objective{border-left:3px solid var(--amber);padding:6px 12px;margin:13px 0;background:rgba(255,180,84,.06);font-weight:600;}
-#sc-space .howto{font-size:12.5px;color:var(--dim);line-height:1.6;margin-top:8px;}
-#sc-space .howto b{color:var(--text);}
-#sc-space #deployBtn{margin-top:16px;width:100%;background:linear-gradient(180deg,#2a3a12,#1d2a0c);border:1px solid var(--good);color:var(--good);font-family:var(--font-ui);font-size:14px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;padding:12px;cursor:pointer;border-radius:3px;}
-#sc-space #deployBtn:hover{filter:brightness(1.25);}
-#sc-space #deployBtn:focus-visible{outline:2px solid var(--good);outline-offset:2px;}
-#sc-space #endscreen .brief{text-align:center;}
-#sc-space #endTitle{font-size:32px;margin:4px 0 8px;}
-#sc-space #endTitle.win{color:var(--good);}
-#sc-space #endTitle.loss{color:var(--heg);}
-#sc-space #infoWins{position:absolute;inset:0;z-index:11;background:rgba(3,6,12,0.6);display:flex;align-items:center;justify-content:center;padding:14px;overflow:auto;}
-#sc-space .winRow{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;align-items:flex-start;max-width:100%;}
-#sc-space .winCard{width:300px;max-width:94vw;background:var(--panel);border:1px solid #2a3a5f;border-radius:6px;box-shadow:0 14px 60px rgba(0,0,0,.7);}
-#sc-space .winHead{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--panel2);border-bottom:1px solid var(--line);border-radius:6px 6px 0 0;}
-#sc-space .winHead .wt{flex:1;font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);}
-#sc-space .winX{background:none;border:1px solid var(--line);color:var(--dim);border-radius:3px;width:22px;height:22px;cursor:pointer;font-size:12px;line-height:1;}
-#sc-space .winX:hover{color:var(--heg);border-color:var(--heg);}
-#sc-space .winBody{padding:12px;}
-#sc-space .dz-head{display:flex;gap:12px;align-items:center;}
-#sc-space .lvlring{width:58px;height:58px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;position:relative;}
-#sc-space .lvlin{width:44px;height:44px;border-radius:50%;background:var(--panel);display:flex;flex-direction:column;align-items:center;justify-content:center;}
-#sc-space .lvlin .n{font-size:19px;font-weight:800;line-height:1;color:var(--purple);}
-#sc-space .lvlin .l{font-size:6.5px;letter-spacing:.2em;color:var(--dim);}
-#sc-space .dz-name{font-weight:800;font-size:15px;}
-#sc-space .dz-rank{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-top:2px;}
-#sc-space .dz-sub{font-size:10px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;margin-top:2px;}
-#sc-space .dz-nerve{font-size:10px;font-weight:800;letter-spacing:.12em;margin-top:3px;}
-#sc-space .dz-bio{font-size:11px;color:var(--dim);line-height:1.5;margin-top:10px;font-style:italic;}
-#sc-space .dz-traits{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
-#sc-space .dz-trait{font-size:10.5px;line-height:1.4;}
-#sc-space .dz-trait b{color:var(--amber);font-size:10px;letter-spacing:.08em;text-transform:uppercase;}
-#sc-space .dz-trait span{color:var(--dim);}
-#sc-space .dz-mans{margin-top:10px;font-family:var(--font-mono);font-size:10.5px;color:var(--purple);}
-#sc-space .dz-promote{margin-top:11px;font-size:9.5px;color:var(--dim);border-top:1px solid var(--line-soft);padding-top:8px;letter-spacing:.04em;}
-#sc-space .sw-head{display:flex;gap:10px;align-items:center;}
-#sc-space .sw-head canvas{background:#080d1c;border:1px solid var(--line-soft);border-radius:4px;}
-#sc-space .sw-cls{font-weight:800;font-size:13px;}
-#sc-space .sw-role{font-size:10px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
-#sc-space .sw-sec{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);font-weight:700;margin:12px 0 6px;}
-#sc-space .sw-durrow{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-family:var(--font-mono);font-size:10px;}
-#sc-space .sw-durrow .dl{width:34px;color:var(--dim);letter-spacing:.05em;}
-#sc-space .sw-durrow .dn{margin-left:auto;color:var(--text);}
-#sc-space .cellrow{display:flex;gap:2px;flex-wrap:wrap;}
-#sc-space .cell{width:11px;height:9px;border-radius:1.5px;background:#1a2340;}
-#sc-space .cell.sh{background:var(--shield);box-shadow:0 0 4px rgba(87,168,255,.5);}
-#sc-space .cell.sg{background:var(--purple);box-shadow:0 0 4px rgba(201,135,255,.5);}
-#sc-space .cell.ar{background:var(--armor);}
-#sc-space .cell.hu{background:var(--amber);}
-#sc-space .cell.am{background:#ffe08a;width:7px;}
-#sc-space .zexposed{font-size:9px;color:var(--heg);font-weight:800;letter-spacing:.1em;}
-#sc-space .wcard{display:flex;gap:9px;align-items:center;background:#0d1428;border:1px solid var(--line-soft);border-radius:4px;padding:7px 9px;margin-bottom:6px;}
-#sc-space .wicon{width:34px;height:34px;border-radius:4px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:17px;font-family:var(--font-mono);}
-#sc-space .wicon.plasma{background:rgba(87,215,226,.12);color:var(--reb);border:1px solid rgba(87,215,226,.4);}
-#sc-space .wicon.ballistic{background:rgba(255,224,138,.1);color:#ffe08a;border:1px solid rgba(255,224,138,.4);}
-#sc-space .wicon.missile{background:rgba(201,135,255,.12);color:var(--purple);border:1px solid rgba(201,135,255,.4);}
-#sc-space .winfo{flex:1;min-width:0;}
-#sc-space .wname{font-weight:700;font-size:12px;}
-#sc-space .wtags{font-size:9px;color:var(--dim);letter-spacing:.03em;margin-top:2px;line-height:1.4;}
-#sc-space .wnums{text-align:right;flex:0 0 auto;}
-#sc-space .whit{font-family:var(--font-mono);font-size:15px;font-weight:600;}
-#sc-space .whit.pos{color:var(--good);}
-#sc-space .whit.neg{color:var(--heg);}
-#sc-space .wdmg{font-family:var(--font-mono);font-size:9px;color:var(--dim);margin-top:2px;}
-#sc-space .woff{opacity:.4;filter:saturate(.4);}
-#sc-space .sw-crits{margin-top:4px;}
-#sc-space .sw-crit{font-size:10.5px;color:#ff9d9d;border-left:2px solid var(--heg);padding-left:7px;line-height:1.4;margin-bottom:5px;}
-#sc-space .sw-crit span{color:var(--dim);}
-#sc-space #panel{flex:0 0 300px;display:flex;flex-direction:column;min-height:0;background:#080d19;border-left:1px solid var(--line);}
-#sc-space #phasebox{display:flex;align-items:baseline;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);background:var(--panel2);}
-#sc-space #phaseName{font-weight:800;letter-spacing:.15em;text-transform:uppercase;font-size:13px;color:var(--amber);flex:1;}
-#sc-space #roundNum{font-family:var(--font-mono);font-size:12px;color:var(--dim);}
-#sc-space #objline{padding:7px 14px;border-bottom:1px solid var(--line);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--heg);background:rgba(255,79,94,.05);}
-#sc-space #objline.done{color:var(--good);background:rgba(125,217,123,.05);}
-#sc-space #panelScroll{flex:1;overflow-y:auto;min-height:0;padding:12px 10px 6px;}
-#sc-space .sec-h{display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:800;margin:0 0 7px;padding:6px 9px;border-radius:3px;background:linear-gradient(90deg,#131d38,rgba(19,29,56,0));}
-#sc-space .sec-h.flight{color:var(--reb);border-left:3px solid var(--reb);}
-#sc-space .sec-h.contacts{color:#ff8f9a;border-left:3px solid var(--heg);margin-top:14px;}
-#sc-space .group{background:#0c1322;border:1px solid var(--line-soft);border-radius:5px;padding:7px;}
-#sc-space .rrow{display:flex;align-items:center;gap:9px;background:#121b34;border:1px solid #1b2747;border-left-width:3px;border-radius:4px;padding:7px 9px;margin-bottom:6px;cursor:pointer;}
-#sc-space .rrow:last-child{margin-bottom:0;}
-#sc-space .rrow:focus-visible{outline:2px solid var(--amber);outline-offset:1px;}
-#sc-space .rrow.reb{border-left-color:var(--reb);}
-#sc-space .rrow.heg{border-left-color:var(--heg);}
-#sc-space .rrow.sel{border-color:var(--amber);background:#1b2648;}
-#sc-space .rrow.dead{opacity:.38;filter:saturate(.3);cursor:default;}
-#sc-space .rrow .rinfo{flex:1;min-width:0;}
-#sc-space .rrow .rname{font-weight:700;font-size:12.5px;display:flex;gap:7px;align-items:baseline;}
-#sc-space .rrow .rname .nv{font-size:9px;font-weight:800;letter-spacing:.1em;}
-#sc-space .rrow .init{font-family:var(--font-mono);font-size:10px;color:var(--dim);border:1px solid var(--line);border-radius:2px;padding:1px 4px;}
-#sc-space .rbars{display:flex;flex-direction:column;gap:3px;margin-top:5px;}
-#sc-space .rbar{display:flex;align-items:center;gap:5px;}
-#sc-space .rbar .bl{font-family:var(--font-mono);font-size:8px;color:var(--dim);width:8px;}
-#sc-space .rcells{display:flex;gap:2px;}
-#sc-space .rcell{width:9px;height:8px;border-radius:1.5px;background:#1a2340;}
-#sc-space .rcell.sh{background:var(--shield);}
-#sc-space .rcell.sg{background:var(--purple);}
-#sc-space .rcell.ar{background:var(--armor);}
-#sc-space .rcell.hu{background:var(--amber);}
-#sc-space .rzone{display:flex;align-items:center;gap:5px;}
-#sc-space .rzone .zx{font-size:8px;color:var(--heg);font-weight:800;letter-spacing:.06em;}
-#sc-space .critchip{font-family:var(--font-mono);font-size:9px;color:#ff9d9d;margin-top:3px;}
-#sc-space .planchip{font-family:var(--font-mono);font-size:10px;color:var(--amber);border:1px dashed #6b5327;border-radius:2px;padding:1px 5px;}
-#sc-space #logbox{flex:0 0 138px;border-top:1px solid var(--line);display:flex;flex-direction:column;min-height:0;background:#0a101f;}
-#sc-space #logbox .sec-h{margin:8px 10px 4px;color:var(--dim);border-left:3px solid #2a3a5f;}
-#sc-space #log{flex:1;overflow-y:auto;padding:0 12px 10px;font-family:var(--font-mono);font-size:10.5px;line-height:1.55;color:var(--dim);}
-#sc-space #log .r{color:var(--reb);}
-#sc-space #log .h{color:var(--heg);}
-#sc-space #log .a{color:var(--amber);}
-#sc-space #log .d{color:var(--dim);}
-#sc-space #log .g{color:var(--good);}
-#sc-space #log .s{color:var(--shield);}
-#sc-space #log .p{color:var(--purple);}
-#sc-space #log p{margin:0 0 2px;}
-@media (max-width:900px){
-#sc-space #app{height:auto;min-height:100%;}
-#sc-space #main{flex-direction:column;}
-#sc-space #stage{height:64vh;min-height:360px;flex:0 0 auto;}
-#sc-space #panel{flex:1 1 auto;border-left:none;border-top:1px solid var(--line);}
-#sc-space #logbox{flex:0 0 auto;max-height:160px;}
-}
-@media (prefers-reduced-motion: reduce){
-#sc-space *{scroll-behavior:auto;}
-#sc-space .lb{transition:none;}
-#sc-space #csBanner{transition:none;}
-}
-#sc-space #dbgBtn[aria-pressed="true"]{border-color:var(--purple);color:var(--purple);}
-#sc-space #dbgMenu{position:absolute;top:calc(100% + 4px);right:8px;z-index:60;background:rgba(10,15,30,0.97);border:1px solid var(--purple);border-radius:5px;padding:6px;min-width:216px;box-shadow:0 10px 40px rgba(0,0,0,.6);}
-#sc-space #dbgMenu .dbgHead{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--purple);font-weight:800;padding:2px 6px 6px;}
-#sc-space .dbgItem{display:block;width:100%;text-align:left;background:#141028;border:1px solid #3a2f5e;color:var(--text);font-family:var(--font-ui);font-size:11px;font-weight:600;padding:7px 9px;border-radius:3px;cursor:pointer;margin-bottom:4px;}
-#sc-space .dbgItem:last-child{margin-bottom:0;}
-#sc-space .dbgItem:hover{border-color:var(--purple);color:var(--purple);}
-/* ===== phones: iPhone 12 Pro (390x844 portrait, 844x390 landscape) =====
-   The panels become slide-in drawers (Info button), top bars shrink, windows go full-screen. */
-html{-webkit-text-size-adjust:100%;touch-action:manipulation;overscroll-behavior:none;}
-body{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .scene{box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
-.infoBtn{display:none;}
-@media (max-width:900px),(max-height:520px){
- .infoBtn{display:inline-block;}
- #sc-space #objStrip{display:block;position:absolute;z-index:6;left:8px;right:8px;top:6px;background:rgba(10,15,30,.86);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:4px;padding:5px 9px;font-size:11px;line-height:1.35;color:var(--text);pointer-events:none;}
- #sc-space #objStrip[hidden]{display:none!important;}
- #sc-space #objStrip.done{border-left-color:var(--good);color:var(--good);}
- .scene .chipbtn,.scene .navbtn,.scene .sbtn,.scene .achip,.scene .pbtn,.scene .dbtn{min-height:34px;}
- .scene .chipbtn{padding:6px 10px;font-size:10px;}
- #muteBtn{font-size:0!important;padding:6px 9px!important;}
- #muteBtn::before{font-size:14px;content:'\1F50A';}
- #muteBtn[aria-pressed="true"]::before{content:'\1F507';}
- #sc-space #app{height:100%;min-height:0;}
- #sc-space #main{position:relative;flex:1 1 auto;flex-direction:column;min-height:0;}
- #sc-space #stage{flex:1 1 auto;height:auto;min-height:0;}
- /* panel -> drawer */
- #sc-space #panel{position:absolute;z-index:40;flex:none;transition:transform .22s ease;box-shadow:0 -12px 40px rgba(0,0,0,.65);}
- #sc-space #panel{left:0;right:0;bottom:0;height:64%;border-left:none;border-top:1px solid var(--line);transform:translateY(106%);}
- .scene.drawer #panel{transform:none!important;}
- #sc-space #logbox{max-height:36%;}
- /* top bars */
- #sc-space #topbar{padding:4px 8px;gap:6px;row-gap:3px;}
- #sc-space #topbar h1{font-size:12px;letter-spacing:.08em;}
- #sc-space #topbar .sub{font-size:9.5px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 0;}
- #sc-space #zoomIn,#sc-space #zoomOut,#sc-space #dbgBtn{display:none;}
- /* docks */
- #sc-space #ctlDock{bottom:calc(10px + env(safe-area-inset-bottom));max-width:96%;}
- /* windows and briefings: full-screen cards, scrollable overlays */
- #sc-space .overlay{align-items:flex-start;padding:8px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
- #sc-space .overlay>*{margin:auto;}
- #sc-space .ovCard,#sc-space .brief{width:100%;max-width:100%;padding:16px 16px 18px;box-sizing:border-box;}
- #sc-space .brief h2{font-size:20px;}
- /* small scenes: tooltips would sit under a thumb */
-}
-@media (max-width:900px) and (orientation:portrait){
- #sc-space #topbar .sub{flex-basis:100%;order:5;}
-}
-@media (max-height:520px) and (orientation:landscape){
- #sc-space #objStrip{right:132px;}
- #sc-space #panel{left:auto;top:0;bottom:0;right:0;height:auto;width:min(48%,360px);border-top:none;border-left:1px solid var(--line);transform:translateX(106%);box-shadow:-12px 0 40px rgba(0,0,0,.65);}
- #sc-space #topbar{padding:2px 8px;}
- #sc-space .brief{padding:12px 16px;}
-}
 </style>
 <link rel="stylesheet" href="ui/sr-theme.css">
 <link rel="stylesheet" href="ui/sr-hud.css">
@@ -334,7 +85,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <div class="sr-scrim" id="winsB" hidden><div class="sr-window" id="winCardB"></div></div>
   </div>
   <aside class="sr-rail" id="panel">
-    <div class="sr-rail__scroll" id="panelScroll">
+    <div class="sr-rail__scroll">
       <section>
         <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-pilot"/></svg>Pilots<span class="sr-section__count" id="pilotCount"></span></div>
         <div class="sr-stack" id="pilotList"></div>
@@ -363,78 +114,105 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 <div class="sr-pointer" id="tutPtr" hidden><span class="sr-pointer__label"></span><span class="sr-pointer__arrow"></span></div>
 </div>
 <div class="scene sr-app sr-root" id="sc-space" hidden>
-<div id="app">
-  <header id="topbar">
-    <h1>Star Rebellion</h1>
-    <span class="sub" id="spSub">Mission</span>
-    <span class="spacer"></span>
-    <button class="chipbtn" id="zoomOut" title="Zoom out">−</button>
-    <button class="chipbtn" id="zoomIn" title="Zoom in">+</button>
-    <button class="chipbtn" id="zoomFit">Fit</button>
-    <button class="chipbtn" id="followBtn" aria-pressed="true">Follow: On</button>
-    <button class="chipbtn infoBtn" data-info>Info</button>
-    <button class="chipbtn" id="muteBtn" aria-pressed="false">Sound: On</button>
-    <button class="chipbtn" id="dbgBtn" aria-pressed="false">Debug</button>
-    <button class="chipbtn" id="restartBtn">Restart</button>
-    <div id="dbgMenu" hidden><div class="dbgHead">Debug</div><button class="dbgItem" id="dbgSkip">Skip Mission &#8212; instant win</button></div>
-  </header>
-  <div id="main">
-    <div id="stage">
-      <canvas id="cv"></canvas>
-      <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
-      <div id="csBanner"><div class="big">Take Out Instructor</div><div class="small">Eliminate Commandant Vex</div></div>
-      <button class="chipbtn" id="csSkip" hidden>Skip &#9656;</button>
-      <div class="pop" id="dialPop" hidden></div>
-      <div id="objStrip" hidden></div>
-      <div id="radial" hidden></div>
-      <button id="lockPill" hidden>Select lock target · tap to cancel</button>
-      <div id="ctlDock" hidden></div>
-
-      <div id="infoWins" hidden>
-        <div class="winRow">
-          <div class="winCard" id="dossierWin"></div>
-          <div class="winCard" id="shipWin"></div>
-        </div>
-      </div>
-
-      <div class="overlay" id="briefing">
-        <div class="brief">
-          <div class="eyebrow" id="spEyebrow">Space Operation</div>
-          <h2 id="spTitle">&#8212;</h2>
-          <p id="spFlavour"></p>
-          <div class="ovh">Objectives</div>
-          <div class="ovObj" id="spObj"></div>
-          <div class="ovh">Your Flight</div>
-          <div class="ovSquad" id="spFlight"></div>
-          <p class="ovfine">Drag to pan, scroll to zoom. Double-click any fighter for its pilot and ship.</p>
-          <button id="deployBtn">Start</button>
-        </div>
-      </div>
-
-      <div class="overlay" id="endscreen" hidden>
-        <div class="brief">
-          <div class="eyebrow" id="endEyebrow">Mission Report</div>
-          <h2 id="endTitle">—</h2>
-          <p id="endText">—</p>
-          <button id="endRestartBtn" class="chipbtn" style="width:100%;padding:12px;font-size:13px;">Continue</button>
-        </div>
+<div class="sr-shell" id="app">
+  <header class="sr-topbar">
+    <div class="sr-topbar__id">
+      <div class="sr-topbar__title" id="spTop">Star Rebellion</div>
+      <div class="sr-topbar__sub" id="spSub">Mission</div>
+    </div>
+    <div class="sr-topbar__mid">
+      <div class="sr-phase" id="phasePlate" data-phase="plan" data-status="alert" aria-live="polite">
+        <span class="sr-phase__status"><svg class="sr-ico" aria-hidden="true"><use href="#i-targetlock"/></svg><span class="sr-phase__text">Engaged</span></span>
+        <span class="sr-phase__name">Planning</span>
+        <span class="sr-phase__round">Round 1</span>
       </div>
     </div>
-
-    <aside id="panel">
-      <div id="phasebox"><span id="phaseName">Planning</span><span id="roundNum">ROUND 1</span></div>
-      <div id="objline">Target: Cmdt. Dral Vex</div>
-      <div id="panelScroll">
-        <div class="sec-h flight">Your Flight</div>
-        <div class="group" id="rosterR"></div>
-        <div class="sec-h contacts">Hegemony Contacts</div>
-        <div class="group" id="rosterE"></div>
+    <div class="sr-topbar__tools">
+      <div class="sr-btngroup sr-desk-only">
+        <button class="sr-btn sr-btn--icon" id="zoomOut" aria-label="Zoom out"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomout"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomIn" aria-label="Zoom in"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomin"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomFit" aria-label="Fit map"><svg class="sr-ico" aria-hidden="true"><use href="#i-fit"/></svg></button>
       </div>
-      <div id="logbox">
-        <div class="sec-h">Combat Log</div>
-        <div id="log" aria-live="polite"></div>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="followBtn" aria-label="Follow camera" aria-pressed="true"><svg class="sr-ico" aria-hidden="true"><use href="#i-follow"/></svg></button>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="muteBtn" aria-label="Sound on"><svg class="sr-ico" aria-hidden="true"><use href="#i-soundon"/></svg></button>
+      <button class="sr-btn sr-btn--icon" id="menuBtn" aria-label="Menu: controls, restart, debug"><svg class="sr-ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+    <div class="sr-menu" id="sMenu" role="menu" hidden></div>
+  </header>
+  <div class="sr-stage sr-hud" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
+    <div class="sr-slot-tl">
+      <div class="sr-objectives" id="objBox" hidden>
+        <div class="sr-objectives__head"><svg class="sr-ico" aria-hidden="true"><use href="#i-star"/></svg>Objectives</div>
+        <div id="objList"></div>
       </div>
-    </aside>
+    </div>
+    <div class="sr-slot-tr">
+      <button class="sr-btn sr-btn--icon sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Flight and contacts"><svg class="sr-ico" aria-hidden="true"><use href="#i-people"/></svg><span class="sr-badge" id="drawerBadge" hidden>!</span></button>
+      <canvas class="sr-minimap" id="mm" aria-label="Minimap"></canvas>
+      <div class="sr-comms" id="comms" aria-live="polite"></div>
+      <button class="sr-btn sr-btn--ghost sr-btn--sm sr-comms__more" id="logBtn">All reports</button>
+    </div>
+    <div class="sr-slot-bc" id="sBottom">
+      <button class="sr-pill" id="lockPill" hidden></button>
+      <div id="vsHost" class="sr-hud__host" hidden></div>
+      <div id="ctlDock" class="sr-hud__host" hidden></div>
+    </div>
+    <div class="sr-banner" id="csBanner" aria-hidden="true"><div class="sr-banner__txt"><span class="big">Take Out Instructor</span><span class="sr-banner__sub small">Eliminate Commandant Vex</span></div></div>
+    <button class="sr-btn sr-btn--sm sr-btn--ghost" id="csSkip" hidden>Skip</button>
+  </div>
+  <aside class="sr-rail" id="panel">
+    <div class="sr-rail__scroll">
+      <button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-phone-only sr-rail__close" id="railClose" aria-label="Close"><svg class="sr-ico" aria-hidden="true"><use href="#i-clear"/></svg></button>
+      <section>
+        <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg>Your flight<span class="sr-section__count" id="flightCount"></span></div>
+        <div class="sr-stack" id="rosterR"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--foe"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg>Hegemony contacts<span class="sr-section__count" id="foeCount"></span></div>
+        <div class="sr-stack" id="rosterE"></div>
+      </section>
+      <div class="sr-railhint">Double-click a ship for its pilot and systems</div>
+    </div>
+  </aside>
+</div>
+<div class="sr-scrim" id="infoWins" hidden>
+  <div class="sp-wins">
+    <div class="sr-window sr-window--sm" id="dossierWin" role="dialog" aria-label="Pilot dossier"></div>
+    <div class="sr-window sr-window--sm" id="shipWin" role="dialog" aria-label="Ship systems"></div>
+  </div>
+</div>
+<div class="sr-scrim" id="briefing">
+  <div class="sr-window">
+    <div class="sr-brief__hero">
+      <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg><span id="spEyebrow">Space operation</span></span>
+      <h3 class="sr-brief__title" id="spTitle">&#8212;</h3>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="spFlavour"></p>
+      <div class="sr-h3">Objectives</div>
+      <div id="spObj"></div>
+      <div class="sr-h3">Your flight</div>
+      <div class="sr-team" id="spFlight"></div>
+      <p class="sr-fine">Drag to pan, scroll to zoom. Double-click any fighter for its pilot and ship.</p>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg" id="deployBtn">Start</button></div>
+  </div>
+</div>
+<div class="sr-scrim" id="endscreen" hidden>
+  <div class="sr-window">
+    <div class="sr-brief__hero sr-brief__hero--stamp">
+      <div>
+        <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg><span id="endEyebrow">Mission report</span></span>
+        <h3 class="sr-brief__title" id="endTitle">&#8212;</h3>
+      </div>
+      <span class="sr-stamp sr-stamp--action" id="endStamp">Secured</span>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="endText">&#8212;</p>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg" id="endRestartBtn">Continue</button></div>
   </div>
 </div>
 </div>
@@ -447,9 +225,9 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     </div>
     <div class="sr-topbar__mid">
       <div class="sr-phase" id="phasePlate" data-phase="free" data-status="calm" aria-live="polite">
-        <span class="sr-phase__status"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="sr-phase__text" id="townPill">Town is calm</span></span>
-        <span class="sr-phase__name" id="phaseName">Free move</span>
-        <span class="sr-phase__round" id="roundNum">Round 1</span>
+        <span class="sr-phase__status"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="sr-phase__text">Town is calm</span></span>
+        <span class="sr-phase__name">Free move</span>
+        <span class="sr-phase__round">Round 1</span>
       </div>
     </div>
     <div class="sr-topbar__tools">
@@ -493,7 +271,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <button class="sr-btn sr-btn--sm sr-btn--ghost" id="csSkip" hidden>Skip</button>
   </div>
   <aside class="sr-rail" id="panel">
-    <div class="sr-rail__scroll" id="panelScroll">
+    <div class="sr-rail__scroll">
       <button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-phone-only sr-rail__close" id="railClose" aria-label="Close"><svg class="sr-ico" aria-hidden="true"><use href="#i-clear"/></svg></button>
       <section>
         <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-soldier"/></svg>Squad<span class="sr-section__count" id="squadCount"></span></div>
@@ -528,7 +306,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </div>
 </div>
 <div class="sr-scrim" id="endscreen" hidden>
-  <div class="sr-window" id="endWin">
+  <div class="sr-window">
     <div class="sr-brief__hero sr-brief__hero--stamp">
       <div>
         <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-soldier"/></svg><span id="endEyebrow">Mission report</span></span>

@@ -26,8 +26,9 @@
      H.order({ract,key,icon,label,family:'move|stance|nerve|util|fight',active,disabled,why,
               tip:{title,rule,nums:[{t,kind:'good|bad|...'}]},id,attrs})   -> '<button class="sr-order">'
      H.sep()                                  -> '<span class="sr-orders__sep">'
-     H.cmdbar({who:{lead,name,hint}, orders:[html...], go:{html,count,countTip:{title,rule}}, cls})
+     H.cmdbar({who:{lead,name,hint}, mid:html, orders:[html...], go:{html,count,countTip:{title,rule}}, cls})
         who.lead = avatar html or an icon; count = html under the primary ("<b>1</b> of 3 ordered");
+        mid = raw html between who and orders (the space scene puts its .sr-dial here);
         omit who/orders/go for a smaller bar
      H.render(host, html)                     -> sets innerHTML only when it changed (keeps hover/focus/animations)
      H.fitBar(host)                           -> tightens a desktop bar (.is-tight/.is-tighter/.is-bare, then .is-scroll) until the order cards fit; call after render and on resize
@@ -101,6 +102,7 @@ window.SR_HUD=(function(){
     const w=o.who||{};
     let h='<div class="sr-cmdbar'+(o.cls?' '+o.cls:'')+'">';
     if(o.who)h+='<div class="sr-cmdbar__who">'+(w.lead||'')+'<div><div class="sr-cmdbar__name">'+esc(w.name||'')+'</div><div class="sr-cmdbar__hint">'+(w.hint||'')+'</div></div></div>';
+    if(o.mid)h+=o.mid;
     if(o.orders&&o.orders.length)h+='<div class="sr-orders">'+o.orders.join('')+'</div>';
     if(o.go)h+='<div class="sr-cmdbar__go">'+(o.go.html||'')+(o.go.count?'<div class="sr-cmdbar__count"'+(o.go.countTip?tipAttr({title:o.go.countTip.title||'',rule:o.go.countTip.rule||''}):'')+'>'+o.go.count+'</div>':'')+'</div>';
     return h+'</div>';

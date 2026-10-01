@@ -88,7 +88,7 @@ window.SR=(function(){
     }
     const prev=active;
     active=name;
-    for(const k in containers){containers[k].hidden=(k!==name);containers[k].classList.remove('drawer');}
+    for(const k in containers)containers[k].hidden=(k!==name);
     scenes[name].enter(params||{},prev);
   }
   function endMission(result){go('base',{debrief:result});}
@@ -145,14 +145,8 @@ window.SR=(function(){
       }).join('');
     },
   };
-  /* phones: coarse pointers get tap-first hints and the slide-in info drawer */
+  /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  document.addEventListener('click',ev=>{
-    const b=ev.target.closest&&ev.target.closest('[data-info]');
-    if(!b)return;
-    const sc=b.closest('.scene');
-    if(sc)sc.classList.toggle('drawer');
-  });
   return {theme:window.SR_THEME,hud:window.SR_HUD,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
     get active(){return active;},
     set mission(m){mission=m;},
