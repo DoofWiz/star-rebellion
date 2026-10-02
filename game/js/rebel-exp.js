@@ -253,23 +253,24 @@
      A hidden chance (p.heroP) creeps up with everything a rebel does: turning up, killing, surviving close calls,
      standing out. After a mission one rebel at most can be made a Hero; when that happens everyone else's chance
      drops sharply. The player never sees the number. */
-  const HERO_CAP=0.06,HERO_DROP=0.35;
+  const HERO_CAP=0.02,HERO_DROP=0.35;
   const heroEligible=p=>!!p&&!p.auto&&['Soldier','Marine','Pilot'].indexOf(p.role)>=0&&(p.missions||0)>=4&&p.level>=3;
   function heroGain(p,ctx){
     if(!p||p.auto||p.role==='Support'||p.role==='Hero')return 0;
-    let g=0.0012;
-    g+=Math.min(0.0036,(ctx.kills||0)*0.0006);
-    if(ctx.win&&ctx.danger)g+=0.0015;
-    if(ctx.alone)g+=0.005;
-    if(ctx.top)g+=0.0025;
-    if(ctx.win&&ctx.notable)g+=0.0015;
+    let g=0.0003;
+    g+=Math.min(0.0008,(ctx.kills||0)*0.0002);
+    if(ctx.win&&ctx.danger)g+=0.0005;
+    if(ctx.alone)g+=0.002;
+    if(ctx.top)g+=0.001;
+    if(ctx.win&&ctx.notable)g+=0.0005;
     g*=1+p.level/30;
     p.heroP=Math.min(HERO_CAP,(p.heroP||0)+g);
     return g;
   }
-  /* roll for the mission: most likely candidate first, one winner at most */
-  function heroRoll(cands,rand){
-    for(const p of cands.filter(heroEligible).sort((a,b)=>(b.heroP||0)-(a.heroP||0)))if(rand()<(p.heroP||0))return p;
+  /* roll for the mission: most likely candidate first, one winner at most; every Hero already made makes the next rarer */
+  function heroRoll(cands,rand,have){
+    const damp=1+0.5*(have||0);
+    for(const p of cands.filter(heroEligible).sort((a,b)=>(b.heroP||0)-(a.heroP||0)))if(rand()<(p.heroP||0)/damp)return p;
     return null;
   }
   function heroMake(p,others){

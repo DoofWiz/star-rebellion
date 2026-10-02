@@ -3,7 +3,7 @@
    policies: balanced (default) | missions (rushes jobs, builds little) | builder (builds and diplomacy first) */
 const {chromium}=require('playwright');
 const REVW=process.env.REVW||'';
-const seed=+(process.argv[2]||1),policy=process.argv[3]||'balanced',maxDays=+(process.argv[4]||260);
+const seed=+(process.argv[2]||1),policy=process.argv[3]||'balanced',maxDays=+(process.argv[4]||260),EXTRA=+(process.env.EXTRA||0);   // EXTRA: keep playing this many days after the escalation, at Revolution Level 2 (heroes)
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
 (async()=>{
@@ -12,20 +12,21 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  const errs=[];pg.on('pageerror',e=>errs.push(e.message));
  await pg.addInitScript(s=>{let a=s>>>0;Math.random=()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};},seed);
  await pg.goto(url);await pg.waitForTimeout(1200);
- const out=await pg.evaluate(([policy,maxDays,REVW])=>{
+ const out=await pg.evaluate(([policy,maxDays,REVW,EXTRA])=>{
   const D=window.DBGbase,G=D.G,f=D.fn,SR=window.SR;
   if(REVW)Object.assign(f.REV_W_(),JSON.parse(REVW));
   const R=()=>Math.random();
   const $q=s=>document.querySelector(s);
   const tl=[],events=[],attr={missions:0,intel:0,sources:0,diplo:0,days:0};let lastSnap=-9;
   const meas=(k,fn)=>{const r0=G.renown;fn();attr[k]+=G.renown-r0;};
-  let esc=null,launched=0,failedLaunch=0;
+  let esc=null,escDay=null,launched=0,failedLaunch=0;
+  const markEsc=()=>{escDay=escDay||G.day;if(!EXTRA)esc=escDay;};   // with EXTRA the run goes on at Level 2 and esc stays open until the end
   const ev=(t)=>events.push('D'+G.day+' '+t);
   /* ---- windows ---- */
   function windows(){
    for(let i=0;i<40;i++){
     const w=f.getWin();if(!w)return;
-    if(w==='escalate'||G.escPending===false&&G.revLevel===2){esc=esc||G.day;return;}
+    if(w==='escalate'||G.escPending===false&&G.revLevel===2){markEsc();if(EXTRA){f.closeWin();G.revLevel=2;G.escPending=false;}return;}
     let b;
     if(w==='candidate'){b=[...document.querySelectorAll('[data-cand]')].find(x=>x.getAttribute('data-cand')!=='no');
       if(b&&!b.disabled){b.click();continue;}
@@ -150,6 +151,19 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    for(const p of G.people){if((p.role==='Soldier'||p.role==='Pilot')&&p.level>=3&&!p.spec&&p.assign==='rest'&&!p.injured&&have('training')){
      try{f.startSpec(p.id,p.role==='Soldier'?(G.people.some(q=>q.spec==='fieldtech')?'vanguard':'fieldtech'):'dogfighter');}catch(e){}}}
   }
+  /* hand out promotions and fit prosthetics, like a player would */
+  function promotions(){
+   for(const p of G.people.slice()){
+    if(p.auto||!window.Rebel.canPromote(p))continue;
+    f.openWin('person',p);
+    const ro=$q('[data-rank-open]');if(ro)ro.click();
+    const pb=$q('[data-promote]');if(pb)pb.click();
+    f.closeWin();windows();
+   }
+  }
+  function prosthetics(){
+   for(const p of G.people){if(p.body)for(const part of ['arm','leg','eye'])if(p.body[part]===1&&f.startProsthetic(p.id,part))return;}
+  }
   function diplomacy(){
    if(!have('diplo'))return;
    const t=f.PLANETDEF_().filter(d=>!d.base&&d.pop&&d.pop!=='—'&&d.pop!=='0'&&f.pst(d.id).access).sort((a,b)=>(f.pst(a.id).sup||0)-(f.pst(b.id).sup||0));
@@ -180,7 +194,15 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    const win=R()<0.88;
    let res;
    if(M.kind==='ground'){
-    const people=(M.squad||[]).map(s=>({id:s.id,xp:win?0.12:0.03,state:(!win&&R()<0.4)?'injured':'ok',dur:3}));
+    const INJ=['concussion','brokenarm','brokenleg','bleeding','internal','shrapnel','burns','eye','eardrum','facial','maimed','spinal'];
+    const people=(M.squad||[]).map(s=>{
+      const down=!win&&R()<0.4;
+      const o={id:s.id,xp:win?0.12:0.03,state:down?'injured':'ok',dur:3,kills:Math.floor(R()*3),minHp:Math.round((down?0.05:0.3+R()*0.7)*100)/100,heavy:R()<0.1?1:0,panics:R()<0.15?1:0};
+      if(down)o.down=1;
+      if(R()<0.07)o.inj=[{k:INJ[Math.floor(R()*INJ.length)],treated:R()<0.7}];
+      return o;
+    });
+    if(people.length>1&&R()<0.1){people[0].treats=1;people[0].rescued=[people[1].id];}
     if(M.grafPilot)people.push({id:M.grafPilot.id,xp:0.1,state:'ok'});
     if(M.pilot)people.push({id:M.pilot.id,xp:0.1,state:'ok'});
     const tower=M.scenario==='towers';
@@ -190,7 +212,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     if(M.scenario==='autofactory'&&!win)res.chargeUsed=0;
    } else {
     res={kind:'space',missionId:M.missionId,days:M.days,win,
-      people:(M.flight||[]).map(x=>({id:x.pilotId,xp:win?0.1:0.04,state:win?'ok':(R()<0.15?'shotdown':'ok')})),
+      people:(M.flight||[]).map(x=>({id:x.pilotId,xp:win?0.1:0.04,state:win?'ok':(R()<0.15?'shotdown':'ok'),kills:Math.floor(R()*3),minHp:Math.round((0.3+R()*0.7)*100)/100,panics:R()<0.1?1:0})),
       fighters:(M.flight||[]).map(x=>({fighterId:x.fighterId,hull:60+Math.round(R()*40),destroyed:!win&&R()<0.1}))};
    }
    window.SR.endMission(res);
@@ -217,7 +239,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    return {d:G.day,ren:Math.round(G.renown*10)/10,intel:G.intel,cr:Math.round(G.credits),su:Math.round(G.supplies),mat:Math.round(G.materials),fu:Math.round(G.fuel),
      loc:locs,libFull:lib,libPart:part,src:alive().length,srcLv:alive().reduce((a,s)=>a+s.level,0),people:G.people.length,sold:G.people.filter(p=>p.role==='Soldier').length,
      ships:G.fighters.length,rooms:G.rooms.filter(r=>!r.build).reduce((a,r)=>a+r.w*r.h,0),acc:P.reduce((a,d)=>a+((f.pst(d.id)||{}).acc||0),0),
-     sup:P.reduce((a,d)=>a+Math.floor((f.pst(d.id)||{}).sup||0),0),launched,roles:G.people.reduce((a,p)=>{a[p.role]=(a[p.role]||0)+1;return a;},{}),roomKeys:G.rooms.filter(r=>!r.build).map(r=>r.key+(r.w*r.h>1?'x'+r.w*r.h:'')).join(','),dipOut:(G.dip||[]).length,libDetail:['menk','ballakan','parity'].map(id=>{const st=f.pst(id);return id+' acc'+st.acc+' sup'+st.sup+' '+JSON.stringify(st.lib)+' ops'+st.ops;}).join(' | '),chains:JSON.stringify(Object.keys(G.chains||{}).map(k=>k+':'+(G.chains[k].done?'done':G.chains[k].i)))};
+     sup:P.reduce((a,d)=>a+Math.floor((f.pst(d.id)||{}).sup||0),0),launched,roles:G.people.reduce((a,p)=>{a[p.role]=(a[p.role]||0)+1;return a;},{}),roomKeys:G.rooms.filter(r=>!r.build).map(r=>r.key+(r.w*r.h>1?'x'+r.w*r.h:'')).join(','),dipOut:(G.dip||[]).length,libDetail:['menk','ballakan','parity'].map(id=>{const st=f.pst(id);return id+' acc'+st.acc+' sup'+st.sup+' '+JSON.stringify(st.lib)+' ops'+st.ops;}).join(' | '),chains:JSON.stringify(Object.keys(G.chains||{}).map(k=>k+':'+(G.chains[k].done?'done':G.chains[k].i))),
+     crew:G.people.filter(p=>!p.auto).length,heroes:G.people.filter(p=>p.role==='Hero').length,mood:Math.round(G.morale),
+     ranks:G.people.filter(p=>!p.auto).map(p=>(p.off?'O':'E')+(p.rank||0)).join(' '),traits:G.people.filter(p=>!p.auto).reduce((a,p)=>a+(p.traits||[]).length,0),
+     conds:G.people.filter(p=>!p.auto).reduce((a,p)=>a+(p.cond||[]).length,0),lost:G.people.filter(p=>!p.auto&&p.body&&Object.values(p.body).some(v=>v===1)).length,pros:G.people.filter(p=>!p.auto&&p.body&&Object.values(p.body).some(v=>v===2)).length,
+     deserts:G.news.filter(n=>/walks out/.test(JSON.stringify(n))).length};
   }
   /* ---- main loop ---- */
   windows();
@@ -230,17 +256,24 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    meas('missions',missions);
    if(esc)break;
    rooms();upgrades();patrol();staff();meas('diplo',diplomacy);
+   promotions();prosthetics();
    if(f.canRecruit()&&G.credits>=1200)f.startRecruit();   // the Command Center call for recruits, whenever the war chest allows
    if(G.day-lastSnap>=5){tl.push(snap());lastSnap=G.day;}
-   if(G.escPending){f.closeWin();windows();if(G.revLevel===2||G.revNoted){esc=G.day;break;}}
+   if(G.escPending){f.closeWin();windows();if(G.revLevel===2||G.revNoted){markEsc();if(!EXTRA)break;}}
    meas('days',()=>f.advanceDay());
    windows();
-   if(G.revNoted||G.revLevel===2){esc=G.day;break;}
+   if(G.revNoted||G.revLevel===2){
+    markEsc();
+    if(!EXTRA)break;
+    if(!G._xs){G._xs=G.day;G.revLevel=2;G.escPending=false;}
+    if(G.day-G._xs>=EXTRA){esc=escDay;break;}
+   }
   }
   const fin=snap();
+  if(EXTRA&&!esc)esc=escDay;
   return {policy,esc,attr,final:fin,tl,events:events.slice(-10),launched,failedLaunch,missionsState:G.missions.reduce((a,m)=>{a[m.state]=(a[m.state]||0)+1;return a;},{}),
     stuckAvail:G.missions.filter(m=>m.state==='avail').slice(0,8).map(m=>m.id+':'+(f.precondList(m).filter(c=>!c.ok).map(c=>c.label.replace(/<[^>]+>/g,'')).join('|')))};
- },[policy,maxDays,REVW]);
+ },[policy,maxDays,REVW,EXTRA]);
  console.log(JSON.stringify({seed,...out},null,0));
  if(errs.length)console.log('PAGEERRORS',errs.slice(0,5).join(' || '));
  await b.close();

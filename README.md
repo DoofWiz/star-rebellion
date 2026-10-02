@@ -238,6 +238,8 @@ The three layers now run as **one playable game** (`game/index.html` +
   the roster), a **fire support menu** (Supply Drop, Strafing Run, Door Gunner, Reinforcements) set up on
   the planning board, and space **Drone Monitors, Pursuers, Mag-Clampers and VC Motes** in Cook the Depots.
 
+- **Rebels, in depth.** Every rebel is a person: a generated name, a level (1–20), one Character Trait from a list of 45 and up to three earned Rebel Traits (friendships, rivalries, mentors, scars, grief…), a **morale** that moves with wins, losses and rest and nudges their aim and nerve, skills that grow with experience, a **rank** with its own insignia that the player hands out (Army, Marine or Air Force ladders, and an officer commission), and gear carried in slots from the shared armory. Recruits arrive through the Command Center's *Recruit new Revolutionaries* task (and Sources and rescues) on a multi-card **New Recruit** screen. A critical hit can leave a **critical injury** that a **Treat Wound** order patches in the field and the Infirmary heals over days; from Revolution Level 2 a rebel who stands out can become a **Hero** with a once-per-mission action. The record is in [`docs/REBELS_PLAN.md`](docs/REBELS_PLAN.md); the smoke tests are `tools/*-smoke.js` (run each with `NODE_PATH=$(npm root -g) node tools/<name>-smoke.js`).
+
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
 

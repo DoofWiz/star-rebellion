@@ -489,7 +489,7 @@ function heroCheck(r,m,ctxs){
     Rebel.heroGain(p,{win:!!r.win,kills:pr.kills||0,danger:!!(c.down||(pr.minHp!==undefined&&pr.minHp<0.5)),alone:!!c.alone,top:topKills>=2&&(pr.kills||0)===topKills,notable:!!r.quiet||sec>=3});
   }
   if((G.revLevel||1)<2)return null;      // Heroes begin at Revolution Level 2
-  const hero=Rebel.heroRoll(part.map(x=>x.p),rng);
+  const hero=Rebel.heroRoll(part.map(x=>x.p),rng,crewOf().filter(p=>p.role==='Hero').length);
   if(!hero)return null;
   const was=hero.role;
   Rebel.heroMake(hero,crewOf());

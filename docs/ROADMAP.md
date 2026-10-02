@@ -189,6 +189,9 @@ mission type and Data Limpet item, and the Engineer, CEO, Professor and Double A
   and the progress-meter weights so a typical run lands near the five predicted markers.
 - Update the README and GDD copy.
 
+### Rebels and Recruits — **built** (after the Level 1 phases above)
+The rebel model from the designer's *Rebels & Recruits* document is in: names, levels, Character and Rebel Traits, morale, skills, ranks with insignia, gear slots with auto-equip, recruiting through the Command Center and a multi-card New Recruit screen, Heroes (from Level 2), and Injury & Recovery with Treat Wound and prosthetics. See `docs/REBELS_PLAN.md` for each phase and for the questions that the traits not yet granted are waiting on.
+
 ## Suggested order
 Phase 0 → 1 → 2 in sequence, then Phases 3 and 4 in parallel, then 5, 6 and 7.
 Phase 1 needs the most design work, but everything else builds on it.

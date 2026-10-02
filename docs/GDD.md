@@ -263,40 +263,43 @@ assassin to finish him off.
 
 ## 5. Rebels
 
-Rebels are the player's recruits and the main force of victory.
+Rebels are the people the player commands, puts into roles and advances to make things happen: the most
+important entity to collect and develop. The model below is **built** (see `docs/REBELS_PLAN.md` for the
+phase-by-phase record, and its section 7 for what the unbuilt traits are waiting on). Source: the designer's
+*Rebels & Recruits* document.
 
-**Roles**:
+**Types** (set when a rebel is generated):
 
-- **Pilot** — flies starfighters.
-- **Crew** — operates large ships.
-- **Soldier** — fights in foot battles.
-- **Marine** — fights in boarding actions.
-- **Support** — out of combat; mans stations in the base and provides benefits
-  based on that (medic, flight control coordinator, quartermaster…).
+- **Soldier** — the core character on any ground mission.
+- **Pilot** — the core character in space combat.
+- **Marine** — the core character in boarding actions (data and rules only; no Level 1 recruits, no boarding theatre yet).
+- **Support** — runs the base's rooms, grants their bonuses; has no skills and equips no gear.
+- **Hero** — see below. *(The earlier GDD also listed Crew for large ships; not part of Level 1.)*
 
-**Per-rebel statistics**:
+**Per rebel**:
 
-- Flavour text (name, age)
-- Traits
-- Rebel Level (starts at 1)
-- Equipment
-- Any special abilities
+- **Name** from first and last name pools; a short origin line. A **level** 1–20 (100 XP per level).
+- **Character Trait**: exactly one, created with them (45 traits, each with a quote and a mechanical effect).
+- **Rebel Traits**: up to three, earned from experience (battlefield, psychological, successes, relationships, recovery).
+- **Morale** 0–100 in five bands (Very Low to Very High). It moves with how the revolution and they personally are doing, nudges aim and Cool, and a rebel at 0 leaves.
+- **Specialty** (Rookie until trained at the Training Center from level 3).
+- **Rank** (seniority, separate from level): Army enlisted for Soldiers and Support, USMC enlisted for Marines, USAF enlisted for Pilots, earned by missions served and handed out by the player; from Sergeant at level 5 a rebel can be commissioned onto the officer ladder.
+- **Skills** (cap 50): Aim, Constitution, Agility, Presence for Soldiers and Marines; Aim, Cunning, Focus, Presence for Pilots; none for Support; all six for a Hero. Derived from level plus experience from missions.
+- **Gear** in slots: a primary weapon, a secondary weapon and two gadgets (Soldiers and Marines); secondary and gadgets (Pilots); none (Support). Equipped automatically from the player's pool, changeable by hand.
+- A **dossier** with all of it, including a medical section and a service record.
+
+**Recruiting.** Rebels are recruited through the Command Center's *Recruit new Revolutionaries* task, by Sources, and by rescue missions. Candidates appear on the **New Recruit** screen as cards (one or several at once); the player recruits or dismisses each.
+
+**Injury and recovery.** A critical hit on a rebel inflicts one of twelve critical injuries (Concussion, Broken Arm, Broken Leg, Severe Bleeding, Internal Injury, Shrapnel, Burns, Eye Injury, Maimed, Spinal Injury, Ruptured Eardrum, Facial Trauma) with an immediate combat effect, removed in the encounter by the **Treat Wound** action. Most injuries then go home as a medical condition to be recovered at the Infirmary over time; an Eye Injury left too long, and Maiming, are permanent until a prosthetic is fitted in a Surgery Room.
 
 ### Heroes
 
-Some Rebels become **Heroes** through heavy use, surviving many missions, or
-achieving certain individual goals — becoming the leaders within the movement.
-Heroes are uniquely powerful and generally survive much longer, so they can take
-more dangerous missions. The player cannot see who will become a Hero from any
-game interface, but can try to create one by putting rebels in situations that
-contribute toward the chance.
+Some rebels become **Heroes**. A hidden chance grows with what a rebel does (taking part, kills, close calls, standing out, being the last one standing); from Revolution Level 2 one rebel at most can be made a Hero after a mission, and everyone else's chance then falls sharply. A Hero replaces their type, keeps their rank, history and relationships, gets a buff to every skill and to health, and has a once-per-mission Hero action (Rally cry on the ground, Heroic surge in space). The player cannot see the chance anywhere. Support cannot become a Hero.
 
 ### Abilities & Gear
 
-- Rebels who gain experience and levels can train in the base to gain special
-  abilities.
-- Training can also grant requisition access to better gear — equipping rarer or
-  more valuable equipment.
+- Rebels who gain experience and levels can train in the base to gain a specialty.
+- Training can also grant requisition access to better gear — equipping rarer or more valuable equipment. *(Armour items are not built yet.)*
 
 ---
 
