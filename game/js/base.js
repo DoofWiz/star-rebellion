@@ -1873,11 +1873,6 @@ function openComm(src,payload){openWin('comm',{src,payload});}
 /* ---------- scouting ---------- */
 function pdef(id){return PLANETDEF.find(p=>p.id===id);}
 function pst(id){return G.planets.find(p=>p.id===id);}
-function srcMapPos(src,w,h){
-  const pl=pdef(SRCPOS[src.id]||'veray');
-  const i=G.sources.filter(s=>s.alive&&(SRCPOS[s.id]||'veray')===pl.id).findIndex(s=>s.id===src.id);
-  return [w*pl.x+34+i*18,h*pl.y+2+i*12];
-}
 function scoutPlanet(id){
   const d=pdef(id),st=pst(id);
   if(!d||!st||st.access||G.intel<d.scout)return;
@@ -2687,7 +2682,7 @@ function showView(v){
 let gxDiveFrom=null;
 function enterWorld(id,fx,fy){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();gxDiveFrom=(fx!=null)?[fx,fy]:null;syncTabs();syncUI();}
 function openRegion(rid){gxRegion=rid;syncUI();}
-function gxBack(){if(gxRegion)gxRegion=null;else if(gxWorld)gxWorld=null;else if(srcSel)srcSel=null;syncTabs();syncUI();}
+function gxBack(){gxSheetOpen=false;if(gxRegion)gxRegion=null;else if(gxWorld)gxWorld=null;else if(srcSel)srcSel=null;syncTabs();syncUI();}
 /* ---------- camera: fit the galaxy into the clear rect, ease on change ---------- */
 const GXSP=[1000,700];   // the 0..1 PLANETDEF coordinates stretch into this abstract space
 function gxRect(){
@@ -2698,7 +2693,7 @@ function gxRect(){
   let bottom=120;
   const cb=$('baseCmdbar');
   if(cb){const r=cb.getBoundingClientRect();if(r.height)bottom=cssH-(r.top-cvr.top)+32;}
-  const left=16+((srcSel&&!gxWorld)||gxWorld?388:0);
+  const left=16+(((srcSel&&!gxWorld)||gxWorld)&&!gxPhone()?388:0);   // phones: the panel is a bottom sheet
   const right=88;
   return {x:left,y:Math.max(16,top),w:Math.max(120,cssW-left-right),h:Math.max(120,cssH-Math.max(16,top)-Math.max(60,bottom))};
 }
@@ -3343,6 +3338,10 @@ function renderGxDock(){
     } else if(srcSel.t==='o'){srcSel=null;}
   }
   if(baseView==='galaxy'&&gxWorld)h=gxWorldPanels();
+  if(h&&gxPhone()){
+    if(!gxSheetOpen)h=gxSheetHTML()||h;
+    else h='<button class="sr-btn sr-btn--sm sr-btn--ghost" data-gxsheetclose style="align-self:flex-end">'+IC('clear')+'Close</button>'+h;
+  }
   el.innerHTML=h;el.hidden=!h;
 }
 function gxCapMark(cap){
@@ -3416,6 +3415,31 @@ function gxWorldPanels(){
   if(!d||!st)return '';
   const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
   return gxLocPanel(d,st,!!reg)+(reg?gxRegionCard(d,st,reg):'');
+}
+/* phones: a compact sheet above the command bar replaces the docked panel (provisional) */
+const gxPhone=()=>ROOT.clientWidth<=700;
+let gxSheetOpen=false;
+function gxSheetHTML(){
+  const more='<button class="sr-btn sr-btn--icon gx-sheet__more" data-gxmore aria-label="Open the full panel">'+IC('chevron')+'</button>';
+  if(gxWorld){
+    const d=pdef(gxWorld),st=pst(gxWorld);if(!d||!st)return '';
+    const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+    return '<div class="gx-sheet"><div class="gx-sheet__top">'+
+      '<button class="sr-btn sr-btn--sm sr-btn--ghost" data-gxback aria-label="Back to the galaxy">'+IC('back')+'</button>'+
+      '<div><div class="gx-sheet__name">'+esc(reg?reg.name:d.name)+'</div><div class="gx-sheet__sub">'+esc(reg?'Region of '+d.name:d.kind)+'</div></div>'+more+'</div>'+
+      gxMiniStats(d,st)+'</div>';
+  }
+  if(srcSel&&srcSel.t==='s'){
+    const sc=G.sources.find(x=>x.id===srcSel.id&&x.alive);if(!sc)return '';
+    return '<div class="gx-sheet"><div class="gx-sheet__top">'+srcAvatarHTML(sc)+
+      '<div><div class="gx-sheet__name">'+esc(sc.name)+'</div><div class="gx-sheet__sub">'+esc(String(sc.type))+'</div></div>'+more+'</div></div>';
+  }
+  if(srcSel&&srcSel.t==='p'){
+    const d=pdef(srcSel.id),st=pst(srcSel.id);if(!d||!st)return '';
+    return '<div class="gx-sheet"><div class="gx-sheet__top"><span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span>'+
+      '<div><div class="gx-sheet__name">'+esc(st.known?d.name:'Uncharted signal')+'</div><div class="gx-sheet__sub">'+esc(st.known?d.kind:'The Verge · origin unknown')+'</div></div>'+more+'</div></div>';
+  }
+  return '';
 }
 function renderGxRail(){
   const alive=G.sources.filter(s=>s.alive);
@@ -3637,6 +3661,8 @@ $('gxDock').addEventListener('click',ev=>{
   if(b.hasAttribute('data-gxregclose')){gxRegion=null;syncUI();return;}
   if(b.hasAttribute('data-gxback')){gxRegion=null;gxWorld=null;syncTabs();syncUI();return;}
   if(b.hasAttribute('data-gxlore')){gxLoreOpen=!gxLoreOpen;renderGxDock();return;}
+  if(b.hasAttribute('data-gxmore')){gxSheetOpen=true;renderGxDock();return;}
+  if(b.hasAttribute('data-gxsheetclose')){gxSheetOpen=false;renderGxDock();return;}
   if(b.hasAttribute('data-gxmissions')){openWin('missions');return;}
   if(b.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
   const ct=b.getAttribute('data-gxcontact');
@@ -3974,26 +4000,10 @@ const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'
 const gearIcon=a=>GEAR_ICON[a.id]||'loot';
 let cutArm=null;
 const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
-const sizeOf={newhero:'sm',sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+const sizeOf={newhero:'sm',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
-}
-function sourceDetailHTML(s){
-  const sig=!!(s.pendingEvent||s.signal),hot=s.risk>60;
-  const armed=cutArm===s.id;
-  return '<div class="sr-card sr-card--friend bs-src"'+(hot?' style="--c:var(--sr-c-warn)"':'')+'>'+
-    '<div class="sr-card__top"><span class="sr-avatar" style="width:32px;height:32px">'+IC('signal')+'</span><span class="sr-card__title">'+s.name+'</span>'+wTag('Level '+s.level,'progress')+'</div>'+
-    '<div class="sr-card__meta" style="margin:8px 0 0">'+wTag(s.type)+wTag(s.loc)+'</div>'+
-    '<div class="sr-card__body bs-bio">“'+s.bio+'”</div>'+
-    '<div class="bs-meters">'+meterRow('Cultivation',s.cult)+meterRow('Risk',s.risk,'sr-meter--risk'+(hot?' is-hot':''))+'</div>'+
-    '<div class="sr-card__meta">'+bundleHTML(s.inc)+'<span class="sr-faint bs-per">per day</span></div>'+
-    '<div class="sr-card__acts">'+
-    rbtn('data-sc="'+s.id+'"',IC('signal')+(s.pendingEvent?'Contact — they need an answer':s.signal?'Contact — signal waiting':'Contact'),(s.contacted&&!s.pendingEvent&&!s.signal),'sr-btn--friend'+(sig?' sr-btn--attn':''))+
-    rbtn('data-sv="'+s.id+'"','Visit',s.visited)+
-    (s.risk>=50?rbtn('data-ss="'+s.id+'"','Silence',false,'sr-btn--danger'):'')+
-    rbtn('data-sl="'+s.id+'"',armed?'Confirm: cut loose':'Cut loose',false,'sr-btn--danger')+
-    '</div></div>';
 }
 /* ---------- sources field manual (the ? button) ---------- */
 const TUT_PAGES=[
@@ -4195,41 +4205,7 @@ function traitCard(p){
 function renderWin(){
   const card=$('winCardB');
   let h='',size=sizeOf[winMode]||'',accent=accentOf[winMode]||'';
-  if(winMode==='sources'){
-    const alive=G.sources.filter(s=>s.alive);
-    const accessN=G.planets.filter(p=>p.access).length;
-    if(!srcSel)srcSel={t:'s',id:alive.length?alive[0].id:null};
-    let detail='';
-    if(srcSel.t==='s'){
-      const s=alive.find(x=>x.id===srcSel.id);
-      detail=s?sourceDetailHTML(s):'<div class="sr-empty">No sources. We’re blind out there.</div>';
-    } else {
-      const d=pdef(srcSel.id),st=pst(srcSel.id);
-      if(d&&st){
-        const cls=st.access?' sr-card--info':st.known?' sr-card--info is-locked':' sr-card--progress';
-        const canScout=G.intel>=d.scout,canRaise=G.intel>=accessCost(d,st);
-        detail='<div class="sr-card'+cls+' bs-planet"><div class="sr-card__top">'+
-          '<span class="sr-card__title">'+(st.known?d.name:'Uncharted Signal')+'</span>'+wTag(st.access?'Access':'No access',st.access?'good':'')+'</div>'+
-          '<div class="sr-card__meta" style="margin:8px 0 0">'+(st.known?wTag(d.kind)+(d.pop?wTag('pop '+d.pop):''):wTag('the Verge · origin unknown'))+'</div>'+
-          '<div class="sr-card__body bs-bio">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
-          (st.access?locStatsHTML(d,st):'')+
-          '<div class="sr-card__acts">'+
-          (st.access?'':rbtn('data-scout="'+d.id+'"','Scout & gain access'+I(d.scout,!canScout),!canScout,'sr-btn--primary'+(canScout?' sr-btn--attn':''))+
-            (canScout?'':'<span class="sr-fine bs-inline">not enough intel — work the network</span>'))+
-          (st.access&&(st.acc||0)<5?rbtn('data-raise="'+d.id+'"','Raise Access to '+((st.acc||0)+1)+I(accessCost(d,st),!canRaise),!canRaise)+
-            (canRaise?'':'<span class="sr-fine bs-inline">more Hegemony presence, more Intel</span>'):'')+
-          '</div></div>';
-        // sources stationed there
-        const here=alive.filter(s2=>(SRCPOS[s2.id]||'veray')===d.id);
-        if(st.access&&here.length)detail+=here.map(sourceDetailHTML).join('');
-      }
-    }
-    h=wHead('Galaxy',{tags:wTag(accessN+' worlds accessible','info')+wTag('Network '+alive.length+'/'+sourceCap()),q:wQ('data-srchelp','How sources work')})+
-      wBody('<canvas id="galaxyCv"></canvas>'+
-      '<p class="sr-fine bs-center">core worlds burn bright and cost dear · faint signals are uncharted · gold diamonds are intelligence leads · '+I('')+' buys access</p>'+
-      '<div class="sr-stack bs-cards">'+detail+'</div>');
-  }
-  else if(winMode==='srcTutIntro'){
+  if(winMode==='srcTutIntro'){
     h=wHead('Build Your Network',{q:wQ('data-srchelp','Learn more'),x:false})+wBody(
       tutP('Your Sources are the foundation of your intelligence network.')+
       tutS('1. Find Sources','Discover people willing to help the rebellion.')+
@@ -4765,33 +4741,6 @@ $('winsB').addEventListener('drop',ev=>{
 });
 $('winsB').addEventListener('click',ev=>{
   if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
-  // galaxy map source pick
-  if(ev.target.id==='galaxyCv'){
-    const g=ev.target,r=g.getBoundingClientRect();
-    const px=ev.clientX-r.left,py=ev.clientY-r.top;
-    let best=null,bd=1e9;
-    for(const o of (G.opps||[])){
-      if(o.done)continue;
-      const pd=pdef(o.loc),d=Math.hypot(px-(r.width*pd.x+20),py-(r.height*pd.y-16));
-      if(d<14&&d<bd){bd=d;best={t:'o',id:o.id};}
-    }
-    for(const s of G.sources){
-      if(!s.alive)continue;
-      const [sx2,sy2]=srcMapPos(s,r.width,r.height);
-      const d=Math.hypot(px-sx2,py-sy2);
-      if(d<16&&d<bd){bd=d;best={t:'s',id:s.id};}
-    }
-    if(!best){
-      for(const pd of PLANETDEF){
-        if(pd.base)continue;
-        const d=Math.hypot(px-r.width*pd.x,py-r.height*pd.y);
-        if(d<26&&d<bd){bd=d;best={t:'p',id:pd.id};}
-      }
-    }
-    if(best&&best.t==='o'){sClick();openOpp(best.id);return;}
-    if(best){srcSel=best;cutArm=null;sClick();renderWin();}
-    return;
-  }
   if(winMode==='plan'&&PL){
     const slotEl=ev.target.closest('[data-slot]');
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
