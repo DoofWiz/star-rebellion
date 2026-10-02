@@ -24,7 +24,7 @@ starfighter squadron and no Heroes yet.
 | Missions | Source / Intelligence-generated; Directives; Opportunities (Access 2+); mission types wrapped in narrative | Source-generated only; several ad-hoc missions |
 | Tier 1 missions | Steal Intelligence, Rescue Dissident, Blow Up Auto Factory, Steal Fuel | Steal Cross, Cook the Depots, plus abstract-only jobs; Strider locked |
 | Mission planning | Team + Assets + transport slot, drag/click from roster | Team and preconditions UI, no Assets or transport slot |
-| Ground combat | Stealth, Fire Support (reinforcements, door gunner, strafing, supply drop), hacking Autos | Stealth, cover, nerve, grenades, stims; no fire support, no hacking |
+| Ground combat | Stealth, Fire Support (reinforcements, door gunner, strafing, supply drop, owned vehicles and Bots), hacking Autos, crewed vehicles (enter, exit, switch position) | Stealth, cover, nerve, grenades, stims; no fire support, no hacking |
 | Enemies (Rev 1) | Policebot, Patrolman, Riot Shieldman/Rifleman, Riot Bruiser, Cruisers, Strider Mk I; drone starfighters | Dustfall deputies and Sheriff, RQ-7 drones |
 | Base rooms | Room expansion and upgrades; Intelligence Center; Diplomatic Quarter; Training Center | Merged rooms, upgrades, Diplomatic Quarter built; gear grid and some upgrades remain |
 | Gear | Slot grid with size-based fit and categories | Flat armory list |
@@ -114,7 +114,7 @@ robot enemies).
 **Mission types are reusable:** the four Tier 1 types (Steal Fuel, Steal Intelligence, Blow Up Auto Factory,
 Rescue Dissident) are deployed in narrative contexts by any matching Source or by Intelligence leads; the Strider
 stays unique. The project owner will design a Steal [Vehicle] type later. See `docs/GDD.md` §8.
-All five Tier 1 missions are now built (**Steal the Strider** added an Auto roster member).
+All five Tier 1 missions are now built (**Steal the Strider** adds a Bot to the vehicle pool).
 The Training Center's specialty training (Phase 5) is now built for
 soldiers and pilots; Support specialties and the other specialty effects remain.
 Original scope:

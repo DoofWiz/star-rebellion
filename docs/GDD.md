@@ -631,12 +631,50 @@ Shipbuster). Support specialties are still to come.
   **Riot Bruiser** (melee, 95 hp), **Strider Mk I** (240 hp autocannon, patrols the Autoworks), and
   three cruisers: **Police Cruiser** (pulse cannon), **Riot Dispersal Cruiser** (turret) and
   **Riot Transport Cruiser** (unarmed; it arrives with the response wave and **unloads a riot squad**
-  the next round). Machines drop scrap, not credits.
+  when the alarm is up). The cruisers are crewed vehicles (see *Vehicles and Bots* below). Machines drop
+  scrap, not credits.
 - **Hacking Autos.** A **Field Technician** within 300 units and in line of sight can hack an enemy
   Auto (Policebot 1 round, Bruiser 2, Strider 3): the **Hack** radial action in combat, or the **Hack**
   chip then tap in free move (about 4 seconds a round, silent). The hacker has to stay alive and on
   target. A hacked Auto **fights for us on its own**, and if it survives and **extracts** it **joins
-  the roster** as an Auto (no bunk, keeps its stats) and can be fielded in later squads.
+  the roster** as an Auto (no bunk, keeps its stats) and can be fielded in later squads. A hacked
+  **Strider** is a Bot, so it joins the vehicle pool instead.
+
+### Vehicles and Bots (built)
+Source: *Vehicle Gameplay* in the Ground Combat doc. The designer's classification: an **Auto** is the robot
+equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Drone** the robot equivalent of a ship.
+- **Vehicles are not characters.** They never act on their own. A character **mounts** one and acts through a
+  **position** (seat): the driver moves it, a gunner fires the position's weapon, a troop bay just rides.
+  An **enclosed** position cannot be targeted; the vehicle takes the hits (a grenade or strafing blast hits the
+  hull, not the crew). An **open** position (the Dispersal Cruiser's turret) can be shot, at +3 TN for the hatch.
+- **Destroyed:** the crew are thrown clear beside the wreck and take 10 to 22 damage (a 1 in 4 chance it is a
+  critical, so a rebel can be injured). The wreck stays on the map. A critical on a vehicle damages its drive
+  (a quarter off its speed). Rockets and every other weapon hit the hull normally.
+- **Inside a vehicle** a character's orders change: **Move** goes up to the vehicle's speed (driver only),
+  **Sprint** and **Take cover** do not exist, **Hold** only on a gun position, **Lock in** still works on the
+  person's nerve, **Exit** gets out, **Switch position** moves to a free seat (one choice per kind of seat),
+  **Loot** and **Work** are out of reach (a job can allow Work from a vehicle with `inVeh`; none does yet).
+  **Enter** appears on foot when a vehicle with a free seat is within a walk, and nobody from the other side is
+  in it. Exit and Switch happen as the round opens and cost the shot; Enter happens at the end of the walk.
+  Grenades are not thrown from a seat. Fire Support and the Hero's Rally cry still work (they are a radio and
+  a voice).
+- **Free move:** tap a vehicle and the nearest rebel on foot walks over and climbs in; tap one of ours that is
+  full and everyone gets out (or use **Exit** on the command bar). A driver takes the vehicle when the squad
+  moves; the other seats ride along.
+- **Enemy vehicles** spawn crewed when the mission says so: Police Cruiser (driver on the pulse cannon),
+  Riot Dispersal Cruiser (driver plus open turret gunner), Riot Transport Cruiser (driver plus a three-seat
+  troop bay that gets out when the alarm goes up). Drivers patrol while calm and close to their gun's range
+  when alerted; gunners hold and fire. Bay passengers do not keep watch. **A crew bails out of a vehicle under
+  30% hull** (the same roll as a lawman surrendering), and an empty vehicle can be taken by whoever gets to it.
+- **Stats** (placeholders from the old cruiser units): Police Cruiser 130 hp, TN 7, speed 320; Dispersal
+  170 hp, speed 260; Transport 150 hp, speed 280. On foot a Move is 150 and a Sprint 300.
+- **Bots** (the Strider): drive themselves and cannot be manned. They take the vehicle action list (Move at the
+  Bot's speed of 220, Hold; no Sprint, Take cover, Lock in, Loot, Work, Enter).
+- **Owned vehicles and Bots** live in the base's **Vehicles and Bots** list (`G.vehicles`), not on the roster.
+  The planning board's Fire support area takes one as an optional asset; in the mission the **Fire Support**
+  menu sets it down where you call it at the start of the next planning (a vehicle empty, a Bot ready for
+  orders). Whatever is still running comes home (damage carries over and repairs in the hangar like a ship);
+  a wreck is lost.
 
 ### Fire support (built, Phase 4)
 The planning board's **Fire support** area takes assets for ground missions:
@@ -656,17 +694,16 @@ Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **cal
 **Drone Pursuers** (fast hunters) and, from round 5, a patrol answer: a manned **VC Mote** fighter and a
 **Drone Mag-Clamper**, whose clamp cuts a ship's top speed by 2 for two rounds.
 
-### Steal the Strider (built, Tier 1) and Autos on the roster
+### Steal the Strider (built, Tier 1)
 Offered by **Tessaly Brandt** once the Autoworks' Power Plant is gone. Played at **Menk Crossing**
 (region: Menk Crossing, +15% liberation, capped by Access/Support):
 - A **Strider Mk I** stands in a locked holding yard. Any soldier can **override its leash panel**
   (two rounds). The override is quiet; it only alarms the depot if the squad was already seen.
-- Once freed the Strider is an **ally you command** like any rebel: 220 hp, heavy autocannon, big and
-  loud. **If it is destroyed the mission fails.** It and the squad must reach the Marta.
+- Once freed the Strider is a **Bot you command**: 220 hp, heavy autocannon, big and loud, with the
+  vehicle action list. **If it is destroyed the mission fails.** It and the squad must reach the Marta.
 - **Optional: stay unseen** (bonus +300 credits). Reward: 450 credits, 200 Materials.
-- **The Strider joins the roster** (as an Auto: no bunk, no rank, 220 hp, autocannon) and can be put
-  in any future ground squad, where it takes a team slot. This is the first Auto; hacking enemy
-  Autos is still to come.
+- **The Strider joins the vehicle pool** as a Bot (older saves move it there from the roster). It no longer
+  takes a team slot: bring it as a fire-support asset and summon it from the Fire Support menu.
 
 ### Steal Intelligence (built, Tier 1)
 Offered by **Ione Cask** (Parity IV). Played at the **Data Flats server farm** (region: Data Flats,

@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-02, after merging the game database with the Rebels work.
+**Last updated:** 2026-10-02, after building vehicle gameplay (crewed vehicles, Bots, vehicles as fire support).
 
 ## How to use this
 
@@ -33,6 +33,9 @@
 | C-4 | ⚪ | Source docs disagree with each other (Level scope, Fuel/Intel, tiers) | Nothing live; wording only |
 | C-5 | ⚪ | Specialties: 3 of 16 live, and they overlap the new skills | Rookie vs. specialist feel |
 | C-6 | ⚪ | Anyone can treat wounds; the Combat Medic does nothing extra | Medic specialty value |
+| C-7 | ⚪ | Vehicle rules the Ground Combat excerpt does not cover | How vehicle fights feel |
+| C-8 | ⚪ | Bots ride as fire-support assets, not squad members | Where the Strider sits in a plan |
+| C-9 | ⚪ | The Steal the Cross laser turret is still its own system | One rule for gun emplacements |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -45,6 +48,7 @@
 | M-10 | 🟡 | Armour and carried-gear effects | Strong, Weak, Messy, the fourth gear slot |
 | M-11 | 🟡 | Pilot critical injuries and space-side gear | Pilots escape injury risk; gear only matters on foot |
 | M-12 | 🟡 | Old injuries: permanent Limp, Old Wound | 6 Rebel Traits |
+| M-13 | 🟡 | Vehicle stats, and a way to own a crewed vehicle | Player-owned cruisers, the Driver specialty |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -118,6 +122,44 @@ The Rebels doc's Treat Wound order was written without a specialist in mind; I l
 action, worst first, within about 110 units). The Combat Medic specialty is not live, so it adds nothing yet.
 **Needs from you:** should a Combat Medic treat faster, from further away, or two injuries in one action? Should
 non-medics be limited to treating themselves, or to the bleeding only?
+**Your call:** _open_
+
+### C-7 ⚪ Vehicle rules the Ground Combat excerpt does not cover
+I built vehicles from the *Vehicle Gameplay* excerpt you pasted in chat (the Ground Combat gdoc itself is not
+reachable from the coding session). It lists Move, Sprint, Hold, Take Cover, Lock In, Exit, Enter, Switch
+Position, Loot and Work. Everything below is my guess:
+- **Timing:** Exit and Switch Position happen as the round opens and cost that round's shot; Enter happens at the
+  end of the walk to the vehicle (the walk is up to a normal Move plus a step), so you are inside before the
+  shooting starts.
+- **Other actions inside:** no grenades, no Treat Wound, no Hack, no Un-jam (vehicle guns do not jam). Stims,
+  Fire Support and the Hero's Rally cry still work.
+- **Damage:** a destroyed vehicle does 10 to 22 to each person inside, with a 1 in 4 chance it counts as a critical
+  (so a rebel can take an injury). A critical on a vehicle cuts its speed by a quarter. An open gun position
+  (the Dispersal Cruiser's turret) can be shot at +3 TN; enclosed positions cannot be shot at all, and blasts hit
+  the hull instead of the crew.
+- **Bail-out (my addition):** a crew bails out of a vehicle under 30% hull on the same roll as a lawman
+  surrendering. That is the only way an enemy vehicle becomes empty, so it is what lets rebels steal one mid-mission.
+- **Who may enter:** any character on their feet (rebels, lawmen, Autos, the VIP), not a Bot, and only if nobody
+  from the other side is aboard. An empty vehicle cannot be shot; it is scenery until someone climbs in.
+**Needs from you:** confirm or change these, especially the bail-out and the damage to the crew.
+**Your call:** _open_
+
+### C-8 ⚪ Bots ride as fire-support assets, not squad members
+You classed the Strider as a **Bot** (robot equivalent of a vehicle). The excerpt says owned vehicles are assigned
+as an asset and summoned from the Fire Support menu, so I treated Bots the same: the Strider left the roster (old
+saves move it) for a new **Vehicles and Bots** list, and in a plan it goes in the Fire support area instead of a
+team slot. It is set down where you call it at the start of the next planning, so it can no longer start a mission
+with the squad, and fire support (like all fire support) is only called once the shooting starts. A Bot that
+is wrecked is lost for good; one that survives comes home with its damage and repairs in the hangar like a ship.
+**Needs from you:** is that right for Bots, or should a Bot still deploy with the squad from the start (taking a
+team slot)? And should a wrecked vehicle or Bot be lost, or come back needing a long repair?
+**Your call:** _open_
+
+### C-9 ⚪ The Steal the Cross laser turret is still its own system
+The Asset Sheet's Vehicles tab lists turrets as vehicles. The laser turret on the Dustfall pad already works as a
+one-seat emplacement (Man gun / Leave gun, a frontal shield arc), and I left it alone rather than risk the
+onboarding mission. **Needs from you:** should emplacements become vehicles with speed 0 (Enter/Exit instead of
+Man gun/Leave gun), or stay separate?
 **Your call:** _open_
 
 ---
@@ -239,6 +281,17 @@ Medical section on the dossier shows permanent losses and fitted prosthetics, so
 Wound? What flaring means (a random penalty on a mission)?
 **Your call:** _open_
 
+### M-13 🟡 Vehicle stats, and a way to own a crewed vehicle
+**Blocks:** a player-owned vehicle that needs crew (the planning board and the Fire Support menu already take one,
+but nothing gives the player one); the Driver specialty ("Handling vehicles"), which does nothing.
+**Why:** the Asset Sheet's Vehicles tab has no entries, so the cruisers' numbers (hp, TN, speed, seats, guns) are
+my placeholders carried over from the old enemy units. A cruiser stolen mid-mission is not kept: the *Steal
+[Vehicle]* mission type is still waiting on its design.
+**Needs from you:** vehicle rows (hp, armour or TN, speed, positions and which are enclosed, weapons per position),
+how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
+specialist adds (speed, a better TN while driving, ramming?).
+**Your call:** _open_
+
 ---
 
 ## 3. Resolved log
@@ -249,3 +302,4 @@ Center) are recorded in `docs/REBELS_PLAN.md` §2.*
 
 | ID | Decision | Date | Built in |
 |---|---|---|---|
+| — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | vehicle gameplay commit |

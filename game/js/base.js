@@ -15,14 +15,30 @@ const nz=(...a)=>A.nz(...a);
    with vehicles and equipment, capacities, source-driven recruitment.
    ===================================================================== */
 
-/* Autos: robots that fight for us. Stats here seed the ground scene. */
+/* Autos: robots that fight for us, the robot equivalent of a character. Stats here seed the ground scene. */
 const AUTOS={
   policebot:{label:'Policebot',hp:45,def:9,wpn:'cowboy',big:0,heavy:0,bio:'A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'},
   bruiser:{label:'Bruiser',hp:95,def:10,wpn:'fists',big:0,heavy:1,bio:'A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'},
-  strider:{label:'Strider',hp:220,def:8,wpn:'strider',big:1,heavy:0,bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'},
 };
-const autoOf=p=>AUTOS[p.auto]||AUTOS.strider;
-const autoKey=p=>AUTOS[p.auto]?p.auto:'strider';
+const autoOf=p=>AUTOS[p.auto]||AUTOS.policebot;
+const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';
+/* Ground vehicles (G.vehicles). Not people: a Bot (robot equivalent of a vehicle) drives itself and cannot be manned,
+   a vehicle needs crew. Either rides to a ground mission as a fire-support asset and is summoned from the Fire Support
+   menu. G.vehicles[i] = {id, name, type, hp (0-100%)}. Types match VEHDEF/BOTDEF in ground.js. */
+const GVEH={
+  strider:{label:'Strider Mk I',kind:'bot',hp:220,def:8,aim:2,wpn:'strider',big:1,bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'},
+  police:{label:'Police Cruiser',kind:'vehicle',hp:130,seats:1,bio:'A patrol car with a pulse cannon in the nose. One seat: the driver flies it and fires it.'},
+  dispersal:{label:'Riot Dispersal Cruiser',kind:'vehicle',hp:170,seats:2,bio:'A riot car with a dispersal turret on the roof. A driver and an exposed turret gunner.'},
+  transport:{label:'Riot Transport Cruiser',kind:'vehicle',hp:150,seats:4,bio:'Unarmed. A driver and a troop bay for three.'},
+};
+const gvehOf=v=>GVEH[v.type]||GVEH.strider;
+const vehPool=()=>(G.vehicles||[]).filter(v=>v.hp>=40);
+function addVehicle(type,name){
+  G.vehicles=G.vehicles||[];
+  const v={id:type+'_'+(G.vehicles.length+1)+'_'+G.day,name:name||GVEH[type].label,type,hp:100};
+  G.vehicles.push(v);
+  return v;
+}
 const rankFor=p=>p.auto?autoOf(p).label:Rebel.rankName(p);
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
@@ -172,6 +188,7 @@ function newGame(){
     day:1,credits:1000,supplies:480,materials:400,fuel:240,intel:3,renown:8,risk:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[],
+    vehicles:[],
     wreck:{restored:false,restoring:0},
     armory:[
       {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
@@ -1408,6 +1425,10 @@ function advanceDay(){
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
     if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,f.hull+rate+(f===worst?10:0));}
+  }
+  for(const v of G.vehicles||[]){   // ground vehicles patch up in the hangar at the same rate
+    if(v.hp>=100)continue;
+    if(G.materials>=repCost){G.materials-=repCost;v.hp=Math.min(100,v.hp+rate);}
   }
   patrolTick();
   specTick();
@@ -3684,6 +3705,15 @@ function syncUI(){
       '<span class="sr-unit__main"><span class="sr-unit__name">'+f.name+'</span>'+(f.out?'':cells)+'</span><span class="sr-unit__side">'+tag+'</span></button>';
   }).join(''):'<div class="sr-empty">'+(G.wreck&&!G.wreck.restored?'No ships yet. Restore the derelict hauler from the Hangar.':'No ships yet. A mission can win us one.')+'</div>';
   $('fleetCount').textContent=G.fighters.length||'';
+  {const vs=G.vehicles||[];
+   $('vehSec').hidden=!vs.length;
+   $('vehList').innerHTML=vs.map(v=>{
+     const n=Math.round(v.hp/20),hc=v.hp<35?' sr-hp--low':v.hp<60?' sr-hp--mid':'';
+     const cells='<span class="sr-hp'+hc+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">'+Math.round(v.hp)+'%</span></span>';
+     const tag=v.hp<100?'<span class="sr-tag sr-tag--warn">'+IC('work')+'Repairing</span>':'<span class="sr-tag">'+(gvehOf(v).kind==='bot'?'Bot':'Vehicle')+'</span>';
+     return '<div class="sr-unit" title="'+esc(gvehOf(v).bio)+'" style="--c:var(--sr-gold)">'+vehAvatar()+'<span class="sr-unit__main"><span class="sr-unit__name">'+v.name+'</span>'+cells+'</span><span class="sr-unit__side">'+tag+'</span></div>';
+   }).join('');
+   $('vehCount').textContent=vs.length||'';}
   $('crewHint').textContent=SR.touch?'Tap anyone for their file':'Double-click anyone for their file';
   $('fleetHint').textContent=SR.touch?'Tap a ship to step into the hangar':'Double-click a ship to step into the hangar';
   if(viewRoom)renderRoomBar();
@@ -4162,7 +4192,7 @@ function whereHTML(m){
    Slots: team0.. (soldiers) · tv0/tp0.. (transport + its pilot) · pz0.. (prize pilot)
           rp0/rs0.. (pilot + ship rows for space sorties) */
 const DROP_COST=160;   // supplies for a Supply Drop
-const ridPre=acc=>(acc==='soldier'||acc==='rsoldier'||acc==='pilot'||acc==='apilot')?'p:':'f:';
+const ridPre=acc=>(acc==='soldier'||acc==='rsoldier'||acc==='pilot'||acc==='apilot')?'p:':acc==='gveh'?'v:':'f:';
 let PL=null;
 function openPlan(m){
   const r=reqOf(m);
@@ -4174,6 +4204,7 @@ function openPlan(m){
       PL.slots.push({key:'tp'+i,acc:'pilot',label:'Transport pilot'});
     }
     for(let i=0;i<(r.prize||0);i++)PL.slots.push({key:'pz'+i,acc:'pilot',label:'Pilot for the prize'});
+    if((G.vehicles||[]).length)PL.slots.push({key:'gv0',acc:'gveh',label:'Vehicle or Bot',opt:true});
   } else {
     const n=r.ships||r.team;
     for(let i=0;i<n;i++){
@@ -4186,6 +4217,7 @@ function openPlan(m){
 function plUsedIds(){return new Set(Object.values(PL.v));}
 function plAccepts(slot,rid){
   const kind=rid[0],id=rid.slice(2);
+  if(kind==='v'||slot.acc==='gveh')return kind==='v'&&slot.acc==='gveh'&&vehPool().some(v=>v.id===id);
   if(kind==='p'){
     const p=G.people.find(x=>x.id===id);if(!p)return false;
     return (slot.acc==='soldier'||slot.acc==='rsoldier')?isGround(p):(slot.acc==='pilot'||slot.acc==='apilot')?isFlyer(p):false;
@@ -4267,7 +4299,7 @@ function plAutoFill(){
   for(const k of Object.keys(PL.v))if(!/^as/.test(k))delete PL.v[k];
   const m=PL.m;
   for(const sl of PL.slots){
-    if(PL.v[sl.key]||/^as/.test(sl.key))continue;
+    if(PL.v[sl.key]||/^as/.test(sl.key)||sl.acc==='gveh')continue;
     const used=plUsedIds();
     let pool=[];
     if(sl.acc==='soldier')pool=soldierPool().sort((a,b)=>((b.spec===(PL.req.spec||{}).key)?1:0)-((a.spec===(PL.req.spec||{}).key)?1:0)).map(p=>'p:'+p.id);
@@ -4282,10 +4314,16 @@ const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+
 const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
+const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';
+const vehSub=v=>gvehOf(v).label+' \u00b7 '+(gvehOf(v).kind==='bot'?'Bot':'vehicle, '+gvehOf(v).seats+' seat'+(gvehOf(v).seats>1?'s':''))+' \u00b7 '+Math.round(v.hp)+'%';
 /* a filled slot: avatar, label, name, a line of detail */
 function slotOccHTML(sl){
   const id=PL.v[sl.key];
   if(!id)return null;
+  if(sl.acc==='gveh'){
+    const v=G.vehicles.find(x=>x.id===id);
+    return vehAvatar()+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+v.name+'</span><span class="bs-sub">'+vehSub(v)+'</span></span>';
+  }
   if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){
     const f=G.fighters.find(x=>x.id===id);
     return shipAvatar()+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+f.name+'</span><span class="bs-sub">'+shipSub(f)+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</span></span>';
@@ -4302,6 +4340,11 @@ const slotHTML=sl=>{
 /* roster entries: draggable, one click places them in the first slot that takes them */
 function chipHTML(rid){
   const kind=rid[0],id=rid.slice(2);
+  if(kind==='v'){
+    const v=G.vehicles.find(x=>x.id===id);
+    return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'" style="--c:var(--sr-gold)">'+vehAvatar()+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+v.name+'</span><span class="sr-unit__role">'+vehSub(v)+'</span></span></div>';
+  }
   if(kind==='f'){
     const f=G.fighters.find(x=>x.id===id);
     return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'" style="--c:var(--sr-shield)">'+shipAvatar()+
@@ -4338,6 +4381,7 @@ function planHTML(m){
     '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(p.injured||p.assign==='mission'||p.assign==='spec')))+
     '<span class="bs-rh">'+(r.transport?'Transports':'Ships')+'</span>'+avail(r.transport?transportPool():shipPool(r),'f:')+
     (PL.assets.length?'<span class="bs-rh">Support ships</span>'+avail(G.fighters.filter(f=>!f.out&&f.hull>=60),'f:'):'')+
+    (r.transport&&(G.vehicles||[]).length?'<span class="bs-rh">Vehicles and Bots</span>'+avail(vehPool(),'v:'):'')+
     '</div>';
   const left='<div class="planL">'+
     '<p class="sr-p">'+m.desc+'</p>'+
@@ -4374,6 +4418,8 @@ function assetsHTML(){
       '<div class="bs-chips">'+(gun?rbtn('data-assetmode="'+i+':doorgun" aria-pressed="'+(mode==='doorgun')+'"','Door Gunner',false,'sr-btn--sm'):'')+rbtn('data-assetmode="'+i+':reinforce" aria-pressed="'+(mode==='reinforce')+'"','Reinforcements',false,'sr-btn--sm')+'</div>'+
       '<p class="sr-fine" style="margin:0">'+(mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to '+cap+' more soldier'+(cap===1?'':'s')+' where you call it (fill as many seats as you like).')+(gun?'':' No Door Mounted Gun fitted, so no door gunner.')+'</p>');
   });
+  {const gv=PL.slots.filter(sl=>sl.acc==='gveh');
+   if(gv.length)h+=gv.map(slotHTML).join('')+'<p class="sr-fine" style="margin:0">Rides in with the team. Summon it from the Fire Support menu once the shooting starts; a vehicle needs someone to get in it, a Bot drives itself.</p>';}
   h+='<div class="bs-chips">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?rbtn('data-addasset','+ Support ship',false,'sr-btn--sm'):'')+(PL.assets.length?rbtn('data-rmasset','Remove last',false,'sr-btn--sm'):'')+'</div></div>';
   return h;
 }
@@ -4412,6 +4458,9 @@ function startPlan(){
         const mode=plAssetMode(k);
         return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
           soldiers:mode==='reinforce'?Array.from({length:SEATS[f.cls]||0},(_,q)=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
+      }),vehicles:PL.slots.filter(sl=>sl.acc==='gveh'&&PL.v[sl.key]).map(sl=>{
+        const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
+        return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
@@ -4569,12 +4618,28 @@ function applyDebrief(r){
     if(ch){ch.n=Math.max(0,ch.n-r.chargeUsed);if(!ch.n)G.armory=G.armory.filter(a=>a!==ch);}
   }
   if(r.win&&m)applyRew(m.rew,got);
-  if(r.win&&m&&m.vip&&m.vip.strider&&r.vipOut&&!G.people.some(p=>p.id==='strider')){
-    G.people.push({id:'strider',name:m.vip.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'strider',bio:AUTOS.strider.bio});
-    got.push('<b>'+m.vip.name+'</b> joins the roster');
-    news('<b>'+m.vip.name+'</b>, a reprogrammed Strider Mk I, joins the rebellion. It does not need a bunk.','g');
+  for(const vr of r.vehicles||[]){
+    const v=(G.vehicles||[]).find(x=>x.id===vr.id);
+    if(!v)continue;
+    if(vr.lost){
+      G.vehicles=G.vehicles.filter(x=>x!==v);
+      news('The <b>'+v.name+'</b> was wrecked in the field. There was nothing left to bring home.','h');
+    } else v.hp=Math.max(5,Math.min(100,vr.hp));
+  }
+  if(r.win&&m&&m.vip&&m.vip.strider&&r.vipOut&&!(G.vehicles||[]).some(v=>v.id==='strider')){
+    G.vehicles=G.vehicles||[];
+    G.vehicles.push({id:'strider',name:m.vip.name,type:'strider',hp:100});
+    got.push('<b>'+m.vip.name+'</b> joins the vehicle pool');
+    news('<b>'+m.vip.name+'</b>, a reprogrammed Strider Mk I, joins the rebellion as a Bot. Bring it to a ground mission as fire support.','g');
   }
   for(const g of r.gained||[]){
+    if(GVEH[g.type]&&GVEH[g.type].kind==='bot'){
+      if((G.vehicles||[]).some(v=>v.name===g.name))continue;
+      const v=addVehicle(g.type,g.name);
+      got.push('<b>'+v.name+'</b> (hacked) joins the vehicle pool');
+      news('<b>'+v.name+'</b>, a hacked '+GVEH[g.type].label+', joins the rebellion as a Bot.','g');
+      continue;
+    }
     const A=AUTOS[g.type];if(!A)continue;
     if(G.people.some(p=>p.name===g.name))continue;
     G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:g.type,bio:A.bio});
@@ -4658,6 +4723,12 @@ function restoreCampaign(data){
     }
     for(const row of G.grid)for(const cell of row){if(cell.room==='bay')cell.room='hangar';if(cell.room==='quarters')cell.room='barracks';}
     for(const p of G.people)if(p.auto===1)p.auto='strider';
+    // the Strider is a Bot (a vehicle that drives itself), not a person: it moves off the roster into the vehicle pool
+    G.vehicles=G.vehicles||[];
+    for(const p of G.people.filter(x=>x.auto==='strider')){
+      if(!G.vehicles.some(v=>v.id===p.id))G.vehicles.push({id:p.id,name:p.name,type:'strider',hp:100});
+    }
+    G.people=G.people.filter(x=>x.auto!=='strider');
     for(const m of G.missions){
       if(MSTORY[m.id]&&!m.tid){m.tid=MSTORY[m.id];m.story=m.id;m.ctx=Object.assign({place:'',locName:'',sec:1},CTXDEF[m.id]);}
     }
@@ -4729,6 +4800,7 @@ if(location.hash==='#test'){
     fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
+      restoreCampaign,addVehicle,vehPool,GVEH_:()=>GVEH,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
 })();
