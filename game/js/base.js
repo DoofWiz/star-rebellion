@@ -167,7 +167,7 @@ function newGame(){
     missions:[
     ],
     planets:PLANETDEF.map(mkPlanet),
-    recruitN:0,misPopQ:[],candQ:[],
+    recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],
     news:[],
   };
   g0.people.forEach(Rebel.migrate);
@@ -1026,6 +1026,55 @@ function followSignal(src){
   }
   return sig.apply?sig.apply():'';
 }
+/* ---------- recruiting: the Command Center task ----------
+   Issue it, wait a few days, and a handful of candidates turn up to be looked over on the New Recruit screen.
+   A staffed Command Center and a Charismatic rebel both bring more people through the door. */
+const RECRUIT_DAYS=3,RECRUIT_COST=200;
+const freeBunks=()=>Math.max(0,bunkCap()-bunksUsed());
+function canRecruit(){return hasRoom('command')&&!G.recruit.days&&!G.recWait.length&&G.credits>=RECRUIT_COST&&freeBunks()>0;}
+function recruitWhy(){
+  if(G.recruit.days)return 'Already out looking: '+G.recruit.days+' day'+(G.recruit.days>1?'s':'')+' left.';
+  if(G.recWait.length)return 'Candidates are waiting for your decision.';
+  if(G.credits<RECRUIT_COST)return 'Needs '+RECRUIT_COST+' credits.';
+  if(!freeBunks())return 'No bunks free. Build a quarters annex first.';
+  return '';
+}
+function startRecruit(){
+  if(!canRecruit())return;
+  G.credits-=RECRUIT_COST;G.recruit={days:RECRUIT_DAYS};
+  news('Word goes out through the docks and the dormitories. In <b>'+RECRUIT_DAYS+' days</b> we will see who answers.','a');
+  sBuild();saveSnap();syncUI();
+}
+function recruitTick(){
+  if(!G.recruit.days)return;
+  if(--G.recruit.days>0)return;
+  const taken=new Set(G.people.map(p=>p.name).concat(G.poolHeld||[],G.recWait.map(p=>p.name)));
+  let n=1+(staffOf('command').length?1:0)+(crewOf().some(p=>Rebel.has(p,'charismatic')&&!p.injured&&p.assign!=='mission')&&rng()<0.5?1:0);
+  n=Math.min(3,n,Math.max(1,freeBunks()));
+  for(let i=0;i<n;i++){
+    const x=rng(),role=x<0.45?'Soldier':x<0.8?'Support':'Pilot';
+    const g=Rebel.gen(role,taken,rng);taken.add(g.name);
+    const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:g.name,first:g.first,last:g.last,charTrait:g.charTrait,role,level:1,xp:0,assign:'rest',injured:0,bio:g.bio});
+    if(role==='Soldier')p.equip=['pistol'];
+    if(role==='Pilot')p.ship='';
+    G.recWait.push(p);
+  }
+  news('<b>'+G.recWait.length+' '+(G.recWait.length>1?'people have':'person has')+'</b> answered the call. They are waiting at the Command Center.','p');
+  sAlert();
+  RQ.push({t:'recruits'});
+}
+/* the Command Center card: start the task, watch it run, or review who turned up */
+function recruitCard(){
+  let body,acts='';
+  if(G.recruit.days)body='Out looking. <b>'+G.recruit.days+' day'+(G.recruit.days>1?'s':'')+'</b> until someone turns up.';
+  else if(G.recWait.length){body='<b>'+G.recWait.length+'</b> candidate'+(G.recWait.length>1?'s are':' is')+' waiting for your decision.';acts=rbtn('data-recruit-review','Review candidates',false,'sr-btn--sm sr-btn--primary');}
+  else{
+    const why=recruitWhy();
+    body='Put the word out and see who answers. Takes '+RECRUIT_DAYS+' days; a staffed Command Center brings more people.';
+    acts='<span class="sr-card__meta">'+C(RECRUIT_COST,G.credits<RECRUIT_COST)+'</span>'+rbtn('data-recruit-start'+(why?' title="'+esc(why)+'"':''),'Recruit new Revolutionaries',!!why,'sr-btn--sm sr-btn--primary');
+  }
+  return '<div class="sr-card sr-card--friend"><div class="sr-card__title">Recruit new Revolutionaries</div><div class="sr-card__body">'+body+'</div>'+(acts?'<div class="bs-build__row">'+acts+'</div>':'')+'</div>';
+}
 function openRecruitOffer(src,sig){
   let p,must=false,line;
   if(sig.kind==='recruitSera'){
@@ -1041,7 +1090,7 @@ function openRecruitOffer(src,sig){
     if(role==='Pilot')p.ship='';
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
   }
-  openWin('recruit',{p,must,line});
+  openWin('recruit',{cards:[{p,must,line}]});
 }
 function addMission(mid,quiet){
   if(MSTORY[mid]){
@@ -1117,6 +1166,7 @@ function advanceDay(){
   specTick();
   const xpRate=staffOf('training').length?0.09:0.06;
   moraleTick();
+  recruitTick();
   for(const p of G.people){
     if(p.injured>0){
       Rebel.moraleBump(p,-0.5,'injury');
@@ -1327,7 +1377,11 @@ function nextReport(){
   else if(n.t==='recruit'){
     const nm=n.m.npc;
     const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio});
-    openWin('recruit',{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'});
+    openWin('recruit',{cards:[{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'}]});
+  }
+  else if(n.t==='recruits'){
+    if(!G.recWait.length)return nextReport();
+    openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});
   }
   else{
     const src=G.sources.find(x=>x.id===n.rpt.follow.src&&x.alive);
@@ -2012,6 +2066,7 @@ function renderRoomBar(){
   /* cards (upgrades, patrols, the derelict) sit in the body; window-openers sit in the foot */
   let cards='',acts='';
   if(rm.key==='command')acts=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
+  if(rm.key==='command')cards+=recruitCard();
   if(rm.key==='training')acts=rbtn('data-open="spec"','Specialty Training')+rbtn('data-simulator','Simulator — dogfight exercise');
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)cards+='<div class="sr-card sr-card--info"><div class="sr-card__title">Restoring the hauler</div><div class="sr-card__body" style="margin-bottom:0">'+G.wreck.restoring+'d left. Joss hasn’t slept.</div></div>';
@@ -2526,6 +2581,7 @@ function renderTilePop(){
     let body='<p class="bs-desc">'+R.desc+'</p>',foot='';
     if(!rm.build){
       if(rm.key==='command')foot+=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
+      if(rm.key==='command')body+='<p class="bs-info">'+(G.recruit.days?'Recruiting: '+G.recruit.days+'d left.':G.recWait.length?G.recWait.length+' candidate'+(G.recWait.length>1?'s':'')+' waiting.':'Step inside to put out a call for recruits.')+'</p>';
       if(rm.key==='hangar')body+='<p class="bs-info">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</p>';
       if(rm.key==='training')foot+=rbtn('data-open="spec"','Specialty Training');
       if(rm.key==='barracks')body+='<p class="bs-info">Bunks '+bunksUsed()+'/'+bunkCap()+'.</p>';
@@ -3032,15 +3088,24 @@ function renderWin(){
       wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter · voice known');
   }
   else if(winMode==='recruit'){
-    const {p,must,line}=winArg;
+    const cards=winArg.cards,multi=cards.length>1,batch=!!winArg.batch;
+    if(!cards.length){closeWin();return;}
     const full=bunksUsed()>=bunkCap();
-    h=wHead('New Recruit!',{x:must?false:'data-rec-no'})+wBody(
-      (line?'<div class="sr-quote" style="margin:0 0 16px">'+line+'</div>':'')+
-      dossierHead(p,'',true)+
-      '<div class="sr-h3">Terms</div><p class="sr-p">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
+    const anyMust=cards.some(c=>c.must);
+    /* one card keeps the classic layout (buttons in the foot); several sit side by side, each with its own */
+    const cardHTML=(c,i)=>{
+      const p=c.p,terms='<div class="sr-h3">Terms</div><p class="sr-p">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
         (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</p>'+
-      (full?'<p class="sr-p bs-bad">No bunks free — build a quarters annex first.</p>':''))+
-      wFoot((must?'':rbtn('data-rec-no','Dismiss',false,'sr-btn--ghost'))+rbtn('data-rec-accept','Recruit',full&&!must,'sr-btn--primary'));
+        (full?'<p class="sr-p bs-bad">No bunks free — build a quarters annex first.</p>':'');
+      const inner=(c.line?'<div class="sr-quote" style="margin:0 0 16px">'+c.line+'</div>':'')+dossierHead(p,'',true)+terms;
+      if(!multi)return inner;
+      return '<div class="sr-card sr-card--friend bs-reccard">'+inner+'<div class="sr-card__acts" style="margin-top:10px">'+
+        rbtn('data-rec-no="'+i+'"','Dismiss',false,'sr-btn--ghost sr-btn--sm')+rbtn('data-rec-accept="'+i+'"','Recruit',full&&!c.must,'sr-btn--primary sr-btn--sm')+'</div></div>';
+    };
+    if(multi)size='lg';
+    h=wHead(multi?'New Recruits!':'New Recruit!',{x:anyMust?false:'data-rec-later'})+wBody(multi?'<div class="bs-recgrid">'+cards.map(cardHTML).join('')+'</div>':cardHTML(cards[0],0))+
+      (multi?wFoot(batch?rbtn('data-rec-later','Decide later',false,'sr-btn--ghost'):'', batch?'Anyone you leave waits at the Command Center.':''):
+        wFoot((cards[0].must?'':rbtn('data-rec-no="0"','Dismiss',false,'sr-btn--ghost'))+rbtn('data-rec-accept="0"','Recruit',full&&!cards[0].must,'sr-btn--primary')));
   }
   else if(winMode==='candidate'){
     const cd=CANDS[winArg]||CANDS.marr;
@@ -3430,18 +3495,39 @@ $('winsB').addEventListener('click',ev=>{
     }
   }
   if(t.hasAttribute('data-rec-accept')&&winMode==='recruit'){
-    const {p,must}=winArg;
-    if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
-    if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
+    const i=+t.getAttribute('data-rec-accept')||0,card=winArg.cards[i];
+    if(!card)return;
+    const {p,must}=card;
+    if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');syncUI();return;}
+    if(p.id&&p.id.indexOf('rec')===0&&p.id.indexOf('rcb')!==0)G.recruitN++;
     G.people.push(Rebel.migrate(p));mood();
+    G.recWait=G.recWait.filter(x=>x!==p);
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
     if(p.id==='sera')G.onboard='crossready';
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
-    sBuild();saveSnap();closeWin();syncUI();return;
+    winArg.cards.splice(i,1);
+    if(!winArg.cards.length)closeWin();
+    sBuild();saveSnap();syncUI();
+    return;
   }
   if(t.hasAttribute('data-rec-no')&&winMode==='recruit'){
-    news('You passed on '+winArg.p.name+'. They never knew.','d');
+    const i=+t.getAttribute('data-rec-no')||0,card=winArg.cards[i];
+    if(!card)return;
+    news('You passed on '+card.p.name+'. They never knew.','d');
+    G.recWait=G.recWait.filter(x=>x!==card.p);
+    winArg.cards.splice(i,1);
+    if(!winArg.cards.length)closeWin();
+    saveSnap();syncUI();
+    return;
+  }
+  if(t.hasAttribute('data-rec-later')&&winMode==='recruit'){
+    if(!winArg.batch)for(const c of winArg.cards)news('You passed on '+c.p.name+'. They never knew.','d');
     closeWin();syncUI();return;
+  }
+  if(t.hasAttribute('data-recruit-start')){startRecruit();if(viewRoom)renderRoomBar();renderTilePop();return;}
+  if(t.hasAttribute('data-recruit-review')){
+    if(G.recWait.length){closeTilePop();openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});}
+    return;
   }
   if(t.hasAttribute('data-gohangar')){
     const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
@@ -4130,6 +4216,7 @@ function restoreCampaign(data){
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
+    G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;}
     mood();
     G.candQ=G.candQ||[];
@@ -4220,7 +4307,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

@@ -136,12 +136,17 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
   - *Elsewhere:* the New Recruit screen hides rank (the doc says they don't have one yet); space-flight dossiers show the same rank as the base; long rank names truncate cleanly on the roster.
   - Tests: `node tools/rank-smoke.js` (every ladder, requirements, credit/promote/commission rules, migration, debrief credit, the buttons, recruit offer hides rank). Autoplay seeds 1–3 unchanged (96 / 71 / 92), no page errors.
 
-### Phase 6 — Recruitment and the New Recruit screen
+### Phase 6 — Recruitment and the New Recruit screen — **built**
 - Replace the `recruit` window's single card with a **card stack**: any number of candidates, each Recruit/Dismiss independently, each showing the full dossier minus rank.
 - Command Center task **Recruit new Revolutionaries**: a few-day timer, then 1–3 generated candidates (count/quality scaled by Command Center upgrades, base size; capped by bunks). The exact timing rule is missing from the doc — needs a one-line answer.
 - Existing paths (Source signals, Rescue Dissident, Sera) feed the same window and use `genRebel` where there is no authored person.
 - Respect bunk capacity (current `full&&!must` logic).
 - **Done when:** a source signal and the Command Center task both open the same multi-card screen.
+- **Built:** the Command Center has a **Recruit new Revolutionaries** card (inside the room, and a hint on its tile popup). It costs 200 credits, needs a free bunk and a Command Center, and takes 3 days; when it ends, 1–3 generated candidates arrive (1, +1 if the Command Center is staffed, +1 half the time with a healthy Charismatic at the base, capped by free bunks). Roles are rolled 45% Soldier, 35% Support, 20% Pilot (no Marines at Level 1). The New Recruit screen opens by itself the next time nothing else is open.
+  - *The screen:* `winArg` is now `{cards:[{p,must,line}],batch}`. One card keeps the classic layout (Dismiss and Recruit in the foot); several sit side by side, each with its own Dismiss and Recruit, and the window closes when the last is decided. Each card shows the dossier without rank (name, level, morale, Character trait, skills, terms). With a batch, the X or **Decide later** leaves everyone waiting at the Command Center (`G.recWait`, saved), and the card then offers **Review candidates**; source signals and Rescue Dissident use the same screen but a dismissed offer is gone.
+  - *Also:* a bunk shortage disables Recruit on that card (and blocks starting the task); Wealthy recruits still bring their credits; new ids use an `rcb` prefix so a batch can't collide with offer ids.
+  - *Open:* the doc's timing rule is cut off, so the 3 days, 200 credits and 1–3 candidates are my starting numbers to tune. The autoplay bot now issues the call whenever it has 1,200 credits; seeds 1–3 escalate on days 99 / 73 / 83.
+  - Tests: `node tools/recruit-smoke.js` (card states, cost and days, no double start, candidates well formed and unique, multi-card accept/leave/dismiss, single-offer layout, full-barracks guard).
 
 ### Phase 7 — Dossier and roster UI
 - Extend the `person` window (`base.js` ~L2996): level ring with 0–100 XP, rank, specialty (or **Rookie**), type, character trait, rebel traits (max 3), morale bar, skills, gear slots, service record (missions, kills, injuries), and a hidden-stat-free Hero hint (none).

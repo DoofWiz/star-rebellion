@@ -85,7 +85,7 @@ window.Rebel=(function(){
     {k:'wealthy',n:'Wealthy',q:'[Character] grew up with considerably more money than most rebels have ever seen.',e:'Brings a small Credits bonus when recruited.',live:1,where:'b',w:0.4},
     {k:'politician',n:'Politician',q:'[Character] spent years learning how to say absolutely nothing for several hours at a time.',e:'Improves diplomatic and political mission quality.',live:0,where:'b',w:0.4},
     {k:'industrialist',n:'Industrialist',q:'[Character] knows how to make factories work. They also know how to make them stop.',e:'Improves Materials generation.',live:0,where:'b',w:0.4},
-    {k:'charismatic',n:'Charismatic',q:'[Character] could probably convince you that surrendering was your idea.',e:'Lifts the morale of everyone else at the base a little each day.',live:1,where:'m',w:0.7},
+    {k:'charismatic',n:'Charismatic',q:'[Character] could probably convince you that surrendering was your idea.',e:'Lifts everyone else\u2019s morale a little each day, and draws more people to a recruiting call.',live:1,where:'m',w:0.7},
     {k:'intimidating',n:'Intimidating',q:'[Character] doesn’t have to raise their voice. People tend to listen anyway.',e:'Improves interrogation and coercion missions.',live:0,where:'b',w:0.6},
     {k:'empathetic',n:'Empathetic',q:'[Character] remembers everyone’s name. Even when they’d rather forget.',e:'Nearby rebels steady a little faster.',live:1,where:'g',w:0.7},
     {k:'pragmatic',n:'Pragmatic',q:'[Character] doesn’t care what works, provided that it works.',e:'Reduced resource cost on certain operations.',live:0,where:'b',w:0.6},

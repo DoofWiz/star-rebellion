@@ -230,6 +230,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    meas('missions',missions);
    if(esc)break;
    rooms();upgrades();patrol();staff();meas('diplo',diplomacy);
+   if(f.canRecruit()&&G.credits>=1200)f.startRecruit();   // the Command Center call for recruits, whenever the war chest allows
    if(G.day-lastSnap>=5){tl.push(snap());lastSnap=G.day;}
    if(G.escPending){f.closeWin();windows();if(G.revLevel===2||G.revNoted){esc=G.day;break;}}
    meas('days',()=>f.advanceDay());
