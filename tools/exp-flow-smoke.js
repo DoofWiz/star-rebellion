@@ -14,6 +14,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const $=s=>document.querySelector(s);
   const newsHas=re=>G().news.some(n=>re.test(JSON.stringify(n)));
   const mission=(people,extra)=>f.applyDebrief(Object.assign({missionId:'none',days:0,win:true,people},extra||{}));
+  f.setRng(()=>0.99);   // pin the dice: no chance-based traits sneak into the checks
   // temperaments that cannot clash so friendships can form
   for(const id of ['dax','runa','kel'])P(id).charTrait='steady';
   // ---- blooded from a first kill, in the news

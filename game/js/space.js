@@ -205,7 +205,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,
-          rankName:f.rankName,aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}));
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
@@ -426,6 +426,7 @@ function computeATK(s,t,wkey){
   if(f>0.05){const bb=Math.ceil(4*f);v+=bb;e.push(['BULLSEYE',bb]);}
   if(s.pilot.traits.includes('Lucky')){v+=1;e.push(['LUCKY',1]);}
   if(s.pilot.traits.includes('Steady Hands')){v+=1;e.push(['STEADY HANDS',1]);}
+  if(s.pilot.heroRound===round){v+=4;e.push(['HEROIC SURGE',4]);}
   if(s.pilot.traits.includes('Former Pilot')){v+=1;e.push(['FORMER PILOT',1]);}
   return {total:v,entries:e,bullsF:f};
 }
@@ -594,6 +595,15 @@ function doAction(s,act){
       sLock();
     }
   } else if(act.a==='flydef'){psk(s,'cun',1);s.tokens.evade=true;addFloater(s.x,s.y-36,'FLYING DEFENSIVE',C.shield);}
+  else if(act.a==='hero'){
+    s.pilot.heroUsed=1;s.pilot.heroRound=round;
+    s.segs.F.val=s.segs.F.max;s.segs.R.val=s.segs.R.max;
+    s.hull=Math.min(s.maxHull,s.hull+Math.ceil(0.5*s.maxHull));
+    adjCool(s,50,'heroic surge');
+    addFloater(s.x,s.y-44,'HEROIC SURGE',C.go);
+    log(nameSpan(s)+' <span class="g">goes all out</span> <span class="d">\u2014 shields full, hull patched, +4 to hit this round</span>');
+    sShield();
+  }
   else if(act.a==='lockin'){psk(s,'pre',1);adjCool(s,35,'locked in');addFloater(s.x,s.y-36,'LOCKED IN',C.go);}
   else if(act.a==='broll'){
     const side=rng()<0.5?1:-1;
@@ -2126,6 +2136,7 @@ const AM={
   shiftF:{icon:'angle',family:'stance',rule:'Angle the fore shield segment over your aft zone. Recall it later.'},
   shiftR:{icon:'angle',family:'stance',rule:'Angle the aft shield segment over your fore zone. Recall it later.'},
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',rule:'Steady your nerve (+35). A panicking pilot can barely do anything else.'},
+  hero:{label:'Heroic surge',icon:'firesupport',family:'fight',rule:'Hero action, once per mission. Shields back to full, half the hull restored, nerve steadied, and +4 to hit this round.',nums:[{t:'+4 to hit',kind:'good'}]},
   repmenu:{label:'Repair ▸',icon:'work',family:'util',rule:'Boost shields, patch the hull or fix a critical hit.'},
   boostF:{label:'Boost fore',icon:'boost',family:'util',rule:'Restore 15% of your total shield to the fore segment.'},
   boostR:{label:'Boost aft',icon:'boost',family:'util',rule:'Restore 15% of your total shield to the aft segment.'},
@@ -2152,6 +2163,7 @@ function actOrders(s){
     mk('lockin',rk),
     mk('repmenu',Object.assign({active:parent==='repmenu'},rk))];
   if(s.pilot.mans.includes('broll'))out.push(mk('broll',rk));
+  if(s.pilot.hero&&!s.pilot.heroUsed)out.splice(1,0,mk('hero',rk));
   if(sub==='root')out.push(HUD.sep(),mk('pass'));
   else {
     out.push(HUD.sep(),mk('back',{key:'X',nokey:true}));
@@ -2536,7 +2548,7 @@ SR.register('space',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
-    fn:{deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+    fn:{computeATK,deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
       setRound(n){round=n;},
       forceEnd(win){gameOver(win);}}};
 }

@@ -249,6 +249,36 @@
   const nerveMul=p=>(has(p,'blooded')?0.92:1)*(has(p,'battlehard')?0.85:1)*(has(p,'veteran')?0.88:1)*(has(p,'desens')?0.85:1);
   const driftTarget=p=>R.MORALE_START+(has(p,'redeemed')?3:0)+(has(p,'proved')?3:0);
 
-  Object.assign(R,{RT,RTK,EXP_MAX:MAX,expHas:has,expGet:get,expTitle:title,expText:text,expRoom:room,expGrant:grant,expDrop:drop,
+  /* ---------- Heroes ----------
+     A hidden chance (p.heroP) creeps up with everything a rebel does: turning up, killing, surviving close calls,
+     standing out. After a mission one rebel at most can be made a Hero; when that happens everyone else's chance
+     drops sharply. The player never sees the number. */
+  const HERO_CAP=0.06,HERO_DROP=0.35;
+  const heroEligible=p=>!!p&&!p.auto&&['Soldier','Marine','Pilot'].indexOf(p.role)>=0&&(p.missions||0)>=4&&p.level>=3;
+  function heroGain(p,ctx){
+    if(!p||p.auto||p.role==='Support'||p.role==='Hero')return 0;
+    let g=0.0012;
+    g+=Math.min(0.0036,(ctx.kills||0)*0.0006);
+    if(ctx.win&&ctx.danger)g+=0.0015;
+    if(ctx.alone)g+=0.005;
+    if(ctx.top)g+=0.0025;
+    if(ctx.win&&ctx.notable)g+=0.0015;
+    g*=1+p.level/30;
+    p.heroP=Math.min(HERO_CAP,(p.heroP||0)+g);
+    return g;
+  }
+  /* roll for the mission: most likely candidate first, one winner at most */
+  function heroRoll(cands,rand){
+    for(const p of cands.filter(heroEligible).sort((a,b)=>(b.heroP||0)-(a.heroP||0)))if(rand()<(p.heroP||0))return p;
+    return null;
+  }
+  function heroMake(p,others){
+    if(!heroEligible(p))return false;
+    p.heroOf=p.role;p.rankRole=p.rankRole||p.role;p.role='Hero';p.heroP=0;
+    for(const q of others||[])if(q!==p)q.heroP=(q.heroP||0)*HERO_DROP;
+    return true;
+  }
+
+  Object.assign(R,{heroEligible,heroGain,heroRoll,heroMake,HERO_CAP,HERO_DROP,RT,RTK,EXP_MAX:MAX,expHas:has,expGet:get,expTitle:title,expText:text,expRoom:room,expGrant:grant,expDrop:drop,
     review,breakCheck,pairReview,bereave,expDaily:daily,expMoraleMul:moraleMul,expNerveMul:nerveMul,driftTarget,expStats:stats});
 })();

@@ -187,10 +187,16 @@ Needs the debrief telemetry from §3. Build the grant/removal engine first (max 
   - *Interpretations:* "dangerous mission" = downed or under half health; "notable" = stealth bonus or Security 3+; "serious injury" = 5+ days; "critical" = a surgery save; deaths only happen to pilots shot down in space or in the abstract resolver, so grief is rare for now. Because rolls draw on the shared random stream, the autoplay seeds moved to days 105 / 72 / 90 (still inside the 70–110 target).
   - Tests: `node tools/exp-smoke.js` (registry, cap and priority, every grant rule, pair rules, bereavement, daily recovery, the numbers) and `node tools/exp-flow-smoke.js` (kill → Blooded in the news, friendships after four missions, dossier names the friend, losing a friend → grief, morale and sitting out, mentor XP, Scarred, rivals at launch, squad entries, and in the ground scene the accuracy, nerve, heartbreak and telemetry effects). All earlier suites pass.
 
-### Phase 10 — Heroes
+### Phase 10 — Heroes — **built** (promotions switch on at Revolution Level 2)
 - Hidden `heroChance` increases from the same telemetry (missions, kills, standout moments); one Hero per mission, which then slashes everyone else's chance.
 - New Hero screen at mission end (after the reward screen), Hero type replaces Soldier/Marine/Pilot, buffs all skills, gets one Hero action usable in ground, boarding or space.
 - Gate by Rev Level per decision 1.
+
+- **Built:** every Soldier, Marine and Pilot has a hidden `p.heroP` that creeps up as they play (a little for turning up, more for kills, close calls survived, being the top killer, a notable win, and a lot for being the last one standing; capped at 6%). From Revolution Level 2 a roll follows every mission for the most likely candidates (a rebel with at least 4 missions served and level 3; Support, robot allies and existing Heroes never qualify); one winner at most, and when someone is made a Hero everyone else's chance drops to 35%. Before Level 2 the stat keeps growing but no one is promoted. The number is never shown anywhere.
+  - *Becoming a Hero:* `p.role` becomes Hero (`heroOf` remembers Soldier/Marine/Pilot, `rankRole` keeps their rank ladder), +8 to every one of the six skills, +25 health, the full four gear slots, +10 morale, and a **New Hero!** screen after the reward screens (their file, plus what being a Hero means). They have a Heroes section on the roster rail, are selectable for ground, boarding and space slots, keep their rank, specialty, traits and relationships, and show a Hero tag and card on the dossier.
+  - *Hero actions (once per mission each):* **Rally cry** on the ground, a new order card: the whole squad steadies to at least 75 Cool and takes +2 to hit for the round; **Heroic surge** in space, a new action: shields to full, half the hull back, +50 nerve and +4 to hit for the round.
+  - *Also fixed:* a Phase 9 slip where counting rocket shots reused the unit's existing `heavy` flag; it now has its own counter.
+  - Tests: `node tools/hero-smoke.js` (the hidden chance and its cap, eligibility, one winner and the drop, the Level 2 gate, the screen, roster and pools, dossier, squad entry, the Rally cry card and effect in a real ground scene, the Heroic surge in a real space scene). The morale and Rebel Trait suites now pin their dice so chance-based traits cannot make them flaky. All eleven suites pass; autoplay seeds 1 and 2 unchanged (105 / 72).
 
 ### Phase 11 — Balance, bot and docs
 - Teach `tools/autoplay.js` to use rank/gear/recruit flows; run `tools/sweep.sh` across seeds; retune morale deltas, skill increments and XP so the bot still reaches escalation around day 70–110 (the current tuning target).
@@ -209,3 +215,46 @@ The spine is Phases 1–4: after those the doc's core promise holds — a named 
 - **Telemetry coupling.** `ground.js` (4.7k lines) and `space.js` (2.5k) each build their own debrief; add the per-rebel stat object once in `core.js` (`SR.ui` helpers live there) so both emit the same shape.
 - **Scope creep from trait text.** ~120 traits with prose effects; the `live` flag is the release valve so the roster can ship with a subset.
 - **Hard-coded cast.** `space.js` still lists Joss/Sera/Petra with string traits and `startPlan` special-cases Sera; migrate those to the registry in Phase 2 or they will drift.
+
+
+## 7. Systems the trait list is waiting on (questions for the designer)
+
+The 29 traits that are listed but never granted each wait on a game system that does not exist yet. Here is what each needs and the decisions only the designer can make.
+
+### A. Risk, per rebel (Wanted, Hegemony Informant, Rebel Celebrity, Propaganda Poster, Hegemony Family, Hero of the Rebellion, Made a Name, Symbol of the Rebellion; Streetwise and Former Criminal reduce it)
+Today there is one number, **network exposure** (`G.risk`, shown on the Command Center), and only Sources move it (a burned source +15, running hot, and so on). The traits talk about *Risk* in other ways: "increased Risk during civilian operations", "increased Risk if their identity becomes known", "increased Risk in populated areas", "reduced Risk when working with Sources in urban areas".
+To build them I need to know:
+1. Is Risk still one network-wide meter, with rebels *adding* to it (a rebel with Wanted on a civilian mission adds +X exposure), or does each rebel get their own notoriety number?
+2. What does Risk *do* at Level 1 and at Level 2 (the docs say Alerts, Hegemony raids, begin at Level 2)? It decides how big the numbers should be.
+3. Which missions are "civilian operations" or in "populated areas"? I would tag each mission type and location (for example Dustfall and the Auto Factory populated, a depot not) and each Source as urban or not.
+4. What does "identity is known" mean as a state: a flag set when a mission is witnessed, a rebel is captured, or a Source who knew them is burned, and cleared by something (time, a Source's silence)?
+5. How are Wanted, Informant, Defector, Celebrity and Poster *acquired*? As rewards of specific missions or events, by a roll after loud missions, or by a threshold of kills and notable wins?
+
+### B. Capture and ambush (Captured, Tortured, Hegemony Trauma, Survived an Ambush, Haunted)
+1. **When is a rebel captured?** My suggestion: when a mission is failed and a rebel is downed, there is a chance they are taken instead of coming home injured. Is that right, and what chance?
+2. **What does captivity look like?** Missing from the roster for N days; a **Rescue Prisoners** mission opens to free them (the Rebels doc's recruit note already mentions *Rescue Prisoners* and *Break Out VIP*); if the clock runs out they are interrogated (does that raise Risk, burn a Source, or cost the rebel?), then released, executed or turned. Which of those?
+3. **Tortured / Hegemony Trauma:** what triggers them (an interrogation outcome?) and do they come with an injury (see the Injury and Recovery section)?
+4. **Ambush:** how does a mission *become* an ambush? Possible triggers: a Source was burned, Risk is high, Security is 3 or more, a trap mission type. In the scene, what changes: enemies start alerted and close, the squad starts in a bad position, round one is theirs?
+5. **Haunted** needs "missions involving similar circumstances to the triggering event": which tags do missions need (mission type, location type, enemy type) and what event sets it (a death, a capture)?
+
+### C. Family (Family of [Character], Hegemony Family)
+1. How does a relative come about? Options: a recruit arrives *with* a relative (a pair on the New Recruit screen, sharing a surname), a rebel reveals a relative back home, or a rescued prisoner is someone's relative.
+2. "Large morale effect when the relative is present or absent": a bonus when they share a squad or the base, and a penalty when apart? Which?
+3. Is the relative always another rebel on the roster, or sometimes someone outside (the Hegemony Family trait suggests a relative who works for the Hegemony and can appear in events)? If outside, what events?
+
+### D. Rescue traits (Owes a Life, Saved a Life, Failed to Save)
+These need a **revive or rescue** mechanic, which neither combat scene has. Today a rebel who is shot to zero is simply down for the rest of the mission and injured afterwards.
+1. Is there a window to save them (a few rounds before they are lost or badly hurt)?
+2. Who can do it: anyone adjacent, or only a Combat Medic specialty, and what does it cost (a whole order, a Stim, a roll)?
+3. What does being saved change: the downed rebel stands up at low health, or avoids the worse injury outcome?
+4. In space: is a wingman covering an ejecting pilot or a tow the equivalent, or does this stay ground-only?
+5. "Failed to Save [B]": when a rescue was tried and failed, or any time an ally dies within reach?
+
+### E. Hero-linked and command-decision traits (Hero of the Rebellion, Made a Name for Themselves, Symbol of the Rebellion, Inspired; Survivor, Disgraced, Court-Martialled, Abandoned by Squad, Betrayed by [Character])
+1. Should **Hero of the Rebellion** simply be granted when a rebel becomes a Hero (Heroes now exist from Level 2)? And "Symbol of the Rebellion" and "Made a Name" come later to Heroes who keep winning?
+2. **Inspired** wants a "particularly heroic event" witnessed by others: what counts (a Rally cry that turns a mission, a rescue, a last stand)?
+3. **Disgraced, Court-Martialled, Abandoned by Squad, Betrayed**: these need decisions or events the player or the story makes. Examples I could build: leaving wounded behind on a retreat (Abandoned), a failed mission after a rebel disobeyed a plan or panicked (Disgraced), a Source or rebel defecting (Betrayed). Which of these do you want, and what triggers them?
+4. **Survivor** (one of the few who made it out) overlaps Lost a Squad. Do you want both, or should Survivor be the lesser version for a partial loss?
+
+### F. Injury and Recovery
+The Rebels doc now has an *Injury & Recovery* section. I could not read it from here (the connector still reports the file as not found), so it is not in the plan yet. If you paste it, I would use it to replace the single injured-days counter with injury tiers, which unlocks: a real *Nearly Dead* and *Scarred*, the physical-change traits (Lost an Eye, Lost an Arm, Prosthetic, Limp, Old Wound, Shrapnel), prosthetics from the Infirmary, and a decision on the exhaustion traits (Heavy Sleeper and Light Sleeper).

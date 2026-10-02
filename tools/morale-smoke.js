@@ -34,7 +34,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.applyDebrief({missionId:'none',days:0,people:[{id:'dax',xp:0,state:'injured',dur:2},{id:'runa',xp:0,state:'ok'}]});
   const m=id=>G().people.find(p=>p.id===id).morale;
   out.injury=[m('dax'),m('runa'),m('kel'),m('joss')];
-  // death: everyone -6, mission team -10
+  // death: everyone -6, mission team -10 (rolls pinned so no trait is granted on the side)
+  f.setRng(()=>0.99);
   G().people.forEach(p=>p.morale=60);
   f.applyDebrief({missionId:'none',days:0,people:[{id:'kel',xp:0,state:'lost'},{id:'runa',xp:0,state:'ok'}]});
   out.death=[G().people.some(p=>p.id==='kel'),m('runa'),m('dax'),m('joss')];

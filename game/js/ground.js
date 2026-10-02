@@ -776,7 +776,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1079,7 +1079,7 @@ function computeATK(s,t,wkey,snap){
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
-  if((s.tr&&s.tr.length)||s.ms||s.rivalEdge||(s.rels&&s.rels.length)){
+  if((s.tr&&s.tr.length)||s.ms||s.rivalEdge||s.rally||(s.rels&&s.rels.length)){
     if(hasT(s,'steady')){v+=1;e.push(['STEADY HANDS',1]);}
     if(hasT(s,'perfectionist')){v+=3;e.push(['PERFECTIONIST',3]);}
     if(s.braced&&hasT(s,'patient')){v+=2;e.push(['PATIENT',2]);}
@@ -1098,6 +1098,7 @@ function computeATK(s,t,wkey,snap){
     if(relUp(s,['battlebros'])){v+=2;e.push(['BATTLE BROTHERS',2]);}
     else if(relUp(s,['oldfriends'])){v+=1;e.push(['OLD FRIENDS',1]);}
     if(s.rivalEdge){v+=1;e.push(['RIVALRY',1]);}
+    if(s.rally){v+=2;e.push(['RALLIED',2]);}
   }
   return {total:v,entries:e};
 }
@@ -1840,7 +1841,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2229,6 +2230,7 @@ function startPlanning(){
     u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
     if(u.reck>0)u.reck--;
     if(u.fuse>0)u.fuse--;
+    u.rally=0;
     u.rivalEdge=(u.rels&&u.rels.length&&relUp(u,['rivals'])&&rng()<0.15)?1:0;
     if(u.jam>0){u.jam--;if(u.jam===0){log(nameSpan(u)+' works the Akli’s action clear.');}}
   }
@@ -2285,6 +2287,11 @@ function execute(){
         if(d)u.path=pathFor(u,d.x,d.y);
       }
       u.sprinted=0;u.braced=0;
+    } else if(o&&o.type==='rally'&&u.hero&&!u.heroUsed){
+      u.sprinted=0;u.braced=0;u.heroUsed=1;
+      addFloater(u.x,u.y-48,'RALLY!',C.go);
+      log(nameSpan(u)+' <span class="g">rallies the squad</span> <span class="d">\u2014 everyone steadies, +2 to hit this round</span>');
+      for(const m of U)if(m.side==='reb'&&!m.down&&!m.surr&&!m.extracted&&!m.away&&!m.auto&&!m.vip){m.rally=1;adjCoolG(m,Math.max(0,75-m.cool),'rallied');}
     } else if(o&&o.type==='lockin'){
       u.sprinted=0;u.braced=0;
       adjCoolG(u,35,'locked in');
@@ -2439,7 +2446,7 @@ function attackUpdate(now){
     if(el>420&&!c.applied){
       c.applied=true;
       sk(c.s,'aim',1);
-      if(c.wkey==='rocket'&&c.s.side==='reb')c.s.heavy=(c.s.heavy||0)+1;
+      if(c.wkey==='rocket'&&c.s.side==='reb')c.s.rockets=(c.s.rockets||0)+1;
       if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
       if(c.t.obj){
         if(c.jammed){
@@ -2761,7 +2768,7 @@ function buildResult(win){
     if(u.kills)rec.kills=u.kills;
     if(u.down)rec.down=1;
     if(u.minHp!==undefined)rec.minHp=Math.round(u.minHp*100)/100;
-    if(u.heavy)rec.heavy=u.heavy;
+    if(u.rockets)rec.heavy=u.rockets;
     if(u.panics)rec.panics=u.panics;
     if(u.luckySaved)rec.lucky=1;
     people.push(rec);
@@ -4226,6 +4233,7 @@ const OM={
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run or a gunship.'},
+  rally:{label:'Rally cry',icon:'firesupport',family:'fight',key:'0',rule:'Hero action, once per mission. Every rebel still on their feet steadies and takes +2 to hit this round.',nums:[{t:'+2 attack, all allies',kind:'good'}]},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
 const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
 function activeWork(s){
@@ -4257,6 +4265,7 @@ function ordersFor(s){
   if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack')}));
   if(s.jam)g3.push(card('clear',{active:!pm&&cur==='clear'}));
   if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
+  if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed,why:'Already used this mission.'}));
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
   out.push(HUD.sep(),card('cancel'));
@@ -4325,7 +4334,7 @@ function dockHTML(){
   return '';
 }
 /* rail rows */
-const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
+const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
 const tag=(txt,kind,icon)=>'<span class="sr-tag'+(kind?' sr-tag--'+kind:'')+'">'+(icon?HUD.ico(icon):'')+txt+'</span>';
 function statusTag(u){
   if(u.caged)return tag('In the cell','action');
@@ -4540,6 +4549,7 @@ function orderAct(act){
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
+  else if(act==='rally'){if(s.hero&&!s.heroUsed){s.order={type:'rally'};autoAdvance();}}
   else if(act==='work'){
     const wp=activeWork(s);
     if(wp){s.order={type:'work',wp:wp.id};autoAdvance();}
@@ -4858,7 +4868,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,
+      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

@@ -158,7 +158,7 @@ window.Rebel=(function(){
      Derived, never stored: level gives a steady base and p.sx (earned in missions, capped) adds the rest.
      Soldiers and Marines: Aim, Constitution, Agility, Presence. Pilots: Aim, Cunning, Focus, Presence.
      Support have none; a Hero has all six. Everything caps at 50, and each point is only a small nudge. */
-  const SKILL_CAP=50,SX_CAP=15;
+  const SKILL_CAP=50,SX_CAP=15,HERO_SKILL=8,HERO_HP=25;
   const SKILLS={
     aim:{n:'Aim',d:'Better chance to hit.'},
     con:{n:'Constitution',d:'More personal health.'},
@@ -172,11 +172,11 @@ window.Rebel=(function(){
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function skill(p,k){
     if(skillKeys(p).indexOf(k)<0)return 0;
-    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0)));
+    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0));
   }
   /* what the combat scenes read; the curves keep a fresh rebel where the old level formulas had them */
   const aimOf=(p,theatre)=>clamp((theatre==='s'?Math.round(2+(skill(p,'aim')-5)/3.2-0.25):Math.round(2+(skill(p,'aim')-5)/4.8))+moraleFx(p).aim,1,6);
-  const hpOf=p=>100+Math.round((skill(p,'con')-5)*1.2);
+  const hpOf=p=>100+Math.round((skill(p,'con')-5)*1.2)+(p.role==='Hero'?HERO_HP:0);
   const moveMul=p=>1+(skill(p,'agi')-5)*0.004;
   const coolOf=(p,theatre)=>Math.max(20,Math.min(90,Math.min(85,theatre==='s'?Math.round(59+(skill(p,'pre')-5)*2):Math.round(65+(skill(p,'pre')-5)*0.6))+moraleFx(p).cool-(has(p,'broken')?15:0)));
   const nerveMul=p=>(1-(skill(p,'pre')-5)*0.005)*(window.Rebel.expNerveMul?window.Rebel.expNerveMul(p):1);       // scales every Cool loss
@@ -252,5 +252,5 @@ window.Rebel=(function(){
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

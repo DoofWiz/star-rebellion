@@ -239,6 +239,9 @@ function medStaff(){return staffOf('infirmary');}
 const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
 /* ---------- morale: every rebel has their own; G.morale is the base's mood, their average ---------- */
 const crewOf=()=>G.people.filter(p=>!p.auto);
+/* Heroes fight on the ground and in the cockpit: they count as both kinds */
+const isGround=p=>p.role==='Soldier'||p.role==='Marine'||p.role==='Hero';
+const isFlyer=p=>p.role==='Pilot'||p.role==='Hero';
 function mood(){const c=crewOf();G.morale=c.length?c.reduce((a,p)=>a+(p.morale===undefined?Rebel.MORALE_START:p.morale),0)/c.length:Rebel.MORALE_START;}
 
 /* ---------- carried gear ----------
@@ -366,10 +369,12 @@ function runExperiences(r,m,ev){
   const teamIds=entries.map(x=>x.id);
   const nm=p=>'<b>'+p.name+'</b> ';
   const squadmates=id=>entries.filter(e=>e.id!==id&&(ev.lostP.some(q=>q.id===e.id)||G.people.some(q=>q.id===e.id&&!q.auto)));
+  const ctxs={};
   for(const {pr,p} of here){
     const others=squadmates(p.id);
     const ctx={win,quiet:!!r.quiet,sec,tid,down:downed(pr),minHp:pr.minHp,heavy:pr.heavy,panics:pr.panics,lucky:!!pr.lucky,
       nearDeath:ev.nearIds.includes(p.id),alone:others.length>=2&&others.every(downed)&&!downed(pr),alliesLost:ev.lostP.length};
+    ctxs[p.id]=ctx;
     for(const g of Rebel.review(p,ctx,rng)){
       news(nm(p)+g.msg,'p');
       if(g.k==='lostsquad')Rebel.moraleBump(p,-15,'loss');
@@ -391,6 +396,27 @@ function runExperiences(r,m,ev){
       if(h.avenge)news(nm(q)+'swears to avenge <b>'+gone.name+'</b>.','h');
     }
   mood();
+  return ctxs;
+}
+/* the hidden Hero chance creeps up with what each rebel did; from Revolution Level 2 one of them may be made a Hero */
+function heroCheck(r,m,ctxs){
+  const entries=r.people||[],sec=(m&&m.ctx&&m.ctx.sec)||0;
+  const part=entries.map(pr=>({pr,p:G.people.find(x=>x.id===pr.id)})).filter(x=>x.p&&!x.p.auto);
+  const topKills=Math.max(0,...part.map(x=>x.pr.kills||0));
+  for(const {pr,p} of part){
+    const c=(ctxs&&ctxs[p.id])||{};
+    Rebel.heroGain(p,{win:!!r.win,kills:pr.kills||0,danger:!!(c.down||(pr.minHp!==undefined&&pr.minHp<0.5)),alone:!!c.alone,top:topKills>=2&&(pr.kills||0)===topKills,notable:!!r.quiet||sec>=3});
+  }
+  if((G.revLevel||1)<2)return null;      // Heroes begin at Revolution Level 2
+  const hero=Rebel.heroRoll(part.map(x=>x.p),rng);
+  if(!hero)return null;
+  const was=hero.role;
+  Rebel.heroMake(hero,crewOf());
+  Rebel.moraleBump(hero,10,'win');mood();
+  news('<b>'+hero.name+'</b>, once a '+was.toLowerCase()+', is now a <b>Hero</b> of the Rebellion.','p');
+  autoEquip();sBuild();
+  RQ.push({t:'hero',id:hero.id});
+  return hero;
 }
 /* going out together: rivals wind each other up, the last one standing dislikes a full squad */
 function squadTension(squad){
@@ -1426,7 +1452,7 @@ const SPECS={
 };
 const SPEC_DAYS=3;
 const SPECNAME={};for(const r in SPECS)for(const x of SPECS[r])SPECNAME[x.k]=x.n;
-const specRole=p=>(p.role==='Pilot'?'Pilot':(p.role==='Soldier'||p.role==='Marine')?'Soldier':null);
+const specRole=p=>{const r=p.role==='Hero'?p.heroOf:p.role;return r==='Pilot'?'Pilot':(r==='Soldier'||r==='Marine')?'Soldier':null;};
 const specOf=p=>p.spec?SPECNAME[p.spec]:'';
 const inTraining=role=>G.people.find(p=>p.assign==='spec'&&specRole(p)===role);
 function startSpec(pid,k){
@@ -1499,6 +1525,10 @@ function nextReport(){
     const nm=n.m.npc;
     const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'rest',injured:0,bio:nm.bio});
     openWin('recruit',{cards:[{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'}]});
+  }
+  else if(n.t==='hero'){
+    if(!G.people.some(p=>p.id===n.id))return nextReport();
+    sAlert();openWin('newhero',n.id);
   }
   else if(n.t==='recruits'){
     if(!G.recWait.length)return nextReport();
@@ -1740,7 +1770,7 @@ function openOpp(id){
 }
 /* ---------- Patrol Local Space (Hangar task) ---------- */
 const PATROL_DAYS=2;
-function patrolPilot(f){return G.people.find(p=>p.role==='Pilot'&&p.ship===f.id&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function patrolPilot(f){return G.people.find(p=>isFlyer(p)&&p.ship===f.id&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function patrolReady(f){return !f.out&&f.hull>=60&&G.fuel>=fuelOf(f)&&!!patrolPilot(f);}
 function startPatrol(fid){
   const f=G.fighters.find(x=>x.id===fid);
@@ -2897,8 +2927,8 @@ const riskTag=m=>wTag('Risk '+String(m.riskTxt).toLowerCase(),/high/i.test(m.ris
 const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'ballistic',blam:'grenade',charge:'grenade',limpet:'hack'};
 const gearIcon=a=>GEAR_ICON[a.id]||'loot';
 let cutArm=null;
-const accentOf={comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
-const sizeOf={sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
+const sizeOf={newhero:'sm',sources:'lg',plan:'lg',gear:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -2968,11 +2998,18 @@ const TUT_PAGES=[
 /* dossier header shared by the personnel file and the recruit offer */
 function dossierHead(p,extra,noRank){
   const mb=!p.auto&&p.morale!==undefined?Rebel.mband(p):null;
-  const tags=(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
+  const tags=(p.role==='Hero'?wTag('Hero','action','star'):'')+(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
-    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+p.role+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+traitCard(p)+expCards(p,noRank)+skillsCard(p);
+    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+(p.role==='Hero'?'Hero · was '+p.heroOf:p.role)+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+heroCard(p)+traitCard(p)+expCards(p,noRank)+skillsCard(p);
+}
+/* what being a Hero means, on the file */
+function heroCard(p){
+  if(p.role!=='Hero')return '';
+  return '<div class="sr-h3">Hero</div><div class="sr-card sr-card--action"><div class="sr-card__top"><span class="sr-card__title">Hero of the Rebellion</span></div>'+
+    '<div class="sr-card__body">+'+Rebel.HERO_SKILL+' to every skill and +'+Rebel.HERO_HP+' health. Fights on the ground, in boarding actions and in the cockpit.<br>'+
+    '<b>Rally cry</b> (ground): the whole squad steadies and takes +2 to hit for a round.<br><b>Heroic surge</b> (space): shields full, half the hull back, +4 to hit for a round.<br><span class="sr-faint">Each once per mission.</span></div></div>';
 }
 /* earned traits: what has happened to them, up to three at a time */
 function expCards(p,quiet){
@@ -3206,6 +3243,15 @@ function renderWin(){
       wBody('<div class="bs-arrsky"><i class="bs-arrstar s1"></i><i class="bs-arrstar s2"></i><i class="bs-arrstar s3"></i><div class="bs-arrship">'+IC('ship')+'</div><div class="bs-arrrock"></div></div>')+
       wFoot(rbtn('data-close','Skip'));
   }
+  else if(winMode==='newhero'){
+    const p=G.people.find(x=>x.id===winArg);
+    if(!p){closeWin();return;}
+    h=wHead('New Hero!',{x:false})+wBody(
+      '<div class="sr-quote" style="margin:0 0 16px"><div class="sr-quote__who">'+IC('star')+'The word goes round the base</div>'+
+      '“'+esc(p.first||p.name.split(' ')[0])+' did the thing nobody else could. People are already telling it wrong, and better.”</div>'+
+      dossierHead(p))+
+      wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'),'The rebellion has a Hero.');
+  }
   else if(winMode==='reward'){
     const rp=winArg,m=rp.m;
     const gotHTML=a=>/^<span class="sr-cost/.test(a)?a:wTag(a,'info');
@@ -3363,7 +3409,7 @@ function renderWin(){
     const p=winArg;
     const pct=Math.round(p.xp*100);
     let b=dossierHead(p,p.injured?wTag('Injured '+p.injured+' days','bad'):'');
-    if(p.role==='Pilot'){
+    if(p.role==='Pilot'||p.role==='Hero'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
         const st=SHIPSTATS[f.cls],n=Math.round(f.hull/20);
@@ -3456,7 +3502,7 @@ function syncTabs(){
   const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):'navBase';
   for(const id of ['navBase','navSources','navMissions'])$(id).setAttribute('aria-selected',String(id===sel));
 }
-const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine'};
+const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
 function syncUI(){
   clampSupplies();
   $('resSW').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
@@ -3492,7 +3538,7 @@ function syncUI(){
   $('dockNote').innerHTML=note;$('dockNote').hidden=!note;
   /* crew rail */
   const crewRow=p=>{
-    const pilot=p.role==='Pilot',marine=p.role==='Marine',sup=!pilot&&!marine&&p.role!=='Soldier';
+    const pilot=p.role==='Pilot'||p.role==='Hero',marine=p.role==='Marine',sup=!pilot&&!marine&&p.role!=='Soldier';
     const tone=pilot?'var(--sr-gold)':marine?'var(--sr-c-progress)':sup?'var(--sr-c-good)':'';
     const ico=roleIcon[p.role]||'support';
     let tag;
@@ -3510,10 +3556,13 @@ function syncUI(){
   };
   grp('pilotList','pilotCount',G.people.filter(p=>p.role==='Pilot'),'No pilots yet. Recruit them through your sources in the Galaxy.');
   grp('soldierList','soldierCount',G.people.filter(p=>p.role==='Soldier'),'No soldiers yet. Recruit them through your sources in the Galaxy.');
+  const heroes=G.people.filter(p=>p.role==='Hero');
+  $('heroSec').hidden=!heroes.length;
+  grp('heroList','heroCount',heroes,'');
   const marines=G.people.filter(p=>p.role==='Marine');
   $('marSec').hidden=!marines.length;
   grp('marineList','marineCount',marines,'');
-  grp('supportList','supportCount',G.people.filter(p=>p.role!=='Pilot'&&p.role!=='Soldier'&&p.role!=='Marine'),'No support crew yet. Recruit them through your sources in the Galaxy.');
+  grp('supportList','supportCount',G.people.filter(p=>p.role!=='Pilot'&&p.role!=='Soldier'&&p.role!=='Marine'&&p.role!=='Hero'),'No support crew yet. Recruit them through your sources in the Galaxy.');
   $('fleetList').innerHTML=G.fighters.length?G.fighters.map(f=>{
     const n=Math.round(f.hull/20),hc=f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'';
     const cells='<span class="sr-hp'+hc+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span>';
@@ -3942,11 +3991,11 @@ function seedNews(){
 }
 
 /* ---------- leading missions in person ---------- */
-function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function ablePilots(){return G.people.filter(p=>isFlyer(p)&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 /* ---------- mission requirements & the planning board ---------- */
 function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
-function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function soldierPool(){return G.people.filter(p=>isGround(p)&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&f.hull>=60);}
 function shipPool(r){return G.fighters.filter(f=>!f.out&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
 function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
@@ -4024,7 +4073,7 @@ function plAccepts(slot,rid){
   const kind=rid[0],id=rid.slice(2);
   if(kind==='p'){
     const p=G.people.find(x=>x.id===id);if(!p)return false;
-    return (slot.acc==='soldier'||slot.acc==='rsoldier')?(p.role==='Soldier'||p.role==='Marine'):(slot.acc==='pilot'||slot.acc==='apilot')?p.role==='Pilot':false;
+    return (slot.acc==='soldier'||slot.acc==='rsoldier')?isGround(p):(slot.acc==='pilot'||slot.acc==='apilot')?isFlyer(p):false;
   }
   const f=G.fighters.find(x=>x.id===id);if(!f)return false;
   return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id):slot.acc==='assetship'?(!f.out&&f.hull>=60):false;
@@ -4113,7 +4162,7 @@ function plAutoFill(){
   }
 }
 const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+IC('ship')+'</span>';
-const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
+const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SHIPSTATS[f.cls].label.split(' · ')[0];
 /* a filled slot: avatar, label, name, a line of detail */
@@ -4142,13 +4191,13 @@ function chipHTML(rid){
       '<span class="sr-unit__main"><span class="sr-unit__name">'+f.name+'</span><span class="sr-unit__role">'+shipSub(f)+'</span></span><span class="sr-unit__side">'+F(fuelOf(f))+'</span></div>';
   }
   const p=G.people.find(x=>x.id===id);
-  return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'"'+(p.role==='Pilot'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
+  return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
     '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--friend">Available</span></span></div>';
 }
 /* people who can't go right now stay on the list, greyed, with the reason */
 function offHTML(p){
   const why=p.injured?'Injured, '+p.injured+' day'+(p.injured>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':Rebel.expHas(p,'grieving')?'Grieving':'';
-  return '<div class="sr-unit is-down"'+(p.role==='Pilot'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
+  return '<div class="sr-unit is-down"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
     '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">'+why+'</span></span></div>';
 }
 function planHTML(m){
@@ -4166,7 +4215,7 @@ function planHTML(m){
   };
   const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="sr-empty">None available.</div>';
   const away=list=>list.map(offHTML).join('');
-  const soldiersAll=G.people.filter(p=>p.role==='Soldier'||p.role==='Marine'),pilotsAll=G.people.filter(p=>p.role==='Pilot');
+  const soldiersAll=G.people.filter(isGround),pilotsAll=G.people.filter(isFlyer);
   const roster='<div class="sr-h3">Roster</div><div class="sr-stack">'+
     (r.transport?'<span class="bs-rh">Soldiers</span>'+avail(soldierPool(),'p:')+away(soldiersAll.filter(p=>!soldierPool().includes(p)&&(p.injured||p.assign==='mission'||p.assign==='spec'))):'')+
     '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(p.injured||p.assign==='mission'||p.assign==='spec')))+
@@ -4211,7 +4260,7 @@ function assetsHTML(){
   return h;
 }
 function squadEntry(p,scatterFirst){
-  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
     aim:soldierAim(p),hp:p.auto?autoOf(p).hp:Rebel.hpOf(p),agi:p.auto?1:Rebel.moveMul(p),nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Rebel.coolOf(p,'g'),def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
@@ -4253,7 +4302,7 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        rankName:rankFor(p),aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
+        rankName:rankFor(p),hero:p.role==='Hero'?1:0,aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
@@ -4432,7 +4481,7 @@ function applyDebrief(r){
       sAlert();
     }
   }
-  runExperiences(r,m,{lostP,nearIds});
+  heroCheck(r,m,runExperiences(r,m,{lostP,nearIds}));
   autoEquip();
   saveSnap();syncUI();
   nextReport();
@@ -4557,7 +4606,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
