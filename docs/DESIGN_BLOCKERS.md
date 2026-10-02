@@ -302,4 +302,4 @@ Center) are recorded in `docs/REBELS_PLAN.md` §2.*
 
 | ID | Decision | Date | Built in |
 |---|---|---|---|
-| — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | vehicle gameplay commit |
+| — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | `26e3afc` |
