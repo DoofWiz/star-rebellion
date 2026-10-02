@@ -23,6 +23,9 @@ const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
 const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1);
 const viewMul=u=>hasT(u,'hunter')?1.2:1;
+/* relationships: u.rels is [[kind, otherId]] from the rebel's earned traits */
+const BONDS=['friends','oldfriends','battlebros','love'];
+const relUp=(u,kinds)=>!!u&&!!u.rels&&u.rels.some(r=>kinds.indexOf(r[0])>=0&&U.some(x=>(x.pid||x.id)===r[1]&&x.side==='reb'&&!x.down&&!x.extracted&&!x.away));
 /* what a rebel did this mission, in raw points per skill; base.js turns it into experience */
 function sk(u,k,n){if(u&&u.side==='reb'&&!u.auto&&!u.ally){u.sk=u.sk||{};u.sk[k]=(u.sk[k]||0)+n;}}
 const NADE_R=300,NADE_BLAST=110;
@@ -773,7 +776,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1076,13 +1079,25 @@ function computeATK(s,t,wkey,snap){
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
-  if(s.tr&&s.tr.length){
+  if((s.tr&&s.tr.length)||s.ms||s.rivalEdge||(s.rels&&s.rels.length)){
     if(hasT(s,'steady')){v+=1;e.push(['STEADY HANDS',1]);}
     if(hasT(s,'perfectionist')){v+=3;e.push(['PERFECTIONIST',3]);}
     if(s.braced&&hasT(s,'patient')){v+=2;e.push(['PATIENT',2]);}
     if(s.braced&&hasT(s,'restless')){v-=2;e.push(['RESTLESS',-2]);}
     if(t&&t.side==='law'&&hasT(s,'hegsoldier')){v+=2;e.push(['KNOWS THE HEGEMONY',2]);}
     if(s.wound&&hasT(s,'selfpres')){v-=1;e.push(['PROTECTING THEMSELVES',-1]);}
+    if(hasT(s,'veteran')){v+=1;e.push(['VETERAN',1]);}
+    if(hasT(s,'broken')){v-=2;e.push(['BROKEN',-2]);}
+    if(wkey==='rocket'&&hasT(s,'firesupport')){v+=1;e.push(['HEAVY WEAPONS HAND',1]);}
+    if(s.ms){v+=1;e.push(['MISSION SPECIALIST',1]);}
+    if(t&&t.side==='law'){
+      if(hasT(s,'nemesis')){v+=1;e.push(['HEGEMONY NEMESIS',1]);}
+      if(hasT(s,'avenging')){v+=1;e.push(['AVENGING',1]);}
+    }
+    if(hasT(s,'laststanding')&&hostilesActive().length>=2*Math.max(1,U.filter(x=>x.side==='reb'&&!x.down&&!x.extracted&&!x.away&&!x.vip).length)){v+=2;e.push(['LAST ONE STANDING',2]);}
+    if(relUp(s,['battlebros'])){v+=2;e.push(['BATTLE BROTHERS',2]);}
+    else if(relUp(s,['oldfriends'])){v+=1;e.push(['OLD FRIENDS',1]);}
+    if(s.rivalEdge){v+=1;e.push(['RIVALRY',1]);}
   }
   return {total:v,entries:e};
 }
@@ -1109,6 +1124,8 @@ function rollDamage(s,t,wkey,crit){
     if(s.fuse>0&&hasT(s,'shortfuse'))d=Math.round(d*1.1);
     if(s.reck>0&&hasT(s,'reckless'))d=Math.round(d*1.2);
     if(t&&t.side==='law'&&hasT(s,'hegsoldier'))d=Math.round(d*1.05);
+    if(t&&t.side==='law'&&hasT(s,'nemesis'))d=Math.round(d*1.05);
+    if(t&&t.side==='law'&&hasT(s,'vengeful'))d=Math.round(d*1.1);
   }
   return d;
 }
@@ -1142,11 +1159,12 @@ function woundUnit(s,t,dmg,crit){
   sk(s,'aim',1);
   if(t.tr&&t.tr.length){
     if(hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
-    if(hasT(t,'lucky')&&t.hp-dmg<=0&&rng()<0.05){dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
+    if(t.hp-dmg<=0&&((hasT(t,'lucky')&&rng()<0.05)||(hasT(t,'luckyesc')&&rng()<0.03))){t.luckySaved=1;dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
     if(hasT(t,'shortfuse'))t.fuse=2;
   }
   t.hp-=dmg;
+  if(t.side==='reb')t.minHp=Math.min(t.minHp===undefined?1:t.minHp,Math.max(0,t.hp)/t.maxhp);
   sk(t,'con',dmg/10);
   dmgRound.add(t.id);
   adjCoolG(t,-16,'took a hit');
@@ -1158,6 +1176,7 @@ function downUnit(t,by){
   if(by&&by.side==='reb'&&t.side==='law'){by.xpGain=(by.xpGain||0)+0.2;by.kills=(by.kills||0)+1;}
   if(by)adjCoolG(by,12,'confirmed kill');
   for(const m of U)if(m.side===t.side&&m!==t)adjCoolG(m,-15,t.first+' down');
+  if(t.side==='reb')for(const m of U)if(m.side==='reb'&&m!==t&&m.rels&&m.rels.some(r=>BONDS.indexOf(r[0])>=0&&r[1]===(t.pid||t.id))){addFloater(m.x,m.y-64,'HEARTBREAK',C.hazard);adjCoolG(m,-60,t.first+' down');}
   t.hp=0;t.down=1;t.order=null;t.braced=0;
   if(t.charge){
     t.charge=0;
@@ -1386,11 +1405,15 @@ function adjCoolG(u,d,why){
     if(hasT(u,'brave'))d=Math.round(d*0.5);
     if(hasT(u,'cowardly'))d=Math.round(d*1.5);
     if(hasT(u,'loyal')&&why&&/ down$/.test(why))d=Math.round(d*0.5);
+    if(hasT(u,'panicky')&&why&&/ down$/.test(why))d=Math.round(d*1.3);
+    if(hasT(u,'nearlydead')&&u.wound)d=Math.round(d*0.7);
+    if(hasT(u,'broken'))d=Math.round(d*1.3);
   }
   u.cool=Math.max(0,Math.min(100,u.cool+d));
   if(u.sheriff)u.cool=Math.max(40,u.cool); // bosses do not break
   const post=coolStateG(u);
   if(pre!=='panic'&&post==='panic'){
+    if(u.side==='reb')u.panics=(u.panics||0)+1;
     addFloater(u.x,u.y-52,'PANICKING',C.hazard);
     log(nameSpan(u)+' <span class="b">is panicking</span>'+(why?' <span class="d">('+why+')</span>':''));
     if(u.side==='reb'&&u.order&&u.order.type!=='lockin')u.order=null;
@@ -1817,7 +1840,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2206,6 +2229,7 @@ function startPlanning(){
     u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
     if(u.reck>0)u.reck--;
     if(u.fuse>0)u.fuse--;
+    u.rivalEdge=(u.rels&&u.rels.length&&relUp(u,['rivals'])&&rng()<0.15)?1:0;
     if(u.jam>0){u.jam--;if(u.jam===0){log(nameSpan(u)+' works the Akli’s action clear.');}}
   }
   aiPlan();
@@ -2415,6 +2439,7 @@ function attackUpdate(now){
     if(el>420&&!c.applied){
       c.applied=true;
       sk(c.s,'aim',1);
+      if(c.wkey==='rocket'&&c.s.side==='reb')c.s.heavy=(c.s.heavy||0)+1;
       if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
       if(c.t.obj){
         if(c.jammed){
@@ -2734,6 +2759,11 @@ function buildResult(win){
     const rec={id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)};
     if(u.sk){rec.sk={};for(const k in u.sk)rec.sk[k]=Math.round(u.sk[k]*10)/10;}
     if(u.kills)rec.kills=u.kills;
+    if(u.down)rec.down=1;
+    if(u.minHp!==undefined)rec.minHp=Math.round(u.minHp*100)/100;
+    if(u.heavy)rec.heavy=u.heavy;
+    if(u.panics)rec.panics=u.panics;
+    if(u.luckySaved)rec.lucky=1;
     people.push(rec);
   }
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
@@ -4828,7 +4858,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,
+      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

@@ -125,7 +125,7 @@ window.Rebel=(function(){
   /* the traits a rebel carries, as plain keys the combat scenes can test cheaply */
   const keys=p=>{const a=[];if(p&&p.charTrait)a.push(p.charTrait);if(p&&p.traits)for(const t of p.traits)a.push(t.k);return a;};
   const has=(p,k)=>!!p&&keys(p).indexOf(k)>=0;
-  const liveTraits=p=>keys(p).map(k=>CTK[k]).filter(t=>t&&t.live);
+  const liveTraits=p=>keys(p).map(k=>CTK[k]||(window.Rebel&&window.Rebel.RTK&&window.Rebel.RTK[k])).filter(t=>t&&t.live);
   /* names of the live traits a scene cares about (space.js tests traits by display name) */
   const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
 
@@ -145,6 +145,7 @@ window.Rebel=(function(){
     if(has(p,'cynical'))d*=0.7;
     if(has(p,'idealist')){if((kind==='win'&&!loss)||(loss&&(kind==='loss'||kind==='death')))d*=1.3;}
     if(has(p,'loyal')&&kind==='death')d*=0.5;
+    if(window.Rebel.expMoraleMul)d*=window.Rebel.expMoraleMul(p,d,kind);
     const before=p.morale;
     p.morale=Math.max(0,Math.min(100,p.morale+d));
     return p.morale-before;
@@ -177,8 +178,8 @@ window.Rebel=(function(){
   const aimOf=(p,theatre)=>clamp((theatre==='s'?Math.round(2+(skill(p,'aim')-5)/3.2-0.25):Math.round(2+(skill(p,'aim')-5)/4.8))+moraleFx(p).aim,1,6);
   const hpOf=p=>100+Math.round((skill(p,'con')-5)*1.2);
   const moveMul=p=>1+(skill(p,'agi')-5)*0.004;
-  const coolOf=(p,theatre)=>Math.max(20,Math.min(90,Math.min(85,theatre==='s'?Math.round(59+(skill(p,'pre')-5)*2):Math.round(65+(skill(p,'pre')-5)*0.6))+moraleFx(p).cool));
-  const nerveMul=p=>1-(skill(p,'pre')-5)*0.005;       // scales every Cool loss
+  const coolOf=(p,theatre)=>Math.max(20,Math.min(90,Math.min(85,theatre==='s'?Math.round(59+(skill(p,'pre')-5)*2):Math.round(65+(skill(p,'pre')-5)*0.6))+moraleFx(p).cool-(has(p,'broken')?15:0)));
+  const nerveMul=p=>(1-(skill(p,'pre')-5)*0.005)*(window.Rebel.expNerveMul?window.Rebel.expNerveMul(p):1);       // scales every Cool loss
   const focusTN=p=>Math.round((skill(p,'foc')-5)/14);    // added to the number others need to hit them
   const cunMul=p=>1+(skill(p,'cun')-5)*0.01;            // repairs and shield boosts
   /* experience from a mission: `sk` maps skill -> raw points the scene counted; gains are small and capped */

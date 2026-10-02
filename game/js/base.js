@@ -354,6 +354,56 @@ function renderFeed(){
   if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
 }
 /* a completed mission counts toward the next rank */
+
+/* ---------- experiences: what a mission did to the people who went ---------- */
+const BOND_KINDS=['friends','oldfriends','battlebros','love','rivals'];
+const nameOfRebel=id=>{const q=G.people.find(x=>x.id===id);return q?(q.first||q.name.split(' ')[0]):(id==='Hegemony'?'the Hegemony':'someone');};
+function runExperiences(r,m,ev){
+  const win=!!r.win,sec=(m&&m.ctx&&m.ctx.sec)||0,tid=m?(m.tid||m.id):null,entries=r.people||[];
+  const downed=pr=>!!(pr.down||pr.state==='injured'||pr.state==='lost'||pr.state==='shotdown');
+  const hurt=id=>{const x=entries.find(e=>e.id===id);return !!x&&(downed(x)||(x.minHp!==undefined&&x.minHp<0.5));};
+  const here=entries.map(pr=>({pr,p:G.people.find(x=>x.id===pr.id)})).filter(x=>x.p&&!x.p.auto);
+  const teamIds=entries.map(x=>x.id);
+  const nm=p=>'<b>'+p.name+'</b> ';
+  const squadmates=id=>entries.filter(e=>e.id!==id&&(ev.lostP.some(q=>q.id===e.id)||G.people.some(q=>q.id===e.id&&!q.auto)));
+  for(const {pr,p} of here){
+    const others=squadmates(p.id);
+    const ctx={win,quiet:!!r.quiet,sec,tid,down:downed(pr),minHp:pr.minHp,heavy:pr.heavy,panics:pr.panics,lucky:!!pr.lucky,
+      nearDeath:ev.nearIds.includes(p.id),alone:others.length>=2&&others.every(downed)&&!downed(pr),alliesLost:ev.lostP.length};
+    for(const g of Rebel.review(p,ctx,rng)){
+      news(nm(p)+g.msg,'p');
+      if(g.k==='lostsquad')Rebel.moraleBump(p,-15,'loss');
+    }
+    if(win&&Rebel.expHas(p,'decorated'))Rebel.moraleBump(p,1,'win');
+    if(ev.lostP.length&&Rebel.expHas(p,'guilt')&&!ctx.down)Rebel.moraleBump(p,-4,'death');
+    const lv=Rebel.expGet(p,'love');
+    if(lv&&teamIds.includes(lv.with))Rebel.moraleBump(p,4,'win');
+    if(Rebel.breakCheck(p,ctx))news(nm(p)+'is broken by what happened. They need rest.','h');
+  }
+  for(let i=0;i<here.length;i++)for(let j=i+1;j<here.length;j++){
+    const a=here[i].p,b=here[j].p;
+    for(const g of Rebel.pairReview(a,b,{win,hurt},rng))news('<b>'+a.name+'</b> and <b>'+b.name+'</b> '+g.msg,'p');
+  }
+  for(const gone of ev.lostP)for(const q of crewOf())
+    for(const h of Rebel.bereave(q,gone.id,'died')){
+      if(h.d)Rebel.moraleBump(q,h.d,'death');
+      if(h.grief)news(nm(q)+'is grieving for <b>'+gone.name+'</b>. They will sit the next few missions out.','h');
+      if(h.avenge)news(nm(q)+'swears to avenge <b>'+gone.name+'</b>.','h');
+    }
+  mood();
+}
+/* going out together: rivals wind each other up, the last one standing dislikes a full squad */
+function squadTension(squad){
+  const crew=squad.filter(p=>p&&!p.auto);
+  for(const p of crew){
+    const rv=Rebel.expGet(p,'rivals');
+    if(rv&&crew.some(q=>q.id===rv.with)){Rebel.moraleBump(p,-3,'loss');news(nm0(p)+'bristles at having to go out with <b>'+nameOfRebel(rv.with)+'</b>.','d');}
+    if(crew.length>=3&&Rebel.expHas(p,'laststanding'))Rebel.moraleBump(p,-2,'misc');
+  }
+  mood();
+}
+const nm0=p=>'<b>'+p.name+'</b> ';
+
 function creditMission(p){
   if(Rebel.credit(p))news('<b>'+p.name+'</b> has earned a promotion. Say the word in their file.','p');
 }
@@ -1240,7 +1290,7 @@ function advanceDay(){
     if(p.injured>0){
       Rebel.moraleBump(p,-0.5,'injury');
       p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
-      if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
+      if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');if((p.injDur||0)>=5&&Rebel.expGrant(p,'scarred'))news('<b>'+p.name+'</b> will carry the scars of this one.','p');p.injDur=0;}
       continue;
     }
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
@@ -1399,13 +1449,15 @@ function moraleTick(){
     if(p.morale<=0&&p.assign!=='mission'){
       G.people=G.people.filter(x=>x!==p);
       news('<b>'+p.name+'</b> has had enough and walks out of the revolution. Their bunk is empty by morning.','h');
-      for(const q of crewOf())Rebel.moraleBump(q,-3,'loss');
+      for(const q of crewOf()){Rebel.moraleBump(q,-3,'loss');Rebel.bereave(q,p.id,'left');}
       sAlert();continue;
     }
     if(p.assign==='mission')continue;   // away: nothing changes until they are back
     if(p.morale<=20&&!p.mwarn){p.mwarn=1;news('<b>'+p.name+'</b>\u2019s morale has collapsed. Rest, wins or a lift from the others, or they will leave.','h');}
     if(p.morale>30)p.mwarn=0;
-    Rebel.moraleBump(p,(Rebel.MORALE_START-p.morale)*0.04,'rest');
+    for(const msg of Rebel.expDaily(p,rng))news('<b>'+p.name+'</b> '+msg,'g');
+    if(Rebel.expHas(p,'grieving'))Rebel.moraleBump(p,-0.5,'misc');
+    Rebel.moraleBump(p,(Rebel.driftTarget(p)-p.morale)*0.04,'rest');
     const others=charm.length-(charm.includes(p)?1:0);
     if(others>0)Rebel.moraleBump(p,0.15*others,'misc');
   }
@@ -1688,7 +1740,7 @@ function openOpp(id){
 }
 /* ---------- Patrol Local Space (Hangar task) ---------- */
 const PATROL_DAYS=2;
-function patrolPilot(f){return G.people.find(p=>p.role==='Pilot'&&p.ship===f.id&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
+function patrolPilot(f){return G.people.find(p=>p.role==='Pilot'&&p.ship===f.id&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function patrolReady(f){return !f.out&&f.hull>=60&&G.fuel>=fuelOf(f)&&!!patrolPilot(f);}
 function startPatrol(fid){
   const f=G.fighters.find(x=>x.id===fid);
@@ -2920,7 +2972,18 @@ function dossierHead(p,extra,noRank){
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+p.role+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+traitCard(p)+skillsCard(p);
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+traitCard(p)+expCards(p,noRank)+skillsCard(p);
+}
+/* earned traits: what has happened to them, up to three at a time */
+function expCards(p,quiet){
+  if(p.auto||p.charTrait===undefined)return '';
+  const l=p.traits||[];
+  if(!l.length)return quiet?'':'<div class="sr-h3">Experiences</div><p class="sr-p sr-faint">Nothing yet. What happens on missions, good and bad, leaves its mark.</p>';
+  return '<div class="sr-h3">Experiences <span class="sr-faint">'+l.length+'/'+Rebel.EXP_MAX+'</span></div><div class="sr-stack">'+l.map(t=>{
+    const d=Rebel.RTK[t.k];
+    return '<div class="sr-card sr-card--progress"><div class="sr-card__top"><span class="sr-card__title">'+esc(Rebel.expTitle(t,nameOfRebel))+'</span>'+(d.temp?wTag('Temporary','info'):'')+'</div>'+
+      '<div class="sr-card__body">'+esc(Rebel.expText(t,p,nameOfRebel))+'<br><span class="sr-faint">'+esc(d.e.replace(/\[B\]/g,t.with?nameOfRebel(t.with):'them'))+'</span></div></div>';
+  }).join('')+'</div>';
 }
 /* a labelled bar: label, fill 0..1, value, tooltip */
 const meter=(label,frac,val,color,tip)=>'<div class="sr-meter" style="--c:'+color+'"'+(tip?' title="'+esc(tip)+'"':'')+'><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(Math.max(0,Math.min(1,frac))*100)+'%"></span></span><span class="sr-meter__val">'+val+'</span></div>';
@@ -3879,11 +3942,11 @@ function seedNews(){
 }
 
 /* ---------- leading missions in person ---------- */
-function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
+function ablePilots(){return G.people.filter(p=>p.role==='Pilot'&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 /* ---------- mission requirements & the planning board ---------- */
 function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
-function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec');}
+function soldierPool(){return G.people.filter(p=>(p.role==='Soldier'||p.role==='Marine')&&!p.injured&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&f.hull>=60);}
 function shipPool(r){return G.fighters.filter(f=>!f.out&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
 function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
@@ -4084,7 +4147,7 @@ function chipHTML(rid){
 }
 /* people who can't go right now stay on the list, greyed, with the reason */
 function offHTML(p){
-  const why=p.injured?'Injured, '+p.injured+' day'+(p.injured>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':'';
+  const why=p.injured?'Injured, '+p.injured+' day'+(p.injured>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':Rebel.expHas(p,'grieving')?'Grieving':'';
   return '<div class="sr-unit is-down"'+(p.role==='Pilot'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
     '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">'+why+'</span></span></div>';
 }
@@ -4148,7 +4211,7 @@ function assetsHTML(){
   return h;
 }
 function squadEntry(p,scatterFirst){
-  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),
     aim:soldierAim(p),hp:p.auto?autoOf(p).hp:Rebel.hpOf(p),agi:p.auto?1:Rebel.moveMul(p),nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Rebel.coolOf(p,'g'),def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
@@ -4164,6 +4227,7 @@ function startPlan(){
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
     const reinforce=[];for(const a of PL.assets)if(a.mode==='reinforce')for(let q=0;q<2;q++){const rp=G.people.find(x=>x.id===PL.v['as'+PL.assets.indexOf(a)+'r'+q]);if(rp)reinforce.push(rp);}
     outfitSquad(squad.concat(reinforce,prize?[prize]:[]));
+    squadTension(squad);
     G.nadesOut=nadesCarried(squad);
     G.fuel-=fuel;
     if(PL.drop)G.supplies-=DROP_COST;
@@ -4175,7 +4239,7 @@ function startPlan(){
       ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,variant:m.region,
         sub:m.ctx.place+' \u00b7 '+m.ctx.locName+' \u2014 Revolution I',
         eyebrow:'Ground Operation \u00b7 '+m.ctx.place+', '+m.ctx.locName,flavour:m.desc}:undefined,
-      squad:squad.map(p=>squadEntry(p,false)),
+      squad:squad.map(p=>{const e=squadEntry(p,false);if(Rebel.expHas(p,'mspec',m.tid||m.id))e.ms=1;return e;}),
       assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=SEATS[f.cls]?a.mode:'strafe';
@@ -4260,28 +4324,30 @@ function applyDebrief(r){
   HOLD=true;
   for(let d=0;d<(r.days===undefined?1:r.days);d++)advanceDay();
   HOLD=false;
-  const pinfo=[];
+  const pinfo=[],lostP=[],nearIds=[];
+  const teamIds=(r.people||[]).map(x=>x.id);
   for(const pr of r.people||[]){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
     p.assign='rest';
-    if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
+    const mt=Rebel.expGet(p,'mentored');
+    if(pr.xp)gainXp(p,pr.xp*(mt&&teamIds.includes(mt.with)?1.3:1));Rebel.trainSkills(p,pr.sk);
     p.kills=(p.kills||0)+(pr.kills||0);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
     if(r.win&&state!=='lost')creditMission(p);
     if(state==='lost'&&upAny('infirmary','surgery')&&medStaff().length&&rng()<0.6){
-      state='injured';pr.dur=6;
+      state='injured';pr.dur=6;nearIds.push(p.id);
       news('<b>'+p.name+'</b> should not have made it. The surgery room says otherwise.','g');
     }
     if(state==='lost'){
-      G.people=G.people.filter(x=>x.id!==p.id);
+      G.people=G.people.filter(x=>x.id!==p.id);lostP.push(p);
       moraleAll(-6,'death',(r.people||[]).map(x=>x.id),-10);
       news('<b>'+p.name+'</b> did not come home. Their name goes on the wall.','h');
     } else if(state==='injured'){
       p.injured=(hasRoom('infirmary')&&medStaff().length)?(pr.dur||3):(pr.dur||3)+2;
-      p.injuries=(p.injuries||0)+1;
+      p.injuries=(p.injuries||0)+1;p.injDur=p.injured;
       Rebel.moraleBump(p,-5,'injury');
       for(const q of crewOf())if(q!==p)Rebel.moraleBump(q,(r.people||[]).some(x=>x.id===q.id)?-2:-0.5,'injury');
       mood();
@@ -4366,6 +4432,7 @@ function applyDebrief(r){
       sAlert();
     }
   }
+  runExperiences(r,m,{lostP,nearIds});
   autoEquip();
   saveSnap();syncUI();
   nextReport();
@@ -4490,7 +4557,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

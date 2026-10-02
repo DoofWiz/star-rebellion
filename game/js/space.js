@@ -143,6 +143,7 @@ function adjCool(s,d,why){
   if(p.friendLock)p.cool=Math.min(20,p.cool);
   const post=coolState(s);
   if(pre!=='panic'&&post==='panic'){
+    if(s.faction==='reb')p.panics=(p.panics||0)+1;
     addFloater(s.x,s.y-40,'PANICKING',C.hazard);
     log(nameSpan(s)+' <span class="b">is panicking</span> <span class="d">('+why+')</span>');
     say(s,'panic');
@@ -855,6 +856,7 @@ function applyCtx(c){
   } else {
     const fromFront=hitsFront(s,t);
     const {sd,ad,hd,zone}=applyDamage(t,c.dmg,WPN[c.wkey].skipShield,fromFront);
+    if(t.faction==='reb')t.pilot.minHull=Math.min(t.pilot.minHull===undefined?1:t.pilot.minHull,Math.max(0,t.hull)/t.maxHull);
     damagedThisRound.add(t.id);
     impactBurst(t,c.wkey,sd>0);
     let fy=t.y-30;
@@ -1028,7 +1030,7 @@ function buildResult(win){
     const dead=sh&&!sh.alive&&!sh.fledOut;
     return {id:f.pilotId,
       xp:Math.round((((sh&&sh.pilot.xpGain)||0)+(win?0.15:0.05))*100)/100,
-      state:dead?'shotdown':'ok',kills:(sh&&sh.pilot.kills)||undefined,sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
+      state:dead?'shotdown':'ok',down:dead?1:undefined,minHp:sh&&sh.pilot.minHull!==undefined?Math.round(sh.pilot.minHull*100)/100:undefined,panics:(sh&&sh.pilot.panics)||undefined,kills:(sh&&sh.pilot.kills)||undefined,sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
   });
   const fighters=(CTX.flight||[]).map((f,i)=>{
     const sh=ships.find(x=>x.id==='P'+(i+1));
