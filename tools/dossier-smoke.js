@@ -16,10 +16,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.openWin('person',dax);
   let html=$('#winCardB').innerHTML;
   out.rookie=html.indexOf('Rookie')>=0;
-  out.meters=$$('#winCardB .bs-meters .sr-meter').length;     // morale, experience, four skills
+  out.meters=$$('#winCardB .bs-meters .sr-meter').length;     // morale, experience, four skills (the rank row is a button beside them)
   out.labels=$$('#winCardB .sr-meter > span:first-child').map(e=>e.textContent).join(',');
   const at=s=>html.indexOf(s);
-  out.order=[at('Morale'),at('>Rank<'),at('>Character<'),at('>Skills<'),at('Service record'),at('>Assignment<')];
+  out.order=[at('data-rank-open'),at('>Morale<'),at('>Character<'),at('>Skills<'),at('Service record'),at('>Assignment<')];
   out.sorted=out.order.every((v,i)=>v>=0&&(i===0||v>out.order[i-1]));
   out.since=html.indexOf('with us since day 1')>=0;
   // specialty replaces Rookie
@@ -45,11 +45,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.support=[html.indexOf('>Skills<')<0,html.indexOf('Rookie')>=0,$$('#winCardB .bs-meters .sr-meter').length];
   const auto={id:'a1',name:'Bot',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'policebot',bio:'beep'};G().people.push(auto);
   f.openWin('person',auto);html=$('#winCardB').innerHTML;
-  out.auto=[html.indexOf('Rookie')<0,html.indexOf('Morale')<0,html.indexOf('Service record')<0,html.indexOf('>Rank<')<0];
+  out.auto=[html.indexOf('Rookie')<0,html.indexOf('Morale')<0,html.indexOf('Service record')<0,html.indexOf('data-rank-open')<0];
   // recruit offer: no rank, but Rookie and meters
   const rec=R.migrate({id:'rec99',name:'New Face',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,bio:'x'});
   f.openWin('recruit',{cards:[{p:rec,must:false}]});html=$('#winCardB').innerHTML;
-  out.recruit=[html.indexOf('Private')<0,html.indexOf('Rookie')>=0,html.indexOf('Service record')<0,html.indexOf('>Rank<')<0,html.indexOf('Morale')>=0];
+  out.recruit=[html.indexOf('Private')<0,html.indexOf('Rookie')>=0,html.indexOf('Service record')<0,html.indexOf('data-rank-open')<0,html.indexOf('Morale')>=0];
   // roster
   f.syncUI();
   out.rosterTitle=$$('.sr-unit__role').some(e=>e.getAttribute('title')&&e.getAttribute('title').indexOf('level')>=0);

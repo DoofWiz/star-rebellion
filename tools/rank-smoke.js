@@ -46,11 +46,26 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.fileShow=f.dossierHead(dax).indexOf('Private')>=0;
   // pressing the button
   f.openWin('person',dax);
+  // the rank sits with the bars as a row with insignia and a ready flag; the details are an overlay
+  const row=document.querySelector('[data-rank-open="dax"]');
+  out.row=[!!row,!!(row&&row.querySelector('svg.bs-insig')),!!(row&&row.querySelector('.bs-rank__flag')),!!row&&row.textContent.indexOf('Private')>=0,!!document.querySelector('.bs-overlay'),!!document.querySelector('#winCardB [data-promote]')];
+  row.click();
+  out.overlay=[!!document.querySelector('.bs-overlay'),!!document.querySelector('.bs-overlay [data-promote="dax"]'),!!document.querySelector('.bs-overlay svg.bs-insig'),f.getRankOverlay()];
+  document.querySelector('.bs-overlay [data-rank-close]').click();
+  out.dismissed=[!!document.querySelector('.bs-overlay'),f.getWin()];
+  document.querySelector('[data-rank-open="dax"]').click();
+  window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
+  out.escOverlay=[!!document.querySelector('.bs-overlay'),f.getWin()];
+  document.querySelector('[data-rank-open="dax"]').click();
+  f.openWin('person',dax);out.reopenClean=!document.querySelector('.bs-overlay');
+  document.querySelector('[data-rank-open="dax"]').click();
   const m0=dax.morale;
   document.querySelector('[data-promote="dax"]').click();
   out.btn=[dax.rank,f.rankFor(dax),dax.morale>m0];
   // commission button flow
   dax.level=6;dax.rank=4;dax.rankMissions=0;f.openWin('person',dax);
+  out.comFlag=document.querySelector('[data-rank-open="dax"]').textContent.indexOf('commissioned')>=0;
+  document.querySelector('[data-rank-open="dax"]').click();
   document.querySelector('[data-commission="dax"]').click();
   out.comBtn=[dax.off,f.rankFor(dax)];
   // pilots show the USAF ladder in the flight profile
@@ -75,6 +90,12 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(JSON.stringify(r.failNoCredit)==='[1,1]','a failure does not '+r.failNoCredit);
  ok(r.eligibleNow&&r.card.indexOf('data-promote="dax"')>=0,'promote button appears');
  ok(r.recruitHide&&r.fileShow,'recruit offer hides rank');
+ ok(JSON.stringify(r.row)==='[true,true,true,true,false,false]','rank row beside the bars '+r.row);
+ ok(JSON.stringify(r.overlay)==='[true,true,true,"dax"]','overlay opens with the details '+r.overlay);
+ ok(r.dismissed[0]===false&&r.dismissed[1]==='person','overlay dismisses, file stays '+r.dismissed);
+ ok(r.escOverlay[0]===false&&r.escOverlay[1]==='person','Escape closes the overlay first '+r.escOverlay);
+ ok(r.reopenClean,'a fresh file opens without the overlay');
+ ok(r.comFlag,'row flags a possible commission');
  ok(r.btn[0]===1&&r.btn[1]==='Private Second Class'&&r.btn[2],'promote button '+r.btn);
  ok(r.comBtn[0]===true&&r.comBtn[1]==='Second Lieutenant','commission button '+r.comBtn);
  ok(typeof r.joss==='string'&&r.joss.length>0,'joss rank '+r.joss);

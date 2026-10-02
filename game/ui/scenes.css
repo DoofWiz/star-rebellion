@@ -268,3 +268,20 @@
 /* dossier: morale, experience and skills as bars */
 #sc-base .bs-meters{display:grid;gap:9px;margin:12px 0 16px;}
 #sc-base .bs-meters .sr-meter{grid-template-columns:104px 1fr 38px;}
+
+/* rank line beside the bars, and the rank details that float over the personnel file */
+#sc-base #winCardB{position:relative;}
+#sc-base .bs-rank{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+#sc-base .bs-rank:hover,#sc-base .bs-rank:focus-visible{border-color:var(--sr-gold);}
+#sc-base .bs-rank__ico{display:inline-flex;flex:none;}
+#sc-base .bs-rank__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-base .bs-rank__prog{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
+#sc-base .bs-rank__flag{flex:none;color:var(--sr-ink);background:var(--sr-go);border-radius:999px;padding:4px 9px;font-size:var(--sr-fs-xs);}
+#sc-base .bs-rank.is-ready{border-color:var(--sr-go);}
+#sc-base .bs-rank__go{display:inline-flex;flex:none;color:var(--sr-text-3);}
+#sc-base .bs-rank__go .sr-ico{width:16px;height:16px;}
+@media (prefers-reduced-motion:no-preference){#sc-base .bs-rank.is-ready .bs-rank__flag{animation:bs-readypulse 1.8s ease-in-out infinite;}}
+@keyframes bs-readypulse{50%{filter:brightness(1.25);}}
+#sc-base .bs-overlay{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:16px;}
+#sc-base .bs-overlay__scrim{position:absolute;inset:0;border:0;background:rgba(5,8,20,.72);cursor:default;}
+#sc-base .bs-overlay__panel{position:relative;width:min(380px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);overflow:hidden;}

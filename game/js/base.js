@@ -2730,11 +2730,11 @@ function updateGuide(){
 function openWin(mode,arg){
   // first look at the galaxy: the network primer comes up once, then never again
   if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
-  winMode=mode;winArg=arg||null;cutArm=null;renderWin();$('winsB').hidden=false;syncTabs();
+  winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
 function closeWin(){
-  winMode=null;winArg=null;cutArm=null;$('winsB').hidden=true;syncTabs();markShort();
+  winMode=null;winArg=null;cutArm=null;rankOverlay=null;$('winsB').hidden=true;syncTabs();markShort();
   if(started&&G&&RQ.length&&nextReport())return;
   // a freshly discovered mission announces itself once the channel closes
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
@@ -2845,23 +2845,23 @@ const TUT_PAGES=[
     tutP('Every Source you cultivate is an asset to the rebellion. Every asset can become a liability.')},
 ];
 /* dossier header shared by the personnel file and the recruit offer */
-function dossierHead(p,extra,noRank,mid){
+function dossierHead(p,extra,noRank){
   const mb=!p.auto&&p.morale!==undefined?Rebel.mband(p):null;
-  const tags=(noRank?'':wTag(rankFor(p),'action'))+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
+  const tags=(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+p.role+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p)+(mid||'')+traitCard(p)+skillsCard(p);
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+traitCard(p)+skillsCard(p);
 }
 /* a labelled bar: label, fill 0..1, value, tooltip */
 const meter=(label,frac,val,color,tip)=>'<div class="sr-meter" style="--c:'+color+'"'+(tip?' title="'+esc(tip)+'"':'')+'><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(Math.max(0,Math.min(1,frac))*100)+'%"></span></span><span class="sr-meter__val">'+val+'</span></div>';
 /* morale and experience: the two numbers a rebel's mood and growth come down to */
-function meterBlock(p){
+function meterBlock(p,rank){
   if(p.auto||p.morale===undefined)return '';
   const b=Rebel.mband(p);
   const col=b.tone==='bad'?'var(--sr-c-bad)':b.tone==='good'?'var(--sr-go)':'var(--sr-gold)';
   const maxed=p.level>=Rebel.LEVEL_CAP;
-  return '<div class="bs-meters">'+
+  return '<div class="bs-meters">'+(rank||'')+
     meter('Morale',p.morale/100,Math.round(p.morale),col,'Morale ('+b.n+') rises with wins and rest, falls with injuries and losses. At 0 they leave.')+
     meter('Experience',maxed?1:p.xp,maxed?'MAX':Math.round(p.xp*100),'var(--sr-c-progress)',maxed?'Level '+Rebel.LEVEL_CAP+', the top of the ladder.':'Experience toward level '+(p.level+1)+': '+Math.round(p.xp*100)+' of 100.')+
     '</div>';
@@ -2873,7 +2873,46 @@ function recordCard(p){
   return '<div class="sr-h3">Service record</div><div class="sr-stack">'+
     row('Missions served',p.missions||0)+row('Confirmed kills',p.kills||0)+row('Times injured',p.injuries||0)+'</div>';
 }
-/* rank, progress toward the next one, and the buttons that hand it out */
+/* ---------- rank insignia ----------
+   Enlisted ranks are stacked chevrons with rockers beneath and a device at the top for the senior grades;
+   officers get bars, leaves, an eagle and stars. Drawn inline so they take the rank's colour. */
+function insignia(p,size){
+  const S=size||24,i=Math.max(0,Math.min(8,p.rank||0)),role=p.rankRole||p.role;
+  const GOLD='#ffd45a',SILVER='#cfd8e8';
+  const star=(cx,cy,r)=>{let pts='';for(let k=0;k<10;k++){const a=-Math.PI/2+k*Math.PI/5,rr=k%2?r*0.42:r;pts+=(cx+Math.cos(a)*rr).toFixed(2)+','+(cy+Math.sin(a)*rr).toFixed(2)+' ';}return '<polygon points="'+pts+'" fill="currentColor"/>';};
+  let g='',col=GOLD;
+  if(p.off){
+    if(i===0){g='<rect x="9" y="4" width="6" height="16" rx="1.2" fill="currentColor"/>';}
+    else if(i===1){col=SILVER;g='<rect x="9" y="4" width="6" height="16" rx="1.2" fill="currentColor"/>';}
+    else if(i===2){col=SILVER;g='<rect x="5" y="4" width="5.5" height="16" rx="1.2" fill="currentColor"/><rect x="13.5" y="4" width="5.5" height="16" rx="1.2" fill="currentColor"/>';}
+    else if(i===3||i===4){col=i===3?GOLD:SILVER;g='<path d="M12 2.5C18 6 20 12 12 21.5 4 12 6 6 12 2.5Z" fill="currentColor"/><path d="M12 7v13" stroke="#0b1020" stroke-width="1.3" stroke-linecap="round"/>';}
+    else if(i===5){col=SILVER;g='<path d="M12 4l1.7 3.3 8-1.6-3.6 5.4-3.2.5 1.1 4.6L12 13.4 8 16.2l1.1-4.6-3.2-.5L2.3 5.7l8 1.6z" fill="currentColor"/><circle cx="12" cy="5" r="1.6" fill="currentColor"/><path d="M10 19.5h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';}
+    else{col=SILVER;const n=i-5;g=n===1?star(12,12,8):n===2?star(7,12,6)+star(17,12,6):star(12,6.5,5.6)+star(6,16.5,5.6)+star(18,16.5,5.6);}
+  } else {
+    col=role==='Pilot'?'#7fd0ff':role==='Marine'?'#ff9a8a':GOLD;
+    const tbl=[[1,0],[2,0],[3,0],[3,1],[3,2],[3,3],[3,2],[3,2],[3,2]],[c,r]=tbl[i];
+    const top=i>=6?7:3,sp=i>=6?2.6:3;
+    for(let k=0;k<c;k++){const a=top+k*sp;g+='<path d="M3.5 '+(a+4.2)+'L12 '+a+'l8.5 '+4.2+'" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>';}
+    const rb=top+(c-1)*sp+4.2+(i>=6?2.8:3.2);
+    for(let k=0;k<r;k++){const y=rb+k*2.4;g+='<path d="M3.5 '+y+'Q12 '+(y+3.2)+' 20.5 '+y+'" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>';}
+    if(i===6)g+='<path d="M12 .8l2.8 2.8-2.8 2.8-2.8-2.8z" fill="currentColor"/>';
+    else if(i===7)g+=star(12,3.6,3.3);
+    else if(i===8)g+=star(12,3.6,3.3)+'<path d="M6 5.2C7 1.8 9 1.4 9.3 1.4M18 5.2C17 1.8 15 1.4 14.7 1.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>';
+  }
+  return '<svg class="bs-insig" viewBox="0 0 24 24" width="'+S+'" height="'+S+'" aria-hidden="true" style="color:'+col+'">'+g+'</svg>';
+}
+/* the rank line that sits with the bars: insignia, name, and a flag when they can move up; opens the details */
+function rankRow(p){
+  if(p.auto||p.rank===undefined)return '';
+  const ready=Rebel.canPromote(p),com=!ready&&Rebel.canCommission(p);
+  const nx=Rebel.nextRank(p),need=Rebel.needMissions(p),have=Math.min(need,p.rankMissions||0);
+  const hint=ready?'Ready for promotion to '+nx:com?'Can be commissioned as an officer':nx?have+' of '+need+' missions toward '+nx:'Top of the ladder';
+  return '<button class="bs-rank'+(ready||com?' is-ready':'')+'" data-rank-open="'+p.id+'" title="'+esc(hint+'. Tap for details.')+'" aria-label="Rank: '+esc(rankFor(p))+'. '+esc(hint)+'. Open rank details">'+
+    '<span class="bs-rank__ico">'+insignia(p,26)+'</span><span class="bs-rank__name">'+esc(rankFor(p))+'</span>'+
+    (ready?'<span class="bs-rank__flag">\u25b2 Promotion ready</span>':com?'<span class="bs-rank__flag">\u2605 Can be commissioned</span>':nx?'<span class="bs-rank__prog">'+have+'/'+need+'</span>':'')+
+    '<span class="bs-rank__go">'+IC('chevron')+'</span></button>';
+}
+/* rank details: progress toward the next one, and the buttons that hand it out (shown in the overlay) */
 function rankCard(p){
   if(p.auto)return '';
   const nx=Rebel.nextRank(p),need=Rebel.needMissions(p),have=Math.min(need,p.rankMissions||0);
@@ -2883,8 +2922,15 @@ function rankCard(p){
   if(Rebel.canCommission(p))acts.push(rbtn('data-commission="'+p.id+'" title="One-way: they restart on the officer ladder as '+Rebel.OFFICER[0]+'"','Commission as officer',false,'sr-btn--sm'));
   else if(!p.off&&(p.rank||0)>=4&&p.level<5)body+='<br><span class="sr-faint">Officer commission needs level 5.</span>';
   else if(!p.off&&p.level>=5)body+='<br><span class="sr-faint">Officer commission needs the rank of Sergeant or better.</span>';
-  return '<div class="sr-h3">Rank</div><div class="sr-card sr-card--action"><div class="sr-card__top"><span class="sr-card__title">'+rankFor(p)+'</span>'+(p.off?wTag('Officer','friend'):'')+'<span class="bs-from">'+(p.missions||0)+' mission'+((p.missions||0)===1?'':'s')+' served</span></div>'+
+  return '<div class="sr-card sr-card--action"><div class="sr-card__top"><span class="bs-rank__ico">'+insignia(p,30)+'</span><span class="sr-card__title">'+esc(rankFor(p))+'</span>'+(p.off?wTag('Officer','friend'):'')+'<span class="bs-from">'+(p.missions||0)+' mission'+((p.missions||0)===1?'':'s')+' served</span></div>'+
     '<div class="sr-card__body">'+body+'</div>'+(acts.length?'<div class="sr-card__acts" style="margin-top:8px">'+acts.join('')+'</div>':'')+'</div>';
+}
+/* the rank details float over the personnel file; dismiss them and the file is still there */
+let rankOverlay=null;
+function rankOverlayHTML(p){
+  return '<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close rank details"></button>'+
+    '<div class="bs-overlay__panel" role="dialog" aria-label="Rank details"><div class="sr-window__head"><span class="sr-window__title">'+esc(p.name)+' \u00b7 Rank</span>'+wX('data-rank-close')+'</div>'+
+    '<div class="sr-window__body">'+rankCard(p)+'</div></div></div>';
 }
 /* skill bars out of 50: the level sets the base, mission experience adds the rest */
 function skillsCard(p){
@@ -3155,7 +3201,7 @@ function renderWin(){
   else if(winMode==='person'){
     const p=winArg;
     const pct=Math.round(p.xp*100);
-    let b=dossierHead(p,p.injured?wTag('Injured '+p.injured+' days','bad'):'',false,rankCard(p));
+    let b=dossierHead(p,p.injured?wTag('Injured '+p.injured+' days','bad'):'');
     if(p.role==='Pilot'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
@@ -3196,7 +3242,7 @@ function renderWin(){
       }
       b+='</div>';
     }
-    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
+    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'');
   }
   else if(winMode==='silence'){
     const s=winArg;
@@ -3569,6 +3615,8 @@ $('winsB').addEventListener('click',ev=>{
   if(gcat){GEARCAT=gcat;renderWin();return;}
   const dipBtn=t.getAttribute('data-dip');
   if(dipBtn){startDip(dipBtn);saveSnap();syncUI();renderWin();return;}
+  if(t.hasAttribute('data-rank-open')){rankOverlay=t.getAttribute('data-rank-open');sClick();renderWin();return;}
+  if(t.hasAttribute('data-rank-close')){rankOverlay=null;renderWin();return;}
   const promoId=t.getAttribute('data-promote');
   if(promoId){
     const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
@@ -3671,6 +3719,7 @@ addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
   if(ev.key==='Escape'){
     if(!menu.hidden){closeMenu();return;}
+    if(rankOverlay){rankOverlay=null;renderWin();return;}
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(viewRoom){exitRoomView();syncUI();}
@@ -4328,7 +4377,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
