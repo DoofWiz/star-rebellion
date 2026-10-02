@@ -92,6 +92,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const gd=window.DBGground,f=gd.fn,U=gd.U,out={};
   const reb=U.filter(u=>u.side==='reb'&&!u.auto);
   const [a,b,c,d]=reb.length>=4?reb:[reb[0],reb[1],reb[2],reb[2]];
+  for(const u of reb)u.meds=9;   // Treat Wound needs a Med Pack; the pack rules are tested in medpack-smoke
   const foe=U.find(u=>u.side==='law');
   const inflict=(u,k)=>f.inflictInjury(u,'ballistic',k);
   const atk=u=>f.computeATK(u,foe,'akli',false).total;

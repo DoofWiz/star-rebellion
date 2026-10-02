@@ -222,6 +222,9 @@ Built from the *Injury & Recovery* section of the Rebels doc (a critical hit can
 ### Status: all twelve phases built
 Phases 1–12 are in. What remains is design, not build: the traits that are listed but never granted (section 7: per-rebel Risk, capture and ambush, family, the rest of the command-decision traits, and the exhaustion traits), plus the follow-ups noted per phase (Armour items, gear for space sorties, a Combat Medic specialty, pilots' critical injuries).
 
+### After the phases: designer decisions (2026-10-02)
+Recorded in full in `docs/DESIGN_BLOCKERS.md` (resolved log): pilots use the database Aim and Focus formula with mood and injury on top; the opening cast are built through the same rebel path as everyone else, from the database where a row exists; Revolution Level 1 lets exactly one Hero emerge (no replacement if they die); Treat Wound uses a **Med Pack** (four at the start, rolled by the Infirmary), with **Combat Medic** live as a bonus-only specialty. Tests: `node tools/blockers-smoke.js`.
+
 ## 5. Suggested order and size
 
 Phases 1 → 2 → 3 first (they unlock everything and are mostly base/data work), then 4 and 5, then 6 + 7 together (UI), 8, then 9 in slices, 10 last. Rough effort: P1 M, P2 L, P3 M, P4 M, P5 S, P6 M, P7 M, P8 M, P9 XL (incremental), P10 M, P11 M.
@@ -277,4 +280,4 @@ These need a **revive or rescue** mechanic, which neither combat scene has. Toda
 4. **Survivor** (one of the few who made it out) overlaps Lost a Squad. Do you want both, or should Survivor be the lesser version for a partial loss?
 
 ### F. Injury and Recovery (now built, see Phase 11)
-Still open: (1) the exhaustion traits, Heavy Sleeper and Light Sleeper, need an exhaustion system, which the Injury section does not cover; (2) the Limp, Old Wound and Shrapnel *traits* are not granted because the new conditions (Broken Leg, Shrapnel) do that job. Should a long-untreated Broken Leg become a permanent Limp, or an old injury flare up as Old Wound? (3) Should pilots get critical injuries in space (today a cockpit breach only concussion)? (4) Should a Combat Medic specialty treat faster, treat from further away, or treat two injuries in one action?
+Still open: (1) the exhaustion traits, Heavy Sleeper and Light Sleeper, need an exhaustion system, which the Injury section does not cover; (2) the Limp, Old Wound and Shrapnel *traits* are not granted because the new conditions (Broken Leg, Shrapnel) do that job. Should a long-untreated Broken Leg become a permanent Limp, or an old injury flare up as Old Wound? (3) Should pilots get critical injuries in space (today a cockpit breach only concussion)? (4) ~~Should a Combat Medic specialty treat faster, from further away, or two injuries in one action?~~ Decided: further away and two injuries per pack; treating needs a Med Pack.

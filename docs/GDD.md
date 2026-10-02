@@ -86,7 +86,7 @@ political action by the Hegemony's bloated institutions.
   have no special equipment. Everything the player has obtained is likely stolen.
 - *Update:* ships are stolen, converted patrol craft and freighters converted into troop
   transports. Enemies are police and riot police on the ground, autonomous drones in
-  space. No Alerts, no Heroes (both begin at Level 2). Touchstones: *Red Dawn*,
+  space. No Alerts, and at most one Hero (more begin at Level 2). Touchstones: *Red Dawn*,
   *First Blood*. See §8 for how Level 1 ends.
 
 **Level 2 — Noticed.** The revolution has earned the Hegemony's notice; its
@@ -294,7 +294,7 @@ phase-by-phase record, and its section 7 for what the unbuilt traits are waiting
 
 ### Heroes
 
-Some rebels become **Heroes**. A hidden chance grows with what a rebel does (taking part, kills, close calls, standing out, being the last one standing); from Revolution Level 2 one rebel at most can be made a Hero after a mission, and everyone else's chance then falls sharply. A Hero replaces their type, keeps their rank, history and relationships, gets a buff to every skill and to health, and has a once-per-mission Hero action (Rally cry on the ground, Heroic surge in space). The player cannot see the chance anywhere. Support cannot become a Hero.
+Some rebels become **Heroes**. A hidden chance grows with what a rebel does (taking part, kills, close calls, standing out, being the last one standing); one rebel at most can be made a Hero after a mission, and everyone else's chance then falls sharply. Revolution Level 1 allows a single Hero in the whole playthrough (if they fall there is no replacement); from Level 2 the usual rules apply. A Hero replaces their type, keeps their rank, history and relationships, gets a buff to every skill and to health, and has a once-per-mission Hero action (Rally cry on the ground, Heroic surge in space). The player cannot see the chance anywhere. Support cannot become a Hero.
 
 ### Abilities & Gear
 

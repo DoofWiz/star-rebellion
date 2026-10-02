@@ -102,6 +102,7 @@ const GEAR_META={
   scatter:{cat:'Weapons',sub:'Rifles',w:3,h:1,slot:'primary',q:2},carbine:{cat:'Weapons',sub:'Rifles',w:3,h:1,slot:'primary',q:3},
   shells:{cat:'Other',sub:'Ammunition',w:1,h:1},blam:{cat:'Explosives',sub:'Grenades',w:1,h:1,slot:'gadget',q:1},
   charge:{cat:'Explosives',sub:'Explosive Charges',w:2,h:1},
+  medpack:{cat:'Medical',sub:'Med Packs',w:1,h:1,slot:'gadget',q:0.5},
 };
 const gearMeta=a=>GEAR_META[a.id]||{cat:'Other',sub:'Misc',w:2,h:1};
 const GEAR_COLS=8;
@@ -145,11 +146,17 @@ function hasDoorGun(f){
 }
 // pilots carry an initiative of 1 to 6 and four skills of 0 to 50; the campaign has no skills yet, so derive them from level
 const SEED_PILOT={sera:'sera-kest',joss:'joss-marrek',petra:'petra-voss'};
+/* The opening cast are the same for every player but are built like any other rebel (Rebel.scripted); a pilot's
+   level, experience, initiative and skills come from its database row. */
+function castRebel(spec,dbId){return Rebel.scripted(spec,dbId?SRDB.pilots[dbId]:null);}
 function pilotInit(p){
   if(p.init===undefined){const seed=SRDB.pilots[SEED_PILOT[p.id]];p.init=seed?seed.initiative:1+Math.floor(Math.random()*6);}
   return p.init;
 }
-function pilotSkills(p){const a=pilotAim(p)*10;return {aim:a,cunning:a,focus:a,presence:Math.round(Math.min(85,55+p.level*4)/2)};}
+/* a rebel's skills on the database's 0..50 scale, which is what the space scene reads */
+function pilotSkills(p){return {aim:Rebel.dbSkill(p,'aim'),cunning:Rebel.dbSkill(p,'cun'),focus:Rebel.dbSkill(p,'foc'),presence:Rebel.dbSkill(p,'pre')};}
+/* what sits on top of the database's skill-and-level bonus: mood, injury and the Dogfighter specialty */
+function pilotAimMod(p){return Rebel.moraleFx(p).aim+Rebel.injFx(p).aim+(p.spec==='dogfighter'?1:0);}
 
 /* ---------- state ---------- */
 let G=null,tilePopAt=null,winMode=null,winArg=null,started=false,viewRoom=null,srcSel=null;
@@ -176,12 +183,13 @@ function newGame(){
     armory:[
       {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
       {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
+      {id:'medpack',name:'Med Pack',n:4,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'},
     ],
     people:[
-      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
-      {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
-      {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
-      {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
+      castRebel({id:'joss',name:'Joss Marrek',role:'Pilot',charTrait:'reckless',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},'joss-marrek'),
+      castRebel({id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,charTrait:'cautious',equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'}),
+      castRebel({id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,charTrait:'shortfuse',equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'}),
+      castRebel({id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,charTrait:'hunter',equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'}),
     ],
     sources:[],
     onboard:'intro',
@@ -192,7 +200,7 @@ function newGame(){
     news:[],
   };
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
-  {const keep=G;G=g0;g0.people.forEach(gearFromEquip);G=keep;}
+  {const keep=G;G=g0;g0.people.forEach(gearFromEquip);autoEquip();G=keep;}
   g0.morale=Rebel.MORALE_START;
   return g0;
 }
@@ -279,9 +287,13 @@ const carried=id=>crewOf().reduce((n,p)=>n+gearSlots(p).filter(s=>slotGet(p,s)==
 const stockOf=id=>{const a=G.armory.find(x=>x.id===id);return a?a.n:0;};
 const freeOf=id=>Math.max(0,stockOf(id)-carried(id));
 const holders=(id,not)=>crewOf().filter(p=>!not.includes(p)&&p.assign!=='mission'&&gearSlots(p).some(s=>slotGet(p,s)===id));
-function bestFree(s){
+/* the second gadget slot is the utility slot: ground rebels are handed a Med Pack there, and nobody else is handed one
+   automatically (a pilot has no use for it, and the first gadget slot is for grenades); by hand it can go anywhere */
+const wantsPack=(p,s)=>!!p&&isGround(p)&&s.k==='gad'&&s.i===1;
+function bestFree(s,p){
+  if(wantsPack(p,s)&&freeOf('medpack')>0)return 'medpack';
   let best=null;
-  for(const a of G.armory)if(a.n>0&&gearFits(a.id,s)&&freeOf(a.id)>0&&(!best||(GEAR_META[a.id].q||0)>(GEAR_META[best].q||0)))best=a.id;
+  for(const a of G.armory)if(a.n>0&&gearFits(a.id,s)&&a.id!=='medpack'&&freeOf(a.id)>0&&(!best||(GEAR_META[a.id].q||0)>(GEAR_META[best].q||0)))best=a.id;
   return best;
 }
 /* drop anything that no longer makes sense: items that were used up or lost, slots a rebel no longer has */
@@ -303,7 +315,7 @@ function autoEquip(first){
   const rest=crewOf().filter(p=>!(first||[]).includes(p)).sort((a,b)=>b.level-a.level||(b.rank||0)-(a.rank||0));
   for(const p of (first||[]).concat(rest)){
     if(p.assign==='mission')continue;
-    for(const s of gearSlots(p)){if(slotGet(p,s))continue;const id=bestFree(s);if(id)slotSet(p,s,id);}
+    for(const s of gearSlots(p)){if(slotGet(p,s))continue;const id=bestFree(s,p);if(id)slotSet(p,s,id);}
   }
 }
 /* before a mission: the people going get kit even if it means taking it off someone staying home */
@@ -312,7 +324,7 @@ function outfitSquad(going){
   autoEquip(going);
   for(const p of going)for(const s of gearSlots(p)){
     if(slotGet(p,s))continue;
-    const ids=G.armory.filter(a=>a.n>0&&gearFits(a.id,s)).sort((a,b)=>(GEAR_META[b.id].q||0)-(GEAR_META[a.id].q||0)).map(a=>a.id);
+    const ids=G.armory.filter(a=>a.n>0&&gearFits(a.id,s)&&(a.id!=='medpack'||wantsPack(p,s))).sort((a,b)=>(wantsPack(p,s)?(b.id==='medpack')-(a.id==='medpack'):0)||(GEAR_META[b.id].q||0)-(GEAR_META[a.id].q||0)).map(a=>a.id);
     for(const id of ids){
       const h=holders(id,going)[0];
       if(h){const hs=gearSlots(h).find(x=>slotGet(h,x)===id);slotSet(h,hs,null);slotSet(p,s,id);break;}
@@ -320,6 +332,7 @@ function outfitSquad(going){
   }
 }
 const wpnsFromGear=p=>{const g=p.gear||{},w=[g.primary,g.secondary].filter(Boolean);return w.length?w:['unarmed'];};
+const packsCarried=p=>gearSlots(p).filter(s=>s.k==='gad'&&slotGet(p,s)==='medpack').length;
 const nadesCarried=squad=>squad.reduce((n,p)=>n+(p.auto?0:gearSlots(p).filter(s=>s.k==='gad'&&slotGet(p,s)==='blam').length),0);
 /* old saves and the opening cast: read p.equip into slots once */
 function gearFromEquip(p){
@@ -500,7 +513,8 @@ function runExperiences(r,m,ev){
   mood();
   return ctxs;
 }
-/* the hidden Hero chance creeps up with what each rebel did; from Revolution Level 2 one of them may be made a Hero */
+/* the hidden Hero chance creeps up with what each rebel did; one of them may be made a Hero (a single one in all of
+   Revolution Level 1, whether or not they survive; from Level 2 the usual rules apply) */
 function heroCheck(r,m,ctxs){
   const entries=r.people||[],sec=(m&&m.ctx&&m.ctx.sec)||0;
   const part=entries.map(pr=>({pr,p:G.people.find(x=>x.id===pr.id)})).filter(x=>x.p&&!x.p.auto);
@@ -509,11 +523,11 @@ function heroCheck(r,m,ctxs){
     const c=(ctxs&&ctxs[p.id])||{};
     Rebel.heroGain(p,{win:!!r.win,kills:pr.kills||0,danger:!!(c.down||(pr.minHp!==undefined&&pr.minHp<0.5)),alone:!!c.alone,top:topKills>=2&&(pr.kills||0)===topKills,notable:!!r.quiet||sec>=3});
   }
-  if((G.revLevel||1)<2)return null;      // Heroes begin at Revolution Level 2
+  if((G.revLevel||1)<2&&(G.heroesMade||0)>=1)return null;   // Revolution Level 1 allows one Hero, ever: if they fall, that is it
   const hero=Rebel.heroRoll(part.map(x=>x.p),rng,crewOf().filter(p=>p.role==='Hero').length);
   if(!hero)return null;
   const was=hero.role;
-  Rebel.heroMake(hero,crewOf());
+  Rebel.heroMake(hero,crewOf());G.heroesMade=(G.heroesMade||0)+1;
   Rebel.moraleBump(hero,10,'win');mood();
   news('<b>'+hero.name+'</b>, once a '+was.toLowerCase()+', is now a <b>Hero</b> of the Rebellion.','p');
   autoEquip();sBuild();
@@ -1326,8 +1340,8 @@ function openRecruitOffer(src,sig){
   let p,must=false,line;
   if(sig.kind==='recruitSera'){
     must=true;
-    p=Rebel.migrate({id:'sera',name:'Sera Kest',role:'Pilot',level:2,xp:0.3,assign:'rest',injured:0,ship:'',
-      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'});
+    p=castRebel({id:'sera',name:'Sera Kest',role:'Pilot',charTrait:'lucky',ship:'',
+      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'},'sera-kest');
     line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
@@ -1357,6 +1371,20 @@ function maybeQueueEvent(src){
 }
 
 /* ---------- day advance ---------- */
+/* The Infirmary rolls a Med Pack every three days (two with someone on station) for 8 supplies, up to a small stock. */
+const PACK_COST=8;
+const packCap=()=>4+2*tilesOf('infirmary');
+function packTick(){
+  if(!hasRoom('infirmary'))return;
+  const have=G.armory.find(x=>x.id==='medpack');
+  if((have?have.n:0)>=packCap()){G.packClock=0;return;}
+  G.packClock=(G.packClock||0)+1;
+  if(G.packClock<(medStaff().length?2:3)||G.supplies<PACK_COST)return;
+  G.packClock=0;G.supplies-=PACK_COST;
+  if(have)have.n++;
+  else G.armory.push({id:'medpack',name:'Med Pack',n:1,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'});
+  autoEquip();
+}
 function advanceDay(){
   if(!started)return;
   const attn0=new Set(G.sources.filter(x=>x.alive&&(x.pendingEvent||x.signal)).map(x=>x.id));
@@ -1368,6 +1396,7 @@ function advanceDay(){
       if(rm.build.days<=0){delete rm.build;news(ROOMS[rm.key].name+' finished. Put it to work.','g');sBuild();}
     }
   }
+  packTick();
   for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
     const cell=G.grid[r][c];
     if(cell.t==='rubble'&&cell.dig){
@@ -1546,7 +1575,7 @@ const SPECS={
     {k:'gunner',n:'Gunner',d:'Heavy, portable or fixed weaponry such as machine guns.'},
     {k:'commando',n:'Commando',d:'Stealth, attacking from stealth and evading attacks.'},
     {k:'assault',n:'Assault',d:'Projectile explosive, anti-vehicle and anti-ship weapons.'},
-    {k:'medic',n:'Combat Medic',d:'Healing and reviving downed squad mates.'},
+    {k:'medic',n:'Combat Medic',live:1,d:'Treats wounds from further away and stretches one Med Pack over two wounds. +3 Presence.'},
     {k:'demolitions',n:'Demolitions Specialist',d:'Explosives in missions and for specific objectives.'},
     {k:'marksman',n:'Marksman',d:'Long-range ballistic and plasma weaponry.'},
     {k:'commander',n:'Commander',d:'Bonuses for the rest of the mission team.'},
@@ -2313,7 +2342,7 @@ function renderRoomBar(){
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
     const treating=G.people.filter(p=>!p.injured&&(p.cond||[]).length);
-    info='Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none')+(treating.length?' · Recovering: '+treating.map(p=>p.name.split(' ')[0]+' ('+p.cond.map(c=>Rebel.CONDK[c.k].n).join(', ')+')').join('; '):'')+' · recovery '+(Math.round(healRate()*100)/100)+'/day'+staffLine('infirmary');
+    info='Med Packs '+stockOf('medpack')+'/'+packCap()+' (8 supplies each, a new one every '+(medStaff().length?2:3)+' days) · Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none')+(treating.length?' · Recovering: '+treating.map(p=>p.name.split(' ')[0]+' ('+p.cond.map(c=>Rebel.CONDK[c.k].n).join(', ')+')').join('; '):'')+' · recovery '+(Math.round(healRate()*100)/100)+'/day'+staffLine('infirmary');
   } else if(rm.key==='training'){
     const tr=G.people.filter(p=>p.assign==='train');
     info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+staffLine('training');
@@ -3037,7 +3066,7 @@ function rewList(m){
 const rewHTML=m=>rewList(m).join(' ');
 const riskTag=m=>wTag('Risk '+String(m.riskTxt).toLowerCase(),/high/i.test(m.riskTxt)?'bad':/low/i.test(m.riskTxt)?'good':'warn');
 /* gear glyphs are saved with the armory; the kit icon is chosen from the item id */
-const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'ballistic',blam:'grenade',charge:'grenade',limpet:'hack'};
+const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',shells:'ballistic',blam:'grenade',charge:'grenade',limpet:'hack',medpack:'patch'};
 const gearIcon=a=>GEAR_ICON[a.id]||'loot';
 let cutArm=null;
 const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
@@ -4101,7 +4130,7 @@ function discoverCass(){
 }
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
-  news('Inventory logged: six Aklis, four Cowboys, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
+  news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
   news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in.','a');
 }
 
@@ -4380,6 +4409,7 @@ function assetsHTML(){
 function squadEntry(p,scatterFirst){
   return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
     aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+    meds:p.auto?0:packsCarried(p),
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
 function startPlan(){
@@ -4420,7 +4450,9 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        rankName:rankFor(p),hero:p.role==='Hero'?1:0,fixed:1,aim:Math.max(0,pilotAim(p)+Rebel.injFx(p).aim),skills:Object.assign(pilotSkills(p),{aim:Rebel.skill(p,'aim'),cunning:Rebel.skill(p,'cun'),focus:Rebel.skill(p,'foc'),presence:Rebel.skill(p,'pre')}),init:pilotInit(p),cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s').concat(p.id==='sera'&&Rebel.namesFor(p,'s').indexOf('Lucky')<0?['Lucky']:[]),
+        rankName:rankFor(p),hero:p.role==='Hero'?1:0,skills:pilotSkills(p),aimMod:pilotAimMod(p),init:pilotInit(p),
+        cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),
+        traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull,loadout:f.loadout});
     }
     G.fuel-=fuel;
@@ -4431,7 +4463,7 @@ function startPlan(){
   SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
 }
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
-function pilotAim(p){return Math.min(6,Rebel.aimOf(p,'s')+(p.spec==='dogfighter'?1:0));}
+function pilotAim(p){return Math.max(0,SRDB.skillBonus(Rebel.dbSkill(p,'aim'),p.level)+pilotAimMod(p));}
 function addArmoryItem(name){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
@@ -4444,9 +4476,19 @@ function addArmoryItem(name){
   else G.armory.push({id:hit[0],name:hit[1],n:1,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
   autoEquip();
 }
+/* each Med Pack used in the field is gone from the armory */
+function usePacks(r){
+  const used=(r.people||[]).reduce((n,pr)=>n+(pr.packs||0),0);
+  if(!used)return 0;
+  const a=G.armory.find(x=>x.id==='medpack');
+  if(a){a.n=Math.max(0,a.n-used);if(!a.n)G.armory=G.armory.filter(x=>x!==a);}
+  reconcileGear();
+  return used;
+}
 function applyDebrief(r){
   if(!r)return;
   SR.mission=null;
+  usePacks(r);
   if(r.missionId==='haven'){
     if(r.win){
       G.introDone=true;started=true;
@@ -4635,6 +4677,8 @@ function restoreCampaign(data){
     G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
     mood();
+    G.heroesMade=Math.max(G.heroesMade||0,G.people.filter(p=>p.role==='Hero').length);
+    if(!G.medSeeded){G.medSeeded=1;if(!G.armory.some(x=>x.id==='medpack'))G.armory.push({id:'medpack',name:'Med Pack',n:4,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'});}
     for(const p of crewOf())if(!p.gear)gearFromEquip(p);
     autoEquip();
     G.candQ=G.candQ||[];
@@ -4726,7 +4770,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};

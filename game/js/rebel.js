@@ -159,6 +159,8 @@ window.Rebel=(function(){
      Soldiers and Marines: Aim, Constitution, Agility, Presence. Pilots: Aim, Cunning, Focus, Presence.
      Support have none; a Hero has all six. Everything caps at 50, and each point is only a small nudge. */
   const SKILL_CAP=50,SX_CAP=15,HERO_SKILL=8,HERO_HP=25;
+  /* a specialty gives a slight bonus to its related skill (the rest of what a specialty does is its ability) */
+  const SPECSK={medic:{pre:3}};
   const SKILLS={
     aim:{n:'Aim',d:'Better chance to hit.'},
     con:{n:'Constitution',d:'More personal health.'},
@@ -172,7 +174,7 @@ window.Rebel=(function(){
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
   function skill(p,k){
     if(skillKeys(p).indexOf(k)<0)return 0;
-    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0));
+    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0)+((SPECSK[p.spec]||{})[k]||0));
   }
   /* what the combat scenes read; the curves keep a fresh rebel where the old level formulas had them */
   const aimOf=(p,theatre)=>clamp((theatre==='s'?Math.round(2+(skill(p,'aim')-5)/3.2-0.25):Math.round(2+(skill(p,'aim')-5)/4.8))+moraleFx(p).aim,1,6);
@@ -182,13 +184,22 @@ window.Rebel=(function(){
   const nerveMul=p=>(1-(skill(p,'pre')-5)*0.005)*(window.Rebel.expNerveMul?window.Rebel.expNerveMul(p):1);       // scales every Cool loss
   const focusTN=p=>Math.round((skill(p,'foc')-5)/14);    // added to the number others need to hit them
   const cunMul=p=>1+(skill(p,'cun')-5)*0.01;            // repairs and shield boosts
+  /* The game database speaks pilot skills on its own 0..50 scale (a seed pilot at level 3 has an Aim of 30), and the
+     space scene turns them into bonuses with floor(skill/10) + floor(level/5). A rebel's own skill sits on the
+     smaller scale above, so these two maps carry a skill to the database scale and back; both share the same line,
+     so a database pilot turned into a rebel and read back gives the same numbers. */
+  const DBMAP={aim:[20,1.4],foc:[10,1.4],cun:[10,1.4],pre:[29.5,1]};
+  const toDb=(k,v)=>clamp(Math.round(DBMAP[k][0]+(v-5)*DBMAP[k][1]),0,50);
+  const fromDb=(k,v)=>5+(v-DBMAP[k][0])/DBMAP[k][1];
+  const DBKEY={aim:'aim',cun:'cunning',foc:'focus',pre:'presence'};
+  const dbSkill=(p,k)=>toDb(k,skill(p,k));
   /* experience from a mission: `sk` maps skill -> raw points the scene counted; gains are small and capped */
   function trainSkills(p,sk){
     if(!sk)return;
     p.sx=p.sx||{};
     for(const k of skillKeys(p)){
       if(!sk[k])continue;
-      p.sx[k]=Math.min(SX_CAP,(p.sx[k]||0)+Math.min(1.5,sk[k]*0.05));
+      p.sx[k]=Math.max(p.sx[k]||0,Math.min(SX_CAP,(p.sx[k]||0)+Math.min(1.5,sk[k]*0.05)));   // a scripted head start above the cap is kept
     }
   }
 
@@ -252,5 +263,17 @@ window.Rebel=(function(){
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
+  /* The opening cast are rebels like any other, built by the same path with the same fields; they simply come out the
+     same for every player. `spec` is what a generated rebel would have (name, role, bio, Character Trait...) and `row`
+     an optional database pilot (level, experience, initiative and the four skills, set as earned skill experience). */
+  function scripted(spec,row){
+    const p=Object.assign({assign:'rest',injured:0,level:1,xp:0},spec);
+    if(row){
+      p.level=row.level;p.xp=row.xp/100;p.init=row.initiative;p.sx={};
+      for(const k of (SKILLSET[p.role]||[]))if(DBKEY[k]&&row[DBKEY[k]]!==undefined)p.sx[k]=Math.round((fromDb(k,row[DBKEY[k]])-(5+(p.level-1)*1.6))*10)/10;
+    }
+    return migrate(p);
+  }
+
+  return {scripted,toDb,fromDb,dbSkill,LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

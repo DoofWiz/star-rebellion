@@ -38,7 +38,12 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.setRng(()=>0);
   G().revLevel=1;
   f.applyDebrief({missionId:'none',days:0,win:true,people:[{id:'dax',xp:0,state:'ok',kills:1},{id:'runa',xp:0,state:'ok'},{id:'kel',xp:0,state:'ok'}]});
-  out.gated=[G().people.filter(p=>p.role==='Hero').length,f.getWin()];
+  out.gated=[G().people.filter(p=>p.role==='Hero').length,G().heroesMade,f.getWin()];
+  // the Hero falls: no replacement in Level 1, even with every chance maxed
+  G().people=G().people.filter(p=>p.role!=='Hero');
+  for(const id of ['dax','runa','kel']){const p=P(id);if(p){p.heroP=R.HERO_CAP;p.level=4;p.missions=12;}}
+  f.applyDebrief({missionId:'none',days:0,win:true,people:[{id:'runa',xp:0,state:'ok',kills:2},{id:'kel',xp:0,state:'ok'}]});
+  out.gatedAgain=[G().people.filter(p=>p.role==='Hero').length,G().heroesMade];
   // ---- Level 2: exactly one hero, a celebration, the rest drop
   G().revLevel=2;
   f.applyDebrief({missionId:'none',days:0,win:true,people:[{id:'dax',xp:0,state:'ok',kills:3},{id:'runa',xp:0,state:'ok'},{id:'kel',xp:0,state:'ok'}]});
@@ -69,7 +74,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.rollFirst==='c3','strongest candidate rolls first '+r.rollFirst);
  ok(JSON.stringify(r.made.slice(0,4))==='["Hero","Pilot","Pilot",0]'&&r.made[4]===0.0175&&r.made[5],'making a hero '+r.made);
  ok(r.buffs[0]==='aim,con,agi,cun,foc,pre'&&r.buffs[1]===8&&r.buffs[2]===35&&r.buffs[3]===4,'hero buffs '+r.buffs);
- ok(r.gated[0]===0&&r.gated[1]!=='newhero','no heroes before Level 2 '+r.gated);
+ ok(r.gated[0]===1&&r.gated[1]===1,'Level 1 lets exactly one Hero emerge '+r.gated);
+ ok(r.gatedAgain[0]===0&&r.gatedAgain[1]===1,'if the Hero is gone there is no second one in Level 1 '+r.gatedAgain);
  ok(r.one[0]===1,'exactly one hero from a mission '+r.one);
  ok(r.win==='newhero'&&r.screen&&r.screen[0]&&r.screen[1],'the New Hero screen '+r.win+' '+r.screen);
  ok(r.dropped,'everyone else falls back');

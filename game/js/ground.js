@@ -776,7 +776,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1069,29 +1069,37 @@ function inflictInjury(t,src,force){
   return def;
 }
 /* who a Treat Wound could help right now: the incapacitated first, then the bleeding, then whoever is closest */
-function treatPick(h){
+/* Treating a wound uses a Med Pack from the rebel's gadget slots (one pack, one action). Anyone can do it; a Combat
+   Medic reaches further and makes one pack cover two wounds. */
+const medic=u=>!!u&&u.spec==='medic';
+function treatTarget(h){
   if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
-  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=TREAT_R);
+  const reach=medic(h)?TREAT_R*1.5:TREAT_R;
+  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
   return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
 }
+const treatPick=h=>h&&h.meds>0?treatTarget(h):null;
 function doTreat(h){
   const t=treatPick(h);
   if(!t)return;
   const sev=['spinal','maimed','concussion','bleeding','internal','brokenleg','brokenarm','burns','shrapnel','eye','eardrum','facial'];
-  const inj=t.inj.filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
-  if(!inj)return;
   const wasIncap=!!t.down||stunned(t);
-  inj.treated=true;
-  if(inj.k==='internal'&&t.maxhp0){t.maxhp=t.maxhp0;}
-  if((inj.k==='spinal'||inj.k==='maimed')&&t.down&&t.downInj){
-    t.down=0;t.downInj=0;t.hp=Math.max(t.hpSave||1,Math.round(t.maxhp*0.25));t.order=null;
+  h.meds--;h.packsUsed=(h.packsUsed||0)+1;
+  for(let n=medic(h)?2:1;n>0;n--){
+    const inj=t.inj.filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
+    if(!inj)break;
+    inj.treated=true;
+    if(inj.k==='internal'&&t.maxhp0){t.maxhp=t.maxhp0;}
+    if((inj.k==='spinal'||inj.k==='maimed')&&t.down&&t.downInj){
+      t.down=0;t.downInj=0;t.hp=Math.max(t.hpSave||1,Math.round(t.maxhp*0.25));t.order=null;
+    }
+    t.wound=hasInj(t)?1:0;
+    h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.06;
+    addFloater(t.x,t.y-52,'TREATED',C.go);
+    log(nameSpan(h)+' <span class="g">treats '+(t===h?'their own':nameSpan(t)+'’s')+' '+Rebel.INJK[inj.k].n.toLowerCase()+'</span> <span class="d">— '+Rebel.INJK[inj.k].treat+'</span>');
   }
-  t.wound=hasInj(t)?1:0;
-  h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.06;
   if(wasIncap&&t!==h){h.rescued=h.rescued||[];const id=t.pid||t.id;if(h.rescued.indexOf(id)<0)h.rescued.push(id);}
-  addFloater(t.x,t.y-52,'TREATED',C.go);
-  log(nameSpan(h)+' <span class="g">treats '+(t===h?'their own':nameSpan(t)+'’s')+' '+Rebel.INJK[inj.k].n.toLowerCase()+'</span> <span class="d">— '+Rebel.INJK[inj.k].treat+'</span>');
 }
 function wpnsOf(s){
   if(s.manning)return ['laser'];
@@ -1911,7 +1919,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2853,6 +2861,7 @@ function buildResult(win){
     if(u.down)rec.down=1;
     if(u.inj&&u.inj.length)rec.inj=u.inj.map(i=>({k:i.k,treated:!!i.treated}));
     if(u.treats)rec.treats=u.treats;
+    if(u.packsUsed)rec.packs=u.packsUsed;
     if(u.rescued&&u.rescued.length)rec.rescued=u.rescued.slice();
     if(u.minHp!==undefined)rec.minHp=Math.round(u.minHp*100)/100;
     if(u.rockets)rec.heavy=u.rockets;
@@ -4321,7 +4330,7 @@ const OM={
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run or a gunship.'},
-  treat:{label:'Treat wound',icon:'patch',family:'util',key:'',rule:'Patch the worst untreated injury on yourself or an ally within reach. A stunned or downed ally can only be treated by someone else.'},
+  treat:{label:'Treat wound',icon:'patch',family:'util',key:'',rule:'Use a Med Pack to patch the worst untreated injury on yourself or an ally within reach. A stunned or downed ally can only be treated by someone else. A Combat Medic reaches further and a pack covers two wounds.'},
   rally:{label:'Rally cry',icon:'firesupport',family:'fight',key:'0',rule:'Hero action, once per mission. Every rebel still on their feet steadies and takes +2 to hit this round.',nums:[{t:'+2 attack, all allies',kind:'good'}]},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
 const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
@@ -4356,7 +4365,7 @@ function ordersFor(s){
   if(s.jam)g3.push(card('clear',{active:!pm&&cur==='clear'}));
   if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
   if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
-  {const tp=treatPick(s);g3.push(card('treat',{active:!pm&&cur==='treat',disabled:!tp,why:'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
+  {const tp=treatPick(s),tt=treatTarget(s);g3.push(card('treat',{label:'Treat wound ×'+(s.meds||0),active:!pm&&cur==='treat',disabled:!tp,why:tt&&!s.meds?'No med pack left.':'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
   out.push(HUD.sep(),card('cancel'));
@@ -4962,7 +4971,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
+      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

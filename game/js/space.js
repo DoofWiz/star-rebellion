@@ -85,7 +85,7 @@ function mkPilot(o){
   if(!p.skills){const a=(p.aim||0)*10;p.skills={aim:a,cunning:a,focus:a,presence:Math.round((p.cool||60)/2)};}
   p.aim=SRDB.skillBonus(p.skills.aim,p.level);
   p.focusBonus=SRDB.skillBonus(p.skills.focus,p.level);
-  if(p.fixed){p.aim=o.aim;p.focusBonus=0;} // rebels bring finished aim and focus numbers (skill, level, mood and injury already in)
+  if(o.aimMod)p.aim=Math.max(0,p.aim+o.aimMod); // mood, injury and specialty ride on top of the skill-and-level bonus
   if(p.init===undefined)p.init=3;
   return p;
 }
@@ -210,7 +210,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,
-          rankName:f.rankName,hero:f.hero||0,fixed:f.fixed,aim:f.aim||2,skills:f.skills,init:f.init,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}

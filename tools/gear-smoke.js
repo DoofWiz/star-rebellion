@@ -92,7 +92,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().people.push(sup);f.openWin('person',sup);out.supportGear=$$('#winCardB .bs-gearslot').length;
   return out;
  });
- ok(r.start.every((g,i)=>i<3?g==='{"primary":"akli","secondary":"cowboy","gad":[null,null]}':g==='{"primary":null,"secondary":"cowboy","gad":[null,null]}'),'opening gear '+r.start);
+ ok(r.start.every((g,i)=>i<3?g==='{"primary":"akli","secondary":"cowboy","gad":[null,"medpack"]}':g==='{"primary":null,"secondary":"cowboy","gad":[null,null]}'),'opening gear: the soldiers carry a Med Pack in the utility slot, the pilot does not '+r.start);
  ok(r.free[0]===3&&r.free[1]===0,'free stock '+r.free);
  ok(JSON.stringify(r.slots)==='[4,3,0,4]','slot counts '+r.slots);
  ok(!r.support&&r.marine==='akli','support carries nothing, marines do '+[r.support,r.marine]);

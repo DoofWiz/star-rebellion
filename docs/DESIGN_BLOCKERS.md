@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-02, after merging the game database with the Rebels work.
+**Last updated:** 2026-10-02, after the designer's answers on C-1, C-2, C-3, C-5 and C-6 were built.
 
 ## How to use this
 
@@ -27,12 +27,7 @@
 
 | ID | Pri | Item | Blocks |
 |---|---|---|---|
-| C-1 | 🔴 | Two pilot skill systems (database vs. rebels) | Pilot aim/focus balance, the Level-bonus rule |
-| C-2 | 🟡 | Scripted cast vs. generated rebels | Joss, Sera and Petra look different in space than on the roster |
-| C-3 | 🟡 | Hero promotions need Level 2, which has no content | Heroes are rare to see in a real campaign |
 | C-4 | ⚪ | Source docs disagree with each other (Level scope, Fuel/Intel, tiers) | Nothing live; wording only |
-| C-5 | ⚪ | Specialties: 3 of 16 live, and they overlap the new skills | Rookie vs. specialist feel |
-| C-6 | ⚪ | Anyone can treat wounds; the Combat Medic does nothing extra | Medic specialty value |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -45,6 +40,8 @@
 | M-10 | 🟡 | Armour and carried-gear effects | Strong, Weak, Messy, the fourth gear slot |
 | M-11 | 🟡 | Pilot critical injuries and space-side gear | Pilots escape injury risk; gear only matters on foot |
 | M-12 | 🟡 | Old injuries: permanent Limp, Old Wound | 6 Rebel Traits |
+| M-13 | 🟡 | Specialty abilities (the active ability each specialty gives) | 15 of 16 specialties |
+| M-14 | 🟡 | Base-specific skills for Support rebels | Support have no skills at all |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -52,41 +49,7 @@
 
 ## 1. Conflicts
 
-### C-1 🔴 Two pilot skill systems
-**What happened.** While the Rebels work was in progress, the game database landed (`game/data/db.json`,
-`game/js/data.js`) with its own pilot model: four skills of 0–50, an initiative of 1–6, and a bonus
-`floor(skill/10) + floor(level/5)` for Aim and Focus. The Rebels doc has its own skills (Aim, Cunning, Focus,
-Presence for pilots) that grow with experience, plus level, morale and injury effects on top.
-**What I did.** Rebel pilots pass their skills, initiative and loadout through the database model so the space
-scene displays them, but I kept my own finished Aim and Focus numbers (`fixed: 1` in `mkPilot`). Otherwise level
-would be counted twice (once inside my skill curve, once in the `level/5` bonus) and mood and injury penalties
-would be skipped. Scripted pilots from the database still use the database formula unchanged.
-**Why it matters.** Rebel pilots and scripted pilots now follow different Aim/Focus rules. Both are balanced
-separately, but a designer reading either doc would expect one rule.
-**Needs from you.** Which is the rule: (a) the database formula (skill and level both give bonuses) with my
-mood/injury modifiers added on top, or (b) the Rebels formula (level is already inside skills)? Also: the
-database doc says the bonus formula is "proposed, not yet in the Rebels & Recruits doc" — should it go in?
-**Your call:** _open_
-
-### C-2 🟡 Scripted cast vs. generated rebels
-Joss, Sera and Petra exist in three places: the starting roster in `base.js`, the registry (`AUTHORED` Character
-Traits: Reckless, Lucky…), and the database pilot rows (`joss-marrek`, `sera-kest`, `petra-voss`, with their own
-stats). On the roster they use the rebel model; in space their **initiative** comes from the database row and
-their **skills** from the rebel model, so a database edit to Joss's Aim does nothing in the campaign. Sera's
-*Lucky* is also still special-cased in the flight build. I did not unify them because the database rows also feed
-scripted scenarios.
-**Needs from you:** is the database row the source of truth for the named cast (and the rebel model should read
-it), or is the rebel model the source and the database rows are only for tutorials and scenarios?
-**Your call:** _open_
-
-### C-3 🟡 Heroes need Level 2, but Level 2 has no content
-Your decision was that Hero promotions wait for Revolution Level 2. Level 2 currently only plays the escalation
-animation; Alerts, Hegemony raids, Level 2 missions and enemies do not exist (they are out of scope in the
-roadmap). So in a Level 1 campaign no rebel ever becomes a Hero, the Hero actions (Rally cry, Heroic surge) can
-only be seen in tests, and the Hero-linked traits cannot appear.
-**Needs from you:** keep it that way until Level 2 is built, or open Heroes at the end of Level 1 (for example
-at 90% of the meter) so they can be seen?
-**Your call:** _open_
+One is open; the rest are in the resolved log at the bottom.
 
 ### C-4 ⚪ Source docs disagree with each other
 Carried over from `docs/ROADMAP.md` "Doc issues" so they live in one place. All are wording problems that do not
@@ -99,26 +62,10 @@ block play; I followed the answer in brackets.
 - Specialties, Locations Regions and Fleet Combat docs have empty or half-finished sections.
 - "Imperium" vs. "Hegemony" in older GDD copy. *(Hegemony; I fixed the sections I touched.)*
 **Needs from you:** confirm the bracketed answers, and fill the blank sections when you can (the Specialties one
-matters most: see C-5).
+matters most: see M-13).
 **Your call:** _open_
 
-### C-5 ⚪ Specialties are mostly unbuilt, and they overlap the new skills
-Only three of the 16 specialties do anything: Field Technician, Vanguard (+1 aim) and Dogfighter (+1 aim). The
-rest (Gunner, Commando, Assault, Combat Medic, Demolitions, Marksman, Commander, Driver, Leader, Bomber, Fire
-Support, Flight Engineer, Shipbuster) are labels. Meanwhile, skills now grow with play, so a "+1 aim" specialty
-sits next to an Aim skill that already grows. Specialties are chosen at level 3 at the Training Center; a rebel is
-a "Rookie" until then.
-**Needs from you:** what should a specialty give that a skill does not? (a) unique abilities only (no stat
-bonuses), (b) a stat bonus plus an ability, or (c) a faster skill growth in their area? And the half-finished
-Specialties doc, for the effects of the other 13.
-**Your call:** _open_
 
-### C-6 ⚪ Anyone can treat wounds
-The Rebels doc's Treat Wound order was written without a specialist in mind; I let anyone use it (one injury per
-action, worst first, within about 110 units). The Combat Medic specialty is not live, so it adds nothing yet.
-**Needs from you:** should a Combat Medic treat faster, from further away, or two injuries in one action? Should
-non-medics be limited to treating themselves, or to the bleeding only?
-**Your call:** _open_
 
 ---
 
@@ -171,8 +118,8 @@ action, and what does a failed attempt do (the trait fires on a failed rescue, o
 **Your call:** _open_
 
 ### M-5 🟡 Command decisions and story events
-**Blocks:** Inspired, Survivor, Disgraced, Court-Martialled, Abandoned by Squad, Betrayed by [B], and (see C-3)
-Hero of the Rebellion / Made a Name / Symbol.
+**Blocks:** Inspired, Survivor, Disgraced, Court-Martialled, Abandoned by Squad, Betrayed by [B], and
+Hero of the Rebellion / Made a Name / Symbol (a Hero can now emerge in Level 1, so these can be built).
 **Why:** these need a decision the player makes (leaving wounded behind, ordering a retreat) or an event the
 story makes (a defection, a witnessed act of heroism). Neither exists.
 **Needs from you:** which of these you want and what triggers each. My suggestions: Abandoned = wounded left on
@@ -239,13 +186,55 @@ Medical section on the dossier shows permanent losses and fitted prosthetics, so
 Wound? What flaring means (a random penalty on a mission)?
 **Your call:** _open_
 
+### M-13 🟡 Specialty abilities
+**Blocks:** 15 of the 16 specialties, which are labels with no effect. Direction from you (C-5): each specialty
+gives **a cool active ability plus slight bonuses to a related skill**. Combat Medic is built as the first
+example (+3 Presence, and Treat Wound that reaches further and covers two wounds with one pack). Vanguard
+(+1 aim) and Dogfighter (+1 aim) still use the old flat bonus and should become a skill bonus plus an ability.
+**Needs from you:** the active ability for each specialty. My first guesses are below, so edit freely. "Skill" is
+the related skill that gets the slight bonus (about +3).
+
+| Specialty | Skill | Proposed active ability |
+|---|---|---|
+| Field Technician (live) | Presence | Overclock: a hack or technical objective finishes in half the time |
+| Vanguard (live) | Aim | Push Forward: once a mission, a squad mate in reach advances without losing cover and takes +1 to hit for the round |
+| Gunner | Constitution | Suppressing Fire: pins enemies in a cone so they take −2 to hit for the round |
+| Commando | Agility | Ghost: one round of true stealth even after being spotted |
+| Assault | Aim | Breach and Clear: a rocket or heavy shot also stuns anyone next to the target |
+| Combat Medic (live) | Presence | *(built as the Treat Wound bonuses; a second ability is open)* |
+| Demolitions Specialist | Constitution | Shaped Charge: a thrown or planted charge ignores cover and walls |
+| Marksman | Aim | Called Shot: a held shot at long range that cannot miss a target in the open |
+| Commander | Presence | Rally Orders: the squad acts first next round |
+| Driver | Agility | Hard Extraction: the squad extracts one round faster |
+| Dogfighter (live) | Aim | Tail Chase: a free shot at a ship that has just passed behind them |
+| Leader | Presence | Wing Command: every ship in the wing takes +1 initiative for a round |
+| Bomber | Aim | Bomb Run: a bomb that hits everything under its path |
+| Fire Support | Cunning | Danger Close: a strafing run on a ground target the ground team has marked |
+| Flight Engineer | Cunning | Field Repair: restores part of a wingmate's armour in flight |
+| Shipbuster | Aim | Alpha Strike: a torpedo or heavy shot at a fixed point or a large ship, ignoring shields |
+
+**Your call:** _open_
+
+### M-14 🟡 Base-specific skills for Support rebels
+**Blocks:** Support rebels have no skills (they never leave the base). You said they need skills of their own in
+the future, tied to what they do at the base.
+**Needs from you:** the list of base skills and what each one affects (for example Medicine for Infirmary
+recovery and Med Pack output, Engineering for the Workshop and ship repairs, Logistics for Stores and supplies,
+Intelligence for the Command Center and Sources, Diplomacy for the Diplomatic Quarter), how they grow (posting to
+a room over time, training), and whether the specialty system applies to Support.
+**Your call:** _open_
+
 ---
 
 ## 3. Resolved log
 
-*Nothing resolved through this file yet. Earlier decisions (Heroes wait for Level 2, Marines data-only, rank
-decoupled from level, per-rebel morale on top of base mood, USAF pilot ladder, recruiting through the Command
-Center) are recorded in `docs/REBELS_PLAN.md` §2.*
+Earlier decisions (Heroes wait for Level 2, Marines data-only, rank decoupled from level, per-rebel morale on top
+of base mood, USAF pilot ladder, recruiting through the Command Center) are recorded in `docs/REBELS_PLAN.md` §2.
 
-| ID | Decision | Date | Built in |
+| ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-1 | **A.** Pilots follow the database formula (`floor(skill/10) + floor(level/5)` for Aim and Focus), with mood, injury and the Dogfighter specialty added on top. | 2026-10-02 | The `fixed` override is gone. A rebel's skills are carried to the database's 0–50 scale at the base/space boundary (`Rebel.dbSkill`) and the space scene applies its own bonus; mood, injury and specialty ride on top as `aimMod`. Focus is the database bonus alone, so a fresh generated pilot is weaker than before at Aim and Focus. Scripted pilots and rebel pilots now follow one rule. |
+| C-2 | The scripted opening rebels are the same for every player but are generated from the same database as every other rebel. | 2026-10-02 | `Rebel.scripted(spec, row)` builds the cast through the normal rebel path. Joss and Sera take level, experience, initiative and skills from their database rows (Joss now starts at level 4 and Sera arrives at level 3, as the database says); the soldiers use fixed values. Sera's Lucky is her Character Trait, not a special case. Petra only exists in the space scenario. |
+| C-3 | Revolution Level 1 lets exactly one Hero emerge in a playthrough; if they die there is no replacement. | 2026-10-02 | `G.heroesMade` counts Heroes ever made; Level 1 allows one, Level 2 and above use the normal rules. In ten bot runs a Hero appeared before the escalation in five (days 45–83). The one Hero is for testing; the rate is easy to raise. |
+| C-5 | A specialty should give a cool active ability plus slight bonuses to a related skill, depending on the specialty. Support rebels need base-specific skills later. | 2026-10-02 | Direction only for now. Combat Medic is live as the first example (see C-6). The ability for each specialty is M-13; Support skills are M-14. |
+| C-6 | Treating a wound needs an item (a Med Pack); specialist training should add bonuses, never make it harder for the untrained. | 2026-10-02 | A **Med Pack** gadget (four at the start). Ground rebels are handed one in their second gadget slot; Treat Wound uses one pack per action and the card shows how many are left. A used pack leaves the armory at the debrief. The Infirmary makes a pack every three days (two with someone on station) for 8 supplies, up to 4 plus 2 per Infirmary tile. **Combat Medic** is live: treats from 1.5× as far, one pack covers two wounds, and +3 Presence. |
