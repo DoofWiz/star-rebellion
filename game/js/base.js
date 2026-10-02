@@ -2223,7 +2223,8 @@ function figure(x,y,S,name,col,p,pose){
 function artShipId(cls){return SA.SHIP_FOR_GAME[cls]||(SA.SHIPS[cls]?cls:'cross');}
 function fighterTop(x,y,S,rot,alive,col){craftTop('cross',x,y,S,rot,col);}
 function craftTop(cls,x,y,S,rot,col,o){
-  SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel'},o||{}));
+  // every craftTop is a parked ship (pads, hangar bays, workshop), so it sits powered down
+  SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel',off:true},o||{}));
 }
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 

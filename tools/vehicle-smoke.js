@@ -59,7 +59,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(a.shots.join()==='false,true,true,false','enclosed crew cannot be targeted, the car can '+a.shots);
  ok(a.empty[0]===0&&a.empty[1]===false&&a.empty[2]===true,'an empty car is not a target and can be entered '+a.empty);
  ok(a.enterOffer==='pc1'&&a.card,'Enter appears near a free vehicle '+a.enterOffer+' '+a.card);
- ok(a.stolen[0]==='reb'&&a.stolen[1]==='drv'&&a.stolen[2]===320&&a.stolen[3]==='cruiser','a rebel can take the wheel '+a.stolen);
+ ok(a.stolen[0]==='reb'&&a.stolen[1]==='drv'&&a.stolen[2]===385&&a.stolen[3]==='cruiser','a rebel can take the wheel '+a.stolen);
  ok(a.inside.join()==='true,true,true,true,false,false,true,true,false','inside: move, hold, lock in, exit; no sprint or cover; loot and work out of reach '+a.inside);
  ok(a.lawShots.join()==='false,true','enemies shoot the car, not the driver '+a.lawShots);
  ok(a.blast[0]&&a.blast[1],'blasts hit the hull, not the crew '+a.blast);
@@ -95,7 +95,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(c.driver[0]&&c.driver[1],'an unarmed driver moves but has no Hold '+c.driver);
  ok(c.noSwitch===0&&c.switchTo==='gun','switch position needs a free seat '+c.noSwitch+' '+c.switchTo);
  ok(c.switched.join()==='gun,dispersal,false','switched to the turret: the gun, no driving '+c.switched);
- ok(c.bot.join()==='strider,220,true,true,false,false,false,false,true,false','the Strider is a Bot: own speed, vehicle actions, cannot be manned '+c.bot);
+ ok(c.bot.join()==='strider,265,true,true,false,false,false,false,true,false','the Strider is a Bot: own speed, vehicle actions, cannot be manned '+c.bot);
 
  // ---- the transport unloads its riot squad when the alarm goes up; crews bail from a burning car
  await go(spec('autofactory'));

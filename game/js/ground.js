@@ -18,7 +18,8 @@ const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas 
 
 /* ---------- constants ---------- */
 let W=2400,H=1600;
-const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135,SNEAK_SPEED=72;
+/* movement scaled up 20% for the Bobbleheads art (bigger figures made the old ranges read short) */
+const MOVE_R=180,SPRINT_R=360,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=160,SNEAK_SPEED=86;
 /* Character Traits (see rebel.js): units carry their trait keys in u.tr */
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
 const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1)*(injOf(u,'brokenleg')?0.5:1)*(injOf(u,'burns')?0.7:1);
@@ -813,14 +814,14 @@ function initUnits(){
    A Bot (the Strider) is the robot equivalent of a vehicle: it drives itself and cannot be manned, and it takes
    the vehicle action list (no sprint, cover, loot or work). */
 const VEHDEF={
-  police:   {name:'Police Cruiser',first:'Cruiser',hp:130,def:7,spd:320,
+  police:   {name:'Police Cruiser',first:'Cruiser',hp:130,def:7,spd:385,
              seats:[{k:'drv',n:'Driver',drive:1,wkey:'cruiser',enc:1}]},
-  dispersal:{name:'Riot Dispersal Cruiser',first:'Cruiser',hp:170,def:7,spd:260,
+  dispersal:{name:'Riot Dispersal Cruiser',first:'Cruiser',hp:170,def:7,spd:310,
              seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'gun',n:'Turret',wkey:'dispersal',enc:0}]},
-  transport:{name:'Riot Transport Cruiser',first:'Cruiser',hp:150,def:7,spd:280,
+  transport:{name:'Riot Transport Cruiser',first:'Cruiser',hp:150,def:7,spd:335,
              seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'bay1',n:'Troop bay',enc:1},{k:'bay2',n:'Troop bay',enc:1},{k:'bay3',n:'Troop bay',enc:1}]},
 };
-const BOTDEF={strider:{spd:220}};
+const BOTDEF={strider:{spd:265}};
 const ENTER_R=50;                     // close enough to climb in
 const HATCH_COVER=3;                  // an open gun seat still has the hull around it
 function mkVeh(o){
@@ -3878,23 +3879,31 @@ function drawTowerTop(){
   ctx.restore();
   plb(SCN.towerLabel||'CONDENSER',TOWER.x,TOWER.y-TOWER.r-10,C.text2,12);
 }
+/* a landed ship sits on the dirt: a hard ground shadow under the hull so it reads as parked, not hovering */
+function groundShadow(x,y,rx,ry){
+  ctx.save();ctx.fillStyle='rgba(20,14,10,0.28)';
+  ctx.beginPath();ctx.ellipse(x+6,y+10,rx,ry,0,0,7);ctx.fill();ctx.restore();
+}
 function drawDerelict(now){
   const d=SCN.derelict;
-  SA.ship(ctx,'graf',d.x,d.y,d.a||0,4.2,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true});
+  groundShadow(d.x,d.y,92,32);
+  SA.ship(ctx,'graf',d.x,d.y,d.a||0,4.2,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
   plb('DERELICT HAULER',d.x,d.y-80,C.text2,12);
 }
 function drawGraf(now){
   now=now||performance.now();
   let sc=1,ox=0,oy=0;
-  if(extractFx&&extractFx.stage==='lift'){
+  const lifting=!!(extractFx&&extractFx.stage==='lift');
+  if(lifting){
     const t=Math.min(1,(now-extractFx.t0)/3200);
     const e=t*t;
     sc=1+t*0.3;
     ox=-e*1500;oy=e*260;
     if(t>=1)return;
   }
+  if(!lifting)groundShadow(grafPos.x,grafPos.y,92,32);
   SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,4.2*sc,HUD.reduced?0:now/1000,
-    {livery:'rebel',dark:true,boost:!!(extractFx&&extractFx.stage==='lift')});
+    {livery:'rebel',dark:true,boost:lifting,off:!lifting});
   if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-82,C.shield,12);
 }
 function drawCross(now){
@@ -3908,7 +3917,8 @@ function drawCross(now){
     sc=1+t*0.25;
     if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  SA.ship(ctx,'cross',x,y,-0.5,1.8*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx});
+  if(!crossFx)groundShadow(x,y,42,15);
+  SA.ship(ctx,'cross',x,y,-0.5,1.8*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
 
