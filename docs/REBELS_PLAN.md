@@ -108,13 +108,21 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
   - *Not yet:* Aim still applies to guided weapons for pilots (the doc says unguided only); Support skills stay absent; the Marta's pilot and the VIP don't carry skills into ground missions.
   - Tests: `node tools/skills-smoke.js` (curves, caps, role sets, squad and flight profiles, debrief training); I also drove one ground and one space mission end to end and checked the results carry `sk`. Autoplay seeds 1–3 unchanged (96 / 71 / 92).
 
-### Phase 4 — Per-rebel morale
+### Phase 4 — Per-rebel morale — **built**
 - `p.morale` 0–100, bands Very Low/Low/Middling/High/Very High, shown as a bar + word in dossier and roster.
 - Inputs: mission win/loss, injuries to self/others, deaths, promotion, revolution progress (Rev meter), Rec Room/rest, character/rebel trait modifiers, Idealist/Cynical/Loyal/Charismatic rules.
 - Effects: band → small combat modifier (aim/cool) and, in the base, nothing else at first; a Very Low band warns in the news feed.
 - At 0 the rebel **deserts**: removed from `G.people`, news item, base-mood hit; refuse to desert a rebel currently on a mission (resolve after debrief).
 - Recompute `G.morale` as the average so Rec Room and existing displays stay valid (decision 4).
 - **Done when:** a run of failed missions drives some rebels out and a good streak raises performance; autoplay shows no mass desertion on a normal path.
+- **Built:** `p.morale` (0–100, new and migrated rebels start at 60) with the doc's five bands. `G.morale` is now the base's mood: the average of everyone's, recomputed after every change.
+  - *Events:* a win lifts the mission team +3 and everyone else +1; a failure drops the team −8 and everyone else −3; an injury costs the rebel −5 and their squadmates −2 (−0.5 for the rest of the base); a death costs everyone −6 and the mission team −10; a burned or silenced source −6 to −10; a liberated region +4 and Level 2 +8 for everyone; injured rebels lose 0.5 a day; resting gains 0.3 a day (0.6 with a Rec Room); everyone drifts 4% a day back toward 60.
+  - *Traits now live:* Idealist (wins and defeats land 30% harder), Cynical (everything moves 30% less), Charismatic (+0.15 a day to every other rebel at the base per healthy Charismatic), and Loyal now also halves the morale hit from a death.
+  - *Effects:* Very Low −1 aim and −10 Cool; Low −5 Cool; High +5 Cool; Very High +1 aim and +8 Cool (applied through `aimOf` / `coolOf`, so both combat scenes see it).
+  - *Desertion:* a warning in the news at 20 or below; a rebel at 0 walks out at the next day tick (never mid-mission; mission rebels are frozen until they're back), and everyone else loses 3.
+  - *UI:* a Morale row with number and band in the dossier and New Recruit screen, and a red ▼ on the roster for Low or Very Low.
+  - *Not yet:* Phase 5's promotions will add their morale bump; relationship-driven morale (Friends, Rivals, Love…) waits on Phase 9; Heavy Sleeper's "immune to sleep penalties" has nothing to dampen yet.
+  - Tests: `node tools/morale-smoke.js` (bands, trait bends, clamps, combat nudges, mood average, team vs base-wide, injury and death in a real debrief, warning, desertion, drift, charisma, migration). Autoplay seeds 1–3 finish with no errors on days 96 / 71 / 92; the flawless bot ends with a base mood around 80 and individual rebels between 68 and 100.
 
 ### Phase 5 — Ranks and promotion
 - Ladders per type: Soldier/Support = Army enlisted, Marine = USMC enlisted, Pilot = USAF enlisted (starting Private per the doc). Keep the current officer `RANKS` as the officer ladder.

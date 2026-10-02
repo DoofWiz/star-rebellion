@@ -85,12 +85,12 @@ window.Rebel=(function(){
     {k:'wealthy',n:'Wealthy',q:'[Character] grew up with considerably more money than most rebels have ever seen.',e:'Brings a small Credits bonus when recruited.',live:1,where:'b',w:0.4},
     {k:'politician',n:'Politician',q:'[Character] spent years learning how to say absolutely nothing for several hours at a time.',e:'Improves diplomatic and political mission quality.',live:0,where:'b',w:0.4},
     {k:'industrialist',n:'Industrialist',q:'[Character] knows how to make factories work. They also know how to make them stop.',e:'Improves Materials generation.',live:0,where:'b',w:0.4},
-    {k:'charismatic',n:'Charismatic',q:'[Character] could probably convince you that surrendering was your idea.',e:'Improves recruitment and morale.',live:0,where:'m',w:0.7},
+    {k:'charismatic',n:'Charismatic',q:'[Character] could probably convince you that surrendering was your idea.',e:'Lifts the morale of everyone else at the base a little each day.',live:1,where:'m',w:0.7},
     {k:'intimidating',n:'Intimidating',q:'[Character] doesn’t have to raise their voice. People tend to listen anyway.',e:'Improves interrogation and coercion missions.',live:0,where:'b',w:0.6},
     {k:'empathetic',n:'Empathetic',q:'[Character] remembers everyone’s name. Even when they’d rather forget.',e:'Nearby rebels steady a little faster.',live:1,where:'g',w:0.7},
     {k:'pragmatic',n:'Pragmatic',q:'[Character] doesn’t care what works, provided that it works.',e:'Reduced resource cost on certain operations.',live:0,where:'b',w:0.6},
-    {k:'idealist',n:'Idealist',q:'[Character] genuinely believes the galaxy can be better. This is either admirable or extremely inconvenient.',e:'Higher morale while the rebellion is succeeding, lower after major defeats.',live:0,where:'m',w:0.7},
-    {k:'cynical',n:'Cynical',q:'[Character] has heard every inspiring speech. They remain unconvinced.',e:'Less affected by morale penalties and leadership bonuses.',live:0,where:'m',w:0.7},
+    {k:'idealist',n:'Idealist',q:'[Character] genuinely believes the galaxy can be better. This is either admirable or extremely inconvenient.',e:'Feels every success and every defeat 30% more keenly.',live:1,where:'m',w:0.7},
+    {k:'cynical',n:'Cynical',q:'[Character] has heard every inspiring speech. They remain unconvinced.',e:'Morale moves 30% less, up or down.',live:1,where:'m',w:0.7},
     {k:'reckless',n:'Reckless',q:'[Character] considers ‘that seems dangerous’ a compelling reason to try something.',e:'+20% damage after sprinting. Takes critical hits more easily while at it.',live:1,where:'g',w:0.7},
     {k:'cautious',n:'Cautious',q:'[Character] likes to have an escape route. Preferably several.',e:'-10% damage taken. -10% movement speed.',live:1,where:'g',w:0.8},
     {k:'perfectionist',n:'Perfectionist',q:'[Character] would rather miss the shot than take one they aren’t happy with.',e:'+3 accuracy. Always attacks last.',live:1,where:'g',w:0.6},
@@ -130,6 +130,29 @@ window.Rebel=(function(){
   const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
 
 
+
+  /* ---------- morale ----------
+     0..100 per rebel. It moves with how the revolution is going and what happens to them, and it nudges
+     performance: low morale is a debuff, high morale a buff. At 0 a rebel abandons the cause. */
+  const MBANDS=[{k:'vlow',n:'Very Low',max:20,tone:'bad'},{k:'low',n:'Low',max:40,tone:'bad'},{k:'mid',n:'Middling',max:60,tone:''},{k:'high',n:'High',max:80,tone:'good'},{k:'vhigh',n:'Very High',max:100,tone:'good'}];
+  const MORALE_START=60;
+  const mband=p=>{const m=p&&p.morale!==undefined?p.morale:MORALE_START;return MBANDS.find(b=>m<=b.max)||MBANDS[4];};
+  /* kinds: win, loss, death, injury, rest, promo, misc. Traits bend how hard each kind lands. */
+  function moraleBump(p,d,kind){
+    if(!p||p.auto||!d)return 0;
+    if(p.morale===undefined)p.morale=MORALE_START;
+    const loss=d<0;
+    if(has(p,'cynical'))d*=0.7;
+    if(has(p,'idealist')){if((kind==='win'&&!loss)||(loss&&(kind==='loss'||kind==='death')))d*=1.3;}
+    if(has(p,'loyal')&&kind==='death')d*=0.5;
+    const before=p.morale;
+    p.morale=Math.max(0,Math.min(100,p.morale+d));
+    return p.morale-before;
+  }
+  /* band -> small combat nudges, read by aimOf / coolOf */
+  const MFX={vlow:{aim:-1,cool:-10},low:{aim:0,cool:-5},mid:{aim:0,cool:0},high:{aim:0,cool:5},vhigh:{aim:1,cool:8}};
+  const moraleFx=p=>MFX[mband(p).k];
+
   /* ---------- skills ----------
      Derived, never stored: level gives a steady base and p.sx (earned in missions, capped) adds the rest.
      Soldiers and Marines: Aim, Constitution, Agility, Presence. Pilots: Aim, Cunning, Focus, Presence.
@@ -151,10 +174,10 @@ window.Rebel=(function(){
     return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0)));
   }
   /* what the combat scenes read; the curves keep a fresh rebel where the old level formulas had them */
-  const aimOf=(p,theatre)=>theatre==='s'?clamp(Math.round(2+(skill(p,'aim')-5)/3.2-0.25),1,6):clamp(Math.round(2+(skill(p,'aim')-5)/4.8),1,6);
+  const aimOf=(p,theatre)=>clamp((theatre==='s'?Math.round(2+(skill(p,'aim')-5)/3.2-0.25):Math.round(2+(skill(p,'aim')-5)/4.8))+moraleFx(p).aim,1,6);
   const hpOf=p=>100+Math.round((skill(p,'con')-5)*1.2);
   const moveMul=p=>1+(skill(p,'agi')-5)*0.004;
-  const coolOf=(p,theatre)=>theatre==='s'?Math.min(85,Math.round(59+(skill(p,'pre')-5)*2)):Math.min(85,Math.round(65+(skill(p,'pre')-5)*0.6));
+  const coolOf=(p,theatre)=>Math.max(20,Math.min(90,Math.min(85,theatre==='s'?Math.round(59+(skill(p,'pre')-5)*2):Math.round(65+(skill(p,'pre')-5)*0.6))+moraleFx(p).cool));
   const nerveMul=p=>1-(skill(p,'pre')-5)*0.005;       // scales every Cool loss
   const focusTN=p=>Math.round((skill(p,'foc')-5)/14);    // added to the number others need to hit them
   const cunMul=p=>1+(skill(p,'cun')-5)*0.01;            // repairs and shield boosts
@@ -187,8 +210,9 @@ window.Rebel=(function(){
     if(!p.auto&&(p.first===undefined||p.last===undefined)){const s=split(p.name);p.first=s.first;p.last=s.last;}
     if(!p.auto&&p.charTrait===undefined)p.charTrait=AUTHORED[p.id]||hashPick(p);
     if(!p.auto&&p.sx===undefined)p.sx={};
+    if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,MBANDS,MORALE_START,mband,moraleBump,moraleFx};
 })();

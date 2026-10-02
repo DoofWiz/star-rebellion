@@ -174,6 +174,7 @@ function newGame(){
     news:[],
   };
   g0.people.forEach(Rebel.migrate);
+  g0.morale=Rebel.MORALE_START;
   return g0;
 }
 
@@ -238,6 +239,14 @@ const STLBL={barracks:'Garrison',hangar:'Deck',diplo:'Diplo',command:'Command',s
 function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!p.injured);}
 function medStaff(){return staffOf('infirmary');}
 const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
+/* ---------- morale: every rebel has their own; G.morale is the base's mood, their average ---------- */
+const crewOf=()=>G.people.filter(p=>!p.auto);
+function mood(){const c=crewOf();G.morale=c.length?c.reduce((a,p)=>a+(p.morale===undefined?Rebel.MORALE_START:p.morale),0)/c.length:Rebel.MORALE_START;}
+/* a base-wide event: everybody feels it, those in `team` feel it differently */
+function moraleAll(d,kind,team,dTeam){
+  for(const p of crewOf())Rebel.moraleBump(p,team&&team.includes(p.id)?dTeam:d,kind);
+  mood();
+}
 /* news classes (saved as d/a/g/h/r/p) → kit tones */
 const NEWS_TONE={d:'',a:'action',g:'good',h:'bad',r:'info',p:'progress'};
 const newsTone=cls=>NEWS_TONE[cls]!==undefined?NEWS_TONE[cls]:'';
@@ -1106,15 +1115,18 @@ function advanceDay(){
   patrolTick();
   specTick();
   const xpRate=staffOf('training').length?0.09:0.06;
+  moraleTick();
   for(const p of G.people){
     if(p.injured>0){
+      Rebel.moraleBump(p,-0.5,'injury');
       p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
       if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');}
       continue;
     }
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
-    if(p.assign==='rest')G.morale=Math.min(100,G.morale+(upAny('barracks','rec')?1:0.5));
+    if(p.assign==='rest')Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
   }
+  mood();
   for(const src of G.sources){
     if(!src.alive)continue;
     src.visited=false;src.contacted=false;
@@ -1128,7 +1140,7 @@ function advanceDay(){
     if(src.risk>70&&rng()<(src.risk-70)/220){
       src.alive=false;
       G.risk=Math.min(100,G.risk+15);
-      G.morale=Math.max(0,G.morale-6);
+      moraleAll(-6,'loss');
       news('<b>'+src.name+'</b> has been BURNED. Counter-intelligence took them at '+src.loc+'. Assume they talk.','h');
       sAlert();
     } else if(src.risk>70){
@@ -1259,6 +1271,26 @@ function startSpec(pid,k){
   news('<b>'+p.name+'</b> begins <b>'+sp.n+'</b> training, '+SPEC_DAYS+' days.','a');
   sBuild();saveSnap();syncUI();renderWin();
 }
+/* the daily pulse of morale: the desperate leave, the rest drift back toward steady, charisma spreads */
+function moraleTick(){
+  const charm=crewOf().filter(p=>Rebel.has(p,'charismatic')&&!p.injured&&p.assign!=='mission');
+  for(const p of crewOf().slice()){
+    if(p.morale===undefined)p.morale=Rebel.MORALE_START;
+    if(p.morale<=0&&p.assign!=='mission'){
+      G.people=G.people.filter(x=>x!==p);
+      news('<b>'+p.name+'</b> has had enough and walks out of the revolution. Their bunk is empty by morning.','h');
+      for(const q of crewOf())Rebel.moraleBump(q,-3,'loss');
+      sAlert();continue;
+    }
+    if(p.assign==='mission')continue;   // away: nothing changes until they are back
+    if(p.morale<=20&&!p.mwarn){p.mwarn=1;news('<b>'+p.name+'</b>\u2019s morale has collapsed. Rest, wins or a lift from the others, or they will leave.','h');}
+    if(p.morale>30)p.mwarn=0;
+    Rebel.moraleBump(p,(Rebel.MORALE_START-p.morale)*0.04,'rest');
+    const others=charm.length-(charm.includes(p)?1:0);
+    if(others>0)Rebel.moraleBump(p,0.15*others,'misc');
+  }
+  mood();
+}
 function specTick(){
   for(const p of G.people){
     if(p.assign!=='spec'||!p.specTrain)continue;
@@ -1337,7 +1369,7 @@ function resolveMission(m){
       } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
     }
     for(const p of pilots)gainXp(p,m.rew.xp||0.1);
-    G.morale=Math.min(100,G.morale+6);
+    moraleAll(1,'win',pilots.map(p=>p.id),3);
     m.state='done';m.meta='SUCCESS';
     const cr=missionCredit(m);
     queueReport(buildReport(m,true,rew,pilots.map(p=>({name:p.name,xp:m.rew.xp||0.1})),cr,false));
@@ -1349,7 +1381,7 @@ function resolveMission(m){
     hurt.injured=(hasRoom('infirmary')&&medStaff().length)?2:4;
     const f=G.fighters.find(x=>x.id===m.progress.fighters[0]);
     if(f)f.hull=Math.max(15,f.hull-30);
-    G.morale=Math.max(0,G.morale-8);
+    moraleAll(-3,'loss',pilots.map(p=>p.id),-8);Rebel.moraleBump(hurt,-5,'injury');mood();
     m.state='avail';m.progress=null;
     queueReport(buildReport(m,false,[],[{name:hurt.name,xp:0,state:'injured'}],null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
@@ -1427,7 +1459,7 @@ function checkCultLevel(src){
 }
 function srcSilence(src){
   src.alive=false;
-  G.morale=Math.max(0,G.morale-10);
+  moraleAll(-10,'loss');
   news('The assassin reports in: <b>'+src.name+'</b> won’t be talking to anyone. The crew heard anyway.','h');
   sAlert();
   closeWin();openWin('sources');
@@ -1435,7 +1467,7 @@ function srcSilence(src){
 }
 function srcCutLoose(src){
   src.alive=false;
-  G.morale=Math.max(0,G.morale-6);
+  moraleAll(-6,'loss');
   for(const o of G.sources)if(o.alive&&o!==src)o.cult=Math.max(0,o.cult-20);
   news('<b>'+src.name+'</b> cut loose — codes burned, drops abandoned. The whole network feels the cold.','h');
   closeWin();openWin('sources');
@@ -1481,7 +1513,7 @@ function scoutPlanet(id){
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
   else if(id==='meridian'){G.candQ.push('renn');lines.push('Our people flagged a customs chief with expensive habits and flexible loyalties.');}
   else if(id==='sable'){G.intel+=3;lines.push('The listening post still works. We stripped its logs: '+I(3)+' recovered.');}
-  else if(id==='tarsis'){G.supplies+=160;G.morale=Math.min(100,G.morale+4);lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(160)+'. The crew eats well tonight.');}
+  else if(id==='tarsis'){G.supplies+=160;moraleAll(4,'win');lines.push('The farmers hide grain from the levy. Some of it now hides with us: '+S(160)+'. The crew eats well tonight.');}
   else if(id==='nyx'){G.credits+=160;lines.push('The shadowport takes all kinds. First introductions cost us nothing and paid '+C(160)+' in fenced salvage. Recruits drink here.');}
   else if(id==='oubli'){G.intel+=1;lines.push('Empty streets. Forty years of dust. One transmitter, still powered, still listening. We left it that way. '+I(1)+'.');}
   else if(id==='halcyon'){revGain(4);lines.push('Brass, beaches, and no idea we were there. Knowing Halcyon exists for us is worth progress alone.');}
@@ -1640,7 +1672,7 @@ function revGain(n){
 function checkEscalation(){
   if(G.renown>=100&&!G.revNoted){
     G.revNoted=true;G.escPending=true;
-    news('The Hegemony has noticed. <b>Revolution Level 2</b>.','p');
+    news('The Hegemony has noticed. <b>Revolution Level 2</b>.','p');moraleAll(8,'win');
     if(!winMode)openEscalation();
   }
 }
@@ -1689,7 +1721,7 @@ function missionCredit(m){
       if(to>cur){
         gain+=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');flashMsg('<b>'+r.name+'</b> liberated','good');}
+        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');}
       }
     }
   }
@@ -2759,7 +2791,13 @@ const TUT_PAGES=[
 function dossierHead(p,extra){
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+wTag(rankFor(p),'action')+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+traitCard(p)+skillsCard(p);
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+moraleRow(p)+traitCard(p)+skillsCard(p);
+}
+/* morale out of 100 with its band; it nudges aim and Cool in the field */
+function moraleRow(p){
+  if(p.auto||p.morale===undefined)return '';
+  const b=Rebel.mband(p);
+  return '<div class="sr-loot" style="margin:0 0 12px" title="Morale rises with wins and rest, falls with injuries and losses. At 0 they leave."><span>Morale</span><b'+(b.tone?' class="bs-'+b.tone+'"':'')+'>'+Math.round(p.morale)+' <span class="sr-faint">'+b.n+'</span></b></div>';
 }
 /* skill bars out of 50: the level sets the base, mission experience adds the rest */
 function skillsCard(p){
@@ -3165,7 +3203,7 @@ function syncUI(){
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
     return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
-      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span></span><span class="sr-unit__role">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span></span><span class="sr-unit__role">'+rankFor(p)+', level '+p.level+(!p.auto&&p.morale<=40?' <span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
   const grp=(listId,countId,people,emptyMsg)=>{
     $(listId).innerHTML=people.length?people.map(crewRow).join(''):'<div class="sr-empty">'+emptyMsg+'</div>';
@@ -3380,7 +3418,7 @@ $('winsB').addEventListener('click',ev=>{
     const {p,must}=winArg;
     if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');closeWin();syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0)G.recruitN++;
-    G.people.push(Rebel.migrate(p));
+    G.people.push(Rebel.migrate(p));mood();
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
     if(p.id==='sera')G.onboard='crossready';
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
@@ -3946,10 +3984,13 @@ function applyDebrief(r){
     }
     if(state==='lost'){
       G.people=G.people.filter(x=>x.id!==p.id);
-      G.morale=Math.max(0,G.morale-10);
+      moraleAll(-6,'death',(r.people||[]).map(x=>x.id),-10);
       news('<b>'+p.name+'</b> did not come home. Their name goes on the wall.','h');
     } else if(state==='injured'){
       p.injured=(hasRoom('infirmary')&&medStaff().length)?(pr.dur||3):(pr.dur||3)+2;
+      Rebel.moraleBump(p,-5,'injury');
+      for(const q of crewOf())if(q!==p)Rebel.moraleBump(q,(r.people||[]).some(x=>x.id===q.id)?-2:-0.5,'injury');
+      mood();
       news('<b>'+p.name+'</b> came back on a stretcher \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
     }
   }
@@ -4018,13 +4059,13 @@ function applyDebrief(r){
       const cr=missionCredit(m);
       queueReport(buildReport(m,true,got,pinfo,cr,true));
       if(m.npc)RQ.push({t:'recruit',m});
-      G.morale=Math.min(100,G.morale+6);
+      moraleAll(1,'win',(r.people||[]).map(x=>x.id),3);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
       sBuild();
       missionAftermath(m.id);
     } else {
       m.state='avail';m.progress=null;
-      G.morale=Math.max(0,G.morale-8);
+      moraleAll(-3,'loss',(r.people||[]).map(x=>x.id),-8);
       queueReport(buildReport(m,false,got,pinfo,null,true));
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
       sAlert();
@@ -4061,6 +4102,7 @@ function restoreCampaign(data){
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;}
+    mood();
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
     for(const d of PLANETDEF){
@@ -4149,7 +4191,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
