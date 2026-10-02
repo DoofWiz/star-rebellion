@@ -2684,7 +2684,8 @@ function showView(v){
   if(v==='galaxy'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();openWin('srcTutIntro');}
   syncTabs();syncUI();
 }
-function enterWorld(id){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();syncTabs();syncUI();}
+let gxDiveFrom=null;
+function enterWorld(id,fx,fy){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();gxDiveFrom=(fx!=null)?[fx,fy]:null;syncTabs();syncUI();}
 function openRegion(rid){gxRegion=rid;syncUI();}
 function gxBack(){if(gxRegion)gxRegion=null;else if(gxWorld)gxWorld=null;else if(srcSel)srcSel=null;syncTabs();syncUI();}
 /* ---------- camera: fit the galaxy into the clear rect, ease on change ---------- */
@@ -2928,13 +2929,336 @@ function drawGalaxy(now){
     }
   }
 }
-/* World view: built out in the next phase; a shrouded placeholder until then */
+/* =====================================================================
+   WORLD VIEW — the planet fills the stage, divided into its regions.
+   Region geometry is generated deterministically from the planet id
+   (GALAXY-HANDOFF §7.4); no art files, nothing saved.
+   ===================================================================== */
+const regionShapeCache={};
+function regionShapes(pid){
+  if(regionShapeCache[pid])return regionShapeCache[pid];
+  const d=pdef(pid);
+  const regions=(d&&d.regions)||[];
+  const rng2=SA.util.mkRng(SA.util.hashStr(pid)||7);
+  const terrs=regions.filter(r=>r.kind!=='Settlement');
+  const setts=regions.filter(r=>r.kind==='Settlement');
+  const hub=[(rng2()-.5)*.24,(rng2()-.5)*.24];
+  const out={hub,terr:[],setts:[]};
+  const N=terrs.length;
+  const a0=rng2()*Math.PI*2;
+  const borders=[];
+  for(let i=0;i<Math.max(1,N);i++){
+    const a=a0+i*2*Math.PI/Math.max(1,N)+(rng2()-.5)*(24*Math.PI/180);
+    const npt=4+Math.floor(rng2()*3);
+    const pts=[[hub[0],hub[1]]];
+    for(let k=1;k<=npt;k++){
+      const f=k/npt,ax=a+(k===npt?0:(rng2()-.5)*.16);
+      pts.push([hub[0]+Math.cos(ax)*f*1.06,hub[1]+Math.sin(ax)*f*1.06]);
+    }
+    borders.push({a,pts});
+  }
+  if(N<=1){
+    const pts=[];
+    for(let k=0;k<28;k++){const a=k/28*2*Math.PI;pts.push([Math.cos(a)*1.04,Math.sin(a)*1.04]);}
+    if(N===1){
+      const ca=rng2()*Math.PI*2;
+      out.terr.push({id:terrs[0].id,pts,chip:[Math.cos(ca)*.5,Math.sin(ca)*.5]});
+    }
+  } else for(let i=0;i<N;i++){
+    const b0=borders[i],b1=borders[(i+1)%N];
+    let aA=b0.a,aB=b1.a;while(aB<=aA)aB+=2*Math.PI;
+    const rim=[];
+    const steps=Math.max(2,Math.round((aB-aA)/.3));
+    for(let k=1;k<steps;k++){const a=aA+(aB-aA)*k/steps;rim.push([hub[0]+Math.cos(a)*1.06,hub[1]+Math.sin(a)*1.06]);}
+    const pts=b0.pts.concat(rim,b1.pts.slice().reverse());
+    const midA=(aA+aB)/2;
+    out.terr.push({id:terrs[i].id,pts,chip:[(hub[0]+Math.cos(midA)*.55)*1.15,(hub[1]+Math.sin(midA)*.55)*1.15]});
+  }
+  const placed=[];
+  setts.forEach((rg,i)=>{
+    let c;
+    if(N>=2){const b=borders[i%borders.length];const f=.4+rng2()*.15;c=[hub[0]+Math.cos(b.a)*f,hub[1]+Math.sin(b.a)*f];}
+    else{const a=rng2()*2*Math.PI,f=.35+rng2()*.15;c=[hub[0]+Math.cos(a)*f,hub[1]+Math.sin(a)*f];}
+    for(let tries=0;tries<9&&placed.some(p=>Math.hypot(p[0]-c[0],p[1]-c[1])<.52);tries++){
+      const a=rng2()*2*Math.PI,f=.35+rng2()*.2;c=[hub[0]+Math.cos(a)*f,hub[1]+Math.sin(a)*f];
+    }
+    placed.push(c);
+    const R0=.24+rng2()*.03;
+    const pts=[];
+    for(let k=0;k<11;k++){
+      const a=k/11*2*Math.PI;
+      const rr2=R0*(.82+rng2()*.3);
+      pts.push([c[0]+Math.cos(a)*rr2,c[1]+Math.sin(a)*rr2*.92]);
+    }
+    const away=Math.atan2(c[1]-hub[1],c[0]-hub[0]);
+    out.setts.push({id:rg.id,pts,c,r:R0,chip:[c[0]+Math.cos(away)*(R0+.16),c[1]+Math.sin(away)*(R0+.16)]});
+  });
+  if(out.terr.length===1&&out.setts.length){
+    const c0=out.setts[0].c,aw=Math.atan2(c0[1]-hub[1],c0[0]-hub[0])+Math.PI;
+    out.terr[0].chip=[hub[0]+Math.cos(aw)*.55,hub[1]+Math.sin(aw)*.55];
+  }
+  return regionShapeCache[pid]=out;
+}
+function ptInPoly(px,py,pts){
+  let c=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))c=!c;
+  }
+  return c;
+}
+function regState(st,rid){const p=(st.lib&&st.lib[rid])||0;return p>=100?'liberated':p>0?'contested':'hegemony';}
+function firstSettId(d){const r=(d.regions||[]).find(x=>x.kind==='Settlement');return r?r.id:null;}
+function missionRegion(d,m){if(typeOf(m)==='space')return null;return m.region||firstSettId(d);}
+function regionFill(d,rid,i,sett){
+  const lk=WORLD_LOOK[d.id]||{col:'#777'};
+  if(lk.regions&&lk.regions[rid])return lk.regions[rid];
+  const sh=SA.util.shade;
+  return sett?sh(lk.col,-.2):sh(lk.col,i%2?.08:-.08);
+}
+/* decor glyphs, drawn flat with ink outlines; (x,y) world px, k = planet px per unit */
+function drawDecor(kind,x,y,k){
+  const U=SA.util,c=ctx;
+  c.save();c.lineJoin='round';
+  if(kind==='mesa'){U.poly(c,[[x-k*.09,y+k*.03],[x-k*.05,y-k*.05],[x+k*.05,y-k*.05],[x+k*.09,y+k*.03]]);U.ink(c,'rgba(60,40,28,.55)',2);}
+  else if(kind==='well'){c.beginPath();c.arc(x,y,k*.028,0,7);U.ink(c,'rgba(40,60,90,.8)',2);}
+  else if(kind==='depot'||kind==='garrison'){U.rr(c,x-k*.05,y-k*.035,k*.1,k*.07,3);U.ink(c,'rgba(70,70,86,.8)',2);}
+  else if(kind==='flats'){c.beginPath();c.ellipse(x,y,k*.12,k*.05,0,0,7);c.fillStyle='rgba(255,255,255,.25)';c.fill();}
+  else if(kind==='crawler'){U.rr(c,x-k*.045,y-k*.025,k*.09,k*.05,2);U.ink(c,'rgba(120,110,80,.9)',2);c.fillStyle='rgba(0,0,0,.4)';c.fillRect(x-k*.045,y+k*.012,k*.09,k*.014);}
+  else if(kind==='ridge'){c.beginPath();for(let i=0;i<=4;i++)c.lineTo(x-k*.12+i*k*.06,y+((i%2)?-k*.045:0));c.lineWidth=2.6;c.strokeStyle='rgba(40,28,20,.6)';c.stroke();}
+  else if(kind==='kiln'){U.poly(c,[[x-k*.035,y+k*.03],[x,y-k*.05],[x+k*.035,y+k*.03]]);U.ink(c,'rgba(90,60,40,.8)',2);}
+  else if(kind==='road'){c.beginPath();c.moveTo(x-k*.1,y+k*.03);c.quadraticCurveTo(x,y-k*.02,x+k*.1,y+k*.02);c.lineWidth=3;c.strokeStyle='rgba(30,22,16,.4)';c.stroke();}
+  else if(kind==='pad'){c.beginPath();c.arc(x,y,k*.045,0,7);c.lineWidth=2;c.strokeStyle='rgba(255,255,255,.4)';c.stroke();}
+  else if(kind==='tree'){c.beginPath();c.arc(x,y,k*.03,0,7);U.ink(c,'rgba(24,60,34,.8)',1.6);}
+  else if(kind==='block'){U.rr(c,x-k*.04,y-k*.04,k*.08,k*.08,2);U.ink(c,'rgba(70,80,110,.6)',1.6);}
+  c.restore();
+}
+function scatterFor(r){
+  const t=(r.name+' '+(r.blurb||'')).toLowerCase();
+  if(/quarry|salt|crusher|pit/.test(t))return['flats','crawler','crawler'];
+  if(/ridge|kiln|smelt|foundry/.test(t))return['ridge','kiln','kiln'];
+  if(/river|canopy|timber|mill|barge/.test(t))return['tree','tree','road','tree'];
+  if(/data|server|cool|registry|census/.test(t))return['block','block','block'];
+  if(/flat|herder|well|tithe/.test(t))return['mesa','well','well','mesa'];
+  return['mesa','mesa'];
+}
+let gxRegScreen=[],gxChipPts={},gxWorldDiveK=1;
 function drawWorld(now){
-  const d=pdef(gxWorld);if(!d){gxWorld=null;return;}
+  const t=RM?0:now/1000;
+  const d=pdef(gxWorld),st=gxWorld&&pst(gxWorld);
+  if(!d||!st){gxWorld=null;return;}
+  const lk=WORLD_LOOK[d.id]||{col:'#8a8a9a'};
   ctx.fillStyle=K.void;ctx.fillRect(0,0,cssW,cssH);
-  const lk=WORLD_LOOK[d.id]||{col:'#888'};
-  const r=gxRect();
-  SA.planet(ctx,r.x+r.w/2,r.y+r.h/2,Math.min(r.w,r.h)*0.33,lk.col,{tex:lk.tex,ring:lk.ring});
+  const rand=SA.util.mkRng(42);
+  for(let i=0;i<180;i++){
+    const x=rand()*cssW,y=rand()*cssH,big=rand()<0.3;
+    ctx.fillStyle=TH.rgba(K.steel,0.1+rand()*0.3);
+    ctx.fillRect(x,y,big?1.8:1.1,big?1.8:1.1);
+  }
+  const rect=gxRect();
+  const cx=rect.x+rect.w/2,cy=rect.y+rect.h/2;
+  const R=Math.max(90,Math.min(cssH*0.26,rect.h*0.4,rect.w*0.3));
+  const ORX=R*1.51,ORY=R*0.33,OTH=-10*Math.PI/180;
+  /* dive-in: the planet scales up from its map position */
+  let k=RM?1:Math.min(1,(now-gxDiveT)/420);
+  const e=1-Math.pow(1-k,3);
+  gxWorldDiveK=k;
+  ctx.save();
+  if(k<1){
+    ctx.globalAlpha=Math.min(1,k/0.6);
+    const fx=gxDiveFrom?gxDiveFrom[0]:cx,fy=gxDiveFrom?gxDiveFrom[1]:cy;
+    const ox=fx+(cx-fx)*e,oy=fy+(cy-fy)*e,sc=0.16+0.84*e;
+    ctx.translate(ox,oy);ctx.scale(sc,sc);ctx.translate(-cx,-cy);
+  }
+  const shapes=regionShapes(d.id);
+  const P=(u,v)=>[cx+u*R,cy+v*R];
+  const path=pts=>{ctx.beginPath();pts.forEach((p,i)=>{const[x,y]=P(p[0],p[1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();};
+  const clipDisc=()=>{ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();};
+  const hatch=(col,alpha)=>{
+    ctx.save();ctx.clip();ctx.globalAlpha=alpha;ctx.strokeStyle=col;ctx.lineWidth=4;
+    ctx.beginPath();
+    for(let q=-R*2.2;q<R*2.2;q+=11){ctx.moveTo(cx+q-R*1.6,cy+R*1.6);ctx.lineTo(cx+q+R*1.6,cy-R*1.6);}
+    ctx.stroke();ctx.restore();
+  };
+  const overlay=state=>{
+    if(state==='hegemony')hatch(K.heg,.2);
+    else if(state==='contested')hatch(K.hazard,.18);
+    else{ctx.save();ctx.clip();ctx.globalAlpha=.25;ctx.fillStyle=K.rebel;ctx.fillRect(cx-R,cy-R,R*2,R*2);ctx.restore();}
+  };
+  gxRegScreen=[];gxChipPts={};
+  /* 1. orbit, back half */
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,ORX,ORY,OTH,Math.PI,Math.PI*2);
+  ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle='#5a64a8';ctx.stroke();ctx.setLineDash([]);
+  ctx.restore();
+  const orbPt=a=>{const ca=Math.cos(a)*ORX,sa=Math.sin(a)*ORY;return[cx+ca*Math.cos(OTH)-sa*Math.sin(OTH),cy+ca*Math.sin(OTH)+sa*Math.cos(OTH)];};
+  /* orbit objects behind the planet */
+  const spaceMs=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&typeOf(m)==='space');
+  if((d.sec||0)>=2){
+    const[ox2,oy2]=orbPt(Math.PI*1.35+((RM?0:t*0.06)%1));
+    SA.ship(ctx,'mote',ox2,oy2,0.5,0.9,t,{livery:'heg'});
+    ctx.font='700 11px '+TH.FONT.ui;ctx.textAlign='center';ctx.lineWidth=4;ctx.lineJoin='round';ctx.strokeStyle=TH.rgba(K.ink,.9);
+    ctx.strokeText('Hegemony patrol',ox2,oy2-20);ctx.fillStyle=K.hegHi;ctx.fillText('Hegemony patrol',ox2,oy2-20);
+  }
+  /* 2. ink drop disc */
+  ctx.beginPath();ctx.arc(cx+8,cy+12,R,0,7);ctx.fillStyle=K.ink;ctx.fill();
+  /* base surface */
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fillStyle=lk.col;ctx.fill();
+  /* 3. territories */
+  ctx.save();clipDisc();
+  const terrDefs=(d.regions||[]).filter(r=>r.kind!=='Settlement');
+  shapes.terr.forEach((tr,i)=>{
+    const rg=terrDefs.find(r=>r.id===tr.id);if(!rg)return;
+    path(tr.pts);ctx.fillStyle=regionFill(d,tr.id,i,false);ctx.fill();
+    const dec=REGION_DECOR[tr.id];
+    const list=dec?dec.filter(x=>!/^(source|job|heg)$/.test(x[0])):null;
+    if(list)for(const[kind,u,v]of list){const[x,y]=P(u,v);drawDecor(kind,x,y,R);}
+    else{
+      const rn=SA.util.mkRng(SA.util.hashStr(tr.id)||3);
+      for(const kind of scatterFor(rg)){
+        const[chU,chV]=tr.chip;
+        const u=chU*.7+(rn()-.5)*.5,v=chV*.7+(rn()-.5)*.5;
+        const[x,y]=P(u,v);drawDecor(kind,x,y,R);
+      }
+    }
+    path(tr.pts);overlay(regState(st,tr.id));
+    gxRegScreen.push({id:tr.id,pts:tr.pts.map(p=>P(p[0],p[1])),sett:false});
+    gxChipPts[tr.id]=P(tr.chip[0],tr.chip[1]);
+  });
+  ctx.restore();
+  /* 4. settlements on top */
+  const settDefs=(d.regions||[]).filter(r=>r.kind==='Settlement');
+  for(const sp of shapes.setts){
+    const rg=settDefs.find(r=>r.id===sp.id);if(!rg)continue;
+    ctx.save();clipDisc();
+    ctx.save();ctx.translate(2,3);ctx.globalAlpha=.5;path(sp.pts);ctx.fillStyle=K.ink;ctx.fill();ctx.restore();
+    path(sp.pts);ctx.fillStyle=regionFill(d,sp.id,0,true);ctx.fill();
+    {const[bx,by]=P(sp.c[0],sp.c[1]);
+     const rn=SA.util.mkRng(SA.util.hashStr(sp.id)||5);
+     const n=5+Math.floor(rn()*2);
+     for(let i2=0;i2<n;i2++){
+       const a=rn()*Math.PI*2,f=rn()*sp.r*.5*R;
+       SA.isoBox(ctx,-4,-4,8,8,7+rn()*7,1,bx+Math.cos(a)*f,by+Math.sin(a)*f*.6,['#b8a888','#6a5c48','#8a7a60'],1.4);
+     }}
+    path(sp.pts);overlay(regState(st,sp.id));
+    ctx.restore();
+    gxRegScreen.unshift({id:sp.id,pts:sp.pts.map(p=>P(p[0],p[1])),sett:true});
+    gxChipPts[sp.id]=P(sp.chip[0],sp.chip[1]);
+  }
+  /* 5. veil every other region while one is open */
+  if(gxRegion){
+    ctx.save();clipDisc();
+    for(const rs of gxRegScreen){
+      if(rs.id===gxRegion)continue;
+      ctx.beginPath();rs.pts.forEach((pp,i)=>i?ctx.lineTo(pp[0],pp[1]):ctx.moveTo(pp[0],pp[1]));ctx.closePath();
+      ctx.globalAlpha=.38;ctx.fillStyle=K.ink;ctx.fill();ctx.globalAlpha=1;
+    }
+    ctx.restore();
+  }
+  /* 6. cel shade: one ink tone, light from the top left */
+  ctx.save();clipDisc();
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.arc(cx-R*.20,cy-R*.24,R*1.04,0,7);
+  ctx.globalAlpha=.26;ctx.fillStyle=K.ink;ctx.fill('evenodd');ctx.restore();
+  /* 7. borders */
+  ctx.save();clipDisc();
+  for(const tr of shapes.terr){path(tr.pts);ctx.lineWidth=3.2;ctx.strokeStyle=K.ink;ctx.lineJoin='round';ctx.stroke();}
+  for(const sp of shapes.setts){
+    path(sp.pts);ctx.lineWidth=5;ctx.strokeStyle=K.ink;ctx.stroke();
+    const stc=regState(st,sp.id);
+    path(sp.pts);ctx.lineWidth=2;ctx.strokeStyle=stc==='liberated'?K.rebel:stc==='contested'?K.hazard:K.heg;ctx.stroke();
+  }
+  if(gxRegion){
+    const rs=gxRegScreen.find(x=>x.id===gxRegion);
+    if(rs){ctx.beginPath();rs.pts.forEach((pp,i)=>i?ctx.lineTo(pp[0],pp[1]):ctx.moveTo(pp[0],pp[1]));ctx.closePath();
+      ctx.setLineDash([9,6]);ctx.lineWidth=3;ctx.strokeStyle=K.gold;ctx.stroke();ctx.setLineDash([]);}
+  }
+  ctx.restore();
+  /* 8. disc outline and atmosphere */
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.lineWidth=4;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,R+6,0,7);ctx.lineWidth=2;ctx.strokeStyle=TH.rgba(lk.col,.3);ctx.stroke();
+  /* 9. markers from live data */
+  const anchorFor=(rid,kind)=>{
+    const dec=REGION_DECOR[rid];
+    if(dec){const hitDec=dec.find(x=>x[0]===kind);if(hitDec)return P(hitDec[1],hitDec[2]);}
+    const cp=gxChipPts[rid];
+    if(cp)return[cp[0]*.5+cx*.5,cp[1]*.5+cy*.5+14];
+    return[cx,cy];
+  };
+  for(const rid in HEG_SITE){
+    if(!(d.regions||[]).some(r=>r.id===rid))continue;
+    if(regState(st,rid)==='liberated')continue;
+    const[x,y]=anchorFor(rid,'heg');
+    ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=K.heg;ctx.fill();ctx.lineWidth=2.2;ctx.strokeStyle=K.ink;ctx.stroke();
+    TH.icon(ctx,'shield',x,y,13,K.ink,{weight:2.6});
+  }
+  const srcHere=G.sources.filter(x=>x.alive&&(SRCPOS[x.id])===d.id);
+  gxSrcPos={};
+  srcHere.forEach((sc,i)=>{
+    const rid=SRC_REGION[sc.id]||firstSettId(d);
+    const[x,y]=rid?anchorFor(rid,'source'):[cx-R*.4+i*30,cy-R*.5];
+    drawSrcBadge(x,y-18,sc,t);
+    gxSrcPos[sc.id]=[x,y-18];
+  });
+  const groundMs=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&typeOf(m)!=='space');
+  groundMs.forEach((m,i)=>{
+    const rid=missionRegion(d,m);
+    const[x,y]=rid?anchorFor(rid,'job'):[cx+R*.3+i*26,cy+R*.4];
+    TH.marker(ctx,x+(i%2)*22,y,{icon:'soldier',color:K.gold,t,size:26});
+  });
+  for(const o of (G.opps||[])){
+    if(o.done||o.loc!==d.id)continue;
+    const[x,y]=o.region?anchorFor(o.region,'job'):[cx,cy-R*.6];
+    ctx.fillStyle=K.gold;ctx.strokeStyle=K.ink;ctx.lineWidth=1.8;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(x,y-8-18);ctx.lineTo(x+6,y-18);ctx.lineTo(x,y+8-18);ctx.lineTo(x-6,y-18);ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  /* 10. orbit, front half and front objects */
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,ORX,ORY,OTH,0,Math.PI);
+  ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle='#5a64a8';ctx.stroke();ctx.setLineDash([]);
+  ctx.restore();
+  spaceMs.forEach((m,i)=>{
+    const[x,y]=orbPt(0.45+i*0.55);
+    TH.marker(ctx,x,y,{icon:'ship',color:K.gold,t,size:26});
+  });
+  {let i=0;
+   for(const m of G.missions){
+     if(m.state!=='prog'||!m.progress||m.loc!==d.id)continue;
+     const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+     const[x,y]=orbPt(2.4+i*0.5);
+     SA.ship(ctx,artShipId(f?f.cls:'cross'),x,y,0.3,1.0,t,{livery:'rebel'});
+     i++;
+   }}
+  ctx.restore();   // dive transform
+  /* region chips follow the planet */
+  {const ids=Object.keys(gxChipPts).sort((a,b)=>gxChipPts[a][1]-gxChipPts[b][1]);
+   for(let i=0;i<ids.length;i++)for(let j=0;j<i;j++){
+     const A=gxChipPts[ids[i]],B=gxChipPts[ids[j]];
+     if(Math.abs(A[0]-B[0])<160&&Math.abs(A[1]-B[1])<42)A[1]=B[1]+44;
+   }}
+  const chipBox=$('gxChips');
+  if(chipBox&&!chipBox.hidden){
+    chipBox.style.opacity=k>=1?'1':'0';
+    for(const b of chipBox.querySelectorAll('[data-gxchip]')){
+      const pt=gxChipPts[b.getAttribute('data-gxchip')];
+      if(pt){b.style.left=pt[0]+'px';b.style.top=pt[1]+'px';}
+    }
+  }
+  /* the galaxy minimap button */
+  const mini=document.getElementById('gxMiniCv');
+  if(mini){
+    const mc=mini.getContext('2d');
+    mc.setTransform(1,0,0,1,0,0);
+    mc.fillStyle=K.void;mc.fillRect(0,0,200,130);
+    for(const pd2 of PLANETDEF){
+      const st2=pst(pd2.id);if(!st2||!st2.known)continue;
+      const x=14+pd2.x*172,y=10+pd2.y*110;
+      mc.beginPath();mc.arc(x,y,pd2.id===d.id?4:2.4,0,7);
+      mc.fillStyle=pd2.id===d.id?K.gold:st2.access?K.text2:K.text3;mc.fill();
+      if(pd2.id===d.id){mc.beginPath();mc.arc(x,y,7,0,7);mc.lineWidth=2;mc.strokeStyle=K.gold;mc.stroke();}
+    }
+  }
 }
 /* ---------- galaxy DOM: dock panel, rail, tools, command bar ---------- */
 const planetURLs={};
@@ -3021,7 +3345,78 @@ function renderGxDock(){
   if(baseView==='galaxy'&&gxWorld)h=gxWorldPanels();
   el.innerHTML=h;el.hidden=!h;
 }
-function gxWorldPanels(){return '';}   // replaced by the World view phase
+function gxCapMark(cap){
+  return '<span class="gx-region__cap" style="left:'+Math.min(100,cap)+'%" data-tip="Current limit based on level of access and support." aria-label="Current limit based on level of access and support."></span>';
+}
+function gxRegionRow(d,st,r,cap){
+  const pct=(st.lib&&st.lib[r.id])||0,state=regState(st,r.id);
+  const tag=state==='liberated'?wTag('Liberated','friend'):state==='contested'?wTag('Contested','warn'):wTag('Hegemony','foe');
+  return '<button class="gx-region is-'+state+'" data-gxregion="'+r.id+'">'+
+    '<span class="gx-region__n">'+esc(r.name)+' <em>'+esc(r.kind)+'</em></span>'+tag+
+    '<span class="gx-region__bar"><span class="gx-region__track"><span class="gx-region__fill" style="width:'+pct+'%"></span>'+gxCapMark(cap)+'</span><span class="gx-region__p">'+pct+'%</span></span></button>';
+}
+function gxRegionJobs(d,st,r){
+  const out=[];
+  for(const m of G.missions)if(m.state==='avail'&&m.loc===d.id&&missionRegion(d,m)===r.id)out.push(m);
+  for(const o of (G.opps||[]))if(!o.done&&o.loc===d.id&&o.region===r.id&&!G.missions.some(m=>m.oppId===o.id))out.push(Object.assign({opp:1,name:(MTYPE_DEFS[o.tid]||{}).name||'Lead'},o));
+  return out;
+}
+function gxRegionSrcs(d,r){
+  return G.sources.filter(x=>x.alive&&SRCPOS[x.id]===d.id&&(SRC_REGION[x.id]||firstSettId(d))===r.id);
+}
+function gxJobHTML(m){
+  if(m.opp){
+    const T=MTYPE_DEFS[m.tid]||{};
+    return '<div class="gx-job"><div class="gx-job__t">'+IC('intel')+esc(T.name||'Lead')+'</div>'+
+      '<div class="gx-job__d">'+esc(oppText(T.hook||'A lead from our own intelligence.',m))+'</div>'+
+      '<div class="gx-job__meta">'+bundleList(T.rew||{}).join(' ')+'</div></div>';
+  }
+  return '<div class="gx-job"><div class="gx-job__t">'+IC(typeOf(m)==='space'?'ship':'soldier')+esc(m.name)+'</div>'+
+    '<div class="gx-job__d">'+esc(String(m.desc||'').replace(/<[^>]+>/g,''))+'</div>'+
+    '<div class="gx-job__meta">'+bundleList(m.rew||{}).join(' ')+(m.lib?wTag('+'+m.lib+'% liberation','friend'):'')+'</div>'+
+    '<div class="sr-fine">'+(m.need||3)+' rebels · '+(m.days||2)+' day'+((m.days||2)>1?'s':'')+' · '+esc(String(m.riskTxt||'moderate').toLowerCase())+' risk</div></div>';
+}
+function gxLocPanel(d,st,compact){
+  const cap=locCap(st);
+  const head='<div class="sr-window__head"><button class="sr-btn sr-btn--sm sr-btn--ghost gx-back" data-gxback aria-label="Back to the galaxy">'+IC('back')+'Galaxy</button>'+
+    '<span class="sr-window__title">'+esc(d.name)+'</span>'+wQ('data-srchelp','How this works')+'</div>';
+  let body;
+  if(compact)body=gxMiniStats(d,st);
+  else body='<div class="gx-tags">'+wTag(d.kind)+(d.pop?wTag('Pop '+d.pop):'')+'</div>'+
+    gxLoreHTML(esc(d.brief||d.sit||''))+
+    gxMiniStats(d,st)+
+    (d.regions?'<div class="sr-h3">Regions</div><div class="gx-regions">'+d.regions.map(r=>gxRegionRow(d,st,r,cap)).join('')+'</div>':'');
+  return '<div class="sr-window sr-window--sm gx-dossier'+(compact?' gx-dossier--compact':'')+'">'+head+'<div class="sr-window__body">'+body+'</div></div>';
+}
+function gxRegionCard(d,st,r){
+  const pct=(st.lib&&st.lib[r.id])||0,cap=locCap(st),state=regState(st,r.id);
+  const jobs=gxRegionJobs(d,st,r);
+  const srcs=gxRegionSrcs(d,r);
+  const moreMs=jobs.length>1?jobs.length-1:0;
+  const heg=HEG_SITE[r.id];
+  let h='<div class="sr-window sr-window--sm gx-regioncard">'+
+    '<div class="sr-window__head"><span class="sr-window__title"><span class="gx-dossier__kicker">Region of '+esc(d.name)+'</span>'+esc(r.name)+'</span>'+wX('data-gxregclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(r.kind)+(state==='liberated'?wTag('Liberated','friend'):state==='contested'?wTag('Contested','warn'):wTag('Hegemony','foe'))+'</div>'+
+    '<p class="gx-bio">'+esc(r.blurb||'')+'</p>'+
+    '<div class="gx-libline" style="grid-template-columns:auto 1fr 40px"><span class="gx-wheel" style="--p:'+pct+'" role="img" aria-label="'+pct+'% liberated"><b>'+pct+'</b></span>'+
+    '<span class="gx-region__track"><span class="gx-region__fill" style="width:'+pct+'%"></span>'+gxCapMark(cap)+'</span><span class="gx-region__p">'+pct+'%</span></div>'+
+    '<div class="sr-h3">Local job</div>'+
+    (jobs.length?gxJobHTML(jobs[0])+(moreMs?'<button class="gx-more" data-gxmissions>+'+moreMs+' more</button>':''):
+      '<div class="sr-empty">No jobs here yet. Leads need Access 2 and a staffed Comms Array; sources offer the rest.</div>');
+  if(srcs.length)h+='<div class="sr-h3">Sources</div><div class="gx-here">'+srcs.map(sc=>
+    '<button class="sr-unit" data-gxcontact="'+sc.id+'">'+srcAvatarHTML(sc)+'<span class="sr-unit__main"><span class="sr-unit__name">'+esc(sc.name)+'</span><span class="sr-unit__role">'+esc(String(sc.type).split(' · ')[0])+'</span></span></button>').join('')+'</div>';
+  if(heg&&state!=='liberated')h+='<div class="sr-h3">'+(jobs.length>1?'Missions and Hegemony':'Hegemony')+'</div>'+
+    '<div class="gx-here"><div class="sr-unit" style="--c:var(--sr-heg)"><span class="sr-avatar" style="--c:var(--sr-heg)">'+IC('shield')+'</span>'+
+    '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(heg)+'</span><span class="sr-unit__role">Hegemony presence</span></span></div></div>';
+  return h+'</div></div>';
+}
+function gxWorldPanels(){
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!st)return '';
+  const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+  return gxLocPanel(d,st,!!reg)+(reg?gxRegionCard(d,st,reg):'');
+}
 function renderGxRail(){
   const alive=G.sources.filter(s=>s.alive);
   const srcRow=s=>{
@@ -3113,7 +3508,45 @@ function gxOrdersFor(){
   }
   return orders;
 }
-function gxWorldOrders(){return [];}   // replaced by the World view phase
+function gxWorldOrders(){
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!st)return [];
+  const orders=[];let n=0;const nk=()=>String(++n);
+  const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+  if(reg){
+    const jobs=gxRegionJobs(d,st,reg);
+    if(jobs.length){
+      const j=jobs[0];
+      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:j.opp?'intel':'missions',family:'util',label:'Run the job',rule:j.name}));
+    }
+    const srcs=gxRegionSrcs(d,reg);
+    if(srcs.length){
+      const sc=srcs[0],sig=!!(sc.pendingEvent||sc.signal);
+      orders.push(gxOrder({act:'contact:'+sc.id,key:nk(),icon:'signal',label:'Contact '+sc.name.split(' ')[0],attn:sig,badge:sig,
+        disabled:sc.contacted&&!sig,why:'Already contacted today.'}));
+    }
+    if(jobs.length>1){
+      const j=jobs[1];
+      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:'missions',label:j.name,rule:j.name}));
+    }
+    orders.push('<span class="sr-orders__sep"></span>');
+    orders.push(gxOrder({act:'back',key:'',icon:'back',label:'Back to '+d.name,rule:'Esc also steps back.'}));
+  } else {
+    if((st.acc||0)<5){
+      const cost=accessCost(d,st),can=G.intel>=cost;
+      orders.push(gxOrder({act:'raise',key:nk(),icon:'intel',family:'util',label:'Raise access',cost:I(cost,!can),
+        disabled:!can,why:'Need '+Math.ceil(cost-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Deepen the network’s reach here.'}));
+    }
+    const sigs=G.sources.filter(x=>x.alive&&SRCPOS[x.id]===d.id&&(x.signal||x.pendingEvent));
+    if(sigs.length)orders.push(gxOrder({act:'contact:'+sigs[0].id,key:nk(),icon:'signal',label:'Contact '+sigs[0].name.split(' ')[0],attn:1,badge:1,rule:'A signal is waiting.'}));
+    const ms=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&!missionRegion(d,m));
+    if(ms.length){
+      orders.push('<span class="sr-orders__sep"></span>');
+      ms.slice(0,3).forEach(m=>orders.push(gxOrder({act:'plan:'+m.id,key:nk(),icon:typeOf(m)==='space'?'ship':'missions',label:m.name,rule:m.riskTxt?String(m.riskTxt)+' risk':''})));
+    }
+  }
+  return orders;
+}
 function renderGxBar(){
   const host=$('gxOrders');
   const orders=baseView==='galaxy'?gxOrdersFor():[];
@@ -3144,7 +3577,20 @@ function syncGxDOM(){
     $('drawerBtn').setAttribute('aria-label','Crew and flight');
   }
   if(gal){renderGxRail();renderGxTools();}
-  renderGxDock();renderGxBar();
+  renderGxDock();renderGxBar();renderGxChips();
+}
+function renderGxChips(){
+  const el=$('gxChips');
+  if(!(baseView==='galaxy'&&gxWorld)){el.hidden=true;el.innerHTML='';return;}
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!d.regions||!st){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=d.regions.map(r=>{
+    const pct=(st.lib&&st.lib[r.id])||0,state=regState(st,r.id);
+    return '<button class="gx-rchip is-'+state+'" data-gxchip="'+r.id+'" aria-pressed="'+(gxRegion===r.id)+'">'+
+      '<span class="gx-rchip__dot"></span>'+(r.kind==='Settlement'?IC('base'):'')+esc(r.name)+
+      '<span class="gx-wheel gx-rail-wheel" style="--p:'+pct+'" role="img" aria-label="'+pct+'% liberated">'+IC('revflame')+'</span></button>';
+  }).join('');
+  el.hidden=false;
 }
 function gxOrderAct(act){
   if(!act)return;
@@ -3159,9 +3605,23 @@ function gxOrderAct(act){
   if(act==='scout'&&srcSel&&srcSel.t==='p'){scoutPlanet(srcSel.id);return;}
   gxWorldAct(act);
 }
-function gxWorldAct(act){}       // replaced by the World view phase
-function gxWorldHover(px,py){return false;}   // replaced by the World view phase
-function gxWorldClick(px,py){}   // replaced by the World view phase
+function gxWorldAct(act){
+  if(act==='back'){gxBack();return;}
+  if(act==='raise'){raiseAccess(gxWorld);return;}
+  if(act.indexOf('contact:')===0){const sc=G.sources.find(x=>x.id===act.slice(8)&&x.alive);if(sc){sComm();srcContact(sc);}return;}
+  if(act.indexOf('plan:')===0){const m=G.missions.find(x=>x.id===act.slice(5));if(m&&m.state==='avail')openPlan(m);return;}
+  if(act.indexOf('opp:')===0){openOpp(act.slice(4));return;}
+}
+function gxWorldHover(px,py){
+  if(!gxWorld)return false;
+  return gxRegScreen.some(rs=>ptInPoly(px,py,rs.pts));
+}
+function gxWorldClick(px,py){
+  if(gxWorldDiveK<1)return;
+  for(const rs of gxRegScreen){        // settlements first: they sit on top
+    if(ptInPoly(px,py,rs.pts)){openRegion(rs.id);return;}
+  }
+}
 $('gxTools').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;sClick();
   if(b.hasAttribute('data-gxminimap')){gxBack();return;}
@@ -3174,12 +3634,21 @@ $('gxTools').addEventListener('click',ev=>{
 $('gxDock').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;sClick();
   if(b.hasAttribute('data-gxclose')){srcSel=null;syncUI();return;}
-  if(b.hasAttribute('data-gxback')){gxBack();return;}
+  if(b.hasAttribute('data-gxregclose')){gxRegion=null;syncUI();return;}
+  if(b.hasAttribute('data-gxback')){gxRegion=null;gxWorld=null;syncTabs();syncUI();return;}
   if(b.hasAttribute('data-gxlore')){gxLoreOpen=!gxLoreOpen;renderGxDock();return;}
+  if(b.hasAttribute('data-gxmissions')){openWin('missions');return;}
+  if(b.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
+  const ct=b.getAttribute('data-gxcontact');
+  if(ct){const sc=G.sources.find(x=>x.id===ct&&x.alive);if(sc){sComm();srcContact(sc);}return;}
   const plan=b.getAttribute('data-gxplan');
   if(plan){const m=G.missions.find(x=>x.id===plan);if(m&&m.state==='avail')openPlan(m);return;}
   const reg=b.getAttribute('data-gxregion');
   if(reg){openRegion(reg);return;}
+});
+$('gxChips').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-gxchip]');
+  if(!b)return;sClick();openRegion(b.getAttribute('data-gxchip'));
 });
 $('gxOrders').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b||b.disabled)return;sClick();
@@ -4214,7 +4683,7 @@ cv.addEventListener('click',ev=>{
     if(best.t==='o'){openOpp(best.id);return;}
     if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();return;}
     const st=pst(best.id);
-    if(st&&st.access)enterWorld(best.id);
+    if(st&&st.access)enterWorld(best.id,best.x,best.y);
     else{srcSel={t:'p',id:best.id};syncUI();}
     return;
   }

@@ -24,7 +24,18 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     f.exitRoomView();f.syncUI();
   }
   f.openWin('sources');await sleep(400);log.push('galaxy');
-  f.closeWin();
+  if(f.getWin())f.closeWin();   // the first-look primer
+  await sleep(200);
+  // dive into a world, open a region, walk back out
+  const row=document.querySelector('[data-gxworld="brakka"]');
+  if(row){
+    row.click();await sleep(700);
+    const chip=document.querySelector('[data-gxchip]');
+    if(chip){chip.click();await sleep(350);}
+    log.push('world view');
+  }
+  // back to the base view
+  document.getElementById('navBase').click();await sleep(250);
   // a generated rebel with story layers renders as a character and a portrait
   const cv=document.createElement('canvas');cv.width=96;cv.height=96;
   const c2=cv.getContext('2d');

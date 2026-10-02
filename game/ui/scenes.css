@@ -309,3 +309,10 @@
 #gxOrders .sr-order{min-width:84px;}
 #gxDock .gx-dossier,#gxDock .gx-regioncard{pointer-events:auto;}
 #gxDock{display:flex;flex-direction:column;gap:10px;max-height:100%;}
+/* region chips float over the planet; the canvas keeps them in step */
+#gxChips{position:absolute;inset:0;pointer-events:none;z-index:4;transition:opacity .15s;}
+#gxChips .gx-rchip{pointer-events:auto;}
+.gx-rchip .gx-wheel{width:22px;height:22px;}
+.gx-rchip .gx-wheel::before{inset:4px;}
+.gx-rchip .gx-wheel .sr-ico{position:relative;width:11px;height:11px;color:var(--sr-rebel);}
+.gx-minimap canvas{display:block;width:100%;height:100%;}
