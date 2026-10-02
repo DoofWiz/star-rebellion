@@ -148,10 +148,15 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
   - *Open:* the doc's timing rule is cut off, so the 3 days, 200 credits and 1–3 candidates are my starting numbers to tune. The autoplay bot now issues the call whenever it has 1,200 credits; seeds 1–3 escalate on days 99 / 73 / 83.
   - Tests: `node tools/recruit-smoke.js` (card states, cost and days, no double start, candidates well formed and unique, multi-card accept/leave/dismiss, single-offer layout, full-barracks guard).
 
-### Phase 7 — Dossier and roster UI
+### Phase 7 — Dossier and roster UI — **built**
 - Extend the `person` window (`base.js` ~L2996): level ring with 0–100 XP, rank, specialty (or **Rookie**), type, character trait, rebel traits (max 3), morale bar, skills, gear slots, service record (missions, kills, injuries), and a hidden-stat-free Hero hint (none).
 - Roster rows (`personSub`) show rank, level, specialty/Rookie, a morale chip.
 - Reuse UI-kit components (`sr-card`, `wTag`, `sr-level`); add icons through `tools/ui-kit/icons.py` and rebuild with `build.py`, then update `docs/ui/styleguide.html`.
+- **Built:** one dossier layout for the personnel file and the New Recruit screen: header (level ring, name, tags for rank, specialty or **Rookie**, and a morale tag when not Middling, then type and "with us since day N"), bio, Morale and Experience bars (Experience reads 0–100 and shows MAX at level 20), then in the file the Rank card, then Character, Skills (as bars out of 50), the existing craft/equipment/station section, a new **Service record** (missions served, confirmed kills, times injured) and Assignment. Recruit offers show everything except rank and the record. Autos stay plain.
+  - *Telemetry:* both combat scenes now report confirmed kills per rebel and the base counts injuries; `p.joined` records the day they signed up (old saves get today's day).
+  - *Roster:* unchanged except that the full rank and level are in a tooltip when a long rank gets truncated.
+  - *Left for later:* Rebel Traits (Phase 9) and gear slots (Phase 8) get their sections when they exist; the UI kit and styleguide were not touched, the new bars reuse `sr-meter`.
+  - Tests: `node tools/dossier-smoke.js` (tags, bars, section order, specialty vs Rookie, morale tags, MAX, record from a debrief, pilot/support/auto variants, recruit offer, roster tooltip). All five earlier suites still pass.
 
 ### Phase 8 — Gear slots and auto-equip
 - Slots: Soldier/Marine primary + secondary + gadgets; Pilot secondary + gadgets; Support none.

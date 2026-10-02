@@ -1154,7 +1154,7 @@ function woundUnit(s,t,dmg,crit){
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
-  if(by&&by.side==='reb'&&t.side==='law')by.xpGain=(by.xpGain||0)+0.2;
+  if(by&&by.side==='reb'&&t.side==='law'){by.xpGain=(by.xpGain||0)+0.2;by.kills=(by.kills||0)+1;}
   if(by)adjCoolG(by,12,'confirmed kill');
   for(const m of U)if(m.side===t.side&&m!==t)adjCoolG(m,-15,t.first+' down');
   t.hp=0;t.down=1;t.order=null;t.braced=0;
@@ -2732,6 +2732,7 @@ function buildResult(win){
     const xp=Math.round(((u.xpGain||0)+(win?0.12:0.03))*100)/100;
     const rec={id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)};
     if(u.sk){rec.sk={};for(const k in u.sk)rec.sk[k]=Math.round(u.sk[k]*10)/10;}
+    if(u.kills)rec.kills=u.kills;
     people.push(rec);
   }
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});

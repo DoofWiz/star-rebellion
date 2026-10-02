@@ -170,7 +170,7 @@ function newGame(){
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],
     news:[],
   };
-  g0.people.forEach(Rebel.migrate);
+  g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
   g0.morale=Rebel.MORALE_START;
   return g0;
 }
@@ -1436,7 +1436,7 @@ function resolveMission(m){
     hurt.injured=(hasRoom('infirmary')&&medStaff().length)?2:4;
     const f=G.fighters.find(x=>x.id===m.progress.fighters[0]);
     if(f)f.hull=Math.max(15,f.hull-30);
-    moraleAll(-3,'loss',pilots.map(p=>p.id),-8);Rebel.moraleBump(hurt,-5,'injury');mood();
+    moraleAll(-3,'loss',pilots.map(p=>p.id),-8);hurt.injuries=(hurt.injuries||0)+1;Rebel.moraleBump(hurt,-5,'injury');mood();
     m.state='avail';m.progress=null;
     queueReport(buildReport(m,false,[],[{name:hurt.name,xp:0,state:'injured'}],null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
@@ -2845,10 +2845,33 @@ const TUT_PAGES=[
     tutP('Every Source you cultivate is an asset to the rebellion. Every asset can become a liability.')},
 ];
 /* dossier header shared by the personnel file and the recruit offer */
-function dossierHead(p,extra,noRank){
+function dossierHead(p,extra,noRank,mid){
+  const mb=!p.auto&&p.morale!==undefined?Rebel.mband(p):null;
+  const tags=(noRank?'':wTag(rankFor(p),'action'))+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
+    (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
-    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+(noRank?'':wTag(rankFor(p),'action'))+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+moraleRow(p)+traitCard(p)+skillsCard(p);
+    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+p.role+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p)+(mid||'')+traitCard(p)+skillsCard(p);
+}
+/* a labelled bar: label, fill 0..1, value, tooltip */
+const meter=(label,frac,val,color,tip)=>'<div class="sr-meter" style="--c:'+color+'"'+(tip?' title="'+esc(tip)+'"':'')+'><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(Math.max(0,Math.min(1,frac))*100)+'%"></span></span><span class="sr-meter__val">'+val+'</span></div>';
+/* morale and experience: the two numbers a rebel's mood and growth come down to */
+function meterBlock(p){
+  if(p.auto||p.morale===undefined)return '';
+  const b=Rebel.mband(p);
+  const col=b.tone==='bad'?'var(--sr-c-bad)':b.tone==='good'?'var(--sr-go)':'var(--sr-gold)';
+  const maxed=p.level>=Rebel.LEVEL_CAP;
+  return '<div class="bs-meters">'+
+    meter('Morale',p.morale/100,Math.round(p.morale),col,'Morale ('+b.n+') rises with wins and rest, falls with injuries and losses. At 0 they leave.')+
+    meter('Experience',maxed?1:p.xp,maxed?'MAX':Math.round(p.xp*100),'var(--sr-c-progress)',maxed?'Level '+Rebel.LEVEL_CAP+', the top of the ladder.':'Experience toward level '+(p.level+1)+': '+Math.round(p.xp*100)+' of 100.')+
+    '</div>';
+}
+/* kills, injuries and missions: what this rebel has been through */
+function recordCard(p){
+  if(p.auto)return '';
+  const row=(a,b)=>'<div class="sr-loot"><span>'+a+'</span><b>'+b+'</b></div>';
+  return '<div class="sr-h3">Service record</div><div class="sr-stack">'+
+    row('Missions served',p.missions||0)+row('Confirmed kills',p.kills||0)+row('Times injured',p.injuries||0)+'</div>';
 }
 /* rank, progress toward the next one, and the buttons that hand it out */
 function rankCard(p){
@@ -2863,19 +2886,13 @@ function rankCard(p){
   return '<div class="sr-h3">Rank</div><div class="sr-card sr-card--action"><div class="sr-card__top"><span class="sr-card__title">'+rankFor(p)+'</span>'+(p.off?wTag('Officer','friend'):'')+'<span class="bs-from">'+(p.missions||0)+' mission'+((p.missions||0)===1?'':'s')+' served</span></div>'+
     '<div class="sr-card__body">'+body+'</div>'+(acts.length?'<div class="sr-card__acts" style="margin-top:8px">'+acts.join('')+'</div>':'')+'</div>';
 }
-/* morale out of 100 with its band; it nudges aim and Cool in the field */
-function moraleRow(p){
-  if(p.auto||p.morale===undefined)return '';
-  const b=Rebel.mband(p);
-  return '<div class="sr-loot" style="margin:0 0 12px" title="Morale rises with wins and rest, falls with injuries and losses. At 0 they leave."><span>Morale</span><b'+(b.tone?' class="bs-'+b.tone+'"':'')+'>'+Math.round(p.morale)+' <span class="sr-faint">'+b.n+'</span></b></div>';
-}
 /* skill bars out of 50: the level sets the base, mission experience adds the rest */
 function skillsCard(p){
   const ks=Rebel.skillKeys(p);
   if(!ks.length)return '';
-  return '<div class="sr-h3">Skills</div><div class="sr-stack">'+ks.map(k=>{
+  return '<div class="sr-h3">Skills</div><div class="bs-meters">'+ks.map(k=>{
     const v=Rebel.skill(p,k),S=Rebel.SKILLS[k];
-    return '<div class="sr-loot" title="'+esc(S.d)+'"><span>'+S.n+'</span><b>'+v+'<span class="sr-faint"> / '+Rebel.SKILL_CAP+'</span></b></div>';
+    return meter(S.n,v/Rebel.SKILL_CAP,v,'var(--sr-psi)',S.d+' '+v+' of '+Rebel.SKILL_CAP+'.');
   }).join('')+'</div>';
 }
 /* the Character Trait card: designer copy plus a plain-language effect (greyed until the effect is wired in) */
@@ -3138,7 +3155,7 @@ function renderWin(){
   else if(winMode==='person'){
     const p=winArg;
     const pct=Math.round(p.xp*100);
-    let b=dossierHead(p,(p.spec?wTag(specOf(p),'friend'):'')+(p.injured?wTag('Injured '+p.injured+' days','bad'):''));
+    let b=dossierHead(p,p.injured?wTag('Injured '+p.injured+' days','bad'):'',false,rankCard(p));
     if(p.role==='Pilot'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
@@ -3162,7 +3179,7 @@ function renderWin(){
         (st?('On station: <b class="bs-good">'+ROOMS[st].name+'</b> — '+STAFFABLE[st].post+'. '+STAFFABLE[st].perk+'.')
            :'Unassigned. A room without its operator underperforms — post them somewhere.')+'</p>';
     }
-    b+=rankCard(p);
+    b+=recordCard(p);
     if(!p.injured&&p.assign!=='mission'){
       b+='<div class="sr-h3">Assignment</div><div class="bs-chips">'+
         rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(p.assign==='rest')+'"','Rest',false,'sr-btn--sm')+
@@ -3179,7 +3196,7 @@ function renderWin(){
       }
       b+='</div>';
     }
-    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'),'XP '+pct+'% to level '+Math.min(Rebel.LEVEL_CAP,p.level+1)+(p.level>=Rebel.LEVEL_CAP?' (maxed)':''));
+    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
   }
   else if(winMode==='silence'){
     const s=winArg;
@@ -3500,6 +3517,7 @@ $('winsB').addEventListener('click',ev=>{
     const {p,must}=card;
     if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0&&p.id.indexOf('rcb')!==0)G.recruitN++;
+    p.joined=G.day;
     G.people.push(Rebel.migrate(p));mood();
     G.recWait=G.recWait.filter(x=>x!==p);
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
@@ -4047,6 +4065,7 @@ function applyDebrief(r){
         const p=G.people.find(x=>x.id===pr.id);
         if(!p)continue;
         if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
+        p.kills=(p.kills||0)+(pr.kills||0);
         creditMission(p);
         if(pr.state==='injured'){
           p.injured=pr.dur||2;
@@ -4089,6 +4108,7 @@ function applyDebrief(r){
     if(!p)continue;
     p.assign='rest';
     if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
+    p.kills=(p.kills||0)+(pr.kills||0);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
@@ -4103,6 +4123,7 @@ function applyDebrief(r){
       news('<b>'+p.name+'</b> did not come home. Their name goes on the wall.','h');
     } else if(state==='injured'){
       p.injured=(hasRoom('infirmary')&&medStaff().length)?(pr.dur||3):(pr.dur||3)+2;
+      p.injuries=(p.injuries||0)+1;
       Rebel.moraleBump(p,-5,'injury');
       for(const q of crewOf())if(q!==p)Rebel.moraleBump(q,(r.people||[]).some(x=>x.id===q.id)?-2:-0.5,'injury');
       mood();
@@ -4217,7 +4238,7 @@ function restoreCampaign(data){
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
     G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
-    for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;}
+    for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
     mood();
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
@@ -4307,7 +4328,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

@@ -264,3 +264,7 @@
 /* several New Recruit cards side by side */
 #sc-base .bs-recgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;align-items:start;}
 #sc-base .bs-reccard{margin:0;}
+
+/* dossier: morale, experience and skills as bars */
+#sc-base .bs-meters{display:grid;gap:9px;margin:12px 0 16px;}
+#sc-base .bs-meters .sr-meter{grid-template-columns:104px 1fr 38px;}

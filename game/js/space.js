@@ -881,8 +881,10 @@ function applyCtx(c){
   syncUI();
 }
 function destroyShip(t,killer){
-  if(killer&&killer.faction==='reb'&&t.faction==='heg')
+  if(killer&&killer.faction==='reb'&&t.faction==='heg'){
+    if(!isStruct(t))killer.pilot.kills=(killer.pilot.kills||0)+1;
     killer.pilot.xpGain=(killer.pilot.xpGain||0)+((SCEN==='instructor'&&t.id==='E1')?0.45:isStruct(t)?0.3:0.22);
+  }
   t.alive=false;
   if(infoShip===t.id)closeInfo();
   if(selId===t.id)selId=killer&&killer.faction==='reb'?killer.id:selId;
@@ -1026,7 +1028,7 @@ function buildResult(win){
     const dead=sh&&!sh.alive&&!sh.fledOut;
     return {id:f.pilotId,
       xp:Math.round((((sh&&sh.pilot.xpGain)||0)+(win?0.15:0.05))*100)/100,
-      state:dead?'shotdown':'ok',sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
+      state:dead?'shotdown':'ok',kills:(sh&&sh.pilot.kills)||undefined,sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
   });
   const fighters=(CTX.flight||[]).map((f,i)=>{
     const sh=ships.find(x=>x.id==='P'+(i+1));
