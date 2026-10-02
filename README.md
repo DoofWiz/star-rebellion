@@ -14,6 +14,12 @@ All three scenes share one UI kit, "Chunky Ops": `game/ui/sr-theme.css` (tokens 
 is the living style guide and `docs/ui/HANDOFF.md` the migration spec. Scene-specific layout lives
 in `game/ui/scenes.css`.
 
+## Game database (`game/data/`, `tools/db/`, `docs/DATABASE.md`)
+
+Ships, weapons, pilots and the target-number rules live in `game/data/db.json`; the game reads them through
+`game/js/data.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
+See `docs/DATABASE.md`.
+
 ## `game/` — the unified game
 
 The three layers now run as **one playable game** (`game/index.html` +

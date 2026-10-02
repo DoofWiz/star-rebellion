@@ -121,14 +121,35 @@ function gearLayout(items,cols){
 }
 let GEARCAT='All';
 const EXCAVATE={m:40,days:1};
-/* fuel burned per ship on a sortie */
-const FUEL_COST={graf:16,cross:24,talon:24};
-const fuelOf=f=>Math.ceil((FUEL_COST[f.cls]||5)*(hangarUp('refuel')?0.75:1));
-const SHIPSTATS={
-  cross:{label:'FT-4 Cross · Multi-role Starfighter',shd:'15F / 15A',arm:20,hull:40,wpns:[['Plasma','rc0'],['Ballistic ×6','rc1'],['Missile ×2','rc2']]},
-  talon:{label:'SF-11 Talon · Interceptor',shd:'8F / 8A',arm:10,hull:25,wpns:[['Plasma','rc0'],['Missile ×1','rc2']]},
-  graf:{label:'Graf Type 1 Hauler · Troop Transport (converted)',shd:'10F / 10A',arm:25,hull:60,wpns:[['Door guns','rc1']]},
-};
+/* Ships, fuel, seats and weapons come from the game database (SRDB). A fighter in G.fighters is one physical
+   ship: {id,name,cls,hull,out,loadout}, where loadout lists the weapon ids fitted (any weapon fits any slot). */
+const fuelPer=cls=>{const r=SRDB.ship(cls);return r&&r.fuel_per_sortie?r.fuel_per_sortie:5;};   // fuel burned per sortie
+const fuelOf=f=>Math.ceil(fuelPer(f.cls)*(hangarUp('refuel')?0.75:1));
+const wpnLabel=id=>{const w=SRDB.weapon(id);return w?w.name+(w.ammo?' ×'+w.ammo:''):id;};
+function shipStats(f){
+  const r=SRDB.ship(f.cls);
+  return {label:r.name+' · '+r.role,shd:r.shield_front+'F / '+r.shield_rear+'A',arm:r.armour,hull:r.hull,
+    wpns:(f.loadout&&f.loadout.length?f.loadout:[]).map(id=>[wpnLabel(id)])};
+}
+/* the weapons a ship starts with: the starting-fleet entry if it is one of those named ships, else the stock model's */
+function defaultLoadout(f){
+  const r=SRDB.ship(f.cls);
+  const row=Object.values(SRDB.fleet).find(x=>x.name===f.name&&SRDB.ship(x.model)===r);
+  return (row?[row.weapon_1,row.weapon_2]:[r.default_weapon_1,r.default_weapon_2]).filter(Boolean);
+}
+function newFighter(o){const f=Object.assign({out:false},o);f.loadout=defaultLoadout(f);return f;}
+/* Door Gunner Support needs a gunner position and a weapon that enables it */
+function hasDoorGun(f){
+  const r=SRDB.ship(f.cls);
+  return !!r&&r.gunner_positions>0&&(f.loadout||[]).some(id=>{const w=SRDB.weapon(id);return !!w&&w.fire_support==='door_gunner';});
+}
+// pilots carry an initiative of 1 to 6 and four skills of 0 to 50; the campaign has no skills yet, so derive them from level
+const SEED_PILOT={sera:'sera-kest',joss:'joss-marrek',petra:'petra-voss'};
+function pilotInit(p){
+  if(p.init===undefined){const seed=SRDB.pilots[SEED_PILOT[p.id]];p.init=seed?seed.initiative:1+Math.floor(Math.random()*6);}
+  return p.init;
+}
+function pilotSkills(p){const a=pilotAim(p)*10;return {aim:a,cunning:a,focus:a,presence:Math.round(Math.min(85,55+p.level*4)/2)};}
 
 /* ---------- state ---------- */
 let G=null,tilePopAt=null,winMode=null,winArg=null,started=false,viewRoom=null,srcSel=null;
@@ -750,7 +771,7 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   rew:{c:450,m:200,xp:0.3},bonus:{c:300},
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
-const SEATS={graf:4};     // troop seats per transport
+const SEATS={};for(const r of SRDB.raw.ships)if(r.extra_people>0)for(const k of String(r.legacy_keys).split('|'))if(k)SEATS[k]=r.extra_people;     // troop seats per transport
 /* ---------- mission types ----------
    A TYPE fixes objectives, requirements, the scenario and the base reward. A mission is a type plus a
    narrative CONTEXT (source, location, region, target variant, NPC). Any source or intelligence lead can
@@ -1358,7 +1379,7 @@ function advanceDay(){
     G.wreck.restoring--;
     if(G.wreck.restoring<=0){
       G.wreck.restored=true;
-      G.fighters.push({id:'graf',name:'Marta',cls:'graf',hull:70,out:false});
+      G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
       const joss=G.people.find(p=>p.id==='joss');
       if(joss&&!G.fighters.some(f=>f.id===joss.ship))joss.ship='graf';
       news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Type 1 Hauler with door guns and opinions.','g');
@@ -1654,13 +1675,13 @@ function resolveMission(m){
     applyRew(m.rew,rew);
     if(m.rew.fighter){
       if(G.fighters.length<fighterCap()){
-        G.fighters.push({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70,out:false});
+        G.fighters.push(newFighter({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70}));
         rew.push('+1 fighter');
       } else {G.credits+=600;rew.push('no berth — sold for '+C(600));}
     }
     if(m.rew.cross){
       if(G.fighters.length<fighterCap()){
-        G.fighters.push({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85,out:false});
+        G.fighters.push(newFighter({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85}));
         rew.push('+FT-4 Cross');
       } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
     }
@@ -3504,9 +3525,9 @@ function renderWin(){
     if(p.role==='Pilot'||p.role==='Hero'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
-        const st=SHIPSTATS[f.cls],n=Math.round(f.hull/20);
+        const st=shipStats(f),n=Math.round(f.hull/20);
         b+='<div class="sr-h3">Assigned craft</div><div class="sr-card sr-card--info"><div class="sr-card__top"><span class="sr-card__title">'+f.name+'</span>'+(f.out?wTag('On mission','info'):'')+'</div>'+
-          '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+st.wpns.map(w=>w[0]).join(' · ')+'</div>'+
+          '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+(st.wpns.length?st.wpns.map(w=>w[0]).join(' · '):'No weapons fitted')+'</div>'+
           '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
       }
       b+=gearSection(p);
@@ -4097,7 +4118,7 @@ function minFuel(m){
   const r=reqOf(m);
   const costs=(r.transport?transportPool():shipPool(r)).map(fuelOf).sort((a,b)=>a-b);
   const n=r.transport?transportSlots(r):(r.ships||r.team);
-  return costs.slice(0,n).reduce((a,b)=>a+b,0)||FUEL_COST.cross*n;
+  return costs.slice(0,n).reduce((a,b)=>a+b,0)||fuelPer('cross')*n;
 }
 function precondList(m){
   const r=reqOf(m),out=[];
@@ -4216,17 +4237,19 @@ function plRemoveAsset(){
   for(const k of Object.keys(PL.v))if(k.startsWith('as'+i))delete PL.v[k];
   PL.assets.pop();
 }
-/* a spare Graf can reinforce (carries up to 2 soldiers); a starfighter strafes; otherwise a door gunner */
+/* a spare transport can reinforce (up to its seats, filling them is optional); a starfighter strafes; a transport with a door gun can be a door gunner */
 function plAssetMode(i){
   const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
   if(!f)return null;
-  return SEATS[f.cls]?PL.assets[i].mode:'strafe';
+  if(!SEATS[f.cls])return 'strafe';
+  return PL.assets[i].mode==='doorgun'&&!hasDoorGun(f)?'reinforce':PL.assets[i].mode;
 }
 function plSyncAssets(){
   PL.assets.forEach((a,i)=>{
     const want=plAssetMode(i)==='reinforce';
     const has=PL.slots.some(sl=>sl.key==='as'+i+'r0');
-    if(want&&!has)for(let k=0;k<2;k++)PL.slots.push({key:'as'+i+'r'+k,acc:'rsoldier',label:'Reinforcement '+(k+1)});
+    const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
+    if(want&&!has)for(let k=0;k<(af?SEATS[af.cls]||0:0);k++)PL.slots.push({key:'as'+i+'r'+k,acc:'rsoldier',label:'Reinforcement '+(k+1),opt:true});
     if(!want&&has){
       PL.slots=PL.slots.filter(sl=>!sl.key.startsWith('as'+i+'r'));
       for(const k of Object.keys(PL.v))if(k.startsWith('as'+i+'r'))delete PL.v[k];
@@ -4234,7 +4257,7 @@ function plSyncAssets(){
   });
 }
 const plDropOk=()=>!PL.drop||G.supplies>=DROP_COST;
-function plComplete(){return PL.slots.every(sl=>PL.v[sl.key])&&plSpecOk();}
+function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
 function plFuel(){
   let t=0;
   for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
@@ -4258,7 +4281,7 @@ function plAutoFill(){
 const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+IC('ship')+'</span>';
 const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
-const shipSub=f=>SHIPSTATS[f.cls].label.split(' · ')[0];
+const shipSub=f=>SRDB.ship(f.cls).name;
 /* a filled slot: avatar, label, name, a line of detail */
 function slotOccHTML(sl){
   const id=PL.v[sl.key];
@@ -4329,8 +4352,8 @@ function planHTML(m){
     (r.transport?assetsHTML():'')+
     '</div>';
   const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel&&plDropOk();
-  const empty=PL.slots.filter(sl=>!PL.v[sl.key]).length;
-  const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key])&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
+  const empty=PL.slots.filter(sl=>!PL.v[sl.key]&&!sl.opt).length;
+  const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
   return wHead('Plan: '+m.name,{tags:riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
     '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
@@ -4345,10 +4368,11 @@ function assetsHTML(){
     '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span></div>';
   PL.assets.forEach((a,i)=>{
     const mode=plAssetMode(i);
+    const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']),gun=!!af&&hasDoorGun(af),cap=af?SEATS[af.cls]||0:0;
     h+=PL.slots.filter(sl=>sl.key.startsWith('as'+i)).map(slotHTML).join('');
     if(mode)h+=(mode==='strafe'?'<p class="sr-fine" style="margin:0">Strafing Run: a starfighter rakes a line of the battlefield.</p>':
-      '<div class="bs-chips">'+rbtn('data-assetmode="'+i+':doorgun" aria-pressed="'+(a.mode==='doorgun')+'"','Door Gunner',false,'sr-btn--sm')+rbtn('data-assetmode="'+i+':reinforce" aria-pressed="'+(a.mode==='reinforce')+'"','Reinforcements',false,'sr-btn--sm')+'</div>'+
-      '<p class="sr-fine" style="margin:0">'+(a.mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to two more soldiers where you call it.')+'</p>');
+      '<div class="bs-chips">'+(gun?rbtn('data-assetmode="'+i+':doorgun" aria-pressed="'+(mode==='doorgun')+'"','Door Gunner',false,'sr-btn--sm'):'')+rbtn('data-assetmode="'+i+':reinforce" aria-pressed="'+(mode==='reinforce')+'"','Reinforcements',false,'sr-btn--sm')+'</div>'+
+      '<p class="sr-fine" style="margin:0">'+(mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to '+cap+' more soldier'+(cap===1?'':'s')+' where you call it (fill as many seats as you like).')+(gun?'':' No Door Mounted Gun fitted, so no door gunner.')+'</p>');
   });
   h+='<div class="bs-chips">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?rbtn('data-addasset','+ Support ship',false,'sr-btn--sm'):'')+(PL.assets.length?rbtn('data-rmasset','Remove last',false,'sr-btn--sm'):'')+'</div></div>';
   return h;
@@ -4385,9 +4409,9 @@ function startPlan(){
       squad:squad.map(p=>{const e=squadEntry(p,false);if(Rebel.expHas(p,'mspec',m.tid||m.id))e.ms=1;return e;}),
       assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
-        const mode=SEATS[f.cls]?a.mode:'strafe';
+        const mode=plAssetMode(k);
         return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
-          soldiers:mode==='reinforce'?[0,1].map(q=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
+          soldiers:mode==='reinforce'?Array.from({length:SEATS[f.cls]||0},(_,q)=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
@@ -4396,8 +4420,8 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        rankName:rankFor(p),hero:p.role==='Hero'?1:0,aim:Math.max(0,pilotAim(p)+Rebel.injFx(p).aim),cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
-        cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
+        rankName:rankFor(p),hero:p.role==='Hero'?1:0,fixed:1,aim:Math.max(0,pilotAim(p)+Rebel.injFx(p).aim),skills:Object.assign(pilotSkills(p),{aim:Rebel.skill(p,'aim'),cunning:Rebel.skill(p,'cun'),focus:Rebel.skill(p,'foc'),presence:Rebel.skill(p,'pre')}),init:pilotInit(p),cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s').concat(p.id==='sera'&&Rebel.namesFor(p,'s').indexOf('Lucky')<0?['Lucky']:[]),
+        cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull,loadout:f.loadout});
     }
     G.fuel-=fuel;
     SR.mission={kind:'space',missionId:m.id,days:missionDays(m),flight};
@@ -4519,7 +4543,7 @@ function applyDebrief(r){
   }
   if(r.win&&r.cross){
     if(G.fighters.length<fighterCap()){
-      G.fighters.push({id:'dustfall',name:'Dustfall',cls:'cross',hull:85,out:false});
+      G.fighters.push(newFighter({id:'dustfall',name:'Dustfall',cls:'cross',hull:85}));
       const flew=(r.people||[]).map(pr=>pr.id);
       const orphan=G.people.find(p=>p.role==='Pilot'&&flew.includes(p.id)&&!G.fighters.some(f=>f.id===p.ship))
         ||G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
@@ -4652,6 +4676,7 @@ function restoreCampaign(data){
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
     for(const m of G.missions)bindNpc(m);
@@ -4703,6 +4728,7 @@ if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
+      newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
 })();

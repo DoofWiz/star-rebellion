@@ -24,43 +24,27 @@ const BULLS_LIM=0.21;
 const LOCK_RNG=900,LOCK_ARC=ARCH; // lock: acquire in the firing cone; LOST only when target ends up behind
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TURNS={L:-Math.PI/2,l:-Math.PI/4,S:0,r:Math.PI/4,R:Math.PI/2};
-const WPN={
-  plasma:{name:'Plasma',rng:900,atk:+2,skipShield:false,crit:0,icon:'plasma',
-    tags:'Unlimited charge · absorbed by shields'},
-  ballistic:{name:'Ballistic',rng:600,atk:-5,skipShield:true,crit:0.25,icon:'ballistic',
-    tags:'Bypasses shields · can crit through armor · wild unguided'},
-  missile:{name:'Missile',rng:900,atk:0,skipShield:false,crit:0,needsLock:true,icon:'missile',
-    tags:'Heavy warhead · needs lock · guidance bonus per lock level'},
-};
-function dialViper(){const d=[];for(let s=1;s<=4;s++)d.push([s,'S']);for(let s=1;s<=3;s++){d.push([s,'l']);d.push([s,'r']);}for(let s=1;s<=2;s++){d.push([s,'L']);d.push([s,'R']);}return d;}
-function dialTalon(){const d=[];for(let s=2;s<=5;s++)d.push([s,'S']);for(let s=2;s<=4;s++){d.push([s,'l']);d.push([s,'r']);}for(let s=2;s<=3;s++){d.push([s,'L']);d.push([s,'R']);}return d;}
-function dialFled(){const d=[];for(let s=1;s<=3;s++)d.push([s,'S']);for(let s=1;s<=2;s++){d.push([s,'l']);d.push([s,'r']);}d.push([1,'L']);d.push([1,'R']);return d;}
-function dialGraf(){const d=[];for(let s=1;s<=2;s++)d.push([s,'S']);for(let s=1;s<=2;s++){d.push([s,'l']);d.push([s,'r']);}return d;}
-function dialDrone(){const d=[];for(let s=1;s<=4;s++)d.push([s,'S']);for(let s=1;s<=3;s++){d.push([s,'l']);d.push([s,'r']);}d.push([1,'L']);d.push([1,'R']);return d;}
-const CLS={
-  viper:{label:'FT-4 Cross',role:'Multi-role Starfighter',init:3,tn:11,size:1.15,shdF:15,shdR:15,arm:20,hull:40,dial:dialViper,maxSpd:4,
-    wpns:['plasma','ballistic','missile'],dmg:{plasma:[8,14],ballistic:[12,18],missile:[26,36]},ammo:{ballistic:6,missile:2}},
-  talon:{label:'SF-11 Talon',role:'Interceptor',init:4,tn:13,size:1.0,shdF:8,shdR:8,arm:10,hull:25,dial:dialTalon,maxSpd:5,
-    wpns:['plasma','missile'],dmg:{plasma:[9,15],missile:[26,36]},ammo:{missile:1}},
-  scim:{label:'VK-3 Scimitar',role:'Multi-role Starfighter',init:3,tn:11,size:1.1,shdF:12,shdR:12,arm:20,hull:35,dial:dialViper,maxSpd:4,
-    wpns:['plasma','ballistic','missile'],dmg:{plasma:[8,14],ballistic:[12,18],missile:[26,36]},ammo:{ballistic:4,missile:2}},
-  fled:{label:'VT-2 Fledgling',role:'Trainer',init:2,tn:9,size:1.0,shdF:0,shdR:0,arm:10,hull:20,dial:dialFled,maxSpd:3,
-    wpns:['plasma'],dmg:{plasma:[7,12]},ammo:{}},
-  graf:{label:'Graf Type 1 Hauler',role:'Troop Transport (converted)',init:1,tn:9,size:1.4,shdF:10,shdR:10,arm:25,hull:60,dial:dialGraf,maxSpd:2,
-    wpns:['ballistic'],dmg:{ballistic:[10,16]},ammo:{ballistic:10}},
-  depot:{label:'Fuel Depot',role:'Hegemony Orbital Fuel Store',init:0,tn:8,size:1.7,shdF:0,shdR:0,arm:3,hull:24,dial:()=>[[1,'S']],maxSpd:1,
-    wpns:[],dmg:{},ammo:{},struct:1,mute:1},
-  drone:{label:'RQ-7 Sentry',role:'Combat Drone',init:2,tn:10,size:0.9,shdF:0,shdR:0,arm:2,hull:10,dial:dialDrone,maxSpd:4,
-    wpns:['plasma'],dmg:{plasma:[3,7]},ammo:{},mute:1},
-  monitor:{label:'Drone Monitor',role:'Patrol Drone',init:2,tn:11,size:0.85,shdF:0,shdR:0,arm:1,hull:8,dial:dialDrone,maxSpd:4,
-    wpns:['plasma'],dmg:{plasma:[2,5]},ammo:{},mute:1,summons:1},
-  pursuer:{label:'Drone Pursuer',role:'Hunter Drone',init:3,tn:11,size:0.95,shdF:0,shdR:0,arm:3,hull:16,dial:dialTalon,maxSpd:5,
-    wpns:['plasma'],dmg:{plasma:[4,8]},ammo:{},mute:1},
-  clamper:{label:'Drone Mag-Clamper',role:'Restraint Drone',init:1,tn:9,size:1.35,shdF:6,shdR:6,arm:8,hull:30,dial:dialGraf,maxSpd:2,
-    wpns:['plasma'],dmg:{plasma:[3,6]},ammo:{},mute:1,clamp:1},
-  mote:{label:'VC Mote Patrolcraft',role:'Manned Patrol Fighter',init:3,tn:12,size:1.0,shdF:6,shdR:6,arm:6,hull:22,dial:dialTalon,maxSpd:5,
-    wpns:['plasma'],dmg:{plasma:[6,10]},ammo:{}},
-};
+/* Ships and weapons come from the game database (game/data/db.js, via SRDB). CLS keeps the shape this scene
+   has always used, keyed by the old class keys so the drawing code and mission data still line up; the
+   database id rides along as CLS[key].id. A weapon definition adds the per-weapon numbers that used to
+   live on the ship (damage, ammo) to the old per-kind rules (range, accuracy, shield bypass, crit, lock). */
+function wdefOf(r){
+  return {id:r.id,name:r.name,kind:r.kind,rng:r.range,atk:r.accuracy_mod,skipShield:r.bypasses_shields,crit:r.crit_chance,
+    needsLock:r.needs_lock,icon:r.kind,tags:r.special_rules.replace(/\.$/,''),dmg:[r.damage_min,r.damage_max],
+    ammo:r.ammo==null?undefined:r.ammo};
+}
+const WDEF={};for(const id in SRDB.weapons)WDEF[id]=wdefOf(SRDB.weapons[id]);
+const BEHAVIOUR={'drone-monitor':{summons:1},'drone-mag-clamper':{clamp:1}};  // what the AI code switches on
+const CLS={};
+for(const r of SRDB.raw.ships){
+  const keys=String(r.legacy_keys).split('|').filter(Boolean);
+  const c=Object.assign({id:r.id,key:keys[0],label:r.name,role:r.role,kind:r.kind,dbSize:r.size,size:SRDB.visualSize(r.size),
+    shdF:r.shield_front,shdR:r.shield_rear,arm:r.armour,hull:r.hull,dial:()=>SRDB.dial(r),
+    minSpd:r.straight_min,maxSpd:r.straight_max,slots:r.weapon_slots,people:r.extra_people,
+    loadout:[r.default_weapon_1,r.default_weapon_2].filter(Boolean),
+    struct:r.kind==='structure'?1:0,mute:r.kind==='starship'?0:1},BEHAVIOUR[r.id]);
+  for(const k of keys)CLS[k]=c;
+}
 const DRONES=['drone','monitor','pursuer','clamper'];
 const isDrone=s=>DRONES.includes(s.cls);
 function isStruct(s){return !!CLS[s.cls].struct;}
@@ -93,15 +77,34 @@ let cam={x:W/2,y:H/2,z:0.3},camGoal=null,follow=true;
 let infoShip=null; // ship id whose dossier/ship windows are open
 let hudT=0;        // seconds for HUD pulses; 0 under prefers-reduced-motion
 
-function mkPilot(o){return Object.assign({friendLock:false,lastSay:0},o);}
+/* A pilot's stats: level 1 to 20, four skills 0 to 50 and an initiative of 1 to 6. aim and focusBonus are the
+   derived bonuses (skill and level together). Callers that only know an aim modifier of 0 to 5 get skills of 10x. */
+function mkPilot(o){
+  const p=Object.assign({friendLock:false,lastSay:0},o);
+  p.level=Math.max(1,p.level||1);
+  if(!p.skills){const a=(p.aim||0)*10;p.skills={aim:a,cunning:a,focus:a,presence:Math.round((p.cool||60)/2)};}
+  p.aim=SRDB.skillBonus(p.skills.aim,p.level);
+  p.focusBonus=SRDB.skillBonus(p.skills.focus,p.level);
+  if(p.fixed){p.aim=o.aim;p.focusBonus=0;} // rebels bring finished aim and focus numbers (skill, level, mood and injury already in)
+  if(p.init===undefined)p.init=3;
+  return p;
+}
+/* a scripted pilot built from a database row; extras carry what the database does not (voice, age, bio) */
+function dbPilot(id,extra){
+  const r=SRDB.pilots[id];
+  return Object.assign({pname:r.name,skills:{aim:r.aim,cunning:r.cunning,focus:r.focus,presence:r.presence},
+    cool:r.presence*2,level:r.level,xp:r.xp/100,init:r.initiative,traits:r.traits_legacy?r.traits_legacy.split('|'):[],mans:[]},extra);
+}
 /* what a pilot did this mission, in raw points per skill; base.js turns it into experience */
 function psk(s,k,n){if(s&&s.faction==='reb'&&s.pilot){const p=s.pilot;p.sk=p.sk||{};p.sk[k]=(p.sk[k]||0)+n;}}
-function mkShip(id,name,cls,faction,x,y,h,pilot){
-  const c=CLS[cls];
-  return {id,name,cls,faction,x,y,h,pilot,chatKey:pilot.chatKey||null,
+function mkShip(id,name,cls,faction,x,y,h,pilot,loadout){
+  const c=CLS[cls];cls=c.key; // the base layer says 'cross', the drawing code says 'viper': one canonical key
+  const wpns=(loadout||c.loadout).filter(w=>WDEF[w]).slice(0,c.slots).map((w,i)=>({key:'w'+i,w:WDEF[w]}));
+  const ammo={};for(const q of wpns)if(q.w.ammo!==undefined)ammo[q.key]=q.w.ammo;
+  return {id,name,cls,faction,x,y,h,pilot,chatKey:pilot.chatKey||null,wpns,
     segs:{F:{val:c.shdF,max:c.shdF,at:'F'},R:{val:c.shdR,max:c.shdR,at:'R'}},
     arm:c.arm,hull:c.hull,maxArm:c.arm,maxHull:c.hull,
-    size:c.size,ammo:Object.assign({},c.ammo),
+    size:c.size,ammo,
     tokens:{evade:false,broll:false},lock:null,crits:[],
     plan:{man:null},path:null,trail:[],alive:true,fledOut:false,
     visRoll:0,moveBoost:0};
@@ -110,7 +113,9 @@ function zoneShield(s,z){let v=0;for(const k of ['F','R'])if(s.segs[k].at===z)v+
 function totalShield(s){return s.segs.F.val+s.segs.R.val;}
 function maxShield(s){return s.segs.F.max+s.segs.R.max;}
 function critCount(s,id){return s.crits.filter(c=>c===id).length;}
-function maxSpeedOf(s){return Math.max(1,CLS[s.cls].maxSpd-critCount(s,'engine')-(s.magClamp>0?2:0));}
+/* Engine damage and mag-clamps cap top speed, but never below the ship's slowest straight move, so it can always fly.
+   A bank or turn whose slowest speed is above the cap drops off the dial. */
+function maxSpeedOf(s){const c=CLS[s.cls];return Math.max(c.minSpd,c.maxSpd-critCount(s,'engine')-(s.magClamp>0?2:0));}
 function dialAvail(s){
   let d=CLS[s.cls].dial().slice();
   if(s.pilot.mans&&s.pilot.mans.includes('loop'))d.push([3,'K']);
@@ -120,7 +125,7 @@ function dialAvail(s){
   return d;
 }
 function effInit(s){
-  let i=CLS[s.cls].init;
+  let i=s.pilot.init;
   if(s.pilot.traits.includes('Veteran'))i+=1;
   if(coolState(s)==='cool')i+=1;
   if(coolState(s)==='panic')i-=1;
@@ -152,14 +157,14 @@ function adjCool(s,d,why){
 }
 
 const DEPLOY=[
-  ['P1','Vanguard','viper','reb',650,2450,-Math.PI/4,{chatKey:'sera',pname:'Sera Kest',first:'SERA',age:29,aim:3,cool:72,traits:['Lucky'],mans:[],level:3,xp:0.4,bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'}],
-  ['P2','Dagger 1','talon','reb',430,2560,-Math.PI/4,{chatKey:'joss',pname:'Joss Marrek',first:'JOSS',age:26,aim:4,cool:76,traits:['Ace Training'],mans:['loop'],level:4,xp:0.65,bio:'Cocky, brilliant, insufferable. Flies like he’s owed the sky.'}],
-  ['P3','Dagger 2','talon','reb',870,2620,-Math.PI/4,{chatKey:'petra',pname:'Petra Voss',first:'PETRA',age:24,aim:2,cool:60,traits:['Friends: Joss'],mans:[],level:2,xp:0.2,bio:'Steady hands, soft heart. Followed Joss into the rebellion.'}],
-  ['E1','Vex','scim','heg',2950,1150,Math.PI*0.75,{pname:'Cmdt. Dral Vex',first:'VEX',age:51,aim:5,cool:85,traits:['Veteran'],mans:['loop','broll'],level:9,xp:0.8,bio:'The Hegemony’s schoolmaster of the void. His students never forget him.'}],
-  ['E2','Cadet 1','fled','heg',3150,1000,Math.PI*0.75,{pname:'Cadet Ilo',first:'ILO',age:19,aim:2,cool:52,traits:['Green'],mans:[],level:0,xp:0.3,bio:'Top of the classroom. The classroom did not shoot back.'}],
-  ['E3','Cadet 2','fled','heg',3180,1300,Math.PI*0.75,{pname:'Cadet Brann',first:'BRANN',age:20,aim:1,cool:48,traits:['Green'],mans:[],level:0,xp:0.15,bio:'Enlisted to get off-world. Getting more than he bargained for.'}],
-  ['E4','Cadet 3','fled','heg',3400,1120,Math.PI*0.75,{pname:'Cadet Sooli',first:'SOOLI',age:21,aim:2,cool:55,traits:['Green'],mans:[],level:0,xp:0.5,bio:'The only cadet Vex has ever almost complimented.'}],
-  ['E5','Cadet 4','fled','heg',3380,1420,Math.PI*0.75,{pname:'Cadet Werrin',first:'WERRIN',age:19,aim:1,cool:45,traits:['Green'],mans:[],level:0,xp:0,bio:'First live exercise. First time past the moons.'}],
+  ['P1','Vanguard','viper','reb',650,2450,-Math.PI/4,dbPilot('sera-kest',{chatKey:'sera',first:'SERA',age:29,bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'})],
+  ['P2','Dagger 1','talon','reb',430,2560,-Math.PI/4,dbPilot('joss-marrek',{chatKey:'joss',first:'JOSS',age:26,mans:['loop'],bio:'Cocky, brilliant, insufferable. Flies like he’s owed the sky.'})],
+  ['P3','Dagger 2','talon','reb',870,2620,-Math.PI/4,dbPilot('petra-voss',{chatKey:'petra',first:'PETRA',age:24,bio:'Steady hands, soft heart. Followed Joss into the rebellion.'})],
+  ['E1','Vex','scim','heg',2950,1150,Math.PI*0.75,dbPilot('dral-vex',{first:'VEX',age:51,mans:['loop','broll'],bio:'The Hegemony’s schoolmaster of the void. His students never forget him.'})],
+  ['E2','Cadet 1','fled','heg',3150,1000,Math.PI*0.75,dbPilot('cadet-ilo',{first:'ILO',age:19,bio:'Top of the classroom. The classroom did not shoot back.'})],
+  ['E3','Cadet 2','fled','heg',3180,1300,Math.PI*0.75,dbPilot('cadet-brann',{first:'BRANN',age:20,bio:'Enlisted to get off-world. Getting more than he bargained for.'})],
+  ['E4','Cadet 3','fled','heg',3400,1120,Math.PI*0.75,dbPilot('cadet-sooli',{first:'SOOLI',age:21,bio:'The only cadet Vex has ever almost complimented.'})],
+  ['E5','Cadet 4','fled','heg',3380,1420,Math.PI*0.75,dbPilot('cadet-werrin',{first:'WERRIN',age:19,bio:'First live exercise. First time past the moons.'})],
 ];
 /* ---------- scenarios ---------- */
 const SCENS={
@@ -188,13 +193,13 @@ const SCENS={
 };
 let SCEN='instructor';
 const DEPLOY_DEPOT=[
-  ['D1','Depot 1','depot','heg',1750,1500,0.3,{pname:'Fuel Depot 1',first:'D-1',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Sixty thousand tonnes of patrol fuel in a can.'}],
-  ['D2','Depot 2','depot','heg',2500,720,-0.4,{pname:'Fuel Depot 2',first:'D-2',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'The reason the drift patrols never run dry.'}],
-  ['D3','Depot 3','depot','heg',3050,1950,0.8,{pname:'Fuel Depot 3',first:'D-3',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Painted with a fading Hegemony crest and a NO SMOKING sign.'}],
-  ['D4','Depot 4','depot','heg',3650,1050,-0.9,{pname:'Fuel Depot 4',first:'D-4',age:'—',aim:0,cool:50,traits:[],mans:[],level:0,xp:0,bio:'Topped off yesterday. Unfortunate timing.'}],
-  ['R1','Monitor 1','monitor','heg',2300,1250,Math.PI*0.75,{pname:'Drone Monitor',first:'DM-1',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'}],
-  ['R2','Monitor 2','monitor','heg',2950,1000,Math.PI*0.75,{pname:'Drone Monitor',first:'DM-2',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Its threat library lists you under VERMIN, ARMED.'}],
-  ['R3','Pursuer 1','pursuer','heg',2800,2100,Math.PI*0.75,{pname:'Drone Pursuer',first:'DP-1',age:'—',aim:1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'Patrols the same loop it has flown for nine years.'}],
+  ['D1','Depot 1','depot','heg',1750,1500,0.3,mkPilot({pname:'Fuel Depot 1',first:'D-1',age:'—',aim:0,cool:50,traits:[],mans:[],level:1,xp:0,bio:'Sixty thousand tonnes of patrol fuel in a can.'})],
+  ['D2','Depot 2','depot','heg',2500,720,-0.4,mkPilot({pname:'Fuel Depot 2',first:'D-2',age:'—',aim:0,cool:50,traits:[],mans:[],level:1,xp:0,bio:'The reason the drift patrols never run dry.'})],
+  ['D3','Depot 3','depot','heg',3050,1950,0.8,mkPilot({pname:'Fuel Depot 3',first:'D-3',age:'—',aim:0,cool:50,traits:[],mans:[],level:1,xp:0,bio:'Painted with a fading Hegemony crest and a NO SMOKING sign.'})],
+  ['D4','Depot 4','depot','heg',3650,1050,-0.9,mkPilot({pname:'Fuel Depot 4',first:'D-4',age:'—',aim:0,cool:50,traits:[],mans:[],level:1,xp:0,bio:'Topped off yesterday. Unfortunate timing.'})],
+  ['R1','Monitor 1','monitor','heg',2300,1250,Math.PI*0.75,dbPilot('core-monitor',{pname:'Drone Monitor',first:'DM-1',age:'—',traits:['Drone'],bio:'A gun with a flight computer. It has never been afraid.'})],
+  ['R2','Monitor 2','monitor','heg',2950,1000,Math.PI*0.75,dbPilot('core-monitor',{pname:'Drone Monitor',first:'DM-2',age:'—',traits:['Drone'],bio:'Its threat library lists you under VERMIN, ARMED.'})],
+  ['R3','Pursuer 1','pursuer','heg',2800,2100,Math.PI*0.75,dbPilot('core-pursuer',{pname:'Drone Pursuer',first:'DP-1',age:'—',traits:['Drone'],bio:'Patrols the same loop it has flown for nine years.'})],
 ];
 let CTX=null; // mission spec from the base layer (null => sim/default cast)
 function deploy(withCutscene){
@@ -205,8 +210,8 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,
-          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
-          level:f.level||1,xp:0,bio:f.bio||'One of ours.'}));
+          rankName:f.rankName,hero:f.hero||0,fixed:f.fixed,aim:f.aim||2,skills:f.skills,init:f.init,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
       return sh;
@@ -394,8 +399,9 @@ function say(s,key){
 /* ---------- d20 resolution ---------- */
 function rint(lo,hi){return lo+Math.floor(rng()*(hi-lo+1));}
 function computeTN(s,t){
-  const e=[];let v=CLS[t.cls].tn;
-  e.push(['EVASION PROFILE',CLS[t.cls].tn,true]);
+  const sz=CLS[t.cls].dbSize,e=[];let v=SRDB.baseTN(sz);
+  e.push(['SIZE '+sz+' HULL',v,true]);
+  if(t.pilot.focusBonus){v+=t.pilot.focusBonus;e.push(['PILOT FOCUS',t.pilot.focusBonus]);}
   const b=band(dist(s,t));
   if(b===2){v+=2;e.push(['RANGE 2',2]);} else if(b===3){v+=3;e.push(['LONG RANGE',3]);}
   if(t.tokens.evade){v+=3;e.push(['FLYING DEFENSIVE',3]);}
@@ -411,14 +417,14 @@ function computeTN(s,t){
   return {total:v,entries:e};
 }
 function computeATK(s,t,wkey){
-  const e=[];let v=0;const w=WPN[wkey];
+  const e=[];let v=0;const w=wslot(s,wkey).w;
   v+=s.pilot.aim;e.push(['PILOT AIM',s.pilot.aim,true]);
   const td=critCount(s,'targeting');
   if(td){v-=td*2;e.push(['TARGETING DMG',-td*2]);}
   if(w.atk){v+=w.atk;e.push([w.name.toUpperCase()+(w.atk<0?' (UNGUIDED)':''),w.atk]);}
   const lk=(s.lock&&s.lock.target===t.id)?s.lock.level:0;
   if(lk){v+=lk*2;e.push(['LOCK ×'+lk,lk*2]);}
-  if(wkey==='missile'&&lk){v+=lk;e.push(['GUIDANCE ×'+lk,lk]);}
+  if(w.kind==='missile'&&lk){v+=lk;e.push(['GUIDANCE ×'+lk,lk]);}
   if(coolState(s)==='cool'){v+=2;e.push(['COOL',2]);}
   if(coolState(s)==='panic'){v-=3;e.push(['PANICKING',-3]);}
   if(band(dist(s,t))===1){v+=2;e.push(['CLOSE RANGE',2]);}
@@ -451,7 +457,7 @@ function applyDamage(t,dmg,skipShield,fromFront){
 function applicableCrits(s){
   const out=[];
   for(const id in CRITDEFS){
-    if(id==='feed'&&CLS[s.cls].wpns.length<2)continue;
+    if(id==='feed'&&!s.wpns.some(q=>q.w.kind!=='plasma'))continue;
     if(id==='emitter'&&maxShield(s)===0)continue;
     if(critCount(s,id)>=CRITDEFS[id].stack)continue;
     out.push(id);
@@ -481,22 +487,27 @@ function applyCritical(s,why){
 }
 
 /* ---------- weapon/target selection ---------- */
+/* A ship's weapons sit in numbered slots (w0, w1); a weapon key is the slot. Any weapon fits any slot. */
+function wslot(s,wkey){return s.wpns.find(q=>q.key===wkey)||null;}
 function validShot(s,t,wkey){
-  const w=WPN[wkey];
-  if(!CLS[s.cls].wpns.includes(wkey))return false;
-  if(wkey!=='plasma'&&critCount(s,'feed'))return false;
+  const sl=wslot(s,wkey);
+  if(!sl)return false;
+  const w=sl.w;
+  if(w.kind!=='plasma'&&critCount(s,'feed'))return false;
   if(!inArc(s,t)||dist(s,t)>w.rng)return false;
   if(w.needsLock&&!(s.lock&&s.lock.target===t.id&&s.lock.level>=1))return false;
-  if(wkey!=='plasma'&&s.ammo[wkey]!==undefined&&s.ammo[wkey]<=0)return false;
+  if(s.ammo[wkey]!==undefined&&s.ammo[wkey]<=0)return false;
   return true;
 }
+function slotOfKind(s,t,kind){const q=s.wpns.find(x=>x.w.kind===kind&&validShot(s,t,x.key));return q?q.key:null;}
 function bestWeaponFor(s,t){
   const hp=totalShield(t)+t.arm+t.hull;
-  if(validShot(s,t,'missile')&&hp>=20)return 'missile';
-  if(validShot(s,t,'ballistic')&&((s.lock&&s.lock.target===t.id)||bullsFactor(s,t)>0.3||band(dist(s,t))===1))return 'ballistic';
-  if(validShot(s,t,'plasma'))return 'plasma';
-  if(validShot(s,t,'ballistic'))return 'ballistic';
-  if(validShot(s,t,'missile'))return 'missile';
+  let k;
+  if((k=slotOfKind(s,t,'missile'))&&hp>=20)return k;
+  if((k=slotOfKind(s,t,'ballistic'))&&((s.lock&&s.lock.target===t.id)||bullsFactor(s,t)>0.3||band(dist(s,t))===1))return k;
+  if((k=slotOfKind(s,t,'plasma')))return k;
+  if((k=slotOfKind(s,t,'ballistic')))return k;
+  if((k=slotOfKind(s,t,'missile')))return k;
   return null;
 }
 function chooseAttack(s){
@@ -567,7 +578,7 @@ function aiAction(s){
       return {a:s.segs.F.val<=s.segs.R.val?'boostF':'boostR'};
   }
   const zone=foes.filter(f=>inLockZone(s,f)&&!losBlocked(s,f));
-  if(zone.length&&CLS[s.cls].wpns.length>1){
+  if(zone.length&&s.wpns.some(q=>q.w.needsLock)){
     const t=zone.sort((a,b)=>dist(s,a)-dist(s,b))[0];
     const lv=(s.lock&&s.lock.target===t.id)?s.lock.level:0;
     if(lv<3&&!(tailed&&s.pilot.mans.includes('broll')))return {a:'lock',t};
@@ -816,27 +827,27 @@ function confirmAttack(){
   syncUI();
 }
 function fireCtx(c,now){
-  const {s,t,wkey}=c,w=WPN[wkey];
-  if(wkey!=='plasma'&&s.ammo[wkey]!==undefined)s.ammo[wkey]--;
-  if(wkey==='missile'&&s.lock){s.lock.level--;if(s.lock.level<=0)s.lock=null;}
+  const {s,t,wkey}=c,w=wslot(s,wkey).w,kind=w.kind;
+  if(s.ammo[wkey]!==undefined)s.ammo[wkey]--;
+  if(kind==='missile'&&s.lock){s.lock.level--;if(s.lock.level<=0)s.lock=null;}
   if(c.hit){
-    c.dmg=rint(CLS[s.cls].dmg[wkey][0],CLS[s.cls].dmg[wkey][1]);
+    c.dmg=rint(w.dmg[0],w.dmg[1]);
     c.crit=rng()<(w.crit+0.25*(c.atk.bullsF||0));
   }
   const d=dist(s,t);
-  if(wkey==='missile'){
+  if(kind==='missile'){
     const fly=RM?350:Math.max(500,d/0.55);
     missFx.push({x:s.x+Math.cos(s.h)*18,y:s.y+Math.sin(s.h)*18,tx:t.x,ty:t.y,t0:now,dur:fly});
     c.tApply=now+fly;c.tEnd=c.tApply+(RM?300:750);
     sWhoosh();say(s,'missile');
     muzzleFlash(s,C.psi);
   } else {
-    const n=wkey==='ballistic'?10:5;
+    const n=kind==='ballistic'?10:5;
     const fly=RM?180:Math.max(220,d/1.15);
-    const stag=wkey==='ballistic'?(RM?25:50):(RM?40:85);
+    const stag=kind==='ballistic'?(RM?25:50):(RM?40:85);
     for(let i=0;i<n;i++){
       const hitB=c.hit&&i>=n-Math.ceil(n*0.6);
-      const sp=(rng()-0.5)*(wkey==='ballistic'?26:12);
+      const sp=(rng()-0.5)*(kind==='ballistic'?26:12);
       const px=-Math.sin(s.h)*sp,py=Math.cos(s.h)*sp;
       let ex=t.x+px,ey=t.y+py;
       if(!hitB){
@@ -846,10 +857,10 @@ function fireCtx(c,now){
       }
       bolts.push({x0:s.x+Math.cos(s.h)*16,y0:s.y+Math.sin(s.h)*16,x1:ex,y1:ey,
         t0:now+i*stag,dur:fly*(hitB?1:1.25),hit:hitB,done:false,
-        col:wkey==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebel:C.heg),thin:wkey==='ballistic'});
+        col:kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebel:C.heg),thin:kind==='ballistic'});
     }
-    if(wkey==='ballistic')sRattle();else sZap(s.faction==='heg');
-    muzzleFlash(s,wkey==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebelHi:C.hegHi));
+    if(kind==='ballistic')sRattle();else sZap(s.faction==='heg');
+    muzzleFlash(s,kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebelHi:C.hegHi));
     c.tApply=now+fly+n*stag*0.4;c.tEnd=c.tApply+(RM?280:650);
   }
   c.stage='fire';
@@ -858,27 +869,28 @@ function fireCtx(c,now){
 function applyCtx(c){
   const {s,t}=c;
   const math='<span class="d">need '+c.need+'+ ('+pctFor(c.need)+'%) · d20='+c.roll+'</span>';
-  const wname=c.wkey==='plasma'?'plasma':c.wkey==='ballistic'?'<span class="a">ballistic</span>':'<span class="p">missile</span>';
+  const wk=wslot(s,c.wkey).w.kind;
+  const wname=wk==='plasma'?'plasma':wk==='ballistic'?'<span class="a">ballistic</span>':'<span class="p">missile</span>';
   if(!c.hit){
     addFloater(t.x,t.y-30,'MISS',C.hazard);
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="d">MISS</span>');
     psk(s,'aim',1);psk(t,'foc',1);
   } else {
     const fromFront=hitsFront(s,t);
-    const {sd,ad,hd,zone}=applyDamage(t,c.dmg,WPN[c.wkey].skipShield,fromFront);
+    const {sd,ad,hd,zone}=applyDamage(t,c.dmg,wslot(s,c.wkey).w.skipShield,fromFront);
     if(t.faction==='reb')t.pilot.minHull=Math.min(t.pilot.minHull===undefined?1:t.pilot.minHull,Math.max(0,t.hull)/t.maxHull);
     damagedThisRound.add(t.id);
-    impactBurst(t,c.wkey,sd>0);
+    impactBurst(t,wk,sd>0);
     let fy=t.y-30;
     if(sd>0){t.shieldFx=performance.now();t.shieldFxZone=zone;addFloater(t.x,fy,'-'+sd+' SHD '+(zone==='F'?'FWD':'AFT'),C.shield);fy-=18;}
     if(ad>0){armorHit(t);addFloater(t.x,fy,'-'+ad+' ARM',C.steel);fy-=18;}
     if(hd>0){hullHitFx(t,hd);addFloater(t.x,fy,'-'+hd+' HULL',C.gold);fy-=18;}
-    if(WPN[c.wkey].skipShield&&totalShield(t)>0)addFloater(t.x,fy,'SHIELDS BYPASSED',C.goldHi);
+    if(wslot(s,c.wkey).w.skipShield&&totalShield(t)>0)addFloater(t.x,fy,'SHIELDS BYPASSED',C.goldHi);
     adjCool(t,(ad>0||hd>0)?-12:-5,'taking fire');
     psk(t,'foc',0.3);
     if(hd>=8&&t.alive)say(t,'hit');
-    shake=Math.max(shake,RM?0:(c.wkey==='missile'?14:6));
-    if(c.wkey==='missile'){flashT=performance.now();sBoom(true);}
+    shake=Math.max(shake,RM?0:(wk==='missile'?14:6));
+    if(wk==='missile'){flashT=performance.now();sBoom(true);}
     else if(sd>0&&ad===0&&hd===0)sShield();
     else sHit();
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="a">HIT '+c.dmg+'</span>');
@@ -931,12 +943,13 @@ function recoverPhase(e){
     else if(phase==='EXEC'&&exec){awaitAction=null;lockPickMode=false;nextExec();}
   }catch(e2){phase='PLANNING';exec=null;attackQ=null;awaitAction=null;syncUI();}
 }
-function mkDronePilot(first,name,aim){return mkPilot({pname:name,first,age:'—',aim:aim||1,cool:60,traits:['Drone'],mans:[],level:0,xp:0,bio:'A gun with a flight computer. It has never been afraid.'});}
+const CORE_PILOT={drone:'core-sentry',monitor:'core-monitor',pursuer:'core-pursuer',clamper:'core-clamper'};
+function mkDronePilot(first,name,cls){return mkPilot(dbPilot(CORE_PILOT[cls]||'core-sentry',{pname:name,first,age:'—',traits:['Drone'],bio:'A gun with a flight computer. It has never been afraid.'}));}
 let summonN=0,patrolCalled=false;
 function summonShip(cls,x,y,h,label){
   summonN++;
   const id='Z'+summonN,nm=CLS[cls].label;
-  const sh=mkShip(id,nm+' '+summonN,cls,'heg',x,y,h,cls==='mote'?mkPilot({pname:'Patrol Pilot',first:'MOTE-'+summonN,age:27,aim:2,cool:60,traits:[],mans:[],level:1,xp:0,bio:'Local Hegemony patrol pilot. Good at his job, bad at staying calm.'}):mkDronePilot(nm.split(' ').pop().toUpperCase()+'-'+summonN,nm,cls==='pursuer'?2:1));
+  const sh=mkShip(id,nm+' '+summonN,cls,'heg',x,y,h,cls==='mote'?mkPilot(dbPilot('patrol-pilot-mote',{first:'MOTE-'+summonN,age:27,bio:'Local Hegemony patrol pilot. Good at his job, bad at staying calm.'})):mkDronePilot(nm.split(' ').pop().toUpperCase()+'-'+summonN,nm,cls));
   ships.push(sh);
   addFloater(x,y-30,label||'INBOUND',C.hazard);
   return sh;
@@ -1980,16 +1993,17 @@ function shipHTML(s){
   }
   h+='<div class="sr-h3">Weapons</div><div class="sr-stack">';
   const jam=critCount(s,'feed');
-  for(const w of c.wpns){
-    const wd=WPN[w],dmg=c.dmg[w];
+  if(!s.wpns.length)h+='<div class="sr-fine">No weapons fitted.</div>';
+  for(const q of s.wpns){
+    const wd=q.w,dmg=wd.dmg;
     const hit=s.pilot.aim-critCount(s,'targeting')*2+wd.atk;
-    const off=jam&&w!=='plasma';
-    const ammo=s.ammo[w];
-    h+='<div class="sr-card sp-wcard'+(off?' is-off':'')+'" style="--c:'+WCOL[w]+'">'+
+    const off=jam&&wd.kind!=='plasma';
+    const ammo=s.ammo[q.key];
+    h+='<div class="sr-card sp-wcard'+(off?' is-off':'')+'" style="--c:'+WCOL[wd.kind]+'">'+
       '<span class="sp-wicon">'+ico(wd.icon)+'</span>'+
       '<div class="sp-winfo"><div class="sr-card__title">'+wd.name+(off?' '+tag('Jammed','bad'):'')+'</div>'+
       '<div class="sp-wtags">'+wd.tags+'</div>'+
-      (ammo!==undefined?'<div class="sr-hp sp-ammo" style="--hp:var(--sr-gold-hi)">'+hpCells(ammo,c.ammo[w],1)+'<span class="sr-hp__num">'+ammo+'/'+c.ammo[w]+'</span></div>':'')+
+      (ammo!==undefined?'<div class="sr-hp sp-ammo" style="--hp:var(--sr-gold-hi)">'+hpCells(ammo,wd.ammo,1)+'<span class="sr-hp__num">'+ammo+'/'+wd.ammo+'</span></div>':'')+
       '</div>'+
       '<div class="sp-wnums"><span class="sr-mod '+(hit>=0?'is-plus':'is-minus')+'"><b>'+(hit>=0?'+':'−')+Math.abs(hit)+'</b></span>'+
       '<small>to hit · damage '+dmg[0]+'–'+dmg[1]+'</small></div>'+
@@ -2186,13 +2200,13 @@ function actOrders(s){
   return out;
 }
 const pilotLead=s=>HUD.avatar({initials:HUD.initials(s.pilot.pname),cls:'sr-avatar--pilot',badge:'ship'});
-const WICON={plasma:'plasma',ballistic:'ballistic',missile:'missile'};
 function whyNoShot(s,t,w){
-  if(w!=='plasma'&&critCount(s,'feed'))return 'The ammo feed is jammed.';
+  const wd=wslot(s,w).w;
+  if(wd.kind!=='plasma'&&critCount(s,'feed'))return 'The ammo feed is jammed.';
   if(!inArc(s,t))return 'The target is outside the firing arc.';
-  if(dist(s,t)>WPN[w].rng)return 'Out of range.';
-  if(WPN[w].needsLock&&!(s.lock&&s.lock.target===t.id&&s.lock.level>=1))return 'Needs a lock on this target first.';
-  if(w!=='plasma'&&s.ammo[w]!==undefined&&s.ammo[w]<=0)return 'Out of ammo.';
+  if(dist(s,t)>wd.rng)return 'Out of range.';
+  if(wd.needsLock&&!(s.lock&&s.lock.target===t.id&&s.lock.level>=1))return 'Needs a lock on this target first.';
+  if(s.ammo[w]!==undefined&&s.ammo[w]<=0)return 'Out of ammo.';
   return 'No shot from here.';
 }
 function dockHTML(){
@@ -2217,11 +2231,11 @@ function dockHTML(){
   if(c&&c.stage==='await'){
     let n=0;
     const orders=[];
-    for(const w of CLS[c.s.cls].wpns){
-      const ok=validShot(c.s,c.t,w),a=c.s.ammo[w];
-      orders.push(HUD.order({label:WPN[w].name+(a!==undefined?' ×'+a:''),icon:WICON[w],family:'fight',key:++n<=9?String(n):'',
+    for(const q of c.s.wpns){
+      const w=q.key,wd=q.w,ok=validShot(c.s,c.t,w),a=c.s.ammo[w];
+      orders.push(HUD.order({label:wd.name+(a!==undefined?' ×'+a:''),icon:wd.icon,family:'fight',key:++n<=9?String(n):'',
         active:w===c.wkey,disabled:!ok,why:ok?'':whyNoShot(c.s,c.t,w),attrs:'data-wsel="'+w+'"',
-        tip:{title:WPN[w].name,rule:'Damage '+CLS[c.s.cls].dmg[w][0]+' to '+CLS[c.s.cls].dmg[w][1]+', range '+WPN[w].rng+'. '+WPN[w].tags+'.'}}));
+        tip:{title:wd.name,rule:'Damage '+wd.dmg[0]+' to '+wd.dmg[1]+', range '+wd.rng+'. '+wd.tags+'.'}}));
     }
     return HUD.cmdbar({
       who:{lead:pilotLead(c.s),name:c.s.pilot.pname,hint:'Pick a weapon or retarget'},
@@ -2478,11 +2492,11 @@ addEventListener('keydown',ev=>{
 });
 
 /* ---------- scene lifecycle ---------- */
-function flightChips(cls){
+function flightChips(cls,loadout){
   const c=CLS[cls]||CLS.viper;
-  return c.wpns.map(w=>{
-    const g=SR.ui.gearChips([w])[0];
-    if(c.ammo[w])g.label+=' ×'+c.ammo[w];
+  return (loadout||c.loadout).filter(w=>WDEF[w]).slice(0,c.slots).map(id=>{
+    const wd=WDEF[id],g=SR.ui.gearChips([wd.kind])[0];
+    g.label=wd.name+(wd.ammo?' ×'+wd.ammo:'');
     return g;
   });
 }
@@ -2497,7 +2511,7 @@ function briefUI(){
   if(CTX&&CTX.flight&&CTX.flight.length){
     cards=CTX.flight.slice(0,4).map(f=>{
       const cls=CLS[f.cls]?f.cls:'viper';
-      return SR.ui.squadCard({name:f.name,pilot:true,chips:flightChips(cls),
+      return SR.ui.squadCard({name:f.name,pilot:true,chips:flightChips(cls,f.loadout),
         role:(f.fighterName?f.fighterName+' · ':'')+CLS[cls].label});
     });
   } else {
@@ -2548,7 +2562,9 @@ SR.register('space',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
-    fn:{computeATK,deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+    get exec(){return exec;},get attackQ(){return attackQ;},get awaitAction(){return awaitAction;},CLS,
+    fn:{deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+      dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,shipHTML,
       setRound(n){round=n;},
       forceEnd(win){gameOver(win);}}};
 }

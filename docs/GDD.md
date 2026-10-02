@@ -561,7 +561,8 @@ rewards. Map loot is scaled the same way. Old saves are multiplied ×4 once on l
 ### Resources, hangar and fuel (built)
 - **Materials** (⚙) pay for construction, excavation, repairs and restoring the hauler. **Supplies**
   (▤) remain for people-related costs (infirmary, training hall, barracks annex). **Fuel** (◐)
-  is burned per ship on every sortie: Marta 4, FT-4 Cross 6, Talon 6. A trickle of +1 Fuel a day
+  is burned per ship on every sortie, by ship type (database: Marta 42, FT-4 Cross 24, Talon 32; see
+  [DATABASE.md](DATABASE.md)). A trickle of +1 Fuel a day
   weeps from the hangar-cave tanks so the player can't soft-lock.
 - Sources and missions can pay Materials and Fuel (Steal Fuel-type jobs, tanker grabs, ore, quarry
   and timber ops).
