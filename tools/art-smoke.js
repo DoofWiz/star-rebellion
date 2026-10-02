@@ -48,6 +48,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   DG.fn.startPlanning();
   await sleep(400);
   log.push('ground scene');
+  // boot the space scene (instructor exercise) and let a couple of frames run
+  window.SR.mission=null;
+  window.SR.go('space',{test:true});
+  await sleep(900);
+  log.push('space scene');
   window.SR.go('base',{});
   await sleep(300);
   // a generated rebel with story layers renders as a character and a portrait
