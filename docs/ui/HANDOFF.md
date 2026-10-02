@@ -17,7 +17,7 @@ Living reference: **`docs/ui/styleguide.html`** — every component in every sta
 ```
 game/ui/sr-theme.css        tokens + every shared component (sr- prefixed)
 game/ui/sr-theme.js         canvas palette (reads the CSS tokens) + in-world HUD drawing helpers
-game/ui/sr-icons.svg        75-icon sprite (inline it into index.html)
+game/ui/sr-icons.svg        78-icon sprite (inline it into index.html)
 docs/ui/HANDOFF.md          this file
 docs/ui/styleguide.html     living style guide (self-contained)
 tools/ui-kit/               sources: icons.py, sr-theme.css, sr-theme.template.js,

@@ -196,7 +196,7 @@ stealfuel:{
   waves:[
     {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
      foes:[
-       {id:'pcw',name:'Police Cruiser',first:'Cruiser',side:'law',x:2120,y:560,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,lines:['Unit 4, responding.']},
+       {id:'pcw',veh:'police',side:'law',x:2120,y:560,crew:[{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 4, responding.','Pull over! All of you!']}]},
        {id:'dill',name:'Guard Dill',first:'Dill',side:'law',x:2150,y:640,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']},
        {id:'corr',name:'Guard Corr',first:'Corr',side:'law',x:2150,y:720,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']},
      ]},
@@ -276,12 +276,13 @@ autofactory:{
   work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
   detWave:{log:'<span class="h">A Riot Transport Cruiser screams in through the gate.</span>',
     foes:[
-      {id:'rtc1',name:'Riot Transport Cruiser',first:'Cruiser',side:'law',x:700,y:470,hp:150,maxhp:150,aim:0,def:7,wpns:[],vehicle:1,
-       deploy:[
-        {id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
-        {id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
-        {id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
-       ],lines:[]},
+      {id:'rtc1',veh:'transport',side:'law',x:700,y:470,
+       crew:[
+        {seat:'drv',id:'rtcd',name:'Patrolman Gant',first:'Gant',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unloading!','Squad out, go go go!']},
+        {seat:'bay1',id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
+        {seat:'bay2',id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
+        {seat:'bay3',id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+       ]},
     ]},
   bldgs:[
     {x:1700,y:240, w:320,h:230,name:'POWER PLANT'},
@@ -314,7 +315,7 @@ autofactory:{
     {id:'pb03',name:'Policebot PB-03',first:'PB-03',side:'law',x:1680,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']},
     {id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',side:'law',x:1860,y:588,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the breaker.','Shields up!']},
     {id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',side:'law',x:2020,y:900,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']},
-    {id:'strid1',name:'Strider Mk I',first:'Strider',side:'law',x:1180,y:950,hp:240,maxhp:240,aim:1,def:8,wpns:['strider'],auto:1,autoType:'strider',hackRounds:3,big:1,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']},
+    {id:'strid1',name:'Strider Mk I',first:'Strider',side:'law',x:1180,y:950,hp:240,maxhp:240,aim:1,def:8,wpns:['strider'],auto:1,autoType:'strider',bot:'strider',hackRounds:3,big:1,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']},
   ];},
   civs(){return [
     {id:'civ1',name:'Line Worker',first:'worker',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -376,7 +377,7 @@ towers:{
       B('b1',41,820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',42,1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
       B('b3',43,1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',44,1480,720,[{x:1480,y:720},{x:1620,y:800}]),
       RS('s1','Kade',1900,540,1),P('p1','Crane',600,980,[{x:600,y:980},{x:760,y:900}]),
-      {id:'pc1',name:'Police Cruiser',first:'Cruiser',side:'law',x:1050,y:1180,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],lines:['Unit 9, responding.']},
+      {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 9, responding.','Stay where you are!']}]},
     ];
     if(v==='quota')return [
       RR('r1','Wick',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2','Tarn',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
@@ -513,7 +514,7 @@ intel:{
     {id:'rr7',name:'Riot Rifleman Wick',first:'Wick',side:'law',x:1400,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']},
     {id:'elm',name:'Patrolman Elm',first:'Elm',side:'law',x:1200,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']},
     {id:'pb33',name:'Policebot PB-33',first:'PB-33',side:'law',x:1800,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
-    {id:'pc1',name:'Police Cruiser',first:'Cruiser',side:'law',x:1050,y:1180,hp:130,maxhp:130,aim:1,def:7,wpns:['cruiser'],vehicle:1,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],lines:['Unit 9, responding.']},
+    {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 9, responding.','Stay where you are!']}]},
   ];},
   civs(){return [
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -575,7 +576,7 @@ strider:{
     {id:'rr8',name:'Riot Rifleman Garr',first:'Garr',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']},
     {id:'elm2',name:'Patrolman Voss',first:'Voss',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']},
     {id:'pb43',name:'Policebot PB-43',first:'PB-43',side:'law',x:1700,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
-    {id:'rdc1',name:'Riot Dispersal Cruiser',first:'Cruiser',side:'law',x:1450,y:690,hp:170,maxhp:170,aim:1,def:7,wpns:['dispersal'],vehicle:1,guard:1,lines:['Dispersal turret deployed.']},
+    {id:'rdc1',veh:'dispersal',side:'law',x:1450,y:690,guard:1,crew:[{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Yard car, rolling.','Turret, light them up!']},{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Dispersal turret deployed.','Disperse!']}]},
   ];},
   civs(){return [
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -719,7 +720,7 @@ function contextScenario(base,c,sec){
   if(extra>0&&base.foes){
     const f0=base.foes;
     S.foes=function(){
-      const L=f0.call(this),pool=L.filter(f=>!f.auto&&!f.vehicle&&!f.shield&&!f.tower&&!f.manning);
+      const L=f0.call(this),pool=L.filter(f=>!f.auto&&!f.veh&&!f.shield&&!f.tower&&!f.manning);
       const out=L.slice();
       for(let i=0;i<extra&&pool.length;i++){
         const f=pool[i%pool.length];
@@ -789,7 +790,7 @@ function initUnits(){
     const big=!!spec.vip.strider;
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
       x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
-      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
+      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
   }
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
@@ -797,10 +798,165 @@ function initUnits(){
   }
   U=[
     ...roster,
-    ...SCN.foes().map(mkU),
+    ...expandUnits(SCN.foes()),
     ...SCN.civs().map(mkU),
   ];
   for(const u of U)u.face=u.side==='reb'?-Math.PI/4:u.side==='civ'?Math.PI*Math.random():Math.PI*0.8;
+}
+
+/* ---------- vehicles and bots ----------
+   A vehicle is not a character. It is a unit in U with side 'veh', the side it answers to in .owner, and seats;
+   it never acts on its own. A character mounts it (u.mnt={v,seat}) and acts through the seat: the driver moves
+   it at the vehicle's speed, a gunner fires the seat's weapon. An enclosed seat cannot be targeted, so the
+   vehicle takes the fire. Destroyed, it throws its crew clear and hurts them. An empty vehicle sits inert until
+   someone climbs in, and then it answers to their side.
+   A Bot (the Strider) is the robot equivalent of a vehicle: it drives itself and cannot be manned, and it takes
+   the vehicle action list (no sprint, cover, loot or work). */
+const VEHDEF={
+  police:   {name:'Police Cruiser',first:'Cruiser',hp:130,def:7,spd:320,
+             seats:[{k:'drv',n:'Driver',drive:1,wkey:'cruiser',enc:1}]},
+  dispersal:{name:'Riot Dispersal Cruiser',first:'Cruiser',hp:170,def:7,spd:260,
+             seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'gun',n:'Turret',wkey:'dispersal',enc:0}]},
+  transport:{name:'Riot Transport Cruiser',first:'Cruiser',hp:150,def:7,spd:280,
+             seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'bay1',n:'Troop bay',enc:1},{k:'bay2',n:'Troop bay',enc:1},{k:'bay3',n:'Troop bay',enc:1}]},
+};
+const BOTDEF={strider:{spd:220}};
+const ENTER_R=50;                     // close enough to climb in
+const HATCH_COVER=3;                  // an open gun seat still has the hull around it
+function mkVeh(o){
+  const d=VEHDEF[o.veh];
+  const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,aim:0,cool:55},o,
+    {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null}))}));
+  delete v.crew;
+  return v;
+}
+/* roster entries: one with veh is a vehicle, and its crew list arrives already mounted */
+function expandUnits(list){
+  const out=[];
+  for(const o of list){
+    if(!o.veh){out.push(mkU(o));continue;}
+    const v=mkVeh(o);out.push(v);
+    for(const c of o.crew||[]){
+      const st=v.seats.find(x=>x.k===c.seat&&!x.occ)||v.seats.find(x=>!x.occ);
+      if(!st)continue;
+      const u=mkU(Object.assign({side:v.owner},c,{x:v.x,y:v.y}));
+      delete u.seat;
+      st.occ=u.id;u.mnt={v:v.id,seat:st.k};
+      out.push(u);
+    }
+  }
+  return out;
+}
+const vehOf=u=>(u&&u.mnt)?U.find(v=>v.id===u.mnt.v)||null:null;
+const seatOf=u=>{const v=vehOf(u);return v?v.seats.find(x=>x.k===u.mnt.seat)||null:null;};
+const enclosed=u=>{const st=seatOf(u);return !!(st&&st.enc);};
+const crewIn=v=>(v&&v.seats)?v.seats.map(x=>x.occ&&U.find(u=>u.id===x.occ)).filter(Boolean):[];
+const vehSpd=u=>u.veh?VEHDEF[u.veh].spd*(u.wound?0.75:1):u.bot?((BOTDEF[u.bot]||{}).spd||MOVE_R):MOVE_R;
+/* a bay passenger sees nothing worth reporting; a driver or gunner keeps watch */
+const lookout=u=>{const st=seatOf(u);return !st||!!st.drive||!!st.wkey;};
+/* how far a Move reaches: the driver's seat moves the vehicle at its speed, a Bot moves at its own, a person on foot by order */
+function reachOf(u,mode){
+  if(u.mnt){const v=vehOf(u),st=seatOf(u);return v&&st&&st.drive?vehSpd(v):0;}
+  if(u.bot)return vehSpd(u);
+  return (mode==='sprint'?SPRINT_R:MOVE_R)*speedMul(u);
+}
+/* who can climb into v: a character (not a Bot) on their feet, a free seat, and nobody from the other side aboard */
+function canEnter(u,v,near){
+  if(!u||!v||!v.veh||v.down||u.mnt||u.bot||u.veh||u.down||u.surr||u.extracted||u.away||u.caged||u.manning||stunned(u))return false;
+  if(u.side!=='reb'&&u.side!=='law')return false;
+  if(!v.seats.some(x=>!x.occ))return false;
+  if(crewIn(v).some(c=>c.side!==u.side))return false;
+  return dist(u,v)<=(near||ENTER_R);
+}
+/* the Enter order appears when a vehicle is within a walk */
+function enterTargets(u){return U.filter(v=>v.veh&&canEnter(u,v,MOVE_R*speedMul(u)+ENTER_R)).sort((a,b)=>dist(u,a)-dist(u,b));}
+/* driver first, then a gun, then a bay */
+function bestSeat(v){
+  return v.seats.find(x=>!x.occ&&x.drive)||v.seats.find(x=>!x.occ&&x.wkey)||v.seats.find(x=>!x.occ)||null;
+}
+function mount(u,v,k){
+  const st=(k&&v.seats.find(x=>x.k===k&&!x.occ))||bestSeat(v);
+  if(!st)return false;
+  st.occ=u.id;u.mnt={v:v.id,seat:st.k};
+  v.owner=u.side;
+  u.x=v.x;u.y=v.y;u.path=null;u.rtPath=null;u.braced=0;u.sprinted=0;u.bunkered=0;u.goingVeh=null;u.exitAt=null;
+  if(u.order&&u.order.type==='enter')u.order=null;
+  addFloater(v.x,v.y-46,st.drive?'DRIVER':st.wkey?'ON THE GUN':'ABOARD',u.side==='reb'?C.rebel:C.heg);
+  log(nameSpan(u)+' climbs into the <b>'+v.name+'</b> <span class="d">('+st.n.toLowerCase()+')</span>.');
+  sTick();
+  return true;
+}
+/* step out beside the vehicle (people getting out together spread round it) */
+function dismount(u,quiet){
+  const v=vehOf(u),st=seatOf(u);
+  if(st)st.occ=null;
+  u.mnt=null;u.braced=0;
+  if(!v)return;
+  const n=U.filter(x=>x!==u&&x.exitAt===v.id).length;
+  u.exitAt=v.id;
+  for(let k=0;k<8;k++){
+    const a=(v.face||0)+Math.PI*0.5+(n+k)*0.9;
+    const d=moveDest(v,v.x+Math.cos(a)*48,v.y+Math.sin(a)*48,60);
+    if(d){u.x=d.x;u.y=d.y;break;}
+  }
+  unstick(u);
+  if(!quiet){
+    addFloater(u.x,u.y-40,'OUT',u.side==='reb'?C.rebel:C.heg);
+    log(nameSpan(u)+' gets out of the <b>'+v.name+'</b>.');
+  }
+}
+function switchSeat(u,k){
+  const v=vehOf(u),st=seatOf(u),to=v&&v.seats.find(x=>x.k===k&&!x.occ);
+  if(!to||!st)return false;
+  st.occ=null;to.occ=u.id;u.mnt.seat=k;u.braced=0;
+  addFloater(v.x,v.y-46,to.n.toUpperCase(),u.side==='reb'?C.rebel:C.heg);
+  log(nameSpan(u)+' moves to the <b>'+to.n.toLowerCase()+'</b> of the '+v.name+'.');
+  return true;
+}
+/* seats a character could move to: one choice per kind of seat (three troop bays are one choice) */
+function switchTargets(u){
+  const v=vehOf(u),st=seatOf(u);if(!v||!st)return [];
+  const out=[],names=new Set([st.n]);
+  for(const x of v.seats)if(!x.occ&&!names.has(x.n)){names.add(x.n);out.push(x);}
+  return out;
+}
+/* the crew ride with the vehicle */
+function vehSync(){
+  for(const u of U){
+    if(!u.mnt)continue;
+    const v=vehOf(u);
+    if(!v){u.mnt=null;continue;}
+    u.x=v.x;u.y=v.y;
+    const st=seatOf(u);
+    if(st&&st.drive&&!(st.wkey&&phase==='ENGAGE'))u.face=v.face;
+  }
+}
+function vehDestroyed(v,by){
+  v.hp=0;v.down=1;v.order=null;v.path=null;v.rtPath=null;v.wound=1;
+  if(by&&by.side==='reb'&&v.owner==='law'){by.xpGain=(by.xpGain||0)+0.25;by.kills=(by.kills||0)+1;}
+  if(by)adjCoolG(by,12,'vehicle kill');
+  for(const m of U)if(m.side===v.owner&&!m.mnt)adjCoolG(m,-12,v.first+' destroyed');
+  sBoomBig();shake=performance.now();
+  decals.push({x:v.x,y:v.y,r:58});
+  for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:performance.now(),dur:900});
+  addFloater(v.x,v.y-50,'DESTROYED',C.hazard);
+  log('<span class="b">The '+v.name+' is destroyed</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
+  for(const c of crewIn(v)){
+    dismount(c,true);
+    const dmg=rint(10,22);
+    log(nameSpan(c)+' is thrown from the wreck <span class="d">— -'+dmg+'</span>.');
+    woundUnit(null,c,dmg,rng()<0.25,'explosive');
+  }
+  checkDefeat();
+}
+/* the transport's squad gets out as the alarm goes up */
+function deployUnits(v){
+  v.deployed=1;
+  const bay=crewIn(v).filter(c=>{const st=seatOf(c);return st&&!st.drive&&!st.wkey;});
+  if(!bay.length)return;
+  for(const c of bay)dismount(c,true);
+  log('<span class="h">'+v.name+' disgorges its riot squad.</span>');
+  sAlert();
 }
 
 /* ---------- state ---------- */
@@ -852,6 +1008,7 @@ function inCoverAt(x,y){
 function coverOf(s,t){
   // best prop hugging the target that sits between shooter and target
   if(t.elev)return {v:2,lab:'TOWER RAILING'};
+  if(t.veh||t.mnt)return null;
   let best=null;
   const angST=Math.atan2(s.y-t.y,s.x-t.x);
   for(const p of PROPS){
@@ -1007,7 +1164,7 @@ function log(html){
   feed.push(html,feedKind(html));
 }
 function openLog(){logWin.open();logWin.body.scrollTop=logWin.body.scrollHeight;}
-function nameSpan(u){return '<span class="'+(u.side==='reb'?'r':'h')+'">'+u.name+'</span>';}
+function nameSpan(u){return '<span class="'+(u.side==='reb'||(u.veh&&u.owner==='reb')?'r':'h')+'">'+u.name+'</span>';}
 function say(u,text,dur){
   if(!u||u.down||u.extracted)return;
   bubbles.push({unit:u,text,t0:performance.now(),dur:dur||3600});
@@ -1028,7 +1185,7 @@ function bestWeapon(s,t){
   return best;
 }
 function shieldBlocks(shooter,gunner){
-  if(gunner.shield&&!gunner.down){
+  if(gunner.shield&&!gunner.down&&!gunner.mnt){
     const a0=Math.atan2(shooter.y-gunner.y,shooter.x-gunner.x);
     if(Math.abs(angNorm(a0-gunner.face))<1.0)return true;
   }
@@ -1047,7 +1204,7 @@ const TREAT_R=110;
 const injOf=(u,k)=>!!u&&!!u.inj&&u.inj.some(i=>i.k===k&&!i.treated);
 const hasInj=u=>!!u&&!!u.inj&&u.inj.some(i=>!i.treated);
 const stunned=u=>injOf(u,'concussion');
-const cantSprint=u=>!!u&&(u.nosprint||injOf(u,'brokenleg'));
+const cantSprint=u=>!!u&&(u.nosprint||injOf(u,'brokenleg')||!!u.bot||!!u.mnt);
 function inflictInjury(t,src,force){
   if(!t||t.side!=='reb'||t.auto||t.vip||t.caged||t.hp<=0)return null;
   const have=(t.inj||[]).map(i=>i.k);
@@ -1076,7 +1233,7 @@ function treatTarget(h){
   if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
   const reach=medic(h)?TREAT_R*1.5:TREAT_R;
-  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
+  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&!x.mnt&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
   return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
 }
 const treatPick=h=>h&&h.meds>0?treatTarget(h):null;
@@ -1103,11 +1260,15 @@ function doTreat(h){
 }
 function wpnsOf(s){
   if(s.manning)return ['laser'];
+  if(s.veh)return [];
+  if(s.mnt){const st=seatOf(s);return st&&st.wkey?[st.wkey]:[];}
   if(s.oneHand||injOf(s,'brokenarm')){const w=s.wpns.filter(x=>ONE_HAND.indexOf(x)>=0);return w.length?w:['unarmed'];}
   return s.wpns;
 }
 function validShot(s,t,wkey){
-  if(t.side==='civ')return false;
+  if(t.side==='civ'||s.veh)return false;
+  if(t.veh&&(t.owner===s.side||!crewIn(t).length))return false;   // an empty vehicle is scenery until someone climbs in
+  if(t.mnt&&enclosed(t))return false;                              // shoot the vehicle, not the people inside
   if(stunned(s))return false;
   if(s.office||t.office)return false;
   if(!wpnsOf(s).includes(wkey))return false;
@@ -1128,9 +1289,10 @@ function computeTN(s,t){
   const cov=coverOf(s,t);
   if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
   if(t.manning){v+=2;e.push(['GUN SHIELD EDGE',2]);}
+  if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
   if(coolStateG(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
-  if(t.wound){v-=1;e.push(['TARGET WOUNDED',-1]);}
+  if(t.wound){v-=1;e.push([t.veh?'HULL DAMAGED':'TARGET WOUNDED',-1]);}
   if(t.frail){v-=1;e.push(['UNTRAINED',-1]);}
   if(t.side==='reb'&&(t.level||1)>=2){
     const xb=Math.min(3,Math.floor((t.level||1)/2));
@@ -1246,12 +1408,15 @@ function woundUnit(s,t,dmg,crit,dsrc){
   adjCoolG(t,-16,'took a hit');
   if(crit&&t.hp>0){
     if(t.side==='reb'&&!t.auto&&!t.vip)inflictInjury(t,dsrc);
+    else if(!t.wound&&t.veh){t.wound=1;addFloater(t.x,t.y-52,'DRIVE DAMAGED',C.hazard);log('The <b>'+t.name+'</b> is limping <span class="d">— a quarter off its speed</span>.');}
     else if(!t.wound){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
   }
   addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi);
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
+  if(t.veh){vehDestroyed(t,by);return;}
+  if(t.mnt)dismount(t,true);
   if(by&&by.side==='reb'&&t.side==='law'){by.xpGain=(by.xpGain||0)+0.2;by.kills=(by.kills||0)+1;}
   if(by)adjCoolG(by,12,'confirmed kill');
   for(const m of U)if(m.side===t.side&&m!==t)adjCoolG(m,-15,t.first+' down');
@@ -1338,7 +1503,7 @@ function startAmbush(t){
 function spotCheck(){
   if(town==='alerted')return;
   for(const l of U){
-    if(l.side!=='law'||l.down||l.surr||l.office)continue;
+    if(l.side!=='law'||l.down||l.surr||l.office||!lookout(l))continue;
     const see=l.elev?460:320;
     for(const r of U){
       if(r.side!=='reb'||r.down||r.extracted||r.away)continue;
@@ -1368,7 +1533,7 @@ function detUpdate(dt){
     if(r.side!=='reb'||r.down||r.extracted||r.away)continue;
     let rate=0,seer=null;
     for(const l of U){
-      if(l.side!=='law'||l.down||l.surr||l.office)continue;
+      if(l.side!=='law'||l.down||l.surr||l.office||!lookout(l))continue;
       const f=seesPoint(l,r.x,r.y,sneak);
       if(f>0){
         // quadratic in proximity: brushing past someone fills the eye fast
@@ -1427,7 +1592,7 @@ function updateVision(now){
   memCtx.setTransform(1,0,0,1,0,0);
   visUnits=new Set();
   for(const t of U){
-    if(t.side==='reb'){visUnits.add(t.id);continue;}
+    if(t.side==='reb'||(t.veh&&t.owner==='reb')){visUnits.add(t.id);continue;}
     for(const u2 of seers){
       if(dist(u2,t)<VIEW_R*viewMul(u2)&&!losBlocked(u2,t)){visUnits.add(t.id);break;}
     }
@@ -1442,7 +1607,7 @@ function updateVision(now){
 }
 function unitSeen(u){
   if(!SCN||!SCN.fog||phase==='CUTSCENE')return true;
-  return u.side==='reb'||visUnits.has(u.id);
+  return u.side==='reb'||(u.veh&&u.owner==='reb')||visUnits.has(u.id);
 }
 function drawFog(){
   if(!SCN.fog||phase==='CUTSCENE'||!fogCtx)return;
@@ -1476,7 +1641,7 @@ function setSneak(on){
 }
 function coolStateG(u){return u.cool>=70?'cool':u.cool<=30?'panic':'steady';}
 function adjCoolG(u,d,why){
-  if(u&&u.auto)return;   // robots do not panic
+  if(u&&(u.auto||u.veh))return;   // robots and machines do not panic
   if(!u||u.side==='civ'||u.down||u.surr||u.extracted||u.away)return;
   const pre=coolStateG(u);
   if(d<0&&u.nv)d=Math.round(d*u.nv);
@@ -1503,7 +1668,7 @@ function adjCoolG(u,d,why){
 function moraleCheck(){
   const sheriffDown=U.some(u=>u.sheriff&&(u.down||u.surr));
   for(const u of U){
-    if(u.side!=='law'||u.down||u.surr||u.sheriff||u.auto)continue;
+    if(u.side!=='law'||u.down||u.surr||u.sheriff||u.auto||u.mnt)continue;
     let broke=false;
     if(sheriffDown&&rint(1,20)+alliesUp('law')<13)broke=true;
     else if(u.hp<u.maxhp*0.3&&rint(1,20)<7)broke=true;
@@ -1513,6 +1678,15 @@ function moraleCheck(){
       addFloater(u.x,u.y-46,'SURRENDERS',C.go);
       say(u,'Don’t shoot! I’m done, I’m done!');
     }
+  }
+  // a crew whose vehicle is burning bails out and fights on foot; the empty wreck-to-be is anyone's
+  for(const v of U){
+    if(!v.veh||v.down||v.owner!=='law'||v.hp>=v.maxhp*0.3)continue;
+    const crew=crewIn(v).filter(c=>c.side==='law');
+    if(!crew.length||rint(1,20)>=7)continue;
+    for(const c of crew)dismount(c,true);
+    addFloater(v.x,v.y-50,'CREW BAILS OUT',C.go);
+    log('<span class="g">The '+v.name+'’s crew bail out</span> <span class="d">— it stands empty, and anyone can take it</span>.');
   }
 }
 function alliesUp(side){return U.filter(u=>u.side===side&&!u.down&&!u.surr).length;}
@@ -1535,17 +1709,19 @@ function coverPoints(){
 const COVER_PTS=[];
 function aiPlan(){
   let turretClaimed=false;
+  for(const v of U)if(v.veh){v.order=null;v.sprinted=0;v.owUsed=0;}
   for(const u of U){
+    if(u.veh)continue;
     if((u.side!=='law'&&!u.ally)||u.down||u.surr||u.office)continue;
     u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];u.bunkered=0;
     if(!u.manning)u.braced=0;
+    // the transport's squad gets out once the alarm is up, then plans like anyone else on foot
+    if(u.mnt&&town==='alerted'&&!lookout(u)){const v=vehOf(u);if(v&&!v.deployed)deployUnits(v);}
+    if(u.mnt){aiCrew(u);continue;}
     if(coolStateG(u)==='panic'&&town==='alerted'){u.order={type:'lockin'};continue;}
     if(u.manning){u.order={type:'hold'};u.braced=1;continue;}
     if(u.fixed){u.order={type:'hold'};u.braced=1;continue;}
-    if(!wpnsOf(u).length){   // an unarmed transport cruiser: it unloads, then sits there
-      if(u.deploy&&!u.deployed&&town==='alerted')deployUnits(u);
-      u.order={type:'hold'};u.braced=1;continue;
-    }
+    if(!wpnsOf(u).length){u.order={type:'hold'};u.braced=1;continue;}
     if(u.ally&&town==='calm'){u.order=null;continue;}
     if(town==='calm'){
       if(u.patrol&&rng()<0.7){
@@ -1603,6 +1779,39 @@ function aiPlan(){
     }
   }
 }
+/* crew: the driver moves the vehicle into its gun's range, a gunner holds and fires, the bay waits */
+function aiCrew(u){
+  const v=vehOf(u),st=seatOf(u);
+  if(!v||!st||v.down){u.order={type:'hold'};return;}
+  if(coolStateG(u)==='panic'&&town==='alerted'){u.order={type:'lockin'};return;}
+  if(!st.drive){u.order={type:'hold'};u.braced=st.wkey?1:0;return;}
+  const reach=vehSpd(v);
+  if(town==='calm'){
+    if(v.patrol&&rng()<0.6){
+      const p=v.patrol[rint(0,v.patrol.length-1)];
+      const d=moveDest(v,p.x+rint(-30,30),p.y+rint(-30,30),reach*0.6);
+      if(d&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
+    }
+    u.order={type:'hold'};return;
+  }
+  const hold=()=>{u.order={type:'hold'};u.braced=st.wkey?1:0;};
+  const targets=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
+  const gun=v.seats.find(x=>x.wkey&&x.occ);
+  if(!targets.length||!gun)return hold();
+  const GP=SCN.guardPt||PAD;
+  if(v.guard&&!crossAway&&dist(v,GP)>320){
+    const d=moveDest(v,GP.x,GP.y+60,reach);
+    if(d&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
+  }
+  const tgt=targets.reduce((a,b)=>dist(v,b)<dist(v,a)?b:a);
+  const R=WPN[gun.wkey].rng;
+  if(dist(v,tgt)<=R*0.85&&!losBlocked(v,tgt)&&rng()<0.6)return hold();
+  // close to a comfortable firing distance, not point blank
+  const a=Math.atan2(v.y-tgt.y,v.x-tgt.x);
+  const d=moveDest(v,tgt.x+Math.cos(a)*R*0.6,tgt.y+Math.sin(a)*R*0.6,reach);
+  if(d&&Math.hypot(d.x-v.x,d.y-v.y)>30&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
+  hold();
+}
 function pickCoverMove(u,tgt,r,toward){
   let best=null,bs=-1e9;
   const cand=COVER_PTS.slice();
@@ -1640,6 +1849,35 @@ function unstick(u){
     }
   }
 }
+/* free move: a tap on a vehicle. Hostile crew: open fire. Ours with a free seat: the nearest rebel on foot climbs in.
+   Ours and full: everyone gets out. */
+function freeVehClick(v){
+  if(v.down){camGoal=focusGoal(v);return;}
+  const crew=crewIn(v);
+  if(crew.some(c=>c.side==='law')){
+    if(town==='calm'){if(!startAmbush(v))addFloater(v.x,v.y-30,'NO SHOT',C.text3);}
+    else camGoal=focusGoal(v);
+    return;
+  }
+  let best=null,bd=1e9;
+  for(const u of U){
+    if(u.side!=='reb'||u.id==='sera'||u.vip||!canEnter(u,v,1e9))continue;
+    const d=dist(u,v);if(d<bd){bd=d;best=u;}
+  }
+  if(!best){
+    const mine=crew.filter(c=>c.side==='reb');
+    if(mine.length){for(const c of mine)dismount(c);sTick();syncUI();}
+    else addFloater(v.x,v.y-30,'NOBODY CAN GET IN',C.text3);
+    return;
+  }
+  if(canEnter(best,v)){mount(best,v);vehSync();syncUI();return;}
+  best.goingVeh=v.id;best.goingTurret=0;setRt(best,v.x,v.y,sneak?SNEAK_SPEED:RT_SPEED);sTick();
+  log(nameSpan(best)+' heads for the <b>'+v.name+'</b>.');
+}
+function freeAllOut(){
+  for(const u of U)if(u.side==='reb'&&u.mnt)dismount(u);
+  sTick();syncUI();
+}
 function setRt(u,tx,ty,spd){
   unstick(u);
   const d=moveDest(u,tx,ty,1e9)||{x:tx,y:ty};
@@ -1653,9 +1891,12 @@ function squadMoveTo(pt){
   let i=0;
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away||u.manning)continue;
+    // a driver takes the vehicle; everyone else in a seat rides along
+    let m=u;
+    if(u.mnt){const st=seatOf(u);if(!st||!st.drive)continue;m=vehOf(u);}
     const o=offs[i%offs.length];i++;
-    setRt(u,pt.x+o[0],pt.y+o[1],sneak?SNEAK_SPEED:RT_SPEED);
-    u.goingTurret=0;
+    setRt(m,pt.x+o[0],pt.y+o[1],m.veh?RT_SPEED*vehSpd(m)/MOVE_R:sneak?SNEAK_SPEED:RT_SPEED);
+    u.goingTurret=0;u.goingVeh=null;
   }
   rtPing={x:pt.x,y:pt.y,t0:performance.now()};
   sTick();
@@ -1835,6 +2076,11 @@ function fsItems(){
       a.mode==='doorgun'?'circles for 2 rounds, rakes up to 3 enemies a round':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
+  (FS.vehicles||[]).forEach((a,i)=>{
+    if(a.state!=='ready')return;
+    it.push({key:'v'+i,name:(a.kind==='bot'?'Bot':'Vehicle')+' · '+a.name,
+      sub:a.kind==='bot'?'set down where you call it at the start of the next planning · takes orders like a squad member':'set down empty where you call it at the start of the next planning · someone has to get in'});
+  });
   return it;
 }
 function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
@@ -1844,6 +2090,13 @@ function fsPlace(key,pt){
     FS.dropUsed=true;FS.orders.push({kind:'drop',x:pt.x,y:pt.y,landed:false});
     log('<span class="a">Supply drop called in.</span> It lands as the next round begins.');
     sTick();return true;
+  }
+  if(key[0]==='v'){
+    const va=FS.vehicles[+key.slice(1)];
+    if(!va)return true;
+    va.state='called';FS.orders.push({kind:'vehicle',veh:+key.slice(1),x:pt.x,y:pt.y,at:round+1,done:false});
+    log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+va.name+' is on the hook. Down at the start of the next planning.');
+    sTakeoff();return true;
   }
   const i=+key.slice(1),a=FS.ships[i];
   if(!a)return true;
@@ -1922,8 +2175,32 @@ function mkSquadUnit(sp,x,y){
     level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
+/* a summoned vehicle or Bot: the transport sets it down where it was called */
+function summonVehicle(va,x,y){
+  let u;
+  if(va.kind==='bot'){
+    u=mkU({id:'veh_'+va.id,pid:va.id,name:va.name,first:va.first||va.name.split(' ')[0],side:'reb',x,y,hp:va.hp,maxhp:va.maxhp,aim:va.aim||2,def:va.def||8,cool:90,
+      wpns:[va.wpn],auto:1,autoType:va.type,bot:va.type,big:va.big?1:0,stims:0,level:1,lines:va.lines||['We’re all in this together.'],asset:va.id});
+  } else {
+    u=mkVeh({id:'veh_'+va.id,veh:va.type,owner:'reb',name:va.name,x,y,asset:va.id});
+    u.hp=Math.max(1,Math.round(u.maxhp*va.hp/va.maxhp));
+  }
+  const d=moveDest(u,x,y,120);if(d){u.x=d.x;u.y=d.y;}
+  unstick(u);
+  u.face=-Math.PI/2;U.push(u);
+  va.uid=u.id;va.state='spent';
+  sLand();
+  addFloater(u.x,u.y-44,va.kind==='bot'?'BOT DOWN':'VEHICLE DOWN',C.go);
+  log('<span class="g">The '+va.name+' is down'+(va.kind==='bot'?' and walking.':'. Somebody get in it.')+'</span>');
+  return u;
+}
 function fsPlanStart(){
   if(!FS)return;
+  for(const o of FS.orders){
+    if(o.kind!=='vehicle'||o.done||o.at>round)continue;
+    o.done=true;
+    summonVehicle(FS.vehicles[o.veh],o.x,o.y);
+  }
   for(const o of FS.orders){
     if(o.kind!=='reinforce'||o.done||o.at>round)continue;
     o.done=true;
@@ -1950,7 +2227,7 @@ function drawFS(now){
     } else {
       ctx.strokeStyle=T.rgba(C.shield,0.5+0.3*Math.sin(now*0.006));ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(o.x,o.y,26,0,7);ctx.stroke();
-      plb(o.kind==='drop'?'DROP':'REINFORCE',o.x,o.y-38,C.shield,12);
+      plb(o.kind==='drop'?'DROP':o.kind==='vehicle'?'VEHICLE':'REINFORCE',o.x,o.y-38,C.shield,12);
     }
     ctx.restore();
   }
@@ -1967,7 +2244,7 @@ let hackArm=false;
 /* fire support: Supply Drop, Strafing Run, Door Gunner, Reinforcements (World in Conflict style) */
 let FS=null,fsMenuOn=false,fsDraft=null;
 function canHack(s,t){
-  return !!(s&&t&&s.spec==='fieldtech'&&!s.down&&!s.extracted&&!s.away&&!s.manning&&
+  return !!(s&&t&&s.spec==='fieldtech'&&!s.down&&!s.extracted&&!s.away&&!s.manning&&!s.mnt&&
     t.side==='law'&&t.auto&&t.hackRounds&&!t.down&&!t.surr&&dist(s,t)<=HACK_R&&!losBlocked(s,t));
 }
 function hackTargets(s){return U.filter(t=>canHack(s,t));}
@@ -2053,13 +2330,8 @@ function fuelUpdate(now){
     alertTown('The Marta’s engines wake the whole depot.');
   }
 }
-function deployUnits(v){
-  v.deployed=1;
-  spawnFoes(v.deploy.map((d,i)=>Object.assign({},d,{x:v.x+(i-1)*34,y:v.y+44})),'<span class="h">'+v.name+' disgorges its riot squad.</span>');
-}
 function spawnFoes(list,msg){
-  for(const f of list){
-    const u=mkU(Object.assign({},f));
+  for(const u of expandUnits(list.map(f=>Object.assign({},f)))){
     u.face=Math.PI;u.wave=1;
     U.push(u);
   }
@@ -2182,12 +2454,28 @@ function rtStep(u,dt){
 }
 function rtUpdate(now,dt){
   for(const u of U){
-    if(u.down||u.surr||u.extracted||u.away)continue;
+    if(u.down||u.surr||u.extracted||u.away||u.mnt)continue;   // the crew ride
+    if(u.veh){
+      if(u.owner==='law'&&town==='calm'&&crewIn(u).some(c=>c.side==='law'&&lookout(c))){
+        // a crewed patrol car drifts its beat and the crew sweep their eyes
+        if(u.rtPath){rtStep(u,dt);u.baseFace=undefined;}
+        else {
+          if(u.baseFace===undefined)u.baseFace=u.face;
+          u.scanT+=dt;u.face=u.baseFace+Math.sin(u.scanT*0.4)*0.6;
+          if(u.patrol&&rng()<0.003){const p=u.patrol[rint(0,u.patrol.length-1)];setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),90);}
+        }
+      } else if(u.rtPath)rtStep(u,dt);
+      continue;
+    }
     if(u.side==='reb'&&!u.manning){
       rtStep(u,dt);
       if(u.goingTurret&&!u.rtPath){
         u.goingTurret=0;
         if(!turret.gunner&&dist(u,TURRET)<52)manTurret(u);
+      }
+      if(u.goingVeh&&!u.rtPath){
+        const v=U.find(x=>x.id===u.goingVeh);u.goingVeh=null;
+        if(v&&canEnter(u,v,ENTER_R+20)){mount(u,v);vehSync();syncUI();}
       }
     }
     else if(u.side==='law'&&phase==='FREE'&&!u.fixed&&!u.manning&&town==='calm'){
@@ -2207,7 +2495,7 @@ function rtUpdate(now,dt){
   if(phase!=='FREE')return;
   // auto-loot on the walk
   for(const u of U){
-    if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
+    if(u.side!=='reb'||u.down||u.extracted||u.away||u.mnt||u.bot)continue;
     for(const m of lootsWithin(u,AUTO_LOOT))collectLoot(u,m);
   }
   hackFreeStep(dt);
@@ -2230,7 +2518,7 @@ function rtUpdate(now,dt){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
       if(wp.t>=4){wp.t=0;workStep(wp,worker);}
@@ -2263,6 +2551,7 @@ function startExtract(){
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
     if(u.manning)unmanTurret(u);
+    if(u.mnt)dismount(u,true);
     setRt(u,E.x+96+(i%2)*22,E.y-18+i*20,RT_SPEED*2);i++;   // double time to the ramp
   }
   log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Ramp’s down. All aboard — double time!');
@@ -2343,15 +2632,22 @@ function execute(){
     log('<span class="a">The BLAM cooks off!</span>');
     explode(g.x,g.y,{r:NADE_BLAST,d0:32,d1:52});
   }
+  for(const u of U){u.px=u.x;u.py=u.y;u.path=null;}
   for(const u of U){
-    u.px=u.x;u.py=u.y;u.path=null;
     if(u.down||u.surr||u.extracted||u.away)continue;
     if(u.manning){u.braced=1;u.sprinted=0;continue;}
+    if(u.mnt&&!stunned(u)&&execSeat(u))continue;
     if(stunned(u)){u.order=null;u.sprinted=0;u.braced=0;continue;}
     if(u.order&&u.order.type!=='hold'&&u.side==='reb'&&injOf(u,'eardrum')&&rng()<0.35){log(nameSpan(u)+' <span class="b">cannot hear the order</span> <span class="d">\u2014 ruptured eardrum, holding position</span>');u.order={type:'hold'};}
     const o=u.order;
     if(o&&o.type==='sprint'&&cantSprint(u)){o.type='move';}
-    if(o&&(o.type==='move'||o.type==='sprint')){
+    if(o&&o.type==='move'&&u.bot){const d=moveDest(u,o.tx,o.ty,reachOf(u,'move')+1);if(d){o.tx=d.x;o.ty=d.y;}}
+    if(o&&o.type==='enter'){
+      const v=U.find(x=>x.id===o.vid);
+      const d=v&&moveDest(u,v.x,v.y,MOVE_R*speedMul(u)+ENTER_R);
+      if(d)u.path=pathFor(u,d.x,d.y);
+      u.sprinted=0;u.braced=0;
+    } else if(o&&(o.type==='move'||o.type==='sprint')){
       u.path=pathFor(u,o.tx,o.ty);
       u.sprinted=o.type==='sprint'?1:0;
       sk(u,'agi',u.sprinted?1:0.5);
@@ -2387,6 +2683,36 @@ function execute(){
   }
   lastOw=0;
   syncUI();
+}
+/* a seat's order: the driver steers the vehicle, Exit and Switch happen as the round opens */
+function execSeat(u){
+  const o=u.order,v=vehOf(u),st=seatOf(u);
+  if(!v||!st)return false;
+  u.sprinted=0;
+  if(!o)return true;
+  if(o.type==='exit'){dismount(u);u.braced=0;return true;}
+  if(o.type==='switch'){switchSeat(u,o.seat);u.braced=0;return true;}
+  if(o.type==='move'){
+    u.braced=0;
+    if(st.drive&&!v.down){
+      const d=moveDest(v,o.tx,o.ty,vehSpd(v)+1)||{x:o.tx,y:o.ty};
+      v.path=pathFor(v,d.x,d.y);
+      sk(u,'agi',0.5);
+    }
+    return true;
+  }
+  if(o.type==='work'){u.braced=0;return true;}
+  return false;   // hold and lock in run the usual way
+}
+/* end of the movement: anyone who walked up to a vehicle climbs in */
+function execArrivals(){
+  for(const u of U){
+    if(!u.order||u.order.type!=='enter'||u.down||u.mnt)continue;
+    const v=U.find(x=>x.id===u.order.vid);
+    if(v&&canEnter(u,v,ENTER_R+12))mount(u,v);
+    else addFloater(u.x,u.y-40,'CAN\u2019T REACH IT',C.text3);
+  }
+  vehSync();
 }
 let lastOw=0;
 function execUpdate(now){
@@ -2426,6 +2752,7 @@ function execUpdate(now){
       if(u.path&&!u.down){const e=u.path[u.path.length-1];u.x=e.x;u.y=e.y;}
       u.path=null;
     }
+    execArrivals();
     spotCheck();
     buildEngage();
   }
@@ -2437,7 +2764,7 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='hack'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
@@ -2626,7 +2953,7 @@ function retargetCanister(p){
 }
 function retarget(t){
   const c=engageQ&&engageQ.cur;
-  if(!c||c.stage!=='await'||t.side!=='law'||t.down||t.surr)return;
+  if(!c||c.stage!=='await'||!(t.side==='law'||(t.veh&&t.owner==='law'))||t.down||t.surr)return;
   if(t.manning&&shieldBlocks(c.s,t)){addFloater(t.x,t.y-30,'TURRET SHIELD',C.shield);return;}
   const w=bestWeapon(c.s,t)||c.wkey;
   if(!validShot(c.s,t,w))return;
@@ -2674,7 +3001,7 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)workStep(wp,worker);
   }
@@ -2705,6 +3032,7 @@ function endRound(){
       if(u.side!=='reb'||u.id==='sera'||u.down||u.extracted)continue;
       if(Math.hypot(u.x-LZ.x,u.y-LZ.y)<LZ.r){
         if(clear){
+          if(u.mnt)dismount(u,true);
           u.extracted=1;u.order=null;
           log(nameSpan(u)+' <span class="g">is up the Graf’s ramp.</span>');
           addFloater(u.x,u.y-40,'EXTRACTED',C.go);
@@ -2851,7 +3179,7 @@ function buildResult(win){
   const haven=SCN.mode==='haven';
   const people=[];
   for(const u of U){
-    if(u.side!=='reb')continue;
+    if(u.side!=='reb'||u.asset)continue;
     let state='ok';
     if(u.down)state=haven?(win?'injured':'ok'):'injured'; // nobody is buried this early in the war
     const xp=Math.round(((u.xpGain||0)+(win?0.12:0.03))*100)/100;
@@ -2871,9 +3199,14 @@ function buildResult(win){
   }
   if(CTX&&CTX.grafPilot)people.push({id:CTX.grafPilot.id,xp:win?0.1:0.04,state:'ok'});
   const gained=win?U.filter(u=>u.hacked&&u.extracted&&!u.down).map(u=>({type:u.autoType,name:u.name})):[];
+  // owned vehicles and Bots: the transport collects whatever is still running; a wreck is lost
+  const vehicles=((FS&&FS.vehicles)||[]).filter(va=>va.uid).map(va=>{
+    const u=U.find(x=>x.id===va.uid);
+    return {id:va.id,lost:!!(u&&u.down),hp:u?Math.max(0,Math.round(u.hp/u.maxhp*100)):va.hpPct};
+  });
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -2884,7 +3217,7 @@ function explode(x,y,opt){
   for(let k=0;k<14;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.4,col:'#3a3430',t0:performance.now(),dur:1300});
   parts.push({x,y,vx:0,vy:0,r:60,a:0.85,col:'#ffe9b0',t0:performance.now(),dur:160,flash:1});
   for(const u of U){
-    if(u.side==='civ'||u.down||u.extracted||u.away||u.office)continue;
+    if(u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
     const d=Math.hypot(u.x-x,u.y-y);
     if(d<R){
       const dmg=Math.round((D0+rng()*(D1-D0))*(1-d/R*0.55));
@@ -3424,7 +3757,7 @@ function drawWork(now){
 function drawVision(){
   if(phase!=='FREE'||town!=='calm')return;
   for(const l of U){
-    if(l.side!=='law'||l.down||l.surr||l.office)continue;
+    if(l.side!=='law'||l.down||l.surr||l.office||!lookout(l))continue;
     if(!unitSeen(l))continue;
     const R=sightRange(l);
     const rays=[];
@@ -3726,14 +4059,16 @@ function hudA(now){
 function hudUnits(L,now){
   const c=engageQ&&engageQ.cur;
   const crouch=sneak&&phase==='FREE'&&town==='calm';
-  const list=U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&unitSeen(u));
+  const list=U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.mnt&&enclosed(u))&&unitSeen(u));
   list.sort((a,b)=>(b.down?1:0)-(a.down?1:0));            // the fallen first, so the living draw over them
   for(const u of list){
-    const [x,y]=worldToCss(u.x,u.y);
+    const [x,y]=tokCss(u);
     if(x<-70||x>cssW+70||y<-100||y>cssH+70)continue;
-    const reb=u.side==='reb',foe=u.side==='law',civ=u.side==='civ',sera=u.id==='sera';
-    const crouched=crouch&&reb;
-    const r=tokR(u)*(crouched?0.85:1);
+    const crew=u.veh?crewIn(u):null;
+    const reb=u.side==='reb'||(u.veh&&u.owner==='reb'),foe=u.side==='law'||(u.veh&&u.owner==='law'&&crew.length>0),civ=u.side==='civ',sera=u.id==='sera';
+    const crouched=crouch&&reb&&!u.veh&&!u.mnt;
+    const r=tokR(u)*(crouched?0.85:1)*(u.mnt?0.72:1);
+    const mine=x2=>!!(x2&&(x2===u||(u.veh&&x2.mnt&&x2.mnt.v===u.id)));
     const panic=town==='alerted'&&!u.down&&!u.surr&&!civ&&coolStateG(u)==='panic';
     /* under-rings */
     if(sera&&!crossAway&&!u.down&&dist(u,PAD)<PAD.r){
@@ -3745,23 +4080,33 @@ function hudUnits(L,now){
     if(u.hacked&&!u.down){ctx.save();ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(x,y,r+8,0,7);ctx.lineWidth=2.5;ctx.strokeStyle=C.shield;ctx.stroke();ctx.restore();}
     T.unitToken(ctx,x,y,{
       side:reb?'friend':foe&&!u.surr?'foe':'neutral',r,
-      icon:civ?'people':sera?'pilot':u.vip?'people':reb?(u.auto?'gun':'soldier'):u.sheriff?'star':u.vehicle?'ship':u.shield?'shield':'gun',
+      icon:u.veh?'vehicle':civ?'people':sera?'pilot':u.vip&&!u.bot?'people':reb?(u.auto?'gun':'soldier'):u.sheriff?'star':u.shield?'shield':'gun',
       facing:civ||u.down?null:u.face,t:hudT,
-      selected:u.id===selId&&phase==='PLANNING'&&!u.down,
-      acting:!!(c&&c.s===u),targeted:!!(c&&c.t===u&&!u.down),
-      panicking:panic,down:!!u.down,ordered:phase==='PLANNING'&&reb&&!!u.order&&!u.down});
+      selected:phase==='PLANNING'&&!u.down&&mine(U.find(q=>q.id===selId)),
+      acting:!!(c&&mine(c.s)),targeted:!!(c&&mine(c.t)&&!u.down),
+      panicking:panic&&!u.veh,down:!!u.down,ordered:phase==='PLANNING'&&reb&&!u.down&&(u.veh?crew.some(q=>q.side==='reb'&&q.order):!!u.order)});
+    if(u.veh&&!u.down){
+      /* one pip per seat under the hull: filled when someone is in it */
+      const n=u.seats.length;
+      u.seats.forEach((st,k)=>{
+        const px=x+(k-(n-1)/2)*11,py=y+r+6;
+        ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=st.occ?(reb?C.rebel:C.heg):C.ink;ctx.fill();
+        ctx.lineWidth=1.5;ctx.strokeStyle=st.wkey?C.gold:C.text3;ctx.stroke();
+      });
+    }
     if(u.down)ctx.globalAlpha=1;
     if(!u.down&&!civ){
       /* riot shield, brace, cover, jam */
       if(u.shield){ctx.beginPath();ctx.arc(x,y,r+7,u.face-1.0,u.face+1.0);ctx.lineWidth=7;ctx.strokeStyle=C.ink;ctx.lineCap='round';ctx.stroke();ctx.lineWidth=4;ctx.strokeStyle=C.steel;ctx.stroke();ctx.lineCap='butt';}
       if(u.braced&&phase!=='BRIEF'){ctx.beginPath();ctx.arc(x,y,r+5,u.face-0.6,u.face+0.6);ctx.lineWidth=3;ctx.strokeStyle=T.ROLE.hold;ctx.stroke();}
-      if(!u.surr){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-r*0.85,y+r*0.85,u.bunkered?2:cl);}
+      if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-r*0.85,y+r*0.85,u.bunkered?2:cl);}
       if(u.jam){ctx.beginPath();ctx.arc(x-r*0.8,y-r*0.8,8,0,7);ctx.fillStyle=C.hazard;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();T.icon(ctx,'unjam',x-r*0.8,y-r*0.8,11,C.ink,{weight:3});}
       if(!u.surr)T.hpPips(ctx,x,y-r-14,{hp:u.hp,max:u.maxhp});
       if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,y-r-36,Math.min(1,u.det/100));
     }
-    const nm=civ?(u.cower?'Civilian · down flat':'Civilian'):u.down?u.first+' · down':u.surr?u.first+' · surrendered':u.first;
-    L.add(nm,x,y+r+15,{color:civ||u.down||u.surr?C.text3:sera?C.gold:reb?C.rebel:C.heg,size:civ?11:12},civ?1:3);
+    const nm=u.veh?(u.down?u.first+' · wreck':crew.length?u.first:u.first+' · empty'):civ?(u.cower?'Civilian · down flat':'Civilian'):u.down?u.first+' · down':u.surr?u.first+' · surrendered':u.first;
+    if(u.mnt)continue;   // the gunner's name would sit on the vehicle's
+    L.add(nm,x,y+r+(u.veh?20:15),{color:civ||u.down||u.surr||(u.veh&&!crew.length)?C.text3:sera?C.gold:reb?C.rebel:C.heg,size:civ?11:12},civ?1:3);
   }
 }
 function drawNades(now){
@@ -3798,9 +4143,12 @@ function drawOrders(now){
           T.plotLine(ctx,a[0],a[1],b[0],b[1],o.type,hudT);
         }
         const e=P(o.tx,o.ty);
-        T.label(ctx,o.type==='move'?'Move':'Sprint',e[0],e[1]-20,{kind:'float',color:o.type==='move'?C.rebel:C.gold,size:12});
+        T.label(ctx,u.mnt?'Drive':o.type==='move'?'Move':'Sprint',e[0],e[1]-20,{kind:'float',color:o.type==='move'?C.rebel:C.gold,size:12});
         const cl=coverLevelAt(o.tx,o.ty);
         if(cl)T.coverPip(ctx,e[0]+18,e[1]-4,cl);
+      } else if(o.type==='enter'){
+        const v=U.find(x=>x.id===o.vid);
+        if(v){const a=P(u.x,u.y),b=P(v.x,v.y);T.plotLine(ctx,a[0],a[1],b[0],b[1],'move',hudT);T.label(ctx,'Get in',b[0],b[1]-tokR(v)-22,{kind:'float',color:C.rebel,size:12});}
       } else if(o.type==='loot'){
         const [x,y]=P(u.x,u.y);
         ctx.beginPath();ctx.arc(x,y,LOOT_AOE*cam.z,0,7);ctx.fillStyle=T.rgba(C.go,0.07);ctx.fill();
@@ -3810,18 +4158,18 @@ function drawOrders(now){
     const sel=U.find(x=>x.id===selId);
     if(sel&&(pickMode==='move'||pickMode==='sprint')){
       const [sx,sy]=P(sel.x,sel.y);
-      T.moveRing(ctx,sx,sy,(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel)*cam.z,pickMode);
-      /* every cover pocket in reach */
-      const reach=(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel);
-      for(const p of PROPS){
+      const reach=reachOf(sel,pickMode),mv=sel.mnt?vehOf(sel)||sel:sel;
+      T.moveRing(ctx,sx,sy,reach*cam.z,pickMode);
+      /* every cover pocket in reach (a vehicle has no use for them) */
+      for(const p of (sel.mnt||sel.bot)?[]:PROPS){
         const def=PROPDEF[p.kind];
         if(p.dead||def.cov<=0||Math.hypot(p.x-sel.x,p.y-sel.y)>reach+def.r+40)continue;
         const [px,py]=P(p.x,p.y);
         ctx.setLineDash([3,5]);ctx.beginPath();ctx.arc(px,py,(def.r+34)*cam.z,0,7);ctx.lineWidth=2;ctx.strokeStyle=T.rgba(C.go,0.5);ctx.stroke();ctx.setLineDash([]);
       }
       if(hoverW){
-        const d=moveDest(sel,hoverW.x,hoverW.y,reach);
-        const p=d&&pathFor(sel,d.x,d.y);
+        const d=moveDest(mv,hoverW.x,hoverW.y,reach);
+        const p=d&&pathFor(mv,d.x,d.y);
         if(p){
           ctx.globalAlpha=0.6;
           for(let i=1;i<p.length;i++){const a=P(p[i-1].x,p[i-1].y),b=P(p[i].x,p[i].y);T.plotLine(ctx,a[0],a[1],b[0],b[1],pickMode,hudT);}
@@ -4113,6 +4461,7 @@ function render(now){
     if(phase==='FREE')rtUpdate(now,dt);
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
+    vehSync();
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
     if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
     tutTick();
@@ -4202,12 +4551,18 @@ cv.addEventListener('pointermove',ev=>{
     if(moved){cam.x=drag.cx-dx/cam.z;cam.y=drag.cy-dy/cam.z;camGoal=null;clampCam();}
   }
 });
+/* where a unit's token sits on screen: whoever is in an open gun seat perches on the vehicle's roof */
+function tokCss(u){
+  const p=worldToCss(u.x,u.y);
+  if(u.mnt&&!enclosed(u)){const v=vehOf(u),r=v?tokR(v):14;p[0]+=r*0.95;p[1]-=r*0.95;}
+  return p;
+}
 function unitAtCss(px,py){
   let best=null,bd=1e9;
   for(const u of U){
-    if(u.down||u.extracted||u.away||u.csHide||u.office)continue;
+    if(u.down||u.extracted||u.away||u.csHide||u.office||(u.mnt&&enclosed(u)))continue;
     if(!unitSeen(u))continue;
-    const [ux,uy]=worldToCss(u.x,u.y);
+    const [ux,uy]=tokCss(u);
     const d=Math.hypot(px-ux,py-uy);
     if(d<22&&d<bd){bd=d;best=u;}
   }
@@ -4240,6 +4595,7 @@ cv.addEventListener('pointerup',ev=>{
     // right-click or a tap on open ground sends the squad; the walk is real time
     const u=unitAtCss(px,py);
     if(ev.button!==2&&u){
+      if(u.veh){freeVehClick(u);return;}
       if(hackArm&&u.side==='law'&&u.auto){startFreeHack(u);return;}
       if(u.side==='law'&&!u.surr&&town==='calm'){
         // the player picks the moment the shooting starts
@@ -4267,8 +4623,9 @@ cv.addEventListener('pointerup',ev=>{
     }
     if(pickMode&&sel){
       const wpt=cssToWorld(px,py);
-      const d=moveDest(sel,wpt.x,wpt.y,(pickMode==='move'?MOVE_R:SPRINT_R)*speedMul(sel));
-      if(d&&pathFor(sel,d.x,d.y)){
+      const mv=sel.mnt?vehOf(sel):sel;
+      const d=moveDest(mv,wpt.x,wpt.y,reachOf(sel,pickMode));
+      if(d&&pathFor(mv,d.x,d.y)){
         sel.order={type:pickMode,tx:d.x,ty:d.y};
         sTick();
         pickMode=null;
@@ -4277,7 +4634,12 @@ cv.addEventListener('pointerup',ev=>{
       }
       return;
     }
-    const u=unitAtCss(px,py);
+    let u=unitAtCss(px,py);
+    if(u&&u.veh){   // a vehicle answers with its crew: the next one still waiting for orders
+      const crew=crewIn(u).filter(c=>c.side==='reb'&&!c.ally&&!c.down);
+      const at=crew.findIndex(c=>c.id===selId);
+      u=crew.find(c=>!c.order&&c.id!==selId)||crew[(at+1)%Math.max(1,crew.length)]||null;
+    }
     if(u&&u.side==='reb'&&!u.down){
       selId=u.id;pickMode=null;
       sTick();syncUI();
@@ -4329,13 +4691,16 @@ const OM={
   leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the turret at the end of the round.'},
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
-  fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run or a gunship.'},
+  fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run, a gunship, reinforcements, or a vehicle or Bot you brought.'},
   treat:{label:'Treat wound',icon:'patch',family:'util',key:'',rule:'Use a Med Pack to patch the worst untreated injury on yourself or an ally within reach. A stunned or downed ally can only be treated by someone else. A Combat Medic reaches further and a pack covers two wounds.'},
+  enter:{label:'Enter',icon:'enter',family:'move',key:'8',rule:'Walk to a vehicle within reach and climb in at the end of the move. Inside an enclosed seat you cannot be shot: the vehicle takes the hits.'},
+  exit:{label:'Exit',icon:'leave',family:'move',key:'8',rule:'Get out of the vehicle as the round opens. No shot this round.'},
+  switch:{label:'Switch position',icon:'switch',family:'stance',key:'',rule:'Move to another free position in this vehicle as the round opens. No shot this round.'},
   rally:{label:'Rally cry',icon:'firesupport',family:'fight',key:'0',rule:'Hero action, once per mission. Every rebel still on their feet steadies and takes +2 to hit this round.',nums:[{t:'+2 attack, all allies',kind:'good'}]},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
 const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
 function activeWork(s){
-  return WORK.find(w=>!w.done&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+  return WORK.find(w=>!w.done&&(!s.mnt||w.inVeh)&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
 }
 function ordersFor(s){
   const used=new Set();
@@ -4350,6 +4715,7 @@ function ordersFor(s){
   if(s.manning)return [card('hold',{active:cur==='hold'}),card('leave',{active:cur==='leave'})];
   if(stunned(s))return [card('hold',{disabled:true,why:'Stunned. Another rebel has to treat the wound before they can act.'})];
   if(coolStateG(s)==='panic')return [card('lockin',{active:cur==='lockin'}),card('cancel')];
+  if(s.mnt||s.bot)return vehOrders(s,card,cur,pm);
   const nl=lootsWithin(s,LOOT_AOE).length;
   const wp=activeWork(s);
   const g1=[card('move',{active:pm==='move'||(!pm&&cur==='move')}),card('sprint',{active:pm==='sprint'||(!pm&&cur==='sprint'),disabled:cantSprint(s),why:'A leg injury rules out sprinting.'}),
@@ -4363,9 +4729,34 @@ function ordersFor(s){
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
   if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack'),disabled:injOf(s,'shrapnel'),why:'Suppressed by shrapnel.'}));
   if(s.jam)g3.push(card('clear',{active:!pm&&cur==='clear'}));
+  {const et=enterTargets(s);if(et.length)g3.push(card('enter',{active:!pm&&cur==='enter',tip:{title:'Enter',rule:OM.enter.rule+' Nearest: '+et[0].name+'.'}}));}
   if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
   if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
   {const tp=treatPick(s),tt=treatTarget(s);g3.push(card('treat',{label:'Treat wound ×'+(s.meds||0),active:!pm&&cur==='treat',disabled:!tp,why:tt&&!s.meds?'No med pack left.':'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
+  const out=[...g1,HUD.sep(),...g2];
+  if(g3.length)out.push(HUD.sep(),...g3);
+  out.push(HUD.sep(),card('cancel'));
+  return out;
+}
+/* in a seat (or a Bot): Move only from the driver's seat and at the vehicle's speed, Hold only on a gun,
+   Lock in still works on the person; no Sprint or Take cover; Loot and Work are out of reach */
+function vehOrders(s,card,cur,pm){
+  const st=seatOf(s),v=vehOf(s);
+  const g1=[],g2=[],g3=[];
+  const why=s.bot?'A Bot cannot do that.':'Not from inside a vehicle.';
+  if(s.bot||(st&&st.drive))g1.push(card('move',{active:pm==='move'||(!pm&&cur==='move'),
+    tip:{title:'Move',rule:s.bot?'Walk up to the Bot\u2019s speed. It keeps its gun up.':'Drive the '+v.name+' up to its speed. The crew can still fire.'}}));
+  g1.push(card('hold',{active:!pm&&cur==='hold',disabled:!wpnsOf(s).length,why:'No gun at this position.'}));
+  if(!s.bot)g2.push(card('lockin',{active:!pm&&cur==='lockin'}));
+  g2.push(card('loot',{disabled:true,why}));
+  {const wp=s.mnt&&activeWork(s);g2.push(card('work',{active:!pm&&cur==='work',disabled:!wp,why:wp?'':why}));}
+  if(s.mnt){
+    for(const x of switchTargets(s))g3.push(card('switch',{label:'Switch to '+x.n.toLowerCase(),active:!pm&&cur==='switch'&&s.order.seat===x.k,attrs:'data-seat="'+x.k+'"',
+      tip:{title:'Switch position',rule:OM.switch.rule+' '+x.n+(x.wkey?': '+WPN[x.wkey].name+'.':x.drive?': drives the vehicle.':': a seat, no gun.')}}));
+    g3.push(card('exit',{active:!pm&&cur==='exit'}));
+  }
+  if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
+  if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
   out.push(HUD.sep(),card('cancel'));
@@ -4383,6 +4774,8 @@ function dockHTML(){
       tip:{title:'Sneak',rule:'Go low and slow: half the pace, but much harder to spot.'}})];
     if(hasTech&&U.some(x=>x.side==='law'&&x.auto&&x.hackRounds&&!x.down))
       orders.push(HUD.order({id:'hackBtn',label:'Hack',icon:'hack',family:'util',active:hackArm,tip:{title:'Hack',rule:OM.hack.rule}}));
+    if(U.some(x=>x.side==='reb'&&x.mnt))
+      orders.push(HUD.order({id:'vehOutBtn',label:'Exit',icon:'leave',family:'move',tip:{title:'Exit',rule:'Everyone in a vehicle gets out. Tap a vehicle to send the nearest rebel in.'}}));
     let go='';
     if(extractReady())go=HUD.btn({id:'extractBtn',label:'Extract',icon:'extract',variant:'primary',size:'lg',go:true,iconAfter:true});
     else if(callBtn)go=HUD.btn({id:'callBtn',label:'Call in the Marta',icon:'ship',variant:'primary',size:'lg',go:true,iconAfter:true});
@@ -4405,7 +4798,7 @@ function dockHTML(){
   }
   const c=engageQ&&engageQ.cur;
   if(c&&c.stage==='await'){
-    const canNade=c.s.side==='reb'&&NADES>0&&!c.s.manning;
+    const canNade=c.s.side==='reb'&&NADES>0&&!c.s.manning&&!c.s.mnt&&!c.s.bot;
     let n=0;
     const key=()=>{n++;return n<=9?String(n):'';};
     const orders=[];
@@ -4434,9 +4827,14 @@ function dockHTML(){
   return '';
 }
 /* rail rows */
-const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
+const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
 const tag=(txt,kind,icon)=>'<span class="sr-tag'+(kind?' sr-tag--'+kind:'')+'">'+(icon?HUD.ico(icon):'')+txt+'</span>';
 function statusTag(u){
+  if(u.veh){
+    if(u.down)return tag('Wrecked','bad');
+    const n=crewIn(u).length;
+    return n?tag(n+' aboard',u.owner==='reb'?'friend':'','vehicle'):tag('Empty','');
+  }
   if(u.caged)return tag('In the cell','action');
   if(u.away)return tag('In the air','good');
   if(u.extracted)return tag('Extracted','good');
@@ -4453,12 +4851,13 @@ function statusTag(u){
     const m=ORDER_TAG[u.order.type]||['move',u.order.type];
     return '<span class="sr-ordertag">'+HUD.ico(m[0])+m[1]+'</span>';
   }
+  if(u.mnt){const st=seatOf(u),v=vehOf(u);if(st&&v)return tag(st.n+' \u00b7 '+v.first,u.side==='reb'?'friend':'',st.wkey?'turret':'vehicle');}
   if(u.side==='reb'&&phase==='FREE'&&u.rtPath)return tag('Moving','',null);
   if(u.side==='law'&&inCoverAt(u.x,u.y))return tag('Cover','good','cover');
   return '';
 }
 function nerveHtml(u){
-  if(u.auto||u.down||u.surr||u.extracted||u.away||u.side==='civ')return '';
+  if(u.auto||u.veh||u.down||u.surr||u.extracted||u.away||u.side==='civ')return '';
   const st=coolStateG(u);
   if(st==='panic'){
     if(town!=='alerted')return '';
@@ -4468,7 +4867,7 @@ function nerveHtml(u){
   return st==='cool'?'<span class="sr-nerve sr-nerve--cool">'+HUD.ico('cool')+'Cool</span>':'<span class="sr-nerve sr-nerve--steady">Steady</span>';
 }
 function unitRow(u){
-  const foe=u.side==='law',c=engageQ&&engageQ.cur;
+  const foe=u.side==='law'||(u.veh&&u.owner==='law'),c=engageQ&&engageQ.cur;
   const frac=u.maxhp?u.hp/u.maxhp:0;
   let cells='';
   for(let i=0;i<5;i++)cells+='<i class="sr-hp__cell'+(u.hp>i*(u.maxhp/5)?' is-on':'')+'"></i>';
@@ -4480,10 +4879,10 @@ function unitRow(u){
   const av=foe?HUD.avatar({initials:HUD.initials(u.first),cls:'sr-avatar--foe'}):
     HUD.avatar({name:u.name,cls:u.id==='sera'?'sr-avatar--pilot':'',badge:u.id==='sera'?'pilot':(u.auto||u.vip)?null:'soldier'});
   const body='<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+nm+'</span>'+
-    (foe||u.vip?'':'<span class="sr-unit__role">Lv '+(u.level||1)+'</span>')+'</span>'+hp+'</span>'+
+    (foe||u.vip||u.veh?'':'<span class="sr-unit__role">Lv '+(u.level||1)+'</span>')+'</span>'+hp+'</span>'+
     '<span class="sr-unit__side">'+statusTag(u)+nerveHtml(u)+'</span>';
   const st=u.id==='sera'?' style="--c:var(--sr-gold)"':'';
-  return foe?'<div class="'+cls+'"'+st+'>'+av+body+'</div>':
+  return (foe||u.veh)?'<div class="'+cls+'"'+st+'>'+av+body+'</div>':
     '<button type="button" class="'+cls+'"'+st+' data-unit="'+u.id+'">'+av+body+'</button>';
 }
 function lootRow(icon,label,val,col){return '<div class="sr-loot" style="--c:'+col+'">'+HUD.ico(icon)+label+'<b>'+val+'</b></div>';}
@@ -4597,14 +4996,15 @@ function syncUI(){
   }
   // rail
   const reb=U.filter(u=>u.side==='reb');
+  const rebV=U.filter(v=>v.veh&&v.owner==='reb'&&!v.extracted);
   $('squadCount').textContent=reb.filter(u=>!u.down).length+'/'+reb.length;
-  HUD.render($('rosterR'),reb.map(unitRow).join(''));
+  HUD.render($('rosterR'),reb.map(unitRow).join('')+rebV.map(unitRow).join(''));
   $('foeHead').textContent=SCN.foesLabel;
   if(town==='calm'){
     $('foeCount').textContent='';
     HUD.render($('rosterE'),'<div class="sr-empty">'+(SCN.mode==='haven'?'The squatters don’t know you’re here — yet.':'No contacts. The town suspects nothing — yet.')+'</div>');
   } else {
-    const law=U.filter(u=>u.side==='law');
+    const law=U.filter(u=>u.side==='law'||(u.veh&&u.owner==='law'));
     const seen=law.filter(u=>unitSeen(u)||u.down||u.surr),hidden=law.length-seen.length;
     $('foeCount').textContent=seen.length+' seen';
     HUD.render($('rosterE'),seen.map(unitRow).join('')+(hidden?'<div class="sr-unit sr-unit--ghost">'+HUD.ico('signal')+'<span><b>'+hidden+' contact'+(hidden===1?'':'s')+'</b> out of sight</span></div>':''));
@@ -4640,7 +5040,7 @@ function syncBar(){
   if(cb&&cb.offsetHeight)barH=cb.offsetHeight;
 }
 /* ---------- DOM events ---------- */
-function orderAct(act){
+function orderAct(act,el){
   const s=U.find(x=>x.id===selId);
   if(!s)return;
   sTick();
@@ -4661,6 +5061,9 @@ function orderAct(act){
     if(lootsWithin(s,LOOT_AOE).length){s.order={type:'loot'};autoAdvance();}
   }
   else if(act==='man'){s.order={type:'man'};autoAdvance();}
+  else if(act==='enter'){const v=enterTargets(s)[0];if(v){s.order={type:'enter',vid:v.id};autoAdvance();}}
+  else if(act==='exit'){if(s.mnt){s.order={type:'exit'};autoAdvance();}}
+  else if(act==='switch'){const k=el&&el.getAttribute('data-seat');if(s.mnt&&k){s.order={type:'switch',seat:k};autoAdvance();}}
   else if(act==='leave'){s.order={type:'leave'};autoAdvance();}
   else if(act==='clear'){s.order={type:'clear'};sJamClr();autoAdvance();}
   else if(act==='cancel'){s.order=null;selId=null;}
@@ -4670,10 +5073,11 @@ DOCK.addEventListener('click',ev=>{
   const b=ev.target.closest('button');
   if(!b||b.disabled)return;
   const act=b.getAttribute('data-ract');
-  if(act){orderAct(act);return;}
+  if(act){orderAct(act,b);return;}
   if(b.id==='executeBtn')execute();
   else if(b.id==='sneakBtn')setSneak(!sneak);
   else if(b.id==='hackBtn'){hackArm=!hackArm;syncUI();}
+  else if(b.id==='vehOutBtn')freeAllOut();
   else if(b.id==='extractBtn')startExtract();
   else if(b.id==='callBtn')callTransport();
   else if(b.id==='detBtn')facDetonate();
@@ -4834,7 +5238,8 @@ function initState(){
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
   round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
   {const A=(CTX&&CTX.assets)||null;
-   FS=A&&(A.drop||(A.ships&&A.ships.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),orders:[],n:0}:null;
+   FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
+     vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
    fsMenuOn=false;fsDraft=null;}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
@@ -4971,6 +5376,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
+      mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
