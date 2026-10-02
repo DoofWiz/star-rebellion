@@ -204,7 +204,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,
-          aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          rankName:f.rankName,aim:f.aim||2,cool:f.cool||60,foc:f.foc||0,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}));
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
@@ -1924,7 +1924,7 @@ function dossierHTML(s){
     '<div class="sr-window__body">'+
     '<div class="sp-dz"><span class="sr-level" style="--p:'+pctXP+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div class="sp-dz__id"><div class="sp-dz__name">'+esc(p.pname)+'</div>'+
-    '<div class="sp-dz__tags">'+tag(rankOf(p.level),'progress','star')+state+'</div>'+
+    '<div class="sp-dz__tags">'+tag(p.rankName||rankOf(p.level),'progress','star')+state+'</div>'+
     '<div class="sp-dz__sub">'+esc(s.name)+' · age '+p.age+'</div></div></div>'+
     '<div class="sr-meter sp-nerve" style="--c:'+nc+'"><span>Nerve</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(p.cool)+'%"></span></span><span class="sr-meter__val">'+Math.round(p.cool)+'</span></div>'+
     '<p class="sr-p sp-bio">“'+esc(p.bio)+'”</p>'+

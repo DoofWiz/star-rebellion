@@ -124,11 +124,17 @@ Mission telemetry goes the other way: the debrief currently returns `{id, xp, st
   - *Not yet:* Phase 5's promotions will add their morale bump; relationship-driven morale (Friends, Rivals, Love…) waits on Phase 9; Heavy Sleeper's "immune to sleep penalties" has nothing to dampen yet.
   - Tests: `node tools/morale-smoke.js` (bands, trait bends, clamps, combat nudges, mood average, team vs base-wide, injury and death in a real debrief, warning, desertion, drift, charisma, migration). Autoplay seeds 1–3 finish with no errors on days 96 / 71 / 92; the flawless bot ends with a base mood around 80 and individual rebels between 68 and 100.
 
-### Phase 5 — Ranks and promotion
+### Phase 5 — Ranks and promotion — **built**
 - Ladders per type: Soldier/Support = Army enlisted, Marine = USMC enlisted, Pilot = USAF enlisted (starting Private per the doc). Keep the current officer `RANKS` as the officer ladder.
 - `rankFor(p)` reads `p.rank`; promotion eligibility = missions completed vs. a rising threshold (`n = 2,3,4…`); promotion is a player action in the dossier (the file footer already says "manual promotion arrives with the persistent campaign").
 - Officer commission at level ≥ 5 and rank ≥ Sergeant: dossier button, one-way.
 - **Done when:** ranks no longer move with level; promoting costs nothing but a mission count and gives a morale bump.
+- **Built:** `p.rank` (rung on the type's ladder), `p.off` (officer ladder), `p.missions` (total served) and `p.rankMissions` (served at this rank). Each ladder has nine rungs: Army enlisted for Soldiers and Support (Private, Private Second Class, Private First Class, Specialist, Sergeant … Sergeant Major), USMC enlisted for Marines (… Lance Corporal, Corporal …), and the real USAF enlisted ladder for Pilots (Airman Basic … Chief Master Sergeant); the officer ladder runs Second Lieutenant to Lieutenant General.
+  - *Earning it:* a mission win counts for everyone who took part and came home (the opening mission, the abstract resolver, ground and space debriefs); failures don't count. Promotion needs 2 missions at the first rung and one more at each rung after (3 and one more on the officer ladder). A news line says when someone is due, the roster shows a green ▲, and the dossier's Rank card has the **Promote** button (+5 morale).
+  - *Commission:* a Sergeant-grade rebel (the fifth rung of any ladder) at level 5 can be commissioned from their file: one way, restarts them as Second Lieutenant, +8 morale. Available to every type, including Support.
+  - *Existing saves:* rank is backfilled from level (one rung per two levels), so nobody loses standing; Joss, who used to read "Captain", is now an Airman by the doc's rules.
+  - *Elsewhere:* the New Recruit screen hides rank (the doc says they don't have one yet); space-flight dossiers show the same rank as the base; long rank names truncate cleanly on the roster.
+  - Tests: `node tools/rank-smoke.js` (every ladder, requirements, credit/promote/commission rules, migration, debrief credit, the buttons, recruit offer hides rank). Autoplay seeds 1–3 unchanged (96 / 71 / 92), no page errors.
 
 ### Phase 6 — Recruitment and the New Recruit screen
 - Replace the `recruit` window's single card with a **card stack**: any number of candidates, each Recruit/Dismiss independently, each showing the full dossier minus rank.

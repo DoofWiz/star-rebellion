@@ -15,9 +15,6 @@ const nz=(...a)=>A.nz(...a);
    with vehicles and equipment, capacities, source-driven recruitment.
    ===================================================================== */
 
-const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
-const RANKS_ENL=['Recruit','Private','Private First Class','Specialist','Corporal','Sergeant','Staff Sergeant','Sgt. First Class','Master Sergeant','Sergeant Major'];
-const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
 /* Autos: robots that fight for us. Stats here seed the ground scene. */
 const AUTOS={
   policebot:{label:'Policebot',hp:45,def:9,wpn:'cowboy',big:0,heavy:0,bio:'A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'},
@@ -26,7 +23,7 @@ const AUTOS={
 };
 const autoOf=p=>AUTOS[p.auto]||AUTOS.strider;
 const autoKey=p=>AUTOS[p.auto]?p.auto:'strider';
-const rankFor=p=>p.auto?autoOf(p).label:((p.role==='Soldier'||p.role==='Marine')?RANKS_ENL:RANKS)[Math.max(0,Math.min(9,p.level))];
+const rankFor=p=>p.auto?autoOf(p).label:Rebel.rankName(p);
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
 /* ---------- kit helpers: icons, cost chips, palette ---------- */
@@ -286,6 +283,10 @@ function renderFeed(){
   clearTimeout(feedTO);
   const live=feed.filter(f=>now-f.t<FEED_MS);
   if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
+}
+/* a completed mission counts toward the next rank */
+function creditMission(p){
+  if(Rebel.credit(p))news('<b>'+p.name+'</b> has earned a promotion. Say the word in their file.','p');
 }
 function gainXp(p,x){
   const n=Rebel.gainXp(p,x);
@@ -1368,7 +1369,7 @@ function resolveMission(m){
         rew.push('+FT-4 Cross');
       } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
     }
-    for(const p of pilots)gainXp(p,m.rew.xp||0.1);
+    for(const p of pilots){gainXp(p,m.rew.xp||0.1);creditMission(p);}
     moraleAll(1,'win',pilots.map(p=>p.id),3);
     m.state='done';m.meta='SUCCESS';
     const cr=missionCredit(m);
@@ -2788,10 +2789,23 @@ const TUT_PAGES=[
     tutP('Every Source you cultivate is an asset to the rebellion. Every asset can become a liability.')},
 ];
 /* dossier header shared by the personnel file and the recruit offer */
-function dossierHead(p,extra){
+function dossierHead(p,extra,noRank){
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
-    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+wTag(rankFor(p),'action')+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
+    '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+(noRank?'':wTag(rankFor(p),'action'))+(extra||'')+'</div><div class="sr-faint bs-dz__role">'+p.role+'</div></div></div>'+
     '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+moraleRow(p)+traitCard(p)+skillsCard(p);
+}
+/* rank, progress toward the next one, and the buttons that hand it out */
+function rankCard(p){
+  if(p.auto)return '';
+  const nx=Rebel.nextRank(p),need=Rebel.needMissions(p),have=Math.min(need,p.rankMissions||0);
+  let body=nx?('Missions toward <b>'+nx+'</b>: '+have+' / '+need):'Top of the ladder.';
+  const acts=[];
+  if(Rebel.canPromote(p))acts.push(rbtn('data-promote="'+p.id+'"','Promote to '+nx,false,'sr-btn--sm sr-btn--primary'));
+  if(Rebel.canCommission(p))acts.push(rbtn('data-commission="'+p.id+'" title="One-way: they restart on the officer ladder as '+Rebel.OFFICER[0]+'"','Commission as officer',false,'sr-btn--sm'));
+  else if(!p.off&&(p.rank||0)>=4&&p.level<5)body+='<br><span class="sr-faint">Officer commission needs level 5.</span>';
+  else if(!p.off&&p.level>=5)body+='<br><span class="sr-faint">Officer commission needs the rank of Sergeant or better.</span>';
+  return '<div class="sr-h3">Rank</div><div class="sr-card sr-card--action"><div class="sr-card__top"><span class="sr-card__title">'+rankFor(p)+'</span>'+(p.off?wTag('Officer','friend'):'')+'<span class="bs-from">'+(p.missions||0)+' mission'+((p.missions||0)===1?'':'s')+' served</span></div>'+
+    '<div class="sr-card__body">'+body+'</div>'+(acts.length?'<div class="sr-card__acts" style="margin-top:8px">'+acts.join('')+'</div>':'')+'</div>';
 }
 /* morale out of 100 with its band; it nudges aim and Cool in the field */
 function moraleRow(p){
@@ -3022,7 +3036,7 @@ function renderWin(){
     const full=bunksUsed()>=bunkCap();
     h=wHead('New Recruit!',{x:must?false:'data-rec-no'})+wBody(
       (line?'<div class="sr-quote" style="margin:0 0 16px">'+line+'</div>':'')+
-      dossierHead(p)+
+      dossierHead(p,'',true)+
       '<div class="sr-h3">Terms</div><p class="sr-p">One bunk ('+bunksUsed()+'/'+bunkCap()+' filled)'+
         (p.role==='Support'?' · will run a station once assigned.':p.role==='Soldier'?' · arms from the rack.':' · a stick looking for a ship.')+'</p>'+
       (full?'<p class="sr-p bs-bad">No bunks free — build a quarters annex first.</p>':''))+
@@ -3083,6 +3097,7 @@ function renderWin(){
         (st?('On station: <b class="bs-good">'+ROOMS[st].name+'</b> — '+STAFFABLE[st].post+'. '+STAFFABLE[st].perk+'.')
            :'Unassigned. A room without its operator underperforms — post them somewhere.')+'</p>';
     }
+    b+=rankCard(p);
     if(!p.injured&&p.assign!=='mission'){
       b+='<div class="sr-h3">Assignment</div><div class="bs-chips">'+
         rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(p.assign==='rest')+'"','Rest',false,'sr-btn--sm')+
@@ -3099,7 +3114,7 @@ function renderWin(){
       }
       b+='</div>';
     }
-    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'),'XP '+pct+'% to next grade · manual promotion arrives with the persistent campaign');
+    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'),'XP '+pct+'% to level '+Math.min(Rebel.LEVEL_CAP,p.level+1)+(p.level>=Rebel.LEVEL_CAP?' (maxed)':''));
   }
   else if(winMode==='silence'){
     const s=winArg;
@@ -3203,7 +3218,7 @@ function syncUI(){
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
     return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
-      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span></span><span class="sr-unit__role">'+rankFor(p)+', level '+p.level+(!p.auto&&p.morale<=40?' <span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
   const grp=(listId,countId,people,emptyMsg)=>{
     $(listId).innerHTML=people.length?people.map(crewRow).join(''):'<div class="sr-empty">'+emptyMsg+'</div>';
@@ -3450,6 +3465,18 @@ $('winsB').addEventListener('click',ev=>{
   if(gcat){GEARCAT=gcat;renderWin();return;}
   const dipBtn=t.getAttribute('data-dip');
   if(dipBtn){startDip(dipBtn);saveSnap();syncUI();renderWin();return;}
+  const promoId=t.getAttribute('data-promote');
+  if(promoId){
+    const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
+    if(now){Rebel.moraleBump(p,5,'promo');mood();news('<b>'+p.name+'</b> promoted from '+was+' to <b>'+now+'</b>.','g');sAlert();sBuild();saveSnap();syncUI();renderWin();}
+    return;
+  }
+  const comId=t.getAttribute('data-commission');
+  if(comId){
+    const p=G.people.find(x=>x.id===comId),was=p&&rankFor(p),now=p&&Rebel.commission(p);
+    if(now){Rebel.moraleBump(p,8,'promo');mood();news('<b>'+p.name+'</b> is commissioned: '+was+' to <b>'+now+'</b>.','g');sAlert();sBuild();saveSnap();syncUI();renderWin();}
+    return;
+  }
   const specBtn=t.getAttribute('data-spec');
   if(specBtn){const [pid,k]=specBtn.split(':');startSpec(pid,k);return;}
   const oppadd=t.getAttribute('data-oppadd');
@@ -3901,7 +3928,7 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
+        rankName:rankFor(p),aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
@@ -3934,6 +3961,7 @@ function applyDebrief(r){
         const p=G.people.find(x=>x.id===pr.id);
         if(!p)continue;
         if(pr.xp)gainXp(p,pr.xp);Rebel.trainSkills(p,pr.sk);
+        creditMission(p);
         if(pr.state==='injured'){
           p.injured=pr.dur||2;
           news('<b>'+p.name+'</b> took the rock the hard way \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
@@ -3978,6 +4006,7 @@ function applyDebrief(r){
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
     pinfo.push({name:p.name,xp:pr.xp||0,state});
+    if(r.win&&state!=='lost')creditMission(p);
     if(state==='lost'&&upAny('infirmary','surgery')&&medStaff().length&&rng()<0.6){
       state='injured';pr.dur=6;
       news('<b>'+p.name+'</b> should not have made it. The surgery room says otherwise.','g');
@@ -4191,7 +4220,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

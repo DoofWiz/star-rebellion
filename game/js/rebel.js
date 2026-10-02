@@ -201,6 +201,36 @@ window.Rebel=(function(){
     return gained;
   }
 
+
+  /* ---------- ranks ----------
+     Rank is seniority, separate from level: it comes from missions completed, and the player hands it out.
+     Soldiers and Support follow the US Army enlisted ladder, Marines the USMC's, Pilots the USAF's.
+     From Sergeant (the fifth rung) at level 5 a rebel can be commissioned onto the officer ladder. */
+  const ARMY=['Private','Private Second Class','Private First Class','Specialist','Sergeant','Staff Sergeant','Sergeant First Class','Master Sergeant','Sergeant Major'];
+  const LADDER={
+    Soldier:ARMY,Support:ARMY,Hero:ARMY,
+    Marine:['Private','Private First Class','Lance Corporal','Corporal','Sergeant','Staff Sergeant','Gunnery Sergeant','Master Sergeant','Sergeant Major'],
+    Pilot:['Airman Basic','Airman','Airman First Class','Senior Airman','Staff Sergeant','Technical Sergeant','Master Sergeant','Senior Master Sergeant','Chief Master Sergeant'],
+  };
+  const OFFICER=['Second Lieutenant','First Lieutenant','Captain','Major','Lieutenant Colonel','Colonel','Brigadier General','Major General','Lieutenant General'];
+  const SGT=4,COMMISSION_LEVEL=5;
+  const ladderOf=p=>p.off?OFFICER:(LADDER[p.rankRole||p.role]||ARMY);
+  const rankName=p=>{const l=ladderOf(p);return l[Math.max(0,Math.min(l.length-1,p.rank||0))];};
+  const nextRank=p=>{const l=ladderOf(p),i=(p.rank||0)+1;return i<l.length?l[i]:null;};
+  /* missions needed in the current rank before the next one: more for every rung */
+  const needMissions=p=>(p.off?3:2)+(p.rank||0);
+  const canPromote=p=>!p.auto&&!!nextRank(p)&&(p.rankMissions||0)>=needMissions(p);
+  const canCommission=p=>!p.auto&&!p.off&&p.level>=COMMISSION_LEVEL&&(p.rank||0)>=SGT;
+  function promote(p){if(!canPromote(p))return null;p.rank++;p.rankMissions=0;return rankName(p);}
+  function commission(p){if(!canCommission(p))return null;p.off=true;p.rank=0;p.rankMissions=0;return rankName(p);}
+  /* a completed mission; true if it just made them eligible for promotion */
+  function credit(p){
+    if(!p||p.auto)return false;
+    const was=canPromote(p);
+    p.missions=(p.missions||0)+1;p.rankMissions=(p.rankMissions||0)+1;
+    return !was&&canPromote(p);
+  }
+
   /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
   const xpMult=p=>(has(p,'quicklearner')?1.1:1)*(has(p,'slowlearner')?0.9:1);
   function gainXp(p,amount){return addXp(p,amount*xpMult(p));}
@@ -211,8 +241,9 @@ window.Rebel=(function(){
     if(!p.auto&&p.charTrait===undefined)p.charTrait=AUTHORED[p.id]||hashPick(p);
     if(!p.auto&&p.sx===undefined)p.sx={};
     if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
+    if(!p.auto&&p.rank===undefined){p.rank=Math.min(8,Math.floor(((p.level||1)-1)/2));p.rankMissions=0;p.missions=p.missions||0;}
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,MBANDS,MORALE_START,mband,moraleBump,moraleFx};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

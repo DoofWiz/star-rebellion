@@ -255,3 +255,8 @@
   #sc-space .sr-dial{max-width:300px;}
   #sc-space .sr-dial__k{height:25px;}
 }
+
+/* long ranks (Private First Class, Senior Master Sergeant) must not run under the status tag */
+#sc-base .sr-unit__main{min-width:0;flex:1;}
+#sc-base .sr-unit__top{gap:6px;}
+#sc-base .sr-unit__role{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
