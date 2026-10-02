@@ -1840,7 +1840,8 @@ function srcSilence(src){
   moraleAll(-10,'loss');
   news('The assassin reports in: <b>'+src.name+'</b> won’t be talking to anyone. The crew heard anyway.','h');
   sAlert();
-  closeWin();openWin('sources');
+  if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
+  closeWin();showView('galaxy');
   syncUI();
 }
 function srcCutLoose(src){
@@ -1848,7 +1849,8 @@ function srcCutLoose(src){
   moraleAll(-6,'loss');
   for(const o of G.sources)if(o.alive&&o!==src)o.cult=Math.max(0,o.cult-20);
   news('<b>'+src.name+'</b> cut loose — codes burned, drops abandoned. The whole network feels the cold.','h');
-  closeWin();openWin('sources');
+  if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
+  closeWin();showView('galaxy');
   syncUI();
 }
 function acceptCandidate(id){
@@ -2663,147 +2665,546 @@ function locStatsHTML(d,st){
   return h;
 }
 
-/* ---------- galaxy + comm canvases (drawn while their windows are open) ---------- */
-function drawGalaxy(now){
-  const g=$('galaxyCv');
-  if(!g)return;
-  const r=g.getBoundingClientRect();
-  if(g.width!==Math.round(r.width*dpr)){g.width=Math.round(r.width*dpr);g.height=Math.round(r.height*dpr);}
-  const c2=g.getContext('2d');
-  c2.setTransform(dpr,0,0,dpr,0,0);
-  const w=r.width,h=r.height;
-  const t=RM?0:now;
-  /* text with an ink halo so it reads over rings and starfield */
-  const txt=(s,x,y,col,size,wt,al)=>{
-    c2.font=(wt||700)+' '+size+'px '+TH.FONT.ui;c2.textAlign=al||'center';c2.textBaseline='alphabetic';
-    c2.lineJoin='round';c2.lineWidth=4;c2.strokeStyle=TH.rgba(K.ink,0.9);c2.strokeText(s,x,y);
-    c2.fillStyle=col;c2.fillText(s,x,y);
-  };
-  /* labels are queued, then placed by priority at the first spot that doesn't collide with an icon or another label */
-  const labs=[],occ=[];
-  const lab=(s,cands,col,size,wt,pri)=>labs.push({s,cands,col,size,wt,pri});
-  const hold=(x,y,r)=>occ.push({x:x-r,y:y-r,w:2*r,h:2*r});
-  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
-  // the core glows in the upper right; the verge is dark
-  let cg=c2.createRadialGradient(w*0.86,h*0.38,20,w*0.86,h*0.38,w*0.5);
-  cg.addColorStop(0,TH.rgba(K.goldHi,0.10));cg.addColorStop(1,TH.rgba(K.goldHi,0));
-  c2.fillStyle=cg;c2.fillRect(0,0,w,h);
-  for(let i=0;i<260;i++){
-    const a=i*0.53,rad=6+i*0.85;
-    const x=w*0.55+Math.cos(a)*rad*1.7,y=h*0.45+Math.sin(a)*rad*0.6;
-    if(x<0||x>w||y<0||y>h)continue;
-    c2.fillStyle=TH.rgba(K.steel,0.05+((i*13)%10)/110);
-    c2.beginPath();c2.arc(x,y,((i*7)%3)/2+0.4,0,7);c2.fill();
+/* =====================================================================
+   GALAXY VIEW — the galaxy is a full view beside Base; selecting a world
+   with access dives into a World view (docs/ui/GALAXY-HANDOFF.md).
+   All UI state here is per-session; nothing is added to G or the save.
+   ===================================================================== */
+let baseView='base',gxWorld=null,gxRegion=null,gxDiveT=0,gxLegend=false,gxLoreOpen=false;
+let gxZoom=1,gxCam=null,gxCamLastT=0,gxHitL=[],gxSrcPos={};
+const GXL_KEY='sr-galaxy-layers';
+function loadGxLayers(){const d={network:1,leads:1,missions:1,lib:1,heg:0,flights:1};try{const v=localStorage.getItem(GXL_KEY);if(v)Object.assign(d,JSON.parse(v));}catch(e){}return d;}
+let gxLayers=loadGxLayers();
+function saveGxLayers(){try{localStorage.setItem(GXL_KEY,JSON.stringify(gxLayers));}catch(e){}}
+/* navigation */
+function showView(v){
+  baseView=v;
+  if(v!=='galaxy'){gxWorld=null;gxRegion=null;srcSel=null;}
+  exitRoomView();closeTilePop();
+  if(v==='galaxy'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();openWin('srcTutIntro');}
+  syncTabs();syncUI();
+}
+function enterWorld(id){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();syncTabs();syncUI();}
+function openRegion(rid){gxRegion=rid;syncUI();}
+function gxBack(){if(gxRegion)gxRegion=null;else if(gxWorld)gxWorld=null;else if(srcSel)srcSel=null;syncTabs();syncUI();}
+/* ---------- camera: fit the galaxy into the clear rect, ease on change ---------- */
+const GXSP=[1000,700];   // the 0..1 PLANETDEF coordinates stretch into this abstract space
+function gxRect(){
+  const cvr=cv.getBoundingClientRect();
+  let top=130;
+  const tabs=ROOT.querySelector('.sr-tabs');
+  if(tabs&&!gxWorld){const r=tabs.getBoundingClientRect();if(r.height)top=r.bottom-cvr.top+16;}
+  let bottom=120;
+  const cb=$('baseCmdbar');
+  if(cb){const r=cb.getBoundingClientRect();if(r.height)bottom=cssH-(r.top-cvr.top)+32;}
+  const left=16+((srcSel&&!gxWorld)||gxWorld?388:0);
+  const right=88;
+  return {x:left,y:Math.max(16,top),w:Math.max(120,cssW-left-right),h:Math.max(120,cssH-Math.max(16,top)-Math.max(60,bottom))};
+}
+function gxFit(now){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const d of PLANETDEF){x0=Math.min(x0,d.x*GXSP[0]);x1=Math.max(x1,d.x*GXSP[0]);y0=Math.min(y0,d.y*GXSP[1]);y1=Math.max(y1,d.y*GXSP[1]);}
+  x0-=70;x1+=70;y0-=60;y1+=70;
+  const r=gxRect();
+  const sc=Math.min(r.w/(x1-x0),r.h/(y1-y0))*gxZoom;
+  const t={s:sc,x:r.x+r.w/2-(x0+x1)/2*sc,y:r.y+r.h/2-(y0+y1)/2*sc};
+  if(!gxCam||RM)gxCam={s:t.s,x:t.x,y:t.y};
+  else{
+    const dt=Math.min(0.1,(now-gxCamLastT)/1000)||0.016;
+    const k=1-Math.exp(-dt/0.08);   // ~240ms ease
+    gxCam.s+=(t.s-gxCam.s)*k;gxCam.x+=(t.x-gxCam.x)*k;gxCam.y+=(t.y-gxCam.y)*k;
   }
-  const pul=q=>0.5+0.5*Math.sin(t*0.004+q);
-  // planets
+  gxCamLastT=now;
+}
+const gxPos=d=>[gxCam.x+d.x*GXSP[0]*gxCam.s,gxCam.y+d.y*GXSP[1]*gxCam.s];
+const gxR=id=>((WORLD_LOOK[id]||{}).R||8)*gxCam.s;
+function gxSelRing(x,y,r,t){
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([7,5]);ctx.lineDashOffset=RM?0:-t*10;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.lineWidth=3;ctx.strokeStyle=K.gold;ctx.stroke();ctx.setLineDash([]);
+}
+/* §5.1 the source badge: rebel-red disc, signal icon, level numeral on an ink tab */
+function drawSrcBadge(x,y,sc,t){
+  const hot=sc.risk>60,col=hot?K.hazard:K.rebel,attn=sc.pendingEvent||sc.signal;
+  if(attn){
+    const q=RM?0:((t*1.2)%1)*5;
+    for(const[r0,a] of [[17,.75],[24,.4]]){
+      ctx.globalAlpha=a*(RM?1:1-((t*1.2)%1)*.5);
+      ctx.beginPath();ctx.arc(x,y,r0+q,Math.PI*1.15,Math.PI*1.85);ctx.lineWidth=2.6;ctx.lineCap='round';ctx.strokeStyle=K.rebel;ctx.stroke();ctx.lineCap='butt';
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.beginPath();ctx.arc(x+1.5,y+2.5,11,0,7);ctx.fillStyle=K.ink;ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=2.2;ctx.strokeStyle=K.ink;ctx.stroke();
+  TH.icon(ctx,'signal',x,y-3,12,K.ink,{weight:2.6});
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(x-9,y+4,18,13,4):ctx.rect(x-9,y+4,18,13);ctx.fillStyle=K.ink;ctx.fill();
+  ctx.font='400 11px '+TH.FONT.display;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#fff4e6';ctx.fillText(ROMAN[Math.max(0,Math.min(4,(sc.level||1)-1))],x,y+11);
+  ctx.textBaseline='alphabetic';
+}
+function drawGalaxy(now){
+  const t=RM?0:now/1000;
+  gxFit(now);
+  const s=gxCam.s;
+  gxHitL=[];gxSrcPos={};
+  ctx.fillStyle=K.void;ctx.fillRect(0,0,cssW,cssH);
+  /* deterministic starfield, flat dots, no gradients */
+  const rand=SA.util.mkRng(42);
+  for(let i=0;i<230;i++){
+    const x=rand()*cssW,y=rand()*cssH,big=rand()<0.3;
+    ctx.fillStyle=TH.rgba(K.steel,0.12+rand()*0.43);
+    ctx.fillRect(x,y,big?2:1.2,big?2:1.2);
+  }
+  /* stepped flat glow around Meridian */
+  {const[mx,my]=gxPos(pdef('meridian'));
+   for(const[r0,a] of [[340,.035],[230,.045],[130,.05]]){ctx.beginPath();ctx.arc(mx,my,r0*s,0,7);ctx.fillStyle=TH.rgba(K.goldHi,a);ctx.fill();}}
+  /* Hegemony security territory: two flat steps, one path per step so overlaps don't darken */
+  if(gxLayers.heg)for(const[f,a] of [[1,.085],[.55,.09]]){
+    ctx.beginPath();
+    for(const d of PLANETDEF){const st=pst(d.id);if(!d.sec||!st||!st.known)continue;const[x,y]=gxPos(d);const r=(18+d.sec*24)*s*f;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}
+    ctx.globalAlpha=a;ctx.fillStyle=K.heg;ctx.fill();ctx.globalAlpha=1;
+  }
+  /* our reach: access and liberation, rebel red as one group */
+  {ctx.beginPath();
+   for(const d of PLANETDEF){const st=pst(d.id);if(!st)continue;const[x,y]=gxPos(d);
+     if(st.access&&!d.base){const r=(22+(st.acc||0)*11)*s;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}
+     const lib=d.regions&&st.access?(locLib(d,st)||0):0;
+     if(lib>0){const r=(20+lib*0.9)*s;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}}
+   ctx.globalAlpha=.12;ctx.fillStyle=K.rebel;ctx.fill();ctx.globalAlpha=1;}
+  /* region names */
+  if(cssW>700){
+    ctx.save();ctx.font='28px '+TH.FONT.display;ctx.textAlign='center';ctx.globalAlpha=.26;
+    for(const[nm,fx,fy,col] of [['THE DRIFT',.19,.76,K.rebelHi],['THE CORE',.83,.45,K.hegHi],['THE VERGE',.23,.13,K.psi]]){
+      const[x,y]=gxPos({x:fx,y:fy});ctx.fillStyle=col;ctx.fillText(nm,x,y);
+    }
+    ctx.restore();
+  }
+  /* hyperlanes: dots, stopping short of each world */
+  for(const[a,b] of LANES){
+    const da=pdef(a),db=pdef(b);if(!da||!db)continue;
+    const sa2=pst(a),sb=pst(b);
+    const[xa,ya]=gxPos(da),[xb,yb]=gxPos(db);
+    const Ra=gxR(a)+8,Rb=gxR(b)+8;
+    const dx=xb-xa,dy=yb-ya,len=Math.hypot(dx,dy);
+    if(len<Ra+Rb+14)continue;
+    const ux=dx/len,uy=dy/len;
+    const x0=xa+ux*Ra,y0=ya+uy*Ra,x1=xb-ux*Rb,y1=yb-uy*Rb;
+    const acc=sa2&&sb&&sa2.access&&sb.access,known=sa2&&sb&&sa2.known&&sb.known;
+    const step=acc||known?15:19,col=acc?K.rebelHi:known?'#4a5598':'#2c3372';
+    const n=Math.max(2,Math.floor(Math.hypot(x1-x0,y1-y0)/step));
+    for(let i=0;i<=n;i++){
+      const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n;
+      ctx.beginPath();ctx.arc(x,y,2.6,0,7);ctx.fillStyle=col;ctx.fill();
+      if(acc||known){ctx.lineWidth=1.4;ctx.strokeStyle=K.ink;ctx.stroke();}
+    }
+  }
+  /* label queue with collision placement */
+  const labs=[],occ=[];
+  const txt=(str,x,y,col,size,wt,al)=>{
+    ctx.font=(wt||700)+' '+size+'px '+TH.FONT.ui;ctx.textAlign=al||'center';ctx.textBaseline='alphabetic';
+    ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle=TH.rgba(K.ink,0.9);ctx.strokeText(str,x,y);
+    ctx.fillStyle=col;ctx.fillText(str,x,y);
+  };
+  const lab=(str,cands,col,size,wt,pri)=>labs.push({s:str,cands,col,size,wt,pri});
+  const hold=(x,y,r)=>occ.push({x:x-r,y:y-r,w:2*r,h:2*r});
+  const pul=q=>RM?0.5:0.5+0.5*Math.sin(now*0.004+q);
+  /* worlds */
   for(const d of PLANETDEF){
-    const st=pst(d.id);
-    const x=w*d.x,y=h*d.y;
+    const st=pst(d.id);if(!st)continue;
+    const[x,y]=gxPos(d);const lk=WORLD_LOOK[d.id]||{R:8,col:'#9aa6c4'};
+    const R=lk.R*s;
     const selHere=srcSel&&srcSel.t==='p'&&srcSel.id===d.id;
     if(!st.known){
-      // uncharted signal
       const p=pul(x);
-      c2.strokeStyle=TH.rgba(K.psi,0.35+0.4*p);
-      c2.lineWidth=1.6;
-      c2.beginPath();c2.arc(x,y,6+3*p,0,7);c2.stroke();
-      txt('?',x,y+4,TH.rgba(K.psi,0.7+0.3*p),12,800);
-      hold(x,y,11);
-      lab('Uncharted',[[x,y+24,'center'],[x,y-16,'center'],[x+14,y+4,'left']],K.psi,11,700,4);
-      if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,16,0,7);c2.stroke();}
+      ctx.beginPath();ctx.arc(x,y,7.5,0,7);ctx.lineWidth=2;ctx.strokeStyle=K.psi;ctx.stroke();
+      txt('?',x,y+4,K.psi,11,800);
+      ctx.globalAlpha=.25+.3*p;ctx.beginPath();ctx.arc(x,y,13+(RM?0:p*2),0,7);ctx.lineWidth=1.4;ctx.strokeStyle=K.psi;ctx.stroke();ctx.globalAlpha=1;
+      if(selHere)gxSelRing(x,y,19,t);
+      hold(x,y,15);
+      lab('Uncharted',[[x,y+28,'center'],[x,y-20,'center'],[x+19,y+4,'left']],K.psi,11,700,4);
+      gxHitL.push({t:'p',id:d.id,x,y,r:22});
       continue;
     }
-    if(d.base){
-      c2.fillStyle=K.rebel;c2.strokeStyle=K.ink;c2.lineWidth=2;c2.lineJoin='round';
-      c2.beginPath();c2.moveTo(x,y-8);c2.lineTo(x+7,y+6);c2.lineTo(x-7,y+6);c2.closePath();c2.stroke();c2.fill();
-      hold(x,y,10);
-      lab('Haven Rock',[[x,y+22,'center'],[x+14,y+4,'left']],K.rebelHi,12,800,8);
-      continue;
-    }
-    const R=d.core?9:d.kind==='Waystation'?4:6;
-    const bodyCol=d.core?K.goldHi:st.access?K.shield:TH.rgba(K.text3,0.8);
-    const glow=c2.createRadialGradient(x,y,1,x,y,R*2.4);
-    glow.addColorStop(0,d.core?TH.rgba(K.goldHi,0.5):TH.rgba(K.shield,st.access?0.35:0.12));
-    glow.addColorStop(1,'rgba(0,0,0,0)');
-    c2.fillStyle=glow;c2.beginPath();c2.arc(x,y,R*2.4,0,7);c2.fill();
-    c2.fillStyle=bodyCol;
-    c2.beginPath();c2.arc(x,y,R,0,7);c2.fill();
-    c2.lineWidth=1.5;c2.strokeStyle=K.ink;c2.stroke();
-    if(d.core){c2.strokeStyle=TH.rgba(K.goldHi,0.6);c2.lineWidth=1.4;
-      c2.beginPath();c2.ellipse(x,y,R+6,R*0.4+2,-0.35,0,Math.PI*2);c2.stroke();}
-    if(st.access){
-      c2.strokeStyle=TH.rgba(K.shield,0.85);c2.lineWidth=1.6;
-      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();
+    if(!st.access&&!d.base){
+      ctx.globalAlpha=.62;
+      SA.planet(ctx,x,y,R,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg});
+      ctx.globalAlpha=1;
+      ctx.setLineDash([4,5]);ctx.beginPath();ctx.arc(x,y,R+6,0,7);ctx.lineWidth=1.6;ctx.strokeStyle=K.text3;ctx.stroke();ctx.setLineDash([]);
+      TH.icon(ctx,'lock',x+R+10,y-R-6,12,K.text2,{outline:1});
     } else {
-      c2.strokeStyle=TH.rgba(K.text3,0.6);c2.lineWidth=1.4;c2.setLineDash([3,4]);
-      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();c2.setLineDash([]);
-      // tiny padlock
-      c2.strokeStyle=TH.rgba(K.text2,0.85);c2.lineWidth=1.3;
-      c2.strokeRect(x+R+4,y-R-9,6,5);
-      c2.beginPath();c2.arc(x+R+7,y-R-9,2.4,Math.PI,0);c2.stroke();
+      SA.planet(ctx,x,y,R,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg,home:lk.home});
     }
-    if(d.regions&&st.access){
-      const lb=locLib(d,st)/100;
-      c2.strokeStyle=TH.rgba(K.rebel,0.3);c2.lineWidth=2.6;
-      c2.beginPath();c2.arc(x,y,R+8,0,7);c2.stroke();
-      if(lb>0){c2.strokeStyle=K.rebel;c2.beginPath();c2.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);c2.stroke();}
+    if(gxLayers.lib&&d.regions&&st.access){
+      const lb=(locLib(d,st)||0)/100;
+      ctx.lineCap='round';
+      ctx.beginPath();ctx.arc(x,y,R+8,0,7);ctx.lineWidth=3;ctx.strokeStyle=TH.rgba(K.rebel,.28);ctx.stroke();
+      if(lb>0){ctx.beginPath();ctx.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);ctx.strokeStyle=K.rebel;ctx.stroke();}
+      ctx.lineCap='butt';
     }
-    if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,R+13,0,7);c2.stroke();}
-    hold(x,y,R+5);
-    lab(d.name,[[x,y-R-10,'center'],[x,y+R+16,'center'],[x+R+12,y+4,'left'],[x-R-12,y+4,'right']],st.access?K.text:K.text2,12,700,selHere?9:7);
-    lab(st.access?d.kind:('Scout '+d.scout+' intel'),[[x,y+R+17,'center'],[x,y-R-24,'center']],K.text3,11,600,2);
+    if(selHere)gxSelRing(x,y,R+15,t);
+    hold(x,y,R+6);
+    lab(d.base?'Haven Rock':d.name,
+      [[x,y-R-12,'center'],[x,y+R+18,'center'],[x+R+16,y+4,'left'],[x-R-16,y+4,'right']],
+      d.base?K.rebelHi:st.access?K.text:K.text2,d.base||st.access?13:12,d.base?800:700,selHere?9:7);
+    lab(st.access?d.kind:'Scout '+d.scout+' intel',[[x,y+R+19,'center'],[x,y-R-27,'center']],K.text3,11,600,2);
+    if(!d.base)gxHitL.push({t:'p',id:d.id,x,y,r:Math.max(24,R+10)});
   }
-  // intelligence leads: gold diamonds that stay until the job is done
-  for(const o of (G.opps||[])){
+  /* intelligence leads */
+  if(gxLayers.leads)for(const o of (G.opps||[])){
     if(o.done)continue;
-    const pd=pdef(o.loc),x=w*pd.x+20,y=h*pd.y-16,p=pul(x+y);
-    c2.fillStyle=TH.rgba(K.gold,0.75+0.25*p);c2.strokeStyle=K.ink;c2.lineWidth=1.5;
-    c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+5.5,y);c2.lineTo(x,y+7);c2.lineTo(x-5.5,y);c2.closePath();c2.stroke();c2.fill();
-    if(!o.found){c2.strokeStyle=TH.rgba(K.gold,0.3+0.3*p);c2.lineWidth=1.2;c2.beginPath();c2.arc(x,y,10+3*p,0,7);c2.stroke();}
-    hold(x,y,8);
-    lab(o.found?'Lead · on board':'New lead',[[x+11,y+4,'left'],[x-11,y+4,'right'],[x,y+22,'center'],[x,y-12,'center']],K.goldHi,11,700,5);
-  }
-  // sources ride their worlds
-  const hx=w*pdef('haven').x,hy=h*pdef('haven').y;
-  for(const s of G.sources){
-    if(!s.alive)continue;
-    const [x,y]=srcMapPos(s,w,h);
-    c2.strokeStyle=TH.rgba(K.go,0.2);c2.lineWidth=1.2;c2.setLineDash([3,5]);
-    c2.beginPath();c2.moveTo(hx,hy);c2.lineTo(x,y);c2.stroke();c2.setLineDash([]);
-    const hot=s.risk>60,attn=s.pendingEvent||s.signal;
-    // a source is a voice, not a world: radio-mast icon (green; orange when it is running hot)
-    const col=hot?K.hazard:K.go;
-    c2.fillStyle=col;
-    c2.beginPath();c2.arc(x,y,2.8,0,7);c2.fill();
-    c2.lineWidth=1.6;c2.lineCap='round';
-    c2.strokeStyle=TH.rgba(col,0.9);
-    for(const rr of [5.5,9]){c2.beginPath();c2.arc(x,y,rr,-Math.PI/4-0.55,-Math.PI/4+0.55);c2.stroke();}
-    if(attn){ // signal waiting: waves emanate
-      const tt=(t*0.0011)%1;
-      for(const k of [0,0.5]){
-        const q=(tt+k)%1;
-        c2.strokeStyle=TH.rgba(K.go,0.7*(1-q));
-        c2.beginPath();c2.arc(x,y,10+q*13,-Math.PI/4-0.75,-Math.PI/4+0.75);c2.stroke();
-      }
-    }
-    c2.lineCap='butt';
-    if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,14,0,7);c2.stroke();}
+    const pd=pdef(o.loc);if(!pd)continue;
+    const[px,py]=gxPos(pd),R=gxR(o.loc);
+    const x=px+R+16,y=py-R-8,p=pul(x+y);
+    ctx.fillStyle=K.gold;ctx.strokeStyle=K.ink;ctx.lineWidth=1.8;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x+6,y);ctx.lineTo(x,y+8);ctx.lineTo(x-6,y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(!o.found){ctx.globalAlpha=.5;ctx.beginPath();ctx.arc(x,y,12+(RM?0:p*2),0,7);ctx.lineWidth=2;ctx.strokeStyle=K.gold;ctx.stroke();ctx.globalAlpha=1;}
     hold(x,y,10);
-    lab(s.name.split(' ').pop(),[[x+15,y+4,'left'],[x-15,y+4,'right'],[x,y+24,'center'],[x,y-14,'center']],hot?K.hazard:K.go,11,700,6);
+    lab(o.found?'Lead':'New lead',[[x-12,y+4,'right'],[x+12,y+4,'left'],[x,y-14,'center']],K.goldHi,11,700,5);
+    gxHitL.push({t:'o',id:o.id,x,y,r:14});
   }
+  /* available missions: gold pins */
+  if(gxLayers.missions){
+    const by={};
+    for(const m of G.missions)if(m.state==='avail'&&m.loc)(by[m.loc]=by[m.loc]||[]).push(m);
+    for(const loc in by){
+      const pd=pdef(loc);if(!pd)continue;
+      const[px,py]=gxPos(pd),R=gxR(loc);
+      by[loc].slice(0,2).forEach((m,i)=>{
+        const x=px-R-18-i*24,y=py-R-8;
+        TH.marker(ctx,x,y+8,{icon:typeOf(m)==='space'?'ship':'soldier',color:K.gold,t,size:24});
+        hold(x,y,13);
+      });
+    }
+  }
+  /* sources ride a ring around their worlds */
+  if(gxLayers.network){
+    const byW={};
+    for(const sc of G.sources){if(!sc.alive)continue;const w=SRCPOS[sc.id]||'veray';(byW[w]=byW[w]||[]).push(sc);}
+    for(const w in byW){
+      const pd=pdef(w);if(!pd)continue;
+      const[px,py]=gxPos(pd),R=gxR(w);
+      byW[w].forEach((sc,i)=>{
+        const a=-0.65+i*0.95;
+        const x=px+Math.cos(a)*(R+18),y=py+Math.sin(a)*(R+18);
+        drawSrcBadge(x,y,sc,t);
+        gxSrcPos[sc.id]=[x,y];
+        if(srcSel&&srcSel.t==='s'&&srcSel.id===sc.id)gxSelRing(x,y,18,t);
+        hold(x,y,14);
+        lab(sc.name.split(' ').pop(),[[x+17,y+4,'left'],[x-17,y+4,'right'],[x,y+30,'center']],sc.risk>60?K.hazard:K.rebelHi,11,700,6);
+        gxHitL.push({t:'s',id:sc.id,x,y,r:17});
+      });
+    }
+  }
+  /* ships on their way home */
+  if(gxLayers.flights){
+    const[hx,hy]=gxPos(pdef('haven'));
+    for(const m of G.missions){
+      if(m.state!=='prog'||!m.progress)continue;
+      const pd=pdef(m.loc||'veray');if(!pd)continue;
+      const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+      const[px,py]=gxPos(pd);
+      const total=m.days||1,left=m.progress.daysLeft||0;
+      const k=0.3+0.45*Math.max(0,Math.min(1,1-left/total));
+      const x=px+(hx-px)*k,y=py+(hy-py)*k;
+      const ang=Math.atan2(hy-py,hx-px);
+      ctx.save();ctx.setLineDash([5,7]);ctx.strokeStyle=TH.rgba(K.gold,.6);ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px+(x-px)*.3,py+(y-py)*.3);ctx.lineTo(x-Math.cos(ang)*18,y-Math.sin(ang)*18);ctx.stroke();ctx.restore();
+      SA.ship(ctx,artShipId(f?f.cls:'cross'),x,y,ang,1.05,t,{livery:'rebel'});
+      hold(x,y,16);
+      lab((f?f.name:'Flight')+' · '+(left<=1?'home tomorrow':left+' days'),[[x,y+28,'center'],[x,y-20,'center']],K.text2,11,700,3);
+    }
+  }
+  /* place labels by priority, skipping collisions */
   labs.sort((a,b)=>b.pri-a.pri);
   const placed=occ.slice();
   for(const l of labs){
-    c2.font=l.wt+' '+l.size+'px '+TH.FONT.ui;
-    const tw=c2.measureText(l.s).width;
-    for(const [x,y,al] of l.cands){
+    ctx.font=l.wt+' '+l.size+'px '+TH.FONT.ui;
+    const tw=ctx.measureText(l.s).width;
+    for(const[x,y,al] of l.cands){
       const rx=al==='left'?x:al==='right'?x-tw:x-tw/2,r={x:rx-3,y:y-l.size,w:tw+6,h:l.size+5};
-      if(r.x<2||r.x+r.w>w-2||r.y<2||r.y+r.h>h-2)continue;
+      if(r.x<2||r.x+r.w>cssW-2||r.y<2||r.y+r.h>cssH-2)continue;
       if(placed.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y))continue;
       placed.push(r);txt(l.s,x,y,l.col,l.size,l.wt,al);break;
     }
   }
 }
+/* World view: built out in the next phase; a shrouded placeholder until then */
+function drawWorld(now){
+  const d=pdef(gxWorld);if(!d){gxWorld=null;return;}
+  ctx.fillStyle=K.void;ctx.fillRect(0,0,cssW,cssH);
+  const lk=WORLD_LOOK[d.id]||{col:'#888'};
+  const r=gxRect();
+  SA.planet(ctx,r.x+r.w/2,r.y+r.h/2,Math.min(r.w,r.h)*0.33,lk.col,{tex:lk.tex,ring:lk.ring});
+}
+/* ---------- galaxy DOM: dock panel, rail, tools, command bar ---------- */
+const planetURLs={};
+function planetURL(id){
+  if(planetURLs[id])return planetURLs[id];
+  const lk=WORLD_LOOK[id]||{R:10,col:'#9aa6c4'};
+  const c=document.createElement('canvas');c.width=c.height=80;
+  const c2=c.getContext('2d');
+  SA.planet(c2,40,42,lk.ring?20:26,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg});
+  return planetURLs[id]=c.toDataURL();
+}
+function srcAvatarHTML(s){
+  const hot=s.risk>60,attn=s.pendingEvent||s.signal;
+  return '<span class="sr-avatar gx-src" style="--c:var(--sr-'+(hot?'hazard':'rebel')+')">'+IC('signal')+
+    '<span class="gx-lvl"><b>'+ROMAN[Math.max(0,Math.min(4,(s.level||1)-1))]+'</b></span>'+
+    (attn?'<span class="sr-badge">!</span>':'')+'</span>';
+}
+function gxMiniStats(d,st){
+  const sup=Math.floor(st.sup||0),lib=locLib(d,st);
+  return '<div class="gx-sheet__stats">'+
+    '<div class="gx-mini"><span class="gx-mini__l">Security</span>'+pipRow(d.sec||0,5,'var(--sr-heg)')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Access</span>'+pipRow(st.acc||0,5,'var(--sr-shield)')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Support</span>'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,supCol(sup-1)):'<span class="sr-faint">—</span>')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Freed</span>'+(lib===null?'<span class="sr-faint">—</span>':'<span class="gx-wheel" style="--p:'+lib+'" role="img" aria-label="'+lib+'% liberated"><b>'+lib+'</b></span>')+'</div></div>';
+}
+function gxLoreHTML(text){
+  if(!text)return '';
+  return '<p class="gx-bio'+(gxLoreOpen?'':' gx-bio--clamp')+'">'+text+'</p>'+
+    (String(text).length>150?'<button class="gx-more" data-gxlore>'+(gxLoreOpen?'Less':'Read all')+'</button>':'');
+}
+function gxSourcePanel(s){
+  const hot=s.risk>60;
+  const jobs=G.missions.filter(m=>m.src===s.id&&(m.state==='avail'||m.state==='prog'));
+  return '<div class="sr-window sr-window--sm gx-dossier" style="--accent:var(--sr-'+(hot?'hazard':'rebel')+')">'+
+    '<div class="sr-window__head">'+srcAvatarHTML(s)+'<span class="sr-window__title">'+esc(s.name)+'</span>'+wTag('Level '+s.level,'progress')+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(s.type)+(hot?wTag('Running hot','bad'):'')+'</div>'+
+    gxLoreHTML('“'+esc(s.bio)+'”')+
+    '<div class="gx-meters">'+meterRow('Cultivation',s.cult)+meterRow('Risk',s.risk,'sr-meter--risk'+(hot?' is-hot':''))+'</div>'+
+    (hot?'<p class="sr-fine">Risk '+Math.round(s.risk)+': they’re being watched.</p>':'')+
+    '<div class="gx-income">'+bundleHTML(s.inc)+'<span class="sr-faint">per day</span></div>'+
+    (jobs.length?'<div class="sr-h3">Missions from '+esc(s.name.split(' ')[0])+'</div><div class="gx-here">'+jobs.map(m=>
+      '<button class="sr-unit" data-gxplan="'+m.id+'"><span class="sr-avatar" style="--c:var(--sr-gold)">'+IC(typeOf(m)==='space'?'ship':'soldier')+'</span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(m.name)+'</span><span class="sr-unit__role">'+esc(whereHTML(m)||'')+'</span></span>'+
+      '<span class="sr-unit__side">'+(m.state==='prog'?wTag(m.progress.daysLeft+'d','info'):wTag('Available','friend'))+'</span></button>').join('')+'</div>':'')+
+    '</div></div>';
+}
+function gxRevealList(items){
+  return '<div class="sr-h3">Scouting reveals</div><ul class="gx-reveal">'+items.map(([ic,txt])=>'<li>'+IC(ic)+esc(txt)+'</li>').join('')+'</ul>';
+}
+function gxLockedPanel(d,st){
+  return '<div class="sr-window sr-window--sm gx-dossier">'+
+    '<div class="sr-window__head"><span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span><span class="sr-window__title">'+esc(d.name)+'</span>'+wTag('No access')+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(d.kind)+(d.pop?wTag('Pop '+d.pop):'')+'</div>'+
+    '<p class="gx-bio">Everyone’s heard of it. Nobody’s told us what matters. Scouts would.</p>'+
+    '<div class="gx-stats"><div class="gx-stat"><span class="gx-stat__l">Security</span>'+pipRow(d.sec||0,5,'var(--sr-heg)')+'</div>'+
+    '<div class="gx-stat"><span class="gx-stat__l">Access</span>'+pipRow(st.acc||0,5,'var(--sr-shield)')+'</div></div>'+
+    gxRevealList([['eye','The lie of the land: Security and Support'],['intel','Leads and work for the network'],['people','People who might talk to us']])+
+    '</div></div>';
+}
+function gxUnchartedPanel(d,st){
+  return '<div class="sr-window sr-window--sm gx-dossier" style="--accent:var(--sr-psi)">'+
+    '<div class="sr-window__head"><span class="sr-window__title">Uncharted signal</span>'+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag('The Verge · origin unknown')+'</div>'+
+    '<p class="gx-bio">A world out there we know nothing about. Yet.</p>'+
+    gxRevealList([['galaxy','What the signal is coming from'],['eye','Who holds it, and how hard'],['intel','Whether there is work for us']])+
+    '</div></div>';
+}
+function renderGxDock(){
+  const el=$('gxDock');
+  let h='';
+  if(baseView==='galaxy'&&!gxWorld&&srcSel){
+    if(srcSel.t==='s'){
+      const s=G.sources.find(x=>x.id===srcSel.id&&x.alive);
+      if(s)h=gxSourcePanel(s);else srcSel=null;
+    } else if(srcSel.t==='p'){
+      const d=pdef(srcSel.id),st=pst(srcSel.id);
+      if(d&&st&&!st.access)h=st.known?gxLockedPanel(d,st):gxUnchartedPanel(d,st);
+      else srcSel=null;
+    } else if(srcSel.t==='o'){srcSel=null;}
+  }
+  if(baseView==='galaxy'&&gxWorld)h=gxWorldPanels();
+  el.innerHTML=h;el.hidden=!h;
+}
+function gxWorldPanels(){return '';}   // replaced by the World view phase
+function renderGxRail(){
+  const alive=G.sources.filter(s=>s.alive);
+  const srcRow=s=>{
+    const hot=s.risk>60;
+    return '<button class="sr-unit'+(srcSel&&srcSel.t==='s'&&srcSel.id===s.id?' is-selected':'')+(hot?' gx-hotrow':'')+'" data-gxsrc="'+s.id+'" style="--c:var(--sr-'+(hot?'hazard':'rebel')+')">'+
+      srcAvatarHTML(s)+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(s.name)+'</span><span class="sr-unit__role">'+esc(String(s.type).split(' · ')[0]+' · '+s.loc)+'</span></span>'+
+      '<span class="sr-unit__side gx-income">'+bundleHTML(s.inc)+'</span></button>';
+  };
+  const worldRow=d=>{
+    const st=pst(d.id);
+    const lib=locLib(d,st);
+    const side=d.regions?'<span class="gx-wheel gx-rail-wheel" style="--p:'+(lib||0)+'" role="img" aria-label="'+(lib||0)+'% liberated">'+IC('revflame')+'</span>':pipRow(st.acc||0,5,'var(--sr-shield)');
+    return '<button class="sr-unit'+(gxWorld===d.id?' is-selected':'')+'" data-gxworld="'+d.id+'" style="--c:var(--sr-shield)">'+
+      '<span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+esc(d.name)+'</span>'+(d.base?wTag('Home','friend'):'')+'</span><span class="sr-unit__role">'+esc(d.kind)+(d.regions?' · '+d.regions.length+' regions':'')+'</span></span>'+
+      '<span class="sr-unit__side">'+side+'</span></button>';
+  };
+  const accW=PLANETDEF.filter(d=>!d.base&&pst(d.id)&&pst(d.id).access);
+  const uncharted=G.planets.filter(p=>!p.known).length;
+  const noAccess=G.planets.filter(p=>p.known&&!p.access).length;
+  const flights=[];
+  for(const m of G.missions){
+    if(m.state!=='prog'||!m.progress)continue;
+    const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+    const left=m.progress.daysLeft||0;
+    flights.push('<div class="sr-unit" style="--c:var(--sr-shield)">'+shipAvatar()+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(f?f.name:'Flight')+'</span><span class="sr-unit__role">Mission · '+esc((pdef(m.loc)||{name:'the drift'}).name)+'</span></span>'+
+      '<span class="sr-unit__side">'+wTag(left<=1?'Home tomorrow':left+' days','info')+'</span></div>');
+  }
+  $('railGx').innerHTML=
+    '<section><div class="sr-section__head sr-section__head--friend">'+IC('signal')+'Network<span class="sr-section__count">'+alive.length+' of '+sourceCap()+'</span></div>'+
+    '<div class="sr-stack">'+(alive.map(srcRow).join('')||'<div class="sr-empty">No sources. We’re blind out there.</div>')+'</div></section>'+
+    '<section><div class="sr-section__head sr-section__head--info">'+IC('galaxy')+'Worlds<span class="sr-section__count">'+accW.length+' with access</span></div>'+
+    '<div class="sr-stack">'+worldRow(pdef('haven'))+accW.map(worldRow).join('')+
+    ((uncharted||noAccess)?'<div class="sr-empty">'+[uncharted?uncharted+' uncharted signal'+(uncharted>1?'s':''):null,noAccess?noAccess+' more world'+(noAccess>1?'s':'')+' known, no access':null].filter(Boolean).join(' · ')+'</div>':'')+
+    '</div></section>'+
+    '<section><div class="sr-section__head sr-section__head--info">'+IC('ship')+'In flight<span class="sr-section__count">'+flights.length+'</span></div>'+
+    '<div class="sr-stack">'+(flights.join('')||'<div class="sr-empty">Every ship is on the pads.</div>')+'</div></section>'+
+    '<div class="sr-railhint">Click any row to find it on the map</div>';
+}
+const GX_LAYERDEF=[['network','signal','Network','Sources and their signals'],['leads','intel','Leads','Gold diamonds from our own intelligence'],
+  ['missions','missions','Missions','Jobs waiting on the board'],['lib','revolution','Liberation','How far each front has come'],
+  ['heg','eye','Hegemony security','Their reach, in blue'],['flights','ship','Flights','Our ships out on missions']];
+function renderGxTools(){
+  let h='<div class="gx-tools">';
+  if(gxWorld){
+    h+='<button class="gx-minimap" data-gxminimap aria-label="Back to the galaxy"><canvas id="gxMiniCv" width="200" height="130"></canvas><span class="gx-minimap__lbl">'+IC('back')+'Galaxy</span></button>';
+  } else if(gxLegend){
+    h+='<div class="gx-legend"><div class="gx-legend__h">Layers<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-gxlegend aria-label="Collapse the key">'+IC('clear')+'</button></div>'+
+      GX_LAYERDEF.map(([k,ic,lbl,sub])=>'<button class="gx-legend__row" data-gxlayer="'+k+'" aria-pressed="'+!!gxLayers[k]+'">'+IC(ic)+'<span><b>'+lbl+'</b><span>'+sub+'</span></span><span class="gx-switch'+(gxLayers[k]?' is-on':'')+'"></span></button>').join('')+'</div>';
+  } else {
+    h+='<div class="gx-layers"><button class="gx-layers__h sr-btn sr-btn--sm sr-btn--ghost" data-gxlegend>Layers</button>'+
+      GX_LAYERDEF.map(([k,ic,lbl])=>'<button class="sr-btn sr-btn--icon" data-gxlayer="'+k+'" aria-pressed="'+!!gxLayers[k]+'" aria-label="'+lbl+'" title="'+lbl+'">'+IC(ic)+'</button>').join('')+'</div>'+
+      '<div class="gx-zoom"><button class="sr-btn sr-btn--icon" data-gxzoom="in" aria-label="Zoom in">'+IC('zoomin')+'</button>'+
+      '<button class="sr-btn sr-btn--icon" data-gxzoom="out" aria-label="Zoom out">'+IC('zoomout')+'</button>'+
+      '<button class="sr-btn sr-btn--icon" data-gxzoom="fit" aria-label="Fit the map">'+IC('fit')+'</button></div>';
+  }
+  $('gxTools').innerHTML=h+'</div>';
+}
+/* order cards in the command bar; one cost line is allowed under the label */
+function gxOrder(o){
+  return '<button type="button" class="sr-order'+(o.family?' sr-order--'+o.family:'')+(o.danger?' gx-order--danger':'')+(o.attn?' gx-order--attn':'')+'" data-gxo="'+o.act+'"'+
+    (o.disabled?' disabled aria-disabled="true"':'')+SR.hud.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
+    (o.key?'<span class="sr-kbd sr-order__key">'+o.key+'</span>':'')+IC(o.icon)+'<span class="gx-order-label">'+o.label+'</span>'+(o.cost||'')+
+    (o.badge?'<span class="sr-badge">!</span>':'')+'</button>';
+}
+function gxOrdersFor(){
+  const orders=[];
+  if(gxWorld)return gxWorldOrders();
+  if(!srcSel)return orders;
+  if(srcSel.t==='s'){
+    const s=G.sources.find(x=>x.id===srcSel.id&&x.alive);
+    if(!s)return orders;
+    const sig=!!(s.pendingEvent||s.signal);
+    orders.push(gxOrder({act:'contact',key:'1',icon:'signal',family:'util',label:s.pendingEvent?'Contact — answer them':s.signal?'Contact — signal waiting':'Contact',attn:sig,badge:sig,
+      disabled:s.contacted&&!sig,why:'Already contacted today. Try again tomorrow.',rule:'Raise them on an encrypted burst.'}));
+    orders.push(gxOrder({act:'visit',key:'2',icon:'people',label:'Visit',disabled:s.visited,why:'Already visited.',rule:'Meet them in person: more trust, more risk.'}));
+    orders.push('<span class="sr-orders__sep"></span>');
+    if(s.risk>=50)orders.push(gxOrder({act:'silence',key:'3',icon:'skull',danger:1,label:'Silence',rule:'Send the assassin. Permanent.'}));
+    orders.push(gxOrder({act:'cutloose',key:s.risk>=50?'4':'3',icon:'clear',danger:1,label:cutArm===srcSel.id?'Confirm: cut loose':'Cut loose',rule:'Burn the codes and walk away. Permanent.'}));
+  } else if(srcSel.t==='p'){
+    const d=pdef(srcSel.id),st=pst(srcSel.id);
+    if(d&&st&&!st.access){
+      const can=G.intel>=d.scout;
+      orders.push(gxOrder({act:'scout',key:'1',icon:'eye',family:'util',label:st.known?'Scout & gain access':'Scout the signal',cost:I(d.scout,!can),
+        disabled:!can,why:'Need '+Math.ceil(d.scout-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Put pathfinders on the ground and open the way in.'}));
+    }
+  }
+  return orders;
+}
+function gxWorldOrders(){return [];}   // replaced by the World view phase
+function renderGxBar(){
+  const host=$('gxOrders');
+  const orders=baseView==='galaxy'?gxOrdersFor():[];
+  host.innerHTML=orders.join('');
+  host.hidden=!orders.length;
+}
+function syncGxDOM(){
+  const gal=baseView==='galaxy';
+  ROOT.classList.toggle('gx-view',gal);
+  $('railBase').hidden=gal;$('railGx').hidden=!gal;
+  $('gxTools').hidden=!gal;
+  const tabs=ROOT.querySelector('.sr-tabs');
+  if(tabs)tabs.style.display=(gal&&gxWorld)?'none':'';
+  const ttl=ROOT.querySelector('.sr-topbar__title'),sub=ROOT.querySelector('.sr-topbar__sub');
+  if(gal){
+    if(gxWorld){
+      const d=pdef(gxWorld);
+      const reg=gxRegion&&d&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+      ttl.textContent=d?d.name:'World';
+      sub.textContent=reg?reg.name+' · '+d.name:'World view · Galaxy';
+    } else {
+      const accessN=G.planets.filter(p=>p.access&&p.id!=='haven').length;
+      ttl.textContent='Galaxy';sub.textContent=accessN+' worlds with access';
+    }
+    $('drawerBtn').setAttribute('aria-label','Network and worlds');
+  } else {
+    ttl.textContent='Haven Rock';sub.textContent='Hidden base';
+    $('drawerBtn').setAttribute('aria-label','Crew and flight');
+  }
+  if(gal){renderGxRail();renderGxTools();}
+  renderGxDock();renderGxBar();
+}
+function gxOrderAct(act){
+  if(!act)return;
+  const s=srcSel&&srcSel.t==='s'?G.sources.find(x=>x.id===srcSel.id&&x.alive):null;
+  if(act==='contact'&&s){sComm();srcContact(s);return;}
+  if(act==='visit'&&s){if(!s.visited){sComm();srcVisit(s);}return;}
+  if(act==='silence'&&s){openWin('silence',s);return;}
+  if(act==='cutloose'&&s){
+    if(cutArm!==s.id){cutArm=s.id;renderGxBar();setTimeout(()=>{if(cutArm===s.id){cutArm=null;if(baseView==='galaxy')renderGxBar();}},4000);return;}
+    cutArm=null;srcCutLoose(s);return;
+  }
+  if(act==='scout'&&srcSel&&srcSel.t==='p'){scoutPlanet(srcSel.id);return;}
+  gxWorldAct(act);
+}
+function gxWorldAct(act){}       // replaced by the World view phase
+function gxWorldHover(px,py){return false;}   // replaced by the World view phase
+function gxWorldClick(px,py){}   // replaced by the World view phase
+$('gxTools').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;sClick();
+  if(b.hasAttribute('data-gxminimap')){gxBack();return;}
+  if(b.hasAttribute('data-gxlegend')){gxLegend=!gxLegend;renderGxTools();return;}
+  const lay=b.getAttribute('data-gxlayer');
+  if(lay){gxLayers[lay]=gxLayers[lay]?0:1;saveGxLayers();renderGxTools();return;}
+  const z=b.getAttribute('data-gxzoom');
+  if(z){gxZoom=z==='in'?Math.min(2.5,gxZoom*1.3):z==='out'?Math.max(0.5,gxZoom/1.3):1;return;}
+});
+$('gxDock').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;sClick();
+  if(b.hasAttribute('data-gxclose')){srcSel=null;syncUI();return;}
+  if(b.hasAttribute('data-gxback')){gxBack();return;}
+  if(b.hasAttribute('data-gxlore')){gxLoreOpen=!gxLoreOpen;renderGxDock();return;}
+  const plan=b.getAttribute('data-gxplan');
+  if(plan){const m=G.missions.find(x=>x.id===plan);if(m&&m.state==='avail')openPlan(m);return;}
+  const reg=b.getAttribute('data-gxregion');
+  if(reg){openRegion(reg);return;}
+});
+$('gxOrders').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b||b.disabled)return;sClick();
+  gxOrderAct(b.getAttribute('data-gxo'));
+});
+$('railGx').addEventListener('click',ev=>{
+  const sb=ev.target.closest('[data-gxsrc]');
+  if(sb){
+    sClick();
+    const id=sb.getAttribute('data-gxsrc');
+    const key='gxs:'+id,now2=performance.now();
+    if(lastTap.key===key&&now2-lastTap.t<380){
+      lastTap={key:null,t:0};
+      const s=G.sources.find(x=>x.id===id&&x.alive);
+      if(s){sComm();srcContact(s);}
+      return;
+    }
+    lastTap={key,t:now2};
+    gxWorld=null;gxRegion=null;srcSel={t:'s',id};cutArm=null;syncTabs();syncUI();
+    return;
+  }
+  const wb=ev.target.closest('[data-gxworld]');
+  if(wb){sClick();enterWorld(wb.getAttribute('data-gxworld'));return;}
+});
+
 function drawCommStatic(now){
   const g=$('commStatic');
   if(!g)return;
@@ -2836,6 +3237,12 @@ function drawCommStatic(now){
 function render(now){
   worldT=now;
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(G&&baseView==='galaxy'){
+    if(gxWorld)drawWorld(now);else drawGalaxy(now);   // no base vignette in the galaxy views
+    if(winMode==='comm'||winMode==='cassIntro')drawCommStatic(now);
+    updateGuide();
+    return;
+  }
   const bg=ctx.createRadialGradient(cssW/2,cssH*0.45,60,cssW/2,cssH*0.45,Math.max(cssW,cssH)*0.75);
   bg.addColorStop(0,K.night);bg.addColorStop(1,K.void);
   ctx.fillStyle=bg;ctx.fillRect(0,0,cssW,cssH);
@@ -2847,7 +3254,6 @@ function render(now){
   vg.addColorStop(0,TH.rgba(K.ink,0));vg.addColorStop(1,TH.rgba(K.ink,0.5));
   ctx.fillStyle=vg;ctx.fillRect(0,0,cssW,cssH);
   layoutTilePop();
-  if(winMode==='sources')drawGalaxy(now);
   if(winMode==='comm'||winMode==='cassIntro')drawCommStatic(now);
   updateGuide();
 }
@@ -3011,22 +3417,24 @@ function updateGuide(){
   if(!started||!G||SR.active!=='base'){el.hidden=true;return;}
   // step 1: the sources tutorial — walk the player to Cass
   if(G.onboard==='contact'){
-    if(winMode==='sources'){
+    if(baseView==='galaxy'&&!winMode&&!gxWorld){
       const cass=G.sources.find(x=>x.id==='cass'&&x.alive);
-      const g=$('galaxyCv');
-      if(cass&&g){
+      if(cass){
         if(!(srcSel&&srcSel.t==='s'&&srcSel.id==='cass')){
-          const r=g.getBoundingClientRect();
-          const [sx,sy]=srcMapPos(cass,r.width,r.height);
-          pointAt({left:r.left+sx-8,top:r.top+sy-4,width:16,height:8},'Select Cass Wender');
-          return;
+          const pos=gxSrcPos.cass;
+          if(pos){
+            const r=cv.getBoundingClientRect();
+            pointAt({left:r.left+pos[0]-10,top:r.top+pos[1]-10,width:20,height:20},'Select Cass Wender');
+            return;
+          }
+        } else {
+          const btn=ROOT.querySelector('#gxOrders [data-gxo="contact"]');
+          if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
         }
-        const btn=ROOT.querySelector('[data-sc="cass"]');
-        if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
+    if(!winMode&&!viewRoom&&baseView!=='galaxy'){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -3048,8 +3456,8 @@ function updateGuide(){
 }
 /* ---------- windows ---------- */
 function openWin(mode,arg){
-  // first look at the galaxy: the network primer comes up once, then never again
-  if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
+  // the old sources window became the Galaxy view: every opener lands there
+  if(mode==='sources'){winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;showView('galaxy');return;}
   winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;gearOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
@@ -3656,7 +4064,7 @@ function markShort(){
     if(PL.drop&&G.supplies<DROP_COST)short.s=1;
   } else if(winMode==='newmission'&&winArg){
     if(G.fuel<minFuel(winArg))short.f=1;
-  } else if(winMode==='sources'&&srcSel&&srcSel.t==='p'){
+  } else if(!winMode&&baseView==='galaxy'&&srcSel&&srcSel.t==='p'){
     const d=pdef(srcSel.id),st=pst(srcSel.id);
     if(d&&st){
       if(!st.access){if(G.intel<d.scout)short.i=1;}
@@ -3668,7 +4076,11 @@ function markShort(){
 function markWin(){markShort();}
 /* the three tabs show where the player is; Base is "no window open" */
 function syncTabs(){
-  const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):'navBase';
+  let sel;
+  if(winMode==='missions')sel='navMissions';
+  else if(winMode==='srcTutIntro'||winMode==='srcTut')sel=baseView==='galaxy'?'navSources':null;
+  else if(winMode)sel=null;
+  else sel=baseView==='galaxy'?'navSources':'navBase';
   for(const id of ['navBase','navSources','navMissions'])$(id).setAttribute('aria-selected',String(id===sel));
 }
 const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
@@ -3754,6 +4166,7 @@ function syncUI(){
   if(viewRoom)renderRoomBar();
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
+  syncGxDOM();
   syncTabs();markShort();
 }
 
@@ -3769,6 +4182,11 @@ function figAt(px,py){
 cv.addEventListener('pointermove',ev=>{
   const r=cv.getBoundingClientRect();
   const px=ev.clientX-r.left,py=ev.clientY-r.top;
+  if(baseView==='galaxy'){
+    hoverCell=null;
+    cv.style.cursor=(!gxWorld&&gxHitL.some(h=>Math.hypot(px-h.x,py-h.y)<h.r))||gxWorldHover(px,py)?'pointer':'default';
+    return;
+  }
   if(viewRoom){
     hoverCell=null;
     cv.style.cursor=figAt(px,py)?'pointer':'default';
@@ -3781,6 +4199,25 @@ cv.addEventListener('pointerleave',()=>{hoverCell=null;});
 cv.addEventListener('click',ev=>{
   if(!started)return;
   if(shell.classList.contains('is-drawer-open'))setDrawer(false);
+  if(baseView==='galaxy'){
+    const r=cv.getBoundingClientRect();
+    const px=ev.clientX-r.left,py=ev.clientY-r.top;
+    sClick();
+    if(gxWorld){gxWorldClick(px,py);return;}
+    let best=null,bd=1e9;
+    const pri={o:0,s:1,p:2};
+    for(const h of gxHitL){
+      const d2=Math.hypot(px-h.x,py-h.y);
+      if(d2<h.r){const score=pri[h.t]*1000+d2;if(score<bd){bd=score;best=h;}}
+    }
+    if(!best){if(srcSel){srcSel=null;syncUI();}return;}
+    if(best.t==='o'){openOpp(best.id);return;}
+    if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();return;}
+    const st=pst(best.id);
+    if(st&&st.access)enterWorld(best.id);
+    else{srcSel={t:'p',id:best.id};syncUI();}
+    return;
+  }
   if(viewRoom){
     const r=cv.getBoundingClientRect();
     const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
@@ -3900,7 +4337,7 @@ $('winsB').addEventListener('click',ev=>{
   if(t.hasAttribute('data-autofill')){sClick();plAutoFill();renderWin();return;}
   sClick();
   if(t.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
-  if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){openWin('sources');return;}
+  if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){closeWin();return;}
   if(t.hasAttribute('data-tut-prev')){openWin('srcTut',{page:((winArg&&winArg.page)||0)-1});return;}
   if(t.hasAttribute('data-tut-next')){openWin('srcTut',{page:((winArg&&winArg.page)||0)+1});return;}
   const sc=t.getAttribute('data-sc');
@@ -4077,10 +4514,9 @@ byId('panel').addEventListener('click',ev=>{
 $('navBase').addEventListener('click',()=>{
   sClick();
   if(winMode)closeWin();
-  else if(viewRoom){exitRoomView();syncUI();}
-  else closeTilePop();
+  showView('base');
 });
-$('navSources').addEventListener('click',()=>{sClick();openWin('sources');});
+$('navSources').addEventListener('click',()=>{sClick();if(winMode)closeWin();showView('galaxy');});
 $('navMissions').addEventListener('click',()=>{sClick();openWin('missions');});
 $('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
 $('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
@@ -4122,6 +4558,7 @@ addEventListener('keydown',ev=>{
     if(rankOverlay||gearOverlay){rankOverlay=null;gearOverlay=null;renderWin();return;}
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
+    else if(baseView==='galaxy'&&(gxRegion||gxWorld||srcSel))gxBack();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
     return;
@@ -4130,6 +4567,12 @@ addEventListener('keydown',ev=>{
   if(winMode&&ev.key==='Enter'&&!(document.activeElement&&/^(BUTTON|A|INPUT)$/.test(document.activeElement.tagName))){
     const pb=$('winCardB').querySelector('.sr-window__foot .sr-btn--primary:not(:disabled)');
     if(pb){ev.preventDefault();pb.click();}
+    return;
+  }
+  // 1-9 drive the galaxy command bar
+  if(!winMode&&baseView==='galaxy'&&/^[1-9]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+    const b=[...$('gxOrders').querySelectorAll('.sr-order')].find(x=>{const k=x.querySelector('.sr-order__key');return k&&k.textContent===ev.key&&!x.disabled;});
+    if(b){ev.preventDefault();b.click();}
     return;
   }
   // 1-4 pick dialogue answers

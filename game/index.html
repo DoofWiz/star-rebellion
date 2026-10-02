@@ -56,6 +56,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <canvas id="cv"></canvas>
     <div class="sr-slot-tl">
       <div class="sr-window sr-window--sm bs-dock" id="roomViewBar" hidden></div>
+      <div id="gxDock" hidden></div>
     </div>
     <div class="sr-slot-tc">
       <div class="sr-tabs" role="tablist">
@@ -66,6 +67,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       </div>
       <div class="sr-toast sr-toast--friend" id="flashB" hidden role="status"><svg class="sr-ico" id="flashIco"><use href="#i-signal"/></svg><span id="flashTxt"></span></div>
     </div>
+    <div class="sr-slot-tr" id="gxTools" hidden></div>
     <div class="sr-slot-bl">
       <div class="sr-comms" id="feed" aria-live="polite">
         <div id="feedLines" class="bs-feedlines"></div>
@@ -73,7 +75,8 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       </div>
     </div>
     <div class="sr-slot-br">
-      <div class="sr-cmdbar">
+      <div class="sr-cmdbar" id="baseCmdbar">
+        <div class="sr-orders" id="gxOrders" hidden></div>
         <div class="sr-cmdbar__go">
           <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go" id="dayBtn">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
           <div class="sr-cmdbar__count" id="dockNote" hidden></div>
@@ -85,7 +88,8 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <div class="sr-scrim" id="winsB" hidden><div class="sr-window" id="winCardB"></div></div>
   </div>
   <aside class="sr-rail" id="panel">
-    <div class="sr-rail__scroll">
+    <div class="sr-rail__scroll" id="railGx" hidden></div>
+    <div class="sr-rail__scroll" id="railBase">
       <section>
         <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-pilot"/></svg>Pilots<span class="sr-section__count" id="pilotCount"></span></div>
         <div class="sr-stack" id="pilotList"></div>
