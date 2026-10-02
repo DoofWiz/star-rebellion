@@ -2177,36 +2177,31 @@ function roomCenter(rm){
   for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++){sr+=r;sc+=c;n++;}
   return cellToCss(sr/n,sc/n);
 }
-/* small standing figure */
-function figure(x,y,S,name,col){
-  ctx.fillStyle=col||K.rebelHi;
-  ctx.beginPath();ctx.roundRect(x-3*S,y-12*S,6*S,10*S,3*S);ctx.fill();
-  ctx.beginPath();ctx.arc(x,y-15*S,3*S,0,Math.PI*2);ctx.fill();
+/* ---------- world art: the Bobbleheads kit (game/art/sr-art.js) ---------- */
+const SA=window.SR_ART;
+/* who someone is, read live from their record; nothing saved (docs/art/HANDOFF.md) */
+function personSpec(p){return SA.lookOf(p);}
+/* what a room's crew are doing */
+function jobPose(key){return key==='workshop'?'work':key==='comms'?'hack':key==='store'?'loot':key==='training'?'aim':'idle';}
+/* a Bobblehead standing in a room view (local coordinates); S matches the old stick-figure scale */
+function figure(x,y,S,name,col,p,pose){
+  if(p)SA.character(ctx,x,y,personSpec(p),{view:'front',state:pose||'idle',t:(RM?0:worldT/1000)+x*0.013,s:S*0.48});
+  else{
+    ctx.fillStyle=col||K.rebelHi;
+    ctx.beginPath();ctx.roundRect(x-3*S,y-12*S,6*S,10*S,3*S);ctx.fill();
+    ctx.beginPath();ctx.arc(x,y-15*S,3*S,0,Math.PI*2);ctx.fill();
+  }
   if(name){
     ctx.font='700 '+Math.max(Math.round(9*S),Math.ceil(11/rvSx))+'px '+TH.FONT.ui;
     ctx.textAlign='center';ctx.fillStyle=TH.rgba(K.text2,0.9);
     ctx.fillText(name,x,y+9*S+3);
   }
 }
-function fighterTop(x,y,S,rot,alive,col){
-  ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-  ctx.fillStyle=col||K.steel;
-  ctx.beginPath();ctx.moveTo(14*S,0);ctx.lineTo(-8*S,-8*S);ctx.lineTo(-4*S,0);ctx.lineTo(-8*S,8*S);ctx.closePath();ctx.fill();
-  ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
-  ctx.restore();
-}
-function craftTop(cls,x,y,S,rot,col){
-  if(cls==='graf'){
-    ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-    ctx.fillStyle=col||K.steel;
-    ctx.beginPath();ctx.roundRect(-14*S,-7*S,26*S,14*S,3*S);ctx.fill();
-    ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle=K.ink;
-    ctx.beginPath();ctx.roundRect(7*S,-4*S,6*S,8*S,2*S);ctx.fill();
-    ctx.strokeStyle=TH.rgba(K.ink,0.8);
-    ctx.beginPath();ctx.moveTo(-5*S,-7*S);ctx.lineTo(-5*S,7*S);ctx.stroke();
-    ctx.restore();
-  } else fighterTop(x,y,S,rot,true,col);
+/* game ship class -> art hull id (the fleet's 'cross' and the db's 'viper' are the same hull) */
+function artShipId(cls){return SA.SHIP_FOR_GAME[cls]||(SA.SHIPS[cls]?cls:'cross');}
+function fighterTop(x,y,S,rot,alive,col){craftTop('cross',x,y,S,rot,col);}
+function craftTop(cls,x,y,S,rot,col,o){
+  SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel'},o||{}));
 }
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
@@ -2275,13 +2270,13 @@ function renderBase(now){
       } else if(rm.key==='hangar'){
         if(G.wreck&&!G.wreck.restored){
           ctx.globalAlpha=0.55;
-          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,K.seam);
+          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
           ctx.globalAlpha=1;
         }
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
           ctx.globalAlpha=f.out?0.25:0.95;
-          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,f.out?K.seam:undefined);
+          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,undefined,{damage:1-f.hull/100});
           ctx.globalAlpha=1;
           if(!f.out){
             ctx.fillStyle=hullCol(f.hull);
@@ -2446,10 +2441,12 @@ function renderRoomView(now){
   const dtv=Math.min(0.05,(now-(rvLast||now))/1000);rvLast=now;
   if(RM)now=0;   // reduced motion: the room holds still
   rvFigs=[];
-  const addFig=(fx,fy,p,fcol)=>{
-    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol);
-    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:18,pid:p.id});
+  const addFig=(fx,fy,p,fcol,pose)=>{
+    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol,p,pose||jobPose(rm.key));
+    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:24,pid:p.id});
   };
+  const POST_EMOTE={command:'\u2615',workshop:'\ud83d\udd27',comms:'\ud83d\udce1',store:'\ud83d\udce6'};
+  const addStaff=(fx,fy,p,i)=>{addFig(fx,fy,p);if(POST_EMOTE[rm.key])SA.emote(ctx,fx,fy-66,POST_EMOTE[rm.key],RM?0:now/1000,i||0);};
   const spark=(fx,fy,scol)=>{
     if(RM)return;
     rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||K.goldHi});
@@ -2479,16 +2476,14 @@ function renderRoomView(now){
       ctx.setLineDash([]);
       const f=G.fighters[i];
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-        ctx.globalAlpha=0.6;
-        craftTop('graf',bx,by,3.4,-0.5,K.seam);
-        ctx.globalAlpha=1;
+        craftTop('graf',bx,by,3.4,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
         ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,by+62);
         continue;
       }
       if(f&&!f.out){
-        craftTop(f.cls,bx,by,3.4,-0.5);
+        craftTop(f.cls,bx,by,3.4,-0.5,null,{damage:1-f.hull/100});
         ctx.font=fnt(12);ctx.textAlign='center';
         ctx.fillStyle=K.text;ctx.fillText(f.name,bx,by+62);
         ctx.fillStyle=K.ink;ctx.fillRect(bx-27,by+67,54,7);
@@ -2510,7 +2505,7 @@ function renderRoomView(now){
       ctx.fillStyle=TH.rgba(K.goldHi,0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)));
       ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
     }
-    staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,col));
+    staffOf('command').forEach((p,i)=>addStaff(-120+i*40,50,p,i));
   } else if(rm.key==='barracks'){
     const cap=Math.min(bunkCap(),12);
     const resters=G.people.filter(p=>p.assign==='rest'&&!p.injured);
@@ -2523,7 +2518,7 @@ function renderRoomView(now){
       if(p){
         ctx.fillStyle=K.rebelHi;
         ctx.beginPath();ctx.roundRect(bx-28,by-6,44,11,5);ctx.fill();
-        ctx.beginPath();ctx.arc(bx+24,by,5,0,7);ctx.fill();
+        SA.portrait(ctx,bx+26,by-1,9,personSpec(p),{t:0});
         ctx.font=fnt(11,600);ctx.textAlign='center';
         ctx.fillStyle=K.text2;ctx.fillText(p.name.split(' ')[0],bx,by+26);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:22,pid:p.id});
@@ -2544,13 +2539,13 @@ function renderRoomView(now){
       ctx.font=fnt(12);ctx.textAlign='left';
       ctx.fillStyle=K.gold;ctx.fillText(a.ic+' ×'+a.n,158,-60+i*Math.max(16,Math.ceil(13/Sx)));
     });
-    staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,K.go));
+    staffOf('store').forEach((p,i)=>addStaff(-160+i*40,60,p,i));
   } else if(rm.key==='workshop'){
     const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
     ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
     ctx.strokeRect(-70,-30,140,46);
     if(wounded){
-      craftTop(wounded.cls,0,-8,3,-0.3);
+      craftTop(wounded.cls,0,-8,3,-0.3,null,{damage:1-wounded.hull/100});
       ctx.font=fnt(12);ctx.textAlign='center';
       ctx.fillStyle=K.text;ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,46);
       if(rng()<0.12)spark((rng()-0.5)*80,-6);
@@ -2558,7 +2553,7 @@ function renderRoomView(now){
       ctx.font=fnt(12);ctx.textAlign='center';
       ctx.fillStyle=K.text2;ctx.fillText('Lift empty — nothing broken. For once.',0,0);
     }
-    staffOf('workshop').forEach((p,i)=>addFig(-110+i*40,50,p,K.steel));
+    staffOf('workshop').forEach((p,i)=>addStaff(-110+i*40,50,p,i));
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
     for(let i=0;i<2;i++){
@@ -2569,7 +2564,7 @@ function renderRoomView(now){
       if(p){
         ctx.fillStyle=K.hazard;
         ctx.beginPath();ctx.roundRect(bx-32,by-7,52,12,6);ctx.fill();
-        ctx.beginPath();ctx.arc(bx+28,by-1,6,0,7);ctx.fill();
+        SA.portrait(ctx,bx+30,by-1,10,personSpec(p),{face:'worried',t:0});
         ctx.font=fnt(11,600);ctx.textAlign='center';
         ctx.fillStyle=K.hazard;ctx.fillText(p.name.split(' ')[0]+' · '+p.injured+'d',bx,by+30);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:24,pid:p.id});
@@ -2616,7 +2611,7 @@ function renderRoomView(now){
       px===-100?ctx.moveTo(px,vy):ctx.lineTo(px,vy);
     }
     ctx.stroke();
-    staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,K.shield));
+    staffOf('comms').forEach((p,i)=>addStaff(120+i*40,30,p,i));
   } else if(rm.key==='diplo'){
     ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(0,0,90,40,0,0,Math.PI*2);ctx.stroke();
@@ -4841,6 +4836,7 @@ if(location.hash==='#test'){
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       restoreCampaign,addVehicle,vehPool,GVEH_:()=>GVEH,
-      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
+      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList,
+      enterRoom:key=>{const rm=G.rooms.find(r=>r.key===key&&!r.build);if(rm)enterRoomView(rm);return !!rm;},exitRoomView}};
 }
 })();
