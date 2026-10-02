@@ -98,9 +98,9 @@ const SPEC_COST=300;
 /* gear grid: every item has a category and a footprint; duplicates stack as one entry ("x N") */
 const GEAR_CATS=['All','Weapons','Explosives','Armour','Other'];
 const GEAR_META={
-  akli:{cat:'Weapons',sub:'Rifles',w:3,h:1},cowboy:{cat:'Weapons',sub:'Pistols',w:1,h:1},
-  scatter:{cat:'Weapons',sub:'Rifles',w:3,h:1},carbine:{cat:'Weapons',sub:'Rifles',w:3,h:1},
-  shells:{cat:'Other',sub:'Ammunition',w:1,h:1},blam:{cat:'Explosives',sub:'Grenades',w:1,h:1},
+  akli:{cat:'Weapons',sub:'Rifles',w:3,h:1,slot:'primary',q:2},cowboy:{cat:'Weapons',sub:'Pistols',w:1,h:1,slot:'secondary',q:1},
+  scatter:{cat:'Weapons',sub:'Rifles',w:3,h:1,slot:'primary',q:2},carbine:{cat:'Weapons',sub:'Rifles',w:3,h:1,slot:'primary',q:3},
+  shells:{cat:'Other',sub:'Ammunition',w:1,h:1},blam:{cat:'Explosives',sub:'Grenades',w:1,h:1,slot:'gadget',q:1},
   charge:{cat:'Explosives',sub:'Explosive Charges',w:2,h:1},
 };
 const gearMeta=a=>GEAR_META[a.id]||{cat:'Other',sub:'Misc',w:2,h:1};
@@ -157,7 +157,7 @@ function newGame(){
       {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
-      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
+      {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
       {id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'},
       {id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'},
       {id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,assign:'rest',injured:0,equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'},
@@ -171,6 +171,7 @@ function newGame(){
     news:[],
   };
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
+  {const keep=G;G=g0;g0.people.forEach(gearFromEquip);G=keep;}
   g0.morale=Rebel.MORALE_START;
   return g0;
 }
@@ -239,6 +240,74 @@ const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
 /* ---------- morale: every rebel has their own; G.morale is the base's mood, their average ---------- */
 const crewOf=()=>G.people.filter(p=>!p.auto);
 function mood(){const c=crewOf();G.morale=c.length?c.reduce((a,p)=>a+(p.morale===undefined?Rebel.MORALE_START:p.morale),0)/c.length:Rebel.MORALE_START;}
+
+/* ---------- carried gear ----------
+   Each rebel with slots (see Rebel.gearSlots) carries items from the armory: p.gear = {primary, secondary, gad:[a,b]}.
+   An item can only be carried by one rebel per unit in stock. New kit is handed out automatically to empty
+   slots, best first to the most experienced; anything the player chose by hand is left alone. */
+const SLOT_LABEL={primary:'Primary weapon',secondary:'Secondary weapon',gad:'Gadget'};
+const gearSlots=p=>Rebel.gearSlots(p);
+function gearHeld(p){const g=p.gear=p.gear||{primary:null,secondary:null,gad:[null,null]};if(!g.gad)g.gad=[null,null];return g;}
+const slotGet=(p,s)=>{const g=gearHeld(p);return s.k==='gad'?g.gad[s.i]:g[s.k];};
+const slotSet=(p,s,id)=>{const g=gearHeld(p);if(s.k==='gad')g.gad[s.i]=id||null;else g[s.k]=id||null;};
+const gearFits=(id,s)=>{const m=GEAR_META[id];return !!m&&m.slot===(s.k==='gad'?'gadget':s.k);};
+const carried=id=>crewOf().reduce((n,p)=>n+gearSlots(p).filter(s=>slotGet(p,s)===id).length,0);
+const stockOf=id=>{const a=G.armory.find(x=>x.id===id);return a?a.n:0;};
+const freeOf=id=>Math.max(0,stockOf(id)-carried(id));
+const holders=(id,not)=>crewOf().filter(p=>!not.includes(p)&&p.assign!=='mission'&&gearSlots(p).some(s=>slotGet(p,s)===id));
+function bestFree(s){
+  let best=null;
+  for(const a of G.armory)if(a.n>0&&gearFits(a.id,s)&&freeOf(a.id)>0&&(!best||(GEAR_META[a.id].q||0)>(GEAR_META[best].q||0)))best=a.id;
+  return best;
+}
+/* drop anything that no longer makes sense: items that were used up or lost, slots a rebel no longer has */
+function reconcileGear(){
+  for(const p of crewOf()){
+    if(!gearSlots(p).length){p.gear=null;continue;}
+    for(const s of gearSlots(p)){const id=slotGet(p,s);if(id&&(!gearFits(id,s)||stockOf(id)<=0))slotSet(p,s,null);}
+  }
+  const weakestFirst=crewOf().slice().sort((a,b)=>a.level-b.level);
+  for(const a of G.armory){
+    let over=carried(a.id)-a.n;
+    for(const p of weakestFirst)for(const s of gearSlots(p)){if(over>0&&slotGet(p,s)===a.id){slotSet(p,s,null);over--;}}
+  }
+}
+/* fill every empty slot from what is free; `first` rebels (a mission squad) choose before the rest */
+function autoEquip(first){
+  if(!G||!G.people)return;
+  reconcileGear();
+  const rest=crewOf().filter(p=>!(first||[]).includes(p)).sort((a,b)=>b.level-a.level||(b.rank||0)-(a.rank||0));
+  for(const p of (first||[]).concat(rest)){
+    if(p.assign==='mission')continue;
+    for(const s of gearSlots(p)){if(slotGet(p,s))continue;const id=bestFree(s);if(id)slotSet(p,s,id);}
+  }
+}
+/* before a mission: the people going get kit even if it means taking it off someone staying home */
+function outfitSquad(going){
+  going=going.filter(p=>p&&!p.auto&&gearSlots(p).length);
+  autoEquip(going);
+  for(const p of going)for(const s of gearSlots(p)){
+    if(slotGet(p,s))continue;
+    const ids=G.armory.filter(a=>a.n>0&&gearFits(a.id,s)).sort((a,b)=>(GEAR_META[b.id].q||0)-(GEAR_META[a.id].q||0)).map(a=>a.id);
+    for(const id of ids){
+      const h=holders(id,going)[0];
+      if(h){const hs=gearSlots(h).find(x=>slotGet(h,x)===id);slotSet(h,hs,null);slotSet(p,s,id);break;}
+    }
+  }
+}
+const wpnsFromGear=p=>{const g=p.gear||{},w=[g.primary,g.secondary].filter(Boolean);return w.length?w:['unarmed'];};
+const nadesCarried=squad=>squad.reduce((n,p)=>n+(p.auto?0:gearSlots(p).filter(s=>s.k==='gad'&&slotGet(p,s)==='blam').length),0);
+/* old saves and the opening cast: read p.equip into slots once */
+function gearFromEquip(p){
+  const g=gearHeld(p);
+  for(const id of p.equip||[]){
+    const m=GEAR_META[id];if(!m)continue;
+    const s=gearSlots(p).find(x=>gearFits(id,x)&&!slotGet(p,x));
+    if(s)slotSet(p,s,id);
+  }
+  return g;
+}
+
 /* a base-wide event: everybody feels it, those in `team` feel it differently */
 function moraleAll(d,kind,team,dTeam){
   for(const p of crewOf())Rebel.moraleBump(p,team&&team.includes(p.id)?dTeam:d,kind);
@@ -2730,11 +2799,11 @@ function updateGuide(){
 function openWin(mode,arg){
   // first look at the galaxy: the network primer comes up once, then never again
   if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
-  winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
+  winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;gearOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
 function closeWin(){
-  winMode=null;winArg=null;cutArm=null;rankOverlay=null;$('winsB').hidden=true;syncTabs();markShort();
+  winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;syncTabs();markShort();
   if(started&&G&&RQ.length&&nextReport())return;
   // a freshly discovered mission announces itself once the channel closes
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
@@ -2926,11 +2995,40 @@ function rankCard(p){
     '<div class="sr-card__body">'+body+'</div>'+(acts.length?'<div class="sr-card__acts" style="margin-top:8px">'+acts.join('')+'</div>':'')+'</div>';
 }
 /* the rank details float over the personnel file; dismiss them and the file is still there */
-let rankOverlay=null;
+let rankOverlay=null,gearOverlay=null;
 function rankOverlayHTML(p){
   return '<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close rank details"></button>'+
     '<div class="bs-overlay__panel" role="dialog" aria-label="Rank details"><div class="sr-window__head"><span class="sr-window__title">'+esc(p.name)+' \u00b7 Rank</span>'+wX('data-rank-close')+'</div>'+
     '<div class="sr-window__body">'+rankCard(p)+'</div></div></div>';
+}
+/* the gear a rebel carries, one tappable row per slot; the picker opens as an overlay */
+function gearSection(p){
+  const slots=gearSlots(p);
+  if(!slots.length)return '';
+  const away=p.assign==='mission';
+  const rows=slots.map(s=>{
+    const id=slotGet(p,s),a=id&&G.armory.find(x=>x.id===id);
+    return '<button class="bs-gearslot" data-gear-slot="'+p.id+':'+s.k+':'+(s.i||0)+'"'+(away?' disabled title="Away on a mission"':'')+'>'+
+      '<span class="bs-gearslot__k">'+SLOT_LABEL[s.k]+'</span><span class="bs-gearslot__v">'+(a?IC(gearIcon(a))+'<span>'+esc(a.name)+'</span>':'<span class="sr-faint">Empty</span>')+'</span>'+
+      '<span class="bs-rank__go">'+IC('chevron')+'</span></button>';
+  }).join('');
+  return '<div class="sr-h3">Gear</div><div class="bs-gearslots">'+rows+'</div>';
+}
+function gearOverlayHTML(p){
+  const s=gearSlots(p).find(x=>x.k===gearOverlay.k&&(x.i||0)===gearOverlay.i);
+  if(!s)return '';
+  const cur=slotGet(p,s);
+  const opts=G.armory.filter(a=>a.n>0&&gearFits(a.id,s)).sort((a,b)=>(GEAR_META[b.id].q||0)-(GEAR_META[a.id].q||0));
+  const pick=(id,body,dis)=>'<button class="bs-gearpick'+(id===cur?' is-on':'')+'" data-gear-pick="'+p.id+':'+s.k+':'+(s.i||0)+':'+id+'"'+(dis?' disabled':'')+'>'+body+'</button>';
+  const list=(cur?pick('','<span class="bs-gearpick__n">Leave empty</span><span class="sr-faint">Back to the armory</span>'):'')+
+    opts.map(a=>{
+      const free=freeOf(a.id),hold=holders(a.id,[p]),mine=cur===a.id;
+      const state=mine?'<span class="bs-good">Carrying</span>':free>0?'<span class="bs-good">'+free+' free</span>':hold.length?'<span class="sr-faint">Take from '+esc(hold[0].name.split(' ')[0])+'</span>':'<span class="sr-faint">All away on missions</span>';
+      return pick(a.id,'<span class="bs-gearpick__n">'+IC(gearIcon(a))+'<span>'+esc(a.name)+'</span></span><span class="bs-sub">'+esc(a.desc||'')+'</span>'+state,!mine&&free<=0&&!hold.length);
+    }).join('')||'<div class="sr-empty">Nothing in the armory fits this slot.</div>';
+  return '<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close"></button>'+
+    '<div class="bs-overlay__panel" role="dialog" aria-label="Choose gear"><div class="sr-window__head"><span class="sr-window__title">'+esc(p.name.split(' ')[0])+' \u00b7 '+SLOT_LABEL[s.k]+'</span>'+wX('data-rank-close')+'</div>'+
+    '<div class="sr-window__body"><div class="bs-gearpicks">'+list+'</div></div></div></div>';
 }
 /* skill bars out of 50: the level sets the base, mission experience adds the rest */
 function skillsCard(p){
@@ -3108,7 +3206,7 @@ function renderWin(){
       '<div class="bs-chips">'+GEAR_CATS.map(c=>rbtn('data-gearcat="'+c+'" aria-pressed="'+(GEARCAT===c)+'"',c,false,'sr-btn--sm')).join('')+'</div>'+
       '<div class="bs-geargrid" style="grid-template-columns:repeat('+gcols+',1fr)">'+
       lay.map(x=>'<div class="bs-gearcell" title="'+esc(x.a.desc||'')+'" style="grid-column:'+(x.c+1)+' / span '+x.m.w+';grid-row:'+(x.r+1)+' / span '+x.m.h+'">'+
-        '<span class="bs-gearcell__n">'+IC(gearIcon(x.a))+'<span>'+x.a.name+'</span></span><span class="bs-sub">'+(x.m.w>1?x.m.sub+' · ':'')+'×'+x.a.n+'</span></div>').join('')+
+        '<span class="bs-gearcell__n">'+IC(gearIcon(x.a))+'<span>'+x.a.name+'</span></span><span class="bs-sub">'+(x.m.w>1?x.m.sub+' · ':'')+'×'+x.a.n+(x.m.slot&&carried(x.a.id)?' · '+carried(x.a.id)+' carried':'')+'</span></div>').join('')+
       '</div>'+(lay.length?'':'<div class="sr-empty">Nothing in this category.</div>'));
   }
   else if(winMode==='diplo'){
@@ -3210,15 +3308,10 @@ function renderWin(){
           '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+st.wpns.map(w=>w[0]).join(' · ')+'</div>'+
           '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
       }
-    } else if(p.role==='Soldier'){
-      b+='<div class="sr-h3">Equipment</div><div class="sr-stack">';
-      for(const eq of (p.equip||[])){
-        const a=G.armory.find(x=>x.id===eq);
-        if(a)b+='<div class="sr-loot"><span style="display:flex;gap:10px;align-items:center">'+IC(gearIcon(a))+'<span><b>'+a.name+'</b>'+(a.desc?'<span class="bs-sub">'+a.desc+'</span>':'')+'</span></span></div>';
-      }
-      b+='</div>';
-      if(p.auto)b+='<p class="sr-p">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</p>';
-      else if(!(p.equip||[]).length)b+='<div class="sr-empty">Empty-handed. Fix that before the ground war.</div>';
+      b+=gearSection(p);
+    } else if(p.role==='Soldier'||p.role==='Marine'){
+      if(p.auto)b+='<div class="sr-h3">Equipment</div><p class="sr-p">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</p>';
+      else b+=gearSection(p);
     } else {
       const st=p.assign.startsWith('station:')?p.assign.slice(8):null;
       b+='<div class="sr-h3">Station</div><p class="sr-p">'+
@@ -3242,7 +3335,7 @@ function renderWin(){
       }
       b+='</div>';
     }
-    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'');
+    h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
   }
   else if(winMode==='silence'){
     const s=winArg;
@@ -3564,7 +3657,7 @@ $('winsB').addEventListener('click',ev=>{
     if(bunksUsed()>=bunkCap()&&!must){news('No bunks free. '+p.name+' can’t stay.','h');syncUI();return;}
     if(p.id&&p.id.indexOf('rec')===0&&p.id.indexOf('rcb')!==0)G.recruitN++;
     p.joined=G.day;
-    G.people.push(Rebel.migrate(p));mood();
+    G.people.push(Rebel.migrate(p));mood();autoEquip();
     G.recWait=G.recWait.filter(x=>x!==p);
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
     if(p.id==='sera')G.onboard='crossready';
@@ -3616,7 +3709,22 @@ $('winsB').addEventListener('click',ev=>{
   const dipBtn=t.getAttribute('data-dip');
   if(dipBtn){startDip(dipBtn);saveSnap();syncUI();renderWin();return;}
   if(t.hasAttribute('data-rank-open')){rankOverlay=t.getAttribute('data-rank-open');sClick();renderWin();return;}
-  if(t.hasAttribute('data-rank-close')){rankOverlay=null;renderWin();return;}
+  if(t.hasAttribute('data-rank-close')){rankOverlay=null;gearOverlay=null;renderWin();return;}
+  if(t.hasAttribute('data-gear-slot')){
+    const [pid,k,i]=t.getAttribute('data-gear-slot').split(':');
+    gearOverlay={pid,k,i:+i};sClick();renderWin();return;
+  }
+  if(t.hasAttribute('data-gear-pick')){
+    const [pid,k,i,id]=t.getAttribute('data-gear-pick').split(':');
+    const p=G.people.find(x=>x.id===pid),s=p&&gearSlots(p).find(x=>x.k===k&&(x.i||0)===+i);
+    if(p&&s&&p.assign!=='mission'){
+      if(!id)slotSet(p,s,null);
+      else if(freeOf(id)>0||slotGet(p,s)===id)slotSet(p,s,id);
+      else{const h=holders(id,[p])[0];if(h){slotSet(h,gearSlots(h).find(x=>slotGet(h,x)===id),null);slotSet(p,s,id);news('<b>'+h.name.split(' ')[0]+'</b> hands the <b>'+(G.armory.find(a=>a.id===id)||{name:id}).name+'</b> to <b>'+p.name.split(' ')[0]+'</b>.','d');}}
+      saveSnap();
+    }
+    gearOverlay=null;syncUI();renderWin();return;
+  }
   const promoId=t.getAttribute('data-promote');
   if(promoId){
     const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
@@ -3719,7 +3827,7 @@ addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
   if(ev.key==='Escape'){
     if(!menu.hidden){closeMenu();return;}
-    if(rankOverlay){rankOverlay=null;renderWin();return;}
+    if(rankOverlay||gearOverlay){rankOverlay=null;gearOverlay=null;renderWin();return;}
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(viewRoom){exitRoomView();syncUI();}
@@ -3752,8 +3860,7 @@ $('restartBtn').addEventListener('click',()=>{
 function introSpec(){
   const soldiers=G.people.filter(p=>p.role==='Soldier').slice(0,3);
   return {kind:'ground',missionId:'haven',scenario:'haven',days:0,
-    squad:soldiers.map(p=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-      aim:soldierAim(p),hp:100,wpns:['akli','cowboy']}))};
+    squad:soldiers.map(p=>squadEntry(p,false))};
 }
 function launchIntro(){
   closeWin();closeTilePop();
@@ -4043,7 +4150,7 @@ function assetsHTML(){
 function squadEntry(p,scatterFirst){
   return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),
     aim:soldierAim(p),hp:p.auto?autoOf(p).hp:Rebel.hpOf(p),agi:p.auto?1:Rebel.moveMul(p),nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Rebel.coolOf(p,'g'),def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
-    wpns:p.auto?[autoOf(p).wpn]:scatterFirst?['scatter','akli','cowboy']:['akli','cowboy']};
+    wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
 function startPlan(){
   const m=PL.m;
@@ -4055,11 +4162,12 @@ function startPlan(){
     const squad=PL.slots.filter(sl=>sl.acc==='soldier').map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
     const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
-    const scatter=G.armory.find(a=>a.id==='scatter'&&a.n>0);
-    const blam=G.armory.find(a=>a.id==='blam');
+    const reinforce=[];for(const a of PL.assets)if(a.mode==='reinforce')for(let q=0;q<2;q++){const rp=G.people.find(x=>x.id===PL.v['as'+PL.assets.indexOf(a)+'r'+q]);if(rp)reinforce.push(rp);}
+    outfitSquad(squad.concat(reinforce,prize?[prize]:[]));
+    G.nadesOut=nadesCarried(squad);
     G.fuel-=fuel;
     if(PL.drop)G.supplies-=DROP_COST;
-    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:blam?blam.n:0,
+    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:nadesCarried(squad),
       charges:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='charge')||{}).n)||0):((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       limpets:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='limpet')||{}).n)||0):0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
@@ -4067,14 +4175,14 @@ function startPlan(){
       ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,variant:m.region,
         sub:m.ctx.place+' \u00b7 '+m.ctx.locName+' \u2014 Revolution I',
         eyebrow:'Ground Operation \u00b7 '+m.ctx.place+', '+m.ctx.locName,flavour:m.desc}:undefined,
-      squad:squad.map((p,i)=>squadEntry(p,!!scatter&&i===squad.findIndex(q=>!q.auto))),
+      squad:squad.map(p=>squadEntry(p,false)),
       assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=SEATS[f.cls]?a.mode:'strafe';
         return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
           soldiers:mode==='reinforce'?[0,1].map(q=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
       })},
-      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level}:undefined,
+      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
     const flight=[];
@@ -4103,6 +4211,7 @@ function addArmoryItem(name){
   else if(hit[0]==='limpet')G.armory.push({id:'limpet',name:'Data Limpet',n:1,ic:'\u25c9',desc:'A palm-sized tap that clamps onto a comm tower and copies every packet that passes. Needs no fuse.'});
   else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n:1,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
   else G.armory.push({id:hit[0],name:hit[1],n:1,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
+  autoEquip();
 }
 function applyDebrief(r){
   if(!r)return;
@@ -4192,7 +4301,8 @@ function applyDebrief(r){
   }
   if(r.kind==='ground'&&r.nades!==undefined){
     const a=G.armory.find(x=>x.id==='blam');
-    if(a)a.n=r.nades;
+    const given=G.nadesOut===undefined?(a?a.n:0):G.nadesOut;G.nadesOut=undefined;
+    if(a)a.n=Math.max(0,a.n-given+r.nades);
     else if(r.nades>0)G.armory.push({id:'blam',name:'BLAM Frag Grenade',n:r.nades,ic:'✸',
       desc:'Cheap, loud, and honest about it. Thrown one round, felt the next.'});
     if(r.nades>0&&!a)got.push('BLAM frags ×'+r.nades);
@@ -4256,6 +4366,7 @@ function applyDebrief(r){
       sAlert();
     }
   }
+  autoEquip();
   saveSnap();syncUI();
   nextReport();
 }
@@ -4289,6 +4400,8 @@ function restoreCampaign(data){
     G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
     mood();
+    for(const p of crewOf())if(!p.gear)gearFromEquip(p);
+    autoEquip();
     G.candQ=G.candQ||[];
     if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
     for(const d of PLANETDEF){
@@ -4377,7 +4490,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

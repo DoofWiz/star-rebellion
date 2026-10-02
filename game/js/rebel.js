@@ -231,6 +231,12 @@ window.Rebel=(function(){
     return !was&&canPromote(p);
   }
 
+  /* ---------- gear slots ----------
+     Soldiers and Marines carry a primary weapon, a secondary weapon and two gadgets; Pilots a secondary weapon
+     and two gadgets; Support carry nothing. A Hero (Phase 10) gets the full set. */
+  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'gad',i:0},{k:'gad',i:1}];
+  const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?FULL_KIT.slice(1):[]):[];
+
   /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
   const xpMult=p=>(has(p,'quicklearner')?1.1:1)*(has(p,'slowlearner')?0.9:1);
   function gainXp(p,amount){return addXp(p,amount*xpMult(p));}
@@ -245,5 +251,5 @@ window.Rebel=(function(){
     return p;
   }
 
-  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
+  return {LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

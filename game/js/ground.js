@@ -46,6 +46,7 @@ const WPN={
   scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
   longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
   rocket: {name:'Makeshift Rocket',   d0:55,d1:85,rng:520,atk:0,shots:1},
+  unarmed:{name:'Bare hands',          d0:5, d1:10,rng:60, atk:-1,shots:1},
   fists:  {name:'Riot Fists',          d0:22,d1:36,rng:70, atk:1,shots:2},
   cruiser:{name:'Cruiser Pulse Cannon',d0:18,d1:30,rng:480,atk:1,shots:2},
   dispersal:{name:'Dispersal Turret',  d0:14,d1:24,rng:340,atk:1,shots:3},
@@ -789,7 +790,7 @@ function initUnits(){
   }
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:['cowboy'],frail:1,lines:PILOT_LINES}));
+      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:spec.pilot.wpns||['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
     ...roster,
@@ -4196,7 +4197,7 @@ const OM={
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run or a gunship.'},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
-const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
+const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
 function activeWork(s){
   return WORK.find(w=>!w.done&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
 }
@@ -4776,7 +4777,7 @@ function scenarioUI(){
   hint.hidden=!B.hint;
   const spec=CTX||defaultSpec();
   const cards=(spec.squad||[]).map(sp=>SR.ui.squadCard({name:sp.name,role:'Soldier',chips:SR.ui.gearChips(sp.wpns||['akli','cowboy'])}));
-  if(spec.pilot)cards.push(SR.ui.squadCard({name:spec.pilot.name,role:'Pilot',pilot:true,chips:SR.ui.gearChips(['cowboy'])}));
+  if(spec.pilot)cards.push(SR.ui.squadCard({name:spec.pilot.name,role:'Pilot',pilot:true,chips:SR.ui.gearChips(spec.pilot.wpns||['cowboy'])}));
   byId('gSquad').innerHTML=cards.join('');
 }
 let navFor=null;

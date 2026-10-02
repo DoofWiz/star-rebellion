@@ -116,6 +116,7 @@ window.SR=(function(){
     scatter:{n:'Scattergun',i:'shotgun'},
     longiron:{n:'Long Iron',i:'rifle'},
     sidearm:{n:'Sidearm',i:'pistol'},
+    unarmed:{n:'Bare hands',i:null},
     plasma:{n:'Plasma',i:'plasma'},
     ballistic:{n:'Ballistic',i:'shell'},
     missile:{n:'Missile',i:'missile'},
