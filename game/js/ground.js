@@ -981,7 +981,7 @@ const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
 let lootMarks=[];        // includes LOOTS refs + dynamic drops
-let floaters=[],tracers=[],parts=[],bubbles=[],casings=[];
+let floaters=[],tracers=[],parts=[],bubbles=[],casings=[],hits=[],boomFx=[];
 let cam={x:LZ.x,y:LZ.y,z:0.9},camGoal=null,follow=true;
 let cs=null;             // cutscene state
 let shake=0,alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
@@ -3205,9 +3205,8 @@ function explode(x,y,opt){
   const R=(opt&&opt.r)||135,D0=(opt&&opt.d0)||45,D1=(opt&&opt.d1)||70;
   sBoomBig();shake=performance.now();
   decals.push({x,y,r:(R/135)*(52+rng()*14)});
-  for(let k=0;k<26;k++)parts.push({x:x+(rng()-0.5)*40,y:y+(rng()-0.5)*40,vx:(rng()-0.5)*260,vy:-rng()*160,r:2.5+rng()*4,a:0.8,col:k%3?'#ff9a3c':'#ffd27d',t0:performance.now(),dur:520});
-  for(let k=0;k<14;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.4,col:'#3a3430',t0:performance.now(),dur:1300});
-  parts.push({x,y,vx:0,vy:0,r:60,a:0.85,col:'#ffe9b0',t0:performance.now(),dur:160,flash:1});
+  boomFx.push({x,y,t0:performance.now(),dur:700,R});
+  for(let k=0;k<10;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.35,col:'#3a3430',t0:performance.now(),dur:1300});
   for(const u of U){
     if(u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
     const d=Math.hypot(u.x-x,u.y-y);
@@ -3264,6 +3263,9 @@ function fireFx(s,t,wkey,hit){
     return;
   }
   const shots=w.pellets?5:(w.shots||1);
+  const bkind=(wkey==='carbine'||wkey==='cruiser'||wkey==='dispersal')?'plasma':'ballistic';
+  const bside=s.side==='reb'?'reb':'heg';
+  const h0=26*actorScale(s);   // bolts leave at the muzzle, not the feet
   for(let i=0;i<shots;i++){
     const spread=w.pellets?(i-2)*0.09:(hit?0:(rng()-0.5)*0.16)+(rng()-0.5)*0.03;
     const a=ang+spread;
@@ -3271,15 +3273,16 @@ function fireFx(s,t,wkey,hit){
     const mx=s.x+Math.cos(a)*14,my=s.y+Math.sin(a)*14;
     const end=clipShot(mx,my,s.x+Math.cos(a)*d,s.y+Math.sin(a)*d);
     const ex=end.x,ey=end.y;
-    tracers.push({x1:mx,y1:my,x2:ex,y2:ey,
-      t0:performance.now()+i*(w.pellets?0:90),dur:110,col:s.side==='reb'?C.rebelHi:C.hegHi});
-    const dcol=end.wall?'#8a7a60':'#b09a78';
-    for(let k=0;k<(end.wall?6:4);k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:dcol,t0:performance.now()+i*90,dur:500});
+    tracers.push({x1:mx,y1:my-h0,x2:ex,y2:ey-(end.wall?0:h0*0.6),
+      t0:performance.now()+i*(w.pellets?0:90),dur:110,kind:bkind,side:bside});
+    if(end.wall){
+      for(let k=0;k<6;k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:'#8a7a60',t0:performance.now()+i*90,dur:500});
+    } else hits.push({x:ex,y:ey-h0*0.6,t0:performance.now()+i*(w.pellets?0:90)+90,dur:260});
     // stray rounds find fuel canisters
     if(!hit&&!end.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-ex,p.y-ey)<28)detonate(p);
   }
-  parts.push({x:s.x+Math.cos(ang)*16,y:s.y+Math.sin(ang)*16,vx:0,vy:0,r:9,a:0.9,col:'#ffd27d',t0:performance.now(),dur:90,flash:1});
-  casings.push({x:s.x,y:s.y,vx:(rng()-0.5)*40-Math.cos(ang)*30,vy:-40-rng()*30,t0:performance.now()});
+  // the muzzle flash comes from the firing pose; only the brass stays here
+  casings.push({x:s.x,y:s.y-h0*0.5,vx:(rng()-0.5)*40-Math.cos(ang)*30,vy:-40-rng()*30,t0:performance.now()});
   sShot(wkey);
   if(!hit&&rng()<0.4)sRico();
   if(wkey==='scatter')shake=performance.now();
@@ -3419,6 +3422,16 @@ function resolveGoal(g){
 function worldToCss(wx,wy){return [(wx-cam.x)*cam.z+cssW/2,(wy-cam.y)*cam.z+cssH/2];}
 function cssToWorld(px,py){return {x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y};}
 /* ---------- ground detail (seeded once) ---------- */
+let floorCv=null,floorKey='';
+function groundBiome(){return SCN&&SCN.style==='rock'?'rock':'dust';}
+function floorCache(){
+  const key=(SCN.mode||'')+'|'+W+'x'+H+'|'+groundBiome();
+  if(floorKey===key&&floorCv)return floorCv;
+  floorCv=document.createElement('canvas');floorCv.width=W;floorCv.height=H;
+  SA.floor(floorCv.getContext('2d'),0,0,W,H,groundBiome(),SA.util.hashStr(key));
+  floorKey=key;
+  return floorCv;
+}
 const patches=[],scrub=[];
 function genScatter(){
   patches.length=0;scrub.length=0;
@@ -3428,32 +3441,13 @@ function genScatter(){
 /* ---------- drawing ---------- */
 function drawGroundHaven(){
   const now=performance.now();
-  ctx.fillStyle='#131820';
-  ctx.fillRect(0,0,W,H);
-  for(const p of patches){
-    ctx.fillStyle=p.warm?'rgba(96,110,130,'+p.a+')':'rgba(10,14,20,'+(p.a+0.03)+')';
-    ctx.fillRect(p.x,p.y,p.w,p.h);
-  }
-  // fissures in the rock
-  ctx.strokeStyle='rgba(6,9,14,0.6)';ctx.lineWidth=3;
-  for(let i=0;i<7;i++){
-    const x0=(i*397)%W,y0=(i*263)%H;
-    ctx.beginPath();ctx.moveTo(x0,y0);
-    ctx.lineTo(x0+60+(i*37)%90,y0+40+(i*53)%70);
-    ctx.lineTo(x0+140+(i*23)%60,y0+30+(i*31)%110);
-    ctx.stroke();
-  }
+  ctx.drawImage(floorCache(),0,0);
   for(const sc2 of scrub){
     ctx.fillStyle='rgba(90,110,96,0.22)';
     ctx.beginPath();ctx.arc(sc2.x,sc2.y,sc2.r,0,7);ctx.fill();
   }
   // worn trail: map edge -> squatter camp -> base mouth
-  ctx.strokeStyle='rgba(70,80,96,0.4)';ctx.lineWidth=46;ctx.lineCap='round';
-  ctx.beginPath();
-  ctx.moveTo(LZ.x-30,H+20);
-  ctx.quadraticCurveTo(LZ.x+40,LZ.y,620,940);
-  ctx.quadraticCurveTo(SCN.camp.x-40,SCN.camp.y+40,SCN.door.x,SCN.door.y+10);
-  ctx.stroke();ctx.lineCap='butt';
+  SA.trail(ctx,[[LZ.x-30,H+20],[LZ.x+40,LZ.y],[620,940],[SCN.camp.x-40,SCN.camp.y+40],[SCN.door.x,SCN.door.y+10]],'rock',46);
   // carved interior: plated floors under the mountain
   for(const op of SCN.opens){
     ctx.fillStyle='#171d26';
@@ -3479,13 +3473,7 @@ function drawGroundHaven(){
     if(!op.label)continue;
     plb(op.label,op.x+op.w/2,op.y+26,C.text3,13);
   }
-  // scorch marks
-  for(const d of decals){
-    const g=ctx.createRadialGradient(d.x,d.y,4,d.x,d.y,d.r);
-    g.addColorStop(0,'rgba(8,6,4,0.75)');g.addColorStop(0.7,'rgba(12,9,6,0.45)');g.addColorStop(1,'rgba(12,9,6,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();
-  }
+  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
   // blast door mouth
   const dr=SCN.door;
   ctx.fillStyle='#0e1218';
@@ -3511,60 +3499,27 @@ function drawGroundHaven(){
 }
 function drawGround(){
   if(SCN.style==='rock'){drawGroundHaven();return;}
-  ctx.fillStyle='#221a12';
-  ctx.fillRect(0,0,W,H);
-  for(const p of patches){
-    ctx.fillStyle=p.warm?'rgba(120,90,54,'+p.a+')':'rgba(30,24,16,'+(p.a+0.03)+')';
-    ctx.fillRect(p.x,p.y,p.w,p.h);
-  }
+  ctx.drawImage(floorCache(),0,0);
+  const biome=groundBiome();
   if(SCN.mode==='stealcross'){
-  // main street
-  ctx.fillStyle='rgba(58,44,28,0.55)';
-  ctx.fillRect(300,764,1560,120);
-  ctx.fillStyle='rgba(58,44,28,0.4)';
-  ctx.fillRect(1740,764,660,120);
-  // wheel ruts
-  ctx.strokeStyle='rgba(20,14,8,0.5)';ctx.lineWidth=4;
-  for(const ry of [800,846]){
-    ctx.beginPath();ctx.moveTo(300,ry);
-    for(let x=340;x<2380;x+=60)ctx.lineTo(x,ry+Math.sin(x*0.013)*5);
-    ctx.stroke();
-  }
-  // spur north to the pad
-  ctx.strokeStyle='rgba(58,44,28,0.5)';ctx.lineWidth=54;
-  ctx.beginPath();ctx.moveTo(2030,780);ctx.quadraticCurveTo(2110,560,PAD.x,PAD.y+70);ctx.stroke();
-  // track from LZ
-  ctx.beginPath();ctx.moveTo(LZ.x,LZ.y-90);ctx.quadraticCurveTo(400,1050,470,880);ctx.stroke();
+    SA.trail(ctx,[[300,824],[1200,824],[2400,824]],biome,110);
+    SA.trail(ctx,[[2030,780],[2110,560],[PAD.x,PAD.y+70]],biome,54);
+    SA.trail(ctx,[[LZ.x,LZ.y-90],[400,1050],[470,880]],biome,48);
   } else {
-    // dirt roads: LZ to the depot gate, and the service spur onto the apron
-    ctx.strokeStyle='rgba(58,44,28,0.5)';ctx.lineWidth=70;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(LZ.x,LZ.y-100);ctx.quadraticCurveTo(700,1000,1000,860);ctx.quadraticCurveTo(1300,760,1500,560);ctx.lineTo(PAD.x-60,PAD.y+80);ctx.stroke();
-    ctx.lineWidth=44;
-    ctx.beginPath();ctx.moveTo(1420,730);ctx.lineTo(2160,690);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(1440,80);ctx.quadraticCurveTo(1420,300,1430,420);ctx.stroke();
-    ctx.lineCap='butt';
+    SA.trail(ctx,[[LZ.x,LZ.y-100],[700,1000],[1000,860],[1300,760],[1500,560],[PAD.x-60,PAD.y+80]],biome,70);
+    SA.trail(ctx,[[1420,730],[2160,690]],biome,44);
+    SA.trail(ctx,[[1440,80],[1420,300],[1430,420]],biome,44);
   }
   for(const s of scrub){
     ctx.fillStyle='rgba(74,86,44,0.3)';
     ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();
   }
-  // scorch marks
-  for(const d of decals){
-    const g=ctx.createRadialGradient(d.x,d.y,4,d.x,d.y,d.r);
-    g.addColorStop(0,'rgba(8,6,4,0.75)');g.addColorStop(0.7,'rgba(12,9,6,0.45)');g.addColorStop(1,'rgba(12,9,6,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath();ctx.arc(d.x,d.y,d.r,0,7);ctx.fill();
-  }
-  // street lamps — cold light in a dust town
+  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
+  // street lamps — warm pools in a dust town
+  const lampT=HUD.reduced?0:performance.now()/1000;
   for(const lp of (SCN.mode==='stealcross'?[[600,772],[1104,880],[1590,772],[2044,880]]:(SCN.lamps||[]))){
-    const g=ctx.createRadialGradient(lp[0],lp[1],4,lp[0],lp[1],90);
-    g.addColorStop(0,'rgba(150,220,255,0.10)');g.addColorStop(1,'rgba(150,220,255,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath();ctx.arc(lp[0],lp[1],90,0,7);ctx.fill();
-    ctx.strokeStyle='#2a2a30';ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(lp[0],lp[1]);ctx.lineTo(lp[0],lp[1]-30);ctx.stroke();
-    ctx.fillStyle='rgba(190,235,255,0.9)';
-    ctx.beginPath();ctx.arc(lp[0],lp[1]-32,3.2,0,7);ctx.fill();
+    SA.lampLight(ctx,lp[0],lp[1]-56,120);
+    SA.prop(ctx,'lamp',lp[0],lp[1],{t:lampT});
   }
   // LZ
   ctx.strokeStyle=T.rgba(C.shield,0.55);ctx.lineWidth=3;ctx.setLineDash([16,12]);
@@ -3588,6 +3543,8 @@ function drawGround(){
   }
 }
 function drawProps(){
+  /* retired: props draw in drawActors' depth sort; dead props leave kit scorch on the ground */
+  return;
   const now=performance.now();
   for(const p of PROPS){
     const d=PROPDEF[p.kind];
@@ -3791,9 +3748,37 @@ function drawEngageFocus(now){
   if(c.t.obj)T.reticle(ctx,bx,by,18,hudT);   // units get their reticle from the token; the canister has no token
   ctx.restore();
 }
+function drawWallActor(b,now){
+  const biome=groundBiome();
+  let fade=0;
+  for(const u of actorList()){
+    if((u.side==='reb'||u.vip)&&u.x>b.x-10&&u.x<b.x+b.w+10&&u.y<b.y+b.h&&u.y>b.y+b.h-40){fade=1;break;}
+  }
+  SA.wall(ctx,b.x,b.y,b.w,b.h,biome,{fade});
+  // the pieces the town still reads: the HQ mast and the cantina's holo-sign
+  if(b.mast){
+    const mx=b.x+b.w*0.82,my=b.y+b.h*0.3-SA.WALL_H;
+    ctx.strokeStyle='#3a3a44';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(mx-12,my+12);ctx.lineTo(mx,my-16);ctx.lineTo(mx+12,my+12);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(mx,my-16);ctx.lineTo(mx,my+8);ctx.stroke();
+    ctx.fillStyle='rgba(255,80,90,'+(0.35+0.6*(Math.sin(now*0.003)>0.4?1:0))+')';
+    ctx.beginPath();ctx.arc(mx,my-18,3,0,7);ctx.fill();
+  }
+  if(b.sign){
+    const flick=Math.sin(now*0.02)>-0.92?1:0.3;
+    ctx.fillStyle='rgba(8,12,24,0.85)';
+    ctx.beginPath();ctx.roundRect(b.x+b.w/2-74,b.y+b.h+4,148,22,4);ctx.fill();
+    ctx.strokeStyle='rgba(87,215,226,'+(0.6*flick)+')';ctx.lineWidth=1;ctx.stroke();
+    ctx.font='700 13px '+FONT.ui;ctx.textAlign='center';
+    ctx.fillStyle='rgba(125,227,236,'+(0.9*flick)+')';
+    ctx.fillText(b.name,b.x+b.w/2,b.y+b.h+20);
+  }
+  if(b.name&&!b.sign)plb(b.name,b.x+b.w/2,b.y-12,C.text2,13);
+}
 function drawBldgs(){
   const now=performance.now();
   for(const b of BLDGS){
+    if(!b.terrain)continue;
     if(b.terrain){
       const v=(b.x*7+b.y*13)%3;
       ctx.fillStyle=v===0?'#262d38':v===1?'#242b35':'#28303b';
@@ -3809,6 +3794,11 @@ function drawBldgs(){
       }
       continue;
     }
+  }
+}
+function drawBldgsOld(){
+  for(const b of BLDGS){
+    const now=performance.now();
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.fillRect(b.x+8,b.y+10,b.w,b.h);
     ctx.fillStyle='#15120e';
@@ -3888,87 +3878,37 @@ function drawTowerTop(){
   ctx.restore();
   plb(SCN.towerLabel||'CONDENSER',TOWER.x,TOWER.y-TOWER.r-10,C.text2,12);
 }
-function drawDerelict(){
+function drawDerelict(now){
   const d=SCN.derelict;
-  ctx.save();ctx.translate(d.x,d.y);ctx.rotate(d.a||0);
-  ctx.globalAlpha=0.9;
-  ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath();ctx.roundRect(-74,-40,160,92,16);ctx.fill();
-  ctx.fillStyle='#333b45';
-  ctx.beginPath();ctx.roundRect(-80,-46,160,92,16);ctx.fill();
-  ctx.strokeStyle='#161c24';ctx.lineWidth=3;ctx.stroke();
-  // one engine pod gone, one hanging
-  ctx.fillStyle='#2a323c';
-  ctx.beginPath();ctx.roundRect(-88,36,60,22,8);ctx.fill();
-  ctx.strokeStyle='rgba(120,90,54,0.5)';ctx.lineWidth=2;
-  ctx.strokeRect(-84,-58,52,18); // the missing pod's mounting scar
-  // rust streaks + missing panels
-  ctx.fillStyle='rgba(122,74,40,0.45)';
-  ctx.fillRect(-52,-30,34,10);ctx.fillRect(6,10,40,12);ctx.fillRect(-20,-46,14,20);
-  ctx.fillStyle='#12161c';
-  ctx.fillRect(-8,-30,26,16);ctx.fillRect(30,-10,20,14);
-  ctx.fillStyle='rgba(159,214,255,0.15)';
-  ctx.beginPath();ctx.roundRect(52,-18,24,36,6);ctx.fill();
-  ctx.globalAlpha=1;
-  ctx.restore();
-  plb('DERELICT HAULER',d.x,d.y-70,C.text2,12);
+  SA.ship(ctx,'graf',d.x,d.y,d.a||0,4.2,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true});
+  plb('DERELICT HAULER',d.x,d.y-80,C.text2,12);
 }
-function drawGraf(){
-  let sc=1,sh=8,ox=0,oy=0;
+function drawGraf(now){
+  now=now||performance.now();
+  let sc=1,ox=0,oy=0;
   if(extractFx&&extractFx.stage==='lift'){
-    const t=Math.min(1,(performance.now()-extractFx.t0)/3200);
+    const t=Math.min(1,(now-extractFx.t0)/3200);
     const e=t*t;
-    sc=1+t*0.3;sh=8+t*70;
+    sc=1+t*0.3;
     ox=-e*1500;oy=e*260;
     if(t>=1)return;
   }
-  ctx.save();ctx.translate(grafPos.x+ox,grafPos.y+oy);ctx.rotate(grafPos.a);
-  ctx.scale(sc,sc);
-  ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.beginPath();ctx.roundRect(-80+sh,-46+sh,160,92,16);ctx.fill();
-  ctx.fillStyle='#2b3a4c';
-  ctx.beginPath();ctx.roundRect(-80,-46,160,92,16);ctx.fill();
-  ctx.strokeStyle='#16202c';ctx.lineWidth=3;ctx.stroke();
-  ctx.fillStyle='#22303f';
-  ctx.beginPath();ctx.roundRect(-88,-58,60,22,8);ctx.fill();
-  ctx.beginPath();ctx.roundRect(-88,36,60,22,8);ctx.fill();
-  ctx.fillStyle='#57d7e2';
-  ctx.fillRect(-70,-6,120,4);
-  ctx.fillStyle='#101821';
-  ctx.beginPath();ctx.roundRect(52,-18,24,36,6);ctx.fill();
-  // ramp (east side, open when landed)
-  if(grafState!=='gone'){
-    ctx.fillStyle='rgba(120,140,160,0.5)';
-    ctx.beginPath();ctx.moveTo(80,-20);ctx.lineTo(120,-30);ctx.lineTo(120,30);ctx.lineTo(80,20);ctx.closePath();ctx.fill();
-  }
-  ctx.restore();
-  if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-70,C.shield,12);
+  SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,4.2*sc,HUD.reduced?0:now/1000,
+    {livery:'rebel',dark:true,boost:!!(extractFx&&extractFx.stage==='lift')});
+  if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-82,C.shield,12);
 }
 function drawCross(now){
   if(crossAway&&!crossFx)return;
-  let x=PAD.x,y=PAD.y,sc=1,sh=6;
+  let x=PAD.x,y=PAD.y,sc=1;
   if(crossFx){
     const t=(now-crossFx.t0)/3200;
     if(t>=1){crossFx=null;return;}
     const e=t*t;
     x=PAD.x+e*1400;y=PAD.y-e*180;
-    sc=1+t*0.25;sh=6+t*60;
+    sc=1+t*0.25;
     if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  ctx.save();ctx.translate(x,y);ctx.rotate(-0.5);
-  ctx.scale(sc,sc);
-  ctx.fillStyle='rgba(0,0,0,0.3)';
-  ctx.beginPath();ctx.moveTo(38+sh*0.3,sh);ctx.lineTo(-26+sh*0.3,-24+sh);ctx.lineTo(-14+sh*0.3,sh);ctx.lineTo(-26+sh*0.3,24+sh);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#3d4c60';
-  ctx.beginPath();ctx.moveTo(38,0);ctx.lineTo(-26,-24);ctx.lineTo(-14,0);ctx.lineTo(-26,24);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#1a2430';ctx.lineWidth=2;ctx.stroke();
-  ctx.fillStyle='#9fd6ff';
-  ctx.beginPath();ctx.arc(12,0,5,0,7);ctx.fill();
-  if(crossFx){
-    ctx.fillStyle='rgba(140,200,255,0.8)';
-    ctx.beginPath();ctx.moveTo(-26,-6);ctx.lineTo(-48-rng()*16,0);ctx.lineTo(-26,6);ctx.closePath();ctx.fill();
-  }
-  ctx.restore();
+  SA.ship(ctx,'cross',x,y,-0.5,1.8*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx});
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
 
@@ -4026,8 +3966,20 @@ function artPose(u,now){
 }
 const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.mnt&&enclosed(u))&&unitSeen(u));
 function drawActors(now){
-  const list=actorList().slice().sort((a,b)=>a.y-b.y);   // depth sort by the anchor between the feet
-  for(const u of list)drawUnitActor(u,now);
+  const t=HUD.reduced?0:now/1000;
+  const biome=groundBiome();
+  /* dead props are scorch on the ground, under everything */
+  for(const p of PROPS)if(p.dead)SA.scorch(ctx,p.x,p.y,PROPDEF[p.kind].r*1.5);
+  const items=[];
+  const list=actorList();
+  for(const u of list)items.push({y:u.y,f:()=>drawUnitActor(u,now)});
+  for(const p of PROPS)if(!p.dead)items.push({y:p.y,f:()=>SA.prop(ctx,p.kind,p.x,p.y,{t,biome})});
+  for(const b of BLDGS)if(!b.terrain)items.push({y:b.y+b.h,f:()=>drawWallActor(b,now)});
+  if(SCN.hasGraf)items.push({y:grafPos.y+50,f:()=>drawGraf(now)});
+  if(SCN.derelict)items.push({y:SCN.derelict.y+50,f:()=>drawDerelict(now)});
+  if(SCN.hasPad)items.push({y:PAD.y+36,f:()=>drawCross(now)});
+  items.sort((a,b)=>a.y-b.y);                            // one depth sort by anchor y
+  for(const it of items)it.f();
   for(const u of list){u._ax=u.x;u._ay=u.y;}             // cached for next frame's "moved"; never saved
 }
 function drawUnitActor(u,now){
@@ -4313,12 +4265,23 @@ function drawFx(now){
       continue;
     }
     const hx=lerp(tr.x1,tr.x2,Math.min(1,t*1.6)),hy=lerp(tr.y1,tr.y2,Math.min(1,t*1.6));
-    const tx=lerp(tr.x1,tr.x2,Math.max(0,t*1.6-0.35)),ty=lerp(tr.y1,tr.y2,Math.max(0,t*1.6-0.35));
-    ctx.strokeStyle=tr.col;ctx.lineWidth=2;ctx.globalAlpha=0.9;
-    ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(hx,hy);ctx.stroke();
-    ctx.globalAlpha=1;
+    SA.bolt(ctx,tr.x1,tr.y1,hx,hy,tr.kind||'ballistic',tr.side||'heg');
   }
   tracers=tracers.filter(tr=>now-tr.t0<tr.dur+80);
+  for(const h of hits){
+    const k=(now-h.t0)/h.dur;
+    if(k<0||k>1)continue;
+    SA.hit(ctx,h.x,h.y,k);
+  }
+  hits=hits.filter(h=>now-h.t0<h.dur);
+  for(const b of boomFx){
+    const k=(now-b.t0)/b.dur;
+    if(k<0||k>1)continue;
+    ctx.save();ctx.translate(b.x,b.y);ctx.scale(b.R/52,b.R/52);
+    SA.explosion(ctx,0,0,k);
+    ctx.restore();
+  }
+  boomFx=boomFx.filter(b=>now-b.t0<b.dur);
   for(const p of parts){
     const t=(now-p.t0)/p.dur;
     if(t<0||t>1)continue;
@@ -4581,15 +4544,11 @@ function render(now){
     drawCage(now);
     drawFS(now);
     drawNades(now);
-    drawProps();
     if(SCN.hasTurret)drawTurret(now);
     if(SCN.hasTower)drawTowerBase();
-    if(SCN.hasGraf)drawGraf();
-    if(SCN.derelict)drawDerelict();
-    if(SCN.hasPad)drawCross(now);
-    drawBldgs();
+    drawBldgs();                    // terrain plates only; walls join the actor sort
     hudUnderlay(now);               // rings and arcs under the feet
-    drawActors(now);                // the Bobbleheads, one depth sort by anchor y
+    drawActors(now);                // props, walls, landed ships and the Bobbleheads, one depth sort
     if(SCN.hasTower)drawTowerTop();
     hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
@@ -5346,7 +5305,7 @@ function initState(){
   turret={gunner:null,face:Math.PI};
   NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
   sneak=false;launchNagged=false;
-  floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];
+  floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];
   fogInit();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;extractFx=null;
