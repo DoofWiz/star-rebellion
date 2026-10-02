@@ -21,8 +21,8 @@ let W=2400,H=1600;
 const MOVE_R=150,SPRINT_R=300,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=135,SNEAK_SPEED=72;
 /* Character Traits (see rebel.js): units carry their trait keys in u.tr */
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
-const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1);
-const viewMul=u=>hasT(u,'hunter')?1.2:1;
+const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1)*(injOf(u,'brokenleg')?0.5:1)*(injOf(u,'burns')?0.7:1);
+const viewMul=u=>(hasT(u,'hunter')?1.2:1)*(1+(u.cview||0))*(injOf(u,'eardrum')?0.75:1);
 /* relationships: u.rels is [[kind, otherId]] from the rebel's earned traits */
 const BONDS=['friends','oldfriends','battlebros','love'];
 const relUp=(u,kinds)=>!!u&&!!u.rels&&u.rels.some(r=>kinds.indexOf(r[0])>=0&&U.some(x=>(x.pid||x.id)===r[1]&&x.side==='reb'&&!x.down&&!x.extracted&&!x.away));
@@ -776,7 +776,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -1037,9 +1037,70 @@ function shieldBlocks(shooter,gunner){
   const a=Math.atan2(shooter.y-TURRET.y,shooter.x-TURRET.x);
   return Math.abs(angNorm(a-turret.face))<SHIELD_ARC;
 }
-function wpnsOf(s){return s.manning?['laser']:s.wpns;}
+
+/* ---------- critical injuries (see rebel-injury.js) ----------
+   u.inj is [{k, treated}]. A critical hit on a rebel inflicts one; its combat effect lasts until a Treat Wound
+   action patches it. Whatever was suffered is reported back so the base can run the recovery. */
+const WDAM={akli:'ballistic',cowboy:'ballistic',carbine:'ballistic',scatter:'ballistic',longiron:'ballistic',strider:'ballistic',rocket:'explosive',laser:'plasma',cruiser:'plasma',dispersal:'plasma',fists:'blunt',unarmed:'blunt'};
+const ONE_HAND=['cowboy','unarmed','fists'];
+const TREAT_R=110;
+const injOf=(u,k)=>!!u&&!!u.inj&&u.inj.some(i=>i.k===k&&!i.treated);
+const hasInj=u=>!!u&&!!u.inj&&u.inj.some(i=>!i.treated);
+const stunned=u=>injOf(u,'concussion');
+const cantSprint=u=>!!u&&(u.nosprint||injOf(u,'brokenleg'));
+function inflictInjury(t,src,force){
+  if(!t||t.side!=='reb'||t.auto||t.vip||t.caged||t.hp<=0)return null;
+  const have=(t.inj||[]).map(i=>i.k);
+  if(have.length>=3)return null;
+  const def=force?Rebel.INJK[force]:Rebel.injRoll(src||'ballistic',rng,have);
+  if(!def||have.includes(def.k))return null;
+  (t.inj=t.inj||[]).push({k:def.k,treated:false});
+  t.wound=1;
+  addFloater(t.x,t.y-52,def.n.toUpperCase(),C.hazard);
+  log(nameSpan(t)+' <span class="b">suffers '+def.n+'</span> <span class="d">— '+def.combat+'</span>');
+  if(def.k==='concussion')t.order=null;
+  else if(def.k==='brokenarm'){addFloater(t.x,t.y-66,'DROPS WEAPON',C.hazard);}
+  else if(def.k==='internal'){t.maxhp0=t.maxhp;t.maxhp=Math.max(10,Math.round(t.maxhp*0.7));t.hp=Math.min(t.hp,t.maxhp);}
+  else if(def.k==='spinal'||def.k==='maimed'){
+    const keep=Math.max(1,t.hp);
+    downUnit(t,null);
+    t.hp=keep;t.hpSave=keep;t.downInj=1;   // down, but not shot to zero: a Treat Wound can stand them back up
+  }
+  return def;
+}
+/* who a Treat Wound could help right now: the incapacitated first, then the bleeding, then whoever is closest */
+function treatPick(h){
+  if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
+  const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
+  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=TREAT_R);
+  return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
+}
+function doTreat(h){
+  const t=treatPick(h);
+  if(!t)return;
+  const sev=['spinal','maimed','concussion','bleeding','internal','brokenleg','brokenarm','burns','shrapnel','eye','eardrum','facial'];
+  const inj=t.inj.filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
+  if(!inj)return;
+  const wasIncap=!!t.down||stunned(t);
+  inj.treated=true;
+  if(inj.k==='internal'&&t.maxhp0){t.maxhp=t.maxhp0;}
+  if((inj.k==='spinal'||inj.k==='maimed')&&t.down&&t.downInj){
+    t.down=0;t.downInj=0;t.hp=Math.max(t.hpSave||1,Math.round(t.maxhp*0.25));t.order=null;
+  }
+  t.wound=hasInj(t)?1:0;
+  h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.06;
+  if(wasIncap&&t!==h){h.rescued=h.rescued||[];const id=t.pid||t.id;if(h.rescued.indexOf(id)<0)h.rescued.push(id);}
+  addFloater(t.x,t.y-52,'TREATED',C.go);
+  log(nameSpan(h)+' <span class="g">treats '+(t===h?'their own':nameSpan(t)+'’s')+' '+Rebel.INJK[inj.k].n.toLowerCase()+'</span> <span class="d">— '+Rebel.INJK[inj.k].treat+'</span>');
+}
+function wpnsOf(s){
+  if(s.manning)return ['laser'];
+  if(s.oneHand||injOf(s,'brokenarm')){const w=s.wpns.filter(x=>ONE_HAND.indexOf(x)>=0);return w.length?w:['unarmed'];}
+  return s.wpns;
+}
 function validShot(s,t,wkey){
   if(t.side==='civ')return false;
+  if(stunned(s))return false;
   if(s.office||t.office)return false;
   if(!wpnsOf(s).includes(wkey))return false;
   if(wkey==='akli'&&s.jam)return false;
@@ -1079,6 +1140,11 @@ function computeATK(s,t,wkey,snap){
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
   if(snap){v-=2;e.push(['SNAP SHOT',-2]);}
   if(s.wound){v-=1;e.push(['WOUNDED',-1]);}
+  if(s.inj&&s.inj.length){
+    if(injOf(s,'eye')){v-=3;e.push(['EYE INJURY',-3]);}
+    if(injOf(s,'burns')){v-=2;e.push(['BURNS',-2]);}
+    if(injOf(s,'facial')){v-=2;e.push(['DAZED',-2]);}
+  }
   if((s.tr&&s.tr.length)||s.ms||s.rivalEdge||s.rally||(s.rels&&s.rels.length)){
     if(hasT(s,'steady')){v+=1;e.push(['STEADY HANDS',1]);}
     if(hasT(s,'perfectionist')){v+=3;e.push(['PERFECTIONIST',3]);}
@@ -1099,6 +1165,7 @@ function computeATK(s,t,wkey,snap){
     else if(relUp(s,['oldfriends'])){v+=1;e.push(['OLD FRIENDS',1]);}
     if(s.rivalEdge){v+=1;e.push(['RIVALRY',1]);}
     if(s.rally){v+=2;e.push(['RALLIED',2]);}
+    if(relUp(s,['owes'])){v+=1;e.push(['OWES A LIFE',1]);}
   }
   return {total:v,entries:e};
 }
@@ -1149,13 +1216,13 @@ function applyShot(s,t,wkey,snap){
   } else if(hit){
     dmg=rollDamage(s,t,wkey,crit);
     if(tn.cover&&tn.cover.prop)dmg=Math.max(1,Math.round(dmg*0.75));
-    woundUnit(s,t,dmg,crit);
+    woundUnit(s,t,dmg,crit,WDAM[wkey]);
   } else if(tn.cover&&tn.cover.prop){
     chipCover(tn.cover.prop,Math.round(rollDamage(s,t,wkey,false)*0.7));
   }
   return {tn,atk,need,roll,hit,crit,dmg,jammed};
 }
-function woundUnit(s,t,dmg,crit){
+function woundUnit(s,t,dmg,crit,dsrc){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
   sk(s,'aim',1);
   if(t.tr&&t.tr.length){
@@ -1169,7 +1236,10 @@ function woundUnit(s,t,dmg,crit){
   sk(t,'con',dmg/10);
   dmgRound.add(t.id);
   adjCoolG(t,-16,'took a hit');
-  if(crit&&!t.wound&&t.hp>0){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
+  if(crit&&t.hp>0){
+    if(t.side==='reb'&&!t.auto&&!t.vip)inflictInjury(t,dsrc);
+    else if(!t.wound){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
+  }
   addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi);
   if(t.hp<=0)downUnit(t,s);
 }
@@ -1841,7 +1911,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
 }
 function fsPlanStart(){
@@ -2244,7 +2314,7 @@ function startPlanning(){
 function hotwiring(u){return u.id==='sera'&&!crossAway&&hot<HOT_ROUNDS&&dist(u,PAD)<PAD.r;}
 function autoAdvance(){
   // hand the player the next rebel who still needs orders, like the space game
-  const nxt=U.find(u=>u.side==='reb'&&!u.ally&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u));
+  const nxt=U.find(u=>u.side==='reb'&&!u.ally&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u)&&!stunned(u));
   if(nxt){
     selId=nxt.id;pickMode=null;
     camGoal=focusGoal(nxt);
@@ -2269,7 +2339,10 @@ function execute(){
     u.px=u.x;u.py=u.y;u.path=null;
     if(u.down||u.surr||u.extracted||u.away)continue;
     if(u.manning){u.braced=1;u.sprinted=0;continue;}
+    if(stunned(u)){u.order=null;u.sprinted=0;u.braced=0;continue;}
+    if(u.order&&u.order.type!=='hold'&&u.side==='reb'&&injOf(u,'eardrum')&&rng()<0.35){log(nameSpan(u)+' <span class="b">cannot hear the order</span> <span class="d">\u2014 ruptured eardrum, holding position</span>');u.order={type:'hold'};}
     const o=u.order;
+    if(o&&o.type==='sprint'&&cantSprint(u)){o.type='move';}
     if(o&&(o.type==='move'||o.type==='sprint')){
       u.path=pathFor(u,o.tx,o.ty);
       u.sprinted=o.type==='sprint'?1:0;
@@ -2287,7 +2360,9 @@ function execute(){
         if(d)u.path=pathFor(u,d.x,d.y);
       }
       u.sprinted=0;u.braced=0;
-    } else if(o&&o.type==='rally'&&u.hero&&!u.heroUsed){
+    } else if(o&&o.type==='treat'){
+      u.sprinted=0;u.braced=0;doTreat(u);
+    } else if(o&&o.type==='rally'&&u.hero&&!u.heroUsed&&!injOf(u,'shrapnel')){
       u.sprinted=0;u.braced=0;u.heroUsed=1;
       addFloater(u.x,u.y-48,'RALLY!',C.go);
       log(nameSpan(u)+' <span class="g">rallies the squad</span> <span class="d">\u2014 everyone steadies, +2 to hit this round</span>');
@@ -2469,7 +2544,7 @@ function attackUpdate(now){
         const soaked=!!(c.tn.cover&&c.tn.cover.prop);
         if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
         c.dmg=dmg;
-        woundUnit(c.s,c.t,dmg,c.crit);
+        woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey]);
         if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
         log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
       } else {
@@ -2488,6 +2563,7 @@ function playerAttack(){
   sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
 }
 function throwNade(s,gx,gy){
+  if(injOf(s,'shrapnel')){addFloater(s.x,s.y-48,'SUPPRESSED',C.hazard);return;}
   NADES--;
   if(hasT(s,'clumsy')&&rng()<0.25){
     gx=s.x;gy=s.y;
@@ -2504,6 +2580,7 @@ function throwNade(s,gx,gy){
   syncUI();
 }
 function useStim(s){
+  if(injOf(s,'shrapnel')){addFloater(s.x,s.y-48,'SUPPRESSED',C.hazard);return;}
   if(!s.stims||s.hp>=s.maxhp)return;
   s.stims--;
   const heal=Math.round(s.maxhp*0.3);
@@ -2556,6 +2633,13 @@ function retarget(t){
 /* ---------- end of round ---------- */
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
+  for(const u of U){
+    if(u.side!=='reb'||u.down||u.extracted||u.away||!injOf(u,'bleeding'))continue;
+    u.hp-=6;u.minHp=Math.min(u.minHp===undefined?1:u.minHp,Math.max(0,u.hp)/u.maxhp);
+    addFloater(u.x,u.y-38,'-6',C.hazard);
+    log(nameSpan(u)+' <span class="b">bleeds</span> <span class="d">\u2014 -6</span>');
+    if(u.hp<=0)downUnit(u,null);
+  }
   for(const h of U){
     if(h.side!=='reb'||h.down||h.extracted||h.away||!hasT(h,'empathetic'))continue;
     for(const m of U)if(m!==h&&m.side==='reb'&&!m.down&&!m.extracted&&!m.away&&dist(h,m)<240)adjCoolG(m,3,'steadied by '+h.first);
@@ -2767,6 +2851,9 @@ function buildResult(win){
     if(u.sk){rec.sk={};for(const k in u.sk)rec.sk[k]=Math.round(u.sk[k]*10)/10;}
     if(u.kills)rec.kills=u.kills;
     if(u.down)rec.down=1;
+    if(u.inj&&u.inj.length)rec.inj=u.inj.map(i=>({k:i.k,treated:!!i.treated}));
+    if(u.treats)rec.treats=u.treats;
+    if(u.rescued&&u.rescued.length)rec.rescued=u.rescued.slice();
     if(u.minHp!==undefined)rec.minHp=Math.round(u.minHp*100)/100;
     if(u.rockets)rec.heavy=u.rockets;
     if(u.panics)rec.panics=u.panics;
@@ -2792,8 +2879,9 @@ function explode(x,y,opt){
     const d=Math.hypot(u.x-x,u.y-y);
     if(d<R){
       const dmg=Math.round((D0+rng()*(D1-D0))*(1-d/R*0.55));
-      woundUnit(null,u,dmg,false);
+      woundUnit(null,u,dmg,false,'explosive');
       if(!u.down)log(nameSpan(u)+' is caught in the blast — <b>-'+dmg+'</b>.');
+      if(!u.down&&d<R*0.6&&u.side==='reb'&&rng()<0.2)inflictInjury(u,'explosive');
     }
   }
   for(const p of PROPS){
@@ -4233,6 +4321,7 @@ const OM={
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run or a gunship.'},
+  treat:{label:'Treat wound',icon:'patch',family:'util',key:'',rule:'Patch the worst untreated injury on yourself or an ally within reach. A stunned or downed ally can only be treated by someone else.'},
   rally:{label:'Rally cry',icon:'firesupport',family:'fight',key:'0',rule:'Hero action, once per mission. Every rebel still on their feet steadies and takes +2 to hit this round.',nums:[{t:'+2 attack, all allies',kind:'good'}]},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
 const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
@@ -4250,22 +4339,24 @@ function ordersFor(s){
   const cur=s.order&&s.order.type;
   const pm=pickMode;
   if(s.manning)return [card('hold',{active:cur==='hold'}),card('leave',{active:cur==='leave'})];
+  if(stunned(s))return [card('hold',{disabled:true,why:'Stunned. Another rebel has to treat the wound before they can act.'})];
   if(coolStateG(s)==='panic')return [card('lockin',{active:cur==='lockin'}),card('cancel')];
   const nl=lootsWithin(s,LOOT_AOE).length;
   const wp=activeWork(s);
-  const g1=[card('move',{active:pm==='move'||(!pm&&cur==='move')}),card('sprint',{active:pm==='sprint'||(!pm&&cur==='sprint')}),
+  const g1=[card('move',{active:pm==='move'||(!pm&&cur==='move')}),card('sprint',{active:pm==='sprint'||(!pm&&cur==='sprint'),disabled:cantSprint(s),why:'A leg injury rules out sprinting.'}),
     card('hold',{active:!pm&&cur==='hold'}),
     card('cover',{active:!pm&&cur==='cover',disabled:!inCoverAt(s.x,s.y),why:'Stand next to cover first.'})];
   const g2=[card('lockin',{active:!pm&&cur==='lockin'}),
     card('loot',{active:!pm&&cur==='loot',disabled:!nl,why:'Nothing lootable within reach.',tip:{title:'Loot',rule:OM.loot.rule+(nl?' '+nl+' in reach.':'')}}),
-    card('work',{active:!pm&&cur==='work',disabled:!(wp&&s.id!=='sera'&&!s.vip),
-      why:(s.id==='sera'||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
+    card('work',{active:!pm&&cur==='work',disabled:!(wp&&s.id!=='sera'&&!s.vip)||injOf(s,'shrapnel'),
+      why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':(s.id==='sera'||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
   const g3=[];
   if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
-  if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack')}));
+  if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack'),disabled:injOf(s,'shrapnel'),why:'Suppressed by shrapnel.'}));
   if(s.jam)g3.push(card('clear',{active:!pm&&cur==='clear'}));
   if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
-  if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed,why:'Already used this mission.'}));
+  if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
+  {const tp=treatPick(s);g3.push(card('treat',{active:!pm&&cur==='treat',disabled:!tp,why:'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
   out.push(HUD.sep(),card('cancel'));
@@ -4334,7 +4425,7 @@ function dockHTML(){
   return '';
 }
 /* rail rows */
-const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
+const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
 const tag=(txt,kind,icon)=>'<span class="sr-tag'+(kind?' sr-tag--'+kind:'')+'">'+(icon?HUD.ico(icon):'')+txt+'</span>';
 function statusTag(u){
   if(u.caged)return tag('In the cell','action');
@@ -4346,6 +4437,8 @@ function statusTag(u){
   if(u.office)return tag('In his office','');
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return tag('Hotwiring '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'action');
   if(u.jam)return tag('Jammed','bad','unjam');
+  if(stunned(u))return tag('Stunned','bad');
+  if(hasInj(u))return tag(Rebel.INJK[u.inj.find(i=>!i.treated).k].n,'bad');
   if(u.side==='reb'&&phase==='PLANNING'){
     if(!u.order)return '<span class="sr-ordertag sr-ordertag--none">No orders</span>';
     const m=ORDER_TAG[u.order.type]||['move',u.order.type];
@@ -4543,12 +4636,13 @@ function orderAct(act){
   if(!s)return;
   sTick();
   if(act==='move'){pickMode='move';}
-  else if(act==='sprint'){pickMode='sprint';}
+  else if(act==='sprint'){if(!cantSprint(s))pickMode='sprint';}
   else if(act==='hack'){pickMode='hack';}
   else if(act==='fs'){fsMenuOn=!fsMenuOn;}
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
+  else if(act==='treat'){if(treatPick(s)){s.order={type:'treat'};autoAdvance();}}
   else if(act==='rally'){if(s.hero&&!s.heroUsed){s.order={type:'rally'};autoAdvance();}}
   else if(act==='work'){
     const wp=activeWork(s);
@@ -4868,7 +4962,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,
+      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

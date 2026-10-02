@@ -474,7 +474,7 @@ function applyCritical(s,why){
   }
   const id=opts[Math.floor(rng()*opts.length)];
   s.crits.push(id);
-  if(id==='cockpit')adjCool(s,-15,'cockpit breach');
+  if(id==='cockpit'){adjCool(s,-15,'cockpit breach');if(s.faction==='reb')s.pilot.cockpitHit=1;}
   addFloater(s.x,s.y-46,CRITDEFS[id].name.toUpperCase(),C.hazard);
   log('<span class="b">⚠ '+CRITDEFS[id].name+'</span> on '+nameSpan(s)+' <span class="d">('+why+')</span>');
   return id;
@@ -1040,7 +1040,7 @@ function buildResult(win){
     const dead=sh&&!sh.alive&&!sh.fledOut;
     return {id:f.pilotId,
       xp:Math.round((((sh&&sh.pilot.xpGain)||0)+(win?0.15:0.05))*100)/100,
-      state:dead?'shotdown':'ok',down:dead?1:undefined,minHp:sh&&sh.pilot.minHull!==undefined?Math.round(sh.pilot.minHull*100)/100:undefined,panics:(sh&&sh.pilot.panics)||undefined,kills:(sh&&sh.pilot.kills)||undefined,sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
+      state:dead?'shotdown':'ok',down:dead?1:undefined,inj:(sh&&sh.pilot.cockpitHit)?[{k:'concussion',treated:false}]:undefined,minHp:sh&&sh.pilot.minHull!==undefined?Math.round(sh.pilot.minHull*100)/100:undefined,panics:(sh&&sh.pilot.panics)||undefined,kills:(sh&&sh.pilot.kills)||undefined,sk:sh&&sh.pilot.sk?Object.fromEntries(Object.entries(sh.pilot.sk).map(([k,v])=>[k,Math.round(v*10)/10])):undefined};
   });
   const fighters=(CTX.flight||[]).map((f,i)=>{
     const sh=ships.find(x=>x.id==='P'+(i+1));

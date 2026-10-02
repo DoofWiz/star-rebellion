@@ -358,8 +358,80 @@ function renderFeed(){
 }
 /* a completed mission counts toward the next rank */
 
+
+/* ---------- injuries and recovery ----------
+   What a mission leaves on a rebel: new medical conditions, lost limbs, long stays in the Infirmary. Conditions
+   recover over time, slowly without an Infirmary, faster with one, faster still with a medic on the post. */
+const PROS_COST={c:300,m:120};
+function healRate(){
+  if(!hasRoom('infirmary'))return Rebel.NO_INFIRMARY;
+  return 1+(medStaff().length?1:0)+(staffHas('infirmary','medic')?0.5:0)+(staffHas('infirmary','doctor')?1:0)+(upAny('infirmary','surgery')?0.5:0);
+}
+function applyInjuries(p,list,hadState){
+  const msgs=[];
+  for(const i of list||[]){
+    const def=Rebel.INJK[i.k];if(!def)continue;
+    if(def.k==='maimed'){
+      p.body=p.body||{};
+      const free=['arm','leg'].filter(x=>p.body[x]!==1);
+      const part=free.length?free[Math.floor(rng()*free.length)]:'arm';
+      p.body[part]=1;p.injured=Math.max(p.injured||0,6);
+      msgs.push('has lost '+Rebel.PART_NAME[part]+'. A prosthetic would give it back.');
+    } else if(def.k==='spinal'){
+      p.injured=Math.max(p.injured||0,10+(i.treated?0:4));
+      msgs.push('has a spinal injury and will need prolonged treatment.');
+    } else {
+      Rebel.addCond(p,def.cond,i.treated?0:2);
+      msgs.push('comes back with '+def.n.toLowerCase()+(i.treated?'':' — never patched in the field, it will take longer')+'.');
+    }
+    Rebel.moraleBump(p,-3,'injury');
+    p.injDur=Math.max(p.injDur||0,def.k==='spinal'||def.k==='maimed'?6:0);
+    if(def.k==='spinal'||def.k==='maimed')p.critHeal=1;   // the real thing: recovering from it earns Nearly Dead
+  }
+  if(msgs.length&&!hadState)p.injuries=(p.injuries||0)+1;
+  return msgs;
+}
+/* Infirmary: a prosthetic for every rebel who has lost a limb or an eye, once there is a Surgery Room */
+function prostheticCards(){
+  const lost=[];
+  for(const p of crewOf())for(const part of ['arm','leg','eye'])if(p.body&&p.body[part]===1)lost.push([p,part]);
+  if(!lost.length)return '';
+  const surg=upAny('infirmary','surgery');
+  return lost.map(([p,part])=>{
+    const why=!surg?'Needs a Surgery Room.':p.assign==='mission'?'On a mission.':p.injured?'Still recovering.':G.credits<PROS_COST.c||G.materials<PROS_COST.m?'Not enough credits or materials.':'';
+    return '<div class="sr-card sr-card--foe"><div class="sr-card__title">'+esc(p.name)+' \u00b7 '+(part==='eye'?'blinded eye':'lost '+part)+'</div><div class="sr-card__body">A prosthetic '+part+' takes 5 days in the Surgery Room and removes the penalty.</div>'+
+      '<div class="bs-build__row"><span class="sr-card__meta">'+C(PROS_COST.c,G.credits<PROS_COST.c)+M(PROS_COST.m,G.materials<PROS_COST.m)+'</span>'+rbtn('data-pros="'+p.id+':'+part+'"'+(why?' title="'+esc(why)+'"':''),'Fit prosthetic',!!why,'sr-btn--sm sr-btn--primary')+'</div></div>';
+  }).join('');
+}
+function startProsthetic(pid,part){
+  const p=G.people.find(x=>x.id===pid);
+  if(!p||!upAny('infirmary','surgery')||!p.body||p.body[part]!==1||p.assign==='mission'||p.injured)return false;
+  if(G.credits<PROS_COST.c||G.materials<PROS_COST.m)return false;
+  G.credits-=PROS_COST.c;G.materials-=PROS_COST.m;
+  p.injured=5;p.prosPending=part;
+  news('<b>'+p.name+'</b> goes under the knife for a prosthetic '+part+'. Five days.','a');
+  sBuild();saveSnap();syncUI();
+  return true;
+}
+/* the file: conditions with time left, and what is permanently different */
+function medicalSection(p){
+  if(p.auto)return '';
+  const rows=[];
+  for(const c of p.cond||[]){
+    const d=Rebel.CONDK[c.k];if(!d)continue;
+    rows.push('<div class="sr-card sr-card--foe"><div class="sr-card__top"><span class="sr-card__title">'+esc(d.n)+'</span>'+wTag(c.k==='eye'&&c.age>=8?'Getting worse':Math.max(1,Math.ceil(c.days))+' day'+(Math.ceil(c.days)>1?'s':'')+' to go','info')+'</div><div class="sr-card__body">'+esc(d.text)+'</div></div>');
+  }
+  const b=p.body||{};
+  for(const part of ['arm','leg','eye']){
+    if(b[part]===1)rows.push('<div class="sr-card sr-card--foe"><div class="sr-card__top"><span class="sr-card__title">'+(part==='eye'?'Blinded in one eye':'Lost '+(part==='arm'?'an arm':'a leg'))+'</span>'+wTag('Permanent','bad')+'</div><div class="sr-card__body">'+(part==='eye'?'A significant accuracy penalty.':part==='arm'?'No two-handed weapons.':'Slowed and cannot sprint.')+' A prosthetic from a Surgery Room would fix it.</div></div>');
+    else if(b[part]===2)rows.push('<div class="sr-card sr-card--good"><div class="sr-card__top"><span class="sr-card__title">Prosthetic '+part+'</span>'+wTag('Fitted','good')+'</div><div class="sr-card__body">It works. Mostly.</div></div>');
+  }
+  if(!rows.length)return '';
+  return '<div class="sr-h3">Medical</div><div class="sr-stack">'+rows.join('')+'</div>'+((p.cond||[]).length&&!hasRoom('infirmary')?'<p class="sr-p bs-bad">No Infirmary: wounds mend very slowly, and an eye injury can become permanent.</p>':'');
+}
+
 /* ---------- experiences: what a mission did to the people who went ---------- */
-const BOND_KINDS=['friends','oldfriends','battlebros','love','rivals'];
+const BOND_KINDS=['friends','oldfriends','battlebros','love','rivals','owes'];
 const nameOfRebel=id=>{const q=G.people.find(x=>x.id===id);return q?(q.first||q.name.split(' ')[0]):(id==='Hegemony'?'the Hegemony':'someone');};
 function runExperiences(r,m,ev){
   const win=!!r.win,sec=(m&&m.ctx&&m.ctx.sec)||0,tid=m?(m.tid||m.id):null,entries=r.people||[];
@@ -383,6 +455,15 @@ function runExperiences(r,m,ev){
     if(ev.lostP.length&&Rebel.expHas(p,'guilt')&&!ctx.down)Rebel.moraleBump(p,-4,'death');
     const lv=Rebel.expGet(p,'love');
     if(lv&&teamIds.includes(lv.with))Rebel.moraleBump(p,4,'win');
+    const sv=Rebel.expGet(p,'saved');
+    if(sv&&teamIds.includes(sv.with))Rebel.moraleBump(p,2,'win');
+    for(const tid of pr.rescued||[]){
+      const t=G.people.find(x=>x.id===tid);
+      if(t&&Rebel.expRoom(p,'saved')&&Rebel.expRoom(t,'owes')&&!Rebel.expHas(p,'saved',tid)){
+        Rebel.expGrant(p,'saved',tid);Rebel.expGrant(t,'owes',p.id);
+        news(nm(p)+'pulled <b>'+t.name+'</b> out of it. They will not forget.','p');
+      }
+    }
     if(Rebel.breakCheck(p,ctx))news(nm(p)+'is broken by what happened. They need rest.','h');
   }
   for(let i=0;i<here.length;i++)for(let j=i+1;j<here.length;j++){
@@ -1313,10 +1394,19 @@ function advanceDay(){
   moraleTick();
   recruitTick();
   for(const p of G.people){
+    if(p.cond&&p.cond.length&&p.assign!=='mission'){
+      const res=Rebel.condRecover(p,healRate(),rng);
+      for(const k of res.done)news('<b>'+p.name+'</b> has recovered from '+Rebel.CONDK[k].n.toLowerCase()+'.','g');
+      if(res.scar&&Rebel.expGrant(p,'scarred'))news('<b>'+p.name+'</b>\u2019s face will carry the scar for good.','p');
+      if(res.blind)news('<b>'+p.name+'</b> has lost the sight in an eye for good. Only a prosthetic will bring it back.','h');
+    }
     if(p.injured>0){
       Rebel.moraleBump(p,-0.5,'injury');
       p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
-      if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');if((p.injDur||0)>=5&&Rebel.expGrant(p,'scarred'))news('<b>'+p.name+'</b> will carry the scars of this one.','p');p.injDur=0;}
+      if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');
+        if(p.prosPending){p.body=p.body||{};p.body[p.prosPending]=2;news('<b>'+p.name+'</b>\u2019s prosthetic '+p.prosPending+' is fitted and working.','g');p.prosPending=null;}if((p.injDur||0)>=5&&Rebel.expGrant(p,'scarred'))news('<b>'+p.name+'</b> will carry the scars of this one.','p');
+        if(p.critHeal){p.critHeal=0;if(Rebel.expGrant(p,'nearlydead'))news('<b>'+p.name+'</b> was not expected to walk again, and does.','p');}
+        p.injDur=0;}
       continue;
     }
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
@@ -2201,7 +2291,8 @@ function renderRoomBar(){
       '<br>Armory: '+G.armory.map(a=>a.name+' ×'+a.n).join(' · ')+staffLine('store');
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
-    info='Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none')+staffLine('infirmary');
+    const treating=G.people.filter(p=>!p.injured&&(p.cond||[]).length);
+    info='Patients: '+(patients.length?patients.map(p=>p.name+' ('+p.injured+'d)').join(', '):'none')+(treating.length?' · Recovering: '+treating.map(p=>p.name.split(' ')[0]+' ('+p.cond.map(c=>Rebel.CONDK[c.k].n).join(', ')+')').join('; '):'')+' · recovery '+(Math.round(healRate()*100)/100)+'/day'+staffLine('infirmary');
   } else if(rm.key==='training'){
     const tr=G.people.filter(p=>p.assign==='train');
     info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+staffLine('training');
@@ -2218,6 +2309,7 @@ function renderRoomBar(){
   let cards='',acts='';
   if(rm.key==='command')acts=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
   if(rm.key==='command')cards+=recruitCard();
+  if(rm.key==='infirmary')cards+=prostheticCards();
   if(rm.key==='training')acts=rbtn('data-open="spec"','Specialty Training')+rbtn('data-simulator','Simulator — dogfight exercise');
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)cards+='<div class="sr-card sr-card--info"><div class="sr-card__title">Restoring the hauler</div><div class="sr-card__body" style="margin-bottom:0">'+G.wreck.restoring+'d left. Joss hasn’t slept.</div></div>';
@@ -3002,7 +3094,7 @@ function dossierHead(p,extra,noRank){
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+(p.role==='Hero'?'Hero · was '+p.heroOf:p.role)+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
-    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+heroCard(p)+traitCard(p)+expCards(p,noRank)+skillsCard(p);
+    '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+heroCard(p)+traitCard(p)+expCards(p,noRank)+medicalSection(p)+skillsCard(p);
 }
 /* what being a Hero means, on the file */
 function heroCard(p){
@@ -3548,7 +3640,7 @@ function syncUI(){
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
     return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
-      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+((p.cond&&p.cond.length)||(p.body&&Object.values(p.body).some(v=>v===1))?'<span class="bs-bad" title="'+esc(Rebel.medSummary(p).join(', '))+'" aria-label="Injuries: '+esc(Rebel.medSummary(p).join(', '))+'">\u271a</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
   const grp=(listId,countId,people,emptyMsg)=>{
     $(listId).innerHTML=people.length?people.map(crewRow).join(''):'<div class="sr-empty">'+emptyMsg+'</div>';
@@ -3837,6 +3929,8 @@ $('winsB').addEventListener('click',ev=>{
     }
     gearOverlay=null;syncUI();renderWin();return;
   }
+  const prosId=t.getAttribute('data-pros');
+  if(prosId){const [pid,part]=prosId.split(':');if(startProsthetic(pid,part)){if(viewRoom)renderRoomBar();}return;}
   const promoId=t.getAttribute('data-promote');
   if(promoId){
     const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
@@ -4261,7 +4355,7 @@ function assetsHTML(){
 }
 function squadEntry(p,scatterFirst){
   return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
-    aim:soldierAim(p),hp:p.auto?autoOf(p).hp:Rebel.hpOf(p),agi:p.auto?1:Rebel.moveMul(p),nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Rebel.coolOf(p,'g'),def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+    aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
 function startPlan(){
@@ -4302,7 +4396,7 @@ function startPlan(){
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
-        rankName:rankFor(p),hero:p.role==='Hero'?1:0,aim:pilotAim(p),cool:Rebel.coolOf(p,'s'),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
+        rankName:rankFor(p),hero:p.role==='Hero'?1:0,aim:Math.max(0,pilotAim(p)+Rebel.injFx(p).aim),cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull});
     }
     G.fuel-=fuel;
@@ -4390,6 +4484,7 @@ function applyDebrief(r){
       state='injured';pr.dur=6;nearIds.push(p.id);
       news('<b>'+p.name+'</b> should not have made it. The surgery room says otherwise.','g');
     }
+    if(state!=='lost'&&pr.inj&&pr.inj.length)for(const m of applyInjuries(p,pr.inj,state==='injured'))news('<b>'+p.name+'</b> '+m,'h');
     if(state==='lost'){
       G.people=G.people.filter(x=>x.id!==p.id);lostP.push(p);
       moraleAll(-6,'death',(r.people||[]).map(x=>x.id),-10);
@@ -4606,7 +4701,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

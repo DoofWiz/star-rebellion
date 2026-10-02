@@ -78,8 +78,8 @@
     T('resolve','Survivor’s Resolve','Positive',5,1,'[A] has lost people. They intend to make sure it meant something.','Loses much less morale when allies die.'),
     T('oldfriends','Old Friends with [B]','Positive',6,1,'[A] and [B] have been through enough together that neither needs to explain much anymore.','+1 accuracy together. A significant morale loss if [B] dies.',{pair:1}),
     T('battlebros','Battle Brothers with [B]','Positive',7,1,'[A] and [B] have saved each other’s lives often enough that it has become routine.','+2 accuracy together. A severe morale loss if [B] dies.',{pair:1}),
-    T('owes','Owes a Life to [B]','Positive',4,0,'[A] remembers who dragged them out of that firefight.','Small bonus beside the one who saved them.',{pair:1}),
-    T('saved','Saved [B]’s Life','Positive',4,0,'[A] pulled [B] out when they should have been left behind.','Small morale bonus beside the person they saved.',{pair:1}),
+    T('owes','Owes a Life to [B]','Positive',4,1,'[A] remembers who dragged them out of that firefight.','+1 accuracy beside [B]. Grieves if [B] dies.',{pair:1}),
+    T('saved','Saved [B]’s Life','Positive',4,1,'[A] pulled [B] out when they should have been left behind.','A small morale lift after a mission beside [B].',{pair:1}),
     T('inspired','Inspired','Positive',3,0,'[A] saw someone do something extraordinary. It changed them.','A morale bonus after witnessing something heroic.'),
     T('proved','Proved Themselves','Positive',4,1,'[A] had something to prove. Apparently, they proved it.','A small permanent boost to morale.'),
   ];
@@ -212,9 +212,9 @@
       if(t.with!==goneId)continue;
       drop(p,t.k,goneId);
       if(!die)continue;
-      const hit={friends:-15,oldfriends:-20,battlebros:-30,love:-30,mentoring:-18,mentored:0,rivals:0}[t.k]||0;
+      const hit={friends:-15,oldfriends:-20,battlebros:-30,love:-30,mentoring:-18,owes:-10,mentored:0,rivals:0}[t.k]||0;
       if(hit)out.push({d:hit,kind:'death'});
-      if(['friends','oldfriends','battlebros','love'].includes(t.k))if(grant(p,'grieving',undefined,{days:7}))out.push({grief:1});
+      if(['friends','oldfriends','battlebros','love','owes'].includes(t.k))if(grant(p,'grieving',undefined,{days:7}))out.push({grief:1});
       if(t.k==='mentored')if(grant(p,'avenging'))out.push({avenge:1});
     }
     return out;
