@@ -736,6 +736,46 @@ const PLANETDEF=[
 ];
 const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
 
+/* ---------- galaxy view statics (docs/ui/GALAXY-HANDOFF.md §7; cosmetic, never saved) ---------- */
+/* hyperlanes: a static picture of how the drift hangs together; no travel rules */
+const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','veray'],['veray','menk'],['brakka','menk'],
+ ['kess','oubli'],['oubli','sable'],['sable','parity'],['veray','parity'],['parity','callis'],['parity','ballakan'],
+ ['menk','dreymar'],['dreymar','ballakan'],['ballakan','volund'],['menk','nyx'],['nyx','volund'],['callis','tarsis'],
+ ['callis','meridian'],['tarsis','meridian'],['meridian','halcyon'],['halcyon','volund'],['ballakan','callis']];
+/* how each world looks on the map: radius at scale 1, body colour, SR_ART.planet texture; region fills for the world view */
+const WORLD_LOOK={
+  haven:{R:12,col:'#7a6656',tex:'craters',home:true},
+  veray:{R:12,col:'#c0623a',tex:'bands'},
+  kess:{R:8,col:'#9aa6c4'},
+  brakka:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
+  callis:{R:12,col:'#4fb0a0',tex:'cap'},
+  meridian:{R:17,col:'#ffd866',tex:'bands',ring:true,heg:true},
+  volund:{R:16,col:'#d0563a',tex:'cracks',heg:true},
+  halcyon:{R:14,col:'#7fc8d8',tex:'islands',heg:true},
+  dreymar:{R:11,col:'#a8743a',tex:'craters'},
+  sable:{R:11,col:'#5d8a4a',tex:'islands'},
+  nyx:{R:10,col:'#8a5aa8',tex:'craters'},
+  tarsis:{R:12,col:'#d8b860',tex:'bands'},
+  oubli:{R:10,col:'#6a6f7a',tex:'craters'},
+  menk:{R:12,col:'#e6dcc8',tex:'flats',regions:{saltreach:'#ece5d6',kilnridge:'#bfae94',menkcross:'#a99a80'}},
+  ballakan:{R:13,col:'#3f8a5a',tex:'river'},
+  parity:{R:12,col:'#8a94b0',tex:'grid'},
+};
+/* which region a source lives in (others fall back to the planet's first settlement) */
+const SRC_REGION={venn:'dustfall',tess:'saltreach',pell:'tollgate',cask:'ledger'};
+/* the Hegemony's visible presence per region (cosmetic; keyed by the game's region ids) */
+const HEG_SITE={dustfall:'Sheriff’s office',flats:'Tithe depot and garrison',saltreach:'Company crawlers',
+  kilnridge:'Foundry contract office',menkcross:'Precinct house',tollgate:'Toll office',ledger:'Bureau registry',quota:'Labour wardens'};
+/* hand-tuned decor and marker anchors per region, [kind,u,v] in planet unit-disc coordinates;
+   regions without an entry get a seeded scatter from their name and blurb */
+const REGION_DECOR={
+  dustfall:[['town',0,0],['pad',.14,.1],['source',-.1,-.08],['heg',.08,-.1]],
+  flats:[['mesa',-.55,-.35],['well',-.3,.15],['well',.1,-.55],['depot',-.45,.45],['mesa',.35,-.7],['heg',-.45,.45],['job',-.2,-.3]],
+  saltreach:[['flats',-.5,-.3],['crawler',-.35,-.05],['crawler',-.6,.15],['source',-.4,-.2],['heg',-.35,-.05]],
+  kilnridge:[['ridge',.45,-.4],['kiln',.3,-.55],['kiln',.55,-.25],['road',.4,-.1],['heg',.5,-.45]],
+  menkcross:[['town',0,.42],['pad',.12,.5],['heg',-.08,.4]],
+};
+
 /* ---------- location model (Security / Access / Support / Liberation) ----------
    Access (0–5 eyes): Intel buys it. Support (0–5 flags): raised by source events.
    Liberation (0–100% per region): local ops add it, capped by the LOWER of the
