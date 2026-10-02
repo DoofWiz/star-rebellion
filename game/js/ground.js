@@ -3886,9 +3886,9 @@ function groundShadow(x,y,rx,ry){
 }
 function drawDerelict(now){
   const d=SCN.derelict;
-  groundShadow(d.x,d.y,92,32);
-  SA.ship(ctx,'graf',d.x,d.y,d.a||0,4.2,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
-  plb('DERELICT HAULER',d.x,d.y-80,C.text2,12);
+  groundShadow(d.x,d.y,110,38);
+  SA.ship(ctx,'graf',d.x,d.y,d.a||0,5.0,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
+  plb('DERELICT HAULER',d.x,d.y-94,C.text2,12);
 }
 function drawGraf(now){
   now=now||performance.now();
@@ -3901,10 +3901,10 @@ function drawGraf(now){
     ox=-e*1500;oy=e*260;
     if(t>=1)return;
   }
-  if(!lifting)groundShadow(grafPos.x,grafPos.y,92,32);
-  SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,4.2*sc,HUD.reduced?0:now/1000,
+  if(!lifting)groundShadow(grafPos.x,grafPos.y,110,38);
+  SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,5.0*sc,HUD.reduced?0:now/1000,
     {livery:'rebel',dark:true,boost:lifting,off:!lifting});
-  if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-82,C.shield,12);
+  if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-96,C.shield,12);
 }
 function drawCross(now){
   if(crossAway&&!crossFx)return;
@@ -3917,8 +3917,8 @@ function drawCross(now){
     sc=1+t*0.25;
     if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  if(!crossFx)groundShadow(x,y,42,15);
-  SA.ship(ctx,'cross',x,y,-0.5,1.8*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
+  if(!crossFx)groundShadow(x,y,51,18);
+  SA.ship(ctx,'cross',x,y,-0.5,2.2*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
 
@@ -3939,9 +3939,13 @@ function artSpec(u){
   return A.recruit(u.name||u.id);                       // last resort for a rebel with no record (debug spawns)
 }
 const ORDER_POSE={hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat'};
+/* a fixed per-unit phase so units don't blink and bob in sync — never the live
+   position: an offset that moves with the unit speeds the cycle up one way and
+   runs it backwards the other */
+const animPhase=u=>u._ph!==undefined?u._ph:(u._ph=(SA.util.hashStr(String(u.id||u.name||''))%97)*0.1);
 function artPose(u,now){
   const c=engageQ&&engageQ.cur;
-  const t=(HUD.reduced?0:now/1000)+u.x*0.01;             // units don't blink and bob in sync
+  const t=(HUD.reduced?0:now/1000)+animPhase(u);
   const moved=u._ax!==undefined&&Math.hypot(u.x-u._ax,u.y-u._ay)>0.45;
   const sneaking=u.side==='reb'&&!u.auto&&sneak&&phase==='FREE'&&town==='calm';
   let state='idle';
@@ -3993,7 +3997,7 @@ function drawActors(now){
   for(const u of list){u._ax=u.x;u._ay=u.y;}             // cached for next frame's "moved"; never saved
 }
 function drawUnitActor(u,now){
-  const t=(HUD.reduced?0:now/1000)+u.x*0.01;
+  const t=(HUD.reduced?0:now/1000)+animPhase(u);
   const sc2=actorScale(u);
   if(u.veh){
     const key=u.veh==='dispersal'?'riotdispersal':u.veh==='transport'?'riottransport':'police';
@@ -4004,7 +4008,7 @@ function drawUnitActor(u,now){
       u._tUp=Math.min(1,(u._tUp||0)+(u._tEng?0.04:0));   // the turret rises once it first engages, and stays up
       if(gunnerShot)u._tAng=Math.atan2(c.t.y-u.y,c.t.x-u.x);
     }
-    SA.vehicle(ctx,key,u.x,u.y,u.face,sc2*1.1,t,{livery:'heg',damage:1-u.hp/(u.maxhp||1),
+    SA.vehicle(ctx,key,u.x,u.y,u.face,sc2*1.3,t,{livery:'heg',damage:1-u.hp/(u.maxhp||1),
       siren:town==='alerted'&&!u.down,turretUp:u._tUp||0,turretAng:u._tAng,fire:gunnerShot&&c.stage==='fire'});
     return;
   }
@@ -4014,11 +4018,11 @@ function drawUnitActor(u,now){
     SA.strider(ctx,u.x,u.y,{view:vd.view,dir:vd.dir,
       state:p.state==='run'?'walk':['idle','walk','aim','fire','down'].indexOf(p.state)>=0?p.state:'idle',
       mood:u.hacked||u.side==='reb'?'hacked':town==='alerted'?'angry':'friendly',
-      damage:1-u.hp/(u.maxhp||1),t,s:sc2*0.72});
+      damage:1-u.hp/(u.maxhp||1),t,s:sc2*0.85});
     return;
   }
   let x=u.x,y=u.y;
-  if(u.mnt&&!enclosed(u)){x+=14;y-=26;}                  // an open gun seat perches on the hull
+  if(u.mnt&&!enclosed(u)){x+=17;y-=31;}                  // an open gun seat perches on the hull
   SA.character(ctx,x,y,artSpec(u),artPose(u,now));
 }
 /* rings, pulses and arcs under the feet, flattened into the ground plane */
@@ -4513,6 +4517,7 @@ function endCutscene(){
   for(const u of U)if(u.side==='reb'){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
   cs=null;
   camGoal={x:LZ.x+240,y:LZ.y-180,z:0.9};
+  fsCassIntro();
   enterFree(null);
 }
 /* ---------- main render ---------- */
@@ -5303,7 +5308,15 @@ function initState(){
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
-   fsMenuOn=false;fsDraft=null;}
+   fsMenuOn=false;fsDraft=null;
+   /* the opening job only: Cass flew the squad in aboard his own hauler, and he alone stays on
+      station as a Door Gunner. No other mission grants this — later fire support is ships the
+      player brings. */
+   if((((CTX&&CTX.missionId)||'stealcross')==='stealcross')&&SCN.mode==='stealcross'){
+     FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+     FS.ships.push({state:'ready',left:0,mode:'doorgun',cls:'graf',name:'Cass’s Hauler',
+       pilot:{name:'Cass Wender',first:'Cass'},soldiers:[],cassAir:1});
+   }}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
   fac=(SCN.mode==='autofactory'||SCN.mode==='towers')?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null,method:null}:null;
@@ -5324,6 +5337,13 @@ function initState(){
   logEl.innerHTML='';feed.clear();
   recovered=0;
 }
+/* Cass announces his door gun once the player has the map — after the cutscene, or straight away in a plain boot */
+function fsCassIntro(){
+  const a=FS&&FS.ships.find(s=>s.cassAir&&!s.introduced);
+  if(!a)return;
+  a.introduced=1;
+  log('<b>Cass</b> <span class="d">(Cass’s Hauler):</span> I’m staying upstairs with a gun in the door — this run only, so spend me well. Call it through <span class="a">Fire support</span> and I’ll rake whatever your people can see.');
+}
 function resetGame(withCine){
   initState();
   if(withCine)startCutscene();
@@ -5333,6 +5353,7 @@ function resetGame(withCine){
     log(SCN.mode==='haven'?
       '<span class="d">Three of you, on foot, at the bottom of the canyon. The base mouth is up the trail past the squatter camp.</span>':
       '<span class="d">Squad on the ground at the Graf LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
+    fsCassIntro();
     enterFree(null);
   }
 }

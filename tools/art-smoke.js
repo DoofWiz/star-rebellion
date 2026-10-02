@@ -47,6 +47,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   await sleep(500);
   DG.fn.startPlanning();
   await sleep(400);
+  // the opener grants Cass's Door Gunner, and only there
+  if(!(DG.FS&&DG.FS.ships.some(s=>s.mode==='doorgun'&&s.pilot.first==='Cass')))return {fail:'Cass door gunner missing in the opener'};
   log.push('ground scene');
   // boot the space scene (instructor exercise) and let a couple of frames run
   window.SR.mission=null;
