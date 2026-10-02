@@ -321,3 +321,6 @@
   #sc-base #gxDock .gx-dossier,#sc-base #gxDock .gx-regioncard{width:auto;}
   #sc-base #gxTools .gx-minimap{display:none;}
 }
+/* kit portraits inside the kit's avatar rings */
+.sr-avatar .bs-face{width:100%;height:100%;border-radius:50%;display:block;}
+#sc-base .bs-dz__av{width:48px;height:48px;flex:none;}

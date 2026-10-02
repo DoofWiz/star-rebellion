@@ -44,11 +44,11 @@ function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
 
 const WPN={
   akli:   {name:'Akli AR',            d0:24,d1:38,rng:540,atk:1,jam:true,shots:3},
-  cowboy: {name:'Cowboy',             d0:18,d1:30,rng:280,atk:0,shots:1},
+  cowboy: {name:'Cowboy No.4',        d0:18,d1:30,rng:280,atk:0,shots:1},
   carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
-  scatter:{name:'Scattergun',         d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
-  longiron:{name:'Long Iron',         d0:29,d1:46,rng:920,atk:2,shots:1},
-  rocket: {name:'Makeshift Rocket',   d0:55,d1:85,rng:520,atk:0,shots:1},
+  scatter:{name:'Varmint Shotgun',    d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
+  longiron:{name:'Longhorn ’28 Hunting Rifle',d0:29,d1:46,rng:920,atk:2,shots:1},
+  rocket: {name:'Improvised Rocket Launcher',d0:55,d1:85,rng:520,atk:0,shots:1},
   unarmed:{name:'Bare hands',          d0:5, d1:10,rng:60, atk:-1,shots:1},
   fists:  {name:'Riot Fists',          d0:22,d1:36,rng:70, atk:1,shots:2},
   cruiser:{name:'Cruiser Pulse Cannon',d0:18,d1:30,rng:480,atk:1,shots:2},

@@ -192,7 +192,7 @@ function newGame(){
     wreck:{restored:false,restoring:0},
     armory:[
       {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
-      {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
+      {id:'cowboy',name:'Cowboy No.4',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
     ],
     people:[
       {id:'joss',name:'Joss Marrek',role:'Pilot',level:3,xp:0.5,assign:'rest',injured:0,ship:'',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},
@@ -1439,7 +1439,7 @@ function advanceDay(){
       G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
       const joss=G.people.find(p=>p.id==='joss');
       if(joss&&!G.fighters.some(f=>f.id===joss.ship))joss.ship='graf';
-      news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Type 1 Hauler with door guns and opinions.','g');
+      news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Hauler with door guns and opinions.','g');
       sBuild();
     }
   }
@@ -2176,6 +2176,31 @@ function roomCenter(rm){
 }
 /* ---------- world art: the Bobbleheads kit (game/art/sr-art.js) ---------- */
 const SA=window.SR_ART;
+/* a rebel's face for crew lists, rosters and the dossier; cached as a data URL and
+   re-rendered when the record changes (rank, role, conditions, body, traits, morale band) */
+const portraitCache=new Map();
+function portraitKey(p){
+  const band=!p.auto&&p.morale!==undefined?Rebel.mband(p).k:'';
+  return [p.rank||0,p.off?1:0,p.role,p.heroOf||'',p.spec||'',(p.cond||[]).map(c=>c.k).join(','),
+    JSON.stringify(p.body||{}),(p.traits||[]).map(t=>t.k).join(','),p.charTrait||'',band].join('|');
+}
+function portraitURL(p){
+  if(p.auto||!p.id)return null;
+  const key=portraitKey(p);
+  const hit=portraitCache.get(p.id);
+  if(hit&&hit.key===key)return hit.url;
+  try{
+    const c=document.createElement('canvas');c.width=c.height=48;
+    SA.portrait(c.getContext('2d'),24,24,22,personSpec(p),{t:0});
+    const url=c.toDataURL();
+    portraitCache.set(p.id,{key,url});
+    return url;
+  }catch(e){return null;}
+}
+function faceHTML(p){
+  const u=portraitURL(p);
+  return u?'<img class="bs-face" src="'+u+'" alt="">':ini(p.name);
+}
 /* who someone is, read live from their record; nothing saved (docs/art/HANDOFF.md) */
 function personSpec(p){return SA.lookOf(p);}
 /* what a room's crew are doing */
@@ -2356,7 +2381,7 @@ function renderRoomBar(){
   if(rm.key==='hangar'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
     info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
-    if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
+    if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'){
     info='Bunks '+bunksUsed()+'/'+bunkCap()+' · '+clusterTiles(clusterOf(rm))+' rooms · morale '+Math.round(G.morale)+staffLine('barracks')+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
@@ -4056,7 +4081,7 @@ function dossierHead(p,extra,noRank){
   const mb=!p.auto&&p.morale!==undefined?Rebel.mband(p):null;
   const tags=(p.role==='Hero'?wTag('Hero','action','star'):'')+(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
-  return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
+  return '<div class="bs-dz">'+(p.auto?'':'<span class="sr-avatar bs-dz__av">'+faceHTML(p)+'</span>')+'<span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+(p.role==='Hero'?'Hero · was '+p.heroOf:p.role)+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
     '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+heroCard(p)+traitCard(p)+expCards(p,noRank)+medicalSection(p)+skillsCard(p);
 }
@@ -4573,7 +4598,7 @@ function syncUI(){
     else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
-    return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
+    return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+faceHTML(p)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
       '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+((p.cond&&p.cond.length)||(p.body&&Object.values(p.body).some(v=>v===1))?'<span class="bs-bad" title="'+esc(Rebel.medSummary(p).join(', '))+'" aria-label="Injuries: '+esc(Rebel.medSummary(p).join(', '))+'">\u271a</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
   const grp=(listId,countId,people,emptyMsg)=>{
@@ -5207,7 +5232,7 @@ function plAutoFill(){
   }
 }
 const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+IC('ship')+'</span>';
-const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
+const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+faceHTML(p)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
 const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';
@@ -5378,7 +5403,7 @@ function startPlan(){
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
 function pilotAim(p){return Math.min(6,Rebel.aimOf(p,'s')+(p.spec==='dogfighter'?1:0));}
 function addArmoryItem(name){
-  const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
+  const map={'Scattergun':['scatter','Varmint Shotgun'],'Varmint Shotgun':['scatter','Varmint Shotgun'],'Sheriff\u2019s Scattergun':['scatter','Varmint Shotgun'],'Cowboy':['cowboy','Cowboy No.4'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
     'Explosive Charge':['charge','Explosive Charge'],'Data Limpet':['limpet','Data Limpet']};
   const hit=map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name];
@@ -5412,7 +5437,7 @@ function applyDebrief(r){
         for(const it of r.loot.items||[])addArmoryItem(it);
       }
       news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
-      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
+      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
       discoverCass();
       seedNews();
       openWin('cassIntro');
@@ -5643,6 +5668,8 @@ function restoreCampaign(data){
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    {const WNAMES={cowboy:'Cowboy No.4',longiron:'Longhorn \u201928 Hunting Rifle',scatter:'Varmint Shotgun',rocket:'Improvised Rocket Launcher'};
+     for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
     for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];

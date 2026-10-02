@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-02, after building vehicle gameplay (crewed vehicles, Bots, vehicles as fire support).
+**Last updated:** 2026-10-02, after installing the Bobbleheads world art and the Galaxy/World views (both handoffs, all phases).
 
 ## How to use this
 
@@ -49,6 +49,10 @@
 | M-11 | 🟡 | Pilot critical injuries and space-side gear | Pilots escape injury risk; gear only matters on foot |
 | M-12 | 🟡 | Old injuries: permanent Limp, Old Wound | 6 Rebel Traits |
 | M-13 | 🟡 | Vehicle stats, and a way to own a crewed vehicle | Player-owned cruisers, the Driver specialty |
+| C-10 | ⚪ | Galaxy handoff ids and names vs. the game's region ids | Nothing live; I keyed the new tables to the game's ids |
+| C-11 | ⚪ | Art-kit lore guesses: makers, ship and truck attachments, Strider maker | The Armoury/maker copy when those tabs arrive |
+| M-14 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
+| M-15 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -160,6 +164,30 @@ The Asset Sheet's Vehicles tab lists turrets as vehicles. The laser turret on th
 one-seat emplacement (Man gun / Leave gun, a frontal shield arc), and I left it alone rather than risk the
 onboarding mission. **Needs from you:** should emplacements become vehicles with speed 0 (Enter/Exit instead of
 Man gun/Leave gun), or stay separate?
+**Your call:** _open_
+
+### C-10 ⚪ Galaxy handoff ids and names vs. the game's region ids
+The Galaxy handoff's §7 tables use region ids `kiln`, `crossing` and `dataflats`/`ledger` shorthand; the game's
+regions are `kilnridge`, `menkcross` and `dataflats`. I keyed `HEG_SITE`, `SRC_REGION` and the `WORLD_LOOK`
+region fills to the **game's** ids so they actually resolve. The handoff also said source badges were green in
+the art handoff; your note in the galaxy handoff says rebel red, which is what I built.
+**Needs from you:** nothing unless you meant different region mappings; the table keys are in `base.js` next to
+`PLANETDEF`.
+**Your call:** _open_
+
+### C-11 ⚪ Art-kit lore guesses carried into the game
+From the art handoff's open questions, now live in `game/art/sr-art.js` data tables:
+- **Makers:** Patriot is *proposed* for the HG-40, Power Baton, Riot Shield, Police Vest and Peacekeeper
+  Carbine (flagged `makerProposed` in `ITEMS`). Cowboy No.4, Longhorn ’28, Varmint Shotgun, the Improvised
+  Rocket Launcher, Mining Laser, Frontier Hardhat, Medpack and Stim have no maker.
+- **Strider maker:** the Enemies doc says Autoworks, the gear doc says AutoCom makes Autos and Bots. The kit
+  comment says Autoworks; nothing in-game shows it yet.
+- **Ship attachments:** only the Door Mounted Gun is designed; `plates` and `tank` are placeholder examples.
+- **Floatin' Truck attachments** (mg, plates, ram, spotlight, crates) are proposals; the truck itself is not in
+  the game.
+- **Armour as looks:** Soldiers/Marines wear the Frontier Hardhat and Marines a vest as *looks only*; the
+  armoury has no armour items (see M-10).
+**Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
 **Your call:** _open_
 
 ---
@@ -290,6 +318,24 @@ my placeholders carried over from the old enemy units. A cruiser stolen mid-miss
 **Needs from you:** vehicle rows (hp, armour or TN, speed, positions and which are enclosed, weapons per position),
 how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
 specialist adds (speed, a better TN while driving, ramming?).
+**Your call:** _open_
+
+### M-14 🟡 No art for the fuel depot or the Bruiser
+**Blocks:** nothing playable — both draw restyled fallbacks (the depot keeps its octagon with the kit's cel
+shade and visor slit; the Bruiser borrows the Policebot archetype at 1.25×).
+**Needs from you:** a line or two describing each (the Enemies doc stops short of them) and I'll add proper kit
+entries.
+**Your call:** _open_
+
+### M-15 🟡 Galaxy view follow-ups from the handoff's own open questions
+1. **Locked and uncharted worlds don't dive in** — they open the docked panel at galaxy level, as the handoff
+   ships it. Its proposal (dive in shrouded) waits on you.
+2. **Missions without a `region`** (e.g. Brakka Garrison Raid) fall back to the world's first settlement for
+   markers and the region card's Local job. Adding `region` to `MPOOL` entries makes placement exact.
+3. **The phone World view** uses the provisional layout (planet on top, panels as a bottom sheet, minimap
+   hidden) and needs its own design pass.
+4. **The Missions view** is the next design pass: the gold mission pins and the region card's "+n more" link
+   currently open the old Missions window.
 **Your call:** _open_
 
 ---
