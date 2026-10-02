@@ -36,6 +36,20 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   }
   // back to the base view
   document.getElementById('navBase').click();await sleep(250);
+  // boot the ground scene (default Steal the Cross spec), walk, then force a fight
+  window.SR.mission=null;
+  window.SR.go('ground',{test:true});
+  await sleep(600);
+  const DG=window.DBGground;
+  DG.fn.squadMoveTo({x:700,y:1100});
+  await sleep(900);
+  DG.fn.alertTown('smoke');
+  await sleep(500);
+  DG.fn.startPlanning();
+  await sleep(400);
+  log.push('ground scene');
+  window.SR.go('base',{});
+  await sleep(300);
   // a generated rebel with story layers renders as a character and a portrait
   const cv=document.createElement('canvas');cv.width=96;cv.height=96;
   const c2=cv.getContext('2d');

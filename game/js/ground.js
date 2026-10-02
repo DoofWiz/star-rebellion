@@ -775,7 +775,7 @@ function defaultSpec(){
 function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
-  const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',
+  const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
     level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
@@ -793,7 +793,7 @@ function initUnits(){
       wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
   }
   if(spec.pilot){
-    roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',
+    roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',art:spec.pilot.art,
       x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:spec.pilot.wpns||['cowboy'],frail:1,lines:PILOT_LINES}));
   }
   U=[
@@ -2890,6 +2890,7 @@ function playerAttack(){
   sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
 }
 function throwNade(s,gx,gy){
+  s._throwT=performance.now();
   if(injOf(s,'shrapnel')){addFloater(s.x,s.y-48,'SUPPRESSED',C.hazard);return;}
   NADES--;
   if(hasT(s,'clumsy')&&rng()<0.25){
@@ -3762,6 +3763,7 @@ function drawVision(){
     }
     /* the cone is clipped at walls; blue searchlight, orange band where they spot even sneakers */
     ctx.save();
+    ctx.translate(0,-26*actorScale(l));
     ctx.beginPath();ctx.moveTo(l.x,l.y);
     for(const r of rays)ctx.lineTo(r[0],r[1]);
     ctx.closePath();ctx.clip();
@@ -3780,7 +3782,7 @@ function drawEngageFocus(now){
   const c=engageQ&&engageQ.cur;
   if(!c)return;
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
-  const [ax,ay]=worldToCss(c.s.x,c.s.y),[bx,by]=worldToCss(c.t.x,c.t.y);
+  const [ax,ay]=worldToCss(c.s.x,c.s.y-(c.s.veh||c.s.bot?0:26*actorScale(c.s))),[bx,by]=worldToCss(c.t.x,c.t.y-(c.t.obj||c.t.veh||c.t.bot?0:26*actorScale(c.t)));
   if(pickMode==='nadeToss'&&c.stage==='await'){
     ctx.beginPath();ctx.arc(ax,ay,NADE_R*cam.z,0,7);ctx.fillStyle=T.rgba(C.hazard,0.06);ctx.fill();
     ctx.setLineDash([10,8]);ctx.lineWidth=2.5;ctx.strokeStyle=T.rgba(C.hazard,0.7);ctx.stroke();ctx.setLineDash([]);
@@ -3969,6 +3971,126 @@ function drawCross(now){
   ctx.restore();
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
+
+/* ---------- world art: who someone is (artSpec) and what they're doing (artPose) ---------- */
+const SA=window.SR_ART;
+const actorScale=u=>Math.max(1,0.9/cam.z);
+function artSpec(u){
+  const A=SA;
+  if(u.art)return u.art;                                 // any rebel, via squadEntry / the pilot entry
+  if(u.side==='civ')return A.ARCH.civ;
+  if(u.vip&&!u.bot)return A.ARCH.prisoner;
+  if(u.autoType==='bruiser')return Object.assign({},A.ARCH.bot,{big:1.25});   // no Bruiser art in the Enemies doc yet
+  if(u.auto)return A.ARCH.bot;
+  if(u.shield)return A.ARCH.riot;
+  if(u.sheriff)return A.ARCH.sheriff;
+  if(u.id==='craw'||/craw/i.test(u.name||''))return A.ARCH.craw;
+  if(u.side==='law')return SCN.style==='rock'?A.ARCH.squatter:A.ARCH.deputy;   // Take the Rock's opposition is the Vult gang
+  return A.recruit(u.name||u.id);                       // last resort for a rebel with no record (debug spawns)
+}
+const ORDER_POSE={hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat'};
+function artPose(u,now){
+  const c=engageQ&&engageQ.cur;
+  const t=(HUD.reduced?0:now/1000)+u.x*0.01;             // units don't blink and bob in sync
+  const moved=u._ax!==undefined&&Math.hypot(u.x-u._ax,u.y-u._ay)>0.45;
+  const sneaking=u.side==='reb'&&!u.auto&&sneak&&phase==='FREE'&&town==='calm';
+  let state='idle';
+  if(u.down)state='down';
+  else if(u.surr)state='surrender';
+  else if(u.side==='civ')state=u.cower?'cower':moved?'walk':'idle';
+  else if(now-(u._throwT||0)<650)state='throw';
+  else if(town==='alerted'&&coolStateG(u)==='panic'&&!u.auto)state='panic';
+  else if(c&&c.s===u)state=c.stage==='fire'?'fire':'aim';
+  else if(u.jam&&u.order&&u.order.type==='clear')state='reload';
+  else if(u.manning)state='man';
+  else if((phase==='EXEC'||phase==='ENGAGE')&&u.order&&ORDER_POSE[u.order.type])state=ORDER_POSE[u.order.type];
+  else if(moved)state=sneaking?'sneak':(u.order&&u.order.type==='sprint'&&phase==='EXEC'?'run':'walk');
+  else if(u.braced)state='overwatch';
+  else if(u.bunkered)state='crouch';
+  else if(sneaking)state='crouch';
+  const vd=SA.viewFor(u.face);
+  const pose={state,view:vd.view,dir:vd.dir,t,s:actorScale(u)};
+  if(c&&c.s===u&&!u.down)pose.aim=Math.atan2(c.t.y-u.y,c.t.x-u.x);   // pupils and gun track the target exactly
+  const wk=u.wkey||(u.wpns&&u.wpns[0]);
+  pose.weapon=(wk&&SA.WEAPONS[wk])?wk:null;              // unarmed, fists and the vehicle weapons draw nothing
+  const base=(u.art&&u.art.gear)||[];
+  const g=[];
+  if(u.shield)g.push('shield');
+  if(u.side==='reb'&&!u.auto&&!u.vip&&!u.frail&&NADES>0)g.push('frags');
+  if(u.stims>0)g.push('stim');
+  if(u.charge)g.push('charge');
+  if(g.length||base.length)pose.gear=[...new Set(base.concat(g))];
+  const conds=(u.inj||[]).filter(i=>!i.treated).map(i=>i.k);
+  if(conds.length)pose.conds=conds;                      // a Broken Arm from this fight shows a sling straight away
+  return pose;
+}
+const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.mnt&&enclosed(u))&&unitSeen(u));
+function drawActors(now){
+  const list=actorList().slice().sort((a,b)=>a.y-b.y);   // depth sort by the anchor between the feet
+  for(const u of list)drawUnitActor(u,now);
+  for(const u of list){u._ax=u.x;u._ay=u.y;}             // cached for next frame's "moved"; never saved
+}
+function drawUnitActor(u,now){
+  const t=(HUD.reduced?0:now/1000)+u.x*0.01;
+  const sc2=actorScale(u);
+  if(u.veh){
+    const key=u.veh==='dispersal'?'riotdispersal':u.veh==='transport'?'riottransport':'police';
+    const c=engageQ&&engageQ.cur;
+    const gunnerShot=c&&c.s&&c.s.mnt&&c.s.mnt.v===u.id&&(seatOf(c.s)||{}).wkey==='dispersal';
+    if(u.veh==='dispersal'){
+      if(gunnerShot)u._tEng=1;
+      u._tUp=Math.min(1,(u._tUp||0)+(u._tEng?0.04:0));   // the turret rises once it first engages, and stays up
+      if(gunnerShot)u._tAng=Math.atan2(c.t.y-u.y,c.t.x-u.x);
+    }
+    SA.vehicle(ctx,key,u.x,u.y,u.face,sc2*1.1,t,{livery:'heg',damage:1-u.hp/(u.maxhp||1),
+      siren:town==='alerted'&&!u.down,turretUp:u._tUp||0,turretAng:u._tAng,fire:gunnerShot&&c.stage==='fire'});
+    return;
+  }
+  if(u.bot==='strider'||u.autoType==='strider'){
+    const vd=SA.viewFor(u.face);
+    const p=artPose(u,now);
+    SA.strider(ctx,u.x,u.y,{view:vd.view,dir:vd.dir,
+      state:p.state==='run'?'walk':['idle','walk','aim','fire','down'].indexOf(p.state)>=0?p.state:'idle',
+      mood:u.hacked||u.side==='reb'?'hacked':town==='alerted'?'angry':'friendly',
+      damage:1-u.hp/(u.maxhp||1),t,s:sc2*0.72});
+    return;
+  }
+  let x=u.x,y=u.y;
+  if(u.mnt&&!enclosed(u)){x+=14;y-=26;}                  // an open gun seat perches on the hull
+  SA.character(ctx,x,y,artSpec(u),artPose(u,now));
+}
+/* rings, pulses and arcs under the feet, flattened into the ground plane */
+function hudUnderlay(now){
+  hudT=HUD.reduced?0:now/1000;
+  const c=engageQ&&engageQ.cur;
+  const sel=phase==='PLANNING'?U.find(q=>q.id===selId):null;
+  for(const u of actorList()){
+    const sc2=actorScale(u);
+    const R=(u.veh?48:u.bot?40:u.big?26:20)*sc2;
+    const mine=x2=>!!(x2&&(x2===u||(u.veh&&x2.mnt&&x2.mnt.v===u.id)));
+    const flat=fn=>{ctx.save();ctx.translate(u.x,u.y);ctx.scale(1,0.5);fn();ctx.restore();};
+    if(sel&&!u.down&&mine(sel))flat(()=>{
+      ctx.beginPath();ctx.arc(0,0,R+7,0,7);ctx.lineWidth=5;ctx.strokeStyle=C.ink;ctx.stroke();
+      ctx.lineWidth=3;ctx.strokeStyle=C.gold;ctx.stroke();
+      for(let i=0;i<4;i++){const a=hudT*1.4+i*Math.PI/2;ctx.beginPath();ctx.arc(0,0,R+12,a-0.18,a+0.18);ctx.lineWidth=4;ctx.strokeStyle=C.gold;ctx.stroke();}
+    });
+    if(c&&mine(c.s)&&!u.down)flat(()=>{
+      const k=(Math.sin(hudT*5)+1)/2;
+      ctx.beginPath();ctx.arc(0,0,R+8+k*5,0,7);ctx.strokeStyle=T.rgba(u.side==='law'||(u.veh&&u.owner==='law')?C.heg:C.rebel,0.55-k*0.35);ctx.lineWidth=3;ctx.stroke();
+    });
+    if(c&&mine(c.t)&&!u.down&&!u.surr)flat(()=>T.reticle(ctx,0,0,R+10,hudT));
+    if(u.hacked&&!u.down)flat(()=>{ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,R+8,0,7);ctx.lineWidth=2.5;ctx.strokeStyle=C.shield;ctx.stroke();ctx.setLineDash([]);});
+    if(u.braced&&!u.down&&phase!=='BRIEF')flat(()=>{ctx.beginPath();ctx.arc(0,0,R+5,u.face-0.6,u.face+0.6);ctx.lineWidth=3;ctx.strokeStyle=T.ROLE.hold;ctx.stroke();});
+    if(u.id==='sera'&&!crossAway&&!u.down&&dist(u,PAD)<PAD.r){
+      const hp2=Math.min(1,(hot+(phase==='FREE'?hotT/4.5:0))/HOT_ROUNDS);
+      flat(()=>{
+        ctx.beginPath();ctx.arc(0,0,R+10,0,7);ctx.lineWidth=6;ctx.strokeStyle=C.ink;ctx.stroke();
+        ctx.beginPath();ctx.arc(0,0,R+10,-Math.PI/2,-Math.PI/2+Math.PI*2*hp2);ctx.lineWidth=3.5;ctx.strokeStyle=C.gold;ctx.stroke();
+      });
+      if(rng()<0.15)parts.push({x:u.x+(rng()-0.5)*16,y:u.y-4,vx:(rng()-0.5)*40,vy:-30-rng()*30,r:1.2,a:0.9,col:'#ffe9a0',t0:now,dur:300});
+    }
+  }
+}
 /* ---------- canvas HUD layer (SR.theme helpers) ----------
    Terrain, buildings, props and FX keep their own art. Everything the player reads
    (unit tokens, pips, cones, rings, markers, labels) is drawn here in screen space:
@@ -4048,56 +4170,35 @@ function hudA(now){
   ctx.restore();
 }
 function hudUnits(L,now){
-  const c=engageQ&&engageQ.cur;
-  const crouch=sneak&&phase==='FREE'&&town==='calm';
-  const list=U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.mnt&&enclosed(u))&&unitSeen(u));
-  list.sort((a,b)=>(b.down?1:0)-(a.down?1:0));            // the fallen first, so the living draw over them
-  for(const u of list){
+  /* the figures themselves are drawn by drawActors; this pass keeps the readouts */
+  for(const u of actorList()){
     const [x,y]=tokCss(u);
-    if(x<-70||x>cssW+70||y<-100||y>cssH+70)continue;
+    if(x<-70||x>cssW+70||y<-120||y>cssH+70)continue;
     const crew=u.veh?crewIn(u):null;
-    const reb=u.side==='reb'||(u.veh&&u.owner==='reb'),foe=u.side==='law'||(u.veh&&u.owner==='law'&&crew.length>0),civ=u.side==='civ',sera=u.id==='sera';
-    const crouched=crouch&&reb&&!u.veh&&!u.mnt;
-    const r=tokR(u)*(crouched?0.85:1)*(u.mnt?0.72:1);
-    const mine=x2=>!!(x2&&(x2===u||(u.veh&&x2.mnt&&x2.mnt.v===u.id)));
-    const panic=town==='alerted'&&!u.down&&!u.surr&&!civ&&coolStateG(u)==='panic';
-    /* under-rings */
-    if(sera&&!crossAway&&!u.down&&dist(u,PAD)<PAD.r){
-      const hp2=Math.min(1,(hot+(phase==='FREE'?hotT/4.5:0))/HOT_ROUNDS);
-      ctx.beginPath();ctx.arc(x,y,r+10,0,7);ctx.lineWidth=6;ctx.strokeStyle=C.ink;ctx.stroke();
-      ctx.beginPath();ctx.arc(x,y,r+10,-Math.PI/2,-Math.PI/2+Math.PI*2*hp2);ctx.lineWidth=3.5;ctx.strokeStyle=C.gold;ctx.stroke();
-      if(rng()<0.15)parts.push({x:u.x+(rng()-0.5)*16,y:u.y-4,vx:(rng()-0.5)*40,vy:-30-rng()*30,r:1.2,a:0.9,col:'#ffe9a0',t0:now,dur:300});
+    const reb=u.side==='reb'||(u.veh&&u.owner==='reb'),civ=u.side==='civ',sera=u.id==='sera';
+    const sc2=actorScale(u);
+    const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
+    if(!u.down&&!civ){
+      if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-16*cam.z,y+8,u.bunkered?2:cl);}
+      if(!u.surr)T.hpPips(ctx,x,topY,{hp:u.hp,max:u.maxhp});
+      if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,topY-20*cam.z,Math.min(1,u.det/100));
     }
-    if(u.hacked&&!u.down){ctx.save();ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(x,y,r+8,0,7);ctx.lineWidth=2.5;ctx.strokeStyle=C.shield;ctx.stroke();ctx.restore();}
-    T.unitToken(ctx,x,y,{
-      side:reb?'friend':foe&&!u.surr?'foe':'neutral',r,
-      icon:u.veh?'vehicle':civ?'people':sera?'pilot':u.vip&&!u.bot?'people':reb?(u.auto?'gun':'soldier'):u.sheriff?'star':u.shield?'shield':'gun',
-      facing:civ||u.down?null:u.face,t:hudT,
-      selected:phase==='PLANNING'&&!u.down&&mine(U.find(q=>q.id===selId)),
-      acting:!!(c&&mine(c.s)),targeted:!!(c&&mine(c.t)&&!u.down),
-      panicking:panic&&!u.veh,down:!!u.down,ordered:phase==='PLANNING'&&reb&&!u.down&&(u.veh?crew.some(q=>q.side==='reb'&&q.order):!!u.order)});
     if(u.veh&&!u.down){
       /* one pip per seat under the hull: filled when someone is in it */
       const n=u.seats.length;
       u.seats.forEach((st,k)=>{
-        const px=x+(k-(n-1)/2)*11,py=y+r+6;
+        const px=x+(k-(n-1)/2)*11,py=y+16*cam.z;
         ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fillStyle=st.occ?(reb?C.rebel:C.heg):C.ink;ctx.fill();
         ctx.lineWidth=1.5;ctx.strokeStyle=st.wkey?C.gold:C.text3;ctx.stroke();
       });
     }
-    if(u.down)ctx.globalAlpha=1;
-    if(!u.down&&!civ){
-      /* riot shield, brace, cover, jam */
-      if(u.shield){ctx.beginPath();ctx.arc(x,y,r+7,u.face-1.0,u.face+1.0);ctx.lineWidth=7;ctx.strokeStyle=C.ink;ctx.lineCap='round';ctx.stroke();ctx.lineWidth=4;ctx.strokeStyle=C.steel;ctx.stroke();ctx.lineCap='butt';}
-      if(u.braced&&phase!=='BRIEF'){ctx.beginPath();ctx.arc(x,y,r+5,u.face-0.6,u.face+0.6);ctx.lineWidth=3;ctx.strokeStyle=T.ROLE.hold;ctx.stroke();}
-      if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-r*0.85,y+r*0.85,u.bunkered?2:cl);}
-      if(u.jam){ctx.beginPath();ctx.arc(x-r*0.8,y-r*0.8,8,0,7);ctx.fillStyle=C.hazard;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();T.icon(ctx,'unjam',x-r*0.8,y-r*0.8,11,C.ink,{weight:3});}
-      if(!u.surr)T.hpPips(ctx,x,y-r-14,{hp:u.hp,max:u.maxhp});
-      if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,y-r-36,Math.min(1,u.det/100));
+    /* the gold "ordered" dot stays at the feet; view, face and pose carry the rest */
+    if(phase==='PLANNING'&&reb&&!u.down&&(u.veh?crew.some(q=>q.side==='reb'&&q.order):!!u.order)){
+      ctx.beginPath();ctx.arc(x+12*cam.z,y+7,5,0,7);ctx.fillStyle=C.gold;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();
     }
     const nm=u.veh?(u.down?u.first+' · wreck':crew.length?u.first:u.first+' · empty'):civ?(u.cower?'Civilian · down flat':'Civilian'):u.down?u.first+' · down':u.surr?u.first+' · surrendered':u.first;
     if(u.mnt)continue;   // the gunner's name would sit on the vehicle's
-    L.add(nm,x,y+r+(u.veh?20:15),{color:civ||u.down||u.surr||(u.veh&&!crew.length)?C.text3:sera?C.gold:reb?C.rebel:C.heg,size:civ?11:12},civ?1:3);
+    L.add(nm,x,y+(u.veh?26:16)*cam.z,{color:civ||u.down||u.surr||(u.veh&&!crew.length)?C.text3:sera?C.gold:reb?C.rebel:C.heg,size:civ?11:12},civ?1:3);
   }
 }
 function drawNades(now){
@@ -4487,8 +4588,10 @@ function render(now){
     if(SCN.derelict)drawDerelict();
     if(SCN.hasPad)drawCross(now);
     drawBldgs();
+    hudUnderlay(now);               // rings and arcs under the feet
+    drawActors(now);                // the Bobbleheads, one depth sort by anchor y
     if(SCN.hasTower)drawTowerTop();
-    hudA(now);                      // tokens, pips, markers, names: before the fog, so unseen ground stays dark
+    hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
     drawFx(now);
     ctx.restore();

@@ -5320,7 +5320,7 @@ function assetsHTML(){
   return h;
 }
 function squadEntry(p,scatterFirst){
-  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,art:p.auto?undefined:SA.lookOf(p),tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
     aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
@@ -5358,13 +5358,13 @@ function startPlan(){
         const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
         return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
-      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize)}:undefined,
+      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
     const flight=[];
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
-      flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
+      flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,art:SA.lookOf(p),
         rankName:rankFor(p),hero:p.role==='Hero'?1:0,fixed:1,aim:Math.max(0,pilotAim(p)+Rebel.injFx(p).aim),skills:Object.assign(pilotSkills(p),{aim:Rebel.skill(p,'aim'),cunning:Rebel.skill(p,'cun'),focus:Rebel.skill(p,'foc'),presence:Rebel.skill(p,'pre')}),init:pilotInit(p),cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),foc:Rebel.focusTN(p),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),traits:Rebel.namesFor(p,'s').concat(p.id==='sera'&&Rebel.namesFor(p,'s').indexOf('Lucky')<0?['Lucky']:[]),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull,loadout:f.loadout});
     }
