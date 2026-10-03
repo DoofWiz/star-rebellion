@@ -2064,9 +2064,9 @@ function fsItems(){
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
   FS.ships.forEach((a,i)=>{
     if(a.state!=='ready')return;
-    const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner':'Reinforcements';
+    const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
     const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
-      a.mode==='doorgun'?'orbits the spot you mark, heavy gun raking up to 3 enemies a pass · 2 passes · enemy rockets can bring it down':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
+      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works up to 3 enemies inside it · 2 passes · enemy rockets can bring it down':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
   (FS.vehicles||[]).forEach((a,i)=>{
@@ -2095,7 +2095,7 @@ function fsPlace(key,pt){
   if(!a)return true;
   if(a.mode==='doorgun'){
     a.state='active';a.left=2;a.mark={x:pt.x,y:pt.y};
-    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Marked. I’ll orbit that spot with the door gun working — two passes.');
+    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Zone marked. I’ll hold a wide orbit upstairs and the gun will work anything inside it — two passes.');
     sTakeoff();return true;
   }
   if(a.mode==='reinforce'){
@@ -2129,9 +2129,10 @@ function supplyDrop(u){
   log('The crate holds <b>5 stims</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
 }
 /* up to 3 visible hostiles near the player's mark; the choice of where to put the mark is the skill */
+const DG_ZONE=240;   // the circle the player places IS the kill zone: the gunner works what's inside it
 function dgTargets(mark){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
-  if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<360)
+  if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<DG_ZONE)
     .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,3);
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
@@ -2179,14 +2180,14 @@ function dgSpend(a){
    heavy door gun working, then climbs away until its next pass. It plays as its own beat between
    the engagement and the next planning, under letterbox bars — and rocketeers get to answer. ---------- */
 let dgRun=null,dgQueue=[];
-const DG_TURNS=1.1;    // a little over one full circle per pass
+const DG_TURNS=0.6;    // a long arc of the standoff circle per pass, not a tight circle over the zone
 function dgOrbP(R,th){return {x:R.ax+Math.cos(th)*R.rad,y:R.ay+Math.sin(th)*R.rad*R.squash};}
 function dgTan(R,th){return Math.atan2(Math.cos(th)*R.squash*R.dir,-Math.sin(th)*R.dir);}
 /* the ship's place at any time: run-in along the tangent, the orbit, the climb-out — or the fall */
 function dgShipPos(R,now){
   if(R.down){
     const k=Math.min(1,(now-R.down.t0)/R.down.dur);
-    return {x:R.down.x+Math.cos(R.down.ang)*k*820,y:R.down.y+Math.sin(R.down.ang)*k*820,
+    return {x:R.down.x+Math.cos(R.down.ang)*k*980,y:R.down.y+Math.sin(R.down.ang)*k*980,
       ang:R.down.ang,alt:R.alt*(1-k*k),k:-1,crash:k>=1};
   }
   const e=now-R.t0;
@@ -2209,15 +2210,15 @@ function dgNext(){
     log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets at the mark.');
     dgSpend(a);dgNext();return;
   }
-  const R={a,ax:mark.x,ay:mark.y,rad:235,squash:0.55,dir:rng()<0.5?1:-1,th0:rng()*Math.PI*2,
-    IN:1000,ORBIT:2600,OUT:900,alt:120,t0:performance.now()+420,
-    targets:pick.map((u,i)=>({u,at:0.14+i*0.3,done:0})),
+  const R={a,ax:mark.x,ay:mark.y,rad:780,squash:0.55,dir:rng()<0.5?1:-1,th0:rng()*Math.PI*2,
+    IN:1100,ORBIT:3000,OUT:900,alt:210,t0:performance.now()+420,
+    targets:pick.map((u,i)=>({u,at:0.16+i*0.28,done:0})),
     flak:dgFlakers(mark).map(u=>({u,at:0.12+rng()*0.55,state:'wait'})),
     apply:[],down:null,crashed:0,endAt:0};
   dgRun=R;
   if(phase==='EXEC')phase='ENGAGE';                   // hold the round open; execUpdate must not re-run
   byId('app').classList.add('cine');
-  camGoal={x:R.ax,y:R.ay,z:0.8};
+  camGoal={x:R.ax,y:R.ay,z:0.75};
   log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> <span class="a">On the mark.</span> Rolling in — heads down.');
   sTakeoff();
   syncUI();
@@ -2229,23 +2230,23 @@ function dgBurst(R,u,now){
     const ft=now+i*95;
     const S=dgShipPos(R,ft);
     const jx=u.x+(rng()-0.5)*(hit?22:64),jy=u.y+(rng()-0.5)*(hit?16:46);
-    tracers.push({x1:S.x,y1:S.y-S.alt,x2:jx,y2:jy-6,t0:ft,dur:130,heavy:1});
+    tracers.push({x1:S.x,y1:S.y-S.alt,x2:jx,y2:jy-6,t0:ft,dur:240,heavy:1});
     parts.push({x:S.x,y:S.y-S.alt,vx:0,vy:0,r:12,a:0.95,col:'#ffe9a8',t0:ft,dur:95,flash:1});
-    if(hit&&i%2===0)hits.push({x:jx,y:jy-6,t0:ft+110,dur:300});
-    if(i===2)boomFx.push({x:jx,y:jy,t0:ft+110,dur:380,R:30});
-    for(let q=0;q<4;q++)parts.push({x:jx,y:jy,vx:(rng()-0.5)*120,vy:-rng()*90,r:2+rng()*2.5,a:0.6,col:'#8a7a60',t0:ft+110,dur:520});
+    if(hit&&i%2===0)hits.push({x:jx,y:jy-6,t0:ft+210,dur:300});
+    if(i===2)boomFx.push({x:jx,y:jy,t0:ft+210,dur:380,R:30});
+    for(let q=0;q<4;q++)parts.push({x:jx,y:jy,vx:(rng()-0.5)*120,vy:-rng()*90,r:2+rng()*2.5,a:0.6,col:'#8a7a60',t0:ft+210,dur:520});
     decals.push({x:jx+(rng()-0.5)*10,y:jy+(rng()-0.5)*8,r:7+rng()*5});
     casings.push({x:S.x,y:S.y-S.alt,vx:(rng()-0.5)*60,vy:30+rng()*50,t0:ft});
   }
   sShot('doorgun');
-  R.apply.push({at:now+420,u,hit});
+  R.apply.push({at:now+520,u,hit});
 }
 function dgUpdate(now){
   const R=dgRun;if(!R)return;
   if(phase==='GAMEOVER'){dgRun=null;dgQueue.length=0;byId('app').classList.remove('cine');return;}
   const P=dgShipPos(R,now);
   R.px=P.x;R.py=P.y;R.pang=P.ang;R.palt=P.alt;R.pk=P.k;R.pboost=!!P.boost;
-  camGoal={x:R.ax+(P.x-R.ax)*0.25,y:R.ay+(P.y-R.ay)*0.25,z:0.8};
+  camGoal={x:R.ax+(P.x-R.ax)*0.32,y:R.ay+(P.y-R.ay)*0.32,z:0.7};
   if(R.down){
     // shedding fire and smoke all the way in
     parts.push({x:P.x+(rng()-0.5)*20,y:P.y-P.alt+(rng()-0.5)*14,vx:(rng()-0.5)*30,vy:-20-rng()*30,r:4+rng()*4,a:0.5,col:'#6a6a72',t0:now,dur:700});
@@ -2271,6 +2272,7 @@ function dgUpdate(now){
       if(f.state!=='wait'||P.k<f.at)continue;
       if(f.u.down||f.u.surr){f.state='done';continue;}
       f.state='fly';f.t0=now;f.from={x:f.u.x,y:f.u.y};f.hit=rint(1,20)>=DG_FLAK_TN;
+      f.dur=Math.max(550,Math.min(1200,Math.hypot(R.px-f.u.x,R.py-R.palt-f.u.y)/0.95));
       f.u.face=Math.atan2((R.py-R.palt)-f.u.y,R.px-f.u.x);
       addFloater(f.u.x,f.u.y-46,'ROCKET!',C.hazard);
       log(nameSpan(f.u)+' shoulders a rocket launcher and <span class="a">fires at '+R.a.name+'</span>!');
@@ -2279,7 +2281,7 @@ function dgUpdate(now){
   }
   for(const f of R.flak){
     if(f.state!=='fly')continue;
-    const kf=(now-f.t0)/650;
+    const kf=(now-f.t0)/(f.dur||650);
     if(kf<1){
       const mx=lerp(f.from.x,R.px,kf),my=lerp(f.from.y,R.py-R.palt,kf);
       parts.push({x:mx,y:my,vx:(rng()-0.5)*14,vy:(rng()-0.5)*14,r:2.5+rng()*2,a:0.4,col:'#9a948c',t0:now,dur:420});
@@ -2289,7 +2291,7 @@ function dgUpdate(now){
     if(f.hit&&!R.down){
       boomFx.push({x:R.px,y:R.py-R.palt,t0:now,dur:450,R:60});
       shake=now;
-      R.down={t0:now,x:R.px,y:R.py,ang:R.pang,dur:1500};
+      R.down={t0:now,x:R.px,y:R.py,ang:R.pang,dur:1900};
       log('<span class="b">Direct hit!</span> <b>'+R.a.name+'</b> staggers in the air, trailing fire.');
     } else if(!f.hit){
       boomFx.push({x:R.px+(rng()-0.5)*90,y:R.py-R.palt-30-rng()*40,t0:now,dur:380,R:34});
@@ -2322,17 +2324,17 @@ function drawDgRun(now){
   const alt=R.palt,x=R.px,y=R.py;
   // its shadow stays on the deck, closing under the ship as it loses height
   ctx.save();
-  ctx.fillStyle='rgba(20,14,10,'+(0.34-0.12*(alt/R.alt))+')';
-  ctx.beginPath();ctx.ellipse(x+alt*0.22,y+alt*0.3,78,26,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(20,14,10,'+(0.3-0.14*(alt/R.alt))+')';
+  ctx.beginPath();ctx.ellipse(x+alt*0.18,y+alt*0.24,62,21,0,0,7);ctx.fill();
   ctx.restore();
-  const bank=R.down?Math.min(0.85,0.5+(now-R.down.t0)/R.down.dur*0.4):(R.pk>=0&&R.pk<=1?0.45:0.28);
+  const bank=R.down?Math.min(0.85,0.5+(now-R.down.t0)/R.down.dur*0.4):(R.pk>=0&&R.pk<=1?0.38:0.26);
   const bob=Math.sin(now/95)*3;
-  SA.ship(ctx,'graf',x,y-alt+bob,R.pang,3.4,now/1000,
+  SA.ship(ctx,'graf',x,y-alt+bob,R.pang,3.0,now/1000,
     {livery:'civ',boost:!R.down&&R.pboost,roll:bank,damage:R.down?0.85:0});
   // rockets on the way up
   for(const f of R.flak){
     if(f.state!=='fly')continue;
-    const kf=Math.min(1,(now-f.t0)/650);
+    const kf=Math.min(1,(now-f.t0)/(f.dur||650));
     const mx=lerp(f.from.x,x,kf),my=lerp(f.from.y,y-alt,kf);
     ctx.save();ctx.translate(mx,my);ctx.rotate(Math.atan2((y-alt)-f.from.y,x-f.from.x));
     ctx.fillStyle='#ffb347';ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(-14,-3);ctx.lineTo(-14,3);ctx.closePath();ctx.fill();
@@ -2428,8 +2430,9 @@ function drawFS(now){
     if(a.state!=='active'||!a.mark)continue;
     ctx.save();
     ctx.strokeStyle=T.rgba(C.shield,0.45+0.25*Math.sin(now*0.006));ctx.lineWidth=2.5;ctx.setLineDash([10,8]);
-    ctx.beginPath();ctx.ellipse(a.mark.x,a.mark.y,235,235*0.55,0,0,7);ctx.stroke();ctx.setLineDash([]);
-    plb('GUNSHIP ORBIT',a.mark.x,a.mark.y-235*0.55-14,C.shield,12);
+    ctx.beginPath();ctx.ellipse(a.mark.x,a.mark.y,DG_ZONE,DG_ZONE*0.55,0,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=T.rgba(C.shield,0.05);ctx.fill();
+    plb('DOOR GUNNER COVER',a.mark.x,a.mark.y-DG_ZONE*0.55-14,C.shield,12);
     ctx.restore();
   }
 }
@@ -5315,7 +5318,7 @@ function pickText(){
     if(fsDraft)return 'Tap where the run ends';
     const key=pickMode.slice(3);
     const fa=key[0]==='s'&&FS?FS.ships[+key.slice(1)]:null;
-    return fa&&fa.mode==='doorgun'?'Tap the spot the gunship should orbit':'Tap a visible spot';
+    return fa&&fa.mode==='doorgun'?'Tap where you want door gunner cover':'Tap a visible spot';
   }
   const s=U.find(x=>x.id===selId);
   return 'Pick a destination for '+(s?s.first:'the squad');
@@ -5574,7 +5577,7 @@ function fsCassIntro(){
   const a=FS&&FS.ships.find(s=>s.cassAir&&!s.introduced);
   if(!a)return;
   a.introduced=1;
-  log('<b>Cass</b> <span class="d">(Cass’s Hauler):</span> I’m staying upstairs with the big gun in the door — this run only, so spend me well. Mark a spot through <span class="a">Fire support</span> and I’ll roll in and circle it, gun working.');
+  log('<b>Cass</b> <span class="d">(Cass’s Hauler):</span> I’m staying upstairs with the big gun in the door — this run only, so spend me well. Mark a zone through <span class="a">Fire support</span> and I’ll hold a wide orbit over it, gun working.');
 }
 function resetGame(withCine){
   initState();
