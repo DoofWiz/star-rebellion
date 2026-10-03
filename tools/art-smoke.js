@@ -61,6 +61,23 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   if(!(DH.FS&&DH.FS.ships.some(s=>s.mode==='doorgun'&&s.pilot.first==='Cass')))return {fail:'Cass door gunner missing in Take the Rock'};
   if(DH.fn.fsItems().length!==1)return {fail:'Take the Rock fire support should list exactly Cass'};
   log.push('take the rock + Cass');
+  // the gun run must play through and hand the round back (a hang here soft-locks combat)
+  {
+    const f0=DH.U.filter(u=>u.side==='law'&&!u.down)[0];let gi=0;
+    for(const u of DH.U)if(u.side==='reb'&&!u.down){u.x=f0.x-160+(gi%2)*40;u.y=f0.y+150+Math.floor(gi/2)*40;gi++;}
+    DH.fn.alertTown('smoke');DH.fn.startPlanning();
+    for(const u of DH.U)if(u.side==='reb'&&!u.down)u.order={type:'cover'};
+    const u0=DH.U.find(x=>x.side==='reb'&&!x.down);
+    DH.fn.fsPlace('s0',{x:u0.x,y:u0.y});
+    DH.fn.execute();
+    let done=false;
+    for(let w=0;w<60;w++){
+      await sleep(300);
+      if((DH.phase==='PLANNING'||DH.phase==='FREE'||DH.phase==='GAMEOVER')&&!DH.dgRun&&!DH.dgQueue.length&&DH.FS.ships[0].left<2){done=true;break;}
+    }
+    if(!done)return {fail:'gun run never finished: phase '+DH.phase+' left '+DH.FS.ships[0].left};
+    log.push('gun run');
+  }
   // boot the space scene (instructor exercise) and let a couple of frames run
   window.SR.mission=null;
   window.SR.go('space',{test:true});

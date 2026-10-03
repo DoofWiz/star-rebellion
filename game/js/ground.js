@@ -2128,10 +2128,15 @@ function supplyDrop(u){
   crew.slice(0,2).forEach(c=>{if(!c.wpns.includes('rocket'))c.wpns.push('rocket');});
   log('The crate holds <b>5 stims</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
 }
-function dgAttack(a){
+function dgTargets(){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
+  return pick;
+}
+/* reduced motion only: the door gunner resolves instantly, no fly-by */
+function dgAttack(a){
+  const pick=dgTargets();
   if(!pick.length){log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets in view.');return;}
   const t0=performance.now();
   for(const t of pick){
@@ -2141,6 +2146,104 @@ function dgAttack(a){
     else log('The door gunner misses '+nameSpan(t)+'.');
   }
   sShot('carbine');
+}
+function dgSpend(a){
+  a.left--;
+  if(a.left<=0){a.state='spent';log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
+}
+/* ---------- the gun run: the hauler sweeps low across the kill box, door gun raking as it passes.
+   It plays as its own beat between the engagement and the next planning, under letterbox bars. ---------- */
+let dgRun=null,dgQueue=[];
+function dgPos(R,k){return {x:R.from.x+Math.cos(R.ang)*R.run*k,y:R.from.y+Math.sin(R.ang)*R.run*k};}
+function dgNext(){
+  const a=dgQueue.shift();
+  if(!a){roundWrap();return;}
+  const pick=dgTargets();
+  if(!pick.length){
+    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets in view.');
+    dgSpend(a);dgNext();return;
+  }
+  const cx=pick.reduce((s,t)=>s+t.x,0)/pick.length,cy=pick.reduce((s,t)=>s+t.y,0)/pick.length;
+  let ang;
+  if(pick.length>1){
+    let f=pick[0],l=pick[0];
+    for(const t of pick){if(t.x<f.x)f=t;if(t.x>l.x)l=t;}
+    ang=Math.atan2(l.y-f.y,Math.max(60,l.x-f.x));    // rake along the targets' spread, never a vertical dive
+  } else ang=(rng()-0.5)*0.5;
+  if(rng()<0.5)ang+=Math.PI;                          // half the passes come in from the far side
+  const run=2200;
+  const R={a,cx,cy,ang,run,alt:120,dur:3400,t0:performance.now()+420,
+    from:{x:cx-Math.cos(ang)*run/2,y:cy-Math.sin(ang)*run/2},targets:[],apply:[]};
+  for(const t of pick){
+    const k=((t.x-R.from.x)*Math.cos(ang)+(t.y-R.from.y)*Math.sin(ang))/run;
+    R.targets.push({u:t,at:Math.min(0.82,Math.max(0.16,k)),done:0});
+  }
+  R.targets.sort((p,q)=>p.at-q.at);
+  dgRun=R;
+  if(phase==='EXEC')phase='ENGAGE';                   // hold the round open; execUpdate must not re-run
+  byId('app').classList.add('cine');
+  camGoal={x:cx,y:cy,z:0.8};
+  log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> <span class="a">Gun run.</span> Coming in low — heads down.');
+  sTakeoff();
+  syncUI();
+}
+function dgBurst(R,u,now){
+  const hit=rint(1,20)>=9;
+  for(let i=0;i<7;i++){
+    const ft=now+i*48;
+    const p=dgPos(R,Math.min(1,(ft-R.t0)/R.dur));
+    const jx=u.x+(rng()-0.5)*(hit?26:72),jy=u.y+(rng()-0.5)*(hit?18:52);
+    tracers.push({x1:p.x,y1:p.y-R.alt,x2:jx,y2:jy-8,t0:ft,dur:130,kind:'plasma',side:'reb'});
+    parts.push({x:p.x,y:p.y-R.alt,vx:0,vy:0,r:9,a:0.9,col:'#ffe9a8',t0:ft,dur:90,flash:1});
+    if(hit&&i%2===0)hits.push({x:jx,y:jy-8,t0:ft+120,dur:260});
+    else for(let q=0;q<3;q++)parts.push({x:jx,y:jy,vx:(rng()-0.5)*90,vy:-rng()*70,r:1.5+rng()*2,a:0.55,col:'#8a7a60',t0:ft+120,dur:480});
+    casings.push({x:p.x,y:p.y-R.alt,vx:(rng()-0.5)*50,vy:20+rng()*40,t0:ft});
+  }
+  sShot('carbine');
+  R.apply.push({at:now+340,u,hit});
+}
+function dgUpdate(now){
+  const R=dgRun;if(!R)return;
+  if(phase==='GAMEOVER'){dgRun=null;dgQueue.length=0;byId('app').classList.remove('cine');return;}
+  const k=(now-R.t0)/R.dur;
+  if(k>=0){
+    const p=dgPos(R,Math.min(1,k));
+    camGoal={x:R.cx+(p.x-R.cx)*0.3,y:R.cy+(p.y-R.cy)*0.3,z:0.8};   // the camera leans after the ship
+    for(const tg of R.targets){
+      if(tg.done||k<tg.at)continue;
+      tg.done=1;
+      if(!tg.u.down&&!tg.u.surr)dgBurst(R,tg.u,now);
+    }
+  }
+  for(const ap of R.apply){
+    if(ap.done||now<ap.at)continue;
+    ap.done=1;
+    if(ap.hit&&!ap.u.down){
+      const dmg=rint(16,28);
+      woundUnit(null,ap.u,dmg,false);
+      log('The door gunner hits '+nameSpan(ap.u)+' — <b>'+dmg+'</b>.');
+      shake=now;
+    } else if(!ap.hit)log('The door gunner misses '+nameSpan(ap.u)+'.');
+  }
+  if(k>=1.08){                                        // let the last tracers land before the round wraps
+    const a=R.a;dgRun=null;
+    byId('app').classList.remove('cine');
+    dgSpend(a);
+    if(phase==='GAMEOVER')return;
+    if(dgQueue.length)dgNext();else roundWrap();
+  }
+}
+function drawDgRun(now){
+  const R=dgRun;if(!R)return;
+  const k=(now-R.t0)/R.dur;
+  if(k<0||k>1)return;
+  const p=dgPos(R,k);
+  ctx.save();
+  ctx.fillStyle='rgba(20,14,10,0.3)';
+  ctx.beginPath();ctx.ellipse(p.x+30,p.y+40,78,26,0,0,7);ctx.fill();
+  ctx.restore();
+  const bob=Math.sin(now/95)*3;
+  SA.ship(ctx,'graf',p.x,p.y-R.alt+bob,R.ang,3.4,now/1000,{livery:'civ',boost:true,roll:0.5});
 }
 function strafeRun(o){
   const a=FS.ships[o.ship];a.state='spent';o.done=true;
@@ -2158,9 +2261,8 @@ function fsRoundEnd(){
   for(const o of FS.orders)if(o.kind==='strafe'&&!o.done)strafeRun(o);
   for(const a of FS.ships){
     if(a.state!=='active')continue;
-    dgAttack(a);
-    a.left--;
-    if(a.left<=0){a.state='spent';log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
+    if(HUD.reduced){dgAttack(a);dgSpend(a);continue;}  // reduced motion keeps the instant resolution
+    dgQueue.push(a);                                   // the gun run plays as its own beat after the round's bookkeeping
   }
 }
 function mkSquadUnit(sp,x,y){
@@ -3038,6 +3140,12 @@ function endRound(){
     const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
     if(soldiers.every(u=>u.extracted||u.down)&&soldiers.some(u=>u.extracted)){gameOver(true);return;}
   }
+  if(phase==='GAMEOVER'){dgQueue.length=0;return;}
+  if(dgQueue.length){dgNext();return;}   // the gun run is its own moment; roundWrap plays when the pass is done
+  roundWrap();
+}
+/* where every round lands once its beats have played: free time or the next planning */
+function roundWrap(){
   if(phase==='GAMEOVER')return;
   if(!combatActive()){
     enterFree(town==='alerted'?'<span class="g">The street is clear.</span> Time runs free again — sweep the town, then bring everyone home.':null);
@@ -4533,6 +4641,7 @@ function render(now){
     if(phase==='EXEC')execUpdate(now);
     vehSync();
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
+    if(dgRun){try{dgUpdate(now);}catch(e){recover(e);}}
     if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
     tutTick();
     exploTick(now);
@@ -4568,6 +4677,7 @@ function render(now){
     hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
     drawFx(now);
+    drawDgRun(now);                 // the gun run flies above the fog: everyone watches this
     ctx.restore();
     ctx.setTransform(dpr,0,0,dpr,0,0);
     if(phase==='ENGAGE')drawEngageFocus(now);
@@ -4587,6 +4697,7 @@ function recover(e){
   if(recovered++>4)return;
   console.error(e);
   engageQ=null;
+  if(dgRun||dgQueue.length){dgRun=null;dgQueue.length=0;byId('app').classList.remove('cine');}
   if(phase==='ENGAGE'||phase==='EXEC'){phase='PLANNING';syncUI();}
 }
 /* ---------- input ---------- */
@@ -5332,6 +5443,7 @@ function initState(){
   fogInit();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;extractFx=null;
+  dgRun=null;dgQueue.length=0;
   grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
   $('endscreen').hidden=true;
   logEl.innerHTML='';feed.clear();
@@ -5457,6 +5569,7 @@ if(location.hash==='#test'){
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
     get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
+    get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
