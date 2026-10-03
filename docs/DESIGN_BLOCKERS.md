@@ -53,7 +53,6 @@
 | C-11 | ⚪ | Art-kit lore guesses: makers, ship and truck attachments, Strider maker | The Armoury/maker copy when those tabs arrive |
 | M-14 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-15 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
-| C-12 | ⚪ | Steal the Cross: Cass's Door Gunner added, but the LZ ship is still the Marta with a roster pilot | Nothing live; only the opener's fiction |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -189,16 +188,6 @@ From the art handoff's open questions, now live in `game/art/sr-art.js` data tab
 - **Armour as looks:** Soldiers/Marines wear the Frontier Hardhat and Marines a vest as *looks only*; the
   armoury has no armour items (see M-10).
 **Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
-**Your call:** _open_
-
-### C-12 ⚪ Who flies the squad into Steal the Cross — Cass or the Marta's pilot?
-You described Cass as "the guy who drops the player's troops off in his personal Graf" when granting his Door
-Gunner support. In the game as built, the opening mission's planning screen requires a transport **pilot from
-the roster** (Joss by default), and the ship landed at the LZ is labelled **MARTA** with that pilot flying the
-extraction. I kept that as is and built Cass as a *second* ship: his hauler circles overhead and grants the
-Door Gunner fire-support option, unique to this mission.
-**Needs from you:** if Cass should *be* the LZ ship in the opener, say so — I'd drop the transport-pilot
-requirement from `stealcross`, relabel the landed Graf, and have Cass fly the extraction. Otherwise this stands.
 **Your call:** _open_
 
 ---
@@ -360,3 +349,4 @@ Center) are recorded in `docs/REBELS_PLAN.md` §2.*
 | ID | Decision | Date | Built in |
 |---|---|---|---|
 | — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | `26e3afc` |
+| C-12 | Cass's Door Gunner belongs to **Take the Rock** (he's the smuggler who set the squad down in the canyon), not Steal the Cross. One-off: afterwards the player earns fire support by bringing their own Graf with a pilot and a Door Mounted Gun | 2026-10-03 | the "Door Gunner moved to Take the Rock" commit |

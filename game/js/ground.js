@@ -5309,10 +5309,10 @@ function initState(){
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
    fsMenuOn=false;fsDraft=null;
-   /* the opening job only: Cass flew the squad in aboard his own hauler, and he alone stays on
-      station as a Door Gunner. No other mission grants this — later fire support is ships the
-      player brings. */
-   if((((CTX&&CTX.missionId)||'stealcross')==='stealcross')&&SCN.mode==='stealcross'){
+   /* Take the Rock only: Cass, the smuggler who set the squad down in the canyon, keeps his own
+      hauler upstairs as a Door Gunner. No other mission grants this — fire support after the
+      prologue means earning a Graf of your own, with a pilot and a Door Mounted Gun fitted. */
+   if(CTX&&CTX.missionId==='haven'&&SCN.mode==='haven'){
      FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
      FS.ships.push({state:'ready',left:0,mode:'doorgun',cls:'graf',name:'Cass’s Hauler',
        pilot:{name:'Cass Wender',first:'Cass'},soldiers:[],cassAir:1});

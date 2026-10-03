@@ -47,9 +47,20 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   await sleep(500);
   DG.fn.startPlanning();
   await sleep(400);
-  // the opener grants Cass's Door Gunner, and only there
-  if(!(DG.FS&&DG.FS.ships.some(s=>s.mode==='doorgun'&&s.pilot.first==='Cass')))return {fail:'Cass door gunner missing in the opener'};
+  // Cass's Door Gunner is unique to Take the Rock — not here
+  if(DG.FS&&DG.FS.ships.some(s=>s.cassAir))return {fail:'Cass door gunner leaked outside Take the Rock'};
   log.push('ground scene');
+  // the prologue: Cass set the squad down, and his hauler stays on station as a Door Gunner
+  window.SR.mission=null;
+  window.SR.go('ground',{test:true,mission:{kind:'ground',missionId:'haven',scenario:'haven',days:0,
+    squad:[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','cowboy']},
+           {id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['akli','cowboy']},
+           {id:'kel',name:'Kel Brasso',first:'Kel',aim:2,hp:100,wpns:['akli','cowboy']}]}});
+  await sleep(700);
+  const DH=window.DBGground;
+  if(!(DH.FS&&DH.FS.ships.some(s=>s.mode==='doorgun'&&s.pilot.first==='Cass')))return {fail:'Cass door gunner missing in Take the Rock'};
+  if(DH.fn.fsItems().length!==1)return {fail:'Take the Rock fire support should list exactly Cass'};
+  log.push('take the rock + Cass');
   // boot the space scene (instructor exercise) and let a couple of frames run
   window.SR.mission=null;
   window.SR.go('space',{test:true});
