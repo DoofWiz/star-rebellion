@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-02, after the post-handoff feel pass (movement scale, inert landed ships, Cass's Door Gunner in the opener).
+**Last updated:** 2026-10-03, after the gunship orbit rework (fly-in, orbit the mark, heavy gun, rocket counterfire).
 
 ## How to use this
 
@@ -53,6 +53,7 @@
 | C-11 | ⚪ | Art-kit lore guesses: makers, ship and truck attachments, Strider maker | The Armoury/maker copy when those tabs arrive |
 | M-14 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-15 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
+| M-16 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -336,6 +337,17 @@ entries.
    hidden) and needs its own design pass.
 4. **The Missions view** is the next design pass: the gold mission pins and the region card's "+n more" link
    currently open the old Missions window.
+**Your call:** _open_
+
+### M-16 🟡 Gunship counterfire is live, but nobody can shoot back yet
+Per your spec, any hostile with a rocket launcher now gets a shot at an orbiting door-gun gunship
+(one roll each, **14+ on a d20** brings it down — my number, tune at `DG_FLAK_TN` in `ground.js`). Two gaps:
+1. **No enemy currently carries a rocket launcher** — `rocket` only reaches rebels via the Supply Drop — so the
+   counter never fires today. Tell me which spawns should carry one (a Vult heavy in Take the Rock? riot squads
+   at higher security?) and I'll add them.
+2. **A shot-down support ship**: the crash is visual, the asset is lost for the mission, and the pilot always
+   walks away (Cass is story-safe). For the player's *own* Graf later: should the fighter take hull damage or
+   be destroyed back at base, and should the support pilot risk injury? Nothing persists right now.
 **Your call:** _open_
 
 ---

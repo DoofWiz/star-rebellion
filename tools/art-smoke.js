@@ -63,15 +63,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   log.push('take the rock + Cass');
   // the gun run must play through and hand the round back (a hang here soft-locks combat)
   {
-    const f0=DH.U.filter(u=>u.side==='law'&&!u.down)[0];let gi=0;
+    const foes=DH.U.filter(u=>u.side==='law'&&!u.down),f0=foes[0];let gi=0;
+    for(const u of foes.slice(3)){u.down=1;u.hp=0;}   // a short volley: three squatters are plenty for the check
     for(const u of DH.U)if(u.side==='reb'&&!u.down){u.x=f0.x-160+(gi%2)*40;u.y=f0.y+150+Math.floor(gi/2)*40;gi++;}
     DH.fn.alertTown('smoke');DH.fn.startPlanning();
-    for(const u of DH.U)if(u.side==='reb'&&!u.down)u.order={type:'cover'};
-    const u0=DH.U.find(x=>x.side==='reb'&&!x.down);
-    DH.fn.fsPlace('s0',{x:u0.x,y:u0.y});
+    // unarmed rebels never enter the engagement, so the round can't stall waiting for a player shot
+    for(const u of DH.U)if(u.side==='reb'&&!u.down)u.wpns=[];
+    DH.fn.fsPlace('s0',{x:f0.x,y:f0.y});
     DH.fn.execute();
     let done=false;
-    for(let w=0;w<60;w++){
+    for(let w=0;w<120;w++){
       await sleep(300);
       if((DH.phase==='PLANNING'||DH.phase==='FREE'||DH.phase==='GAMEOVER')&&!DH.dgRun&&!DH.dgQueue.length&&DH.FS.ships[0].left<2){done=true;break;}
     }
