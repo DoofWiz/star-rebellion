@@ -584,7 +584,7 @@ strider:{
   ];},
 },
 haven:{
-  mode:'haven',W:1600,H:1200,style:'rock',fog:true,
+  mode:'haven',W:1600,H:1200,scale:1.45,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
   title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
@@ -733,8 +733,30 @@ function contextScenario(base,c,sec){
   }
   return S;
 }
+/* The Bobbleheads stand bigger than the old tokens, so a scenario can ask to be laid out larger:
+   set scale on its definition and every coordinate grows while the art and the gameplay ranges
+   keep their own size. Handles the spatial fields the scenarios use; extend the lists if a new
+   scenario adds one. Never mutates the registry copy. */
+function scaleScenario(S0,k){
+  const S=Object.assign({},S0);
+  const pt=p=>p&&Object.assign({},p,{x:p.x*k,y:p.y*k},p.r!==undefined?{r:p.r*k}:{});
+  const rect=b=>Object.assign({},b,{x:b.x*k,y:b.y*k,w:b.w*k,h:b.h*k});
+  const units=list=>list.map(u=>Object.assign({},u,{x:u.x*k,y:u.y*k},
+    u.patrol?{patrol:u.patrol.map(p=>({x:p.x*k,y:p.y*k}))}:{}));
+  S.layoutK=k;
+  S.W=S0.W*k;S.H=S0.H*k;
+  for(const key of ['LZ','PAD','TOWER','TURRET','camp','panTo','guardPt','door','derelict','bossTrigger','bossDoor'])
+    if(S0[key])S[key]=pt(S0[key]);
+  for(const key of ['solids','opens','bldgs'])if(S0[key])S[key]=S0[key].map(rect);
+  for(const key of ['props','loots','work'])if(S0[key])S[key]=S0[key].map(pt);
+  if(S0.foes)S.foes=function(){return units(S0.foes.call(this));};
+  if(S0.civs)S.civs=function(){return units(S0.civs.call(this));};
+  if(S0.waves)S.waves=S0.waves.map(w=>Object.assign({},w,{foes:units(w.foes)}));
+  return S;
+}
 function initScenario(id){
-  {const b=SCENARIOS[id]||SCENARIOS.stealcross;
+  {const b0=SCENARIOS[id]||SCENARIOS.stealcross;
+   const b=b0.scale?scaleScenario(b0,b0.scale):b0;
    SCN=(CTX&&(CTX.ctx||CTX.sec>2))?contextScenario(b,CTX.ctx,CTX.sec):b;}
   W=SCN.W;H=SCN.H;
   LZ=SCN.LZ;
@@ -3664,7 +3686,8 @@ function drawGroundHaven(){
     ctx.beginPath();ctx.arc(sc2.x,sc2.y,sc2.r,0,7);ctx.fill();
   }
   // worn trail: map edge -> squatter camp -> base mouth
-  SA.trail(ctx,[[LZ.x-30,H+20],[LZ.x+40,LZ.y],[620,940],[SCN.camp.x-40,SCN.camp.y+40],[SCN.door.x,SCN.door.y+10]],'rock',46);
+  const lk=SCN.layoutK||1;
+  SA.trail(ctx,[[LZ.x-30,H+20],[LZ.x+40,LZ.y],[620*lk,940*lk],[SCN.camp.x-40,SCN.camp.y+40],[SCN.door.x,SCN.door.y+10]],'rock',46);
   // carved interior: plated floors under the mountain
   for(const op of SCN.opens){
     ctx.fillStyle='#171d26';
