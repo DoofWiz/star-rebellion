@@ -157,7 +157,7 @@ function adjCool(s,d,why){
 }
 
 const DEPLOY=[
-  ['P1','Vanguard','viper','reb',650,2450,-Math.PI/4,dbPilot('sera-kest',{chatKey:'sera',first:'SERA',age:29,bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'})],
+  ['P1','Vanguard','viper','reb',650,2450,-Math.PI/4,dbPilot('sera-kest',{chatKey:'sera',first:'SERA',age:29,bio:'Ex-Hegemony survey pilot. Deserted after an incident at Callis Reach. Looking to put her skills against the Hegemony, ideally for a cause that means something.'})],
   ['P2','Dagger 1','talon','reb',430,2560,-Math.PI/4,dbPilot('joss-marrek',{chatKey:'joss',first:'JOSS',age:26,mans:['loop'],bio:'Cocky, brilliant, insufferable. Flies like he’s owed the sky.'})],
   ['P3','Dagger 2','talon','reb',870,2620,-Math.PI/4,dbPilot('petra-voss',{chatKey:'petra',first:'PETRA',age:24,bio:'Steady hands, soft heart. Followed Joss into the rebellion.'})],
   ['E1','Vex','scim','heg',2950,1150,Math.PI*0.75,dbPilot('dral-vex',{first:'VEX',age:51,mans:['loop','broll'],bio:'The Hegemony’s schoolmaster of the void. His students never forget him.'})],

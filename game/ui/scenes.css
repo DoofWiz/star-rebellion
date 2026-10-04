@@ -108,6 +108,17 @@
 #sc-base .bs-arrship{position:absolute;left:50%;top:8px;color:var(--sr-gold);transform:translateX(-50%) rotate(180deg);animation:bs-arrLand 2.6s ease-in both;}
 #sc-base .bs-arrship .sr-ico{width:30px;height:30px;}
 @keyframes bs-arrLand{0%{top:-30px;opacity:0;}15%{opacity:1;}100%{top:104px;}}
+/* BASE ESTABLISHED splash (prologue win): dims the base, pops the name, hands over to Cass */
+#sc-base .bs-estsplash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:rgba(7,8,24,.72);cursor:pointer;transition:opacity .4s ease;}
+#sc-base .bs-estsplash.is-out{opacity:0;}
+#sc-base .bs-est__big{font:400 56px/1 var(--sr-font-display);color:var(--sr-gold);text-shadow:0 4px 0 var(--sr-ink);animation:bs-estPop .55s var(--sr-ease-pop) both;}
+#sc-base .bs-est__sub{font:400 24px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 3px 0 var(--sr-ink);animation:bs-estPop .55s .12s var(--sr-ease-pop) both;}
+@keyframes bs-estPop{0%{transform:scale(.55);opacity:0;}100%{transform:scale(1);opacity:1;}}
+@media (prefers-reduced-motion:reduce){
+  #sc-base .bs-est__big,#sc-base .bs-est__sub{animation:none;}
+  #sc-base .bs-estsplash{transition:none;}
+}
 /* revolution level 2 */
 #sc-base .bs-esc{text-align:center;padding:6px 0 0;}
 #sc-base .bs-escrings{position:relative;width:130px;height:130px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;}

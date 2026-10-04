@@ -1887,6 +1887,7 @@ function setRt(u,tx,ty,spd){
   u.rtSpd=(spd||RT_SPEED)*speedMul(u);
 }
 function squadMoveTo(pt){
+  if(tutFrozen())return;   // the simulation is frozen on a tutorial card: no orders until Got it
   tutFlags.moved=1;
   const offs=[[0,0],[36,20],[-32,28],[22,-32]];
   let i=0;
@@ -2072,9 +2073,10 @@ function fsItems(){
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
   FS.ships.forEach((a,i)=>{
     if(a.state!=='ready')return;
+    if(a.scripted&&!tutFlags.fsCard)return;   // Cass stays off the menu until her tutorial card is up (A5)
     const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner':'Reinforcements';
     const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
-      a.mode==='doorgun'?'circles for 2 rounds, rakes up to 3 enemies a round':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
+      a.mode==='doorgun'?(a.scripted?'click an area in view: rakes up to 3 enemies within the ring, 2 rounds · one use':'circles for 2 rounds, rakes up to 3 enemies a round'):'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
   (FS.vehicles||[]).forEach((a,i)=>{
@@ -2103,7 +2105,12 @@ function fsPlace(key,pt){
   if(!a)return true;
   if(a.mode==='doorgun'){
     a.state='active';a.left=2;
-    log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner on station for two rounds.');
+    if(a.scripted){
+      // Cass's pass is anchored to the clicked point: she rakes only what's inside the ring (A5)
+      a.pt={x:pt.x,y:pt.y};
+      tutFlags.fs=1;
+      log('<b>Cass</b> <span class="d">(Cass’s freighter):</span> Door gun’s hot. Keep your heads down.');
+    } else log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner on station for two rounds.');
     sTakeoff();return true;
   }
   if(a.mode==='reinforce'){
@@ -2136,8 +2143,10 @@ function supplyDrop(u){
   crew.slice(0,2).forEach(c=>{if(!c.wpns.includes('rocket'))c.wpns.push('rocket');});
   log('The crate holds <b>5 stims</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
 }
+const DOORGUN_R=320;   // an area-anchored door gunner rakes only inside this radius of its point
 function dgAttack(a){
-  const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
+  let seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
+  if(a.pt)seen=seen.filter(t=>dist(t,a.pt)<=DOORGUN_R);
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
   if(!pick.length){log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets in view.');return;}
@@ -2168,7 +2177,7 @@ function fsRoundEnd(){
     if(a.state!=='active')continue;
     dgAttack(a);
     a.left--;
-    if(a.left<=0){a.state='spent';log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
+    if(a.left<=0){a.state='spent';a.pt=null;log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
   }
 }
 function mkSquadUnit(sp,x,y){
@@ -2234,6 +2243,22 @@ function drawFS(now){
   }
   if(fsDraft){
     ctx.save();ctx.fillStyle=C.hazard;ctx.beginPath();ctx.arc(fsDraft.x1,fsDraft.y1,6,0,7);ctx.fill();ctx.restore();
+  }
+  // the area-anchored door gunner's ring: dashed gold while placing, and over the point while active (A5)
+  const dgRing=(x,y)=>{
+    ctx.save();
+    ctx.strokeStyle=T.rgba(C.gold,0.85);ctx.lineWidth=2.5;ctx.setLineDash([14,10]);
+    ctx.beginPath();ctx.arc(x,y,DOORGUN_R,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.restore();
+  };
+  if(pickMode&&pickMode.startsWith('fs:s')&&hoverW){
+    const a=FS.ships[+pickMode.slice(4)];
+    if(a&&a.mode==='doorgun'&&a.scripted)dgRing(hoverW.x,hoverW.y);
+  }
+  for(const a of FS.ships){
+    if(a.state!=='active'||!a.pt)continue;
+    dgRing(a.pt.x,a.pt.y);
+    plb('CASS ON STATION',a.pt.x,a.pt.y-DOORGUN_R-14,C.gold,12);
   }
 }
 /* ---------- hacking Autos (Field Technician) ----------
@@ -4399,7 +4424,7 @@ function csUpdate(now){
         u.face=-Math.PI/2;
       }
     }
-    csEvent('wb1',2.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,'That’s the rock. Squatters and all. Let’s go take our home.',3400);});
+    // no soldier dialogue in the prologue cinematic; the lead's line plays as a quip after the briefing (A3)
     csEvent('pan',3.8,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
     csEvent('banner',4.6,el,()=>{byId('csBanner').classList.add('show');});
     csEvent('banneroff',7.4,el,()=>{byId('csBanner').classList.remove('show');});
@@ -4449,7 +4474,61 @@ function endCutscene(){
   for(const u of U)if(u.side==='reb'){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
   cs=null;
   camGoal={x:LZ.x+240,y:LZ.y-180,z:0.9};
+  if(SCN.mode==='haven'&&SCN.tutorial&&phase==='CUTSCENE'){
+    // prologue: hold the scene (nothing moves, HUD hidden) and open the Cass comm (A1/A2)
+    phase='INTRO';
+    byId('gCassComm').hidden=false;
+    syncUI();
+    return;
+  }
   enterFree(null);
+}
+/* ---------- prologue: Cass's comm window and the soldier quips (A2/A3) ---------- */
+function drawGroundStatic(now){
+  const g=byId('gCommStatic');
+  if(!g)return;
+  const r=g.getBoundingClientRect();
+  if(!r.width)return;
+  if(g.width!==Math.round(r.width*dpr)){g.width=Math.round(r.width*dpr);g.height=Math.round(r.height*dpr);}
+  const c2=g.getContext('2d');
+  c2.setTransform(dpr,0,0,dpr,0,0);
+  const w=r.width,h=r.height;
+  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t=RM?0:now,nz2=RM?()=>0.5:rng;     // reduced motion: a steady line, no flicker
+  c2.fillStyle='#04060d';c2.fillRect(0,0,w,h);
+  for(let i=0;i<240;i++){
+    c2.fillStyle=T.rgba(C.rebel,nz2()*0.2);
+    c2.fillRect(nz2()*w,nz2()*h,1.5,1.5);
+  }
+  const sy=(t*0.05)%h;
+  c2.fillStyle=T.rgba(C.rebel,0.08);c2.fillRect(0,sy,w,7);
+  c2.strokeStyle=C.rebel;c2.lineWidth=2;
+  c2.beginPath();
+  for(let x=0;x<w;x+=3){
+    const y=h/2+Math.sin(x*0.08+t*0.01)*6*nz2()+(nz2()-0.5)*8;
+    x===0?c2.moveTo(x,y):c2.lineTo(x,y);
+  }
+  c2.stroke();
+  c2.font='700 11px '+FONT.ui;c2.textAlign='left';
+  c2.fillStyle=C.text2;
+  c2.fillText('Encrypted · rebel net · the Drift',10,15);
+}
+/* placeholder lines reused from the cinematic and REB_LINES; the designer rewrites them here (A3) */
+const PROLOGUE_QUIPS=[
+  'That’s the rock. Squatters and all. Let’s go take our home.',
+  'If it ticks me off, it goes bang.',
+  'Wind’s with us. Take the shot.',
+];
+let quipsQueued=0;
+function prologueQuips(){
+  const reb=U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
+  quipsQueued=0;
+  PROLOGUE_QUIPS.forEach((line,i)=>{
+    const u=reb[i];
+    if(!u)return;
+    quipsQueued++;
+    setTimeout(()=>{if(SR.active==='ground'&&!u.down)say(u,line,3200);},i*1600);
+  });
 }
 /* ---------- main render ---------- */
 let hoverW=null;
@@ -4459,12 +4538,13 @@ function render(now){
     lastFrame=now;
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
     if(phase!=='CUTSCENE')fuelUpdate(now);
-    if(phase==='FREE')rtUpdate(now,dt);
+    if(phase==='FREE'&&!tutFrozen())rtUpdate(now,dt);   // a pause-card freeze stops movement, detection, AI and timers (A4)
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
     vehSync();
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
     if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
+    if(phase==='INTRO')updateVision(now);   // the held scene stays lit; nothing moves and nothing detects
     tutTick();
     exploTick(now);
     if(camGoal&&camGoal.pts&&phase!=='ENGAGE')camGoal=null;
@@ -4509,6 +4589,7 @@ function render(now){
     drawBubbles(now);
     vsSync(now);
     drawMinimap(now);
+    if(phase==='INTRO'&&!byId('gCassComm').hidden)drawGroundStatic(now);
     if(now-alertFlash<900&&alertFlash){
       ctx.fillStyle=T.rgba(C.hazard,0.16*(1-(now-alertFlash)/900));
       ctx.fillRect(0,0,cssW,cssH);
@@ -4577,6 +4658,7 @@ cv.addEventListener('pointerup',ev=>{
   A.wake();
   const px=ev.offsetX,py=ev.offsetY;
   if(phase==='FREE'){
+    if(tutFrozen())return;   // frozen on a tutorial card: the world takes no clicks until Got it
     // the turret is a clickable station: man it, or step off it
     const wpt0=cssToWorld(px,py);
     if(Math.hypot(wpt0.x-TURRET.x,wpt0.y-TURRET.y)<TURRET.r+14){
@@ -4896,7 +4978,7 @@ function lootHtml(){
   if(NADES>0)h+=lootRow('grenade','BLAM frag grenade','×'+NADES,'var(--sr-hazard)');
   return h||'<div class="sr-empty">Nothing yet. Check tills, crates and lockers.</div>';
 }
-const PHASE_UI={FREE:['free','Free move'],PLANNING:['plan','Planning'],EXEC:['exec','Moving'],ENGAGE:['fight','Engagement'],CUTSCENE:['exec','Insertion'],EXTRACT:['exec','Extraction'],GAMEOVER:['exec','Debrief'],BRIEF:['exec','Briefing']};
+const PHASE_UI={FREE:['free','Free move'],PLANNING:['plan','Planning'],EXEC:['exec','Moving'],ENGAGE:['fight','Engagement'],CUTSCENE:['exec','Insertion'],EXTRACT:['exec','Extraction'],GAMEOVER:['exec','Debrief'],BRIEF:['exec','Briefing'],INTRO:['exec','Briefing']};
 const BANNER_PHASES={FREE:1,PLANNING:1,EXEC:1,ENGAGE:1,EXTRACT:1};
 function objRow(o){
   let t=o.t,count='';
@@ -4990,7 +5072,7 @@ function syncUI(){
   {
     const first=objs.find(o=>o.now&&!o.done)||objs.find(o=>!o.done);
     for(const o of objs)o.cur=!o.done&&(o.now||(!objs.some(x=>x.now&&!x.done)&&o===first));
-    const ob=$('objBox'),hideO=phase==='BRIEF'||phase==='CUTSCENE'||phase==='GAMEOVER';
+    const ob=$('objBox'),hideO=phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER';
     ob.hidden=hideO;
     ob.classList.toggle('is-compact',phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE');
     HUD.render($('objList'),objs.map(objRow).join(''));
@@ -5187,12 +5269,30 @@ $('enterBtn').addEventListener('click',()=>{
   A.wake();
   $('briefing').hidden=true;
   started=true;
+  if(SCN.mode==='haven'&&SCN.tutorial&&phase==='INTRO'){
+    // prologue: the cutscene already ran before the briefing — start the quips and play (A1/A3)
+    prologueQuips();
+    enterFree(null);
+    return;
+  }
   startCutscene();
 });
 $('csSkip').addEventListener('click',()=>{if(cs)endCutscene();});
+$('tutGotIt').addEventListener('click',()=>{
+  A.wake();sTick();
+  tutAck[tutIdx]=1;
+  tutTick();syncUI();
+});
+$('cassAckBtn').addEventListener('click',()=>{
+  A.wake();
+  byId('gCassComm').hidden=true;
+  $('briefing').hidden=false;
+  $('enterBtn').focus({preventScroll:true});
+});
 $('dbgSkip').addEventListener('click',()=>{
   if(phase==='GAMEOVER')return;
   if(cs)endCutscene();
+  byId('gCassComm').hidden=true;
   $('briefing').hidden=true;
   started=true;
   gameOver(true);
@@ -5212,6 +5312,11 @@ addEventListener('keydown',ev=>{
     else if(hackArm&&phase==='FREE'){hackArm=false;syncUI();}
     else if(fsMenuOn){fsMenuOn=false;syncUI();}
     else if(selId){selId=null;syncUI();}
+    return;
+  }
+  if(!$('gCassComm').hidden){
+    // Enter and Space acknowledge; Esc does not close it (A2)
+    if((k==='Enter'||k===' ')&&!onBtn){ev.preventDefault();$('cassAckBtn').click();}
     return;
   }
   if(!$('briefing').hidden){if(k==='Enter'&&!onBtn){ev.preventDefault();$('enterBtn').click();}return;}
@@ -5241,6 +5346,8 @@ function initState(){
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
+   if(SCN.mode==='haven')FS={drop:false,dropUsed:false,orders:[],n:0,vehicles:[],
+     ships:[{mode:'doorgun',name:'Cass’s freighter',pilot:{first:'Cass'},state:'ready',left:0,scripted:1}]};   // Cass flies door-gunner cover in the prologue (A5)
    fsMenuOn=false;fsDraft=null;}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
   rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
@@ -5276,38 +5383,55 @@ function resetGame(withCine){
 }
 function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven Rock */}
 /* ---------- tutorial (prologue only) ---------- */
-let tutFlags={moved:0,sneaked:0,executed:0,attacked:0};
-let tutIdx=0;
+/* Each card can carry when() \u2014 it waits, hidden, until that is true \u2014 and pause:true: during real-time
+   play (FREE) the simulation freezes until the player clicks Got it; in PLANNING/ENGAGE the game already
+   waits, so the button shows without a freeze. An acknowledged card stays up until its done() fires. (A4) */
+let tutFlags={moved:0,sneaked:0,executed:0,attacked:0,fs:0,fsCard:0};
+let tutIdx=0,tutAck=[];
 const TUT=[
-  {title:'Move out',text:'<b>'+(SR.touch?'Tap the ground':'Right-click')+'</b>'+(SR.touch?'':' (or tap the ground)')+' and the squad moves in real time. Walk them up the canyon toward the squatter camp at the base mouth.',
+  {title:'Move out',pause:true,text:'<b>Out of combat, you can move your squad in real time.</b> <b>'+(SR.touch?'Tap the ground':'Right-click')+'</b>'+(SR.touch?'':' (or tap the ground)')+' to move your squad. Walk them up the canyon toward the squatter camp at the base mouth.',
    done:()=>tutFlags.moved},
-  {title:'Sneak past',text:'Those <b>blue searchlights</b> are squatter sightlines \u2014 the orange inner band still catches you while sneaking. Press <span class="sr-kbd">C</span> (or the Sneak button) to go low; the eye above a rebel fills as they\u2019re noticed.',
+  {title:'Sneak past',pause:true,text:'Those <b>blue searchlights</b> are enemy sightlines. The orange inner band catches your characters while sneaking. Press <span class="sr-kbd">C</span> (or the Sneak button) to go low.',
    done:()=>tutFlags.sneaked||town==='alerted'},
-  {title:'Start the fight',text:'Start the fight on your terms: <b>click a squatter</b> and everyone with a clear shot opens fire \u2014 an <b>ambush</b>, with a bonus on the volley. Or let the detection eye fill. Either way, time drops into rounds.',
+  {title:'Start the fight',pause:true,text:'Ambushing gives you the opportunity to swing a fight in your favour from the first turn. <b>Click a squatter</b> and everyone with a clear shot can open fire with a bonus to hit.',
    done:()=>town==='alerted'},
-  {title:'Plan the round',text:'Each rebel takes one order \u2014 <b>Move</b> keeps the gun up, <b>Sprint</b> goes far but can\u2019t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings are cover. Then hit <b>Execute</b>.',
+  {title:'Plan the round',text:'Each rebel takes one order. <b>Move</b> relocates a character, <b>Sprint</b> increases move distance but the character can\u2019t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings indicate cover to make your characters harder to hit. Press <b>Execute</b> when you have finished giving orders.',
    done:()=>tutFlags.executed||hostilesActive().length===0},
-  {title:'Take the shot',text:'Shots resolve one at a time on the attack panel. Tap another squatter to retarget \u2014 or tap a <b>red canister</b> to blow it \u2014 then hit <b>Attack</b>.',
+  {title:'Take the shot',text:'Shots resolve one at a time on the attack panel in initiative order. Tap another squatter to retarget \u2014 or tap a <b>red canister</b> to blow it \u2014 then hit <b>Attack</b>.',
    done:()=>tutFlags.attacked||hostilesActive().length===0},
-  {title:'Cover and nerve',text:'Cover soaks fire and <b>shreds</b> \u2014 crates die, boulders don\u2019t. Corridors are overwatch country: a held gun owns a hallway. Drop <b>Boss Craw</b> and the rest lose their nerve. Clear every squatter, outside and in.',
+  {title:'Fire Support',pause:true,when:()=>round>=1&&phase==='PLANNING',
+   text:'Fire Support can help turn the tide of battle. Select the <b>Fire Support</b> action from the action menu and click on an area to summon Cass to provide door gunner cover there.',
+   done:()=>tutFlags.fs||hostilesActive().length===0},
+  {title:'Cover and nerve',text:'Cover soaks incoming damage. Some cover like crates can be destroyed.<br>Eliminate <b>Boss Craw</b> and other enemies might lose their nerve and panic. Panicking characters cannot use actions.',
    done:()=>hostilesActive().length===0},
   {title:'Raise the signal',text:'The rock is yours. Push inside, walk a soldier to the command-room console, and <b>raise the signal</b>.',
    done:()=>false},
 ];
-function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0};tutIdx=0;tutShown=-1;}
-let tutShown=-1;
+function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0,fs:0,fsCard:0};tutIdx=0;tutAck=[];tutShown=-1;tutAckShown=null;}
+let tutShown=-1,tutAckShown=null;
+function tutNeedsAck(){const t=TUT[tutIdx];return !!(t&&t.pause&&!tutAck[tutIdx]&&!t.done());}
+function tutFrozen(){
+  if(!SCN||!SCN.tutorial||phase!=='FREE')return false;
+  const t=TUT[tutIdx];
+  return tutNeedsAck()&&!(t.when&&!t.when());
+}
 function tutTick(){
   const card=byId('tutCard');
-  if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
+  if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
   while(tutIdx<TUT.length-1&&TUT[tutIdx].done())tutIdx++;
+  // a card with an unmet when() waits unseen \u2014 show nothing until it is ready
+  if(TUT[tutIdx].when&&!TUT[tutIdx].when()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
+  if(tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;syncUI();}   // the Fire Support card is up: Cass unlocks (A5)
   if(card.hidden){card.hidden=false;tutShown=-1;}
   const fold=phase==='ENGAGE'&&cssW<1000;           // the VS panel is already teaching; give the fight the room
   if(card.classList.contains('is-folded')!==fold){card.classList.toggle('is-folded',fold);measureHud();}
-  if(tutShown!==tutIdx){
-    tutShown=tutIdx;
+  const needAck=tutNeedsAck();
+  if(tutShown!==tutIdx||tutAckShown!==needAck){
+    tutShown=tutIdx;tutAckShown=needAck;
     byId('tutStep').textContent=TUT[tutIdx].title;
     byId('tutDots').innerHTML=TUT.map((t,i)=>'<i'+(i<=tutIdx?' class="is-on"':'')+'></i>').join('');
     byId('tutText').innerHTML=TUT[tutIdx].text;
+    byId('tutFoot').hidden=!needAck;
     measureHud();
   }
 }
@@ -5351,6 +5475,16 @@ function enter(params){
     resetGame(false);
     return;
   }
+  if(SCN.mode==='haven'&&SCN.tutorial){
+    // prologue: straight into the insertion cinematic; the Cass comm and the briefing follow it (A1)
+    // the New Game click is the user gesture that lets audio start
+    A.wake();
+    $('briefing').hidden=true;
+    started=true;
+    startCutscene();
+    syncUI();
+    return;
+  }
   $('briefing').hidden=false;
   $('enterBtn').focus({preventScroll:true});
   phase='BRIEF';
@@ -5361,6 +5495,7 @@ function enter(params){
 function exit(){
   byId('app').classList.remove('cine');
   byId('csBanner').classList.remove('show');
+  byId('gCassComm').hidden=true;
   drawerOpen(false);menuEl.hidden=true;
   for(const w of ROOT.querySelectorAll('[data-srwin]'))w.hidden=true;
   engageQ=null;cs=null;extractFx=null;
@@ -5375,7 +5510,8 @@ if(location.hash==='#test'){
     get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    fn:{fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
+    fn:{tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,

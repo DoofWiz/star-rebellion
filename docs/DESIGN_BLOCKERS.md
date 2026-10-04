@@ -10,7 +10,8 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-04, after Phase 2 of the Black Market / Arsenal handoff (Sweet Tooth's stall, kit only).
+**Last updated:** 2026-10-04, after the Black Market / Arsenal handoff (Phases 1–2) and the opening onboarding
+handoff (`docs/ONBOARDING-HANDOFF.md`) were built and merged.
 
 ## How to use this
 
@@ -35,6 +36,9 @@
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
 | C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
+| C-14 | ⚪ | The door gunner is area-targeted for Cass only | One rule for door gunners |
+| C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
+| C-16 | ⚪ | Cass's freighter has no art in the ground scene | The prologue door-gun pass visual |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -62,7 +66,7 @@
 
 ## 1. Conflicts
 
-One is open; the rest are in the resolved log at the bottom.
+Eleven are open (C-4 and C-7 to C-16); the rest are in the resolved log at the bottom.
 
 ### C-4 ⚪ Source docs disagree with each other
 Carried over from `docs/ROADMAP.md` "Doc issues" so they live in one place. All are wording problems that do not
@@ -145,6 +149,29 @@ Fleet tab should exist, and what it would hold that the Arsenal's Ships view doe
    tiny and grey — the game renders the number as `<i class="bm-restock__n">` instead.
 **Needs from you:** nothing; just carry the two fixes back into the canvas CSS if it gets re-exported.
 **Your call:** _open (informational)_
+### C-14 ⚪ The door gunner is area-targeted for Cass only
+The onboarding handoff wants the player to *click an area* for Cass's door-gunner cover, so her pass is anchored
+to the clicked point: she rakes up to 3 enemies within **320px** of it each round (dashed gold ring while placing
+and while active). The Graf's own door gunner still works the old way — no point, rakes any 3 visible enemies
+map-wide — so the two door gunners follow different rules. **Needs from you:** should every door gunner become
+area-targeted like Cass's (I think it reads better and asks a real decision of the player), or does the Graf
+keep the map-wide version?
+**Your call:** _open_
+
+### C-15 ⚪ Prologue quips are placeholder lines
+The three soldier quips after the prologue briefing (A3 of the handoff) are reused lines: the old cinematic lead
+line, one of Runa's barks and one of Kel's. They sit in one table, `PROLOGUE_QUIPS` in `game/js/ground.js`, so
+they can be rewritten without touching anything else. **Needs from you:** the real lines (and whether each should
+be pinned to a named rebel or go to whoever stands first, second and third).
+**Your call:** _open_
+
+### C-16 ⚪ Cass's freighter has no art in the ground scene
+The handoff says Cass's freighter is drawn the way the current door gunner pass is — but the current door gunner
+draws **no ship at all**, only the tracer fire raking down, so there was no Graf silhouette pass to reuse either.
+Cass's cover is currently the tracers plus the gold work-area ring and her log lines; no freighter appears
+overhead. **Needs from you:** whether a flyover sprite is wanted (and what Cass's freighter looks like — a Graf
+silhouette with a different livery would be the cheap first pass once any door gunner draws a ship).
+**Your call:** _open_
 
 ---
 
