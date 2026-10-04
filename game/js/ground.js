@@ -56,6 +56,7 @@ const WPN={
   strider:{name:'Strider Autocannon',d0:16,d1:26,rng:460,atk:0,shots:4},
   laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
 };
+window.SR_WPN=WPN;   // read-only reference for the base scene (the Black Market's weapon stats row)
 const PROPDEF={
   barrel:  {r:15,cov:8,hp:55, lab:'FUEL DRUMS'},
   crate:   {r:19,cov:8,hp:45, lab:'CARGO CRATES'},

@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-02, after the designer's answers on C-1, C-2, C-3, C-5 and C-6 were built, and after the vehicle gameplay.
+**Last updated:** 2026-10-04, after Phase 2 of the Black Market / Arsenal handoff (Sweet Tooth's stall, kit only).
 
 ## How to use this
 
@@ -31,6 +31,10 @@
 | C-7 | ⚪ | Vehicle rules the Ground Combat excerpt does not cover | How vehicle fights feel |
 | C-8 | ⚪ | Bots ride as fire-support assets, not squad members | Where the Strider sits in a plan |
 | C-9 | ⚪ | The Steal the Cross laser turret is still its own system | One rule for gun emplacements |
+| C-10 | ⚪ | Prices, market weights and `KIT` live in `base.js`, not the database | Where personal kit data lives |
+| C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
+| C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
+| C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -46,6 +50,11 @@
 | M-13 | 🟡 | Specialty abilities (the active ability each specialty gives) | 15 of 16 specialties |
 | M-14 | 🟡 | Base-specific skills for Support rebels | Support have no skills at all |
 | M-15 | 🟡 | Vehicle stats, and a way to own a crewed vehicle | Player-owned cruisers, the Driver specialty |
+| M-16 | 🔴 | Armour effects for the new Head and Body slots | Armour is visible in the Arsenal but does nothing in a fight |
+| M-17 | 🟡 | Items with no mechanics yet (`live:false` in `KIT`) | 10+ catalogue items; they are kept out of the market |
+| M-18 | 🟡 | Rev 2+ market weights | Black Market stock once Level 2 lands |
+| M-19 | 🟡 | Ship weapon storage (`G.shipKit`) feeding the hangar loadouts | Buying ship weapons from Sweet Tooth |
+| M-20 | 🟡 | Sweet Tooth needs an `SR_ART` character spec | The Black Market fence portrait |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -108,6 +117,34 @@ one-seat emplacement (Man gun / Leave gun, a frontal shield arc), and I left it 
 onboarding mission. **Needs from you:** should emplacements become vehicles with speed 0 (Enter/Exit instead of
 Man gun/Leave gun), or stay separate?
 **Your call:** _open_
+
+### C-10 ⚪ Prices, market weights and `KIT` live in `base.js`, not the database
+The Market/Arsenal handoff told me to add the shared item catalogue (`KIT`: footprints, slots, makers, prices,
+`live` flags) as a table in `base.js`, because `db.json` does not hold personal kit yet. That is where it is.
+**Needs from you:** nothing urgent — but when personal kit joins the database, `KIT`, the prices and the market
+weights should move into `db.json` so the data pipeline owns them.
+**Your call:** _open_
+
+### C-11 ⚪ Maker "TBC" on nine items
+The Gear doc leaves the maker blank for: Cowboy No.4, Varmint Shotgun, Longhorn ’28, Stim, Cowboy Hat, Baseball
+Cap, BLS-T Light Repeaters, Door Mounted Gun and the Riot Transport Cruiser. The Arsenal dossier shows a maker
+chip, so these read "TBC" (or show none). **Needs from you:** maker names, whenever convenient. Flavour only.
+**Your call:** _open_
+
+### C-12 ⚪ Ships live in the Arsenal, not their own Fleet tab
+The Gear doc gives ships a tab of their own; the Market/Arsenal handoff puts them under the Arsenal's
+Ships chip, and you said that is "fine for now". Built that way. **Needs from you:** say the word if and when a
+Fleet tab should exist, and what it would hold that the Arsenal's Ships view does not.
+**Your call:** _resolved for now ("fine for now"); reopen at will_
+
+### C-13 ⚪ Two small bugs in the handoff's §9 CSS, patched from `scenes.css`
+`sr-kit.css` is checked in verbatim per the handoff, so the fixes live in `scenes.css` (which loads after it):
+1. `.bm-strip{display:none}` is declared *after* the phone `@container` block that sets it to `display:flex`,
+   so the phone strip never shows — re-asserted inside the same container query.
+2. `.bm-restock span{…}` (the sub-line style) out-specifies `.bm-restock__n`, so a `<span>` day-counter renders
+   tiny and grey — the game renders the number as `<i class="bm-restock__n">` instead.
+**Needs from you:** nothing; just carry the two fixes back into the canvas CSS if it gets re-exported.
+**Your call:** _open (informational)_
 
 ---
 
@@ -276,6 +313,52 @@ my placeholders carried over from the old enemy units. A cruiser stolen mid-miss
 how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
 specialist adds (speed, a better TN while driving, ramming?).
 **Your call:** _open_
+
+### M-16 🔴 Armour effects for the new Head and Body slots
+**Blocks:** the Head and Body gear slots (now live in the Arsenal, the personnel file and auto-equip) from doing
+anything in ground combat. There is no armour rule in the d20 math (see also M-10).
+**Why:** the Market/Arsenal handoff ships the slots and the armour items first; the combat effect is a proposal.
+**Proposal (from the handoff):** head armour adds **+1 def** (Frontier Hardhat, Police Helmet, Auto Head-Helm),
+the **Police Vest +2 def**, and the Cowboy Hat and Baseball Cap add nothing (cosmetic). The squad entry already
+carries `head` and `body` next to `wpns`, so the ground scene can read them the day you confirm.
+**Interim:** shipped with **no combat effect** — armour equips, shows everywhere, and changes nothing in a fight.
+**Your call:** _open_
+
+### M-17 🟡 Items with no mechanics yet (`live:false` in `KIT`)
+**Blocks:** these catalogue items from being stocked by the Black Market or auto-equipped: Improvised Plasma SMG,
+Repurposed Mining Laser, Molotov Cocktail, Guardian Angel Drone, Auto Core Improvised Charge, Stim as a carried
+item (the ground scene gives every rebel one built-in stim today), HG-40, Power Baton, Riot Shield, Auto Plasma
+Hand. The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
+the carrier's weapons mid-mission, but nothing says whether an *owned* launcher is spent for good (debited from
+the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of `GVEH` until it has stats
+(see M-15).
+**Needs from you:** per item, the mechanic (or "cut it") — and for the rocket launcher, whether one shot consumes
+the owned item.
+**Your call:** _open_
+
+### M-18 🟡 Rev 2+ market weights
+**Blocks:** nothing yet (the Black Market rolls at Revolution Level 1 only). The handoff gives Rev 1 weights
+(Weapon 28 · Gadget 24 · Mercenary 14 · Armour 12 · Ship weapon 10 · Vehicle 8 · Ship 4) and says the intent for
+Rev 2+ is to move weight from kit toward ships, vehicles and mercs.
+**Needs from you:** the Rev 2+ weight table, before Level 2 content lands.
+**Your call:** _open_
+
+### M-19 🟡 Ship weapon storage (`G.shipKit`) feeding the hangar loadouts
+**Blocks:** buying ship weapons from Sweet Tooth (handoff §3.3) and refitting ships from a stock of spares.
+**Why:** a fighter's `loadout` is a list of weapon ids with no store behind it — there is no hangar loadout
+picker that draws from an inventory, and swapped-out weapons have nowhere to go. The Arsenal's Ship kit view
+already reads `G.shipKit` (`[{id,n}]`) plus whatever the fleet has fitted, so the store side is ready.
+**Needs from you:** confirm the model — bought ship weapons land in `G.shipKit`, a hangar picker fits them to a
+ship (freeing what was mounted back to the racks) — or say ships keep fixed loadouts and the market sells none.
+**Your call:** _open_
+
+### M-20 🟡 Sweet Tooth needs an `SR_ART` character spec
+**Blocks:** the Black Market fence portrait (the rail's 150px head and the phone strip).
+**Why:** `sr-art.js` is not on `main` and she has no character spec anywhere. The mockup stand-in had a big
+round head, a teal headscarf with gold dots, an eyepatch, a gold-tooth grin, a gold earring and a pink jacket.
+**Needs from you:** nothing from the design side — the handoff says the art chat owns the final look. Until the
+art kit lands, the Black Market will use the generic avatar.
+**Your call:** _open (owned by the art chat)_
 
 ---
 

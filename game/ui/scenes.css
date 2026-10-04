@@ -300,3 +300,34 @@
 #sc-base .bs-gearpick.is-on{border-color:var(--sr-go);}
 #sc-base .bs-gearpick:disabled{opacity:.5;cursor:default;}
 #sc-base .bs-gearpick__n{display:flex;align-items:center;gap:8px;font-weight:800;}
+
+/* ---------- Arsenal view glue (the components live in sr-kit.css) ---------- */
+/* while the Arsenal is up, the rail shows Loadouts instead of the crew lists */
+#sc-base .sr-shell.is-arsenal .sr-rail__scroll>*:not(#railArsenal){display:none;}
+#sc-base #railArsenal section{display:flex;flex-direction:column;gap:8px;}
+/* a slot the role doesn't have (pilots have no Primary) */
+#sc-base .ar-slot.is-none{display:grid;place-items:center;height:40px;border:0;background:transparent;color:var(--sr-text-3);font:700 11px/1 var(--sr-font-ui);cursor:default;}
+#sc-base .ar-dossier .sr-h3{margin:0;}
+#sc-base .ar-main{overflow-y:auto;}
+
+/* ---------- Black Market view glue (the components live in sr-kit.css) ---------- */
+/* while the stall is up, the rail shows the fence instead of the crew lists */
+#sc-base .sr-shell.is-market .sr-rail__scroll>*:not(#railMarket){display:none;}
+/* no SR_ART yet (DESIGN_BLOCKERS M-20): the role avatar stands in for Sweet Tooth's head */
+#sc-base .kf .sr-avatar{width:100%;height:100%;border-radius:50%;}
+#sc-base .bm-fence .kf .sr-avatar{font:400 44px/1 var(--sr-font-display);color:var(--sr-gold);}
+#sc-base .bm-fence .bm-say,#sc-base .bm-fence .bm-box,#sc-base .bm-fence .bm-perk{width:100%;}
+#sc-base .bm-fence .kit-pips{margin-top:10px;justify-content:center;}
+#sc-base .bm-perk.is-on{border-style:solid;border-color:var(--sr-go);color:var(--sr-text-2);}
+#sc-base .bm-perk.is-on .sr-ico{color:var(--sr-go);}
+/* the comms feed sits outside .bm-view in this shell, so the width rules ride the shell class */
+#sc-base .sr-shell.is-market .sr-comms{width:300px;}
+@container sr-app (max-width:900px){
+  #sc-base .sr-shell.is-market .sr-comms{display:none;}
+}
+#sc-base .bm-restock{text-align:left;}
+/* sr-kit.css declares .bm-strip{display:none} AFTER its own @container override, so the override
+   never wins; re-assert the phone strip here (this sheet loads after sr-kit.css) */
+@container sr-app (max-width:900px){
+  #sc-base .bm-strip{display:flex;}
+}

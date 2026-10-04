@@ -73,7 +73,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.rollNone,'no roll no hero');
  ok(r.rollFirst==='c3','strongest candidate rolls first '+r.rollFirst);
  ok(JSON.stringify(r.made.slice(0,4))==='["Hero","Pilot","Pilot",0]'&&r.made[4]===0.0175&&r.made[5],'making a hero '+r.made);
- ok(r.buffs[0]==='aim,con,agi,cun,foc,pre'&&r.buffs[1]===8&&r.buffs[2]===35&&r.buffs[3]===4,'hero buffs '+r.buffs);
+ ok(r.buffs[0]==='aim,con,agi,cun,foc,pre'&&r.buffs[1]===8&&r.buffs[2]===35&&r.buffs[3]===6,'hero buffs '+r.buffs);
  ok(r.gated[0]===1&&r.gated[1]===1,'Level 1 lets exactly one Hero emerge '+r.gated);
  ok(r.gatedAgain[0]===0&&r.gatedAgain[1]===1,'if the Hero is gone there is no second one in Level 1 '+r.gatedAgain);
  ok(r.one[0]===1,'exactly one hero from a mission '+r.one);

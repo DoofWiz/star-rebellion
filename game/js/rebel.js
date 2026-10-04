@@ -244,9 +244,10 @@ window.Rebel=(function(){
   }
 
   /* ---------- gear slots ----------
-     Soldiers and Marines carry a primary weapon, a secondary weapon and two gadgets; Pilots a secondary weapon
-     and two gadgets; Support carry nothing. A Hero (Phase 10) gets the full set. */
-  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'gad',i:0},{k:'gad',i:1}];
+     Soldiers and Marines carry a primary weapon, a secondary weapon, head and body armour and two gadgets;
+     Pilots everything except the primary; Support carry nothing. A Hero gets the full set.
+     (Head and Body are the designer-approved slots from the Market/Arsenal handoff §4.) */
+  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'head'},{k:'body'},{k:'gad',i:0},{k:'gad',i:1}];
   const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?FULL_KIT.slice(1):[]):[];
 
   /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
