@@ -4777,6 +4777,9 @@ function csUpdate(now){
       if(t>=1)u.face=-Math.PI/6;
     }
   }
+  csEvent('b1',4.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,(l.lines&&l.lines[0])||'Move quiet.',3400);});
+  csEvent('b2',6.2,el,()=>log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+SCN.csLine));
+  csEvent('b3',7.0,el,()=>say(U.find(u=>u.id==='sera'),'Just get me to that Cross in one piece.',3400));
   csEvent('pan',8.4,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
   csEvent('banner',9.4,el,()=>{byId('csBanner').classList.add('show');});
   csEvent('banneroff',12.2,el,()=>{byId('csBanner').classList.remove('show');});
@@ -5844,7 +5847,8 @@ function enter(params){
   $('enterBtn').focus({preventScroll:true});
   phase='BRIEF';
   for(const u of U)if(u.side==='reb')u.csHide=true;
-  startCutscene();
+  cam={x:LZ.x+180,y:LZ.y-160,z:0.9};clampCam();camGoal=null;
+  syncUI();
 }
 function exit(){
   byId('app').classList.remove('cine');
