@@ -118,10 +118,10 @@ const SPEC_COST=300;
    `live:false` means the game has no mechanics for the item yet: never stocked by the market and never
    auto-equipped (DESIGN_BLOCKERS M-17). `q` is the auto-equip quality, best first. */
 const KIT={
-  akli:       {name:'Akli AR',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'Bhord',origin:'factory',price:140,live:1,rev:1},
-  cowboy:     {name:'Cowboy No.4',cat:'weapon',slot:'secondary',w:1,h:1,q:1,maker:'TBC',origin:'factory',price:70,live:1,rev:1},
-  scatter:    {name:'Varmint Shotgun',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'TBC',origin:'factory',price:160,live:1,rev:1},
-  longiron:   {name:'Longhorn ’28',cat:'weapon',slot:'primary',w:3,h:1,q:3,maker:'TBC',origin:'factory',price:240,live:1,rev:1},
+  akli:       {name:'Akli AR',sub:'Assault rifle',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'Bhord',origin:'factory',price:140,live:1,rev:1},
+  cowboy:     {name:'Cowboy No.4',sub:'Revolver sidearm',cat:'weapon',slot:'secondary',w:1,h:1,q:1,maker:'TBC',origin:'factory',price:70,live:1,rev:1},
+  scatter:    {name:'Varmint Shotgun',sub:'Shotgun \u00b7 close work',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'TBC',origin:'factory',price:160,live:1,rev:1},
+  longiron:   {name:'Longhorn ’28',sub:'Hunting rifle \u00b7 long range',cat:'weapon',slot:'primary',w:3,h:1,q:3,maker:'TBC',origin:'factory',price:240,live:1,rev:1},
   rocket:     {name:'Improvised Rocket Launcher',cat:'weapon',slot:'primary',w:3,h:1,q:1,maker:'TBC',origin:'handmade',price:340,live:0,rev:1},   // one-shot ownership unresolved: M-17
   plasmasmg:  {name:'Improvised Plasma SMG',cat:'weapon',slot:'primary',w:2,h:1,q:2,origin:'handmade',price:280,live:0,rev:1},
   mininglaser:{name:'Repurposed Mining Laser',cat:'weapon',slot:'primary',w:3,h:1,q:2,origin:'scavenged',price:420,live:0,rev:1},
@@ -130,15 +130,15 @@ const KIT={
   baton:      {name:'Power Baton',cat:'weapon',slot:'secondary',w:2,h:1,q:1,maker:'Patriot',origin:'factory',heg:1,live:0,rev:1},
   riotshield: {name:'Riot Shield',cat:'weapon',slot:'secondary',w:2,h:2,q:1,maker:'Patriot',origin:'factory',heg:1,live:0,rev:1},
   autohand:   {name:'Auto Plasma Hand',cat:'weapon',slot:'secondary',w:1,h:1,q:2,maker:'AutoCom',origin:'factory',dropOnly:1,live:0,rev:1},
-  hardhat:    {name:'Frontier Hardhat',cat:'armour',slot:'head',w:1,h:1,q:1,maker:'TenTiU',origin:'factory',price:45,live:1,rev:1},
-  cowboyhat:  {name:'Cowboy Hat',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:30,live:1,rev:1},   // no benefit: cosmetic
-  cap:        {name:'Baseball Cap',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:20,live:1,rev:1}, // no benefit: cosmetic
+  hardhat:    {name:'Frontier Hardhat',sub:'Head armour',cat:'armour',slot:'head',w:1,h:1,q:1,maker:'TenTiU',origin:'factory',price:45,live:1,rev:1},
+  cowboyhat:  {name:'Cowboy Hat',sub:'Headwear \u00b7 no protection',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:30,live:1,rev:1},   // no benefit: cosmetic
+  cap:        {name:'Baseball Cap',sub:'Headwear \u00b7 no protection',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:20,live:1,rev:1}, // no benefit: cosmetic
   policehelmet:{name:'Police Helmet',cat:'armour',slot:'head',w:1,h:1,q:1.5,maker:'Patriot',origin:'factory',heg:1,live:1,rev:1},   // loot only
   policevest: {name:'Police Vest',cat:'armour',slot:'body',w:2,h:2,q:2,maker:'Patriot',origin:'factory',heg:1,live:1,rev:1},        // loot only
-  autohelm:   {name:'Auto Head-Helm',cat:'armour',slot:'head',w:1,h:1,q:1.5,origin:'handmade',price:120,live:1,rev:1},
-  medpack:    {name:'Med Pack',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,origin:'factory',price:40,live:1,rev:1},
-  blam:       {name:'BLAM Frag Grenade',cat:'gadget',slot:'gadget',w:1,h:1,q:1,maker:'BLAMCo',origin:'factory',price:50,live:1,rev:1},
-  charge:     {name:'BLAM C90 Explosive Charge',cat:'gadget',slot:null,w:2,h:1,maker:'BLAMCo',origin:'factory',price:110,live:1,rev:1},   // display rename only; key stays `charge`
+  autohelm:   {name:'Auto Head-Helm',sub:'Head armour \u00b7 handmade',cat:'armour',slot:'head',w:1,h:1,q:1.5,origin:'handmade',price:120,live:1,rev:1},
+  medpack:    {name:'Med Pack',sub:'Field medicine',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,origin:'factory',price:40,live:1,rev:1},
+  blam:       {name:'BLAM Frag Grenade',sub:'Frag grenade',cat:'gadget',slot:'gadget',w:1,h:1,q:1,maker:'BLAMCo',origin:'factory',price:50,live:1,rev:1},
+  charge:     {name:'BLAM C90 Explosive Charge',sub:'Demolition charge',cat:'gadget',slot:null,w:2,h:1,maker:'BLAMCo',origin:'factory',price:110,live:1,rev:1},   // display rename only; key stays `charge`
   stim:       {name:'Stim',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,maker:'TBC',origin:'factory',price:35,live:0,rev:1},   // ground gives every rebel a built-in stim: M-17
   molotov:    {name:'Molotov Cocktail',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,origin:'handmade',price:25,live:0,rev:1},
   angel:      {name:'Guardian Angel Drone',cat:'gadget',slot:'gadget',w:1,h:1,q:1,origin:'handmade',price:220,live:0,rev:1},
@@ -1457,6 +1457,12 @@ function advanceDay(){
   if(!started)return;
   const attn0=new Set(G.sources.filter(x=>x.alive&&(x.pendingEvent||x.signal)).map(x=>x.id));
   G.day++;
+  // Sweet Tooth's stall: a full restock every 7 days; unbought stock is discarded
+  if(!G.market||!G.market.lots)ensureMarket();
+  else if(G.day>=G.market.next){
+    rollMarket();
+    news('<b>Sweet Tooth</b> has new stock at Nyx. Six lots, gone by Day '+(G.market.week*7)+'.','g');
+  }
   closeTilePop();closeWin();exitRoomView();
   for(const rm of G.rooms){
     if(rm.build){
@@ -3071,7 +3077,7 @@ function updateGuide(){
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom&&!arOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
+    if(!winMode&&!viewRoom&&!arOpen&&!bmOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -3704,12 +3710,13 @@ function markShort(){
 function markWin(){markShort();}
 /* the tabs show where the player is; Base is "no window open and no view up" */
 function syncTabs(){
-  const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):arOpen?'navArsenal':'navBase';
-  for(const id of ['navBase','navSources','navMissions','navArsenal'])$(id).setAttribute('aria-selected',String(id===sel));
+  const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):arOpen?'navArsenal':bmOpen?'navMarket':'navBase';
+  for(const id of ['navBase','navSources','navMissions','navArsenal','navMarket'])$(id).setAttribute('aria-selected',String(id===sel));
 }
 const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
 function syncUI(){
   clampSupplies();
+  ensureMarket();   // a new game rolls week 1 on day 1; an old save rolls its current week once
   $('resSW').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
   $('dayLbl').textContent=G.day;
   const cur={c:Math.round(G.credits),s:Math.round(G.supplies),m:Math.round(G.materials),f:Math.round(G.fuel),i:Math.round(G.intel)};
@@ -3737,9 +3744,13 @@ function syncUI(){
   $('navSources').classList.toggle('is-calling',srcAttn>0);
   const misAvail=G.missions.filter(m=>m.state==='avail').length;
   $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
+  if(bmOpen&&G.market)G.market.unseen=0;   // looking at the stall counts as seen
+  const bmN=(G.market&&G.market.unseen)||0;
+  $('bmBadge').hidden=!bmN;$('bmBadge').textContent=bmN;
   const prog=G.missions.filter(m=>m.state==='prog').length;
   const building=G.rooms.filter(r=>r.build).length;
-  const note=[prog?'<b>'+prog+'</b> mission'+(prog>1?'s':'')+' out':null,building?'<b>'+building+'</b> building':null].filter(Boolean).join(' · ');
+  let note=[prog?'<b>'+prog+'</b> mission'+(prog>1?'s':'')+' out':null,building?'<b>'+building+'</b> building':null].filter(Boolean).join(' · ');
+  if(bmOpen&&G.market){const d=G.market.next-G.day;note='Restock in <b>'+d+' day'+(d===1?'':'s')+'</b>';}
   $('dockNote').innerHTML=note;$('dockNote').hidden=!note;
   /* crew rail */
   const crewRow=p=>{
@@ -3791,6 +3802,7 @@ function syncUI(){
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
   if(arOpen)renderArsenal();
+  if(bmOpen)renderMarket();
   syncTabs();markShort();
 }
 
@@ -3832,7 +3844,7 @@ function setTopbar(title,sub){
   ROOT.querySelector('.sr-topbar__id .sr-topbar__sub').textContent=sub;
 }
 function openArsenal(){
-  closeWin();closeTilePop();exitRoomView();
+  closeWin();closeTilePop();exitRoomView();closeMarket();
   arOpen=true;arOverlay=null;arGive=false;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
@@ -4075,12 +4087,15 @@ function renderArRail(){
     '<div class="ar-slothead"><span>Primary</span><span>Side</span><span>Head</span><span>Body</span><span>Gad</span><span>Gad</span></div>'+
     '<div class="ar-crew">'+rows+'</div>'+(carriers.length?'':'<div class="sr-empty">Nobody is carrying anything.</div>')+'</section>';
 }
+/* a command-bar order button on a number key (shared by the Arsenal and the Black Market) */
+const cmdOrder=(key,icon,label,attrs,dis,title)=>'<button class="sr-order sr-order--util" '+attrs+(dis?' disabled':'')+(title?' title="'+esc(title)+'"':'')+'><span class="sr-kbd sr-order__key">'+key+'</span>'+IC(icon)+label+'</button>';
 /* the command bar while the Arsenal is up: selected thing on the left, orders on keys 1-2 */
 function arCmdbar(){
+  if(bmOpen)return;
   const who=$('arWho'),orders=$('arOrders');
   if(!arOpen||!arSel){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';return;}
   let lead='',name='',hint='',btns='';
-  const order=(key,icon,label,attrs,dis,title)=>'<button class="sr-order sr-order--util" '+attrs+(dis?' disabled':'')+(title?' title="'+esc(title)+'"':'')+'><span class="sr-kbd sr-order__key">'+key+'</span>'+IC(icon)+label+'</button>';
+  const order=cmdOrder;
   if(arSel.t==='kit'){
     const a=G.armory.find(x=>x.id===arSel.id);
     if(a){
@@ -4160,7 +4175,14 @@ $('arView').addEventListener('click',arClick);
 $('railArsenal').addEventListener('click',arClick);   // the Loadouts slots live in the rail
 $('arOrders').addEventListener('click',ev=>{
   const t=ev.target.closest('button');
-  if(!t||t.disabled||!arOpen||!arSel)return;
+  if(!t||t.disabled)return;
+  if(bmOpen){
+    sClick();
+    if(t.hasAttribute('data-bmbuy'))buyLot(bmSel,false);
+    else if(t.hasAttribute('data-bmbuyall'))buyLot(bmSel,true);
+    return;
+  }
+  if(!arOpen||!arSel)return;
   sClick();
   if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;renderArsenal();return;}
   if(t.hasAttribute('data-arsell')){sellItem(arSel.id);return;}
@@ -4170,6 +4192,232 @@ $('arOrders').addEventListener('click',ev=>{
     if(rm)enterRoomView(rm);
     syncUI();return;
   }
+});
+
+/* ---------- the Black Market (a full stage view; Sweet Tooth's stall at Nyx Shadowport) ----------
+   Six lots, a full restock every 7 days, no Hegemony kit. Phase 2 sells personal kit only: the weighted
+   categories for mercenaries, ships, vehicles and ship weapons have nothing eligible yet (their phases and
+   DESIGN_BLOCKERS M-19), so the reroll rule drops their weight onto kit. */
+let bmOpen=false,bmSel=null,bmLine=null;
+/* Sweet Tooth's lines live in one table so they can be rewritten easily. Her pet name is "sugar". */
+const ST_LINES={
+  greet:'Six lots this week, sugar. When they’re gone, they’re gone.',
+  broke:'…Which is more than you’ve got. I don’t do credit, I do credits.',
+  boughtKit:'Pleasure, sugar. It’s already in your Arsenal. Don’t ask how.',
+  hiredMerc:'She’ll be at your door by morning. Feed her, pay her, and don’t ask about the name.',   // Phase 3; use the merc's pronoun
+  boughtShip:'Done. My lads will fly it to you in two days. Try not to crash it before it lands.',       // Phase 4
+  soldOut:'Gone. Should’ve been quicker, sugar.',
+  noHeg:'It’s serial-stamped, sugar. It gets stalls burned.',   // optional flavour: why no Hegemony kit
+  mercTpl:'[First] shoots for money, not for flags. Pay [them] well and [they] might start caring. Comes with [their] own [weapon].',   // Phase 3
+  pitch:{
+    longiron:'Off a poacher who won’t be needing it. Not my doing. Mostly. Reaches further than anything else on this table.',
+    akli:'Bhord build them to be dropped in mud. These fell off a garrison truck. Twice.',
+    blam:'BLAMCo. Accept no imitations. I’ve got four, and I’ve stopped counting fingers.',
+    angel:'Some tinkerer’s pet project. It’ll take a bullet for you. Once. Then it’s a paperweight.',
+    cross:'A MenDon Cross, barely shot at. Patrol markings sanded off, mostly. Two days to fly it in, and you’ll want a pad.',
+  },
+  pitchCat:{
+    weapon:'Clean, oiled, and nobody is asking where it came from. Which is how you want it, sugar.',
+    armour:'It stopped something once. Wash it off and it will stop another.',
+    gadget:'Small, useful and off the books. My favourite kind of merchandise.',
+    merc:'Works for credits, sugar. Loyalty costs extra, and I don’t stock it.',
+    ship:'Flies better than it looks. Most things do.',
+    vehicle:'Runs, stops, and doesn’t ask questions.',
+    shipwpn:'Bolt it on and point it away from me.',
+  },
+};
+const BM_CAT={
+  weapon:{ic:'gun',cc:'var(--sr-rebel-hi)',lab:'Weapon'},
+  armour:{ic:'shield',cc:'var(--sr-shield)',lab:'Armour'},
+  gadget:{ic:'grenade',cc:'var(--sr-go)',lab:'Gadget'},
+  merc:{ic:'people',cc:'var(--sr-psi)',lab:'Mercenary'},
+  vehicle:{ic:'vehicle',cc:'var(--sr-text-2)',lab:'Vehicle'},
+  ship:{ic:'ship',cc:'var(--sr-shield)',lab:'Ship'},
+  shipwpn:{ic:'turret',cc:'var(--sr-text-2)',lab:'Ship weapon'},
+};
+/* what the command bar shows per gadget (weapons read the ground scene's WPN table) */
+const BM_GSTATS={
+  medpack:[['Effect','Treats a wound'],['Health','One wound per pack'],['Use','Anyone, in the field']],
+  blam:[['Effect','Frag blast'],['Best vs','Infantry in a bunch'],['Use','Thrown']],
+  charge:[['Effect','Demolition'],['Best vs','Walls and objectives'],['Use','Planted, remote fuse']],
+};
+/* a small deterministic RNG: the campaign seed and the week decide the stock, so a reload never rerolls */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+const marketWeek=()=>Math.floor((G.day-1)/7)+1;   // week k covers days 7k-6 .. 7k
+const nyxAccess=()=>{const st=pst('nyx');return !!(st&&st.access);};
+const lotPrice=l=>nyxAccess()?Math.round(l.price*0.9):l.price;   // the Regulars' discount, at display and purchase time
+function rollMarket(){
+  if(!G.seed)G.seed=1+Math.floor(Math.random()*0x7fffffff);   // the campaign seed (added lazily to old saves)
+  const week=marketWeek();
+  const r=mulberry32((G.seed^Math.imul(week,0x9E3779B9))>>>0);
+  const pool=Object.keys(KIT).filter(marketable);
+  const byCat=c=>pool.filter(id=>KIT[id].cat===c);
+  const lots=[],taken=[];
+  const pickFrom=list=>{
+    const left=list.filter(id=>!taken.includes(id));
+    return left.length?left[Math.floor(r()*left.length)]:null;
+  };
+  const addKit=id=>{
+    if(!id)return;
+    taken.push(id);
+    const m=KIT[id];
+    const stock=m.cat==='gadget'?2+Math.floor(r()*3):1;   // gadgets 2-4, everything else 1
+    const swing=0.85+r()*0.40;
+    const price=Math.max(2,Math.round(m.price*swing/2)*2);   // base × swing, to the nearest 2
+    lots.push({kind:'kit',key:id,stock,price,deal:swing<=0.95?'good':swing>=1.10?'steep':'fair'});
+  };
+  // lots 1-3: always personal kit; the first is a weapon
+  addKit(pickFrom(byCat('weapon')));
+  addKit(pickFrom(pool));
+  addKit(pickFrom(pool));
+  // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls (Rev 2+ weights: M-18)
+  const CATW=[['weapon',28],['gadget',24],['merc',14],['armour',12],['shipwpn',10],['vehicle',8],['ship',4]];
+  const eligible=c=>(c==='weapon'||c==='gadget'||c==='armour')?byCat(c).filter(id=>!taken.includes(id)):[];
+  for(let k=0;k<3;k++){
+    let id=null,guard=0;
+    while(!id&&guard++<40){
+      let x=r()*CATW.reduce((a,b)=>a+b[1],0);
+      let cat=CATW[CATW.length-1][0];
+      for(const [c,w] of CATW){x-=w;if(x<0){cat=c;break;}}
+      const el=eligible(cat);
+      if(el.length)id=el[Math.floor(r()*el.length)];
+    }
+    addKit(id||pickFrom(pool));
+  }
+  G.market={week,next:week*7+1,lots,unseen:lots.length};
+  bmLine=null;
+  return G.market;
+}
+/* saves: additive only — a campaign without a market (new game or old save) rolls the current week once */
+function ensureMarket(){
+  if(!G)return;
+  if(!G.market||!G.market.lots)rollMarket();
+}
+function openMarket(){
+  closeWin();closeTilePop();exitRoomView();closeArsenal();
+  ensureMarket();
+  bmOpen=true;bmSel=null;bmLine=null;
+  G.market.unseen=0;
+  $('bmView').hidden=false;
+  shell.classList.add('is-market');
+  setTopbar('Black Market','Nyx Shadowport · Sweet Tooth');
+  $('bmBadge').hidden=true;
+  renderMarket();syncTabs();
+}
+function closeMarket(){
+  if(!bmOpen)return;
+  bmOpen=false;bmSel=null;bmLine=null;
+  $('bmView').hidden=true;
+  shell.classList.remove('is-market');
+  $('railMarket').hidden=true;
+  setTopbar('Haven Rock','Hidden base');
+  bmCmdbar();syncTabs();
+}
+function buyLot(i,all){
+  const M=G.market,l=M&&M.lots[i];
+  if(!l||l.stock<=0)return false;
+  if(all&&l.stock<2)return false;
+  const n=all?l.stock:1;
+  const cost=lotPrice(l)*n;
+  if(G.credits<cost)return false;
+  G.credits-=cost;
+  l.stock-=n;
+  if(l.kind==='kit'){
+    addArmoryItem(l.key,n);
+    const a=G.armory.find(x=>x.id===l.key);
+    if(a)a.src='bought';   // provenance for the Arsenal dossier
+    news('<b>'+esc(kitNameId(l.key))+'</b> bought. It’s in the Arsenal.','g');
+  }
+  bmLine={k:'bought',kind:l.kind};
+  saveSnap();syncUI();
+  return true;
+}
+/* which of her lines fits the moment */
+function stLine(){
+  if(bmLine&&bmLine.k==='bought')return bmLine.kind==='kit'?ST_LINES.boughtKit:ST_LINES.boughtShip;
+  const l=bmSel!==null&&G.market?G.market.lots[bmSel]:null;
+  if(!l)return ST_LINES.greet;
+  if(l.stock<=0)return ST_LINES.soldOut;
+  const pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[(KIT[l.key]||{}).cat]||ST_LINES.greet;
+  return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
+}
+const stHead='<span class="kf"><span class="sr-avatar">ST</span></span>';   // SR_ART spec pending (DESIGN_BLOCKERS M-20)
+function bmCardHTML(l,i){
+  const m=KIT[l.key]||{};
+  const cm=BM_CAT[m.cat]||BM_CAT.weapon;
+  const sel=bmSel===i,sold=l.stock<=0;
+  const price=lotPrice(l),short=price>G.credits;
+  const sub=(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
+  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
+    '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
+    '<div class="kit-well">'+itArt(l.key)+'</div>'+
+    '<div><div class="bm-name">'+esc(kitNameId(l.key))+'</div><div class="bm-sub">'+esc(sub)+'</div></div>'+
+    '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+
+    (sold?'<span class="sr-stamp sr-stamp--bad bm-soldstamp">Sold</span>':'')+
+    '</button>';
+}
+function renderMarket(){
+  if(!bmOpen)return;
+  ensureMarket();
+  const M=G.market,w=M.week,line=stLine();
+  const header='<div class="bm-head"><div class="bm-sign"><b>Sweet Tooth’s Unclaimed Goods</b></div>'+
+    '<div class="bm-week"><span>This week’s stock · <b>Day '+(w*7-6)+'–'+(w*7)+'</b></span>'+wTag('Fixed until Day '+M.next,'action','lock')+'</div></div>';
+  const strip='<div class="bm-strip">'+stHead+'<p>'+line+'</p></div>';   // phones only (CSS)
+  $('bmStall').innerHTML=header+strip+'<div class="bm-grid">'+M.lots.map(bmCardHTML).join('')+'</div>';
+  renderBmRail(line);
+  bmCmdbar();
+}
+function renderBmRail(line){
+  const host=$('railMarket');
+  if(!bmOpen){host.hidden=true;return;}
+  host.hidden=false;
+  const M=G.market,w=M.week,days=M.next-G.day;
+  const nyx=nyxAccess();
+  const pips=Array.from({length:7},(_,k)=>{const d=w*7-6+k;return '<i class="'+(d===G.day?'is-now':d<G.day?'is-on':'')+'"></i>';}).join('');
+  host.innerHTML='<section class="bm-fence">'+stHead+
+    '<div><div class="bm-fence__name">Sweet Tooth</div><div class="bm-fence__role">Fence · Nyx Shadowport</div></div>'+
+    '<div class="bm-say" id="bmSay">'+line+'</div>'+
+    '<div class="bm-box"><div class="bm-restock"><i class="bm-restock__n">'+days+'</i><div><b>Days to new stock</b><span>Stock will be replaced at refresh</span></div></div><div class="kit-pips">'+pips+'</div></div>'+
+    '<div class="bm-perk'+(nyx?' is-on':'')+'">'+IC(nyx?'check':'lock')+'<span><b>Regulars’ discount: 10% off.</b> '+(nyx?'Access to Nyx Shadowport — prices shown with the discount.':'Get Access to Nyx Shadowport.')+'</span></div>'+
+    '</section>';
+}
+/* the command bar: lot stats where the Arsenal shows a hint; affordability is the red price + a disabled order */
+function lotStats(l){
+  const m=KIT[l.key]||{};
+  const st=[];
+  if(m.cat==='weapon'){
+    const wp=(window.SR_WPN||{})[l.key];
+    if(wp){
+      st.push(['Damage',wp.d0+'–'+wp.d1]);
+      st.push(['Range',wp.rng<300?'Short':wp.rng<500?'Medium':wp.rng<800?'Long':'Very long']);
+      st.push(['Shots',wp.shots+(wp.jam?', can jam':'')]);
+    }
+  } else if(m.cat==='armour'){
+    st.push(['Protects',m.q?(m.slot==='head'?'Head':'Body'):'Nothing — style']);
+    st.push(['Slot',m.slot==='head'?'Head':'Body']);
+  } else {
+    for(const row of BM_GSTATS[l.key]||[])st.push(row);
+  }
+  return st.map(x=>'<div><span>'+x[0]+'</span><b>'+esc(x[1])+'</b></div>').join('');
+}
+function bmCmdbar(){
+  if(arOpen)return;
+  const who=$('arWho'),orders=$('arOrders');
+  const l=bmOpen&&bmSel!==null&&G.market?G.market.lots[bmSel]:null;
+  if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
+  const price=lotPrice(l),sold=l.stock<=0;
+  const whyBuy=sold?'Sold out':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
+  const allCost=price*l.stock;
+  const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
+  who.innerHTML=itArt(l.key,'kit-who-art')+'<div><div class="sr-cmdbar__name">'+esc(kitNameId(l.key))+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
+  orders.innerHTML=cmdOrder(1,'credits','Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
+  who.hidden=false;orders.hidden=false;
+}
+$('bmView').addEventListener('click',ev=>{
+  const t=ev.target.closest('button');
+  if(!t)return;
+  const lot=t.getAttribute('data-bmlot');
+  if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
 });
 
 /* ---------- input ---------- */
@@ -4486,13 +4734,15 @@ byId('panel').addEventListener('click',ev=>{
 $('navBase').addEventListener('click',()=>{
   sClick();
   if(arOpen){closeArsenal();return;}
+  if(bmOpen){closeMarket();return;}
   if(winMode)closeWin();
   else if(viewRoom){exitRoomView();syncUI();}
   else closeTilePop();
 });
-$('navSources').addEventListener('click',()=>{sClick();closeArsenal();openWin('sources');});
-$('navMissions').addEventListener('click',()=>{sClick();closeArsenal();openWin('missions');});
+$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('sources');});
+$('navMissions').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('missions');});
 $('navArsenal').addEventListener('click',()=>{sClick();openArsenal();});
+$('navMarket').addEventListener('click',()=>{sClick();openMarket();});
 $('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
 $('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
 /* phones: the rail is a drawer behind the people tab */
@@ -4535,12 +4785,13 @@ addEventListener('keydown',ev=>{
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
+    else if(bmOpen)closeMarket();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
     return;
   }
-  // Arsenal: keys 1-2 press the command-bar orders
-  if(arOpen&&!winMode&&!arOverlay&&!arGive&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+  // Arsenal / Black Market: keys 1-2 press the command-bar orders
+  if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
     const btn=[...$('arOrders').querySelectorAll('.sr-order')][+ev.key-1];
     if(btn&&!btn.disabled){ev.preventDefault();btn.click();}
     return;
@@ -4940,16 +5191,19 @@ function startPlan(){
 }
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
 function pilotAim(p){return Math.max(0,SRDB.skillBonus(Rebel.dbSkill(p,'aim'),p.level)+pilotAimMod(p));}
-function addArmoryItem(name){
+function addArmoryItem(name,count){
   const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
     'Explosive Charge':['charge','Explosive Charge'],'Data Limpet':['limpet','Data Limpet']};
-  const hit=map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name];
+  // loot passes display names (the map above); the Black Market passes raw KIT keys and a count
+  const hit=KIT[name]?[name,KIT[name].name]:(map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name]);
+  const n=Math.max(1,count||1);
   const a=G.armory.find(x=>x.id===hit[0]);
-  if(a)a.n=(a.n||0)+1;
-  else if(hit[0]==='limpet')G.armory.push({id:'limpet',name:'Data Limpet',n:1,ic:'\u25c9',desc:'A palm-sized tap that clamps onto a comm tower and copies every packet that passes. Needs no fuse.'});
-  else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n:1,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
-  else G.armory.push({id:hit[0],name:hit[1],n:1,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
+  if(a)a.n=(a.n||0)+n;
+  else if(hit[0]==='limpet')G.armory.push({id:'limpet',name:'Data Limpet',n,ic:'\u25c9',desc:'A palm-sized tap that clamps onto a comm tower and copies every packet that passes. Needs no fuse.'});
+  else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
+  else if(KIT[name])G.armory.push({id:hit[0],name:hit[1],n,desc:'From Sweet Tooth\u2019s stall at Nyx. No receipts.'});
+  else G.armory.push({id:hit[0],name:hit[1],n,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
   autoEquip();
 }
 /* each Med Pack used in the field is gone from the armory */
@@ -5234,6 +5488,7 @@ function restoreCampaign(data){
         if(match)s.signal=Object.assign({},match,{text:s.signal.text||match.text});
       }
     }
+    ensureMarket();   // old saves with no G.market roll the current week (next restock at the next 7k+1 day)
     renderNews();
     return true;
   }
@@ -5274,6 +5529,8 @@ if(location.hash==='#test'){
       restoreCampaign,addVehicle,vehPool,GVEH_:()=>GVEH,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
+      openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,
+      getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }
 })();

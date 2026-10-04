@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-04, after Phase 1 of the Black Market / Arsenal handoff (the Arsenal tab, Head/Body slots and selling to Sweet Tooth).
+**Last updated:** 2026-10-04, after Phase 2 of the Black Market / Arsenal handoff (Sweet Tooth's stall, kit only).
 
 ## How to use this
 
@@ -34,6 +34,7 @@
 | C-10 | ⚪ | Prices, market weights and `KIT` live in `base.js`, not the database | Where personal kit data lives |
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
 | C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
+| C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -135,6 +136,15 @@ The Gear doc gives ships a tab of their own; the Market/Arsenal handoff puts the
 Ships chip, and you said that is "fine for now". Built that way. **Needs from you:** say the word if and when a
 Fleet tab should exist, and what it would hold that the Arsenal's Ships view does not.
 **Your call:** _resolved for now ("fine for now"); reopen at will_
+
+### C-13 ⚪ Two small bugs in the handoff's §9 CSS, patched from `scenes.css`
+`sr-kit.css` is checked in verbatim per the handoff, so the fixes live in `scenes.css` (which loads after it):
+1. `.bm-strip{display:none}` is declared *after* the phone `@container` block that sets it to `display:flex`,
+   so the phone strip never shows — re-asserted inside the same container query.
+2. `.bm-restock span{…}` (the sub-line style) out-specifies `.bm-restock__n`, so a `<span>` day-counter renders
+   tiny and grey — the game renders the number as `<i class="bm-restock__n">` instead.
+**Needs from you:** nothing; just carry the two fixes back into the canvas CSS if it gets re-exported.
+**Your call:** _open (informational)_
 
 ---
 
