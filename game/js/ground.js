@@ -2152,9 +2152,10 @@ function supplyDrop(u){
 }
 /* up to 3 visible hostiles near the player's mark; the choice of where to put the mark is the skill */
 const DG_ZONE=240;   // the circle the player places IS the kill zone: the gunner works what's inside it
+const dgZone=()=>DG_ZONE*((SCN&&SCN.layoutK)||1);   // it grows with a scaled-up layout, like the rooms do
 function dgTargets(mark){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
-  if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<DG_ZONE)
+  if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<dgZone())
     .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,3);
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
@@ -2233,7 +2234,7 @@ function dgNext(){
     dgSpend(a);dgNext();return;
   }
   const R={a,ax:mark.x,ay:mark.y,rad:780,squash:0.55,dir:rng()<0.5?1:-1,th0:rng()*Math.PI*2,
-    IN:1100,ORBIT:3000,OUT:900,alt:210,t0:performance.now()+420,
+    IN:1100,ORBIT:3000,OUT:900,alt:235,t0:performance.now()+420,
     targets:pick.map((u,i)=>({u,at:0.16+i*0.28,done:0})),
     flak:dgFlakers(mark).map(u=>({u,at:0.12+rng()*0.55,state:'wait'})),
     apply:[],down:null,crashed:0,endAt:0};
@@ -2253,7 +2254,7 @@ function dgBurst(R,u,now){
     const S=dgShipPos(R,ft);
     const jx=u.x+(rng()-0.5)*(hit?22:64),jy=u.y+(rng()-0.5)*(hit?16:46);
     tracers.push({x1:S.x,y1:S.y-S.alt,x2:jx,y2:jy-6,t0:ft,dur:240,heavy:1});
-    parts.push({x:S.x,y:S.y-S.alt,vx:0,vy:0,r:12,a:0.95,col:'#ffe9a8',t0:ft,dur:95,flash:1});
+    parts.push({x:S.x,y:S.y-S.alt,vx:0,vy:0,r:15,a:0.95,col:'#ffe9a8',t0:ft,dur:95,flash:1});
     if(hit&&i%2===0)hits.push({x:jx,y:jy-6,t0:ft+210,dur:300});
     if(i===2)boomFx.push({x:jx,y:jy,t0:ft+210,dur:380,R:30});
     for(let q=0;q<4;q++)parts.push({x:jx,y:jy,vx:(rng()-0.5)*120,vy:-rng()*90,r:2+rng()*2.5,a:0.6,col:'#8a7a60',t0:ft+210,dur:520});
@@ -2347,11 +2348,11 @@ function drawDgRun(now){
   // its shadow stays on the deck, closing under the ship as it loses height
   ctx.save();
   ctx.fillStyle='rgba(20,14,10,'+(0.3-0.14*(alt/R.alt))+')';
-  ctx.beginPath();ctx.ellipse(x+alt*0.18,y+alt*0.24,62,21,0,0,7);ctx.fill();
+  ctx.beginPath();ctx.ellipse(x+alt*0.18,y+alt*0.24,88,30,0,0,7);ctx.fill();
   ctx.restore();
   const bank=R.down?Math.min(0.85,0.5+(now-R.down.t0)/R.down.dur*0.4):(R.pk>=0&&R.pk<=1?0.38:0.26);
   const bob=Math.sin(now/95)*3;
-  SA.ship(ctx,'graf',x,y-alt+bob,R.pang,3.0,now/1000,
+  SA.ship(ctx,'graf',x,y-alt+bob,R.pang,4.3,now/1000,
     {livery:'civ',boost:!R.down&&R.pboost,roll:bank,damage:R.down?0.85:0});
   // rockets on the way up
   for(const f of R.flak){
@@ -2359,8 +2360,8 @@ function drawDgRun(now){
     const kf=Math.min(1,(now-f.t0)/(f.dur||650));
     const mx=lerp(f.from.x,x,kf),my=lerp(f.from.y,y-alt,kf);
     ctx.save();ctx.translate(mx,my);ctx.rotate(Math.atan2((y-alt)-f.from.y,x-f.from.x));
-    ctx.fillStyle='#ffb347';ctx.beginPath();ctx.moveTo(-7,0);ctx.lineTo(-14,-3);ctx.lineTo(-14,3);ctx.closePath();ctx.fill();
-    SA.util.rr(ctx,-7,-2.2,13,4.4,2.2);ctx.fillStyle='#d8dde8';ctx.fill();ctx.lineWidth=1.6;ctx.strokeStyle='#1a1a22';ctx.stroke();
+    ctx.fillStyle='#ffb347';ctx.beginPath();ctx.moveTo(-9,0);ctx.lineTo(-18,-4);ctx.lineTo(-18,4);ctx.closePath();ctx.fill();
+    SA.util.rr(ctx,-9,-2.9,17,5.8,2.9);ctx.fillStyle='#d8dde8';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#1a1a22';ctx.stroke();
     ctx.restore();
   }
 }
@@ -2451,10 +2452,11 @@ function drawFS(now){
   for(const a of FS.ships){
     if(a.state!=='active'||!a.mark)continue;
     ctx.save();
+    const dz=dgZone();
     ctx.strokeStyle=T.rgba(C.shield,0.45+0.25*Math.sin(now*0.006));ctx.lineWidth=2.5;ctx.setLineDash([10,8]);
-    ctx.beginPath();ctx.ellipse(a.mark.x,a.mark.y,DG_ZONE,DG_ZONE*0.55,0,0,7);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.ellipse(a.mark.x,a.mark.y,dz,dz*0.55,0,0,7);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle=T.rgba(C.shield,0.05);ctx.fill();
-    plb('DOOR GUNNER COVER',a.mark.x,a.mark.y-DG_ZONE*0.55-14,C.shield,12);
+    plb('DOOR GUNNER COVER',a.mark.x,a.mark.y-dz*0.55-14,C.shield,12);
     ctx.restore();
   }
 }
@@ -4521,9 +4523,9 @@ function drawFx(now){
       const hx=lerp(tr.x1,tr.x2,Math.min(1,t*1.25)),hy=lerp(tr.y1,tr.y2,Math.min(1,t*1.25));
       const bx=lerp(tr.x1,tr.x2,Math.max(0,t*1.25-0.18)),by=lerp(tr.y1,tr.y2,Math.max(0,t*1.25-0.18));
       ctx.lineCap='round';
-      ctx.strokeStyle='rgba(255,122,42,0.75)';ctx.lineWidth=6;
+      ctx.strokeStyle='rgba(255,122,42,0.75)';ctx.lineWidth=7.5;
       ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(hx,hy);ctx.stroke();
-      ctx.strokeStyle='#fff3c8';ctx.lineWidth=2.6;
+      ctx.strokeStyle='#fff3c8';ctx.lineWidth=3.2;
       ctx.beginPath();ctx.moveTo(bx,by);ctx.lineTo(hx,hy);ctx.stroke();
       continue;
     }
