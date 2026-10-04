@@ -955,7 +955,7 @@ function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 /* the scripted first contacts of the campaign */
 const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
-    bio:'Flew you in and didn’t ask questions. Knows every pad, every price, and every sheriff’s bad habit between here and the core.'},
+    bio:'Flew you in and didn’t ask questions. Knows every port, every price, and every sheriff’s bad habit between here and the core.'},
   venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:48},
     bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
 };
@@ -1222,13 +1222,13 @@ function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
   if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
     src.signal={kind:'mission',mid:'stealcross',
-      text:'“You want to matter out here, you need wings. Dustfall — sheriff town on Brakka — keeps one FT-4 Cross on the pad behind the HQ and a fat opinion of itself. I can get you the pad layout.”'};
+      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Brakka, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
     G.onboard='revealed';
     return true;
   }
   if(src.id==='cass'&&G.onboard==='seraoffered'&&!G.people.some(p=>p.id==='sera')){
     src.signal={kind:'recruitSera',
-      text:'“Found your stick. Sera Kest — ex-Hegemony survey pilot, grounded for attitude, hungrier to fly than anyone I ever hauled. She’s on my next run if you’ll have her.”'};
+      text:'“Don’t thank me too fast, but I’ve found your stick. Sera Kest — ex-Hegemony survey pilot. She’s been asking around unsavoury types for any jobs going to put some dirt in the Empress’ eye and I think she’ll appreciate a real cause like yours. They say she’s grounded for attitude and hungry to fly a fighter again. She’s on my next run over to you if you’ll have her.”'};
     return true;
   }
   if(src.id==='cask'&&!hasStory('stealintel')){
@@ -1293,7 +1293,7 @@ function followSignal(src){
     let txt='New mission on the board: <b>'+missionName(sig.mid)+'</b>'+(nm&&nm.ctx?' ('+nm.ctx.place+')':'')+'.';
     if(sig.mid==='stealcross'&&(G.onboard==='revealed'||G.onboard==='contact')){
       G.onboard='pilotwait';
-      txt+=' One catch — the plan needs two pilots and we have one. Cass is already asking around; give him a day.';
+      txt+=' The mission requires two pilots and we have one. Cass is already asking around; advance a day to see what he has found.';
     }
     if(sig.mid==='depotrun')G.onboard='done';
     return txt;
@@ -1358,8 +1358,8 @@ function openRecruitOffer(src,sig){
   if(sig.kind==='recruitSera'){
     must=true;
     p=castRebel({id:'sera',name:'Sera Kest',role:'Pilot',charTrait:'lucky',ship:'',
-      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'},'sera-kest');
-    line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
+      bio:'Ex-Hegemony survey pilot. Deserted after an incident at Callis Reach. Looking to put her skills against the Hegemony, ideally for a cause that means something.'},'sera-kest');
+    line='Cass’s freighter is inbound. He sets down and down comes the boarding ramp. Walking down, one bag over her shoulder: your new pilot.';
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
@@ -1515,7 +1515,7 @@ function advanceDay(){
       const first=G.onboard==='pilotwait';
       G.onboard='seraoffered';
       storySignal(cass);
-      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Source Network.','a');sAlert();}
+      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Galaxy.','a');sAlert();}
     }
   }
   if(hasRoom('comms')&&staffOf('comms').length)G.intel+=tilesOf('comms');
@@ -1678,6 +1678,7 @@ function queueReport(rpt){
   if(rpt.follow)RQ.push({t:'follow',rpt});
 }
 function nextReport(){
+  if(!$('estSplash').hidden)return false;   // reports hold until the splash closes
   const n=RQ.shift();
   if(!n)return false;
   if(n.t==='arrive')openWin('arrive',n.rpt);
@@ -1781,7 +1782,7 @@ function srcContact(src){
     rollSignal(src);
   }
   const lvl=checkCultLevel(src);
-  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' answers on the second pass.','Cultivation +3. They know we’re listening.'];
+  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.','Cultivation increased.'];
   if(lvl)lines.push(lvl);
   openComm(src,{lines,signal:src.signal});
   syncUI();
@@ -2982,6 +2983,7 @@ function flashMsg(html,kind){
 /* day banner: slams in once per day, then hides itself */
 let bannerTO=null;
 function showDayBanner(){
+  if(!$('estSplash').hidden)return;   // nothing over the BASE ESTABLISHED splash
   const b=$('dayBanner'),t=$('dayBannerTxt');
   t.textContent='Day '+G.day;
   b.hidden=false;
@@ -3002,7 +3004,7 @@ function pointAt(rc,label){
 function updateGuide(){
   const el=$('tutPtr');
   if(!el)return;
-  if(!started||!G||SR.active!=='base'){el.hidden=true;return;}
+  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden){el.hidden=true;return;}
   // step 1: the sources tutorial — walk the player to Cass
   if(G.onboard==='contact'){
     if(winMode==='sources'){
@@ -3020,7 +3022,7 @@ function updateGuide(){
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
+    if(!winMode&&!viewRoom){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -3352,7 +3354,7 @@ function renderWin(){
       tutS('1. Find Sources','Discover people willing to help the rebellion.')+
       tutS('2. Cultivate Them','Build their trust to increase their level and improve what they provide.')+
       tutS('3. Use Their Access','Gain Money, Supplies, Intel and new opportunities.')+
-      tutS('4. Take the Risk','The more valuable a Source becomes, the more important it is to keep them safe.')+
+      tutS('4. Manage the Risk','The more valuable a Source becomes, the more important it is to keep them safe.')+
       tutS('5. Know When to Let Go','A Source who has become too dangerous may need to be Cut Loose — or Silenced.')+
       tutP('A strong intelligence network will give the rebellion the information and resources it needs to survive.')+
       tutP('But every person in that network is a person who can be discovered...')+
@@ -3516,9 +3518,9 @@ function renderWin(){
   else if(winMode==='cassIntro'){
     h=wHead('Incoming transmission',{x:false})+wBody(
       '<canvas id="commStatic" class="sr-signal"></canvas>'+
-      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. This channel stays open — I hear things worth hearing, and now you’re somebody worth telling. Raise me when you’re ready to listen.”</div>'+
-      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Source Network</b> and raise him.</p>')+
-      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter · voice known');
+      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”</div>'+
+      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.</p>')+
+      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter');
   }
   else if(winMode==='recruit'){
     const cards=winArg.cards,multi=cards.length>1,batch=!!winArg.batch;
@@ -4153,14 +4155,31 @@ function launchIntro(){
   SR.mission=introSpec();
   SR.go('ground',{mission:SR.mission});
 }
+/* BASE ESTABLISHED splash (A6): dims the base scene after the prologue win, then hands over to Cass.
+   While it is up, the day banner, queued reports and the guided pointer all hold. */
+let estTO=null;
+function showEstSplash(){
+  const el=$('estSplash');
+  el.hidden=false;el.classList.remove('is-out');
+  clearTimeout(estTO);
+  estTO=setTimeout(closeEstSplash,RM?1000:2400);
+}
+function closeEstSplash(){
+  const el=$('estSplash');
+  if(el.hidden)return;
+  clearTimeout(estTO);
+  el.classList.add('is-out');
+  setTimeout(()=>{el.classList.remove('is-out');el.hidden=true;openWin('cassIntro');},RM?0:400);
+}
+$('estSplash').addEventListener('click',closeEstSplash);
 function discoverCass(){
   if(G.sources.some(s=>s.id==='cass'))return;
   addStorySource('cass');
   if(G.onboard==='intro'||G.onboard===undefined)G.onboard='contact';
 }
 function seedNews(){
-  news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
-  news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
+  news('Haven Rock is powered, pressurized, and off every chart. We’re well hidden from the Hegemony here.','g');
+  news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave.','d');
   news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in.','a');
 }
 
@@ -4557,11 +4576,11 @@ function applyDebrief(r){
         if(r.loot.s)G.supplies+=r.loot.s;
         for(const it of r.loot.items||[])addArmoryItem(it);
       }
-      news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
-      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
+      news('<b>The abandoned base at Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war. The Revolution begins today!','g');
+      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already inspecting it. Restore it from the hangar.','a');
       discoverCass();
       seedNews();
-      openWin('cassIntro');
+      showEstSplash();
       sBuild();
       saveSnap();syncUI();
       return;
