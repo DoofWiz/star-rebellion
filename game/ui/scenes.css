@@ -300,3 +300,12 @@
 #sc-base .bs-gearpick.is-on{border-color:var(--sr-go);}
 #sc-base .bs-gearpick:disabled{opacity:.5;cursor:default;}
 #sc-base .bs-gearpick__n{display:flex;align-items:center;gap:8px;font-weight:800;}
+
+/* ---------- Arsenal view glue (the components live in sr-kit.css) ---------- */
+/* while the Arsenal is up, the rail shows Loadouts instead of the crew lists */
+#sc-base .sr-shell.is-arsenal .sr-rail__scroll>*:not(#railArsenal){display:none;}
+#sc-base #railArsenal section{display:flex;flex-direction:column;gap:8px;}
+/* a slot the role doesn't have (pilots have no Primary) */
+#sc-base .ar-slot.is-none{display:grid;place-items:center;height:40px;border:0;background:transparent;color:var(--sr-text-3);font:700 11px/1 var(--sr-font-ui);cursor:default;}
+#sc-base .ar-dossier .sr-h3{margin:0;}
+#sc-base .ar-main{overflow-y:auto;}

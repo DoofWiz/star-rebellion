@@ -18,6 +18,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .scene{box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
 </style>
 <link rel="stylesheet" href="ui/sr-theme.css">
+<link rel="stylesheet" href="ui/sr-kit.css">
 <link rel="stylesheet" href="ui/sr-hud.css">
 <link rel="stylesheet" href="ui/scenes.css">
 <body>
@@ -54,6 +55,12 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </header>
   <div class="sr-stage">
     <canvas id="cv"></canvas>
+    <div class="kit-view ar-view" id="arView" hidden>
+      <div class="ar-body">
+        <div class="ar-dossier" id="arDossier"></div>
+        <div class="ar-main" id="arMain"></div>
+      </div>
+    </div>
     <div class="sr-slot-tl">
       <div class="sr-window sr-window--sm bs-dock" id="roomViewBar" hidden></div>
     </div>
@@ -62,6 +69,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         <button class="sr-tab" id="navBase" role="tab" aria-selected="true"><svg class="sr-ico"><use href="#i-base"/></svg>Base</button>
         <button class="sr-tab" id="navSources" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-galaxy"/></svg>Galaxy<span class="sr-badge" id="srcBadge" hidden>0</span></button>
         <button class="sr-tab" id="navMissions" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-missions"/></svg>Missions<span class="sr-badge" id="misBadge" hidden>0</span></button>
+        <button class="sr-tab" id="navArsenal" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-loot"/></svg>Arsenal</button>
         <button class="sr-tab sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Crew and flight" aria-expanded="false"><svg class="sr-ico"><use href="#i-people"/></svg></button>
       </div>
       <div class="sr-toast sr-toast--friend" id="flashB" hidden role="status"><svg class="sr-ico" id="flashIco"><use href="#i-signal"/></svg><span id="flashTxt"></span></div>
@@ -74,6 +82,8 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     </div>
     <div class="sr-slot-br">
       <div class="sr-cmdbar">
+        <div class="sr-cmdbar__who" id="arWho" hidden></div>
+        <div class="sr-orders" id="arOrders" hidden></div>
         <div class="sr-cmdbar__go">
           <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go" id="dayBtn">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
           <div class="sr-cmdbar__count" id="dockNote" hidden></div>
@@ -116,6 +126,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         <div class="sr-section__head sr-section__head--info"><svg class="sr-ico"><use href="#i-vehicle"/></svg>Vehicles and Bots<span class="sr-section__count" id="vehCount"></span></div>
         <div class="sr-stack" id="vehList"></div>
       </section>
+      <div id="railArsenal" hidden></div>
     </div>
   </aside>
 </div>
