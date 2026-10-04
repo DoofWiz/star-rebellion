@@ -14,6 +14,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||'/opt/pw-browsers/chromium'});
  const pg=await b.newPage({viewport:{width:1280,height:800}});
  const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+ // reduced motion keeps the door-gun pass instant (no animated gun run), so the zone maths is testable
+ await pg.emulateMedia({reducedMotion:'reduce'});
  await pg.goto(url);await pg.waitForTimeout(1200);
  const fails=[];const ok=(c,m)=>{if(!c)fails.push(m);};
  const E=f=>pg.evaluate(f);
@@ -96,24 +98,25 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(/Cass/.test(plan.items),'the Fire Support menu lists Cass: '+plan.items);
  ok(plan.dots===8,'the dots count 8, got '+plan.dots);
 
- // A5: placing stores the point; only enemies within 320px of it are raked
+ // A5: placing stores the mark; only enemies inside the zone (240px × layout scale) are raked
  const fsres=await E(()=>{
   const D=window.DBGground,U=D.U;
-  const dax=U.find(u=>u.id==='dax');dax.x=860;dax.y=1020;dax.rtPath=null;
+  const camp=D.SCN.camp,R=240*((D.SCN.layoutK)||1);
+  const dax=U.find(u=>u.id==='dax');dax.x=camp.x-90;dax.y=camp.y+70;dax.rtPath=null;
   return new Promise(res=>setTimeout(()=>{
-   const pt={x:940,y:950};
+   const pt={x:camp.x+20,y:camp.y-10};
    const placed=D.fn.fsPlace('s0',pt);
    const a=D.FS.ships[0];
-   const far=U.filter(u=>u.side==='law'&&Math.hypot(u.x-pt.x,u.y-pt.y)>320).map(u=>[u.id,u.hp]);
+   const far=U.filter(u=>u.side==='law'&&Math.hypot(u.x-pt.x,u.y-pt.y)>R).map(u=>[u.id,u.hp]);
    D.fn.fsRoundEnd();
-   const farAfter=U.filter(u=>u.side==='law'&&Math.hypot(u.x-pt.x,u.y-pt.y)>320).map(u=>[u.id,u.hp]);
-   res({placed,pt:a.pt,state:a.state,left:a.left,fs:D.tutFlags.fs,far,farAfter});
+   const farAfter=U.filter(u=>u.side==='law'&&Math.hypot(u.x-pt.x,u.y-pt.y)>R).map(u=>[u.id,u.hp]);
+   res({placed,mark:a.mark,pt,state:a.state,left:a.left,fs:D.tutFlags.fs,far,farAfter});
   },400));
  });
  ok(fsres.placed===true,'Cass takes the call');
- ok(fsres.pt&&fsres.pt.x===940&&fsres.pt.y===950,'the clicked point is stored '+JSON.stringify(fsres.pt));
- ok(fsres.state==='active'&&fsres.left===1&&fsres.fs===1,'door gun active, one round flown, tutFlags.fs set '+[fsres.state,fsres.left,fsres.fs]);
- ok(JSON.stringify(fsres.far)===JSON.stringify(fsres.farAfter),'nobody beyond 320px is raked '+JSON.stringify(fsres.farAfter));
+ ok(fsres.mark&&fsres.mark.x===fsres.pt.x&&fsres.mark.y===fsres.pt.y,'the clicked mark is stored '+JSON.stringify(fsres.mark));
+ ok(fsres.state==='active'&&fsres.left===1&&fsres.fs===1,'door gun active, one pass flown, tutFlags.fs set '+[fsres.state,fsres.left,fsres.fs]);
+ ok(JSON.stringify(fsres.far)===JSON.stringify(fsres.farAfter),'nobody outside the zone is raked '+JSON.stringify(fsres.farAfter));
 
  // A6: force a win → BASE ESTABLISHED splash, no day banner, then cassIntro
  await E(()=>window.DBGground.fn.gameOver(true));

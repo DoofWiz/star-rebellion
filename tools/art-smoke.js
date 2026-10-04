@@ -60,6 +60,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   await sleep(700);
   const DH=window.DBGground;
   if(!(DH.FS&&DH.FS.ships.some(s=>s.mode==='doorgun'&&s.pilot.first==='Cass')))return {fail:'Cass door gunner missing in Take the Rock'};
+  if(DH.fn.fsItems().length!==0)return {fail:'Cass must stay off the menu until her tutorial card (ONBOARDING-HANDOFF A5)'};
+  DH.tutFlags.fsCard=1;   // as if the Fire Support tutorial card had come up
   if(DH.fn.fsItems().length!==1)return {fail:'Take the Rock fire support should list exactly Cass'};
   log.push('take the rock + Cass');
   // the gun run must play through and hand the round back (a hang here soft-locks combat)
@@ -119,13 +121,15 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  }
  await pg2.click('#splashStart');
  await pg2.waitForTimeout(1400);
+ // the prologue now opens on the insertion cinematic; the briefing follows the Cass comm (ONBOARDING-HANDOFF A1)
  const s2=await pg2.evaluate(()=>({gone:!document.getElementById('splash'),
    ground:!document.getElementById('sc-ground').hidden,
-   brief:!document.getElementById('sc-ground').querySelector('#briefing').hidden}));
- if(!s2.gone||!s2.ground||!s2.brief){
+   brief:!document.getElementById('sc-ground').querySelector('#briefing').hidden,
+   cine:!document.getElementById('sc-ground').querySelector('#csSkip').hidden}));
+ if(!s2.gone||!s2.ground||s2.brief||!s2.cine){
   console.error('art-smoke FAILED start flow',JSON.stringify(s2));process.exit(1);
  }
- out.log.push('title screen');
+ if(out.log)out.log.push('title screen');   // a {fail:…} result has no log; let the report below speak
  await ctx2.close();
  await b.close();
  if(out.fail||errs.length){
