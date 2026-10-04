@@ -2,17 +2,20 @@
 /* =====================================================================
    STAR REBELLION — title screen.
    Not a scene: a layer over everything that holds the game back until
-   the player starts it. The logo builds itself out of the Bobbleheads
-   kit (starfield, a dusty planet rim, a hauler crossing behind the
-   letters), then the Start button fades up. #test and #deploy boot
+   the player starts it. The logo is a rebel badge — flame crest, STAR,
+   a red ribbon carrying REBELLION — that crashes down onto the screen
+   like a stamp: shake, flash, shockwave, debris, then it sits there
+   slightly crooked the way a stamp lands. #test and #deploy boot
    straight past it, and prefers-reduced-motion gets the settled frame.
    ===================================================================== */
 window.SR_INTRO=(function(){
   const SA=window.SR_ART,CC=SA.C,U=SA.util;
   const RM=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   let el=null,cv=null,c2=null,W=0,H=0,dpr=1;
-  let bg=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null;
-  let stars=[],nextFly=0,fly=null;
+  let bg=null,badge=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null;
+  let stars=[],nextFly=0,fly=null,impactFired=false,impactAt=0,debris=[];
+
+  const STAMP_AT=600,STAMP_MS=380,SETTLE_MS=260,READY_AT=1900,TILT=-0.045;
 
   /* the rebellion flag from the game's own icon set (i-revflame, 24x24) */
   const FLAG_POLE=new Path2D('M6 21.5V3.5');
@@ -22,7 +25,7 @@ window.SR_INTRO=(function(){
     dpr=Math.min(2,window.devicePixelRatio||1);
     W=el.clientWidth;H=el.clientHeight;
     cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
-    buildBg();
+    buildBg();buildBadge();
   }
   /* the backdrop never changes: stars, a thin nebula, the planet rim — drawn once */
   function buildBg(){
@@ -53,42 +56,132 @@ window.SR_INTRO=(function(){
     g2.addColorStop(0,U.rgba('#ffb347',0.18));g2.addColorStop(1,U.rgba('#ffb347',0));
     b.fillStyle=g2;b.fillRect(0,0,W,H);
   }
+  /* fit a word into a width by shrinking its font */
+  function fitFont(g,txt,px,maxW){
+    g.font='400 '+px+'px Bungee, "Exo 2", sans-serif';
+    const w=g.measureText(txt).width;
+    if(w>maxW){px=Math.floor(px*maxW/w);g.font='400 '+px+'px Bungee, "Exo 2", sans-serif';}
+    return px;
+  }
+  /* the badge itself, pre-rendered once: a stitched rebel patch with the ribbon through it */
+  function buildBadge(){
+    const Rb=Math.round(Math.max(120,Math.min(W*0.30,H*0.22,270)));
+    const tail=Rb*0.34,rw=Rb*2.3,rh=Rb*0.5,ry=Rb*0.34;   // the ribbon runs wider than the disc
+    const bw=Math.ceil(rw+tail*2+40),bh=Math.ceil(Rb*2+60);
+    const oc=document.createElement('canvas');
+    oc.width=Math.round(bw*dpr);oc.height=Math.round(bh*dpr);
+    const g=oc.getContext('2d');
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.translate(bw/2,bh/2);
+    g.lineJoin='round';g.lineCap='round';
+    // disc: ink drop, cream rim, deep night field with its own few stars
+    g.beginPath();g.arc(4,6,Rb,0,7);g.fillStyle=U.rgba(CC.ink,0.5);g.fill();
+    g.beginPath();g.arc(0,0,Rb,0,7);g.fillStyle='#e8dfc8';g.fill();
+    g.lineWidth=7;g.strokeStyle=CC.ink;g.stroke();
+    g.beginPath();g.arc(0,0,Rb-13,0,7);g.fillStyle='#141b2c';g.fill();
+    g.lineWidth=3;g.strokeStyle=U.rgba(CC.ink,0.8);g.stroke();
+    // stitching on the rim
+    g.save();g.strokeStyle=U.rgba('#141b2c',0.55);g.lineWidth=2.2;g.setLineDash([5,6]);
+    g.beginPath();g.arc(0,0,Rb-6.5,0,7);g.stroke();g.restore();
+    const rn=U.mkRng(9);
+    g.save();g.beginPath();g.arc(0,0,Rb-14,0,7);g.clip();
+    for(let i=0;i<34;i++){const a=0.25+rn()*0.5;g.globalAlpha=a;g.fillStyle=rn()<0.12?CC.gold:'#dfe6f4';
+      g.beginPath();g.arc((rn()*2-1)*Rb*0.92,(rn()*2-1)*Rb*0.92,0.7+rn()*1.2,0,7);g.fill();}
+    g.globalAlpha=1;
+    // cel shade: the disc's lower-left falls into shadow
+    g.beginPath();g.arc(0,0,Rb-13,0,7);
+    g.beginPath();g.arc(0,0,Rb-13,0,7);g.arc(-Rb*0.16,-Rb*0.18,(Rb-13)*1.04,0,7);
+    g.fillStyle=U.rgba(CC.ink,0.28);g.fill('evenodd');
+    g.restore();
+    // the flag flies at the crest
+    const fs2=(Rb*0.62)/18;
+    g.save();
+    g.translate(-10*fs2,-Rb*0.88);
+    g.scale(fs2,fs2);
+    g.lineWidth=2.25;g.strokeStyle='#f4f0e6';g.stroke(FLAG_POLE);
+    g.save();g.shadowColor=CC.rebel;g.shadowBlur=7;g.fillStyle=CC.rebel;g.fill(FLAG);g.restore();
+    g.restore();
+    // STAR, spaced wide between crest and ribbon
+    {
+      const px=fitFont(g,'STAR',Math.round(Rb*0.26),Rb*1.1);
+      g.textAlign='center';g.textBaseline='alphabetic';
+      const sp=px*0.42,ws=[...'STAR'].map(ch=>g.measureText(ch).width);
+      const tw=ws.reduce((a,b)=>a+b,0)+sp*3;
+      let x=-tw/2;
+      for(let i=0;i<4;i++){
+        g.lineWidth=Math.max(4,px*0.16);g.strokeStyle=CC.ink;
+        g.strokeText('STAR'[i],x+ws[i]/2,-Rb*0.02);
+        g.fillStyle='#f4f0e6';g.fillText('STAR'[i],x+ws[i]/2,-Rb*0.02);
+        x+=ws[i]+sp;
+      }
+    }
+    // the ribbon: notched tails first, then the band, then the word
+    const notch=rh*0.42;
+    for(const sx of [-1,1]){
+      g.beginPath();
+      g.moveTo(sx*(rw/2-6),ry-rh/2+6);
+      g.lineTo(sx*(rw/2+tail),ry-rh/2+6);
+      g.lineTo(sx*(rw/2+tail-notch),ry+6*0);
+      g.lineTo(sx*(rw/2+tail),ry+rh/2-6);
+      g.lineTo(sx*(rw/2-6),ry+rh/2-6);
+      g.closePath();
+      g.fillStyle=U.shade(CC.rebel,-0.32);g.fill();
+      g.lineWidth=5;g.strokeStyle=CC.ink;g.stroke();
+    }
+    U.rr(g,-rw/2,ry-rh/2,rw,rh,8);
+    g.fillStyle=CC.rebel;g.fill();
+    g.save();
+    U.rr(g,-rw/2,ry-rh/2,rw,rh,8);g.clip();
+    g.fillStyle=U.shade(CC.rebel,-0.25);g.fillRect(-rw/2,ry+rh*0.22,rw,rh);
+    g.restore();
+    U.rr(g,-rw/2,ry-rh/2,rw,rh,8);
+    g.lineWidth=6;g.strokeStyle=CC.ink;g.stroke();
+    {
+      const px=fitFont(g,'REBELLION',Math.round(rh*0.72),rw*0.92);
+      g.textAlign='center';g.textBaseline='middle';
+      g.lineWidth=Math.max(4,px*0.14);g.strokeStyle=CC.ink;
+      g.strokeText('REBELLION',0,ry+rh*0.04);
+      g.fillStyle='#f4f0e6';g.fillText('REBELLION',0,ry+rh*0.04);
+    }
+    // three small stars close the badge out
+    for(const [sx,sy,sr] of [[-Rb*0.3,Rb*0.74,Rb*0.05],[0,Rb*0.80,Rb*0.065],[Rb*0.3,Rb*0.74,Rb*0.05]])
+      SA.star(g,sx,sy,sr,'#e8dfc8');
+    // a stamp never lands clean: worn flecks ground out of the paint
+    g.globalCompositeOperation='destination-out';
+    const rn2=U.mkRng(31);
+    for(let i=0;i<46;i++){
+      const a=rn2()*Math.PI*2,d=Rb*(0.55+rn2()*0.48);
+      g.globalAlpha=0.25+rn2()*0.5;
+      g.beginPath();g.arc(Math.cos(a)*d*(rw/2/Rb*0.8),Math.sin(a)*d*0.9,0.8+rn2()*2.0,0,7);g.fill();
+    }
+    g.globalCompositeOperation='source-over';g.globalAlpha=1;
+    badge={cv:oc,w:bw,h:bh,Rb};
+  }
   const clamp=k=>Math.max(0,Math.min(1,k));
-  const back=k=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(k-1,3)+c1*Math.pow(k-1,2);} // easeOutBack
   const easeO=k=>1-Math.pow(1-k,3);
 
-  /* one word, letter by letter, dropped in from above with a little overshoot */
-  function word(txt,font,cy,prog,stag,fill,px){
-    c2.font=font;c2.textBaseline='alphabetic';
-    const gap=px*0.08;
-    const ws=[...txt].map(ch=>c2.measureText(ch).width);
-    const total=ws.reduce((a,b)=>a+b,0)+gap*(txt.length-1);
-    let x=(W-total)/2;
-    for(let i=0;i<txt.length;i++){
-      const e=clamp((prog-i*stag)/0.32);
-      if(e>0){
-        const k=back(e);
-        c2.save();
-        c2.globalAlpha=clamp(e*1.6);
-        c2.translate(x+ws[i]/2,cy-(1-k)*px*0.9);
-        c2.lineJoin='round';c2.lineWidth=Math.max(5,px*0.085);c2.strokeStyle=CC.ink;
-        c2.strokeText(txt[i],-ws[i]/2,0);
-        c2.fillStyle=fill;
-        c2.fillText(txt[i],-ws[i]/2,0);
-        c2.restore();
-      }
-      x+=ws[i]+gap;
+  function spawnDebris(cx,cy){
+    const rn=U.mkRng(5);
+    for(let i=0;i<22;i++){
+      const a=rn()*Math.PI*2,v=120+rn()*260;
+      debris.push({x:cx+Math.cos(a)*badge.Rb*0.9,y:cy+Math.sin(a)*badge.Rb*0.55,
+        vx:Math.cos(a)*v,vy:Math.sin(a)*v*0.6-60-rn()*80,r:1.5+rn()*2.6,
+        col:rn()<0.3?CC.rebel:rn()<0.5?'#e8dfc8':'#8a7a60',t0:impactAt,dur:600+rn()*500});
     }
-    return total;
   }
   function tick(now){
     if(leaving)return;
     raf=requestAnimationFrame(tick);
     let t=now-t0;
     if(RM)t=99999;else if(skipTo&&t<skipTo)t=skipTo;
+    const cx=W/2,cy=H*0.42;
     c2.setTransform(dpr,0,0,dpr,0,0);
+    // the whole frame kicks for a beat after the badge lands
+    if(impactFired&&!RM){
+      const ki=(now-impactAt)/300;
+      if(ki<1){const amp=(1-ki)*7;c2.translate((Math.sin(now/13)*amp)|0,(Math.cos(now/17)*amp)|0);}
+    }
     c2.drawImage(bg,0,0,W,H);
-    // twinkle over the baked stars
     c2.save();
     for(let i=0;i<stars.length;i+=3){
       const s=stars[i],tw=0.5+0.5*Math.sin(now/700*s.sp+s.ph);
@@ -96,55 +189,57 @@ window.SR_INTRO=(function(){
       c2.beginPath();c2.arc(s.x,s.y,s.r*1.4,0,7);c2.fill();
     }
     c2.restore();
-    // a hauler crosses behind the letters once, then the odd patrol drifts by
+    // traffic behind the badge
     if(!RM){
-      if(t>500&&t<3400){
-        const k=(t-500)/2900,fx=-160+k*(W+320);
-        SA.ship(c2,'graf',fx,H*0.26+Math.sin(now/300)*4,0.06,1.5,now/1000,{livery:'civ',boost:true});
-      }
-      if(t>4000&&now>nextFly){nextFly=now+8000+Math.random()*7000;fly={t0:now,y:H*(0.12+Math.random()*0.2),dir:Math.random()<0.5?1:-1};}
+      if(t>1500&&now>nextFly){nextFly=now+8000+Math.random()*7000;fly={t0:now,y:H*(0.1+Math.random()*0.16),dir:Math.random()<0.5?1:-1,kind:Math.random()<0.35?'graf':'mote'};}
       if(fly){
         const k=(now-fly.t0)/5200;
         if(k>1)fly=null;
-        else{const fx=fly.dir>0?-80+k*(W+160):W+80-k*(W+160);
-          SA.ship(c2,'mote',fx,fly.y,fly.dir>0?0.03:Math.PI-0.03,0.8,now/1000,{livery:'heg'});}
+        else{const fx=fly.dir>0?-120+k*(W+240):W+120-k*(W+240);
+          SA.ship(c2,fly.kind,fx,fly.y,fly.dir>0?0.03:Math.PI-0.03,fly.kind==='graf'?1.2:0.8,now/1000,fly.kind==='graf'?{livery:'civ',boost:true}:{livery:'heg'});}
       }
     }
-    // the logo block
-    const base=Math.min(760,W*0.92);
-    const sPx=Math.round(base*0.082),rPx=Math.round(base*0.152);
-    const cy=H*0.40;
-    word('STAR','400 '+sPx+'px Bungee, "Exo 2", sans-serif',cy-rPx*0.92,(t-700)/900,0.17,'#f4f0e6',sPx);
-    const rw=word('REBELLION','400 '+rPx+'px Bungee, "Exo 2", sans-serif',cy,(t-1150)/1100,0.09,CC.rebel,rPx);
-    // the underline sweeps out, then breathes
-    const uk=clamp((t-2150)/300);
-    if(uk>0){
-      const w2=rw*easeO(uk),glow=0.55+0.2*Math.sin(now/900);
+    // the stamp: it falls from the player's face into the sky
+    const ks=clamp((t-STAMP_AT)/STAMP_MS);
+    if(ks>0){
+      let sc,rot,al;
+      if(ks<1){
+        const k2=ks*ks;                 // accelerating all the way in
+        sc=2.7-1.7*k2;rot=TILT*2.2-TILT*1.2*k2;al=0.25+0.75*k2;
+      } else {
+        const kb=clamp((t-STAMP_AT-STAMP_MS)/SETTLE_MS);
+        sc=1+0.05*(1-kb)*Math.sin(kb*Math.PI*3);rot=TILT;al=1;
+        if(!impactFired){impactFired=true;impactAt=now;spawnDebris(cx,cy);}
+      }
+      if(RM){sc=1;rot=TILT;al=1;if(!impactFired)impactFired=true;}
       c2.save();
-      c2.shadowColor=CC.rebel;c2.shadowBlur=12*glow;
-      c2.fillStyle=CC.rebelHi;
-      c2.fillRect(W/2-w2/2,cy+rPx*0.28,w2,Math.max(3,rPx*0.045));
+      c2.translate(cx,cy+(ks>=1&&!RM?Math.sin(now/1100)*3:0));
+      c2.rotate(rot);c2.scale(sc,sc);c2.globalAlpha=al;
+      c2.drawImage(badge.cv,-badge.w/2,-badge.h/2,badge.w,badge.h);
       c2.restore();
     }
-    // the flag ignites over the title (the glyph spans y 3.5–21.5 of its 24-box)
-    const fk=clamp((t-2050)/400);
-    if(fk>0){
-      const fs2=(sPx*1.75)/18,footY=cy-rPx*0.92-sPx*1.5;
-      const flick=RM?1:0.82+0.18*Math.sin(now/90)+0.06*Math.sin(now/37);
-      c2.save();
-      c2.translate(W/2-10*fs2,footY-21.5*fs2);
-      c2.scale(fs2,fs2);
-      c2.globalAlpha=fk;
-      c2.lineWidth=2.25;c2.lineCap='round';c2.strokeStyle='#f4f0e6';
-      c2.stroke(FLAG_POLE);
-      c2.save();
-      c2.globalAlpha=fk*flick;
-      c2.shadowColor=CC.rebel;c2.shadowBlur=8;
-      c2.fillStyle=CC.rebel;c2.fill(FLAG);
-      c2.restore();
-      c2.restore();
+    // the landing: flash, shockwave, debris
+    if(impactFired&&!RM){
+      const ki=(now-impactAt)/420;
+      if(ki<0.4){c2.fillStyle='rgba(255,246,224,'+(0.3*(1-ki/0.4))+')';c2.fillRect(0,0,W,H);}
+      if(ki<1){
+        c2.save();
+        c2.globalAlpha=0.6*(1-ki);
+        c2.lineWidth=5*(1-ki)+1.5;c2.strokeStyle='#e8dfc8';
+        c2.beginPath();c2.ellipse(cx,cy+badge.Rb*0.3,badge.Rb*(1.15+ki*1.3),badge.Rb*(0.5+ki*0.6),0,0,7);c2.stroke();
+        c2.restore();
+      }
+      for(const d of debris){
+        const kd=(now-d.t0)/d.dur;
+        if(kd<0||kd>1)continue;
+        c2.globalAlpha=0.9*(1-kd);
+        c2.fillStyle=d.col;
+        c2.beginPath();c2.arc(d.x+d.vx*kd*(d.dur/1000),d.y+d.vy*kd*(d.dur/1000)+260*kd*kd,d.r*(1-kd*0.5),0,7);c2.fill();
+      }
+      c2.globalAlpha=1;
+      debris=debris.filter(d=>now-d.t0<d.dur);
     }
-    if(t>2450&&!ready){ready=true;el.classList.add('is-ready');const btn=el.querySelector('#splashStart');if(btn)btn.focus({preventScroll:true});}
+    if(t>READY_AT&&!ready){ready=true;el.classList.add('is-ready');const btn=el.querySelector('#splashStart');if(btn)btn.focus({preventScroll:true});}
   }
   function start(){
     if(leaving)return;
@@ -168,8 +263,8 @@ window.SR_INTRO=(function(){
     cv=el.querySelector('canvas');c2=cv.getContext('2d');
     try{const sv=SR.loadSave();if(sv&&sv.started)el.querySelector('#splashStart').textContent='Continue';}catch(e){}
     el.querySelector('#splashStart').addEventListener('click',start);
-    el.addEventListener('pointerdown',ev=>{   // a tap anywhere hurries the logo along
-      if(!ready&&ev.target.id!=='splashStart')skipTo=2500;
+    el.addEventListener('pointerdown',ev=>{   // a tap anywhere slams it home early
+      if(!ready&&ev.target.id!=='splashStart')skipTo=STAMP_AT+STAMP_MS+SETTLE_MS+20;
     });
     addEventListener('keydown',function onKey(ev){
       if(!el){removeEventListener('keydown',onKey);return;}
@@ -181,6 +276,7 @@ window.SR_INTRO=(function(){
     const fonts=(document.fonts&&document.fonts.load)?
       Promise.all([document.fonts.load('400 90px Bungee'),document.fonts.load('600 16px "Exo 2"')]).catch(()=>{}):Promise.resolve();
     Promise.race([fonts,new Promise(r=>setTimeout(r,900))]).then(()=>{
+      buildBadge();           // rebuild with the real face on
       t0=performance.now();raf=requestAnimationFrame(tick);
     });
   }
