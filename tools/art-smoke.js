@@ -14,6 +14,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const log=[];
   if(!window.SR_ART)return {fail:'SR_ART missing'};
+  if(document.getElementById('splash'))return {fail:'title screen leaked into the #test boot'};
   // staff a post and put someone in a bunk so the room views have people in them
   const dax=G.people.find(p=>p.id==='dax');if(dax)dax.assign='station:command';
   f.syncUI();
@@ -102,6 +103,30 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   return {log};
  });
  await pg.waitForTimeout(400);
+ // the title screen: fresh profile, no hash — logo settles, Start launches Take the Rock
+ const ctx2=await b.newContext({viewport:{width:1280,height:800}});
+ const pg2=await ctx2.newPage();
+ pg2.on('pageerror',e=>errs.push('splash: '+e.message));
+ await pg2.goto('file://'+path.resolve(__dirname,'../game/index.html'));
+ await pg2.waitForTimeout(3600);
+ const s1=await pg2.evaluate(()=>{
+   const sp=document.getElementById('splash');
+   return {splash:!!sp,ready:!!sp&&sp.className.includes('is-ready'),
+     label:sp?sp.querySelector('#splashStart').textContent:''};
+ });
+ if(!s1.splash||!s1.ready||s1.label!=='Start game'){
+  console.error('art-smoke FAILED title screen',JSON.stringify(s1));process.exit(1);
+ }
+ await pg2.click('#splashStart');
+ await pg2.waitForTimeout(1400);
+ const s2=await pg2.evaluate(()=>({gone:!document.getElementById('splash'),
+   ground:!document.getElementById('sc-ground').hidden,
+   brief:!document.getElementById('sc-ground').querySelector('#briefing').hidden}));
+ if(!s2.gone||!s2.ground||!s2.brief){
+  console.error('art-smoke FAILED start flow',JSON.stringify(s2));process.exit(1);
+ }
+ out.log.push('title screen');
+ await ctx2.close();
  await b.close();
  if(out.fail||errs.length){
   console.error('art-smoke FAILED',out.fail||'',errs.slice(0,6));

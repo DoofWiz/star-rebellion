@@ -324,3 +324,15 @@
 /* kit portraits inside the kit's avatar rings */
 .sr-avatar .bs-face{width:100%;height:100%;border-radius:50%;display:block;}
 #sc-base .bs-dz__av{width:48px;height:48px;flex:none;}
+
+/* ---------- title screen ---------- */
+#splash{position:fixed;inset:0;z-index:200;background:#04060d;touch-action:manipulation;}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%;}
+#splash .splash__ui{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 11vh);
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  opacity:0;transform:translateY(12px);transition:opacity .45s ease,transform .45s ease;pointer-events:none;}
+#splash.is-ready .splash__ui{opacity:1;transform:none;pointer-events:auto;}
+#splash.is-leaving{opacity:0;transition:opacity .45s ease;}
+@media (prefers-reduced-motion: reduce){
+  #splash .splash__ui,#splash.is-leaving{transition:none;}
+}
