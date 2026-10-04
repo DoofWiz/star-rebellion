@@ -726,6 +726,201 @@
 @media (prefers-reduced-motion:reduce){
   .sr-root *,.sr-root *::before,.sr-root *::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important;}
 }
+/* =====================================================================
+   STAR REBELLION — GALAXY VIEW additions (proposal for the UI kit)
+   Galaxy becomes a full view beside Base, sharing the same shell:
+   top bar + Revolution hub, tabs, comms, rail, command bar.
+   Everything here builds on sr-theme.css tokens; gx- prefixed so it can
+   be folded into the kit (or kept as game/ui/galaxy.css).
+   ===================================================================== */
+
+/* the map is the stage canvas (SVG in this mock, <canvas id="galaxyCv"> in game) */
+.gx-map{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.gx-map text{font-family:var(--sr-font-ui);paint-order:stroke;stroke:var(--sr-ink);stroke-linejoin:round;}
+.gx-map .gx-region-name{font-family:var(--sr-font-display);stroke:none;letter-spacing:.06em;}
+
+/* ---------- world dossier: a docked window, top-left (no scrim) ---------- */
+.gx-dossier{width:372px;animation:none;}
+.gx-dossier .sr-window__head{padding:10px 10px 10px 12px;gap:10px;}
+.gx-dossier .sr-window__body{padding:14px 16px 16px;}
+.gx-dossier__planet{flex:none;display:block;width:38px;height:38px;}
+.gx-dossier__kicker{display:block;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);margin-bottom:4px;}
+.gx-dossier .sr-window__title{line-height:1;}
+.gx-bio{margin:10px 0 0;font:500 var(--sr-fs-sm)/1.5 var(--sr-font-ui);color:var(--sr-text-2);}
+.gx-tags{display:flex;flex-wrap:wrap;gap:6px;}
+
+/* stats: Security / Access / Support / Liberation */
+.gx-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin:14px 0 2px;}
+.gx-stat{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px;}
+.gx-stat__l{font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.gx-stat .sr-hp__cell{width:9px;}
+.gx-wheel{--p:0;position:relative;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;
+  background:conic-gradient(var(--sr-rebel) calc(var(--p)*1%),var(--sr-void) 0);box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+.gx-wheel::before{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--sr-hull);box-shadow:inset 0 0 0 var(--sr-line) var(--sr-ink);}
+.gx-wheel b{position:relative;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);}
+
+/* liberation regions */
+.gx-region{--rc:var(--sr-heg);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 10px;align-items:center;padding:8px 10px;margin-bottom:6px;
+  background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:inset 4px 0 0 var(--rc);}
+.gx-region.is-contested{--rc:var(--sr-hazard);} .gx-region.is-liberated{--rc:var(--sr-rebel);}
+.gx-region__n{font:700 var(--sr-fs-sm)/1.2 var(--sr-font-ui);}
+.gx-region__n em{font:600 var(--sr-fs-xs)/1 var(--sr-font-ui);font-style:normal;color:var(--sr-text-3);margin-left:6px;}
+.gx-region__bar{grid-column:1/-1;display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:center;}
+.gx-region__track{position:relative;height:10px;background:var(--sr-void);border-radius:999px;box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+.gx-region__fill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--sr-rebel);}
+.gx-region__cap{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;background:var(--sr-gold);border-radius:2px;box-shadow:0 0 0 1px var(--sr-ink);}
+.gx-region__p{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-align:right;color:var(--sr-text-2);}
+
+/* "On Brakka": the sources, missions and jobs at this world, as rows */
+.gx-here{display:flex;flex-direction:column;gap:6px;}
+.gx-here .sr-unit{padding:7px 10px 7px 12px;gap:10px;}
+.gx-here .sr-avatar{width:32px;height:32px;}
+.gx-here .sr-avatar .sr-ico{width:17px;height:17px;}
+.gx-here .sr-unit__name{font-size:var(--sr-fs-sm);}
+.gx-reveal{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none;}
+.gx-reveal li{display:flex;align-items:center;gap:10px;padding:7px 10px;border:var(--sr-line) dashed var(--sr-seam);border-radius:var(--sr-r);
+  font:600 var(--sr-fs-sm)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+.gx-reveal .sr-ico{width:18px;height:18px;color:var(--sr-text-3);}
+
+/* source dossier meters + income */
+.gx-meters{display:grid;gap:8px;margin:14px 0 12px;}
+.gx-income{display:flex;align-items:center;gap:8px;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+
+/* world / source avatars (inline planet art inside the kit's avatar ring) */
+.gx-avatar-world{background:var(--sr-void);overflow:hidden;}
+.gx-avatar-world svg{display:block;width:100%;height:100%;}
+
+/* ---------- command bar: world actions + the same Advance day ---------- */
+.gx-cmdbar .sr-cmdbar__who{min-width:186px;}
+.gx-cmdbar .sr-orders{gap:6px;}
+.sr-order .sr-cost{justify-content:center;font-size:var(--sr-fs-micro);}
+.sr-order .sr-cost .sr-ico{width:13px;height:13px;color:inherit;}
+.sr-order .sr-badge{top:-8px;right:-8px;}
+.sr-order.gx-order--attn{box-shadow:var(--sr-bevel),var(--sr-lift),0 0 0 3px var(--sr-gold);}
+.sr-order.gx-order--danger{--c:var(--sr-hazard);color:var(--sr-hazard);}
+.gx-order-label{display:block;}
+
+/* ---------- map tools (top-right of the stage) ---------- */
+.gx-tools{display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.gx-layers{display:flex;flex-direction:column;align-items:center;gap:4px;padding:5px;background:var(--sr-night);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);}
+.gx-layers__h{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);padding:3px 0 2px;}
+.gx-layers .sr-btn--icon{width:40px;min-height:40px;}
+.gx-layers__sep{width:28px;height:2px;margin:2px 0;background:var(--sr-ink);border-radius:2px;}
+.gx-zoom{display:flex;flex-direction:column;}
+.gx-zoom>.sr-btn{border-radius:0;width:40px;min-height:40px;}
+.gx-zoom>.sr-btn+.sr-btn{margin-top:calc(var(--sr-line) * -1);}
+.gx-zoom>.sr-btn:first-child{border-radius:var(--sr-r) var(--sr-r) 0 0;}
+.gx-zoom>.sr-btn:last-child{border-radius:0 0 var(--sr-r) var(--sr-r);}
+
+/* expanded layers panel = the map key (click the "Layers" header) */
+.gx-legend{width:236px;padding:10px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);}
+.gx-legend__h{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.gx-legend__row{display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:10px;min-height:40px;padding:4px 6px;border-radius:var(--sr-r);}
+.gx-legend__row+.gx-legend__row{border-top:1px solid var(--sr-seam);}
+.gx-legend__row b{display:block;font:800 var(--sr-fs-sm)/1.15 var(--sr-font-ui);}
+.gx-legend__row span{display:block;font:600 var(--sr-fs-xs)/1.25 var(--sr-font-ui);color:var(--sr-text-3);}
+.gx-switch{position:relative;width:34px;height:20px;border-radius:999px;background:var(--sr-void);box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+.gx-switch::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--sr-text-3);}
+.gx-switch.is-on{background:var(--sr-shield-deep);}
+.gx-switch.is-on::after{left:17px;background:#e6fdff;}
+
+/* ---------- comms sit narrower here so the command bar fits ---------- */
+.gx-view .sr-comms{width:320px;}
+
+/* ---------- phone: world sheet above the command bar ---------- */
+.gx-sheet{display:flex;flex-direction:column;gap:8px;padding:10px 12px;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);
+  border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);}
+.gx-sheet__top{display:flex;align-items:center;gap:10px;}
+.gx-sheet__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);}
+.gx-sheet__sub{font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);margin-top:3px;}
+.gx-sheet__more{margin-left:auto;}
+.gx-sheet__stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+.gx-mini{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 2px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);}
+.gx-mini__l{font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.gx-mini .sr-hp__cell{width:6px;height:7px;}
+.gx-mini .gx-wheel{width:24px;height:24px;} .gx-mini .gx-wheel::before{inset:4px;} .gx-mini .gx-wheel b{display:none;}
+
+/* ---------- states boards (outside the shell) ---------- */
+.gx-board{display:flex;flex-direction:column;align-items:flex-start;gap:20px;padding:28px;background:var(--sr-void);}
+.gx-board .sr-cmdbar{display:inline-flex;}
+.gx-board .sr-tip{position:relative;}
+
+/* region rows carry the local job that liberates them */
+.gx-region__job{grid-column:1/-1;display:flex;align-items:center;gap:6px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+.gx-region__job .sr-ico{width:15px;height:15px;color:var(--sr-gold);}
+.gx-region__job b{color:var(--sr-text-2);font-weight:700;}
+/* lore clamps to three lines in the docked dossier; click to read it all */
+.gx-bio--clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.gx-more{display:inline-block;margin-top:4px;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;}
+.gx-map text{stroke-width:4px;}
+.gx-rail-wheel{width:30px;height:30px;}
+.gx-rail-wheel::before{inset:5px;}
+.sr-unit .sr-avatar .sr-badge{top:-6px;right:-6px;}
+.gx-tip{position:relative;margin-top:4px;}
+
+/* ---------- source avatars carry their level in the bottom zone ---------- */
+.gx-src>.sr-ico{transform:translateY(-5px);}
+.gx-lvl{position:absolute;inset:0;border-radius:50%;overflow:hidden;pointer-events:none;}
+.gx-lvl b{position:absolute;left:0;right:0;bottom:0;height:40%;display:grid;place-items:center;padding-top:1px;
+  background:var(--sr-ink);color:#fff4e6;font:400 var(--sr-fs-micro)/1 var(--sr-font-display);letter-spacing:.04em;}
+
+/* ---------- galaxy: click targets over worlds ---------- */
+.gx-hit{position:absolute;z-index:var(--sr-z-hud);width:56px;height:56px;margin:-28px 0 0 -28px;padding:0;border-radius:50%;
+  background:transparent;border:0;cursor:pointer;}
+.gx-hit:hover{box-shadow:0 0 0 3px var(--sr-gold),0 0 0 6px var(--sr-ink);}
+
+/* ---------- WORLD VIEW: selecting a world dives into it ---------- */
+.gx-world{position:absolute;inset:0;animation:gx-dive .42s var(--sr-ease-out) both;}
+@keyframes gx-dive{from{opacity:0;transform:scale(.16);}60%{opacity:1;}to{opacity:1;transform:none;}}
+.gx-world .gx-map{position:absolute;inset:0;}
+
+/* region chips sit on the planet; they are the click targets (in game the
+   region shape is clickable too) */
+.gx-rchip{--rc:var(--sr-heg);position:absolute;z-index:var(--sr-z-hud);transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:8px;
+  height:36px;padding:0 12px 0 9px;border-radius:999px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);box-shadow:var(--sr-lift);
+  color:var(--sr-text);font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);white-space:nowrap;cursor:pointer;
+  transition:transform var(--sr-t-fast) var(--sr-ease-pop),background var(--sr-t-fast);}
+.gx-rchip.is-contested{--rc:var(--sr-hazard);} .gx-rchip.is-liberated{--rc:var(--sr-rebel);}
+.gx-rchip__dot{width:12px;height:12px;border-radius:50%;background:var(--rc);box-shadow:0 0 0 2px var(--sr-ink);}
+.gx-rchip__p{font-weight:700;color:var(--sr-text-2);}
+.gx-rchip:hover{background:var(--sr-plate);transform:translate(-50%,-50%) translateY(-2px);}
+.gx-rchip[aria-pressed="true"]{background:var(--sr-gold);color:var(--sr-gold-ink);transform:translate(-50%,-50%) translateY(-3px);box-shadow:0 5px 0 var(--sr-ink);}
+.gx-rchip[aria-pressed="true"] .gx-rchip__p{color:var(--sr-gold-ink);}
+
+/* minimap of the galaxy: top-right in a world, click to go back */
+.gx-minimap{position:relative;display:block;width:200px;height:130px;padding:0;background:var(--sr-void);border:var(--sr-line) solid var(--sr-ink);
+  border-radius:var(--sr-r);box-shadow:var(--sr-lift);overflow:hidden;cursor:pointer;color:inherit;}
+.gx-minimap svg{display:block;width:100%;height:100%;}
+.gx-minimap:hover{border-color:var(--sr-gold);}
+.gx-minimap__lbl{position:absolute;left:6px;top:6px;display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px 0 5px;border-radius:999px;
+  background:var(--sr-ink);font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.gx-minimap__lbl .sr-ico{width:14px;height:14px;}
+
+/* location panel in a world: full, or compact while a region is open */
+.gx-dossier .gx-back{flex:none;}
+.gx-dossier--compact .sr-window__body{padding:10px 12px 12px;}
+.gx-regions{display:flex;flex-direction:column;gap:6px;}
+button.gx-region{width:100%;margin:0;text-align:left;color:inherit;font:inherit;cursor:pointer;}
+button.gx-region:hover{background:var(--sr-plate);}
+
+/* region card: opens under the location panel */
+.gx-regioncard{width:372px;}
+.gx-regioncard .sr-window__body{padding:12px 16px 14px;}
+.gx-job{margin-top:2px;padding:10px 12px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:inset 4px 0 0 var(--sr-gold);}
+.gx-job__t{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-sm)/1.2 var(--sr-font-ui);}
+.gx-job__t .sr-ico{width:18px;height:18px;color:var(--sr-gold);}
+.gx-job__d{margin:6px 0 8px;font:500 var(--sr-fs-xs)/1.45 var(--sr-font-ui);color:var(--sr-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.gx-job__meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;}
+.gx-libline{display:grid;grid-template-columns:1fr 40px;gap:10px;align-items:center;margin:12px 0 2px;}
+
+/* the gold cap mark explains itself on hover */
+.gx-region__cap{cursor:help;z-index:1;}
+.gx-region__cap::before{content:"";position:absolute;inset:-6px -8px;}
+.gx-region__cap::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%);width:210px;padding:8px 10px;
+  background:var(--sr-ink);color:var(--sr-text);font:600 var(--sr-fs-xs)/1.35 var(--sr-font-ui);text-align:left;white-space:normal;
+  border-radius:var(--sr-r);box-shadow:0 0 0 2px var(--sr-gold);opacity:0;pointer-events:none;transition:opacity var(--sr-t-fast);z-index:5;}
+.gx-region__cap:hover::after{opacity:1;}
 
 
 /* ===== style-guide page chrome (not part of the theme) ===== */

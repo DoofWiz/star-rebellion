@@ -111,10 +111,10 @@ window.SR=(function(){
      through these, so the player sees one consistent language. */
   const GEAR={
     akli:{n:'Akli AR',i:'rifle'},
-    cowboy:{n:'Cowboy',i:'pistol'},
+    cowboy:{n:'Cowboy No.4',i:'pistol'},
     carbine:{n:'Peacekeeper Carbine',i:'rifle'},
-    scatter:{n:'Scattergun',i:'shotgun'},
-    longiron:{n:'Long Iron',i:'rifle'},
+    scatter:{n:'Varmint Shotgun',i:'shotgun'},
+    longiron:{n:'Longhorn ’28',i:'rifle'},
     sidearm:{n:'Sidearm',i:'pistol'},
     unarmed:{n:'Bare hands',i:null},
     plasma:{n:'Plasma',i:'plasma'},
