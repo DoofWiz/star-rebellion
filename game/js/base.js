@@ -894,6 +894,10 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
 const SEATS={};for(const r of SRDB.raw.ships)if(r.extra_people>0)for(const k of String(r.legacy_keys).split('|'))if(k)SEATS[k]=r.extra_people;     // troop seats per transport
+/* who carries the job: soldiers and marines (ground combat) or pilots (space combat). Colour and icon match the crew rail. */
+const opKind=m=>{let r=null;try{r=reqOf(m);}catch(e){}return (typeOf(m)==='ground'||(r&&r.teamRole==='Soldier'))?'ground':'space';};
+const OPKIND={ground:{label:'Ground',icon:'soldier',tone:'friend',card:' sr-card--friend'},space:{label:'Space',icon:'ship',tone:'action',card:''}};
+const opTag=m=>{const k=OPKIND[opKind(m)];return '<span class="sr-tag bs-op sr-tag--'+k.tone+'" title="'+(opKind(m)==='ground'?'Soldiers lead this mission':'Pilots lead this mission')+'">'+IC(k.icon)+k.label+'</span>';};
 /* ---------- mission types ----------
    A TYPE fixes objectives, requirements, the scenario and the base reward. A mission is a type plus a
    narrative CONTEXT (source, location, region, target variant, NPC). Any source or intelligence lead can
@@ -2579,27 +2583,31 @@ function renderRoomView(now){
   const pul=RM?0.8:0.6+0.4*Math.sin(now*0.002);
   if(rm.key==='hangar'){
     const cap=fighterCap();
+    // berths tile the floor: a g×g grid in floor space, each pad a diamond that exactly fits its cell
+    const g=Math.max(2,Math.ceil(Math.sqrt(cap))),bw=250/g*0.86,bh=130/g*0.86,csz=2.4*Math.min(1,2/g);
     for(let i=0;i<cap;i++){
-      const bx=(i-(cap-1)/2)*130,by=i%2?40:-20;
+      const ga=((i%g)+0.5)*2/g-1,gb=(Math.floor(i/g)+0.5)*2/g-1;
+      const bx=(ga-gb)*125,by=(ga+gb)*65;
       ctx.strokeStyle=TH.rgba(col,0.45);ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
-      ctx.beginPath();ctx.moveTo(bx,by-45);ctx.lineTo(bx+80,by);ctx.lineTo(bx,by+45);ctx.lineTo(bx-80,by);ctx.closePath();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bx,by-bh);ctx.lineTo(bx+bw,by);ctx.lineTo(bx,by+bh);ctx.lineTo(bx-bw,by);ctx.closePath();ctx.stroke();
       ctx.setLineDash([]);
-      const f=G.fighters[i];
+      const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
         craftTop('graf',bx,by,3.4,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
-        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,by+62);
+        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
         continue;
       }
       if(f&&!f.out){
         craftTop(f.cls,bx,by,3.4,-0.5,null,{damage:1-f.hull/100});
         ctx.font=fnt(12);ctx.textAlign='center';
-        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,by+62);
-        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,by+67,54,7);
+        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
+        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
         ctx.fillStyle=hullCol(f.hull);
-        ctx.fillRect(bx-25,by+69,50*f.hull/100,3);
+        ctx.fillRect(bx-25,ly+9,50*f.hull/100,3);
         if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
+        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:Math.max(26,bh*Sx*0.9),fid:f.id});
       } else {
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.text3;
@@ -4117,8 +4125,9 @@ const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',longiron
 const gearIconId=id=>GEAR_ICON[id]||'loot';
 const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
-const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
-const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+let shipSheetShip=null;
+const accentOf={newhero:'progress',comm:'friend',ship:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
+const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -4361,7 +4370,7 @@ function renderWin(){
   else if(winMode==='newmission'){
     const m=winArg;
     h=wHead('New mission',{tags:wTag(m.from||'the network')})+wBody(
-      '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span></div>'+
+      '<div class="sr-card'+OPKIND[opKind(m)].card+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+'</div>'+
       '<div class="sr-card__body">'+m.desc+'</div>'+
       '<div class="sr-card__meta" style="margin-bottom:0">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div></div>'+
       (canAttempt(m)?'':precondHTML(m)))+
@@ -4515,9 +4524,9 @@ function renderWin(){
   else if(winMode==='missions'){
     let list='';
     for(const m of G.missions){
-      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':'';
-      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available','friend');
-      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
+      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':OPKIND[opKind(m)].card;
+      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available');
+      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
         '<div class="sr-card__body">'+m.desc+'</div>';
       if(m.state==='avail'){
         list+='<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div>'+
@@ -4581,6 +4590,12 @@ function renderWin(){
       choice(1,'data-kill="'+s.id+'"','Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.')+
       choice(2,'data-close','Not yet. Back into the shadows.'));
   }
+  else if(winMode==='ship'){
+    const f=winArg,SS=SR.shipSheet;
+    const pilots=G.people.filter(p=>p.role==='Pilot'&&!p.injured);
+    shipSheetShip=SS.make(f.cls,f.name,f.out?100:f.hull,pilots.length?Math.max(...pilots.map(pilotAim)):2);
+    h=SS.html(shipSheetShip,f.name)+wFoot(rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
+  }
   else if(winMode==='news'){
     h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
   }
@@ -4589,6 +4604,7 @@ function renderWin(){
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
+  if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);
   markWin();
 }
 
@@ -4719,7 +4735,7 @@ function syncUI(){
    }).join('');
    $('vehCount').textContent=vs.length||'';}
   $('crewHint').textContent=SR.touch?'Tap anyone for their file':'Double-click anyone for their file';
-  $('fleetHint').textContent=SR.touch?'Tap a ship to step into the hangar':'Double-click a ship to step into the hangar';
+  $('fleetHint').textContent=SR.touch?'Tap a ship for its stats':'Double-click a ship for its stats';
   if(viewRoom)renderRoomBar();
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
@@ -5396,11 +5412,11 @@ cv.addEventListener('click',ev=>{
     const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
     if(f){
       sClick();
-      const key='fig:'+f.pid,now=performance.now();
+      const key='fig:'+(f.pid||f.fid),now=performance.now();
       if(lastTap.key===key&&now-lastTap.t<380){
         lastTap={key:null,t:0};
-        const p=G.people.find(x=>x.id===f.pid);
-        if(p)openWin('person',p);
+        if(f.fid){const sh=G.fighters.find(x=>x.id===f.fid);if(sh)openWin('ship',sh);}
+        else{const p=G.people.find(x=>x.id===f.pid);if(p)openWin('person',p);}
       } else lastTap={key,t:now};
     }
     return;
@@ -5621,6 +5637,12 @@ $('winsB').addEventListener('click',ev=>{
     }
     return;
   }
+  if(t.hasAttribute('data-visithangar')){
+    const hg=G.rooms.find(r=>r.key==='hangar');
+    closeWin();
+    if(hg)enterRoomView(hg);
+    return;
+  }
   const mplan=t.getAttribute('data-mplan');
   if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openPlan(m);return;}
   const as=t.getAttribute('data-as');
@@ -5646,8 +5668,8 @@ byId('panel').addEventListener('click',ev=>{
       const p=G.people.find(x=>x.id===pr.getAttribute('data-person'));
       if(p)openWin('person',p);
     } else {
-      const hg=G.rooms.find(r=>r.key==='hangar');
-      if(hg)enterRoomView(hg);
+      const f=G.fighters.find(x=>x.id===fr.getAttribute('data-fighter'));
+      if(f)openWin('ship',f);
     }
     return;
   }
@@ -6049,7 +6071,7 @@ function planHTML(m){
   const empty=PL.slots.filter(sl=>!PL.v[sl.key]&&!sl.opt).length;
   const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
-  return wHead('Plan: '+m.name,{tags:riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
+  return wHead('Plan: '+m.name,{tags:opTag(m)+riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
     '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
     wFoot((needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
       rbtn('data-autofill','Auto-fill')+

@@ -276,6 +276,10 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <canvas id="cv"></canvas>
     <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
     <div class="sr-slot-tl">
+      <div class="sr-fs" id="fsBox" hidden>
+        <div class="sr-hud__host" id="fsBtnHost"></div>
+        <div class="sr-window sr-window--sm" id="fsMenu" hidden></div>
+      </div>
       <div class="sr-objectives" id="objBox" hidden>
         <div class="sr-objectives__head"><svg class="sr-ico" aria-hidden="true"><use href="#i-star"/></svg>Objectives</div>
         <div id="objList"></div>
@@ -294,7 +298,6 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     </div>
     <div class="sr-slot-bc" id="gBottom">
       <button class="sr-pill" id="pickPill" hidden></button>
-      <div class="sr-window sr-window--sm" id="fsMenu" hidden></div>
       <div id="vsHost" class="sr-hud__host" hidden></div>
       <div id="ctlDock" class="sr-hud__host" hidden></div>
     </div>

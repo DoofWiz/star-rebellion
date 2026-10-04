@@ -4777,9 +4777,6 @@ function csUpdate(now){
       if(t>=1)u.face=-Math.PI/6;
     }
   }
-  csEvent('b1',4.4,el,()=>{const l=U.find(u=>u.side==='reb');if(l)say(l,(l.lines&&l.lines[0])||'Move quiet.',3400);});
-  csEvent('b2',6.2,el,()=>log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+SCN.csLine));
-  csEvent('b3',7.0,el,()=>say(U.find(u=>u.id==='sera'),'Just get me to that Cross in one piece.',3400));
   csEvent('pan',8.4,el,()=>{camGoal={x:SCN.panTo.x,y:SCN.panTo.y,z:0.8};});
   csEvent('banner',9.4,el,()=>{byId('csBanner').classList.add('show');});
   csEvent('banneroff',12.2,el,()=>{byId('csBanner').classList.remove('show');});
@@ -5439,6 +5436,16 @@ function syncBar(){
   if(pick)HUD.render(PILL,pickText()+' <span class="sr-kbd">Esc</span>');
   if(phase!=='PLANNING')fsMenuOn=false;
   const fsl=fsItems();
+  const fsBox=byId('fsBox'),fsLive=!!FS&&phase!=='BRIEF'&&phase!=='CUTSCENE'&&phase!=='GAMEOVER';
+  fsBox.hidden=!fsLive;
+  if(fsLive){
+    const canCall=phase==='PLANNING'&&fsl.length>0;
+    HUD.render(byId('fsBtnHost'),HUD.btn({id:'fsBtn',label:'Fire support',icon:'firesupport',size:'sm',soft:!canCall,
+      pressed:canCall?fsMenuOn:null,
+      tip:{title:'Fire support',rule:'Call in the support you arranged: a supply drop, a strafing run, a door gunner or reinforcements.'},
+      why:canCall?'':fsl.length?'Calls are made while planning the round.':'Everything arranged for this run has been used.'})+
+      (fsl.length?'<span class="sr-badge">'+fsl.length+'</span>':''));
+  }
   FSM.hidden=!(fsMenuOn&&fsl.length);
   if(!FSM.hidden)HUD.render(FSM,'<div class="sr-window__head"><span class="sr-window__title">Fire support</span></div><div class="sr-window__body sr-stack">'+
     fsl.map(i=>'<button type="button" class="sr-choice" data-fs="'+i.key+'"><b>'+i.name+'</b><span class="sr-fine">'+i.sub+'</span></button>').join('')+'</div>');
@@ -5515,6 +5522,11 @@ DOCK.addEventListener('click',ev=>{
   }
 });
 PILL.addEventListener('click',()=>{pickMode=null;fsDraft=null;hackArm=false;syncUI();});
+byId('fsBox').addEventListener('click',ev=>{
+  const b=ev.target.closest('#fsBtn');
+  if(!b||b.getAttribute('aria-disabled')==='true'||phase!=='PLANNING')return;
+  sTick();fsMenuOn=!fsMenuOn;syncUI();
+});
 FSM.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-fs]');
   if(!b)return;
@@ -5832,8 +5844,7 @@ function enter(params){
   $('enterBtn').focus({preventScroll:true});
   phase='BRIEF';
   for(const u of U)if(u.side==='reb')u.csHide=true;
-  cam={x:LZ.x+180,y:LZ.y-160,z:0.9};clampCam();camGoal=null;
-  syncUI();
+  startCutscene();
 }
 function exit(){
   byId('app').classList.remove('cine');
