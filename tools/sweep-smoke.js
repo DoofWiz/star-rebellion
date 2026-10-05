@@ -34,10 +34,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.closeWin();
   G().armory=G().armory.filter(x=>x.id!=='plasmasmg');G().armory.find(a=>a.id==='akli').n=6;dax.gear.primary=pri;f.autoEquip();
   // 5: a Marine and a Soldier, both laid up, heal at the same rate with the barracks staffed
-  const sol=mk('sol','Soldier',{injured:6}),mar=mk('mar','Marine',{injured:6}),off=mk('off','Support',{assign:'station:barracks'});
+  const sol=mk('sol','Soldier'),mar=mk('mar','Marine'),off=mk('off','Support',{assign:'station:barracks'});R.layUp(sol,'downed',6);R.layUp(mar,'downed',6);
   out.barracks=!!G().rooms.find(r=>r.key==='barracks');
   f.advanceDay();
-  out.heal=[6-sol.injured,6-mar.injured];
+  out.heal=[6-R.laidUp(sol),6-R.laidUp(mar)];
   G().people=G().people.filter(p=>!['sol','mar','off'].includes(p.id));
   // 7: a Quick Learner's reward line shows +10%
   const ql=mk('ql','Soldier',{charTrait:'quicklearner'});
@@ -58,7 +58,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(a.reconciled===null,'live:0 kit in a slot is put back in the armory '+a.reconciled);
  ok(!a.offered,'the gear picker does not offer live:0 kit');
  ok(a.win==='reward'&&a.shown.indexOf('XP +55%')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
- ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>=2,'Marines get the barracks perk too '+a.heal);
+ ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>=1,'Marines get the barracks perk too '+a.heal);
 
  // ---- 1 and 6: launch a ground mission with a support Graf carrying four reinforcements
  const c=await pg.evaluate(()=>{

@@ -35,8 +35,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const msgs=f.applyInjuries(dax,[{k:'concussion',treated:true},{k:'brokenleg',treated:false}],false);
   out.apply=[dax.cond.map(c=>c.k+':'+c.days).join(),dax.morale,dax.injuries,msgs.length];
   f.applyInjuries(runa,[{k:'maimed',treated:true}],false);
-  out.maimed=[!!(runa.body&&(runa.body.arm===1||runa.body.leg===1)),runa.injured];
-  f.applyInjuries(kel,[{k:'spinal',treated:true}],true);out.spinal=[kel.injured,kel.injuries||0];
+  out.maimed=[!!(runa.body&&(runa.body.arm===1||runa.body.leg===1)),R.laidUp(runa)];
+  f.applyInjuries(kel,[{k:'spinal',treated:true}],true);out.spinal=[R.laidUp(kel),kel.injuries||0];
   // squad profile
   const e=f.squadEntry(dax,false);
   out.entry=[e.aim,e.cool,Math.round(e.agi*100)/100,e.nosprint,e.oneHand];
@@ -56,10 +56,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const html=document.querySelector('#winCardB').innerHTML;out.med=[html.indexOf('Medical')>=0,html.indexOf('Broken Leg')>=0];
   f.closeWin();f.syncUI();out.mark=document.querySelector('#panel').innerHTML.indexOf('✚')>=0;
   // ---- prosthetics need a Surgery Room, money and time
-  runa.body={arm:1};runa.injured=0;runa.assign='rest';G().credits=2000;G().materials=500;const c0=G().credits;
-  out.pros=[f.startProsthetic('runa','arm'),c0-G().credits,runa.injured];
+  runa.body={arm:1};runa.cond=(runa.cond||[]).filter(c=>!R.CONDK[c.k].laidUp);runa.assign='rest';G().credits=2000;G().materials=500;const c0=G().credits;
+  out.pros=[f.startProsthetic('runa','arm'),c0-G().credits,R.laidUp(runa)];
   for(let i=0;i<6;i++)f.advanceDay();
-  out.prosDone=[runa.body.arm,runa.injured,R.injFx(runa).oneHand];
+  out.prosDone=[runa.body.arm,R.laidUp(runa),R.injFx(runa).oneHand];
   out.prosNo=(()=>{G().rooms.find(r=>r.key==='infirmary').up=[];runa.body={leg:1};return f.startProsthetic('runa','leg');})();
   return out;
  });
@@ -173,7 +173,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const D=window.DBGbase,f=D.fn,R=window.Rebel,G=()=>D.G,out={};
   const P=id=>G().people.find(p=>p.id===id);
   f.setRng(()=>0.99);
-  for(const id of ['dax','runa','kel']){const p=P(id);p.cond=[];p.body={};p.injured=0;p.traits=[];p.assign='rest';}
+  for(const id of ['dax','runa','kel']){const p=P(id);p.cond=[];p.body={};p.traits=[];p.assign='rest';}
   f.applyDebrief({missionId:'none',days:0,win:true,people:[{id:'dax',xp:0,state:'ok',inj:[{k:'brokenarm',treated:true}],treats:1,rescued:['runa']},{id:'runa',xp:0,state:'ok',inj:[{k:'concussion',treated:true}]},{id:'kel',xp:0,state:'ok'}]});
   out.cond=[P('dax').cond.map(c=>c.k).join(),P('runa').cond.map(c=>c.k).join(),(P('kel').cond||[]).length];
   out.rescue=[R.expHas(P('dax'),'saved','runa'),R.expHas(P('runa'),'owes','dax'),G().news.some(n=>/pulled .* out of it/.test(JSON.stringify(n)))];

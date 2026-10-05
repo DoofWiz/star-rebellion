@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after space took on the rebels' traits and ranks (C-22 resolved), the space line-ups joined the roster (C-24 extended), C-21 was resolved, the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
+**Last updated:** 2026-10-05, after the injury models were folded into one (C-20 resolved), space took on the rebels' traits and ranks (C-22 resolved), the space line-ups joined the roster (C-24 extended), C-21 was resolved, the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
 the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`, which added C-20 to C-23 and M-24) and the renumbering of the
 Fleet-tab entry from a duplicate C-12 to C-19.
 
@@ -63,7 +63,6 @@ Fleet-tab entry from a duplicate C-12 to C-19.
 | M-21 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
-| C-20 | 🔴 | Two injury-recovery models run side by side, with different heal rates | How long a wounded rebel is out |
 | C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
@@ -193,22 +192,6 @@ From the art handoff's open questions, now live in `game/art/sr-art.js` data tab
   Arsenal now has six armour items, but four head items (Cowboy Hat, Baseball Cap, Police Helmet, Auto
   Head-Helm) have no art, so they draw nothing (see M-16 for what armour does).
 **Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
-**Your call:** _open_
-
-### C-20 🔴 Two injury-recovery models run side by side
-Found in the legacy sweep. A wounded rebel can carry both kinds of injury, and each heals on its own clock:
-- **Conditions** (`Rebel.condRecover`, the newer model) heal at `healRate()` in `base.js`: a medic on station
-  adds 0.5 a day, a doctor 1.
-- **The old `p.injured` day counter** (`advanceDay` in `base.js`) heals at its own rates: +2 with infirmary staff,
-  +1 for a medic, +2 for a doctor, +1 for any ground fighter when the barracks is staffed (this used to miss
-  Marines and Heroes; fixed).
-  This counter also owns prosthetic fitting and the "scarred" and "nearly dead" experiences. The ground scene picks
-  its length itself (1 to 3 days at Haven Rock, 3 to 6 elsewhere) and "Send a team" sets it directly.
-
-I left both running; nothing breaks, but the numbers disagree and only one of them shows on the dossier.
-**Needs from you:** one set of heal rates (which staff and traits speed recovery, and by how much), and whether a
-plain "down in the fight" wound should be a condition like the rest. Then I fold the day counter into
-`rebel-injury.js`.
 **Your call:** _open_
 
 ### C-23 ⚪ Peacekeeper Carbine: ballistic in the rules, plasma on screen
@@ -507,6 +490,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-20 | One recovery model, the newer one (conditions at `healRate`). | 2026-10-05 | Being laid up is a condition now (Laid Up, Spinal Injury, Recovering from an Amputation, Prosthetic Surgery) with a `laidUp` flag that keeps the rebel off duty; it heals at the same rate as every other condition (0.25 a day with no Infirmary, 1 with one, +1 with someone on it, +0.5 medic, +1 doctor, +0.5 Surgery Room) and ends as the old counter did (back on their feet, Scarred after five days or more, Nearly Dead after a spinal injury or an amputation, the prosthetic fitted). The Garrison Officer's perk stays as +1 a day for ground fighters. The old `p.injured`, `injDur`, `critHeal` and `prosPending` are converted on load. **Effect:** before an Infirmary is built a stretcher case is out about 12 days instead of 5 (2.4 with a Garrison Officer), and the opening mission's 1 to 3 days become 4 to 12; tune `NO_INFIRMARY` in `rebel-injury.js` if that is too harsh. Commit "One recovery model: being laid up is a condition". |
 | C-22 | Space follows the rebels' trait and rank rules (the campaign descriptions are the rules). | 2026-10-05 | Space pilots carry rebel trait keys and each trait does what its card says: Lucky is a 5% chance to survive a killing blow (it was ±1 to hit), Veteran is +1 accuracy and slower to panic (it was +1 initiative and a nerve floor), Unlucky takes 5% more criticals, Brave and Cowardly share one rule with the ground. Friends and In Love now act in space too (panic when the partner goes down), which is what Petra's old "Friends: Joss" did. Green became the Academy Cadets' `nerve_cap` and the roster's `lead`. Ranks: the rebel ladder, or a `rank` title on Hegemony pilot rows (Vex: Commandant). The scene's own trait text and rank ladder are gone. Commit "Space pilots carry the rebels' traits and ranks". |
 | C-21 | An owned Strider is the same as the enemy one. | 2026-10-05 | `OWNED_STRIDER` is gone: the owned Bot, the Steal the Strider VIP and the enemy all read the `strider-mk1` roster row (240 hp, aim 1, def 8), so a hacked Strider no longer loses 20 hp on joining. Commit "An owned Strider is the enemy one". |
 | C-14 | Every door gunner is zone-targeted, not just Cass's: the gunship-orbit rework (merged from the art branch) anchors any Door Gunner Cover to the player's mark. | 2026-10-04 | `dgTargets` works up to 3 enemies inside the placed zone (240px, growing with the layout scale); Cass's prologue asset still unlocks with its tutorial card and sets `tutFlags.fs` when called. Overrule at will — both halves came from your own handoffs. |

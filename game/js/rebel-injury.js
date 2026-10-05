@@ -30,8 +30,11 @@
   ];
   const INJK={};for(const i of INJ)INJK[i.k]=i;
 
-  /* what is left after the encounter. `days` is the time to recover at the base; fx are standing penalties */
-  const C=(k,n,days,fx,text)=>({k,n,days,fx:fx||{},text});
+  /* what is left after the encounter. `days` is the time to recover at the base; fx are standing penalties.
+     A laid-up condition (o.laidUp) also keeps them off duty: no missions, no posts, no training. o.after names what
+     recovering from it brings: an experience (nearlydead) or the prosthetic being fitted. Every condition heals at the
+     same base rate (healRate in base.js), the only recovery model there is. */
+  const C=(k,n,days,fx,text,o)=>Object.assign({k,n,days,fx:fx||{},text},o||{});
   const COND=[
     C('concussed','Concussed',5,{aim:-1,cool:-10},'A general debuff until they have recovered at the Infirmary.'),
     C('brokenarm','Broken Arm',6,{oneHand:1},'No two-handed weapons until it has mended.'),
@@ -43,6 +46,10 @@
     C('eye','Eye Injury',8,{aim:-2},'Less accurate. Left untreated too long, it becomes permanent blindness.',),
     C('deafened','Deafened',5,{cool:-10,view:-0.25},'Poor awareness until their hearing returns.'),
     C('facial','Facial Trauma',6,{},'It will heal as a scar, and perhaps a permanent one.'),
+    C('downed','Laid Up',3,{},'Came back on a stretcher. Off duty until they are back on their feet.',{laidUp:1}),
+    C('spinal','Spinal Injury',10,{},'Bedridden. Walking out of the Infirmary will be a story in itself.',{laidUp:1,after:'nearlydead'}),
+    C('amputation','Recovering from an Amputation',6,{},'Off duty while they learn to manage without it.',{laidUp:1,after:'nearlydead'}),
+    C('surgery','Prosthetic Surgery',5,{},'In the Surgery Room having a prosthetic fitted.',{laidUp:1,after:'prosthetic'}),
   ];
   const CONDK={};for(const c of COND)CONDK[c.k]=c;
   const BLIND_AFTER=14;     // an eye injury still untreated after this many days is permanent
@@ -82,9 +89,20 @@
     else{c={k,days,age:0};p.cond.push(c);}
     return c;
   }
-  /* one day of recovery at `rate`; returns messages {done:[cond], blind:bool} */
+  /* off duty for `days` with a laid-up condition (extra: e.g. {part} for surgery); returns the condition */
+  function layUp(p,k,days,extra){
+    const def=CONDK[k];if(!def||!def.laidUp)return null;
+    p.cond=p.cond||[];
+    let c=p.cond.find(x=>x.k===k);
+    if(c){c.days=Math.max(c.days,days);c.days0=Math.max(c.days0||0,days);}
+    else{c=Object.assign({k,days,days0:days,age:0},extra||{});p.cond.push(c);}
+    return c;
+  }
+  /* days of recovery left on their laid-up conditions (0: fit for duty) */
+  const laidUp=p=>Math.max(0,...((p&&p.cond)||[]).filter(c=>(CONDK[c.k]||{}).laidUp).map(c=>c.days));
+  /* one day of recovery at `rate`; returns {done:[cond keys], up:[laid-up conditions they got over], blind, scar} */
   function recover(p,rate,rand){
-    const out={done:[],blind:false,scar:false};
+    const out={done:[],up:[],blind:false,scar:false};
     for(const c of (p.cond||[]).slice()){
       c.age=(c.age||0)+1;
       c.days-=rate;
@@ -93,18 +111,31 @@
         p.body=p.body||{};p.body.eye=1;out.blind=true;continue;
       }
       if(c.days<=0){
-        p.cond.splice(p.cond.indexOf(c),1);out.done.push(c.k);
+        p.cond.splice(p.cond.indexOf(c),1);
+        if((CONDK[c.k]||{}).laidUp)out.up.push(c);else out.done.push(c.k);
         if(c.k==='facial'&&rand()<0.4)out.scar=true;
       }
     }
     return out;
   }
   const summary=p=>{
-    const a=(p.cond||[]).map(c=>(CONDK[c.k]||{n:c.k}).n);
+    const a=(p.cond||[]).filter(c=>!(CONDK[c.k]||{}).laidUp).map(c=>(CONDK[c.k]||{n:c.k}).n);
     const b=p.body||{};
     for(const part in PARTS)if(b[part]===1)a.push('Lost '+PART_NAME[part].replace('an ','').replace('a ',''));
     return a;
   };
 
-  Object.assign(R,{INJ,INJK,COND,CONDK,PART_NAME,BLIND_AFTER,NO_INFIRMARY,injRoll:roll,injFx:fx,hasCond,addCond,condRecover:recover,medSummary:summary});
+  /* saves from before the one recovery model: p.injured (days off duty) and its helpers become a laid-up condition */
+  function migrateInjured(p){
+    if(p.injured>0){
+      const k=p.prosPending?'surgery':p.critHeal?'spinal':'downed';
+      const c=layUp(p,k,p.injured,p.prosPending?{part:p.prosPending}:null);
+      if(c&&p.injDur)c.days0=Math.max(c.days0,p.injDur);
+    }
+    delete p.injured;delete p.injDur;delete p.critHeal;delete p.prosPending;
+    return p;
+  }
+
+  Object.assign(R,{INJ,INJK,COND,CONDK,PART_NAME,BLIND_AFTER,NO_INFIRMARY,injRoll:roll,injFx:fx,hasCond,addCond,condRecover:recover,medSummary:summary,
+    layUp,laidUp,migrateInjured});
 })();

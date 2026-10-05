@@ -275,6 +275,7 @@ window.Rebel=(function(){
     if(!p.auto&&p.sx===undefined)p.sx={};
     if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
     if(!p.auto&&p.rank===undefined){p.rank=Math.min(8,Math.floor(((p.level||1)-1)/2));p.rankMissions=0;p.missions=p.missions||0;}
+    if('injured' in p&&window.Rebel.migrateInjured)window.Rebel.migrateInjured(p);   // the old days-off counter becomes a condition
     return p;
   }
 

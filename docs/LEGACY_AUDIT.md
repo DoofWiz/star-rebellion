@@ -219,7 +219,7 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 (with the conversion to the database's 0–50 scale), traits, earned experiences, morale, conditions and rank.
 
 **Legacy or parallel:**
-- **Two injury-recovery models run side by side** (DESIGN_BLOCKERS C-20). `Rebel.condRecover` heals conditions at
+- **Two injury-recovery models ran side by side** (DESIGN_BLOCKERS C-20; **folded into the conditions model since**: being laid up is a condition, one `healRate`). `Rebel.condRecover` heals conditions at
   `healRate()` (`base.js:468`: medic +0.5, doctor +1). The old `p.injured` day counter (`base.js:1575-1583`) heals at
   its own rates (medic staff +2, medic +1, doctor +2, Soldier with barracks staff +1, which misses Marines and
   Heroes) and owns prosthetic fitting and the "scarred" and "nearly dead" experiences. `p.injured`, `p.injDur`,
@@ -356,7 +356,7 @@ Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless 
 3. **Fixed: hacked Strider lost 20 hp on joining** (§3, C-21: the owned one is now the enemy one).
 4. **Fixed: earned "Veteran" double-dipped in space** (§4, C-22: space now follows the rebels' rules).
 5. **Fixed: the barracks healing perk checked `role==='Soldier'`**, so Marines and Heroes missed it. It uses
-   `isGround` now. (The heal rates themselves are still C-20.)
+   `isGround` now. (The heal rates were settled by C-20: one model.)
 6. **Fixed: a mid-mission reload kept the costs** (§6). `startPlan` records the sortie (`G.sortie`); a debrief clears
    it; `restoreCampaign` hands back the fuel and supply drop of a sortie that never came home, with a news line.
 7. **Fixed: the reward window showed raw XP.** It shows what `gainXp` added (traits and the mentor bonus included).
