@@ -77,7 +77,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         <button class="sr-tab" id="navMarket" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-credits"/></svg>Black Market<span class="sr-badge" id="bmBadge" hidden>6</span></button>
         <button class="sr-tab sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Crew and flight" aria-expanded="false"><svg class="sr-ico"><use href="#i-people"/></svg></button>
       </div>
-      <div class="sr-toast sr-toast--friend" id="flashB" hidden role="status"><svg class="sr-ico" id="flashIco"><use href="#i-signal"/></svg><span id="flashTxt"></span></div>
+      <div class="sr-toast" id="flashB" hidden role="status"></div>
     </div>
     <div id="gxChips" hidden></div>
     <div class="sr-slot-tr" id="gxTools" hidden></div>
@@ -98,7 +98,6 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         </div>
       </div>
     </div>
-    <div class="sr-banner" id="dayBanner" hidden><div class="sr-banner__txt" id="dayBannerTxt" style="--c:var(--sr-gold)">Day 2</div></div>
     <div class="bs-estsplash" id="estSplash" hidden><div class="bs-est__big">BASE ESTABLISHED</div><div class="bs-est__sub">Haven Rock</div></div>
     <div class="sr-window sr-window--sm bs-pop" id="tilePop" hidden></div>
     <div class="sr-scrim" id="winsB" hidden><div class="sr-window" id="winCardB"></div></div>
@@ -324,7 +323,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 </div>
 <div class="sr-scrim" id="gCassComm" hidden>
   <div class="sr-window sr-window--sm sr-window--friend">
-    <div class="sr-window__head"><span class="sr-window__title">Incoming transmission</span><span class="bs-headtags"><span class="sr-tag sr-tag--friend">Cass Wender</span></span></div>
+    <div class="sr-window__head"><span class="sr-window__title">Incoming transmission</span><span class="sr-window__tags"><span class="sr-tag sr-tag--friend">Cass Wender</span></span></div>
     <div class="sr-window__body">
       <canvas id="gCommStatic" class="sr-signal"></canvas>
       <div class="sr-quote"><div class="sr-quote__who"><svg class="sr-ico" aria-hidden="true"><use href="#i-signal"/></svg>Cass Wender</div>&#8220;See? Told you I could get your guys in there! We didn&#8217;t exchange names earlier: I&#8217;m Cass. Best smuggler this side of the Drift. You paid good money to get these firebrands of yours to this spot, and looks like you&#8217;ve got some unwelcome visitors in your new digs! Good thing you paid for the air cover package. I&#8217;ll watch your guys&#8217; backs while they do their thing. Whatever their thing is.&#8221;</div>

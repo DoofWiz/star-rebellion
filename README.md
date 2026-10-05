@@ -9,7 +9,8 @@ what's fun over time.
 
 All three scenes share one UI kit, "Chunky Ops": `game/ui/sr-theme.css` (tokens and components),
 `sr-theme.js` (canvas palette and HUD drawing helpers), `sr-icons.svg` (inline sprite) and `sr-hud.js`
-(command bar, VS panel, menus, windows). The kit files are generated: edit the sources in
+(command bar, VS panel, menus, windows, window chrome, banners, toasts, the comms feed, tooltips). The Base screen,
+the ground scene and the space scene all build on it. The kit files are generated: edit the sources in
 `tools/ui-kit/` and run `python3 tools/ui-kit/build.py game/ui docs/ui`. `docs/ui/styleguide.html`
 is the living style guide and `docs/ui/HANDOFF.md` the migration spec. Scene-specific layout lives
 in `game/ui/scenes.css`.

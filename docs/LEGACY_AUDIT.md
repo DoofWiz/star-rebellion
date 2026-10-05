@@ -289,6 +289,16 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 
 ## 7. Duplicated helpers and the UI kit
 
+> **Progress (after this audit):** the Base screen is on the UI kit. Its window chrome is the kit's (`H.winHead`,
+> `H.winBody`, `H.winFoot`, `H.closeBtn`, which `H.win` now builds from too), and its menu, day banner, toast, comms
+> feed and tooltips are the kit's (`H.menuBind`, `H.banner`, `H.toast` (new), `H.comms`, `H.tips`); `esc`, the icon and
+> initials helpers are the kit's. Restart asks with the kit's confirm window instead of "click again". The base keeps
+> its own window *manager* (one live window re-rendered by mode, with a queue of reports), now built from kit chrome.
+> Wiring the tooltips fixed the galaxy orders' rule tooltips, which had never shown. Screenshots of the base, a window,
+> the menu, the feed and the banner are pixel-identical before and after; `tools/basekit-smoke.js` covers it. Still
+> to do: the duplicated scene helpers (`rint`, `dist`, `log`...) into `SR.util`, and the remaining inline styles
+> (mostly data-driven widths and grid positions, which belong inline).
+
 - **Copied between scenes:** `rint`, `dist`, `addFloater`, `log`, `nameSpan`, `say`, `sTick` (identical), `sDice`,
   `osc`/`nz`/`byId`/`$`, the reduced-motion check (five copies), three RNGs (`mulberry32`, `sr-art`'s `mkRng`, the
   FNV hash in `rebel.js` sharing constants with `sr-art`'s `hashStr`), three icon helpers, three initials helpers,
@@ -391,4 +401,4 @@ Each step is independent and leaves the game playable. The first two are cheap a
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
 7. ~~**Save versioning (§6)**~~ (done; the pre-versioning fixes live on as migration 0 -> 1 and can be dropped once
    no version-0 save matters).
-8. **Base onto the UI kit (§7)** and shared helpers into `SR.util`, opportunistically, when a screen is touched anyway.
+8. ~~**Base onto the UI kit (§7)**~~ (done); shared helpers into `SR.util`, opportunistically, when a screen is touched anyway.

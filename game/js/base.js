@@ -53,7 +53,8 @@ const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let rng=Math.random;
 /* ---------- kit helpers: icons, cost chips, palette ---------- */
 const TH=SR.theme,K=TH.C;                       // K is the live palette (re-synced from the CSS tokens at boot)
-const IC=(n,c)=>'<svg class="sr-ico'+(c?' '+c:'')+'" aria-hidden="true"><use href="#i-'+n+'"/></svg>';
+const HUD=SR.hud;                               // the UI kit (ui/sr-hud.js): chrome, menus, feedback
+const IC=HUD.ico;
 const RES={c:['credits','Credits'],s:['supplies','Supplies'],m:['materials','Materials'],f:['fuel','Fuel'],i:['intel','Intel']};
 const resCost=(k,n,short)=>'<span class="sr-cost'+(short?' is-short':'')+'" style="--c:var(--sr-res-'+RES[k][0]+')" title="'+RES[k][1]+'">'+IC(RES[k][0])+n+'</span>';
 const C=(n,s)=>resCost('c',n,s);
@@ -68,7 +69,7 @@ function bundleList(b,have){
   return o;
 }
 function bundleHTML(b,have){return bundleList(b,have).join(' ');}
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const esc=HUD.esc;
 const WALLET=()=>({c:G.credits,s:G.supplies,m:G.materials,f:G.fuel,i:G.intel});
 /* "Need 8 more materials": the reason a Build button is greyed */
 function needWhy(b){
@@ -424,23 +425,9 @@ function renderNews(){
   const body=el.parentElement,down=()=>{body.scrollTop=body.scrollHeight;};
   down();requestAnimationFrame(down);
 }
-/* comms feed: the newest lines surface bottom-left for a few seconds, the log keeps everything */
-const FEED_MS=6000;
-let feed=[],feedTO=null;
-function feedPush(n){
-  feed.push({html:n.html,tone:newsTone(n.cls),t:performance.now()});
-  while(feed.length>3)feed.shift();
-  renderFeed();
-}
-function renderFeed(){
-  const box=byId('feedLines');
-  if(!box)return;
-  const now=performance.now();
-  box.innerHTML=feed.map((f,i)=>'<div class="sr-comm'+(f.tone?' sr-comm--'+f.tone:'')+(i<feed.length-1?' is-old':'')+(now-f.t>=FEED_MS?' is-expired':'')+'">'+f.html+'</div>').join('');
-  clearTimeout(feedTO);
-  const live=feed.filter(f=>now-f.t<FEED_MS);
-  if(live.length)feedTO=setTimeout(renderFeed,Math.max(60,FEED_MS-(now-live[0].t)+40));
-}
+/* comms feed: the newest lines surface bottom-left for a few seconds (the kit's comms), the log keeps everything */
+const comms=HUD.comms(byId('feedLines'),{max:3,ttl:6000});
+function feedPush(n){comms.push(n.html,newsTone(n.cls));}
 /* a completed mission counts toward the next rank */
 
 
@@ -3612,7 +3599,7 @@ function renderGxTools(){
 /* order cards in the command bar; one cost line is allowed under the label */
 function gxOrder(o){
   return '<button type="button" class="sr-order'+(o.family?' sr-order--'+o.family:'')+(o.danger?' gx-order--danger':'')+(o.attn?' gx-order--attn':'')+'" data-gxo="'+o.act+'"'+
-    (o.disabled?' disabled aria-disabled="true"':'')+SR.hud.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
+    (o.disabled?' disabled aria-disabled="true"':'')+HUD.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
     (o.key?'<span class="sr-kbd sr-order__key">'+o.key+'</span>':'')+IC(o.icon)+'<span class="gx-order-label">'+o.label+'</span>'+(o.cost||'')+
     (o.badge?'<span class="sr-badge">!</span>':'')+'</button>';
 }
@@ -3982,28 +3969,11 @@ function layoutTilePop(){
 }
 
 /* ---------- flash banner + guided pointers ---------- */
-let flashTO=null;
-const TOAST={friend:['signal','sr-toast--friend'],action:['star','sr-toast--action'],good:['check','']};
-function flashMsg(html,kind){
-  const el=$('flashB'),tk=TOAST[kind||'friend']||TOAST.friend;
-  el.className='sr-toast'+(tk[1]?' '+tk[1]:'');
-  $('flashIco').innerHTML='<use href="#i-'+tk[0]+'"/>';
-  $('flashTxt').innerHTML=html;
-  el.hidden=false;
-  el.style.animation='none';void el.offsetWidth;el.style.animation='';   // restart the pop-in
-  clearTimeout(flashTO);
-  flashTO=setTimeout(()=>{el.hidden=true;},2800);
-}
-/* day banner: slams in once per day, then hides itself */
-let bannerTO=null;
+function flashMsg(html,kind){HUD.toast($('flashB'),{html,kind:kind||'friend'});}
+/* day banner: the kit's slam, once per day */
 function showDayBanner(){
   if(!$('estSplash').hidden)return;   // nothing over the BASE ESTABLISHED splash
-  const b=$('dayBanner'),t=$('dayBannerTxt');
-  t.textContent='Day '+G.day;
-  b.hidden=false;
-  t.style.animation='none';void t.offsetWidth;t.style.animation='';
-  clearTimeout(bannerTO);
-  bannerTO=setTimeout(()=>{b.hidden=true;},RM?400:1400);
+  HUD.banner(ROOT.querySelector('.sr-stage'),{text:'Day '+G.day,color:'var(--sr-gold)'});
 }
 function pointAt(rc,label){
   const el=$('tutPtr');
@@ -4018,7 +3988,7 @@ function pointAt(rc,label){
 function updateGuide(){
   const el=$('tutPtr');
   if(!el)return;
-  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden){el.hidden=true;return;}
+  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden||HUD.topWin(ROOT)){el.hidden=true;return;}   // nothing points over a kit dialog
   // step 1: the sources tutorial — walk the player to Cass
   if(G.onboard==='contact'){
     if(baseView==='galaxy'&&!winMode&&!gxWorld){
@@ -4082,17 +4052,17 @@ function closeWin(){
   if(started&&G&&G.escPending)openEscalation();
 }
 /* ---------- window furniture (kit chrome; actions live in the foot, primary rightmost) ---------- */
-const wX=(attr)=>'<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" '+(attr||'data-close')+' aria-label="Close">'+IC('clear')+'</button>';
+const wX=HUD.closeBtn;
 const wQ=(attr,title)=>'<button class="sr-btn sr-btn--icon sr-btn--sm" style="--c:var(--sr-go);--ct:var(--sr-ink)" '+attr+' aria-label="'+title+'" title="'+title+'">'+IC('help')+'</button>';
-const wHead=(title,o)=>{o=o||{};return '<div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+(o.tags?'<span class="bs-headtags">'+o.tags+'</span>':'')+(o.q||'')+(o.x===false?'':wX(o.x))+'</div>';};
-const wBody=h=>'<div class="sr-window__body">'+h+'</div>';
-const wFoot=(btns,note)=>'<div class="sr-window__foot">'+(note?'<span class="sr-window__note">'+note+'</span>':'')+'<span class="sr-spacer"></span>'+(btns||'')+'</div>';
+const wHead=(title,o)=>{o=o||{};return HUD.winHead(title,{tags:o.tags,extra:o.q,close:o.x});};
+const wBody=h=>HUD.winBody(h);
+const wFoot=(btns,note)=>HUD.winFoot(btns,note);
 const wTag=(label,tone,icon)=>'<span class="sr-tag'+(tone?' sr-tag--'+tone:'')+'">'+(icon?IC(icon):'')+label+'</span>';
 const tutP=t=>'<p class="sr-p">'+t+'</p>';
 const tutS=(hd,b)=>'<div class="sr-h3">'+hd+'</div><p class="sr-p">'+b+'</p>';
 const choice=(n,attrs,html,dis)=>'<button class="sr-choice" '+attrs+(dis?' disabled':'')+'><span class="sr-kbd sr-choice__key">'+n+'</span><span>'+html+'</span></button>';
 const sentence=s=>s?String(s).charAt(0).toUpperCase()+String(s).slice(1).toLowerCase():s;
-const ini=name=>String(name).split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const ini=HUD.initials;
 /* a mission's reward line as chips/tags */
 function rewList(m){
   const r=m.rew||{},o=[];
@@ -5673,21 +5643,13 @@ const shell=ROOT.querySelector('.sr-shell');
 function setDrawer(on){shell.classList.toggle('is-drawer-open',!!on);$('drawerBtn').setAttribute('aria-expanded',String(!!on));}
 $('drawerBtn').addEventListener('click',()=>{sClick();setDrawer(!shell.classList.contains('is-drawer-open'));});
 /* top-bar menu: all news, sound, restart (which asks first) */
-let restartArm=false;
+HUD.tips(ROOT);   // the kit's floating tooltip for every [data-tip] (the galaxy orders' rules and reasons)
+/* the topbar menu: the kit's (toggle, outside press, Esc and item picks close it) */
 const menu=$('baseMenu');
-function closeMenu(){
-  menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');
-  restartArm=false;$('restartBtn').querySelector('span').textContent='Restart';
-}
-$('menuBtn').addEventListener('click',ev=>{
-  sClick();
-  if(menu.hidden){menu.hidden=false;$('menuBtn').setAttribute('aria-expanded','true');if(ev.detail===0)$('menuNews').focus();}
-  else closeMenu();
-});
-document.addEventListener('click',ev=>{
-  if(!menu.hidden&&!ev.target.closest('#baseMenu')&&!ev.target.closest('#menuBtn'))closeMenu();
-});
-$('menuNews').addEventListener('click',()=>{closeMenu();sClick();openWin('news');});
+HUD.menuBind(menu,$('menuBtn'));
+$('menuBtn').addEventListener('click',sClick);
+function closeMenu(){menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');}
+$('menuNews').addEventListener('click',()=>{sClick();openWin('news');});
 function syncSound(){
   const off=A.muted();
   $('soundBtn').setAttribute('aria-label',off?'Sound off':'Sound on');
@@ -5703,6 +5665,7 @@ addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
   if(ev.key==='Escape'){
     if(!menu.hidden){closeMenu();return;}
+    const kw=HUD.topWin(ROOT);if(kw){kw.querySelector('[data-close]').click();return;}   // a kit dialog (the restart question)
     if(rankOverlay||gearOverlay){rankOverlay=null;gearOverlay=null;renderWin();return;}
     if(!winMode&&arOpen&&(arOverlay||arGive)){arOverlay=null;arGive=false;renderArsenal();return;}
     if(winMode)closeWin();
@@ -5739,16 +5702,21 @@ addEventListener('keydown',ev=>{
     if(b&&!b.disabled){ev.preventDefault();b.click();}
   }
 });
+/* Restart asks first (the kit's confirm window), then erases the save and starts the war again */
 $('restartBtn').addEventListener('click',()=>{
-  if(!started){closeMenu();return;}
-  if(!restartArm){restartArm=true;$('restartBtn').querySelector('span').textContent='Click again to erase your save';return;}
-  closeMenu();
+  if(!started)return;
+  HUD.confirm(ROOT.querySelector('.sr-stage'),{id:'bsRestart',title:'Restart the campaign?',danger:true,ok:'Restart',cancel:'Keep playing',   // in the stage, like the base's own windows
+    body:'This erases your save: Haven Rock, every rebel and every day so far. The war starts again from the first mission.',
+    onOk:restartCampaign,onClose:updateGuide});
+  updateGuide();
+});
+function restartCampaign(){
   SR.wipeSave();
   G=newGame();closeWin();closeTilePop();exitRoomView();
-  feed=[];renderFeed();lastRes=null;lastRenown=null;
+  comms.clear();lastRes=null;lastRenown=null;
   started=false;
   launchIntro();
-});
+}
 function introSpec(){
   const soldiers=G.people.filter(p=>p.role==='Soldier').slice(0,3);
   return {kind:'ground',missionId:'haven',scenario:'haven',days:0,
@@ -6493,7 +6461,7 @@ if(location.hash==='#test'){
     fn:{castRebel,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
-      restoreCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,
+      restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,

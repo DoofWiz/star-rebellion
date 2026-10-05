@@ -65,3 +65,11 @@
   .sr-hud .sr-vs__odds{font-size:28px;}
   .sr-hud .sr-slot-bc .sr-cmdbar{padding:4px 6px;}
 }
+
+/* window title bar tags (H.winHead): inline after the title; in a narrow app they drop to their own row so the
+   title never collides with them */
+.sr-window__tags{display:contents;}
+@container sr-app (max-width:620px){
+  .sr-window__title{flex:1 1 40%;}
+  .sr-window__tags{order:5;flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px;}
+}
