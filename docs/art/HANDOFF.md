@@ -226,7 +226,7 @@ Biome: `SCN.style==='rock' ? 'rock' : 'dust'`.
   ```
   `jobPose`: workshop → `work`, comms → `hack`, store → `loot`, training → `aim`, everything else → `idle`. Keep the name text under the feet. Add `SR_ART.emote` bubbles for staffed posts: ☕ command, 🔧 workshop, 📡 comms, 📦 store.
 - `personSpec(p)`: `SR_ART.lookOf(p)` (see above). Support staff carry no weapon, so room views show them with their hands free or with a job prop.
-- `fighterTop(...)` (line ~1770) becomes `SR_ART.ship` from the top down at a small scale, with `damage` from saved hull state. The derelict Graf in the hangar uses `damage:0.5, pilot:null` until it's restored.
+- `fighterTop(...)` (line ~1770) becomes **`SR_ART.shipIso(ctx, id, x, y, heading, s, k, t, {livery, damage, pilot})`**, where `k` is the room view's isometric scale (the same one used for the floor and crew). Top-down ships look flat in the isometric rooms, so `shipIso` lays the same parts on the iso floor, stacks the hull for thickness and stands it on landing struts with its engines cold. Damage comes from saved hull state. Pass `pilot:null` unless someone's aboard. The derelict Graf uses `damage:0.5, pilot:null` until it's restored.
 - Crew lists, the dossier header and the multi-card New Recruit screen (DOM): replace initials with a 48px canvas that draws `SR_ART.portrait(ctx, 24, 24, 22, SR_ART.lookOf(p))`. Cache it as a data URL, keyed on the record fields above. New Recruit cards show the candidate exactly as they'll look in the field.
 
 ## Galaxy map (`drawGalaxy`, base.js ~2248)
@@ -365,6 +365,8 @@ SR_ART.vehicle(ctx, id, x, y, heading, s, t, {
   loadout:{attach:[...]}, gunner, aim  // Floatin' Truck attachments; gunner is any character spec
 });
 SR_ART.strider(ctx, x, y, {view, dir, state:'idle'|'walk'|'aim'|'fire'|'down', mood:'friendly'|'angry'|'hacked', damage, t, s});
+// The Strider is a riot-control war machine; its face is a hologram projected above the hull, so leave headroom (~130 units at s=1) when depth-sorting labels above it.
+SR_ART.shipIso(ctx, id, x, y, heading, s, k, t, opts) // ships parked in isometric spaces (Haven Rock hangar)
 SR_ART.VEHICLES  // police, riottransport, riotdispersal, truck
 ```
 
@@ -380,6 +382,70 @@ The footprint is drawn flat in the ground plane at the unit's heading and extrud
 
 `autoType:'bruiser'` isn't described in the Enemies doc yet. Until it is, draw it with the Policebot archetype at `big:1.25`.
 
+
+## Update: October 5 docs (Gear, Ground Combat) and the repo
+
+This round follows the updated *Gadgets, Gear and Gunships* and *Ground Combat* docs and the repo at `c27acec`.
+
+**Merge note:** this `sr-art.js` was rebuilt on top of the repo's copy. It keeps Claude Code's own additions: the `off` option on `ship()` for powered-down landed ships, and `planetTex()` with the `tex` option on `planet()`. Drop it in over `game/art/sr-art.js`. Nothing the game already calls has changed signature.
+
+### Items, makers and names (resolves C-18 and C-23)
+
+| Change | What to do in the game |
+|---|---|
+| **New items** `stiletto` (ST Stiletto, Fightstar plasma carbine) and `razorrat` (Razorrat LMG, Bhord, deployable) | Add rows to `items` with these ids. The art already draws them |
+| **New item art** for `policehelmet`, `autohelm`, `cowboyhat`, `cap`, `limpet`, `shells` | Remove their sr-icons fallbacks; `artURL('item', id)` now finds them |
+| `ITEMS.charge` now exists (the C90) | `ART_ITEM_ALIAS` in `base.js` can go |
+| `carbine` is the **EG-55 Peacekeeper Carbine**, Fightstar, **plasma** | Settles C-23: set `damage_type` to plasma and rename it |
+| Makers from the doc: Cowboy, Longhorn and Varmint are Devlin & Son; the Mining Laser and Hardhat are Praxon; the HG-40, Baton, Riot Shield, Police Vest and Police Helmet are Patriot; the Auto Plasma Hand is crafted with no maker | Settles C-18's maker list; fill the `manufacturer` column |
+| **15 manufacturers** in `SR_ART.MAKERS` (TenTiU removed; Fightstar, Devlin & Son, LMC, Praxon, Helix, General Astronautics, Nomad and Rook added) | Bring the `manufacturers` table in line with the doc. `SR_ART.makerBadge(ctx, key, x, y, size)` draws each badge for Arsenal and Black Market cards |
+| `ITEMS[id].dtype`, `.size`, `.traits` (from the doc) | The art uses these for icons. When the database gets trait and fire-mode columns, read them from there instead |
+
+### Weapon traits, damage types and the fire-mode toggle
+
+- `SR_ART.icon(ctx, key, x, y, size, {active, bare})` draws a trait (`steady`, `auto`, `semi`, `single`, `fan`, `knockback`, `stunning`, `sundering`, `piercing`, `heavy`, `unstable`) or a damage type (`ballistic`, `plasma`, `laser`, `explosive`, `melee`). `SR_ART.TRAITS` and `SR_ART.DTYPES` hold names and one-line rules text.
+- Show them on Arsenal item cards, Black Market lots, the engagement panel's weapon row and tooltips. For DOM, draw them once to a 48px canvas and cache the data URL, the same way `artURL` does.
+- **Fire-mode toggle:** build it as a DOM segmented control in the attack window, in the HUD kit's chunky-button style (`sr-kit.css`). Show it only when the weapon has two or more fire-mode traits. The selected mode is gold and sits pressed in, and `F` cycles through the modes. Use `SR_ART.icon` for the glyphs. `SR_ART.fireModeToggle()` is the canvas reference drawing in the guide.
+- **On the battlefield**, pass `mode:'auto'|'semi'|'single'|'fan'` in the pose with `state:'fire'`. Automatic flickers, ejects brass and shakes. Single shot fires one big flash. Fan hammer animates the off hand slapping the hammer.
+- **Trait outcomes:**
+  - `knocked` pose while a Knockback shove plays.
+  - `stunned` pose for Stunning (spiral eyes, sparks, stars).
+  - `sunder(ctx, x, y, k)` when a Sundering hit strips armour.
+  - `pierce(ctx, x0, y0, x1, y1, k)` when Piercing damage goes through.
+  - `misfire(ctx, x, y, k)` when an Unstable weapon blows.
+  - For Steady, show the `steady` icon (active) over a unit that is holding fire on a target.
+
+### Equipment slots, the back slot and deployables
+
+- `lookOf(p)` reads `p.gear.back`, and the art straps the back item across the back in every view. Soldiers and Marines have the slot; Pilots and Support don't.
+- **Deploy:** use the `deploy` pose for the set-up action.
+  - Razorrat: once set up, draw it with `SR_ART.deployable(ctx, 'razorrat', x, y, heading, t, {gunner, fire})` at its map position. The gunner crouches behind it.
+  - Riot Shield: deployed, it moves from `back` into the hands (`gear:['shield']`) and the primary weapon stops being drawn.
+  - Mining Laser: wielded once deployed; it uses `fire` (the sweep) and `recharge`.
+
+### Armour, shields and health (Ground Combat doc)
+
+- **`SR_ART.vitals(ctx, x, y, {hp, hpMax, arm, armMax, sh, shMax, s})`** draws the layered bar: health pips, with steel armour plates over them and a cyan shield band over both. Plates crack when they're emptied. Use it in place of `T.hpPips` above units, at `y - (60*s + 6)*cam.z` as before, plus about 8px for each extra layer.
+- **DOM unit cards and the engagement panel** should match the shapes: armour as slanted `#a8b4c8` plates with a highlight line, shield as `#36e3f2` hexes with a glow, health as the existing pips. Each layer has its own shape so it stays readable for colour-blind players.
+- **While a shield is up**, pass `shield: 0..1` in the pose for the hex bubble, and `shieldHit: 0..1` to flare it on a hit. Use `shieldHit(ctx, x, y, k)` and `armourHit(ctx, x, y, k)` at the impact point.
+- **Molotov fire:** a burning character uses the `burning` pose (or the `extinguish` pose when the action is taken). Both show flames.
+
+### Fire support (Ground Combat doc)
+
+| Game function | Draw with |
+|---|---|
+| `strafeRun(o)` | `SR_ART.strafe(ctx, x0, y0, heading, length, k, t, {ship, livery})`: the flyover plus ten impacts walking up the ladder, leaving scorch marks |
+| Door Gunner | `SR_ART.doorGunner(ctx, cx, cy, r, targets, k, t)`: the Graf circles with its door guns fitted and sweeps up to three targets |
+| `supplyDrop(u)` | `SR_ART.supplyDrop(ctx, x, y, k, t, {open})`: a rebel-red parachute, then a crate. `open` shows stims and frags |
+| Reinforcements | `SR_ART.landing(ctx, x, y, k, t, {s})`: the transport descends with its shadow and lands in a ring of dust |
+| Any ship overhead | `SR_ART.flyover(ctx, id, x, y, heading, s, t, {alt})`: the ship plus its shadow on the ground |
+
+### Characters
+
+- **Sweet Tooth (resolves M-20):** use `SR_ART.ARCH.sweettooth` in place of `ST_SPEC` in `base.js`. She has a teal headscarf with gold dots, an eye patch, a gold tooth, a gold earring and a pink jacket, and she always grins. `SR_ART.portrait()` gives the rail's head.
+- **Riot police are now people in Police Helmets**, rather than visor troopers. The `art` column should be `riot` for `security-riot-shieldman` and `riotrifle` for `security-riot-rifleman`.
+- **New head items** draw whenever they're in `p.gear.head` or an enemy row's `head`: `policehelmet`, `autohelm`, `cowboyhat`, `cap` (and `hardhat`).
+
 ## Rebel acceptance checks
 
 - Two rebels generated in the same batch never look identical (different id, so different genes). The same rebel looks identical after a reload.
@@ -388,6 +454,10 @@ The footprint is drawn flat in the ground plane at the unit's heading and extrud
 - `node tools/*-smoke.js` and the autoplay sweep are unchanged: the art reads the record and never writes to it.
 
 ## Open questions for Tom
+
+- **Makers with no items yet:** LMC, Helix, General Astronautics, Nomad and Rook have badges and looks but nothing to wear them. Should the Medpack and Stim be Helix?
+- **Personal shields:** the bubble and the shield bar are ready, but no Rev 1 item grants a shield yet.
+- **Strafing Run ship:** the guide uses the Talon. The game should pass whichever starfighter was assigned.
 
 - **Strider maker:** the Enemies doc says Autoworks, but the gear doc names AutoCom as the maker of Autos and Bots. Is Autoworks a separate company, an AutoCom brand, or a typo?
 - **The fuel depot and the Bruiser auto** still need descriptions.

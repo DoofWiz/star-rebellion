@@ -38,6 +38,7 @@ DAMAGE_TYPES = ["ballistic", "plasma", "laser", "explosive", "blunt"]
 FACTIONS = ["hegemony", "outworlder"]
 ENEMY_KINDS = ["person", "auto", "bot", "vehicle"]
 OWNED_AS = ["policebot", "bruiser", "strider", "police", "dispersal", "transport"]
+FIRE_MODES = ["auto", "semi", "single", "fan"]
 ITEM_STATS = ["damage_min", "damage_max", "range", "attack", "shots", "damage_type"]
 
 SCHEMA = {
@@ -184,6 +185,11 @@ SCHEMA = {
             ("pellets", "bool", 7, "Weapons: fires a spread of pellets."),
             ("falloff", "bool", 7, "Weapons: damage drops with range."),
             ("beam", "bool", 6, "Weapons: draws as a beam."),
+            ("fire_modes", "text", 10, "Weapons: fire modes the player toggles between in the attack window, separated by | (auto, semi, single, fan). Blank = no modes."),
+            ("steady", "bool", 7, "Steady trait: +2 to hit a target the user held fire on (Hold)."),
+            ("knockback", "bool", 9, "Knockback trait: a hit shoves the target away from the source."),
+            ("stunning", "bool", 8, "Stunning trait: a hit disorients the target."),
+            ("unstable", "bool", 8, "Unstable trait: a chance to blow up when used."),
             ("sundering", "bool", 9, "Weapons: Sundering trait. Damage to an armour bar is multiplied by the armour_sunder_mult rule."),
             ("piercing", "bool", 8, "Weapons: Piercing trait. The armour_pierce_frac rule's share of each hit skips the armour bar and goes to health."),
             ("heavy", "bool", 6, "Heavy trait: too heavy for the primary slot as standard (Strong rebels may; not built yet)."),
@@ -482,13 +488,16 @@ def validate(db):
             if it[col] not in allowed:
                 E("%s: %s %r (allowed: %s)" % (n, col, it[col], ", ".join(a for a in allowed if a)))
         ref("items", it, "manufacturer", "manufacturers")
-        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam", "sundering", "piercing", "heavy", "deployable"):
+        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam", "steady", "knockback", "stunning", "unstable", "sundering", "piercing", "heavy", "deployable"):
             if not isinstance(it[b], bool):
                 E("%s: %s must be TRUE or FALSE" % (n, b))
         rng("items", it, "width", 1, 4)
         rng("items", it, "height", 1, 4)
         rng("items", it, "rev", 1, 5)
         rng("items", it, "price", 1, 99999, required=False)
+        for fm in [x for x in it["fire_modes"].split("|") if x]:
+            if fm not in FIRE_MODES:
+                E("%s: unknown fire mode %r (known: %s)" % (n, fm, ", ".join(FIRE_MODES)))
         rng("items", it, "armour", 0, 999, required=False)
         rng("items", it, "shield", 0, 999, required=False)
         if it["armour"] and it["category"] != "armour":
@@ -501,8 +510,8 @@ def validate(db):
                 E("%s: a builtin weapon needs its stats" % n)
             if it["slot"] or it["price"] is not None:
                 E("%s: builtin weapons have no slot and no price" % n)
-        if it["category"] == "weapon" and it["live"] and not has:
-            E("%s: a live weapon needs its stats (or set live FALSE)" % n)
+        if it["category"] == "weapon" and it["live"] and not has and not it["deployable"]:
+            E("%s: a live weapon needs its stats (or set live FALSE); only a deployable such as the riot shield may have none" % n)
         if has:
             rng("items", it, "damage_min", 0, 999)
             rng("items", it, "damage_max", 0, 999)

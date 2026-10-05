@@ -113,10 +113,13 @@ column, so do not rename an id once a save may hold it.
   wearer's health in ground and boarding combat; blank is cosmetic (the Cowboy Hat, the Baseball Cap). `shield`
   is the shield bar a source raises when activated (none at Level 1). A hit drains shield, then armour, then
   health; what a broken bar cannot hold spills through. `Items.protection(ids)` adds up worn kit.
-- **Weapon traits:** `sundering` (damage to an armour bar ×`armour_sunder_mult`), `piercing` (`armour_pierce_frac`
-  of each hit skips the armour), `heavy` and `deployable` (the Gear doc's Heavy trait and deployables; they go in
-  the `back` slot, which the game does not have yet). The other Gear doc traits (fire modes, Steady, Knockback,
-  Stunning, Unstable) have no column yet.
+- **Weapon traits** (Gear doc): `fire_modes` (`auto|semi|single|fan`, in the doc's order; a weapon starts on the
+  first one with no penalty and the player toggles in the attack window), `steady` (+2 when braced or on a target
+  held fire on), `knockback`, `stunning`, `unstable`, `sundering` (damage to an armour bar ×`armour_sunder_mult`),
+  `piercing` (`armour_pierce_frac` of each hit skips the armour), `heavy` and `deployable`. Heavy kit and deployables
+  go in the `back` slot and are set up with the Deploy order (the Razorrat, the Riot Shield; a riot shield soaks
+  `riot_shield_hp` from the front before it breaks). `Items.traits(id)` lists what an item shows, for the art kit's
+  trait icons.
 - **Weapon stats** are all-or-nothing: `damage_min`/`damage_max`, `range`, `attack`, `shots`, `damage_type`, plus
   `one_handed`, `jams`, `pellets`, `falloff` and `beam`. A live weapon must have them.
 - **Getting kit:** `Items.grant(armory, id, n, src)` is the only way into an armory (`grantItem` in `base.js` wraps it

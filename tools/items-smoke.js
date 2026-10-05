@@ -23,7 +23,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.kitAkli=[KIT.akli.name,KIT.akli.slot,KIT.akli.w,KIT.akli.price,KIT.akli.live,KIT.akli.maker].join();
   out.kitCarbine=[KIT.carbine.heg,KIT.carbine.price===undefined,KIT.baton.live].join();
   // every live weapon has combat stats; no weapon slot holds a builtin
-  out.liveNoStats=rows.filter(x=>x.category==='weapon'&&x.live&&x.damage_min==null).map(x=>x.id);
+  out.liveNoStats=rows.filter(x=>x.category==='weapon'&&x.live&&x.damage_min==null&&!x.deployable).map(x=>x.id);   // a deployable riot shield has no gun stats
   // the starting armory comes from the table
   out.start=G().armory.map(a=>a.id+':'+a.n+':'+(a.src||'')).join();
   // grant, take and the guards
@@ -48,12 +48,12 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.kitIds,'KIT is the owned part of the items table, in table order');
  ok(r.kitAkli==='Akli AR,primary,3,140,1,Bhord','KIT rows keep their fields '+r.kitAkli);
  ok(r.kitCarbine==='1,true,0','Hegemony kit has no price; live:0 reads 0 '+r.kitCarbine);
- ok(!r.liveNoStats.length,'every live weapon has stats '+r.liveNoStats);
+ ok(!r.liveNoStats.length,'every live weapon has stats (the riot shield aside) '+r.liveNoStats);
  ok(r.start==='akli:6:start,cowboy:4:start,medpack:4:start','the opening armory is granted from the table '+r.start);
  ok(r.grant==='1,3,looted,Akli AR','grant stacks and keeps the first source '+r.grant);
  ok(r.take==='3,0','take stops at what is there and drops the empty stack '+r.take);
  ok(r.guards==='true,true,true','grant refuses display names, builtins and unknown ids '+r.guards);
- ok(r.poolHegWeapons==='carbine,hg40'&&r.poolHegAll==='baton,riotshield','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
+ ok(r.poolHegWeapons==='carbine,hg40,riotshield'&&r.poolHegAll==='baton','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
  ok(r.rollArmour==='autohelm,cap,cowboyhat,hardhat','a roll draws only from its pool '+r.rollArmour);
  ok(r.rollWeighted==='longiron'&&r.rollEmpty===null,'weights steer a roll; an empty pool rolls nothing '+r.rollWeighted+' '+r.rollEmpty);
 

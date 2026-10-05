@@ -404,3 +404,27 @@
 .sr-hp--layer{margin-bottom:-3px;}
 .sr-hp--layer .sr-hp__cell{height:4px;}
 .sr-hp--layer .sr-hp__num{font-size:10px;color:var(--hp);}
+/* maker badges and Gear doc trait icons, drawn by the art kit (SR_ART.makerBadge, SR_ART.icon) */
+.kit-mk__badge{width:18px;height:18px;flex:none;}
+.kit-traits{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0;}
+.kit-trait{width:22px;height:22px;flex:none;}
+.bm-card .kit-traits{margin-top:6px;}
+.bm-card .kit-trait{width:18px;height:18px;}
+/* fire-mode toggle in the attack window (art handoff): chunky segments, the selected mode gold and pressed in */
+.fm-toggle{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-radius:10px;background:#10132e;border:2px solid #3a4488;align-self:stretch;justify-content:center;}
+.fm-toggle__lab{font:800 10px/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:#b3bbe3;}
+.fm-toggle__row{display:flex;gap:4px;}
+.fm-btn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;padding:5px 6px 4px;border-radius:8px;border:2px solid var(--sr-ink);background:#252c62;color:#f1f3ff;font:800 9px/1 var(--sr-font-ui);text-transform:uppercase;cursor:pointer;box-shadow:0 3px 0 var(--sr-ink);transform:translateY(-2px);}
+.fm-btn img{width:22px;height:22px;}
+.fm-btn.is-on{background:var(--sr-gold);color:#2a1a00;box-shadow:0 1px 0 var(--sr-ink);transform:translateY(0);}
+.fm-btn:focus-visible{outline:2px solid var(--sr-gold);outline-offset:2px;}
+/* the vitals shapes match the art kit's bar: armour as slanted steel plates with a highlight, shield as glowing hexes */
+.sr-hp--arm .sr-hp__cell{background:#2a2f45;transform:skewX(-18deg);border-radius:1px;}
+.sr-hp--arm .sr-hp__cell.is-on{background:#a8b4c8;box-shadow:inset 0 1px 0 rgba(255,255,255,.6);}
+.sr-hp--shd .sr-hp__cell{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);background:rgba(20,40,60,.8);}
+.sr-hp--shd .sr-hp__cell.is-on{background:#36e3f2;box-shadow:0 0 6px #36e3f2;}
+/* the Loadouts rail gains the Back column (DESIGN_BLOCKERS C-25); sr-kit.css stays as the canvas exported it */
+.ar-slots,.ar-slothead{grid-template-columns:1.3fr repeat(6,minmax(0,1fr));}
+/* trait icons sit on a dark chip, the glyph drawn bare by SR_ART.icon */
+.kit-trait{box-sizing:border-box;padding:1px;border-radius:6px;background:#1a1f47;border:1.5px solid #3a4488;width:28px;height:28px;}
+.bm-card .kit-trait{width:22px;height:22px;}

@@ -88,9 +88,9 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   return out;
  });
  ok(d.held==='hg40 autohand hg40 1 carbine','enemies fight with their roster weapons (baton and shield are carried, not fired) '+d.held);
- ok(d.look==='- shield+policevest policevest shield+policevest','what they wear is what is drawn '+d.look);
+ ok(d.look==='- shield+policehelmet+policevest policehelmet+policevest shield+policehelmet+policevest','what they wear is what is drawn '+d.look);
  ok(d.weaponArt==='hg40,autohand','the art kit draws their actual weapons '+d.weaponArt);
- ok(d.drops==='drew:hg40:c pb12:autohand:- rs1:hg40+policehelmet+policevest:c rr1:carbine+policehelmet+policevest:c','downed enemies drop the usable kit they carried '+d.drops);
+ ok(d.drops==='drew:hg40:c pb12:autohand:- rs1:hg40+riotshield+policehelmet+policevest:c rr1:carbine+policehelmet+policevest:c','downed enemies drop the usable kit they carried '+d.drops);
  ok(d.veh==='police:100:30:7:385:drv*=cruiser dispersal:130:40:7:310:drv*/gun=dispersal! transport:115:35:7:335:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
  ok(d.botSpeed===265,'the Strider walks at its roster speed '+d.botSpeed);
  ok(d.fired===2,'Policebots and Patrolmen fire their new sidearms without a hitch');
@@ -110,7 +110,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   const m=f.lootMarks_()[n0];
   return [m.items.join('+'),m.c,reeve.sheriff,f.artSpec(reeve).gear.join('+')].join(' ');
  });
- ok(r==='scatter+cowboyhat+policevest 136 1 policevest','the Sheriff drops his shotgun, hat and vest and 136 credits '+r);
+ ok(r==='scatter+cowboyhat+policevest 136 1 cowboyhat+policevest','the Sheriff drops his shotgun, hat and vest and 136 credits, and wears the hat (art handoff) '+r);
 
  // ---- base: a hacked Policebot joins with its roster stats and weapon
  await pg.evaluate(()=>window.SR.go('base',{}));

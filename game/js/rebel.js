@@ -257,11 +257,12 @@ window.Rebel=(function(){
   }
 
   /* ---------- gear slots ----------
-     Soldiers and Marines carry a primary weapon, a secondary weapon, head and body armour and two gadgets;
-     Pilots everything except the primary; Support carry nothing. A Hero gets the full set.
-     (Head and Body are the designer-approved slots from the Market/Arsenal handoff §4.) */
-  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'head'},{k:'body'},{k:'gad',i:0},{k:'gad',i:1}];
-  const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?FULL_KIT.slice(1):[]):[];
+     Soldiers and Marines carry a primary weapon, a secondary weapon, head and body armour, a back item (Heavy kit
+     and deployables) and two gadgets; Pilots everything except the primary and the back item; Support carry
+     nothing. A Hero gets the full set. (The designer's slot list, DESIGN_BLOCKERS C-25.) */
+  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'head'},{k:'body'},{k:'back'},{k:'gad',i:0},{k:'gad',i:1}];
+  const PILOT_KIT=FULL_KIT.filter(s=>s.k!=='primary'&&s.k!=='back');
+  const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?PILOT_KIT:[]):[];
 
   /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
   const xpMult=p=>(has(p,'quicklearner')?1.1:1)*(has(p,'slowlearner')?0.9:1);

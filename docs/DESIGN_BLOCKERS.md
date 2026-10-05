@@ -10,10 +10,10 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after the designer's answers to M-16 (armour and shields), M-6 (rest) and C-4 to
-C-24: armour and shields in ground combat, rest and weariness, the Razorrat on the Steal the Cross pad, Deploy
-[Vehicle] in the Fire Support menu, the Gear doc's makers and new kit in the database, and the market weights in
-the spreadsheet.
+**Last updated:** 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
+fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
+bar, fire-support art and ships parked in the iso hangar.
 
 ## How to use this
 
@@ -32,11 +32,9 @@ the spreadsheet.
 |---|---|---|---|
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
 | C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
-| C-18 | ⚪ | Ship and truck attachment lists are still guesses | The Armoury/maker copy when those tabs arrive |
+| C-18 | ⚪ | Ship and truck attachment lists are still guesses | The Armoury copy when attachments arrive |
 | C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
-| C-23 | ⚪ | Peacekeeper Carbine is Fightstar plasma: waiting on its art | Its damage type against armour |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
-| C-25 | ⚪ | Equipment slots: the docs' Back slot and three gadgets vs. the game's Head and Body | Deployables, Heavy kit, a third gadget |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -50,18 +48,15 @@ the spreadsheet.
 | M-12 | 🟡 | Old injuries: permanent Limp, Old Wound | 6 Rebel Traits |
 | M-13 | 🟡 | Specialty abilities (the active ability each specialty gives) | 15 of 16 specialties |
 | M-14 | 🟡 | Base-specific skills for Support rebels | Support have no skills at all |
-| M-15 | 🟡 | Vehicle stats, a way to own a crewed vehicle, and the wreck rule | Player-owned cruisers, the Driver specialty |
-| M-17 | 🟡 | Items with no mechanics yet (`live:false`) | 10 catalogue items; they are kept out of the market |
+| M-15 | 🟡 | Vehicle stats and a way to own a crewed vehicle | Player-owned cruisers, the Driver specialty |
+| M-17 | 🟡 | Items with no mechanics yet (`live:false`) | 7 catalogue items and the owned rocket launcher; kept out of the market |
 | M-18 | 🟡 | Rev 2+ market weights | Black Market stock once Level 2 lands |
-| M-20 | 🟡 | Sweet Tooth needs an `SR_ART` character spec | The Black Market fence portrait |
 | M-21 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
-| M-25 | 🟡 | Deployables and the Back slot | Carrying a Razorrat, Riot Shield or Mining Laser; Strong |
-| M-26 | 🟡 | Art for the new kit and makers (Claude Design) | The Stiletto, Razorrat, eight makers, four hats, a weary icon |
-| M-27 | 🟡 | Weapon traits beyond Sundering and Piercing | Fire modes, Steady, Knockback, Stunning, Unstable, Heavy |
 | M-28 | 🟡 | Vehicle criticals and wreck damage are placeholders | How vehicle fights feel |
+| M-29 | 🟡 | Art follow-ups from the October 5 art handoff | A weary icon; whose Medpack and Stim; poses that wait on items |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -69,7 +64,7 @@ the spreadsheet.
 
 ## 1. Conflicts
 
-Open: C-13, C-15, C-18, C-19 and C-23 to C-25; the rest are in the resolved log at the bottom.
+Open: C-13, C-15, C-18, C-19 and C-24; the rest are in the resolved log at the bottom.
 
 ### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab
 *(Numbered C-12 by mistake when it was added; C-12 is Cass's Door Gunner in the Resolved log.)*
@@ -86,6 +81,8 @@ Fleet tab should exist, and what it would hold that the Arsenal's Ships view doe
    tiny and grey — the game renders the number as `<i class="bm-restock__n">` instead.
 3. `.bm-card .kit-well .it-art` (192px) out-specifies `.bm-merc__kit .it-art` (72px), so a mercenary lot's
    own-kit art fills the well and pushes the "Brings own kit" caption out — re-asserted in `scenes.css`.
+4. `.ar-slots` and `.ar-slothead` (the Arsenal's Loadouts rail) have six columns; the Back slot (C-25) needs a seventh,
+   re-declared in `scenes.css`.
 **Needs from you:** nothing; just carry the fixes back into the canvas CSS if it gets re-exported.
 **Your call:** _open (informational)_
 
@@ -97,28 +94,15 @@ be pinned to a named rebel or go to whoever stands first, second and third).
 **Your call:** _open_
 
 ### C-18 ⚪ Art-kit lore guesses carried into the game
-From the art handoff's open questions, now live in `game/art/sr-art.js` data tables.
-**Settled since (2026-10-05):** the Gear doc names the makers, so the Patriot items (HG-40, Power Baton, Riot
-Shield, Police Vest) are no longer flagged as proposals; the Peacekeeper Carbine is Fightstar (waiting on its art,
-C-23). The Strider's maker is **AutoCom**: every "Autoworks" is now AutoCom (the Kiln Ridge factory is the "AutoCom
-Plant", and old saves are renamed on load). Armour is specced (Ground Combat doc) and built.
+**Settled:** the makers (Gear doc and the October 5 art handoff: every maker the doc names is in the items table and
+the art kit, TenTiU is gone, the Patriot items are confirmed, the EG-55 is Fightstar); the Strider is AutoCom's;
+armour is built; the four head items have art.
 **Still open:**
 - **Ship attachments:** only the Door Mounted Gun is designed; `plates` and `tank` are placeholder examples.
 - **Floatin' Truck attachments** (mg, plates, ram, spotlight, crates) are proposals; the truck itself is not in
   the game.
-- **Armour as looks:** the art kit draws a Frontier Hardhat on any rebel whose save has no Head slot yet; four head
-  items (Cowboy Hat, Baseball Cap, Police Helmet, Auto Head-Helm) have no art and draw nothing (see M-26).
 **Needs from you:** the ship and truck attachment lists, whenever you get to them.
 **Your call:** _part answered; attachments open_
-
-### C-23 ⚪ Peacekeeper Carbine: ballistic in the rules, plasma on screen
-**Decided (Gear doc, 2026-10-05):** the EG-55 Peacekeeper Carbine is a **Fightstar plasma** carbine (semi-auto
-and automatic, Sundering). You asked for its visuals to be designed first, so the game still counts it as a
-**Patriot ballistic** weapon; it does carry Sundering already (that changes nothing on screen). The switch is two
-cells in the Items tab (`manufacturer` fightstar, `damage_type` plasma) plus the art kit's `makerProposed` carbine
-entry, once Claude Design has the Fightstar look (M-26).
-**Needs from you:** nothing; waiting on the art.
-**Your call:** _decided; waiting on art_
 
 ### C-24 ⚪ Enemy types and loadouts the Enemies doc doesn't cover
 The enemy roster (the Enemies tab of the spreadsheet, `enemies` in `db.json`) follows the Enemies doc where it
@@ -132,30 +116,21 @@ is what they fight with and drop. Where I had to guess:
   intelligence meta game's risk is specced, per your C-4 answer), Shorto Shotty, Tavern Scum, the Floatin' Truck,
   and all of Tier 2 and 3.
 - **Loadouts:** Hegemony security carries Patriot kit: the HG-40 pistol (Patrolmen, shieldmen, depot guards),
-  Peacekeeper Carbine (riot riflemen), Police Helmet and Vest (riot police; Police Vest on depot guards). Policebots
+  EG-55 Peacekeeper Carbine (riot riflemen; Fightstar plasma now), Police Helmet and Vest (riot police; Police Vest
+  on depot guards). Riot shieldmen carry a Riot Shield that soaks hits from the front until it breaks. Policebots
   carry the Auto Plasma Hand. Outworlders keep frontier guns (Cowboy, Varmint Shotgun); deputies and the sheriff wear
   a Police Vest because the art kit draws one, and the sheriff a Cowboy Hat. Squatters wear nothing. **Now that
   armour works, what they wear matters:** a Police Vest is a 20-point armour bar, a Police Helmet 12, on top of the
   row's health.
 - **Placeholder stats:** the HG-40 and Auto Plasma Hand still copy the Cowboy No.4. The Gear doc now gives them
   traits (HG-40: semi-auto, Sundering; Auto Plasma Hand: plasma, semi-auto, crafted from an Auto): Sundering is in,
-  the fire modes wait on M-27.
-- **Looks that changed:** riot riflemen are drawn as riot police (they borrowed the deputy look before); Patrolmen no
-  longer draw a vest; riot shieldmen now draw the vest the art kit gave them. The Police Helmet has no art yet.
+  the fire modes are built too (the AI always fires on a weapon's default mode).
+- **Looks:** riot shieldmen and riflemen are people in Police Helmets (the `riot` and `riotrifle` archetypes, from the
+  art handoff); the sheriff wears his Cowboy Hat on screen too. Patrolmen draw no vest.
 
 **Needs from you:** the real loadout per type whenever you spec it in the Enemies doc (straight into the Enemies
 tab), stats for the HG-40 and Auto Plasma Hand, and whether the squatters and depot guards should become doc types.
 **Your call:** _open (Enemies doc update pending)_
-
-### C-25 ⚪ Equipment slots: the docs' Back slot vs. the game's Head and Body
-The Gear doc and the Rebels doc both give a Soldier (and a Marine) a **primary**, a **secondary**, a **back item**
-and **three gadget** slots, and a Pilot a secondary and three gadgets. The game has primary, secondary, **Head**,
-**Body** and **two** gadgets (the Market/Arsenal handoff's layout), and no Back slot. Armour needs Head and Body
-(the Ground Combat doc has characters wearing armour), and the Gear doc's deployables and Heavy kit need the Back
-slot. I kept the game's slots and built armour on Head and Body.
-**Needs from you:** the slot list: add Back and a third gadget to Head and Body, or fold armour into fewer slots?
-And may a Pilot wear armour?
-**Your call:** _open_
 
 ---
 
@@ -251,7 +226,8 @@ Scrawny, Messy (10% to lose a piece of gear at launch).
 **Done since:** armour is built (M-16 in the resolved log). The Rebels doc renamed **Weak** to **Scrawny** and gave
 it +2 defence on the ground: that half is live (the save key stays `weak`).
 **Why the rest waits:** melee barely exists (bare hands and the Bruiser's fists are the only melee; the Power Baton
-has no rules), Heavy kit needs the Back slot (C-25, M-25), and "lose a piece of gear" needs a return rule.
+has no rules), Strong's Heavy rule needs a check in the slot rules (the Back slot exists now: C-25), and "lose a
+piece of gear" needs a return rule.
 **Needs from you:** whether melee is a real action, and what becomes of lost gear (gone, or found again after the
 mission?).
 **Your call:** _open_
@@ -315,29 +291,26 @@ a room over time, training), and whether the specialty system applies to Support
 does nothing.
 **Why:** the Asset Sheet's Vehicles tab has no entries, so the cruisers' numbers (hp, armour, TN, speed, seats, guns)
 are my placeholders carried over from the old enemy units. They live in the enemy roster (the Enemies and Vehicle
-Seats tabs of the spreadsheet), so your numbers can go straight in there. Vehicle armour is its own column there
-(the Ground Combat doc asks for it to be kept apart from ship armour). A cruiser stolen mid-mission is not kept: the
-*Steal [Vehicle]* mission type is still waiting on its design.
-**Also open from C-8:** a wrecked vehicle or Bot is lost for good today; one that survives comes home with its damage
-and repairs in the hangar like a ship (its armour plating is mended between missions). Should a wreck be lost, or
-come back needing a long repair? And the Fire Support gdoc entry for Deploy [Vehicle] is yours to write.
+Seats tabs of the spreadsheet), so your numbers can go straight in there. Vehicle armour is its own column there.
+A cruiser stolen mid-mission is not kept: the *Steal [Vehicle]* mission type is still waiting on its design.
+**Settled:** a wrecked vehicle or Bot is lost for good (you may revisit it later). The Fire Support gdoc entry for
+Deploy [Vehicle] is yours to write.
 **Needs from you:** vehicle rows (hp, armour, TN, speed, positions and which are enclosed, weapons per position),
-how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), what a Driver
-specialist adds (speed, a better TN while driving, ramming?), and the wreck rule.
-**Your call:** _open_
+how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
+specialist adds (speed, a better TN while driving, ramming?).
+**Your call:** _open (wrecks settled)_
 
 ### M-17 🟡 Items with no mechanics yet (`live:false` in the items table)
-**Blocks:** these catalogue items from being stocked by the Black Market or carried: Improvised Plasma SMG,
-Repurposed Mining Laser, Razorrat LMG (as a rebel's kit), Molotov Cocktail, Guardian Angel Drone, Auto Core
-Improvised Charge, Stim as a carried item (the ground scene gives every rebel one built-in stim today), Power Baton,
-Riot Shield. The Gear doc now describes most of them (the Molotov's fire and Extinguish, the Angel Drone's
-intercept, the Mining Laser's cone sweep and Recharge, the Riot Shield and Razorrat as deployables, the Plasma SMG's
-Unstable), so they wait on building rather than on you: the deployables on the Back slot and a Deploy action (M-25),
-the rest on their own actions. Patrolmen carry the baton and riot shieldmen the shield (the shield already blocks
-shots from the front), but neither drops. The **Improvised Rocket Launcher** is also `live:false`: the supply-drop
-rule removes a fired rocket from the carrier's weapons mid-mission, but nothing says whether an *owned* launcher is
-spent for good (debited from the armory) or just reloaded back home. The **Frontier Floatin' Truck** stays out of
-the roster until it has stats (see M-15).
+**Blocks:** these catalogue items from being stocked by the Black Market or carried: Improvised Plasma SMG
+(automatic, Unstable), Repurposed Mining Laser (a deployable: a cone sweep and a Recharge action), Molotov Cocktail
+(fire, and an Extinguish action), Guardian Angel Drone (intercepts one attack), Auto Core Improvised Charge, Stim as a
+carried item (the ground scene gives every rebel one built-in stim today) and the Power Baton (melee, Stunning). The
+Gear doc describes all of them and the art kit has their poses and effects (`misfire`, the Mining Laser's
+`fire`/`recharge`, `burning`/`extinguish`, `stunned`), so they wait on building, not on you. The **Improvised Rocket
+Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from the carrier's weapons mid-mission,
+but nothing says whether an *owned* launcher is spent for good (debited from the armory) or just reloaded back home.
+The **Frontier Floatin' Truck** stays out of the roster until it has stats (see M-15).
+**Done since:** the Razorrat LMG and the Riot Shield are live (resolved log, C-25).
 **Needs from you:** for the rocket launcher, whether one shot consumes the owned item; for the rest, nothing until
 I build them (say if one should jump the queue).
 **Your call:** _open_
@@ -349,14 +322,6 @@ Rev 2+ is to move weight from kit toward ships, vehicles and mercs.
 **Needs from you:** the Rev 2+ weight table, before Level 2 content lands. It is a row in the Market Weights tab
 of the spreadsheet now (C-10): add a row with `rev` 2 and the game picks it up.
 **Your call:** _open_
-
-### M-20 🟡 Sweet Tooth needs an `SR_ART` character spec
-**Blocks:** the Black Market fence portrait (the rail's 150px head and the phone strip).
-**Why:** `sr-art.js` is in the game now, but she has no character spec in it. The mockup stand-in had a big
-round head, a teal headscarf with gold dots, an eyepatch, a gold-tooth grin, a gold earring and a pink jacket.
-**Needs from you:** nothing from the design side — the handoff says the art chat owns the final look. Until the
-spec exists, the Black Market uses the generic avatar.
-**Your call:** _open (owned by the art chat)_
 
 ### M-21 🟡 No art for the fuel depot or the Bruiser
 **Blocks:** nothing playable — both draw restyled fallbacks (the depot keeps its octagon with the kit's cel
@@ -399,39 +364,6 @@ the rule, or say "always weapons, sometimes armour", if it floods the stores.
 2. What happens to a dead rebel's gear: back to the armory (today), or lost on the field (and recoverable if you win)?
 **Your call:** _part answered; 1 and 2 open_
 
-### M-25 🟡 Deployables and the Back slot
-**Blocks:** carrying and setting up a Razorrat LMG, a Riot Shield or a Mining Laser; Strong's Heavy rule.
-**Why:** the Gear doc's deployables are carried (in the Back slot, as Heavy kit) and set up as an action, and then
-do what the deployable does. The game has no Back slot (C-25) and no Deploy action. The one deployable in a mission,
-Steal the Cross's Razorrat, comes already set up, and is manned with Man gun / Leave gun.
-**Needs from you:** the slot answer in C-25. The action itself I can build from the Gear doc: Deploy where you stand
-(an action), the deployed item stays put, Pack up to carry it again (my guess: an action too).
-**Your call:** _open_
-
-### M-26 🟡 Art for the new kit and makers (Claude Design)
-**Blocks:** proper looks for what the Gear doc added. The game uses fallbacks until the style guide has them.
-- **Weapons:** the **ST Stiletto** (Fightstar plasma carbine; live and sold, drawn with no art in the Arsenal) and
-  the **Razorrat LMG** (Bhord deployable; Steal the Cross draws a placeholder bipod gun behind sandbags).
-- **Makers with no look in the art kit's `MAKERS`:** Fightstar, Devlin & Son, LMC, Praxon, Helix, General
-  Astronautics, Nomad, Rook. The Arsenal's maker chip shows them without a colour. TenTiU left the Gear doc (the
-  Frontier Hardhat is Praxon's now), so its swatch is unused.
-- **The Peacekeeper Carbine** as a Fightstar weapon (C-23).
-- **Head items with no art:** Cowboy Hat, Baseball Cap, Police Helmet, Auto Head-Helm.
-- **Weariness:** the doc wants a tag on a rebel's icon and an icon by their name; the game shows a "Zz" tag until
-  there is an icon.
-**Needs from you:** nothing; owned by Claude Design.
-**Your call:** _open (owned by the art chat)_
-
-### M-27 🟡 Weapon traits beyond Sundering and Piercing
-**Blocks:** the Gear doc's other weapon traits: fire modes (Automatic, Semi-auto, Single Shot, Fan Hammer, toggled in
-the attack phase), Steady, Knockback, Stunning, Unstable and Heavy.
-**Why:** Sundering and Piercing came with armour and are built (item columns `sundering` and `piercing`). The others
-need an attack-phase toggle (fire modes), shove physics (Knockback) or the Back slot (Heavy). One conflict on the
-way: today **every** rebel who Holds gets BRACED +2; the doc gives +2 for holding fire only to **Steady** weapons
-(the Longhorn), against one target.
-**Needs from you:** whether Hold should keep the general +2 once Steady exists, or only Steady weapons get it.
-**Your call:** _open_
-
 ### M-28 🟡 Vehicle criticals and wreck damage (placeholders, for you to revisit)
 You confirmed the C-7 rules and said vehicle criticals are for another time. What is built, all my numbers:
 - A critical hit on a vehicle cuts its speed by a quarter (once).
@@ -440,6 +372,18 @@ You confirmed the C-7 rules and said vehicle criticals are for another time. Wha
   may shoot an empty vehicle to set that off; the enemy never does, and it is never picked as a default target.
 - An open gun position (the Dispersal Cruiser's turret) can be shot at +3 TN; enclosed ones cannot be shot at all.
 **Needs from you:** the vehicle critical table, when you get to it.
+**Your call:** _open_
+
+### M-29 🟡 Art follow-ups from the October 5 art handoff
+The handoff landed everything in the resolved log's M-26 row; a few loose ends remain.
+- **Weariness** (Rebels doc: a tag on the rebel's icon and an icon by their name) has no icon in the art kit; the
+  game shows a "Zz" tag.
+- **Makers with no items yet:** LMC, Helix, General Astronautics, Nomad and Rook have badges and looks but nothing to
+  wear them. The handoff asks whether the **Medpack and Stim should be Helix** (today they have no maker).
+- **Poses that wait on items:** `burning`/`extinguish` (Molotov), `misfire` (Plasma SMG), `stunned` from Stunning (the
+  Power Baton), the Mining Laser's sweep and `recharge` (all M-17). A concussed rebel already uses `stunned`.
+- **Personal shields:** the hex bubble and the shield bar are wired, but no Level 1 item grants a shield.
+**Needs from you:** the Helix question; a weary icon is the art chat's.
 **Your call:** _open_
 
 ---
@@ -451,9 +395,13 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-25 | The final slot list is primary, secondary, two gadgets, head, body and back. | 2026-10-05 | Soldiers, Marines and Heroes get a **Back** slot (Pilots and Support do not), in the Arsenal, the personnel file, auto-equip and the squad entry; old saves get an empty one (save version 3). The **Razorrat LMG** and the **Riot Shield** are live. A rebel with one on their back gets **Deploy** (as the round opens, no shot): the Razorrat is set up where they stand and they man it (no sandbags in the field; one emplacement per map), the Riot Shield goes into their hands in place of the primary. Riot shields, the enemy's too, now soak hits from the front until they break (60, the `riot_shield_hp` rule; a broken one is used up and does not drop). **Effect:** riot shieldmen can now be worn down from the front instead of only flanked; the mission hints say so. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
+| M-15 | A wrecked vehicle or Bot is lost for good (to revisit later). | 2026-10-05 | No change: that was already the rule. The rest of M-15 stays open. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
+| M-26 | Claude Design's October 5 art handoff covers the new kit and makers. | 2026-10-05 | New `sr-art.js`, style guide and handoff in. Art for the ST Stiletto, Razorrat, the four head items, the limpet, the shell box and the C90 (the alias is gone); **maker badges** on Arsenal and Black Market cards; **trait and damage-type icons** on the cards and in weapon tooltips; the **EG-55 Peacekeeper Carbine** is Fightstar plasma (C-23 settled); riot police wear Police Helmets (`riot`, `riotrifle`); **Sweet Tooth** has her own character (M-20 settled); the layered **vitals** bar over units and matching plate and hex shapes in the rail; the shield bubble, armour, shield, Sundering and Piercing hit effects; the `deploy`, `knocked` and `stunned` poses; strafing runs, supply drops and landings drawn by the kit (the run flies the assigned ship); ships parked in the iso hangar with `shipIso`. Loose ends are M-29. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
+| M-27 | Holding's +2 belongs to the Steady trait alone. | 2026-10-05 | Item columns `fire_modes`, `steady`, `knockback`, `stunning`, `unstable`, from the Gear doc. **Fire modes** as the doc gives them (Automatic −5 and a second roll at −10 on a hit; Semi-auto +1 a round on the same target until you move or panic; Fan hammer −5 and double damage; Single shot nothing), chosen with a **fire-mode toggle** in the attack window (F cycles); a weapon starts on its mode with no penalty, and the AI never switches. **Steady:** +2 when braced, or on a target you held fire on, only with a Steady weapon (the Longhorn); everyone else lost the old BRACED +2. **Knockback** (the rocket) shoves the target. Stunning and Unstable wait on their items (M-17). **Effect:** Semi-auto's stacking bonus applies to enemies too, so long fights against one target get more accurate on both sides; holding with an Akli is no longer a bonus. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
 | M-16 | Armour and shields in ground and boarding combat (Ground Combat doc): armour is a bar over health that damage drains first, a shield is a bar over both, raised when activated and hit first; no arcs on the ground; hats are cosmetic. Vehicle armour is its own value, apart from ships. | 2026-10-05 | Items carry `armour` and `shield`; enemy rows carry innate `armour` and `shield` (vehicles and Bots). Worn Head and Body kit gives the bar: Frontier Hardhat 10, Police Helmet 12, Auto Head-Helm 15, Police Vest 20; Cowboy Hat and Baseball Cap 0. Sundering (×1.5 to armour, `armour_sunder_mult`) and Piercing (25% past the armour, `armour_pierce_frac`) follow the Gear doc. Bars draw over every health bar (map pips, the squad rail). A hit the bars soak whole causes no wound or critical injury. Enemies raise their shields with the alarm; a rebel raises theirs with **Shield up** in the attack card (costs the shot). Nothing has a shield at Level 1. **My numbers and calls:** all the values above; armour is mended between missions. **Effect:** enemies in vests and helmets now take 20 to 32 more damage than before (their health was not reduced), so Steal the Cross's deputies and the riot squads are tougher; rebels in looted vests are tougher too. The cruisers and the Strider had armour split out of their old health, so they last as long as before. Tune in the Items and Enemies tabs. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
 | M-6 | Rest (Rebels & Recruits doc): after two missions without rest a rebel is weary, loses morale and rests at the base a day per mission (any day at the base is rest); used weary, they lose morale and fight worse; kept going, they are conked in the Barracks and need longer. Weariness shows as a tag. | 2026-10-05 | `game/js/rebel-rest.js`: `p.tired` counts missions without rest; Weary at 2 (−4 morale, a "Zz Weary" tag, still pickable), each mission while Weary −3 morale, and −1 aim and −10 nerve in a fight (−1 aim in space); Conked at 4 (+2 to the count, off every list and post until rested). Each day not on a mission rests 1 off; **Heavy Sleeper** 0.5 a day and no morale hits, **Light Sleeper** 1.5 (both now live). Old saves start everyone rested (save version 2). **My numbers:** all of them; the Barracks does not speed rest (the doc does not say). the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
-| C-4 | Scope is Level 1 for now; the Base doc's second Fuel is Intel; Bureau Officer is Tier 2 (rarely Tier 1 once the intelligence risk is specced); blank Tier 1 rewards are deliberate, so I put in my guesses; the enemy is the Hegemony everywhere; Fleet Combat is out of scope and Specialties and Locations/Regions are being written in the gdocs. | 2026-10-05 | Repo docs updated (`docs/GDD.md` with a Tier 1 rewards table, `docs/ROADMAP.md`); the old name is gone from the repo. The Base gdoc's Fuel line is yours to fix: this session has no Google Docs editor. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
+| C-4 | Scope is Level 1 for now; the Base doc's second Fuel is Intel; Bureau Officer is Tier 2 (rarely Tier 1 once the intelligence risk is specced); blank Tier 1 rewards are deliberate, so I put in my guesses; the enemy is the Hegemony everywhere; Fleet Combat is out of scope and Specialties and Locations/Regions are being written in the gdocs. | 2026-10-05 | Repo docs updated (`docs/GDD.md` with a Tier 1 rewards table, `docs/ROADMAP.md`); the old name is gone from the repo. The designer has since fixed the Base gdoc's Fuel line. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
 | C-7 | The vehicle rules stand as built, bail-out included (enemies bail out when they surrender); vehicle criticals are for later. Unmanned vehicles should still be targetable, since a wreck going up can hurt someone nearby. | 2026-10-05 | The player may shoot an empty vehicle (never the enemy, and never as a default target); a destroyed vehicle's blast now hits anyone within 130, crewed or not. The placeholder critical and wreck numbers are M-28. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
 | C-8 | An owned vehicle or Bot assigned to a mission adds **Deploy [Vehicle]** to the Fire Support menu, which deploys it into the mission (the designer will add it to the Fire Support gdoc). | 2026-10-05 | The menu entry reads "Deploy Old Faithful"; the plan's Fire support area says so. Deployment was already built that way (set down where called at the start of the next planning). The wreck question (lost, or a long repair) moved to M-15. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |
 | C-9 | Swap the Steal the Cross laser turret for the **Razorrat LMG** (a Gear doc deployable), and add it to the database with its missing stats. | 2026-10-05 | `razorrat` item (Bhord, ballistic, Piercing, Heavy, deployable, Back slot; 30–46, attack +3, range 640: my stats; `live:false` until M-25). The pad emplacement is a Razorrat behind sandbags: Man gun / Leave gun as before; the laser's frontal energy shield (which blocked every shot) is now sandbags worth +3 TN from the front, since the ground has no arcs. The `laser` item is gone. the "Armour and shields, rest, the Razorrat and the designer's C-4 to C-24 answers" commit |

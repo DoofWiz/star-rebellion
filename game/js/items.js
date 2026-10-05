@@ -12,6 +12,8 @@
    Items.kit()            owned kit in the base's shape ({name, cat, slot, w, h, q, maker, price, live, ...})
    Items.wpn()            every item with combat stats in the ground scene's shape ({name, d0, d1, rng, ...})
    Items.protection(ids)  the armour and shield bars a set of worn kit gives ({arm, shd})
+   Items.modes(id)        a weapon's fire modes; Items.defaultMode(id) the one it starts on
+   Items.traits(id)       every Gear doc trait key the item shows (modes first)
    Items.pool(filter)     ids matching a filter, in table order
    Items.roll(filter,rng) one id drawn from the pool (optionally weighted), or null
    Items.grant(armory,id,n,src)  the only way kit enters an armory; returns the entry
@@ -33,7 +35,7 @@ window.Items=(function(){
   function kit(){
     const k={};
     for(const r of rows)if(owned(r))k[r.id]={name:r.name,sub:r.sub||undefined,cat:r.category,slot:r.slot,w:r.width,h:r.height,
-      q:r.quality==null?undefined:r.quality,maker:r.manufacturer?makers[r.manufacturer]:undefined,origin:r.origin||undefined,
+      q:r.quality==null?undefined:r.quality,maker:r.manufacturer?makers[r.manufacturer]:undefined,makerId:r.manufacturer||undefined,dtype:r.damage_type||undefined,origin:r.origin||undefined,
       price:r.price==null?undefined:r.price,live:r.live?1:0,rev:r.rev,heg:r.hegemony?1:0,dropOnly:r.drop_only?1:0,
       arm:r.armour||0,shd:r.shield||0};
     return k;
@@ -43,8 +45,19 @@ window.Items=(function(){
     const w={};
     for(const r of rows)if(r.damage_min!=null)w[r.id]={name:r.name,d0:r.damage_min,d1:r.damage_max,rng:r.range,atk:r.attack,shots:r.shots,
       dmg:r.damage_type,oneHand:r.one_handed,jam:r.jams||undefined,pellets:r.pellets||undefined,falloff:r.falloff||undefined,beam:r.beam||undefined,icon:r.icon,
-      sunder:r.sundering||undefined,pierce:r.piercing||undefined};
+      sunder:r.sundering||undefined,pierce:r.piercing||undefined,steady:r.steady||undefined,knock:r.knockback||undefined,
+      stun:r.stunning||undefined,unstable:r.unstable||undefined,modes:modes(r)};
     return w;
+  }
+  /* Gear doc weapon traits. A weapon's fire modes, in the doc's order; the default is the first one with no
+     penalty (semi-auto or single shot), so nobody fires on automatic unless they choose to. */
+  const MODE_ORDER=['auto','semi','single','fan'];
+  const modes=r=>String(r&&r.fire_modes||'').split('|').filter(m=>MODE_ORDER.includes(m));
+  function defaultMode(id){const m=modes(byId[id]);return m.find(x=>x==='semi'||x==='single')||m[0]||null;}
+  /* every trait key an item shows, fire modes first (SR_ART.icon draws each one) */
+  function traits(id){
+    const r=byId[id];if(!r)return [];
+    return modes(r).concat(['steady','knockback','stunning','sundering','piercing','heavy','unstable'].filter(k=>r[k]));
   }
   /* Ground Combat doc, armour and shields: worn kit adds an armour bar over health, and a shield source a
      shield bar over both. Cosmetic headwear (armour blank) adds nothing. */
@@ -98,5 +111,5 @@ window.Items=(function(){
     if(a.n<=0)armory.splice(armory.indexOf(a),1);   // an empty stack leaves the armory
     return k;
   }
-  return {rows,get,name,must,kit,wpn,protection,pool,roll,grant,take};
+  return {rows,get,name,must,kit,wpn,protection,modes:id=>modes(byId[id]),defaultMode,traits,pool,roll,grant,take};
 })();

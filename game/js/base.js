@@ -311,16 +311,17 @@ function mood(){const c=crewOf();G.morale=c.length?c.reduce((a,p)=>a+(p.morale==
 
 /* ---------- carried gear ----------
    Each rebel with slots (see Rebel.gearSlots) carries items from the armory:
-   p.gear = {primary, secondary, head, body, gad:[a,b]}. Old saves gain head/body here, lazily.
+   p.gear = {primary, secondary, head, body, back, gad:[a,b]}. Old saves gain the newer slots in MIGRATIONS (and here, lazily).
    An item can only be carried by one rebel per unit in stock. New kit is handed out automatically to empty
    slots, best first to the most experienced; anything the player chose by hand is left alone. */
 const SLOT_LABEL={primary:'Primary weapon',secondary:'Secondary weapon',back:'Back',head:'Head',body:'Body',gad:'Gadget'};
 const gearSlots=p=>Rebel.gearSlots(p);
 function gearHeld(p){
-  const g=p.gear=p.gear||{primary:null,secondary:null,head:null,body:null,gad:[null,null]};
+  const g=p.gear=p.gear||{primary:null,secondary:null,head:null,body:null,back:null,gad:[null,null]};
   if(!g.gad)g.gad=[null,null];
   if(g.head===undefined)g.head=null;
   if(g.body===undefined)g.body=null;
+  if(g.back===undefined)g.back=null;
   return g;
 }
 const slotGet=(p,s)=>{const g=gearHeld(p);return s.k==='gad'?g.gad[s.i]:g[s.k];};
@@ -2372,6 +2373,10 @@ function craftTop(cls,x,y,S,rot,col,o){
   // every craftTop is a parked ship (pads, hangar bays, workshop), so it sits powered down
   SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel',off:true},o||{}));
 }
+/* a ship parked in an isometric room (the hangar's walk-in view): SR_ART.shipIso lays it on the iso floor on its
+   landing struts, engines cold; ISO_K is the room view's isometric scale */
+const ISO_K=1.25,ISO_HEAD=-2.35;
+function craftIso(cls,x,y,s,o){SA.shipIso(ctx,artShipId(cls),x,y,ISO_HEAD,s,ISO_K,RM?0:worldT/1000,Object.assign({livery:'rebel',pilot:null},o||{}));}
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
 /* ---------- base map render ---------- */
@@ -2648,14 +2653,14 @@ function renderRoomView(now){
       ctx.setLineDash([]);
       const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-        craftTop('graf',bx,by,3.4,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
+        craftIso('graf',bx,by,2.6*csz/2.4,{livery:'civ',damage:0.5});
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
         ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
         continue;
       }
       if(f&&!f.out){
-        craftTop(f.cls,bx,by,3.4,-0.5,null,{damage:1-f.hull/100});
+        craftIso(f.cls,bx,by,2.6*csz/2.4,{damage:1-f.hull/100});
         ctx.font=fnt(12);ctx.textAlign='center';
         ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
         ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
@@ -4801,15 +4806,12 @@ function syncUI(){
    ship weapons on the hangar racks. The rail swaps to Loadouts; the command bar carries Give to… and Sell. */
 const AR_CATS=[['all','All kit'],['weapon','Weapons'],['armour','Armour'],['gadget','Gadgets'],['vehicles','Vehicles'],['ships','Ships'],['shipkit','Ship kit']];
 const AR_CATLBL={weapon:'Weapon',armour:'Armour',gadget:'Gadget',other:'Other'};
-const MAKER_COL={Bhord:'#c9573b',Patriot:'#2f6fd0',BLAMCo:'#ffb454',TenTiU:'#43b0a0',AutoCom:'#8a93b5',MenDon:'#57a8ff'};
 const START_IDS=['akli','cowboy','medpack'];   // the day-one armory, for saves from before stacks recorded their source
 let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false,arRefit=null;
 const arLast={};   // last selection per category chip (module state, not saved)
 /* ---------- Arsenal/Market art bridge ----------
-   SR_ART drawn once to data URLs and cached; anything the kit can't draw yet keeps its
-   sr-icons glyph (the handoff's fallback: carbine, baton, mining laser, the cosmetic hats,
-   police helmets, limpets and shells wait on the art chat). */
-const ART_ITEM_ALIAS={charge:'c90'};   // the game key stays `charge`; the kit draws it as the C90 brick
+   SR_ART drawn once to data URLs and cached; anything the kit can't draw keeps its sr-icons glyph.
+   Maker badges (SR_ART.makerBadge) and Gear doc trait and damage-type icons (SR_ART.icon) go the same way. */
 const ART_SWPN={'bls-t-light-repeaters':'repeaters','missiles':'missiles','door-mounted-gun':'doorgun'};
 const ART_GVEH={police:'police',dispersal:'riotdispersal',transport:'riottransport',truck:'truck'};
 const artURLCache=new Map();
@@ -4822,7 +4824,7 @@ function artURL(kind,key){
     const c2=document.createElement('canvas');c2.width=W*d;c2.height=H*d;
     const g=c2.getContext('2d');g.scale(d,d);
     if(kind==='item'){
-      const k2=ART_ITEM_ALIAS[key]||key,it=SA.ITEMS[k2];
+      const k2=key,it=SA.ITEMS[k2];
       if(it){
         const[bx0,by0,bx1,by1]=it.box;
         const sc=Math.min(W*0.84/(bx1-bx0),H*0.84/(by1-by0));
@@ -4835,6 +4837,12 @@ function artURL(kind,key){
     } else if(kind==='veh'){
       if(key==='strider'){SA.strider(g,W/2,H*0.86,{s:1.5,mood:'hacked',t:0});url=c2.toDataURL();}
       else if(ART_GVEH[key]&&SA.VEHICLES[ART_GVEH[key]]){SA.vehicle(g,ART_GVEH[key],W/2,H*0.6,-0.5,1.1,0,{});url=c2.toDataURL();}
+    } else if(kind==='mk'||kind==='trait'){
+      const c3=document.createElement('canvas');c3.width=c3.height=96;
+      const g3=c3.getContext('2d');g3.scale(2,2);
+      if(kind==='mk'){if(!SA.MAKERS[key])throw 0;SA.makerBadge(g3,key,24,23,40);}
+      else SA.icon(g3,key,24,24,47,{bare:true});
+      url=c3.toDataURL();
     } else if(kind==='swpn'){
       const sw=SA.SHIP_WEAPONS[ART_SWPN[key]];
       if(sw){g.translate(W/2,H/2);g.scale(9,9);sw.draw(g,0,false,1);url=c2.toDataURL();}
@@ -4844,6 +4852,22 @@ function artURL(kind,key){
   return url;
 }
 const artImg=u=>'<img src="'+u+'" alt="">';
+/* a maker chip: the art kit's badge and the maker's name */
+function makerChip(id,name){
+  if(!name)return '';
+  const u=id&&artURL('mk',id);
+  return '<span class="kit-mk">'+(u?'<img class="kit-mk__badge" src="'+u+'" alt="">':'<i></i>')+esc(name)+'</span>';
+}
+/* the Gear doc's damage type and traits as icons, with the rule in the tooltip */
+function traitIcons(id){
+  const m=KIT[id]||{},keys=(m.dtype?[m.dtype==='blunt'?'melee':m.dtype]:[]).concat(Items.traits(id));
+  const out=keys.map(k=>{
+    const T=SA.TRAITS[k],D=SA.DTYPES[k],u=artURL('trait',k);if(!u||!(T||D))return '';
+    const tip=T?T.name+': '+T.text:D.name+' damage';
+    return '<img class="kit-trait" src="'+u+'" alt="'+esc(tip)+'" title="'+esc(tip)+'">';
+  }).join('');
+  return out?'<span class="kit-traits">'+out+'</span>':'';
+}
 const itArt=(id,cls)=>{
   const u=artURL('item',id);
   return '<span class="it-art'+(cls?' '+cls:'')+'">'+(u?artImg(u):IC(gearIconId(id)))+'</span>';
@@ -4962,7 +4986,7 @@ function arDossierHTML(){
   if(arSel.t==='kit'){
     const a=G.armory.find(x=>x.id===arSel.id);if(!a)return '';
     const m=gearMeta(a);
-    const mk=m.maker?'<span class="kit-mk"'+(MAKER_COL[m.maker]?' style="--mk:'+MAKER_COL[m.maker]+'"':'')+'><i></i>'+esc(m.maker)+'</span>':'';
+    const mk=makerChip(m.makerId,m.maker);
     const prov=m.heg
       ?wTag('Looted','foe')+wTag(IC('lock')+'Hegemony issue','foe')
       :a.src==='bought'?wTag('Bought from Sweet Tooth','action')
@@ -4978,7 +5002,7 @@ function arDossierHTML(){
     const hold=holders(a.id,[]);
     return well(itArt(a.id))+
       '<div><div class="ar-dossier__name">'+esc(kitName(a))+'</div><div class="ar-dossier__kind">'+mk+prov+'</div></div>'+
-      (itemBlurb(a)?'<p class="ar-blurb">'+esc(itemBlurb(a))+'</p>':'')+stats+
+      (itemBlurb(a)?'<p class="ar-blurb">'+esc(itemBlurb(a))+'</p>':'')+traitIcons(a.id)+stats+
       '<div class="ar-count"><div><b>'+a.n+'</b><span>Owned</span></div><div><b>'+carried(a.id)+'</b><span>Carried</span></div><div><b>'+freeOf(a.id)+'</b><span>In store</span></div></div>'+
       (hold.length?'<div class="sr-h3" style="margin:0">Carried by</div><div class="ar-holders">'+hold.map(p=>'<span class="ar-holder">'+avat(p,24)+esc(p.name.split(' ')[0])+'</span>').join('')+'</div>':'');
   }
@@ -5112,7 +5136,7 @@ function arShipKitHTML(){
   return '<div class="ar-grid" style="grid-template-columns:repeat('+cols+',minmax(0,1fr))">'+tiles+'</div>';
 }
 /* the rail: one Loadouts card per carrying rebel, six slots wide */
-const AR_SLOT6=[{k:'primary',l:'Pri'},{k:'secondary',l:'Side'},{k:'head',l:'Head'},{k:'body',l:'Body'},{k:'gad',i:0,l:'Gad'},{k:'gad',i:1,l:'Gad'}];
+const AR_SLOT6=[{k:'primary',l:'Pri'},{k:'secondary',l:'Side'},{k:'head',l:'Head'},{k:'body',l:'Body'},{k:'back',l:'Back'},{k:'gad',i:0,l:'Gad'},{k:'gad',i:1,l:'Gad'}];
 function renderArRail(){
   const host=$('railArsenal');
   if(!arOpen){host.hidden=true;return;}
@@ -5135,7 +5159,7 @@ function renderArRail(){
   }).join('');
   host.innerHTML='<section><div class="sr-section__head sr-section__head--action">'+IC('loot')+'Loadouts<span class="sr-section__count">'+carriers.length+' carrying</span></div>'+
     '<p class="sr-fine" style="margin:0 0 8px">Auto-equip fills empty slots. Anything you set by hand stays put. Tap a slot to swap.</p>'+
-    '<div class="ar-slothead"><span>Primary</span><span>Side</span><span>Head</span><span>Body</span><span>Gad</span><span>Gad</span></div>'+
+    '<div class="ar-slothead"><span>Primary</span><span>Side</span><span>Head</span><span>Body</span><span>Back</span><span>Gad</span><span>Gad</span></div>'+
     '<div class="ar-crew">'+rows+'</div>'+(carriers.length?'':'<div class="sr-empty">Nobody is carrying anything.</div>')+'</section>';
 }
 /* a command-bar order button on a number key (shared by the Arsenal and the Black Market) */
@@ -5538,17 +5562,16 @@ function stLine(){
   }
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
 }
-/* Sweet Tooth: a stand-in assembled from the kit's existing slots after the mockup (teal headscarf,
-   eyepatch, pink jacket). Her real SR_ART character spec is still the art chat's call (M-20). */
-const ST_SPEC={name:'Sweet Tooth',side:'reb',skin:'#b47c55',hair:'#1a120d',hs:'rag',hood:'#2ba8a0',
-  coat:'#e05aa0',coat2:'#b2487e',acc:'#ffc83a',pants:'#3a3328',weapon:null,x:['patch'],gear:[]};
+/* Sweet Tooth's portrait: her art-kit character (teal headscarf with gold dots, eye patch, gold tooth and earring,
+   pink jacket, always grinning) */
+const ST_SPEC=SA.ARCH.sweettooth;
 function stHead(){
   const ck='st:head';
   let u=artURLCache.get(ck);
   if(u===undefined){
     try{
       const c2=document.createElement('canvas');c2.width=c2.height=320;
-      SA.portrait(c2.getContext('2d'),160,160,152,ST_SPEC,{t:0});
+      SA.portrait(c2.getContext('2d'),160,160,152,ST_SPEC,{t:0,face:'grin'});
       u=c2.toDataURL();
     }catch(e){u=null;}
     artURLCache.set(ck,u);
@@ -5582,14 +5605,14 @@ function bmCardHTML(l,i){
     well=swpnArt(l.key);
   } else {
     cm=BM_CAT[m.cat]||BM_CAT.weapon;name=kitNameId(l.key);
-    sub=(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
+    sub=(m.sub||'')+(m.maker?(m.sub?' · ':'')+m.maker:'');
     well=itArt(l.key);
   }
   return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
     (l.kind==='ship'?'<span class="bm-ribbon">Rare</span>':'')+
     '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
     '<div class="kit-well">'+well+'</div>'+
-    '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div></div>'+
+    '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div>'+(l.kind==='kit'?traitIcons(l.key):'')+'</div>'+
     '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+(merc?'<small>/ 14 days</small>':'')+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+
     (sold?'<span class="sr-stamp sr-stamp--bad bm-soldstamp">Sold</span>':'')+
     '</button>';
@@ -6464,6 +6487,7 @@ function squadEntry(p,scatterFirst){
     meds:p.auto?0:packsCarried(p),
     /* head and body kit give the armour bar in a fight (Items.protection); an Auto brings its own shell */
     head:p.auto?undefined:(p.gear||{}).head||undefined,body:p.auto?undefined:(p.gear||{}).body||undefined,arm:p.auto?autoOf(p).arm:undefined,
+    back:p.auto?undefined:(p.gear||{}).back||undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
 function startPlan(){
@@ -6533,8 +6557,10 @@ function grantItem(id,n,src){
 /* each Med Pack used in the field is gone from the armory */
 function usePacks(r){
   const used=(r.people||[]).reduce((n,pr)=>n+(pr.packs||0),0);
-  if(!used)return 0;
-  Items.take(G.armory,'medpack',used);
+  const broke=(r.people||[]).reduce((a,pr)=>a.concat(pr.broke||[]),[]);   // kit used up in the field: a riot shield that shattered
+  for(const id of broke)Items.take(G.armory,id,1);
+  if(!used&&!broke.length)return 0;
+  if(used)Items.take(G.armory,'medpack',used);
   reconcileGear();
   return used;
 }
@@ -6800,6 +6826,10 @@ const MIGRATIONS=[
       if(typeof v==='string')o[k]=v.replace(/Autoworks\u2019|Autoworks'/g,'AutoCom Plant\u2019s').replace(/Autoworks/g,'AutoCom Plant');else ren(v);}};
     ren(G.missions);ren(G.opps);
   },
+  /* 2 -> 3: the Back slot (DESIGN_BLOCKERS C-25): everyone with gear gets an empty one */
+  function(){
+    for(const p of G.people)if(p.gear&&p.gear.back===undefined)p.gear.back=null;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -6886,7 +6916,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,
