@@ -16,8 +16,8 @@ in `game/ui/scenes.css`.
 
 ## Game database (`game/data/`, `tools/db/`, `docs/DATABASE.md`)
 
-Ships, weapons, pilots and the target-number rules live in `game/data/db.json`; the game reads them through
-`game/js/data.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
+Ships, ship weapons, personal kit (`items`), pilots and the target-number rules live in `game/data/db.json`; the
+game reads them through `game/js/data.js` and, for kit, `game/js/items.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
 See `docs/DATABASE.md`.
 
 ## `game/` — the unified game

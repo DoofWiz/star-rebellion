@@ -1,12 +1,14 @@
 # Game database
 
-The data the game systems draw from (ships, weapons, pilots and the numbers that tie them together).
+The data the game systems draw from (ships, ship weapons, personal kit, pilots and the numbers that tie them together).
 The design docs linked from [GDriveMasterSheet](GDriveMasterSheet) are the source of truth for what
 the numbers should be. `game/data/db.json` is the machine-readable copy of them.
 
 **Status: the game reads it.** `game/js/data.js` loads `game/data/db.js` (the same data as a script, so it works
-over `file://`) and the space and base scenes build their ship, weapon and fuel tables from it. The old
-hand-written tables (`CLS`/`WPN` in `space.js`, `FUEL_COST`/`SHIPSTATS` in `base.js`) are gone.
+over `file://`) and the space and base scenes build their ship, weapon and fuel tables from it. Personal kit goes
+through `game/js/items.js`: the base's `KIT` and the ground scene's `WPN` (with its damage types, one-handed list and
+icons) are built from the `items` table. The old hand-written tables (`CLS`/`WPN` in `space.js`,
+`FUEL_COST`/`SHIPSTATS`/`KIT`/`GEAR_ICON` in `base.js`, `WPN`/`WDAM`/`WICON` in `ground.js`) are gone.
 
 ## Files
 
@@ -15,8 +17,10 @@ hand-written tables (`CLS`/`WPN` in `space.js`, `FUEL_COST`/`SHIPSTATS` in `base
 | `game/data/db.json` | The database. One row per line so diffs stay readable. |
 | `game/data/db.js` | Generated copy of `db.json` that the page loads. `build.py validate` fails if it is stale. |
 | `game/js/data.js` | `SRDB`: lookups by id or legacy key, plus base TN, skill bonus and movement dial. |
+| `game/js/items.js` | `Items`: the items table for the scenes (`get`, `name`, `kit`, `wpn`, `pool`, `roll`, `grant`, `take`). |
 | `tools/db/build.py` | Validate, report, and convert to and from a spreadsheet. |
 | `tools/space-smoke.js` | Headless test: plays the space scene (`instructor`, `depot`, `flight`, `loadouts`) and reports errors. |
+| `tools/items-smoke.js` | Headless test: the items table, `Items`, and every scene table, loot crate and enemy weapon built from it. |
 
 ## Editing in Google Sheets
 
@@ -40,6 +44,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 |---|---|
 | `ships` | Starships, drones (no pilot) and structures (never move). Stock model stats only. |
 | `weapons` | Every ship weapon. Any weapon fits any slot. Ammo and damage live here, not on the ship. |
+| `items` | Personal kit (weapons, armour, gadgets, other) and the built-in weapons of units and vehicles. |
 | `pilots` | Level, XP, initiative (1 to 6) and the four skills. Drones carry a built-in "core" pilot. |
 | `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
@@ -77,15 +82,40 @@ the ship, and traits or morale may push the effective value outside 1 to 6.
 - **Weapons:** each ship has slots `w0`, `w1`; any weapon fits any slot. Damage, ammo, range, accuracy, crit, shield
   bypass and lock all come from the weapon. A ship's loadout is part of the ship, not the model:
   `G.fighters[i].loadout` lists weapon ids (stock defaults, or the `starting_fleet` entry for named ships such as Dustfall and Marta).
-- **Pilots:** initiative, level and skills. The scripted cast comes from the `pilots` table. Campaign pilots have no
-  skills yet, so `base.js` derives them from level (skill = old aim x 10) and gives Sera, Joss and Petra their
-  database initiative and everyone else a random 1 to 6, saved on the pilot.
+- **Pilots:** initiative, level and skills. The scripted cast (Sera, Joss) is built from the `pilots` table through the
+  normal rebel path (`Rebel.scripted`). Campaign rebels' skills live on the rebel and are carried to the database's
+  0 to 50 scale at the base/space boundary (`Rebel.dbSkill`); everyone without a row gets a random initiative 1 to 6,
+  saved on the pilot. (The space scene's `mkPilot` still accepts the old `aim x 10` shape for its own fixtures.)
 - **Target number:** `base TN + Focus bonus`, shown in the engagement panel as `SIZE n HULL` and `PILOT FOCUS`.
 - **Door Gunner Support:** needs a ship with a gunner position carrying a weapon whose `fire_support` is `door_gunner`.
   Reinforcements land up to the transport's `extra_people` seats; filling them is optional.
 
-Still in code, because the database has no column for them: the Drone Monitor's call for help and the Mag-Clamper's
-clamp (`BEHAVIOUR` in `space.js`), and the critical-hit table.
+## Items
+
+One row per item. Ids are the short keys saves already use (`akli`, `blam`, `charge`); there is no `legacy_keys`
+column, so do not rename an id once a save may hold it.
+
+- **Owned kit** (`weapon`, `armour`, `gadget`, `other`): slot, Storeroom footprint (`width` x `height`), auto-equip
+  `quality`, maker, origin, Black Market `price` and `rev`, and the flags `live` (FALSE: no rules yet, so never sold
+  and never carried), `hegemony` (loot only) and `drop_only`. The Arsenal shows `description`.
+- **Built-in weapons** (`builtin`): fists, bare hands, vehicle guns, turrets. They have stats but are never owned.
+- **Weapon stats** are all-or-nothing: `damage_min`/`damage_max`, `range`, `attack`, `shots`, `damage_type`, plus
+  `one_handed`, `jams`, `pellets`, `falloff` and `beam`. A live weapon must have them.
+- **Getting kit:** `Items.grant(armory, id, n, src)` is the only way into an armory (`grantItem` in `base.js` wraps it
+  and re-runs auto-equip). It refuses unknown ids and built-ins, so a typo fails loudly. Loot crates, enemy drops,
+  chain gifts and the smuggler bonus all pass ids. `src` (`start`, `looted`, `bought`, `made`, `gift`) is saved on the
+  stack and drives the Arsenal's provenance tag.
+- **Drawing at random:** `Items.pool(filter)` and `Items.roll(filter, rng, weight)` filter by `cat`, `slot`, `heg`,
+  `dropOnly`, `origin`, `maker`, `maxRev`, `sold` and `live`. The Black Market roll is the only caller today; loot
+  that rolls waits on DESIGN_BLOCKERS M-24.
+
+Still in code: market category weights (`CATW` in `base.js`), the gadget stat rows on the market (`BM_GSTATS`), the
+briefing chips in `core.js`, and the art kit's own item keys (`blam` draws as `frags`, `charge` as `c90`).
+
+## Still in code, because the database has no column for them
+
+The Drone Monitor's call for help and the Mag-Clamper's clamp (`BEHAVIOUR` in `space.js`), the critical-hit table,
+and the Door Gunner and Strafing Run numbers in `ground.js` (the `door-mounted-gun` row only decides who can fly it).
 
 ## Seed data to review
 
@@ -96,4 +126,5 @@ initiative values.
 ## Not in the database yet
 
 Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
-capital ship weapons and attachments, personal weapons, armour and gadgets, vehicles, bots and autos.
+capital ship weapons and attachments, vehicles, bots, autos and enemy soldiers (their weapons are item ids; their
+stats are not in a table yet: see `docs/LEGACY_AUDIT.md` §3).

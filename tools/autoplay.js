@@ -173,8 +173,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   function loot(M,m){
    const items=[];
    const sc=m.scenario||'';
-   if(sc==='stealfuel')items.push('Explosive Charge','Explosive Charge');
-   if(sc==='autofactory')items.push('Explosive Charge');
+   if(sc==='stealfuel')items.push('charge','charge');
+   if(sc==='autofactory')items.push('charge');
    return {c:120+Math.round(R()*120),s:30+Math.round(R()*50),items};
   }
   function runMission(m){

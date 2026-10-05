@@ -112,41 +112,17 @@ const UPGRADES={
 const DIP_COST={c:400,s:60},DIP_DAYS=4;
 const SPEC_COST=300;
 /* ---------- the shared item catalogue (KIT) ----------
-   Personal kit: what it is, where it slots, its Storeroom footprint and what Sweet Tooth charges. Absorbs the
-   old GEAR_META; keys match the saved armory ids so old saves line up. The database does not hold personal kit
-   yet, so the table lives here (DESIGN_BLOCKERS C-10); display names follow the Gear doc, saved names stay.
-   `live:false` means the game has no mechanics for the item yet: never stocked by the market and never
-   auto-equipped (DESIGN_BLOCKERS M-17). `q` is the auto-equip quality, best first. */
-const KIT={
-  akli:       {name:'Akli AR',sub:'Assault rifle',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'Bhord',origin:'factory',price:140,live:1,rev:1},
-  cowboy:     {name:'Cowboy No.4',sub:'Revolver sidearm',cat:'weapon',slot:'secondary',w:1,h:1,q:1,maker:'TBC',origin:'factory',price:70,live:1,rev:1},
-  scatter:    {name:'Varmint Shotgun',sub:'Shotgun \u00b7 close work',cat:'weapon',slot:'primary',w:3,h:1,q:2,maker:'TBC',origin:'factory',price:160,live:1,rev:1},
-  longiron:   {name:'Longhorn ’28',sub:'Hunting rifle \u00b7 long range',cat:'weapon',slot:'primary',w:3,h:1,q:3,maker:'TBC',origin:'factory',price:240,live:1,rev:1},
-  rocket:     {name:'Improvised Rocket Launcher',cat:'weapon',slot:'primary',w:3,h:1,q:1,maker:'TBC',origin:'handmade',price:340,live:0,rev:1},   // one-shot ownership unresolved: M-17
-  plasmasmg:  {name:'Improvised Plasma SMG',cat:'weapon',slot:'primary',w:2,h:1,q:2,origin:'handmade',price:280,live:0,rev:1},
-  mininglaser:{name:'Repurposed Mining Laser',cat:'weapon',slot:'primary',w:3,h:1,q:2,origin:'scavenged',price:420,live:0,rev:1},
-  carbine:    {name:'Peacekeeper Carbine',cat:'weapon',slot:'primary',w:3,h:1,q:3,maker:'Patriot',origin:'factory',heg:1,live:1,rev:1},   // loot only
-  hg40:       {name:'HG-40',cat:'weapon',slot:'secondary',w:1,h:1,q:2,maker:'Patriot',origin:'factory',heg:1,live:0,rev:1},
-  baton:      {name:'Power Baton',cat:'weapon',slot:'secondary',w:2,h:1,q:1,maker:'Patriot',origin:'factory',heg:1,live:0,rev:1},
-  riotshield: {name:'Riot Shield',cat:'weapon',slot:'secondary',w:2,h:2,q:1,maker:'Patriot',origin:'factory',heg:1,live:0,rev:1},
-  autohand:   {name:'Auto Plasma Hand',cat:'weapon',slot:'secondary',w:1,h:1,q:2,maker:'AutoCom',origin:'factory',dropOnly:1,live:0,rev:1},
-  hardhat:    {name:'Frontier Hardhat',sub:'Head armour',cat:'armour',slot:'head',w:1,h:1,q:1,maker:'TenTiU',origin:'factory',price:45,live:1,rev:1},
-  cowboyhat:  {name:'Cowboy Hat',sub:'Headwear \u00b7 no protection',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:30,live:1,rev:1},   // no benefit: cosmetic
-  cap:        {name:'Baseball Cap',sub:'Headwear \u00b7 no protection',cat:'armour',slot:'head',w:1,h:1,q:0,maker:'TBC',origin:'factory',price:20,live:1,rev:1}, // no benefit: cosmetic
-  policehelmet:{name:'Police Helmet',cat:'armour',slot:'head',w:1,h:1,q:1.5,maker:'Patriot',origin:'factory',heg:1,live:1,rev:1},   // loot only
-  policevest: {name:'Police Vest',cat:'armour',slot:'body',w:2,h:2,q:2,maker:'Patriot',origin:'factory',heg:1,live:1,rev:1},        // loot only
-  autohelm:   {name:'Auto Head-Helm',sub:'Head armour \u00b7 handmade',cat:'armour',slot:'head',w:1,h:1,q:1.5,origin:'handmade',price:120,live:1,rev:1},
-  medpack:    {name:'Med Pack',sub:'Field medicine',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,origin:'factory',price:40,live:1,rev:1},
-  blam:       {name:'BLAM Frag Grenade',sub:'Frag grenade',cat:'gadget',slot:'gadget',w:1,h:1,q:1,maker:'BLAMCo',origin:'factory',price:50,live:1,rev:1},
-  charge:     {name:'BLAM C90 Explosive Charge',sub:'Demolition charge',cat:'gadget',slot:null,w:2,h:1,maker:'BLAMCo',origin:'factory',price:110,live:1,rev:1},   // display rename only; key stays `charge`
-  stim:       {name:'Stim',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,maker:'TBC',origin:'factory',price:35,live:0,rev:1},   // ground gives every rebel a built-in stim: M-17
-  molotov:    {name:'Molotov Cocktail',cat:'gadget',slot:'gadget',w:1,h:1,q:0.5,origin:'handmade',price:25,live:0,rev:1},
-  angel:      {name:'Guardian Angel Drone',cat:'gadget',slot:'gadget',w:1,h:1,q:1,origin:'handmade',price:220,live:0,rev:1},
-  autocore:   {name:'Auto Core Improvised Charge',cat:'gadget',slot:null,w:1,h:1,origin:'handmade',price:90,live:0,rev:1},
-  limpet:     {name:'Data Limpet',cat:'gadget',slot:null,w:2,h:1,live:1,rev:1},   // not sold: no price
-  shells:     {name:'Shell box',cat:'other',slot:null,w:1,h:1,live:1,rev:1},      // not sold: no price
-};
+   Personal kit: what it is, where it slots, its Storeroom footprint and what Sweet Tooth charges. Built from the
+   `items` table in game/data/db.json through game/js/items.js (DESIGN_BLOCKERS C-10); ids match the saved armory
+   ids. `live:false` means the game has no mechanics for the item yet: never stocked by the market and never carried
+   (DESIGN_BLOCKERS M-17). `q` is the auto-equip quality, best first. Kit only reaches the armory through
+   grantItem / Items.grant. */
+const KIT=Items.kit();
 const gearMeta=a=>KIT[a.id]||{cat:'other',w:2,h:1};
+/* the Arsenal's line about an item: the table's description, else what an older save wrote on the stack, else where it came from */
+const SRC_LINE={bought:'From Sweet Tooth\u2019s stall at Nyx. No receipts.',looted:'Taken off the Hegemony\u2019s people. Ours now.',
+  made:'Made in our own workshops.',gift:'Put together by our own people.',start:'Part of what we started with.'};
+const itemBlurb=a=>(Items.get(a.id)||{}).description||a.desc||SRC_LINE[a.src]||'';
 const kitNameId=id=>(KIT[id]&&KIT[id].name)||((G&&G.armory.find(a=>a.id===id))||{}).name||id;
 const kitName=a=>(KIT[a.id]&&KIT[a.id].name)||a.name;
 /* the market pool rule (the Black Market draws from this once it lands) */
@@ -226,11 +202,7 @@ function newGame(){
     fighters:[],
     vehicles:[],
     wreck:{restored:false,restoring:0},
-    armory:[
-      {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
-      {id:'cowboy',name:'Cowboy No.4',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
-      {id:'medpack',name:'Med Pack',n:4,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'},
-    ],
+    armory:[],
     people:[
       castRebel({id:'joss',name:'Joss Marrek',role:'Pilot',charTrait:'reckless',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},'joss-marrek'),
       castRebel({id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,charTrait:'cautious',equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'}),
@@ -246,6 +218,7 @@ function newGame(){
     news:[],
     econ4:1,locModel:1,medSeeded:1,   // born on today's rules: restoreCampaign's one-off fixes for older saves must not fire
   };
+  for(const [id,n] of [['akli',6],['cowboy',4],['medpack',4]])Items.grant(g0.armory,id,n,'start');
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
   {const keep=G;G=g0;g0.people.forEach(gearFromEquip);autoEquip();G=keep;}
   g0.morale=Rebel.MORALE_START;
@@ -1137,8 +1110,8 @@ const CHAINS={
         '\u201cThey found coordinates inside Doran\u2019s data. Three relay towers: one outside <b>Ledger Town</b>, one on the <b>Data Flats</b>, one by the <b>Quota Blocks</b>. All three carry the Bureau\u2019s census feed.\u201d',
         '\u201cOne of the team wants to clamp a data limpet on each, sit on the feed and read it. The rest say blow them, and make the Bureau deaf. Doran would take either.\u201d'],
        choices:[
-        ['\u201cWe are here to make life hell for the Hegemony. We blow the towers.\u201d','blow','Three Explosive Charges, cobbled together from the decode lab\u2019s spare parts.',{items:['Explosive Charge','Explosive Charge','Explosive Charge']}],
-        ['\u201cThere is more in those feeds than a bang. We tap them.\u201d','hack','Three Data Limpets, still warm from the lab.',{items:['Data Limpet','Data Limpet','Data Limpet']}]]},
+        ['\u201cWe are here to make life hell for the Hegemony. We blow the towers.\u201d','blow','Three Explosive Charges, cobbled together from the decode lab\u2019s spare parts.',{items:['charge','charge','charge']}],
+        ['\u201cThere is more in those feeds than a bang. We tap them.\u201d','hack','Three Data Limpets, still warm from the lab.',{items:['limpet','limpet','limpet']}]]},
       {k:'missions',tid:'towers',regions:['ledger','dataflats','quota'],news:'Three towers, three jobs on the board: Ledger Town, the Data Flats and the Quota Blocks.'},
       {k:'checkin',
        text:{
@@ -1231,7 +1204,7 @@ function chainAct(id,act,idx){
     if(!ch)return;
     c.flags.stance=ch[1];
     const gift=ch[3]||{};
-    for(const it of (gift.items||[]))addArmoryItem(it);
+    for(const it of (gift.items||[]))grantItem(it,1,'gift');
     news(ch[2],'g');
     chainAdvance(id);
     closeWin();syncUI();return;
@@ -1494,8 +1467,7 @@ function packTick(){
   G.packClock=(G.packClock||0)+1;
   if(G.packClock<(medStaff().length?2:3)||G.supplies<PACK_COST)return;
   G.packClock=0;G.supplies-=PACK_COST;
-  if(have)have.n++;
-  else G.armory.push({id:'medpack',name:'Med Pack',n:1,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'});
+  Items.grant(G.armory,'medpack',1,'made');
   autoEquip();
 }
 function advanceDay(){
@@ -4118,12 +4090,7 @@ function rewList(m){
 }
 const rewHTML=m=>rewList(m).join(' ');
 const riskTag=m=>wTag('Risk '+String(m.riskTxt).toLowerCase(),/high/i.test(m.riskTxt)?'bad':/low/i.test(m.riskTxt)?'good':'warn');
-/* gear glyphs are saved with the armory; the kit icon is chosen from the item id */
-const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',longiron:'gun',rocket:'missile',plasmasmg:'plasma',mininglaser:'plasma',
-  hg40:'pistol',baton:'sword',riotshield:'shield',autohand:'plasma',
-  hardhat:'soldier',cowboyhat:'soldier',cap:'soldier',policehelmet:'soldier',policevest:'shield',autohelm:'soldier',
-  shells:'ballistic',blam:'grenade',charge:'grenade',stim:'stim',molotov:'grenade',angel:'firesupport',autocore:'grenade',limpet:'hack',medpack:'patch'};
-const gearIconId=id=>GEAR_ICON[id]||'loot';
+const gearIconId=id=>(Items.get(id)||{}).icon||'loot';   // the items table picks the icon
 const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
 let shipSheetShip=null;
@@ -4309,7 +4276,7 @@ function gearOverlayHTML(p,ov){
     opts.map(a=>{
       const free=freeOf(a.id),hold=holders(a.id,[p]),mine=cur===a.id;
       const state=mine?'<span class="bs-good">Carrying</span>':free>0?'<span class="bs-good">'+free+' free</span>':hold.length?'<span class="sr-faint">Take from '+esc(hold[0].name.split(' ')[0])+'</span>':'<span class="sr-faint">All away on missions</span>';
-      return pick(a.id,'<span class="bs-gearpick__n">'+IC(gearIcon(a))+'<span>'+esc(kitName(a))+'</span></span><span class="bs-sub">'+esc(a.desc||'')+'</span>'+state,!mine&&free<=0&&!hold.length);
+      return pick(a.id,'<span class="bs-gearpick__n">'+IC(gearIcon(a))+'<span>'+esc(kitName(a))+'</span></span><span class="bs-sub">'+esc(itemBlurb(a))+'</span>'+state,!mine&&free<=0&&!hold.length);
     }).join('')||'<div class="sr-empty">Nothing in the armory fits this slot.</div>';
   return '<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close"></button>'+
     '<div class="bs-overlay__panel" role="dialog" aria-label="Choose gear"><div class="sr-window__head"><span class="sr-window__title">'+esc(p.name.split(' ')[0])+' \u00b7 '+SLOT_LABEL[s.k]+'</span>'+wX('data-rank-close')+'</div>'+
@@ -4752,7 +4719,7 @@ function syncUI(){
 const AR_CATS=[['all','All kit'],['weapon','Weapons'],['armour','Armour'],['gadget','Gadgets'],['vehicles','Vehicles'],['ships','Ships'],['shipkit','Ship kit']];
 const AR_CATLBL={weapon:'Weapon',armour:'Armour',gadget:'Gadget',other:'Other'};
 const MAKER_COL={Bhord:'#c9573b',Patriot:'#2f6fd0',BLAMCo:'#ffb454',TenTiU:'#43b0a0',AutoCom:'#8a93b5',MenDon:'#57a8ff'};
-const START_IDS=['akli','cowboy','medpack'];   // the day-one armory: everything else non-Hegemony was stolen
+const START_IDS=['akli','cowboy','medpack'];   // the day-one armory, for saves from before stacks recorded their source
 let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false;
 const arLast={};   // last selection per category chip (module state, not saved)
 const itArt=(id,cls)=>'<span class="it-art'+(cls?' '+cls:'')+'">'+IC(gearIconId(id))+'</span>';
@@ -4771,7 +4738,7 @@ function sellItem(id){
   if(!a||a.n<=0)return false;
   const got=sellPrice(id);
   const nm=kitName(a);
-  a.n--;if(!a.n)G.armory=G.armory.filter(x=>x!==a);
+  Items.take(G.armory,id,1);
   G.credits+=got;
   reconcileGear();
   if(arSel&&arSel.t==='kit'&&arSel.id===id&&!stockOf(id)){arSel=null;arLast[arCat]=null;}
@@ -4860,7 +4827,7 @@ function arDossierHTML(){
     const prov=m.heg
       ?wTag('Looted','foe')+wTag(IC('lock')+'Hegemony issue','foe')
       :a.src==='bought'?wTag('Bought from Sweet Tooth','action')
-      :wTag(START_IDS.includes(a.id)?'Starting kit':'Stolen','friend');
+      :wTag((a.src?a.src==='start':START_IDS.includes(a.id))?'Starting kit':a.src==='made'?'Made at base':'Stolen','friend');
     const stats='<dl class="kit-stat">'+
       statRow('Kind',(AR_CATLBL[m.cat]||'Other')+(m.origin&&m.origin!=='factory'?' · '+m.origin:''))+
       statRow('Slot',m.slot?SLOT_LABEL[m.slot==='gadget'?'gad':m.slot]:'Mission stores — not carried in a slot')+
@@ -4870,7 +4837,7 @@ function arDossierHTML(){
     const hold=holders(a.id,[]);
     return well(itArt(a.id))+
       '<div><div class="ar-dossier__name">'+esc(kitName(a))+'</div><div class="ar-dossier__kind">'+mk+prov+'</div></div>'+
-      (a.desc?'<p class="ar-blurb">'+esc(a.desc)+'</p>':'')+stats+
+      (itemBlurb(a)?'<p class="ar-blurb">'+esc(itemBlurb(a))+'</p>':'')+stats+
       '<div class="ar-count"><div><b>'+a.n+'</b><span>Owned</span></div><div><b>'+carried(a.id)+'</b><span>Carried</span></div><div><b>'+freeOf(a.id)+'</b><span>In store</span></div></div>'+
       (hold.length?'<div class="sr-h3" style="margin:0">Carried by</div><div class="ar-holders">'+hold.map(p=>'<span class="ar-holder">'+avat(p,24)+esc(p.name.split(' ')[0])+'</span>').join('')+'</div>':'');
   }
@@ -4928,7 +4895,7 @@ function arGridHTML(){
   let cells=lay.map(x=>{
     const id=x.a.id,m=x.m,c=carried(id),heg=!!(KIT[id]&&KIT[id].heg);
     const sel=arSel&&arSel.t==='kit'&&arSel.id===id;
-    return '<button class="ar-tile'+(sel?' is-sel':'')+(heg?' is-foe':'')+(m.w>1&&m.h>1?' is-big':m.w>2?' is-wide':'')+'" data-arsel="kit:'+id+'" aria-pressed="'+sel+'" title="'+esc(x.a.desc||kitName(x.a))+'" style="grid-column:'+(x.c+1)+' / span '+m.w+';grid-row:'+(x.r+1)+' / span '+m.h+'">'+
+    return '<button class="ar-tile'+(sel?' is-sel':'')+(heg?' is-foe':'')+(m.w>1&&m.h>1?' is-big':m.w>2?' is-wide':'')+'" data-arsel="kit:'+id+'" aria-pressed="'+sel+'" title="'+esc(itemBlurb(x.a)||kitName(x.a))+'" style="grid-column:'+(x.c+1)+' / span '+m.w+';grid-row:'+(x.r+1)+' / span '+m.h+'">'+
       itArt(id)+'<span class="ar-tile__q">×'+x.a.n+'</span>'+
       (c?'<span class="ar-tile__c'+(heg?' is-foe':'')+'" title="'+c+' carried">'+IC('people')+c+'</span>':'')+
       '<span class="ar-tile__n">'+esc(kitName(x.a))+'</span></button>';
@@ -5263,9 +5230,7 @@ function buyLot(i,all){
   G.credits-=cost;
   l.stock-=n;
   if(l.kind==='kit'){
-    addArmoryItem(l.key,n);
-    const a=G.armory.find(x=>x.id===l.key);
-    if(a)a.src='bought';   // provenance for the Arsenal dossier
+    grantItem(l.key,n,'bought').src='bought';   // the whole stack reads as bought in the Arsenal dossier
     news('<b>'+esc(kitNameId(l.key))+'</b> bought. It’s in the Arsenal.','g');
   }
   bmLine={k:'bought',kind:l.kind};
@@ -5326,11 +5291,11 @@ function lotStats(l){
   const m=KIT[l.key]||{};
   const st=[];
   if(m.cat==='weapon'){
-    const wp=(window.SR_WPN||{})[l.key];
-    if(wp){
-      st.push(['Damage',wp.d0+'–'+wp.d1]);
-      st.push(['Range',wp.rng<300?'Short':wp.rng<500?'Medium':wp.rng<800?'Long':'Very long']);
-      st.push(['Shots',wp.shots+(wp.jam?', can jam':'')]);
+    const wp=Items.get(l.key);
+    if(wp&&wp.damage_min!=null){
+      st.push(['Damage',wp.damage_min+'–'+wp.damage_max]);
+      st.push(['Range',wp.range<300?'Short':wp.range<500?'Medium':wp.range<800?'Long':'Very long']);
+      st.push(['Shots',wp.shots+(wp.jams?', can jam':'')]);
     }
   } else if(m.cat==='armour'){
     st.push(['Protects',m.q?(m.slot==='head'?'Head':'Body'):'Nothing — style']);
@@ -6162,27 +6127,17 @@ function startPlan(){
 }
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
 function pilotAim(p){return Math.max(0,SRDB.skillBonus(Rebel.dbSkill(p,'aim'),p.level)+pilotAimMod(p));}
-function addArmoryItem(name,count){
-  const map={'Scattergun':['scatter','Varmint Shotgun'],'Varmint Shotgun':['scatter','Varmint Shotgun'],'Sheriff\u2019s Scattergun':['scatter','Varmint Shotgun'],'Cowboy':['cowboy','Cowboy No.4'],
-    'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
-    'Explosive Charge':['charge','Explosive Charge'],'Data Limpet':['limpet','Data Limpet']};
-  // loot passes display names (the map above); the Black Market passes raw KIT keys and a count
-  const hit=KIT[name]?[name,KIT[name].name]:(map[name]||[name.toLowerCase().replace(/[^a-z0-9]+/g,''),name]);
-  const n=Math.max(1,count||1);
-  const a=G.armory.find(x=>x.id===hit[0]);
-  if(a)a.n=(a.n||0)+n;
-  else if(hit[0]==='limpet')G.armory.push({id:'limpet',name:'Data Limpet',n,ic:'\u25c9',desc:'A palm-sized tap that clamps onto a comm tower and copies every packet that passes. Needs no fuse.'});
-  else if(hit[0]==='charge')G.armory.push({id:'charge',name:'Explosive Charge',n,ic:'\u2738',desc:'A shaped demolition charge with a remote fuse. Plant it, walk away, then detonate.'});
-  else if(KIT[name])G.armory.push({id:hit[0],name:hit[1],n,desc:'From Sweet Tooth\u2019s stall at Nyx. No receipts.'});
-  else G.armory.push({id:hit[0],name:hit[1],n,desc:'Taken off Dustfall\u2019s lawmen. Ours now.'});
+/* every way kit enters the armory: loot, gifts, the market, migrations (src: start, looted, bought, made, gift) */
+function grantItem(id,n,src){
+  const a=Items.grant(G.armory,id,n,src);
   autoEquip();
+  return a;
 }
 /* each Med Pack used in the field is gone from the armory */
 function usePacks(r){
   const used=(r.people||[]).reduce((n,pr)=>n+(pr.packs||0),0);
   if(!used)return 0;
-  const a=G.armory.find(x=>x.id==='medpack');
-  if(a){a.n=Math.max(0,a.n-used);if(!a.n)G.armory=G.armory.filter(x=>x!==a);}
+  Items.take(G.armory,'medpack',used);
   reconcileGear();
   return used;
 }
@@ -6207,7 +6162,7 @@ function applyDebrief(r){
       if(r.loot){
         if(r.loot.c)G.credits+=r.loot.c;
         if(r.loot.s)G.supplies+=r.loot.s;
-        for(const it of r.loot.items||[])addArmoryItem(it);
+        for(const it of r.loot.items||[])grantItem(it,1,'looted');
       }
       news('<b>The abandoned base at Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war. The Revolution begins today!','g');
       news('In the hangar cave, under a decade of dust: a <b>derelict Graf Hauler</b>. Joss is already inspecting it. Restore it from the hangar.','a');
@@ -6270,19 +6225,18 @@ function applyDebrief(r){
   if(r.loot){
     if(r.loot.c){G.credits+=r.loot.c;got.push(C(r.loot.c));}
     if(r.loot.s){G.supplies+=r.loot.s;got.push(S(r.loot.s));}
-    for(const it of r.loot.items||[]){addArmoryItem(it);got.push(it);}
+    for(const it of r.loot.items||[]){grantItem(it,1,'looted');got.push(Items.name(it));}
   }
   if(r.win&&r.kind==='ground'&&(r.people||[]).some(pr=>pr.state!=='lost'&&Rebel.has(G.people.find(x=>x.id===pr.id),'smuggler'))&&rng()<0.25){
-    const it=rng()<0.5?'Cowboy':'Shell box';
-    addArmoryItem(it);got.push(it);
-    news('A former smuggler\u2019s instincts paid off: an extra <b>'+it+'</b> in the haul.','g');
+    const it=rng()<0.5?'cowboy':'shells';
+    grantItem(it,1,'looted');got.push(Items.name(it));
+    news('A former smuggler\u2019s instincts paid off: an extra <b>'+Items.name(it)+'</b> in the haul.','g');
   }
   if(r.kind==='ground'&&r.nades!==undefined){
     const a=G.armory.find(x=>x.id==='blam');
     const given=G.nadesOut===undefined?(a?a.n:0):G.nadesOut;G.nadesOut=undefined;
-    if(a)a.n=Math.max(0,a.n-given+r.nades);
-    else if(r.nades>0)G.armory.push({id:'blam',name:'BLAM Frag Grenade',n:r.nades,ic:'✸',
-      desc:'Cheap, loud, and honest about it. Thrown one round, felt the next.'});
+    const had=a?a.n:0,want=Math.max(0,had-given+r.nades);   // unused frags (the drop's and the crates') join the stores
+    if(want>had)Items.grant(G.armory,'blam',want-had,'looted');else if(want<had)Items.take(G.armory,'blam',had-want);
     if(r.nades>0&&!a)got.push('BLAM frags ×'+r.nades);
   }
   if(r.win&&r.cross){
@@ -6304,13 +6258,11 @@ function applyDebrief(r){
     } else f.hull=Math.max(5,Math.min(100,Math.round(fr.hull)));
   }
   if(r.limpetUsed){
-    const lm=G.armory.find(a=>a.id==='limpet');
-    if(lm){lm.n=Math.max(0,lm.n-r.limpetUsed);if(!lm.n)G.armory=G.armory.filter(a=>a!==lm);}
+    Items.take(G.armory,'limpet',r.limpetUsed);
   }
   if(r.win&&m&&r.method)m.method=r.method;
   if(r.chargeUsed){
-    const ch=G.armory.find(a=>a.id==='charge');
-    if(ch){ch.n=Math.max(0,ch.n-r.chargeUsed);if(!ch.n)G.armory=G.armory.filter(a=>a!==ch);}
+    Items.take(G.armory,'charge',r.chargeUsed);
   }
   if(r.win&&m)applyRew(m.rew,got);
   for(const vr of r.vehicles||[]){
@@ -6396,7 +6348,7 @@ function restoreCampaign(data){
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
     mood();
     G.heroesMade=Math.max(G.heroesMade||0,G.people.filter(p=>p.role==='Hero').length);
-    if(!G.medSeeded){G.medSeeded=1;if(!G.armory.some(x=>x.id==='medpack'))G.armory.push({id:'medpack',name:'Med Pack',n:4,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'});}
+    if(!G.medSeeded){G.medSeeded=1;if(!G.armory.some(x=>x.id==='medpack'))Items.grant(G.armory,'medpack',4,'start');}
     for(const p of crewOf())if(!p.gear)gearFromEquip(p);
     autoEquip();
     G.candQ=G.candQ||[];
@@ -6440,7 +6392,7 @@ function restoreCampaign(data){
       for(const o of G.opps)for(const k of ['c','s','m','f'])if(o.rew&&o.rew[k])o.rew[k]*=4;
       for(const m of G.missions)if(m.opp)for(const k of ['c','s','m','f'])if(m.rew&&m.rew[k])m.rew[k]*=4;
     }
-    if(G.missions.some(m=>(m.story||m.id)==='stealfuel'&&m.state==='done')&&!G.armory.some(a=>a.id==='charge')&&!G.missions.some(m=>(m.story||m.id)==='autofactory'))addArmoryItem('Explosive Charge');
+    if(G.missions.some(m=>(m.story||m.id)==='stealfuel'&&m.state==='done')&&!G.armory.some(a=>a.id==='charge')&&!G.missions.some(m=>(m.story||m.id)==='autofactory'))grantItem('charge',1,'looted');
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';

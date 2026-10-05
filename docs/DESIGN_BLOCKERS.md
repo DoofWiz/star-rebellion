@@ -32,7 +32,7 @@ and M-24 and renumbered the Fleet-tab entry from a duplicate C-12 to C-19.
 | C-7 | ⚪ | Vehicle rules the Ground Combat excerpt does not cover | How vehicle fights feel |
 | C-8 | ⚪ | Bots ride as fire-support assets, not squad members | Where the Strider sits in a plan |
 | C-9 | ⚪ | The Steal the Cross laser turret is still its own system | One rule for gun emplacements |
-| C-10 | ⚪ | Prices, market weights and `KIT` live in `base.js`, not the database | Where personal kit data lives |
+| C-10 | ⚪ | Market weights still live in `base.js` (`KIT` and prices moved to the database) | Where the market's tuning lives |
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
 | C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
@@ -130,17 +130,21 @@ onboarding mission. **Needs from you:** should emplacements become vehicles with
 Man gun/Leave gun), or stay separate?
 **Your call:** _open_
 
-### C-10 ⚪ Prices, market weights and `KIT` live in `base.js`, not the database
-The Market/Arsenal handoff told me to add the shared item catalogue (`KIT`: footprints, slots, makers, prices,
-`live` flags) as a table in `base.js`, because `db.json` does not hold personal kit yet. That is where it is.
-**Needs from you:** nothing urgent — but when personal kit joins the database, `KIT`, the prices and the market
-weights should move into `db.json` so the data pipeline owns them.
+### C-10 ⚪ Market weights still live in `base.js`
+The Market/Arsenal handoff put the item catalogue (`KIT`) in `base.js` because `db.json` held no personal kit.
+**Done since:** the catalogue, prices, combat stats and descriptions are the `items` table in `db.json`, read
+through `game/js/items.js` (see `docs/DATABASE.md`, Items). Still in code: the market's category weights (`CATW`)
+and the gadget stat lines on the market cards (`BM_GSTATS`).
+**Needs from you:** nothing urgent. Say if you want the weights in the spreadsheet too (a small `market_weights`
+table by Revolution Level would also cover M-18).
 **Your call:** _open_
 
 ### C-11 ⚪ Maker "TBC" on nine items
 The Gear doc leaves the maker blank for: Cowboy No.4, Varmint Shotgun, Longhorn ’28, Stim, Cowboy Hat, Baseball
 Cap, BLS-T Light Repeaters, Door Mounted Gun and the Riot Transport Cruiser. The Arsenal dossier shows a maker
-chip, so these read "TBC" (or show none). **Needs from you:** maker names, whenever convenient. Flavour only.
+chip; these now show none (the items table leaves `manufacturer` blank and says "Maker TBC" in its notes; the
+Arsenal used to print "TBC"). The Improvised Rocket Launcher is also blank. **Needs from you:** maker names,
+whenever convenient, straight into the Items tab of the spreadsheet if you like. Flavour only.
 **Your call:** _open_
 
 ### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab

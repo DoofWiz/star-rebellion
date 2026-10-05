@@ -43,21 +43,7 @@ function angNorm(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;r
 function lerp(a,b,t){return a+(b-a)*t;}
 function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
 
-const WPN={
-  akli:   {name:'Akli AR',            d0:24,d1:38,rng:540,atk:1,jam:true,shots:3},
-  cowboy: {name:'Cowboy No.4',        d0:18,d1:30,rng:280,atk:0,shots:1},
-  carbine:{name:'Peacekeeper Carbine',d0:20,d1:33,rng:430,atk:1,shots:2},
-  scatter:{name:'Varmint Shotgun',    d0:32,d1:55,rng:215,atk:2,shots:1,falloff:true,pellets:true},
-  longiron:{name:'Longhorn ’28 Hunting Rifle',d0:29,d1:46,rng:920,atk:2,shots:1},
-  rocket: {name:'Improvised Rocket Launcher',d0:55,d1:85,rng:520,atk:0,shots:1},
-  unarmed:{name:'Bare hands',          d0:5, d1:10,rng:60, atk:-1,shots:1},
-  fists:  {name:'Riot Fists',          d0:22,d1:36,rng:70, atk:1,shots:2},
-  cruiser:{name:'Cruiser Pulse Cannon',d0:18,d1:30,rng:480,atk:1,shots:2},
-  dispersal:{name:'Dispersal Turret',  d0:14,d1:24,rng:340,atk:1,shots:3},
-  strider:{name:'Strider Autocannon',d0:16,d1:26,rng:460,atk:0,shots:4},
-  laser:  {name:'Laser Turret',       d0:42,d1:62,rng:720,atk:4,shots:1,beam:true},
-};
-window.SR_WPN=WPN;   // read-only reference for the base scene (the Black Market's weapon stats row)
+const WPN=Items.wpn();   // every weapon with combat stats, from the items table (game/data/db.json)
 const PROPDEF={
   barrel:  {r:15,cov:8,hp:55, lab:'FUEL DRUMS'},
   crate:   {r:19,cov:8,hp:45, lab:'CARGO CRATES'},
@@ -140,7 +126,7 @@ stealcross:{
     {id:'strongbox',x:1196,y:768, label:'Assay strongbox',take:'560 \u25c8 credits',     c:560},
     {id:'crateA',   x:678, y:862, label:'Outfitter crates',take:'72 \u25a4 supplies',    s:72},
     {id:'crateB',   x:984, y:1076,label:'Outfitter crates',take:'56 \u25a4 supplies',    s:56},
-    {id:'locker',   x:1742,y:884, label:'HQ gun locker',  take:'Scattergun + shell box', items:['Scattergun','Shell box']},
+    {id:'locker',   x:1742,y:884, label:'HQ gun locker',  take:'Scattergun + shell box', items:['scatter','shells']},
     {id:'feed',     x:1312,y:1084,label:'Motor pool cache',take:'104 \u25c8 credits',     c:104},
     {id:'blamA',    x:1608,y:942, label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
     {id:'blamB',    x:1092,y:1112,label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
@@ -234,7 +220,7 @@ stealfuel:{
     {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'64 ▤ supplies',s:64},
     {id:'grain',x:560,y:620,label:'Grain store',take:'88 ▤ supplies',s:88},
     {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
-    {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['Explosive Charge','Explosive Charge']},
+    {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['charge','charge']},
   ],
   foes(){return [
     {id:'holt',name:'Guard Holt',first:'Holt',side:'law',x:1250,y:620,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']},
@@ -307,7 +293,7 @@ autofactory:{
   loots:[
     {id:'safe',x:2080,y:880,label:'Factory office safe',take:'440 \u25c8 credits',c:440},
     {id:'scrap',x:1580,y:1100,label:'Parts crates',take:'80 \u25a4 supplies',s:80},
-    {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['Explosive Charge']},
+    {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['charge']},
   ],
   foes(){return [
     {id:'drew',name:'Patrolman Drew',first:'Drew',side:'law',x:780,y:580,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}],lines:['Gate\u2019s quiet.','Who goes there?']},
@@ -367,7 +353,7 @@ towers:{
   loots:[
     {id:'cash',x:1980,y:930,label:'Annex cash tin',take:'240 ◈ credits',c:240},
     {id:'parts',x:1230,y:930,label:'Depot parts bins',take:'60 ▤ supplies',s:60},
-    {id:'cell',x:560,y:980,label:'Guard post locker',take:'Cowboy sidearm',items:['Cowboy']},
+    {id:'cell',x:560,y:980,label:'Guard post locker',take:'Cowboy sidearm',items:['cowboy']},
   ],
   foes(){
     const v=this.variant||'ledger';
@@ -439,7 +425,7 @@ rescue:{
     {x:600,y:950,kind:'rock'},{x:1100,y:1260,kind:'rock'},{x:1500,y:1200,kind:'rock'},{x:2050,y:1100,kind:'rock'},{x:400,y:700,kind:'rock'},{x:1900,y:300,kind:'rock'},
   ],
   loots:[
-    {id:'locker',x:1340,y:470,label:'Evidence locker',take:'Peacekeeper Carbine',items:['Peacekeeper Carbine']},
+    {id:'locker',x:1340,y:470,label:'Evidence locker',take:'Peacekeeper Carbine',items:['carbine']},
     {id:'tollbox',x:1100,y:1050,label:'Toll box',take:'360 ◈ credits',c:360},
     {id:'rations',x:1650,y:990,label:'Barge rations',take:'72 ▤ supplies',s:72},
   ],
@@ -1223,8 +1209,7 @@ function shieldBlocks(shooter,gunner){
 /* ---------- critical injuries (see rebel-injury.js) ----------
    u.inj is [{k, treated}]. A critical hit on a rebel inflicts one; its combat effect lasts until a Treat Wound
    action patches it. Whatever was suffered is reported back so the base can run the recovery. */
-const WDAM={akli:'ballistic',cowboy:'ballistic',carbine:'ballistic',scatter:'ballistic',longiron:'ballistic',strider:'ballistic',rocket:'explosive',laser:'plasma',cruiser:'plasma',dispersal:'plasma',fists:'blunt',unarmed:'blunt'};
-const ONE_HAND=['cowboy','unarmed','fists'];
+const WDAM={},ONE_HAND=[];for(const k in WPN){WDAM[k]=WPN[k].dmg;if(WPN[k].oneHand)ONE_HAND.push(k);}
 const TREAT_R=110;
 const injOf=(u,k)=>!!u&&!!u.inj&&u.inj.some(i=>i.k===k&&!i.treated);
 const hasInj=u=>!!u&&!!u.inj&&u.inj.some(i=>!i.treated);
@@ -1472,8 +1457,8 @@ function downUnit(t,by){
 function dropLoot(t){
   if(t.auto||t.vehicle)return;   // scrap, not spoils
   const m={id:'drop_'+t.id,x:t.x+10,y:t.y+10,label:t.name+'’s effects',drop:1};
-  if(t.sheriff){m.c=136;m.items=['Scattergun'];m.take='Scattergun + 136 ◈';}
-  else if(t.wpns[0]==='carbine'){m.c=rint(24,56);m.items=['Peacekeeper Carbine'];m.take='Carbine + credits';}
+  if(t.sheriff){m.c=136;m.items=['scatter'];m.take='Scattergun + 136 ◈';}
+  else if(t.wpns[0]==='carbine'){m.c=rint(24,56);m.items=['carbine'];m.take='Carbine + credits';}
   else {m.c=rint(32,72);m.take=m.c+' ◈ credits';}
   lootMarks.push(m);
 }
@@ -3362,7 +3347,7 @@ function gameOver(win,why){
       lh2+=LL('Haven Rock','Secured');
       if(tally.c)lh2+=LL('Credits scavenged','+'+tally.c,'credits');
       if(tally.s)lh2+=LL('Supplies scavenged','+'+tally.s,'supplies');
-      for(const it of tally.items)lh2+=LL(it,'Taken','loot');
+      for(const it of tally.items)lh2+=LL(Items.name(it),'Taken','loot');
     }
     byId('endLoot').innerHTML=lh2;
     endChrome(win,false);
@@ -3410,7 +3395,7 @@ function gameOver(win,why){
     let t='';
     if(tally.c)t+=LL('Credits looted','+'+tally.c,'credits');
     if(tally.s)t+=LL('Supplies looted','+'+tally.s,'supplies');
-    for(const it of tally.items)t+=LL(it,'Taken','loot');
+    for(const it of tally.items)t+=LL(Items.name(it),'Taken','loot');
     return t;
   };
   if(win&&ix){
@@ -5106,7 +5091,7 @@ const OM={
   switch:{label:'Switch position',icon:'switch',family:'stance',key:'',rule:'Move to another free position in this vehicle as the round opens. No shot this round.'},
   rally:{label:'Rally cry',icon:'firesupport',family:'fight',key:'0',rule:'Hero action, once per mission. Every rebel still on their feet steadies and takes +2 to hit this round.',nums:[{t:'+2 attack, all allies',kind:'good'}]},
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
-const WICON={akli:'gun',carbine:'gun',scatter:'gun',longiron:'gun',cowboy:'pistol',rocket:'missile',laser:'plasma',fists:'attack',unarmed:'attack',cruiser:'plasma',dispersal:'plasma',strider:'gun'};
+const WICON={};for(const k in WPN)WICON[k]=WPN[k].icon;
 function activeWork(s){
   return WORK.find(w=>!w.done&&(!s.mnt||w.inVeh)&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
 }
@@ -5299,7 +5284,7 @@ function lootHtml(){
   if(tally.c)h+=lootRow('credits','Credits','+'+tally.c,'var(--sr-res-credits)');
   if(tally.s)h+=lootRow('supplies','Supplies','+'+tally.s,'var(--sr-res-supplies)');
   const cnt={};for(const it of tally.items)cnt[it]=(cnt[it]||0)+1;
-  for(const k in cnt)h+=lootRow('loot',k,'×'+cnt[k],'var(--sr-go)');
+  for(const k in cnt)h+=lootRow('loot',Items.name(k),'×'+cnt[k],'var(--sr-go)');
   if(NADES>0)h+=lootRow('grenade','BLAM frag grenade','×'+NADES,'var(--sr-hazard)');
   return h||'<div class="sr-empty">Nothing yet. Check tills, crates and lockers.</div>';
 }
@@ -5883,7 +5868,7 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,WPN_:()=>WPN,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,

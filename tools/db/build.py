@@ -31,6 +31,11 @@ KINDS_SHIP = ["starship", "drone", "structure"]
 KINDS_WEAPON = ["plasma", "ballistic", "missile"]
 KINDS_PILOT = ["rebel", "enemy", "drone"]
 CLASSES = ["starship", "capital"]
+ITEM_CATS = ["weapon", "armour", "gadget", "other", "builtin"]
+ITEM_SLOTS = ["primary", "secondary", "head", "body", "gadget"]
+ITEM_ORIGINS = ["factory", "handmade", "scavenged"]
+DAMAGE_TYPES = ["ballistic", "plasma", "explosive", "blunt"]
+ITEM_STATS = ["damage_min", "damage_max", "range", "attack", "shots", "damage_type"]
 
 SCHEMA = {
     "rules": {
@@ -146,9 +151,43 @@ SCHEMA = {
             ("notes", "text", 80, "Designer notes."),
         ],
     },
+    "items": {
+        "sheet": "Items", "key": "id",
+        "cols": [
+            ("id", "id", 13, "Unique lowercase id. Saves, loot tables and enemy loadouts use it, so do not rename."),
+            ("name", "text", 26, "Display name."),
+            ("sub", "text", 26, "Short line under the name, e.g. Assault rifle."),
+            ("category", "id", 10, "weapon, armour, gadget or other. builtin = a weapon a unit or vehicle has built in (fists, a turret); never owned or sold."),
+            ("slot", "id", 10, "primary, secondary, head, body or gadget. Blank: carried as mission stores, not in a slot."),
+            ("width", "int", 6, "Storeroom footprint, columns."),
+            ("height", "int", 6, "Storeroom footprint, rows."),
+            ("quality", "num", 7, "Auto-equip hands out the highest first. 0 = cosmetic."),
+            ("manufacturer", "id", 12, "Manufacturer id. Blank if unknown or TBC."),
+            ("origin", "id", 10, "factory, handmade or scavenged."),
+            ("price", "int", 7, "Base Black Market price in credits. Blank: never sold, cannot be sold back."),
+            ("live", "bool", 6, "TRUE once the game has rules for it. FALSE keeps it out of the market and out of every slot."),
+            ("rev", "int", 5, "Lowest Revolution Level the market stocks it at."),
+            ("hegemony", "bool", 9, "Hegemony issue: loot only, never sold."),
+            ("drop_only", "bool", 9, "Only ever dropped by enemies, never sold."),
+            ("damage_min", "int", 8, "Weapons: lowest damage roll."),
+            ("damage_max", "int", 8, "Weapons: highest damage roll."),
+            ("range", "int", 7, "Weapons: range in ground-map units (about 100 = one building)."),
+            ("attack", "int", 7, "Weapons: added to the attack roll. Negative is harder to hit with."),
+            ("shots", "int", 6, "Weapons: shots per attack."),
+            ("damage_type", "id", 10, "Weapons: ballistic, plasma, explosive or blunt."),
+            ("one_handed", "bool", 8, "Weapons: usable with a broken arm."),
+            ("jams", "bool", 6, "Weapons: can jam."),
+            ("pellets", "bool", 7, "Weapons: fires a spread of pellets."),
+            ("falloff", "bool", 7, "Weapons: damage drops with range."),
+            ("beam", "bool", 6, "Weapons: draws as a beam."),
+            ("icon", "id", 10, "Icon from the game's sprite sheet, e.g. gun, pistol, grenade."),
+            ("description", "text", 60, "Shown to the player in the Arsenal."),
+            ("notes", "text", 50, "Designer notes. Not shown to players."),
+        ],
+    },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "items", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
 
@@ -336,6 +375,44 @@ def validate(db):
             filled = sum(1 for k in ("weapon_1", "weapon_2") if f[k])
             if filled > m["weapon_slots"]:
                 E("%s: %d weapons on a ship with %d slots" % (n, filled, m["weapon_slots"]))
+
+    for it in db["items"]:
+        n = "items %r" % it["id"]
+        for col, allowed in (("category", ITEM_CATS), ("slot", ITEM_SLOTS + [None]), ("origin", ITEM_ORIGINS + [None]),
+                             ("damage_type", DAMAGE_TYPES + [None])):
+            if it[col] not in allowed:
+                E("%s: %s %r (allowed: %s)" % (n, col, it[col], ", ".join(a for a in allowed if a)))
+        ref("items", it, "manufacturer", "manufacturers")
+        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam"):
+            if not isinstance(it[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        rng("items", it, "width", 1, 4)
+        rng("items", it, "height", 1, 4)
+        rng("items", it, "rev", 1, 5)
+        rng("items", it, "price", 1, 99999, required=False)
+        has = [c for c in ITEM_STATS if it[c] is not None]
+        if has and len(has) < len(ITEM_STATS):
+            E("%s: weapon stats are all-or-nothing; missing %s" % (n, ", ".join(c for c in ITEM_STATS if it[c] is None)))
+        if it["category"] == "builtin":
+            if not has:
+                E("%s: a builtin weapon needs its stats" % n)
+            if it["slot"] or it["price"] is not None:
+                E("%s: builtin weapons have no slot and no price" % n)
+        if it["category"] == "weapon" and it["live"] and not has:
+            E("%s: a live weapon needs its stats (or set live FALSE)" % n)
+        if has:
+            rng("items", it, "damage_min", 0, 999)
+            rng("items", it, "damage_max", 0, 999)
+            if it["damage_min"] > it["damage_max"]:
+                E("%s: damage_min above damage_max" % n)
+            rng("items", it, "range", 1, 9999)
+            rng("items", it, "shots", 1, 20)
+        if it["category"] == "weapon" and it["slot"] not in ("primary", "secondary"):
+            E("%s: weapons go in the primary or secondary slot" % n)
+        if it["category"] == "armour" and it["slot"] not in ("head", "body"):
+            E("%s: armour goes in the head or body slot" % n)
+        if not it["icon"]:
+            E("%s: icon is required" % n)
     return errs
 
 
@@ -399,7 +476,7 @@ GUIDE = [
     ("The Pilots tab shows each pilot's TN in their usual ship (target_number). Aim uses the same bonus formula, so equal skill and level cancel out.", "text"),
     ("", "text"),
     ("TABLES", "h"),
-    ("Ships: starships, drones and structures. Weapons: every ship weapon. Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
+    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
     ("", "text"),
     ("PLACEHOLDERS", "h"),
     ("Anything labelled seed, placeholder or converted in a Notes column came from the old game values rather than from a design doc, and is there to be changed.", "text"),
@@ -441,10 +518,13 @@ def export_xlsx(db, out):
         ("starting_fleet", "model"): "ships",
         ("starting_fleet", "weapon_1"): "weapons",
         ("starting_fleet", "weapon_2"): "weapons",
+        ("items", "manufacturer"): "manufacturers",
     }
     enums = {
         ("ships", "kind"): KINDS_SHIP, ("weapons", "kind"): KINDS_WEAPON,
         ("pilots", "kind"): KINDS_PILOT, ("size_scale", "class"): CLASSES,
+        ("items", "category"): ITEM_CATS, ("items", "slot"): ITEM_SLOTS, ("items", "origin"): ITEM_ORIGINS,
+        ("items", "damage_type"): DAMAGE_TYPES,
     }
     whole = {
         ("ships", "size"): (1, 20), ("size_scale", "size"): (1, 20),

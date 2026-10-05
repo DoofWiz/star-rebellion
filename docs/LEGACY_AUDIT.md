@@ -120,6 +120,15 @@ DESIGN_BLOCKERS M-24.
 
 ### 1.5 What "current" should look like
 
+> **Progress (after this audit):** steps 1, 2 and 3 are built and step 5 has its test. The `items` table is in
+> `db.json`; `game/js/items.js` builds the base's `KIT` and the ground scene's `WPN`, `WDAM`, `ONE_HAND` and `WICON`
+> from it; `GEAR_ICON` and the `SR_WPN` leak are gone; `addArmoryItem` (and its display-name alias map) is replaced by
+> `grantItem` / `Items.grant`, which every grant goes through; loot crates, enemy drops, chain gifts and the smuggler
+> bonus pass ids; descriptions come from the table, with the stack's source as a fallback. `tools/items-smoke.js`
+> checks the tables, every loot crate and every enemy weapon against it. Still to do: step 4 (needs the unit roster
+> in §3 and the drop rules in M-24), loot that rolls (M-24), the art kit's item keys, `core.js`'s briefing chips,
+> and the market's `CATW` and `BM_GSTATS` (C-10).
+
 A target to work toward, in steps that each keep the game playable:
 
 1. **One item table in the database.** Move `KIT` into `db.json` as an `items` table (the C-10 plan), and give it the
@@ -354,8 +363,8 @@ Each step is independent and leaves the game playable. The first two are cheap a
 1. ~~Fix the bugs in §10~~ (done, except the two waiting on C-21 and C-22).
 2. **Housekeeping:** move the root prototypes out of the way, mark finished handoffs, fix the README, add a
    `tools/smoke-all.sh`, delete the dead code in §8.
-3. **Items (§1.5):** the item table and `Items` module first, then route every grant through `Items.grant`, then
-   loot by id or roll. Biggest payoff, and it unblocks C-10, M-16, M-17 and M-24.
+3. **Items (§1.5):** ~~the item table and `Items` module, every grant through `Items.grant`, loot by id~~ (done);
+   loot that rolls waits on M-24.
 4. **Units (§3):** an enemy and vehicle roster, so scenarios place units by id and drops come from what they carry.
 5. **Rebels (§4):** one injury model, one debrief path, space reading traits and rank from `Rebel`.
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
