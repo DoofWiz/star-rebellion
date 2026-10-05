@@ -2243,7 +2243,7 @@ function missionCredit(m){
       if(to>cur){
         gain+=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');}
+        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');SR.transition('flag',{text:'LIBERATED'});}
       }
     }
   }
@@ -2368,15 +2368,17 @@ function figure(x,y,S,name,col,p,pose){
 }
 /* game ship class -> art hull id (the fleet's 'cross' and the db's 'viper' are the same hull) */
 function artShipId(cls){return SA.SHIP_FOR_GAME[cls]||(SA.SHIPS[cls]?cls:'cross');}
-function fighterTop(x,y,S,rot,alive,col){craftTop('cross',x,y,S,rot,col);}
-function craftTop(cls,x,y,S,rot,col,o){
-  // every craftTop is a parked ship (pads, hangar bays, workshop), so it sits powered down
-  SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel',off:true},o||{}));
+/* a ship parked in an isometric space (the hangar's walk-in view, the workshop, the hangar on the base map): the art
+   kit's 3D hangar model (SR_ART.hangarShip), engines cold, facing the viewer's left; door guns show when the Graf has
+   them fitted. Ships with no model fall back to shipIso inside the kit. ISO_K is the room view's isometric scale;
+   s is a size a little under the guide's (the Graf 2.2, a fighter 2.6, so ships sit inside their berths) times the caller's room scale. */
+const ISO_K=1.25;
+function craftIso(cls,x,y,k,o){
+  o=Object.assign({},o||{});
+  const id=artShipId(cls),f=o.fighter;delete o.fighter;
+  if(f&&hasDoorGun(f))o.loadout={attach:['doorgun']};
+  SA.hangarShip(ctx,id,x,y,(id==='graf'?2.2:2.6)*k,ISO_K,RM?0:worldT/1000,Object.assign({livery:'rebel',cold:true},o));
 }
-/* a ship parked in an isometric room (the hangar's walk-in view): SR_ART.shipIso lays it on the iso floor on its
-   landing struts, engines cold; ISO_K is the room view's isometric scale */
-const ISO_K=1.25,ISO_HEAD=-2.35;
-function craftIso(cls,x,y,s,o){SA.shipIso(ctx,artShipId(cls),x,y,ISO_HEAD,s,ISO_K,RM?0:worldT/1000,Object.assign({livery:'rebel',pilot:null},o||{}));}
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
 /* ---------- base map render ---------- */
@@ -2444,13 +2446,13 @@ function renderBase(now){
       } else if(rm.key==='hangar'){
         if(G.wreck&&!G.wreck.restored){
           ctx.globalAlpha=0.55;
-          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
+          craftIso('graf',x+6*S,y-2*S,S*0.32,{livery:'civ',damage:0.5});
           ctx.globalAlpha=1;
         }
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
           ctx.globalAlpha=f.out?0.25:0.95;
-          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,undefined,{damage:1-f.hull/100});
+          craftIso(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.32,{damage:1-f.hull/100,fighter:f});
           ctx.globalAlpha=1;
           if(!f.out){
             ctx.fillStyle=hullCol(f.hull);
@@ -2653,14 +2655,14 @@ function renderRoomView(now){
       ctx.setLineDash([]);
       const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-        craftIso('graf',bx,by,2.6*csz/2.4,{livery:'civ',damage:0.5});
+        craftIso('graf',bx,by,csz/2.4,{livery:'civ',damage:0.5});
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
         ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
         continue;
       }
       if(f&&!f.out){
-        craftIso(f.cls,bx,by,2.6*csz/2.4,{damage:1-f.hull/100});
+        craftIso(f.cls,bx,by,csz/2.4,{damage:1-f.hull/100,fighter:f});
         ctx.font=fnt(12);ctx.textAlign='center';
         ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
         ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
@@ -2723,7 +2725,7 @@ function renderRoomView(now){
     ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
     ctx.strokeRect(-70,-30,140,46);
     if(wounded){
-      craftTop(wounded.cls,0,-8,3,-0.3,null,{damage:1-wounded.hull/100});
+      craftIso(wounded.cls,0,-8,0.9,{damage:1-wounded.hull/100,fighter:wounded});
       ctx.font=fnt(12);ctx.textAlign='center';
       ctx.fillStyle=K.text;ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,46);
       if(rng()<0.12)spark((rng()-0.5)*80,-6);
@@ -2854,6 +2856,10 @@ let gxLayers=loadGxLayers();
 function saveGxLayers(){try{localStorage.setItem(GXL_KEY,JSON.stringify(gxLayers));}catch(e){}}
 /* navigation */
 function showView(v){
+  if(started&&v!==baseView){SR.transition('stripes',{},()=>setView(v));return;}   // the base and the galaxy: a stripe wipe
+  setView(v);
+}
+function setView(v){
   baseView=v;
   if(v!=='galaxy'){gxWorld=null;gxRegion=null;srcSel=null;}
   exitRoomView();closeTilePop();
@@ -6085,6 +6091,7 @@ HUD.tips(ROOT);   // the kit's floating tooltip for every [data-tip] (the galaxy
 /* the topbar menu: the kit's (toggle, outside press, Esc and item picks close it) */
 const menu=$('baseMenu');
 HUD.menuBind(menu,$('menuBtn'));
+SR.settings.bind(menu);   // screen shake and blood (art handoff: Juice)
 $('menuBtn').addEventListener('click',sClick);
 function closeMenu(){menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');}
 $('menuNews').addEventListener('click',()=>{sClick();openWin('news');});
@@ -6163,7 +6170,7 @@ function introSpec(){
 function launchIntro(){
   closeWin();closeTilePop();
   SR.mission=introSpec();
-  SR.go('ground',{mission:SR.mission});
+  SR.transition('iris',{},()=>SR.go('ground',{mission:SR.mission}));
 }
 /* BASE ESTABLISHED splash (A6): dims the base scene after the prologue win, then hands over to Cass.
    While it is up, the day banner, queued reports and the guided pointer all hold. */
@@ -6544,7 +6551,9 @@ function startPlan(){
   G.sortie={name:m.name,f:fuel,s:(PL.req.transport&&PL.drop)?DROP_COST:0};
   closeWin();closeTilePop();
   saveSnap();
-  SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
+  // into a ground mission through an iris on the target; out to a space fight through hyperspace
+  const cvr=cv.getBoundingClientRect();
+  SR.transition(PL.req.transport?'iris':'hyperspace',{x:cvr.left+cvr.width/2,y:cvr.top+cvr.height/2},()=>SR.go(PL.req.transport?'ground':'space',{mission:SR.mission}));
 }
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
 function pilotAim(p){return Math.max(0,SRDB.skillBonus(Rebel.dbSkill(p,'aim'),p.level)+pilotAimMod(p));}
@@ -6752,7 +6761,7 @@ ROOT.addEventListener('click',ev=>{
   if(sim){
     sClick();closeWin();closeTilePop();
     SR.mission={kind:'space',sim:true,missionId:'sim',days:0,flight:null};
-    SR.go('space',{mission:SR.mission});
+    SR.transition('hyperspace',{},()=>SR.go('space',{mission:SR.mission}));
   }
 });
 

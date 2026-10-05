@@ -428,3 +428,5 @@
 /* trait icons sit on a dark chip, the glyph drawn bare by SR_ART.icon */
 .kit-trait{box-sizing:border-box;padding:1px;border-radius:6px;background:#1a1f47;border:1.5px solid #3a4488;width:28px;height:28px;}
 .bm-card .kit-trait{width:22px;height:22px;}
+/* the scene-transition overlay (SR.transition): over everything, never in the way of a click */
+.sr-transition{position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;pointer-events:none;}

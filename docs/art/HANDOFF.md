@@ -446,6 +446,95 @@ This round follows the updated *Gadgets, Gear and Gunships* and *Ground Combat* 
 - **Riot police are now people in Police Helmets**, rather than visor troopers. The `art` column should be `riot` for `security-riot-shieldman` and `riotrifle` for `security-riot-rifleman`.
 - **New head items** draw whenever they're in `p.gear.head` or an enemy row's `head`: `policehelmet`, `autohelm`, `cowboyhat`, `cap` (and `hardhat`).
 
+
+### Manufacturer style studies and Helix medical
+
+- **Helix makes the game's medical items.** The Medpack and Stim (item art, the hip and belt pouches, the `treat` and `stimuse` props) are now Helix: clinical white and teal, rounded, with the double-helix mark. Set `manufacturer` to Helix for both in the `items` table. Future medical items should use `helixCase()` and `helixMark()` in the kit.
+- **Style mocks** set the look of makers that have no items in the docs yet. They're flagged `mock:1` and **must not be added to the game data** until real items exist:
+  - `arclight`, the LMC Arclight laser pistol. White ceramic, violet cell, LEDs. It introduces the `laser` muzzle flash and `bolt(...,'laser')`: violet is now the laser damage colour.
+  - `nomadcoat`, the Nomad Drifter Coat: canvas duster, leather straps, patched shoulder plate.
+  - `rookhelm`, the Rook Mk II Tactical Helmet: matte charcoal, olive rails, flip-up visor, rook stamp.
+  - `gafrigate`, the General Astronautics Bulwark-class Frigate: the capital-ship look, using the same parts and mounts system as the fighters.
+- **Personal shields:** the bubble (`pose.shield`) and the shield band in `vitals()` are ready for the first shield item whenever it arrives. No art work is needed then beyond item art for that item.
+
+
+## Juice (feedback, effects and transitions)
+
+The style guide's **Juice** section is the spec: the rules, an interactive before-and-after arena, the reworked effects, the transitions and the shared event table. Build it in this order, because each step makes the next one land:
+
+1. **Time and camera.**
+   - Add a game clock that can be frozen for **hitstop**: game `dt = 0` until `stopUntil`, while UI and audio keep running.
+   - Add one `SR_ART.Shake()` per scene. Feed it trauma from `SR_ART.JUICE[event].trauma`, call `update(realDt)` each frame, and apply `offset(t)` (x, y, angle) to the world transform only, never to the HUD.
+   - Add a **Screen shake** setting. Reduced motion turns off shake, hitstop and drifting particles.
+2. **One particle system per scene.** Use `SR_ART.Particles()`: `emit(kind, x, y, {n, dir, spread, speed, floor})`, then `update(dt)` and `draw(ctx)` in world space after the actors. Kinds are `spark`, `debris`, `smoke`, `dust`, `casing`, `ember`, `plasma`, `shard`, `confetti` and `coin`. Debris, casings and coins bounce on `floor`.
+3. **Hit feedback on characters.** In `artPose`, pass `flash` (set to 1 on a hit, decaying at 5 per second) and `squash` (set to 1, decaying at 6 per second). For a unit going down, pass `fall` from 0 to 1 over about 0.6 s, and the topple bounces. Spawn `popText(ctx, text, x, y, k, colour, {crit})` for damage numbers (one per landing round of a volley), MISS and DOWN. These replace the HUD's plain floaters for in-world numbers; the HUD's logic stays.
+4. **Reworked effects** (same calls, better results):
+   - `explosion()` plays in stages (flash, fireball, shockwave, smoke). Pair it with debris, ember, smoke and dust particles, and a persistent `scorch`.
+   - `hit()` has a white core and speed lines.
+   - `bolt()` has a glowing trail.
+   - New: `ring()` for shockwaves, `shieldBreak()`, `shipExplode()` (breaks the ship into three), and `pickup()` for loot leaving a crate.
+5. **Events.** Use the `SR_ART.JUICE` table everywhere: `shot`, `hit`, `armourHit`, `crit`, `down`, `grenade`, `rocket`, `shieldBreak`, `shipKill`, `loot` and `promote`, each with hitstop (ms), trauma, flash and the particles to emit. Tune numbers in that table, not at call sites.
+6. **Transitions.** `SR_ART.transition(ctx, W, H, k, type, {x, y, text})`, drawn over everything. The screen is fully covered at `k = 0.5`, so swap scenes there. Use:
+   - `iris` into a mission, centred on the target;
+   - `stripes` for tab and screen changes;
+   - `hyperspace` between the galaxy map and space combat;
+   - `flag` for mission start and liberation, with a word.
+7. **Easing:** use `SR_ART.ease.*` for world and UI motion: `outBack` for pops, `outBounce` for falls, `inOutCubic` for panels. Nothing should move linearly.
+
+Acceptance: switch juice off and on in the guide's arena to see the target. In the game, a grenade must freeze, shake, flash, throw debris and leave a scorch mark. A single pistol shot must stay subtle. With reduced motion on, nothing shakes or freezes.
+
+
+### Shots, impacts and blood (Juice, part two)
+
+The guide's old Effects section is now part of Juice.
+
+- **Shots:** `SR_ART.shot(ctx, key, x0,y0, x1,y1, time, {mode, seed})` draws every round of a trigger pull in flight, `time` seconds after the trigger. `SR_ART.shotTimes(key, mode, dist)` returns each round's arrival time, so schedule impacts and damage from those times.
+  - **Palette** comes from the weapon's maker (`SR_ART.STYLE`), the same for both factions. **Shape** comes from the weapon (`SR_ART.PROJ`). The **fire mode** sets the pattern: automatic is a staggered spread, fan hammer is three quick rounds, single shot is one round with a big flash.
+  - Ship and vehicle weapons are in the same table: `repeaters`, `missiles`, `doorgun`, `dronegun`, `cruiser`, `dispersal` and `strider`. The ship-weapon makers are proposals: BLS-T Repeaters as Bhord, Missiles as Varrondow, drone guns as AutoCom.
+  - Replace `bolt()` calls in `ground.js` and `space.js` with `shot()`. `bolt()` stays for anything without a weapon key.
+- **Muzzle flashes:** `muzzleFor(ctx, x, key, mode, t)`. The character renderer already uses it when firing.
+- **Impacts:** `SR_ART.impact(ctx, x, y, k, {dtype, surface, dir, style, gore, seed, size})`.
+  - `surface` is `flesh`, `armour`, `shield`, `cover`, `robot` or `hull` (space). Use `armour` while a target's armour segments remain and `flesh` after. Autos, Bots and vehicles use `robot`.
+  - `dir` is the shot's angle, so blood sprays the way the round was travelling.
+  - `hit()` now draws a flesh impact. The cartoon star is gone.
+- **Blood:**
+  - Flesh hits leave `bloodSplat(ctx, x, y, r, seed)` decals on the ground for the rest of the mission. Store them with scorch marks.
+  - Add a **Blood** setting that calls `SR_ART.setGore(false)`. This swaps blood for dust and impact lines and keeps canopies clean.
+- **Space:**
+  - `shipShield(ctx, x, y, r, k, hitX, hitY)` flares the shield bubble at the hit point while the ship's shields hold. When they run out, use `shieldBreak()` plus `shard` particles, then `impact(...{surface:'hull'})` with spark and debris particles.
+  - Damaged ships (`damage > 0.3`) vent gas automatically.
+  - Pass `pilotHit: 0..1` to `ship()` when a pilot takes a critical. This cracks the canopy and spatters it with blood on rebel ships; Hegemony canopies stay dark.
+  - On a kill, use `shipExplode()` with the `shipKill` juice row.
+- **Hangar headings:** `hangarShip()` works at any `heading`, so park ships however the hangar layout needs.
+
+
+### Volleys: an attack is an attempt, not a bullet
+
+An attack is one roll in the rules. On screen it's a burst of fire, re-rolled every time so combat never looks samey. The visuals never change the rules: the total damage shown always equals the roll's result.
+
+```js
+const plan = SR_ART.volley(weaponKey, mode, {hit, damage, rng});   // rng optional (Math.random by default)
+// plan.rounds = [{fire, hit, dmg, ...}]: when each round leaves the muzzle, whether it lands, its share of the damage
+const lands = SR_ART.volleyImpacts(plan, x0, y0, x1, y1);          // [{at, x, y, hit, dmg}]: where and when each round arrives
+SR_ART.shot(ctx, weaponKey, x0, y0, x1, y1, time, {mode, plan});    // draws the whole volley in flight
+```
+
+- **Round counts:**
+  - Single shot: one round.
+  - Semi-auto: 3 to 5 rounds, 1 to 3 landing.
+  - Automatic: 6 to 10 rounds, roughly half landing.
+  - Fan hammer: 3 rounds, 2 or 3 landing.
+  - Shotguns: 2 or 3 blasts. Lasers: 2 or 3 pulses. Rockets and missiles: one.
+- **Damage split:** `damage` is split across the rounds that land; 10 might read 3, 3, 4. A missed attack sends every round past the target. Misses land beyond or short of the target and hit the ground or cover behind, so draw a `cover` impact there.
+- **Feedback per round:** for each landing round, draw its own `impact()` at `{x, y}`, its own damage number (`popText` with `dmg`), and a small flash, squash and shake. A full miss gets a single MISS pop.
+- **When to apply the damage mechanically:** apply it once, on the first landing round, or at the end if that's simpler. Never apply it per round.
+- **Space works the same way.** Repeater fire is a volley; each landing bolt flares the shield or breaches the hull at its own point.
+- **Armour hits** no longer show TINK. They throw sparks, a ricochet streak and a metallic ring. Ship kills no longer show a text callout.
+
+## Hangar ships are now 3D models
+
+`SR_ART.hangarShip(ctx, id, x, y, s, k, t, {livery, damage, loadout, heading, cold})` replaces `shipIso` (and `fighterTop`) in the base's hangar views. Each Tier 1 ship has a small hand-built 3D model (`SR_ART.HM`): bevelled hull blocks, upright fins, round engine barrels, glass domes and the Graf's dish. It's projected into the room's isometric view at any `heading` (the default faces the viewer's left). Pass `cold:true` for parked ships (dark engines and sensor eyes). Door guns appear when the Graf's loadout has them. Ships with no model (drones, the frigate mock) fall back to `shipIso`.
+
 ## Rebel acceptance checks
 
 - Two rebels generated in the same batch never look identical (different id, so different genes). The same rebel looks identical after a reload.
@@ -455,8 +544,7 @@ This round follows the updated *Gadgets, Gear and Gunships* and *Ground Combat* 
 
 ## Open questions for Tom
 
-- **Makers with no items yet:** LMC, Helix, General Astronautics, Nomad and Rook have badges and looks but nothing to wear them. Should the Medpack and Stim be Helix?
-- **Personal shields:** the bubble and the shield bar are ready, but no Rev 1 item grants a shield yet.
+- **Real items for LMC, Nomad, Rook and General Astronautics:** the style mocks hold their place until the docs name them.
 - **Strafing Run ship:** the guide uses the Talon. The game should pass whichever starfighter was assigned.
 
 - **Strider maker:** the Enemies doc says Autoworks, but the gear doc names AutoCom as the maker of Autos and Bots. Is Autoworks a separate company, an AutoCom brand, or a typo?

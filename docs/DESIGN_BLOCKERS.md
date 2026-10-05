@@ -56,7 +56,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
 | M-28 | 🟡 | Vehicle criticals and wreck damage are placeholders | How vehicle fights feel |
-| M-29 | 🟡 | Art follow-ups from the October 5 art handoff | A weary icon; whose Medpack and Stim; poses that wait on items |
+| M-29 | 🟡 | Art follow-ups from the October 5 art handoffs | A weary icon; Helix and the ship weapon makers in the Gear doc; poses that wait on items |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -378,12 +378,18 @@ You confirmed the C-7 rules and said vehicle criticals are for another time. Wha
 The handoff landed everything in the resolved log's M-26 row; a few loose ends remain.
 - **Weariness** (Rebels doc: a tag on the rebel's icon and an icon by their name) has no icon in the art kit; the
   game shows a "Zz" tag.
-- **Makers with no items yet:** LMC, Helix, General Astronautics, Nomad and Rook have badges and looks but nothing to
-  wear them. The handoff asks whether the **Medpack and Stim should be Helix** (today they have no maker).
+- **Makers with no items yet:** LMC, General Astronautics, Nomad and Rook have badges and looks but nothing to wear
+  them. The art's style mocks for them (the Arclight, the nomad coat, the Rook helm, the frigate) stay out of the game
+  data until the Gear doc names real items.
+- **Helix:** the second art handoff of October 5 makes the **Medpack and Stim Helix** (the art kit now draws them in
+  Helix's white and teal), so the items table says Helix. The Gear doc does not name their maker yet; add it there,
+  or tell me to put them back.
+- **Ship weapon makers** are the art's proposals: the BLS-T Repeaters Bhord, the Missiles Varrondow, the drone pulse
+  emitters AutoCom, the Pursuer's pulse cannon Patriot. They set the colour of the bolts only.
 - **Poses that wait on items:** `burning`/`extinguish` (Molotov), `misfire` (Plasma SMG), `stunned` from Stunning (the
   Power Baton), the Mining Laser's sweep and `recharge` (all M-17). A concussed rebel already uses `stunned`.
 - **Personal shields:** the hex bubble and the shield bar are wired, but no Level 1 item grants a shield.
-**Needs from you:** the Helix question; a weary icon is the art chat's.
+**Needs from you:** Helix and the ship weapon makers in the Gear doc; a weary icon is the art chat's.
 **Your call:** _open_
 
 ---

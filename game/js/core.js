@@ -72,6 +72,50 @@ window.SR=(function(){
     /* FNV-1a: a string to a stable 32-bit number (seeds from ids and names) */
     hashStr(s){let h=2166136261;s=String(s);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;},
   };
+  /* ---------- player settings: screen shake and blood (art handoff: Juice) ----------
+     Remembered in this browser. Reduced motion turns shake, hitstop and transitions off whatever the setting says. */
+  const PREF_KEY='star-rebellion-prefs';
+  const prefs=Object.assign({shake:true,gore:true},(()=>{try{return JSON.parse(localStorage.getItem(PREF_KEY))||{};}catch(e){return {};}})());
+  const prefSubs=[];
+  const reducedMotion=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function applyPrefs(){if(window.SR_ART&&window.SR_ART.setGore)window.SR_ART.setGore(prefs.gore);}
+  const PREF_ITEMS=[['menuShake','shake','Screen shake','fit'],['menuGore','gore','Blood','heart']];
+  const settings={
+    get:k=>prefs[k],
+    set(k,v){prefs[k]=!!v;try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs));}catch(e){}applyPrefs();for(const f of prefSubs)f();},
+    shake:()=>prefs.shake&&!reducedMotion(),
+    reduced:reducedMotion,
+    /* the two items for a scene's menu (HUD.menuHtml shape), and the wiring that keeps their labels true */
+    menuItems:()=>PREF_ITEMS.map(([id,k,label,icon])=>({id,icon,label:label+': '+(prefs[k]?'on':'off')})),
+    bind(root){
+      const sync=()=>{for(const [id,k,label] of PREF_ITEMS){const b=root.querySelector('#'+id);if(!b)continue;const sp=b.querySelector('span');if(sp)sp.textContent=label+': '+(prefs[k]?'on':'off');}};
+      for(const [id,k] of PREF_ITEMS){const b=root.querySelector('#'+id);if(b)b.addEventListener('click',()=>settings.set(k,!prefs[k]));}
+      prefSubs.push(sync);sync();
+    },
+  };
+  /* ---------- scene transitions (art handoff: Juice) ----------
+     SR_ART.transition drawn on an overlay over everything; the screen is fully covered at k = 0.5, which is when mid()
+     runs (swap the scene there). Reduced motion, or the #test harness, runs mid() at once with no overlay. */
+  const TR_MS={iris:900,stripes:620,hyperspace:1200,flag:1500};
+  let trCv=null,trBusy=null;
+  function transition(type,opts,mid){
+    opts=opts||{};
+    if(reducedMotion()||location.hash==='#test'||!window.SR_ART||!window.SR_ART.transition){if(mid)mid();return;}
+    if(trBusy){if(mid)mid();return;}   // one at a time: a second asks just swaps
+    if(!trCv){trCv=document.createElement('canvas');trCv.className='sr-transition';document.body.appendChild(trCv);}
+    const dpr=window.devicePixelRatio||1,W=innerWidth,H=innerHeight;
+    trCv.width=W*dpr;trCv.height=H*dpr;trCv.hidden=false;
+    const g=trCv.getContext('2d'),t0=performance.now(),dur=TR_MS[type]||800;let swapped=false;
+    trBusy=true;
+    const step=now=>{
+      const k=Math.min(1,(now-t0)/dur);
+      g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
+      if(k>=0.5&&!swapped){swapped=true;try{if(mid)mid();}catch(e){console.error(e);}}
+      try{window.SR_ART.transition(g,W,H,k,type,opts);}catch(e){console.error(e);}
+      if(k<1)requestAnimationFrame(step);else{trCv.hidden=true;trBusy=false;}
+    };
+    requestAnimationFrame(step);
+  }
   /* ---------- durable save ---------- */
   const SAVE_KEY='star-rebellion-campaign-v1';
   let snap=null;
@@ -108,7 +152,8 @@ window.SR=(function(){
     for(const k in containers)containers[k].hidden=(k!==name);
     scenes[name].enter(params||{},prev);
   }
-  function endMission(result){go('base',{debrief:result});}
+  /* home from a mission: hyperspace out of a space fight, a stripe wipe from the ground */
+  function endMission(result){transition(active==='space'?'hyperspace':'stripes',{},()=>go('base',{debrief:result}));}
   function frame(now){
     requestAnimationFrame(frame);
     const s=scenes[active];
@@ -116,6 +161,7 @@ window.SR=(function(){
   }
   function boot(){
     if(window.SR_THEME)window.SR_THEME.sync();
+    applyPrefs();
     for(const n in scenes){
       const el=document.getElementById('sc-'+n);
       if(el)containers[n]=el;
@@ -164,7 +210,7 @@ window.SR=(function(){
   };
   /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

@@ -954,9 +954,9 @@ function vehDestroyed(v,by){
   if(by&&by.side==='reb'&&v.owner==='law'){by.xpGain=(by.xpGain||0)+0.25;by.kills=(by.kills||0)+1;}
   if(by)adjCoolG(by,12,'vehicle kill');
   for(const m of U)if(m.side===v.owner&&!m.mnt)adjCoolG(m,-12,v.first+' destroyed');
-  sBoomBig();shake=performance.now();
+  sBoomBig();juice('rocket',v.x,v.y,{r:110});
   decals.push({x:v.x,y:v.y,r:58});
-  for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:performance.now(),dur:900});
+  for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:clock(),dur:900});
   addFloater(v.x,v.y-50,'DESTROYED',C.hazard);
   log('<span class="b">The '+v.name+' is destroyed</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
   const crew=crewIn(v);
@@ -990,7 +990,7 @@ function deployUnits(v){
 /* ---------- state ---------- */
 let phase='BRIEF';       // BRIEF, CUTSCENE, FREE, PLANNING, EXEC, ENGAGE, EXTRACT, GAMEOVER
 let round=0,started=false,town='calm';
-let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0;
+let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0,lastReal=0;
 let NADES=0,nades=[],dmgRound=new Set();
 let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null;
@@ -1012,8 +1012,60 @@ let lootMarks=[];        // includes LOOTS refs + dynamic drops
 let floaters=[],tracers=[],parts=[],bubbles=[],casings=[],hits=[],boomFx=[],hitFx=[],fsFx=[];   // fsFx: strafing runs, supply drops, landings   // hitFx: armour, shield, sunder and pierce flashes
 let cam={x:LZ.x,y:LZ.y,z:0.9},camGoal=null,follow=true;
 let cs=null;             // cutscene state
-let shake=0,alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
+let alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
 let gameEnd=null;
+/* ---------- juice (art handoff: Juice) ----------
+   One trauma shake, one particle system, in-world pops, volleys and impacts for the scene. Hitstop freezes the game
+   clock, clock(), for a beat while the screen keeps drawing; the shake runs on real time and moves the world, never
+   the HUD. SR_ART.JUICE holds the numbers for each event: tune them there, not here. Reduced motion turns off the
+   shake, hitstop and drifting particles. The #test harness has no hitstop, so its timings stay exact (fn.juiceOn
+   turns it back on for the juice smoke test). */
+const JUICE=window.SR_ART.JUICE,SHK=window.SR_ART.Shake(),PFX=window.SR_ART.Particles();
+const HS={from:0,until:0,acc:0,last:0};
+let juiceLive=!/test/.test(location.hash);
+let pops=[],vols=[],impFx=[],jfx=[];   // damage numbers and callouts; volleys in flight; per-round impacts; rings, shield breaks, pickups
+let woundQuiet=false;                   // a volley is showing this hit's numbers round by round
+function clock(r){
+  if(r==null)r=performance.now();
+  if(HS.until){
+    if(r>=HS.until){HS.acc+=HS.until-HS.from;HS.until=0;}
+    else if(r>=HS.from)r=HS.from;
+  }
+  HS.last=Math.max(HS.last,r-HS.acc);
+  return HS.last;
+}
+const stillMotion=()=>HUD.reduced||!!(SR.settings&&SR.settings.reduced());
+const goreOn=()=>!SR.settings||SR.settings.get('gore')!==false;
+function hitstop(ms){
+  if(!ms||!juiceLive||stillMotion())return;
+  const r=performance.now();clock(r);
+  if(HS.until){HS.until=Math.max(HS.until,r+ms);return;}
+  HS.from=r;HS.until=r+ms;
+}
+/* an event from the JUICE table: hitstop, trauma and its particles at (x, y). o.k scales it; o.dir aims sprays. */
+function juice(ev,x,y,o){
+  const J=JUICE[ev];if(!J)return;
+  o=o||{};const k=o.k==null?1:o.k,calm=stillMotion();
+  if(!o.noStop)hitstop(Math.round(J.hitstop*k));
+  if(J.trauma&&x!=null){const p=worldToCss(x,y),off=p[0]<-80||p[0]>cssW+80||p[1]<-80||p[1]>cssH+80;SHK.add(J.trauma*k*(off?0.35:1));}
+  else if(J.trauma)SHK.add(J.trauma*k);
+  if(x==null)return;
+  const em=(kind,o2)=>{if(calm&&(kind==='smoke'||kind==='ember'||kind==='dust'))return;PFX.emit(kind,x,y,o2);};
+  if(ev==='shot'){if(o.brass!==false)em('casing',{n:1,dir:o.dir==null?-Math.PI/2:o.dir+Math.PI*0.6,spread:0.8,floor:y+20});em('smoke',{n:1,size:0.6});}
+  else if(ev==='armourHit')em('spark',{n:5,dir:o.dir==null?undefined:o.dir+Math.PI,spread:1.6});
+  else if(ev==='crit'){em('spark',{n:14,spread:Math.PI*2,size:1.3});jfx.push({k:'ring',x,y,t0:clock(),dur:600,col:C.goldHi,r:40});}
+  else if(ev==='down')em('dust',{n:8,floor:y,spread:Math.PI,dir:-Math.PI/2,size:1.2});
+  else if(ev==='grenade'||ev==='rocket'){
+    const big=ev==='rocket'?1.3:1;
+    em('debris',{n:Math.round(10*big),floor:y+8,speed:220*big});em('ember',{n:8});em('smoke',{n:6,size:1.6*big});em('dust',{n:10,floor:y,size:1.6});
+    jfx.push({k:'ring',x,y,t0:clock(),dur:700,col:'#fffbe6',r:(o.r||135)*0.9});
+  }
+  else if(ev==='shieldBreak'){em('shard',{n:12});jfx.push({k:'shieldBreak',x,y:o.y0==null?y:o.y0,t0:clock(),dur:700});}
+  else if(ev==='loot'){em('coin',{n:6,floor:y+6});if(o.item)jfx.push({k:'pickup',x,y,t0:clock(),dur:900,item:o.item});}
+}
+/* in-world numbers and callouts (SR_ART.popText); the HUD's plain floaters stay for everything else */
+function addPop(x,y,text,col,o){pops.push(Object.assign({x,y,text,col,t0:clock(),dir:Math.random()<0.5?-1:1},o||{}));}
+function hitPose(t){const n=clock();t._flashT=n;t._sqT=n;}
 
 /* ---------- geometry, LOS, cover ---------- */
 function ptBlocked(px,py,pad){
@@ -1060,7 +1112,7 @@ function chipCover(prop,dmg){
     prop.dead=true;
     addFloater(prop.x,prop.y-24,'COVER DESTROYED',C.hazard);
     log('<span class="b">'+sc(PROPDEF[prop.kind].lab)+' shot to pieces</span> — that cover is gone.');
-    for(let k=0;k<10;k++)parts.push({x:prop.x,y:prop.y,vx:(rng()-0.5)*160,vy:-rng()*90,r:2+rng()*3,a:0.6,col:'#6a5636',t0:performance.now(),dur:700});
+    for(let k=0;k<10;k++)parts.push({x:prop.x,y:prop.y,vx:(rng()-0.5)*160,vy:-rng()*90,r:2+rng()*3,a:0.6,col:'#6a5636',t0:clock(),dur:700});
     sThud();
   }
 }
@@ -1195,11 +1247,11 @@ function openLog(){logWin.open();logWin.body.scrollTop=logWin.body.scrollHeight;
 function nameSpan(u){return '<span class="'+(u.side==='reb'||(u.veh&&u.owner==='reb')?'r':'h')+'">'+u.name+'</span>';}
 function say(u,text,dur){
   if(!u||u.down||u.extracted)return;
-  bubbles.push({unit:u,text,t0:performance.now(),dur:dur||3600});
+  bubbles.push({unit:u,text,t0:clock(),dur:dur||3600});
   if(bubbles.length>4)bubbles.shift();
 }
 function sayRandom(u){if(u&&u.lines&&u.lines.length)say(u,u.lines[rint(0,u.lines.length-1)]);}
-function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:performance.now()});}
+function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:clock()});}
 
 /* ---------- d20 resolution ---------- */
 function bestWeapon(s,t){
@@ -1250,7 +1302,7 @@ function deployWhy(u){return !u.back?'Nothing on their back to set up.':u.back==
 function doDeploy(u){
   const why=canDeploy(u)?DEPLOY[u.back](u):'Nothing to set up.';
   if(why){addFloater(u.x,u.y-40,why.toUpperCase(),C.text3);return false;}
-  u._deployT=performance.now();
+  u._deployT=clock();
   return true;
 }
 /* the Razorrat emplacement (Steal the Cross, DESIGN_BLOCKERS C-9): a deployed LMG behind a ring of sandbags. A shot
@@ -1450,7 +1502,7 @@ function afterShot(s,t,wkey,hit,tn,atk){
 function knockBack(s,t){
   const a=Math.atan2(t.y-s.y,t.x-s.x),d=moveDest(t,t.x+Math.cos(a)*KNOCK_DIST,t.y+Math.sin(a)*KNOCK_DIST,KNOCK_DIST);
   if(d){t.x=d.x;t.y=d.y;unstick(t);}
-  t._knockT=performance.now();t.bunkered=0;t.braced=0;t.rtPath=null;
+  t._knockT=clock();t.bunkered=0;t.braced=0;t.rtPath=null;
   addFloater(t.x,t.y-56,'KNOCKED BACK',C.hazard);
 }
 function critRoll(roll,t){
@@ -1495,7 +1547,7 @@ function applyShot(s,t,wkey,snap){
   } else if(hit){
     dmg=rollDamage(s,t,wkey,crit);
     if(tn.cover&&tn.cover.prop)dmg=Math.max(1,Math.round(dmg*0.75));
-    woundUnit(s,t,dmg,crit,WDAM[wkey],wkey);
+    woundQuiet=true;try{woundUnit(s,t,dmg,crit,WDAM[wkey],wkey);}finally{woundQuiet=false;}
   } else if(tn.cover&&tn.cover.prop){
     chipCover(tn.cover.prop,Math.round(rollDamage(s,t,wkey,false)*0.7));
   }
@@ -1532,23 +1584,30 @@ function raiseShield(u){
 function woundUnit(s,t,dmg,crit,dsrc,wkey){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
   sk(s,'aim',1);
+  const sk0=t._soak={riot:0,sd:0,ad:0,hd:0};   // what took the hit, for the volley's per-round impacts
+  const quiet=woundQuiet,hy0=t.y-30*actorScale(t);
+  hitPose(t);
+  if(!quiet&&dmg>0)juice(crit?'crit':'hit',t.x,hy0,{k:0.6});
   if(s&&t.shield&&t.shieldHp>0&&shieldBlocks(s,t)){   // a riot shield takes a hit from the front until it breaks (Gear doc)
     const take=Math.min(t.shieldHp,dmg);
-    t.shieldHp-=take;dmg-=take;
-    addFloater(t.x,t.y-50,'-'+take+' RIOT SHIELD',C.shield);
-    if(t.shieldHp<=0){t.shield=0;t.shieldBroke=1;addFloater(t.x,t.y-64,'SHIELD BROKEN',C.hazard);log(nameSpan(t)+'’s <b>riot shield</b> shatters.');}
+    t.shieldHp-=take;dmg-=take;sk0.riot=take;
+    if(!quiet)addPop(t.x,t.y-50,'-'+take,C.shield);
+    if(t.shieldHp<=0){t.shield=0;t.shieldBroke=1;juice('shieldBreak',t.x,hy0,{y0:t.y});addFloater(t.x,t.y-64,'SHIELD BROKEN',C.hazard);log(nameSpan(t)+'’s <b>riot shield</b> shatters.');}
     if(dmg<=0){dmgRound.add(t.id);adjCoolG(t,-6,'took a hit');return;}
   }
   if(t.tr&&t.tr.length&&hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
   if(t.shd>0||t.arm>0){
-    const sk2=soak(t,dmg,wkey),now=performance.now(),hy=t.y-30*actorScale(t);
+    const sk2=soak(t,dmg,wkey),now=clock(),hy=hy0;
+    sk0.sd=sk2.sd;sk0.ad=sk2.ad;
     if(sk2.sd){t._shHitT=now;hitFx.push({k:'shield',x:t.x,y:hy,t0:now,dur:420});}
-    if(sk2.ad)hitFx.push({k:WPN[wkey]&&WPN[wkey].sunder?'sunder':'armour',x:t.x,y:hy,t0:now,dur:520});
+    if(sk2.ad&&WPN[wkey]&&WPN[wkey].sunder)hitFx.push({k:'sunder',x:t.x,y:hy,t0:now,dur:520});
+    else if(sk2.ad&&!quiet)impFx.push({x:t.x,y:hy,t0:now,dur:420,o:{surface:'armour',dir:s?Math.atan2(t.y-s.y,t.x-s.x):0,seed:rint(1,999)}});
+    if(sk2.ad&&!quiet)juice('armourHit',t.x,hy,{k:0.6,noStop:true});
     if(sk2.pass&&s)hitFx.push({k:'pierce',x0:s.x,y0:s.y-26,x:t.x,y:hy,t0:now,dur:380});
-    if(sk2.sd)addFloater(t.x+14,t.y-50,'-'+sk2.sd+' SHIELD',C.shield);
-    if(sk2.ad)addFloater(t.x-14,t.y-50,'-'+sk2.ad+' ARMOUR',C.steel);
+    if(sk2.sd&&!quiet)addPop(t.x+14,t.y-50,'-'+sk2.sd,C.shield);
+    if(sk2.ad&&!quiet)addPop(t.x-14,t.y-50,'-'+sk2.ad,C.steel);
     if(sk2.ad&&!t.arm)log(nameSpan(t)+(t.veh?'’s armour plating gives way.':'’s armour is spent.'));
-    if(sk2.sd&&!t.shd)log(nameSpan(t)+'’s shield collapses.');
+    if(sk2.sd&&!t.shd){log(nameSpan(t)+'’s shield collapses.');juice('shieldBreak',t.x,hy,{y0:t.y});}
     dmg=sk2.hd;
     if(dmg<=0){                     // the bars took all of it: no wound, no critical injury
       dmgRound.add(t.id);
@@ -1561,7 +1620,7 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
     if(hasT(t,'shortfuse'))t.fuse=2;
   }
-  t.hp-=dmg;
+  t.hp-=dmg;sk0.hd=dmg;
   if(t.side==='reb')t.minHp=Math.min(t.minHp===undefined?1:t.minHp,Math.max(0,t.hp)/t.maxhp);
   sk(t,'con',dmg/10);
   dmgRound.add(t.id);
@@ -1571,7 +1630,8 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
     else if(!t.wound&&t.veh){t.wound=1;addFloater(t.x,t.y-52,'DRIVE DAMAGED',C.hazard);log('The <b>'+t.name+'</b> is limping <span class="d">— a quarter off its speed</span>.');}
     else if(!t.wound){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
   }
-  addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi);
+  if(!quiet)addPop(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi,{crit});
+  if(!quiet&&!machine(t)&&goreOn()&&(Math.random()<0.5||dmg>20))bleed(t,null,dmg);
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
@@ -1589,8 +1649,9 @@ function downUnit(t,by){
   }
   if(t.manning){t.manning=0;turret.gunner=null;log('The <b>Razorrat</b> stands unmanned.');}
   sThud();
+  t._downT=clock();juice('down',t.x,t.y);
   log(nameSpan(t)+' <span class="b">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  addFloater(t.x,t.y-46,'DOWN',C.hazard);
+  addPop(t.x,t.y-60,'DOWN',C.hazard,{size:20});
   if(t.side==='law'){
     dropLoot(t);
     if(t.sheriff){
@@ -1621,7 +1682,7 @@ function dropLoot(t){
 /* ---------- morale, alert, spotting ---------- */
 function alertTown(why){
   if(town==='alerted')return;
-  town='alerted';alertFlash=performance.now();
+  town='alerted';alertFlash=clock();
   if(fac&&!fac.detonated)fac.everAlerted=true;
   if(rs)rs.everAlerted=true;
   sAlert();
@@ -1658,7 +1719,7 @@ function startAmbush(t){
   for(const s of shooters)s.ambush=1;
   shooters.sort((a,b)=>initKey(b)-initKey(a));
   phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
-  engageQ={list:shooters,idx:0,cur:null,nextAt:performance.now()+300,forceT:t};
+  engageQ={list:shooters,idx:0,cur:null,nextAt:clock()+300,forceT:t};
   log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
     ' fire from ambush.</span>');
   alertTown('Rebel guns spoke first.');
@@ -2064,7 +2125,7 @@ function squadMoveTo(pt){
     setRt(m,pt.x+o[0],pt.y+o[1],m.veh?RT_SPEED*vehSpd(m)/MOVE_R:sneak?SNEAK_SPEED:RT_SPEED);
     u.goingTurret=0;u.goingVeh=null;
   }
-  rtPing={x:pt.x,y:pt.y,t0:performance.now()};
+  rtPing={x:pt.x,y:pt.y,t0:clock()};
   sTick();
 }
 function lootsWithin(u,r){
@@ -2079,6 +2140,7 @@ function collectLoot(u,m){
   if(m.supply)supplyDrop(u);
   if(m.items)tally.items.push(...m.items);
   addFloater(m.x,m.y-30,'+ '+m.take,C.go);
+  juice('loot',m.x,m.y,{item:(m.items||[]).find(k=>SA.ITEMS&&SA.ITEMS[k])});   // the item pops out of the crate
   log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
   syncUI();
 }
@@ -2169,7 +2231,7 @@ function completeWork(wp,u){
   if(wp.id==='plant'&&SCN.mode==='towers'){
     const method=u.device||'charge';
     u.charge=0;u.device=null;fac.planted=true;fac.method=method;fac.quiet=!fac.everAlerted;
-    fac.detonated=true;fac.fx={t0:performance.now()};
+    fac.detonated=true;fac.fx={t0:clock()};
     if(method==='charge'){
       addFloater(wp.x,wp.y-46,'TOWER DOWN',C.hazard);
       log('<span class="g">The charge drops the tower.</span> The compound goes dark. Back to the Marta.');
@@ -2293,7 +2355,7 @@ function fsExecute(){
     if(o.kind!=='drop'||o.landed)continue;
     o.landed=true;FS.n++;
     lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
-    fsFx.push({k:'drop',x:o.x,y:o.y,t0:performance.now(),dur:1500});
+    fsFx.push({k:'drop',x:o.x,y:o.y,t0:clock(),dur:1500});
     addFloater(o.x,o.y-34,'SUPPLY DROP',C.go);sLand();
     log('<span class="g">The supply drop lands.</span> Somebody go and get it.');
   }
@@ -2332,7 +2394,7 @@ function dgAttack(a){
   const pick=dgTargets(a.mark);
   if(!pick.length)log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets at the mark.');
   else{
-    const t0=performance.now();
+    const t0=clock();
     for(const t of pick){
       const hit=rint(1,20)>=9;
       tracers.push({x1:t.x-260,y1:t.y-260,x2:t.x,y2:t.y,t0,dur:260,heavy:1});
@@ -2390,7 +2452,7 @@ function dgNext(){
     dgSpend(a);dgNext();return;
   }
   const R={a,ax:mark.x,ay:mark.y,rad:780,squash:0.55,dir:rng()<0.5?1:-1,th0:rng()*Math.PI*2,
-    IN:1100,ORBIT:3000,OUT:900,alt:235,t0:performance.now()+420,
+    IN:1100,ORBIT:3000,OUT:900,alt:235,t0:clock()+420,
     targets:pick.map((u,i)=>({u,at:0.16+i*0.28,done:0})),
     flak:dgFlakers(mark).map(u=>({u,at:0.12+rng()*0.55,state:'wait'})),
     apply:[],down:null,crashed:0,endAt:0};
@@ -2434,7 +2496,7 @@ function dgUpdate(now){
       R.crashed=1;
       boomFx.push({x:P.x,y:P.y,t0:now,dur:800,R:120});
       decals.push({x:P.x,y:P.y,r:70});
-      shake=now;sBoomBig();
+      juice('rocket',P.x,P.y);sBoomBig();
       log('<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
       R.endAt=now+1000;
     }
@@ -2469,7 +2531,7 @@ function dgUpdate(now){
     f.state='done';
     if(f.hit&&!R.down){
       boomFx.push({x:R.px,y:R.py-R.palt,t0:now,dur:450,R:60});
-      shake=now;
+      juice('grenade',null,null,{k:0.6});
       R.down={t0:now,x:R.px,y:R.py,ang:R.pang,dur:1900};
       log('<span class="b">Direct hit!</span> <b>'+R.a.name+'</b> staggers in the air, trailing fire.');
     } else if(!f.hit){
@@ -2484,7 +2546,7 @@ function dgUpdate(now){
       const dmg=rint(16,28);
       woundUnit(null,ap.u,dmg,false);
       log('The door gunner hits '+nameSpan(ap.u)+' — <b>'+dmg+'</b>.');
-      shake=now;
+      SHK.add(0.15);
     } else if(!ap.hit)log('The door gunner misses '+nameSpan(ap.u)+'.');
   }
   if(now-R.t0>R.IN+R.ORBIT+R.OUT+180)dgFinish();
@@ -2526,7 +2588,7 @@ function drawDgRun(now){
 const STRAFE_LEN=900,STRAFE_MS=2400;
 function strafeRun(o){
   const a=FS.ships[o.ship];a.state='spent';o.done=true;
-  const t0=performance.now(),ca=Math.cos(o.ang),sa=Math.sin(o.ang);
+  const t0=clock(),ca=Math.cos(o.ang),sa=Math.sin(o.ang);
   for(let k=0;k<10;k++){
     const u=(k+0.5)/10,jx=Math.sin(k*7.3)*12,jy=Math.cos(k*4.1)*10;   // SR_ART.strafe's own ladder
     const x=o.x1+ca*STRAFE_LEN*u-sa*jx,y=o.y1+sa*STRAFE_LEN*u+ca*jy;
@@ -2563,8 +2625,8 @@ function summonVehicle(va,x,y){
   }
   const d=moveDest(u,x,y,120);if(d){u.x=d.x;u.y=d.y;}
   unstick(u);
-  u.face=-Math.PI/2;u.landAt=performance.now()+LAND_MS*0.85;U.push(u);
-  fsFx.push({k:'landing',x:u.x,y:u.y,t0:performance.now(),dur:LAND_MS+500});   // the transport sets it down
+  u.face=-Math.PI/2;u.landAt=clock()+LAND_MS*0.85;U.push(u);
+  fsFx.push({k:'landing',x:u.x,y:u.y,t0:clock(),dur:LAND_MS+500});   // the transport sets it down
   va.uid=u.id;va.state='spent';
   sLand();
   addFloater(u.x,u.y-44,va.kind==='bot'?'BOT DOWN':'VEHICLE DOWN',C.go);
@@ -2582,8 +2644,8 @@ function fsPlanStart(){
     if(o.kind!=='reinforce'||o.done||o.at>round)continue;
     o.done=true;
     const a=FS.ships[o.ship];a.state='spent';
-    const landAt=performance.now()+LAND_MS*0.85;
-    fsFx.push({k:'landing',x:o.x,y:o.y,t0:performance.now(),dur:LAND_MS+500});
+    const landAt=clock()+LAND_MS*0.85;
+    fsFx.push({k:'landing',x:o.x,y:o.y,t0:clock(),dur:LAND_MS+500});
     a.soldiers.forEach((sp,j)=>{
       const u=mkSquadUnit(sp,o.x+(j-(a.soldiers.length-1)/2)*40,o.y+30);
       const d=moveDest(u,u.x,u.y,120);if(d){u.x=d.x;u.y=d.y;}
@@ -2723,7 +2785,7 @@ function fuelReach(){
 function callTransport(){
   if(!fs||!fs.reached||fs.called||phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
   fs.called=true;
-  fs.flying={t0:performance.now(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
+  fs.flying={t0:clock(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
   grafState='flying';
   sTakeoff();
   log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Inbound to the apron. Keep it clear, I do not land on people.');
@@ -2737,7 +2799,7 @@ function fuelUpdate(now){
   grafPos.a=lerp(0.12,-0.2,e);
   if(t>=1){
     fs.flying=null;fs.landed=true;grafState='landed';
-    sLand();shake=now;
+    sLand();SHK.add(0.3);
     for(let i=0;i<26;i++)parts.push({x:PAD.x+(rng()-0.5)*220,y:PAD.y+(rng()-0.5)*170,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
     log('<span class="g">The Marta is down on the apron and the fuel lines are out.</span> Hold the pumps: '+FUEL_ROUNDS+' rounds.');
     camGoal={x:PAD.x-100,y:PAD.y+40,z:0.85};
@@ -2787,7 +2849,7 @@ function facDetonate(){
     return;
   }
   fac.quiet=!fac.everAlerted;
-  fac.detonated=true;fac.fx={t0:performance.now()};
+  fac.detonated=true;fac.fx={t0:clock()};
   log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole AutoCom Plant goes dark.');
   explode(SCN.plant.bx,SCN.plant.by,{r:SCN.blastR,d0:80,d1:120});
   camGoal={x:SCN.plant.bx-80,y:SCN.plant.by+120,z:0.8};
@@ -2960,7 +3022,7 @@ function startExtract(){
   selId=null;pickMode=null;
   const E=exitPt();
   camGoal={x:E.x+120,y:E.y-40,z:1.0};
-  extractFx={stage:'board',t0:performance.now()};
+  extractFx={stage:'board',t0:clock()};
   let i=0;
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
@@ -3036,7 +3098,7 @@ function execute(){
   if(phase!=='PLANNING')return;
   tutFlags.executed=1;
   sTick();
-  phase='EXEC';execT0=performance.now();
+  phase='EXEC';execT0=clock();
   fsExecute();
   selId=null;pickMode=null;
   // armed grenades from earlier rounds go off as the round opens
@@ -3156,7 +3218,7 @@ function execUpdate(now){
         h.owUsed=1;h.wkey=wkey;
         h.face=Math.atan2(m.y-h.y,m.x-h.x);
         const rec=applyShot(h,m,wkey,true);
-        fireFx(h,m,wkey,rec.hit);
+        if(!rec.jammed)fireFx(h,m,wkey,rec.hit,rec.dmg,{done:true,crit:rec.crit});
         log(nameSpan(h)+' <span class="a">snap-fires</span> at '+nameSpan(m)+' crossing open ground — '+(rec.jammed?'<span class="a">weapon jams!</span>':rec.hit?'<span class="b">hit</span> (-'+rec.dmg+')':'<span class="d">miss</span>')+'.');
         if(town==='calm')alertTown('Gunfire on the main street.');
         if(m.down&&m.path){m.path=null;}
@@ -3191,7 +3253,7 @@ function buildEngage(){
   }
   if(!list.length){endRound();return;}
   list.sort((a,b)=>initKey(b)-initKey(a));
-  engageQ={list,idx:0,cur:null,nextAt:performance.now()+350};
+  engageQ={list,idx:0,cur:null,nextAt:clock()+350};
   phase='ENGAGE';
   syncUI();
 }
@@ -3217,7 +3279,7 @@ function makeCur(s,t,wkey){
   s.wkey=wkey;
   s.face=Math.atan2(t.y-s.y,t.x-s.x);
   return {s,t,wkey,tn:computeTN(s,t),atk:computeATK(s,t,wkey,false),
-    reveal:0,revealA:0,stage:'reveal',stageAt:performance.now(),roll:0,hit:false,crit:false,applied:false,need:0};
+    reveal:0,revealA:0,stage:'reveal',stageAt:clock(),roll:0,hit:false,crit:false,applied:false,need:0};
 }
 function attackUpdate(now){
   const q=engageQ;if(!q)return;
@@ -3266,12 +3328,18 @@ function attackUpdate(now){
     }
   } else if(c.stage==='verdict'){
     if(el>620){c.stage='fire';c.stageAt=now;
-      fireFx(c.s,c.t,c.wkey,c.hit);
+      if(c.hit&&!c.jammed&&!c.t.obj){
+        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+        c.soaked=!!(c.tn.cover&&c.tn.cover.prop);
+        if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
+        c.dmg=dmg;
+      }
+      if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
       if(town==='calm')alertTown('Gunfire in the street.');
     }
   } else if(c.stage==='fire'){
-    if(el>420&&!c.applied){
-      c.applied=true;
+    if(el>(c.applyAt==null?420:c.applyAt)&&!c.applied){
+      c.applied=true;c.done=true;
       sk(c.s,'aim',1);
       if(c.wkey==='rocket'&&c.s.side==='reb')c.s.rockets=(c.s.rockets||0)+1;
       if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
@@ -3292,11 +3360,8 @@ function attackUpdate(now){
         log(nameSpan(c.s)+'’s <span class="a">Akli jams on the trigger.</span>');
         if(c.s.side==='reb')say(c.s,'Jam! Of course it jams NOW.');
       } else if(c.hit){
-        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
-        const soaked=!!(c.tn.cover&&c.tn.cover.prop);
-        if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
-        c.dmg=dmg;
-        woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey],c.wkey);
+        const dmg=c.dmg,soaked=c.soaked;
+        woundQuiet=true;try{woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey],c.wkey);}finally{woundQuiet=false;}
         log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(modeOf(c.s,c.wkey)==='fan'?' <span class="a">(fan hammer)</span>':'')+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
         afterShot(c.s,c.t,c.wkey,true,c.tn,c.atk);
         if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
@@ -3307,7 +3372,7 @@ function attackUpdate(now){
         afterShot(c.s,c.t,c.wkey,false,c.tn,c.atk);
       }
     }
-    if(el>900){q.cur=null;q.nextAt=now+320;syncUI();}
+    if(el>(c.endAt||900)){q.cur=null;q.nextAt=now+320;syncUI();}
   }
 }
 function playerAttack(){
@@ -3315,23 +3380,23 @@ function playerAttack(){
   if(!c||c.stage!=='await')return;
   tutFlags.attacked=1;
   if(tutIdx>=4)tutFlags.shot=1;   // the Take the shot card only counts a shot taken once it is the current card
-  sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
+  sTick();c.stage='roll';c.stageAt=clock();sDice();syncUI();
 }
 function throwNade(s,gx,gy){
-  s._throwT=performance.now();
+  s._throwT=clock();
   if(injOf(s,'shrapnel')){addFloater(s.x,s.y-48,'SUPPRESSED',C.hazard);return;}
   NADES--;
   if(hasT(s,'clumsy')&&rng()<0.25){
     gx=s.x;gy=s.y;
     log(nameSpan(s)+' <span class="b">fumbles the BLAM</span> <span class="d">(clumsy)</span> \u2014 it drops at their feet.');
   }
-  nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:performance.now(),armRound:round});
+  nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:clock(),armRound:round});
   s.face=Math.atan2(gy-s.y,gx-s.x);
   log(nameSpan(s)+' lobs a <b>BLAM frag</b> — it lands, primed.');
   addFloater(gx,gy-14,'PRIMED',C.hazard);
   sTick();
   pickMode=null;
-  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+500;}
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=clock()+500;}
   camGoal={x:gx,y:gy,z:Math.max(cam.z,0.9)};
   syncUI();
 }
@@ -3344,7 +3409,7 @@ function useStim(s){
   addFloater(s.x,s.y-40,'+'+heal+' STIM',C.go);
   log(nameSpan(s)+' <span class="g">slams a stim</span> — +'+heal+' hp.');
   sLoot();
-  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+450;}
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=clock()+450;}
   syncUI();
 }
 function playerHold(){
@@ -3353,7 +3418,7 @@ function playerHold(){
   sTick();
   if(WPN[c.wkey]&&WPN[c.wkey].steady){c.s.steadyT=c.t.id;log(nameSpan(c.s)+' <span class="d">holds fire and settles the sights on</span> '+nameSpan(c.t)+' <span class="d">(Steady: +'+STEADY_BONUS+' next shot at them)</span>.');}
   else log(nameSpan(c.s)+' <span class="d">holds fire.</span>');
-  engageQ.cur=null;engageQ.nextAt=performance.now()+220;syncUI();
+  engageQ.cur=null;engageQ.nextAt=clock()+220;syncUI();
 }
 function mkObjTarget(p){
   return {obj:true,prop:p,name:'FUEL CANISTER',first:'canister',side:'obj',x:p.x,y:p.y,
@@ -3484,7 +3549,7 @@ function doCrossAway(){
   const sera=U.find(u=>u.id==='sera');
   if(sera)sera.xpGain=(sera.xpGain||0)+0.25;
   sera.away=1;sera.order=null;
-  crossFx={t0:performance.now()};
+  crossFx={t0:clock()};
   sTakeoff();
   camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
   log('<span class="g">The Cross is up!</span> Sera takes her low over the rooftops and gone.');
@@ -3640,10 +3705,10 @@ function buildResult(win){
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
   const R=(opt&&opt.r)||135,D0=(opt&&opt.d0)||45,D1=(opt&&opt.d1)||70;
-  sBoomBig();shake=performance.now();
+  sBoomBig();
+  juice(opt&&opt.rocket?'rocket':'grenade',x,y,{r:R});   // freeze, shake, debris, embers, smoke and a shockwave
   decals.push({x,y,r:(R/135)*(52+rng()*14)});
-  if(!(opt&&opt.quiet))boomFx.push({x,y,t0:performance.now(),dur:700,R});   // quiet: the art kit draws this one (a strafing run)
-  if(!(opt&&opt.quiet))for(let k=0;k<10;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.35,col:'#3a3430',t0:performance.now(),dur:1300});
+  if(!(opt&&opt.quiet))boomFx.push({x,y,t0:clock(),dur:700,R});   // quiet: the art kit draws this one (a strafing run)
   for(const u of U){
     if(u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
     const d=Math.hypot(u.x-x,u.y-y);
@@ -3658,7 +3723,7 @@ function explode(x,y,opt){
     if(p.dead)continue;
     const d=Math.hypot(p.x-x,p.y-y);
     if(d<10)continue; // the one that just went up
-    if(p.kind==='canister'&&d<R+15){p.dead=true;exploQ.push({x:p.x,y:p.y,at:performance.now()+120+rng()*160});}
+    if(p.kind==='canister'&&d<R+15){p.dead=true;exploQ.push({x:p.x,y:p.y,at:clock()+120+rng()*160});}
     else if(d<R+5&&PROPDEF[p.kind].hp!==undefined)chipCover(p,120);
   }
   if(town==='calm')alertTown('Half the town heard that.');
@@ -3687,42 +3752,126 @@ function clipShot(x1,y1,x2,y2){
   }
   return {x:x2,y:y2,wall:false};
 }
-function fireFx(s,t,wkey,hit){
-  const w=WPN[wkey];
+/* A trigger pull on screen (art handoff: Volleys). SR_ART.volley turns the one roll into a burst of rounds, re-rolled
+   every time; the rounds that land split the damage between them, so the numbers always add up to the roll. Misses
+   fly past and strike the ground or a wall behind. res is the attack being resolved: its rounds wait to land until its
+   damage is in (res.done). Returns when the first and last rounds land, in ms from now. */
+const machine=u=>!!(u&&(u.auto||u.bot||u.veh||u.obj));
+function fireFx(s,t,wkey,hit,dmg,res){
+  const w=WPN[wkey]||{},P=SA.PROJ[wkey],now=clock();
   const ang=Math.atan2(t.y-s.y,t.x-s.x);
   if(s.manning)turret.face=ang; // the gun (and its sandbags' open side) tracks where it shoots
-  if(w.beam){
-    const end=hit?{x:t.x,y:t.y}:clipShot(s.x,s.y,s.x+Math.cos(ang+0.06)*(dist(s,t)+90),s.y+Math.sin(ang+0.06)*(dist(s,t)+90));
-    tracers.push({x1:s.x+Math.cos(ang)*30,y1:s.y+Math.sin(ang)*30,x2:end.x,y2:end.y,t0:performance.now(),dur:200,col:s.side==='reb'?C.rebel:C.heg,beam:1});
-    parts.push({x:end.x,y:end.y,vx:0,vy:0,r:12,a:0.8,col:'#ff8f9a',t0:performance.now(),dur:160,flash:1});
-    sLaser();
-    if(!hit)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-end.x,p.y-end.y)<30)detonate(p);
-    return;
+  const h0=26*actorScale(s),ht=t.obj?8:t.veh?16:30*actorScale(t);
+  const x0=s.x+Math.cos(ang)*14,y0=s.y-h0,x1=t.x,y1=t.y-ht;
+  dmg=hit?Math.max(0,dmg||0):0;
+  let mode=modeOf(s,wkey)||'semi',plan,lands;
+  if(!P||P.type==='melee'||(hit&&dmg<3)){   // fists, a beam with no art, or a hit too small to split: one round
+    plan={key:wkey,mode:'single',hit,rounds:[{fire:0,hit,dmg,dAng:hit?0:(Math.random()<0.5?-1:1)*0.1,range:hit?1:1.25,jx:0,jy:0}]};
+  } else {
+    if(hit&&dmg<8&&mode==='auto')mode='semi';
+    plan=SA.volley(wkey,mode,{hit,damage:dmg});
   }
-  const shots=w.pellets?5:(w.shots||1);
-  const bkind=WDAM[wkey]==='plasma'?'plasma':'ballistic';
-  const bside=s.side==='reb'?'reb':'heg';
-  const h0=26*actorScale(s);   // bolts leave at the muzzle, not the feet
-  for(let i=0;i<shots;i++){
-    const spread=w.pellets?(i-2)*0.09:(hit?0:(rng()-0.5)*0.16)+(rng()-0.5)*0.03;
-    const a=ang+spread;
-    const d=dist(s,t)+(hit?0:rint(40,120));
-    const mx=s.x+Math.cos(a)*14,my=s.y+Math.sin(a)*14;
-    const end=clipShot(mx,my,s.x+Math.cos(a)*d,s.y+Math.sin(a)*d);
-    const ex=end.x,ey=end.y;
-    tracers.push({x1:mx,y1:my-h0,x2:ex,y2:ey-(end.wall?0:h0*0.6),
-      t0:performance.now()+i*(w.pellets?0:90),dur:110,kind:bkind,side:bside});
-    if(end.wall){
-      for(let k=0;k<6;k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:'#8a7a60',t0:performance.now()+i*90,dur:500});
-    } else hits.push({x:ex,y:ey-h0*0.6,t0:performance.now()+i*(w.pellets?0:90)+90,dur:260});
-    // stray rounds find fuel canisters
-    if(!hit&&!end.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-ex,p.y-ey)<28)detonate(p);
+  // misses that would fly through a wall stop at it
+  const D=Math.hypot(x1-x0,y1-y0)||1;
+  plan.rounds.forEach(r=>{
+    if(r.hit)return;
+    const a=ang+r.dAng,far=D*r.range,e=clipShot(x0,s.y,x0+Math.cos(a)*far,s.y+Math.sin(a)*far);
+    if(e.wall){r.range=Math.max(0.2,Math.hypot(e.x-x0,e.y-s.y)/D);r.wall=1;}
+  });
+  lands=P?SA.volleyImpacts(plan,x0,y0,x1,y1):plan.rounds.map(r=>({at:0.08,x:x1,y:y1,hit:r.hit,dmg:r.dmg}));
+  lands.forEach((L,i)=>{L.wall=plan.rounds[i].wall;});
+  if(w.beam&&!P)tracers.push({x1:x0,y1:y0,x2:lands[0].x,y2:lands[0].y,t0:now,dur:200,col:s.side==='reb'?C.rebel:C.heg,beam:1});
+  const ats=lands.map(L=>L.at),hitAts=lands.filter(L=>L.hit).map(L=>L.at);
+  const first=Math.round(1000*Math.min(...(hitAts.length?hitAts:ats))),last=Math.round(1000*Math.max(...ats));
+  vols.push({s,t,key:wkey,plan,lands,x0,y0,x1,y1,ht,t0:now,dur:last+600,draw:!!P&&P.type!=='melee',mode:plan.mode,res:res||null,
+    cum:0,crit:!!(res&&res.crit),dtype:WDAM[wkey]||'ballistic',dir:ang,first:true});
+  if(P&&P.type!=='melee'){
+    juice('shot',s.x,y0+h0*0.4,{dir:ang,noStop:true,brass:WDAM[wkey]==='ballistic'});   // energy weapons throw no brass
   }
-  // the muzzle flash comes from the firing pose; only the brass stays here
-  casings.push({x:s.x,y:s.y-h0*0.5,vx:(rng()-0.5)*40-Math.cos(ang)*30,vy:-40-rng()*30,t0:performance.now()});
+  if(wkey==='scatter'||wkey==='rocket')SHK.add(0.14);
   sShot(wkey);
   if(!hit&&rng()<0.4)sRico();
-  if(wkey==='scatter')shake=performance.now();
+  return {first,last};
+}
+/* rounds land when their time comes (on the game clock, so hitstop holds them too) */
+function juiceTick(now){
+  for(const v of vols){
+    if(v.res&&!v.res.done)continue;
+    for(const L of v.lands)if(!L.done&&now>=v.t0+L.at*1000){L.done=1;landRound(v,L,now);}
+  }
+  vols=vols.filter(v=>now<v.t0+v.dur||(v.res&&!v.res.done&&now<v.t0+10000));   // an attack still resolving keeps its rounds
+}
+function landRound(v,L,now){
+  const t=v.t,P=SA.PROJ[v.key],style=P&&P.style;
+  if(v.key==='rocket'){   // the rocket bursts where it lands; the damage is the attack's
+    const gx=L.hit?t.x:L.x,gy=L.hit?t.y:L.y+v.ht;
+    boomFx.push({x:gx,y:gy,t0:now,dur:600,R:70});decals.push({x:gx,y:gy,r:26});
+    juice('rocket',gx,gy,{r:70,k:0.7});
+  }
+  if(!L.hit){
+    impFx.push({x:L.x,y:L.y,t0:now,dur:380,o:{dtype:v.dtype,surface:'cover',dir:v.dir,style,seed:(Math.random()*999)|0}});
+    if(!v.plan.hit&&!v.missed){v.missed=1;addPop(t.x,t.y-58,'MISS','#c8d0dc');}
+    if(!L.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-L.x,p.y-(L.y+v.ht))<30)detonate(p);   // stray rounds find fuel canisters
+    return;
+  }
+  // which layer took this round: the riot shield, the energy shield and the armour soak first, in that order
+  const k=t._soak||{},c0=v.cum;v.cum+=L.dmg;
+  const r1=k.riot||0,r2=r1+(k.sd||0),r3=r2+(k.ad||0);
+  const surf=t.obj?'cover':c0<r1?'armour':c0<r2?'shield':c0<r3?'armour':machine(t)?'robot':'flesh';
+  const col=surf==='shield'?C.shield:(surf==='armour'&&c0<r3)?C.steel:t.side==='reb'?C.hazard:C.goldHi;
+  impFx.push({x:L.x,y:L.y,t0:now,dur:surf==='flesh'?520:420,o:{dtype:v.dtype,surface:surf,dir:v.dir,style,seed:(Math.random()*999)|0,size:v.key==='scatter'?1.3:1,gore:goreOn()}});
+  if(L.dmg>0)addPop(L.x+(Math.random()-0.5)*10,L.y-16,'-'+L.dmg,col,{crit:v.crit&&v.first});
+  if(!t.obj)hitPose(t);
+  if(surf==='shield')t._shHitT=now;
+  const ev=v.first&&v.crit?'crit':surf==='armour'?'armourHit':'hit';
+  juice(ev,L.x,L.y,{dir:v.dir,k:v.first?1:0.4,noStop:!v.first});
+  if(surf==='flesh'&&goreOn())bleed(t,v.dir,L.dmg);
+  v.first=false;
+}
+/* blood on the ground for the rest of the mission (the Blood setting hides it) */
+function bleed(t,dir,dmg){
+  const a=dir==null?Math.random()*Math.PI*2:dir;
+  decals.push({blood:1,x:t.x+Math.cos(a)*(6+Math.random()*16),y:t.y+Math.sin(a)*(4+Math.random()*8),r:4+Math.min(9,(dmg||8)*0.3),seed:(Math.random()*9999)|0});
+  const b=decals.filter(d=>d.blood);
+  if(b.length>160)decals.splice(decals.indexOf(b[0]),1);
+}
+function drawDecals(){
+  const gore=goreOn();
+  for(const d of decals){
+    if(d.blood){if(gore)SA.bloodSplat(ctx,d.x,d.y,d.r,d.seed,0.85);}
+    else SA.scorch(ctx,d.x,d.y,d.r);
+  }
+}
+function drawJuice(now){
+  for(const v of vols){
+    if(!v.draw)continue;
+    const tt=(now-v.t0)/1000;
+    if(tt>=0)SA.shot(ctx,v.key,v.x0,v.y0,v.x1,v.y1,tt,{mode:v.mode,plan:v.plan});
+  }
+  impFx=impFx.filter(f=>now-f.t0<f.dur);
+  for(const f of impFx)SA.impact(ctx,f.x,f.y,Math.max(0,(now-f.t0)/f.dur),f.o);
+  PFX.draw(ctx);
+  jfx=jfx.filter(f=>now-f.t0<f.dur);
+  for(const f of jfx){
+    const k=Math.max(0,(now-f.t0)/f.dur);
+    if(f.k==='ring')SA.ring(ctx,f.x,f.y,k,f.col,{r:f.r});
+    else if(f.k==='shieldBreak')SA.shieldBreak(ctx,f.x,f.y,k);
+    else if(f.k==='pickup')SA.pickup(ctx,f.item,f.x,f.y,k,now/1000);
+  }
+}
+/* damage numbers, MISS and DOWN: drawn on screen over the world, anchored to it */
+function drawPops(now){
+  if(!pops.length)return;
+  ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
+  for(const p of pops){
+    const k=(now-p.t0)/900;
+    if(k<0||k>1)continue;
+    const [x,y]=worldToCss(p.x,p.y);
+    if(x<-100||x>cssW+100||y<-60||y>cssH+60)continue;
+    SA.popText(ctx,p.text,x,y,k,p.col,{crit:p.crit,dir:p.dir,size:p.size||17});
+  }
+  ctx.restore();
+  pops=pops.filter(p=>now-p.t0<900);
 }
 /* ---------- audio ---------- */
 const sTick=A.tick;
@@ -3881,7 +4030,7 @@ function genScatter(){
 }
 /* ---------- drawing ---------- */
 function drawGroundHaven(){
-  const now=performance.now();
+  const now=clock();
   ctx.drawImage(floorCache(),0,0);
   for(const sc2 of scrub){
     ctx.fillStyle='rgba(90,110,96,0.22)';
@@ -3915,7 +4064,7 @@ function drawGroundHaven(){
     if(!op.label)continue;
     plb(op.label,op.x+op.w/2,op.y+26,C.text3,13);
   }
-  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
+  drawDecals();
   // blast door mouth
   const dr=SCN.door;
   ctx.fillStyle='#0e1218';
@@ -3956,9 +4105,9 @@ function drawGround(){
     ctx.fillStyle='rgba(74,86,44,0.3)';
     ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();
   }
-  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
+  drawDecals();
   // street lamps — warm pools in a dust town
-  const lampT=HUD.reduced?0:performance.now()/1000;
+  const lampT=HUD.reduced?0:clock()/1000;
   for(const lp of (SCN.mode==='stealcross'?[[600,772],[1104,880],[1590,772],[2044,880]]:(SCN.lamps||[]))){
     SA.lampLight(ctx,lp[0],lp[1]-56,120);
     SA.prop(ctx,'lamp',lp[0],lp[1],{t:lampT});
@@ -3980,14 +4129,14 @@ function drawGround(){
   for(let i=0;i<6;i++){
     const a=i*Math.PI/3+0.26;
     const px=PAD.x+Math.cos(a)*110,py=PAD.y+Math.sin(a)*110;
-    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(performance.now()*0.004+i))+')';
+    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(clock()*0.004+i))+')';
     ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();
   }
 }
 function drawProps(){
   /* retired: props draw in drawActors' depth sort; dead props leave kit scorch on the ground */
   return;
-  const now=performance.now();
+  const now=clock();
   for(const p of PROPS){
     const d=PROPDEF[p.kind];
     ctx.save();ctx.translate(p.x,p.y);
@@ -4203,7 +4352,7 @@ function drawWallActor(b,now){
   if(b.name&&!b.sign)plb(b.name,b.x+b.w/2,b.y-12,C.text2,13);
 }
 function drawBldgs(){
-  const now=performance.now();
+  const now=clock();
   for(const b of BLDGS){
     if(!b.terrain)continue;
     if(b.terrain){
@@ -4225,7 +4374,7 @@ function drawBldgs(){
 }
 function drawBldgsOld(){
   for(const b of BLDGS){
-    const now=performance.now();
+    const now=clock();
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.fillRect(b.x+8,b.y+10,b.w,b.h);
     ctx.fillStyle='#15120e';
@@ -4313,11 +4462,11 @@ function groundShadow(x,y,rx,ry){
 function drawDerelict(now){
   const d=SCN.derelict;
   groundShadow(d.x,d.y,110,38);
-  SA.ship(ctx,'graf',d.x,d.y,d.a||0,5.0,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
+  SA.ship(ctx,'graf',d.x,d.y,d.a||0,5.0,HUD.reduced?0:(now||clock())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
   plb('DERELICT HAULER',d.x,d.y-94,C.text2,12);
 }
 function drawGraf(now){
-  now=now||performance.now();
+  now=now||clock();
   let sc=1,ox=0,oy=0;
   const lifting=!!(extractFx&&extractFx.stage==='lift');
   if(lifting){
@@ -4411,10 +4560,15 @@ function artPose(u,now){
   if(now-(u._knockT||0)<700&&!u.down)pose.state='knocked';
   else if(stunned(u)&&!u.down&&!u.mnt)pose.state='stunned';   // concussed: spiral eyes and stars
   if(u.shd>0&&u.maxShd){pose.shield=u.shd/u.maxShd;const k=(now-(u._shHitT||0))/400;if(k<1)pose.shieldHit=1-k;}
-  if(now-(u._deployT||0)<900&&!u.down)pose.state='deploy';                      // a Broken Arm from this fight shows a sling straight away
+  if(now-(u._deployT||0)<900&&!u.down)pose.state='deploy';
+  if(!u.down){   // hit feedback: a white flash decaying at 5 a second, a squash at 6
+    const fl=1-(now-(u._flashT||-1e9))/200,sq=1-(now-(u._sqT||-1e9))/167;
+    if(fl>0)pose.flash=fl*0.85;
+    if(sq>0&&!HUD.reduced)pose.squash=sq;
+  } else if(u._downT)pose.fall=Math.min(1,(now-u._downT)/600);   // the topple, with its bounce                      // a Broken Arm from this fight shows a sling straight away
   return pose;
 }
-const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.landAt&&performance.now()<u.landAt)&&!(u.mnt&&enclosed(u))&&unitSeen(u));
+const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.landAt&&clock()<u.landAt)&&!(u.mnt&&enclosed(u))&&unitSeen(u));
 function drawActors(now){
   const t=HUD.reduced?0:now/1000;
   const biome=groundBiome();
@@ -4691,7 +4845,7 @@ function drawOrders(now){
 }
 function drawPing(){
   if(!rtPing)return;
-  const t=(performance.now()-rtPing.t0)/500;
+  const t=(clock()-rtPing.t0)/500;
   if(t<1){
     const [x,y]=worldToCss(rtPing.x,rtPing.y);
     ctx.beginPath();ctx.arc(x,y,8+t*28,0,7);ctx.lineWidth=3;ctx.strokeStyle=T.rgba(C.gold,0.85*(1-t));ctx.stroke();
@@ -4906,7 +5060,7 @@ function startCutscene(){
   bn.querySelector('.big').textContent=SCN.banner[0];
   bn.querySelector('.small').textContent=SCN.banner[1];
   byId('csSkip').hidden=false;
-  cs={t0:performance.now(),fired:{}};
+  cs={t0:clock(),fired:{}};
   if(SCN.hasGraf){grafPos.x=-500;grafPos.y=H+300;grafState='flying';}
   else {grafPos.x=-99999;grafPos.y=-99999;grafState='landed';}
   for(const u of U)if(u.side==='reb'){u.csHide=true;}
@@ -4946,7 +5100,7 @@ function csUpdate(now){
     grafPos.a=lerp(0.5,0.12,t);
   } else {grafPos.x=LZ.x;grafPos.y=LZ.y;grafState='landed';}
   csEvent('land',2.9,el,()=>{
-    sLand();shake=now;
+    sLand();SHK.add(0.3);
     for(let i=0;i<26;i++)parts.push({x:LZ.x+(rng()-0.5)*200,y:LZ.y+(rng()-0.5)*150,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
   });
   // squad walks out
@@ -4990,6 +5144,7 @@ function endCutscene(){
   }
   fsCassIntro();
   enterFree(null);
+  SR.transition('flag',{text:'MOVE OUT'});   // mission start
 }
 /* ---------- prologue: Cass's comm window and the soldier quips (A2/A3) ---------- */
 function drawGroundStatic(now){
@@ -5040,10 +5195,13 @@ function prologueQuips(){
 }
 /* ---------- main render ---------- */
 let hoverW=null;
-function render(now){
+function render(rnow){
   try{
-    const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
-    lastFrame=now;
+    const now=clock(rnow);
+    const dt=Math.min(0.05,Math.max(0,now-(lastFrame||now))/1000),rdt=Math.min(0.05,Math.max(0,rnow-(lastReal||rnow))/1000);
+    lastFrame=now;lastReal=rnow;
+    SHK.enabled=!!(!SR.settings||SR.settings.shake())&&!HUD.reduced;SHK.update(rdt);
+    PFX.update(dt);
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
     if(phase!=='CUTSCENE')fuelUpdate(now);
     if(phase==='FREE'&&!tutFrozen())rtUpdate(now,dt);   // a pause-card freeze stops movement, detection, AI and timers (A4)
@@ -5051,6 +5209,7 @@ function render(now){
     if(phase==='EXEC')execUpdate(now);
     vehSync();
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
+    juiceTick(now);
     if(dgRun){try{dgUpdate(now);}catch(e){recover(e);}}
     if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
     if(phase==='INTRO')updateVision(now);   // the held scene stays lit; nothing moves and nothing detects
@@ -5067,10 +5226,9 @@ function render(now){
     }
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.fillStyle='#04060d';ctx.fillRect(0,0,cssW,cssH);
-    let shx=0,shy=0;
-    if(now-shake<300){const k=(1-(now-shake)/300)*5;shx=(rng()-0.5)*k;shy=(rng()-0.5)*k;}
+    const sh=SHK.offset(rnow/1000);
     ctx.save();
-    ctx.translate(cssW/2+shx,cssH/2+shy);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
+    ctx.translate(cssW/2+sh.x,cssH/2+sh.y);ctx.rotate(sh.a);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
     drawGround();
     if(SCN.tumbleweed)drawTumbleweed(now);
     drawVision();
@@ -5087,6 +5245,7 @@ function render(now){
     hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
     drawFx(now);
+    drawJuice(now);                 // volleys, impacts, particles, rings, shield breaks, pickups
     drawDgRun(now);                 // the gun run flies above the fog: everyone watches this
     drawFsFx(now);                  // strafing runs, supply drops and landings, likewise
     ctx.restore();
@@ -5094,6 +5253,7 @@ function render(now){
     if(phase==='ENGAGE')drawEngageFocus(now);
     drawOrders(now);
     drawFloaters(now);
+    drawPops(now);
     drawBubbles(now);
     vsSync(now);
     drawMinimap(now);
@@ -5734,7 +5894,7 @@ DOCK.addEventListener('click',ev=>{
   }
   else if(b.hasAttribute('data-shield')){
     const c=engageQ&&engageQ.cur;
-    if(c&&c.stage==='await'&&raiseShield(c.s)){sTick();engageQ.cur=null;engageQ.nextAt=performance.now()+450;syncUI();}
+    if(c&&c.stage==='await'&&raiseShield(c.s)){sTick();engageQ.cur=null;engageQ.nextAt=clock()+450;syncUI();}
   }
   else if(b.hasAttribute('data-nade')){
     if(engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
@@ -5802,10 +5962,12 @@ menuEl.innerHTML=HUD.menuHtml([
   {id:'menuSound',icon:'soundon',label:'Sound',kbd:'M'},
   {id:'menuLog',icon:'comms',label:'All reports'},
   {id:'menuControls',icon:'help',label:'Controls'},
+  ...SR.settings.menuItems(),
   {sep:1},
   {id:'restartBtn',icon:'restart',label:'Restart mission',kind:'danger'},
   {id:'dbgSkip',icon:'debug',label:'Debug: skip mission',kind:'debug'}]);
 HUD.menuBind(menuEl,$('menuBtn'));
+SR.settings.bind(menuEl);
 const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
   '<div class="sr-stack">'+[
     [SR.touch?'Tap the ground':'Right-click the ground','Send the squad (free move)'],
@@ -5947,6 +6109,7 @@ function initState(){
   NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
   sneak=false;launchNagged=false;
   floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];hitFx=[];fsFx=[];
+  pops=[];vols=[];impFx=[];jfx=[];PFX.list.length=0;SHK.trauma=0;
   fogInit();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;extractFx=null;
@@ -6013,7 +6176,7 @@ function tutNeedsAck(){const t=TUT[tutIdx];return !!(t&&t.pause&&!tutAck[tutIdx]
 function tutReady(){
   const t=TUT[tutIdx];
   if(!t||(t.when&&!t.when()))return false;
-  return performance.now()>=tutGateT;
+  return clock()>=tutGateT;
 }
 function tutFrozen(){
   if(!SCN||!SCN.tutorial||phase!=='FREE')return false;
@@ -6023,7 +6186,7 @@ function tutTick(){
   const card=byId('tutCard');
   if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
   while(tutIdx<TUT.length-1&&TUT[tutIdx].done())tutIdx++;
-  if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=performance.now()+(tutIdx?TUT_GAP:0);}
+  if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=clock()+(tutIdx?TUT_GAP:0);}
   // a card waits unseen until its when() is met and it has had a beat to breathe
   if(!tutReady()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
   if(tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;fsCassIntro();syncUI();}   // the Fire Support card is up: Cass unlocks and pipes up (A5)
@@ -6122,6 +6285,8 @@ if(location.hash==='#test'){
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
+      clock,hitstop,juice,juiceTick,decals_:()=>decals,juice_:()=>({pops,vols,impFx,jfx,parts:PFX.list,trauma:SHK.trauma,stopped:!!HS.until&&performance.now()<HS.until}),
+      juiceOn(v){juiceLive=v!==false;},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }
 })();
