@@ -336,10 +336,12 @@ function gearHeld(p){
 const slotGet=(p,s)=>{const g=gearHeld(p);return s.k==='gad'?g.gad[s.i]:g[s.k];};
 const slotSet=(p,s,id)=>{const g=gearHeld(p);if(s.k==='gad')g.gad[s.i]=id||null;else g[s.k]=id||null;};
 const gearFits=(id,s)=>{const m=KIT[id];return !!m&&m.slot===(s.k==='gad'?'gadget':s.k);};
-const carried=id=>crewOf().reduce((n,p)=>n+gearSlots(p).filter(s=>slotGet(p,s)===id).length,0);
+/* a mercenary's own kit fills their weapon slots: it is not in the armory, not counted, and not ours to take */
+const isOwnSlot=(p,s)=>!!(p&&p.ownKit&&(s.k==='primary'||s.k==='secondary')&&p.ownKit[s.k]);
+const carried=id=>crewOf().reduce((n,p)=>n+gearSlots(p).filter(s=>slotGet(p,s)===id&&!isOwnSlot(p,s)).length,0);
 const stockOf=id=>{const a=G.armory.find(x=>x.id===id);return a?a.n:0;};
 const freeOf=id=>Math.max(0,stockOf(id)-carried(id));
-const holders=(id,not)=>crewOf().filter(p=>!not.includes(p)&&p.assign!=='mission'&&gearSlots(p).some(s=>slotGet(p,s)===id));
+const holders=(id,not)=>crewOf().filter(p=>!not.includes(p)&&p.assign!=='mission'&&gearSlots(p).some(s=>slotGet(p,s)===id&&!isOwnSlot(p,s)));
 /* the second gadget slot is the utility slot: ground rebels are handed a Med Pack there, and nobody else is handed one
    automatically (a pilot has no use for it, and the first gadget slot is for grenades); by hand it can go anywhere */
 const wantsPack=(p,s)=>!!p&&isGround(p)&&s.k==='gad'&&s.i===1;
@@ -353,12 +355,15 @@ function bestFree(s,p){
 function reconcileGear(){
   for(const p of crewOf()){
     if(!gearSlots(p).length){p.gear=null;continue;}
-    for(const s of gearSlots(p)){const id=slotGet(p,s);if(id&&(!gearFits(id,s)||stockOf(id)<=0))slotSet(p,s,null);}
+    for(const s of gearSlots(p)){
+      if(isOwnSlot(p,s)){if(slotGet(p,s)!==p.ownKit[s.k])slotSet(p,s,p.ownKit[s.k]);continue;}   // own kit stays put
+      const id=slotGet(p,s);if(id&&(!gearFits(id,s)||stockOf(id)<=0))slotSet(p,s,null);
+    }
   }
   const weakestFirst=crewOf().slice().sort((a,b)=>a.level-b.level);
   for(const a of G.armory){
     let over=carried(a.id)-a.n;
-    for(const p of weakestFirst)for(const s of gearSlots(p)){if(over>0&&slotGet(p,s)===a.id){slotSet(p,s,null);over--;}}
+    for(const p of weakestFirst)for(const s of gearSlots(p)){if(over>0&&slotGet(p,s)===a.id&&!isOwnSlot(p,s)){slotSet(p,s,null);over--;}}
   }
 }
 /* fill every empty slot from what is free; `first` rebels (a mission squad) choose before the rest */
@@ -387,7 +392,7 @@ function outfitSquad(going){
 /* a manual pick (the personnel-file picker and the Arsenal share it): free stock first, else take it off a holder */
 function applyGearPick(pid,k,i,id){
   const p=G.people.find(x=>x.id===pid),s=p&&gearSlots(p).find(x=>x.k===k&&(x.i||0)===+i);
-  if(!p||!s||p.assign==='mission')return false;
+  if(!p||!s||p.assign==='mission'||isOwnSlot(p,s))return false;
   if(!id)slotSet(p,s,null);
   else if(freeOf(id)>0||slotGet(p,s)===id)slotSet(p,s,id);
   else{
@@ -413,9 +418,14 @@ function gearFromEquip(p){
   return g;
 }
 
-/* a base-wide event: everybody feels it, those in `team` feel it differently */
+/* a base-wide event: everybody feels it, those in `team` feel it differently.
+   Mercenaries follow pay and winning, not the cause: they only feel it when they were on the team. */
 function moraleAll(d,kind,team,dTeam){
-  for(const p of crewOf())Rebel.moraleBump(p,team&&team.includes(p.id)?dTeam:d,kind);
+  for(const p of crewOf()){
+    const onTeam=team&&team.includes(p.id);
+    if(p.merc&&!onTeam)continue;
+    Rebel.moraleBump(p,onTeam?dTeam:d,kind);
+  }
   mood();
 }
 /* news classes (saved as d/a/g/h/r/p) → kit tones */
@@ -592,7 +602,7 @@ function heroCheck(r,m,ctxs){
     Rebel.heroGain(p,{win:!!r.win,kills:pr.kills||0,danger:!!(c.down||(pr.minHp!==undefined&&pr.minHp<0.5)),alone:!!c.alone,top:topKills>=2&&(pr.kills||0)===topKills,notable:!!r.quiet||sec>=3});
   }
   if((G.revLevel||1)<2&&(G.heroesMade||0)>=1)return null;   // Revolution Level 1 allows one Hero, ever: if they fall, that is it
-  const hero=Rebel.heroRoll(part.map(x=>x.p),rng,crewOf().filter(p=>p.role==='Hero').length);
+  const hero=Rebel.heroRoll(part.map(x=>x.p).filter(p=>!p.merc),rng,crewOf().filter(p=>p.role==='Hero').length);   // no Hero promotion on a contract
   if(!hero)return null;
   const was=hero.role;
   Rebel.heroMake(hero,crewOf());G.heroesMade=(G.heroesMade||0)+1;
@@ -615,6 +625,7 @@ function squadTension(squad){
 const nm0=p=>'<b>'+p.name+'</b> ';
 
 function creditMission(p){
+  if(p&&p.merc)p.merc.missions=(p.merc.missions||0)+1;   // contract missions count toward "join the cause"
   if(Rebel.credit(p))news('<b>'+p.name+'</b> has earned a promotion. Say the word in their file.','p');
 }
 function gainXp(p,x){
@@ -1519,6 +1530,21 @@ function advanceDay(){
   patrolTick();
   specTick();
   const xpRate=staffOf('training').length?0.09:0.06;
+  // hired mercenaries arrive the morning after the handshake, their own kit already on their backs
+  for(const q of (G.mercQ||[])){
+    const p=Rebel.migrate(Object.assign({assign:'rest',injured:0,xp:0},q.rec));
+    p.joined=G.day;
+    p.merc={until:G.day+14,fee:q.fee,missions:0};
+    p.ownKit=q.rec.ownKit||{};
+    const g=gearHeld(p);
+    if(p.ownKit.primary)g.primary=p.ownKit.primary;
+    if(p.ownKit.secondary)g.secondary=p.ownKit.secondary;
+    G.people.push(p);
+    news('<b>'+p.name+'</b> steps off the morning freighter, kit on their back. Fourteen days on the clock.','g');
+  }
+  if(G.mercQ&&G.mercQ.length){G.mercQ=[];mood();autoEquip();sBuild();}
+  // a contract that has run out waits for the commander's word (the window re-queues daily until decided)
+  for(const p of crewOf())if(p.merc&&G.day>=p.merc.until)RQ.push({t:'contract',id:p.id});
   moraleTick();
   recruitTick();
   for(const p of G.people){
@@ -1747,6 +1773,11 @@ function nextReport(){
   else if(n.t==='hero'){
     if(!G.people.some(p=>p.id===n.id))return nextReport();
     sAlert();openWin('newhero',n.id);
+  }
+  else if(n.t==='contract'){
+    const p=G.people.find(x=>x.id===n.id);
+    if(!p||!p.merc||G.day<p.merc.until)return nextReport();
+    sAlert();openWin('contract',n.id);
   }
   else if(n.t==='recruits'){
     if(!G.recWait.length)return nextReport();
@@ -3151,8 +3182,8 @@ const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',longiron
 const gearIconId=id=>GEAR_ICON[id]||'loot';
 const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
-const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good'};
-const sizeOf={newhero:'sm',sources:'lg',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm'};
+const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
+const sizeOf={newhero:'sm',sources:'lg',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm',contract:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -3223,6 +3254,7 @@ const TUT_PAGES=[
 function dossierHead(p,extra,noRank){
   const mb=!p.auto&&p.morale!==undefined?Rebel.mband(p):null;
   const tags=(p.role==='Hero'?wTag('Hero','action','star'):'')+(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
+    (!p.auto&&p.merc?wTag('Mercenary · '+Math.max(0,p.merc.until-G.day)+'d left','progress'):'')+
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
   return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+(p.role==='Hero'?'Hero · was '+p.heroOf:p.role)+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
@@ -3331,9 +3363,10 @@ function gearSection(p){
   if(!slots.length)return '';
   const away=p.assign==='mission';
   const rows=slots.map(s=>{
-    const id=slotGet(p,s),a=id&&G.armory.find(x=>x.id===id);
-    return '<button class="bs-gearslot" data-gear-slot="'+p.id+':'+s.k+':'+(s.i||0)+'"'+(away?' disabled title="Away on a mission"':'')+'>'+
-      '<span class="bs-gearslot__k">'+SLOT_LABEL[s.k]+'</span><span class="bs-gearslot__v">'+(a?IC(gearIcon(a))+'<span>'+esc(kitName(a))+'</span>':'<span class="sr-faint">Empty</span>')+'</span>'+
+    const id=slotGet(p,s),own=isOwnSlot(p,s);
+    return '<button class="bs-gearslot" data-gear-slot="'+p.id+':'+s.k+':'+(s.i||0)+'"'+
+      (own?' disabled title="Their own kit — not ours to reassign"':away?' disabled title="Away on a mission"':'')+'>'+
+      '<span class="bs-gearslot__k">'+SLOT_LABEL[s.k]+'</span><span class="bs-gearslot__v">'+(id?IC(gearIconId(id))+'<span>'+esc(kitNameId(id))+(own?' <span class="sr-faint">· their own</span>':'')+'</span>':'<span class="sr-faint">Empty</span>')+'</span>'+
       '<span class="bs-rank__go">'+IC('chevron')+'</span></button>';
   }).join('');
   return '<div class="sr-h3">Gear</div><div class="bs-gearslots">'+rows+'</div>';
@@ -3656,6 +3689,21 @@ function renderWin(){
       b+='</div>';
     }
     h=wHead('Personnel file')+wBody(b)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
+  }
+  else if(winMode==='contract'){
+    const p=G.people.find(x=>x.id===winArg);
+    if(!p||!p.merc){closeWin();return;}
+    const fee=p.merc.fee,can=G.credits>=fee;
+    const served=p.merc.missions||0;
+    const canJoin=served>=3&&(p.morale||0)>=70;
+    h=wHead('Contract’s up',{tags:wTag('Mercenary','progress'),x:false})+wBody(
+      '<div class="bs-dz"><span class="sr-avatar" style="width:48px;height:48px">'+ini(p.name)+'</span>'+
+      '<div><div class="bs-dz__name">'+esc(p.name)+'</div><div class="sr-faint bs-dz__role">'+esc(rankFor(p))+' · '+esc(p.role)+(specOf(p)?' · '+esc(specOf(p)):'')+' · '+served+' mission'+(served===1?'':'s')+' on the contract</div></div></div>'+
+      '<p class="sr-p">Fourteen days are up. '+esc(p.first||p.name.split(' ')[0])+' stands by the pad, kit packed either way.</p>'+
+      choice(1,'data-mercrenew="'+p.id+'"','<b>Renew</b> — 14 more days for '+C(fee,!can)+(can?'':'<br><span class="sr-faint">'+esc(needWhy({c:fee}))+'</span>'),!can)+
+      choice(2,'data-mercgo="'+p.id+'"','<b>Let them go</b> — they leave, and their own kit goes with them.')+
+      (canJoin?choice(3,'data-mercjoin="'+p.id+'"','<b>Join the cause</b> — they tear up the contract. No fee. Ours for good.'):
+        '<p class="sr-fine">A merc who has fought three missions on the contract and likes how it’s going (morale 70+) can be asked to join the cause.</p>'));
   }
   else if(winMode==='silence'){
     const s=winArg;
@@ -4076,10 +4124,13 @@ function renderArRail(){
       const s=gearSlots(p).find(x=>x.k===d.k&&(x.i||0)===(d.i||0));
       if(!s)return '<span class="ar-slot is-none" aria-hidden="true">—</span>';   // a slot this role doesn't have
       const id=slotGet(p,s);
+      if(isOwnSlot(p,s))return '<span class="ar-slot is-lock" title="'+esc(SLOT_LABEL[s.k]+': '+kitNameId(id)+' — their own kit')+'">'+itArt(id)+'</span>';
       return '<button class="ar-slot'+(id?'':' is-empty')+(id&&id===selId?' is-match':'')+'" data-arslot="'+p.id+':'+s.k+':'+(s.i||0)+'" title="'+esc(SLOT_LABEL[s.k]+(id?': '+kitNameId(id):' — empty'))+'">'+
         (id?itArt(id):'<span>'+d.l+'</span>')+'</button>';
     }).join('');
-    return '<div class="ar-row"><div class="ar-row__top">'+avat(p,34)+'<span><span class="ar-row__name">'+esc(p.name.split(' ')[0])+'</span><br><span class="ar-row__role">'+esc(rankFor(p))+' · '+esc(p.role)+'</span></span></div>'+
+    const days=p.merc?Math.max(0,p.merc.until-G.day):0;
+    return '<div class="ar-row'+(p.merc?' is-merc':'')+'"><div class="ar-row__top">'+avat(p,34)+'<span><span class="ar-row__name">'+esc(p.name.split(' ')[0])+'</span><br><span class="ar-row__role">'+esc(rankFor(p))+' · '+esc(p.role)+'</span></span>'+
+      (p.merc?'<span class="sr-tag sr-tag--progress">'+(days?days+' days left':'Contract up')+'</span>':'')+'</div>'+
       '<div class="ar-slots">'+slots+'</div></div>';
   }).join('');
   host.innerHTML='<section><div class="sr-section__head sr-section__head--action">'+IC('loot')+'Loadouts<span class="sr-section__count">'+carriers.length+' carrying</span></div>'+
@@ -4128,9 +4179,9 @@ function arCmdbar(){
 /* Give to…: hand the selected item to a rebel with a fitting slot */
 function arGiveHTML(){
   const id=arSel.id;
-  const cands=crewOf().filter(p=>p.assign!=='mission'&&gearSlots(p).some(s=>gearFits(id,s)));
+  const cands=crewOf().filter(p=>p.assign!=='mission'&&gearSlots(p).some(s=>gearFits(id,s)&&!isOwnSlot(p,s)));
   const list=cands.map(p=>{
-    const s=gearSlots(p).find(x=>gearFits(id,x)&&!slotGet(p,x))||gearSlots(p).find(x=>gearFits(id,x));
+    const s=gearSlots(p).find(x=>gearFits(id,x)&&!isOwnSlot(p,x)&&!slotGet(p,x))||gearSlots(p).find(x=>gearFits(id,x)&&!isOwnSlot(p,x));
     const cur=slotGet(p,s);
     const already=gearSlots(p).some(x=>slotGet(p,x)===id);
     return '<button class="bs-gearpick" data-argiveto="'+p.id+'"'+(already?' disabled':'')+'>'+
@@ -4144,7 +4195,7 @@ function arGiveHTML(){
 function arGiveTo(pid){
   const id=arSel.id,p=G.people.find(x=>x.id===pid);
   if(!p)return;
-  const s=gearSlots(p).find(x=>gearFits(id,x)&&!slotGet(p,x))||gearSlots(p).find(x=>gearFits(id,x));
+  const s=gearSlots(p).find(x=>gearFits(id,x)&&!isOwnSlot(p,x)&&!slotGet(p,x))||gearSlots(p).find(x=>gearFits(id,x)&&!isOwnSlot(p,x));
   if(!s)return;
   applyGearPick(pid,s.k,s.i||0,id);
   arGive=false;
@@ -4204,7 +4255,8 @@ const ST_LINES={
   greet:'Six lots this week, sugar. When they’re gone, they’re gone.',
   broke:'…Which is more than you’ve got. I don’t do credit, I do credits.',
   boughtKit:'Pleasure, sugar. It’s already in your Arsenal. Don’t ask how.',
-  hiredMerc:'She’ll be at your door by morning. Feed her, pay her, and don’t ask about the name.',   // Phase 3; use the merc's pronoun
+  hiredMerc:'They’ll be at your door by morning. Feed them, pay them, and don’t ask about the name.',   // the handoff says to use the merc's pronoun; rebels carry none, so they/them
+  needBunk:'…And sugar, they’ll want a bunk waiting. Build one first.',
   boughtShip:'Done. My lads will fly it to you in two days. Try not to crash it before it lands.',       // Phase 4
   soldOut:'Gone. Should’ve been quicker, sugar.',
   noHeg:'It’s serial-stamped, sugar. It gets stalls burned.',   // optional flavour: why no Hegemony kit
@@ -4266,23 +4318,42 @@ function rollMarket(){
     const price=Math.max(2,Math.round(m.price*swing/2)*2);   // base × swing, to the nearest 2
     lots.push({kind:'kit',key:id,stock,price,deal:swing<=0.95?'good':swing>=1.10?'steep':'fair'});
   };
+  // mercenaries: generated like any recruit (Rebel.gen with the seeded rng), the record stored in the lot
+  const takenNames=new Set(G.people.map(p=>p.name));
+  const addMerc=idx=>{
+    const role=r()<0.7?'Soldier':'Pilot';
+    const spec=Rebel.gen(role,takenNames,r);
+    takenNames.add(spec.name);
+    const level=2+Math.floor(r()*2);
+    const sPool=role==='Soldier'?['marksman','commando','gunner','demolitions']:['leader','flighteng'];
+    const specialty=r()<0.5?sPool[Math.floor(r()*sPool.length)]:null;
+    const fee=380+(level-2)*140+(specialty?80:0);   // 380-600, scaled by level and specialty
+    // their own kit: rolled from live, non-Hegemony weapons; it never enters the armory
+    const ownKit={primary:role==='Soldier'?['akli','scatter','longiron'][Math.floor(r()*3)]:null,secondary:'cowboy'};
+    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'rest',injured:0,ownKit});
+    if(specialty)rec.spec=specialty;
+    lots.push({kind:'merc',key:rec.id,stock:1,price:fee,deal:'fair',merc:rec});
+  };
   // lots 1-3: always personal kit; the first is a weapon
   addKit(pickFrom(byCat('weapon')));
   addKit(pickFrom(pool));
   addKit(pickFrom(pool));
-  // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls (Rev 2+ weights: M-18)
+  // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls (Rev 2+ weights: M-18;
+  // ships, vehicles and ship weapons wait on their phases and M-19, so their weight falls back onto kit)
   const CATW=[['weapon',28],['gadget',24],['merc',14],['armour',12],['shipwpn',10],['vehicle',8],['ship',4]];
   const eligible=c=>(c==='weapon'||c==='gadget'||c==='armour')?byCat(c).filter(id=>!taken.includes(id)):[];
   for(let k=0;k<3;k++){
-    let id=null,guard=0;
-    while(!id&&guard++<40){
+    let id=null,isMerc=false,guard=0;
+    while(!id&&!isMerc&&guard++<40){
       let x=r()*CATW.reduce((a,b)=>a+b[1],0);
       let cat=CATW[CATW.length-1][0];
       for(const [c,w] of CATW){x-=w;if(x<0){cat=c;break;}}
+      if(cat==='merc'){isMerc=true;break;}
       const el=eligible(cat);
       if(el.length)id=el[Math.floor(r()*el.length)];
     }
-    addKit(id||pickFrom(pool));
+    if(isMerc)addMerc(k);
+    else addKit(id||pickFrom(pool));
   }
   G.market={week,next:week*7+1,lots,unseen:lots.length};
   bmLine=null;
@@ -4313,10 +4384,12 @@ function closeMarket(){
   setTopbar('Haven Rock','Hidden base');
   bmCmdbar();syncTabs();
 }
+const mercBunkFree=()=>freeBunks()-((G.mercQ||[]).length)>0;   // inbound hires hold their bunks
 function buyLot(i,all){
   const M=G.market,l=M&&M.lots[i];
   if(!l||l.stock<=0)return false;
   if(all&&l.stock<2)return false;
+  if(l.kind==='merc'&&!mercBunkFree())return false;
   const n=all?l.stock:1;
   const cost=lotPrice(l)*n;
   if(G.credits<cost)return false;
@@ -4327,6 +4400,10 @@ function buyLot(i,all){
     const a=G.armory.find(x=>x.id===l.key);
     if(a)a.src='bought';   // provenance for the Arsenal dossier
     news('<b>'+esc(kitNameId(l.key))+'</b> bought. It’s in the Arsenal.','g');
+  } else if(l.kind==='merc'){
+    G.mercQ=G.mercQ||[];
+    G.mercQ.push({rec:JSON.parse(JSON.stringify(l.merc)),fee:cost});   // the renew fee is what was actually paid
+    news('<b>'+esc(l.merc.name)+'</b> signs a 14-day contract. Arrives tomorrow.','g');
   }
   bmLine={k:'bought',kind:l.kind};
   saveSnap();syncUI();
@@ -4334,25 +4411,36 @@ function buyLot(i,all){
 }
 /* which of her lines fits the moment */
 function stLine(){
-  if(bmLine&&bmLine.k==='bought')return bmLine.kind==='kit'?ST_LINES.boughtKit:ST_LINES.boughtShip;
+  if(bmLine&&bmLine.k==='bought')return bmLine.kind==='kit'?ST_LINES.boughtKit:bmLine.kind==='merc'?ST_LINES.hiredMerc:ST_LINES.boughtShip;
   const l=bmSel!==null&&G.market?G.market.lots[bmSel]:null;
   if(!l)return ST_LINES.greet;
   if(l.stock<=0)return ST_LINES.soldOut;
-  const pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[(KIT[l.key]||{}).cat]||ST_LINES.greet;
+  let pitch;
+  if(l.kind==='merc'){
+    const m=l.merc,wk=m.ownKit.primary||m.ownKit.secondary;
+    pitch=ST_LINES.mercTpl.replace(/\[First\]/g,m.first||m.name.split(' ')[0]).replace(/\[them\]/g,'them').replace(/\[they\]/g,'they').replace(/\[their\]/g,'their').replace(/\[weapon\]/g,kitNameId(wk));
+    if(!mercBunkFree())return pitch+' '+ST_LINES.needBunk;   // the blocked reason lives in her line (no hint text)
+  } else pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[(KIT[l.key]||{}).cat]||ST_LINES.greet;
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
 }
 const stHead='<span class="kf"><span class="sr-avatar">ST</span></span>';   // SR_ART spec pending (DESIGN_BLOCKERS M-20)
 function bmCardHTML(l,i){
-  const m=KIT[l.key]||{};
-  const cm=BM_CAT[m.cat]||BM_CAT.weapon;
+  const merc=l.kind==='merc'?l.merc:null;
+  const m=merc?{}:(KIT[l.key]||{});
+  const cm=merc?BM_CAT.merc:(BM_CAT[m.cat]||BM_CAT.weapon);
   const sel=bmSel===i,sold=l.stock<=0;
   const price=lotPrice(l),short=price>G.credits;
-  const sub=(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
+  const name=merc?merc.name:kitNameId(l.key);
+  const sub=merc?merc.role+' · Level '+merc.level+(merc.spec?' · '+(SPECNAME[merc.spec]||merc.spec):'')
+    :(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
+  const well=merc
+    ?'<div class="bm-merc"><span class="kf"><span class="sr-avatar">'+ini(merc.name)+'</span></span><div class="bm-merc__kit">'+itArt(merc.ownKit.primary||merc.ownKit.secondary)+'<span>Brings own kit</span></div></div>'
+    :itArt(l.key);
   return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
     '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
-    '<div class="kit-well">'+itArt(l.key)+'</div>'+
-    '<div><div class="bm-name">'+esc(kitNameId(l.key))+'</div><div class="bm-sub">'+esc(sub)+'</div></div>'+
-    '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+
+    '<div class="kit-well">'+well+'</div>'+
+    '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div></div>'+
+    '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+(merc?'<small>/ 14 days</small>':'')+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+
     (sold?'<span class="sr-stamp sr-stamp--bad bm-soldstamp">Sold</span>':'')+
     '</button>';
 }
@@ -4385,7 +4473,12 @@ function renderBmRail(line){
 function lotStats(l){
   const m=KIT[l.key]||{};
   const st=[];
-  if(m.cat==='weapon'){
+  if(l.kind==='merc'){
+    const mr=l.merc;
+    st.push(['Level',String(mr.level)]);
+    st.push(['Specialty',mr.spec?(SPECNAME[mr.spec]||mr.spec):'None']);
+    st.push(['Kit','Brings own']);
+  } else if(m.cat==='weapon'){
     const wp=(window.SR_WPN||{})[l.key];
     if(wp){
       st.push(['Damage',wp.d0+'–'+wp.d1]);
@@ -4405,12 +4498,14 @@ function bmCmdbar(){
   const who=$('arWho'),orders=$('arOrders');
   const l=bmOpen&&bmSel!==null&&G.market?G.market.lots[bmSel]:null;
   if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
+  const merc=l.kind==='merc'?l.merc:null;
   const price=lotPrice(l),sold=l.stock<=0;
-  const whyBuy=sold?'Sold out':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
+  const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
   const allCost=price*l.stock;
   const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
-  who.innerHTML=itArt(l.key,'kit-who-art')+'<div><div class="sr-cmdbar__name">'+esc(kitNameId(l.key))+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
-  orders.innerHTML=cmdOrder(1,'credits','Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
+  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+ini(merc.name)+'</span></span>':itArt(l.key,'kit-who-art');
+  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(merc?merc.name:kitNameId(l.key))+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
+  orders.innerHTML=cmdOrder(1,'credits',merc?'Hire':'Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
   who.hidden=false;orders.hidden=false;
 }
 $('bmView').addEventListener('click',ev=>{
@@ -4674,6 +4769,43 @@ $('winsB').addEventListener('click',ev=>{
   }
   const prosId=t.getAttribute('data-pros');
   if(prosId){const [pid,part]=prosId.split(':');if(startProsthetic(pid,part)){if(viewRoom)renderRoomBar();}return;}
+  const mr=t.getAttribute('data-mercrenew');
+  if(mr){
+    const p=G.people.find(x=>x.id===mr);
+    if(p&&p.merc&&G.credits>=p.merc.fee){
+      G.credits-=p.merc.fee;
+      p.merc.until=G.day+14;
+      Rebel.moraleBump(p,4,'misc');mood();   // pay lands: mercs follow the money
+      news('<b>'+p.name+'</b> signs on for another 14 days. '+C(p.merc.fee)+' changes hands.','g');
+      closeWin();saveSnap();syncUI();
+    }
+    return;
+  }
+  const mg=t.getAttribute('data-mercgo');
+  if(mg){
+    const p=G.people.find(x=>x.id===mg);
+    if(p&&p.merc){
+      G.people=G.people.filter(x=>x!==p);
+      mood();reconcileGear();
+      news('<b>'+p.name+'</b> collects the balance and walks to the pad. The kit goes with them.','d');
+      closeWin();saveSnap();syncUI();
+    }
+    return;
+  }
+  const mj=t.getAttribute('data-mercjoin');
+  if(mj){
+    const p=G.people.find(x=>x.id===mj);
+    if(p&&p.merc&&(p.merc.missions||0)>=3&&(p.morale||0)>=70){
+      delete p.merc;
+      const own=p.ownKit||{};
+      p.ownKit=null;
+      for(const k of ['primary','secondary'])if(own[k])addArmoryItem(own[k],1);   // their kit joins the armory
+      Rebel.moraleBump(p,6,'misc');mood();autoEquip();
+      news('<b>'+p.name+'</b> tears up the contract. No fee, no clock — one of us now.','g');
+      closeWin();saveSnap();syncUI();
+    }
+    return;
+  }
   const promoId=t.getAttribute('data-promote');
   if(promoId){
     const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
@@ -5289,7 +5421,7 @@ function applyDebrief(r){
       p.injured=(hasRoom('infirmary')&&medStaff().length)?(pr.dur||3):(pr.dur||3)+2;
       p.injuries=(p.injuries||0)+1;p.injDur=p.injured;
       Rebel.moraleBump(p,-5,'injury');
-      for(const q of crewOf())if(q!==p)Rebel.moraleBump(q,(r.people||[]).some(x=>x.id===q.id)?-2:-0.5,'injury');
+      for(const q of crewOf())if(q!==p&&!(q.merc&&!(r.people||[]).some(x=>x.id===q.id)))Rebel.moraleBump(q,(r.people||[]).some(x=>x.id===q.id)?-2:-0.5,'injury');
       mood();
       news('<b>'+p.name+'</b> came back on a stretcher \u2014 out '+p.injured+' day'+(p.injured>1?'s':'')+'.','h');
     }
@@ -5439,6 +5571,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
+    G.mercQ=G.mercQ||[];
     G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];G.chains=G.chains||{};
     for(const rm of G.rooms){
       if(rm.key==='bay')rm.key='hangar';
@@ -5529,7 +5662,7 @@ if(location.hash==='#test'){
       restoreCampaign,addVehicle,vehPool,GVEH_:()=>GVEH,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
-      openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,
+      openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

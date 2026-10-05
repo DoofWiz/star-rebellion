@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-04, after Phase 2 of the Black Market / Arsenal handoff (Sweet Tooth's stall, kit only).
+**Last updated:** 2026-10-05, after Phase 3 of the Black Market / Arsenal handoff (mercenaries).
 
 ## How to use this
 
@@ -143,7 +143,9 @@ Fleet tab should exist, and what it would hold that the Arsenal's Ships view doe
    so the phone strip never shows — re-asserted inside the same container query.
 2. `.bm-restock span{…}` (the sub-line style) out-specifies `.bm-restock__n`, so a `<span>` day-counter renders
    tiny and grey — the game renders the number as `<i class="bm-restock__n">` instead.
-**Needs from you:** nothing; just carry the two fixes back into the canvas CSS if it gets re-exported.
+3. `.bm-card .kit-well .it-art` (192px) out-specifies `.bm-merc__kit .it-art` (72px), so a mercenary lot's
+   own-kit art fills the well and pushes the "Brings own kit" caption out — re-asserted in `scenes.css`.
+**Needs from you:** nothing; just carry the fixes back into the canvas CSS if it gets re-exported.
 **Your call:** _open (informational)_
 
 ---

@@ -331,3 +331,6 @@
 @container sr-app (max-width:900px){
   #sc-base .bm-strip{display:flex;}
 }
+/* .bm-card .kit-well .it-art (192px) out-specifies .bm-merc__kit .it-art (72px): re-assert the merc's
+   small own-kit art so the "Brings own kit" caption keeps its room (C-13 again) */
+#sc-base .bm-card .bm-merc__kit .it-art{width:72px;height:45px;}
