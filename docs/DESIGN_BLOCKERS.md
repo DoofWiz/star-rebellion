@@ -195,7 +195,8 @@ Found in the legacy sweep. A wounded rebel can carry both kinds of injury, and e
 - **Conditions** (`Rebel.condRecover`, the newer model) heal at `healRate()` in `base.js`: a medic on station
   adds 0.5 a day, a doctor 1.
 - **The old `p.injured` day counter** (`advanceDay` in `base.js`) heals at its own rates: +2 with infirmary staff,
-  +1 for a medic, +2 for a doctor, +1 for a *Soldier* when the barracks is staffed (Marines and Heroes miss it).
+  +1 for a medic, +2 for a doctor, +1 for any ground fighter when the barracks is staffed (this used to miss
+  Marines and Heroes; fixed).
   This counter also owns prosthetic fitting and the "scarred" and "nearly dead" experiences. The ground scene picks
   its length itself (1 to 3 days at Haven Rock, 3 to 6 elsewhere) and "Send a team" sets it directly.
 

@@ -777,6 +777,7 @@ function mkU(o){
     px:0,py:0,path:null,wkey:null,ally:0,hacked:0,hackProg:0,hackT:0,hackTid:null,heavy:0,vehicle:0,big:0,
     autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0)},o);
   u.cool0=u.cool;
+  if(u.wpns&&u.wpns.some(x=>!WPN[x])){const w=u.wpns.filter(x=>WPN[x]);u.wpns=w.length?w:['unarmed'];}   // kit with no combat stats yet fights bare-handed
   return u;
 }
 let U=[];

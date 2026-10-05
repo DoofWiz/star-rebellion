@@ -244,6 +244,7 @@ function newGame(){
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],
     news:[],
+    econ4:1,locModel:1,medSeeded:1,   // born on today's rules: restoreCampaign's one-off fixes for older saves must not fire
   };
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
   {const keep=G;G=g0;g0.people.forEach(gearFromEquip);autoEquip();G=keep;}
@@ -335,7 +336,7 @@ function gearHeld(p){
 }
 const slotGet=(p,s)=>{const g=gearHeld(p);return s.k==='gad'?g.gad[s.i]:g[s.k];};
 const slotSet=(p,s,id)=>{const g=gearHeld(p);if(s.k==='gad')g.gad[s.i]=id||null;else g[s.k]=id||null;};
-const gearFits=(id,s)=>{const m=KIT[id];return !!m&&m.slot===(s.k==='gad'?'gadget':s.k);};
+const gearFits=(id,s)=>{const m=KIT[id];return !!m&&!!m.live&&m.slot===(s.k==='gad'?'gadget':s.k);};   // live:0 kit has no rules yet (M-17), so nobody can carry it
 const carried=id=>crewOf().reduce((n,p)=>n+gearSlots(p).filter(s=>slotGet(p,s)===id).length,0);
 const stockOf=id=>{const a=G.armory.find(x=>x.id===id);return a?a.n:0;};
 const freeOf=id=>Math.max(0,stockOf(id)-carried(id));
@@ -1574,7 +1575,7 @@ function advanceDay(){
     }
     if(p.injured>0){
       Rebel.moraleBump(p,-0.5,'injury');
-      p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((p.role==='Soldier'&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
+      p.injured-=((hasRoom('infirmary')&&medStaff().length)?2:1)+((isGround(p)&&staffOf('barracks').length)?1:0)+(hasRoom('infirmary')?(staffHas('infirmary','medic')?1:0)+(staffHas('infirmary','doctor')?2:0):0);
       if(p.injured<=0){p.injured=0;news(p.name+' is back on their feet.','g');
         if(p.prosPending){p.body=p.body||{};p.body[p.prosPending]=2;news('<b>'+p.name+'</b>\u2019s prosthetic '+p.prosPending+' is fitted and working.','g');p.prosPending=null;}if((p.injDur||0)>=5&&Rebel.expGrant(p,'scarred'))news('<b>'+p.name+'</b> will carry the scars of this one.','p');
         if(p.critHeal){p.critHeal=0;if(Rebel.expGrant(p,'nearlydead'))news('<b>'+p.name+'</b> was not expected to walk again, and does.','p');}
@@ -6113,7 +6114,8 @@ function startPlan(){
     const squad=PL.slots.filter(sl=>sl.acc==='soldier').map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
     const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
-    const reinforce=[];for(const a of PL.assets)if(a.mode==='reinforce')for(let q=0;q<2;q++){const rp=G.people.find(x=>x.id===PL.v['as'+PL.assets.indexOf(a)+'r'+q]);if(rp)reinforce.push(rp);}
+    const reinforce=[];PL.assets.forEach((a,k)=>{if(plAssetMode(k)!=='reinforce')return;const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']);
+      for(let q=0;q<((f&&SEATS[f.cls])||0);q++){const rp=G.people.find(x=>x.id===PL.v['as'+k+'r'+q]);if(rp)reinforce.push(rp);}});
     outfitSquad(squad.concat(reinforce,prize?[prize]:[]));
     squadTension(squad);
     G.nadesOut=nadesCarried(squad);
@@ -6152,6 +6154,8 @@ function startPlan(){
     G.fuel-=fuel;
     SR.mission={kind:'space',missionId:m.id,days:missionDays(m),flight};
   }
+  // the scene is not saved: if the page reloads mid-mission, restoreCampaign hands this back
+  G.sortie={name:m.name,f:fuel,s:(PL.req.transport&&PL.drop)?DROP_COST:0};
   closeWin();closeTilePop();
   saveSnap();
   SR.go(PL.req.transport?'ground':'space',{mission:SR.mission});
@@ -6184,7 +6188,7 @@ function usePacks(r){
 }
 function applyDebrief(r){
   if(!r)return;
-  SR.mission=null;
+  SR.mission=null;G.sortie=undefined;
   usePacks(r);
   if(r.missionId==='haven'){
     if(r.win){
@@ -6237,11 +6241,12 @@ function applyDebrief(r){
     if(!p)continue;
     p.assign='rest';
     const mt=Rebel.expGet(p,'mentored');
-    if(pr.xp)gainXp(p,pr.xp*(mt&&teamIds.includes(mt.with)?1.3:1));Rebel.trainSkills(p,pr.sk);
+    const xg=(pr.xp||0)*(mt&&teamIds.includes(mt.with)?1.3:1);
+    if(xg)gainXp(p,xg);Rebel.trainSkills(p,pr.sk);
     p.kills=(p.kills||0)+(pr.kills||0);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
-    pinfo.push({name:p.name,xp:pr.xp||0,state});
+    pinfo.push({name:p.name,xp:xg*Rebel.xpMult(p),state});   // what gainXp actually added
     if(r.win&&state!=='lost')creditMission(p);
     if(state==='lost'&&upAny('infirmary','surgery')&&medStaff().length&&rng()<0.6){
       state='injured';pr.dur=6;nearIds.push(p.id);
@@ -6439,6 +6444,11 @@ function restoreCampaign(data){
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    if(G.sortie){   // the page closed mid-mission: the sortie never flew, so its fuel and supply drop come back
+      G.fuel+=G.sortie.f||0;G.supplies+=G.sortie.s||0;G.nadesOut=undefined;
+      G.news.push({day:G.day,html:'<b>'+G.sortie.name+'</b> was called off before it left. The fuel'+(G.sortie.s?' and the supply drop are':' is')+' back in stores.',cls:'r'});
+      G.sortie=undefined;
+    }
     {const WNAMES={cowboy:'Cowboy No.4',longiron:'Longhorn \u201928 Hunting Rifle',scatter:'Varmint Shotgun',rocket:'Improvised Rocket Launcher'};
      for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
     for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship

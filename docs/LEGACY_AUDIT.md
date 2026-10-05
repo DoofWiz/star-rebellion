@@ -241,8 +241,11 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 - One key (`star-rebellion-campaign-v1`, `core.js:59`), no schema version inside the payload. Migrations in
   `restoreCampaign` (`base.js:6383-6463`) detect old shapes or set one-off flags (`medSeeded`, `econ4`).
 - **Probably dead** (they fix saves from the first days of the repo, before the ×4 economy and the room renames):
-  `bay→hangar`, `quarters→barracks`, `viper→cross`, `medbay→infirmary`, `introDone`, `p.auto===1`, `econ4`,
-  `locModel`, the locked-Strider filter, the `op_` missions, `SEED_PILOT`.
+  `bay→hangar`, `quarters→barracks`, `viper→cross`, `medbay→infirmary`, `introDone`, `p.auto===1`, the
+  locked-Strider filter, the `op_` missions, `SEED_PILOT`.
+- **Not dead, and harmful:** `econ4`, `locModel` and `medSeeded` fired on the first reload of *every* campaign,
+  because `newGame` never set their flags (§10 item 8, now fixed). A flag-based migration needs every new campaign
+  to be born with the flag set, which is the strongest argument for the schema number below.
 - **Still needed:** `gearFromEquip` (the opening cast still uses `equip`), `ensureMarket`, `Rebel.migrate`, and
   re-binding event and signal functions.
 - `MPOOL` is copied over saved missions on every load (`base.js:6446`), so mission data is effectively code, not save.
@@ -320,17 +323,27 @@ DESIGN_BLOCKERS.
 
 ## 10. Bugs found along the way
 
-1. **Reinforcements 3 and 4 aren't outfitted, and can be stripped.** The Graf carries 4 reinforcements (`SEATS`),
-   but `startPlan` only collects seats 0–1 for `outfitSquad` (`q<2`, `base.js:6116`). Worse, `outfitSquad` pulls gear
-   from crew who aren't going, and seats 3–4 count as not going, so their weapons can be taken to arm the main squad.
-   One-character fix (`q<(SEATS[...]||0)`).
-2. **Latent crash on equipping a `live:0` weapon** (§1.4).
-3. **Hacked Strider loses 20 hp on joining** (§3, C-21).
-4. **Earned "Veteran" double-dips in space:** the legacy +1 initiative and cool floor of 40, on top of
-   `expNerveMul` (§4, C-22).
-5. **Barracks healing perk checks `role==='Soldier'`**, so Marines and Heroes miss it (`base.js:1577`).
-6. **Mid-mission reload keeps the costs** (§6).
-7. **The reward window shows raw XP**, not the amount after `xpMult` and the mentor bonus (`base.js:4408`).
+Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless marked *open*.
+
+1. **Fixed: reinforcements 3 and 4 weren't outfitted, and could be stripped.** The Graf carries 4 reinforcements
+   (`SEATS`), but `startPlan` only collected seats 0–1 for `outfitSquad`, and none at all when a door-gun Graf fell
+   back to reinforcing. `outfitSquad` pulls gear from crew who aren't going, so seats 3–4 could lose their rifles to
+   the main squad. Every seat is outfitted now.
+2. **Fixed: latent crash on equipping a `live:0` weapon** (§1.4). `gearFits` refuses `live:0` kit, so it is never
+   offered, auto-equipped or left in a slot; the ground scene's `mkU` swaps any weapon it has no stats for to bare
+   hands instead of crashing.
+3. *Open:* **hacked Strider loses 20 hp on joining** (§3, C-21: needs the right numbers).
+4. *Open:* **earned "Veteran" double-dips in space** (§4, C-22: needs the rule confirmed).
+5. **Fixed: the barracks healing perk checked `role==='Soldier'`**, so Marines and Heroes missed it. It uses
+   `isGround` now. (The heal rates themselves are still C-20.)
+6. **Fixed: a mid-mission reload kept the costs** (§6). `startPlan` records the sortie (`G.sortie`); a debrief clears
+   it; `restoreCampaign` hands back the fuel and supply drop of a sortie that never came home, with a news line.
+7. **Fixed: the reward window showed raw XP.** It shows what `gainXp` added (traits and the mentor bonus included).
+8. **Fixed, found while testing the fixes: reloading any new campaign re-ran three old-save fixes.** `newGame` never
+   set `econ4`, `locModel` or `medSeeded`, so the first reload of every campaign multiplied credits, supplies,
+   materials, fuel and source income by 4, put the Revolution Level back to 1, capped renown at 40, and could hand
+   out four free Med Packs. New campaigns are born with those flags. Campaigns already reloaded once keep their
+   inflated stores.
 
 ---
 
@@ -338,7 +351,7 @@ DESIGN_BLOCKERS.
 
 Each step is independent and leaves the game playable. The first two are cheap and stop new drift.
 
-1. **Fix the bugs in §10** (1, 2, 5 and 7 are small).
+1. ~~Fix the bugs in §10~~ (done, except the two waiting on C-21 and C-22).
 2. **Housekeeping:** move the root prototypes out of the way, mark finished handoffs, fix the README, add a
    `tools/smoke-all.sh`, delete the dead code in §8.
 3. **Items (§1.5):** the item table and `Items` module first, then route every grant through `Items.grant`, then
