@@ -665,10 +665,13 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
   troop bay that gets out when the alarm goes up). Drivers patrol while calm and close to their gun's range
   when alerted; gunners hold and fire. Bay passengers do not keep watch. **A crew bails out of a vehicle under
   30% hull** (the same roll as a lawman surrendering), and an empty vehicle can be taken by whoever gets to it.
-- **Stats** (placeholders from the old cruiser units): Police Cruiser 130 hp, TN 7, speed 320; Dispersal
-  170 hp, speed 260; Transport 150 hp, speed 280. On foot a Move is 150 and a Sprint 300.
+- **Stats** (placeholders from the old cruiser units, in the Enemies tab): Police Cruiser 100 hp and 30 armour,
+  TN 7, speed 513; Dispersal 130 hp and 40 armour, speed 413; Transport 115 hp and 35 armour, speed 447. On foot a
+  Move is 240 and a Sprint 480 (ground pace went up by a third on 2026-10-05: the Bobbleheads figures stand about
+  1.8 times the old tokens, so a Move had shrunk to 3 figure-heights; patrols, civilians and vehicles moved up with
+  it).
 - **Bots** (the Strider): drive themselves and cannot be manned. They take the vehicle action list (Move at the
-  Bot's speed of 220, Hold; no Sprint, Take cover, Lock in, Loot, Work, Enter).
+  Bot's speed of 353, Hold; no Sprint, Take cover, Lock in, Loot, Work, Enter).
 - **Owned vehicles and Bots** live in the base's **Vehicles and Bots** list (`G.vehicles`), not on the roster.
   The planning board's Fire support area takes one as an optional asset; in the mission the **Fire Support**
   menu sets it down where you call it at the start of the next planning (a vehicle empty, a Bot ready for

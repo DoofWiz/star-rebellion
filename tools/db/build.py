@@ -226,7 +226,7 @@ SCHEMA = {
             ("hack_rounds", "int", 8, "Robots only: rounds of hacking to turn it. Blank = cannot be hacked."),
             ("heavy", "bool", 6, "Hits like a truck (the Bruiser)."),
             ("big", "bool", 5, "Takes up a vehicle's footprint (the Strider)."),
-            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 180 and a Sprint 360). Blank for people and Autos."),
+            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 240 and a Sprint 480). Blank for people and Autos."),
             ("credits_min", "int", 8, "Credits on the body, low end. Blank for none."),
             ("credits_max", "int", 8, "Credits on the body, high end."),
             ("art", "id", 9, "What the art kit draws: an archetype (sr-art.js ARCH) for people and robots, a vehicle (VEHICLES) for vehicles."),

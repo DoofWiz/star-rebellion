@@ -91,8 +91,8 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
  ok(d.look==='- shield+policehelmet+policevest policehelmet+policevest shield+policehelmet+policevest','what they wear is what is drawn '+d.look);
  ok(d.weaponArt==='hg40,autohand','the art kit draws their actual weapons '+d.weaponArt);
  ok(d.drops==='drew:hg40:c pb12:autohand:- rs1:hg40+riotshield+policehelmet+policevest:c rr1:carbine+policehelmet+policevest:c','downed enemies drop the usable kit they carried '+d.drops);
- ok(d.veh==='police:100:30:7:385:drv*=cruiser dispersal:130:40:7:310:drv*/gun=dispersal! transport:115:35:7:335:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
- ok(d.botSpeed===265,'the Strider walks at its roster speed '+d.botSpeed);
+ ok(d.veh==='police:100:30:7:513:drv*=cruiser dispersal:130:40:7:413:drv*/gun=dispersal! transport:115:35:7:447:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
+ ok(d.botSpeed===353,'the Strider walks at its roster speed '+d.botSpeed);
  ok(d.fired===2,'Policebots and Patrolmen fire their new sidearms without a hitch');
  ok(/^HG-40 \+ \d+ ◈$/.test(d.take||'')&&d.drewC,'the drop is labelled and carries their credits '+d.take);
 

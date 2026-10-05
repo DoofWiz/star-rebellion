@@ -16,8 +16,12 @@ const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas 
 
 /* ---------- constants ---------- */
 let W=2400,H=1600;
-/* movement scaled up 20% for the Bobbleheads art (bigger figures made the old ranges read short) */
-const MOVE_R=180,SPRINT_R=360,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=160,SNEAK_SPEED=86;
+/* Ground pace. The Bobbleheads figures stand ~1.8x the old 30px tokens, so a Move of 180 read as 3 figure-heights
+   against the original 4.5 (150 over a token); Steal the Cross needed 12 Moves to cross town. Everything on the
+   ground moves 4/3 faster (2026-10-05): a Move is 4 figure-heights again. Patrol, civilian and vehicle speeds (the
+   numbers in setRt calls, the vehicle rows' speed) follow the same factor, so stealth and chases keep their ratios. */
+const MOVE_R=240,SPRINT_R=480,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=213,SNEAK_SPEED=115;
+const PATROL_SPEED=77,CAR_PATROL_SPEED=120,CIV_SPEED=59,FLEE_SPEED=227;
 /* Character Traits (see rebel.js): units carry their trait keys in u.tr */
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
 const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1)*(injOf(u,'brokenleg')?0.5:1)*(injOf(u,'burns')?0.7:1);
@@ -77,7 +81,7 @@ stealcross:{
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
   LZ:{x:300,y:1330,r:130},PAD:{x:2130,y:330,r:95},
-  TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:585,r:26},
+  TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:540,r:26},   // the Razorrat sits clear of the Sheriff HQ's roof
   panTo:{x:1870,y:190},
   guardPt:{x:2130,y:370},
   hasGraf:true,
@@ -1633,7 +1637,7 @@ function alertTown(why){
     if(rng()<0.5){
       c.fleeing=1;
       const ex=c.x<W/2?30:W-30;
-      setRt(c,ex,Math.max(60,Math.min(H-60,c.y+rint(-160,160))),170);
+      setRt(c,ex,Math.max(60,Math.min(H-60,c.y+rint(-160,160))),FLEE_SPEED);
       if(!c.rtPath){c.fleeing=0;c.cower=1;}
     } else {c.cower=1;c.rtPath=null;}
   }
@@ -2872,7 +2876,7 @@ function rtUpdate(now,dt){
         else {
           if(u.baseFace===undefined)u.baseFace=u.face;
           u.scanT+=dt;u.face=u.baseFace+Math.sin(u.scanT*0.4)*0.6;
-          if(u.patrol&&rng()<0.003){const p=u.patrol[rint(0,u.patrol.length-1)];setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),90);}
+          if(u.patrol&&rng()<0.003){const p=u.patrol[rint(0,u.patrol.length-1)];setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),CAR_PATROL_SPEED);}
         }
       } else if(u.rtPath)rtStep(u,dt);
       continue;
@@ -2897,7 +2901,7 @@ function rtUpdate(now,dt){
         u.face=u.baseFace+Math.sin(u.scanT*0.55)*0.85;
         if(u.patrol&&rng()<0.003){
           const p=u.patrol[rint(0,u.patrol.length-1)];
-          setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),58);
+          setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),PATROL_SPEED);
         }
       }
     }
@@ -2944,7 +2948,7 @@ function civStep(dt){
       if(!u.rtPath&&u.fleeing){u.extracted=1;} // made it indoors / out of town
     } else if(town==='calm'&&u.haunt&&rng()<0.0025){
       const p=u.haunt[rint(0,u.haunt.length-1)];
-      setRt(u,p.x+rint(-20,20),p.y+rint(-20,20),44);
+      setRt(u,p.x+rint(-20,20),p.y+rint(-20,20),CIV_SPEED);
     }
   }
 }
@@ -4339,8 +4343,8 @@ function drawCross(now){
     sc=1+t*0.25;
     if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  if(!crossFx)groundShadow(x,y,51,18);
-  SA.ship(ctx,'cross',x,y,-0.5,2.2*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
+  if(!crossFx)groundShadow(x,y,79,28);
+  SA.ship(ctx,'cross',x,y,-0.5,3.4*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
 
