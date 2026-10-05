@@ -83,6 +83,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const wd=(tr)=>{let w=0;for(let i=0;i<600;i++){const t=base(tr);t.hp=100;f.woundUnit(foe,t,10,true);w+=t.wound?1:0;}return w/600;};
   res.selfpres=[wd([]),wd(['selfpres'])];
   const sf=base(['shortfuse']);sf.hp=100;f.woundUnit(foe,sf,5,false);res.fuseSet=sf.fuse;
+  // Scrawny (key 'weak'): +2 defence when attacked on the ground
+  foe.wkey=f.wpnsOf(foe)[0];res.scrawny=f.computeTN(foe,base(['weak'])).total-f.computeTN(foe,base([])).total;
   // jam / crit rolls
   const jr=(tr,roll)=>{let j=0;for(let i=0;i<2000;i++)if(f.jamRoll(base(tr),'akli',roll))j++;return j/2000;};
   res.jam1=[jr([],1),jr(['neatfreak'],1)];
@@ -114,6 +116,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(JSON.stringify(r3.crit)==='[false,true,true,false]','crit rolls '+r3.crit);
  ok(r3.init[1]<r3.init[0]-2&&r3.init[2]<-50,'initiative '+r3.init);
  ok(r3.hunter===1.2,'hunter vision');
+ ok(r3.scrawny===2,'Scrawny is +2 defence '+r3.scrawny);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'traits-smoke: all checks passed');
  await b.close();

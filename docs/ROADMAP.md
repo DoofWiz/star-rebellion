@@ -202,16 +202,16 @@ mass and fleet combat, capital ships, Levels 2–5. The Tier 2 enemy roster and 
 Kaver example (written as a Level 3 story) are reference only.
 
 ## Doc issues to resolve
-- The Base doc's dev note says scope is "Rev levels 1 and 2". The current scope is
-  Level 1 only.
-- The README's reduced day one (capacity 2, one spare berth) contradicts the docs. **The
-  docs are right:** four landing pads.
-- The Base doc lists **Fuel** twice; the second is meant to be **Intel**.
-- The Enemies doc lists Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum under Rev Tier 3,
-  but Dustfall (Rev 1) already uses them. It also lists Bureau Officer under Tier 1 and
-  again under Tier 2 with Disguise.
-- The Missions doc's tier names are cut off mid-sentence, and Tier 1 rewards are blank
-  for several missions.
-- "Imperium" vs. "Hegemony" (older GDD copy in `docs/GDD.md`).
-- Specialties, Locations Regions and Fleet Combat docs contain empty or half-finished
-  sections.
+Decided 2026-10-05 (DESIGN_BLOCKERS C-4, resolved log):
+- Scope is **Revolution Level 1** for now, whatever the Base doc's dev note says ("Rev levels 1 and 2").
+- The Base doc's second **Fuel** line is **Intel**. The repo docs say Intel; the gdoc line is the designer's to
+  fix.
+- **Bureau Officer** belongs to Tier 2, where it appears more often; it may rarely appear in Tier 1 once the
+  intelligence meta game's risk is specced. Not in the game yet.
+- Blank Tier 1 mission rewards are deliberate: they are balanced as we go. My numbers are in `docs/GDD.md`,
+  Tier 1 mission rewards.
+- The enemy is the **Hegemony** everywhere.
+- Fleet Combat is out of scope for a long time; Specialties and Locations/Regions are being written in the
+  gdocs.
+- The README's reduced day one (capacity 2, one spare berth) contradicts the docs. **The docs are right:**
+  four landing pads.

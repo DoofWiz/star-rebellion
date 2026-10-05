@@ -61,9 +61,38 @@ const hasTr=(s,k)=>!!(s&&s.pilot&&s.pilot.tr&&s.pilot.tr.some(t=>t.k===k));
 /* ---------- state ---------- */
 let ships=[],rocks=[],phase='BRIEFING',round=1,selId=null,hoverMan=null;
 let bolts=[],parts=[],floaters=[],missFx=[],bubbles=[],boomFx=[];
-let shake=0,flashT=0,worldT=0,ambT=0,lastFrame=0,started=false,rng=Math.random;
+let flashT=0,worldT=0,ambT=0,lastFrame=0,lastReal=0,started=false,rng=Math.random;
 let exec=null,attackQ=null,awaitAction=null,lockPickMode=false,subMenu='root';
 let cs=null,damagedThisRound=new Set();
+/* ---------- juice (art handoff: Juice) ----------
+   As on the ground: hitstop freezes the game clock, clock(), for a beat; one trauma shake on real time moves the
+   world, never the HUD; one particle system. Repeater and pulse fire is a volley (SR_ART.volley), each landing round
+   flaring the shield or breaching the hull at its own point; a kill breaks the ship in three (shipExplode). Reduced
+   motion turns off the shake and the hitstop; the #test harness has no hitstop. */
+const JUICE=SA.JUICE,SHK=SA.Shake({maxX:18,maxY:14}),PFX=SA.Particles();
+const HS={from:0,until:0,acc:0,last:0};
+let juiceLive=!/test/.test(location.hash);
+let vols=[],pops=[],impFx=[],shFx=[],killFx=[];
+function clock(r){
+  if(r==null)r=performance.now();
+  if(HS.until){
+    if(r>=HS.until){HS.acc+=HS.until-HS.from;HS.until=0;}
+    else if(r>=HS.from)r=HS.from;
+  }
+  HS.last=Math.max(HS.last,r-HS.acc);
+  return HS.last;
+}
+function hitstop(ms){
+  if(!ms||!juiceLive||RM||(SR.settings&&SR.settings.reduced()))return;
+  const r=performance.now();clock(r);
+  if(HS.until){HS.until=Math.max(HS.until,r+ms);return;}
+  HS.from=r;HS.until=r+ms;
+}
+function juice(ev,o){const J=JUICE[ev];if(!J)return;o=o||{};const k=o.k==null?1:o.k;if(!o.noStop)hitstop(Math.round(J.hitstop*k));if(J.trauma)SHK.add(J.trauma*k);}
+function addPop(x,y,text,col,o){pops.push(Object.assign({x,y,text,col,t0:clock(),dir:Math.random()<0.5?-1:1},o||{}));}
+/* each space weapon's projectile in the art kit */
+const PROJ_OF={'bls-t-light-repeaters':'repeaters','door-mounted-gun':'doorgun','missiles':'missiles','pursuer-pulse-cannon':'cruiser',
+  'sentry-pulse-emitter':'dronegun','monitor-pulse-emitter':'dronegun','clamper-pulse-emitter':'dronegun'};
 let cam={x:W/2,y:H/2,z:0.3},camGoal=null,follow=true;
 let infoShip=null; // ship id whose dossier/ship windows are open
 let hudT=0;        // seconds for HUD pulses; 0 under prefers-reduced-motion
@@ -242,6 +271,7 @@ function deploy(withCutscene){
   }
   makeRocks();
   round=1;selId='P1';bolts=[];parts=[];floaters=[];missFx=[];bubbles=[];boomFx=[];
+  vols=[];pops=[];impFx=[];shFx=[];killFx=[];PFX.list.length=0;SHK.trauma=0;
   exec=null;attackQ=null;awaitAction=null;lockPickMode=false;subMenu='root';infoShip=null;
   logEl.innerHTML='';feed.clear();damagedThisRound=new Set();
   if(withCutscene&&!RM)startCutscene();
@@ -268,7 +298,7 @@ function makeRocks(){
 /* ---------- cutscene ---------- */
 function startCutscene(){
   phase='CUTSCENE';
-  const now=performance.now();
+  const now=clock();
   cs={t0:now,skipped:false,bannerShown:false,saidA:false,saidB:false};
   for(const s of ships){
     if(isStruct(s))continue; // stations don't fly in — they were always here
@@ -413,7 +443,7 @@ function say(s,key){
   if(!s)return;
   if(CLS[s.cls].mute)return; // drones and structures have nothing to say
   if(!s.alive&&key!=='victory')return;
-  const now=performance.now();
+  const now=clock();
   if(now-s.pilot.lastSay<3500)return;
   const bank=CHAT[s.chatKey]||CHAT[s.id]||CHAT.cadet;
   const lines=(bank[key]&&bank[key].length)?bank[key]:(CHAT.cadet[key]||[]);
@@ -653,7 +683,7 @@ function doAction(s,act){
     psk(s,'cun',1);
     const seg=s.segs[act.a==='shiftF'?'F':'R'];
     seg.at=seg.at==='F'?'R':'F';
-    s.shieldFx=performance.now();s.shieldFxZone=seg.at;
+    s.shieldFx=clock();s.shieldFxZone=seg.at;
     const home=act.a==='shiftF'?'fore':'aft';
     const now2=seg.at===(act.a==='shiftF'?'F':'R')?'home':'angled '+(seg.at==='F'?'forward':'aft');
     addFloater(s.x,s.y-36,'SHIELDS ANGLED',C.shield);
@@ -666,7 +696,7 @@ function doAction(s,act){
     const amt=Math.min(seg.max-seg.val,Math.ceil(0.15*maxShield(s)*(s.pilot.cun||1)));
     if(amt>0){
       seg.val+=amt;
-      s.shieldFx=performance.now();s.shieldFxZone=seg.at;
+      s.shieldFx=clock();s.shieldFxZone=seg.at;
       addFloater(s.x,s.y-36,'SHIELD +'+amt,C.shield);
       log(nameSpan(s)+' <span class="s">boosts the '+(act.a==='boostF'?'fore':'aft')+' segment +'+amt+
         (seg.at!==(act.a==='boostF'?'F':'R')?' (angled '+(seg.at==='F'?'forward':'aft')+')':'')+'</span>');
@@ -699,7 +729,7 @@ function executeRound(){
   if(ships.some(s=>s.alive&&s.faction==='reb'&&!s.plan.man))return;
   for(const s of ships){if(s.alive&&s.faction==='heg'&&!isStruct(s))s.plan.man=aiManeuver(s);}
   const order=ships.filter(s=>s.alive&&!isStruct(s)).sort((a,b)=>effInit(a)-effInit(b)||(a.faction==='heg'?-1:1)-(b.faction==='heg'?-1:1));
-  exec={order,idx:0,stage:'focus',t0:performance.now()};
+  exec={order,idx:0,stage:'focus',t0:clock()};
   hoverMan=null;lockPickMode=false;subMenu='root';
   phase='EXEC';
   syncUI();
@@ -748,22 +778,22 @@ function playerAction(act){
   if(!s)return;
   awaitAction=null;lockPickMode=false;subMenu='root';
   if(act.a!=='none')doAction(s,act);
-  exec.stage='pause';exec.t0=performance.now();
+  exec.stage='pause';exec.t0=clock();
   syncUI();
 }
 function nextExec(){
   exec.idx++;
   if(exec.idx>=exec.order.length){exec=null;startAttackPhase();return;}
-  exec.stage='focus';exec.t0=performance.now();
+  exec.stage='focus';exec.t0=clock();
 }
 function startAttackPhase(){
   const order=ships.filter(s=>s.alive&&!isStruct(s)).sort((a,b)=>effInit(b)-effInit(a)||(a.faction==='reb'?-1:1)-(b.faction==='reb'?-1:1));
-  attackQ={order,idx:0,cur:null,nextAt:performance.now()+350};
+  attackQ={order,idx:0,cur:null,nextAt:clock()+350};
   phase='ATTACK';
   syncUI();
 }
 function buildCtx(s,t,wkey){
-  return {s,t,wkey,tn:computeTN(s,t),atk:null,stage:'tn',t0:performance.now(),
+  return {s,t,wkey,tn:computeTN(s,t),atk:null,stage:'tn',t0:clock(),
     reveal:0,revealA:0,roll:0,need:0,hit:false,applied:false,dmg:0,crit:false};
 }
 function retargetCtx(ctx,t,wkey){
@@ -841,14 +871,14 @@ function holdFire(){
   const c=attackQ&&attackQ.cur;
   if(!c||c.stage!=='await')return;
   log(nameSpan(c.s)+' <span class="d">holds fire</span>');
-  c.stage='end';c.tEnd=performance.now()+250;
+  c.stage='end';c.tEnd=clock()+250;
   syncUI();
 }
 function confirmAttack(){
   const c=attackQ&&attackQ.cur;
   if(!c||c.stage!=='await')return;
   c.atk=computeATK(c.s,c.t,c.wkey);
-  c.stage='mods';c.t0=performance.now();c.revealA=0;
+  c.stage='mods';c.t0=clock();c.revealA=0;
   syncUI();
 }
 function fireCtx(c,now){
@@ -866,6 +896,20 @@ function fireCtx(c,now){
     c.tApply=now+fly;c.tEnd=c.tApply+(RM?300:750);
     sWhoosh();say(s,'missile');
     muzzleFlash(s,C.psi);
+  } else if(PROJ_OF[w.id]&&SA.PROJ[PROJ_OF[w.id]]){
+    const key=PROJ_OF[w.id],dmg=c.hit?c.dmg:0;
+    let mode=kind==='ballistic'?'auto':'semi';
+    if(c.hit&&dmg<8)mode='semi';
+    const x0=s.x+Math.cos(s.h)*16,y0=s.y+Math.sin(s.h)*16;
+    const plan=c.hit&&dmg<3?{key,mode:'single',hit:true,rounds:[{fire:0,hit:true,dmg,dAng:0,range:1,jx:0,jy:0}]}:SA.volley(key,mode,{hit:c.hit,damage:dmg});
+    const lands=SA.volleyImpacts(plan,x0,y0,t.x,t.y);
+    const hitAts=lands.filter(L=>L.hit).map(L=>L.at),ats=lands.map(L=>L.at);
+    const first=1000*Math.min(...(hitAts.length?hitAts:ats)),last=1000*Math.max(...ats);
+    c.vol={s,t,key,plan,lands,x0,y0,t0:now,dur:last+500,mode:plan.mode,res:c,cum:0,first:true,dir:Math.atan2(t.y-s.y,t.x-s.x)};
+    vols.push(c.vol);
+    if(kind==='ballistic')sRattle();else sZap(s.faction==='heg');
+    muzzleFlash(s,kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebelHi:C.hegHi));
+    c.tApply=now+Math.max(40,first);c.tEnd=now+Math.max(first+(RM?280:650),last+350);
   } else {
     const n=kind==='ballistic'?10:5;
     const fly=RM?180:Math.max(220,d/1.15);
@@ -897,8 +941,9 @@ function applyCtx(c){
   const math='<span class="d">need '+c.need+'+ ('+pctFor(c.need)+'%) · d20='+c.roll+'</span>';
   const wk=wslot(s,c.wkey).w.kind;
   const wname=wk==='plasma'?'plasma':wk==='ballistic'?'<span class="a">ballistic</span>':'<span class="p">missile</span>';
+  c.done=true;   // the volley's rounds may land now
   if(!c.hit){
-    addFloater(t.x,t.y-30,'MISS',C.hazard);
+    addPop(t.x,t.y-30,'MISS','#c8d0dc');
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="d">MISS</span>');
     psk(s,'aim',1);psk(t,'foc',1);
   } else {
@@ -906,17 +951,23 @@ function applyCtx(c){
     const {sd,ad,hd,zone}=applyDamage(t,c.dmg,wslot(s,c.wkey).w.skipShield,fromFront);
     if(t.faction==='reb')t.pilot.minHull=Math.min(t.pilot.minHull===undefined?1:t.pilot.minHull,Math.max(0,t.hull)/t.maxHull);
     damagedThisRound.add(t.id);
-    impactBurst(t,wk,sd>0);
+    c.soak={sd,ad,hd,broke:sd>0&&zoneShield(t,zone)<=0};
     let fy=t.y-30;
-    if(sd>0){t.shieldFx=performance.now();t.shieldFxZone=zone;addFloater(t.x,fy,'-'+sd+' SHD '+(zone==='F'?'FWD':'AFT'),C.shield);fy-=18;}
-    if(ad>0){armorHit(t);addFloater(t.x,fy,'-'+ad+' ARM',C.steel);fy-=18;}
-    if(hd>0){hullHitFx(t,hd);addFloater(t.x,fy,'-'+hd+' HULL',C.gold);fy-=18;}
+    if(sd>0){t.shieldFx=clock();t.shieldFxZone=zone;}
+    if(c.vol){   // the volley's rounds show where it landed and what it cost, round by round
+      if(sd>0){addFloater(t.x,fy-18,'SHD '+(zone==='F'?'FWD':'AFT'),C.shield);fy-=18;}
+    } else {
+      impactBurst(t,wk,sd>0);
+      if(sd>0){addPop(t.x,fy,'-'+sd,C.shield);fy-=18;}
+      if(ad>0){armorHit(t);addPop(t.x-14,fy,'-'+ad,C.steel);fy-=18;}
+      if(hd>0){hullHitFx(t,hd);impFx.push({x:t.x,y:t.y,t0:clock(),dur:450,o:{surface:'hull',dir:Math.atan2(t.y-s.y,t.x-s.x),seed:7}});addPop(t.x+14,fy,'-'+hd,C.gold);fy-=18;}
+      if(c.soak.broke)shieldBreakFx(t);
+    }
     if(wslot(s,c.wkey).w.skipShield&&totalShield(t)>0)addFloater(t.x,fy,'SHIELDS BYPASSED',C.goldHi);
     adjCool(t,(ad>0||hd>0)?-12:-5,'taking fire');
     psk(t,'foc',0.3);
     if(hd>=8&&t.alive)say(t,'hit');
-    shake=Math.max(shake,RM?0:(wk==='missile'?14:6));
-    if(wk==='missile'){flashT=performance.now();sBoom(true);}
+    if(wk==='missile'){juice('rocket',{k:0.6});flashT=clock();sBoom(true);}
     else if(sd>0&&ad===0&&hd===0)sShield();
     else sHit();
     log(nameSpan(s)+' ['+wname+'] → '+nameSpan(t)+' · '+math+' · <span class="a">HIT '+c.dmg+'</span>');
@@ -948,9 +999,14 @@ function destroyShip(t,killer){
   t.alive=false;
   if(infoShip===t.id)closeInfo();
   if(selId===t.id)selId=killer&&killer.faction==='reb'?killer.id:selId;
-  explode(t.x,t.y,t.size*(isStruct(t)?1.5:1));
-  flashT=performance.now();
-  shake=Math.max(shake,RM?0:isStruct(t)?26:18);
+  const art=SA.SHIP_FOR_GAME[t.cls];
+  if(art&&!isStruct(t)){   // the hull breaks in three inside a fireball
+    killFx.push({art,x:t.x,y:t.y,h:t.h,sc:t.size*1.6*iconBoost()*0.85,livery:t.faction==='reb'?'rebel':(t.cls==='viper'?'law':'heg'),t0:clock(),dur:RM?600:1400});
+    spawnP(14,t.x,t.y,160,1.2,'#8a93a8',3,0.975);
+    if(!RM)PFX.emit('debris',t.x,t.y,{n:10,floor:1e9,speed:200}).emit('spark',t.x,t.y,{n:14});
+  } else explode(t.x,t.y,t.size*(isStruct(t)?1.5:1));
+  flashT=clock();
+  juice('shipKill',{k:isStruct(t)?1.3:1});
   sBoom(isStruct(t));
   if(isStruct(t))log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">goes up</span> — the fuel cooks off in a fireball they’ll see from Dustfall.');
   else log('<span class="a">✦ </span>'+nameSpan(t)+' <span class="a">destroyed!</span>');
@@ -975,7 +1031,7 @@ function destroyShip(t,killer){
 function recoverPhase(e){
   log('<span class="b">⚠ engagement computer fault — step skipped</span>');
   try{
-    if(phase==='ATTACK'&&attackQ){attackQ.cur=null;attackQ.nextAt=performance.now()+150;}
+    if(phase==='ATTACK'&&attackQ){attackQ.cur=null;attackQ.nextAt=clock()+150;}
     else if(phase==='ATTACK'){endRound();}
     else if(phase==='EXEC'&&exec){awaitAction=null;lockPickMode=false;nextExec();}
   }catch(e2){phase='PLANNING';exec=null;attackQ=null;awaitAction=null;syncUI();}
@@ -994,7 +1050,7 @@ function reinforceStep(){
   for(const s of ships.slice()){
     if(!s.alive||!s.calls||s.called)continue;
     if(ships.some(r=>r.alive&&r.faction==='reb'&&dist(s,r)<900)){
-      s.called=true;s._callingT=performance.now();
+      s.called=true;s._callingT=clock();
       const ex=s.x<W/2?W-MARGIN-260:MARGIN+260,ey=Math.max(MARGIN+260,Math.min(H-MARGIN-260,s.y+(rng()-0.5)*600));
       const n=summonShip(s.calls,ex,ey,ex>W/2?Math.PI:0,CLS[Enemies.space(s.calls).ship].label.split(' ').pop().toUpperCase()+' INBOUND');
       log(nameSpan(s)+' <span class="a">calls for help</span> \u2014 '+nameSpan(n)+' drops out of the dark.');
@@ -1100,7 +1156,7 @@ function buildResult(win){
 }
 
 /* ---------- effects ---------- */
-function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:performance.now()});}
+function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:clock()});}
 function spawnP(n,x,y,speed,life,col,size,drag){
   if(RM)n=Math.ceil(n/3);
   for(let i=0;i<n;i++){
@@ -1124,10 +1180,60 @@ function hullHitFx(t,n){
   spawnP(6,t.x,t.y,70,1.1,'#666e80',3,0.97);
 }
 function explode(x,y,size){
-  boomFx.push({x,y,t0:performance.now(),dur:RM?350:800,size});
+  boomFx.push({x,y,t0:clock(),dur:RM?350:800,size});
   spawnP(20*size,x,y,240*size,0.9,'#ffb454',3,0.96);
   spawnP(14,x,y,120,1.5,'#8a93a8',3,0.975);
   parts.push({x,y,vx:0,vy:0,life:0,max:0.6,col:'ring',size,drag:1});
+}
+
+function shieldBreakFx(t){
+  shFx.push({brk:1,x:t.x,y:t.y+26,t0:clock(),dur:700});
+  if(!RM)PFX.emit('shard',t.x,t.y,{n:12,floor:1e9});
+  juice('shieldBreak');
+}
+/* rounds land when their time comes, once the attack's damage is in */
+function juiceTick(now){
+  for(const v of vols){
+    if(v.res&&!v.res.done)continue;
+    for(const L of v.lands)if(!L.done&&now>=v.t0+L.at*1000){L.done=1;landRound(v,L,now);}
+  }
+  vols=vols.filter(v=>now<v.t0+v.dur||(v.res&&!v.res.done&&now<v.t0+10000));
+}
+function landRound(v,L,now){
+  if(!L.hit)return;   // misses fly on into the dark
+  const t=v.t,k=v.res.soak||{},c0=v.cum;v.cum+=L.dmg;
+  const r1=k.sd||0,r2=r1+(k.ad||0);
+  const r=24*t.size*iconBoost();
+  if(c0<r1){
+    shFx.push({x:t.x,y:t.y,r,hx:L.x,hy:L.y,t0:now,dur:420});t.shieldFx=now;
+    if(k.broke&&v.cum>=r1)shieldBreakFx(t);
+  } else {
+    const surf=c0<r2?'armour':'hull';
+    impFx.push({x:L.x,y:L.y,t0:now,dur:420,o:{surface:surf,dir:v.dir,style:(SA.PROJ[v.key]||{}).style,seed:(Math.random()*999)|0}});
+    if(!RM){PFX.emit('spark',L.x,L.y,{n:6,dir:v.dir+Math.PI,spread:2});if(surf==='hull')PFX.emit('debris',L.x,L.y,{n:3,floor:1e9,speed:110});}
+  }
+  if(L.dmg>0)addPop(L.x,L.y-14,'-'+L.dmg,c0<r1?C.shield:c0<r2?C.steel:C.gold,{crit:v.res.crit&&v.first});
+  juice(v.first&&v.res.crit?'crit':c0<r1?'hit':c0<r2?'armourHit':'hit',{k:v.first?1:0.4,noStop:!v.first});
+  v.first=false;
+}
+function drawJuice(now){
+  for(const v of vols){const tt=(now-v.t0)/1000;if(tt>=0)SA.shot(ctx,v.key,v.x0,v.y0,v.t.x,v.t.y,tt,{mode:v.mode,plan:v.plan});}
+  shFx=shFx.filter(f=>now-f.t0<f.dur);
+  for(const f of shFx){const k=Math.max(0,(now-f.t0)/f.dur);if(f.brk)SA.shieldBreak(ctx,f.x,f.y,k);else SA.shipShield(ctx,f.x,f.y,f.r,k,f.hx,f.hy);}
+  impFx=impFx.filter(f=>now-f.t0<f.dur);
+  for(const f of impFx)SA.impact(ctx,f.x,f.y,Math.max(0,(now-f.t0)/f.dur),f.o);
+  killFx=killFx.filter(f=>now-f.t0<f.dur);
+  for(const f of killFx)SA.shipExplode(ctx,f.art,f.x,f.y,f.h,f.sc,Math.max(0,(now-f.t0)/f.dur),RM?0:ambT/1000,{livery:f.livery});
+  PFX.draw(ctx);
+}
+function drawPops(now){
+  for(const p of pops){
+    const k=(now-p.t0)/900;if(k<0||k>1)continue;
+    const [x,y]=worldToCss(p.x,p.y);
+    if(x<-100||x>cssW+100||y<-60||y>cssH+60)continue;
+    SA.popText(ctx,p.text,x,y,k,p.col,{crit:p.crit,dir:p.dir,size:p.size||17});
+  }
+  pops=pops.filter(p=>now-p.t0<900);
 }
 
 /* ---------- audio: layered synth engine ---------- */
@@ -1337,8 +1443,9 @@ function drawShip(s,alpha,gx,gy,gh){
       livery:s.faction==='reb'?'rebel':(s.cls==='viper'?'law':'heg'),
       damage:1-Math.max(0,s.hull)/s.maxHull,
       boost:(s.moveBoost||0)>0.3,roll:s.visRoll||0,
-      calling:!!(s._callingT&&performance.now()-s._callingT<2600),
+      calling:!!(s._callingT&&clock()-s._callingT<2600),
       clamp:clampT?[clampT.x,clampT.y]:undefined,
+      pilotHit:critCount(s,'cockpit')?1:0,   // a Cockpit Breach cracks the canopy
       pilot:s.pilot&&s.pilot.art?s.pilot.art:(s.pilot&&SA.CAST[s.pilot.chatKey]?s.pilot.chatKey:undefined)});
     ctx.restore();
   } else {
@@ -1687,9 +1794,12 @@ mmCv.addEventListener('pointerup',()=>{mmDragging=false;});
 mmCv.addEventListener('pointercancel',()=>{mmDragging=false;});
 
 /* ---------- main render ---------- */
-function render(now){
-  const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
-  lastFrame=now;
+function render(rnow){
+  const now=clock(rnow);
+  const dt=Math.min(0.05,Math.max(0,now-(lastFrame||now))/1000),rdt=Math.min(0.05,Math.max(0,rnow-(lastReal||rnow))/1000);
+  lastFrame=now;lastReal=rnow;
+  SHK.enabled=!RM&&(!SR.settings||SR.settings.shake());SHK.update(rdt);PFX.update(dt);
+  juiceTick(now);
   worldT=now;
   ambT+=dt*1000*(slowmo()?0.32:1);
   hudT=RM?0:now/1000;
@@ -1701,8 +1811,7 @@ function render(now){
     if(!(camGoal.pts&&phase==='ATTACK')&&Math.abs(camGoal.x-cam.x)<2&&Math.abs(camGoal.y-cam.y)<2&&Math.abs(camGoal.z-cam.z)<0.01)camGoal=null;
     clampCam();
   }
-  let sx=0,sy=0;
-  if(shake>0){sx=(rng()-0.5)*shake;sy=(rng()-0.5)*shake;shake*=0.88;if(shake<0.4)shake=0;}
+  const sh=SHK.offset(rnow/1000),sx=sh.x,sy=sh.y;
   ctx.setTransform(1,0,0,1,0,0);
   ctx.fillStyle='#04060d';ctx.fillRect(0,0,cv.width,cv.height);
   ctx.setTransform(cam.z*dpr,0,0,cam.z*dpr,dpr*(cssW/2-(cam.x*0.35)*cam.z+sx),dpr*(cssH/2-(cam.y*0.35)*cam.z+sy));
@@ -1821,6 +1930,7 @@ function render(now){
     SA.bolt(ctx,b.x0,b.y0,x,y,b.kind||'plasma',b.side||'heg');
   }
   bolts=bolts.filter(b=>!b.done);
+  drawJuice(now);
   for(const b2 of boomFx){
     const k=(now-b2.t0)/b2.dur;
     if(k<0||k>1)continue;
@@ -1867,6 +1977,7 @@ function render(now){
   drawShipHud(now);
   drawLockBadges();
   drawFloaters(now);
+  drawPops(now);
   drawBubbles(now);
   vsSync(now);
   drawMinimap(now);
@@ -1948,7 +2059,7 @@ function canvasClick(px,py){
   const s=shipAtCss(px,py);
   // double-tap opens the dossier + ship windows
   if(s){
-    const now=performance.now();
+    const now=clock();
     if(lastTap.id===s.id&&now-lastTap.t<380){lastTap={id:null,t:0};openInfo(s.id);return;}
     lastTap={id:s.id,t:now};
   }
@@ -2480,10 +2591,12 @@ menuEl.innerHTML=HUD.menuHtml([
   {id:'menuSound',icon:'soundon',label:'Sound',kbd:'M'},
   {id:'menuLog',icon:'comms',label:'All reports'},
   {id:'menuControls',icon:'help',label:'Controls'},
+  ...SR.settings.menuItems(),
   {sep:1},
   {id:'restartBtn',icon:'restart',label:'Restart mission',kind:'danger'},
   {id:'dbgSkip',icon:'debug',label:'Debug: skip mission',kind:'debug'}]);
 HUD.menuBind(menuEl,$('menuBtn'));
+SR.settings.bind(menuEl);
 const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
   '<div class="sr-stack">'+[
     ['Click a fighter','Select it'],
@@ -2634,6 +2747,7 @@ if(location.hash==='#test'){
     fn:{deploy,gameOver,destroyShip,luckySave,critChance,adjCool,dossierHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
       dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,shipHTML,
       setRound(n){round=n;},
+      clock,juiceTick,fireCtx,applyCtx,juice_:()=>({vols,pops,killFx,shFx,impFx,parts:PFX.list,trauma:SHK.trauma}),
       forceEnd(win){gameOver(win);}}};
 }
 })();

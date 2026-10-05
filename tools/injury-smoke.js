@@ -134,7 +134,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // criticals on a rebel become injuries; on a lawman the old wound stays
   const t=reb[2];t.inj=[];t.hp=100;t.maxhp=100;t.down=0;
   f.woundUnit(foe,t,5,true,'ballistic');out.crit=[!!t.inj.length,t.wound];
-  const L=U.find(u=>u.side==='law'&&!u.down);L.wound=0;L.hp=L.maxhp;f.woundUnit(reb[0],L,3,true,'ballistic');out.lawCrit=[L.inj===undefined,L.wound];
+  const L=U.find(u=>u.side==='law'&&!u.down);L.wound=0;L.hp=L.maxhp;L.arm=0;L.shd=0;f.woundUnit(reb[0],L,3,true,'ballistic');out.lawCrit=[L.inj===undefined,L.wound];
   // the card and the result
   out.card=JSON.stringify(f.ordersFor(reb[2])).indexOf('treat')>=0;
   const res=f.buildResult(true);

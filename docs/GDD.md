@@ -299,7 +299,7 @@ Some rebels become **Heroes**. A hidden chance grows with what a rebel does (tak
 ### Abilities & Gear
 
 - Rebels who gain experience and levels can train in the base to gain a specialty.
-- Training can also grant requisition access to better gear — equipping rarer or more valuable equipment. *(Armour items are not built yet.)*
+- Training can also grant requisition access to better gear — equipping rarer or more valuable equipment. *(Armour is built: Head and Body kit adds an armour bar over health in ground combat.)*
 
 ---
 
@@ -309,8 +309,7 @@ A rebellion with no assets is a vocal but ignorable problem. A rebellion with lo
 of assets is a bit of a crisis!
 
 Assets are the tools of the rebellion: scavenged, purchased, gifted, found, or
-stolen from the Hegemony. *(Source text says "Imperium" here — naming
-inconsistency to resolve.)* Viewable from the Assets screen in the Base.
+stolen from the Hegemony. Viewable from the Assets screen in the Base.
 
 **Categories**:
 
@@ -601,9 +600,9 @@ next missions.
 
 ### Blow Up Auto Factory (built, Tier 1)
 Offered by **Tessaly Brandt** (Menk) once she is a source, or through her signals. Played at
-the **Kiln Ridge Autoworks, Menk** (region: Kiln Ridge, +20% liberation, capped by Access/Support):
+the **Kiln Ridge AutoCom Plant, Menk** (region: Kiln Ridge, +20% liberation, capped by Access/Support):
 - **Needs an Explosive Charge** in the armory (a Pre Condition). The Redrock depot and a blasting
-  shed at the Autoworks both hold charges. One soldier carries it (marked ✸); if they go down,
+  shed at the AutoCom Plant both hold charges. One soldier carries it (marked ✸); if they go down,
   the nearest rebel picks it up. Only the carrier can plant it.
 - Plant it on the **Power Plant's main breaker**, get everyone out of the **blast zone** (a dashed
   ring), then **Detonate**. Detonating with anyone inside the zone is refused. The blast hurts
@@ -628,7 +627,7 @@ Shipbuster). Support specialties are still to come.
 
 ### Level 1 enemies, vehicles and hacking (built, Phase 4)
 - **Enemy roster:** Patrolman, Auto Policebot, Riot Shieldman (front-blocking shield), Riot Rifleman,
-  **Riot Bruiser** (melee, 95 hp), **Strider Mk I** (240 hp autocannon, patrols the Autoworks), and
+  **Riot Bruiser** (melee, 95 hp), **Strider Mk I** (190 hp and 50 armour, autocannon, patrols the AutoCom Plant), and
   three cruisers: **Police Cruiser** (pulse cannon), **Riot Dispersal Cruiser** (turret) and
   **Riot Transport Cruiser** (unarmed; it arrives with the response wave and **unloads a riot squad**
   when the alarm is up). The cruisers are crewed vehicles (see *Vehicles and Bots* below). Machines drop
@@ -666,10 +665,13 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
   troop bay that gets out when the alarm goes up). Drivers patrol while calm and close to their gun's range
   when alerted; gunners hold and fire. Bay passengers do not keep watch. **A crew bails out of a vehicle under
   30% hull** (the same roll as a lawman surrendering), and an empty vehicle can be taken by whoever gets to it.
-- **Stats** (placeholders from the old cruiser units): Police Cruiser 130 hp, TN 7, speed 320; Dispersal
-  170 hp, speed 260; Transport 150 hp, speed 280. On foot a Move is 150 and a Sprint 300.
+- **Stats** (placeholders from the old cruiser units, in the Enemies tab): Police Cruiser 100 hp and 30 armour,
+  TN 7, speed 513; Dispersal 130 hp and 40 armour, speed 413; Transport 115 hp and 35 armour, speed 447. On foot a
+  Move is 240 and a Sprint 480 (ground pace went up by a third on 2026-10-05: the Bobbleheads figures stand about
+  1.8 times the old tokens, so a Move had shrunk to 3 figure-heights; patrols, civilians and vehicles moved up with
+  it).
 - **Bots** (the Strider): drive themselves and cannot be manned. They take the vehicle action list (Move at the
-  Bot's speed of 220, Hold; no Sprint, Take cover, Lock in, Loot, Work, Enter).
+  Bot's speed of 353, Hold; no Sprint, Take cover, Lock in, Loot, Work, Enter).
 - **Owned vehicles and Bots** live in the base's **Vehicles and Bots** list (`G.vehicles`), not on the roster.
   The planning board's Fire support area takes one as an optional asset; in the mission the **Fire Support**
   menu sets it down where you call it at the start of the next planning (a vehicle empty, a Bot ready for
@@ -695,7 +697,7 @@ Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **cal
 **Drone Mag-Clamper**, whose clamp cuts a ship's top speed by 2 for two rounds.
 
 ### Steal the Strider (built, Tier 1)
-Offered by **Tessaly Brandt** once the Autoworks' Power Plant is gone. Played at **Menk Crossing**
+Offered by **Tessaly Brandt** once the AutoCom Plant's Power Plant is gone. Played at **Menk Crossing**
 (region: Menk Crossing, +15% liberation, capped by Access/Support):
 - A **Strider Mk I** stands in a locked holding yard. Any soldier can **override its leash panel**
   (two rounds). The override is quiet; it only alarms the depot if the squad was already seen.
@@ -774,8 +776,7 @@ double-click.
   (Weapons, Explosives, Armour, Other) and a footprint (a rifle is 3x1, a pistol or grenade 1x1);
   duplicates stack as one entry with a count; the Storeroom gives 24 slots plus 12 per tile. The grid
   warns when full but does not yet refuse loot.
-- **Not built yet:** Storeroom capacity for other resources, Armour items (no armour exists yet at
-  Level 1), enforcing the gear-slot limit.
+- **Not built yet:** Storeroom capacity for other resources, enforcing the gear-slot limit.
 
 ### Sources as quest chains (built, Phase 6)
 A **chain** is a unique source tied to a world (`locId`), authored as data in `CHAINS` in `base.js`.
@@ -821,6 +822,22 @@ or by our own Intelligence**, and is never "done for good".
 - **Steal [Vehicle]** (to obtain ships and gear) is a planned new type, to be designed by the
   project owner.
 
+### Tier 1 mission rewards
+The Missions doc leaves several Tier 1 rewards blank: they are to be balanced as we go, so these are my
+numbers (DESIGN_BLOCKERS C-4). Rewards scale with Security as above, and loot comes on top.
+
+| Type | Missions doc | In the game, or my guess for when it is built |
+|---|---|---|
+| Steal Intelligence | blank | 400 credits, 6 Intel (built) |
+| Rescue Dissident | 500 credits, the dissident as a Support recruit | as the doc (built) |
+| Blow Up Auto Factory | blank | 450 credits, 160–200 Materials; +300 credits for staying unseen (built) |
+| Steal Fuel | (x) Fuel | 240 Fuel, 300 credits (built) |
+| Destroy Checkpoint | materials, supplies | *guess:* 120 Materials, 160 Supplies, 150 credits |
+| Ambush: VIP | the prisoner as a Support recruit | *guess:* as the doc, plus 200 credits |
+| Ambush: Precious Cargo | whatever gear was in the truck | *guess:* as the doc, plus 100 credits |
+| Steal Ship | the ship | as the doc (Steal the Cross gives the Cross, 500 credits, 120 Supplies) |
+| Cause a Riot | blank | *guess:* 160 Supplies, 200 credits, +Support in the region |
+
 ### Opportunities (built)
 Our own intelligence turns up leads in any world at **Access 2+**, but only while the
 **Intelligence Center is built and staffed** (internally still the `comms` room). A lead shows as an amber diamond on the galaxy map; clicking it reads the
@@ -849,8 +866,8 @@ leads in liberation worlds target a region and add liberation. Each lead is a ra
 - Full list of pilot traits.
 - Sources screen UX flow.
 - Unfinished Revolution Level 2 and 4 reward notes, and one Sources player story.
-- Naming: "Hegemony" vs. one occurrence of "Imperium" (Assets section).
-- Missions doc: tier names are cut off; Tier 1 rewards are blank for several missions.
+- Missions doc: tier names are cut off. Blank Tier 1 rewards are deliberate (balanced as we go); my numbers
+  are in [Tier 1 mission rewards](#tier-1-mission-rewards).
   (Resolved: the Outworlder enemies are Level 1 only. Directives are WIP and ignored.
   Disrupt Comm Towers is Tier 2 and out of Level 1 scope.)
 - Foot combat and boarding action rulesets.

@@ -51,6 +51,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 | `enemies` | The ground enemy roster: people, robots and vehicles; faction, tier, stats, and what each type carries (item ids). |
 | `vehicle_seats` | Each vehicle's seats: who drives, which gun the seat fires, whether it is enclosed. |
 | `space_enemies` | The space roster: which ship and pilot each enemy type flies with, and how it behaves. |
+| `market_weights` | How likely each kind of Black Market lot is (weapon, gadget, mercenary, armour, ship weapon, vehicle, ship), one row per Revolution Level it applies from. |
 | `pilots` | Level, XP, initiative (1 to 6), the four skills, rebel trait keys, and a rank title for Hegemony pilots. Drones carry a built-in "core" pilot. |
 | `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
@@ -108,6 +109,17 @@ column, so do not rename an id once a save may hold it.
   `quality`, maker, origin, Black Market `price` and `rev`, and the flags `live` (FALSE: no rules yet, so never sold
   and never carried), `hegemony` (loot only) and `drop_only`. The Arsenal shows `description`.
 - **Built-in weapons** (`builtin`): fists, bare hands, vehicle guns, turrets. They have stats but are never owned.
+- **Armour and shields** (Ground Combat doc): `armour` on an armour item is the armour bar it adds over the
+  wearer's health in ground and boarding combat; blank is cosmetic (the Cowboy Hat, the Baseball Cap). `shield`
+  is the shield bar a source raises when activated (none at Level 1). A hit drains shield, then armour, then
+  health; what a broken bar cannot hold spills through. `Items.protection(ids)` adds up worn kit.
+- **Weapon traits** (Gear doc): `fire_modes` (`auto|semi|single|fan`, in the doc's order; a weapon starts on the
+  first one with no penalty and the player toggles in the attack window), `steady` (+2 when braced or on a target
+  held fire on), `knockback`, `stunning`, `unstable`, `sundering` (damage to an armour bar ×`armour_sunder_mult`),
+  `piercing` (`armour_pierce_frac` of each hit skips the armour), `heavy` and `deployable`. Heavy kit and deployables
+  go in the `back` slot and are set up with the Deploy order (the Razorrat, the Riot Shield; a riot shield soaks
+  `riot_shield_hp` from the front before it breaks). `Items.traits(id)` lists what an item shows, for the art kit's
+  trait icons.
 - **Weapon stats** are all-or-nothing: `damage_min`/`damage_max`, `range`, `attack`, `shots`, `damage_type`, plus
   `one_handed`, `jams`, `pellets`, `falloff` and `beam`. A live weapon must have them.
 - **Getting kit:** `Items.grant(armory, id, n, src)` is the only way into an armory (`grantItem` in `base.js` wraps it
@@ -118,13 +130,14 @@ column, so do not rename an id once a save may hold it.
   `dropOnly`, `origin`, `maker`, `maxRev`, `sold` and `live`. The Black Market roll is the only caller today; loot
   that rolls waits on DESIGN_BLOCKERS M-24.
 
-Still in code: market category weights (`CATW` in `base.js`), the gadget stat rows on the market (`BM_GSTATS`), the
+Still in code: the gadget stat rows on the market (`BM_GSTATS`), the
 briefing chips in `core.js`, and the art kit's own item keys (`blam` draws as `frags`, `charge` as `c90`).
 
 ## Enemies
 
 One row per enemy type, from the Enemies doc (Hegemony and Outworlder factions) plus the types the game needed
-first (`in_doc` FALSE). A row holds stats (`hp`, `aim`, `def`, `cool`), what the type carries (`weapon_1`,
+first (`in_doc` FALSE). A row holds stats (`hp`, `aim`, `def`, `cool`, and innate `armour` and `shield`: a vehicle's
+or Bot's plating lives here, kept apart from ship armour; a person's armour comes from the kit they wear), what the type carries (`weapon_1`,
 `weapon_2`, `head`, `body`, `gadget`: item ids), robot rules (`kind`, `owned_as`, `hack_rounds`, `heavy`, `big`, `speed`),
 whether it leads (`leader`), the credits on the body and what the art kit draws (an archetype, or a vehicle).
 `kind` is `person`, `auto` (a robot that fights like a person), `bot` (a robot vehicle that drives itself, like the
@@ -180,3 +193,9 @@ initiative values.
 
 Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
 capital ship weapons and attachments, and vehicle attachments (the Floatin' Truck's).
+
+## Market weights
+
+One row per Revolution Level it applies from; the Black Market uses the highest row at or below the current level
+(`marketWeights` in `base.js`). Only Level 1 has a row (the Market/Arsenal handoff's weights); Level 2 and up wait on
+DESIGN_BLOCKERS M-18.

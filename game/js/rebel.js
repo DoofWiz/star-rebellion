@@ -57,15 +57,15 @@ window.Rebel=(function(){
     {k:'brave',n:'Brave',q:'[Character] has either never been afraid, or is very good at hiding it.',e:'Much harder to panic.',live:1,where:'gs',w:1},
     {k:'cowardly',n:'Cowardly',q:'[Character] has an excellent survival instinct. Unfortunately, it usually points towards the nearest exit.',e:'Panics more quickly under fire.',live:1,where:'gs',w:0.8},
     {k:'steady',n:'Steady Hands',q:'[Character] can thread a needle while riding a speeder. Probably.',e:'+1 accuracy with ranged weapons.',live:1,where:'gs',w:1},
-    {k:'heavysleeper',n:'Heavy Sleeper',q:'[Character] could sleep through a bombardment. This has happened.',e:'Slow to recover from exhaustion. Immune to sleep-related morale penalties.',live:0,where:'b',w:0.5},
-    {k:'lightsleeper',n:'Light Sleeper',q:'[Character] wakes at the slightest noise. Usually the wrong noise.',e:'Recovers from exhaustion faster.',live:0,where:'b',w:0.5},
+    {k:'heavysleeper',n:'Heavy Sleeper',q:'[Character] could sleep through a bombardment. This has happened.',e:'Rests off missions at half the rate. Never loses morale for being weary.',live:1,where:'b',w:0.5},
+    {k:'lightsleeper',n:'Light Sleeper',q:'[Character] wakes at the slightest noise. Usually the wrong noise.',e:'Rests off missions half again as fast.',live:1,where:'b',w:0.5},
     {k:'shortfuse',n:'Short Fuse',q:'[Character] has never needed much encouragement to start a fight.',e:'+10% damage for a short time after taking damage.',live:1,where:'g',w:0.8},
     {k:'patient',n:'Patient',q:'[Character] is perfectly happy to wait. Everyone else is getting rather impatient.',e:'+2 accuracy while holding.',live:1,where:'g',w:0.8},
     {k:'restless',n:'Restless',q:'[Character] has never understood the appeal of standing still.',e:'+20% movement speed. -2 accuracy while holding.',live:1,where:'g',w:0.8},
     {k:'neatfreak',n:'Neat Freak',q:'[Character] cleans their weapon more often than they clean themselves.',e:'25% chance to clear a jam on a natural 1.',live:1,where:'g',w:0.8},
     {k:'messy',n:'Messy',q:'[Character]’s equipment is always somewhere. It is rarely where they left it.',e:'10% chance of losing a piece of gear when a mission starts.',live:0,where:'g',w:0.6},
-    {k:'strong',n:'Strong',q:'[Character] has been lifting heavy things for longer than anyone can remember.',e:'+20% melee damage. Can carry a second primary weapon instead of a secondary.',live:0,where:'g',w:0.7},
-    {k:'weak',n:'Weak',q:'[Character] insists they are stronger than they look. They are not.',e:'-20% melee damage.',live:0,where:'g',w:0.5},
+    {k:'strong',n:'Strong',q:'[Character] has been lifting heavy things for longer than anyone can remember.',e:'+20% melee damage. Can use a Heavy weapon as a primary, and a deployable one without deploying it.',live:0,where:'g',w:0.7},
+    {k:'weak',n:'Scrawny',q:'[Character] insists they are stronger than they look. They are not.',e:'-20% melee damage. +2 to defence when attacked in ground combat.',live:1,where:'g',w:0.5},   // key 'weak' kept for saves; the doc renamed it Scrawny
     {k:'quicklearner',n:'Quick Learner',q:'[Character] has an irritating habit of being good at things after trying them once.',e:'Gains XP 10% faster.',live:1,where:'b',w:0.8},
     {k:'slowlearner',n:'Slow Learner',q:'[Character] gets there eventually.',e:'Gains XP 10% slower.',live:1,where:'b',w:0.6},
     {k:'lucky',n:'Lucky',q:'[Character] has survived things that should have killed them. They aren’t sure why.',e:'5% chance to avoid otherwise lethal damage.',live:1,where:'gs',w:0.7},
@@ -257,11 +257,12 @@ window.Rebel=(function(){
   }
 
   /* ---------- gear slots ----------
-     Soldiers and Marines carry a primary weapon, a secondary weapon, head and body armour and two gadgets;
-     Pilots everything except the primary; Support carry nothing. A Hero gets the full set.
-     (Head and Body are the designer-approved slots from the Market/Arsenal handoff §4.) */
-  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'head'},{k:'body'},{k:'gad',i:0},{k:'gad',i:1}];
-  const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?FULL_KIT.slice(1):[]):[];
+     Soldiers and Marines carry a primary weapon, a secondary weapon, head and body armour, a back item (Heavy kit
+     and deployables) and two gadgets; Pilots everything except the primary and the back item; Support carry
+     nothing. A Hero gets the full set. (The designer's slot list, DESIGN_BLOCKERS C-25.) */
+  const FULL_KIT=[{k:'primary'},{k:'secondary'},{k:'head'},{k:'body'},{k:'back'},{k:'gad',i:0},{k:'gad',i:1}];
+  const PILOT_KIT=FULL_KIT.filter(s=>s.k!=='primary'&&s.k!=='back');
+  const gearSlots=p=>p&&!p.auto?(p.role==='Soldier'||p.role==='Marine'||p.role==='Hero'?FULL_KIT:p.role==='Pilot'?PILOT_KIT:[]):[];
 
   /* XP multipliers from traits (Quick / Slow Learner); callers award XP through gainXp */
   const xpMult=p=>(has(p,'quicklearner')?1.1:1)*(has(p,'slowlearner')?0.9:1);
@@ -274,6 +275,7 @@ window.Rebel=(function(){
     if(!p.auto&&p.sx===undefined)p.sx={};
     if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
     if(!p.auto&&p.rank===undefined){p.rank=Math.min(8,Math.floor(((p.level||1)-1)/2));p.rankMissions=0;p.missions=p.missions||0;}
+    if(!p.auto&&p.tired===undefined){p.tired=0;p.weary=0;p.conked=0;}   // rest (rebel-rest.js): missions without rest
     if('injured' in p&&window.Rebel.migrateInjured)window.Rebel.migrateInjured(p);   // the old days-off counter becomes a condition
     return p;
   }

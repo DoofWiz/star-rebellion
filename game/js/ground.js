@@ -16,8 +16,12 @@ const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas 
 
 /* ---------- constants ---------- */
 let W=2400,H=1600;
-/* movement scaled up 20% for the Bobbleheads art (bigger figures made the old ranges read short) */
-const MOVE_R=180,SPRINT_R=360,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=160,SNEAK_SPEED=86;
+/* Ground pace. The Bobbleheads figures stand ~1.8x the old 30px tokens, so a Move of 180 read as 3 figure-heights
+   against the original 4.5 (150 over a token); Steal the Cross needed 12 Moves to cross town. Everything on the
+   ground moves 4/3 faster (2026-10-05): a Move is 4 figure-heights again. Patrol, civilian and vehicle speeds (the
+   numbers in setRt calls, the vehicle rows' speed) follow the same factor, so stealth and chases keep their ratios. */
+const MOVE_R=240,SPRINT_R=480,EXEC_MS=2600,LOOT_AOE=95,AUTO_LOOT=50,RT_SPEED=213,SNEAK_SPEED=115;
+const PATROL_SPEED=77,CAR_PATROL_SPEED=120,CIV_SPEED=59,FLEE_SPEED=227;
 /* Character Traits (see rebel.js): units carry their trait keys in u.tr */
 const hasT=(u,k)=>!!u&&!!u.tr&&u.tr.indexOf(k)>=0;
 const speedMul=u=>(hasT(u,'restless')?1.2:1)*(hasT(u,'cautious')?0.9:1)*(u.agi||1)*(injOf(u,'brokenleg')?0.5:1)*(injOf(u,'burns')?0.7:1);
@@ -29,7 +33,9 @@ const relUp=(u,kinds)=>!!u&&!!u.rels&&u.rels.some(r=>kinds.indexOf(r[0])>=0&&U.s
 function sk(u,k,n){if(u&&u.side==='reb'&&!u.auto&&!u.ally){u.sk=u.sk||{};u.sk[k]=(u.sk[k]||0)+n;}}
 const NADE_R=300,NADE_BLAST=110;
 const HOT_ROUNDS=2;
-const SHIELD_ARC=1.15;               // half-angle of the turret's frontal shield
+const SANDBAG_ARC=1.15;              // half-angle of the sandbags in front of the Razorrat emplacement
+const SANDBAG_COVER=3;                // what the sandbags add to a shot from the front
+const RIOT_SHIELD_HP=SRDB.rules.riot_shield_hp||60;   // what a riot shield soaks from the front before it breaks
 const OFFMAP={x:-99999,y:-99999,r:1};
 let PAD=OFFMAP,LZ={x:300,y:1330,r:130},TOWER=OFFMAP,TURRET={x:-99999,y:-99999,r:26};
 let BLDGS=[],PROPS=[],LOOTS=[],WORKDEF=[],SCN=null;
@@ -70,12 +76,12 @@ stealcross:{
       'Get the squad back to the Graf and lift off',
       {sub:1,text:'Sera carries only a sidearm \u2014 keep her clear of the shooting.'},
     ],
-    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The pad turret is armoured from the front; take it from the side. Stray shots set off the red fuel canisters.',
+    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The machine gun on the pad sits behind sandbags; take it from the side. Stray shots set off the red fuel canisters.',
   },
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
   LZ:{x:300,y:1330,r:130},PAD:{x:2130,y:330,r:95},
-  TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:585,r:26},
+  TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:540,r:26},   // the Razorrat sits clear of the Sheriff HQ's roof
   panTo:{x:1870,y:190},
   guardPt:{x:2130,y:370},
   hasGraf:true,
@@ -242,7 +248,7 @@ autofactory:{
   banner:['Blow Up Auto Factory','Every Auto is a policeman we never meet'],
   brief:{
     eyebrow:'Ground Operation \u00b7 Kiln Ridge, Menk',
-    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge Autoworks</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
+    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge AutoCom Plant</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
     objectives:[
       'Get the explosive charge to the Power Plant\u2019s main breaker',
       'Plant it',
@@ -250,7 +256,7 @@ autofactory:{
       'Get the squad back to the Marta',
       {sub:1,text:'(Optional) Do it without the plant ever raising the alarm.'},
     ],
-    hint:'One of you carries the charge (marked \u2738). Only the carrier can plant it. Riot shields stop every shot from the front, so flank them. Policebots never panic, but they are flimsy. Stay out of the sight cones and the plant may never know you were here.',
+    hint:'One of you carries the charge (marked \u2738). Only the carrier can plant it. Riot shields soak every shot from the front until they break, so flank them. Policebots never panic, but they are flimsy. Stay out of the sight cones and the plant may never know you were here.',
   },
   towerLabel:'',
   lamps:[[820,620],[1500,560],[1870,560],[700,980],[1620,1000]],
@@ -398,7 +404,7 @@ rescue:{
       {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
       {sub:1,text:'The prisoner is unarmed in all but name. If they go down, the mission fails.'},
     ],
-    hint:'Stay out of the sight cones and the outpost may never know you were here. The prisoner follows your orders once freed, but is fragile. Riot shields stop every shot from the front, so flank them.',
+    hint:'Stay out of the sight cones and the outpost may never know you were here. The prisoner follows your orders once freed, but is fragile. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[700,520],[1300,470],[1720,560],[1100,900],[1600,930]],
@@ -424,7 +430,7 @@ rescue:{
     {x:600,y:950,kind:'rock'},{x:1100,y:1260,kind:'rock'},{x:1500,y:1200,kind:'rock'},{x:2050,y:1100,kind:'rock'},{x:400,y:700,kind:'rock'},{x:1900,y:300,kind:'rock'},
   ],
   loots:[
-    {id:'locker',x:1340,y:470,label:'Evidence locker',take:'Peacekeeper Carbine',items:['carbine']},
+    {id:'locker',x:1340,y:470,label:'Evidence locker',take:'EG-55 Peacekeeper Carbine',items:['carbine']},
     {id:'tollbox',x:1100,y:1050,label:'Toll box',take:'360 ◈ credits',c:360},
     {id:'rations',x:1650,y:990,label:'Barge rations',take:'72 ▤ supplies',s:72},
   ],
@@ -458,7 +464,7 @@ intel:{
       'Extract with the stolen data',
       {sub:1,text:'Finishing the hack sets off the trace. Expect a response.'},
     ],
-    hint:'Only the Field Technician (marked ⌨) can work the terminal. Stay out of the sight cones for as long as you can; the hack keeps running only while they stay on the terminal. Riot shields stop every shot from the front, so flank them.',
+    hint:'Only the Field Technician (marked ⌨) can work the terminal. Stay out of the sight cones for as long as you can; the hack keeps running only while they stay on the terminal. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[760,560],[1300,520],[1660,600],[1100,900],[1800,900]],
@@ -515,7 +521,7 @@ strider:{
   banner:['Steal the Strider','Walk it out'],
   brief:{
     eyebrow:'Ground Operation · Menk Crossing, Menk',
-    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the Autoworks’ Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
+    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
     objectives:[
       'Reach the holding yard behind the depot',
       'Override the Strider’s leash panel',
@@ -523,7 +529,7 @@ strider:{
       {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
       {sub:1,text:'If the Strider is destroyed, the mission fails.'},
     ],
-    hint:'Once the leash is off the Strider follows your orders like any rebel: heavy, tough and loud. Keep it out of sight cones until you need it. Riot shields stop every shot from the front, so flank them.',
+    hint:'Once the leash is off the Strider follows your orders like any rebel: heavy, tough and loud. Keep it out of sight cones until you need it. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[760,640],[1300,560],[1720,600],[1200,980],[1800,1000]],
@@ -748,7 +754,7 @@ function initScenario(id){
   LZ=SCN.LZ;
   PAD=SCN.PAD||OFFMAP;
   TOWER=SCN.TOWER||OFFMAP;
-  TURRET=SCN.TURRET||{x:-99999,y:-99999,r:26};
+  TURRET=SCN.TURRET?Object.assign({bags:true},SCN.TURRET):{x:-99999,y:-99999,r:26};   // the pad's Razorrat sits behind sandbags
   BLDGS=SCN.gen?genWalls(SCN.solids,SCN.opens).concat(SCN.bldgs||[]):SCN.bldgs;
   LOOTS=SCN.loots;
   genScatter();
@@ -760,8 +766,11 @@ function mkU(o){
     order:null,extracted:0,away:0,elev:0,frail:0,sheriff:0,fixed:0,guard:0,
     manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,cool:55,bunkered:0,
     px:0,py:0,path:null,wkey:null,ally:0,hacked:0,hackProg:0,hackT:0,hackTid:null,heavy:0,vehicle:0,big:0,
-    autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0)},o);
+    autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0),arm:0,shdCap:0},o);
   u.cool0=u.cool;
+  u.maxArm=u.arm=Math.max(0,u.arm||0);              // armour bar over health (worn kit, a vehicle's plating)
+  u.maxShd=Math.max(0,u.shdCap||0);u.shd=0;         // a shield bar over both, empty until the shield is raised
+  if(u.shield&&u.shieldHp===undefined)u.shieldHp=RIOT_SHIELD_HP;
   if(u.wpns&&u.wpns.some(x=>!WPN[x])){const w=u.wpns.filter(x=>WPN[x]);u.wpns=w.length?w:['unarmed'];}   // kit with no combat stats yet fights bare-handed
   return u;
 }
@@ -782,12 +791,17 @@ function defaultSpec(){
     pilot:{id:'sera',name:'Sera Kest',first:'Sera'},
     grafPilot:{id:'joss',name:'Joss Marrek',first:'Joss'}};
 }
+/* a squad member's armour and shield: an Auto's own shell (sp.arm) plus the head and body kit they wear */
+function squadProt(sp){
+  const k=Items.protection([sp.head,sp.body]);
+  return {arm:(sp.arm||0)+k.arm,shdCap:(sp.shdCap||0)+k.shd};
+}
 function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
-  const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
+  const squad=spec.squad.map((sp,i)=>mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],back:sp.back||null,lines:REB_LINES[sp.id]||REB_LINES.generic},squadProt(sp))));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -825,9 +839,10 @@ function initUnits(){
 const VEHDEF=Enemies.vehicles();   // by owned_as (police, dispersal, transport): stats, speed and seats from the enemy roster
 const ENTER_R=50;                     // close enough to climb in
 const HATCH_COVER=3;                  // an open gun seat still has the hull around it
+const WRECK_BLAST=130,WRECK_DMG=[12,26];   // a destroyed vehicle's blast: radius, and damage at the centre (my numbers)
 function mkVeh(o){
   const d=VEHDEF[o.veh];
-  const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,aim:0,cool:55},o,
+  const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,arm:d.arm,shdCap:d.shdCap,aim:0,cool:55},o,
     {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null}))}));
   delete v.crew;
   return v;
@@ -853,6 +868,7 @@ const vehOf=u=>(u&&u.mnt)?U.find(v=>v.id===u.mnt.v)||null:null;
 const seatOf=u=>{const v=vehOf(u);return v?v.seats.find(x=>x.k===u.mnt.seat)||null:null;};
 const enclosed=u=>{const st=seatOf(u);return !!(st&&st.enc);};
 const crewIn=v=>(v&&v.seats)?v.seats.map(x=>x.occ&&U.find(u=>u.id===x.occ)).filter(Boolean):[];
+const emptyVeh=t=>!!(t&&t.veh&&!crewIn(t).length);
 const vehSpd=u=>u.veh?VEHDEF[u.veh].spd*(u.wound?0.75:1):u.bot?((Enemies.owned(u.bot)||{}).speed||MOVE_R):MOVE_R;
 /* a bay passenger sees nothing worth reporting; a driver or gunner keeps watch */
 const lookout=u=>{const st=seatOf(u);return !st||!!st.drive||!!st.wkey;};
@@ -938,16 +954,26 @@ function vehDestroyed(v,by){
   if(by&&by.side==='reb'&&v.owner==='law'){by.xpGain=(by.xpGain||0)+0.25;by.kills=(by.kills||0)+1;}
   if(by)adjCoolG(by,12,'vehicle kill');
   for(const m of U)if(m.side===v.owner&&!m.mnt)adjCoolG(m,-12,v.first+' destroyed');
-  sBoomBig();shake=performance.now();
+  sBoomBig();juice('rocket',v.x,v.y,{r:110});
   decals.push({x:v.x,y:v.y,r:58});
-  for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:performance.now(),dur:900});
+  for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:clock(),dur:900});
   addFloater(v.x,v.y-50,'DESTROYED',C.hazard);
   log('<span class="b">The '+v.name+' is destroyed</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  for(const c of crewIn(v)){
+  const crew=crewIn(v);
+  for(const c of crew){
     dismount(c,true);
     const dmg=rint(10,22);
     log(nameSpan(c)+' is thrown from the wreck <span class="d">— -'+dmg+'</span>.');
     woundUnit(null,c,dmg,rng()<0.25,'explosive');
+  }
+  /* the wreck goes up: anyone standing close is caught in it, crewed or not (DESIGN_BLOCKERS C-7) */
+  for(const u of U){
+    if(u===v||crew.includes(u)||u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
+    const d=dist(u,v);
+    if(d>=WRECK_BLAST)continue;
+    const dmg=Math.round(rint(WRECK_DMG[0],WRECK_DMG[1])*(1-d/WRECK_BLAST*0.6));
+    woundUnit(null,u,dmg,false,'explosive');
+    if(!u.down)log(nameSpan(u)+' is caught as the '+v.first+' goes up — <b>-'+dmg+'</b>.');
   }
   checkDefeat();
 }
@@ -964,7 +990,7 @@ function deployUnits(v){
 /* ---------- state ---------- */
 let phase='BRIEF';       // BRIEF, CUTSCENE, FREE, PLANNING, EXEC, ENGAGE, EXTRACT, GAMEOVER
 let round=0,started=false,town='calm';
-let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0;
+let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0,lastReal=0;
 let NADES=0,nades=[],dmgRound=new Set();
 let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null;
@@ -983,11 +1009,63 @@ const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
 let tally={c:0,s:0,items:[]};
 let lootMarks=[];        // includes LOOTS refs + dynamic drops
-let floaters=[],tracers=[],parts=[],bubbles=[],casings=[],hits=[],boomFx=[];
+let floaters=[],tracers=[],parts=[],bubbles=[],casings=[],hits=[],boomFx=[],hitFx=[],fsFx=[];   // fsFx: strafing runs, supply drops, landings   // hitFx: armour, shield, sunder and pierce flashes
 let cam={x:LZ.x,y:LZ.y,z:0.9},camGoal=null,follow=true;
 let cs=null;             // cutscene state
-let shake=0,alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
+let alertFlash=0,tumble={x:-200,y:830,v:34,r:16,spin:0};
 let gameEnd=null;
+/* ---------- juice (art handoff: Juice) ----------
+   One trauma shake, one particle system, in-world pops, volleys and impacts for the scene. Hitstop freezes the game
+   clock, clock(), for a beat while the screen keeps drawing; the shake runs on real time and moves the world, never
+   the HUD. SR_ART.JUICE holds the numbers for each event: tune them there, not here. Reduced motion turns off the
+   shake, hitstop and drifting particles. The #test harness has no hitstop, so its timings stay exact (fn.juiceOn
+   turns it back on for the juice smoke test). */
+const JUICE=window.SR_ART.JUICE,SHK=window.SR_ART.Shake(),PFX=window.SR_ART.Particles();
+const HS={from:0,until:0,acc:0,last:0};
+let juiceLive=!/test/.test(location.hash);
+let pops=[],vols=[],impFx=[],jfx=[];   // damage numbers and callouts; volleys in flight; per-round impacts; rings, shield breaks, pickups
+let woundQuiet=false;                   // a volley is showing this hit's numbers round by round
+function clock(r){
+  if(r==null)r=performance.now();
+  if(HS.until){
+    if(r>=HS.until){HS.acc+=HS.until-HS.from;HS.until=0;}
+    else if(r>=HS.from)r=HS.from;
+  }
+  HS.last=Math.max(HS.last,r-HS.acc);
+  return HS.last;
+}
+const stillMotion=()=>HUD.reduced||!!(SR.settings&&SR.settings.reduced());
+const goreOn=()=>!SR.settings||SR.settings.get('gore')!==false;
+function hitstop(ms){
+  if(!ms||!juiceLive||stillMotion())return;
+  const r=performance.now();clock(r);
+  if(HS.until){HS.until=Math.max(HS.until,r+ms);return;}
+  HS.from=r;HS.until=r+ms;
+}
+/* an event from the JUICE table: hitstop, trauma and its particles at (x, y). o.k scales it; o.dir aims sprays. */
+function juice(ev,x,y,o){
+  const J=JUICE[ev];if(!J)return;
+  o=o||{};const k=o.k==null?1:o.k,calm=stillMotion();
+  if(!o.noStop)hitstop(Math.round(J.hitstop*k));
+  if(J.trauma&&x!=null){const p=worldToCss(x,y),off=p[0]<-80||p[0]>cssW+80||p[1]<-80||p[1]>cssH+80;SHK.add(J.trauma*k*(off?0.35:1));}
+  else if(J.trauma)SHK.add(J.trauma*k);
+  if(x==null)return;
+  const em=(kind,o2)=>{if(calm&&(kind==='smoke'||kind==='ember'||kind==='dust'))return;PFX.emit(kind,x,y,o2);};
+  if(ev==='shot'){if(o.brass!==false)em('casing',{n:1,dir:o.dir==null?-Math.PI/2:o.dir+Math.PI*0.6,spread:0.8,floor:y+20});em('smoke',{n:1,size:0.6});}
+  else if(ev==='armourHit')em('spark',{n:5,dir:o.dir==null?undefined:o.dir+Math.PI,spread:1.6});
+  else if(ev==='crit'){em('spark',{n:14,spread:Math.PI*2,size:1.3});jfx.push({k:'ring',x,y,t0:clock(),dur:600,col:C.goldHi,r:40});}
+  else if(ev==='down')em('dust',{n:8,floor:y,spread:Math.PI,dir:-Math.PI/2,size:1.2});
+  else if(ev==='grenade'||ev==='rocket'){
+    const big=ev==='rocket'?1.3:1;
+    em('debris',{n:Math.round(10*big),floor:y+8,speed:220*big});em('ember',{n:8});em('smoke',{n:6,size:1.6*big});em('dust',{n:10,floor:y,size:1.6});
+    jfx.push({k:'ring',x,y,t0:clock(),dur:700,col:'#fffbe6',r:(o.r||135)*0.9});
+  }
+  else if(ev==='shieldBreak'){em('shard',{n:12});jfx.push({k:'shieldBreak',x,y:o.y0==null?y:o.y0,t0:clock(),dur:700});}
+  else if(ev==='loot'){em('coin',{n:6,floor:y+6});if(o.item)jfx.push({k:'pickup',x,y,t0:clock(),dur:900,item:o.item});}
+}
+/* in-world numbers and callouts (SR_ART.popText); the HUD's plain floaters stay for everything else */
+function addPop(x,y,text,col,o){pops.push(Object.assign({x,y,text,col,t0:clock(),dir:Math.random()<0.5?-1:1},o||{}));}
+function hitPose(t){const n=clock();t._flashT=n;t._sqT=n;}
 
 /* ---------- geometry, LOS, cover ---------- */
 function ptBlocked(px,py,pad){
@@ -1034,7 +1112,7 @@ function chipCover(prop,dmg){
     prop.dead=true;
     addFloater(prop.x,prop.y-24,'COVER DESTROYED',C.hazard);
     log('<span class="b">'+sc(PROPDEF[prop.kind].lab)+' shot to pieces</span> — that cover is gone.');
-    for(let k=0;k<10;k++)parts.push({x:prop.x,y:prop.y,vx:(rng()-0.5)*160,vy:-rng()*90,r:2+rng()*3,a:0.6,col:'#6a5636',t0:performance.now(),dur:700});
+    for(let k=0;k<10;k++)parts.push({x:prop.x,y:prop.y,vx:(rng()-0.5)*160,vy:-rng()*90,r:2+rng()*3,a:0.6,col:'#6a5636',t0:clock(),dur:700});
     sThud();
   }
 }
@@ -1169,11 +1247,11 @@ function openLog(){logWin.open();logWin.body.scrollTop=logWin.body.scrollHeight;
 function nameSpan(u){return '<span class="'+(u.side==='reb'||(u.veh&&u.owner==='reb')?'r':'h')+'">'+u.name+'</span>';}
 function say(u,text,dur){
   if(!u||u.down||u.extracted)return;
-  bubbles.push({unit:u,text,t0:performance.now(),dur:dur||3600});
+  bubbles.push({unit:u,text,t0:clock(),dur:dur||3600});
   if(bubbles.length>4)bubbles.shift();
 }
 function sayRandom(u){if(u&&u.lines&&u.lines.length)say(u,u.lines[rint(0,u.lines.length-1)]);}
-function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:performance.now()});}
+function addFloater(x,y,text,col){floaters.push({x,y,text,col,t0:clock()});}
 
 /* ---------- d20 resolution ---------- */
 function bestWeapon(s,t){
@@ -1191,10 +1269,49 @@ function shieldBlocks(shooter,gunner){
     const a0=Math.atan2(shooter.y-gunner.y,shooter.x-gunner.x);
     if(Math.abs(angNorm(a0-gunner.face))<1.0)return true;
   }
-  // the turret's frontal plate: no shot lands from inside its facing arc
-  if(!gunner.manning)return false;
+  return false;
+}
+/* ---------- deployables (Gear doc): carried in the Back slot, set up with the Deploy order ----------
+   Razorrat LMG: set up where the rebel stands, facing the way they face, and they get behind it (Man gun /
+   Leave gun as on the Steal the Cross pad; a field deployment has no sandbags). One emplacement per map.
+   Riot Shield: moves from the back into the hands, replacing the primary weapon; it soaks hits from the front
+   until it breaks (RIOT_SHIELD_HP), and a broken one is gone. */
+const DEPLOY={
+  razorrat(u){
+    if(turretOn())return 'There is already a gun set up here.';
+    TURRET={x:u.x,y:u.y,r:26,bags:false,field:u.pid||u.id};
+    turret={gunner:null,face:u.face};
+    u.back=null;u.deployed='razorrat';
+    log(nameSpan(u)+' sets up the <b>Razorrat LMG</b>.');
+    manTurret(u);
+    return '';
+  },
+  riotshield(u){
+    u.back=null;u.deployed='riotshield';
+    const prim=u.wpns.find(w=>!(WPN[w]&&WPN[w].oneHand));
+    if(prim){u.stowed=prim;u.wpns=u.wpns.filter(w=>w!==prim);}
+    if(!u.wpns.length)u.wpns=['unarmed'];
+    u.shield=1;u.shieldHp=RIOT_SHIELD_HP;
+    addFloater(u.x,u.y-48,'SHIELD UP',C.shield);
+    log(nameSpan(u)+' takes up the <b>riot shield</b>'+(prim?' and slings the '+WPN[prim].name:'')+'.');
+    return '';
+  },
+};
+const canDeploy=u=>!!(u&&u.back&&DEPLOY[u.back]&&!u.mnt&&!u.bot&&!u.auto&&!u.down&&!u.manning&&!stunned(u));
+function deployWhy(u){return !u.back?'Nothing on their back to set up.':u.back==='razorrat'&&turretOn()?'There is already a gun set up here.':'';}
+function doDeploy(u){
+  const why=canDeploy(u)?DEPLOY[u.back](u):'Nothing to set up.';
+  if(why){addFloater(u.x,u.y-40,why.toUpperCase(),C.text3);return false;}
+  u._deployT=clock();
+  return true;
+}
+/* the Razorrat emplacement (Steal the Cross, DESIGN_BLOCKERS C-9): a deployed LMG behind a ring of sandbags. A shot
+   from inside the arc it faces meets the sandbags; from the side the gunner is in the open. */
+const turretOn=()=>TURRET.x>-9000;
+function sandbagged(shooter,gunner){
+  if(!gunner.manning||!TURRET.bags)return false;
   const a=Math.atan2(shooter.y-TURRET.y,shooter.x-TURRET.x);
-  return Math.abs(angNorm(a-turret.face))<SHIELD_ARC;
+  return Math.abs(angNorm(a-turret.face))<SANDBAG_ARC;
 }
 
 /* ---------- critical injuries (see rebel-injury.js) ----------
@@ -1260,7 +1377,7 @@ function doTreat(h){
   if(wasIncap&&t!==h){h.rescued=h.rescued||[];const id=t.pid||t.id;if(h.rescued.indexOf(id)<0)h.rescued.push(id);}
 }
 function wpnsOf(s){
-  if(s.manning)return ['laser'];
+  if(s.manning)return ['razorrat'];
   if(s.veh)return [];
   if(s.mnt){const st=seatOf(s);return st&&st.wkey?[st.wkey]:[];}
   if(s.oneHand||injOf(s,'brokenarm')){const w=s.wpns.filter(x=>ONE_HAND.indexOf(x)>=0);return w.length?w:['unarmed'];}
@@ -1268,7 +1385,7 @@ function wpnsOf(s){
 }
 function validShot(s,t,wkey){
   if(t.side==='civ'||s.veh)return false;
-  if(t.veh&&(t.owner===s.side||!crewIn(t).length))return false;   // an empty vehicle is scenery until someone climbs in
+  if(t.veh&&(crewIn(t).length?t.owner===s.side:s.side!=='reb'))return false;   // an empty vehicle: only the player shoots it, to blow it up (C-7)
   if(t.mnt&&enclosed(t))return false;                              // shoot the vehicle, not the people inside
   if(stunned(s))return false;
   if(s.office||t.office)return false;
@@ -1277,7 +1394,6 @@ function validShot(s,t,wkey){
   if(t.down||t.surr||t.extracted||t.away)return false;
   if(dist(s,t)>WPN[wkey].rng)return false;
   if(losBlocked(s,t))return false;
-  if(shieldBlocks(s,t))return false;
   return true;
 }
 function computeTN(s,t){
@@ -1289,12 +1405,13 @@ function computeTN(s,t){
   if(t.sprinted){v+=2;e.push(['SPRINTING',2]);}
   const cov=coverOf(s,t);
   if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
-  if(t.manning){v+=2;e.push(['GUN SHIELD EDGE',2]);}
+  if(t.manning&&sandbagged(s,t)){v+=SANDBAG_COVER;e.push(['SANDBAGS',SANDBAG_COVER]);}
   if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
   if(coolStateG(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
   if(t.wound){v-=1;e.push([t.veh?'HULL DAMAGED':'TARGET WOUNDED',-1]);}
   if(t.frail){v-=1;e.push(['UNTRAINED',-1]);}
+  if(hasT(t,'weak')){v+=2;e.push(['SCRAWNY',2]);}   // a small target (Rebels & Recruits doc: Scrawny)
   if(t.side==='reb'&&(t.level||1)>=2){
     const xb=Math.min(3,Math.floor((t.level||1)/2));
     v+=xb;e.push(['COMBAT EXPERIENCE',xb]);
@@ -1305,7 +1422,11 @@ function computeATK(s,t,wkey,snap){
   const e=[];let v=0;const w=WPN[wkey];
   v+=s.aim;e.push(['TRIGGER SKILL',s.aim,true]);
   if(w.atk){v+=w.atk;e.push([w.name,w.atk]);}
-  if(s.braced&&!snap){v+=2;e.push(['BRACED',2]);}
+  const md=modeOf(s,wkey);
+  if(md==='auto'){v+=AUTO_PEN;e.push(['AUTOMATIC',AUTO_PEN]);}
+  else if(md==='fan'){v+=FAN_PEN;e.push(['FAN HAMMER',FAN_PEN]);}
+  else if(md==='semi'&&t&&s.semiT===t.id&&s.semiN>0){v+=s.semiN;e.push(['SEMI-AUTO',s.semiN]);}
+  if(w.steady&&!snap&&(s.braced||(t&&s.steadyT===t.id))){v+=STEADY_BONUS;e.push(['STEADY',STEADY_BONUS]);}
   if(s.ambush&&!snap){v+=2;e.push(['AMBUSH',2]);}
   if(coolStateG(s)==='cool'){v+=1;e.push(['COOL',1]);}
   if(dist(s,t)<130){v+=2;e.push(['POINT BLANK',2]);}
@@ -1346,6 +1467,44 @@ function jamRoll(s,wkey,roll){
   if(roll===1)return !(hasT(s,'neatfreak')&&rng()<0.25);
   return hasT(s,'clumsy')&&rng()<0.05;
 }
+/* ---------- fire modes and weapon traits (Gear doc; DESIGN_BLOCKERS M-27) ----------
+   Automatic: -5 to hit, and a hit rolls straight away for a second one at -10. Semi-auto: +1 for every round in a
+   row spent on the same target, until the shooter moves or panics. Single shot: nothing. Fan hammer: -5 to hit,
+   double damage. A weapon starts on its first mode with no penalty (Items.defaultMode); the AI never switches.
+   Steady: +2 when braced (Hold) or on a target held fire on with the Hold fire button; holding is Steady's alone. */
+const AUTO_PEN=-5,AUTO_AGAIN=-10,FAN_PEN=-5,STEADY_BONUS=2,KNOCK_DIST=60;
+const modesOf=wkey=>(WPN[wkey]&&WPN[wkey].modes)||[];
+function modeOf(s,wkey){
+  const m=modesOf(wkey);if(!m.length)return null;
+  const pick=s&&s.fmode&&s.fmode[wkey];
+  return m.includes(pick)?pick:Items.defaultMode(wkey);
+}
+function setMode(s,wkey,m){if(modesOf(wkey).includes(m))(s.fmode=s.fmode||{})[wkey]=m;}
+function resetChain(u){u.semiT=null;u.semiN=0;u.steadyT=null;}
+/* after a shot lands or misses: the semi-auto chain, Steady spent, the automatic follow-up, Knockback */
+function afterShot(s,t,wkey,hit,tn,atk){
+  const md=modeOf(s,wkey),w=WPN[wkey]||{};
+  if(md==='semi'){if(s.semiT===t.id)s.semiN=(s.semiN||0)+1;else{s.semiT=t.id;s.semiN=1;}}
+  else resetChain(s);
+  if(s.steadyT===t.id)s.steadyT=null;
+  if(!hit||t.obj)return;
+  if(md==='auto'&&!t.down&&!t.surr){
+    const need=needFor(tn.total,atk.total-AUTO_PEN+AUTO_AGAIN),roll=rint(1,20);
+    if(roll>=need){
+      const dmg=rollDamage(s,t,wkey,false);
+      log(nameSpan(s)+' <span class="a">keeps the trigger down</span> and hits again — <b>'+dmg+'</b> <span class="d">(rolled '+roll+', needed '+need+')</span>.');
+      addFloater(t.x,t.y-62,'AUTO',C.gold);
+      woundUnit(s,t,dmg,false,WDAM[wkey],wkey);
+    } else log(nameSpan(s)+'’s second burst goes wide <span class="d">(rolled '+roll+', needed '+need+')</span>.');
+  }
+  if(w.knock&&!t.down&&!t.veh&&!t.mnt&&!t.manning&&!t.big)knockBack(s,t);
+}
+function knockBack(s,t){
+  const a=Math.atan2(t.y-s.y,t.x-s.x),d=moveDest(t,t.x+Math.cos(a)*KNOCK_DIST,t.y+Math.sin(a)*KNOCK_DIST,KNOCK_DIST);
+  if(d){t.x=d.x;t.y=d.y;unstick(t);}
+  t._knockT=clock();t.bunkered=0;t.braced=0;t.rtPath=null;
+  addFloater(t.x,t.y-56,'KNOCKED BACK',C.hazard);
+}
 function critRoll(roll,t){
   if(roll===20)return true;
   if(roll===19&&hasT(t,'unlucky'))return true;
@@ -1359,6 +1518,7 @@ function rollDamage(s,t,wkey,crit){
   if(w.falloff)d=Math.round(d*(1-0.55*Math.min(1,dist(s,t)/w.rng)));
   if(s&&s.side==='law'&&!s.sheriff)d=Math.round(d*0.85); // rank-and-file shoot to scare
   if(crit)d=Math.round(d*1.5);
+  if(s&&modeOf(s,wkey)==='fan')d*=2;   // fan hammer: double damage on a hit
   if(s&&s.tr&&s.tr.length){
     if(s.fuse>0&&hasT(s,'shortfuse'))d=Math.round(d*1.1);
     if(s.reck>0&&hasT(s,'reckless'))d=Math.round(d*1.2);
@@ -1387,22 +1547,80 @@ function applyShot(s,t,wkey,snap){
   } else if(hit){
     dmg=rollDamage(s,t,wkey,crit);
     if(tn.cover&&tn.cover.prop)dmg=Math.max(1,Math.round(dmg*0.75));
-    woundUnit(s,t,dmg,crit,WDAM[wkey]);
+    woundQuiet=true;try{woundUnit(s,t,dmg,crit,WDAM[wkey],wkey);}finally{woundQuiet=false;}
   } else if(tn.cover&&tn.cover.prop){
     chipCover(tn.cover.prop,Math.round(rollDamage(s,t,wkey,false)*0.7));
   }
+  if(!jammed)afterShot(s,t,wkey,hit,tn,atk);
   return {tn,atk,need,roll,hit,crit,dmg,jammed};
 }
-function woundUnit(s,t,dmg,crit,dsrc){
+/* ---------- armour and shields (Ground Combat doc) ----------
+   A hit drains the shield bar first, then the armour bar, then health. Sundering weapons tear armour faster
+   (armour_sunder_mult); Piercing ones send a share of each hit past the armour (armour_pierce_frac). Whatever a
+   broken bar cannot hold spills on to the next. There are no arcs on the ground. */
+const SUNDER=SRDB.rules.armour_sunder_mult||1,PIERCE=SRDB.rules.armour_pierce_frac||0;
+function soak(t,dmg,wkey){
+  const w=wkey&&WPN[wkey];
+  let rem=dmg,sd=0,ad=0,pass=0;
+  if(t.shd>0&&rem>0){sd=Math.min(t.shd,rem);t.shd-=sd;rem-=sd;}
+  if(t.arm>0&&rem>0){
+    const mult=w&&w.sunder?SUNDER:1;
+    pass=w&&w.pierce?Math.round(rem*PIERCE):0;
+    const want=(rem-pass)*mult;
+    ad=Math.min(t.arm,Math.round(want));
+    t.arm-=ad;
+    rem=pass+Math.round(Math.max(0,want-ad)/mult);
+  }
+  return {sd,ad,hd:Math.max(0,rem),pass};
+}
+/* raising a shield fills its bar; enemies raise theirs when the alarm goes up, rebels with the Shield order */
+function raiseShield(u){
+  if(!u||!u.maxShd||u.down||u.shd>=u.maxShd)return false;
+  u.shd=u.maxShd;u.shdUp=1;
+  addFloater(u.x,u.y-48,'SHIELD UP',C.shield);
+  log(nameSpan(u)+' <span class="g">raises a shield</span> <span class="d">('+u.maxShd+')</span>.');
+  return true;
+}
+function woundUnit(s,t,dmg,crit,dsrc,wkey){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
   sk(s,'aim',1);
+  const sk0=t._soak={riot:0,sd:0,ad:0,hd:0};   // what took the hit, for the volley's per-round impacts
+  const quiet=woundQuiet,hy0=t.y-30*actorScale(t);
+  hitPose(t);
+  if(!quiet&&dmg>0)juice(crit?'crit':'hit',t.x,hy0,{k:0.6});
+  if(s&&t.shield&&t.shieldHp>0&&shieldBlocks(s,t)){   // a riot shield takes a hit from the front until it breaks (Gear doc)
+    const take=Math.min(t.shieldHp,dmg);
+    t.shieldHp-=take;dmg-=take;sk0.riot=take;
+    if(!quiet)addPop(t.x,t.y-50,'-'+take,C.shield);
+    if(t.shieldHp<=0){t.shield=0;t.shieldBroke=1;juice('shieldBreak',t.x,hy0,{y0:t.y});addFloater(t.x,t.y-64,'SHIELD BROKEN',C.hazard);log(nameSpan(t)+'’s <b>riot shield</b> shatters.');}
+    if(dmg<=0){dmgRound.add(t.id);adjCoolG(t,-6,'took a hit');return;}
+  }
+  if(t.tr&&t.tr.length&&hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
+  if(t.shd>0||t.arm>0){
+    const sk2=soak(t,dmg,wkey),now=clock(),hy=hy0;
+    sk0.sd=sk2.sd;sk0.ad=sk2.ad;
+    if(sk2.sd){t._shHitT=now;hitFx.push({k:'shield',x:t.x,y:hy,t0:now,dur:420});}
+    if(sk2.ad&&WPN[wkey]&&WPN[wkey].sunder)hitFx.push({k:'sunder',x:t.x,y:hy,t0:now,dur:520});
+    else if(sk2.ad&&!quiet)impFx.push({x:t.x,y:hy,t0:now,dur:420,o:{surface:'armour',dir:s?Math.atan2(t.y-s.y,t.x-s.x):0,seed:rint(1,999)}});
+    if(sk2.ad&&!quiet)juice('armourHit',t.x,hy,{k:0.6,noStop:true});
+    if(sk2.pass&&s)hitFx.push({k:'pierce',x0:s.x,y0:s.y-26,x:t.x,y:hy,t0:now,dur:380});
+    if(sk2.sd&&!quiet)addPop(t.x+14,t.y-50,'-'+sk2.sd,C.shield);
+    if(sk2.ad&&!quiet)addPop(t.x-14,t.y-50,'-'+sk2.ad,C.steel);
+    if(sk2.ad&&!t.arm)log(nameSpan(t)+(t.veh?'’s armour plating gives way.':'’s armour is spent.'));
+    if(sk2.sd&&!t.shd){log(nameSpan(t)+'’s shield collapses.');juice('shieldBreak',t.x,hy,{y0:t.y});}
+    dmg=sk2.hd;
+    if(dmg<=0){                     // the bars took all of it: no wound, no critical injury
+      dmgRound.add(t.id);
+      adjCoolG(t,-8,'took a hit');
+      return;
+    }
+  }
   if(t.tr&&t.tr.length){
-    if(hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
     if(t.hp-dmg<=0&&((hasT(t,'lucky')&&rng()<0.05)||(hasT(t,'luckyesc')&&rng()<0.03))){t.luckySaved=1;dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
     if(hasT(t,'shortfuse'))t.fuse=2;
   }
-  t.hp-=dmg;
+  t.hp-=dmg;sk0.hd=dmg;
   if(t.side==='reb')t.minHp=Math.min(t.minHp===undefined?1:t.minHp,Math.max(0,t.hp)/t.maxhp);
   sk(t,'con',dmg/10);
   dmgRound.add(t.id);
@@ -1412,7 +1630,8 @@ function woundUnit(s,t,dmg,crit,dsrc){
     else if(!t.wound&&t.veh){t.wound=1;addFloater(t.x,t.y-52,'DRIVE DAMAGED',C.hazard);log('The <b>'+t.name+'</b> is limping <span class="d">— a quarter off its speed</span>.');}
     else if(!t.wound){t.wound=1;t.aim=Math.max(0,t.aim-1);addFloater(t.x,t.y-52,'WOUNDED',C.hazard);}
   }
-  addFloater(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi);
+  if(!quiet)addPop(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi,{crit});
+  if(!quiet&&!machine(t)&&goreOn()&&(Math.random()<0.5||dmg>20))bleed(t,null,dmg);
   if(t.hp<=0)downUnit(t,s);
 }
 function downUnit(t,by){
@@ -1428,10 +1647,11 @@ function downUnit(t,by){
     const heir=U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&u.id!==t.id).sort((a,b)=>dist(a,t)-dist(b,t))[0];
     if(heir){heir.charge=1;log(nameSpan(heir)+' picks up the <b>explosive charge</b>.');}
   }
-  if(t.manning){t.manning=0;turret.gunner=null;log('The <b>laser turret</b> stands unmanned.');}
+  if(t.manning){t.manning=0;turret.gunner=null;log('The <b>Razorrat</b> stands unmanned.');}
   sThud();
+  t._downT=clock();juice('down',t.x,t.y);
   log(nameSpan(t)+' <span class="b">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  addFloater(t.x,t.y-46,'DOWN',C.hazard);
+  addPop(t.x,t.y-60,'DOWN',C.hazard,{size:20});
   if(t.side==='law'){
     dropLoot(t);
     if(t.sheriff){
@@ -1451,7 +1671,7 @@ function downUnit(t,by){
 const DROP_CHANCE=SRDB.rules.enemy_drop_chance===undefined?1:SRDB.rules.enemy_drop_chance;
 function dropLoot(t){
   if(t.vehicle)return;
-  const items=(t.kit||[]).filter(id=>{const r=Items.get(id);return r&&r.category!=='builtin'&&r.live&&Math.random()<DROP_CHANCE;});
+  const items=(t.kit||[]).filter(id=>{const r=Items.get(id);return r&&r.category!=='builtin'&&r.live&&!(id==='riotshield'&&t.shieldBroke)&&Math.random()<DROP_CHANCE;});
   const c=t.cr?rint(t.cr[0],t.cr[1]):0;
   if(!items.length&&!c)return;
   const what=items.map(Items.name);
@@ -1462,7 +1682,7 @@ function dropLoot(t){
 /* ---------- morale, alert, spotting ---------- */
 function alertTown(why){
   if(town==='alerted')return;
-  town='alerted';alertFlash=performance.now();
+  town='alerted';alertFlash=clock();
   if(fac&&!fac.detonated)fac.everAlerted=true;
   if(rs)rs.everAlerted=true;
   sAlert();
@@ -1471,13 +1691,14 @@ function alertTown(why){
   if(caller&&caller.lines)say(caller,caller.lines[caller.lines.length-1]);
   const reeve=U.find(u=>u.id==='reeve');
   if(reeve&&!reeve.down)setTimeout(()=>sayRandom(reeve),1400);
+  for(const u of U)if(u.side==='law'&&u.maxShd&&!u.down&&!u.surr)raiseShield(u);   // shields go up with the alarm
   // townsfolk scatter or hit the dirt
   for(const c of U){
     if(c.side!=='civ'||c.extracted)continue;
     if(rng()<0.5){
       c.fleeing=1;
       const ex=c.x<W/2?30:W-30;
-      setRt(c,ex,Math.max(60,Math.min(H-60,c.y+rint(-160,160))),170);
+      setRt(c,ex,Math.max(60,Math.min(H-60,c.y+rint(-160,160))),FLEE_SPEED);
       if(!c.rtPath){c.fleeing=0;c.cower=1;}
     } else {c.cower=1;c.rtPath=null;}
   }
@@ -1498,7 +1719,7 @@ function startAmbush(t){
   for(const s of shooters)s.ambush=1;
   shooters.sort((a,b)=>initKey(b)-initKey(a));
   phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
-  engageQ={list:shooters,idx:0,cur:null,nextAt:performance.now()+300,forceT:t};
+  engageQ={list:shooters,idx:0,cur:null,nextAt:clock()+300,forceT:t};
   log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
     ' fire from ambush.</span>');
   alertTown('Rebel guns spoke first.');
@@ -1738,7 +1959,7 @@ function aiPlan(){
       continue;
     }
     // alerted
-    const targets=u.ally?U.filter(r=>r.side==='law'&&!r.down&&!r.surr&&!r.office):U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&!(r.manning&&shieldBlocks(u,r)));
+    const targets=u.ally?U.filter(r=>r.side==='law'&&!r.down&&!r.surr&&!r.office):U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
     if(!targets.length){u.order={type:'hold'};u.braced=1;continue;}
     // one guard runs for the empty turret
     if(u.guard&&!u.sheriff&&!turret.gunner&&!turretClaimed&&dist(u,TURRET)<620){
@@ -1904,7 +2125,7 @@ function squadMoveTo(pt){
     setRt(m,pt.x+o[0],pt.y+o[1],m.veh?RT_SPEED*vehSpd(m)/MOVE_R:sneak?SNEAK_SPEED:RT_SPEED);
     u.goingTurret=0;u.goingVeh=null;
   }
-  rtPing={x:pt.x,y:pt.y,t0:performance.now()};
+  rtPing={x:pt.x,y:pt.y,t0:clock()};
   sTick();
 }
 function lootsWithin(u,r){
@@ -1919,6 +2140,7 @@ function collectLoot(u,m){
   if(m.supply)supplyDrop(u);
   if(m.items)tally.items.push(...m.items);
   addFloater(m.x,m.y-30,'+ '+m.take,C.go);
+  juice('loot',m.x,m.y,{item:(m.items||[]).find(k=>SA.ITEMS&&SA.ITEMS[k])});   // the item pops out of the crate
   log(nameSpan(u)+' loots the <b>'+m.label+'</b> — <span class="g">'+m.take+'</span>.');
   syncUI();
 }
@@ -1947,8 +2169,8 @@ function manTurret(u){
   turret.gunner=u.id;u.manning=1;u.goingTurret=0;
   u.x=TURRET.x;u.y=TURRET.y;u.rtPath=null;u.path=null;
   u.braced=1;u.order={type:'hold'};u.face=turret.face;
-  log(nameSpan(u)+' mans the <b>laser turret</b>.');
-  addFloater(TURRET.x,TURRET.y-42,'TURRET MANNED',C.shield);
+  log(nameSpan(u)+' gets behind the <b>Razorrat</b>.');
+  addFloater(TURRET.x,TURRET.y-42,'GUN MANNED',C.shield);
   sTick();syncUI();
 }
 function unmanTurret(u){
@@ -1956,7 +2178,7 @@ function unmanTurret(u){
   let ox=TURRET.x+Math.cos(turret.face+Math.PI)*44,oy=TURRET.y+Math.sin(turret.face+Math.PI)*44;
   const d=moveDest(u,ox,oy,60);
   if(d){u.x=d.x;u.y=d.y;}
-  log(nameSpan(u)+' steps off the turret.');
+  log(nameSpan(u)+' leaves the gun.');
   syncUI();
 }
 function workDone(){return WORK.every(w=>w.done);}
@@ -2009,7 +2231,7 @@ function completeWork(wp,u){
   if(wp.id==='plant'&&SCN.mode==='towers'){
     const method=u.device||'charge';
     u.charge=0;u.device=null;fac.planted=true;fac.method=method;fac.quiet=!fac.everAlerted;
-    fac.detonated=true;fac.fx={t0:performance.now()};
+    fac.detonated=true;fac.fx={t0:clock()};
     if(method==='charge'){
       addFloater(wp.x,wp.y-46,'TOWER DOWN',C.hazard);
       log('<span class="g">The charge drops the tower.</span> The compound goes dark. Back to the Marta.');
@@ -2085,7 +2307,7 @@ function fsItems(){
   });
   (FS.vehicles||[]).forEach((a,i)=>{
     if(a.state!=='ready')return;
-    it.push({key:'v'+i,name:(a.kind==='bot'?'Bot':'Vehicle')+' · '+a.name,
+    it.push({key:'v'+i,name:'Deploy '+a.name,
       sub:a.kind==='bot'?'set down where you call it at the start of the next planning · takes orders like a squad member':'set down empty where you call it at the start of the next planning · someone has to get in'});
   });
   return it;
@@ -2133,6 +2355,7 @@ function fsExecute(){
     if(o.kind!=='drop'||o.landed)continue;
     o.landed=true;FS.n++;
     lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
+    fsFx.push({k:'drop',x:o.x,y:o.y,t0:clock(),dur:1500});
     addFloater(o.x,o.y-34,'SUPPLY DROP',C.go);sLand();
     log('<span class="g">The supply drop lands.</span> Somebody go and get it.');
   }
@@ -2171,7 +2394,7 @@ function dgAttack(a){
   const pick=dgTargets(a.mark);
   if(!pick.length)log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> No targets at the mark.');
   else{
-    const t0=performance.now();
+    const t0=clock();
     for(const t of pick){
       const hit=rint(1,20)>=9;
       tracers.push({x1:t.x-260,y1:t.y-260,x2:t.x,y2:t.y,t0,dur:260,heavy:1});
@@ -2229,7 +2452,7 @@ function dgNext(){
     dgSpend(a);dgNext();return;
   }
   const R={a,ax:mark.x,ay:mark.y,rad:780,squash:0.55,dir:rng()<0.5?1:-1,th0:rng()*Math.PI*2,
-    IN:1100,ORBIT:3000,OUT:900,alt:235,t0:performance.now()+420,
+    IN:1100,ORBIT:3000,OUT:900,alt:235,t0:clock()+420,
     targets:pick.map((u,i)=>({u,at:0.16+i*0.28,done:0})),
     flak:dgFlakers(mark).map(u=>({u,at:0.12+rng()*0.55,state:'wait'})),
     apply:[],down:null,crashed:0,endAt:0};
@@ -2273,7 +2496,7 @@ function dgUpdate(now){
       R.crashed=1;
       boomFx.push({x:P.x,y:P.y,t0:now,dur:800,R:120});
       decals.push({x:P.x,y:P.y,r:70});
-      shake=now;sBoomBig();
+      juice('rocket',P.x,P.y);sBoomBig();
       log('<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
       R.endAt=now+1000;
     }
@@ -2308,7 +2531,7 @@ function dgUpdate(now){
     f.state='done';
     if(f.hit&&!R.down){
       boomFx.push({x:R.px,y:R.py-R.palt,t0:now,dur:450,R:60});
-      shake=now;
+      juice('grenade',null,null,{k:0.6});
       R.down={t0:now,x:R.px,y:R.py,ang:R.pang,dur:1900};
       log('<span class="b">Direct hit!</span> <b>'+R.a.name+'</b> staggers in the air, trailing fire.');
     } else if(!f.hit){
@@ -2323,7 +2546,7 @@ function dgUpdate(now){
       const dmg=rint(16,28);
       woundUnit(null,ap.u,dmg,false);
       log('The door gunner hits '+nameSpan(ap.u)+' — <b>'+dmg+'</b>.');
-      shake=now;
+      SHK.add(0.15);
     } else if(!ap.hit)log('The door gunner misses '+nameSpan(ap.u)+'.');
   }
   if(now-R.t0>R.IN+R.ORBIT+R.OUT+180)dgFinish();
@@ -2348,7 +2571,7 @@ function drawDgRun(now){
   const bank=R.down?Math.min(0.85,0.5+(now-R.down.t0)/R.down.dur*0.4):(R.pk>=0&&R.pk<=1?0.38:0.26);
   const bob=Math.sin(now/95)*3;
   SA.ship(ctx,'graf',x,y-alt+bob,R.pang,4.3,now/1000,
-    {livery:'civ',boost:!R.down&&R.pboost,roll:bank,damage:R.down?0.85:0});
+    {livery:'civ',boost:!R.down&&R.pboost,roll:bank,damage:R.down?0.85:0,loadout:{attach:['doorgun']}});
   // rockets on the way up
   for(const f of R.flak){
     if(f.state!=='fly')continue;
@@ -2360,13 +2583,18 @@ function drawDgRun(now){
     ctx.restore();
   }
 }
+/* the run is drawn by SR_ART.strafe (the ship overhead and ten impacts walking up the ladder); each impact's blast
+   is scheduled to land as its explosion shows, at the same spot */
+const STRAFE_LEN=900,STRAFE_MS=2400;
 function strafeRun(o){
   const a=FS.ships[o.ship];a.state='spent';o.done=true;
-  const t0=performance.now();
+  const t0=clock(),ca=Math.cos(o.ang),sa=Math.sin(o.ang);
   for(let k=0;k<10;k++){
-    const x=o.x1+Math.cos(o.ang)*k*90+(rng()-0.5)*70,y=o.y1+Math.sin(o.ang)*k*90+(rng()-0.5)*70;
-    exploQ.push({x,y,at:t0+400+k*140,opt:{r:70,d0:28,d1:44}});
+    const u=(k+0.5)/10,jx=Math.sin(k*7.3)*12,jy=Math.cos(k*4.1)*10;   // SR_ART.strafe's own ladder
+    const x=o.x1+ca*STRAFE_LEN*u-sa*jx,y=o.y1+sa*STRAFE_LEN*u+ca*jy;
+    exploQ.push({x,y,at:t0+STRAFE_MS*(u*0.8+0.06),opt:{r:70,d0:28,d1:44,quiet:1}});
   }
+  fsFx.push({k:'strafe',x:o.x1,y:o.y1,ang:o.ang,t0,dur:STRAFE_MS+400,ship:SA.SHIP_FOR_GAME[a.cls]||(SA.SHIPS[a.cls]?a.cls:'talon')});
   log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> <span class="a">Here she comes.</span> Strafing run!');
   sTakeoff();
   camGoal={x:o.x1+Math.cos(o.ang)*400,y:o.y1+Math.sin(o.ang)*400,z:0.8};
@@ -2381,9 +2609,9 @@ function fsRoundEnd(){
   }
 }
 function mkSquadUnit(sp,x,y){
-  return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
+  return mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
     level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
-    wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
+    wpns:sp.wpns||['akli','cowboy'],back:sp.back||null,lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1},squadProt(sp)));
 }
 /* a summoned vehicle or Bot: the transport sets it down where it was called */
 function summonVehicle(va,x,y){
@@ -2397,7 +2625,8 @@ function summonVehicle(va,x,y){
   }
   const d=moveDest(u,x,y,120);if(d){u.x=d.x;u.y=d.y;}
   unstick(u);
-  u.face=-Math.PI/2;U.push(u);
+  u.face=-Math.PI/2;u.landAt=clock()+LAND_MS*0.85;U.push(u);
+  fsFx.push({k:'landing',x:u.x,y:u.y,t0:clock(),dur:LAND_MS+500});   // the transport sets it down
   va.uid=u.id;va.state='spent';
   sLand();
   addFloater(u.x,u.y-44,va.kind==='bot'?'BOT DOWN':'VEHICLE DOWN',C.go);
@@ -2415,18 +2644,34 @@ function fsPlanStart(){
     if(o.kind!=='reinforce'||o.done||o.at>round)continue;
     o.done=true;
     const a=FS.ships[o.ship];a.state='spent';
+    const landAt=clock()+LAND_MS*0.85;
+    fsFx.push({k:'landing',x:o.x,y:o.y,t0:clock(),dur:LAND_MS+500});
     a.soldiers.forEach((sp,j)=>{
       const u=mkSquadUnit(sp,o.x+(j-(a.soldiers.length-1)/2)*40,o.y+30);
       const d=moveDest(u,u.x,u.y,120);if(d){u.x=d.x;u.y=d.y;}
-      u.face=-Math.PI/2;U.push(u);
+      u.face=-Math.PI/2;u.landAt=landAt;U.push(u);   // they step off once the transport is down
     });
     sLand();
     addFloater(o.x,o.y-40,'REINFORCEMENTS',C.go);
     log('<span class="g">'+a.name+' sets down and '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' pile out.</span>');
   }
 }
+const LAND_MS=1400;
+/* fire support seen from the ground (art handoff): SR_ART.strafe, supplyDrop and landing; a dropped crate stays */
+function drawFsFx(now){
+  const t=HUD.reduced?0:now/1000;
+  fsFx=fsFx.filter(f=>now-f.t0<f.dur);
+  for(const f of fsFx){
+    const k=Math.min(1,Math.max(0,(now-f.t0)/(f.k==='strafe'?STRAFE_MS:f.k==='landing'?LAND_MS:f.dur)));
+    if(f.k==='strafe')SA.strafe(ctx,f.x,f.y,f.ang,STRAFE_LEN,k,t,{ship:f.ship,livery:'rebel'});
+    else if(f.k==='drop')SA.supplyDrop(ctx,f.x,f.y,Math.min(0.999,k),t,{});
+    else if(f.k==='landing')SA.landing(ctx,f.x,f.y,k,t,{});
+  }
+}
 function drawFS(now){
   if(!FS)return;
+  {const t=HUD.reduced?0:now/1000;   // a landed crate stays on the ground, open once it has been looted
+   for(const m of lootMarks)if(m.supply&&!fsFx.some(f=>f.k==='drop'&&f.x===m.x&&f.y===m.y))SA.supplyDrop(ctx,m.x,m.y,1,t,{open:!!m.taken});}
   for(const o of FS.orders){
     if(o.done||(o.kind==='drop'&&o.landed))continue;
     ctx.save();
@@ -2540,7 +2785,7 @@ function fuelReach(){
 function callTransport(){
   if(!fs||!fs.reached||fs.called||phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
   fs.called=true;
-  fs.flying={t0:performance.now(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
+  fs.flying={t0:clock(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
   grafState='flying';
   sTakeoff();
   log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Inbound to the apron. Keep it clear, I do not land on people.');
@@ -2554,7 +2799,7 @@ function fuelUpdate(now){
   grafPos.a=lerp(0.12,-0.2,e);
   if(t>=1){
     fs.flying=null;fs.landed=true;grafState='landed';
-    sLand();shake=now;
+    sLand();SHK.add(0.3);
     for(let i=0;i<26;i++)parts.push({x:PAD.x+(rng()-0.5)*220,y:PAD.y+(rng()-0.5)*170,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
     log('<span class="g">The Marta is down on the apron and the fuel lines are out.</span> Hold the pumps: '+FUEL_ROUNDS+' rounds.');
     camGoal={x:PAD.x-100,y:PAD.y+40,z:0.85};
@@ -2604,14 +2849,14 @@ function facDetonate(){
     return;
   }
   fac.quiet=!fac.everAlerted;
-  fac.detonated=true;fac.fx={t0:performance.now()};
-  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole Autoworks goes dark.');
+  fac.detonated=true;fac.fx={t0:clock()};
+  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole AutoCom Plant goes dark.');
   explode(SCN.plant.bx,SCN.plant.by,{r:SCN.blastR,d0:80,d1:120});
   camGoal={x:SCN.plant.bx-80,y:SCN.plant.by+120,z:0.8};
   const lead=U.find(u=>u.side==='reb'&&!u.down);
   if(lead)say(lead,'Plant\u2019s gone! Back to the Marta!');
   if(SCN.detWave)spawnFoes(SCN.detWave.foes,SCN.detWave.log);
-  if(town==='calm')alertTown('The Autoworks goes dark.');
+  if(town==='calm')alertTown('The AutoCom Plant goes dark.');
   syncUI();
 }
 function drawCage(now){
@@ -2693,7 +2938,7 @@ function rtUpdate(now,dt){
         else {
           if(u.baseFace===undefined)u.baseFace=u.face;
           u.scanT+=dt;u.face=u.baseFace+Math.sin(u.scanT*0.4)*0.6;
-          if(u.patrol&&rng()<0.003){const p=u.patrol[rint(0,u.patrol.length-1)];setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),90);}
+          if(u.patrol&&rng()<0.003){const p=u.patrol[rint(0,u.patrol.length-1)];setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),CAR_PATROL_SPEED);}
         }
       } else if(u.rtPath)rtStep(u,dt);
       continue;
@@ -2718,7 +2963,7 @@ function rtUpdate(now,dt){
         u.face=u.baseFace+Math.sin(u.scanT*0.55)*0.85;
         if(u.patrol&&rng()<0.003){
           const p=u.patrol[rint(0,u.patrol.length-1)];
-          setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),58);
+          setRt(u,p.x+rint(-26,26),p.y+rint(-26,26),PATROL_SPEED);
         }
       }
     }
@@ -2765,7 +3010,7 @@ function civStep(dt){
       if(!u.rtPath&&u.fleeing){u.extracted=1;} // made it indoors / out of town
     } else if(town==='calm'&&u.haunt&&rng()<0.0025){
       const p=u.haunt[rint(0,u.haunt.length-1)];
-      setRt(u,p.x+rint(-20,20),p.y+rint(-20,20),44);
+      setRt(u,p.x+rint(-20,20),p.y+rint(-20,20),CIV_SPEED);
     }
   }
 }
@@ -2777,7 +3022,7 @@ function startExtract(){
   selId=null;pickMode=null;
   const E=exitPt();
   camGoal={x:E.x+120,y:E.y-40,z:1.0};
-  extractFx={stage:'board',t0:performance.now()};
+  extractFx={stage:'board',t0:clock()};
   let i=0;
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away)continue;
@@ -2853,7 +3098,7 @@ function execute(){
   if(phase!=='PLANNING')return;
   tutFlags.executed=1;
   sTick();
-  phase='EXEC';execT0=performance.now();
+  phase='EXEC';execT0=clock();
   fsExecute();
   selId=null;pickMode=null;
   // armed grenades from earlier rounds go off as the round opens
@@ -2879,6 +3124,7 @@ function execute(){
       if(d)u.path=pathFor(u,d.x,d.y);
       u.sprinted=0;u.braced=0;
     } else if(o&&(o.type==='move'||o.type==='sprint')){
+      resetChain(u);   // moving breaks a semi-auto chain and a Steady aim
       u.path=pathFor(u,o.tx,o.ty);
       u.sprinted=o.type==='sprint'?1:0;
       sk(u,'agi',u.sprinted?1:0.5);
@@ -2902,6 +3148,8 @@ function execute(){
       addFloater(u.x,u.y-48,'RALLY!',C.go);
       log(nameSpan(u)+' <span class="g">rallies the squad</span> <span class="d">\u2014 everyone steadies, +2 to hit this round</span>');
       for(const m of U)if(m.side==='reb'&&!m.down&&!m.surr&&!m.extracted&&!m.away&&!m.auto&&!m.vip){m.rally=1;adjCoolG(m,Math.max(0,75-m.cool),'rallied');}
+    } else if(o&&o.type==='deploy'){
+      u.sprinted=0;u.braced=0;doDeploy(u);
     } else if(o&&o.type==='lockin'){
       u.sprinted=0;u.braced=0;
       adjCoolG(u,35,'locked in');
@@ -2970,7 +3218,7 @@ function execUpdate(now){
         h.owUsed=1;h.wkey=wkey;
         h.face=Math.atan2(m.y-h.y,m.x-h.x);
         const rec=applyShot(h,m,wkey,true);
-        fireFx(h,m,wkey,rec.hit);
+        if(!rec.jammed)fireFx(h,m,wkey,rec.hit,rec.dmg,{done:true,crit:rec.crit});
         log(nameSpan(h)+' <span class="a">snap-fires</span> at '+nameSpan(m)+' crossing open ground — '+(rec.jammed?'<span class="a">weapon jams!</span>':rec.hit?'<span class="b">hit</span> (-'+rec.dmg+')':'<span class="d">miss</span>')+'.');
         if(town==='calm')alertTown('Gunfire on the main street.');
         if(m.down&&m.path){m.path=null;}
@@ -2995,17 +3243,17 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
-    const anyT=U.some(t=>t.side!==s.side&&wpnsOf(s).some(w=>validShot(s,t,w)));
+    const anyT=U.some(t=>t.side!==s.side&&!emptyVeh(t)&&wpnsOf(s).some(w=>validShot(s,t,w)));
     if(!anyT)continue;
     list.push(s);
   }
   if(!list.length){endRound();return;}
   list.sort((a,b)=>initKey(b)-initKey(a));
-  engageQ={list,idx:0,cur:null,nextAt:performance.now()+350};
+  engageQ={list,idx:0,cur:null,nextAt:clock()+350};
   phase='ENGAGE';
   syncUI();
 }
@@ -3015,7 +3263,7 @@ function pickTarget(s){
   let best=null,bp=-1e9,bw=null;
   const hasOther=s.side==='law'&&U.some(t=>t.side==='reb'&&t.id!=='sera'&&!t.down&&!t.extracted&&wpnsOf(s).some(w=>validShot(s,t,w)));
   for(const t of U){
-    if(t.side===s.side||t.down||t.surr||t.extracted||t.away)continue;
+    if(t.side===s.side||t.down||t.surr||t.extracted||t.away||emptyVeh(t))continue;   // an empty vehicle only when the player picks it
     for(const w of wpnsOf(s)){
       if(!validShot(s,t,w))continue;
       s.wkey=w;
@@ -3031,7 +3279,7 @@ function makeCur(s,t,wkey){
   s.wkey=wkey;
   s.face=Math.atan2(t.y-s.y,t.x-s.x);
   return {s,t,wkey,tn:computeTN(s,t),atk:computeATK(s,t,wkey,false),
-    reveal:0,revealA:0,stage:'reveal',stageAt:performance.now(),roll:0,hit:false,crit:false,applied:false,need:0};
+    reveal:0,revealA:0,stage:'reveal',stageAt:clock(),roll:0,hit:false,crit:false,applied:false,need:0};
 }
 function attackUpdate(now){
   const q=engageQ;if(!q)return;
@@ -3080,12 +3328,18 @@ function attackUpdate(now){
     }
   } else if(c.stage==='verdict'){
     if(el>620){c.stage='fire';c.stageAt=now;
-      fireFx(c.s,c.t,c.wkey,c.hit);
+      if(c.hit&&!c.jammed&&!c.t.obj){
+        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+        c.soaked=!!(c.tn.cover&&c.tn.cover.prop);
+        if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
+        c.dmg=dmg;
+      }
+      if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
       if(town==='calm')alertTown('Gunfire in the street.');
     }
   } else if(c.stage==='fire'){
-    if(el>420&&!c.applied){
-      c.applied=true;
+    if(el>(c.applyAt==null?420:c.applyAt)&&!c.applied){
+      c.applied=true;c.done=true;
       sk(c.s,'aim',1);
       if(c.wkey==='rocket'&&c.s.side==='reb')c.s.rockets=(c.s.rockets||0)+1;
       if(hasT(c.s,'hothead'))adjCoolG(c.s,3,'in the fight');
@@ -3106,20 +3360,19 @@ function attackUpdate(now){
         log(nameSpan(c.s)+'’s <span class="a">Akli jams on the trigger.</span>');
         if(c.s.side==='reb')say(c.s,'Jam! Of course it jams NOW.');
       } else if(c.hit){
-        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
-        const soaked=!!(c.tn.cover&&c.tn.cover.prop);
-        if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
-        c.dmg=dmg;
-        woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey]);
+        const dmg=c.dmg,soaked=c.soaked;
+        woundQuiet=true;try{woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey],c.wkey);}finally{woundQuiet=false;}
+        log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(modeOf(c.s,c.wkey)==='fan'?' <span class="a">(fan hammer)</span>':'')+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
+        afterShot(c.s,c.t,c.wkey,true,c.tn,c.atk);
         if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
-        log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
       } else {
         if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
         log(nameSpan(c.s)+' misses '+nameSpan(c.t)+'.');
         if(c.tn.cover&&c.tn.cover.prop)chipCover(c.tn.cover.prop,Math.round(rollDamage(c.s,c.t,c.wkey,false)*0.7));
+        afterShot(c.s,c.t,c.wkey,false,c.tn,c.atk);
       }
     }
-    if(el>900){q.cur=null;q.nextAt=now+320;syncUI();}
+    if(el>(c.endAt||900)){q.cur=null;q.nextAt=now+320;syncUI();}
   }
 }
 function playerAttack(){
@@ -3127,23 +3380,23 @@ function playerAttack(){
   if(!c||c.stage!=='await')return;
   tutFlags.attacked=1;
   if(tutIdx>=4)tutFlags.shot=1;   // the Take the shot card only counts a shot taken once it is the current card
-  sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
+  sTick();c.stage='roll';c.stageAt=clock();sDice();syncUI();
 }
 function throwNade(s,gx,gy){
-  s._throwT=performance.now();
+  s._throwT=clock();
   if(injOf(s,'shrapnel')){addFloater(s.x,s.y-48,'SUPPRESSED',C.hazard);return;}
   NADES--;
   if(hasT(s,'clumsy')&&rng()<0.25){
     gx=s.x;gy=s.y;
     log(nameSpan(s)+' <span class="b">fumbles the BLAM</span> <span class="d">(clumsy)</span> \u2014 it drops at their feet.');
   }
-  nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:performance.now(),armRound:round});
+  nades.push({x:gx,y:gy,fx:s.x,fy:s.y,t0:clock(),armRound:round});
   s.face=Math.atan2(gy-s.y,gx-s.x);
   log(nameSpan(s)+' lobs a <b>BLAM frag</b> — it lands, primed.');
   addFloater(gx,gy-14,'PRIMED',C.hazard);
   sTick();
   pickMode=null;
-  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+500;}
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=clock()+500;}
   camGoal={x:gx,y:gy,z:Math.max(cam.z,0.9)};
   syncUI();
 }
@@ -3156,15 +3409,16 @@ function useStim(s){
   addFloater(s.x,s.y-40,'+'+heal+' STIM',C.go);
   log(nameSpan(s)+' <span class="g">slams a stim</span> — +'+heal+' hp.');
   sLoot();
-  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=performance.now()+450;}
+  if(engageQ&&engageQ.cur){engageQ.cur=null;engageQ.nextAt=clock()+450;}
   syncUI();
 }
 function playerHold(){
   const c=engageQ&&engageQ.cur;
   if(!c||c.stage!=='await')return;
   sTick();
-  log(nameSpan(c.s)+' <span class="d">holds fire.</span>');
-  engageQ.cur=null;engageQ.nextAt=performance.now()+220;syncUI();
+  if(WPN[c.wkey]&&WPN[c.wkey].steady){c.s.steadyT=c.t.id;log(nameSpan(c.s)+' <span class="d">holds fire and settles the sights on</span> '+nameSpan(c.t)+' <span class="d">(Steady: +'+STEADY_BONUS+' next shot at them)</span>.');}
+  else log(nameSpan(c.s)+' <span class="d">holds fire.</span>');
+  engageQ.cur=null;engageQ.nextAt=clock()+220;syncUI();
 }
 function mkObjTarget(p){
   return {obj:true,prop:p,name:'FUEL CANISTER',first:'canister',side:'obj',x:p.x,y:p.y,
@@ -3186,8 +3440,7 @@ function retargetCanister(p){
 }
 function retarget(t){
   const c=engageQ&&engageQ.cur;
-  if(!c||c.stage!=='await'||!(t.side==='law'||(t.veh&&t.owner==='law'))||t.down||t.surr)return;
-  if(t.manning&&shieldBlocks(c.s,t)){addFloater(t.x,t.y-30,'TURRET SHIELD',C.shield);return;}
+  if(!c||c.stage!=='await'||!(t.side==='law'||(t.veh&&(t.owner==='law'||!crewIn(t).length)))||t.down||t.surr)return;
   const w=bestWeapon(c.s,t)||c.wkey;
   if(!validShot(c.s,t,w))return;
   engageQ.cur=makeCur(c.s,t,w);
@@ -3238,6 +3491,7 @@ function endRound(){
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)workStep(wp,worker);
   }
+  for(const u of U)if(u.semiT&&coolStateG(u)==='panic')resetChain(u);   // panic breaks a semi-auto chain
   // a round without taking fire steadies the nerve
   for(const u of U){
     if(u.side==='civ'||u.down||u.surr||u.extracted||u.away)continue;
@@ -3295,7 +3549,7 @@ function doCrossAway(){
   const sera=U.find(u=>u.id==='sera');
   if(sera)sera.xpGain=(sera.xpGain||0)+0.25;
   sera.away=1;sera.order=null;
-  crossFx={t0:performance.now()};
+  crossFx={t0:clock()};
   sTakeoff();
   camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
   log('<span class="g">The Cross is up!</span> Sera takes her low over the rooftops and gone.');
@@ -3429,6 +3683,7 @@ function buildResult(win){
     if(u.inj&&u.inj.length)rec.inj=u.inj.map(i=>({k:i.k,treated:!!i.treated}));
     if(u.treats)rec.treats=u.treats;
     if(u.packsUsed)rec.packs=u.packsUsed;
+    if(u.deployed==='riotshield'&&u.shieldBroke)rec.broke=['riotshield'];
     if(u.rescued&&u.rescued.length)rec.rescued=u.rescued.slice();
     if(u.minHp!==undefined)rec.minHp=Math.round(u.minHp*100)/100;
     if(u.rockets)rec.heavy=u.rockets;
@@ -3450,10 +3705,10 @@ function buildResult(win){
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
   const R=(opt&&opt.r)||135,D0=(opt&&opt.d0)||45,D1=(opt&&opt.d1)||70;
-  sBoomBig();shake=performance.now();
+  sBoomBig();
+  juice(opt&&opt.rocket?'rocket':'grenade',x,y,{r:R});   // freeze, shake, debris, embers, smoke and a shockwave
   decals.push({x,y,r:(R/135)*(52+rng()*14)});
-  boomFx.push({x,y,t0:performance.now(),dur:700,R});
-  for(let k=0;k<10;k++)parts.push({x:x+(rng()-0.5)*60,y:y+(rng()-0.5)*60,vx:(rng()-0.5)*90,vy:-30-rng()*60,r:5+rng()*7,a:0.35,col:'#3a3430',t0:performance.now(),dur:1300});
+  if(!(opt&&opt.quiet))boomFx.push({x,y,t0:clock(),dur:700,R});   // quiet: the art kit draws this one (a strafing run)
   for(const u of U){
     if(u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
     const d=Math.hypot(u.x-x,u.y-y);
@@ -3468,7 +3723,7 @@ function explode(x,y,opt){
     if(p.dead)continue;
     const d=Math.hypot(p.x-x,p.y-y);
     if(d<10)continue; // the one that just went up
-    if(p.kind==='canister'&&d<R+15){p.dead=true;exploQ.push({x:p.x,y:p.y,at:performance.now()+120+rng()*160});}
+    if(p.kind==='canister'&&d<R+15){p.dead=true;exploQ.push({x:p.x,y:p.y,at:clock()+120+rng()*160});}
     else if(d<R+5&&PROPDEF[p.kind].hp!==undefined)chipCover(p,120);
   }
   if(town==='calm')alertTown('Half the town heard that.');
@@ -3497,42 +3752,126 @@ function clipShot(x1,y1,x2,y2){
   }
   return {x:x2,y:y2,wall:false};
 }
-function fireFx(s,t,wkey,hit){
-  const w=WPN[wkey];
+/* A trigger pull on screen (art handoff: Volleys). SR_ART.volley turns the one roll into a burst of rounds, re-rolled
+   every time; the rounds that land split the damage between them, so the numbers always add up to the roll. Misses
+   fly past and strike the ground or a wall behind. res is the attack being resolved: its rounds wait to land until its
+   damage is in (res.done). Returns when the first and last rounds land, in ms from now. */
+const machine=u=>!!(u&&(u.auto||u.bot||u.veh||u.obj));
+function fireFx(s,t,wkey,hit,dmg,res){
+  const w=WPN[wkey]||{},P=SA.PROJ[wkey],now=clock();
   const ang=Math.atan2(t.y-s.y,t.x-s.x);
-  if(s.manning)turret.face=ang; // the gun (and its shield) tracks where it shoots
-  if(w.beam){
-    const end=hit?{x:t.x,y:t.y}:clipShot(s.x,s.y,s.x+Math.cos(ang+0.06)*(dist(s,t)+90),s.y+Math.sin(ang+0.06)*(dist(s,t)+90));
-    tracers.push({x1:s.x+Math.cos(ang)*30,y1:s.y+Math.sin(ang)*30,x2:end.x,y2:end.y,t0:performance.now(),dur:200,col:s.side==='reb'?C.rebel:C.heg,beam:1});
-    parts.push({x:end.x,y:end.y,vx:0,vy:0,r:12,a:0.8,col:'#ff8f9a',t0:performance.now(),dur:160,flash:1});
-    sLaser();
-    if(!hit)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-end.x,p.y-end.y)<30)detonate(p);
-    return;
+  if(s.manning)turret.face=ang; // the gun (and its sandbags' open side) tracks where it shoots
+  const h0=26*actorScale(s),ht=t.obj?8:t.veh?16:30*actorScale(t);
+  const x0=s.x+Math.cos(ang)*14,y0=s.y-h0,x1=t.x,y1=t.y-ht;
+  dmg=hit?Math.max(0,dmg||0):0;
+  let mode=modeOf(s,wkey)||'semi',plan,lands;
+  if(!P||P.type==='melee'||(hit&&dmg<3)){   // fists, a beam with no art, or a hit too small to split: one round
+    plan={key:wkey,mode:'single',hit,rounds:[{fire:0,hit,dmg,dAng:hit?0:(Math.random()<0.5?-1:1)*0.1,range:hit?1:1.25,jx:0,jy:0}]};
+  } else {
+    if(hit&&dmg<8&&mode==='auto')mode='semi';
+    plan=SA.volley(wkey,mode,{hit,damage:dmg});
   }
-  const shots=w.pellets?5:(w.shots||1);
-  const bkind=(wkey==='carbine'||WDAM[wkey]==='plasma')?'plasma':'ballistic';   // the carbine draws as plasma though it hits as ballistic (C-23)
-  const bside=s.side==='reb'?'reb':'heg';
-  const h0=26*actorScale(s);   // bolts leave at the muzzle, not the feet
-  for(let i=0;i<shots;i++){
-    const spread=w.pellets?(i-2)*0.09:(hit?0:(rng()-0.5)*0.16)+(rng()-0.5)*0.03;
-    const a=ang+spread;
-    const d=dist(s,t)+(hit?0:rint(40,120));
-    const mx=s.x+Math.cos(a)*14,my=s.y+Math.sin(a)*14;
-    const end=clipShot(mx,my,s.x+Math.cos(a)*d,s.y+Math.sin(a)*d);
-    const ex=end.x,ey=end.y;
-    tracers.push({x1:mx,y1:my-h0,x2:ex,y2:ey-(end.wall?0:h0*0.6),
-      t0:performance.now()+i*(w.pellets?0:90),dur:110,kind:bkind,side:bside});
-    if(end.wall){
-      for(let k=0;k<6;k++)parts.push({x:ex,y:ey,vx:(rng()-0.5)*60,vy:-rng()*50,r:1.5+rng()*2,a:0.5,col:'#8a7a60',t0:performance.now()+i*90,dur:500});
-    } else hits.push({x:ex,y:ey-h0*0.6,t0:performance.now()+i*(w.pellets?0:90)+90,dur:260});
-    // stray rounds find fuel canisters
-    if(!hit&&!end.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-ex,p.y-ey)<28)detonate(p);
+  // misses that would fly through a wall stop at it
+  const D=Math.hypot(x1-x0,y1-y0)||1;
+  plan.rounds.forEach(r=>{
+    if(r.hit)return;
+    const a=ang+r.dAng,far=D*r.range,e=clipShot(x0,s.y,x0+Math.cos(a)*far,s.y+Math.sin(a)*far);
+    if(e.wall){r.range=Math.max(0.2,Math.hypot(e.x-x0,e.y-s.y)/D);r.wall=1;}
+  });
+  lands=P?SA.volleyImpacts(plan,x0,y0,x1,y1):plan.rounds.map(r=>({at:0.08,x:x1,y:y1,hit:r.hit,dmg:r.dmg}));
+  lands.forEach((L,i)=>{L.wall=plan.rounds[i].wall;});
+  if(w.beam&&!P)tracers.push({x1:x0,y1:y0,x2:lands[0].x,y2:lands[0].y,t0:now,dur:200,col:s.side==='reb'?C.rebel:C.heg,beam:1});
+  const ats=lands.map(L=>L.at),hitAts=lands.filter(L=>L.hit).map(L=>L.at);
+  const first=Math.round(1000*Math.min(...(hitAts.length?hitAts:ats))),last=Math.round(1000*Math.max(...ats));
+  vols.push({s,t,key:wkey,plan,lands,x0,y0,x1,y1,ht,t0:now,dur:last+600,draw:!!P&&P.type!=='melee',mode:plan.mode,res:res||null,
+    cum:0,crit:!!(res&&res.crit),dtype:WDAM[wkey]||'ballistic',dir:ang,first:true});
+  if(P&&P.type!=='melee'){
+    juice('shot',s.x,y0+h0*0.4,{dir:ang,noStop:true,brass:WDAM[wkey]==='ballistic'});   // energy weapons throw no brass
   }
-  // the muzzle flash comes from the firing pose; only the brass stays here
-  casings.push({x:s.x,y:s.y-h0*0.5,vx:(rng()-0.5)*40-Math.cos(ang)*30,vy:-40-rng()*30,t0:performance.now()});
+  if(wkey==='scatter'||wkey==='rocket')SHK.add(0.14);
   sShot(wkey);
   if(!hit&&rng()<0.4)sRico();
-  if(wkey==='scatter')shake=performance.now();
+  return {first,last};
+}
+/* rounds land when their time comes (on the game clock, so hitstop holds them too) */
+function juiceTick(now){
+  for(const v of vols){
+    if(v.res&&!v.res.done)continue;
+    for(const L of v.lands)if(!L.done&&now>=v.t0+L.at*1000){L.done=1;landRound(v,L,now);}
+  }
+  vols=vols.filter(v=>now<v.t0+v.dur||(v.res&&!v.res.done&&now<v.t0+10000));   // an attack still resolving keeps its rounds
+}
+function landRound(v,L,now){
+  const t=v.t,P=SA.PROJ[v.key],style=P&&P.style;
+  if(v.key==='rocket'){   // the rocket bursts where it lands; the damage is the attack's
+    const gx=L.hit?t.x:L.x,gy=L.hit?t.y:L.y+v.ht;
+    boomFx.push({x:gx,y:gy,t0:now,dur:600,R:70});decals.push({x:gx,y:gy,r:26});
+    juice('rocket',gx,gy,{r:70,k:0.7});
+  }
+  if(!L.hit){
+    impFx.push({x:L.x,y:L.y,t0:now,dur:380,o:{dtype:v.dtype,surface:'cover',dir:v.dir,style,seed:(Math.random()*999)|0}});
+    if(!v.plan.hit&&!v.missed){v.missed=1;addPop(t.x,t.y-58,'MISS','#c8d0dc');}
+    if(!L.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-L.x,p.y-(L.y+v.ht))<30)detonate(p);   // stray rounds find fuel canisters
+    return;
+  }
+  // which layer took this round: the riot shield, the energy shield and the armour soak first, in that order
+  const k=t._soak||{},c0=v.cum;v.cum+=L.dmg;
+  const r1=k.riot||0,r2=r1+(k.sd||0),r3=r2+(k.ad||0);
+  const surf=t.obj?'cover':c0<r1?'armour':c0<r2?'shield':c0<r3?'armour':machine(t)?'robot':'flesh';
+  const col=surf==='shield'?C.shield:(surf==='armour'&&c0<r3)?C.steel:t.side==='reb'?C.hazard:C.goldHi;
+  impFx.push({x:L.x,y:L.y,t0:now,dur:surf==='flesh'?520:420,o:{dtype:v.dtype,surface:surf,dir:v.dir,style,seed:(Math.random()*999)|0,size:v.key==='scatter'?1.3:1,gore:goreOn()}});
+  if(L.dmg>0)addPop(L.x+(Math.random()-0.5)*10,L.y-16,'-'+L.dmg,col,{crit:v.crit&&v.first});
+  if(!t.obj)hitPose(t);
+  if(surf==='shield')t._shHitT=now;
+  const ev=v.first&&v.crit?'crit':surf==='armour'?'armourHit':'hit';
+  juice(ev,L.x,L.y,{dir:v.dir,k:v.first?1:0.4,noStop:!v.first});
+  if(surf==='flesh'&&goreOn())bleed(t,v.dir,L.dmg);
+  v.first=false;
+}
+/* blood on the ground for the rest of the mission (the Blood setting hides it) */
+function bleed(t,dir,dmg){
+  const a=dir==null?Math.random()*Math.PI*2:dir;
+  decals.push({blood:1,x:t.x+Math.cos(a)*(6+Math.random()*16),y:t.y+Math.sin(a)*(4+Math.random()*8),r:4+Math.min(9,(dmg||8)*0.3),seed:(Math.random()*9999)|0});
+  const b=decals.filter(d=>d.blood);
+  if(b.length>160)decals.splice(decals.indexOf(b[0]),1);
+}
+function drawDecals(){
+  const gore=goreOn();
+  for(const d of decals){
+    if(d.blood){if(gore)SA.bloodSplat(ctx,d.x,d.y,d.r,d.seed,0.85);}
+    else SA.scorch(ctx,d.x,d.y,d.r);
+  }
+}
+function drawJuice(now){
+  for(const v of vols){
+    if(!v.draw)continue;
+    const tt=(now-v.t0)/1000;
+    if(tt>=0)SA.shot(ctx,v.key,v.x0,v.y0,v.x1,v.y1,tt,{mode:v.mode,plan:v.plan});
+  }
+  impFx=impFx.filter(f=>now-f.t0<f.dur);
+  for(const f of impFx)SA.impact(ctx,f.x,f.y,Math.max(0,(now-f.t0)/f.dur),f.o);
+  PFX.draw(ctx);
+  jfx=jfx.filter(f=>now-f.t0<f.dur);
+  for(const f of jfx){
+    const k=Math.max(0,(now-f.t0)/f.dur);
+    if(f.k==='ring')SA.ring(ctx,f.x,f.y,k,f.col,{r:f.r});
+    else if(f.k==='shieldBreak')SA.shieldBreak(ctx,f.x,f.y,k);
+    else if(f.k==='pickup')SA.pickup(ctx,f.item,f.x,f.y,k,now/1000);
+  }
+}
+/* damage numbers, MISS and DOWN: drawn on screen over the world, anchored to it */
+function drawPops(now){
+  if(!pops.length)return;
+  ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
+  for(const p of pops){
+    const k=(now-p.t0)/900;
+    if(k<0||k>1)continue;
+    const [x,y]=worldToCss(p.x,p.y);
+    if(x<-100||x>cssW+100||y<-60||y>cssH+60)continue;
+    SA.popText(ctx,p.text,x,y,k,p.col,{crit:p.crit,dir:p.dir,size:p.size||17});
+  }
+  ctx.restore();
+  pops=pops.filter(p=>now-p.t0<900);
 }
 /* ---------- audio ---------- */
 const sTick=A.tick;
@@ -3546,6 +3885,8 @@ function sShot(wkey){
     for(let i=0;i<2;i++){nz('highpass',2600,1,0.15,0.06,i*0.11);osc('square',260,80,0.09,0.07,i*0.11);}
   } else if(wkey==='scatter'){
     osc('sine',120,30,0.42,0.5);nz('lowpass',800,0.8,0.4,0.55,0,60);nz('bandpass',320,1.2,0.16,0.3,0.03);
+  } else if(wkey==='razorrat'){ // a short LMG burst
+    for(let i=0;i<5;i++){nz('highpass',2200,1,0.14,0.05,i*0.07);osc('square',190,65,0.09,0.06,i*0.07);}
   } else if(wkey==='doorgun'){ // the heavy door gun: five slow, deep reports
     for(let i=0;i<5;i++){osc('sine',100,34,0.3,0.12,i*0.095);nz('lowpass',700,0.9,0.22,0.16,i*0.095);nz('highpass',2000,1,0.08,0.04,i*0.095);}
   } else { // longiron
@@ -3689,7 +4030,7 @@ function genScatter(){
 }
 /* ---------- drawing ---------- */
 function drawGroundHaven(){
-  const now=performance.now();
+  const now=clock();
   ctx.drawImage(floorCache(),0,0);
   for(const sc2 of scrub){
     ctx.fillStyle='rgba(90,110,96,0.22)';
@@ -3723,7 +4064,7 @@ function drawGroundHaven(){
     if(!op.label)continue;
     plb(op.label,op.x+op.w/2,op.y+26,C.text3,13);
   }
-  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
+  drawDecals();
   // blast door mouth
   const dr=SCN.door;
   ctx.fillStyle='#0e1218';
@@ -3764,9 +4105,9 @@ function drawGround(){
     ctx.fillStyle='rgba(74,86,44,0.3)';
     ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();
   }
-  for(const d of decals)SA.scorch(ctx,d.x,d.y,d.r);
+  drawDecals();
   // street lamps — warm pools in a dust town
-  const lampT=HUD.reduced?0:performance.now()/1000;
+  const lampT=HUD.reduced?0:clock()/1000;
   for(const lp of (SCN.mode==='stealcross'?[[600,772],[1104,880],[1590,772],[2044,880]]:(SCN.lamps||[]))){
     SA.lampLight(ctx,lp[0],lp[1]-56,120);
     SA.prop(ctx,'lamp',lp[0],lp[1],{t:lampT});
@@ -3788,14 +4129,14 @@ function drawGround(){
   for(let i=0;i<6;i++){
     const a=i*Math.PI/3+0.26;
     const px=PAD.x+Math.cos(a)*110,py=PAD.y+Math.sin(a)*110;
-    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(performance.now()*0.004+i))+')';
+    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(clock()*0.004+i))+')';
     ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();
   }
 }
 function drawProps(){
   /* retired: props draw in drawActors' depth sort; dead props leave kit scorch on the ground */
   return;
-  const now=performance.now();
+  const now=clock();
   for(const p of PROPS){
     const d=PROPDEF[p.kind];
     ctx.save();ctx.translate(p.x,p.y);
@@ -3880,29 +4221,14 @@ function drawProps(){
   }
 }
 function drawTurret(now){
+  if(!turretOn())return;
   const g=turret.gunner&&U.find(x=>x.id===turret.gunner);
-  const col=g?(g.side==='reb'?C.rebel:C.heg):C.text3;
-  ctx.save();ctx.translate(TURRET.x,TURRET.y);
-  ctx.fillStyle='rgba(0,0,0,0.35)';
-  ctx.beginPath();ctx.ellipse(4,6,TURRET.r+6,(TURRET.r+6)*0.7,0,0,7);ctx.fill();
-  // mount
-  ctx.fillStyle='#262a32';ctx.beginPath();ctx.arc(0,0,TURRET.r,0,7);ctx.fill();
-  ctx.strokeStyle='#12151c';ctx.lineWidth=3;ctx.stroke();
-  ctx.strokeStyle='#3c4250';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.arc(0,0,TURRET.r*0.62,0,7);ctx.stroke();
-  // barrel
-  ctx.rotate(turret.face);
-  ctx.strokeStyle='#0c0f14';ctx.lineWidth=7;
-  ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(TURRET.r+26,0);ctx.stroke();
-  ctx.strokeStyle=col;ctx.lineWidth=2.5;
-  ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(TURRET.r+24,0);ctx.stroke();
-  // frontal shield — flank it or eat laser
-  const pul=0.5+0.3*Math.sin(now*0.005);
-  ctx.strokeStyle=T.rgba(C.shield,0.55+0.3*pul);ctx.lineWidth=5;
-  ctx.beginPath();ctx.arc(0,0,TURRET.r+9,-SHIELD_ARC,SHIELD_ARC);ctx.stroke();
-  ctx.strokeStyle=T.rgba(C.shield,0.9);ctx.lineWidth=1.6;
-  ctx.beginPath();ctx.arc(0,0,TURRET.r+12,-SHIELD_ARC,SHIELD_ARC);ctx.stroke();
-  ctx.restore();
+  const c=engageQ&&engageQ.cur,t=HUD.reduced?0:now/1000;
+  if(TURRET.bags)for(let i=-2;i<=2;i++){   // sandbags across the front: flank it or eat lead
+    const a=turret.face+i*SANDBAG_ARC/2.4,R=TURRET.r+16;
+    SA.prop(ctx,'sandbags',TURRET.x+Math.cos(a)*R,TURRET.y+Math.sin(a)*R*0.7,{t,biome:groundBiome()});
+  }
+  SA.deployable(ctx,'razorrat',TURRET.x,TURRET.y,turret.face,t,{gunner:g?artSpec(g):null,fire:!!(g&&c&&c.s===g&&c.stage==='fire'),s:actorScale(g||{})});
 }
 function drawWork(now){
   for(const wp of WORK){
@@ -4026,7 +4352,7 @@ function drawWallActor(b,now){
   if(b.name&&!b.sign)plb(b.name,b.x+b.w/2,b.y-12,C.text2,13);
 }
 function drawBldgs(){
-  const now=performance.now();
+  const now=clock();
   for(const b of BLDGS){
     if(!b.terrain)continue;
     if(b.terrain){
@@ -4048,7 +4374,7 @@ function drawBldgs(){
 }
 function drawBldgsOld(){
   for(const b of BLDGS){
-    const now=performance.now();
+    const now=clock();
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.fillRect(b.x+8,b.y+10,b.w,b.h);
     ctx.fillStyle='#15120e';
@@ -4136,11 +4462,11 @@ function groundShadow(x,y,rx,ry){
 function drawDerelict(now){
   const d=SCN.derelict;
   groundShadow(d.x,d.y,110,38);
-  SA.ship(ctx,'graf',d.x,d.y,d.a||0,5.0,HUD.reduced?0:(now||performance.now())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
+  SA.ship(ctx,'graf',d.x,d.y,d.a||0,5.0,HUD.reduced?0:(now||clock())/1000,{livery:'civ',damage:0.5,pilot:null,dark:true,off:true});
   plb('DERELICT HAULER',d.x,d.y-94,C.text2,12);
 }
 function drawGraf(now){
-  now=now||performance.now();
+  now=now||clock();
   let sc=1,ox=0,oy=0;
   const lifting=!!(extractFx&&extractFx.stage==='lift');
   if(lifting){
@@ -4166,8 +4492,8 @@ function drawCross(now){
     sc=1+t*0.25;
     if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  if(!crossFx)groundShadow(x,y,51,18);
-  SA.ship(ctx,'cross',x,y,-0.5,2.2*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
+  if(!crossFx)groundShadow(x,y,79,28);
+  SA.ship(ctx,'cross',x,y,-0.5,3.4*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
   if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
 }
 
@@ -4176,7 +4502,7 @@ const SA=window.SR_ART;
 const actorScale=u=>Math.max(1,0.9/cam.z);
 /* item ids to the art kit's gear keys; anything the kit cannot draw is skipped */
 const ART_GEAR={riotshield:'shield',blam:'frags'};
-const kitArt=kit=>(kit||[]).map(id=>ART_GEAR[id]||id).filter(k=>SA.GEAR&&SA.GEAR[k]);
+const kitArt=kit=>(kit||[]).map(id=>ART_GEAR[id]||id).filter(k=>(SA.GEAR&&SA.GEAR[k])||(SA.ITEMS[k]&&SA.ITEMS[k].cat==='armour'));   // head items draw too
 function artSpec(u){
   const A=SA;
   if(u.art)return u.art;                                 // any rebel, via squadEntry / the pilot entry
@@ -4191,7 +4517,7 @@ function artSpec(u){
   if(u.side==='law')return SCN.style==='rock'?A.ARCH.squatter:A.ARCH.deputy;   // Take the Rock's opposition is the Vult gang
   return A.recruit(u.name||u.id);                       // last resort for a rebel with no record (debug spawns)
 }
-const ORDER_POSE={hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat'};
+const ORDER_POSE={deploy:'deploy',hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat'};
 /* a fixed per-unit phase so units don't blink and bob in sync — never the live
    position: an offset that moves with the unit speeds the cycle up one way and
    runs it backwards the other */
@@ -4228,10 +4554,21 @@ function artPose(u,now){
   if(u.charge)g.push('charge');
   if(g.length||base.length)pose.gear=[...new Set(base.concat(g))];
   const conds=(u.inj||[]).filter(i=>!i.treated).map(i=>i.k);
-  if(conds.length)pose.conds=conds;                      // a Broken Arm from this fight shows a sling straight away
+  if(conds.length)pose.conds=conds;
+  if(u.art)pose.back=u.back||null;                       // a deployed back item leaves the back
+  if(state==='fire'&&pose.weapon){const md=modeOf(u,pose.weapon);if(md)pose.mode=md;}
+  if(now-(u._knockT||0)<700&&!u.down)pose.state='knocked';
+  else if(stunned(u)&&!u.down&&!u.mnt)pose.state='stunned';   // concussed: spiral eyes and stars
+  if(u.shd>0&&u.maxShd){pose.shield=u.shd/u.maxShd;const k=(now-(u._shHitT||0))/400;if(k<1)pose.shieldHit=1-k;}
+  if(now-(u._deployT||0)<900&&!u.down)pose.state='deploy';
+  if(!u.down){   // hit feedback: a white flash decaying at 5 a second, a squash at 6
+    const fl=1-(now-(u._flashT||-1e9))/200,sq=1-(now-(u._sqT||-1e9))/167;
+    if(fl>0)pose.flash=fl*0.85;
+    if(sq>0&&!HUD.reduced)pose.squash=sq;
+  } else if(u._downT)pose.fall=Math.min(1,(now-u._downT)/600);   // the topple, with its bounce                      // a Broken Arm from this fight shows a sling straight away
   return pose;
 }
-const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.mnt&&enclosed(u))&&unitSeen(u));
+const actorList=()=>U.filter(u=>!u.extracted&&!(u.away&&!u.caged)&&!u.office&&!u.csHide&&!(u.landAt&&clock()<u.landAt)&&!(u.mnt&&enclosed(u))&&unitSeen(u));
 function drawActors(now){
   const t=HUD.reduced?0:now/1000;
   const biome=groundBiome();
@@ -4245,6 +4582,7 @@ function drawActors(now){
   if(SCN.hasGraf)items.push({y:grafPos.y+50,f:()=>drawGraf(now)});
   if(SCN.derelict)items.push({y:SCN.derelict.y+50,f:()=>drawDerelict(now)});
   if(SCN.hasPad)items.push({y:PAD.y+36,f:()=>drawCross(now)});
+  if(turretOn())items.push({y:TURRET.y,f:()=>drawTurret(now)});   // the Razorrat draws its own crouching gunner
   items.sort((a,b)=>a.y-b.y);                            // one depth sort by anchor y
   for(const it of items)it.f();
   for(const u of list){u._ax=u.x;u._ay=u.y;}             // cached for next frame's "moved"; never saved
@@ -4275,9 +4613,16 @@ function drawUnitActor(u,now){
       damage:1-u.hp/(u.maxhp||1),t,s:sc2*0.85});
     return;
   }
+  if(u.manning)return;                                    // drawn crouched behind the Razorrat (drawTurret)
   let x=u.x,y=u.y;
   if(u.mnt&&!enclosed(u)){x+=17;y-=31;}                  // an open gun seat perches on the hull
   SA.character(ctx,x,y,artSpec(u),artPose(u,now));
+}
+/* the layered vitals bar (art handoff): 5 health pips, an armour plate and a shield hex per 10 points (up to 5) */
+const segs=(v,max,n)=>max>0?Math.ceil(Math.max(0,v)/max*n-0.001):0;
+function vitalsOf(u){
+  const armMax=u.maxArm?Math.min(5,Math.ceil(u.maxArm/10)):0,shMax=u.maxShd&&u.shd>0?Math.min(5,Math.ceil(u.maxShd/10)):0;
+  return {hp:segs(u.hp,u.maxhp,5),hpMax:5,arm:segs(u.arm,u.maxArm,armMax),armMax,sh:segs(u.shd,u.maxShd,shMax),shMax};
 }
 /* rings, pulses and arcs under the feet, flattened into the ground plane */
 function hudUnderlay(now){
@@ -4380,10 +4725,10 @@ function hudA(now){
     }
     if(cam.z>0.55)L.add(sc(wp.label),x,y+32,{color:gated?C.text3:C.gold,size:12},2);
   }
-  if(SCN.hasTurret&&cam.z>0.55){
+  if(turretOn()&&cam.z>0.55){
     const g=turret.gunner&&U.find(x=>x.id===turret.gunner);
     const [x,y]=worldToCss(TURRET.x,TURRET.y+TURRET.r+22);
-    L.add(g?'Turret · '+g.first:'Laser turret · unmanned',x,y,{color:g?(g.side==='reb'?C.rebel:C.heg):C.text3,size:12},1);
+    L.add(g?'Razorrat · '+g.first:'Razorrat LMG · unmanned',x,y,{color:g?(g.side==='reb'?C.rebel:C.heg):C.text3,size:12},1);
   }
   hudUnits(L,now);
   L.flush(ctx);
@@ -4400,7 +4745,7 @@ function hudUnits(L,now){
     const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
     if(!u.down&&!civ){
       if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-16*cam.z,y+8,u.bunkered?2:cl);}
-      if(!u.surr)T.hpPips(ctx,x,topY,{hp:u.hp,max:u.maxhp});
+      if(!u.surr){const v=vitalsOf(u),extra=(v.armMax?1:0)+(v.shMax?1:0);SA.vitals(ctx,x,topY-4-extra*8,Object.assign(v,{s:1}));}
       if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,topY-20*cam.z,Math.min(1,u.det/100));
     }
     if(u.veh&&!u.down){
@@ -4500,7 +4845,7 @@ function drawOrders(now){
 }
 function drawPing(){
   if(!rtPing)return;
-  const t=(performance.now()-rtPing.t0)/500;
+  const t=(clock()-rtPing.t0)/500;
   if(t<1){
     const [x,y]=worldToCss(rtPing.x,rtPing.y);
     ctx.beginPath();ctx.arc(x,y,8+t*28,0,7);ctx.lineWidth=3;ctx.strokeStyle=T.rgba(C.gold,0.85*(1-t));ctx.stroke();
@@ -4520,6 +4865,14 @@ function drawFloaters(now){
   floaters=floaters.filter(f=>now-f.t0<1500);
 }
 function drawFx(now){
+  hitFx=hitFx.filter(f=>now-f.t0<f.dur);
+  for(const f of hitFx){
+    const k=Math.max(0,(now-f.t0)/f.dur);
+    if(f.k==='shield')SA.shieldHit(ctx,f.x,f.y,k);
+    else if(f.k==='armour')SA.armourHit(ctx,f.x,f.y,k);
+    else if(f.k==='sunder')SA.sunder(ctx,f.x,f.y,k);
+    else if(f.k==='pierce')SA.pierce(ctx,f.x0,f.y0,f.x,f.y,k);
+  }
   for(const tr of tracers){
     const t=(now-tr.t0)/tr.dur;
     if(t<0||t>1)continue;
@@ -4707,7 +5060,7 @@ function startCutscene(){
   bn.querySelector('.big').textContent=SCN.banner[0];
   bn.querySelector('.small').textContent=SCN.banner[1];
   byId('csSkip').hidden=false;
-  cs={t0:performance.now(),fired:{}};
+  cs={t0:clock(),fired:{}};
   if(SCN.hasGraf){grafPos.x=-500;grafPos.y=H+300;grafState='flying';}
   else {grafPos.x=-99999;grafPos.y=-99999;grafState='landed';}
   for(const u of U)if(u.side==='reb'){u.csHide=true;}
@@ -4747,7 +5100,7 @@ function csUpdate(now){
     grafPos.a=lerp(0.5,0.12,t);
   } else {grafPos.x=LZ.x;grafPos.y=LZ.y;grafState='landed';}
   csEvent('land',2.9,el,()=>{
-    sLand();shake=now;
+    sLand();SHK.add(0.3);
     for(let i=0;i<26;i++)parts.push({x:LZ.x+(rng()-0.5)*200,y:LZ.y+(rng()-0.5)*150,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
   });
   // squad walks out
@@ -4791,6 +5144,7 @@ function endCutscene(){
   }
   fsCassIntro();
   enterFree(null);
+  SR.transition('flag',{text:'MOVE OUT'});   // mission start
 }
 /* ---------- prologue: Cass's comm window and the soldier quips (A2/A3) ---------- */
 function drawGroundStatic(now){
@@ -4841,10 +5195,13 @@ function prologueQuips(){
 }
 /* ---------- main render ---------- */
 let hoverW=null;
-function render(now){
+function render(rnow){
   try{
-    const dt=Math.min(0.05,(now-(lastFrame||now))/1000);
-    lastFrame=now;
+    const now=clock(rnow);
+    const dt=Math.min(0.05,Math.max(0,now-(lastFrame||now))/1000),rdt=Math.min(0.05,Math.max(0,rnow-(lastReal||rnow))/1000);
+    lastFrame=now;lastReal=rnow;
+    SHK.enabled=!!(!SR.settings||SR.settings.shake())&&!HUD.reduced;SHK.update(rdt);
+    PFX.update(dt);
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
     if(phase!=='CUTSCENE')fuelUpdate(now);
     if(phase==='FREE'&&!tutFrozen())rtUpdate(now,dt);   // a pause-card freeze stops movement, detection, AI and timers (A4)
@@ -4852,6 +5209,7 @@ function render(now){
     if(phase==='EXEC')execUpdate(now);
     vehSync();
     if(phase==='ENGAGE'){try{attackUpdate(now);}catch(e){recover(e);}}
+    juiceTick(now);
     if(dgRun){try{dgUpdate(now);}catch(e){recover(e);}}
     if(phase==='FREE'||phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE'){civStep(dt);checkBoss();updateVision(now);}
     if(phase==='INTRO')updateVision(now);   // the held scene stays lit; nothing moves and nothing detects
@@ -4868,10 +5226,9 @@ function render(now){
     }
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.fillStyle='#04060d';ctx.fillRect(0,0,cssW,cssH);
-    let shx=0,shy=0;
-    if(now-shake<300){const k=(1-(now-shake)/300)*5;shx=(rng()-0.5)*k;shy=(rng()-0.5)*k;}
+    const sh=SHK.offset(rnow/1000);
     ctx.save();
-    ctx.translate(cssW/2+shx,cssH/2+shy);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
+    ctx.translate(cssW/2+sh.x,cssH/2+sh.y);ctx.rotate(sh.a);ctx.scale(cam.z,cam.z);ctx.translate(-cam.x,-cam.y);
     drawGround();
     if(SCN.tumbleweed)drawTumbleweed(now);
     drawVision();
@@ -4880,7 +5237,6 @@ function render(now){
     drawCage(now);
     drawFS(now);
     drawNades(now);
-    if(SCN.hasTurret)drawTurret(now);
     if(SCN.hasTower)drawTowerBase();
     drawBldgs();                    // terrain plates only; walls join the actor sort
     hudUnderlay(now);               // rings and arcs under the feet
@@ -4889,12 +5245,15 @@ function render(now){
     hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
     drawFx(now);
+    drawJuice(now);                 // volleys, impacts, particles, rings, shield breaks, pickups
     drawDgRun(now);                 // the gun run flies above the fog: everyone watches this
+    drawFsFx(now);                  // strafing runs, supply drops and landings, likewise
     ctx.restore();
     ctx.setTransform(dpr,0,0,dpr,0,0);
     if(phase==='ENGAGE')drawEngageFocus(now);
     drawOrders(now);
     drawFloaters(now);
+    drawPops(now);
     drawBubbles(now);
     vsSync(now);
     drawMinimap(now);
@@ -5074,14 +5433,15 @@ let lastPhase=null;
 const OM={
   move:{label:'Move',icon:'move',family:'move',key:'1',rule:'Walk to a spot within reach. The gun stays up, so you can still fire.'},
   sprint:{label:'Sprint',icon:'sprint',family:'move',key:'2',rule:'Run twice as far. No shot this round, but you are harder to hit.'},
-  hold:{label:'Hold',icon:'hold',family:'stance',key:'3',rule:'Brace and watch. Fire on anyone who crosses your lane.',
-    nums:[{t:'+2 attack braced',kind:'good'},{t:'−2 snap shot',kind:'bad'}]},
+  hold:{label:'Hold',icon:'hold',family:'stance',key:'3',rule:'Brace and watch. Fire on anyone who crosses your lane. A Steady weapon (the Longhorn) takes +2 while braced.',
+    nums:[{t:'+2 attack with a Steady weapon',kind:'good'},{t:'−2 snap shot',kind:'bad'}]},
   cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Dive behind cover you are standing next to. It counts double this round.'},
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',key:'5',rule:'Steady your nerve. A panicking rebel can do nothing else.'},
   loot:{label:'Loot',icon:'loot',family:'util',key:'6',rule:'Grab anything lootable within reach at the end of the round.'},
   work:{label:'Work',icon:'work',family:'util',key:'7',rule:'Finish a job at a panel, clamp or fuel line.'},
-  man:{label:'Man gun',icon:'turret',family:'stance',key:'8',rule:'Take the laser turret. Its front plate stops every shot.'},
-  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the turret at the end of the round.'},
+  deploy:{label:'Deploy',icon:'turret',family:'util',key:'8',rule:'Set up what is on your back as the round opens: a Razorrat LMG where you stand (you get behind it), or a riot shield in your hands in place of your primary weapon. No shot this round.'},
+  man:{label:'Man gun',icon:'turret',family:'stance',key:'8',rule:'Get behind the Razorrat LMG. Its sandbags cover shots from the front (+'+SANDBAG_COVER+' TN).'},
+  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the gun at the end of the round.'},
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run, a gunship, reinforcements, or a vehicle or Bot you brought.'},
@@ -5119,7 +5479,9 @@ function ordersFor(s){
     card('work',{active:!pm&&cur==='work',disabled:!(wp&&s.id!=='sera'&&!s.vip)||injOf(s,'shrapnel'),
       why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':(s.id==='sera'||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
   const g3=[];
-  if(!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
+  if(turretOn()&&!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
+  if(s.back&&DEPLOY[s.back])g3.push(card('deploy',{active:!pm&&cur==='deploy',disabled:!canDeploy(s)||!!deployWhy(s),why:deployWhy(s)||'Not now.',
+    tip:{title:'Deploy '+Items.name(s.back),rule:OM.deploy.rule}}));
   if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack'),disabled:injOf(s,'shrapnel'),why:'Suppressed by shrapnel.'}));
   if(s.jam)g3.push(card('clear',{active:!pm&&cur==='clear'}));
   {const et=enterTargets(s);if(et.length)g3.push(card('enter',{active:!pm&&cur==='enter',tip:{title:'Enter',rule:OM.enter.rule+' Nearest: '+et[0].name+'.'}}));}
@@ -5205,10 +5567,13 @@ function dockHTML(){
         else why='No shot from here.';
       }
       orders.push(HUD.order({label:WPN[w].name,icon:WICON[w]||'gun',family:'fight',key:key(),active:w===c.wkey&&pickMode!=='nadeToss',
-        disabled:!ok,why,attrs:'data-wsel="'+w+'"',tip:{title:WPN[w].name,rule:'Damage '+WPN[w].d0+' to '+WPN[w].d1+', range '+WPN[w].rng+'.'}}));
+        disabled:!ok,why,attrs:'data-wsel="'+w+'"',tip:{title:WPN[w].name,rule:'Damage '+WPN[w].d0+' to '+WPN[w].d1+', range '+WPN[w].rng+'.'+traitText(w)}}));
     }
+    if(c.s.side==='reb'&&modesOf(c.wkey).length>1)orders.push(modeToggleHTML(c.s,c.wkey));
     if(canNade)orders.push(HUD.order({label:'Grenade ×'+NADES,icon:'grenade',family:'fight',key:key(),active:pickMode==='nadeToss',attrs:'data-nade',
       tip:{title:'BLAM frag',rule:'Tap the ground to throw. It lands primed and goes off next round.'}}));
+    if(c.s.side==='reb'&&c.s.maxShd>0)orders.push(HUD.order({label:'Shield up',icon:'shield',family:'util',key:key(),attrs:'data-shield',
+      disabled:c.s.shd>=c.s.maxShd,why:'The shield is already up.',tip:{title:'Shield up',rule:'Raise a '+c.s.maxShd+'-point shield over armour and health. It takes hits first. Costs the shot.'}}));
     if(c.s.side==='reb'&&c.s.stims>0)orders.push(HUD.order({label:'Stim ×'+c.s.stims,icon:'stim',family:'util',key:key(),attrs:'data-stim',
       disabled:c.s.hp>=c.s.maxhp,why:'Already at full health.',tip:{title:'Stim',rule:'Heal 30% of max health. Costs the shot.'}}));
     return HUD.cmdbar({
@@ -5219,8 +5584,35 @@ function dockHTML(){
   }
   return '';
 }
+/* the fire-mode toggle (art handoff): a segmented control in the attack window, shown when the weapon has two
+   or more modes; the selected one is gold and pressed in, and F cycles through them */
+const traitImgCache={};
+function traitImg(k){
+  if(traitImgCache[k]!==undefined)return traitImgCache[k];
+  let u='';
+  try{const c2=document.createElement('canvas');c2.width=c2.height=96;const g=c2.getContext('2d');g.scale(2,2);SA.icon(g,k,24,24,40,{bare:true});u=c2.toDataURL();}catch(e){u='';}
+  return traitImgCache[k]=u;
+}
+function traitText(w){
+  const ks=(Items.traits(w)||[]).filter(k=>SA.TRAITS[k]);
+  return ks.length?' '+ks.map(k=>SA.TRAITS[k].name+': '+SA.TRAITS[k].text).join(' '):'';
+}
+function modeToggleHTML(s,wkey){
+  const cur=modeOf(s,wkey);
+  return '<div class="fm-toggle" role="group" aria-label="Fire mode, F to cycle"><span class="fm-toggle__lab">Fire mode · F</span><span class="fm-toggle__row">'+
+    modesOf(wkey).map(m=>{const T2=SA.TRAITS[m]||{name:m,text:''},on=m===cur;
+      return '<button type="button" class="fm-btn'+(on?' is-on':'')+'" data-fmode="'+m+'" aria-pressed="'+on+'" title="'+T2.name+': '+T2.text+'">'+
+        (traitImg(m)?'<img src="'+traitImg(m)+'" alt="">':'')+'<span>'+T2.name+'</span></button>';}).join('')+'</span></div>';
+}
+function pickFireMode(m){
+  const c=engageQ&&engageQ.cur;
+  if(!c||c.stage!=='await')return;
+  setMode(c.s,c.wkey,m);
+  c.atk=computeATK(c.s,c.t,c.wkey,false);c.revealA=c.atk.entries.length;c.need=needFor(c.tn.total,c.atk.total);
+  sTick();syncUI();
+}
 /* rail rows */
-const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
+const ORDER_TAG={deploy:['turret','Deploy'],move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
 const tag=HUD.tag;
 function statusTag(u){
   if(u.veh){
@@ -5233,7 +5625,7 @@ function statusTag(u){
   if(u.extracted)return tag('Extracted','good');
   if(u.down)return tag('Down','bad');
   if(u.surr)return tag('Surrendered','');
-  if(u.manning)return tag('On turret','friend','turret');
+  if(u.manning)return tag('On the gun','friend','turret');
   if(u.office)return tag('In his office','');
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return tag('Hotwiring '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'action');
   if(u.jam)return tag('Jammed','bad','unjam');
@@ -5264,7 +5656,11 @@ function unitRow(u){
   const frac=u.maxhp?u.hp/u.maxhp:0;
   let cells='';
   for(let i=0;i<5;i++)cells+='<i class="sr-hp__cell'+(u.hp>i*(u.maxhp/5)?' is-on':'')+'"></i>';
-  const hp='<span class="sr-hp'+(frac<0.35?' sr-hp--low':frac<0.6?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+cells+'</span>'+
+  const bar=(v,max,c,lab)=>{let g='';for(let i=0;i<5;i++)g+='<i class="sr-hp__cell'+(v>i*(max/5)?' is-on':'')+'"></i>';
+    return '<span class="sr-hp sr-hp--layer" style="--hp:var('+c+')"'+HUD.tip(lab,Math.max(0,Math.round(v))+' of '+max)+'><span class="sr-hp__cells">'+g+'</span>'+
+      (foe?'':'<span class="sr-hp__num">'+Math.max(0,Math.round(v))+'</span>')+'</span>';};
+  const hp=(u.maxShd&&u.shd>0?bar(u.shd,u.maxShd,'--sr-shield','Shield').replace('sr-hp--layer','sr-hp--layer sr-hp--shd'):'')+(u.maxArm?bar(u.arm,u.maxArm,'--sr-steel','Armour').replace('sr-hp--layer','sr-hp--layer sr-hp--arm'):'')+
+    '<span class="sr-hp'+(frac<0.35?' sr-hp--low':frac<0.6?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+cells+'</span>'+
     (foe?'':'<span class="sr-hp__num">'+Math.max(0,Math.round(u.hp))+'</span>')+'</span>';
   const nm=u.name+(u.charge?' ✸':'')+(u.spec==='fieldtech'?' ⌨':'');
   const gone=u.down||u.extracted||u.away||u.surr;
@@ -5459,6 +5855,7 @@ function orderAct(act,el){
   else if(act==='hold'){s.order={type:'hold'};autoAdvance();}
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
+  else if(act==='deploy'){if(canDeploy(s)&&!deployWhy(s)){s.order={type:'deploy'};autoAdvance();}}
   else if(act==='treat'){if(treatPick(s)){s.order={type:'treat'};autoAdvance();}}
   else if(act==='rally'){if(s.hero&&!s.heroUsed){s.order={type:'rally'};autoAdvance();}}
   else if(act==='work'){
@@ -5495,11 +5892,18 @@ DOCK.addEventListener('click',ev=>{
     const c=engageQ&&engageQ.cur;
     if(c&&c.stage==='await')useStim(c.s);
   }
+  else if(b.hasAttribute('data-shield')){
+    const c=engageQ&&engageQ.cur;
+    if(c&&c.stage==='await'&&raiseShield(c.s)){sTick();engageQ.cur=null;engageQ.nextAt=clock()+450;syncUI();}
+  }
   else if(b.hasAttribute('data-nade')){
     if(engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
       pickMode=(pickMode==='nadeToss')?null:'nadeToss';
       sTick();syncUI();
     }
+  }
+  else if(b.hasAttribute('data-fmode')&&engageQ&&engageQ.cur&&engageQ.cur.stage==='await'){
+    pickFireMode(b.getAttribute('data-fmode'));
   }
   else if(b.hasAttribute('data-wsel')&&engageQ&&engageQ.cur&&engageQ.cur.stage==='await'){
     const c=engageQ.cur;
@@ -5558,10 +5962,12 @@ menuEl.innerHTML=HUD.menuHtml([
   {id:'menuSound',icon:'soundon',label:'Sound',kbd:'M'},
   {id:'menuLog',icon:'comms',label:'All reports'},
   {id:'menuControls',icon:'help',label:'Controls'},
+  ...SR.settings.menuItems(),
   {sep:1},
   {id:'restartBtn',icon:'restart',label:'Restart mission',kind:'danger'},
   {id:'dbgSkip',icon:'debug',label:'Debug: skip mission',kind:'debug'}]);
 HUD.menuBind(menuEl,$('menuBtn'));
+SR.settings.bind(menuEl);
 const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
   '<div class="sr-stack">'+[
     [SR.touch?'Tap the ground':'Right-click the ground','Send the squad (free move)'],
@@ -5662,6 +6068,11 @@ addEventListener('keydown',ev=>{
   }
   if(k==='x'||k==='X'){const b=DOCK.querySelector('[data-ract="cancel"]:not(:disabled)');if(b)b.click();return;}
   if(k==='m'||k==='M'){toggleSound();return;}
+  if(k==='f'||k==='F'){   // cycle the fire mode in the attack window
+    const c=engageQ&&engageQ.cur;
+    if(c&&c.stage==='await'&&c.s.side==='reb'){const ms=modesOf(c.wkey);if(ms.length>1){ev.preventDefault();pickFireMode(ms[(ms.indexOf(modeOf(c.s,c.wkey))+1)%ms.length]);}}
+    return;
+  }
   if((k==='c'||k==='C')&&phase==='FREE'&&town==='calm'){setSneak(!sneak);return;}
   if(k==='Enter'&&!onBtn){
     const b=DOCK.querySelector('#attackBtn,#executeBtn,#extractBtn,#callBtn,#detBtn');
@@ -5697,7 +6108,8 @@ function initState(){
   turret={gunner:null,face:Math.PI};
   NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
   sneak=false;launchNagged=false;
-  floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];
+  floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];hitFx=[];fsFx=[];
+  pops=[];vols=[];impFx=[];jfx=[];PFX.list.length=0;SHK.trauma=0;
   fogInit();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;extractFx=null;
@@ -5764,7 +6176,7 @@ function tutNeedsAck(){const t=TUT[tutIdx];return !!(t&&t.pause&&!tutAck[tutIdx]
 function tutReady(){
   const t=TUT[tutIdx];
   if(!t||(t.when&&!t.when()))return false;
-  return performance.now()>=tutGateT;
+  return clock()>=tutGateT;
 }
 function tutFrozen(){
   if(!SCN||!SCN.tutorial||phase!=='FREE')return false;
@@ -5774,7 +6186,7 @@ function tutTick(){
   const card=byId('tutCard');
   if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
   while(tutIdx<TUT.length-1&&TUT[tutIdx].done())tutIdx++;
-  if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=performance.now()+(tutIdx?TUT_GAP:0);}
+  if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=clock()+(tutIdx?TUT_GAP:0);}
   // a card waits unseen until its when() is met and it has had a beat to breathe
   if(!tutReady()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
   if(tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;fsCassIntro();syncUI();}   // the Fire Support card is up: Cass unlocks and pipes up (A5)
@@ -5868,11 +6280,13 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{SCENARIOS_:()=>SCENARIOS,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
+      computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
+      clock,hitstop,juice,juiceTick,decals_:()=>decals,juice_:()=>({pops,vols,impFx,jfx,parts:PFX.list,trauma:SHK.trauma,stopped:!!HS.until&&performance.now()<HS.until}),
+      juiceOn(v){juiceLive=v!==false;},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }
 })();

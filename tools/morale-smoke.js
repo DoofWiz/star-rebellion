@@ -36,7 +36,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.injury=[m('dax'),m('runa'),m('kel'),m('joss')];
   // death: everyone -6, mission team -10 (rolls pinned so no trait is granted on the side)
   f.setRng(()=>0.99);
-  G().people.forEach(p=>p.morale=60);
+  G().people.forEach(p=>{p.morale=60;p.tired=0;p.weary=0;});   // rested, so the back-to-back debriefs do not make Runa weary
   f.applyDebrief({missionId:'none',days:0,people:[{id:'kel',xp:0,state:'lost'},{id:'runa',xp:0,state:'ok'}]});
   out.death=[G().people.some(p=>p.id==='kel'),m('runa'),m('dax'),m('joss')];
   // the daily pulse: warn at <=20, desertion at 0, drift toward steady, nobody on a mission leaves

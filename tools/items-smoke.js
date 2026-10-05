@@ -23,7 +23,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.kitAkli=[KIT.akli.name,KIT.akli.slot,KIT.akli.w,KIT.akli.price,KIT.akli.live,KIT.akli.maker].join();
   out.kitCarbine=[KIT.carbine.heg,KIT.carbine.price===undefined,KIT.baton.live].join();
   // every live weapon has combat stats; no weapon slot holds a builtin
-  out.liveNoStats=rows.filter(x=>x.category==='weapon'&&x.live&&x.damage_min==null).map(x=>x.id);
+  out.liveNoStats=rows.filter(x=>x.category==='weapon'&&x.live&&x.damage_min==null&&!x.deployable).map(x=>x.id);   // a deployable riot shield has no gun stats
   // the starting armory comes from the table
   out.start=G().armory.map(a=>a.id+':'+a.n+':'+(a.src||'')).join();
   // grant, take and the guards
@@ -48,12 +48,12 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.kitIds,'KIT is the owned part of the items table, in table order');
  ok(r.kitAkli==='Akli AR,primary,3,140,1,Bhord','KIT rows keep their fields '+r.kitAkli);
  ok(r.kitCarbine==='1,true,0','Hegemony kit has no price; live:0 reads 0 '+r.kitCarbine);
- ok(!r.liveNoStats.length,'every live weapon has stats '+r.liveNoStats);
+ ok(!r.liveNoStats.length,'every live weapon has stats (the riot shield aside) '+r.liveNoStats);
  ok(r.start==='akli:6:start,cowboy:4:start,medpack:4:start','the opening armory is granted from the table '+r.start);
  ok(r.grant==='1,3,looted,Akli AR','grant stacks and keeps the first source '+r.grant);
  ok(r.take==='3,0','take stops at what is there and drops the empty stack '+r.take);
  ok(r.guards==='true,true,true','grant refuses display names, builtins and unknown ids '+r.guards);
- ok(r.poolHegWeapons==='carbine,hg40'&&r.poolHegAll==='baton,riotshield','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
+ ok(r.poolHegWeapons==='carbine,hg40,riotshield'&&r.poolHegAll==='baton','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
  ok(r.rollArmour==='autohelm,cap,cowboyhat,hardhat','a roll draws only from its pool '+r.rollArmour);
  ok(r.rollWeighted==='longiron'&&r.rollEmpty===null,'weights steer a roll; an empty pool rolls nothing '+r.rollWeighted+' '+r.rollEmpty);
 
@@ -66,7 +66,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const WPN=f.WPN_(),WDAM=f.WDAM_(),WICON=f.WICON_();
   out.wpn=Object.keys(WPN).sort().join();
   out.akli=[WPN.akli.d0,WPN.akli.d1,WPN.akli.rng,WPN.akli.shots,!!WPN.akli.jam,WDAM.akli,WICON.akli].join();
-  out.scatter=[!!WPN.scatter.pellets,!!WPN.scatter.falloff,WDAM.rocket,!!WPN.laser.beam].join();
+  out.scatter=[!!WPN.scatter.pellets,!!WPN.scatter.falloff,WDAM.rocket,!!WPN.razorrat.pierce,!!WPN.stiletto.sunder].join();
   const S=f.SCENARIOS_(),bad=[];
   for(const k in S)for(const l of S[k].loots||[])for(const it of l.items||[])if(!I.get(it)||I.get(it).category==='builtin')bad.push(k+':'+it);
   // every enemy carries items the table knows, and draws a weapon with stats
@@ -76,9 +76,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.bad=bad;
   return out;
  });
- ok(g.wpn==='akli,autohand,carbine,cowboy,cruiser,dispersal,fists,hg40,laser,longiron,rocket,scatter,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
+ ok(g.wpn==='akli,autohand,carbine,cowboy,cruiser,dispersal,fists,hg40,longiron,razorrat,rocket,scatter,stiletto,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
  ok(g.akli==='24,38,540,3,true,ballistic,gun','the Akli keeps its numbers '+g.akli);
- ok(g.scatter==='true,true,explosive,true','flags and damage types carry over '+g.scatter);
+ ok(g.scatter==='true,true,explosive,true,true','flags and damage types carry over '+g.scatter);
  ok(!g.bad.length,'every loot crate and enemy weapon is a known id '+g.bad);
 
  // ---- the debrief turns loot ids into armory stacks and readable reward lines
@@ -97,14 +97,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // the Arsenal dossier reads the table's description, then a looted stack's source line
   f.openArsenal();f.setArSel('kit','akli');
   out.blurbAkli=(document.querySelector('.ar-blurb')||{}).textContent||'';
-  f.setArSel('kit','scatter');
+  f.setArSel('kit','carbine');
   out.blurbScatter=(document.querySelector('.ar-blurb')||{}).textContent||'';
   f.closeArsenal();
   return out;
  });
  ok(d.armory==='carbine:1:looted,scatter:2:looted','loot ids become armory stacks '+d.armory);
  ok(d.reward.indexOf('Peacekeeper Carbine')>=0&&d.reward.indexOf('Varmint Shotgun')>=0,'the reward window names the loot '+d.reward.slice(0,200));
- ok(/^Ballistic assault rifle/.test(d.blurbAkli),'the Arsenal shows the table description '+d.blurbAkli);
+ ok(/^About as common a sight/.test(d.blurbAkli),'the Arsenal shows the table description '+d.blurbAkli);
  ok(/Hegemony/.test(d.blurbScatter),'looted kit without a description says where it came from '+d.blurbScatter);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));

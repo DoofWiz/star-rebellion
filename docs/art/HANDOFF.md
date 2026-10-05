@@ -226,7 +226,7 @@ Biome: `SCN.style==='rock' ? 'rock' : 'dust'`.
   ```
   `jobPose`: workshop → `work`, comms → `hack`, store → `loot`, training → `aim`, everything else → `idle`. Keep the name text under the feet. Add `SR_ART.emote` bubbles for staffed posts: ☕ command, 🔧 workshop, 📡 comms, 📦 store.
 - `personSpec(p)`: `SR_ART.lookOf(p)` (see above). Support staff carry no weapon, so room views show them with their hands free or with a job prop.
-- `fighterTop(...)` (line ~1770) becomes `SR_ART.ship` from the top down at a small scale, with `damage` from saved hull state. The derelict Graf in the hangar uses `damage:0.5, pilot:null` until it's restored.
+- `fighterTop(...)` (line ~1770) becomes **`SR_ART.shipIso(ctx, id, x, y, heading, s, k, t, {livery, damage, pilot})`**, where `k` is the room view's isometric scale (the same one used for the floor and crew). Top-down ships look flat in the isometric rooms, so `shipIso` lays the same parts on the iso floor, stacks the hull for thickness and stands it on landing struts with its engines cold. Damage comes from saved hull state. Pass `pilot:null` unless someone's aboard. The derelict Graf uses `damage:0.5, pilot:null` until it's restored.
 - Crew lists, the dossier header and the multi-card New Recruit screen (DOM): replace initials with a 48px canvas that draws `SR_ART.portrait(ctx, 24, 24, 22, SR_ART.lookOf(p))`. Cache it as a data URL, keyed on the record fields above. New Recruit cards show the candidate exactly as they'll look in the field.
 
 ## Galaxy map (`drawGalaxy`, base.js ~2248)
@@ -365,6 +365,8 @@ SR_ART.vehicle(ctx, id, x, y, heading, s, t, {
   loadout:{attach:[...]}, gunner, aim  // Floatin' Truck attachments; gunner is any character spec
 });
 SR_ART.strider(ctx, x, y, {view, dir, state:'idle'|'walk'|'aim'|'fire'|'down', mood:'friendly'|'angry'|'hacked', damage, t, s});
+// The Strider is a riot-control war machine; its face is a hologram projected above the hull, so leave headroom (~130 units at s=1) when depth-sorting labels above it.
+SR_ART.shipIso(ctx, id, x, y, heading, s, k, t, opts) // ships parked in isometric spaces (Haven Rock hangar)
 SR_ART.VEHICLES  // police, riottransport, riotdispersal, truck
 ```
 
@@ -380,6 +382,159 @@ The footprint is drawn flat in the ground plane at the unit's heading and extrud
 
 `autoType:'bruiser'` isn't described in the Enemies doc yet. Until it is, draw it with the Policebot archetype at `big:1.25`.
 
+
+## Update: October 5 docs (Gear, Ground Combat) and the repo
+
+This round follows the updated *Gadgets, Gear and Gunships* and *Ground Combat* docs and the repo at `c27acec`.
+
+**Merge note:** this `sr-art.js` was rebuilt on top of the repo's copy. It keeps Claude Code's own additions: the `off` option on `ship()` for powered-down landed ships, and `planetTex()` with the `tex` option on `planet()`. Drop it in over `game/art/sr-art.js`. Nothing the game already calls has changed signature.
+
+### Items, makers and names (resolves C-18 and C-23)
+
+| Change | What to do in the game |
+|---|---|
+| **New items** `stiletto` (ST Stiletto, Fightstar plasma carbine) and `razorrat` (Razorrat LMG, Bhord, deployable) | Add rows to `items` with these ids. The art already draws them |
+| **New item art** for `policehelmet`, `autohelm`, `cowboyhat`, `cap`, `limpet`, `shells` | Remove their sr-icons fallbacks; `artURL('item', id)` now finds them |
+| `ITEMS.charge` now exists (the C90) | `ART_ITEM_ALIAS` in `base.js` can go |
+| `carbine` is the **EG-55 Peacekeeper Carbine**, Fightstar, **plasma** | Settles C-23: set `damage_type` to plasma and rename it |
+| Makers from the doc: Cowboy, Longhorn and Varmint are Devlin & Son; the Mining Laser and Hardhat are Praxon; the HG-40, Baton, Riot Shield, Police Vest and Police Helmet are Patriot; the Auto Plasma Hand is crafted with no maker | Settles C-18's maker list; fill the `manufacturer` column |
+| **15 manufacturers** in `SR_ART.MAKERS` (TenTiU removed; Fightstar, Devlin & Son, LMC, Praxon, Helix, General Astronautics, Nomad and Rook added) | Bring the `manufacturers` table in line with the doc. `SR_ART.makerBadge(ctx, key, x, y, size)` draws each badge for Arsenal and Black Market cards |
+| `ITEMS[id].dtype`, `.size`, `.traits` (from the doc) | The art uses these for icons. When the database gets trait and fire-mode columns, read them from there instead |
+
+### Weapon traits, damage types and the fire-mode toggle
+
+- `SR_ART.icon(ctx, key, x, y, size, {active, bare})` draws a trait (`steady`, `auto`, `semi`, `single`, `fan`, `knockback`, `stunning`, `sundering`, `piercing`, `heavy`, `unstable`) or a damage type (`ballistic`, `plasma`, `laser`, `explosive`, `melee`). `SR_ART.TRAITS` and `SR_ART.DTYPES` hold names and one-line rules text.
+- Show them on Arsenal item cards, Black Market lots, the engagement panel's weapon row and tooltips. For DOM, draw them once to a 48px canvas and cache the data URL, the same way `artURL` does.
+- **Fire-mode toggle:** build it as a DOM segmented control in the attack window, in the HUD kit's chunky-button style (`sr-kit.css`). Show it only when the weapon has two or more fire-mode traits. The selected mode is gold and sits pressed in, and `F` cycles through the modes. Use `SR_ART.icon` for the glyphs. `SR_ART.fireModeToggle()` is the canvas reference drawing in the guide.
+- **On the battlefield**, pass `mode:'auto'|'semi'|'single'|'fan'` in the pose with `state:'fire'`. Automatic flickers, ejects brass and shakes. Single shot fires one big flash. Fan hammer animates the off hand slapping the hammer.
+- **Trait outcomes:**
+  - `knocked` pose while a Knockback shove plays.
+  - `stunned` pose for Stunning (spiral eyes, sparks, stars).
+  - `sunder(ctx, x, y, k)` when a Sundering hit strips armour.
+  - `pierce(ctx, x0, y0, x1, y1, k)` when Piercing damage goes through.
+  - `misfire(ctx, x, y, k)` when an Unstable weapon blows.
+  - For Steady, show the `steady` icon (active) over a unit that is holding fire on a target.
+
+### Equipment slots, the back slot and deployables
+
+- `lookOf(p)` reads `p.gear.back`, and the art straps the back item across the back in every view. Soldiers and Marines have the slot; Pilots and Support don't.
+- **Deploy:** use the `deploy` pose for the set-up action.
+  - Razorrat: once set up, draw it with `SR_ART.deployable(ctx, 'razorrat', x, y, heading, t, {gunner, fire})` at its map position. The gunner crouches behind it.
+  - Riot Shield: deployed, it moves from `back` into the hands (`gear:['shield']`) and the primary weapon stops being drawn.
+  - Mining Laser: wielded once deployed; it uses `fire` (the sweep) and `recharge`.
+
+### Armour, shields and health (Ground Combat doc)
+
+- **`SR_ART.vitals(ctx, x, y, {hp, hpMax, arm, armMax, sh, shMax, s})`** draws the layered bar: health pips, with steel armour plates over them and a cyan shield band over both. Plates crack when they're emptied. Use it in place of `T.hpPips` above units, at `y - (60*s + 6)*cam.z` as before, plus about 8px for each extra layer.
+- **DOM unit cards and the engagement panel** should match the shapes: armour as slanted `#a8b4c8` plates with a highlight line, shield as `#36e3f2` hexes with a glow, health as the existing pips. Each layer has its own shape so it stays readable for colour-blind players.
+- **While a shield is up**, pass `shield: 0..1` in the pose for the hex bubble, and `shieldHit: 0..1` to flare it on a hit. Use `shieldHit(ctx, x, y, k)` and `armourHit(ctx, x, y, k)` at the impact point.
+- **Molotov fire:** a burning character uses the `burning` pose (or the `extinguish` pose when the action is taken). Both show flames.
+
+### Fire support (Ground Combat doc)
+
+| Game function | Draw with |
+|---|---|
+| `strafeRun(o)` | `SR_ART.strafe(ctx, x0, y0, heading, length, k, t, {ship, livery})`: the flyover plus ten impacts walking up the ladder, leaving scorch marks |
+| Door Gunner | `SR_ART.doorGunner(ctx, cx, cy, r, targets, k, t)`: the Graf circles with its door guns fitted and sweeps up to three targets |
+| `supplyDrop(u)` | `SR_ART.supplyDrop(ctx, x, y, k, t, {open})`: a rebel-red parachute, then a crate. `open` shows stims and frags |
+| Reinforcements | `SR_ART.landing(ctx, x, y, k, t, {s})`: the transport descends with its shadow and lands in a ring of dust |
+| Any ship overhead | `SR_ART.flyover(ctx, id, x, y, heading, s, t, {alt})`: the ship plus its shadow on the ground |
+
+### Characters
+
+- **Sweet Tooth (resolves M-20):** use `SR_ART.ARCH.sweettooth` in place of `ST_SPEC` in `base.js`. She has a teal headscarf with gold dots, an eye patch, a gold tooth, a gold earring and a pink jacket, and she always grins. `SR_ART.portrait()` gives the rail's head.
+- **Riot police are now people in Police Helmets**, rather than visor troopers. The `art` column should be `riot` for `security-riot-shieldman` and `riotrifle` for `security-riot-rifleman`.
+- **New head items** draw whenever they're in `p.gear.head` or an enemy row's `head`: `policehelmet`, `autohelm`, `cowboyhat`, `cap` (and `hardhat`).
+
+
+### Manufacturer style studies and Helix medical
+
+- **Helix makes the game's medical items.** The Medpack and Stim (item art, the hip and belt pouches, the `treat` and `stimuse` props) are now Helix: clinical white and teal, rounded, with the double-helix mark. Set `manufacturer` to Helix for both in the `items` table. Future medical items should use `helixCase()` and `helixMark()` in the kit.
+- **Style mocks** set the look of makers that have no items in the docs yet. They're flagged `mock:1` and **must not be added to the game data** until real items exist:
+  - `arclight`, the LMC Arclight laser pistol. White ceramic, violet cell, LEDs. It introduces the `laser` muzzle flash and `bolt(...,'laser')`: violet is now the laser damage colour.
+  - `nomadcoat`, the Nomad Drifter Coat: canvas duster, leather straps, patched shoulder plate.
+  - `rookhelm`, the Rook Mk II Tactical Helmet: matte charcoal, olive rails, flip-up visor, rook stamp.
+  - `gafrigate`, the General Astronautics Bulwark-class Frigate: the capital-ship look, using the same parts and mounts system as the fighters.
+- **Personal shields:** the bubble (`pose.shield`) and the shield band in `vitals()` are ready for the first shield item whenever it arrives. No art work is needed then beyond item art for that item.
+
+
+## Juice (feedback, effects and transitions)
+
+The style guide's **Juice** section is the spec: the rules, an interactive before-and-after arena, the reworked effects, the transitions and the shared event table. Build it in this order, because each step makes the next one land:
+
+1. **Time and camera.**
+   - Add a game clock that can be frozen for **hitstop**: game `dt = 0` until `stopUntil`, while UI and audio keep running.
+   - Add one `SR_ART.Shake()` per scene. Feed it trauma from `SR_ART.JUICE[event].trauma`, call `update(realDt)` each frame, and apply `offset(t)` (x, y, angle) to the world transform only, never to the HUD.
+   - Add a **Screen shake** setting. Reduced motion turns off shake, hitstop and drifting particles.
+2. **One particle system per scene.** Use `SR_ART.Particles()`: `emit(kind, x, y, {n, dir, spread, speed, floor})`, then `update(dt)` and `draw(ctx)` in world space after the actors. Kinds are `spark`, `debris`, `smoke`, `dust`, `casing`, `ember`, `plasma`, `shard`, `confetti` and `coin`. Debris, casings and coins bounce on `floor`.
+3. **Hit feedback on characters.** In `artPose`, pass `flash` (set to 1 on a hit, decaying at 5 per second) and `squash` (set to 1, decaying at 6 per second). For a unit going down, pass `fall` from 0 to 1 over about 0.6 s, and the topple bounces. Spawn `popText(ctx, text, x, y, k, colour, {crit})` for damage numbers (one per landing round of a volley), MISS and DOWN. These replace the HUD's plain floaters for in-world numbers; the HUD's logic stays.
+4. **Reworked effects** (same calls, better results):
+   - `explosion()` plays in stages (flash, fireball, shockwave, smoke). Pair it with debris, ember, smoke and dust particles, and a persistent `scorch`.
+   - `hit()` has a white core and speed lines.
+   - `bolt()` has a glowing trail.
+   - New: `ring()` for shockwaves, `shieldBreak()`, `shipExplode()` (breaks the ship into three), and `pickup()` for loot leaving a crate.
+5. **Events.** Use the `SR_ART.JUICE` table everywhere: `shot`, `hit`, `armourHit`, `crit`, `down`, `grenade`, `rocket`, `shieldBreak`, `shipKill`, `loot` and `promote`, each with hitstop (ms), trauma, flash and the particles to emit. Tune numbers in that table, not at call sites.
+6. **Transitions.** `SR_ART.transition(ctx, W, H, k, type, {x, y, text})`, drawn over everything. The screen is fully covered at `k = 0.5`, so swap scenes there. Use:
+   - `iris` into a mission, centred on the target;
+   - `stripes` for tab and screen changes;
+   - `hyperspace` between the galaxy map and space combat;
+   - `flag` for mission start and liberation, with a word.
+7. **Easing:** use `SR_ART.ease.*` for world and UI motion: `outBack` for pops, `outBounce` for falls, `inOutCubic` for panels. Nothing should move linearly.
+
+Acceptance: switch juice off and on in the guide's arena to see the target. In the game, a grenade must freeze, shake, flash, throw debris and leave a scorch mark. A single pistol shot must stay subtle. With reduced motion on, nothing shakes or freezes.
+
+
+### Shots, impacts and blood (Juice, part two)
+
+The guide's old Effects section is now part of Juice.
+
+- **Shots:** `SR_ART.shot(ctx, key, x0,y0, x1,y1, time, {mode, seed})` draws every round of a trigger pull in flight, `time` seconds after the trigger. `SR_ART.shotTimes(key, mode, dist)` returns each round's arrival time, so schedule impacts and damage from those times.
+  - **Palette** comes from the weapon's maker (`SR_ART.STYLE`), the same for both factions. **Shape** comes from the weapon (`SR_ART.PROJ`). The **fire mode** sets the pattern: automatic is a staggered spread, fan hammer is three quick rounds, single shot is one round with a big flash.
+  - Ship and vehicle weapons are in the same table: `repeaters`, `missiles`, `doorgun`, `dronegun`, `cruiser`, `dispersal` and `strider`. The ship-weapon makers are proposals: BLS-T Repeaters as Bhord, Missiles as Varrondow, drone guns as AutoCom.
+  - Replace `bolt()` calls in `ground.js` and `space.js` with `shot()`. `bolt()` stays for anything without a weapon key.
+- **Muzzle flashes:** `muzzleFor(ctx, x, key, mode, t)`. The character renderer already uses it when firing.
+- **Impacts:** `SR_ART.impact(ctx, x, y, k, {dtype, surface, dir, style, gore, seed, size})`.
+  - `surface` is `flesh`, `armour`, `shield`, `cover`, `robot` or `hull` (space). Use `armour` while a target's armour segments remain and `flesh` after. Autos, Bots and vehicles use `robot`.
+  - `dir` is the shot's angle, so blood sprays the way the round was travelling.
+  - `hit()` now draws a flesh impact. The cartoon star is gone.
+- **Blood:**
+  - Flesh hits leave `bloodSplat(ctx, x, y, r, seed)` decals on the ground for the rest of the mission. Store them with scorch marks.
+  - Add a **Blood** setting that calls `SR_ART.setGore(false)`. This swaps blood for dust and impact lines and keeps canopies clean.
+- **Space:**
+  - `shipShield(ctx, x, y, r, k, hitX, hitY)` flares the shield bubble at the hit point while the ship's shields hold. When they run out, use `shieldBreak()` plus `shard` particles, then `impact(...{surface:'hull'})` with spark and debris particles.
+  - Damaged ships (`damage > 0.3`) vent gas automatically.
+  - Pass `pilotHit: 0..1` to `ship()` when a pilot takes a critical. This cracks the canopy and spatters it with blood on rebel ships; Hegemony canopies stay dark.
+  - On a kill, use `shipExplode()` with the `shipKill` juice row.
+- **Hangar headings:** `hangarShip()` works at any `heading`, so park ships however the hangar layout needs.
+
+
+### Volleys: an attack is an attempt, not a bullet
+
+An attack is one roll in the rules. On screen it's a burst of fire, re-rolled every time so combat never looks samey. The visuals never change the rules: the total damage shown always equals the roll's result.
+
+```js
+const plan = SR_ART.volley(weaponKey, mode, {hit, damage, rng});   // rng optional (Math.random by default)
+// plan.rounds = [{fire, hit, dmg, ...}]: when each round leaves the muzzle, whether it lands, its share of the damage
+const lands = SR_ART.volleyImpacts(plan, x0, y0, x1, y1);          // [{at, x, y, hit, dmg}]: where and when each round arrives
+SR_ART.shot(ctx, weaponKey, x0, y0, x1, y1, time, {mode, plan});    // draws the whole volley in flight
+```
+
+- **Round counts:**
+  - Single shot: one round.
+  - Semi-auto: 3 to 5 rounds, 1 to 3 landing.
+  - Automatic: 6 to 10 rounds, roughly half landing.
+  - Fan hammer: 3 rounds, 2 or 3 landing.
+  - Shotguns: 2 or 3 blasts. Lasers: 2 or 3 pulses. Rockets and missiles: one.
+- **Damage split:** `damage` is split across the rounds that land; 10 might read 3, 3, 4. A missed attack sends every round past the target. Misses land beyond or short of the target and hit the ground or cover behind, so draw a `cover` impact there.
+- **Feedback per round:** for each landing round, draw its own `impact()` at `{x, y}`, its own damage number (`popText` with `dmg`), and a small flash, squash and shake. A full miss gets a single MISS pop.
+- **When to apply the damage mechanically:** apply it once, on the first landing round, or at the end if that's simpler. Never apply it per round.
+- **Space works the same way.** Repeater fire is a volley; each landing bolt flares the shield or breaches the hull at its own point.
+- **Armour hits** no longer show TINK. They throw sparks, a ricochet streak and a metallic ring. Ship kills no longer show a text callout.
+
+## Hangar ships are now 3D models
+
+`SR_ART.hangarShip(ctx, id, x, y, s, k, t, {livery, damage, loadout, heading, cold})` replaces `shipIso` (and `fighterTop`) in the base's hangar views. Each Tier 1 ship has a small hand-built 3D model (`SR_ART.HM`): bevelled hull blocks, upright fins, round engine barrels, glass domes and the Graf's dish. It's projected into the room's isometric view at any `heading` (the default faces the viewer's left). Pass `cold:true` for parked ships (dark engines and sensor eyes). Door guns appear when the Graf's loadout has them. Ships with no model (drones, the frigate mock) fall back to `shipIso`.
+
 ## Rebel acceptance checks
 
 - Two rebels generated in the same batch never look identical (different id, so different genes). The same rebel looks identical after a reload.
@@ -388,6 +543,9 @@ The footprint is drawn flat in the ground plane at the unit's heading and extrud
 - `node tools/*-smoke.js` and the autoplay sweep are unchanged: the art reads the record and never writes to it.
 
 ## Open questions for Tom
+
+- **Real items for LMC, Nomad, Rook and General Astronautics:** the style mocks hold their place until the docs name them.
+- **Strafing Run ship:** the guide uses the Talon. The game should pass whichever starfighter was assigned.
 
 - **Strider maker:** the Enemies doc says Autoworks, but the gear doc names AutoCom as the maker of Autos and Bots. Is Autoworks a separate company, an AutoCom brand, or a typo?
 - **The fuel depot and the Bruiser auto** still need descriptions.

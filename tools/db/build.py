@@ -32,12 +32,13 @@ KINDS_WEAPON = ["plasma", "ballistic", "missile"]
 KINDS_PILOT = ["rebel", "enemy", "drone"]
 CLASSES = ["starship", "capital"]
 ITEM_CATS = ["weapon", "armour", "gadget", "other", "builtin"]
-ITEM_SLOTS = ["primary", "secondary", "head", "body", "gadget"]
+ITEM_SLOTS = ["primary", "secondary", "back", "head", "body", "gadget"]
 ITEM_ORIGINS = ["factory", "handmade", "scavenged"]
-DAMAGE_TYPES = ["ballistic", "plasma", "explosive", "blunt"]
+DAMAGE_TYPES = ["ballistic", "plasma", "laser", "explosive", "blunt"]
 FACTIONS = ["hegemony", "outworlder"]
 ENEMY_KINDS = ["person", "auto", "bot", "vehicle"]
 OWNED_AS = ["policebot", "bruiser", "strider", "police", "dispersal", "transport"]
+FIRE_MODES = ["auto", "semi", "single", "fan"]
 ITEM_STATS = ["damage_min", "damage_max", "range", "attack", "shots", "damage_type"]
 
 SCHEMA = {
@@ -162,7 +163,7 @@ SCHEMA = {
             ("name", "text", 26, "Display name."),
             ("sub", "text", 26, "Short line under the name, e.g. Assault rifle."),
             ("category", "id", 10, "weapon, armour, gadget or other. builtin = a weapon a unit or vehicle has built in (fists, a turret); never owned or sold."),
-            ("slot", "id", 10, "primary, secondary, head, body or gadget. Blank: carried as mission stores, not in a slot."),
+            ("slot", "id", 10, "primary, secondary, back, head, body or gadget. Blank: carried as mission stores, not in a slot. back is the Gear doc's back item (Heavy kit, deployables); the game has no back slot yet."),
             ("width", "int", 6, "Storeroom footprint, columns."),
             ("height", "int", 6, "Storeroom footprint, rows."),
             ("quality", "num", 7, "Auto-equip hands out the highest first. 0 = cosmetic."),
@@ -178,12 +179,23 @@ SCHEMA = {
             ("range", "int", 7, "Weapons: range in ground-map units (about 100 = one building)."),
             ("attack", "int", 7, "Weapons: added to the attack roll. Negative is harder to hit with."),
             ("shots", "int", 6, "Weapons: shots per attack."),
-            ("damage_type", "id", 10, "Weapons: ballistic, plasma, explosive or blunt."),
+            ("damage_type", "id", 10, "Weapons: ballistic, plasma, laser, explosive or blunt."),
             ("one_handed", "bool", 8, "Weapons: usable with a broken arm."),
             ("jams", "bool", 6, "Weapons: can jam."),
             ("pellets", "bool", 7, "Weapons: fires a spread of pellets."),
             ("falloff", "bool", 7, "Weapons: damage drops with range."),
             ("beam", "bool", 6, "Weapons: draws as a beam."),
+            ("fire_modes", "text", 10, "Weapons: fire modes the player toggles between in the attack window, separated by | (auto, semi, single, fan). Blank = no modes."),
+            ("steady", "bool", 7, "Steady trait: +2 to hit a target the user held fire on (Hold)."),
+            ("knockback", "bool", 9, "Knockback trait: a hit shoves the target away from the source."),
+            ("stunning", "bool", 8, "Stunning trait: a hit disorients the target."),
+            ("unstable", "bool", 8, "Unstable trait: a chance to blow up when used."),
+            ("sundering", "bool", 9, "Weapons: Sundering trait. Damage to an armour bar is multiplied by the armour_sunder_mult rule."),
+            ("piercing", "bool", 8, "Weapons: Piercing trait. The armour_pierce_frac rule's share of each hit skips the armour bar and goes to health."),
+            ("heavy", "bool", 6, "Heavy trait: too heavy for the primary slot as standard (Strong rebels may; not built yet)."),
+            ("deployable", "bool", 9, "Set up on the ground as an action, then used where it stands (Razorrat LMG, Riot Shield, Mining Laser)."),
+            ("armour", "int", 7, "Armour: the armour bar it adds over the wearer's health in ground and boarding combat. Blank or 0 = none (cosmetic)."),
+            ("shield", "int", 7, "Shield it raises when activated: a bar over armour and health, hit first. Blank = none."),
             ("icon", "id", 10, "Icon from the game's sprite sheet, e.g. gun, pistol, grenade."),
             ("description", "text", 60, "Shown to the player in the Arsenal."),
             ("notes", "text", 50, "Designer notes. Not shown to players."),
@@ -201,6 +213,8 @@ SCHEMA = {
             ("hp", "int", 6, "Health."),
             ("aim", "int", 5, "Added to attack rolls."),
             ("def", "int", 5, "Defence: the number to beat to hit them."),
+            ("armour", "int", 6, "Innate armour bar (a vehicle's or Bot's plating, an Auto's shell), on top of any armour in head and body. Vehicle armour lives here, apart from ship armour. Blank = none."),
+            ("shield", "int", 6, "Innate shield bar, hit before armour and health. Blank = none."),
             ("cool", "int", 6, "Nerve, 0 to 100. Blank = 55. Leaders never drop below 40."),
             ("weapon_1", "id", 12, "Item id they draw first. Blank for vehicles (their guns are on their seats)."),
             ("weapon_2", "id", 12, "Item id they also carry (a sidearm, a riot shield). Blank for none."),
@@ -212,7 +226,7 @@ SCHEMA = {
             ("hack_rounds", "int", 8, "Robots only: rounds of hacking to turn it. Blank = cannot be hacked."),
             ("heavy", "bool", 6, "Hits like a truck (the Bruiser)."),
             ("big", "bool", 5, "Takes up a vehicle's footprint (the Strider)."),
-            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 180 and a Sprint 360). Blank for people and Autos."),
+            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 240 and a Sprint 480). Blank for people and Autos."),
             ("credits_min", "int", 8, "Credits on the body, low end. Blank for none."),
             ("credits_max", "int", 8, "Credits on the body, high end."),
             ("art", "id", 9, "What the art kit draws: an archetype (sr-art.js ARCH) for people and robots, a vehicle (VEHICLES) for vehicles."),
@@ -230,6 +244,20 @@ SCHEMA = {
             ("drives", "bool", 7, "TRUE for the one seat that moves the vehicle."),
             ("weapon", "id", 12, "Item id of the gun this seat fires. Blank: no gun."),
             ("enclosed", "bool", 8, "TRUE: whoever sits here cannot be shot (shoot the vehicle). FALSE: an exposed seat, like a turret."),
+        ],
+    },
+    "market_weights": {
+        "sheet": "Market Weights", "key": "rev",
+        "cols": [
+            ("rev", "int", 5, "Revolution Level the row applies from. The market uses the highest row at or below the current level."),
+            ("weapon", "num", 8, "Weight for a personal weapon lot."),
+            ("gadget", "num", 8, "Weight for a gadget lot."),
+            ("merc", "num", 8, "Weight for a mercenary lot."),
+            ("armour", "num", 8, "Weight for an armour lot."),
+            ("shipwpn", "num", 8, "Weight for a ship weapon lot."),
+            ("vehicle", "num", 8, "Weight for a vehicle lot."),
+            ("ship", "num", 8, "Weight for a ship lot."),
+            ("notes", "text", 60, "Designer notes."),
         ],
     },
     "space_enemies": {
@@ -256,7 +284,7 @@ SCHEMA = {
     },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "market_weights", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
 
@@ -460,13 +488,20 @@ def validate(db):
             if it[col] not in allowed:
                 E("%s: %s %r (allowed: %s)" % (n, col, it[col], ", ".join(a for a in allowed if a)))
         ref("items", it, "manufacturer", "manufacturers")
-        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam"):
+        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam", "steady", "knockback", "stunning", "unstable", "sundering", "piercing", "heavy", "deployable"):
             if not isinstance(it[b], bool):
                 E("%s: %s must be TRUE or FALSE" % (n, b))
         rng("items", it, "width", 1, 4)
         rng("items", it, "height", 1, 4)
         rng("items", it, "rev", 1, 5)
         rng("items", it, "price", 1, 99999, required=False)
+        for fm in [x for x in it["fire_modes"].split("|") if x]:
+            if fm not in FIRE_MODES:
+                E("%s: unknown fire mode %r (known: %s)" % (n, fm, ", ".join(FIRE_MODES)))
+        rng("items", it, "armour", 0, 999, required=False)
+        rng("items", it, "shield", 0, 999, required=False)
+        if it["armour"] and it["category"] != "armour":
+            E("%s: only armour items carry an armour value" % n)
         has = [c for c in ITEM_STATS if it[c] is not None]
         if has and len(has) < len(ITEM_STATS):
             E("%s: weapon stats are all-or-nothing; missing %s" % (n, ", ".join(c for c in ITEM_STATS if it[c] is None)))
@@ -475,8 +510,8 @@ def validate(db):
                 E("%s: a builtin weapon needs its stats" % n)
             if it["slot"] or it["price"] is not None:
                 E("%s: builtin weapons have no slot and no price" % n)
-        if it["category"] == "weapon" and it["live"] and not has:
-            E("%s: a live weapon needs its stats (or set live FALSE)" % n)
+        if it["category"] == "weapon" and it["live"] and not has and not it["deployable"]:
+            E("%s: a live weapon needs its stats (or set live FALSE); only a deployable such as the riot shield may have none" % n)
         if has:
             rng("items", it, "damage_min", 0, 999)
             rng("items", it, "damage_max", 0, 999)
@@ -484,8 +519,10 @@ def validate(db):
                 E("%s: damage_min above damage_max" % n)
             rng("items", it, "range", 1, 9999)
             rng("items", it, "shots", 1, 20)
-        if it["category"] == "weapon" and it["slot"] not in ("primary", "secondary"):
-            E("%s: weapons go in the primary or secondary slot" % n)
+        if it["category"] == "weapon" and it["slot"] not in ("primary", "secondary", "back"):
+            E("%s: weapons go in the primary, secondary or back slot" % n)
+        if it["slot"] == "back" and not (it["heavy"] or it["deployable"]):
+            E("%s: the back slot takes Heavy kit and deployables" % n)
         if it["category"] == "armour" and it["slot"] not in ("head", "body"):
             E("%s: armour goes in the head or body slot" % n)
         if not it["icon"]:
@@ -504,6 +541,8 @@ def validate(db):
         rng("enemies", en, "hp", 1, 9999)
         rng("enemies", en, "aim", -5, 20)
         rng("enemies", en, "def", 0, 30)
+        rng("enemies", en, "armour", 0, 9999, required=False)
+        rng("enemies", en, "shield", 0, 9999, required=False)
         rng("enemies", en, "cool", 0, 100, required=False)
         for col in ("weapon_1", "weapon_2", "head", "body", "gadget"):
             ref("enemies", en, col, "items", required=(col == "weapon_1" and en["kind"] != "vehicle"))
@@ -555,6 +594,14 @@ def validate(db):
         keys = [st["seat"] for st in L]
         if len(set(keys)) != len(keys):
             E("enemies %r: seat keys must be unique" % vid)
+
+    revs = [r["rev"] for r in db["market_weights"]]
+    if 1 not in revs:
+        E("market_weights: needs a row for rev 1")
+    for r in db["market_weights"]:
+        rng("market_weights", r, "rev", 1, 5)
+        for c in ("weapon", "gadget", "merc", "armour", "shipwpn", "vehicle", "ship"):
+            rng("market_weights", r, c, 0, 9999)
 
     ships_by = {x["id"]: x for x in db["ships"]}
     for se in db["space_enemies"]:
@@ -645,7 +692,7 @@ GUIDE = [
     ("The Pilots tab shows each pilot's TN in their usual ship (target_number). Aim uses the same bonus formula, so equal skill and level cancel out.", "text"),
     ("", "text"),
     ("TABLES", "h"),
-    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Space Enemies: the space roster (which ship, which pilot, how it behaves). Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
+    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Space Enemies: the space roster (which ship, which pilot, how it behaves). Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Market Weights: how likely each kind of Black Market lot is, by Revolution Level. Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
     ("", "text"),
     ("PLACEHOLDERS", "h"),
     ("Anything labelled seed, placeholder or converted in a Notes column came from the old game values rather than from a design doc, and is there to be changed.", "text"),
