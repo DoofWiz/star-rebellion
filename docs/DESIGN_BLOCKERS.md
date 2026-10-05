@@ -10,8 +10,9 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after merging main (art/galaxy/title, onboarding) back into the Market/Arsenal
-branch and finishing the handoff's phases 3–5 (mercenaries, ships and deliveries, the phone pass).
+**Last updated:** 2026-10-05, after everything open was merged into main: the Market/Arsenal handoff's phases 3–5
+(mercenaries, ships and deliveries, the phone pass, the art bridge) and the legacy sweep branch (one injury model,
+space on the rebels' traits and ranks, the enemy roster, personal kit in the database — see `docs/LEGACY_AUDIT.md`).
 
 ## How to use this
 
@@ -32,9 +33,9 @@ branch and finishing the handoff's phases 3–5 (mercenaries, ships and deliveri
 | C-7 | ⚪ | Vehicle rules the Ground Combat excerpt does not cover | How vehicle fights feel |
 | C-8 | ⚪ | Bots ride as fire-support assets, not squad members | Where the Strider sits in a plan |
 | C-9 | ⚪ | The Steal the Cross laser turret is still its own system | One rule for gun emplacements |
-| C-10 | ⚪ | Prices, market weights and `KIT` live in `base.js`, not the database | Where personal kit data lives |
+| C-10 | ⚪ | Market weights still live in `base.js` (`KIT` and prices moved to the database) | Where the market's tuning lives |
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
-| C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
+| C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
 | C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
@@ -61,6 +62,9 @@ branch and finishing the handoff's phases 3–5 (mercenaries, ships and deliveri
 | M-21 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
+| C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
+| M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
+| C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -75,8 +79,9 @@ Carried over from `docs/ROADMAP.md` "Doc issues" so they live in one place. All 
 block play; I followed the answer in brackets.
 - Base doc says scope is "Rev levels 1 and 2"; the game scope is Level 1 only. *(Level 1 only.)*
 - Base doc lists **Fuel** twice; the second is meant to be **Intel**. *(Intel.)*
-- Enemies doc puts Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum in Rev Tier 3, but Dustfall (Rev 1) uses
-  them; Bureau Officer appears under both Tier 1 and Tier 2. *(Left where Dustfall uses them.)*
+- ~~Enemies doc puts Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum in Rev Tier 3~~: the doc now gives them their
+  own Outworlder faction at Rev Level 1, which is what the enemy roster uses. Bureau Officer still appears under both
+  Tier 1 and Tier 2. *(Not in the game yet.)*
 - Missions doc tier names are cut off mid-sentence and several Tier 1 rewards are blank. *(Rewards are my numbers.)*
 - Specialties, Locations Regions and Fleet Combat docs have empty or half-finished sections.
 - "Imperium" vs. "Hegemony" in older GDD copy. *(Hegemony; I fixed the sections I touched.)*
@@ -124,20 +129,25 @@ onboarding mission. **Needs from you:** should emplacements become vehicles with
 Man gun/Leave gun), or stay separate?
 **Your call:** _open_
 
-### C-10 ⚪ Prices, market weights and `KIT` live in `base.js`, not the database
-The Market/Arsenal handoff told me to add the shared item catalogue (`KIT`: footprints, slots, makers, prices,
-`live` flags) as a table in `base.js`, because `db.json` does not hold personal kit yet. That is where it is.
-**Needs from you:** nothing urgent — but when personal kit joins the database, `KIT`, the prices and the market
-weights should move into `db.json` so the data pipeline owns them.
+### C-10 ⚪ Market weights still live in `base.js`
+The Market/Arsenal handoff put the item catalogue (`KIT`) in `base.js` because `db.json` held no personal kit.
+**Done since:** the catalogue, prices, combat stats and descriptions are the `items` table in `db.json`, read
+through `game/js/items.js` (see `docs/DATABASE.md`, Items). Still in code: the market's category weights (`CATW`)
+and the gadget stat lines on the market cards (`BM_GSTATS`).
+**Needs from you:** nothing urgent. Say if you want the weights in the spreadsheet too (a small `market_weights`
+table by Revolution Level would also cover M-18).
 **Your call:** _open_
 
 ### C-11 ⚪ Maker "TBC" on nine items
 The Gear doc leaves the maker blank for: Cowboy No.4, Varmint Shotgun, Longhorn ’28, Stim, Cowboy Hat, Baseball
 Cap, BLS-T Light Repeaters, Door Mounted Gun and the Riot Transport Cruiser. The Arsenal dossier shows a maker
-chip, so these read "TBC" (or show none). **Needs from you:** maker names, whenever convenient. Flavour only.
+chip; these now show none (the items table leaves `manufacturer` blank and says "Maker TBC" in its notes; the
+Arsenal used to print "TBC"). The Improvised Rocket Launcher is also blank. **Needs from you:** maker names,
+whenever convenient, straight into the Items tab of the spreadsheet if you like. Flavour only.
 **Your call:** _open_
 
-### C-12 ⚪ Ships live in the Arsenal, not their own Fleet tab
+### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab
+*(Numbered C-12 by mistake when it was added; C-12 is Cass's Door Gunner in the Resolved log.)*
 The Gear doc gives ships a tab of their own; the Market/Arsenal handoff puts them under the Arsenal's
 Ships chip, and you said that is "fine for now". Built that way. **Needs from you:** say the word if and when a
 Fleet tab should exist, and what it would hold that the Arsenal's Ships view does not.
@@ -179,10 +189,40 @@ From the art handoff's open questions, now live in `game/art/sr-art.js` data tab
 - **Ship attachments:** only the Door Mounted Gun is designed; `plates` and `tank` are placeholder examples.
 - **Floatin' Truck attachments** (mg, plates, ram, spotlight, crates) are proposals; the truck itself is not in
   the game.
-- **Armour as looks:** Soldiers/Marines wear the Frontier Hardhat and Marines a vest as *looks only*; the
-  armoury has no armour items (see M-10).
+- **Armour as looks:** the art kit draws a Frontier Hardhat on any rebel whose save has no Head slot yet. The
+  Arsenal now has six armour items, but four head items (Cowboy Hat, Baseball Cap, Police Helmet, Auto
+  Head-Helm) have no art, so they draw nothing (see M-16 for what armour does).
 **Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
 **Your call:** _open_
+
+### C-23 ⚪ Peacekeeper Carbine: ballistic in the rules, plasma on screen
+`WDAM` in `ground.js` counts the carbine as **ballistic**; the shot it draws is a plasma bolt and the art kit gives
+it a plasma muzzle flash. It only matters once armour or traits care about damage type (M-16).
+**Needs from you:** ballistic or plasma.
+**Your call:** _open_
+
+### C-24 ⚪ Enemy types and loadouts the Enemies doc doesn't cover
+The enemy roster (the Enemies tab of the spreadsheet, `enemies` in `db.json`) follows the Enemies doc where it
+says something, and the art kit where the doc is silent. Every enemy spawn names a row, and what the row carries
+is what they fight with and drop. Where I had to guess:
+- **Types the game needs that the doc doesn't have** (`in_doc` FALSE): the Haven Rock squatters and Boss Craw, the
+  Tithe depot's guards and warden. Two tower lookouts are a deputy and a depot guard with a hunting rifle and
+  sniper stats set on the spawn. In space (the Space Enemies tab): Commandant Vex's Academy Commandant type, the
+  Academy Cadets and the Fuel Depot. The doc's four Tier 1 space types (Monitor, Pursuer, Mag-Clamper, Mote) are in.
+- **Doc types not in the game yet:** Bureau Officer, Shorto Shotty, Tavern Scum, the Floatin' Truck, and all of
+  Tier 2 and 3.
+- **Loadouts:** Hegemony security carries Patriot kit: the HG-40 pistol (Patrolmen, shieldmen, depot guards),
+  Peacekeeper Carbine (riot riflemen), Police Helmet and Vest (riot police; Police Vest on depot guards). Policebots
+  carry the Auto Plasma Hand. Outworlders keep frontier guns (Cowboy, Varmint Shotgun); deputies and the sheriff wear
+  a Police Vest because the art kit draws one, and the sheriff a Cowboy Hat. Squatters wear nothing.
+- **Placeholder stats:** the HG-40 and Auto Plasma Hand had no stats, so they copy the Cowboy No.4 that Patrolmen and
+  Policebots carried before. Every fight plays exactly as it did.
+- **Looks that changed:** riot riflemen are drawn as riot police (they borrowed the deputy look before); Patrolmen no
+  longer draw a vest; riot shieldmen now draw the vest the art kit gave them. The Police Helmet has no art yet.
+
+**Needs from you:** the real loadout per type whenever you spec it (straight into the Enemies tab), stats for the
+HG-40 and Auto Plasma Hand, and whether the squatters and depot guards should become doc types.
+**Your call:** _open (loadouts to be specced later, as planned)_
 
 ---
 
@@ -281,9 +321,9 @@ coercion missions"? (See M-2.)
 
 ### M-10 🟡 Armour and carried-gear effects
 **Blocks:** Strong (carry a second primary; melee damage), Weak, Messy (10% to lose a piece of gear at launch);
-the fourth gear slot beyond gadgets has no items.
-**Why:** gear is slotted (primary, secondary, two gadgets) but there are no armour items, and melee barely exists
-(`unarmed` is the only melee-like weapon). "Lose a piece of gear" needs an owner and a return rule.
+and the armour half now lives in M-16.
+**Why:** gear is slotted (primary, secondary, Head, Body, two gadgets). Armour items now exist but do nothing in a
+fight (that part is M-16), and melee barely exists (`unarmed` and the Bruiser's fists are the only melee). "Lose a piece of gear" needs an owner and a return rule.
 **Needs from you:** an armour item list (what does armour do in the d20 math?), whether melee is a real action,
 and what becomes of lost gear (gone, or found again after the mission?).
 **Your call:** _open_
@@ -345,7 +385,8 @@ a room over time, training), and whether the specialty system applies to Support
 **Blocks:** a player-owned vehicle that needs crew (the planning board and the Fire Support menu already take one,
 but nothing gives the player one); the Driver specialty ("Handling vehicles"), which does nothing.
 **Why:** the Asset Sheet's Vehicles tab has no entries, so the cruisers' numbers (hp, TN, speed, seats, guns) are
-my placeholders carried over from the old enemy units. A cruiser stolen mid-mission is not kept: the *Steal
+my placeholders carried over from the old enemy units. They now live in the enemy roster (the Enemies and Vehicle
+Seats tabs of the spreadsheet), so your numbers can go straight in there. A cruiser stolen mid-mission is not kept: the *Steal
 [Vehicle]* mission type is still waiting on its design.
 **Needs from you:** vehicle rows (hp, armour or TN, speed, positions and which are enclosed, weapons per position),
 how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
@@ -363,12 +404,14 @@ carries `head` and `body` next to `wpns`, so the ground scene can read them the 
 **Your call:** _open_
 
 ### M-17 🟡 Items with no mechanics yet (`live:false` in `KIT`)
-**Blocks:** these catalogue items from being stocked by the Black Market or auto-equipped: Improvised Plasma SMG,
+**Blocks:** these catalogue items from being stocked by the Black Market or carried: Improvised Plasma SMG,
 Repurposed Mining Laser, Molotov Cocktail, Guardian Angel Drone, Auto Core Improvised Charge, Stim as a carried
-item (the ground scene gives every rebel one built-in stim today), HG-40, Power Baton, Riot Shield, Auto Plasma
-Hand. The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
+item (the ground scene gives every rebel one built-in stim today), Power Baton, Riot Shield. Patrolmen carry the
+baton and riot shieldmen the shield (the shield already blocks shots from the front), but neither drops until it
+has rules for a rebel. The **HG-40** and the **Auto Plasma Hand** are live now with placeholder stats copied from the
+Cowboy No.4 (see C-24). The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
 the carrier's weapons mid-mission, but nothing says whether an *owned* launcher is spent for good (debited from
-the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of `GVEH` until it has stats
+the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of the roster until it has stats
 (see M-15).
 **Needs from you:** per item, the mechanic (or "cut it") — and for the rocket launcher, whether one shot consumes
 the owned item.
@@ -383,10 +426,10 @@ Rev 2+ is to move weight from kit toward ships, vehicles and mercs.
 
 ### M-20 🟡 Sweet Tooth needs an `SR_ART` character spec
 **Blocks:** the Black Market fence portrait (the rail's 150px head and the phone strip).
-**Why:** `sr-art.js` is not on `main` and she has no character spec anywhere. The mockup stand-in had a big
+**Why:** `sr-art.js` is in the game now, but she has no character spec in it. The mockup stand-in had a big
 round head, a teal headscarf with gold dots, an eyepatch, a gold-tooth grin, a gold earring and a pink jacket.
 **Needs from you:** nothing from the design side — the handoff says the art chat owns the final look. Until the
-art kit lands, the Black Market will use the generic avatar.
+spec exists, the Black Market uses the generic avatar.
 **Your call:** _open (owned by the art chat)_
 
 ### M-21 🟡 No art for the fuel depot or the Bruiser
@@ -411,12 +454,24 @@ entries.
 Per your spec, any hostile with a rocket launcher now gets a shot at an orbiting door-gun gunship
 (one roll each, **14+ on a d20** brings it down — my number, tune at `DG_FLAK_TN` in `ground.js`). Two gaps:
 1. **No enemy currently carries a rocket launcher** — `rocket` only reaches rebels via the Supply Drop — so the
-   counter never fires today. Tell me which spawns should carry one (a Vult heavy in Take the Rock? riot squads
-   at higher security?) and I'll add them.
+   counter never fires today. Tell me which enemy types (or single spawns) should carry one (a Vult heavy in Take
+   the Rock? riot squads at higher security?). With the roster that is one cell: `rocket` as their `weapon_2`.
 2. **A shot-down support ship**: the crash is visual, the asset is lost for the mission, and the pilot always
    walks away (Cass is story-safe). For the player's *own* Graf later: should the fighter take hull damage or
    be destroyed back at base, and should the support pilot risk injury? Nothing persists right now.
 **Your call:** _open_
+
+### M-24 🟡 Loot and drop rules
+**Blocks:** random loot of any kind, and the Messy trait.
+**Answered (2026-10-05):** downed enemies drop what they carry. Built: every usable item in their roster kit
+(`live` items only; built-ins like fists never drop) plus their credits, at the `enemy_drop_chance` rule, which is 1
+(always) for now. That is a lot more loot than before (a Steal the Cross run now yields six Police Vests), so tune
+the rule, or say "always weapons, sometimes armour", if it floods the stores.
+**Still open:**
+1. Should some crates roll their contents (e.g. "a Hegemony sidearm, tier 1") rather than list them?
+   (`Items.roll` is ready for it.)
+2. What happens to a dead rebel's gear: back to the armory (today), or lost on the field (and recoverable if you win)?
+**Your call:** _part answered; 1 and 2 open_
 
 ---
 
@@ -427,6 +482,9 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-20 | One recovery model, the newer one (conditions at `healRate`). | 2026-10-05 | Being laid up is a condition now (Laid Up, Spinal Injury, Recovering from an Amputation, Prosthetic Surgery) with a `laidUp` flag that keeps the rebel off duty; it heals at the same rate as every other condition (0.25 a day with no Infirmary, 1 with one, +1 with someone on it, +0.5 medic, +1 doctor, +0.5 Surgery Room) and ends as the old counter did (back on their feet, Scarred after five days or more, Nearly Dead after a spinal injury or an amputation, the prosthetic fitted). The Garrison Officer's perk stays as +1 a day for ground fighters. The old `p.injured`, `injDur`, `critHeal` and `prosPending` are converted on load. **Effect:** before an Infirmary is built a stretcher case is out about 12 days instead of 5 (2.4 with a Garrison Officer), and the opening mission's 1 to 3 days become 4 to 12; tune `NO_INFIRMARY` in `rebel-injury.js` if that is too harsh. Commit "One recovery model: being laid up is a condition". |
+| C-22 | Space follows the rebels' trait and rank rules (the campaign descriptions are the rules). | 2026-10-05 | Space pilots carry rebel trait keys and each trait does what its card says: Lucky is a 5% chance to survive a killing blow (it was ±1 to hit), Veteran is +1 accuracy and slower to panic (it was +1 initiative and a nerve floor), Unlucky takes 5% more criticals, Brave and Cowardly share one rule with the ground. Friends and In Love now act in space too (panic when the partner goes down), which is what Petra's old "Friends: Joss" did. Green became the Academy Cadets' `nerve_cap` and the roster's `lead`. Ranks: the rebel ladder, or a `rank` title on Hegemony pilot rows (Vex: Commandant). The scene's own trait text and rank ladder are gone. Commit "Space pilots carry the rebels' traits and ranks". |
+| C-21 | An owned Strider is the same as the enemy one. | 2026-10-05 | `OWNED_STRIDER` is gone: the owned Bot, the Steal the Strider VIP and the enemy all read the `strider-mk1` roster row (240 hp, aim 1, def 8), so a hacked Strider no longer loses 20 hp on joining. Commit "An owned Strider is the enemy one". |
 | C-14 | Every door gunner is zone-targeted, not just Cass's: the gunship-orbit rework (merged from the art branch) anchors any Door Gunner Cover to the player's mark. | 2026-10-04 | `dgTargets` works up to 3 enemies inside the placed zone (240px, growing with the layout scale); Cass's prologue asset still unlocks with its tutorial card and sets `tutFlags.fs` when called. Overrule at will — both halves came from your own handoffs. |
 | C-16 | Cass's freighter is drawn in the ground scene by the gun-run rework (merged from the art branch). | 2026-10-04 | The gunship flies in from off the map, orbits the mark with the heavy door gun working and climbs away (`cls:'graf'` art, renamed “Cass’s freighter”). Reduced motion keeps the instant resolution. |
 | C-1 | **A.** Pilots follow the database formula (`floor(skill/10) + floor(level/5)` for Aim and Focus), with mood, injury and the Dogfighter specialty added on top. | 2026-10-02 | The `fixed` override is gone. A rebel's skills are carried to the database's 0–50 scale at the base/space boundary (`Rebel.dbSkill`) and the space scene applies its own bonus; mood, injury and specialty ride on top as `aimMod`. Focus is the database bonus alone, so a fresh generated pilot is weaker than before at Aim and Focus. Scripted pilots and rebel pilots now follow one rule. |

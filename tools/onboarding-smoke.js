@@ -123,7 +123,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  await pg.waitForTimeout(200);
  await click('#sc-ground #endRestartBtn');
  await pg.waitForTimeout(500);
- const base=await E(()=>({scene:window.SR.active,est:document.querySelector('#estSplash').hidden,day:document.querySelector('#dayBanner').hidden,win:window.DBGbase.fn.getWin()}));
+ const base=await E(()=>({scene:window.SR.active,est:document.querySelector('#estSplash').hidden,day:!document.querySelector('#sc-base .sr-banner'),win:window.DBGbase.fn.getWin()}));
  ok(base.scene==='base','back at the base, got '+base.scene);
  ok(base.est===false,'BASE ESTABLISHED splash is up');
  ok(base.day===true,'no day banner over the splash');

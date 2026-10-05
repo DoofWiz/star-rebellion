@@ -25,7 +25,7 @@ window.Rebel=(function(){
     Support:['Quartermaster type. Counts every bolt twice.','Clerk who read everything they were supposed to file.','Union organiser. Can get two hundred people to do one thing quietly.','Medic’s assistant who ended up doing most of the medicine.','Lab technician who fixes what they are told is unfixable.','Dispatcher with a gift for knowing where everybody is.','Schoolteacher who has opinions about how this should be run.','Ledger keeper for a smuggling ring. Can make money disappear, legally.'],
     Marine:['Dockside brawler with a talent for getting aboard things uninvited.','Ex-boarding crew. Knows exactly how thin a hull is.','Salvage hand, used to cutting their way into wrecks.'],
   };
-  const pick=(a,r)=>a[Math.floor(r()*a.length)];
+  const pick=SR.util.pick;
 
   /* the authored recruits (RECRUITS in base.js) carry titles; keep them out of the first name */
   function split(full){
@@ -117,8 +117,7 @@ window.Rebel=(function(){
   /* authored cast keep the traits their bios already imply */
   const AUTHORED={joss:'reckless',sera:'lucky',dax:'cautious',runa:'shortfuse',kel:'hunter'};
   function hashPick(p){
-    let h=2166136261;const s=p.id+'|'+p.name;
-    for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+    let h=SR.util.hashStr(p.id+'|'+p.name);   // FNV-1a; the mixer below turns it into a stream (kept as it was, so saved rebels keep their trait)
     const r=()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296;};
     return pickTrait(p.role,r);
   }
@@ -126,8 +125,22 @@ window.Rebel=(function(){
   const keys=p=>{const a=[];if(p&&p.charTrait)a.push(p.charTrait);if(p&&p.traits)for(const t of p.traits)a.push(t.k);return a;};
   const has=(p,k)=>!!p&&keys(p).indexOf(k)>=0;
   const liveTraits=p=>keys(p).map(k=>CTK[k]||(window.Rebel&&window.Rebel.RTK&&window.Rebel.RTK[k])).filter(t=>t&&t.live);
-  /* names of the live traits a scene cares about (space.js tests traits by display name) */
-  const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
+  /* a trait's definition by key: a Character Trait or an earned (Rebel) Trait */
+  const def=k=>CTK[k]||(window.Rebel&&window.Rebel.RTK&&window.Rebel.RTK[k])||null;
+  /* the live traits a theatre ('g' ground, 's' space) acts on, as {k, with} (with: the partner of a pair trait) */
+  function traitsFor(p,where){
+    const out=[];
+    if(p&&p.charTrait){const d=CTK[p.charTrait];if(d&&d.live&&d.where.indexOf(where)>=0)out.push({k:p.charTrait});}
+    for(const t of (p&&p.traits)||[]){const d=def(t.k);if(d&&d.live&&d.where.indexOf(where)>=0)out.push(t.with?{k:t.k,with:t.with}:{k:t.k});}
+    return out;
+  }
+  /* the Character Traits that bend every loss of Cool, in both theatres; hasK(k) says whether the pilot or soldier has k */
+  function nerveScale(d,hasK){
+    if(d>=0)return d;
+    if(hasK('brave'))d=Math.round(d*0.5);
+    if(hasK('cowardly'))d=Math.round(d*1.5);
+    return d;
+  }
 
 
 
@@ -171,7 +184,7 @@ window.Rebel=(function(){
   };
   const SKILLSET={Soldier:['aim','con','agi','pre'],Marine:['aim','con','agi','pre'],Pilot:['aim','cun','foc','pre'],Hero:['aim','con','agi','cun','foc','pre'],Support:[]};
   const skillKeys=p=>(p&&!p.auto&&SKILLSET[p.role])||[];
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const clamp=SR.util.clamp;
   function skill(p,k){
     if(skillKeys(p).indexOf(k)<0)return 0;
     return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0)+((SPECSK[p.spec]||{})[k]||0));
@@ -261,6 +274,7 @@ window.Rebel=(function(){
     if(!p.auto&&p.sx===undefined)p.sx={};
     if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
     if(!p.auto&&p.rank===undefined){p.rank=Math.min(8,Math.floor(((p.level||1)-1)/2));p.rankMissions=0;p.missions=p.missions||0;}
+    if('injured' in p&&window.Rebel.migrateInjured)window.Rebel.migrateInjured(p);   // the old days-off counter becomes a condition
     return p;
   }
 
@@ -276,5 +290,5 @@ window.Rebel=(function(){
     return migrate(p);
   }
 
-  return {scripted,toDb,fromDb,dbSkill,LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
+  return {scripted,toDb,fromDb,dbSkill,LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,def,traitsFor,nerveScale,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

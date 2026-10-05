@@ -26,7 +26,6 @@
 .sr-slot.is-off{opacity:.5;cursor:default;}
 .sr-slot.is-off:hover{border-color:var(--sr-seam);background:transparent;}
 /* window heads: tags sit inline; on narrow windows they drop to a second row so the title never collides with them */
-#sc-base .bs-headtags{display:contents;}
 #sc-base .sr-window__head{flex-wrap:wrap;}
 #sc-base .sr-window__title{flex:1 1 auto;}
 #sc-base .sr-window__foot{flex-wrap:wrap;gap:8px 10px;}   /* long labels wrap to a second row instead of overflowing */
@@ -127,11 +126,6 @@
 #sc-base .bs-escn{font:400 72px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 4px 0 var(--sr-ink),0 0 24px rgba(255,90,31,.9);animation:bs-escPop 1s var(--sr-ease-pop) both;}
 @keyframes bs-escRing{0%{transform:scale(.35);opacity:.9;}100%{transform:scale(1.5);opacity:0;}}
 @keyframes bs-escPop{0%{transform:scale(.2);opacity:0;}100%{transform:scale(1);opacity:1;}}
-/* narrow windows: the head tags drop to a second row so the title never collides with them */
-@container sr-app (max-width:620px){
-  #sc-base .sr-window__title{flex:1 1 40%;}
-  #sc-base .bs-headtags{order:5;flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px;}
-}
 /* phones: windows scroll as a whole; the room window and its neighbours get out of each other's way */
 @container sr-app (max-width:900px) or (max-height:520px){
   #sc-base .sr-scrim{padding:30px 8px 8px;}

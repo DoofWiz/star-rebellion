@@ -47,15 +47,24 @@
      H.menuBind(menuEl, buttonEl)             -> toggle on click, closes on outside press / Esc / item pick
      H.win(root,{id,title,size:'sm|lg',accent:'friend|foe|good|progress',body,foot,onOpen,onClose}) -> {el,body,foot,open,close}
         windows are .sr-scrim children of `root` (the scene's .sr-app); [data-close] elements close them
-     H.confirm(root,{title,body,ok,cancel,danger,onOk})    -> modal question window (cancel is ghost, ok primary/danger)
+     H.confirm(root,{title,body,ok,cancel,danger,onOk,onClose}) -> modal question window (cancel is ghost, ok primary/danger)
      H.topWin(root)                           -> the open H.win inside root (for Esc handling), or null
+     H.winHead(title,{tags,extra,close})      -> a window's title bar: tags html, extra buttons before the close button;
+                                                 close = the close button's attributes (default data-close), false for none
+     H.closeBtn(attrs)                        -> the ghost close button (attrs default data-close)
+     H.winBody(html)  H.winFoot(buttons,note) -> body and action bar (note on the left, buttons right, primary last).
+                                                 H.win builds its chrome from these; a scene that keeps one window and
+                                                 re-renders it (the base) uses them directly.
    FEEDBACK
      H.banner(stageEl,{text,sub,color})       -> .sr-banner slam, removes itself (other .sr-banner nodes are left alone)
+     H.toast(el,{html,icon,kind,ms})          -> fills the .sr-toast element el (kind: friend|foe|action|''), pops it in and
+                                                 hides it again after ms (2800)
      H.comms(feedEl,{max:3,ttl:6000})         -> {push(html,kind:'friend|foe|good|action|bad'), clear()}
                                                  newest `max` lines show, older ones dim, every line expires after ttl
      H.phase(plateEl,{phase:'free|plan|exec|fight',status:'calm|alert',name,text,round,icon})
                                               -> patches .sr-phase (name = plate label, text = status words, icon = status icon name)
    MISC  H.tip(title,rule,why,key) -> ' data-tip=...' attribute string for any element
+     H.tag(label,tone,icon)               -> '<span class="sr-tag sr-tag--tone">' (label is html)
      H.esc  H.ico(name,cls)  H.avatar({name,initials,cls,badge})  H.initials(name)  H.reduced (prefers-reduced-motion)
    ===================================================================== */
 window.SR_HUD=(function(){
@@ -97,6 +106,7 @@ window.SR_HUD=(function(){
       (o.key?'<span class="sr-kbd sr-order__key">'+esc(o.key)+'</span>':'')+ico(o.icon)+esc(o.label)+'</button>';
   }
   const tip=(title,rule,why,key)=>tipAttr({title,rule},why,key,title);
+  const tag=(label,tone,icon)=>'<span class="sr-tag'+(tone?' sr-tag--'+tone:'')+'">'+(icon?ico(icon):'')+label+'</span>';
   const sep=()=>'<span class="sr-orders__sep"></span>';
   function cmdbar(o){
     const w=o.who||{};
@@ -239,16 +249,18 @@ window.SR_HUD=(function(){
     el.addEventListener('keydown',ev=>{if(ev.key==='Escape'){el.hidden=true;btn.setAttribute('aria-expanded','false');btn.focus();ev.stopPropagation();}});
     return m;
   }
+  const closeBtn=attrs=>'<button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" '+(attrs||'data-close')+' aria-label="Close">'+ico('clear')+'</button>';
+  const winHead=(title,o)=>{o=o||{};return '<div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+
+    (o.tags?'<span class="sr-window__tags">'+o.tags+'</span>':'')+(o.extra||'')+(o.close===false?'':closeBtn(o.close))+'</div>';};
+  const winBody=(html,attrs)=>'<div class="sr-window__body"'+(attrs?' '+attrs:'')+'>'+(html||'')+'</div>';
+  const winFoot=(btns,note,attrs)=>'<div class="sr-window__foot"'+(attrs?' '+attrs:'')+'>'+(note?'<span class="sr-window__note">'+note+'</span>':'')+'<span class="sr-spacer"></span>'+(btns||'')+'</div>';
   function win(root,o){
     const old=o.id?root.querySelector('#'+o.id):null;
     if(old)old.remove();                       // rebuilt fresh so listeners never stack
     const el=document.createElement('div');if(o.id)el.id=o.id;root.appendChild(el);
     el.className='sr-scrim';el.hidden=true;el.setAttribute('data-srwin','1');
     el.innerHTML='<div class="sr-window'+(o.size?' sr-window--'+o.size:'')+(o.accent?' sr-window--'+o.accent:'')+'" role="dialog" aria-modal="true" aria-label="'+esc(o.title)+'">'+
-      '<div class="sr-window__head"><span class="sr-window__title">'+esc(o.title)+'</span>'+
-      '<button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-close aria-label="Close">'+ico('clear')+'</button></div>'+
-      '<div class="sr-window__body" data-body>'+(o.body||'')+'</div>'+
-      (o.foot?'<div class="sr-window__foot" data-foot>'+o.foot+'</div>':'')+'</div>';
+      winHead(esc(o.title))+winBody(o.body,'data-body')+(o.foot?'<div class="sr-window__foot" data-foot>'+o.foot+'</div>':'')+'</div>';
     let back=null;
     const api={el,body:el.querySelector('[data-body]'),foot:el.querySelector('[data-foot]'),
       open(){back=document.activeElement;el.hidden=false;const f=el.querySelector('.sr-btn--primary,.sr-btn--danger,[data-close]');if(f)f.focus();if(o.onOpen)o.onOpen(api);},
@@ -261,7 +273,7 @@ window.SR_HUD=(function(){
     return l.length?l[l.length-1]:null;
   }
   function confirm(root,o){
-    const w=win(root,{id:o.id||'srConfirm',title:o.title,size:'sm',body:'<p class="sr-p">'+esc(o.body||'')+'</p>',
+    const w=win(root,{id:o.id||'srConfirm',title:o.title,size:'sm',body:'<p class="sr-p">'+esc(o.body||'')+'</p>',onClose:o.onClose,
       foot:'<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--ghost" data-close>'+esc(o.cancel||'Cancel')+'</button>'+
         '<button type="button" class="sr-btn sr-btn--'+(o.danger?'danger':'primary')+'" data-ok>'+esc(o.ok||'OK')+'</button>'});
     w.el.querySelector('[data-ok]').addEventListener('click',()=>{w.close();if(o.onOk)o.onOk();});
@@ -276,6 +288,16 @@ window.SR_HUD=(function(){
     stage.appendChild(b);
     setTimeout(()=>{if(b.parentNode)b.remove();},reduced?900:1400);
     return b;
+  }
+  const TOAST={friend:'signal',foe:'skull',action:'star',good:'check'};
+  function toast(el,o){
+    const kind=o.kind===undefined?'friend':o.kind;
+    el.className='sr-toast'+(kind&&kind!=='good'?' sr-toast--'+kind:'');
+    el.innerHTML=ico(o.icon||TOAST[kind]||'signal')+'<span>'+(o.html||'')+'</span>';
+    el.hidden=false;el.style.animation='none';void el.offsetWidth;el.style.animation='';   // restart the pop-in
+    clearTimeout(el.__toastT);
+    el.__toastT=setTimeout(()=>{el.hidden=true;},o.ms||2800);
+    return el;
   }
   function comms(feed,o){
     o=Object.assign({max:3,ttl:6000},o||{});
@@ -306,5 +328,5 @@ window.SR_HUD=(function(){
     const u=el.querySelector('.sr-phase__status use');
     if(u&&o.icon)u.setAttribute('href','#i-'+o.icon);
   }
-  return {esc,ico,initials,avatar,tip,btn,order,sep,cmdbar,render,fitBar,tips,vs,menuHtml,menuBind,win,topWin,confirm,banner,comms,phase,reduced};
+  return {esc,ico,initials,avatar,tip,tag,btn,order,sep,cmdbar,render,fitBar,tips,vs,menuHtml,menuBind,win,winHead,winBody,winFoot,closeBtn,topWin,confirm,banner,toast,comms,phase,reduced};
 })();

@@ -141,14 +141,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    for(const key of ['comms','diplo','training','infirmary','store','workshop']){
     if(!have(key))continue;
     if(G.people.some(p=>p.assign==='station:'+key))continue;
-    const p=G.people.find(x=>x.role==='Support'&&x.assign==='rest'&&!x.injured);
+    const p=G.people.find(x=>x.role==='Support'&&x.assign==='rest'&&!window.Rebel.laidUp(x));
     if(p)p.assign='station:'+key;
    }
    // soldiers train when idle and a hall exists
-   if(have('training')){for(const p of G.people){if(p.role==='Soldier'&&!p.auto&&p.assign==='rest'&&p.level<3&&!p.injured)p.assign='train';}}
+   if(have('training')){for(const p of G.people){if(p.role==='Soldier'&&!p.auto&&p.assign==='rest'&&p.level<3&&!window.Rebel.laidUp(p))p.assign='train';}}
    for(const p of G.people){if(p.assign==='train'&&p.level>=3)p.assign='rest';}
    // specialties
-   for(const p of G.people){if((p.role==='Soldier'||p.role==='Pilot')&&p.level>=3&&!p.spec&&p.assign==='rest'&&!p.injured&&have('training')){
+   for(const p of G.people){if((p.role==='Soldier'||p.role==='Pilot')&&p.level>=3&&!p.spec&&p.assign==='rest'&&!window.Rebel.laidUp(p)&&have('training')){
      try{f.startSpec(p.id,p.role==='Soldier'?(G.people.some(q=>q.spec==='fieldtech')?'vanguard':'fieldtech'):'dogfighter');}catch(e){}}}
   }
   /* hand out promotions and fit prosthetics, like a player would */
@@ -173,8 +173,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   function loot(M,m){
    const items=[];
    const sc=m.scenario||'';
-   if(sc==='stealfuel')items.push('Explosive Charge','Explosive Charge');
-   if(sc==='autofactory')items.push('Explosive Charge');
+   if(sc==='stealfuel')items.push('charge','charge');
+   if(sc==='autofactory')items.push('charge');
    return {c:120+Math.round(R()*120),s:30+Math.round(R()*50),items};
   }
   function runMission(m){

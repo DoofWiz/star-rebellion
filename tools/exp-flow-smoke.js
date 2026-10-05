@@ -50,7 +50,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   kel.xp=0;kel.level=1;mission([{id:'mt1',xp:0.1,state:'ok'}]);
   out.mentorXp=[Math.round(g1*1000)/1000,Math.round(kel.xp*1000)/1000];
   // ---- scars from a long injury
-  const rn=fresh('sc1',2);rn.injured=1;rn.injDur=6;f.advanceDay();
+  const rn=fresh('sc1',2);R.layUp(rn,'downed',0.2).days0=6;f.advanceDay();   // the last day of a six-day lay-up
   out.scarred=R.expHas(P('sc1'),'scarred');
   // ---- rivals wind each other up at launch
   const a=fresh('rv1',2),c=fresh('rv2',2);a.traits=[{k:'rivals',with:'rv2'}];c.traits=[{k:'rivals',with:'rv1'}];a.morale=60;c.morale=60;

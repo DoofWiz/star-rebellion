@@ -31,6 +31,14 @@ KINDS_SHIP = ["starship", "drone", "structure"]
 KINDS_WEAPON = ["plasma", "ballistic", "missile"]
 KINDS_PILOT = ["rebel", "enemy", "drone"]
 CLASSES = ["starship", "capital"]
+ITEM_CATS = ["weapon", "armour", "gadget", "other", "builtin"]
+ITEM_SLOTS = ["primary", "secondary", "head", "body", "gadget"]
+ITEM_ORIGINS = ["factory", "handmade", "scavenged"]
+DAMAGE_TYPES = ["ballistic", "plasma", "explosive", "blunt"]
+FACTIONS = ["hegemony", "outworlder"]
+ENEMY_KINDS = ["person", "auto", "bot", "vehicle"]
+OWNED_AS = ["policebot", "bruiser", "strider", "police", "dispersal", "transport"]
+ITEM_STATS = ["damage_min", "damage_max", "range", "attack", "shots", "damage_type"]
 
 SCHEMA = {
     "rules": {
@@ -130,7 +138,8 @@ SCHEMA = {
             ("focus", "int", 7, "Skill, 0 to 50. Raises the modifier to not be hit."),
             ("presence", "int", 9, "Skill, 0 to 50. Stays Cool and avoids Panic."),
             ("ship_id", "id", 20, "Ship this pilot usually flies."),
-            ("traits_legacy", "text", 16, "Trait names the current code uses. Will be replaced by the trait list."),
+            ("traits", "text", 22, "Rebel trait keys (the same traits rebels have, see rebel.js and rebel-exp.js), separated by |. A pair trait names its partner: friends:joss-marrek."),
+            ("rank", "text", 14, "Rank title for Hegemony pilots, e.g. Commandant. Blank for rebels (their rank comes from the rebel ladder) and drones."),
             ("notes", "text", 70, "Designer notes, including how the seed values were chosen."),
         ],
         "auto": ["aim_bonus (auto)", "focus_bonus (auto)", "ship_base_tn (auto)", "target_number (auto)"],
@@ -146,9 +155,108 @@ SCHEMA = {
             ("notes", "text", 80, "Designer notes."),
         ],
     },
+    "items": {
+        "sheet": "Items", "key": "id",
+        "cols": [
+            ("id", "id", 13, "Unique lowercase id. Saves, loot tables and enemy loadouts use it, so do not rename."),
+            ("name", "text", 26, "Display name."),
+            ("sub", "text", 26, "Short line under the name, e.g. Assault rifle."),
+            ("category", "id", 10, "weapon, armour, gadget or other. builtin = a weapon a unit or vehicle has built in (fists, a turret); never owned or sold."),
+            ("slot", "id", 10, "primary, secondary, head, body or gadget. Blank: carried as mission stores, not in a slot."),
+            ("width", "int", 6, "Storeroom footprint, columns."),
+            ("height", "int", 6, "Storeroom footprint, rows."),
+            ("quality", "num", 7, "Auto-equip hands out the highest first. 0 = cosmetic."),
+            ("manufacturer", "id", 12, "Manufacturer id. Blank if unknown or TBC."),
+            ("origin", "id", 10, "factory, handmade or scavenged."),
+            ("price", "int", 7, "Base Black Market price in credits. Blank: never sold, cannot be sold back."),
+            ("live", "bool", 6, "TRUE once the game has rules for it. FALSE keeps it out of the market and out of every slot."),
+            ("rev", "int", 5, "Lowest Revolution Level the market stocks it at."),
+            ("hegemony", "bool", 9, "Hegemony issue: loot only, never sold."),
+            ("drop_only", "bool", 9, "Only ever dropped by enemies, never sold."),
+            ("damage_min", "int", 8, "Weapons: lowest damage roll."),
+            ("damage_max", "int", 8, "Weapons: highest damage roll."),
+            ("range", "int", 7, "Weapons: range in ground-map units (about 100 = one building)."),
+            ("attack", "int", 7, "Weapons: added to the attack roll. Negative is harder to hit with."),
+            ("shots", "int", 6, "Weapons: shots per attack."),
+            ("damage_type", "id", 10, "Weapons: ballistic, plasma, explosive or blunt."),
+            ("one_handed", "bool", 8, "Weapons: usable with a broken arm."),
+            ("jams", "bool", 6, "Weapons: can jam."),
+            ("pellets", "bool", 7, "Weapons: fires a spread of pellets."),
+            ("falloff", "bool", 7, "Weapons: damage drops with range."),
+            ("beam", "bool", 6, "Weapons: draws as a beam."),
+            ("icon", "id", 10, "Icon from the game's sprite sheet, e.g. gun, pistol, grenade."),
+            ("description", "text", 60, "Shown to the player in the Arsenal."),
+            ("notes", "text", 50, "Designer notes. Not shown to players."),
+        ],
+    },
+    "enemies": {
+        "sheet": "Enemies", "key": "id",
+        "cols": [
+            ("id", "id", 24, "Unique lowercase id. Mission spawns name it, so do not rename."),
+            ("name", "text", 24, "Type name, e.g. Security Patrolman. Each spawn gets its own name."),
+            ("faction", "id", 11, "hegemony or outworlder."),
+            ("tier", "int", 5, "Revolution tier the Enemies doc puts it in (1 to 3)."),
+            ("kind", "id", 8, "person, auto (a robot that fights like a person), bot (a robot vehicle that drives itself) or vehicle (needs crew; its guns are on its seats: see Vehicle Seats)."),
+            ("in_doc", "bool", 7, "TRUE if the Enemies doc describes it. FALSE: the game needed it first; spec pending."),
+            ("hp", "int", 6, "Health."),
+            ("aim", "int", 5, "Added to attack rolls."),
+            ("def", "int", 5, "Defence: the number to beat to hit them."),
+            ("cool", "int", 6, "Nerve, 0 to 100. Blank = 55. Leaders never drop below 40."),
+            ("weapon_1", "id", 12, "Item id they draw first. Blank for vehicles (their guns are on their seats)."),
+            ("weapon_2", "id", 12, "Item id they also carry (a sidearm, a riot shield). Blank for none."),
+            ("head", "id", 12, "Head item id. Blank for none."),
+            ("body", "id", 12, "Body item id. Blank for none."),
+            ("gadget", "id", 10, "Gadget item id. Blank for none."),
+            ("leader", "bool", 7, "Leads the others: shoots to kill, never breaks, and the rest waver once they fall."),
+            ("owned_as", "id", 10, "Robots and vehicles: the key a hacked or stolen one has at base (policebot, bruiser, strider, police, dispersal, transport)."),
+            ("hack_rounds", "int", 8, "Robots only: rounds of hacking to turn it. Blank = cannot be hacked."),
+            ("heavy", "bool", 6, "Hits like a truck (the Bruiser)."),
+            ("big", "bool", 5, "Takes up a vehicle's footprint (the Strider)."),
+            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 180 and a Sprint 360). Blank for people and Autos."),
+            ("credits_min", "int", 8, "Credits on the body, low end. Blank for none."),
+            ("credits_max", "int", 8, "Credits on the body, high end."),
+            ("art", "id", 9, "What the art kit draws: an archetype (sr-art.js ARCH) for people and robots, a vehicle (VEHICLES) for vehicles."),
+            ("description", "text", 60, "From the Enemies doc where it has one."),
+            ("notes", "text", 50, "Designer notes. Not shown to players."),
+        ],
+    },
+    "vehicle_seats": {
+        "sheet": "Vehicle Seats", "key": "id",
+        "cols": [
+            ("id", "id", 26, "Unique lowercase id, e.g. police-cruiser-drv."),
+            ("vehicle", "id", 22, "Enemies id of a vehicle. Its seats are listed in this order."),
+            ("seat", "id", 7, "Short key, unique within the vehicle (drv, gun, bay1...). Missions put crew in seats by this key."),
+            ("name", "text", 12, "Shown to the player, e.g. Driver, Turret, Troop bay."),
+            ("drives", "bool", 7, "TRUE for the one seat that moves the vehicle."),
+            ("weapon", "id", 12, "Item id of the gun this seat fires. Blank: no gun."),
+            ("enclosed", "bool", 8, "TRUE: whoever sits here cannot be shot (shoot the vehicle). FALSE: an exposed seat, like a turret."),
+        ],
+    },
+    "space_enemies": {
+        "sheet": "Space Enemies", "key": "id",
+        "cols": [
+            ("id", "id", 20, "Unique lowercase id. Space line-ups name it, so do not rename."),
+            ("name", "text", 22, "Type name, e.g. Drone Monitor. Each spawn gets its own callsign."),
+            ("faction", "id", 11, "hegemony or outworlder."),
+            ("tier", "int", 5, "Revolution tier the Enemies doc puts it in (1 to 3)."),
+            ("in_doc", "bool", 7, "TRUE if the Enemies doc describes it. FALSE: the game needed it first; spec pending."),
+            ("ship", "id", 18, "Ships id it flies. Hull, shields, movement and guns come from there."),
+            ("pilot", "id", 18, "Pilots id flying it: level, skills, initiative. Drones and structures use a built-in core. A spawn can name a different pilot (each cadet is their own row)."),
+            ("maneuvers", "text", 10, "Extra maneuvers, separated by |: loop (K-turn), broll (barrel roll). Blank for none."),
+            ("lead", "bool", 6, "The mark: flown with the instructor's AI, and the rest of the line-up's nerve breaks when it falls."),
+            ("flees", "bool", 6, "Jumps out of the sector once it panics near the edge."),
+            ("calls", "id", 16, "Space Enemies id it calls in once it spots a rebel ship (once per fight). Blank for none."),
+            ("clamps", "bool", 7, "Fires mag-clamps that slow the target."),
+            ("nerve_cap", "int", 8, "Their nerve never rises above this (green cadets: 60). Blank: no cap."),
+            ("age", "int", 5, "Pilot's age on the dossier. Blank: none shown (drones, structures)."),
+            ("bio", "text", 50, "Dossier line. A spawn can give its own."),
+            ("description", "text", 50, "From the Enemies doc where it has one."),
+            ("notes", "text", 40, "Designer notes. Not shown to players."),
+        ],
+    },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
 
@@ -324,6 +432,14 @@ def validate(db):
         for sk in ("aim", "cunning", "focus", "presence"):
             rng("pilots", p, sk, 0, rules["skill_cap"])
         ref("pilots", p, "ship_id", "ships")
+        for t in [x for x in p["traits"].split("|") if x]:
+            k, _, partner = t.partition(":")
+            if not k or not k.replace("_", "").isalnum():
+                E("%s: trait %r is not a trait key" % (n, t))
+            if partner and partner not in ids["pilots"]:
+                E("%s: trait %r names a partner that is not in pilots" % (n, t))
+        if p["kind"] != "enemy" and p["rank"]:
+            E("%s: only Hegemony pilots carry a rank title (rebels use the rebel ladder)" % n)
 
     ship_by_id = {s["id"]: s for s in db["ships"]}
     for f in db["starting_fleet"]:
@@ -336,6 +452,136 @@ def validate(db):
             filled = sum(1 for k in ("weapon_1", "weapon_2") if f[k])
             if filled > m["weapon_slots"]:
                 E("%s: %d weapons on a ship with %d slots" % (n, filled, m["weapon_slots"]))
+
+    for it in db["items"]:
+        n = "items %r" % it["id"]
+        for col, allowed in (("category", ITEM_CATS), ("slot", ITEM_SLOTS + [None]), ("origin", ITEM_ORIGINS + [None]),
+                             ("damage_type", DAMAGE_TYPES + [None])):
+            if it[col] not in allowed:
+                E("%s: %s %r (allowed: %s)" % (n, col, it[col], ", ".join(a for a in allowed if a)))
+        ref("items", it, "manufacturer", "manufacturers")
+        for b in ("live", "hegemony", "drop_only", "one_handed", "jams", "pellets", "falloff", "beam"):
+            if not isinstance(it[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        rng("items", it, "width", 1, 4)
+        rng("items", it, "height", 1, 4)
+        rng("items", it, "rev", 1, 5)
+        rng("items", it, "price", 1, 99999, required=False)
+        has = [c for c in ITEM_STATS if it[c] is not None]
+        if has and len(has) < len(ITEM_STATS):
+            E("%s: weapon stats are all-or-nothing; missing %s" % (n, ", ".join(c for c in ITEM_STATS if it[c] is None)))
+        if it["category"] == "builtin":
+            if not has:
+                E("%s: a builtin weapon needs its stats" % n)
+            if it["slot"] or it["price"] is not None:
+                E("%s: builtin weapons have no slot and no price" % n)
+        if it["category"] == "weapon" and it["live"] and not has:
+            E("%s: a live weapon needs its stats (or set live FALSE)" % n)
+        if has:
+            rng("items", it, "damage_min", 0, 999)
+            rng("items", it, "damage_max", 0, 999)
+            if it["damage_min"] > it["damage_max"]:
+                E("%s: damage_min above damage_max" % n)
+            rng("items", it, "range", 1, 9999)
+            rng("items", it, "shots", 1, 20)
+        if it["category"] == "weapon" and it["slot"] not in ("primary", "secondary"):
+            E("%s: weapons go in the primary or secondary slot" % n)
+        if it["category"] == "armour" and it["slot"] not in ("head", "body"):
+            E("%s: armour goes in the head or body slot" % n)
+        if not it["icon"]:
+            E("%s: icon is required" % n)
+
+    items = {it["id"]: it for it in db["items"]}
+    for en in db["enemies"]:
+        n = "enemies %r" % en["id"]
+        for col, allowed in (("faction", FACTIONS), ("kind", ENEMY_KINDS), ("owned_as", OWNED_AS + [None])):
+            if en[col] not in allowed:
+                E("%s: %s %r (allowed: %s)" % (n, col, en[col], ", ".join(a for a in allowed if a)))
+        for b in ("in_doc", "leader", "heavy", "big"):
+            if not isinstance(en[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        rng("enemies", en, "tier", 1, 3)
+        rng("enemies", en, "hp", 1, 9999)
+        rng("enemies", en, "aim", -5, 20)
+        rng("enemies", en, "def", 0, 30)
+        rng("enemies", en, "cool", 0, 100, required=False)
+        for col in ("weapon_1", "weapon_2", "head", "body", "gadget"):
+            ref("enemies", en, col, "items", required=(col == "weapon_1" and en["kind"] != "vehicle"))
+        if en["kind"] == "vehicle" and any(en[c] for c in ("weapon_1", "weapon_2", "head", "body", "gadget")):
+            E("%s: vehicles carry no kit; their guns go on their seats (Vehicle Seats)" % n)
+        w = items.get(en["weapon_1"])
+        if w and w["damage_min"] is None:
+            E("%s: weapon_1 %r has no combat stats" % (n, en["weapon_1"]))
+        for col, slot in (("head", "head"), ("body", "body"), ("gadget", "gadget")):
+            it = items.get(en[col])
+            if it and it["slot"] != slot:
+                E("%s: %s %r goes in the %s slot" % (n, col, en[col], it["slot"]))
+        if en["kind"] == "person" and en["owned_as"]:
+            E("%s: only robots and vehicles have an owned_as" % n)
+        if en["kind"] != "person" and not en["owned_as"]:
+            E("%s: robots and vehicles need an owned_as" % n)
+        if en["kind"] not in ("auto", "bot") and en["hack_rounds"] is not None:
+            E("%s: only robots can be hacked" % n)
+        if en["kind"] in ("bot", "vehicle"):
+            rng("enemies", en, "speed", 1, 2000)
+        elif en["speed"] is not None:
+            E("%s: only bots and vehicles have a speed" % n)
+    owned = [en["owned_as"] for en in db["enemies"] if en["owned_as"]]
+    for k in set(owned):
+        if owned.count(k) > 1:
+            E("enemies: owned_as %r is used twice" % k)
+
+    kinds = {en["id"]: en["kind"] for en in db["enemies"]}
+    seats = {}
+    for st in db["vehicle_seats"]:
+        n = "vehicle_seats %r" % st["id"]
+        ref("vehicle_seats", st, "vehicle", "enemies", required=True)
+        ref("vehicle_seats", st, "weapon", "items")
+        if st["vehicle"] in kinds and kinds[st["vehicle"]] != "vehicle":
+            E("%s: %r is not a vehicle" % (n, st["vehicle"]))
+        for b in ("drives", "enclosed"):
+            if not isinstance(st[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        w = items.get(st["weapon"])
+        if w and w["damage_min"] is None:
+            E("%s: weapon %r has no combat stats" % (n, st["weapon"]))
+        seats.setdefault(st["vehicle"], []).append(st)
+    for vid, k in kinds.items():
+        if k != "vehicle":
+            continue
+        L = seats.get(vid, [])
+        if sum(1 for st in L if st["drives"]) != 1:
+            E("enemies %r: a vehicle needs exactly one seat that drives" % vid)
+        keys = [st["seat"] for st in L]
+        if len(set(keys)) != len(keys):
+            E("enemies %r: seat keys must be unique" % vid)
+
+    ships_by = {x["id"]: x for x in db["ships"]}
+    for se in db["space_enemies"]:
+        n = "space_enemies %r" % se["id"]
+        if se["faction"] not in FACTIONS:
+            E("%s: faction %r" % (n, se["faction"]))
+        rng("space_enemies", se, "tier", 1, 3)
+        ref("space_enemies", se, "ship", "ships", required=True)
+        ref("space_enemies", se, "pilot", "pilots", required=True)
+        ref("space_enemies", se, "calls", "space_enemies")
+        if se["calls"] == se["id"]:
+            E("%s: cannot call itself" % n)
+        for b in ("in_doc", "lead", "flees", "clamps"):
+            if not isinstance(se[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        for m in [x for x in se["maneuvers"].split("|") if x]:
+            if m not in ("loop", "broll"):
+                E("%s: unknown maneuver %r (known: loop, broll)" % (n, m))
+        sh = ships_by.get(se["ship"])
+        if sh and sh["kind"] == "structure" and (se["maneuvers"] or se["flees"] or se["calls"] or se["clamps"]):
+            E("%s: a structure cannot maneuver, flee, call or clamp" % n)
+        rng("space_enemies", se, "age", 1, 120, required=False)
+        rng("space_enemies", se, "nerve_cap", 0, 100, required=False)
+        if (en["credits_min"] is None) != (en["credits_max"] is None):
+            E("%s: credits_min and credits_max must both be set or both blank" % n)
+        elif en["credits_min"] is not None and en["credits_min"] > en["credits_max"]:
+            E("%s: credits_min above credits_max" % n)
     return errs
 
 
@@ -399,7 +645,7 @@ GUIDE = [
     ("The Pilots tab shows each pilot's TN in their usual ship (target_number). Aim uses the same bonus formula, so equal skill and level cancel out.", "text"),
     ("", "text"),
     ("TABLES", "h"),
-    ("Ships: starships, drones and structures. Weapons: every ship weapon. Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
+    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Space Enemies: the space roster (which ship, which pilot, how it behaves). Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
     ("", "text"),
     ("PLACEHOLDERS", "h"),
     ("Anything labelled seed, placeholder or converted in a Notes column came from the old game values rather than from a design doc, and is there to be changed.", "text"),
@@ -431,7 +677,8 @@ def export_xlsx(db, out):
         c.font = F(bold=True, size=14) if style == "title" else F(bold=True) if style == "h" else F()
     g.sheet_view.showGridLines = False
 
-    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships"}
+    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships", "items": "Items", "enemies": "Enemies",
+            "pilots": "Pilots", "space_enemies": "Space Enemies"}
     ref_cols = {
         ("weapons", "manufacturer"): "manufacturers",
         ("ships", "manufacturer"): "manufacturers",
@@ -441,10 +688,18 @@ def export_xlsx(db, out):
         ("starting_fleet", "model"): "ships",
         ("starting_fleet", "weapon_1"): "weapons",
         ("starting_fleet", "weapon_2"): "weapons",
+        ("items", "manufacturer"): "manufacturers",
+        ("enemies", "weapon_1"): "items", ("enemies", "weapon_2"): "items", ("enemies", "head"): "items",
+        ("enemies", "body"): "items", ("enemies", "gadget"): "items",
+        ("vehicle_seats", "vehicle"): "enemies", ("vehicle_seats", "weapon"): "items",
+        ("space_enemies", "ship"): "ships", ("space_enemies", "pilot"): "pilots", ("space_enemies", "calls"): "space_enemies",
     }
     enums = {
         ("ships", "kind"): KINDS_SHIP, ("weapons", "kind"): KINDS_WEAPON,
         ("pilots", "kind"): KINDS_PILOT, ("size_scale", "class"): CLASSES,
+        ("items", "category"): ITEM_CATS, ("items", "slot"): ITEM_SLOTS, ("items", "origin"): ITEM_ORIGINS,
+        ("items", "damage_type"): DAMAGE_TYPES,
+        ("space_enemies", "faction"): FACTIONS, ("enemies", "faction"): FACTIONS, ("enemies", "kind"): ENEMY_KINDS, ("enemies", "owned_as"): OWNED_AS,
     }
     whole = {
         ("ships", "size"): (1, 20), ("size_scale", "size"): (1, 20),

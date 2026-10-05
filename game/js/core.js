@@ -54,6 +54,23 @@ window.SR=(function(){
       s.connect(f).connect(envG(v,t,at));
       s.start(AC.currentTime+(at||0));s.stop(AC.currentTime+(at||0)+t+0.05);
     },
+    /* the small sounds every scene shares */
+    tick(){if(audio.off())return;audio.osc('square',1500,1300,0.02,0.045);},
+    dice(){if(audio.off())return;for(let i=0;i<5;i++)audio.nz('bandpass',2200,3,0.04,0.03,i*0.12*(1+i*0.15));},
+  };
+  /* ---------- small helpers every scene shares (SR.util) ----------
+     Pure helpers only: anything that reads a scene's own state (its log, its floaters, its unit list) stays in the scene.
+     rint and pick take the random source as an argument, so a scene can pass the rng its tests swap out. */
+  const util={
+    scoped:root=>id=>root.querySelector('#'+id),            // a scene's byId: ids are looked up inside its own root
+    rint:(lo,hi,rng)=>lo+Math.floor((rng||Math.random)()*(hi-lo+1)),
+    pick:(arr,rng)=>arr[Math.floor((rng||Math.random)()*arr.length)],
+    clamp:(v,lo,hi)=>Math.max(lo,Math.min(hi,v)),
+    dist:(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),
+    /* a small seeded generator: the same seed gives the same sequence (the market, a campaign's draws) */
+    mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};},
+    /* FNV-1a: a string to a stable 32-bit number (seeds from ids and names) */
+    hashStr(s){let h=2166136261;s=String(s);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;},
   };
   /* ---------- durable save ---------- */
   const SAVE_KEY='star-rebellion-campaign-v1';
@@ -123,15 +140,14 @@ window.SR=(function(){
   };
   /* kit sprite names; the sprite is inlined at the top of index.html */
   const ICON={rifle:'gun',pistol:'pistol',shotgun:'gun',plasma:'plasma',shell:'ballistic',missile:'missile',ship:'ship'};
-  function icon(k){return ICON[k]?'<svg class="sr-ico" aria-hidden="true"><use href="#i-'+ICON[k]+'"/></svg>':'';}
+  function icon(k){return ICON[k]?window.SR_HUD.ico(ICON[k]):'';}
   const ui={
     icon,
     gearChips(list){
       return (list||[]).map(w=>{const g=GEAR[w]||{n:w,i:null};return {icon:g.i,label:g.n};});
     },
     squadCard(o){
-      const ini=String(o.name||'?').split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      let h='<div class="sr-squadcard"><span class="sr-avatar'+(o.pilot?' sr-avatar--pilot':'')+'">'+ini+'</span><div>';
+      let h='<div class="sr-squadcard"><span class="sr-avatar'+(o.pilot?' sr-avatar--pilot':'')+'">'+window.SR_HUD.initials(o.name||'?')+'</span><div>';
       h+='<div class="sr-squadcard__name">'+o.name+'</div>';
       h+='<div class="sr-squadcard__role">'+(o.role||(o.pilot?'Pilot':''))+'</div>';
       h+='<div class="sr-squadcard__gear">';
@@ -148,7 +164,7 @@ window.SR=(function(){
   };
   /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  return {theme:window.SR_THEME,hud:window.SR_HUD,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

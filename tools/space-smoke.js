@@ -24,9 +24,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const SR=window.SR;
   const flight=[
-    {pilotId:'sera',name:'Sera Kest',first:'Sera',level:3,aim:3,cool:72,traits:['Lucky'],cls:'cross',fighterId:'f1',fighterName:'Dustfall',hull:100},
-    {pilotId:'joss',name:'Joss Marrek',first:'Joss',level:4,aim:4,cool:76,traits:[],cls:'talon',fighterId:'f2',fighterName:'Talon 1',hull:100},
-    {pilotId:'petra',name:'Petra Voss',first:'Petra',level:2,aim:2,cool:60,traits:[],cls:'talon',fighterId:'f3',fighterName:'Talon 2',hull:100}];
+    {pilotId:'sera',name:'Sera Kest',first:'Sera',level:3,aim:3,cool:72,tr:[{k:'lucky'}],cls:'cross',fighterId:'f1',fighterName:'Dustfall',hull:100},
+    {pilotId:'joss',name:'Joss Marrek',first:'Joss',level:4,aim:4,cool:76,tr:[],cls:'talon',fighterId:'f2',fighterName:'Talon 1',hull:100},
+    {pilotId:'petra',name:'Petra Voss',first:'Petra',level:2,aim:2,cool:60,tr:[],cls:'talon',fighterId:'f3',fighterName:'Talon 2',hull:100}];
   const odd=flight.map((f,i)=>Object.assign({},f,{loadout:[['missiles','missiles'],[],['door-mounted-gun','bls-t-light-repeaters']][i],cls:['cross','talon','graf'][i]}));
   SR.mission=scen==='loadouts'?{kind:'space',missionId:'x',days:0,flight:odd}:scen==='depot'?{kind:'space',missionId:'depotrun',days:0,flight}:scen==='flight'?{kind:'space',missionId:'x',days:0,flight}:null;
   SR.go('space',{test:true,mission:SR.mission});

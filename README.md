@@ -9,15 +9,17 @@ what's fun over time.
 
 All three scenes share one UI kit, "Chunky Ops": `game/ui/sr-theme.css` (tokens and components),
 `sr-theme.js` (canvas palette and HUD drawing helpers), `sr-icons.svg` (inline sprite) and `sr-hud.js`
-(command bar, VS panel, menus, windows). The kit files are generated: edit the sources in
-`tools/ui-kit/` and run `python3 tools/ui-kit/build.py game/ui docs/ui`. `docs/ui/styleguide.html`
+(command bar, VS panel, menus, windows, window chrome, banners, toasts, the comms feed, tooltips). The Base screen,
+the ground scene and the space scene all build on it. `sr-theme.css`, `sr-theme.js`, `sr-icons.svg` and the style guide
+are generated: edit the sources in `tools/ui-kit/` and run `python3 tools/ui-kit/build.py game/ui docs/ui`.
+`sr-hud.js`, `sr-hud.css`, `sr-kit.css` and `scenes.css` are written by hand. `docs/ui/styleguide.html`
 is the living style guide and `docs/ui/HANDOFF.md` the migration spec. Scene-specific layout lives
 in `game/ui/scenes.css`.
 
 ## Game database (`game/data/`, `tools/db/`, `docs/DATABASE.md`)
 
-Ships, weapons, pilots and the target-number rules live in `game/data/db.json`; the game reads them through
-`game/js/data.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
+Ships, ship weapons, personal kit (`items`), the ground enemy roster (`enemies`), pilots and the target-number rules
+live in `game/data/db.json`; the game reads them through `game/js/data.js`, `game/js/items.js` and `game/js/enemies.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
 See `docs/DATABASE.md`.
 
 ## `game/` — the unified game

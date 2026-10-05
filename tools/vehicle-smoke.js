@@ -43,7 +43,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   out.inside=[has('move'),has('hold'),has('lockin'),has('exit'),has('sprint'),has('cover'),has('loot')&&dis('loot'),has('work')&&dis('work'),has('enter')];
   // a lawman can no longer shoot Dax, only the car he sits in
   drv.x=car.x+200;drv.y=car.y;
-  out.lawShots=[f.validShot(drv,dax,'cowboy'),f.validShot(drv,car,'cowboy')];
+  const dw=f.wpnsOf(drv)[0];   // the patrolman's own sidearm (the enemy roster's HG-40)
+  out.lawShots=[f.validShot(drv,dax,dw),f.validShot(drv,car,dw)];
   // the blast of a grenade does not reach inside
   const hp0=dax.hp,chp0=car.hp;f.explode(car.x,car.y,{r:80,d0:10,d1:10});
   out.blast=[dax.hp===hp0,car.hp<chp0];
@@ -158,7 +159,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const D=window.DBGbase,f=D.fn,out={};
   const G0=JSON.parse(JSON.stringify(D.G));
   G0.people.push({id:'strider',name:'Strider SK-1',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'strider'});
-  delete G0.vehicles;
+  delete G0.vehicles;delete G0.v;   // a save from before versioning
   f.restoreCampaign({campaign:G0,started:true});
   const G=D.G;
   out.mig=[G.people.some(p=>p.id==='strider'),(G.vehicles||[]).map(v=>v.id+':'+v.type+':'+v.hp).join()];
