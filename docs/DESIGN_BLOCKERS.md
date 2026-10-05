@@ -10,8 +10,8 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-04, after the art/galaxy/title branch, the Black Market / Arsenal handoff and the
-opening onboarding handoff (`docs/ONBOARDING-HANDOFF.md`) were merged into main.
+**Last updated:** 2026-10-05, after the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`), which added C-20 to C-23
+and M-24 and renumbered the Fleet-tab entry from a duplicate C-12 to C-19.
 
 ## How to use this
 
@@ -34,7 +34,7 @@ opening onboarding handoff (`docs/ONBOARDING-HANDOFF.md`) were merged into main.
 | C-9 | ⚪ | The Steal the Cross laser turret is still its own system | One rule for gun emplacements |
 | C-10 | ⚪ | Prices, market weights and `KIT` live in `base.js`, not the database | Where personal kit data lives |
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
-| C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
+| C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
 | C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
@@ -62,6 +62,11 @@ opening onboarding handoff (`docs/ONBOARDING-HANDOFF.md`) were merged into main.
 | M-21 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
+| C-20 | 🔴 | Two injury-recovery models run side by side, with different heal rates | How long a wounded rebel is out |
+| C-21 | ⚪ | The Strider (and other units) have different numbers in base and ground | A hacked Strider loses 20 hp on joining |
+| C-22 | 🟡 | Space reads traits by legacy name; "Veteran" and "Lucky" mean something else there | Earned traits in space; double-dipping Veteran |
+| C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
+| M-24 | 🟡 | Loot and drop rules: what enemies drop, random loot, gear lost on death | Hegemony "loot only" kit never drops; Messy |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -138,7 +143,8 @@ Cap, BLS-T Light Repeaters, Door Mounted Gun and the Riot Transport Cruiser. The
 chip, so these read "TBC" (or show none). **Needs from you:** maker names, whenever convenient. Flavour only.
 **Your call:** _open_
 
-### C-12 ⚪ Ships live in the Arsenal, not their own Fleet tab
+### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab
+*(Numbered C-12 by mistake when it was added; C-12 is Cass's Door Gunner in the Resolved log.)*
 The Gear doc gives ships a tab of their own; the Market/Arsenal handoff puts them under the Arsenal's
 Ships chip, and you said that is "fine for now". Built that way. **Needs from you:** say the word if and when a
 Fleet tab should exist, and what it would hold that the Arsenal's Ships view does not.
@@ -178,9 +184,56 @@ From the art handoff's open questions, now live in `game/art/sr-art.js` data tab
 - **Ship attachments:** only the Door Mounted Gun is designed; `plates` and `tank` are placeholder examples.
 - **Floatin' Truck attachments** (mg, plates, ram, spotlight, crates) are proposals; the truck itself is not in
   the game.
-- **Armour as looks:** Soldiers/Marines wear the Frontier Hardhat and Marines a vest as *looks only*; the
-  armoury has no armour items (see M-10).
+- **Armour as looks:** the art kit draws a Frontier Hardhat on any rebel whose save has no Head slot yet. The
+  Arsenal now has six armour items, but four head items (Cowboy Hat, Baseball Cap, Police Helmet, Auto
+  Head-Helm) have no art, so they draw nothing (see M-16 for what armour does).
 **Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
+**Your call:** _open_
+
+### C-20 🔴 Two injury-recovery models run side by side
+Found in the legacy sweep. A wounded rebel can carry both kinds of injury, and each heals on its own clock:
+- **Conditions** (`Rebel.condRecover`, the newer model) heal at `healRate()` in `base.js`: a medic on station
+  adds 0.5 a day, a doctor 1.
+- **The old `p.injured` day counter** (`advanceDay` in `base.js`) heals at its own rates: +2 with infirmary staff,
+  +1 for a medic, +2 for a doctor, +1 for a *Soldier* when the barracks is staffed (Marines and Heroes miss it).
+  This counter also owns prosthetic fitting and the "scarred" and "nearly dead" experiences. The ground scene picks
+  its length itself (1 to 3 days at Haven Rock, 3 to 6 elsewhere) and "Send a team" sets it directly.
+
+I left both running; nothing breaks, but the numbers disagree and only one of them shows on the dossier.
+**Needs from you:** one set of heal rates (which staff and traits speed recovery, and by how much), and whether a
+plain "down in the fight" wound should be a condition like the rest. Then I fold the day counter into
+`rebel-injury.js`.
+**Your call:** _open_
+
+### C-21 ⚪ The Strider (and other units) have different numbers in base and ground
+Ground units have no shared table, so the same unit is typed out in several places:
+- **Strider:** 220 hp and aim 2 when you own it (`GVEH`), 240 hp and aim 1 as an enemy at Steal the Strider
+  (`ground.js`). A Strider hacked in the field joins with 220, so it loses 20 hp on the way home.
+- Police, Dispersal and Transport cruisers are in `GVEH` and `VEHDEF` (they match today); Policebots and Bruisers
+  are in `AUTOS` and in each scenario's enemy list.
+
+**Needs from you:** which Strider numbers are right. Longer term (`docs/LEGACY_AUDIT.md` §3), a single unit roster
+both scenes read from.
+**Your call:** _open_
+
+### C-22 🟡 Space reads traits by their legacy names
+The space scene still runs the traits from the database's `traits_legacy` column (Veteran, Green, Lucky, Ace
+Training, "Friends: Joss"), matched by display name. Campaign rebels arrive with traits from the newer system, and
+some names collide:
+- **Veteran** (earned): the dossier says "+1 accuracy and slower to panic"; space gives +1 initiative and a cool
+  floor of 40 instead, on top of the newer veteran nerve bonus (so it counts twice).
+- **Lucky** (Character Trait): the dossier says "5% to avoid lethal damage"; space gives ±1 to hit and the old
+  description.
+- Space also keeps its own rank ladder (`RANKS` by level), not the campaign's.
+
+**Needs from you:** confirm that the campaign descriptions are the rules, and that space should use them. Then I
+retire the legacy trait names in space.
+**Your call:** _open_
+
+### C-23 ⚪ Peacekeeper Carbine: ballistic in the rules, plasma on screen
+`WDAM` in `ground.js` counts the carbine as **ballistic**; the shot it draws is a plasma bolt and the art kit gives
+it a plasma muzzle flash. It only matters once armour or traits care about damage type (M-16).
+**Needs from you:** ballistic or plasma.
 **Your call:** _open_
 
 ---
@@ -280,9 +333,9 @@ coercion missions"? (See M-2.)
 
 ### M-10 🟡 Armour and carried-gear effects
 **Blocks:** Strong (carry a second primary; melee damage), Weak, Messy (10% to lose a piece of gear at launch);
-the fourth gear slot beyond gadgets has no items.
-**Why:** gear is slotted (primary, secondary, two gadgets) but there are no armour items, and melee barely exists
-(`unarmed` is the only melee-like weapon). "Lose a piece of gear" needs an owner and a return rule.
+and the armour half now lives in M-16.
+**Why:** gear is slotted (primary, secondary, Head, Body, two gadgets). Armour items now exist but do nothing in a
+fight (that part is M-16), and melee barely exists (`unarmed` and the Bruiser's fists are the only melee). "Lose a piece of gear" needs an owner and a return rule.
 **Needs from you:** an armour item list (what does armour do in the d20 math?), whether melee is a real action,
 and what becomes of lost gear (gone, or found again after the mission?).
 **Your call:** _open_
@@ -391,10 +444,10 @@ ship (freeing what was mounted back to the racks) — or say ships keep fixed lo
 
 ### M-20 🟡 Sweet Tooth needs an `SR_ART` character spec
 **Blocks:** the Black Market fence portrait (the rail's 150px head and the phone strip).
-**Why:** `sr-art.js` is not on `main` and she has no character spec anywhere. The mockup stand-in had a big
+**Why:** `sr-art.js` is in the game now, but she has no character spec in it. The mockup stand-in had a big
 round head, a teal headscarf with gold dots, an eyepatch, a gold-tooth grin, a gold earring and a pink jacket.
 **Needs from you:** nothing from the design side — the handoff says the art chat owns the final look. Until the
-art kit lands, the Black Market will use the generic avatar.
+spec exists, the Black Market uses the generic avatar.
 **Your call:** _open (owned by the art chat)_
 
 ### M-21 🟡 No art for the fuel depot or the Bruiser
@@ -424,6 +477,22 @@ Per your spec, any hostile with a rocket launcher now gets a shot at an orbiting
 2. **A shot-down support ship**: the crash is visual, the asset is lost for the mission, and the pilot always
    walks away (Cass is story-safe). For the player's *own* Graf later: should the fighter take hull damage or
    be destroyed back at base, and should the support pilot risk injury? Nothing persists right now.
+**Your call:** _open_
+
+### M-24 🟡 Loot and drop rules
+**Blocks:** the Police Helmet, Police Vest and other "loot only" Hegemony kit (no path in the game gives them),
+random loot of any kind, and the Messy trait.
+**Why:** loot is hand-picked today. Each scenario's crates list fixed items; a downed lawman drops a Scattergun if
+they are a sheriff, a carbine if they carried one, and otherwise credits only, whatever they actually had. The
+Black Market's weekly roll is the only random item draw in the game. When a rebel dies, their gear quietly goes
+back to the armory.
+**Needs from you:**
+1. Do downed enemies drop what they carry? Always, or on a chance?
+2. Should some crates roll their contents (e.g. "a Hegemony sidearm, tier 1") rather than list them?
+3. What happens to a dead rebel's gear: back to the armory, or lost on the field (and recoverable if you win)?
+
+The code side (one item table with a grant function and a random draw by tags) is planned in
+`docs/LEGACY_AUDIT.md` §1.5.
 **Your call:** _open_
 
 ---
