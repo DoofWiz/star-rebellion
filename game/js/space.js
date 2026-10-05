@@ -1,10 +1,8 @@
 'use strict';
 (function(){
 const ROOT=document.getElementById('sc-space');
-const byId=id=>ROOT.querySelector('#'+id);
-const A=SR.audio;
-const osc=(...a)=>A.osc(...a);
-const nz=(...a)=>A.nz(...a);
+const UT=SR.util,byId=UT.scoped(ROOT);            // shared helpers (core.js); ids are looked up inside this scene
+const A=SR.audio,osc=A.osc,nz=A.nz;
 const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas theme helpers, palette
 const SA=window.SR_ART;                          // the Bobbleheads world-art kit
 
@@ -23,7 +21,7 @@ const RU=300,SU=150;
 const ARCH=0.55;                       // narrowed firing arc (~31.5deg half)
 const BULLS_LIM=0.21;
 const LOCK_RNG=900,LOCK_ARC=ARCH; // lock: acquire in the firing cone; LOST only when target ends up behind
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const RM=HUD.reduced;
 const TURNS={L:-Math.PI/2,l:-Math.PI/4,S:0,r:Math.PI/4,R:Math.PI/2};
 /* Ships and weapons come from the game database (game/data/db.js, via SRDB). CLS keeps the shape this scene
    has always used, keyed by the old class keys so the drawing code and mission data still line up; the
@@ -332,7 +330,7 @@ function showBriefing(){
 }
 
 /* ---------- geometry ---------- */
-const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const dist=UT.dist;
 function angNorm(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;}
 function bearing(s,t){return Math.abs(angNorm(Math.atan2(t.y-s.y,t.x-s.x)-s.h));}
 function inArc(s,t){return bearing(s,t)<=ARCH;}
@@ -426,7 +424,7 @@ function say(s,key){
 }
 
 /* ---------- d20 resolution ---------- */
-function rint(lo,hi){return lo+Math.floor(rng()*(hi-lo+1));}
+const rint=(lo,hi)=>UT.rint(lo,hi,rng);   // rolls use the scene's rng (tests swap it)
 function computeTN(s,t){
   const sz=CLS[t.cls].dbSize,e=[];let v=SRDB.baseTN(sz);
   e.push(['SIZE '+sz+' HULL',v,true]);
@@ -1133,7 +1131,7 @@ function explode(x,y,size){
 }
 
 /* ---------- audio: layered synth engine ---------- */
-function sTick(){if(A.off())return;osc('square',1500,1300,0.02,0.045);}
+const sTick=A.tick;
 function sZap(heg){
   if(A.off())return;
   osc('sawtooth',heg?950:1350,heg?110:170,0.14,0.18);
@@ -1164,10 +1162,7 @@ function sLock(){
   osc('square',880,880,0.06,0.06);
   osc('square',1320,1320,0.06,0.09,0.08);
 }
-function sDice(){
-  if(A.off())return;
-  for(let i=0;i<5;i++)nz('bandpass',2200,3,0.04,0.03,i*0.12*(1+i*0.15));
-}
+const sDice=A.dice;
 function sBoom(big){
   if(A.off())return;
   osc('sine',big?150:120,26,big?0.55:0.4,big?0.9:0.6);
@@ -1984,9 +1979,9 @@ cv.addEventListener('wheel',ev=>{
   camGoal=null;clampCam();
 },{passive:false});
 /* ---------- info windows ---------- */
-const $=id=>byId(id);
+const $=byId;
 const {esc,ico}=HUD;
-const tag=(txt,kind,icon)=>'<span class="sr-tag'+(kind?' sr-tag--'+kind:'')+'">'+(icon?ico(icon):'')+txt+'</span>';
+const tag=HUD.tag;
 const CRIT_SHORT={engine:'Engine',targeting:'Targeting',controls:'Controls',emitter:'Emitter',feed:'Ammo feed',cockpit:'Cockpit'};
 /* cells for a durability bar: one per `per` points, lit while below the current value */
 function hpCells(val,max,per,guest){

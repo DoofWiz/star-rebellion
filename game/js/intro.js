@@ -10,7 +10,7 @@
    ===================================================================== */
 window.SR_INTRO=(function(){
   const SA=window.SR_ART,CC=SA.C,U=SA.util;
-  const RM=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const RM=SR.hud.reduced;
   let el=null,cv=null,c2=null,W=0,H=0,dpr=1;
   let bg=null,badge=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null;
   let stars=[],nextFly=0,fly=null,impactFired=false,impactAt=0,debris=[];
@@ -157,8 +157,7 @@ window.SR_INTRO=(function(){
     g.globalCompositeOperation='source-over';g.globalAlpha=1;
     badge={cv:oc,w:bw,h:bh,Rb};
   }
-  const clamp=k=>Math.max(0,Math.min(1,k));
-  const easeO=k=>1-Math.pow(1-k,3);
+  const clamp=k=>SR.util.clamp(k,0,1);
 
   function spawnDebris(cx,cy){
     const rn=U.mkRng(5);

@@ -64,6 +64,7 @@
      H.phase(plateEl,{phase:'free|plan|exec|fight',status:'calm|alert',name,text,round,icon})
                                               -> patches .sr-phase (name = plate label, text = status words, icon = status icon name)
    MISC  H.tip(title,rule,why,key) -> ' data-tip=...' attribute string for any element
+     H.tag(label,tone,icon)               -> '<span class="sr-tag sr-tag--tone">' (label is html)
      H.esc  H.ico(name,cls)  H.avatar({name,initials,cls,badge})  H.initials(name)  H.reduced (prefers-reduced-motion)
    ===================================================================== */
 window.SR_HUD=(function(){
@@ -105,6 +106,7 @@ window.SR_HUD=(function(){
       (o.key?'<span class="sr-kbd sr-order__key">'+esc(o.key)+'</span>':'')+ico(o.icon)+esc(o.label)+'</button>';
   }
   const tip=(title,rule,why,key)=>tipAttr({title,rule},why,key,title);
+  const tag=(label,tone,icon)=>'<span class="sr-tag'+(tone?' sr-tag--'+tone:'')+'">'+(icon?ico(icon):'')+label+'</span>';
   const sep=()=>'<span class="sr-orders__sep"></span>';
   function cmdbar(o){
     const w=o.who||{};
@@ -326,5 +328,5 @@ window.SR_HUD=(function(){
     const u=el.querySelector('.sr-phase__status use');
     if(u&&o.icon)u.setAttribute('href','#i-'+o.icon);
   }
-  return {esc,ico,initials,avatar,tip,btn,order,sep,cmdbar,render,fitBar,tips,vs,menuHtml,menuBind,win,winHead,winBody,winFoot,closeBtn,topWin,confirm,banner,toast,comms,phase,reduced};
+  return {esc,ico,initials,avatar,tip,tag,btn,order,sep,cmdbar,render,fitBar,tips,vs,menuHtml,menuBind,win,winHead,winBody,winFoot,closeBtn,topWin,confirm,banner,toast,comms,phase,reduced};
 })();

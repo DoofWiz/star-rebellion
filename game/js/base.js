@@ -1,10 +1,8 @@
 'use strict';
 (function(){
 const ROOT=document.getElementById('sc-base');
-const byId=id=>ROOT.querySelector('#'+id);
-const A=SR.audio;
-const osc=(...a)=>A.osc(...a);
-const nz=(...a)=>A.nz(...a);
+const UT=SR.util,byId=UT.scoped(ROOT);            // shared helpers (core.js); ids are looked up inside this scene
+const A=SR.audio,osc=A.osc,nz=A.nz;
 
 
 /* =====================================================================
@@ -49,7 +47,7 @@ function addVehicle(type,name){
   return v;
 }
 const rankFor=p=>p.auto?autoOf(p).label:Rebel.rankName(p);
-const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const RM=SR.hud.reduced;
 let rng=Math.random;
 /* ---------- kit helpers: icons, cost chips, palette ---------- */
 const TH=SR.theme,K=TH.C;                       // K is the live palette (re-synced from the CSS tokens at boot)
@@ -236,7 +234,7 @@ function newGame(){
 }
 
 /* ---------- helpers ---------- */
-const $=id=>byId(id);
+const $=byId;
 function hasRoom(key){return G.rooms.some(r=>r.key===key&&!r.build);}
 function roomsOf(key){return G.rooms.filter(r=>r.key===key&&!r.build);}
 /* rooms are rectangles of tiles; same-type rooms that touch are one merged room */
@@ -4057,7 +4055,7 @@ const wQ=(attr,title)=>'<button class="sr-btn sr-btn--icon sr-btn--sm" style="--
 const wHead=(title,o)=>{o=o||{};return HUD.winHead(title,{tags:o.tags,extra:o.q,close:o.x});};
 const wBody=h=>HUD.winBody(h);
 const wFoot=(btns,note)=>HUD.winFoot(btns,note);
-const wTag=(label,tone,icon)=>'<span class="sr-tag'+(tone?' sr-tag--'+tone:'')+'">'+(icon?IC(icon):'')+label+'</span>';
+const wTag=HUD.tag;
 const tutP=t=>'<p class="sr-p">'+t+'</p>';
 const tutS=(hd,b)=>'<div class="sr-h3">'+hd+'</div><p class="sr-p">'+b+'</p>';
 const choice=(n,attrs,html,dis)=>'<button class="sr-choice" '+attrs+(dis?' disabled':'')+'><span class="sr-kbd sr-choice__key">'+n+'</span><span>'+html+'</span></button>';
@@ -5133,7 +5131,7 @@ const BM_GSTATS={
   charge:[['Effect','Demolition'],['Best vs','Walls and objectives'],['Use','Planted, remote fuse']],
 };
 /* a small deterministic RNG: the campaign seed and the week decide the stock, so a reload never rerolls */
-function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
+const mulberry32=UT.mulberry32;
 const marketWeek=()=>Math.floor((G.day-1)/7)+1;   // week k covers days 7k-6 .. 7k
 const nyxAccess=()=>{const st=pst('nyx');return !!(st&&st.access);};
 const lotPrice=l=>nyxAccess()?Math.round(l.price*0.9):l.price;   // the Regulars' discount, at display and purchase time

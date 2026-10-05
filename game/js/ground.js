@@ -1,10 +1,8 @@
 'use strict';
 (function(){
 const ROOT=document.getElementById('sc-ground');
-const byId=id=>ROOT.querySelector('#'+id);
-const A=SR.audio;
-const osc=(...a)=>A.osc(...a);
-const nz=(...a)=>A.nz(...a);
+const UT=SR.util,byId=UT.scoped(ROOT);            // shared helpers (core.js); ids are looked up inside this scene
+const A=SR.audio,osc=A.osc,nz=A.nz;
 const HUD=SR.hud,T=SR.theme,C=T.C,FONT=T.FONT;   // shared HUD builders, canvas theme helpers, palette
 
 
@@ -37,8 +35,7 @@ let PAD=OFFMAP,LZ={x:300,y:1330,r:130},TOWER=OFFMAP,TURRET={x:-99999,y:-99999,r:
 let BLDGS=[],PROPS=[],LOOTS=[],WORKDEF=[],SCN=null;
 let seed=(Date.now()^0x9e3779b9)>>>0;
 function rng(){seed=(seed+0x6D2B79F5)>>>0;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;}
-function rint(lo,hi){return lo+Math.floor(rng()*(hi-lo+1));}
-function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+const rint=(lo,hi)=>UT.rint(lo,hi,rng),dist=UT.dist;   // rolls use the scene's own seeded rng
 function angNorm(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a;}
 function lerp(a,b,t){return a+(b-a)*t;}
 function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
@@ -3538,7 +3535,7 @@ function fireFx(s,t,wkey,hit){
   if(wkey==='scatter')shake=performance.now();
 }
 /* ---------- audio ---------- */
-function sTick(){if(A.off())return;osc('square',1500,1300,0.02,0.045);}
+const sTick=A.tick;
 function sShot(wkey){
   if(A.off())return;
   if(wkey==='akli'){
@@ -3565,7 +3562,7 @@ function sAlert(){
 function sLoot(){if(A.off())return;for(let i=0;i<3;i++)osc('sine',1900+i*420,1400,0.07,0.09,i*0.07);}
 function sSpark(){if(A.off())return;for(let i=0;i<4;i++)nz('highpass',4200,2,0.05,0.03,i*0.08);}
 function sJamClr(){if(A.off())return;osc('square',150,90,0.1,0.06);osc('square',180,110,0.1,0.06,0.1);}
-function sDice(){if(A.off())return;for(let i=0;i<5;i++)nz('bandpass',2200,3,0.04,0.03,i*0.12*(1+i*0.15));}
+const sDice=A.dice;
 function sBoomBig(){
   if(A.off())return;
   osc('sine',140,24,0.55,0.9);
@@ -4805,7 +4802,7 @@ function drawGroundStatic(now){
   const c2=g.getContext('2d');
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
-  const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const RM=HUD.reduced;
   const t=RM?0:now,nz2=RM?()=>0.5:rng;     // reduced motion: a steady line, no flicker
   c2.fillStyle='#04060d';c2.fillRect(0,0,w,h);
   for(let i=0;i<240;i++){
@@ -5224,7 +5221,7 @@ function dockHTML(){
 }
 /* rail rows */
 const ORDER_TAG={move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
-const tag=(txt,kind,icon)=>'<span class="sr-tag'+(kind?' sr-tag--'+kind:'')+'">'+(icon?HUD.ico(icon):'')+txt+'</span>';
+const tag=HUD.tag;
 function statusTag(u){
   if(u.veh){
     if(u.down)return tag('Wrecked','bad');

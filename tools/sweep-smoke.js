@@ -4,7 +4,8 @@
    2  live:0 kit cannot be carried, and a ground unit handed kit with no combat stats fights bare-handed.
    5  the barracks healing perk covers Marines and Heroes, not just Soldiers.
    6  a reload mid-mission gives back the sortie's fuel and supply drop.
-   7  the reward window shows the XP actually gained (traits and the mentor bonus included). */
+   7  the reward window shows the XP actually gained (traits and the mentor bonus included).
+   8  the scenes share one set of helpers (SR.util, SR.audio.tick/dice, SR.hud.tag) instead of their own copies. */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -109,6 +110,26 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  await pg.waitForTimeout(700);
  const g=await pg.evaluate(()=>{const U=window.DBGground.U;return ['dax','runa'].map(id=>U.find(u=>u.id===id).wpns.join('+')).join();});
  ok(g==='unarmed,cowboy','unknown kit is dropped at the ground scene '+g);
+
+ // ---- 8 shared helpers
+ const u=await pg.evaluate(()=>{
+  const U=window.SR.util,out={};
+  let a=1;const rng=()=>{a=(a*16807)%2147483647;return a/2147483647;};
+  const rolls=[];for(let i=0;i<500;i++)rolls.push(U.rint(2,5,rng));
+  out.rint=[Math.min(...rolls),Math.max(...rolls)].join();
+  out.pick=['x'].includes(U.pick(['x'],rng));
+  out.clamp=[U.clamp(-1,0,1),U.clamp(.5,0,1),U.clamp(9,0,1)].join();
+  out.dist=U.dist({x:0,y:0},{x:3,y:4});
+  const m1=U.mulberry32(42),m2=U.mulberry32(42);out.mul=m1()===m2()&&m1()!==m1();
+  out.hash=U.hashStr('dax')===U.hashStr('dax')&&U.hashStr('dax')!==U.hashStr('cass');
+  {const el=U.scoped(document.body)('resC');out.scoped=!!el&&el===document.getElementById('resC');}
+  out.audio=typeof window.SR.audio.tick==='function'&&typeof window.SR.audio.dice==='function';
+  out.tag=window.SR.hud.tag('Hurt','red');
+  return out;
+ });
+ ok(u.rint==='2,5'&&u.pick&&u.clamp==='0,0.5,1'&&u.dist===5,'SR.util rolls and maths '+JSON.stringify(u));
+ ok(u.mul&&u.hash&&u.scoped&&u.audio,'SR.util seeds, hashes and lookups; shared UI sounds '+JSON.stringify(u));
+ ok(u.tag==='<span class="sr-tag sr-tag--red">Hurt</span>','SR.hud.tag '+u.tag);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'sweep-smoke: all checks passed');

@@ -295,9 +295,16 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 > initials helpers are the kit's. Restart asks with the kit's confirm window instead of "click again". The base keeps
 > its own window *manager* (one live window re-rendered by mode, with a queue of reports), now built from kit chrome.
 > Wiring the tooltips fixed the galaxy orders' rule tooltips, which had never shown. Screenshots of the base, a window,
-> the menu, the feed and the banner are pixel-identical before and after; `tools/basekit-smoke.js` covers it. Still
-> to do: the duplicated scene helpers (`rint`, `dist`, `log`...) into `SR.util`, and the remaining inline styles
-> (mostly data-driven widths and grid positions, which belong inline).
+> the menu, the feed and the banner are pixel-identical before and after; `tools/basekit-smoke.js` covers it.
+> The shared helpers are in `SR.util` (`core.js`): `scoped` (the scenes' `byId`/`$`), `rint` and `pick` (each takes
+> the caller's rng, so the ground scene's seeded rolls and the space tests' swapped rng still drive them), `clamp`,
+> `dist`, `mulberry32` and `hashStr` (the FNV hash `rebel.js` used inline). `sTick`/`sDice` are `SR.audio.tick`/`dice`,
+> `osc`/`nz` are `SR.audio`'s own, every reduced-motion check reads `SR.hud.reduced`, the cast-list tag is `SR.hud.tag`,
+> and `core.js` uses the kit's icon and initials helpers. Staying put on purpose: `log`, `say`, `nameSpan` and
+> `addFloater` read each scene's own state (its feed, its units, its floaters), so they are scene code, not copies;
+> the art kit keeps its own `mkRng`/`hashStr`/`pick` because its style guide loads `sr-art.js` without `core.js`.
+> `tools/sweep-smoke.js` pins the helpers. Still to do: the remaining inline styles (mostly data-driven widths and
+> grid positions, which belong inline).
 
 - **Copied between scenes:** `rint`, `dist`, `addFloater`, `log`, `nameSpan`, `say`, `sTick` (identical), `sDice`,
   `osc`/`nz`/`byId`/`$`, the reduced-motion check (five copies), three RNGs (`mulberry32`, `sr-art`'s `mkRng`, the
@@ -401,4 +408,4 @@ Each step is independent and leaves the game playable. The first two are cheap a
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
 7. ~~**Save versioning (§6)**~~ (done; the pre-versioning fixes live on as migration 0 -> 1 and can be dropped once
    no version-0 save matters).
-8. ~~**Base onto the UI kit (§7)**~~ (done); shared helpers into `SR.util`, opportunistically, when a screen is touched anyway.
+8. ~~**Base onto the UI kit (§7)**~~ (done); ~~shared helpers into `SR.util`~~ (done).

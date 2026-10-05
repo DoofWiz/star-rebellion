@@ -25,7 +25,7 @@ window.Rebel=(function(){
     Support:['Quartermaster type. Counts every bolt twice.','Clerk who read everything they were supposed to file.','Union organiser. Can get two hundred people to do one thing quietly.','Medic’s assistant who ended up doing most of the medicine.','Lab technician who fixes what they are told is unfixable.','Dispatcher with a gift for knowing where everybody is.','Schoolteacher who has opinions about how this should be run.','Ledger keeper for a smuggling ring. Can make money disappear, legally.'],
     Marine:['Dockside brawler with a talent for getting aboard things uninvited.','Ex-boarding crew. Knows exactly how thin a hull is.','Salvage hand, used to cutting their way into wrecks.'],
   };
-  const pick=(a,r)=>a[Math.floor(r()*a.length)];
+  const pick=SR.util.pick;
 
   /* the authored recruits (RECRUITS in base.js) carry titles; keep them out of the first name */
   function split(full){
@@ -117,8 +117,7 @@ window.Rebel=(function(){
   /* authored cast keep the traits their bios already imply */
   const AUTHORED={joss:'reckless',sera:'lucky',dax:'cautious',runa:'shortfuse',kel:'hunter'};
   function hashPick(p){
-    let h=2166136261;const s=p.id+'|'+p.name;
-    for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+    let h=SR.util.hashStr(p.id+'|'+p.name);   // FNV-1a; the mixer below turns it into a stream (kept as it was, so saved rebels keep their trait)
     const r=()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296;};
     return pickTrait(p.role,r);
   }
@@ -185,7 +184,7 @@ window.Rebel=(function(){
   };
   const SKILLSET={Soldier:['aim','con','agi','pre'],Marine:['aim','con','agi','pre'],Pilot:['aim','cun','foc','pre'],Hero:['aim','con','agi','cun','foc','pre'],Support:[]};
   const skillKeys=p=>(p&&!p.auto&&SKILLSET[p.role])||[];
-  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const clamp=SR.util.clamp;
   function skill(p,k){
     if(skillKeys(p).indexOf(k)<0)return 0;
     return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0)+((SPECSK[p.spec]||{})[k]||0));
