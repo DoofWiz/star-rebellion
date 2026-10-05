@@ -1655,8 +1655,7 @@ function adjCoolG(u,d,why){
   const pre=coolStateG(u);
   if(d<0&&u.nv)d=Math.round(d*u.nv);
   if(d<0&&u.tr&&u.tr.length){
-    if(hasT(u,'brave'))d=Math.round(d*0.5);
-    if(hasT(u,'cowardly'))d=Math.round(d*1.5);
+    d=Rebel.nerveScale(d,k=>hasT(u,k));   // Brave and Cowardly, the same rule as in space
     if(hasT(u,'loyal')&&why&&/ down$/.test(why))d=Math.round(d*0.5);
     if(hasT(u,'panicky')&&why&&/ down$/.test(why))d=Math.round(d*1.3);
     if(hasT(u,'nearlydead')&&u.wound)d=Math.round(d*0.7);

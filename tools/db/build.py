@@ -138,7 +138,8 @@ SCHEMA = {
             ("focus", "int", 7, "Skill, 0 to 50. Raises the modifier to not be hit."),
             ("presence", "int", 9, "Skill, 0 to 50. Stays Cool and avoids Panic."),
             ("ship_id", "id", 20, "Ship this pilot usually flies."),
-            ("traits_legacy", "text", 16, "Trait names the current code uses. Will be replaced by the trait list."),
+            ("traits", "text", 22, "Rebel trait keys (the same traits rebels have, see rebel.js and rebel-exp.js), separated by |. A pair trait names its partner: friends:joss-marrek."),
+            ("rank", "text", 14, "Rank title for Hegemony pilots, e.g. Commandant. Blank for rebels (their rank comes from the rebel ladder) and drones."),
             ("notes", "text", 70, "Designer notes, including how the seed values were chosen."),
         ],
         "auto": ["aim_bonus (auto)", "focus_bonus (auto)", "ship_base_tn (auto)", "target_number (auto)"],
@@ -246,6 +247,7 @@ SCHEMA = {
             ("flees", "bool", 6, "Jumps out of the sector once it panics near the edge."),
             ("calls", "id", 16, "Space Enemies id it calls in once it spots a rebel ship (once per fight). Blank for none."),
             ("clamps", "bool", 7, "Fires mag-clamps that slow the target."),
+            ("nerve_cap", "int", 8, "Their nerve never rises above this (green cadets: 60). Blank: no cap."),
             ("age", "int", 5, "Pilot's age on the dossier. Blank: none shown (drones, structures)."),
             ("bio", "text", 50, "Dossier line. A spawn can give its own."),
             ("description", "text", 50, "From the Enemies doc where it has one."),
@@ -430,6 +432,14 @@ def validate(db):
         for sk in ("aim", "cunning", "focus", "presence"):
             rng("pilots", p, sk, 0, rules["skill_cap"])
         ref("pilots", p, "ship_id", "ships")
+        for t in [x for x in p["traits"].split("|") if x]:
+            k, _, partner = t.partition(":")
+            if not k or not k.replace("_", "").isalnum():
+                E("%s: trait %r is not a trait key" % (n, t))
+            if partner and partner not in ids["pilots"]:
+                E("%s: trait %r names a partner that is not in pilots" % (n, t))
+        if p["kind"] != "enemy" and p["rank"]:
+            E("%s: only Hegemony pilots carry a rank title (rebels use the rebel ladder)" % n)
 
     ship_by_id = {s["id"]: s for s in db["ships"]}
     for f in db["starting_fleet"]:
@@ -567,6 +577,7 @@ def validate(db):
         if sh and sh["kind"] == "structure" and (se["maneuvers"] or se["flees"] or se["calls"] or se["clamps"]):
             E("%s: a structure cannot maneuver, flee, call or clamp" % n)
         rng("space_enemies", se, "age", 1, 120, required=False)
+        rng("space_enemies", se, "nerve_cap", 0, 100, required=False)
         if (en["credits_min"] is None) != (en["credits_max"] is None):
             E("%s: credits_min and credits_max must both be set or both blank" % n)
         elif en["credits_min"] is not None and en["credits_min"] > en["credits_max"]:

@@ -51,7 +51,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 | `enemies` | The ground enemy roster: people, robots and vehicles; faction, tier, stats, and what each type carries (item ids). |
 | `vehicle_seats` | Each vehicle's seats: who drives, which gun the seat fires, whether it is enclosed. |
 | `space_enemies` | The space roster: which ship and pilot each enemy type flies with, and how it behaves. |
-| `pilots` | Level, XP, initiative (1 to 6) and the four skills. Drones carry a built-in "core" pilot. |
+| `pilots` | Level, XP, initiative (1 to 6), the four skills, rebel trait keys, and a rank title for Hegemony pilots. Drones carry a built-in "core" pilot. |
 | `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
 | `manufacturers` | Lore list from the Gear doc. |
@@ -88,6 +88,9 @@ the ship, and traits or morale may push the effective value outside 1 to 6.
 - **Weapons:** each ship has slots `w0`, `w1`; any weapon fits any slot. Damage, ammo, range, accuracy, crit, shield
   bypass and lock all come from the weapon. A ship's loadout is part of the ship, not the model:
   `G.fighters[i].loadout` lists weapon ids (stock defaults, or the `starting_fleet` entry for named ships such as Dustfall and Marta).
+- **Pilot traits and ranks:** a row's `traits` are the rebels' own trait keys (`lucky`, `veteran`, a pair trait with its
+  partner's row: `friends:joss-marrek`), and they do in space exactly what their dossier cards say. Rebels' ranks come
+  from the rebel ladder; a Hegemony pilot's from the row's `rank` (Commandant, Cadet, Patrol Officer).
 - **Pilots:** initiative, level and skills. The scripted cast (Sera, Joss) is built from the `pilots` table through the
   normal rebel path (`Rebel.scripted`). Campaign rebels' skills live on the rebel and are carried to the database's
   0 to 50 scale at the base/space boundary (`Rebel.dbSkill`); everyone without a row gets a random initiative 1 to 6,
@@ -153,6 +156,7 @@ The space half of the roster (the Space Enemies tab). A row names the `ship` it 
 - `flees`: jumps out of the sector once it panics near the edge (the cadets).
 - `calls`: the type it calls in once it spots a rebel ship (a Drone Monitor calls a Drone Pursuer).
 - `clamps`: fires mag-clamps (the Drone Mag-Clamper).
+- `nerve_cap`: their nerve never rises above it (the Academy Cadets: 60).
 - `age` and `bio`: the dossier's defaults.
 
 The line-ups themselves (`LINEUPS` in `space.js`) are lists of `[id, callsign, type, x, y, heading, extras]`; the

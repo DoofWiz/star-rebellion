@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after the space line-ups joined the roster (C-24 extended), C-21 was resolved, the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
+**Last updated:** 2026-10-05, after space took on the rebels' traits and ranks (C-22 resolved), the space line-ups joined the roster (C-24 extended), C-21 was resolved, the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
 the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`, which added C-20 to C-23 and M-24) and the renumbering of the
 Fleet-tab entry from a duplicate C-12 to C-19.
 
@@ -64,7 +64,6 @@ Fleet-tab entry from a duplicate C-12 to C-19.
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 | C-20 | 🔴 | Two injury-recovery models run side by side, with different heal rates | How long a wounded rebel is out |
-| C-22 | 🟡 | Space reads traits by legacy name; "Veteran" and "Lucky" mean something else there | Earned traits in space; double-dipping Veteran |
 | C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
@@ -210,20 +209,6 @@ I left both running; nothing breaks, but the numbers disagree and only one of th
 **Needs from you:** one set of heal rates (which staff and traits speed recovery, and by how much), and whether a
 plain "down in the fight" wound should be a condition like the rest. Then I fold the day counter into
 `rebel-injury.js`.
-**Your call:** _open_
-
-### C-22 🟡 Space reads traits by their legacy names
-The space scene still runs the traits from the database's `traits_legacy` column (Veteran, Green, Lucky, Ace
-Training, "Friends: Joss"), matched by display name. Campaign rebels arrive with traits from the newer system, and
-some names collide:
-- **Veteran** (earned): the dossier says "+1 accuracy and slower to panic"; space gives +1 initiative and a cool
-  floor of 40 instead, on top of the newer veteran nerve bonus (so it counts twice).
-- **Lucky** (Character Trait): the dossier says "5% to avoid lethal damage"; space gives ±1 to hit and the old
-  description.
-- Space also keeps its own rank ladder (`RANKS` by level), not the campaign's.
-
-**Needs from you:** confirm that the campaign descriptions are the rules, and that space should use them. Then I
-retire the legacy trait names in space.
 **Your call:** _open_
 
 ### C-23 ⚪ Peacekeeper Carbine: ballistic in the rules, plasma on screen
@@ -522,6 +507,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-22 | Space follows the rebels' trait and rank rules (the campaign descriptions are the rules). | 2026-10-05 | Space pilots carry rebel trait keys and each trait does what its card says: Lucky is a 5% chance to survive a killing blow (it was ±1 to hit), Veteran is +1 accuracy and slower to panic (it was +1 initiative and a nerve floor), Unlucky takes 5% more criticals, Brave and Cowardly share one rule with the ground. Friends and In Love now act in space too (panic when the partner goes down), which is what Petra's old "Friends: Joss" did. Green became the Academy Cadets' `nerve_cap` and the roster's `lead`. Ranks: the rebel ladder, or a `rank` title on Hegemony pilot rows (Vex: Commandant). The scene's own trait text and rank ladder are gone. Commit "Space pilots carry the rebels' traits and ranks". |
 | C-21 | An owned Strider is the same as the enemy one. | 2026-10-05 | `OWNED_STRIDER` is gone: the owned Bot, the Steal the Strider VIP and the enemy all read the `strider-mk1` roster row (240 hp, aim 1, def 8), so a hacked Strider no longer loses 20 hp on joining. Commit "An owned Strider is the enemy one". |
 | C-14 | Every door gunner is zone-targeted, not just Cass's: the gunship-orbit rework (merged from the art branch) anchors any Door Gunner Cover to the player's mark. | 2026-10-04 | `dgTargets` works up to 3 enemies inside the placed zone (240px, growing with the layout scale); Cass's prologue asset still unlocks with its tutorial card and sets `tutFlags.fs` when called. Overrule at will — both halves came from your own handoffs. |
 | C-16 | Cass's freighter is drawn in the ground scene by the gun-run rework (merged from the art branch). | 2026-10-04 | The gunship flies in from off the map, orbits the mark with the heavy door gun working and climbs away (`cls:'graf'` art, renamed “Cass’s freighter”). Reduced motion keeps the instant resolution. |

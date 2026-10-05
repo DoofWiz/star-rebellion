@@ -126,8 +126,22 @@ window.Rebel=(function(){
   const keys=p=>{const a=[];if(p&&p.charTrait)a.push(p.charTrait);if(p&&p.traits)for(const t of p.traits)a.push(t.k);return a;};
   const has=(p,k)=>!!p&&keys(p).indexOf(k)>=0;
   const liveTraits=p=>keys(p).map(k=>CTK[k]||(window.Rebel&&window.Rebel.RTK&&window.Rebel.RTK[k])).filter(t=>t&&t.live);
-  /* names of the live traits a scene cares about (space.js tests traits by display name) */
-  const namesFor=(p,where)=>liveTraits(p).filter(t=>t.where.indexOf(where)>=0).map(t=>t.n);
+  /* a trait's definition by key: a Character Trait or an earned (Rebel) Trait */
+  const def=k=>CTK[k]||(window.Rebel&&window.Rebel.RTK&&window.Rebel.RTK[k])||null;
+  /* the live traits a theatre ('g' ground, 's' space) acts on, as {k, with} (with: the partner of a pair trait) */
+  function traitsFor(p,where){
+    const out=[];
+    if(p&&p.charTrait){const d=CTK[p.charTrait];if(d&&d.live&&d.where.indexOf(where)>=0)out.push({k:p.charTrait});}
+    for(const t of (p&&p.traits)||[]){const d=def(t.k);if(d&&d.live&&d.where.indexOf(where)>=0)out.push(t.with?{k:t.k,with:t.with}:{k:t.k});}
+    return out;
+  }
+  /* the Character Traits that bend every loss of Cool, in both theatres; hasK(k) says whether the pilot or soldier has k */
+  function nerveScale(d,hasK){
+    if(d>=0)return d;
+    if(hasK('brave'))d=Math.round(d*0.5);
+    if(hasK('cowardly'))d=Math.round(d*1.5);
+    return d;
+  }
 
 
 
@@ -276,5 +290,5 @@ window.Rebel=(function(){
     return migrate(p);
   }
 
-  return {scripted,toDb,fromDb,dbSkill,LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,namesFor,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
+  return {scripted,toDb,fromDb,dbSkill,LEVEL_CAP,FIRST,LAST,gen,split,addXp,gainXp,xpMult,migrate,CT,CTK,traitText,keys,has,liveTraits,def,traitsFor,nerveScale,SKILLS,skillKeys,skill,aimOf,hpOf,moveMul,coolOf,nerveMul,focusTN,cunMul,trainSkills,SKILL_CAP,HERO_SKILL,HERO_HP,gearSlots,MBANDS,MORALE_START,mband,moraleBump,moraleFx,LADDER,OFFICER,rankName,nextRank,needMissions,canPromote,canCommission,promote,commission,credit};
 })();

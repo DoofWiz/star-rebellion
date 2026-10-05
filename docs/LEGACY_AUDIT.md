@@ -228,7 +228,7 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 - **Three debrief paths:** `applyDebrief` (the full one); its Haven Rock branch (`base.js:6188`), which skips the
   mentor bonus, morale, experiences and the Hero check; and the "Send a team" `resolveMission` (`base.js:1818`),
   which skips skill training, reviews, bereavement, Hero gain and conditions.
-- **Space keeps its own rebel model** (DESIGN_BLOCKERS C-22):
+- **Space kept its own rebel model** (DESIGN_BLOCKERS C-22; **folded into `Rebel` since**: rebel trait keys and ranks, one nerve rule):
   - traits keyed by the database's legacy strings ("Veteran", "Lucky", "Ace Training"), which collide with
     campaign traits of the same name and different effect;
   - its own rank ladder `RANKS`/`rankOf(level)` (`space.js:68`) instead of `Rebel.rankName`;
@@ -305,7 +305,7 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 | `syncLocalOps` body (returns on its first line) | `base.js:2152` |
 | `fighterTop` | `base.js:2315` |
 | `easeO` | `intro.js:161` |
-| `t.pilot.foc` (never set) | `space.js:434` |
+| ~~`t.pilot.foc` (never set)~~ removed with the trait fold | `space.js` |
 | Recruits' `equip:['pistol']` (not a `KIT` id, never read) | `base.js:1431`, `:1462` |
 | `Rebel.focusTN`, the space branch of `Rebel.aimOf` | `rebel.js` |
 | Armory `ic` glyph field (icons come from `GEAR_ICON`) | `base.js:4120` |
@@ -354,7 +354,7 @@ Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless 
    offered, auto-equipped or left in a slot; the ground scene's `mkU` swaps any weapon it has no stats for to bare
    hands instead of crashing.
 3. **Fixed: hacked Strider lost 20 hp on joining** (§3, C-21: the owned one is now the enemy one).
-4. *Open:* **earned "Veteran" double-dips in space** (§4, C-22: needs the rule confirmed).
+4. **Fixed: earned "Veteran" double-dipped in space** (§4, C-22: space now follows the rebels' rules).
 5. **Fixed: the barracks healing perk checked `role==='Soldier'`**, so Marines and Heroes missed it. It uses
    `isGround` now. (The heal rates themselves are still C-20.)
 6. **Fixed: a mid-mission reload kept the costs** (§6). `startPlan` records the sortie (`G.sortie`); a debrief clears
@@ -372,7 +372,7 @@ Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless 
 
 Each step is independent and leaves the game playable. The first two are cheap and stop new drift.
 
-1. ~~Fix the bugs in §10~~ (done, except the one waiting on C-22).
+1. ~~Fix the bugs in §10~~ (done).
 2. **Housekeeping:** move the root prototypes out of the way, mark finished handoffs, fix the README, add a
    `tools/smoke-all.sh`, delete the dead code in §8.
 3. **Items (§1.5):** ~~the item table and `Items` module, every grant through `Items.grant`, loot by id~~ (done);

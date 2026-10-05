@@ -6122,7 +6122,7 @@ function startPlan(){
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,art:SA.lookOf(p),
         rankName:rankFor(p),hero:p.role==='Hero'?1:0,skills:pilotSkills(p),aimMod:pilotAimMod(p),init:pilotInit(p),
         cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),
-        traits:Rebel.namesFor(p,'s'),
+        tr:Rebel.traitsFor(p,'s'),
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull,loadout:f.loadout});
     }
     G.fuel-=fuel;

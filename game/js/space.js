@@ -48,14 +48,6 @@ for(const r of SRDB.raw.ships){
 }
 const isDrone=s=>CLS[s.cls].kind==='drone';
 function isStruct(s){return !!CLS[s.cls].struct;}
-const TRAITDESC={
-  'Drone':'A flight computer with a gun. Feels nothing, fears nothing, flees nothing.',
-  'Lucky':'Things just miss them. −1 enemy difficulty, +1 to their own attacks.',
-  'Ace Training':'Academy loop certification — the ↺ maneuver is on their dial.',
-  'Friends: Joss':'Flies better knowing Joss is out there. Much worse if he isn’t.',
-  'Veteran':'Decades in the drift. Nerve never fully breaks; +1 initiative.',
-  'Green':'Nerve caps low. If the instructor falls, expect them to break.',
-};
 const CRITDEFS={
   engine:{name:'Secondary Engine Failure',desc:'Top-speed maneuvers unavailable.',stack:2},
   targeting:{name:'Targeting Array Damage',desc:'−2 aim until repaired.',stack:2},
@@ -64,8 +56,9 @@ const CRITDEFS={
   feed:{name:'Ammo Feed Jam',desc:'Ballistic and missile weapons offline.',stack:1},
   cockpit:{name:'Cockpit Breach',desc:'Nerve capped at 60.',stack:1},
 };
-const RANKS=['Cadet','2nd Lieutenant','1st Lieutenant','Captain','Major','Lt. Colonel','Colonel','Brig. General','Maj. General','Lt. General'];
-const rankOf=lvl=>RANKS[Math.max(0,Math.min(RANKS.length-1,lvl))];
+/* Traits are the rebels' own (rebel.js): every pilot carries them as p.tr = [{k, with}], keys a scene can test
+   cheaply, and each does what its description says. hasTr(s,k) asks a ship's pilot. */
+const hasTr=(s,k)=>!!(s&&s.pilot&&s.pilot.tr&&s.pilot.tr.some(t=>t.k===k));
 
 /* ---------- state ---------- */
 let ships=[],rocks=[],phase='BRIEFING',round=1,selId=null,hoverMan=null;
@@ -87,13 +80,18 @@ function mkPilot(o){
   p.focusBonus=SRDB.skillBonus(p.skills.focus,p.level);
   if(o.aimMod)p.aim=Math.max(0,p.aim+o.aimMod); // mood, injury and specialty ride on top of the skill-and-level bonus
   if(p.init===undefined)p.init=3;
+  p.tr=p.tr||[];
   return p;
 }
-/* a scripted pilot built from a database row; extras carry what the database does not (voice, age, bio) */
+/* a scripted pilot built from a database row; extras carry what the database does not (voice, age, bio).
+   Its traits are rebel trait keys (a pair trait names its partner's pilot row: friends:joss-marrek); its nerve
+   follows the same earned traits a rebel's does, and its rank is the rebel ladder's or, for the Hegemony, the row's. */
 function dbPilot(id,extra){
   const r=SRDB.pilots[id];
-  return Object.assign({pname:r.name,skills:{aim:r.aim,cunning:r.cunning,focus:r.focus,presence:r.presence},
-    cool:r.presence*2,level:r.level,xp:r.xp/100,init:r.initiative,traits:r.traits_legacy?r.traits_legacy.split('|'):[],mans:[]},extra);
+  const tr=r.traits.split('|').filter(Boolean).map(t=>{const [k,w]=t.split(':');return w?{k,with:w}:{k};});
+  const rankName=r.kind==='rebel'?Rebel.rankName(Rebel.migrate({id:r.id,name:r.name,role:'Pilot',level:r.level})):(r.rank||'');
+  return Object.assign({pname:r.name,who:r.id,skills:{aim:r.aim,cunning:r.cunning,focus:r.focus,presence:r.presence},
+    cool:r.presence*2,level:r.level,xp:r.xp/100,init:r.initiative,tr,nv:Rebel.expNerveMul({traits:tr}),rankName,mans:[]},extra);
 }
 /* what a pilot did this mission, in raw points per skill; base.js turns it into experience */
 function psk(s,k,n){if(s&&s.faction==='reb'&&s.pilot){const p=s.pilot;p.sk=p.sk||{};p.sk[k]=(p.sk[k]||0)+n;}}
@@ -126,7 +124,6 @@ function dialAvail(s){
 }
 function effInit(s){
   let i=s.pilot.init;
-  if(s.pilot.traits.includes('Veteran'))i+=1;
   if(coolState(s)==='cool')i+=1;
   if(coolState(s)==='panic')i-=1;
   return i;
@@ -140,10 +137,9 @@ function adjCool(s,d,why){
   if(CLS[s.cls].mute)return; // no nerve to rattle
   const p=s.pilot,pre=coolState(s);
   if(d<0&&p.nv)d=Math.round(d*p.nv);
-  if(d<0){if(p.traits.includes('Brave'))d=Math.round(d*0.5);if(p.traits.includes('Cowardly'))d=Math.round(d*1.5);}
+  d=Rebel.nerveScale(d,k=>hasTr(s,k));   // Brave and Cowardly, the same rule as on the ground
   p.cool=Math.max(0,Math.min(100,p.cool+d));
-  if(p.traits.includes('Veteran'))p.cool=Math.max(40,p.cool);
-  if(p.traits.includes('Green'))p.cool=Math.min(60,p.cool);
+  if(p.coolCap)p.cool=Math.min(p.coolCap,p.cool);   // the roster's nerve cap (green cadets)
   if(critCount(s,'cockpit'))p.cool=Math.min(60,p.cool);
   if(p.friendLock)p.cool=Math.min(20,p.cool);
   const post=coolState(s);
@@ -218,6 +214,7 @@ function spaceFoe(id,name,type,x,y,h,o){
   const extra=Object.assign({age:r.age==null?'—':r.age,bio:r.bio,mans:r.maneuvers?r.maneuvers.split('|'):[]},o);
   if(SRDB.pilots[pid].kind==='drone'&&!extra.pname)extra.pname=r.name;   // a drone core goes by its type
   const sh=mkShip(id,name,r.ship,'heg',x,y,h,mkPilot(dbPilot(pid,extra)));
+  if(r.nerve_cap!=null)sh.pilot.coolCap=r.nerve_cap;
   return Object.assign(sh,{type,lead:r.lead,flees:r.flees,calls:r.calls,clamps:r.clamps});
 }
 const fromLineup=d=>spaceFoe(d[0],d[1],d[2],d[3],d[4],d[5],d[6]);
@@ -230,7 +227,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,art:f.art,
-          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,traits:f.traits||[],mans:(f.level||0)>=4?['loop']:[],
+          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,tr:f.tr||[],who:f.pilotId,mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
@@ -444,8 +441,6 @@ function computeTN(s,t){
   if(losBlocked(s,t)){v+=3;e.push(['ROCK COVER',3]);}
   if(coolState(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
   if(coolState(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
-  if(s.pilot.traits.includes('Lucky')){v-=1;e.push(['LUCKY',-1]);}
-  if(t.pilot.foc){v+=t.pilot.foc;e.push(['FOCUS',t.pilot.foc]);}
   return {total:v,entries:e};
 }
 function computeATK(s,t,wkey){
@@ -462,10 +457,10 @@ function computeATK(s,t,wkey){
   if(band(dist(s,t))===1){v+=2;e.push(['CLOSE RANGE',2]);}
   const f=bullsFactor(s,t);
   if(f>0.05){const bb=Math.ceil(4*f);v+=bb;e.push(['BULLSEYE',bb]);}
-  if(s.pilot.traits.includes('Lucky')){v+=1;e.push(['LUCKY',1]);}
-  if(s.pilot.traits.includes('Steady Hands')){v+=1;e.push(['STEADY HANDS',1]);}
+  if(hasTr(s,'steady')){v+=1;e.push(['STEADY HANDS',1]);}
+  if(hasTr(s,'veteran')){v+=1;e.push(['VETERAN',1]);}
   if(s.pilot.heroRound===round){v+=4;e.push(['HEROIC SURGE',4]);}
-  if(s.pilot.traits.includes('Former Pilot')){v+=1;e.push(['FORMER PILOT',1]);}
+  if(hasTr(s,'pilot')){v+=1;e.push(['FORMER PILOT',1]);}
   return {total:v,entries:e,bullsF:f};
 }
 function needFor(tn,atk){return Math.max(2,Math.min(19,tn-atk));}
@@ -864,7 +859,7 @@ function fireCtx(c,now){
   if(kind==='missile'&&s.lock){s.lock.level--;if(s.lock.level<=0)s.lock=null;}
   if(c.hit){
     c.dmg=rint(w.dmg[0],w.dmg[1]);
-    c.crit=rng()<(w.crit+0.25*(c.atk.bullsF||0));
+    c.crit=rng()<critChance(w,c.atk,t);
   }
   const d=dist(s,t);
   if(kind==='missile'){
@@ -933,9 +928,19 @@ function applyCtx(c){
        through-armor crit proc grants one — never both */
     if(t.alive&&t.hull>0&&(hd>0||c.crit))
       applyCritical(t,hd>0?'hull damage':'critical hit');
+    luckySave(t);
     if(t.hull<=0)destroyShip(t,s);
   }
   syncUI();
+}
+/* the weapon's crit chance plus a bullseye, and Unlucky: 5% more likely to suffer a critical */
+function critChance(w,atk,t){return w.crit+0.25*((atk&&atk.bullsF)||0)+(hasTr(t,'unlucky')?0.05:0);}
+/* Lucky: a 5% chance to avoid otherwise lethal damage; the hull holds at 1 */
+function luckySave(t){
+  if(t.hull>0||!hasTr(t,'lucky')||rng()>=0.05)return false;
+  t.hull=1;addFloater(t.x,t.y-64,'LUCKY',C.go);
+  log(nameSpan(t)+' <span class="g">walks away from a killing blow — the hull holds by a thread</span>');
+  return true;
 }
 function destroyShip(t,killer){
   if(killer&&killer.faction==='reb'&&t.faction==='heg'){
@@ -955,14 +960,15 @@ function destroyShip(t,killer){
   for(const m of ships){
     if(!m.alive||m.faction!==t.faction||m===t)continue;
     adjCool(m,-18,'wingman lost');
-    if(m.pilot.traits.includes('Friends: Joss')&&t.id==='P2'){
-      m.pilot.friendLock=true;adjCool(m,-50,'Joss is gone');
+    const bond=m.pilot.tr.find(x=>(x.k==='friends'||x.k==='love')&&x.with===t.pilot.who);   // panics at once if [B] goes down
+    if(bond){
+      m.pilot.friendLock=true;adjCool(m,-50,(t.pilot.first||t.name)+' is gone');
       say(m,'friendDown');
-      log(nameSpan(m)+' <span class="h">watches their friend die — they will not recover</span>');
+      log(nameSpan(m)+' <span class="h">watches '+(bond.k==='love'?'the one they love':'their friend')+' die — they will not recover</span>');
     }
   }
+  if(t.lead)for(const m of ships)if(m.alive&&m.faction===t.faction&&m!==t&&!CLS[m.cls].mute)adjCool(m,-45,'their leader is down');   // the roster's lead
   if(SCEN==='instructor'&&t.lead){
-    for(const m of ships)if(m.alive&&m.faction==='heg'&&m.pilot.traits.includes('Green'))adjCool(m,-45,'instructor down');
     const cad=ships.filter(m=>m.alive&&m.faction==='heg'&&!m.lead);
     if(cad.length)say(cad[Math.floor(rng()*cad.length)],'vexdown');
     log('<span class="g">The instructor is down — the cadets’ formation dissolves.</span>');
@@ -1993,6 +1999,8 @@ function nerveHtml(s,tip){
   const nv=nerve(s);
   return '<span class="sr-nerve sr-nerve--'+nv[1]+'"'+(tip&&nv[1]==='panic'?HUD.tip('Panicking','Lock in only.'):'')+'>'+(nv[1]==='panic'?ico('panic'):nv[1]==='cool'?ico('cool'):'')+nv[0]+'</span>';
 }
+/* a pair trait's partner by pilot id: their callsign if they fly in this fight */
+function partnerName(id){const m=id&&ships.find(x=>x.pilot&&x.pilot.who===id),f=m?String(m.pilot.first||m.pilot.pname||''):'';return f?f.charAt(0)+f.slice(1).toLowerCase():'someone';}
 function dossierHTML(s){
   const p=s.pilot,nv=nerve(s);
   const pctXP=Math.round(p.xp*100);
@@ -2002,11 +2010,12 @@ function dossierHTML(s){
     '<div class="sr-window__body">'+
     '<div class="sp-dz"><span class="sr-level" style="--p:'+pctXP+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div class="sp-dz__id"><div class="sp-dz__name">'+esc(p.pname)+'</div>'+
-    '<div class="sp-dz__tags">'+tag(p.rankName||rankOf(p.level),'progress','star')+state+'</div>'+
+    '<div class="sp-dz__tags">'+(p.rankName?tag(p.rankName,'progress','star'):'')+state+'</div>'+
     '<div class="sp-dz__sub">'+esc(s.name)+' · age '+p.age+'</div></div></div>'+
     '<div class="sr-meter sp-nerve" style="--c:'+nc+'"><span>Nerve</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(p.cool)+'%"></span></span><span class="sr-meter__val">'+Math.round(p.cool)+'</span></div>'+
     '<p class="sr-p sp-bio">“'+esc(p.bio)+'”</p>'+
-    (p.traits.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.traits.map(t=>'<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(t)+'</div><div class="sr-card__body">'+esc(TRAITDESC[t]||(Rebel.CT.find(x=>x.n===t)||{}).e||'')+'</div></div>').join('')+'</div>':'')+
+    (p.tr.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.tr.map(t=>{const d=Rebel.def(t.k);if(!d)return '';const b=partnerName(t.with);
+      return '<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(d.n.replace('[B]',b))+'</div><div class="sr-card__body">'+esc(d.e.replace(/\[B\]/g,b))+'</div></div>';}).join('')+'</div>':'')+
     (p.mans&&p.mans.length?'<div class="sr-h3">Pilot maneuvers</div><div class="sp-tags">'+p.mans.map(m=>tag(m==='loop'?'Loop ↺':'Barrel Roll ⇹','progress')).join('')+'</div>':'')+
     '<p class="sr-fine">XP '+pctXP+'% to next grade · manual promotion arrives with the persistent campaign</p>'+
     '</div>';
@@ -2627,7 +2636,7 @@ if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
     get exec(){return exec;},get attackQ(){return attackQ;},get awaitAction(){return awaitAction;},CLS,
-    fn:{deploy,gameOver,destroyShip,endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+    fn:{deploy,gameOver,destroyShip,luckySave,critChance,adjCool,dossierHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
       dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,shipHTML,
       setRound(n){round=n;},
       forceEnd(win){gameOver(win);}}};

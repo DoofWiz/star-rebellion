@@ -128,8 +128,8 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
    'owned vehicles and Bots read the roster, the Strider too (C-21) '+gv);
 
  // ---- space: line-ups and reinforcements come from the space roster
- const flight=[{pilotId:'sera',name:'Sera Kest',first:'Sera',level:3,aim:3,cool:72,traits:['Lucky'],cls:'cross',fighterId:'f1',fighterName:'Dustfall',hull:100},
-   {pilotId:'joss',name:'Joss Marrek',first:'Joss',level:4,aim:4,cool:76,traits:[],cls:'talon',fighterId:'f2',fighterName:'Talon 1',hull:100}];
+ const flight=[{pilotId:'sera',name:'Sera Kest',first:'Sera',level:3,aim:3,cool:72,tr:[{k:'lucky'}],cls:'cross',fighterId:'f1',fighterName:'Dustfall',hull:100},
+   {pilotId:'joss',name:'Joss Marrek',first:'Joss',level:4,aim:4,cool:76,tr:[],cls:'talon',fighterId:'f2',fighterName:'Talon 1',hull:100}];
  const sp={};
  for(const [k,m] of [['instructor',{kind:'space',missionId:'x',days:0,flight}],['depot',{kind:'space',missionId:'depotrun',days:0,flight}]]){
   await pg.evaluate(m=>{window.SR.mission=m;window.SR.go('space',{test:true,mission:m});},m);

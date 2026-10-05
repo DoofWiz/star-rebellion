@@ -16,11 +16,11 @@
   const T=(k,n,cat,pri,live,q,e,o)=>Object.assign({k,n,cat,pri,live,q,e,where:'g'},o||{});
   const RT=[
     /* ---- relationships ---- */
-    T('friends','Friends with [B]','Relationships',5,1,'[A] and [B] have become close. Close enough that one of them is going to have a very bad day eventually.','Panics at once if [B] goes down. Takes a major morale loss, and grieves, if [B] dies.',{pair:1}),
+    T('friends','Friends with [B]','Relationships',5,1,'[A] and [B] have become close. Close enough that one of them is going to have a very bad day eventually.','Panics at once if [B] goes down. Takes a major morale loss, and grieves, if [B] dies.',{pair:1,where:'gs'}),
     T('rivals','Rivals with [B]','Relationships',4,1,'[A] and [B] have never particularly liked each other. They have also never agreed on why.','Both lose morale when sent out in the same squad. Small chance of a combat edge when the other is there.',{pair:1}),
     T('mentored','Mentored by [B]','Relationships',5,1,'[B] has been teaching [A] everything they know. Hopefully not all of it.','Gains more experience fighting alongside [B]. If [B] is killed, becomes Avenging.',{pair:1}),
     T('mentoring','Mentoring [B]','Relationships',5,1,'[A] has taken [B] under their wing. This was not discussed with anyone else.','[B] gains more experience fighting alongside them. Takes a major morale loss if [B] is killed.',{pair:1}),
-    T('love','In Love with [B]','Relationships',7,1,'Somewhere between surviving firefights and stealing Hegemony equipment, this happened.','Large morale bonus after a mission beside [B]. Panics if [B] is downed. Grieves if [B] dies.',{pair:1}),
+    T('love','In Love with [B]','Relationships',7,1,'Somewhere between surviving firefights and stealing Hegemony equipment, this happened.','Large morale bonus after a mission beside [B]. Panics if [B] is downed. Grieves if [B] dies.',{pair:1,where:'gs'}),
     T('family','Family of [B]','Relationships',5,0,'Apparently the rebellion is now a family business.','Large morale effect when the relative is present or absent. Grieves if the relative is killed.',{pair:1}),
     /* ---- battlefield experiences ---- */
     T('battlehard','Battle-Hardened','Battlefield',3,1,'[A] has seen enough firefights to stop being surprised by them.','Panics less, and loses less morale to injuries and defeats.'),

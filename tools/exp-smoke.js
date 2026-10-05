@@ -64,7 +64,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.nerve=[R.nerveMul(mk('n',1)),R.nerveMul(mk('n',1,{traits:[{k:'veteran'}]}))];
   out.drift=[R.driftTarget(mk('d',1)),R.driftTarget(mk('d',1,{traits:[{k:'redeemed'},{k:'proved'}]}))];
   out.cool=[R.coolOf(mk('c',1),'g'),R.coolOf(mk('c',1,{traits:[{k:'broken'}]}),'g')];
-  out.spaceNames=R.namesFor(mk('s',1,{role:'Pilot',traits:[{k:'veteran'}]}),'s');
+  out.spaceNames=R.traitsFor(mk('s',1,{role:'Pilot',traits:[{k:'veteran'}]}),'s').map(t=>R.def(t.k).n);
   return out;
  });
  ok(r.reg[0]>=55&&r.reg[1]>=25&&r.reg[2],'registry '+r.reg);
