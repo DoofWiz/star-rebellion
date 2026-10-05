@@ -64,7 +64,7 @@ Fleet-tab entry from a duplicate C-12 to C-19.
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 | C-20 | 🔴 | Two injury-recovery models run side by side, with different heal rates | How long a wounded rebel is out |
-| C-21 | ⚪ | The Strider (and other units) have different numbers in base and ground | A hacked Strider loses 20 hp on joining |
+| C-21 | ⚪ | The owned Strider has different numbers from the enemy one | A hacked Strider loses 20 hp on joining |
 | C-22 | 🟡 | Space reads traits by legacy name; "Veteran" and "Lucky" mean something else there | Earned traits in space; double-dipping Veteran |
 | C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
@@ -213,15 +213,16 @@ plain "down in the fight" wound should be a condition like the rest. Then I fold
 `rebel-injury.js`.
 **Your call:** _open_
 
-### C-21 ⚪ The Strider (and other units) have different numbers in base and ground
+### C-21 ⚪ The owned Strider has different numbers from the enemy one
 Ground units have no shared table, so the same unit is typed out in several places:
-- **Strider:** 220 hp and aim 2 when you own it (`GVEH`), 240 hp and aim 1 as an enemy (the `strider-mk1` row of
-  the enemy roster). A Strider hacked in the field joins with 220, so it loses 20 hp on the way home.
-- Police, Dispersal and Transport cruisers are in `GVEH` and `VEHDEF` (they match today). Policebots and Bruisers
-  now take their stats from the enemy roster on both sides.
+- **Strider:** 240 hp and aim 1 as an enemy (the `strider-mk1` row of the enemy roster), but 220 hp and aim 2 when
+  you own it (`OWNED_STRIDER` in `base.js`, the last vehicle number outside the roster). A Strider hacked in the field
+  joins with 220, so it loses 20 hp on the way home.
+- Everything else now has one set of numbers: the cruisers, Policebots and Bruisers come from the enemy roster on
+  both sides.
 
-**Needs from you:** which Strider numbers are right. Longer term (`docs/LEGACY_AUDIT.md` §3), a single unit roster
-both scenes read from.
+**Needs from you:** which Strider numbers are right (or say the owned one should differ, and why: the roster can
+grow an owned-hp column). Then `OWNED_STRIDER` goes.
 **Your call:** _open_
 
 ### C-22 🟡 Space reads traits by their legacy names
@@ -427,7 +428,8 @@ a room over time, training), and whether the specialty system applies to Support
 **Blocks:** a player-owned vehicle that needs crew (the planning board and the Fire Support menu already take one,
 but nothing gives the player one); the Driver specialty ("Handling vehicles"), which does nothing.
 **Why:** the Asset Sheet's Vehicles tab has no entries, so the cruisers' numbers (hp, TN, speed, seats, guns) are
-my placeholders carried over from the old enemy units. A cruiser stolen mid-mission is not kept: the *Steal
+my placeholders carried over from the old enemy units. They now live in the enemy roster (the Enemies and Vehicle
+Seats tabs of the spreadsheet), so your numbers can go straight in there. A cruiser stolen mid-mission is not kept: the *Steal
 [Vehicle]* mission type is still waiting on its design.
 **Needs from you:** vehicle rows (hp, armour or TN, speed, positions and which are enclosed, weapons per position),
 how the player obtains a vehicle (Steal [Vehicle], keeping one taken in a mission, buying one), and what a Driver
@@ -452,7 +454,7 @@ baton and riot shieldmen the shield (the shield already blocks shots from the fr
 has rules for a rebel. The **HG-40** and the **Auto Plasma Hand** are live now with placeholder stats copied from the
 Cowboy No.4 (see C-24). The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
 the carrier's weapons mid-mission, but nothing says whether an *owned* launcher is spent for good (debited from
-the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of `GVEH` until it has stats
+the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of the roster until it has stats
 (see M-15).
 **Needs from you:** per item, the mechanic (or "cut it") — and for the rocket launcher, whether one shot consumes
 the owned item.

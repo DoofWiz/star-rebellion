@@ -49,7 +49,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   const walk=(k,x)=>{
     if(Array.isArray(x)){x.forEach(y=>walk(k,y));return;}
     if(!x||typeof x!=='object')return;
-    if(x.veh){(x.crew||[]).forEach(c=>chk(k,c));return;}
+    if(x.veh){chk(k,Object.assign({name:x.id},x));(x.crew||[]).forEach(c=>chk(k,c));return;}
     if(x.side==='law'&&x.name)chk(k,x);
     else for(const v of Object.values(x))if(v&&typeof v==='object')walk(k,v);
   };
@@ -59,7 +59,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   return {bad,types:Object.keys(seen).sort().join()};
  });
  ok(!s.bad.length,'every enemy spawn names a roster type '+s.bad);
- ok(s.types.split(',').length>=12,'every roster type is used somewhere '+s.types);
+ ok(s.types.split(',').length===15,'every roster type is used somewhere, vehicles included '+s.types);
 
  // ---- on the field: what they hold, what they look like, what they drop
  const d=await pg.evaluate(()=>{
@@ -81,14 +81,26 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   const dax=by('dax');let fired=0;
   for(const [sh,w] of [[pb,'autohand'],[drew,'hg40']]){drew.down=0;pb.down=0;dax.x=sh.x+150;dax.y=sh.y;f.applyShot(sh,dax,w);f.fireFx(sh,dax,w,true);fired++;}
   out.fired=fired;
+  // vehicles: the ground scene's definitions are the roster's, seats and all
+  const V=window.Enemies.vehicles();
+  out.veh=['police','dispersal','transport'].map(k=>[k,V[k].hp,V[k].def,V[k].spd,V[k].seats.map(x=>x.k+(x.drive?'*':'')+(x.wkey?'='+x.wkey:'')+(x.enc?'':'!')).join('/')].join(':')).join(' ');
+  out.botSpeed=window.Enemies.owned('strider').speed;
   return out;
  });
  ok(d.held==='hg40 autohand hg40 1 carbine','enemies fight with their roster weapons (baton and shield are carried, not fired) '+d.held);
  ok(d.look==='- shield+policevest policevest shield+policevest','what they wear is what is drawn '+d.look);
  ok(d.weaponArt==='hg40,autohand','the art kit draws their actual weapons '+d.weaponArt);
  ok(d.drops==='drew:hg40:c pb12:autohand:- rs1:hg40+policehelmet+policevest:c rr1:carbine+policehelmet+policevest:c','downed enemies drop the usable kit they carried '+d.drops);
+ ok(d.veh==='police:130:7:385:drv*=cruiser dispersal:170:7:310:drv*/gun=dispersal! transport:150:7:335:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
+ ok(d.botSpeed===265,'the Strider walks at its roster speed '+d.botSpeed);
  ok(d.fired===2,'Policebots and Patrolmen fire their new sidearms without a hitch');
  ok(/^HG-40 \+ \d+ ◈$/.test(d.take||'')&&d.drewC,'the drop is labelled and carries their credits '+d.take);
+
+ await go('intel');
+ const car=await pg.evaluate(()=>{const gd=window.DBGground,f=gd.fn,c=gd.U.find(u=>u.id==='pc1');
+  const n1=f.lootMarks_().length;f.dropLoot(c);
+  return [c.type,c.veh,c.maxhp,c.def,c.seats.map(x=>x.k+':'+(x.occ||'-')).join('/'),f.lootMarks_().length-n1].join();});
+ ok(car==='police-cruiser,police,130,7,drv:pc1d,0','an enemy cruiser spawns from its type with its crew aboard, and leaves no loot '+car);
 
  await go('stealcross');
  const r=await pg.evaluate(()=>{
@@ -111,6 +123,9 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   return p?[p.auto,e.wpns.join('+'),e.hp,e.def].join():'missing';
  });
  ok(h==='policebot,autohand,45,9','a hacked Policebot keeps its roster stats and Auto Plasma Hand '+h);
+ const gv=await pg.evaluate(()=>{const V=window.DBGbase.fn.GVEH_();return ['police','dispersal','transport','strider'].map(k=>[k,V[k].label,V[k].kind,V[k].hp,V[k].seats||'',V[k].aim===undefined?'':V[k].aim].join(':')).join(' ');});
+ ok(gv==='police:Police Cruiser:vehicle:130:1: dispersal:Riot Dispersal Cruiser:vehicle:170:2: transport:Riot Transport Cruiser:vehicle:150:4: strider:Strider Mk I:bot:220::2',
+   'owned vehicles read the roster; the owned Strider keeps its own numbers until C-21 '+gv);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'enemies-smoke: all checks passed');

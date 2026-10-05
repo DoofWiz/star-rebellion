@@ -17,7 +17,7 @@ const nz=(...a)=>A.nz(...a);
 
 /* Autos: robots that fight for us, the robot equivalent of a character. A hacked one keeps the stats and weapon its
    type has in the enemy roster (game/data/db.json); the label and bio are the base's. */
-const autoRow=t=>Enemies.rows.find(r=>r.auto_type===t);
+const autoRow=t=>Enemies.owned(t);
 const autoFrom=(t,label,bio)=>{const r=autoRow(t);return {label,hp:r.hp,def:r.def,wpn:r.weapon_1,big:r.big?1:0,heavy:r.heavy?1:0,bio};};
 const AUTOS={
   policebot:autoFrom('policebot','Policebot','A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'),
@@ -27,12 +27,19 @@ const autoOf=p=>AUTOS[p.auto]||AUTOS.policebot;
 const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';
 /* Ground vehicles (G.vehicles). Not people: a Bot (robot equivalent of a vehicle) drives itself and cannot be manned,
    a vehicle needs crew. Either rides to a ground mission as a fire-support asset and is summoned from the Fire Support
-   menu. G.vehicles[i] = {id, name, type, hp (0-100%)}. Types match VEHDEF/BOTDEF in ground.js. */
+   menu. G.vehicles[i] = {id, name, type, hp (0-100%)}; type is the enemy roster's owned_as, and the stats, seats and
+   gun come from that roster row (game/data/db.json). The label and bio are the base's. */
+const OWNED_STRIDER={hp:220,aim:2};   // an owned Strider is not the enemy one (240 hp, aim 1) until DESIGN_BLOCKERS C-21 is decided
+const ownedVeh=(type,bio)=>{
+  const r=Enemies.owned(type);
+  if(r.kind==='bot')return Object.assign({label:r.name,kind:'bot',hp:r.hp,def:r.def,aim:r.aim,wpn:r.weapon_1,big:r.big?1:0,bio},type==='strider'?OWNED_STRIDER:{});
+  return {label:r.name,kind:'vehicle',hp:r.hp,def:r.def,seats:Enemies.seats(r.id).length,bio};
+};
 const GVEH={
-  strider:{label:'Strider Mk I',kind:'bot',hp:220,def:8,aim:2,wpn:'strider',big:1,bio:'A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'},
-  police:{label:'Police Cruiser',kind:'vehicle',hp:130,seats:1,bio:'A patrol car with a pulse cannon in the nose. One seat: the driver flies it and fires it.'},
-  dispersal:{label:'Riot Dispersal Cruiser',kind:'vehicle',hp:170,seats:2,bio:'A riot car with a dispersal turret on the roof. A driver and an exposed turret gunner.'},
-  transport:{label:'Riot Transport Cruiser',kind:'vehicle',hp:150,seats:4,bio:'Unarmed. A driver and a troop bay for three.'},
+  strider:ownedVeh('strider','A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'),
+  police:ownedVeh('police','A patrol car with a pulse cannon in the nose. One seat: the driver flies it and fires it.'),
+  dispersal:ownedVeh('dispersal','A riot car with a dispersal turret on the roof. A driver and an exposed turret gunner.'),
+  transport:ownedVeh('transport','Unarmed. A driver and a troop bay for three.'),
 };
 const gvehOf=v=>GVEH[v.type]||GVEH.strider;
 const vehPool=()=>(G.vehicles||[]).filter(v=>v.hp>=40);

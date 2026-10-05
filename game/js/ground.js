@@ -186,7 +186,7 @@ stealfuel:{
   waves:[
     {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
      foes:[
-       {id:'pcw',veh:'police',side:'law',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',lines:['Unit 4, responding.','Pull over! All of you!']})]},
+       foe('police-cruiser',{id:'pcw',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',lines:['Unit 4, responding.','Pull over! All of you!']})]}),
        foe('depot-guard',{id:'dill',name:'Guard Dill',first:'Dill',x:2150,y:640,lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']}),
        foe('depot-guard',{id:'corr',name:'Guard Corr',first:'Corr',x:2150,y:720,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']}),
      ]},
@@ -266,13 +266,13 @@ autofactory:{
   work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
   detWave:{log:'<span class="h">A Riot Transport Cruiser screams in through the gate.</span>',
     foes:[
-      {id:'rtc1',veh:'transport',side:'law',x:700,y:470,
+      foe('riot-transport-cruiser',{id:'rtc1',x:700,y:470,
        crew:[
         foe('security-patrolman',{seat:'drv',id:'rtcd',name:'Patrolman Gant',first:'Gant',lines:['Unloading!','Squad out, go go go!']}),
         foe('security-riot-shieldman',{seat:'bay1',id:'rs2',name:'Riot Shieldman Voss',first:'Voss',lines:['Riot line! Hold!','Disperse!']}),
         foe('security-riot-rifleman',{seat:'bay2',id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',lines:['Contact at the plant!','Shields forward!']}),
         foe('security-riot-rifleman',{seat:'bay3',id:'rr3',name:'Riot Rifleman Mek',first:'Mek',lines:['Suppressing!','Breach team, go!']}),
-       ]},
+       ]}),
     ]},
   bldgs:[
     {x:1700,y:240, w:320,h:230,name:'POWER PLANT'},
@@ -367,7 +367,7 @@ towers:{
       B('b1',41,820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',42,1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
       B('b3',43,1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',44,1480,720,[{x:1480,y:720},{x:1620,y:800}]),
       RS('s1','Kade',1900,540,1),P('p1','Crane',600,980,[{x:600,y:980},{x:760,y:900}]),
-      {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]},
+      foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]}),
     ];
     if(v==='quota')return [
       RR('r1','Wick',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2','Tarn',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
@@ -504,7 +504,7 @@ intel:{
     foe('security-riot-rifleman',{id:'rr7',name:'Riot Rifleman Wick',first:'Wick',x:1400,y:540,patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']}),
     foe('security-patrolman',{id:'elm',name:'Patrolman Elm',first:'Elm',x:1200,y:1000,patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']}),
     foe('auto-policebot',{id:'pb33',name:'Policebot PB-33',first:'PB-33',x:1800,y:940,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
-    {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]},
+    foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]}),
   ];},
   civs(){return [
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -566,7 +566,7 @@ strider:{
     foe('security-riot-rifleman',{id:'rr8',name:'Riot Rifleman Garr',first:'Garr',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']}),
     foe('security-patrolman',{id:'elm2',name:'Patrolman Voss',first:'Voss',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']}),
     foe('auto-policebot',{id:'pb43',name:'Policebot PB-43',first:'PB-43',x:1700,y:940,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
-    {id:'rdc1',veh:'dispersal',side:'law',x:1450,y:690,guard:1,crew:[foe('security-patrolman',{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',lines:['Yard car, rolling.','Turret, light them up!']}),foe('security-riot-rifleman',{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',aim:1,lines:['Dispersal turret deployed.','Disperse!']})]},
+    foe('riot-dispersal-cruiser',{id:'rdc1',x:1450,y:690,guard:1,crew:[foe('security-patrolman',{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',lines:['Yard car, rolling.','Turret, light them up!']}),foe('security-riot-rifleman',{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',aim:1,lines:['Dispersal turret deployed.','Disperse!']})]}),
   ];},
   civs(){return [
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -825,15 +825,7 @@ function initUnits(){
    someone climbs in, and then it answers to their side.
    A Bot (the Strider) is the robot equivalent of a vehicle: it drives itself and cannot be manned, and it takes
    the vehicle action list (no sprint, cover, loot or work). */
-const VEHDEF={
-  police:   {name:'Police Cruiser',first:'Cruiser',hp:130,def:7,spd:385,
-             seats:[{k:'drv',n:'Driver',drive:1,wkey:'cruiser',enc:1}]},
-  dispersal:{name:'Riot Dispersal Cruiser',first:'Cruiser',hp:170,def:7,spd:310,
-             seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'gun',n:'Turret',wkey:'dispersal',enc:0}]},
-  transport:{name:'Riot Transport Cruiser',first:'Cruiser',hp:150,def:7,spd:335,
-             seats:[{k:'drv',n:'Driver',drive:1,enc:1},{k:'bay1',n:'Troop bay',enc:1},{k:'bay2',n:'Troop bay',enc:1},{k:'bay3',n:'Troop bay',enc:1}]},
-};
-const BOTDEF={strider:{spd:265}};
+const VEHDEF=Enemies.vehicles();   // by owned_as (police, dispersal, transport): stats, speed and seats from the enemy roster
 const ENTER_R=50;                     // close enough to climb in
 const HATCH_COVER=3;                  // an open gun seat still has the hull around it
 function mkVeh(o){
@@ -864,7 +856,7 @@ const vehOf=u=>(u&&u.mnt)?U.find(v=>v.id===u.mnt.v)||null:null;
 const seatOf=u=>{const v=vehOf(u);return v?v.seats.find(x=>x.k===u.mnt.seat)||null:null;};
 const enclosed=u=>{const st=seatOf(u);return !!(st&&st.enc);};
 const crewIn=v=>(v&&v.seats)?v.seats.map(x=>x.occ&&U.find(u=>u.id===x.occ)).filter(Boolean):[];
-const vehSpd=u=>u.veh?VEHDEF[u.veh].spd*(u.wound?0.75:1):u.bot?((BOTDEF[u.bot]||{}).spd||MOVE_R):MOVE_R;
+const vehSpd=u=>u.veh?VEHDEF[u.veh].spd*(u.wound?0.75:1):u.bot?((Enemies.owned(u.bot)||{}).speed||MOVE_R):MOVE_R;
 /* a bay passenger sees nothing worth reporting; a driver or gunner keeps watch */
 const lookout=u=>{const st=seatOf(u);return !st||!!st.drive||!!st.wkey;};
 /* how far a Move reaches: the driver's seat moves the vehicle at its speed, a Bot moves at its own, a person on foot by order */
@@ -4265,10 +4257,11 @@ function drawUnitActor(u,now){
   const t=(HUD.reduced?0:now/1000)+animPhase(u);
   const sc2=actorScale(u);
   if(u.veh){
-    const key=u.veh==='dispersal'?'riotdispersal':u.veh==='transport'?'riottransport':'police';
+    const vd=VEHDEF[u.veh],key=vd.art;
     const c=engageQ&&engageQ.cur;
-    const gunnerShot=c&&c.s&&c.s.mnt&&c.s.mnt.v===u.id&&(seatOf(c.s)||{}).wkey==='dispersal';
-    if(u.veh==='dispersal'){
+    const turret=vd.seats.some(x=>x.wkey&&!x.enc);   // an exposed gun seat is a turret that rises when it fires
+    const gunnerShot=c&&c.s&&c.s.mnt&&c.s.mnt.v===u.id&&(st=>!!(st&&st.wkey&&!st.enc))(seatOf(c.s));
+    if(turret){
       if(gunnerShot)u._tEng=1;
       u._tUp=Math.min(1,(u._tUp||0)+(u._tEng?0.04:0));   // the turret rises once it first engages, and stays up
       if(gunnerShot)u._tAng=Math.atan2(c.t.y-u.y,c.t.x-u.x);

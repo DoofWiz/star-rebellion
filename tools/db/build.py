@@ -36,8 +36,8 @@ ITEM_SLOTS = ["primary", "secondary", "head", "body", "gadget"]
 ITEM_ORIGINS = ["factory", "handmade", "scavenged"]
 DAMAGE_TYPES = ["ballistic", "plasma", "explosive", "blunt"]
 FACTIONS = ["hegemony", "outworlder"]
-ENEMY_KINDS = ["person", "auto", "bot"]
-AUTO_TYPES = ["policebot", "bruiser", "strider"]
+ENEMY_KINDS = ["person", "auto", "bot", "vehicle"]
+OWNED_AS = ["policebot", "bruiser", "strider", "police", "dispersal", "transport"]
 ITEM_STATS = ["damage_min", "damage_max", "range", "attack", "shots", "damage_type"]
 
 SCHEMA = {
@@ -195,32 +195,45 @@ SCHEMA = {
             ("name", "text", 24, "Type name, e.g. Security Patrolman. Each spawn gets its own name."),
             ("faction", "id", 11, "hegemony or outworlder."),
             ("tier", "int", 5, "Revolution tier the Enemies doc puts it in (1 to 3)."),
-            ("kind", "id", 8, "person, auto (a robot that fights like a person) or bot (a robot vehicle)."),
+            ("kind", "id", 8, "person, auto (a robot that fights like a person), bot (a robot vehicle that drives itself) or vehicle (needs crew; its guns are on its seats: see Vehicle Seats)."),
             ("in_doc", "bool", 7, "TRUE if the Enemies doc describes it. FALSE: the game needed it first; spec pending."),
             ("hp", "int", 6, "Health."),
             ("aim", "int", 5, "Added to attack rolls."),
             ("def", "int", 5, "Defence: the number to beat to hit them."),
             ("cool", "int", 6, "Nerve, 0 to 100. Blank = 55. Leaders never drop below 40."),
-            ("weapon_1", "id", 12, "Item id they draw first."),
+            ("weapon_1", "id", 12, "Item id they draw first. Blank for vehicles (their guns are on their seats)."),
             ("weapon_2", "id", 12, "Item id they also carry (a sidearm, a riot shield). Blank for none."),
             ("head", "id", 12, "Head item id. Blank for none."),
             ("body", "id", 12, "Body item id. Blank for none."),
             ("gadget", "id", 10, "Gadget item id. Blank for none."),
             ("leader", "bool", 7, "Leads the others: shoots to kill, never breaks, and the rest waver once they fall."),
-            ("auto_type", "id", 10, "Robots only: policebot, bruiser or strider. What a hacked one becomes at base."),
+            ("owned_as", "id", 10, "Robots and vehicles: the key a hacked or stolen one has at base (policebot, bruiser, strider, police, dispersal, transport)."),
             ("hack_rounds", "int", 8, "Robots only: rounds of hacking to turn it. Blank = cannot be hacked."),
             ("heavy", "bool", 6, "Hits like a truck (the Bruiser)."),
             ("big", "bool", 5, "Takes up a vehicle's footprint (the Strider)."),
+            ("speed", "int", 6, "Bots and vehicles: how far one Move takes it (map units; on foot a Move is 180 and a Sprint 360). Blank for people and Autos."),
             ("credits_min", "int", 8, "Credits on the body, low end. Blank for none."),
             ("credits_max", "int", 8, "Credits on the body, high end."),
-            ("art", "id", 9, "Art-kit archetype it is drawn with (sr-art.js ARCH)."),
+            ("art", "id", 9, "What the art kit draws: an archetype (sr-art.js ARCH) for people and robots, a vehicle (VEHICLES) for vehicles."),
             ("description", "text", 60, "From the Enemies doc where it has one."),
             ("notes", "text", 50, "Designer notes. Not shown to players."),
         ],
     },
+    "vehicle_seats": {
+        "sheet": "Vehicle Seats", "key": "id",
+        "cols": [
+            ("id", "id", 26, "Unique lowercase id, e.g. police-cruiser-drv."),
+            ("vehicle", "id", 22, "Enemies id of a vehicle. Its seats are listed in this order."),
+            ("seat", "id", 7, "Short key, unique within the vehicle (drv, gun, bay1...). Missions put crew in seats by this key."),
+            ("name", "text", 12, "Shown to the player, e.g. Driver, Turret, Troop bay."),
+            ("drives", "bool", 7, "TRUE for the one seat that moves the vehicle."),
+            ("weapon", "id", 12, "Item id of the gun this seat fires. Blank: no gun."),
+            ("enclosed", "bool", 8, "TRUE: whoever sits here cannot be shot (shoot the vehicle). FALSE: an exposed seat, like a turret."),
+        ],
+    },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "items", "enemies", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
 
@@ -450,7 +463,7 @@ def validate(db):
     items = {it["id"]: it for it in db["items"]}
     for en in db["enemies"]:
         n = "enemies %r" % en["id"]
-        for col, allowed in (("faction", FACTIONS), ("kind", ENEMY_KINDS), ("auto_type", AUTO_TYPES + [None])):
+        for col, allowed in (("faction", FACTIONS), ("kind", ENEMY_KINDS), ("owned_as", OWNED_AS + [None])):
             if en[col] not in allowed:
                 E("%s: %s %r (allowed: %s)" % (n, col, en[col], ", ".join(a for a in allowed if a)))
         for b in ("in_doc", "leader", "heavy", "big"):
@@ -462,7 +475,9 @@ def validate(db):
         rng("enemies", en, "def", 0, 30)
         rng("enemies", en, "cool", 0, 100, required=False)
         for col in ("weapon_1", "weapon_2", "head", "body", "gadget"):
-            ref("enemies", en, col, "items", required=(col == "weapon_1"))
+            ref("enemies", en, col, "items", required=(col == "weapon_1" and en["kind"] != "vehicle"))
+        if en["kind"] == "vehicle" and any(en[c] for c in ("weapon_1", "weapon_2", "head", "body", "gadget")):
+            E("%s: vehicles carry no kit; their guns go on their seats (Vehicle Seats)" % n)
         w = items.get(en["weapon_1"])
         if w and w["damage_min"] is None:
             E("%s: weapon_1 %r has no combat stats" % (n, en["weapon_1"]))
@@ -470,10 +485,45 @@ def validate(db):
             it = items.get(en[col])
             if it and it["slot"] != slot:
                 E("%s: %s %r goes in the %s slot" % (n, col, en[col], it["slot"]))
-        if en["kind"] == "person" and (en["auto_type"] or en["hack_rounds"] is not None):
-            E("%s: only robots have an auto_type or hack_rounds" % n)
-        if en["kind"] != "person" and not en["auto_type"]:
-            E("%s: robots need an auto_type" % n)
+        if en["kind"] == "person" and en["owned_as"]:
+            E("%s: only robots and vehicles have an owned_as" % n)
+        if en["kind"] != "person" and not en["owned_as"]:
+            E("%s: robots and vehicles need an owned_as" % n)
+        if en["kind"] not in ("auto", "bot") and en["hack_rounds"] is not None:
+            E("%s: only robots can be hacked" % n)
+        if en["kind"] in ("bot", "vehicle"):
+            rng("enemies", en, "speed", 1, 2000)
+        elif en["speed"] is not None:
+            E("%s: only bots and vehicles have a speed" % n)
+    owned = [en["owned_as"] for en in db["enemies"] if en["owned_as"]]
+    for k in set(owned):
+        if owned.count(k) > 1:
+            E("enemies: owned_as %r is used twice" % k)
+
+    kinds = {en["id"]: en["kind"] for en in db["enemies"]}
+    seats = {}
+    for st in db["vehicle_seats"]:
+        n = "vehicle_seats %r" % st["id"]
+        ref("vehicle_seats", st, "vehicle", "enemies", required=True)
+        ref("vehicle_seats", st, "weapon", "items")
+        if st["vehicle"] in kinds and kinds[st["vehicle"]] != "vehicle":
+            E("%s: %r is not a vehicle" % (n, st["vehicle"]))
+        for b in ("drives", "enclosed"):
+            if not isinstance(st[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        w = items.get(st["weapon"])
+        if w and w["damage_min"] is None:
+            E("%s: weapon %r has no combat stats" % (n, st["weapon"]))
+        seats.setdefault(st["vehicle"], []).append(st)
+    for vid, k in kinds.items():
+        if k != "vehicle":
+            continue
+        L = seats.get(vid, [])
+        if sum(1 for st in L if st["drives"]) != 1:
+            E("enemies %r: a vehicle needs exactly one seat that drives" % vid)
+        keys = [st["seat"] for st in L]
+        if len(set(keys)) != len(keys):
+            E("enemies %r: seat keys must be unique" % vid)
         if (en["credits_min"] is None) != (en["credits_max"] is None):
             E("%s: credits_min and credits_max must both be set or both blank" % n)
         elif en["credits_min"] is not None and en["credits_min"] > en["credits_max"]:
@@ -541,7 +591,7 @@ GUIDE = [
     ("The Pilots tab shows each pilot's TN in their usual ship (target_number). Aim uses the same bonus formula, so equal skill and level cancel out.", "text"),
     ("", "text"),
     ("TABLES", "h"),
-    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop). Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
+    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
     ("", "text"),
     ("PLACEHOLDERS", "h"),
     ("Anything labelled seed, placeholder or converted in a Notes column came from the old game values rather than from a design doc, and is there to be changed.", "text"),
@@ -573,7 +623,7 @@ def export_xlsx(db, out):
         c.font = F(bold=True, size=14) if style == "title" else F(bold=True) if style == "h" else F()
     g.sheet_view.showGridLines = False
 
-    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships", "items": "Items"}
+    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships", "items": "Items", "enemies": "Enemies"}
     ref_cols = {
         ("weapons", "manufacturer"): "manufacturers",
         ("ships", "manufacturer"): "manufacturers",
@@ -586,13 +636,14 @@ def export_xlsx(db, out):
         ("items", "manufacturer"): "manufacturers",
         ("enemies", "weapon_1"): "items", ("enemies", "weapon_2"): "items", ("enemies", "head"): "items",
         ("enemies", "body"): "items", ("enemies", "gadget"): "items",
+        ("vehicle_seats", "vehicle"): "enemies", ("vehicle_seats", "weapon"): "items",
     }
     enums = {
         ("ships", "kind"): KINDS_SHIP, ("weapons", "kind"): KINDS_WEAPON,
         ("pilots", "kind"): KINDS_PILOT, ("size_scale", "class"): CLASSES,
         ("items", "category"): ITEM_CATS, ("items", "slot"): ITEM_SLOTS, ("items", "origin"): ITEM_ORIGINS,
         ("items", "damage_type"): DAMAGE_TYPES,
-        ("enemies", "faction"): FACTIONS, ("enemies", "kind"): ENEMY_KINDS, ("enemies", "auto_type"): AUTO_TYPES,
+        ("enemies", "faction"): FACTIONS, ("enemies", "kind"): ENEMY_KINDS, ("enemies", "owned_as"): OWNED_AS,
     }
     whole = {
         ("ships", "size"): (1, 20), ("size_scale", "size"): (1, 20),
