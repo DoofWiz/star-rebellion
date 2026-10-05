@@ -344,6 +344,25 @@
 @container sr-app (max-width:900px){
   #sc-base .bm-strip{display:flex;}
 }
+/* .bm-card .kit-well .it-art (192px) out-specifies .bm-merc__kit .it-art (72px): re-assert the merc's
+   small own-kit art so the "Brings own kit" caption keeps its room (C-13 again) */
+#sc-base .bm-card .bm-merc__kit .it-art{width:72px;height:45px;}
+
+/* ---------- phone pass (390x844): five tabs, drawer views, overlays ---------- */
+#sc-base .nav-market-s{display:none;}
+@container sr-app (max-width:900px){
+  /* the fifth tab shortens to "Market", and the row scrolls rather than clipping Base off-screen */
+  #sc-base .nav-market-l{display:none;}
+  #sc-base .nav-market-s{display:inline;}
+  #sc-base .sr-slot-tc{max-width:calc(100% - 12px);}
+  #sc-base .sr-tabs{max-width:100%;overflow-x:auto;scrollbar-width:none;}
+  #sc-base .sr-tabs::-webkit-scrollbar{display:none;}
+  #sc-base .sr-tab{white-space:nowrap;flex:none;}
+  /* pickers anchor to the app viewport, not the scrolling stage (the container makes fixed local) */
+  #sc-base .kit-view .bs-overlay{position:fixed;inset:0;z-index:35;}
+  /* a narrow market card: smaller fence head leaves room for the own-kit column */
+  #sc-base .bm-card .bm-merc .kf{width:64px;height:64px;}
+}
 
 /* ---------- galaxy view (game-side helpers over the gx- kit) ---------- */
 /* a source running hot: the whole rail row carries the warning */
@@ -381,4 +400,9 @@
 #splash.is-leaving{opacity:0;transition:opacity .45s ease;}
 @media (prefers-reduced-motion: reduce){
   #splash .splash__ui,#splash.is-leaving{transition:none;}
+
 }
+
+/* the art bridge renders SR_ART to data-URL imgs; size them like the canvases they stand in for */
+#sc-base .it-art>img{display:block;width:100%;height:100%;object-fit:contain;}
+#sc-base .kf>img{display:block;width:100%;height:100%;border-radius:50%;}
