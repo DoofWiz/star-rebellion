@@ -231,9 +231,30 @@ SCHEMA = {
             ("enclosed", "bool", 8, "TRUE: whoever sits here cannot be shot (shoot the vehicle). FALSE: an exposed seat, like a turret."),
         ],
     },
+    "space_enemies": {
+        "sheet": "Space Enemies", "key": "id",
+        "cols": [
+            ("id", "id", 20, "Unique lowercase id. Space line-ups name it, so do not rename."),
+            ("name", "text", 22, "Type name, e.g. Drone Monitor. Each spawn gets its own callsign."),
+            ("faction", "id", 11, "hegemony or outworlder."),
+            ("tier", "int", 5, "Revolution tier the Enemies doc puts it in (1 to 3)."),
+            ("in_doc", "bool", 7, "TRUE if the Enemies doc describes it. FALSE: the game needed it first; spec pending."),
+            ("ship", "id", 18, "Ships id it flies. Hull, shields, movement and guns come from there."),
+            ("pilot", "id", 18, "Pilots id flying it: level, skills, initiative. Drones and structures use a built-in core. A spawn can name a different pilot (each cadet is their own row)."),
+            ("maneuvers", "text", 10, "Extra maneuvers, separated by |: loop (K-turn), broll (barrel roll). Blank for none."),
+            ("lead", "bool", 6, "The mark: flown with the instructor's AI, and the rest of the line-up's nerve breaks when it falls."),
+            ("flees", "bool", 6, "Jumps out of the sector once it panics near the edge."),
+            ("calls", "id", 16, "Space Enemies id it calls in once it spots a rebel ship (once per fight). Blank for none."),
+            ("clamps", "bool", 7, "Fires mag-clamps that slow the target."),
+            ("age", "int", 5, "Pilot's age on the dossier. Blank: none shown (drones, structures)."),
+            ("bio", "text", 50, "Dossier line. A spawn can give its own."),
+            ("description", "text", 50, "From the Enemies doc where it has one."),
+            ("notes", "text", 40, "Designer notes. Not shown to players."),
+        ],
+    },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
 
@@ -524,6 +545,28 @@ def validate(db):
         keys = [st["seat"] for st in L]
         if len(set(keys)) != len(keys):
             E("enemies %r: seat keys must be unique" % vid)
+
+    ships_by = {x["id"]: x for x in db["ships"]}
+    for se in db["space_enemies"]:
+        n = "space_enemies %r" % se["id"]
+        if se["faction"] not in FACTIONS:
+            E("%s: faction %r" % (n, se["faction"]))
+        rng("space_enemies", se, "tier", 1, 3)
+        ref("space_enemies", se, "ship", "ships", required=True)
+        ref("space_enemies", se, "pilot", "pilots", required=True)
+        ref("space_enemies", se, "calls", "space_enemies")
+        if se["calls"] == se["id"]:
+            E("%s: cannot call itself" % n)
+        for b in ("in_doc", "lead", "flees", "clamps"):
+            if not isinstance(se[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        for m in [x for x in se["maneuvers"].split("|") if x]:
+            if m not in ("loop", "broll"):
+                E("%s: unknown maneuver %r (known: loop, broll)" % (n, m))
+        sh = ships_by.get(se["ship"])
+        if sh and sh["kind"] == "structure" and (se["maneuvers"] or se["flees"] or se["calls"] or se["clamps"]):
+            E("%s: a structure cannot maneuver, flee, call or clamp" % n)
+        rng("space_enemies", se, "age", 1, 120, required=False)
         if (en["credits_min"] is None) != (en["credits_max"] is None):
             E("%s: credits_min and credits_max must both be set or both blank" % n)
         elif en["credits_min"] is not None and en["credits_min"] > en["credits_max"]:
@@ -591,7 +634,7 @@ GUIDE = [
     ("The Pilots tab shows each pilot's TN in their usual ship (target_number). Aim uses the same bonus formula, so equal skill and level cancel out.", "text"),
     ("", "text"),
     ("TABLES", "h"),
-    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
+    ("Ships: starships, drones and structures. Weapons: every ship weapon. Items: personal kit (weapons, armour, gadgets) and the built-in weapons of units and vehicles; the game draws every item from here. Enemies: the ground roster (faction, stats, what they carry, which is also what they drop), robots and vehicles included. Vehicle Seats: each vehicle's seats and the guns on them. Space Enemies: the space roster (which ship, which pilot, how it behaves). Pilots: level, initiative and the four skills; drones carry a built-in 'core' pilot. Starting Fleet: individual ships the player begins with (a stock model plus what is loaded in it). Size Scale: sizes 1 to 20. Manufacturers: lore list. Rules: shared numbers.", "text"),
     ("", "text"),
     ("PLACEHOLDERS", "h"),
     ("Anything labelled seed, placeholder or converted in a Notes column came from the old game values rather than from a design doc, and is there to be changed.", "text"),
@@ -623,7 +666,8 @@ def export_xlsx(db, out):
         c.font = F(bold=True, size=14) if style == "title" else F(bold=True) if style == "h" else F()
     g.sheet_view.showGridLines = False
 
-    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships", "items": "Items", "enemies": "Enemies"}
+    refs = {"manufacturers": "Manufacturers", "weapons": "Weapons", "ships": "Ships", "items": "Items", "enemies": "Enemies",
+            "pilots": "Pilots", "space_enemies": "Space Enemies"}
     ref_cols = {
         ("weapons", "manufacturer"): "manufacturers",
         ("ships", "manufacturer"): "manufacturers",
@@ -637,13 +681,14 @@ def export_xlsx(db, out):
         ("enemies", "weapon_1"): "items", ("enemies", "weapon_2"): "items", ("enemies", "head"): "items",
         ("enemies", "body"): "items", ("enemies", "gadget"): "items",
         ("vehicle_seats", "vehicle"): "enemies", ("vehicle_seats", "weapon"): "items",
+        ("space_enemies", "ship"): "ships", ("space_enemies", "pilot"): "pilots", ("space_enemies", "calls"): "space_enemies",
     }
     enums = {
         ("ships", "kind"): KINDS_SHIP, ("weapons", "kind"): KINDS_WEAPON,
         ("pilots", "kind"): KINDS_PILOT, ("size_scale", "class"): CLASSES,
         ("items", "category"): ITEM_CATS, ("items", "slot"): ITEM_SLOTS, ("items", "origin"): ITEM_ORIGINS,
         ("items", "damage_type"): DAMAGE_TYPES,
-        ("enemies", "faction"): FACTIONS, ("enemies", "kind"): ENEMY_KINDS, ("enemies", "owned_as"): OWNED_AS,
+        ("space_enemies", "faction"): FACTIONS, ("enemies", "faction"): FACTIONS, ("enemies", "kind"): ENEMY_KINDS, ("enemies", "owned_as"): OWNED_AS,
     }
     whole = {
         ("ships", "size"): (1, 20), ("size_scale", "size"): (1, 20),

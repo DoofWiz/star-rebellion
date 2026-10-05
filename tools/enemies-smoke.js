@@ -127,6 +127,33 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
  ok(gv==='police:Police Cruiser:vehicle:130:1: dispersal:Riot Dispersal Cruiser:vehicle:170:2: transport:Riot Transport Cruiser:vehicle:150:4: strider:Strider Mk I:bot:240::1',
    'owned vehicles and Bots read the roster, the Strider too (C-21) '+gv);
 
+ // ---- space: line-ups and reinforcements come from the space roster
+ const flight=[{pilotId:'sera',name:'Sera Kest',first:'Sera',level:3,aim:3,cool:72,traits:['Lucky'],cls:'cross',fighterId:'f1',fighterName:'Dustfall',hull:100},
+   {pilotId:'joss',name:'Joss Marrek',first:'Joss',level:4,aim:4,cool:76,traits:[],cls:'talon',fighterId:'f2',fighterName:'Talon 1',hull:100}];
+ const sp={};
+ for(const [k,m] of [['instructor',{kind:'space',missionId:'x',days:0,flight}],['depot',{kind:'space',missionId:'depotrun',days:0,flight}]]){
+  await pg.evaluate(m=>{window.SR.mission=m;window.SR.go('space',{test:true,mission:m});},m);
+  await pg.waitForTimeout(400);
+  sp[k]=await pg.evaluate(()=>{
+   const D=window.DBGspace,F=D.fn,E=window.Enemies,heg=D.ships.filter(s=>s.faction==='heg');
+   const out={types:heg.map(s=>s.id+':'+s.type).join(' '),bad:heg.filter(s=>!s.type||!E.spaceRows.some(r=>r.id===s.type)).map(s=>s.id)};
+   const lead=heg.filter(s=>s.lead).map(s=>s.id),flee=heg.filter(s=>s.flees).map(s=>s.id);
+   out.flags=lead.join()+'/'+flee.join();
+   const vex=heg.find(s=>s.lead);
+   if(vex)out.vex=[vex.chatKey,vex.pilot.mans.join('+'),vex.cls].join();
+   const mon=heg.find(s=>s.calls);
+   if(mon){const reb=D.ships.find(s=>s.faction==='reb');reb.x=mon.x+200;reb.y=mon.y;F.reinforceStep();F.setRound(5);F.reinforceStep();}
+   out.summoned=D.ships.filter(s=>/^Z/.test(s.id)).map(s=>s.type+':'+s.pilot.first).join(' ');
+   out.clamps=D.ships.filter(s=>s.clamps).map(s=>s.type).join();
+   return out;});
+ }
+ ok(!sp.instructor.bad.length&&!sp.depot.bad.length,'every space enemy names a roster type '+sp.instructor.bad+sp.depot.bad);
+ ok(sp.instructor.types==='E1:academy-commandant E2:academy-cadet E3:academy-cadet','the instructor line-up: Vex and a cadet per pilot '+sp.instructor.types);
+ ok(sp.instructor.flags==='E1/E2,E3'&&sp.instructor.vex==='vex,loop+broll,scim','the commandant leads and keeps his maneuvers and voice; cadets flee '+sp.instructor.flags+' '+sp.instructor.vex);
+ ok(sp.depot.types==='D1:fuel-depot D2:fuel-depot D3:fuel-depot D4:fuel-depot R1:drone-monitor R2:drone-monitor R3:drone-pursuer','the depot line-up '+sp.depot.types);
+ ok(/^(drone-pursuer:PURSUER-\d ){1,2}vc-mote-patrol:MOTE-\d drone-mag-clamper:MAG-CLAMPER-\d$/.test(sp.depot.summoned)&&sp.depot.clamps==='drone-mag-clamper',
+   'a Monitor calls its roster Pursuer; the patrol answers with a Mote and a Mag-Clamper '+sp.depot.summoned+' / '+sp.depot.clamps);
+
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'enemies-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);

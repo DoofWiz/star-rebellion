@@ -50,6 +50,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 | `items` | Personal kit (weapons, armour, gadgets, other) and the built-in weapons of units and vehicles. |
 | `enemies` | The ground enemy roster: people, robots and vehicles; faction, tier, stats, and what each type carries (item ids). |
 | `vehicle_seats` | Each vehicle's seats: who drives, which gun the seat fires, whether it is enclosed. |
+| `space_enemies` | The space roster: which ship and pilot each enemy type flies with, and how it behaves. |
 | `pilots` | Level, XP, initiative (1 to 6) and the four skills. Drones carry a built-in "core" pilot. |
 | `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
@@ -142,9 +143,27 @@ hacked or stolen one has at base (`G.vehicles[i].type`, a hacked Auto's `p.auto`
   a turret, which the art raises when it fires). The ground scene's `VEHDEF` and the base's `GVEH` (owned vehicles
   and Bots) are both built from these rows, so an owned cruiser or Strider has exactly the enemy one's numbers.
 
+## Space enemies
+
+The space half of the roster (the Space Enemies tab). A row names the `ship` it flies and the `pilot` flying it
+(drones and the Fuel Depot use a built-in core pilot), plus what the code used to hard-wire by ship id or class:
+
+- `maneuvers`: `loop` and `broll` (Commandant Vex flies both).
+- `lead`: the mark. It flies with the instructor's AI, and the rest of the line-up breaks when it falls.
+- `flees`: jumps out of the sector once it panics near the edge (the cadets).
+- `calls`: the type it calls in once it spots a rebel ship (a Drone Monitor calls a Drone Pursuer).
+- `clamps`: fires mag-clamps (the Drone Mag-Clamper).
+- `age` and `bio`: the dossier's defaults.
+
+The line-ups themselves (`LINEUPS` in `space.js`) are lists of `[id, callsign, type, x, y, heading, extras]`; the
+extras are one enemy's own (each cadet names their own pilot row, Vex his voice and bio). The depot patrol
+(`DEPOT_PATROL`: a VC Mote and a Mag-Clamper on round 5) names types the same way. How many cadets fly scales with
+the rebel flight in code.
+
 ## Still in code, because the database has no column for them
 
-The Drone Monitor's call for help and the Mag-Clamper's clamp (`BEHAVIOUR` in `space.js`), the critical-hit table,
+The numbers behind the Drone Monitor's call (900 range) and the Mag-Clamper's clamp (range 650, speed -2 for two
+rounds) in `space.js`, the critical-hit table,
 and the Door Gunner and Strafing Run numbers in `ground.js` (the `door-mounted-gun` row only decides who can fly it).
 
 ## Seed data to review
@@ -156,5 +175,4 @@ initiative values.
 ## Not in the database yet
 
 Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
-capital ship weapons and attachments, vehicle attachments (the Floatin' Truck's) and space enemies' line-ups
-(`DEPLOY` in `space.js`).
+capital ship weapons and attachments, and vehicle attachments (the Floatin' Truck's).

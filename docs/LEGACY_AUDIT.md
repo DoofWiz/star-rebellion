@@ -153,6 +153,12 @@ A target to work toward, in steps that each keep the game playable:
 
 ## 2. Ships, ship weapons and space
 
+> **Progress (after this audit):** the enemy line-ups are folded into the roster. A `space_enemies` table names each
+> enemy type's ship and pilot and carries what was hard-wired before (Vex's AI by ship id `E1`, the cadets' flee rule
+> by class `fled`, `BEHAVIOUR`, `CORE_PILOT`, the depot's inline pilot); `LINEUPS` and `DEPOT_PATROL` in `space.js`
+> place types. Still here: the legacy class keys inside the scene, Door Gunner and Strafing Run numbers, the art
+> kit's ship catalogue, and repair and reward constants in `base.js`.
+
 **Current:** stock stats, the movement dial, size, default weapons, fuel per sortie, troop seats and gunner positions
 all come from `db.json` through `SRDB`. `space.js` builds `CLS` and `WDEF` from it at load (`space.js:32-48`); the
 old hand-written `CLS`/`WPN`/`SHIPSTATS`/`FUEL_COST` are gone.

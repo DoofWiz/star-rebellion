@@ -17,6 +17,8 @@
    Enemies.kit(row)        every item id the type carries
    Enemies.vehicles()      vehicle definitions by owned_as, in the ground
                            scene's shape ({name, first, hp, def, spd, art, seats})
+   Enemies.space(id)       a space_enemies row (ship, pilot, maneuvers, lead,
+                           flees, calls, clamps, age, bio); throws if unknown
    ===================================================================== */
 window.Enemies=(function(){
   const rows=SRDB.raw.enemies||[];
@@ -57,5 +59,12 @@ window.Enemies=(function(){
       spd:r.speed,art:r.art,seats:seats(r.id).map(x=>({k:x.seat,n:x.name,drive:x.drives?1:0,wkey:x.weapon||undefined,enc:x.enclosed?1:0}))};
     return v;
   }
-  return {rows,get,owned,must,spawn,kit,vehicles,seats};
+  const spaceRows=SRDB.raw.space_enemies||[];
+  const spaceById={};for(const r of spaceRows)spaceById[r.id]=r;
+  function space(id){
+    const r=spaceById[id];
+    if(!r)throw new Error('Unknown space enemy "'+id+'": add it to the space_enemies table in game/data/db.json');
+    return r;
+  }
+  return {rows,get,owned,must,spawn,kit,vehicles,seats,spaceRows,space};
 })();

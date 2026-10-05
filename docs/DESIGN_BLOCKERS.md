@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
+**Last updated:** 2026-10-05, after the space line-ups joined the roster (C-24 extended), C-21 was resolved, the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
 the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`, which added C-20 to C-23 and M-24) and the renumbering of the
 Fleet-tab entry from a duplicate C-12 to C-19.
 
@@ -238,7 +238,8 @@ says something, and the art kit where the doc is silent. Every enemy spawn names
 is what they fight with and drop. Where I had to guess:
 - **Types the game needs that the doc doesn't have** (`in_doc` FALSE): the Haven Rock squatters and Boss Craw, the
   Tithe depot's guards and warden. Two tower lookouts are a deputy and a depot guard with a hunting rifle and
-  sniper stats set on the spawn.
+  sniper stats set on the spawn. In space (the Space Enemies tab): Commandant Vex's Academy Commandant type, the
+  Academy Cadets and the Fuel Depot. The doc's four Tier 1 space types (Monitor, Pursuer, Mag-Clamper, Mote) are in.
 - **Doc types not in the game yet:** Bureau Officer, Shorto Shotty, Tavern Scum, the Floatin' Truck, and all of
   Tier 2 and 3.
 - **Loadouts:** Hegemony security carries Patriot kit: the HG-40 pistol (Patrolmen, shieldmen, depot guards),
