@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after Phase 4 of the Black Market / Arsenal handoff (ships, ship weapons and deliveries).
+**Last updated:** 2026-10-05, after Phase 5 of the Black Market / Arsenal handoff (the phone pass) — the handoff's buildable scope is complete.
 
 ## How to use this
 

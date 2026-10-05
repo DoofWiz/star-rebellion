@@ -3910,12 +3910,20 @@ function setTopbar(title,sub){
   ROOT.querySelector('.sr-topbar__id .sr-topbar__title').textContent=title;
   ROOT.querySelector('.sr-topbar__id .sr-topbar__sub').textContent=sub;
 }
+/* the phone drawer button says what the drawer holds: Loadouts in the Arsenal, the fence at the market */
+function drawerLabel(){
+  const btn=$('drawerBtn');
+  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':'Crew and flight';
+  btn.setAttribute('aria-label',lbl);btn.title=lbl;
+}
 function openArsenal(){
   closeWin();closeTilePop();exitRoomView();closeMarket();
   arOpen=true;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
+  setDrawer(false);
   setTopbar('Arsenal','Haven Rock · everything we own');
+  drawerLabel();
   renderArsenal();syncTabs();
 }
 function closeArsenal(){
@@ -3924,7 +3932,9 @@ function closeArsenal(){
   $('arView').hidden=true;
   shell.classList.remove('is-arsenal');
   $('railArsenal').hidden=true;
+  setDrawer(false);
   setTopbar('Haven Rock','Hidden base');
+  drawerLabel();
   arCmdbar();syncTabs();
 }
 /* the items a kit chip shows: category order, then largest footprint first */
@@ -4285,7 +4295,7 @@ function arClick(ev){
   const sel=t.getAttribute('data-arsel');
   if(sel){const q=sel.indexOf(':');arSel={t:sel.slice(0,q),id:sel.slice(q+1)};arLast[arCat]=arSel;renderArsenal();return;}
   const slot=t.getAttribute('data-arslot');
-  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;arRefit=null;renderArsenal();return;}
+  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;arRefit=null;setDrawer(false);renderArsenal();return;}   // the picker lives on the view, not in the drawer
   if(t.hasAttribute('data-rank-close')){arOverlay=null;arGive=false;arRefit=null;renderArsenal();return;}
   const mount=t.getAttribute('data-armount');
   if(mount!==null&&arRefit){arRefit.mi=+mount;renderArsenal();return;}
@@ -4487,7 +4497,9 @@ function openMarket(){
   G.market.unseen=0;
   $('bmView').hidden=false;
   shell.classList.add('is-market');
+  setDrawer(false);
   setTopbar('Black Market','Nyx Shadowport · Sweet Tooth');
+  drawerLabel();
   $('bmBadge').hidden=true;
   renderMarket();syncTabs();
 }
@@ -4497,7 +4509,9 @@ function closeMarket(){
   $('bmView').hidden=true;
   shell.classList.remove('is-market');
   $('railMarket').hidden=true;
+  setDrawer(false);
   setTopbar('Haven Rock','Hidden base');
+  drawerLabel();
   bmCmdbar();syncTabs();
 }
 const mercBunkFree=()=>freeBunks()-((G.mercQ||[]).length)>0;   // inbound hires hold their bunks
@@ -4686,6 +4700,8 @@ $('bmView').addEventListener('click',ev=>{
   const lot=t.getAttribute('data-bmlot');
   if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
 });
+/* phones re-pick their column counts when the viewport changes */
+addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();});
 
 /* ---------- input ---------- */
 function figAt(px,py){
