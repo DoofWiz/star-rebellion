@@ -4641,7 +4641,7 @@ function renderWin(){
     const served=p.merc.missions||0;
     const canJoin=served>=3&&(p.morale||0)>=70;
     h=wHead('Contract’s up',{tags:wTag('Mercenary','progress'),x:false})+wBody(
-      '<div class="bs-dz"><span class="sr-avatar" style="width:48px;height:48px">'+ini(p.name)+'</span>'+
+      '<div class="bs-dz"><span class="sr-avatar" style="width:48px;height:48px">'+faceHTML(p)+'</span>'+
       '<div><div class="bs-dz__name">'+esc(p.name)+'</div><div class="sr-faint bs-dz__role">'+esc(rankFor(p))+' · '+esc(p.role)+(specOf(p)?' · '+esc(specOf(p)):'')+' · '+served+' mission'+(served===1?'':'s')+' on the contract</div></div></div>'+
       '<p class="sr-p">Fourteen days are up. '+esc(p.first||p.name.split(' ')[0])+' stands by the pad, kit packed either way.</p>'+
       choice(1,'data-mercrenew="'+p.id+'"','<b>Renew</b> — 14 more days for '+C(fee,!can)+(can?'':'<br><span class="sr-faint">'+esc(needWhy({c:fee}))+'</span>'),!can)+
@@ -4821,8 +4821,53 @@ const MAKER_COL={Bhord:'#c9573b',Patriot:'#2f6fd0',BLAMCo:'#ffb454',TenTiU:'#43b
 const START_IDS=['akli','cowboy','medpack'];   // the day-one armory: everything else non-Hegemony was stolen
 let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false,arRefit=null;
 const arLast={};   // last selection per category chip (module state, not saved)
-const itArt=(id,cls)=>'<span class="it-art'+(cls?' '+cls:'')+'">'+IC(gearIconId(id))+'</span>';
-const avat=(p,px)=>'<span class="sr-avatar" style="width:'+px+'px;height:'+px+'px">'+ini(p.name)+'</span>';
+/* ---------- Arsenal/Market art bridge ----------
+   SR_ART drawn once to data URLs and cached; anything the kit can't draw yet keeps its
+   sr-icons glyph (the handoff's fallback: carbine, baton, mining laser, the cosmetic hats,
+   police helmets, limpets and shells wait on the art chat). */
+const ART_ITEM_ALIAS={charge:'c90'};   // the game key stays `charge`; the kit draws it as the C90 brick
+const ART_SWPN={'bls-t-light-repeaters':'repeaters','missiles':'missiles','door-mounted-gun':'doorgun'};
+const ART_GVEH={police:'police',dispersal:'riotdispersal',transport:'riottransport',truck:'truck'};
+const artURLCache=new Map();
+function artURL(kind,key){
+  const ck=kind+':'+key;
+  if(artURLCache.has(ck))return artURLCache.get(ck);
+  let url=null;
+  try{
+    const W=192,H=120,d=2;
+    const c2=document.createElement('canvas');c2.width=W*d;c2.height=H*d;
+    const g=c2.getContext('2d');g.scale(d,d);
+    if(kind==='item'){
+      const k2=ART_ITEM_ALIAS[key]||key,it=SA.ITEMS[k2];
+      if(it){
+        const[bx0,by0,bx1,by1]=it.box;
+        const sc=Math.min(W*0.84/(bx1-bx0),H*0.84/(by1-by0));
+        SA.item(g,k2,W/2,H/2,0,0,{scale:sc});
+        url=c2.toDataURL();
+      }
+    } else if(kind==='ship'){
+      SA.ship(g,artShipId(key),W/2,H*0.54,-0.45,3.6,0,{livery:'rebel',off:true});
+      url=c2.toDataURL();
+    } else if(kind==='veh'){
+      if(key==='strider'){SA.strider(g,W/2,H*0.86,{s:1.5,mood:'hacked',t:0});url=c2.toDataURL();}
+      else if(ART_GVEH[key]&&SA.VEHICLES[ART_GVEH[key]]){SA.vehicle(g,ART_GVEH[key],W/2,H*0.6,-0.5,1.1,0,{});url=c2.toDataURL();}
+    } else if(kind==='swpn'){
+      const sw=SA.SHIP_WEAPONS[ART_SWPN[key]];
+      if(sw){g.translate(W/2,H/2);g.scale(9,9);sw.draw(g,0,false,1);url=c2.toDataURL();}
+    }
+  }catch(e){url=null;}
+  artURLCache.set(ck,url);
+  return url;
+}
+const artImg=u=>'<img src="'+u+'" alt="">';
+const itArt=(id,cls)=>{
+  const u=artURL('item',id);
+  return '<span class="it-art'+(cls?' '+cls:'')+'">'+(u?artImg(u):IC(gearIconId(id)))+'</span>';
+};
+const shipArt=(cls,cl2)=>{const u=artURL('ship',cls);return '<span class="it-art'+(cl2?' '+cl2:'')+'">'+(u?artImg(u):IC('ship'))+'</span>';};
+const vehArt=(type,cl2)=>{const u=artURL('veh',type);return '<span class="it-art'+(cl2?' '+cl2:'')+'">'+(u?artImg(u):IC('vehicle'))+'</span>';};
+const swpnArt=(id,cl2)=>{const u=artURL('swpn',id);return '<span class="it-art'+(cl2?' '+cl2:'')+'">'+(u?artImg(u):IC('turret'))+'</span>';};
+const avat=(p,px)=>'<span class="sr-avatar" style="width:'+px+'px;height:'+px+'px">'+faceHTML(p)+'</span>';
 const sellPrice=id=>{const m=KIT[id];return m&&m.price?Math.floor(m.price*0.3):0;};
 function sellWhy(id){   // '' when sellable, otherwise the reason Sell is greyed
   const m=KIT[id]||{};
@@ -4954,7 +4999,7 @@ function arDossierHTML(){
   if(arSel.t==='ship'){
     const f=G.fighters.find(x=>x.id===arSel.id);if(!f)return '';
     const r=SRDB.ship(f.cls)||{},pilot=G.people.find(p=>p.ship===f.id);
-    return well('<span class="it-art">'+IC('ship')+'</span>')+
+    return well(shipArt(f.cls))+
       '<div><div class="ar-dossier__name">'+esc(f.name)+'</div><div class="ar-dossier__kind">'+wTag(esc(r.name||f.cls),'info')+(f.out?wTag('Out','info'):'')+'</div></div>'+
       '<dl class="kit-stat">'+statRow('Class',esc((r.name||f.cls)+(r.role?' · '+r.role:'')))+statRow('Hull',Math.round(f.hull)+'%')+
       statRow('Shields',(r.shield_front||0)+'F / '+(r.shield_rear||0)+'A')+statRow('Weapons',(f.loadout||[]).map(wpnLabel).join(', ')||'None fitted')+
@@ -4964,7 +5009,7 @@ function arDossierHTML(){
   if(arSel.t==='veh'){
     const v=(G.vehicles||[]).find(x=>x.id===arSel.id);if(!v)return '';
     const d=gvehOf(v);
-    return well('<span class="it-art">'+IC('vehicle')+'</span>')+
+    return well(vehArt(v.type))+
       '<div><div class="ar-dossier__name">'+esc(v.name)+'</div><div class="ar-dossier__kind">'+wTag(d.kind==='bot'?'Bot':'Vehicle','info')+'</div></div>'+
       (d.bio?'<p class="ar-blurb">'+esc(d.bio)+'</p>':'')+
       '<dl class="kit-stat">'+statRow('Type',esc(d.label))+statRow('Health',Math.round(v.hp)+'%')+
@@ -4974,7 +5019,7 @@ function arDossierHTML(){
   if(arSel.t==='shipwpn'){
     const rows=arShipWpns(),row=rows[arSel.id];if(!row)return '';
     const w=SRDB.weapon(arSel.id);
-    return well('<span class="it-art">'+IC('turret')+'</span>')+
+    return well(swpnArt(arSel.id))+
       '<div><div class="ar-dossier__name">'+esc(w?w.name:arSel.id)+'</div><div class="ar-dossier__kind">'+wTag('Ship weapon','info')+'</div></div>'+
       '<dl class="kit-stat">'+statRow('On the racks',String(row.n))+statRow('Fitted',row.fitted+(row.ships.length?' · '+row.ships.map(esc).join(', '):''))+'</dl>'+
       '<p class="ar-blurb">Hangar racks · no limit. Fit them from a ship’s Refit order in the Ships view.</p>';
@@ -5046,7 +5091,7 @@ function arBaysHTML(){
       const crew=(pilot?'Pilot: '+esc(pilot.name.split(' ')[0]):'<span class="bs-bad">No pilot assigned</span>')+
         (r.gunner_positions?' · '+r.gunner_positions+' gunner seat'+(r.gunner_positions>1?'s':''):'')+
         (seats?' · '+seats+' passenger'+(seats>1?'s':''):'');
-      cards+='<button class="ar-bay'+(sel?' is-sel':'')+'" data-arsel="ship:'+f.id+'" aria-pressed="'+sel+'"><div class="kit-well"><span class="it-art">'+IC('ship')+'</span></div>'+
+      cards+='<button class="ar-bay'+(sel?' is-sel':'')+'" data-arsel="ship:'+f.id+'" aria-pressed="'+sel+'"><div class="kit-well">'+shipArt(f.cls)+'</div>'+
         '<div class="ar-bay__body"><div class="ar-bay__name">'+esc(f.name)+(f.out?' '+wTag('Out','info'):'')+'</div>'+
         '<div class="ar-bay__sub">'+esc((r.name||f.cls)+(r.role?' · '+r.role:'')+(r.manufacturer?' · '+makerName(r.manufacturer):''))+'</div>'+hp10(f.hull,'Hull')+
         '<div class="ar-mounts">'+mounts+'</div><div class="ar-bay__sub">'+crew+'</div></div></button>';
@@ -5057,7 +5102,7 @@ function arBaysHTML(){
     for(const v of G.vehicles||[]){
       const d=gvehOf(v);
       const sel=arSel&&arSel.t==='veh'&&arSel.id===v.id;
-      cards+='<button class="ar-bay'+(sel?' is-sel':'')+'" data-arsel="veh:'+v.id+'" aria-pressed="'+sel+'"><div class="kit-well"><span class="it-art">'+IC('vehicle')+'</span></div>'+
+      cards+='<button class="ar-bay'+(sel?' is-sel':'')+'" data-arsel="veh:'+v.id+'" aria-pressed="'+sel+'"><div class="kit-well">'+vehArt(v.type)+'</div>'+
         '<div class="ar-bay__body"><div class="ar-bay__name">'+esc(v.name)+'</div>'+
         '<div class="ar-bay__sub">'+esc(d.label)+' · '+(d.kind==='bot'?'Bot':'Vehicle')+'</div>'+hp10(v.hp,'Health')+
         '<div class="ar-bay__sub">'+(d.kind==='bot'?'Drives itself':(d.seats||1)+' seat'+((d.seats||1)>1?'s':'')+' · crewed on the mission plan')+'</div></div></button>';
@@ -5073,7 +5118,7 @@ function arShipKitHTML(){
     const w=SRDB.weapon(id),row=rows[id];
     const sel=arSel&&arSel.t==='shipwpn'&&arSel.id===id;
     return '<button class="ar-tile is-wide'+(sel?' is-sel':'')+'" data-arsel="shipwpn:'+id+'" aria-pressed="'+sel+'" style="grid-column:span 2">'+
-      '<span class="it-art">'+IC('turret')+'</span><span class="ar-tile__q">×'+row.n+'</span>'+
+      swpnArt(id)+'<span class="ar-tile__q">×'+row.n+'</span>'+
       (row.fitted?'<span class="ar-tile__c is-foe" title="Fitted: '+esc(row.ships.join(', '))+'">'+IC('ship')+row.fitted+'</span>':'')+
       '<span class="ar-tile__n">'+esc(w?w.name:id)+'</span></button>';
   }).join('');
@@ -5129,17 +5174,17 @@ function arCmdbar(){
   } else if(arSel.t==='ship'){
     const f=G.fighters.find(x=>x.id===arSel.id);
     if(f){
-      lead='<span class="it-art kit-who-art">'+IC('ship')+'</span>';name=esc(f.name);
+      lead=shipArt(f.cls,'kit-who-art');name=esc(f.name);
       hint='Hull '+Math.round(f.hull)+'% · '+((f.loadout||[]).length?(f.loadout||[]).map(wpnLabel).join(' · '):'no weapons fitted');
       btns=order(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar')+
         order(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Swap weapons with the hangar racks');
     }
   } else if(arSel.t==='veh'){
     const v=(G.vehicles||[]).find(x=>x.id===arSel.id);
-    if(v){lead='<span class="it-art kit-who-art">'+IC('vehicle')+'</span>';name=esc(v.name);hint='Health '+Math.round(v.hp)+'% · assigned on the mission plan';}
+    if(v){lead=vehArt(v.type,'kit-who-art');name=esc(v.name);hint='Health '+Math.round(v.hp)+'% · assigned on the mission plan';}
   } else if(arSel.t==='shipwpn'){
     const w=SRDB.weapon(arSel.id),row=arShipWpns()[arSel.id]||{n:0,fitted:0};
-    lead='<span class="it-art kit-who-art">'+IC('turret')+'</span>';name=esc(w?w.name:arSel.id);
+    lead=swpnArt(arSel.id,'kit-who-art');name=esc(w?w.name:arSel.id);
     hint=row.n+' on the racks · '+row.fitted+' fitted';
   }
   who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+name+'</div><div class="sr-cmdbar__hint">'+hint+'</div></div>';
@@ -5509,7 +5554,23 @@ function stLine(){
   }
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
 }
-const stHead='<span class="kf"><span class="sr-avatar">ST</span></span>';   // SR_ART spec pending (DESIGN_BLOCKERS M-20)
+/* Sweet Tooth: a stand-in assembled from the kit's existing slots after the mockup (teal headscarf,
+   eyepatch, pink jacket). Her real SR_ART character spec is still the art chat's call (M-20). */
+const ST_SPEC={name:'Sweet Tooth',side:'reb',skin:'#b47c55',hair:'#1a120d',hs:'rag',hood:'#2ba8a0',
+  coat:'#e05aa0',coat2:'#b2487e',acc:'#ffc83a',pants:'#3a3328',weapon:null,x:['patch'],gear:[]};
+function stHead(){
+  const ck='st:head';
+  let u=artURLCache.get(ck);
+  if(u===undefined){
+    try{
+      const c2=document.createElement('canvas');c2.width=c2.height=320;
+      SA.portrait(c2.getContext('2d'),160,160,152,ST_SPEC,{t:0});
+      u=c2.toDataURL();
+    }catch(e){u=null;}
+    artURLCache.set(ck,u);
+  }
+  return '<span class="kf">'+(u?'<img class="bs-face" src="'+u+'" alt="">':'<span class="sr-avatar">ST</span>')+'</span>';
+}
 function bmCardHTML(l,i){
   const merc=l.kind==='merc'?l.merc:null;
   const m=l.kind==='kit'?(KIT[l.key]||{}):{};
@@ -5519,22 +5580,22 @@ function bmCardHTML(l,i){
   if(merc){
     cm=BM_CAT.merc;name=merc.name;
     sub=merc.role+' · Level '+merc.level+(merc.spec?' · '+(SPECNAME[merc.spec]||merc.spec):'');
-    well='<div class="bm-merc"><span class="kf"><span class="sr-avatar">'+ini(merc.name)+'</span></span><div class="bm-merc__kit">'+itArt(merc.ownKit.primary||merc.ownKit.secondary)+'<span>Brings own kit</span></div></div>';
+    well='<div class="bm-merc"><span class="kf"><span class="sr-avatar">'+faceHTML(merc)+'</span></span><div class="bm-merc__kit">'+itArt(merc.ownKit.primary||merc.ownKit.secondary)+'<span>Brings own kit</span></div></div>';
   } else if(l.kind==='ship'){
     const s=SRDB.ship(l.key)||{};
     cm=BM_CAT.ship;name=s.name||l.key;
     sub=(s.role||'Starship')+(s.manufacturer?' · '+makerName(s.manufacturer):'');
-    well='<span class="it-art">'+IC('ship')+'</span>';
+    well=shipArt(l.key);
   } else if(l.kind==='vehicle'){
     const d2=GVEH[l.key]||{};
     cm=BM_CAT.vehicle;name=d2.label||l.key;
     sub=(d2.kind==='bot'?'Bot':'Vehicle')+' · '+(d2.seats||1)+' seat'+((d2.seats||1)>1?'s':'');
-    well='<span class="it-art">'+IC('vehicle')+'</span>';
+    well=vehArt(l.key);
   } else if(l.kind==='shipwpn'){
     const w2=SRDB.weapon(l.key)||{};
     cm=BM_CAT.shipwpn;name=w2.name||l.key;
     sub='Ship weapon'+(w2.kind?' · '+sentence(w2.kind):'');
-    well='<span class="it-art">'+IC('turret')+'</span>';
+    well=swpnArt(l.key);
   } else {
     cm=BM_CAT[m.cat]||BM_CAT.weapon;name=kitNameId(l.key);
     sub=(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
@@ -5555,7 +5616,7 @@ function renderMarket(){
   const M=G.market,w=M.week,line=stLine();
   const header='<div class="bm-head"><div class="bm-sign"><b>Sweet Tooth’s Unclaimed Goods</b></div>'+
     '<div class="bm-week"><span>This week’s stock · <b>Day '+(w*7-6)+'–'+(w*7)+'</b></span>'+wTag('Fixed until Day '+M.next,'action','lock')+'</div></div>';
-  const strip='<div class="bm-strip">'+stHead+'<p>'+line+'</p></div>';   // phones only (CSS)
+  const strip='<div class="bm-strip">'+stHead()+'<p>'+line+'</p></div>';   // phones only (CSS)
   $('bmStall').innerHTML=header+strip+'<div class="bm-grid">'+M.lots.map(bmCardHTML).join('')+'</div>';
   renderBmRail(line);
   bmCmdbar();
@@ -5567,7 +5628,7 @@ function renderBmRail(line){
   const M=G.market,w=M.week,days=M.next-G.day;
   const nyx=nyxAccess();
   const pips=Array.from({length:7},(_,k)=>{const d=w*7-6+k;return '<i class="'+(d===G.day?'is-now':d<G.day?'is-on':'')+'"></i>';}).join('');
-  host.innerHTML='<section class="bm-fence">'+stHead+
+  host.innerHTML='<section class="bm-fence">'+stHead()+
     '<div><div class="bm-fence__name">Sweet Tooth</div><div class="bm-fence__role">Fence · Nyx Shadowport</div></div>'+
     '<div class="bm-say" id="bmSay">'+line+'</div>'+
     '<div class="bm-box"><div class="bm-restock"><i class="bm-restock__n">'+days+'</i><div><b>Days to new stock</b><span>Stock will be replaced at refresh</span></div></div><div class="kit-pips">'+pips+'</div></div>'+
@@ -5623,10 +5684,10 @@ function bmCmdbar(){
   const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree()?'Needs a free landing pad':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
   const allCost=price*l.stock;
   const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
-  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+ini(merc.name)+'</span></span>'
-    :l.kind==='ship'?'<span class="it-art kit-who-art">'+IC('ship')+'</span>'
-    :l.kind==='vehicle'?'<span class="it-art kit-who-art">'+IC('vehicle')+'</span>'
-    :l.kind==='shipwpn'?'<span class="it-art kit-who-art">'+IC('turret')+'</span>'
+  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+faceHTML(merc)+'</span></span>'
+    :l.kind==='ship'?shipArt(l.key,'kit-who-art')
+    :l.kind==='vehicle'?vehArt(l.key,'kit-who-art')
+    :l.kind==='shipwpn'?swpnArt(l.key,'kit-who-art')
     :itArt(l.key,'kit-who-art');
   const bmName=merc?merc.name:l.kind==='ship'?((SRDB.ship(l.key)||{}).name||l.key):l.kind==='vehicle'?((GVEH[l.key]||{}).label||l.key):l.kind==='shipwpn'?((SRDB.weapon(l.key)||{}).name||l.key):kitNameId(l.key);
   who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(bmName)+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
