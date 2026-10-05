@@ -10,7 +10,8 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after Phase 5 of the Black Market / Arsenal handoff (the phone pass) — the handoff's buildable scope is complete.
+**Last updated:** 2026-10-05, after merging main (art/galaxy/title, onboarding) back into the Market/Arsenal
+branch and finishing the handoff's phases 3–5 (mercenaries, ships and deliveries, the phone pass).
 
 ## How to use this
 
@@ -35,6 +36,7 @@
 | C-11 | ⚪ | Maker "TBC" on nine items | Dossier maker chips; flavour only |
 | C-12 | ⚪ | Ships live in the Arsenal, not their own Fleet tab | Where the fleet is browsed |
 | C-13 | ⚪ | Two small bugs in the handoff's §9 CSS, patched from `scenes.css` | Nothing live; keep the canvas CSS in sync |
+| C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -54,6 +56,11 @@
 | M-17 | 🟡 | Items with no mechanics yet (`live:false` in `KIT`) | 10+ catalogue items; they are kept out of the market |
 | M-18 | 🟡 | Rev 2+ market weights | Black Market stock once Level 2 lands |
 | M-20 | 🟡 | Sweet Tooth needs an `SR_ART` character spec | The Black Market fence portrait |
+| C-17 | ⚪ | Galaxy handoff ids and names vs. the game's region ids | Nothing live; I keyed the new tables to the game's ids |
+| C-18 | ⚪ | Art-kit lore guesses: makers, ship and truck attachments, Strider maker | The Armoury/maker copy when those tabs arrive |
+| M-21 | 🟡 | No art descriptions for the fuel depot and the Bruiser | Both draw restyled fallbacks |
+| M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
+| M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -61,7 +68,7 @@
 
 ## 1. Conflicts
 
-One is open; the rest are in the resolved log at the bottom.
+Open: C-4, C-7 to C-13, C-15, C-17 and C-18; the rest are in the resolved log at the bottom.
 
 ### C-4 ⚪ Source docs disagree with each other
 Carried over from `docs/ROADMAP.md` "Doc issues" so they live in one place. All are wording problems that do not
@@ -146,6 +153,36 @@ Fleet tab should exist, and what it would hold that the Arsenal's Ships view doe
    own-kit art fills the well and pushes the "Brings own kit" caption out — re-asserted in `scenes.css`.
 **Needs from you:** nothing; just carry the fixes back into the canvas CSS if it gets re-exported.
 **Your call:** _open (informational)_
+### C-15 ⚪ Prologue quips are placeholder lines
+The three soldier quips after the prologue briefing (A3 of the handoff) are reused lines: the old cinematic lead
+line, one of Runa's barks and one of Kel's. They sit in one table, `PROLOGUE_QUIPS` in `game/js/ground.js`, so
+they can be rewritten without touching anything else. **Needs from you:** the real lines (and whether each should
+be pinned to a named rebel or go to whoever stands first, second and third).
+**Your call:** _open_
+
+### C-17 ⚪ Galaxy handoff ids and names vs. the game's region ids
+The Galaxy handoff's §7 tables use region ids `kiln`, `crossing` and `dataflats`/`ledger` shorthand; the game's
+regions are `kilnridge`, `menkcross` and `dataflats`. I keyed `HEG_SITE`, `SRC_REGION` and the `WORLD_LOOK`
+region fills to the **game's** ids so they actually resolve. The handoff also said source badges were green in
+the art handoff; your note in the galaxy handoff says rebel red, which is what I built.
+**Needs from you:** nothing unless you meant different region mappings; the table keys are in `base.js` next to
+`PLANETDEF`.
+**Your call:** _open_
+
+### C-18 ⚪ Art-kit lore guesses carried into the game
+From the art handoff's open questions, now live in `game/art/sr-art.js` data tables:
+- **Makers:** Patriot is *proposed* for the HG-40, Power Baton, Riot Shield, Police Vest and Peacekeeper
+  Carbine (flagged `makerProposed` in `ITEMS`). Cowboy No.4, Longhorn ’28, Varmint Shotgun, the Improvised
+  Rocket Launcher, Mining Laser, Frontier Hardhat, Medpack and Stim have no maker.
+- **Strider maker:** the Enemies doc says Autoworks, the gear doc says AutoCom makes Autos and Bots. The kit
+  comment says Autoworks; nothing in-game shows it yet.
+- **Ship attachments:** only the Door Mounted Gun is designed; `plates` and `tank` are placeholder examples.
+- **Floatin' Truck attachments** (mg, plates, ram, spotlight, crates) are proposals; the truck itself is not in
+  the game.
+- **Armour as looks:** Soldiers/Marines wear the Frontier Hardhat and Marines a vest as *looks only*; the
+  armoury has no armour items (see M-10).
+**Needs from you:** confirm or correct the makers and attachment lists; say whether helmet/vest become equipment.
+**Your call:** _open_
 
 ---
 
@@ -352,6 +389,35 @@ round head, a teal headscarf with gold dots, an eyepatch, a gold-tooth grin, a g
 art kit lands, the Black Market will use the generic avatar.
 **Your call:** _open (owned by the art chat)_
 
+### M-21 🟡 No art for the fuel depot or the Bruiser
+**Blocks:** nothing playable — both draw restyled fallbacks (the depot keeps its octagon with the kit's cel
+shade and visor slit; the Bruiser borrows the Policebot archetype at 1.25×).
+**Needs from you:** a line or two describing each (the Enemies doc stops short of them) and I'll add proper kit
+entries.
+**Your call:** _open_
+
+### M-22 🟡 Galaxy view follow-ups from the handoff's own open questions
+1. **Locked and uncharted worlds don't dive in** — they open the docked panel at galaxy level, as the handoff
+   ships it. Its proposal (dive in shrouded) waits on you.
+2. **Missions without a `region`** (e.g. Brakka Garrison Raid) fall back to the world's first settlement for
+   markers and the region card's Local job. Adding `region` to `MPOOL` entries makes placement exact.
+3. **The phone World view** uses the provisional layout (planet on top, panels as a bottom sheet, minimap
+   hidden) and needs its own design pass.
+4. **The Missions view** is the next design pass: the gold mission pins and the region card's "+n more" link
+   currently open the old Missions window.
+**Your call:** _open_
+
+### M-23 🟡 Gunship counterfire is live, but nobody can shoot back yet
+Per your spec, any hostile with a rocket launcher now gets a shot at an orbiting door-gun gunship
+(one roll each, **14+ on a d20** brings it down — my number, tune at `DG_FLAK_TN` in `ground.js`). Two gaps:
+1. **No enemy currently carries a rocket launcher** — `rocket` only reaches rebels via the Supply Drop — so the
+   counter never fires today. Tell me which spawns should carry one (a Vult heavy in Take the Rock? riot squads
+   at higher security?) and I'll add them.
+2. **A shot-down support ship**: the crash is visual, the asset is lost for the mission, and the pilot always
+   walks away (Cass is story-safe). For the player's *own* Graf later: should the fighter take hull damage or
+   be destroyed back at base, and should the support pilot risk injury? Nothing persists right now.
+**Your call:** _open_
+
 ---
 
 ## 3. Resolved log
@@ -361,6 +427,8 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-14 | Every door gunner is zone-targeted, not just Cass's: the gunship-orbit rework (merged from the art branch) anchors any Door Gunner Cover to the player's mark. | 2026-10-04 | `dgTargets` works up to 3 enemies inside the placed zone (240px, growing with the layout scale); Cass's prologue asset still unlocks with its tutorial card and sets `tutFlags.fs` when called. Overrule at will — both halves came from your own handoffs. |
+| C-16 | Cass's freighter is drawn in the ground scene by the gun-run rework (merged from the art branch). | 2026-10-04 | The gunship flies in from off the map, orbits the mark with the heavy door gun working and climbs away (`cls:'graf'` art, renamed “Cass’s freighter”). Reduced motion keeps the instant resolution. |
 | C-1 | **A.** Pilots follow the database formula (`floor(skill/10) + floor(level/5)` for Aim and Focus), with mood, injury and the Dogfighter specialty added on top. | 2026-10-02 | The `fixed` override is gone. A rebel's skills are carried to the database's 0–50 scale at the base/space boundary (`Rebel.dbSkill`) and the space scene applies its own bonus; mood, injury and specialty ride on top as `aimMod`. Focus is the database bonus alone, so a fresh generated pilot is weaker than before at Aim and Focus. Scripted pilots and rebel pilots now follow one rule. |
 | C-2 | The scripted opening rebels are the same for every player but are generated from the same database as every other rebel. | 2026-10-02 | `Rebel.scripted(spec, row)` builds the cast through the normal rebel path. Joss and Sera take level, experience, initiative and skills from their database rows (Joss now starts at level 4 and Sera arrives at level 3, as the database says); the soldiers use fixed values. Sera's Lucky is her Character Trait, not a special case. Petra only exists in the space scenario. |
 | C-3 | Revolution Level 1 lets exactly one Hero emerge in a playthrough; if they die there is no replacement. | 2026-10-02 | `G.heroesMade` counts Heroes ever made; Level 1 allows one, Level 2 and above use the normal rules. In ten bot runs a Hero appeared before the escalation in five (days 45–83). The one Hero is for testing; the rate is easy to raise. |
@@ -368,3 +436,4 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 | M-19 | Ship weapons live in a store (`G.shipKit`) and a picker fits them — the model the Market/Arsenal handoff §3.3 itself specifies, so no separate answer was needed. | 2026-10-05 | Sweet Tooth sells the BLS-T Light Repeaters, Missiles and Door Mounted Gun; bought weapons land on the hangar racks (`G.shipKit`); the Arsenal's Ships view gains a **Refit** order that fits rack weapons to a ship's mounts (`weapon_slots` from the db) and returns swapped-out weapons to the racks. Built with Phase 4. |
 | C-6 | Treating a wound needs an item (a Med Pack); specialist training should add bonuses, never make it harder for the untrained. | 2026-10-02 | A **Med Pack** gadget (four at the start). Ground rebels are handed one in their second gadget slot; Treat Wound uses one pack per action and the card shows how many are left. A used pack leaves the armory at the debrief. The Infirmary makes a pack every three days (two with someone on station) for 8 supplies, up to 4 plus 2 per Infirmary tile. **Combat Medic** is live: treats from 1.5× as far, one pack covers two wounds, and +3 Presence. |
 | — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | `26e3afc` |
+| C-12 | Cass's Door Gunner belongs to **Take the Rock** (he's the smuggler who set the squad down in the canyon), not Steal the Cross. One-off: afterwards the player earns fire support by bringing their own Graf with a pilot and a Door Mounted Gun | 2026-10-03 | the "Door Gunner moved to Take the Rock" commit |

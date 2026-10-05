@@ -67,7 +67,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const oneI=lots().findIndex(l=>l.kind==='kit'&&l.stock===1);
   if(oneI>=0){$$('#bmView .bm-card')[oneI].click();out.allOne=$('#arOrders [data-bmbuyall]').disabled;}
   else out.allOne=true;
-  const gi=lots().findIndex(l=>l.kind==='kit'&&l.stock>1);
+  // the weekly roll may hold no gadget lot; force a multi-unit kit lot so Buy all is always exercised
+  let gi=lots().findIndex(l=>l.kind==='kit'&&l.stock>1);
+  if(gi<0){gi=lots().findIndex(l=>l.kind==='kit');if(gi>=0){lots()[gi].stock=3;f.renderMarket();}}
   if(gi>=0){
     $$('#bmView .bm-card')[gi].click();
     const gl=lots()[gi],gk=gl.key,gn=gl.stock,gp=f.lotPrice(gl),cg=G().credits,g0=(G().armory.find(a=>a.id===gk)||{n:0}).n;

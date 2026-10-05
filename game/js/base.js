@@ -228,7 +228,7 @@ function newGame(){
     wreck:{restored:false,restoring:0},
     armory:[
       {id:'akli',name:'Akli AR',n:6,ic:'≠',desc:'Ballistic assault rifle. Common, cheap, effective — and it wears down fast.'},
-      {id:'cowboy',name:'Cowboy',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
+      {id:'cowboy',name:'Cowboy No.4',n:4,ic:'⌐',desc:'Ballistic revolver sidearm. Nothing special. Never jams when it matters.'},
       {id:'medpack',name:'Med Pack',n:4,ic:'✚',desc:'Dressings, clotting gel and a sedative. One pack treats a wound in the field. Anyone can use one; the Infirmary rolls more.'},
     ],
     people:[
@@ -812,6 +812,46 @@ const PLANETDEF=[
 ];
 const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
 
+/* ---------- galaxy view statics (docs/ui/GALAXY-HANDOFF.md §7; cosmetic, never saved) ---------- */
+/* hyperlanes: a static picture of how the drift hangs together; no travel rules */
+const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','veray'],['veray','menk'],['brakka','menk'],
+ ['kess','oubli'],['oubli','sable'],['sable','parity'],['veray','parity'],['parity','callis'],['parity','ballakan'],
+ ['menk','dreymar'],['dreymar','ballakan'],['ballakan','volund'],['menk','nyx'],['nyx','volund'],['callis','tarsis'],
+ ['callis','meridian'],['tarsis','meridian'],['meridian','halcyon'],['halcyon','volund'],['ballakan','callis']];
+/* how each world looks on the map: radius at scale 1, body colour, SR_ART.planet texture; region fills for the world view */
+const WORLD_LOOK={
+  haven:{R:12,col:'#7a6656',tex:'craters',home:true},
+  veray:{R:12,col:'#c0623a',tex:'bands'},
+  kess:{R:8,col:'#9aa6c4'},
+  brakka:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
+  callis:{R:12,col:'#4fb0a0',tex:'cap'},
+  meridian:{R:17,col:'#ffd866',tex:'bands',ring:true,heg:true},
+  volund:{R:16,col:'#d0563a',tex:'cracks',heg:true},
+  halcyon:{R:14,col:'#7fc8d8',tex:'islands',heg:true},
+  dreymar:{R:11,col:'#a8743a',tex:'craters'},
+  sable:{R:11,col:'#5d8a4a',tex:'islands'},
+  nyx:{R:10,col:'#8a5aa8',tex:'craters'},
+  tarsis:{R:12,col:'#d8b860',tex:'bands'},
+  oubli:{R:10,col:'#6a6f7a',tex:'craters'},
+  menk:{R:12,col:'#e6dcc8',tex:'flats',regions:{saltreach:'#ece5d6',kilnridge:'#bfae94',menkcross:'#a99a80'}},
+  ballakan:{R:13,col:'#3f8a5a',tex:'river'},
+  parity:{R:12,col:'#8a94b0',tex:'grid'},
+};
+/* which region a source lives in (others fall back to the planet's first settlement) */
+const SRC_REGION={venn:'dustfall',tess:'saltreach',pell:'tollgate',cask:'ledger'};
+/* the Hegemony's visible presence per region (cosmetic; keyed by the game's region ids) */
+const HEG_SITE={dustfall:'Sheriff’s office',flats:'Tithe depot and garrison',saltreach:'Company crawlers',
+  kilnridge:'Foundry contract office',menkcross:'Precinct house',tollgate:'Toll office',ledger:'Bureau registry',quota:'Labour wardens'};
+/* hand-tuned decor and marker anchors per region, [kind,u,v] in planet unit-disc coordinates;
+   regions without an entry get a seeded scatter from their name and blurb */
+const REGION_DECOR={
+  dustfall:[['town',0,0],['pad',.14,.1],['source',-.1,-.08],['heg',.08,-.1]],
+  flats:[['mesa',-.55,-.35],['well',-.3,.15],['well',.1,-.55],['depot',-.45,.45],['mesa',.35,-.7],['heg',-.45,.45],['job',-.2,-.3]],
+  saltreach:[['flats',-.5,-.3],['crawler',-.35,-.05],['crawler',-.6,.15],['source',-.4,-.2],['heg',-.35,-.05]],
+  kilnridge:[['ridge',.45,-.4],['kiln',.3,-.55],['kiln',.55,-.25],['road',.4,-.1],['heg',.5,-.45]],
+  menkcross:[['town',0,.42],['pad',.12,.5],['heg',-.08,.4]],
+};
+
 /* ---------- location model (Security / Access / Support / Liberation) ----------
    Access (0–5 eyes): Intel buys it. Support (0–5 flags): raised by source events.
    Liberation (0–100% per region): local ops add it, capped by the LOWER of the
@@ -865,6 +905,10 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
 const SEATS={};for(const r of SRDB.raw.ships)if(r.extra_people>0)for(const k of String(r.legacy_keys).split('|'))if(k)SEATS[k]=r.extra_people;     // troop seats per transport
+/* who carries the job: soldiers and marines (ground combat) or pilots (space combat). Colour and icon match the crew rail. */
+const opKind=m=>{let r=null;try{r=reqOf(m);}catch(e){}return (typeOf(m)==='ground'||(r&&r.teamRole==='Soldier'))?'ground':'space';};
+const OPKIND={ground:{label:'Ground',icon:'soldier',tone:'friend',card:' sr-card--friend'},space:{label:'Space',icon:'ship',tone:'action',card:''}};
+const opTag=m=>{const k=OPKIND[opKind(m)];return '<span class="sr-tag bs-op sr-tag--'+k.tone+'" title="'+(opKind(m)==='ground'?'Soldiers lead this mission':'Pilots lead this mission')+'">'+IC(k.icon)+k.label+'</span>';};
 /* ---------- mission types ----------
    A TYPE fixes objectives, requirements, the scenario and the base reward. A mission is a type plus a
    narrative CONTEXT (source, location, region, target variant, NPC). Any source or intelligence lead can
@@ -1017,7 +1061,7 @@ function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 /* the scripted first contacts of the campaign */
 const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
-    bio:'Flew you in and didn’t ask questions. Knows every pad, every price, and every sheriff’s bad habit between here and the core.'},
+    bio:'Flew you in and didn’t ask questions. Knows every port, every price, and every sheriff’s bad habit between here and the core.'},
   venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:48},
     bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
 };
@@ -1284,13 +1328,13 @@ function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
   if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
     src.signal={kind:'mission',mid:'stealcross',
-      text:'“You want to matter out here, you need wings. Dustfall — sheriff town on Brakka — keeps one FT-4 Cross on the pad behind the HQ and a fat opinion of itself. I can get you the pad layout.”'};
+      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Brakka, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
     G.onboard='revealed';
     return true;
   }
   if(src.id==='cass'&&G.onboard==='seraoffered'&&!G.people.some(p=>p.id==='sera')){
     src.signal={kind:'recruitSera',
-      text:'“Found your stick. Sera Kest — ex-Hegemony survey pilot, grounded for attitude, hungrier to fly than anyone I ever hauled. She’s on my next run if you’ll have her.”'};
+      text:'“Don’t thank me too fast, but I’ve found your stick. Sera Kest — ex-Hegemony survey pilot. She’s been asking around unsavoury types for any jobs going to put some dirt in the Empress’ eye and I think she’ll appreciate a real cause like yours. They say she’s grounded for attitude and hungry to fly a fighter again. She’s on my next run over to you if you’ll have her.”'};
     return true;
   }
   if(src.id==='cask'&&!hasStory('stealintel')){
@@ -1355,7 +1399,7 @@ function followSignal(src){
     let txt='New mission on the board: <b>'+missionName(sig.mid)+'</b>'+(nm&&nm.ctx?' ('+nm.ctx.place+')':'')+'.';
     if(sig.mid==='stealcross'&&(G.onboard==='revealed'||G.onboard==='contact')){
       G.onboard='pilotwait';
-      txt+=' One catch — the plan needs two pilots and we have one. Cass is already asking around; give him a day.';
+      txt+=' The mission requires two pilots and we have one. Cass is already asking around; advance a day to see what he has found.';
     }
     if(sig.mid==='depotrun')G.onboard='done';
     return txt;
@@ -1420,8 +1464,8 @@ function openRecruitOffer(src,sig){
   if(sig.kind==='recruitSera'){
     must=true;
     p=castRebel({id:'sera',name:'Sera Kest',role:'Pilot',charTrait:'lucky',ship:'',
-      bio:'Ex-Hegemony survey pilot. Defected after Callis Reach; hasn’t missed a launch since.'},'sera-kest');
-    line='Cass’s freighter is inbound. On the ramp, one bag over her shoulder: your new pilot.';
+      bio:'Ex-Hegemony survey pilot. Deserted after an incident at Callis Reach. Looking to put her skills against the Hegemony, ideally for a cause that means something.'},'sera-kest');
+    line='Cass’s freighter is inbound. He sets down and down comes the boarding ramp. Walking down, one bag over her shoulder: your new pilot.';
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
@@ -1496,7 +1540,7 @@ function advanceDay(){
       G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
       const joss=G.people.find(p=>p.id==='joss');
       if(joss&&!G.fighters.some(f=>f.id===joss.ship))joss.ship='graf';
-      news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Type 1 Hauler with door guns and opinions.','g');
+      news('<b>The Marta flies.</b> Joss brought the derelict back from the dead — a Graf Hauler with door guns and opinions.','g');
       sBuild();
     }
   }
@@ -1617,7 +1661,7 @@ function advanceDay(){
       const first=G.onboard==='pilotwait';
       G.onboard='seraoffered';
       storySignal(cass);
-      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Source Network.','a');sAlert();}
+      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Galaxy.','a');sAlert();}
     }
   }
   if(hasRoom('comms')&&staffOf('comms').length)G.intel+=tilesOf('comms');
@@ -1780,6 +1824,7 @@ function queueReport(rpt){
   if(rpt.follow)RQ.push({t:'follow',rpt});
 }
 function nextReport(){
+  if(!$('estSplash').hidden)return false;   // reports hold until the splash closes
   const n=RQ.shift();
   if(!n)return false;
   if(n.t==='arrive')openWin('arrive',n.rpt);
@@ -1888,7 +1933,7 @@ function srcContact(src){
     rollSignal(src);
   }
   const lvl=checkCultLevel(src);
-  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' answers on the second pass.','Cultivation +3. They know we’re listening.'];
+  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.','Cultivation increased.'];
   if(lvl)lines.push(lvl);
   openComm(src,{lines,signal:src.signal});
   syncUI();
@@ -1936,7 +1981,8 @@ function srcSilence(src){
   moraleAll(-10,'loss');
   news('The assassin reports in: <b>'+src.name+'</b> won’t be talking to anyone. The crew heard anyway.','h');
   sAlert();
-  closeWin();openWin('sources');
+  if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
+  closeWin();showView('galaxy');
   syncUI();
 }
 function srcCutLoose(src){
@@ -1944,7 +1990,8 @@ function srcCutLoose(src){
   moraleAll(-6,'loss');
   for(const o of G.sources)if(o.alive&&o!==src)o.cult=Math.max(0,o.cult-20);
   news('<b>'+src.name+'</b> cut loose — codes burned, drops abandoned. The whole network feels the cold.','h');
-  closeWin();openWin('sources');
+  if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
+  closeWin();showView('galaxy');
   syncUI();
 }
 function acceptCandidate(id){
@@ -1967,11 +2014,6 @@ function openComm(src,payload){openWin('comm',{src,payload});}
 /* ---------- scouting ---------- */
 function pdef(id){return PLANETDEF.find(p=>p.id===id);}
 function pst(id){return G.planets.find(p=>p.id===id);}
-function srcMapPos(src,w,h){
-  const pl=pdef(SRCPOS[src.id]||'veray');
-  const i=G.sources.filter(s=>s.alive&&(SRCPOS[s.id]||'veray')===pl.id).findIndex(s=>s.id===src.id);
-  return [w*pl.x+34+i*18,h*pl.y+2+i*12];
-}
 function scoutPlanet(id){
   const d=pdef(id),st=pst(id);
   if(!d||!st||st.access||G.intel<d.scout)return;
@@ -2273,36 +2315,57 @@ function roomCenter(rm){
   for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++){sr+=r;sc+=c;n++;}
   return cellToCss(sr/n,sc/n);
 }
-/* small standing figure */
-function figure(x,y,S,name,col){
-  ctx.fillStyle=col||K.rebelHi;
-  ctx.beginPath();ctx.roundRect(x-3*S,y-12*S,6*S,10*S,3*S);ctx.fill();
-  ctx.beginPath();ctx.arc(x,y-15*S,3*S,0,Math.PI*2);ctx.fill();
+/* ---------- world art: the Bobbleheads kit (game/art/sr-art.js) ---------- */
+const SA=window.SR_ART;
+/* a rebel's face for crew lists, rosters and the dossier; cached as a data URL and
+   re-rendered when the record changes (rank, role, conditions, body, traits, morale band) */
+const portraitCache=new Map();
+function portraitKey(p){
+  const band=!p.auto&&p.morale!==undefined?Rebel.mband(p).k:'';
+  return [p.rank||0,p.off?1:0,p.role,p.heroOf||'',p.spec||'',(p.cond||[]).map(c=>c.k).join(','),
+    JSON.stringify(p.body||{}),(p.traits||[]).map(t=>t.k).join(','),p.charTrait||'',band].join('|');
+}
+function portraitURL(p){
+  if(p.auto||!p.id)return null;
+  const key=portraitKey(p);
+  const hit=portraitCache.get(p.id);
+  if(hit&&hit.key===key)return hit.url;
+  try{
+    const c=document.createElement('canvas');c.width=c.height=48;
+    SA.portrait(c.getContext('2d'),24,24,22,personSpec(p),{t:0});
+    const url=c.toDataURL();
+    portraitCache.set(p.id,{key,url});
+    return url;
+  }catch(e){return null;}
+}
+function faceHTML(p){
+  const u=portraitURL(p);
+  return u?'<img class="bs-face" src="'+u+'" alt="">':ini(p.name);
+}
+/* who someone is, read live from their record; nothing saved (docs/art/HANDOFF.md) */
+function personSpec(p){return SA.lookOf(p);}
+/* what a room's crew are doing */
+function jobPose(key){return key==='workshop'?'work':key==='comms'?'hack':key==='store'?'loot':key==='training'?'aim':'idle';}
+/* a Bobblehead standing in a room view (local coordinates); S matches the old stick-figure scale */
+function figure(x,y,S,name,col,p,pose){
+  if(p)SA.character(ctx,x,y,personSpec(p),{view:'front',state:pose||'idle',t:(RM?0:worldT/1000)+x*0.013,s:S*0.48});
+  else{
+    ctx.fillStyle=col||K.rebelHi;
+    ctx.beginPath();ctx.roundRect(x-3*S,y-12*S,6*S,10*S,3*S);ctx.fill();
+    ctx.beginPath();ctx.arc(x,y-15*S,3*S,0,Math.PI*2);ctx.fill();
+  }
   if(name){
     ctx.font='700 '+Math.max(Math.round(9*S),Math.ceil(11/rvSx))+'px '+TH.FONT.ui;
     ctx.textAlign='center';ctx.fillStyle=TH.rgba(K.text2,0.9);
     ctx.fillText(name,x,y+9*S+3);
   }
 }
-function fighterTop(x,y,S,rot,alive,col){
-  ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-  ctx.fillStyle=col||K.steel;
-  ctx.beginPath();ctx.moveTo(14*S,0);ctx.lineTo(-8*S,-8*S);ctx.lineTo(-4*S,0);ctx.lineTo(-8*S,8*S);ctx.closePath();ctx.fill();
-  ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
-  ctx.restore();
-}
-function craftTop(cls,x,y,S,rot,col){
-  if(cls==='graf'){
-    ctx.save();ctx.translate(x,y);ctx.rotate(rot);
-    ctx.fillStyle=col||K.steel;
-    ctx.beginPath();ctx.roundRect(-14*S,-7*S,26*S,14*S,3*S);ctx.fill();
-    ctx.strokeStyle=K.ink;ctx.lineWidth=1.5;ctx.stroke();
-    ctx.fillStyle=K.ink;
-    ctx.beginPath();ctx.roundRect(7*S,-4*S,6*S,8*S,2*S);ctx.fill();
-    ctx.strokeStyle=TH.rgba(K.ink,0.8);
-    ctx.beginPath();ctx.moveTo(-5*S,-7*S);ctx.lineTo(-5*S,7*S);ctx.stroke();
-    ctx.restore();
-  } else fighterTop(x,y,S,rot,true,col);
+/* game ship class -> art hull id (the fleet's 'cross' and the db's 'viper' are the same hull) */
+function artShipId(cls){return SA.SHIP_FOR_GAME[cls]||(SA.SHIPS[cls]?cls:'cross');}
+function fighterTop(x,y,S,rot,alive,col){craftTop('cross',x,y,S,rot,col);}
+function craftTop(cls,x,y,S,rot,col,o){
+  // every craftTop is a parked ship (pads, hangar bays, workshop), so it sits powered down
+  SA.ship(ctx,artShipId(cls),x,y,rot,S*0.65,RM?0:worldT/1000,Object.assign({livery:'rebel',off:true},o||{}));
 }
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
@@ -2371,13 +2434,13 @@ function renderBase(now){
       } else if(rm.key==='hangar'){
         if(G.wreck&&!G.wreck.restored){
           ctx.globalAlpha=0.55;
-          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,K.seam);
+          craftTop('graf',x+6*S,y-2*S,S*0.8,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
           ctx.globalAlpha=1;
         }
         for(let i=0;i<Math.min(3,G.fighters.length);i++){
           const f=G.fighters[i];
           ctx.globalAlpha=f.out?0.25:0.95;
-          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,f.out?K.seam:undefined);
+          craftTop(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.8,-0.5,undefined,{damage:1-f.hull/100});
           ctx.globalAlpha=1;
           if(!f.out){
             ctx.fillStyle=hullCol(f.hull);
@@ -2460,7 +2523,7 @@ function renderRoomBar(){
   if(rm.key==='hangar'){
     const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
     info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
-    if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Type 1 Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
+    if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'){
     info='Bunks '+bunksUsed()+'/'+bunkCap()+' · '+clusterTiles(clusterOf(rm))+' rooms · morale '+Math.round(G.morale)+staffLine('barracks')+
       '<br>Recruits come through the network. Work your sources; when one signals about people, follow it.';
@@ -2542,10 +2605,12 @@ function renderRoomView(now){
   const dtv=Math.min(0.05,(now-(rvLast||now))/1000);rvLast=now;
   if(RM)now=0;   // reduced motion: the room holds still
   rvFigs=[];
-  const addFig=(fx,fy,p,fcol)=>{
-    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol);
-    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:18,pid:p.id});
+  const addFig=(fx,fy,p,fcol,pose)=>{
+    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol,p,pose||jobPose(rm.key));
+    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:24,pid:p.id});
   };
+  const POST_EMOTE={command:'\u2615',workshop:'\ud83d\udd27',comms:'\ud83d\udce1',store:'\ud83d\udce6'};
+  const addStaff=(fx,fy,p,i)=>{addFig(fx,fy,p);if(POST_EMOTE[rm.key])SA.emote(ctx,fx,fy-66,POST_EMOTE[rm.key],RM?0:now/1000,i||0);};
   const spark=(fx,fy,scol)=>{
     if(RM)return;
     rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||K.goldHi});
@@ -2568,29 +2633,31 @@ function renderRoomView(now){
   const pul=RM?0.8:0.6+0.4*Math.sin(now*0.002);
   if(rm.key==='hangar'){
     const cap=fighterCap();
+    // berths tile the floor: a g×g grid in floor space, each pad a diamond that exactly fits its cell
+    const g=Math.max(2,Math.ceil(Math.sqrt(cap))),bw=250/g*0.86,bh=130/g*0.86,csz=2.4*Math.min(1,2/g);
     for(let i=0;i<cap;i++){
-      const bx=(i-(cap-1)/2)*130,by=i%2?40:-20;
+      const ga=((i%g)+0.5)*2/g-1,gb=(Math.floor(i/g)+0.5)*2/g-1;
+      const bx=(ga-gb)*125,by=(ga+gb)*65;
       ctx.strokeStyle=TH.rgba(col,0.45);ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
-      ctx.beginPath();ctx.moveTo(bx,by-45);ctx.lineTo(bx+80,by);ctx.lineTo(bx,by+45);ctx.lineTo(bx-80,by);ctx.closePath();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(bx,by-bh);ctx.lineTo(bx+bw,by);ctx.lineTo(bx,by+bh);ctx.lineTo(bx-bw,by);ctx.closePath();ctx.stroke();
       ctx.setLineDash([]);
-      const f=G.fighters[i];
+      const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
       if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-        ctx.globalAlpha=0.6;
-        craftTop('graf',bx,by,3.4,-0.5,K.seam);
-        ctx.globalAlpha=1;
+        craftTop('graf',bx,by,3.4,-0.5,null,{livery:'civ',damage:0.5,pilot:null,dark:true});
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.gold;
-        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,by+62);
+        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
         continue;
       }
       if(f&&!f.out){
-        craftTop(f.cls,bx,by,3.4,-0.5);
+        craftTop(f.cls,bx,by,3.4,-0.5,null,{damage:1-f.hull/100});
         ctx.font=fnt(12);ctx.textAlign='center';
-        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,by+62);
-        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,by+67,54,7);
+        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
+        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
         ctx.fillStyle=hullCol(f.hull);
-        ctx.fillRect(bx-25,by+69,50*f.hull/100,3);
+        ctx.fillRect(bx-25,ly+9,50*f.hull/100,3);
         if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
+        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:Math.max(26,bh*Sx*0.9),fid:f.id});
       } else {
         ctx.font=fnt(11);ctx.textAlign='center';
         ctx.fillStyle=K.text3;
@@ -2606,7 +2673,7 @@ function renderRoomView(now){
       ctx.fillStyle=TH.rgba(K.goldHi,0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)));
       ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
     }
-    staffOf('command').forEach((p,i)=>addFig(-120+i*40,50,p,col));
+    staffOf('command').forEach((p,i)=>addStaff(-120+i*40,50,p,i));
   } else if(rm.key==='barracks'){
     const cap=Math.min(bunkCap(),12);
     const resters=G.people.filter(p=>p.assign==='rest'&&!p.injured);
@@ -2619,7 +2686,7 @@ function renderRoomView(now){
       if(p){
         ctx.fillStyle=K.rebelHi;
         ctx.beginPath();ctx.roundRect(bx-28,by-6,44,11,5);ctx.fill();
-        ctx.beginPath();ctx.arc(bx+24,by,5,0,7);ctx.fill();
+        SA.portrait(ctx,bx+26,by-1,9,personSpec(p),{t:0});
         ctx.font=fnt(11,600);ctx.textAlign='center';
         ctx.fillStyle=K.text2;ctx.fillText(p.name.split(' ')[0],bx,by+26);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:22,pid:p.id});
@@ -2640,13 +2707,13 @@ function renderRoomView(now){
       ctx.font=fnt(12);ctx.textAlign='left';
       ctx.fillStyle=K.gold;ctx.fillText(a.ic+' ×'+a.n,158,-60+i*Math.max(16,Math.ceil(13/Sx)));
     });
-    staffOf('store').forEach((p,i)=>addFig(-160+i*40,60,p,K.go));
+    staffOf('store').forEach((p,i)=>addStaff(-160+i*40,60,p,i));
   } else if(rm.key==='workshop'){
     const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
     ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
     ctx.strokeRect(-70,-30,140,46);
     if(wounded){
-      craftTop(wounded.cls,0,-8,3,-0.3);
+      craftTop(wounded.cls,0,-8,3,-0.3,null,{damage:1-wounded.hull/100});
       ctx.font=fnt(12);ctx.textAlign='center';
       ctx.fillStyle=K.text;ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,46);
       if(rng()<0.12)spark((rng()-0.5)*80,-6);
@@ -2654,7 +2721,7 @@ function renderRoomView(now){
       ctx.font=fnt(12);ctx.textAlign='center';
       ctx.fillStyle=K.text2;ctx.fillText('Lift empty — nothing broken. For once.',0,0);
     }
-    staffOf('workshop').forEach((p,i)=>addFig(-110+i*40,50,p,K.steel));
+    staffOf('workshop').forEach((p,i)=>addStaff(-110+i*40,50,p,i));
   } else if(rm.key==='infirmary'){
     const patients=G.people.filter(p=>p.injured>0);
     for(let i=0;i<2;i++){
@@ -2665,7 +2732,7 @@ function renderRoomView(now){
       if(p){
         ctx.fillStyle=K.hazard;
         ctx.beginPath();ctx.roundRect(bx-32,by-7,52,12,6);ctx.fill();
-        ctx.beginPath();ctx.arc(bx+28,by-1,6,0,7);ctx.fill();
+        SA.portrait(ctx,bx+30,by-1,10,personSpec(p),{face:'worried',t:0});
         ctx.font=fnt(11,600);ctx.textAlign='center';
         ctx.fillStyle=K.hazard;ctx.fillText(p.name.split(' ')[0]+' · '+p.injured+'d',bx,by+30);
         rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:24,pid:p.id});
@@ -2712,7 +2779,7 @@ function renderRoomView(now){
       px===-100?ctx.moveTo(px,vy):ctx.lineTo(px,vy);
     }
     ctx.stroke();
-    staffOf('comms').forEach((p,i)=>addFig(120+i*40,30,p,K.shield));
+    staffOf('comms').forEach((p,i)=>addStaff(120+i*40,30,p,i));
   } else if(rm.key==='diplo'){
     ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(0,0,90,40,0,0,Math.PI*2);ctx.stroke();
@@ -2764,147 +2831,1046 @@ function locStatsHTML(d,st){
   return h;
 }
 
-/* ---------- galaxy + comm canvases (drawn while their windows are open) ---------- */
-function drawGalaxy(now){
-  const g=$('galaxyCv');
-  if(!g)return;
-  const r=g.getBoundingClientRect();
-  if(g.width!==Math.round(r.width*dpr)){g.width=Math.round(r.width*dpr);g.height=Math.round(r.height*dpr);}
-  const c2=g.getContext('2d');
-  c2.setTransform(dpr,0,0,dpr,0,0);
-  const w=r.width,h=r.height;
-  const t=RM?0:now;
-  /* text with an ink halo so it reads over rings and starfield */
-  const txt=(s,x,y,col,size,wt,al)=>{
-    c2.font=(wt||700)+' '+size+'px '+TH.FONT.ui;c2.textAlign=al||'center';c2.textBaseline='alphabetic';
-    c2.lineJoin='round';c2.lineWidth=4;c2.strokeStyle=TH.rgba(K.ink,0.9);c2.strokeText(s,x,y);
-    c2.fillStyle=col;c2.fillText(s,x,y);
-  };
-  /* labels are queued, then placed by priority at the first spot that doesn't collide with an icon or another label */
-  const labs=[],occ=[];
-  const lab=(s,cands,col,size,wt,pri)=>labs.push({s,cands,col,size,wt,pri});
-  const hold=(x,y,r)=>occ.push({x:x-r,y:y-r,w:2*r,h:2*r});
-  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
-  // the core glows in the upper right; the verge is dark
-  let cg=c2.createRadialGradient(w*0.86,h*0.38,20,w*0.86,h*0.38,w*0.5);
-  cg.addColorStop(0,TH.rgba(K.goldHi,0.10));cg.addColorStop(1,TH.rgba(K.goldHi,0));
-  c2.fillStyle=cg;c2.fillRect(0,0,w,h);
-  for(let i=0;i<260;i++){
-    const a=i*0.53,rad=6+i*0.85;
-    const x=w*0.55+Math.cos(a)*rad*1.7,y=h*0.45+Math.sin(a)*rad*0.6;
-    if(x<0||x>w||y<0||y>h)continue;
-    c2.fillStyle=TH.rgba(K.steel,0.05+((i*13)%10)/110);
-    c2.beginPath();c2.arc(x,y,((i*7)%3)/2+0.4,0,7);c2.fill();
+/* =====================================================================
+   GALAXY VIEW — the galaxy is a full view beside Base; selecting a world
+   with access dives into a World view (docs/ui/GALAXY-HANDOFF.md).
+   All UI state here is per-session; nothing is added to G or the save.
+   ===================================================================== */
+let baseView='base',gxWorld=null,gxRegion=null,gxDiveT=0,gxLegend=false,gxLoreOpen=false;
+let gxZoom=1,gxCam=null,gxCamLastT=0,gxHitL=[],gxSrcPos={};
+const GXL_KEY='sr-galaxy-layers';
+function loadGxLayers(){const d={network:1,leads:1,missions:1,lib:1,heg:0,flights:1};try{const v=localStorage.getItem(GXL_KEY);if(v)Object.assign(d,JSON.parse(v));}catch(e){}return d;}
+let gxLayers=loadGxLayers();
+function saveGxLayers(){try{localStorage.setItem(GXL_KEY,JSON.stringify(gxLayers));}catch(e){}}
+/* navigation */
+function showView(v){
+  baseView=v;
+  if(v!=='galaxy'){gxWorld=null;gxRegion=null;srcSel=null;}
+  exitRoomView();closeTilePop();
+  if(v==='galaxy'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();openWin('srcTutIntro');}
+  syncTabs();syncUI();
+}
+let gxDiveFrom=null;
+function enterWorld(id,fx,fy){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();gxDiveFrom=(fx!=null)?[fx,fy]:null;syncTabs();syncUI();}
+function openRegion(rid){gxRegion=rid;syncUI();}
+function gxBack(){gxSheetOpen=false;if(gxRegion)gxRegion=null;else if(gxWorld)gxWorld=null;else if(srcSel)srcSel=null;syncTabs();syncUI();}
+/* ---------- camera: fit the galaxy into the clear rect, ease on change ---------- */
+const GXSP=[1000,700];   // the 0..1 PLANETDEF coordinates stretch into this abstract space
+function gxRect(){
+  const cvr=cv.getBoundingClientRect();
+  let top=130;
+  const tabs=ROOT.querySelector('.sr-tabs');
+  if(tabs&&!gxWorld){const r=tabs.getBoundingClientRect();if(r.height)top=r.bottom-cvr.top+16;}
+  let bottom=120;
+  const cb=$('baseCmdbar');
+  if(cb){const r=cb.getBoundingClientRect();if(r.height)bottom=cssH-(r.top-cvr.top)+32;}
+  const left=16+(((srcSel&&!gxWorld)||gxWorld)&&!gxPhone()?388:0);   // phones: the panel is a bottom sheet
+  const right=88;
+  return {x:left,y:Math.max(16,top),w:Math.max(120,cssW-left-right),h:Math.max(120,cssH-Math.max(16,top)-Math.max(60,bottom))};
+}
+function gxFit(now){
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  for(const d of PLANETDEF){x0=Math.min(x0,d.x*GXSP[0]);x1=Math.max(x1,d.x*GXSP[0]);y0=Math.min(y0,d.y*GXSP[1]);y1=Math.max(y1,d.y*GXSP[1]);}
+  x0-=70;x1+=70;y0-=60;y1+=70;
+  const r=gxRect();
+  const sc=Math.min(r.w/(x1-x0),r.h/(y1-y0))*gxZoom;
+  const t={s:sc,x:r.x+r.w/2-(x0+x1)/2*sc,y:r.y+r.h/2-(y0+y1)/2*sc};
+  if(!gxCam||RM)gxCam={s:t.s,x:t.x,y:t.y};
+  else{
+    const dt=Math.min(0.1,(now-gxCamLastT)/1000)||0.016;
+    const k=1-Math.exp(-dt/0.08);   // ~240ms ease
+    gxCam.s+=(t.s-gxCam.s)*k;gxCam.x+=(t.x-gxCam.x)*k;gxCam.y+=(t.y-gxCam.y)*k;
   }
-  const pul=q=>0.5+0.5*Math.sin(t*0.004+q);
-  // planets
+  gxCamLastT=now;
+}
+const gxPos=d=>[gxCam.x+d.x*GXSP[0]*gxCam.s,gxCam.y+d.y*GXSP[1]*gxCam.s];
+const gxR=id=>((WORLD_LOOK[id]||{}).R||8)*gxCam.s;
+function gxSelRing(x,y,r,t){
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([7,5]);ctx.lineDashOffset=RM?0:-t*10;
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.lineWidth=3;ctx.strokeStyle=K.gold;ctx.stroke();ctx.setLineDash([]);
+}
+/* §5.1 the source badge: rebel-red disc, signal icon, level numeral on an ink tab */
+function drawSrcBadge(x,y,sc,t){
+  const hot=sc.risk>60,col=hot?K.hazard:K.rebel,attn=sc.pendingEvent||sc.signal;
+  if(attn){
+    const q=RM?0:((t*1.2)%1)*5;
+    for(const[r0,a] of [[17,.75],[24,.4]]){
+      ctx.globalAlpha=a*(RM?1:1-((t*1.2)%1)*.5);
+      ctx.beginPath();ctx.arc(x,y,r0+q,Math.PI*1.15,Math.PI*1.85);ctx.lineWidth=2.6;ctx.lineCap='round';ctx.strokeStyle=K.rebel;ctx.stroke();ctx.lineCap='butt';
+    }
+    ctx.globalAlpha=1;
+  }
+  ctx.beginPath();ctx.arc(x+1.5,y+2.5,11,0,7);ctx.fillStyle=K.ink;ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=2.2;ctx.strokeStyle=K.ink;ctx.stroke();
+  TH.icon(ctx,'signal',x,y-3,12,K.ink,{weight:2.6});
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(x-9,y+4,18,13,4):ctx.rect(x-9,y+4,18,13);ctx.fillStyle=K.ink;ctx.fill();
+  ctx.font='400 11px '+TH.FONT.display;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#fff4e6';ctx.fillText(ROMAN[Math.max(0,Math.min(4,(sc.level||1)-1))],x,y+11);
+  ctx.textBaseline='alphabetic';
+}
+function drawGalaxy(now){
+  const t=RM?0:now/1000;
+  gxFit(now);
+  const s=gxCam.s;
+  gxHitL=[];gxSrcPos={};
+  ctx.fillStyle=K.void;ctx.fillRect(0,0,cssW,cssH);
+  /* deterministic starfield, flat dots, no gradients */
+  const rand=SA.util.mkRng(42);
+  for(let i=0;i<230;i++){
+    const x=rand()*cssW,y=rand()*cssH,big=rand()<0.3;
+    ctx.fillStyle=TH.rgba(K.steel,0.12+rand()*0.43);
+    ctx.fillRect(x,y,big?2:1.2,big?2:1.2);
+  }
+  /* stepped flat glow around Meridian */
+  {const[mx,my]=gxPos(pdef('meridian'));
+   for(const[r0,a] of [[340,.035],[230,.045],[130,.05]]){ctx.beginPath();ctx.arc(mx,my,r0*s,0,7);ctx.fillStyle=TH.rgba(K.goldHi,a);ctx.fill();}}
+  /* Hegemony security territory: two flat steps, one path per step so overlaps don't darken */
+  if(gxLayers.heg)for(const[f,a] of [[1,.085],[.55,.09]]){
+    ctx.beginPath();
+    for(const d of PLANETDEF){const st=pst(d.id);if(!d.sec||!st||!st.known)continue;const[x,y]=gxPos(d);const r=(18+d.sec*24)*s*f;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}
+    ctx.globalAlpha=a;ctx.fillStyle=K.heg;ctx.fill();ctx.globalAlpha=1;
+  }
+  /* our reach: access and liberation, rebel red as one group */
+  {ctx.beginPath();
+   for(const d of PLANETDEF){const st=pst(d.id);if(!st)continue;const[x,y]=gxPos(d);
+     if(st.access&&!d.base){const r=(22+(st.acc||0)*11)*s;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}
+     const lib=d.regions&&st.access?(locLib(d,st)||0):0;
+     if(lib>0){const r=(20+lib*0.9)*s;ctx.moveTo(x+r,y);ctx.arc(x,y,r,0,7);}}
+   ctx.globalAlpha=.12;ctx.fillStyle=K.rebel;ctx.fill();ctx.globalAlpha=1;}
+  /* region names */
+  if(cssW>700){
+    ctx.save();ctx.font='28px '+TH.FONT.display;ctx.textAlign='center';ctx.globalAlpha=.26;
+    for(const[nm,fx,fy,col] of [['THE DRIFT',.19,.76,K.rebelHi],['THE CORE',.83,.45,K.hegHi],['THE VERGE',.23,.13,K.psi]]){
+      const[x,y]=gxPos({x:fx,y:fy});ctx.fillStyle=col;ctx.fillText(nm,x,y);
+    }
+    ctx.restore();
+  }
+  /* hyperlanes: dots, stopping short of each world */
+  for(const[a,b] of LANES){
+    const da=pdef(a),db=pdef(b);if(!da||!db)continue;
+    const sa2=pst(a),sb=pst(b);
+    const[xa,ya]=gxPos(da),[xb,yb]=gxPos(db);
+    const Ra=gxR(a)+8,Rb=gxR(b)+8;
+    const dx=xb-xa,dy=yb-ya,len=Math.hypot(dx,dy);
+    if(len<Ra+Rb+14)continue;
+    const ux=dx/len,uy=dy/len;
+    const x0=xa+ux*Ra,y0=ya+uy*Ra,x1=xb-ux*Rb,y1=yb-uy*Rb;
+    const acc=sa2&&sb&&sa2.access&&sb.access,known=sa2&&sb&&sa2.known&&sb.known;
+    const step=acc||known?15:19,col=acc?K.rebelHi:known?'#4a5598':'#2c3372';
+    const n=Math.max(2,Math.floor(Math.hypot(x1-x0,y1-y0)/step));
+    for(let i=0;i<=n;i++){
+      const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n;
+      ctx.beginPath();ctx.arc(x,y,2.6,0,7);ctx.fillStyle=col;ctx.fill();
+      if(acc||known){ctx.lineWidth=1.4;ctx.strokeStyle=K.ink;ctx.stroke();}
+    }
+  }
+  /* label queue with collision placement */
+  const labs=[],occ=[];
+  const txt=(str,x,y,col,size,wt,al)=>{
+    ctx.font=(wt||700)+' '+size+'px '+TH.FONT.ui;ctx.textAlign=al||'center';ctx.textBaseline='alphabetic';
+    ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle=TH.rgba(K.ink,0.9);ctx.strokeText(str,x,y);
+    ctx.fillStyle=col;ctx.fillText(str,x,y);
+  };
+  const lab=(str,cands,col,size,wt,pri)=>labs.push({s:str,cands,col,size,wt,pri});
+  const hold=(x,y,r)=>occ.push({x:x-r,y:y-r,w:2*r,h:2*r});
+  const pul=q=>RM?0.5:0.5+0.5*Math.sin(now*0.004+q);
+  /* worlds */
   for(const d of PLANETDEF){
-    const st=pst(d.id);
-    const x=w*d.x,y=h*d.y;
+    const st=pst(d.id);if(!st)continue;
+    const[x,y]=gxPos(d);const lk=WORLD_LOOK[d.id]||{R:8,col:'#9aa6c4'};
+    const R=lk.R*s;
     const selHere=srcSel&&srcSel.t==='p'&&srcSel.id===d.id;
     if(!st.known){
-      // uncharted signal
       const p=pul(x);
-      c2.strokeStyle=TH.rgba(K.psi,0.35+0.4*p);
-      c2.lineWidth=1.6;
-      c2.beginPath();c2.arc(x,y,6+3*p,0,7);c2.stroke();
-      txt('?',x,y+4,TH.rgba(K.psi,0.7+0.3*p),12,800);
-      hold(x,y,11);
-      lab('Uncharted',[[x,y+24,'center'],[x,y-16,'center'],[x+14,y+4,'left']],K.psi,11,700,4);
-      if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,16,0,7);c2.stroke();}
+      ctx.beginPath();ctx.arc(x,y,7.5,0,7);ctx.lineWidth=2;ctx.strokeStyle=K.psi;ctx.stroke();
+      txt('?',x,y+4,K.psi,11,800);
+      ctx.globalAlpha=.25+.3*p;ctx.beginPath();ctx.arc(x,y,13+(RM?0:p*2),0,7);ctx.lineWidth=1.4;ctx.strokeStyle=K.psi;ctx.stroke();ctx.globalAlpha=1;
+      if(selHere)gxSelRing(x,y,19,t);
+      hold(x,y,15);
+      lab('Uncharted',[[x,y+28,'center'],[x,y-20,'center'],[x+19,y+4,'left']],K.psi,11,700,4);
+      gxHitL.push({t:'p',id:d.id,x,y,r:22});
       continue;
     }
-    if(d.base){
-      c2.fillStyle=K.rebel;c2.strokeStyle=K.ink;c2.lineWidth=2;c2.lineJoin='round';
-      c2.beginPath();c2.moveTo(x,y-8);c2.lineTo(x+7,y+6);c2.lineTo(x-7,y+6);c2.closePath();c2.stroke();c2.fill();
-      hold(x,y,10);
-      lab('Haven Rock',[[x,y+22,'center'],[x+14,y+4,'left']],K.rebelHi,12,800,8);
-      continue;
-    }
-    const R=d.core?9:d.kind==='Waystation'?4:6;
-    const bodyCol=d.core?K.goldHi:st.access?K.shield:TH.rgba(K.text3,0.8);
-    const glow=c2.createRadialGradient(x,y,1,x,y,R*2.4);
-    glow.addColorStop(0,d.core?TH.rgba(K.goldHi,0.5):TH.rgba(K.shield,st.access?0.35:0.12));
-    glow.addColorStop(1,'rgba(0,0,0,0)');
-    c2.fillStyle=glow;c2.beginPath();c2.arc(x,y,R*2.4,0,7);c2.fill();
-    c2.fillStyle=bodyCol;
-    c2.beginPath();c2.arc(x,y,R,0,7);c2.fill();
-    c2.lineWidth=1.5;c2.strokeStyle=K.ink;c2.stroke();
-    if(d.core){c2.strokeStyle=TH.rgba(K.goldHi,0.6);c2.lineWidth=1.4;
-      c2.beginPath();c2.ellipse(x,y,R+6,R*0.4+2,-0.35,0,Math.PI*2);c2.stroke();}
-    if(st.access){
-      c2.strokeStyle=TH.rgba(K.shield,0.85);c2.lineWidth=1.6;
-      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();
+    if(!st.access&&!d.base){
+      ctx.globalAlpha=.62;
+      SA.planet(ctx,x,y,R,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg});
+      ctx.globalAlpha=1;
+      ctx.setLineDash([4,5]);ctx.beginPath();ctx.arc(x,y,R+6,0,7);ctx.lineWidth=1.6;ctx.strokeStyle=K.text3;ctx.stroke();ctx.setLineDash([]);
+      TH.icon(ctx,'lock',x+R+10,y-R-6,12,K.text2,{outline:1});
     } else {
-      c2.strokeStyle=TH.rgba(K.text3,0.6);c2.lineWidth=1.4;c2.setLineDash([3,4]);
-      c2.beginPath();c2.arc(x,y,R+4,0,7);c2.stroke();c2.setLineDash([]);
-      // tiny padlock
-      c2.strokeStyle=TH.rgba(K.text2,0.85);c2.lineWidth=1.3;
-      c2.strokeRect(x+R+4,y-R-9,6,5);
-      c2.beginPath();c2.arc(x+R+7,y-R-9,2.4,Math.PI,0);c2.stroke();
+      SA.planet(ctx,x,y,R,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg,home:lk.home});
     }
-    if(d.regions&&st.access){
-      const lb=locLib(d,st)/100;
-      c2.strokeStyle=TH.rgba(K.rebel,0.3);c2.lineWidth=2.6;
-      c2.beginPath();c2.arc(x,y,R+8,0,7);c2.stroke();
-      if(lb>0){c2.strokeStyle=K.rebel;c2.beginPath();c2.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);c2.stroke();}
+    if(gxLayers.lib&&d.regions&&st.access){
+      const lb=(locLib(d,st)||0)/100;
+      ctx.lineCap='round';
+      ctx.beginPath();ctx.arc(x,y,R+8,0,7);ctx.lineWidth=3;ctx.strokeStyle=TH.rgba(K.rebel,.28);ctx.stroke();
+      if(lb>0){ctx.beginPath();ctx.arc(x,y,R+8,-Math.PI/2,-Math.PI/2+lb*Math.PI*2);ctx.strokeStyle=K.rebel;ctx.stroke();}
+      ctx.lineCap='butt';
     }
-    if(selHere){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,R+13,0,7);c2.stroke();}
-    hold(x,y,R+5);
-    lab(d.name,[[x,y-R-10,'center'],[x,y+R+16,'center'],[x+R+12,y+4,'left'],[x-R-12,y+4,'right']],st.access?K.text:K.text2,12,700,selHere?9:7);
-    lab(st.access?d.kind:('Scout '+d.scout+' intel'),[[x,y+R+17,'center'],[x,y-R-24,'center']],K.text3,11,600,2);
+    if(selHere)gxSelRing(x,y,R+15,t);
+    hold(x,y,R+6);
+    lab(d.base?'Haven Rock':d.name,
+      [[x,y-R-12,'center'],[x,y+R+18,'center'],[x+R+16,y+4,'left'],[x-R-16,y+4,'right']],
+      d.base?K.rebelHi:st.access?K.text:K.text2,d.base||st.access?13:12,d.base?800:700,selHere?9:7);
+    lab(st.access?d.kind:'Scout '+d.scout+' intel',[[x,y+R+19,'center'],[x,y-R-27,'center']],K.text3,11,600,2);
+    if(!d.base)gxHitL.push({t:'p',id:d.id,x,y,r:Math.max(24,R+10)});
   }
-  // intelligence leads: gold diamonds that stay until the job is done
-  for(const o of (G.opps||[])){
+  /* intelligence leads */
+  if(gxLayers.leads)for(const o of (G.opps||[])){
     if(o.done)continue;
-    const pd=pdef(o.loc),x=w*pd.x+20,y=h*pd.y-16,p=pul(x+y);
-    c2.fillStyle=TH.rgba(K.gold,0.75+0.25*p);c2.strokeStyle=K.ink;c2.lineWidth=1.5;
-    c2.beginPath();c2.moveTo(x,y-7);c2.lineTo(x+5.5,y);c2.lineTo(x,y+7);c2.lineTo(x-5.5,y);c2.closePath();c2.stroke();c2.fill();
-    if(!o.found){c2.strokeStyle=TH.rgba(K.gold,0.3+0.3*p);c2.lineWidth=1.2;c2.beginPath();c2.arc(x,y,10+3*p,0,7);c2.stroke();}
-    hold(x,y,8);
-    lab(o.found?'Lead · on board':'New lead',[[x+11,y+4,'left'],[x-11,y+4,'right'],[x,y+22,'center'],[x,y-12,'center']],K.goldHi,11,700,5);
-  }
-  // sources ride their worlds
-  const hx=w*pdef('haven').x,hy=h*pdef('haven').y;
-  for(const s of G.sources){
-    if(!s.alive)continue;
-    const [x,y]=srcMapPos(s,w,h);
-    c2.strokeStyle=TH.rgba(K.go,0.2);c2.lineWidth=1.2;c2.setLineDash([3,5]);
-    c2.beginPath();c2.moveTo(hx,hy);c2.lineTo(x,y);c2.stroke();c2.setLineDash([]);
-    const hot=s.risk>60,attn=s.pendingEvent||s.signal;
-    // a source is a voice, not a world: radio-mast icon (green; orange when it is running hot)
-    const col=hot?K.hazard:K.go;
-    c2.fillStyle=col;
-    c2.beginPath();c2.arc(x,y,2.8,0,7);c2.fill();
-    c2.lineWidth=1.6;c2.lineCap='round';
-    c2.strokeStyle=TH.rgba(col,0.9);
-    for(const rr of [5.5,9]){c2.beginPath();c2.arc(x,y,rr,-Math.PI/4-0.55,-Math.PI/4+0.55);c2.stroke();}
-    if(attn){ // signal waiting: waves emanate
-      const tt=(t*0.0011)%1;
-      for(const k of [0,0.5]){
-        const q=(tt+k)%1;
-        c2.strokeStyle=TH.rgba(K.go,0.7*(1-q));
-        c2.beginPath();c2.arc(x,y,10+q*13,-Math.PI/4-0.75,-Math.PI/4+0.75);c2.stroke();
-      }
-    }
-    c2.lineCap='butt';
-    if(srcSel&&srcSel.t==='s'&&srcSel.id===s.id){c2.strokeStyle=K.gold;c2.lineWidth=2;c2.beginPath();c2.arc(x,y,14,0,7);c2.stroke();}
+    const pd=pdef(o.loc);if(!pd)continue;
+    const[px,py]=gxPos(pd),R=gxR(o.loc);
+    const x=px+R+16,y=py-R-8,p=pul(x+y);
+    ctx.fillStyle=K.gold;ctx.strokeStyle=K.ink;ctx.lineWidth=1.8;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x+6,y);ctx.lineTo(x,y+8);ctx.lineTo(x-6,y);ctx.closePath();ctx.fill();ctx.stroke();
+    if(!o.found){ctx.globalAlpha=.5;ctx.beginPath();ctx.arc(x,y,12+(RM?0:p*2),0,7);ctx.lineWidth=2;ctx.strokeStyle=K.gold;ctx.stroke();ctx.globalAlpha=1;}
     hold(x,y,10);
-    lab(s.name.split(' ').pop(),[[x+15,y+4,'left'],[x-15,y+4,'right'],[x,y+24,'center'],[x,y-14,'center']],hot?K.hazard:K.go,11,700,6);
+    lab(o.found?'Lead':'New lead',[[x-12,y+4,'right'],[x+12,y+4,'left'],[x,y-14,'center']],K.goldHi,11,700,5);
+    gxHitL.push({t:'o',id:o.id,x,y,r:14});
   }
+  /* available missions: gold pins */
+  if(gxLayers.missions){
+    const by={};
+    for(const m of G.missions)if(m.state==='avail'&&m.loc)(by[m.loc]=by[m.loc]||[]).push(m);
+    for(const loc in by){
+      const pd=pdef(loc);if(!pd)continue;
+      const[px,py]=gxPos(pd),R=gxR(loc);
+      by[loc].slice(0,2).forEach((m,i)=>{
+        const x=px-R-18-i*24,y=py-R-8;
+        TH.marker(ctx,x,y+8,{icon:typeOf(m)==='space'?'ship':'soldier',color:K.gold,t,size:24});
+        hold(x,y,13);
+      });
+    }
+  }
+  /* sources ride a ring around their worlds */
+  if(gxLayers.network){
+    const byW={};
+    for(const sc of G.sources){if(!sc.alive)continue;const w=SRCPOS[sc.id]||'veray';(byW[w]=byW[w]||[]).push(sc);}
+    for(const w in byW){
+      const pd=pdef(w);if(!pd)continue;
+      const[px,py]=gxPos(pd),R=gxR(w);
+      byW[w].forEach((sc,i)=>{
+        const a=-0.65+i*0.95;
+        const x=px+Math.cos(a)*(R+18),y=py+Math.sin(a)*(R+18);
+        drawSrcBadge(x,y,sc,t);
+        gxSrcPos[sc.id]=[x,y];
+        if(srcSel&&srcSel.t==='s'&&srcSel.id===sc.id)gxSelRing(x,y,18,t);
+        hold(x,y,14);
+        lab(sc.name.split(' ').pop(),[[x+17,y+4,'left'],[x-17,y+4,'right'],[x,y+30,'center']],sc.risk>60?K.hazard:K.rebelHi,11,700,6);
+        gxHitL.push({t:'s',id:sc.id,x,y,r:17});
+      });
+    }
+  }
+  /* ships on their way home */
+  if(gxLayers.flights){
+    const[hx,hy]=gxPos(pdef('haven'));
+    for(const m of G.missions){
+      if(m.state!=='prog'||!m.progress)continue;
+      const pd=pdef(m.loc||'veray');if(!pd)continue;
+      const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+      const[px,py]=gxPos(pd);
+      const total=m.days||1,left=m.progress.daysLeft||0;
+      const k=0.3+0.45*Math.max(0,Math.min(1,1-left/total));
+      const x=px+(hx-px)*k,y=py+(hy-py)*k;
+      const ang=Math.atan2(hy-py,hx-px);
+      ctx.save();ctx.setLineDash([5,7]);ctx.strokeStyle=TH.rgba(K.gold,.6);ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px+(x-px)*.3,py+(y-py)*.3);ctx.lineTo(x-Math.cos(ang)*18,y-Math.sin(ang)*18);ctx.stroke();ctx.restore();
+      SA.ship(ctx,artShipId(f?f.cls:'cross'),x,y,ang,1.05,t,{livery:'rebel'});
+      hold(x,y,16);
+      lab((f?f.name:'Flight')+' · '+(left<=1?'home tomorrow':left+' days'),[[x,y+28,'center'],[x,y-20,'center']],K.text2,11,700,3);
+    }
+  }
+  /* place labels by priority, skipping collisions */
   labs.sort((a,b)=>b.pri-a.pri);
   const placed=occ.slice();
   for(const l of labs){
-    c2.font=l.wt+' '+l.size+'px '+TH.FONT.ui;
-    const tw=c2.measureText(l.s).width;
-    for(const [x,y,al] of l.cands){
+    ctx.font=l.wt+' '+l.size+'px '+TH.FONT.ui;
+    const tw=ctx.measureText(l.s).width;
+    for(const[x,y,al] of l.cands){
       const rx=al==='left'?x:al==='right'?x-tw:x-tw/2,r={x:rx-3,y:y-l.size,w:tw+6,h:l.size+5};
-      if(r.x<2||r.x+r.w>w-2||r.y<2||r.y+r.h>h-2)continue;
+      if(r.x<2||r.x+r.w>cssW-2||r.y<2||r.y+r.h>cssH-2)continue;
       if(placed.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y))continue;
       placed.push(r);txt(l.s,x,y,l.col,l.size,l.wt,al);break;
     }
   }
 }
+/* =====================================================================
+   WORLD VIEW — the planet fills the stage, divided into its regions.
+   Region geometry is generated deterministically from the planet id
+   (GALAXY-HANDOFF §7.4); no art files, nothing saved.
+   ===================================================================== */
+const regionShapeCache={};
+function regionShapes(pid){
+  if(regionShapeCache[pid])return regionShapeCache[pid];
+  const d=pdef(pid);
+  const regions=(d&&d.regions)||[];
+  const rng2=SA.util.mkRng(SA.util.hashStr(pid)||7);
+  const terrs=regions.filter(r=>r.kind!=='Settlement');
+  const setts=regions.filter(r=>r.kind==='Settlement');
+  const hub=[(rng2()-.5)*.24,(rng2()-.5)*.24];
+  const out={hub,terr:[],setts:[]};
+  const N=terrs.length;
+  const a0=rng2()*Math.PI*2;
+  const borders=[];
+  for(let i=0;i<Math.max(1,N);i++){
+    const a=a0+i*2*Math.PI/Math.max(1,N)+(rng2()-.5)*(24*Math.PI/180);
+    const npt=4+Math.floor(rng2()*3);
+    const pts=[[hub[0],hub[1]]];
+    for(let k=1;k<=npt;k++){
+      const f=k/npt,ax=a+(k===npt?0:(rng2()-.5)*.16);
+      pts.push([hub[0]+Math.cos(ax)*f*1.06,hub[1]+Math.sin(ax)*f*1.06]);
+    }
+    borders.push({a,pts});
+  }
+  if(N<=1){
+    const pts=[];
+    for(let k=0;k<28;k++){const a=k/28*2*Math.PI;pts.push([Math.cos(a)*1.04,Math.sin(a)*1.04]);}
+    if(N===1){
+      const ca=rng2()*Math.PI*2;
+      out.terr.push({id:terrs[0].id,pts,chip:[Math.cos(ca)*.5,Math.sin(ca)*.5]});
+    }
+  } else for(let i=0;i<N;i++){
+    const b0=borders[i],b1=borders[(i+1)%N];
+    let aA=b0.a,aB=b1.a;while(aB<=aA)aB+=2*Math.PI;
+    const rim=[];
+    const steps=Math.max(2,Math.round((aB-aA)/.3));
+    for(let k=1;k<steps;k++){const a=aA+(aB-aA)*k/steps;rim.push([hub[0]+Math.cos(a)*1.06,hub[1]+Math.sin(a)*1.06]);}
+    const pts=b0.pts.concat(rim,b1.pts.slice().reverse());
+    const midA=(aA+aB)/2;
+    out.terr.push({id:terrs[i].id,pts,chip:[(hub[0]+Math.cos(midA)*.55)*1.15,(hub[1]+Math.sin(midA)*.55)*1.15]});
+  }
+  const placed=[];
+  setts.forEach((rg,i)=>{
+    let c;
+    if(N>=2){const b=borders[i%borders.length];const f=.4+rng2()*.15;c=[hub[0]+Math.cos(b.a)*f,hub[1]+Math.sin(b.a)*f];}
+    else{const a=rng2()*2*Math.PI,f=.35+rng2()*.15;c=[hub[0]+Math.cos(a)*f,hub[1]+Math.sin(a)*f];}
+    for(let tries=0;tries<9&&placed.some(p=>Math.hypot(p[0]-c[0],p[1]-c[1])<.52);tries++){
+      const a=rng2()*2*Math.PI,f=.35+rng2()*.2;c=[hub[0]+Math.cos(a)*f,hub[1]+Math.sin(a)*f];
+    }
+    placed.push(c);
+    const R0=.24+rng2()*.03;
+    const pts=[];
+    for(let k=0;k<11;k++){
+      const a=k/11*2*Math.PI;
+      const rr2=R0*(.82+rng2()*.3);
+      pts.push([c[0]+Math.cos(a)*rr2,c[1]+Math.sin(a)*rr2*.92]);
+    }
+    const away=Math.atan2(c[1]-hub[1],c[0]-hub[0]);
+    out.setts.push({id:rg.id,pts,c,r:R0,chip:[c[0]+Math.cos(away)*(R0+.16),c[1]+Math.sin(away)*(R0+.16)]});
+  });
+  if(out.terr.length===1&&out.setts.length){
+    const c0=out.setts[0].c,aw=Math.atan2(c0[1]-hub[1],c0[0]-hub[0])+Math.PI;
+    out.terr[0].chip=[hub[0]+Math.cos(aw)*.55,hub[1]+Math.sin(aw)*.55];
+  }
+  return regionShapeCache[pid]=out;
+}
+function ptInPoly(px,py,pts){
+  let c=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0],yi=pts[i][1],xj=pts[j][0],yj=pts[j][1];
+    if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))c=!c;
+  }
+  return c;
+}
+function regState(st,rid){const p=(st.lib&&st.lib[rid])||0;return p>=100?'liberated':p>0?'contested':'hegemony';}
+function firstSettId(d){const r=(d.regions||[]).find(x=>x.kind==='Settlement');return r?r.id:null;}
+function missionRegion(d,m){if(typeOf(m)==='space')return null;return m.region||firstSettId(d);}
+function regionFill(d,rid,i,sett){
+  const lk=WORLD_LOOK[d.id]||{col:'#777'};
+  if(lk.regions&&lk.regions[rid])return lk.regions[rid];
+  const sh=SA.util.shade;
+  return sett?sh(lk.col,-.2):sh(lk.col,i%2?.08:-.08);
+}
+/* decor glyphs, drawn flat with ink outlines; (x,y) world px, k = planet px per unit */
+function drawDecor(kind,x,y,k){
+  const U=SA.util,c=ctx;
+  c.save();c.lineJoin='round';
+  if(kind==='mesa'){U.poly(c,[[x-k*.09,y+k*.03],[x-k*.05,y-k*.05],[x+k*.05,y-k*.05],[x+k*.09,y+k*.03]]);U.ink(c,'rgba(60,40,28,.55)',2);}
+  else if(kind==='well'){c.beginPath();c.arc(x,y,k*.028,0,7);U.ink(c,'rgba(40,60,90,.8)',2);}
+  else if(kind==='depot'||kind==='garrison'){U.rr(c,x-k*.05,y-k*.035,k*.1,k*.07,3);U.ink(c,'rgba(70,70,86,.8)',2);}
+  else if(kind==='flats'){c.beginPath();c.ellipse(x,y,k*.12,k*.05,0,0,7);c.fillStyle='rgba(255,255,255,.25)';c.fill();}
+  else if(kind==='crawler'){U.rr(c,x-k*.045,y-k*.025,k*.09,k*.05,2);U.ink(c,'rgba(120,110,80,.9)',2);c.fillStyle='rgba(0,0,0,.4)';c.fillRect(x-k*.045,y+k*.012,k*.09,k*.014);}
+  else if(kind==='ridge'){c.beginPath();for(let i=0;i<=4;i++)c.lineTo(x-k*.12+i*k*.06,y+((i%2)?-k*.045:0));c.lineWidth=2.6;c.strokeStyle='rgba(40,28,20,.6)';c.stroke();}
+  else if(kind==='kiln'){U.poly(c,[[x-k*.035,y+k*.03],[x,y-k*.05],[x+k*.035,y+k*.03]]);U.ink(c,'rgba(90,60,40,.8)',2);}
+  else if(kind==='road'){c.beginPath();c.moveTo(x-k*.1,y+k*.03);c.quadraticCurveTo(x,y-k*.02,x+k*.1,y+k*.02);c.lineWidth=3;c.strokeStyle='rgba(30,22,16,.4)';c.stroke();}
+  else if(kind==='pad'){c.beginPath();c.arc(x,y,k*.045,0,7);c.lineWidth=2;c.strokeStyle='rgba(255,255,255,.4)';c.stroke();}
+  else if(kind==='tree'){c.beginPath();c.arc(x,y,k*.03,0,7);U.ink(c,'rgba(24,60,34,.8)',1.6);}
+  else if(kind==='block'){U.rr(c,x-k*.04,y-k*.04,k*.08,k*.08,2);U.ink(c,'rgba(70,80,110,.6)',1.6);}
+  c.restore();
+}
+function scatterFor(r){
+  const t=(r.name+' '+(r.blurb||'')).toLowerCase();
+  if(/quarry|salt|crusher|pit/.test(t))return['flats','crawler','crawler'];
+  if(/ridge|kiln|smelt|foundry/.test(t))return['ridge','kiln','kiln'];
+  if(/river|canopy|timber|mill|barge/.test(t))return['tree','tree','road','tree'];
+  if(/data|server|cool|registry|census/.test(t))return['block','block','block'];
+  if(/flat|herder|well|tithe/.test(t))return['mesa','well','well','mesa'];
+  return['mesa','mesa'];
+}
+let gxRegScreen=[],gxChipPts={},gxWorldDiveK=1;
+function drawWorld(now){
+  const t=RM?0:now/1000;
+  const d=pdef(gxWorld),st=gxWorld&&pst(gxWorld);
+  if(!d||!st){gxWorld=null;return;}
+  const lk=WORLD_LOOK[d.id]||{col:'#8a8a9a'};
+  ctx.fillStyle=K.void;ctx.fillRect(0,0,cssW,cssH);
+  const rand=SA.util.mkRng(42);
+  for(let i=0;i<180;i++){
+    const x=rand()*cssW,y=rand()*cssH,big=rand()<0.3;
+    ctx.fillStyle=TH.rgba(K.steel,0.1+rand()*0.3);
+    ctx.fillRect(x,y,big?1.8:1.1,big?1.8:1.1);
+  }
+  const rect=gxRect();
+  const cx=rect.x+rect.w/2,cy=rect.y+rect.h/2;
+  const R=Math.max(90,Math.min(cssH*0.26,rect.h*0.4,rect.w*0.3));
+  const ORX=R*1.51,ORY=R*0.33,OTH=-10*Math.PI/180;
+  /* dive-in: the planet scales up from its map position */
+  let k=RM?1:Math.min(1,(now-gxDiveT)/420);
+  const e=1-Math.pow(1-k,3);
+  gxWorldDiveK=k;
+  ctx.save();
+  if(k<1){
+    ctx.globalAlpha=Math.min(1,k/0.6);
+    const fx=gxDiveFrom?gxDiveFrom[0]:cx,fy=gxDiveFrom?gxDiveFrom[1]:cy;
+    const ox=fx+(cx-fx)*e,oy=fy+(cy-fy)*e,sc=0.16+0.84*e;
+    ctx.translate(ox,oy);ctx.scale(sc,sc);ctx.translate(-cx,-cy);
+  }
+  const shapes=regionShapes(d.id);
+  const P=(u,v)=>[cx+u*R,cy+v*R];
+  const path=pts=>{ctx.beginPath();pts.forEach((p,i)=>{const[x,y]=P(p[0],p[1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.closePath();};
+  const clipDisc=()=>{ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.clip();};
+  const hatch=(col,alpha)=>{
+    ctx.save();ctx.clip();ctx.globalAlpha=alpha;ctx.strokeStyle=col;ctx.lineWidth=4;
+    ctx.beginPath();
+    for(let q=-R*2.2;q<R*2.2;q+=11){ctx.moveTo(cx+q-R*1.6,cy+R*1.6);ctx.lineTo(cx+q+R*1.6,cy-R*1.6);}
+    ctx.stroke();ctx.restore();
+  };
+  const overlay=state=>{
+    if(state==='hegemony')hatch(K.heg,.2);
+    else if(state==='contested')hatch(K.hazard,.18);
+    else{ctx.save();ctx.clip();ctx.globalAlpha=.25;ctx.fillStyle=K.rebel;ctx.fillRect(cx-R,cy-R,R*2,R*2);ctx.restore();}
+  };
+  gxRegScreen=[];gxChipPts={};
+  /* 1. orbit, back half */
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,ORX,ORY,OTH,Math.PI,Math.PI*2);
+  ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle='#5a64a8';ctx.stroke();ctx.setLineDash([]);
+  ctx.restore();
+  const orbPt=a=>{const ca=Math.cos(a)*ORX,sa=Math.sin(a)*ORY;return[cx+ca*Math.cos(OTH)-sa*Math.sin(OTH),cy+ca*Math.sin(OTH)+sa*Math.cos(OTH)];};
+  /* orbit objects behind the planet */
+  const spaceMs=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&typeOf(m)==='space');
+  if((d.sec||0)>=2){
+    const[ox2,oy2]=orbPt(Math.PI*1.35+((RM?0:t*0.06)%1));
+    SA.ship(ctx,'mote',ox2,oy2,0.5,0.9,t,{livery:'heg'});
+    ctx.font='700 11px '+TH.FONT.ui;ctx.textAlign='center';ctx.lineWidth=4;ctx.lineJoin='round';ctx.strokeStyle=TH.rgba(K.ink,.9);
+    ctx.strokeText('Hegemony patrol',ox2,oy2-20);ctx.fillStyle=K.hegHi;ctx.fillText('Hegemony patrol',ox2,oy2-20);
+  }
+  /* 2. ink drop disc */
+  ctx.beginPath();ctx.arc(cx+8,cy+12,R,0,7);ctx.fillStyle=K.ink;ctx.fill();
+  /* base surface */
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fillStyle=lk.col;ctx.fill();
+  /* 3. territories */
+  ctx.save();clipDisc();
+  const terrDefs=(d.regions||[]).filter(r=>r.kind!=='Settlement');
+  shapes.terr.forEach((tr,i)=>{
+    const rg=terrDefs.find(r=>r.id===tr.id);if(!rg)return;
+    path(tr.pts);ctx.fillStyle=regionFill(d,tr.id,i,false);ctx.fill();
+    const dec=REGION_DECOR[tr.id];
+    const list=dec?dec.filter(x=>!/^(source|job|heg)$/.test(x[0])):null;
+    if(list)for(const[kind,u,v]of list){const[x,y]=P(u,v);drawDecor(kind,x,y,R);}
+    else{
+      const rn=SA.util.mkRng(SA.util.hashStr(tr.id)||3);
+      for(const kind of scatterFor(rg)){
+        const[chU,chV]=tr.chip;
+        const u=chU*.7+(rn()-.5)*.5,v=chV*.7+(rn()-.5)*.5;
+        const[x,y]=P(u,v);drawDecor(kind,x,y,R);
+      }
+    }
+    path(tr.pts);overlay(regState(st,tr.id));
+    gxRegScreen.push({id:tr.id,pts:tr.pts.map(p=>P(p[0],p[1])),sett:false});
+    gxChipPts[tr.id]=P(tr.chip[0],tr.chip[1]);
+  });
+  ctx.restore();
+  /* 4. settlements on top */
+  const settDefs=(d.regions||[]).filter(r=>r.kind==='Settlement');
+  for(const sp of shapes.setts){
+    const rg=settDefs.find(r=>r.id===sp.id);if(!rg)continue;
+    ctx.save();clipDisc();
+    ctx.save();ctx.translate(2,3);ctx.globalAlpha=.5;path(sp.pts);ctx.fillStyle=K.ink;ctx.fill();ctx.restore();
+    path(sp.pts);ctx.fillStyle=regionFill(d,sp.id,0,true);ctx.fill();
+    {const[bx,by]=P(sp.c[0],sp.c[1]);
+     const rn=SA.util.mkRng(SA.util.hashStr(sp.id)||5);
+     const n=5+Math.floor(rn()*2);
+     for(let i2=0;i2<n;i2++){
+       const a=rn()*Math.PI*2,f=rn()*sp.r*.5*R;
+       SA.isoBox(ctx,-4,-4,8,8,7+rn()*7,1,bx+Math.cos(a)*f,by+Math.sin(a)*f*.6,['#b8a888','#6a5c48','#8a7a60'],1.4);
+     }}
+    path(sp.pts);overlay(regState(st,sp.id));
+    ctx.restore();
+    gxRegScreen.unshift({id:sp.id,pts:sp.pts.map(p=>P(p[0],p[1])),sett:true});
+    gxChipPts[sp.id]=P(sp.chip[0],sp.chip[1]);
+  }
+  /* 5. veil every other region while one is open */
+  if(gxRegion){
+    ctx.save();clipDisc();
+    for(const rs of gxRegScreen){
+      if(rs.id===gxRegion)continue;
+      ctx.beginPath();rs.pts.forEach((pp,i)=>i?ctx.lineTo(pp[0],pp[1]):ctx.moveTo(pp[0],pp[1]));ctx.closePath();
+      ctx.globalAlpha=.38;ctx.fillStyle=K.ink;ctx.fill();ctx.globalAlpha=1;
+    }
+    ctx.restore();
+  }
+  /* 6. cel shade: one ink tone, light from the top left */
+  ctx.save();clipDisc();
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.arc(cx-R*.20,cy-R*.24,R*1.04,0,7);
+  ctx.globalAlpha=.26;ctx.fillStyle=K.ink;ctx.fill('evenodd');ctx.restore();
+  /* 7. borders */
+  ctx.save();clipDisc();
+  for(const tr of shapes.terr){path(tr.pts);ctx.lineWidth=3.2;ctx.strokeStyle=K.ink;ctx.lineJoin='round';ctx.stroke();}
+  for(const sp of shapes.setts){
+    path(sp.pts);ctx.lineWidth=5;ctx.strokeStyle=K.ink;ctx.stroke();
+    const stc=regState(st,sp.id);
+    path(sp.pts);ctx.lineWidth=2;ctx.strokeStyle=stc==='liberated'?K.rebel:stc==='contested'?K.hazard:K.heg;ctx.stroke();
+  }
+  if(gxRegion){
+    const rs=gxRegScreen.find(x=>x.id===gxRegion);
+    if(rs){ctx.beginPath();rs.pts.forEach((pp,i)=>i?ctx.lineTo(pp[0],pp[1]):ctx.moveTo(pp[0],pp[1]));ctx.closePath();
+      ctx.setLineDash([9,6]);ctx.lineWidth=3;ctx.strokeStyle=K.gold;ctx.stroke();ctx.setLineDash([]);}
+  }
+  ctx.restore();
+  /* 8. disc outline and atmosphere */
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.lineWidth=4;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.beginPath();ctx.arc(cx,cy,R+6,0,7);ctx.lineWidth=2;ctx.strokeStyle=TH.rgba(lk.col,.3);ctx.stroke();
+  /* 9. markers from live data */
+  const anchorFor=(rid,kind)=>{
+    const dec=REGION_DECOR[rid];
+    if(dec){const hitDec=dec.find(x=>x[0]===kind);if(hitDec)return P(hitDec[1],hitDec[2]);}
+    const cp=gxChipPts[rid];
+    if(cp)return[cp[0]*.5+cx*.5,cp[1]*.5+cy*.5+14];
+    return[cx,cy];
+  };
+  for(const rid in HEG_SITE){
+    if(!(d.regions||[]).some(r=>r.id===rid))continue;
+    if(regState(st,rid)==='liberated')continue;
+    const[x,y]=anchorFor(rid,'heg');
+    ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=K.heg;ctx.fill();ctx.lineWidth=2.2;ctx.strokeStyle=K.ink;ctx.stroke();
+    TH.icon(ctx,'shield',x,y,13,K.ink,{weight:2.6});
+  }
+  const srcHere=G.sources.filter(x=>x.alive&&(SRCPOS[x.id])===d.id);
+  gxSrcPos={};
+  srcHere.forEach((sc,i)=>{
+    const rid=SRC_REGION[sc.id]||firstSettId(d);
+    const[x,y]=rid?anchorFor(rid,'source'):[cx-R*.4+i*30,cy-R*.5];
+    drawSrcBadge(x,y-18,sc,t);
+    gxSrcPos[sc.id]=[x,y-18];
+  });
+  const groundMs=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&typeOf(m)!=='space');
+  groundMs.forEach((m,i)=>{
+    const rid=missionRegion(d,m);
+    const[x,y]=rid?anchorFor(rid,'job'):[cx+R*.3+i*26,cy+R*.4];
+    TH.marker(ctx,x+(i%2)*22,y,{icon:'soldier',color:K.gold,t,size:26});
+  });
+  for(const o of (G.opps||[])){
+    if(o.done||o.loc!==d.id)continue;
+    const[x,y]=o.region?anchorFor(o.region,'job'):[cx,cy-R*.6];
+    ctx.fillStyle=K.gold;ctx.strokeStyle=K.ink;ctx.lineWidth=1.8;ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(x,y-8-18);ctx.lineTo(x+6,y-18);ctx.lineTo(x,y+8-18);ctx.lineTo(x-6,y-18);ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  /* 10. orbit, front half and front objects */
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(cx,cy,ORX,ORY,OTH,0,Math.PI);
+  ctx.lineWidth=6;ctx.strokeStyle=K.ink;ctx.stroke();
+  ctx.setLineDash([4,6]);ctx.lineWidth=2;ctx.strokeStyle='#5a64a8';ctx.stroke();ctx.setLineDash([]);
+  ctx.restore();
+  spaceMs.forEach((m,i)=>{
+    const[x,y]=orbPt(0.45+i*0.55);
+    TH.marker(ctx,x,y,{icon:'ship',color:K.gold,t,size:26});
+  });
+  {let i=0;
+   for(const m of G.missions){
+     if(m.state!=='prog'||!m.progress||m.loc!==d.id)continue;
+     const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+     const[x,y]=orbPt(2.4+i*0.5);
+     SA.ship(ctx,artShipId(f?f.cls:'cross'),x,y,0.3,1.0,t,{livery:'rebel'});
+     i++;
+   }}
+  ctx.restore();   // dive transform
+  /* region chips follow the planet */
+  {const ids=Object.keys(gxChipPts).sort((a,b)=>gxChipPts[a][1]-gxChipPts[b][1]);
+   for(let i=0;i<ids.length;i++)for(let j=0;j<i;j++){
+     const A=gxChipPts[ids[i]],B=gxChipPts[ids[j]];
+     if(Math.abs(A[0]-B[0])<160&&Math.abs(A[1]-B[1])<42)A[1]=B[1]+44;
+   }}
+  const chipBox=$('gxChips');
+  if(chipBox&&!chipBox.hidden){
+    chipBox.style.opacity=k>=1?'1':'0';
+    for(const b of chipBox.querySelectorAll('[data-gxchip]')){
+      const pt=gxChipPts[b.getAttribute('data-gxchip')];
+      if(pt){b.style.left=pt[0]+'px';b.style.top=pt[1]+'px';}
+    }
+  }
+  /* the galaxy minimap button */
+  const mini=document.getElementById('gxMiniCv');
+  if(mini){
+    const mc=mini.getContext('2d');
+    mc.setTransform(1,0,0,1,0,0);
+    mc.fillStyle=K.void;mc.fillRect(0,0,200,130);
+    for(const pd2 of PLANETDEF){
+      const st2=pst(pd2.id);if(!st2||!st2.known)continue;
+      const x=14+pd2.x*172,y=10+pd2.y*110;
+      mc.beginPath();mc.arc(x,y,pd2.id===d.id?4:2.4,0,7);
+      mc.fillStyle=pd2.id===d.id?K.gold:st2.access?K.text2:K.text3;mc.fill();
+      if(pd2.id===d.id){mc.beginPath();mc.arc(x,y,7,0,7);mc.lineWidth=2;mc.strokeStyle=K.gold;mc.stroke();}
+    }
+  }
+}
+/* ---------- galaxy DOM: dock panel, rail, tools, command bar ---------- */
+const planetURLs={};
+function planetURL(id){
+  if(planetURLs[id])return planetURLs[id];
+  const lk=WORLD_LOOK[id]||{R:10,col:'#9aa6c4'};
+  const c=document.createElement('canvas');c.width=c.height=80;
+  const c2=c.getContext('2d');
+  SA.planet(c2,40,42,lk.ring?20:26,lk.col,{tex:lk.tex,ring:lk.ring,heg:lk.heg});
+  return planetURLs[id]=c.toDataURL();
+}
+function srcAvatarHTML(s){
+  const hot=s.risk>60,attn=s.pendingEvent||s.signal;
+  return '<span class="sr-avatar gx-src" style="--c:var(--sr-'+(hot?'hazard':'rebel')+')">'+IC('signal')+
+    '<span class="gx-lvl"><b>'+ROMAN[Math.max(0,Math.min(4,(s.level||1)-1))]+'</b></span>'+
+    (attn?'<span class="sr-badge">!</span>':'')+'</span>';
+}
+function gxMiniStats(d,st){
+  const sup=Math.floor(st.sup||0),lib=locLib(d,st);
+  return '<div class="gx-sheet__stats">'+
+    '<div class="gx-mini"><span class="gx-mini__l">Security</span>'+pipRow(d.sec||0,5,'var(--sr-heg)')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Access</span>'+pipRow(st.acc||0,5,'var(--sr-shield)')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Support</span>'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,supCol(sup-1)):'<span class="sr-faint">—</span>')+'</div>'+
+    '<div class="gx-mini"><span class="gx-mini__l">Freed</span>'+(lib===null?'<span class="sr-faint">—</span>':'<span class="gx-wheel" style="--p:'+lib+'" role="img" aria-label="'+lib+'% liberated"><b>'+lib+'</b></span>')+'</div></div>';
+}
+function gxLoreHTML(text){
+  if(!text)return '';
+  return '<p class="gx-bio'+(gxLoreOpen?'':' gx-bio--clamp')+'">'+text+'</p>'+
+    (String(text).length>150?'<button class="gx-more" data-gxlore>'+(gxLoreOpen?'Less':'Read all')+'</button>':'');
+}
+function gxSourcePanel(s){
+  const hot=s.risk>60;
+  const jobs=G.missions.filter(m=>m.src===s.id&&(m.state==='avail'||m.state==='prog'));
+  return '<div class="sr-window sr-window--sm gx-dossier" style="--accent:var(--sr-'+(hot?'hazard':'rebel')+')">'+
+    '<div class="sr-window__head">'+srcAvatarHTML(s)+'<span class="sr-window__title">'+esc(s.name)+'</span>'+wTag('Level '+s.level,'progress')+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(s.type)+(hot?wTag('Running hot','bad'):'')+'</div>'+
+    gxLoreHTML('“'+esc(s.bio)+'”')+
+    '<div class="gx-meters">'+meterRow('Cultivation',s.cult)+meterRow('Risk',s.risk,'sr-meter--risk'+(hot?' is-hot':''))+'</div>'+
+    (hot?'<p class="sr-fine">Risk '+Math.round(s.risk)+': they’re being watched.</p>':'')+
+    '<div class="gx-income">'+bundleHTML(s.inc)+'<span class="sr-faint">per day</span></div>'+
+    (jobs.length?'<div class="sr-h3">Missions from '+esc(s.name.split(' ')[0])+'</div><div class="gx-here">'+jobs.map(m=>
+      '<button class="sr-unit" data-gxplan="'+m.id+'"><span class="sr-avatar" style="--c:var(--sr-gold)">'+IC(typeOf(m)==='space'?'ship':'soldier')+'</span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(m.name)+'</span><span class="sr-unit__role">'+esc(whereHTML(m)||'')+'</span></span>'+
+      '<span class="sr-unit__side">'+(m.state==='prog'?wTag(m.progress.daysLeft+'d','info'):wTag('Available','friend'))+'</span></button>').join('')+'</div>':'')+
+    '</div></div>';
+}
+function gxRevealList(items){
+  return '<div class="sr-h3">Scouting reveals</div><ul class="gx-reveal">'+items.map(([ic,txt])=>'<li>'+IC(ic)+esc(txt)+'</li>').join('')+'</ul>';
+}
+function gxLockedPanel(d,st){
+  return '<div class="sr-window sr-window--sm gx-dossier">'+
+    '<div class="sr-window__head"><span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span><span class="sr-window__title">'+esc(d.name)+'</span>'+wTag('No access')+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(d.kind)+(d.pop?wTag('Pop '+d.pop):'')+'</div>'+
+    '<p class="gx-bio">Everyone’s heard of it. Nobody’s told us what matters. Scouts would.</p>'+
+    '<div class="gx-stats"><div class="gx-stat"><span class="gx-stat__l">Security</span>'+pipRow(d.sec||0,5,'var(--sr-heg)')+'</div>'+
+    '<div class="gx-stat"><span class="gx-stat__l">Access</span>'+pipRow(st.acc||0,5,'var(--sr-shield)')+'</div></div>'+
+    gxRevealList([['eye','The lie of the land: Security and Support'],['intel','Leads and work for the network'],['people','People who might talk to us']])+
+    '</div></div>';
+}
+function gxUnchartedPanel(d,st){
+  return '<div class="sr-window sr-window--sm gx-dossier" style="--accent:var(--sr-psi)">'+
+    '<div class="sr-window__head"><span class="sr-window__title">Uncharted signal</span>'+wX('data-gxclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag('The Verge · origin unknown')+'</div>'+
+    '<p class="gx-bio">A world out there we know nothing about. Yet.</p>'+
+    gxRevealList([['galaxy','What the signal is coming from'],['eye','Who holds it, and how hard'],['intel','Whether there is work for us']])+
+    '</div></div>';
+}
+function renderGxDock(){
+  const el=$('gxDock');
+  let h='';
+  if(baseView==='galaxy'&&!gxWorld&&srcSel){
+    if(srcSel.t==='s'){
+      const s=G.sources.find(x=>x.id===srcSel.id&&x.alive);
+      if(s)h=gxSourcePanel(s);else srcSel=null;
+    } else if(srcSel.t==='p'){
+      const d=pdef(srcSel.id),st=pst(srcSel.id);
+      if(d&&st&&!st.access)h=st.known?gxLockedPanel(d,st):gxUnchartedPanel(d,st);
+      else srcSel=null;
+    } else if(srcSel.t==='o'){srcSel=null;}
+  }
+  if(baseView==='galaxy'&&gxWorld)h=gxWorldPanels();
+  if(h&&gxPhone()){
+    if(!gxSheetOpen)h=gxSheetHTML()||h;
+    else h='<button class="sr-btn sr-btn--sm sr-btn--ghost" data-gxsheetclose style="align-self:flex-end">'+IC('clear')+'Close</button>'+h;
+  }
+  el.innerHTML=h;el.hidden=!h;
+}
+function gxCapMark(cap){
+  return '<span class="gx-region__cap" style="left:'+Math.min(100,cap)+'%" data-tip="Current limit based on level of access and support." aria-label="Current limit based on level of access and support."></span>';
+}
+function gxRegionRow(d,st,r,cap){
+  const pct=(st.lib&&st.lib[r.id])||0,state=regState(st,r.id);
+  const tag=state==='liberated'?wTag('Liberated','friend'):state==='contested'?wTag('Contested','warn'):wTag('Hegemony','foe');
+  return '<button class="gx-region is-'+state+'" data-gxregion="'+r.id+'">'+
+    '<span class="gx-region__n">'+esc(r.name)+' <em>'+esc(r.kind)+'</em></span>'+tag+
+    '<span class="gx-region__bar"><span class="gx-region__track"><span class="gx-region__fill" style="width:'+pct+'%"></span>'+gxCapMark(cap)+'</span><span class="gx-region__p">'+pct+'%</span></span></button>';
+}
+function gxRegionJobs(d,st,r){
+  const out=[];
+  for(const m of G.missions)if(m.state==='avail'&&m.loc===d.id&&missionRegion(d,m)===r.id)out.push(m);
+  for(const o of (G.opps||[]))if(!o.done&&o.loc===d.id&&o.region===r.id&&!G.missions.some(m=>m.oppId===o.id))out.push(Object.assign({opp:1,name:(MTYPE_DEFS[o.tid]||{}).name||'Lead'},o));
+  return out;
+}
+function gxRegionSrcs(d,r){
+  return G.sources.filter(x=>x.alive&&SRCPOS[x.id]===d.id&&(SRC_REGION[x.id]||firstSettId(d))===r.id);
+}
+function gxJobHTML(m){
+  if(m.opp){
+    const T=MTYPE_DEFS[m.tid]||{};
+    return '<div class="gx-job"><div class="gx-job__t">'+IC('intel')+esc(T.name||'Lead')+'</div>'+
+      '<div class="gx-job__d">'+esc(oppText(T.hook||'A lead from our own intelligence.',m))+'</div>'+
+      '<div class="gx-job__meta">'+bundleList(T.rew||{}).join(' ')+'</div></div>';
+  }
+  return '<div class="gx-job"><div class="gx-job__t">'+IC(typeOf(m)==='space'?'ship':'soldier')+esc(m.name)+'</div>'+
+    '<div class="gx-job__d">'+esc(String(m.desc||'').replace(/<[^>]+>/g,''))+'</div>'+
+    '<div class="gx-job__meta">'+bundleList(m.rew||{}).join(' ')+(m.lib?wTag('+'+m.lib+'% liberation','friend'):'')+'</div>'+
+    '<div class="sr-fine">'+(m.need||3)+' rebels · '+(m.days||2)+' day'+((m.days||2)>1?'s':'')+' · '+esc(String(m.riskTxt||'moderate').toLowerCase())+' risk</div></div>';
+}
+function gxLocPanel(d,st,compact){
+  const cap=locCap(st);
+  const head='<div class="sr-window__head"><button class="sr-btn sr-btn--sm sr-btn--ghost gx-back" data-gxback aria-label="Back to the galaxy">'+IC('back')+'Galaxy</button>'+
+    '<span class="sr-window__title">'+esc(d.name)+'</span>'+wQ('data-srchelp','How this works')+'</div>';
+  let body;
+  if(compact)body=gxMiniStats(d,st);
+  else body='<div class="gx-tags">'+wTag(d.kind)+(d.pop?wTag('Pop '+d.pop):'')+'</div>'+
+    gxLoreHTML(esc(d.brief||d.sit||''))+
+    gxMiniStats(d,st)+
+    (d.regions?'<div class="sr-h3">Regions</div><div class="gx-regions">'+d.regions.map(r=>gxRegionRow(d,st,r,cap)).join('')+'</div>':'');
+  return '<div class="sr-window sr-window--sm gx-dossier'+(compact?' gx-dossier--compact':'')+'">'+head+'<div class="sr-window__body">'+body+'</div></div>';
+}
+function gxRegionCard(d,st,r){
+  const pct=(st.lib&&st.lib[r.id])||0,cap=locCap(st),state=regState(st,r.id);
+  const jobs=gxRegionJobs(d,st,r);
+  const srcs=gxRegionSrcs(d,r);
+  const moreMs=jobs.length>1?jobs.length-1:0;
+  const heg=HEG_SITE[r.id];
+  let h='<div class="sr-window sr-window--sm gx-regioncard">'+
+    '<div class="sr-window__head"><span class="sr-window__title"><span class="gx-dossier__kicker">Region of '+esc(d.name)+'</span>'+esc(r.name)+'</span>'+wX('data-gxregclose')+'</div>'+
+    '<div class="sr-window__body">'+
+    '<div class="gx-tags">'+wTag(r.kind)+(state==='liberated'?wTag('Liberated','friend'):state==='contested'?wTag('Contested','warn'):wTag('Hegemony','foe'))+'</div>'+
+    '<p class="gx-bio">'+esc(r.blurb||'')+'</p>'+
+    '<div class="gx-libline" style="grid-template-columns:auto 1fr 40px"><span class="gx-wheel" style="--p:'+pct+'" role="img" aria-label="'+pct+'% liberated"><b>'+pct+'</b></span>'+
+    '<span class="gx-region__track"><span class="gx-region__fill" style="width:'+pct+'%"></span>'+gxCapMark(cap)+'</span><span class="gx-region__p">'+pct+'%</span></div>'+
+    '<div class="sr-h3">Local job</div>'+
+    (jobs.length?gxJobHTML(jobs[0])+(moreMs?'<button class="gx-more" data-gxmissions>+'+moreMs+' more</button>':''):
+      '<div class="sr-empty">No jobs here yet. Leads need Access 2 and a staffed Comms Array; sources offer the rest.</div>');
+  if(srcs.length)h+='<div class="sr-h3">Sources</div><div class="gx-here">'+srcs.map(sc=>
+    '<button class="sr-unit" data-gxcontact="'+sc.id+'">'+srcAvatarHTML(sc)+'<span class="sr-unit__main"><span class="sr-unit__name">'+esc(sc.name)+'</span><span class="sr-unit__role">'+esc(String(sc.type).split(' · ')[0])+'</span></span></button>').join('')+'</div>';
+  if(heg&&state!=='liberated')h+='<div class="sr-h3">'+(jobs.length>1?'Missions and Hegemony':'Hegemony')+'</div>'+
+    '<div class="gx-here"><div class="sr-unit" style="--c:var(--sr-heg)"><span class="sr-avatar" style="--c:var(--sr-heg)">'+IC('shield')+'</span>'+
+    '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(heg)+'</span><span class="sr-unit__role">Hegemony presence</span></span></div></div>';
+  return h+'</div></div>';
+}
+function gxWorldPanels(){
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!st)return '';
+  const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+  return gxLocPanel(d,st,!!reg)+(reg?gxRegionCard(d,st,reg):'');
+}
+/* phones: a compact sheet above the command bar replaces the docked panel (provisional) */
+const gxPhone=()=>ROOT.clientWidth<=700;
+let gxSheetOpen=false;
+function gxSheetHTML(){
+  const more='<button class="sr-btn sr-btn--icon gx-sheet__more" data-gxmore aria-label="Open the full panel">'+IC('chevron')+'</button>';
+  if(gxWorld){
+    const d=pdef(gxWorld),st=pst(gxWorld);if(!d||!st)return '';
+    const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+    return '<div class="gx-sheet"><div class="gx-sheet__top">'+
+      '<button class="sr-btn sr-btn--sm sr-btn--ghost" data-gxback aria-label="Back to the galaxy">'+IC('back')+'</button>'+
+      '<div><div class="gx-sheet__name">'+esc(reg?reg.name:d.name)+'</div><div class="gx-sheet__sub">'+esc(reg?'Region of '+d.name:d.kind)+'</div></div>'+more+'</div>'+
+      gxMiniStats(d,st)+'</div>';
+  }
+  if(srcSel&&srcSel.t==='s'){
+    const sc=G.sources.find(x=>x.id===srcSel.id&&x.alive);if(!sc)return '';
+    return '<div class="gx-sheet"><div class="gx-sheet__top">'+srcAvatarHTML(sc)+
+      '<div><div class="gx-sheet__name">'+esc(sc.name)+'</div><div class="gx-sheet__sub">'+esc(String(sc.type))+'</div></div>'+more+'</div></div>';
+  }
+  if(srcSel&&srcSel.t==='p'){
+    const d=pdef(srcSel.id),st=pst(srcSel.id);if(!d||!st)return '';
+    return '<div class="gx-sheet"><div class="gx-sheet__top"><span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span>'+
+      '<div><div class="gx-sheet__name">'+esc(st.known?d.name:'Uncharted signal')+'</div><div class="gx-sheet__sub">'+esc(st.known?d.kind:'The Verge · origin unknown')+'</div></div>'+more+'</div></div>';
+  }
+  return '';
+}
+function renderGxRail(){
+  const alive=G.sources.filter(s=>s.alive);
+  const srcRow=s=>{
+    const hot=s.risk>60;
+    return '<button class="sr-unit'+(srcSel&&srcSel.t==='s'&&srcSel.id===s.id?' is-selected':'')+(hot?' gx-hotrow':'')+'" data-gxsrc="'+s.id+'" style="--c:var(--sr-'+(hot?'hazard':'rebel')+')">'+
+      srcAvatarHTML(s)+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(s.name)+'</span><span class="sr-unit__role">'+esc(String(s.type).split(' · ')[0]+' · '+s.loc)+'</span></span>'+
+      '<span class="sr-unit__side gx-income">'+bundleHTML(s.inc)+'</span></button>';
+  };
+  const worldRow=d=>{
+    const st=pst(d.id);
+    const lib=locLib(d,st);
+    const side=d.regions?'<span class="gx-wheel gx-rail-wheel" style="--p:'+(lib||0)+'" role="img" aria-label="'+(lib||0)+'% liberated">'+IC('revflame')+'</span>':pipRow(st.acc||0,5,'var(--sr-shield)');
+    return '<button class="sr-unit'+(gxWorld===d.id?' is-selected':'')+'" data-gxworld="'+d.id+'" style="--c:var(--sr-shield)">'+
+      '<span class="sr-avatar gx-avatar-world"><img src="'+planetURL(d.id)+'" alt=""></span>'+
+      '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+esc(d.name)+'</span>'+(d.base?wTag('Home','friend'):'')+'</span><span class="sr-unit__role">'+esc(d.kind)+(d.regions?' · '+d.regions.length+' regions':'')+'</span></span>'+
+      '<span class="sr-unit__side">'+side+'</span></button>';
+  };
+  const accW=PLANETDEF.filter(d=>!d.base&&pst(d.id)&&pst(d.id).access);
+  const uncharted=G.planets.filter(p=>!p.known).length;
+  const noAccess=G.planets.filter(p=>p.known&&!p.access).length;
+  const flights=[];
+  for(const m of G.missions){
+    if(m.state!=='prog'||!m.progress)continue;
+    const f=G.fighters.find(x=>x.id===(m.progress.fighters||[])[0]);
+    const left=m.progress.daysLeft||0;
+    flights.push('<div class="sr-unit" style="--c:var(--sr-shield)">'+shipAvatar()+
+      '<span class="sr-unit__main"><span class="sr-unit__name">'+esc(f?f.name:'Flight')+'</span><span class="sr-unit__role">Mission · '+esc((pdef(m.loc)||{name:'the drift'}).name)+'</span></span>'+
+      '<span class="sr-unit__side">'+wTag(left<=1?'Home tomorrow':left+' days','info')+'</span></div>');
+  }
+  $('railGx').innerHTML=
+    '<section><div class="sr-section__head sr-section__head--friend">'+IC('signal')+'Network<span class="sr-section__count">'+alive.length+' of '+sourceCap()+'</span></div>'+
+    '<div class="sr-stack">'+(alive.map(srcRow).join('')||'<div class="sr-empty">No sources. We’re blind out there.</div>')+'</div></section>'+
+    '<section><div class="sr-section__head sr-section__head--info">'+IC('galaxy')+'Worlds<span class="sr-section__count">'+accW.length+' with access</span></div>'+
+    '<div class="sr-stack">'+worldRow(pdef('haven'))+accW.map(worldRow).join('')+
+    ((uncharted||noAccess)?'<div class="sr-empty">'+[uncharted?uncharted+' uncharted signal'+(uncharted>1?'s':''):null,noAccess?noAccess+' more world'+(noAccess>1?'s':'')+' known, no access':null].filter(Boolean).join(' · ')+'</div>':'')+
+    '</div></section>'+
+    '<section><div class="sr-section__head sr-section__head--info">'+IC('ship')+'In flight<span class="sr-section__count">'+flights.length+'</span></div>'+
+    '<div class="sr-stack">'+(flights.join('')||'<div class="sr-empty">Every ship is on the pads.</div>')+'</div></section>'+
+    '<div class="sr-railhint">Click any row to find it on the map</div>';
+}
+const GX_LAYERDEF=[['network','signal','Network','Sources and their signals'],['leads','intel','Leads','Gold diamonds from our own intelligence'],
+  ['missions','missions','Missions','Jobs waiting on the board'],['lib','revolution','Liberation','How far each front has come'],
+  ['heg','eye','Hegemony security','Their reach, in blue'],['flights','ship','Flights','Our ships out on missions']];
+function renderGxTools(){
+  let h='<div class="gx-tools">';
+  if(gxWorld){
+    h+='<button class="gx-minimap" data-gxminimap aria-label="Back to the galaxy"><canvas id="gxMiniCv" width="200" height="130"></canvas><span class="gx-minimap__lbl">'+IC('back')+'Galaxy</span></button>';
+  } else if(gxLegend){
+    h+='<div class="gx-legend"><div class="gx-legend__h">Layers<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-gxlegend aria-label="Collapse the key">'+IC('clear')+'</button></div>'+
+      GX_LAYERDEF.map(([k,ic,lbl,sub])=>'<button class="gx-legend__row" data-gxlayer="'+k+'" aria-pressed="'+!!gxLayers[k]+'">'+IC(ic)+'<span><b>'+lbl+'</b><span>'+sub+'</span></span><span class="gx-switch'+(gxLayers[k]?' is-on':'')+'"></span></button>').join('')+'</div>';
+  } else {
+    h+='<div class="gx-layers"><button class="gx-layers__h sr-btn sr-btn--sm sr-btn--ghost" data-gxlegend>Layers</button>'+
+      GX_LAYERDEF.map(([k,ic,lbl])=>'<button class="sr-btn sr-btn--icon" data-gxlayer="'+k+'" aria-pressed="'+!!gxLayers[k]+'" aria-label="'+lbl+'" title="'+lbl+'">'+IC(ic)+'</button>').join('')+'</div>'+
+      '<div class="gx-zoom"><button class="sr-btn sr-btn--icon" data-gxzoom="in" aria-label="Zoom in">'+IC('zoomin')+'</button>'+
+      '<button class="sr-btn sr-btn--icon" data-gxzoom="out" aria-label="Zoom out">'+IC('zoomout')+'</button>'+
+      '<button class="sr-btn sr-btn--icon" data-gxzoom="fit" aria-label="Fit the map">'+IC('fit')+'</button></div>';
+  }
+  $('gxTools').innerHTML=h+'</div>';
+}
+/* order cards in the command bar; one cost line is allowed under the label */
+function gxOrder(o){
+  return '<button type="button" class="sr-order'+(o.family?' sr-order--'+o.family:'')+(o.danger?' gx-order--danger':'')+(o.attn?' gx-order--attn':'')+'" data-gxo="'+o.act+'"'+
+    (o.disabled?' disabled aria-disabled="true"':'')+SR.hud.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
+    (o.key?'<span class="sr-kbd sr-order__key">'+o.key+'</span>':'')+IC(o.icon)+'<span class="gx-order-label">'+o.label+'</span>'+(o.cost||'')+
+    (o.badge?'<span class="sr-badge">!</span>':'')+'</button>';
+}
+function gxOrdersFor(){
+  const orders=[];
+  if(gxWorld)return gxWorldOrders();
+  if(!srcSel)return orders;
+  if(srcSel.t==='s'){
+    const s=G.sources.find(x=>x.id===srcSel.id&&x.alive);
+    if(!s)return orders;
+    const sig=!!(s.pendingEvent||s.signal);
+    orders.push(gxOrder({act:'contact',key:'1',icon:'signal',family:'util',label:s.pendingEvent?'Contact — answer them':s.signal?'Contact — signal waiting':'Contact',attn:sig,badge:sig,
+      disabled:s.contacted&&!sig,why:'Already contacted today. Try again tomorrow.',rule:'Raise them on an encrypted burst.'}));
+    orders.push(gxOrder({act:'visit',key:'2',icon:'people',label:'Visit',disabled:s.visited,why:'Already visited.',rule:'Meet them in person: more trust, more risk.'}));
+    orders.push('<span class="sr-orders__sep"></span>');
+    if(s.risk>=50)orders.push(gxOrder({act:'silence',key:'3',icon:'skull',danger:1,label:'Silence',rule:'Send the assassin. Permanent.'}));
+    orders.push(gxOrder({act:'cutloose',key:s.risk>=50?'4':'3',icon:'clear',danger:1,label:cutArm===srcSel.id?'Confirm: cut loose':'Cut loose',rule:'Burn the codes and walk away. Permanent.'}));
+  } else if(srcSel.t==='p'){
+    const d=pdef(srcSel.id),st=pst(srcSel.id);
+    if(d&&st&&!st.access){
+      const can=G.intel>=d.scout;
+      orders.push(gxOrder({act:'scout',key:'1',icon:'eye',family:'util',label:st.known?'Scout & gain access':'Scout the signal',cost:I(d.scout,!can),
+        disabled:!can,why:'Need '+Math.ceil(d.scout-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Put pathfinders on the ground and open the way in.'}));
+    }
+  }
+  return orders;
+}
+function gxWorldOrders(){
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!st)return [];
+  const orders=[];let n=0;const nk=()=>String(++n);
+  const reg=gxRegion&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+  if(reg){
+    const jobs=gxRegionJobs(d,st,reg);
+    if(jobs.length){
+      const j=jobs[0];
+      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:j.opp?'intel':'missions',family:'util',label:'Run the job',rule:j.name}));
+    }
+    const srcs=gxRegionSrcs(d,reg);
+    if(srcs.length){
+      const sc=srcs[0],sig=!!(sc.pendingEvent||sc.signal);
+      orders.push(gxOrder({act:'contact:'+sc.id,key:nk(),icon:'signal',label:'Contact '+sc.name.split(' ')[0],attn:sig,badge:sig,
+        disabled:sc.contacted&&!sig,why:'Already contacted today.'}));
+    }
+    if(jobs.length>1){
+      const j=jobs[1];
+      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:'missions',label:j.name,rule:j.name}));
+    }
+    orders.push('<span class="sr-orders__sep"></span>');
+    orders.push(gxOrder({act:'back',key:'',icon:'back',label:'Back to '+d.name,rule:'Esc also steps back.'}));
+  } else {
+    if((st.acc||0)<5){
+      const cost=accessCost(d,st),can=G.intel>=cost;
+      orders.push(gxOrder({act:'raise',key:nk(),icon:'intel',family:'util',label:'Raise access',cost:I(cost,!can),
+        disabled:!can,why:'Need '+Math.ceil(cost-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Deepen the network’s reach here.'}));
+    }
+    const sigs=G.sources.filter(x=>x.alive&&SRCPOS[x.id]===d.id&&(x.signal||x.pendingEvent));
+    if(sigs.length)orders.push(gxOrder({act:'contact:'+sigs[0].id,key:nk(),icon:'signal',label:'Contact '+sigs[0].name.split(' ')[0],attn:1,badge:1,rule:'A signal is waiting.'}));
+    const ms=G.missions.filter(m=>m.state==='avail'&&m.loc===d.id&&!missionRegion(d,m));
+    if(ms.length){
+      orders.push('<span class="sr-orders__sep"></span>');
+      ms.slice(0,3).forEach(m=>orders.push(gxOrder({act:'plan:'+m.id,key:nk(),icon:typeOf(m)==='space'?'ship':'missions',label:m.name,rule:m.riskTxt?String(m.riskTxt)+' risk':''})));
+    }
+  }
+  return orders;
+}
+function renderGxBar(){
+  const host=$('gxOrders');
+  const orders=baseView==='galaxy'?gxOrdersFor():[];
+  host.innerHTML=orders.join('');
+  host.hidden=!orders.length;
+}
+function syncGxDOM(){
+  const gal=baseView==='galaxy';
+  ROOT.classList.toggle('gx-view',gal);
+  $('railBase').hidden=gal;$('railGx').hidden=!gal;
+  $('gxTools').hidden=!gal;
+  const tabs=ROOT.querySelector('.sr-tabs');
+  if(tabs)tabs.style.display=(gal&&gxWorld)?'none':'';
+  const ttl=ROOT.querySelector('.sr-topbar__title'),sub=ROOT.querySelector('.sr-topbar__sub');
+  if(gal){
+    if(gxWorld){
+      const d=pdef(gxWorld);
+      const reg=gxRegion&&d&&d.regions?d.regions.find(r=>r.id===gxRegion):null;
+      ttl.textContent=d?d.name:'World';
+      sub.textContent=reg?reg.name+' · '+d.name:'World view · Galaxy';
+    } else {
+      const accessN=G.planets.filter(p=>p.access&&p.id!=='haven').length;
+      ttl.textContent='Galaxy';sub.textContent=accessN+' worlds with access';
+    }
+    $('drawerBtn').setAttribute('aria-label','Network and worlds');
+  } else {
+    ttl.textContent='Haven Rock';sub.textContent='Hidden base';
+    $('drawerBtn').setAttribute('aria-label','Crew and flight');
+  }
+  if(gal){renderGxRail();renderGxTools();}
+  renderGxDock();renderGxBar();renderGxChips();
+}
+function renderGxChips(){
+  const el=$('gxChips');
+  if(!(baseView==='galaxy'&&gxWorld)){el.hidden=true;el.innerHTML='';return;}
+  const d=pdef(gxWorld),st=pst(gxWorld);
+  if(!d||!d.regions||!st){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=d.regions.map(r=>{
+    const pct=(st.lib&&st.lib[r.id])||0,state=regState(st,r.id);
+    return '<button class="gx-rchip is-'+state+'" data-gxchip="'+r.id+'" aria-pressed="'+(gxRegion===r.id)+'">'+
+      '<span class="gx-rchip__dot"></span>'+(r.kind==='Settlement'?IC('base'):'')+esc(r.name)+
+      '<span class="gx-wheel gx-rail-wheel" style="--p:'+pct+'" role="img" aria-label="'+pct+'% liberated">'+IC('revflame')+'</span></button>';
+  }).join('');
+  el.hidden=false;
+}
+function gxOrderAct(act){
+  if(!act)return;
+  const s=srcSel&&srcSel.t==='s'?G.sources.find(x=>x.id===srcSel.id&&x.alive):null;
+  if(act==='contact'&&s){sComm();srcContact(s);return;}
+  if(act==='visit'&&s){if(!s.visited){sComm();srcVisit(s);}return;}
+  if(act==='silence'&&s){openWin('silence',s);return;}
+  if(act==='cutloose'&&s){
+    if(cutArm!==s.id){cutArm=s.id;renderGxBar();setTimeout(()=>{if(cutArm===s.id){cutArm=null;if(baseView==='galaxy')renderGxBar();}},4000);return;}
+    cutArm=null;srcCutLoose(s);return;
+  }
+  if(act==='scout'&&srcSel&&srcSel.t==='p'){scoutPlanet(srcSel.id);return;}
+  gxWorldAct(act);
+}
+function gxWorldAct(act){
+  if(act==='back'){gxBack();return;}
+  if(act==='raise'){raiseAccess(gxWorld);return;}
+  if(act.indexOf('contact:')===0){const sc=G.sources.find(x=>x.id===act.slice(8)&&x.alive);if(sc){sComm();srcContact(sc);}return;}
+  if(act.indexOf('plan:')===0){const m=G.missions.find(x=>x.id===act.slice(5));if(m&&m.state==='avail')openPlan(m);return;}
+  if(act.indexOf('opp:')===0){openOpp(act.slice(4));return;}
+}
+function gxWorldHover(px,py){
+  if(!gxWorld)return false;
+  return gxRegScreen.some(rs=>ptInPoly(px,py,rs.pts));
+}
+function gxWorldClick(px,py){
+  if(gxWorldDiveK<1)return;
+  for(const rs of gxRegScreen){        // settlements first: they sit on top
+    if(ptInPoly(px,py,rs.pts)){openRegion(rs.id);return;}
+  }
+}
+$('gxTools').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;sClick();
+  if(b.hasAttribute('data-gxminimap')){gxBack();return;}
+  if(b.hasAttribute('data-gxlegend')){gxLegend=!gxLegend;renderGxTools();return;}
+  const lay=b.getAttribute('data-gxlayer');
+  if(lay){gxLayers[lay]=gxLayers[lay]?0:1;saveGxLayers();renderGxTools();return;}
+  const z=b.getAttribute('data-gxzoom');
+  if(z){gxZoom=z==='in'?Math.min(2.5,gxZoom*1.3):z==='out'?Math.max(0.5,gxZoom/1.3):1;return;}
+});
+$('gxDock').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;sClick();
+  if(b.hasAttribute('data-gxclose')){srcSel=null;syncUI();return;}
+  if(b.hasAttribute('data-gxregclose')){gxRegion=null;syncUI();return;}
+  if(b.hasAttribute('data-gxback')){gxRegion=null;gxWorld=null;syncTabs();syncUI();return;}
+  if(b.hasAttribute('data-gxlore')){gxLoreOpen=!gxLoreOpen;renderGxDock();return;}
+  if(b.hasAttribute('data-gxmore')){gxSheetOpen=true;renderGxDock();return;}
+  if(b.hasAttribute('data-gxsheetclose')){gxSheetOpen=false;renderGxDock();return;}
+  if(b.hasAttribute('data-gxmissions')){openWin('missions');return;}
+  if(b.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
+  const ct=b.getAttribute('data-gxcontact');
+  if(ct){const sc=G.sources.find(x=>x.id===ct&&x.alive);if(sc){sComm();srcContact(sc);}return;}
+  const plan=b.getAttribute('data-gxplan');
+  if(plan){const m=G.missions.find(x=>x.id===plan);if(m&&m.state==='avail')openPlan(m);return;}
+  const reg=b.getAttribute('data-gxregion');
+  if(reg){openRegion(reg);return;}
+});
+$('gxChips').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-gxchip]');
+  if(!b)return;sClick();openRegion(b.getAttribute('data-gxchip'));
+});
+$('gxOrders').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b||b.disabled)return;sClick();
+  gxOrderAct(b.getAttribute('data-gxo'));
+});
+$('railGx').addEventListener('click',ev=>{
+  const sb=ev.target.closest('[data-gxsrc]');
+  if(sb){
+    sClick();
+    const id=sb.getAttribute('data-gxsrc');
+    const key='gxs:'+id,now2=performance.now();
+    if(lastTap.key===key&&now2-lastTap.t<380){
+      lastTap={key:null,t:0};
+      const s=G.sources.find(x=>x.id===id&&x.alive);
+      if(s){sComm();srcContact(s);}
+      return;
+    }
+    lastTap={key,t:now2};
+    gxWorld=null;gxRegion=null;srcSel={t:'s',id};cutArm=null;syncTabs();syncUI();
+    return;
+  }
+  const wb=ev.target.closest('[data-gxworld]');
+  if(wb){sClick();enterWorld(wb.getAttribute('data-gxworld'));return;}
+});
+
 function drawCommStatic(now){
   const g=$('commStatic');
   if(!g)return;
@@ -2937,6 +3903,12 @@ function drawCommStatic(now){
 function render(now){
   worldT=now;
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(G&&baseView==='galaxy'){
+    if(gxWorld)drawWorld(now);else drawGalaxy(now);   // no base vignette in the galaxy views
+    if(winMode==='comm'||winMode==='cassIntro')drawCommStatic(now);
+    updateGuide();
+    return;
+  }
   const bg=ctx.createRadialGradient(cssW/2,cssH*0.45,60,cssW/2,cssH*0.45,Math.max(cssW,cssH)*0.75);
   bg.addColorStop(0,K.night);bg.addColorStop(1,K.void);
   ctx.fillStyle=bg;ctx.fillRect(0,0,cssW,cssH);
@@ -2948,7 +3920,6 @@ function render(now){
   vg.addColorStop(0,TH.rgba(K.ink,0));vg.addColorStop(1,TH.rgba(K.ink,0.5));
   ctx.fillStyle=vg;ctx.fillRect(0,0,cssW,cssH);
   layoutTilePop();
-  if(winMode==='sources')drawGalaxy(now);
   if(winMode==='comm'||winMode==='cassIntro')drawCommStatic(now);
   updateGuide();
 }
@@ -3089,6 +4060,7 @@ function flashMsg(html,kind){
 /* day banner: slams in once per day, then hides itself */
 let bannerTO=null;
 function showDayBanner(){
+  if(!$('estSplash').hidden)return;   // nothing over the BASE ESTABLISHED splash
   const b=$('dayBanner'),t=$('dayBannerTxt');
   t.textContent='Day '+G.day;
   b.hidden=false;
@@ -3109,25 +4081,27 @@ function pointAt(rc,label){
 function updateGuide(){
   const el=$('tutPtr');
   if(!el)return;
-  if(!started||!G||SR.active!=='base'){el.hidden=true;return;}
+  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden){el.hidden=true;return;}
   // step 1: the sources tutorial — walk the player to Cass
   if(G.onboard==='contact'){
-    if(winMode==='sources'){
+    if(baseView==='galaxy'&&!winMode&&!gxWorld){
       const cass=G.sources.find(x=>x.id==='cass'&&x.alive);
-      const g=$('galaxyCv');
-      if(cass&&g){
+      if(cass){
         if(!(srcSel&&srcSel.t==='s'&&srcSel.id==='cass')){
-          const r=g.getBoundingClientRect();
-          const [sx,sy]=srcMapPos(cass,r.width,r.height);
-          pointAt({left:r.left+sx-8,top:r.top+sy-4,width:16,height:8},'Select Cass Wender');
-          return;
+          const pos=gxSrcPos.cass;
+          if(pos){
+            const r=cv.getBoundingClientRect();
+            pointAt({left:r.left+pos[0]-10,top:r.top+pos[1]-10,width:20,height:20},'Select Cass Wender');
+            return;
+          }
+        } else {
+          const btn=ROOT.querySelector('#gxOrders [data-gxo="contact"]');
+          if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
         }
-        const btn=ROOT.querySelector('[data-sc="cass"]');
-        if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom&&!arOpen&&!bmOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Source Network');return;}
+    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -3149,8 +4123,8 @@ function updateGuide(){
 }
 /* ---------- windows ---------- */
 function openWin(mode,arg){
-  // first look at the galaxy: the network primer comes up once, then never again
-  if(mode==='sources'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();mode='srcTutIntro';arg=null;}
+  // the old sources window became the Galaxy view: every opener lands there
+  if(mode==='sources'){winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;showView('galaxy');return;}
   winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;gearOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
@@ -3201,27 +4175,12 @@ const GEAR_ICON={akli:'gun',cowboy:'pistol',scatter:'gun',carbine:'gun',longiron
 const gearIconId=id=>GEAR_ICON[id]||'loot';
 const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
-const accentOf={newhero:'progress',comm:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
-const sizeOf={newhero:'sm',sources:'lg',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm',contract:'sm'};
+let shipSheetShip=null;
+const accentOf={newhero:'progress',comm:'friend',ship:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
+const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'sm',recruit:'sm',candidate:'sm',person:'sm',silence:'sm',contract:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
-}
-function sourceDetailHTML(s){
-  const sig=!!(s.pendingEvent||s.signal),hot=s.risk>60;
-  const armed=cutArm===s.id;
-  return '<div class="sr-card sr-card--friend bs-src"'+(hot?' style="--c:var(--sr-c-warn)"':'')+'>'+
-    '<div class="sr-card__top"><span class="sr-avatar" style="width:32px;height:32px">'+IC('signal')+'</span><span class="sr-card__title">'+s.name+'</span>'+wTag('Level '+s.level,'progress')+'</div>'+
-    '<div class="sr-card__meta" style="margin:8px 0 0">'+wTag(s.type)+wTag(s.loc)+'</div>'+
-    '<div class="sr-card__body bs-bio">“'+s.bio+'”</div>'+
-    '<div class="bs-meters">'+meterRow('Cultivation',s.cult)+meterRow('Risk',s.risk,'sr-meter--risk'+(hot?' is-hot':''))+'</div>'+
-    '<div class="sr-card__meta">'+bundleHTML(s.inc)+'<span class="sr-faint bs-per">per day</span></div>'+
-    '<div class="sr-card__acts">'+
-    rbtn('data-sc="'+s.id+'"',IC('signal')+(s.pendingEvent?'Contact — they need an answer':s.signal?'Contact — signal waiting':'Contact'),(s.contacted&&!s.pendingEvent&&!s.signal),'sr-btn--friend'+(sig?' sr-btn--attn':''))+
-    rbtn('data-sv="'+s.id+'"','Visit',s.visited)+
-    (s.risk>=50?rbtn('data-ss="'+s.id+'"','Silence',false,'sr-btn--danger'):'')+
-    rbtn('data-sl="'+s.id+'"',armed?'Confirm: cut loose':'Cut loose',false,'sr-btn--danger')+
-    '</div></div>';
 }
 /* ---------- sources field manual (the ? button) ---------- */
 const TUT_PAGES=[
@@ -3275,7 +4234,7 @@ function dossierHead(p,extra,noRank){
   const tags=(p.role==='Hero'?wTag('Hero','action','star'):'')+(p.auto&&!noRank?wTag(rankFor(p),'action'):'')+(p.auto?'':wTag(specOf(p)||'Rookie',p.spec?'friend':''))+
     (!p.auto&&p.merc?wTag('Mercenary · '+Math.max(0,p.merc.until-G.day)+'d left','progress'):'')+
     (mb&&mb.k!=='mid'?wTag(mb.n+' morale',mb.tone):'')+(extra||'');
-  return '<div class="bs-dz"><span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
+  return '<div class="bs-dz">'+(p.auto?'':'<span class="sr-avatar bs-dz__av">'+faceHTML(p)+'</span>')+'<span class="sr-level" style="--p:'+Math.round(p.xp*100)+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
     '<div><div class="bs-dz__name">'+p.name+'</div><div class="bs-dz__tags">'+tags+'</div><div class="sr-faint bs-dz__role">'+(p.role==='Hero'?'Hero · was '+p.heroOf:p.role)+(p.joined&&!p.auto?' · with us since day '+p.joined:'')+'</div></div></div>'+
     '<p class="sr-p bs-bio">“'+p.bio+'”</p>'+meterBlock(p,noRank?'':rankRow(p))+heroCard(p)+traitCard(p)+expCards(p,noRank)+medicalSection(p)+skillsCard(p);
 }
@@ -3426,47 +4385,13 @@ function traitCard(p){
 function renderWin(){
   const card=$('winCardB');
   let h='',size=sizeOf[winMode]||'',accent=accentOf[winMode]||'';
-  if(winMode==='sources'){
-    const alive=G.sources.filter(s=>s.alive);
-    const accessN=G.planets.filter(p=>p.access).length;
-    if(!srcSel)srcSel={t:'s',id:alive.length?alive[0].id:null};
-    let detail='';
-    if(srcSel.t==='s'){
-      const s=alive.find(x=>x.id===srcSel.id);
-      detail=s?sourceDetailHTML(s):'<div class="sr-empty">No sources. We’re blind out there.</div>';
-    } else {
-      const d=pdef(srcSel.id),st=pst(srcSel.id);
-      if(d&&st){
-        const cls=st.access?' sr-card--info':st.known?' sr-card--info is-locked':' sr-card--progress';
-        const canScout=G.intel>=d.scout,canRaise=G.intel>=accessCost(d,st);
-        detail='<div class="sr-card'+cls+' bs-planet"><div class="sr-card__top">'+
-          '<span class="sr-card__title">'+(st.known?d.name:'Uncharted Signal')+'</span>'+wTag(st.access?'Access':'No access',st.access?'good':'')+'</div>'+
-          '<div class="sr-card__meta" style="margin:8px 0 0">'+(st.known?wTag(d.kind)+(d.pop?wTag('pop '+d.pop):''):wTag('the Verge · origin unknown'))+'</div>'+
-          '<div class="sr-card__body bs-bio">'+(st.scouted?d.sit:st.known?'Everyone’s heard of it. Nobody’s told us what matters. Scouts would.':'A world out there we know nothing about. Yet.')+'</div>'+
-          (st.access?locStatsHTML(d,st):'')+
-          '<div class="sr-card__acts">'+
-          (st.access?'':rbtn('data-scout="'+d.id+'"','Scout & gain access'+I(d.scout,!canScout),!canScout,'sr-btn--primary'+(canScout?' sr-btn--attn':''))+
-            (canScout?'':'<span class="sr-fine bs-inline">not enough intel — work the network</span>'))+
-          (st.access&&(st.acc||0)<5?rbtn('data-raise="'+d.id+'"','Raise Access to '+((st.acc||0)+1)+I(accessCost(d,st),!canRaise),!canRaise)+
-            (canRaise?'':'<span class="sr-fine bs-inline">more Hegemony presence, more Intel</span>'):'')+
-          '</div></div>';
-        // sources stationed there
-        const here=alive.filter(s2=>(SRCPOS[s2.id]||'veray')===d.id);
-        if(st.access&&here.length)detail+=here.map(sourceDetailHTML).join('');
-      }
-    }
-    h=wHead('Galaxy',{tags:wTag(accessN+' worlds accessible','info')+wTag('Network '+alive.length+'/'+sourceCap()),q:wQ('data-srchelp','How sources work')})+
-      wBody('<canvas id="galaxyCv"></canvas>'+
-      '<p class="sr-fine bs-center">core worlds burn bright and cost dear · faint signals are uncharted · gold diamonds are intelligence leads · '+I('')+' buys access</p>'+
-      '<div class="sr-stack bs-cards">'+detail+'</div>');
-  }
-  else if(winMode==='srcTutIntro'){
+  if(winMode==='srcTutIntro'){
     h=wHead('Build Your Network',{q:wQ('data-srchelp','Learn more'),x:false})+wBody(
       tutP('Your Sources are the foundation of your intelligence network.')+
       tutS('1. Find Sources','Discover people willing to help the rebellion.')+
       tutS('2. Cultivate Them','Build their trust to increase their level and improve what they provide.')+
       tutS('3. Use Their Access','Gain Money, Supplies, Intel and new opportunities.')+
-      tutS('4. Take the Risk','The more valuable a Source becomes, the more important it is to keep them safe.')+
+      tutS('4. Manage the Risk','The more valuable a Source becomes, the more important it is to keep them safe.')+
       tutS('5. Know When to Let Go','A Source who has become too dangerous may need to be Cut Loose — or Silenced.')+
       tutP('A strong intelligence network will give the rebellion the information and resources it needs to survive.')+
       tutP('But every person in that network is a person who can be discovered...')+
@@ -3497,7 +4422,7 @@ function renderWin(){
   else if(winMode==='newmission'){
     const m=winArg;
     h=wHead('New mission',{tags:wTag(m.from||'the network')})+wBody(
-      '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span></div>'+
+      '<div class="sr-card'+OPKIND[opKind(m)].card+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+'</div>'+
       '<div class="sr-card__body">'+m.desc+'</div>'+
       '<div class="sr-card__meta" style="margin-bottom:0">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div></div>'+
       (canAttempt(m)?'':precondHTML(m)))+
@@ -3616,9 +4541,9 @@ function renderWin(){
   else if(winMode==='cassIntro'){
     h=wHead('Incoming transmission',{x:false})+wBody(
       '<canvas id="commStatic" class="sr-signal"></canvas>'+
-      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. This channel stays open — I hear things worth hearing, and now you’re somebody worth telling. Raise me when you’re ready to listen.”</div>'+
-      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Source Network</b> and raise him.</p>')+
-      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter · voice known');
+      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”</div>'+
+      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.</p>')+
+      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter');
   }
   else if(winMode==='recruit'){
     const cards=winArg.cards,multi=cards.length>1,batch=!!winArg.batch;
@@ -3651,9 +4576,9 @@ function renderWin(){
   else if(winMode==='missions'){
     let list='';
     for(const m of G.missions){
-      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':'';
-      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available','friend');
-      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
+      const cls=m.state==='done'?' sr-card--good':m.state==='locked'?' is-locked':m.state==='prog'?' sr-card--info':OPKIND[opKind(m)].card;
+      const tag=m.state==='done'?wTag(sentence(m.meta||'COMPLETE'),'good'):m.state==='prog'?wTag(m.progress.daysLeft+'d remaining','info'):m.state==='locked'?wTag('Locked'):m.state==='sim'?wTag('Simulator','progress'):wTag('Available');
+      list+='<div class="sr-card'+cls+'"><div class="sr-card__top"><span class="sr-card__title">'+m.name+'</span>'+opTag(m)+(m.from?'<span class="bs-from">'+m.from+'</span>':'')+tag+'</div>'+
         '<div class="sr-card__body">'+m.desc+'</div>';
       if(m.state==='avail'){
         list+='<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)):'')+wTag(m.days+' days','action')+riskTag(m)+rewHTML(m)+'</div>'+
@@ -3732,6 +4657,12 @@ function renderWin(){
       choice(1,'data-kill="'+s.id+'"','Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.')+
       choice(2,'data-close','Not yet. Back into the shadows.'));
   }
+  else if(winMode==='ship'){
+    const f=winArg,SS=SR.shipSheet;
+    const pilots=G.people.filter(p=>p.role==='Pilot'&&!p.injured);
+    shipSheetShip=SS.make(f.cls,f.name,f.out?100:f.hull,pilots.length?Math.max(...pilots.map(pilotAim)):2);
+    h=SS.html(shipSheetShip,f.name)+wFoot(rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
+  }
   else if(winMode==='news'){
     h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
   }
@@ -3740,6 +4671,7 @@ function renderWin(){
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
+  if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);
   markWin();
 }
 
@@ -3765,7 +4697,7 @@ function markShort(){
     if(PL.drop&&G.supplies<DROP_COST)short.s=1;
   } else if(winMode==='newmission'&&winArg){
     if(G.fuel<minFuel(winArg))short.f=1;
-  } else if(winMode==='sources'&&srcSel&&srcSel.t==='p'){
+  } else if(!winMode&&baseView==='galaxy'&&srcSel&&srcSel.t==='p'){
     const d=pdef(srcSel.id),st=pst(srcSel.id);
     if(d&&st){
       if(!st.access){if(G.intel<d.scout)short.i=1;}
@@ -3777,7 +4709,13 @@ function markShort(){
 function markWin(){markShort();}
 /* the tabs show where the player is; Base is "no window open and no view up" */
 function syncTabs(){
-  const sel=winMode?(winMode==='missions'?'navMissions':(winMode==='sources'||winMode==='srcTutIntro'||winMode==='srcTut')?'navSources':null):arOpen?'navArsenal':bmOpen?'navMarket':'navBase';
+  let sel;
+  if(winMode==='missions')sel='navMissions';
+  else if(winMode==='srcTutIntro'||winMode==='srcTut')sel=baseView==='galaxy'?'navSources':null;
+  else if(winMode)sel=null;
+  else if(arOpen)sel='navArsenal';
+  else if(bmOpen)sel='navMarket';
+  else sel=baseView==='galaxy'?'navSources':'navBase';
   for(const id of ['navBase','navSources','navMissions','navArsenal','navMarket'])$(id).setAttribute('aria-selected',String(id===sel));
 }
 const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
@@ -3830,7 +4768,7 @@ function syncUI(){
     else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
-    return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+ini(p.name)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
+    return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+faceHTML(p)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
       '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+((p.cond&&p.cond.length)||(p.body&&Object.values(p.body).some(v=>v===1))?'<span class="bs-bad" title="'+esc(Rebel.medSummary(p).join(', '))+'" aria-label="Injuries: '+esc(Rebel.medSummary(p).join(', '))+'">\u271a</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
   const grp=(listId,countId,people,emptyMsg)=>{
@@ -3864,12 +4802,13 @@ function syncUI(){
    }).join('');
    $('vehCount').textContent=vs.length||'';}
   $('crewHint').textContent=SR.touch?'Tap anyone for their file':'Double-click anyone for their file';
-  $('fleetHint').textContent=SR.touch?'Tap a ship to step into the hangar':'Double-click a ship to step into the hangar';
+  $('fleetHint').textContent=SR.touch?'Tap a ship for its stats':'Double-click a ship for its stats';
   if(viewRoom)renderRoomBar();
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
   if(arOpen)renderArsenal();
   if(bmOpen)renderMarket();
+  syncGxDOM();
   syncTabs();markShort();
 }
 
@@ -4715,6 +5654,11 @@ function figAt(px,py){
 cv.addEventListener('pointermove',ev=>{
   const r=cv.getBoundingClientRect();
   const px=ev.clientX-r.left,py=ev.clientY-r.top;
+  if(baseView==='galaxy'){
+    hoverCell=null;
+    cv.style.cursor=(!gxWorld&&gxHitL.some(h=>Math.hypot(px-h.x,py-h.y)<h.r))||gxWorldHover(px,py)?'pointer':'default';
+    return;
+  }
   if(viewRoom){
     hoverCell=null;
     cv.style.cursor=figAt(px,py)?'pointer':'default';
@@ -4727,16 +5671,35 @@ cv.addEventListener('pointerleave',()=>{hoverCell=null;});
 cv.addEventListener('click',ev=>{
   if(!started)return;
   if(shell.classList.contains('is-drawer-open'))setDrawer(false);
+  if(baseView==='galaxy'){
+    const r=cv.getBoundingClientRect();
+    const px=ev.clientX-r.left,py=ev.clientY-r.top;
+    sClick();
+    if(gxWorld){gxWorldClick(px,py);return;}
+    let best=null,bd=1e9;
+    const pri={o:0,s:1,p:2};
+    for(const h of gxHitL){
+      const d2=Math.hypot(px-h.x,py-h.y);
+      if(d2<h.r){const score=pri[h.t]*1000+d2;if(score<bd){bd=score;best=h;}}
+    }
+    if(!best){if(srcSel){srcSel=null;syncUI();}return;}
+    if(best.t==='o'){openOpp(best.id);return;}
+    if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();return;}
+    const st=pst(best.id);
+    if(st&&st.access)enterWorld(best.id,best.x,best.y);
+    else{srcSel={t:'p',id:best.id};syncUI();}
+    return;
+  }
   if(viewRoom){
     const r=cv.getBoundingClientRect();
     const f=figAt(ev.clientX-r.left,ev.clientY-r.top);
     if(f){
       sClick();
-      const key='fig:'+f.pid,now=performance.now();
+      const key='fig:'+(f.pid||f.fid),now=performance.now();
       if(lastTap.key===key&&now-lastTap.t<380){
         lastTap={key:null,t:0};
-        const p=G.people.find(x=>x.id===f.pid);
-        if(p)openWin('person',p);
+        if(f.fid){const sh=G.fighters.find(x=>x.id===f.fid);if(sh)openWin('ship',sh);}
+        else{const p=G.people.find(x=>x.id===f.pid);if(p)openWin('person',p);}
       } else lastTap={key,t:now};
     }
     return;
@@ -4773,6 +5736,7 @@ $('tilePop').addEventListener('click',ev=>{
   if(t.hasAttribute('data-enterroom')&&tilePopAt&&tilePopAt.room){const rm=tilePopAt.room;closeTilePop();enterRoomView(rm);return;}
   const open=t.getAttribute('data-open');
   if(open==='gear'){closeTilePop();openArsenal();return;}   // the Gear Grid window became the Arsenal tab
+  if(open==='sources'){closeTilePop();showView('galaxy');return;}   // the Source Network window became the Galaxy view
   if(open){closeTilePop();openWin(open);return;}
 });
 $('roomViewBar').addEventListener('click',ev=>{
@@ -4786,6 +5750,7 @@ $('roomViewBar').addEventListener('click',ev=>{
   if(up&&viewRoom){startUpgrade(viewRoom,up);renderRoomBar();syncUI();return;}
   const open=t.getAttribute('data-open');
   if(open==='gear'){openArsenal();return;}   // the Gear Grid window became the Arsenal tab
+  if(open==='sources'){exitRoomView();showView('galaxy');return;}   // the Source Network window became the Galaxy view
   if(open){openWin(open);return;}
 });
 $('winsB').addEventListener('dragstart',ev=>{
@@ -4807,33 +5772,6 @@ $('winsB').addEventListener('drop',ev=>{
 });
 $('winsB').addEventListener('click',ev=>{
   if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
-  // galaxy map source pick
-  if(ev.target.id==='galaxyCv'){
-    const g=ev.target,r=g.getBoundingClientRect();
-    const px=ev.clientX-r.left,py=ev.clientY-r.top;
-    let best=null,bd=1e9;
-    for(const o of (G.opps||[])){
-      if(o.done)continue;
-      const pd=pdef(o.loc),d=Math.hypot(px-(r.width*pd.x+20),py-(r.height*pd.y-16));
-      if(d<14&&d<bd){bd=d;best={t:'o',id:o.id};}
-    }
-    for(const s of G.sources){
-      if(!s.alive)continue;
-      const [sx2,sy2]=srcMapPos(s,r.width,r.height);
-      const d=Math.hypot(px-sx2,py-sy2);
-      if(d<16&&d<bd){bd=d;best={t:'s',id:s.id};}
-    }
-    if(!best){
-      for(const pd of PLANETDEF){
-        if(pd.base)continue;
-        const d=Math.hypot(px-r.width*pd.x,py-r.height*pd.y);
-        if(d<26&&d<bd){bd=d;best={t:'p',id:pd.id};}
-      }
-    }
-    if(best&&best.t==='o'){sClick();openOpp(best.id);return;}
-    if(best){srcSel=best;cutArm=null;sClick();renderWin();}
-    return;
-  }
   if(winMode==='plan'&&PL){
     const slotEl=ev.target.closest('[data-slot]');
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
@@ -4848,7 +5786,7 @@ $('winsB').addEventListener('click',ev=>{
   if(t.hasAttribute('data-autofill')){sClick();plAutoFill();renderWin();return;}
   sClick();
   if(t.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
-  if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){openWin('sources');return;}
+  if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){closeWin();return;}
   if(t.hasAttribute('data-tut-prev')){openWin('srcTut',{page:((winArg&&winArg.page)||0)-1});return;}
   if(t.hasAttribute('data-tut-next')){openWin('srcTut',{page:((winArg&&winArg.page)||0)+1});return;}
   const sc=t.getAttribute('data-sc');
@@ -5019,6 +5957,12 @@ $('winsB').addEventListener('click',ev=>{
     }
     return;
   }
+  if(t.hasAttribute('data-visithangar')){
+    const hg=G.rooms.find(r=>r.key==='hangar');
+    closeWin();
+    if(hg)enterRoomView(hg);
+    return;
+  }
   const mplan=t.getAttribute('data-mplan');
   if(mplan){const m=G.missions.find(x=>x.id===mplan);if(m)openPlan(m);return;}
   const as=t.getAttribute('data-as');
@@ -5044,8 +5988,8 @@ byId('panel').addEventListener('click',ev=>{
       const p=G.people.find(x=>x.id===pr.getAttribute('data-person'));
       if(p)openWin('person',p);
     } else {
-      const hg=G.rooms.find(r=>r.key==='hangar');
-      if(hg)enterRoomView(hg);
+      const f=G.fighters.find(x=>x.id===fr.getAttribute('data-fighter'));
+      if(f)openWin('ship',f);
     }
     return;
   }
@@ -5056,13 +6000,12 @@ $('navBase').addEventListener('click',()=>{
   if(arOpen){closeArsenal();return;}
   if(bmOpen){closeMarket();return;}
   if(winMode)closeWin();
-  else if(viewRoom){exitRoomView();syncUI();}
-  else closeTilePop();
+  showView('base');
 });
-$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('sources');});
+$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();if(winMode)closeWin();showView('galaxy');});
 $('navMissions').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('missions');});
-$('navArsenal').addEventListener('click',()=>{sClick();openArsenal();});
-$('navMarket').addEventListener('click',()=>{sClick();openMarket();});
+$('navArsenal').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openArsenal();});
+$('navMarket').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openMarket();});
 $('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
 $('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
 /* phones: the rail is a drawer behind the people tab */
@@ -5106,6 +6049,7 @@ addEventListener('keydown',ev=>{
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
     else if(bmOpen)closeMarket();
+    else if(baseView==='galaxy'&&(gxRegion||gxWorld||srcSel))gxBack();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
     return;
@@ -5120,6 +6064,12 @@ addEventListener('keydown',ev=>{
   if(winMode&&ev.key==='Enter'&&!(document.activeElement&&/^(BUTTON|A|INPUT)$/.test(document.activeElement.tagName))){
     const pb=$('winCardB').querySelector('.sr-window__foot .sr-btn--primary:not(:disabled)');
     if(pb){ev.preventDefault();pb.click();}
+    return;
+  }
+  // 1-9 drive the galaxy command bar
+  if(!winMode&&baseView==='galaxy'&&/^[1-9]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+    const b=[...$('gxOrders').querySelectorAll('.sr-order')].find(x=>{const k=x.querySelector('.sr-order__key');return k&&k.textContent===ev.key&&!x.disabled;});
+    if(b){ev.preventDefault();b.click();}
     return;
   }
   // 1-4 pick dialogue answers
@@ -5149,14 +6099,31 @@ function launchIntro(){
   SR.mission=introSpec();
   SR.go('ground',{mission:SR.mission});
 }
+/* BASE ESTABLISHED splash (A6): dims the base scene after the prologue win, then hands over to Cass.
+   While it is up, the day banner, queued reports and the guided pointer all hold. */
+let estTO=null;
+function showEstSplash(){
+  const el=$('estSplash');
+  el.hidden=false;el.classList.remove('is-out');
+  clearTimeout(estTO);
+  estTO=setTimeout(closeEstSplash,RM?1000:2400);
+}
+function closeEstSplash(){
+  const el=$('estSplash');
+  if(el.hidden)return;
+  clearTimeout(estTO);
+  el.classList.add('is-out');
+  setTimeout(()=>{el.classList.remove('is-out');el.hidden=true;openWin('cassIntro');},RM?0:400);
+}
+$('estSplash').addEventListener('click',closeEstSplash);
 function discoverCass(){
   if(G.sources.some(s=>s.id==='cass'))return;
   addStorySource('cass');
   if(G.onboard==='intro'||G.onboard===undefined)G.onboard='contact';
 }
 function seedNews(){
-  news('Haven Rock is powered, pressurized, and off every chart. Day one of the rest of the war.','g');
-  news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave, and a rock with our name on it. Nothing flies. Yet.','d');
+  news('Haven Rock is powered, pressurized, and off every chart. We’re well hidden from the Hegemony here.','g');
+  news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave.','d');
   news('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew us in.','a');
 }
 
@@ -5336,7 +6303,7 @@ function plAutoFill(){
   }
 }
 const shipAvatar=(extra)=>'<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+IC('ship')+'</span>';
-const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+ini(p.name)+'</span>';
+const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+faceHTML(p)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
 const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';
@@ -5424,7 +6391,7 @@ function planHTML(m){
   const empty=PL.slots.filter(sl=>!PL.v[sl.key]&&!sl.opt).length;
   const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
-  return wHead('Plan: '+m.name,{tags:riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
+  return wHead('Plan: '+m.name,{tags:opTag(m)+riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
     '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
     wFoot((needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
       rbtn('data-autofill','Auto-fill')+
@@ -5449,7 +6416,7 @@ function assetsHTML(){
   return h;
 }
 function squadEntry(p,scatterFirst){
-  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
+  return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,art:p.auto?undefined:SA.lookOf(p),tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
     aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     meds:p.auto?0:packsCarried(p),
     /* head/body ride along for the proposed armour rule; the ground scene ignores them for now (DESIGN_BLOCKERS M-16) */
@@ -5490,13 +6457,13 @@ function startPlan(){
         const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
         return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
-      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize)}:undefined,
+      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
   } else {
     const flight=[];
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
       const p=G.people.find(x=>x.id===PL.v[sl.key]),f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);
-      flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,
+      flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,art:SA.lookOf(p),
         rankName:rankFor(p),hero:p.role==='Hero'?1:0,skills:pilotSkills(p),aimMod:pilotAimMod(p),init:pilotInit(p),
         cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),
         traits:Rebel.namesFor(p,'s'),
@@ -5512,7 +6479,7 @@ function startPlan(){
 function soldierAim(p){return Math.min(6,Rebel.aimOf(p,'g')+(p.spec==='vanguard'?1:0));}
 function pilotAim(p){return Math.max(0,SRDB.skillBonus(Rebel.dbSkill(p,'aim'),p.level)+pilotAimMod(p));}
 function addArmoryItem(name,count){
-  const map={'Scattergun':['scatter','Scattergun'],'Sheriff\u2019s Scattergun':['scatter','Scattergun'],
+  const map={'Scattergun':['scatter','Varmint Shotgun'],'Varmint Shotgun':['scatter','Varmint Shotgun'],'Sheriff\u2019s Scattergun':['scatter','Varmint Shotgun'],'Cowboy':['cowboy','Cowboy No.4'],
     'Peacekeeper Carbine':['carbine','Peacekeeper Carbine'],'Shell box':['shells','Shell box'],
     'Explosive Charge':['charge','Explosive Charge'],'Data Limpet':['limpet','Data Limpet']};
   // loot passes display names (the map above); the Black Market passes raw KIT keys and a count
@@ -5558,11 +6525,11 @@ function applyDebrief(r){
         if(r.loot.s)G.supplies+=r.loot.s;
         for(const it of r.loot.items||[])addArmoryItem(it);
       }
-      news('<b>Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war.','g');
-      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Type 1 Hauler</b>. Joss is already talking to it. Restore it from the hangar.','a');
+      news('<b>The abandoned base at Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war. The Revolution begins today!','g');
+      news('In the hangar cave, under a decade of dust: a <b>derelict Graf Hauler</b>. Joss is already inspecting it. Restore it from the hangar.','a');
       discoverCass();
       seedNews();
-      openWin('cassIntro');
+      showEstSplash();
       sBuild();
       saveSnap();syncUI();
       return;
@@ -5793,6 +6760,8 @@ function restoreCampaign(data){
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    {const WNAMES={cowboy:'Cowboy No.4',longiron:'Longhorn \u201928 Hunting Rifle',scatter:'Varmint Shotgun',rocket:'Improvised Rocket Launcher'};
+     for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
     for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
@@ -5853,6 +6822,7 @@ if(location.hash==='#test'){
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
       padFree,inboundShips,shipSerial,arFit,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
-      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
+      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList,
+      enterRoom:key=>{const rm=G.rooms.find(r=>r.key===key&&!r.build);if(rm)enterRoomView(rm);return !!rm;},exitRoomView}};
 }
 })();
