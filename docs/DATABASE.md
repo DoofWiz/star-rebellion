@@ -140,8 +140,7 @@ hacked or stolen one has at base (`G.vehicles[i].type`, a hacked Auto's `p.auto`
   crew:[foe('security-patrolman', {seat:'drv', ...})]})`. They carry no kit; their guns are on their seats in the
   `vehicle_seats` table (one row per seat, in order: exactly one `drives`; `enclosed` FALSE is an exposed seat such as
   a turret, which the art raises when it fires). The ground scene's `VEHDEF` and the base's `GVEH` (owned vehicles
-  and Bots) are both built from these rows. The one difference left is the owned Strider (220 hp, aim 2 against the
-  enemy's 240 and 1), kept as `OWNED_STRIDER` in `base.js` until DESIGN_BLOCKERS C-21 is decided.
+  and Bots) are both built from these rows, so an owned cruiser or Strider has exactly the enemy one's numbers.
 
 ## Still in code, because the database has no column for them
 
@@ -157,5 +156,5 @@ initiative values.
 ## Not in the database yet
 
 Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
-capital ship weapons and attachments, vehicle attachments (the Floatin' Truck's), the player-owned Strider's numbers
-(C-21) and space enemies' line-ups (`DEPLOY` in `space.js`).
+capital ship weapons and attachments, vehicle attachments (the Floatin' Truck's) and space enemies' line-ups
+(`DEPLOY` in `space.js`).

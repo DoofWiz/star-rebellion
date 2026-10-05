@@ -29,10 +29,9 @@ const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';
    a vehicle needs crew. Either rides to a ground mission as a fire-support asset and is summoned from the Fire Support
    menu. G.vehicles[i] = {id, name, type, hp (0-100%)}; type is the enemy roster's owned_as, and the stats, seats and
    gun come from that roster row (game/data/db.json). The label and bio are the base's. */
-const OWNED_STRIDER={hp:220,aim:2};   // an owned Strider is not the enemy one (240 hp, aim 1) until DESIGN_BLOCKERS C-21 is decided
 const ownedVeh=(type,bio)=>{
   const r=Enemies.owned(type);
-  if(r.kind==='bot')return Object.assign({label:r.name,kind:'bot',hp:r.hp,def:r.def,aim:r.aim,wpn:r.weapon_1,big:r.big?1:0,bio},type==='strider'?OWNED_STRIDER:{});
+  if(r.kind==='bot')return {label:r.name,kind:'bot',hp:r.hp,def:r.def,aim:r.aim,wpn:r.weapon_1,big:r.big?1:0,bio};   // an owned Bot is the enemy one, reprogrammed (C-21)
   return {label:r.name,kind:'vehicle',hp:r.hp,def:r.def,seats:Enemies.seats(r.id).length,bio};
 };
 const GVEH={
@@ -870,7 +869,7 @@ for(const k in MEXTRA)Object.assign(MPOOL[k],MEXTRA[k]);
 MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',need:3,days:2,riskTxt:'High',
   lead:'ground',ground:true,type:'ground',scenario:'strider',
   loc:'menk',region:'menkcross',lib:15,
-  vip:{name:'Strider SK-1',first:'Strider',hp:220,def:8,wpns:['strider'],strider:1},
+  vip:{name:'Strider SK-1',first:'Strider',hp:Enemies.owned('strider').hp,def:Enemies.owned('strider').def,wpns:[Enemies.owned('strider').weapon_1],strider:1},
   req:{team:3,teamRole:'Soldier',transport:1,prize:0},
   desc:'With the Power Plant gone, the Autoworks is shipping its last Strider Mk I out of the Crossing depot. It is parked in a locked holding yard, waiting for a hauler. A robotic mech like that could be reprogrammed to fight for us, if we can steal it and guide it out of there on its own two legs.',
   objectives:['Override the Strider\u2019s leash panel in the holding yard','(Optional) Do it without the enemy realising you were there','Guide the Strider and the squad back to the Marta'],

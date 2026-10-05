@@ -64,7 +64,6 @@ Fleet-tab entry from a duplicate C-12 to C-19.
 | M-22 | 🟡 | Galaxy follow-ups: locked-world dive-in, mission regions, phone World view, Missions view | Exact marker placement; the phone World view ships provisional |
 | M-23 | 🟡 | Gunship rocket counterfire built, but no enemy spawns with a rocket launcher; shot-down ship has no campaign cost | The gunship risk you specced never triggers today |
 | C-20 | 🔴 | Two injury-recovery models run side by side, with different heal rates | How long a wounded rebel is out |
-| C-21 | ⚪ | The owned Strider has different numbers from the enemy one | A hacked Strider loses 20 hp on joining |
 | C-22 | 🟡 | Space reads traits by legacy name; "Veteran" and "Lucky" mean something else there | Earned traits in space; double-dipping Veteran |
 | C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
@@ -211,18 +210,6 @@ I left both running; nothing breaks, but the numbers disagree and only one of th
 **Needs from you:** one set of heal rates (which staff and traits speed recovery, and by how much), and whether a
 plain "down in the fight" wound should be a condition like the rest. Then I fold the day counter into
 `rebel-injury.js`.
-**Your call:** _open_
-
-### C-21 ⚪ The owned Strider has different numbers from the enemy one
-Ground units have no shared table, so the same unit is typed out in several places:
-- **Strider:** 240 hp and aim 1 as an enemy (the `strider-mk1` row of the enemy roster), but 220 hp and aim 2 when
-  you own it (`OWNED_STRIDER` in `base.js`, the last vehicle number outside the roster). A Strider hacked in the field
-  joins with 220, so it loses 20 hp on the way home.
-- Everything else now has one set of numbers: the cruisers, Policebots and Bruisers come from the enemy roster on
-  both sides.
-
-**Needs from you:** which Strider numbers are right (or say the owned one should differ, and why: the roster can
-grow an owned-hp column). Then `OWNED_STRIDER` goes.
 **Your call:** _open_
 
 ### C-22 🟡 Space reads traits by their legacy names
@@ -534,6 +521,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-21 | An owned Strider is the same as the enemy one. | 2026-10-05 | `OWNED_STRIDER` is gone: the owned Bot, the Steal the Strider VIP and the enemy all read the `strider-mk1` roster row (240 hp, aim 1, def 8), so a hacked Strider no longer loses 20 hp on joining. Commit "An owned Strider is the enemy one". |
 | C-14 | Every door gunner is zone-targeted, not just Cass's: the gunship-orbit rework (merged from the art branch) anchors any Door Gunner Cover to the player's mark. | 2026-10-04 | `dgTargets` works up to 3 enemies inside the placed zone (240px, growing with the layout scale); Cass's prologue asset still unlocks with its tutorial card and sets `tutFlags.fs` when called. Overrule at will — both halves came from your own handoffs. |
 | C-16 | Cass's freighter is drawn in the ground scene by the gun-run rework (merged from the art branch). | 2026-10-04 | The gunship flies in from off the map, orbits the mark with the heavy door gun working and climbs away (`cls:'graf'` art, renamed “Cass’s freighter”). Reduced motion keeps the instant resolution. |
 | C-1 | **A.** Pilots follow the database formula (`floor(skill/10) + floor(level/5)` for Aim and Focus), with mood, injury and the Dogfighter specialty added on top. | 2026-10-02 | The `fixed` override is gone. A rebel's skills are carried to the database's 0–50 scale at the base/space boundary (`Rebel.dbSkill`) and the space scene applies its own bonus; mood, injury and specialty ride on top as `aimMod`. Focus is the database bonus alone, so a fresh generated pilot is weaker than before at Aim and Focus. Scripted pilots and rebel pilots now follow one rule. |

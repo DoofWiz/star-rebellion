@@ -186,7 +186,7 @@ old hand-written `CLS`/`WPN`/`SHIPSTATS`/`FUEL_COST` are gone.
 > faction, kit as item ids), `game/js/enemies.js` spawns them, every ground spawn goes through it, and enemies drop
 > what they carry. `AUTOS` in `base.js` reads its numbers from the roster. Ground vehicles followed: the cruisers are
 > roster rows with a `vehicle_seats` table, and `VEHDEF`, `BOTDEF` and `GVEH` are built from it (or gone). Still to
-> do: the owned Strider's numbers (C-21, one explicit override left in `base.js`) and space line-ups.
+> do: space line-ups. (The owned Strider now matches the enemy one: C-21 resolved.)
 
 **Current:** nothing owns them yet (DATABASE.md "Not in the database yet").
 
@@ -347,7 +347,7 @@ Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless 
 2. **Fixed: latent crash on equipping a `live:0` weapon** (§1.4). `gearFits` refuses `live:0` kit, so it is never
    offered, auto-equipped or left in a slot; the ground scene's `mkU` swaps any weapon it has no stats for to bare
    hands instead of crashing.
-3. *Open:* **hacked Strider loses 20 hp on joining** (§3, C-21: needs the right numbers).
+3. **Fixed: hacked Strider lost 20 hp on joining** (§3, C-21: the owned one is now the enemy one).
 4. *Open:* **earned "Veteran" double-dips in space** (§4, C-22: needs the rule confirmed).
 5. **Fixed: the barracks healing perk checked `role==='Soldier'`**, so Marines and Heroes missed it. It uses
    `isGround` now. (The heal rates themselves are still C-20.)
@@ -366,13 +366,13 @@ Fixed in the commit after this audit (checked by `tools/sweep-smoke.js`) unless 
 
 Each step is independent and leaves the game playable. The first two are cheap and stop new drift.
 
-1. ~~Fix the bugs in §10~~ (done, except the two waiting on C-21 and C-22).
+1. ~~Fix the bugs in §10~~ (done, except the one waiting on C-22).
 2. **Housekeeping:** move the root prototypes out of the way, mark finished handoffs, fix the README, add a
    `tools/smoke-all.sh`, delete the dead code in §8.
 3. **Items (§1.5):** ~~the item table and `Items` module, every grant through `Items.grant`, loot by id~~ (done);
    loot that rolls waits on M-24.
 4. **Units (§3):** ~~an enemy roster, so scenarios place units by id and drops come from what they carry; vehicles~~
-   (done); the owned Strider waits on C-21.
+   (done).
 5. **Rebels (§4):** one injury model, one debrief path, space reading traits and rank from `Rebel`.
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
 7. **Save versioning (§6)** and dropping the dead migrations.

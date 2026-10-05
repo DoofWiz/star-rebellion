@@ -124,8 +124,8 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
  });
  ok(h==='policebot,autohand,45,9','a hacked Policebot keeps its roster stats and Auto Plasma Hand '+h);
  const gv=await pg.evaluate(()=>{const V=window.DBGbase.fn.GVEH_();return ['police','dispersal','transport','strider'].map(k=>[k,V[k].label,V[k].kind,V[k].hp,V[k].seats||'',V[k].aim===undefined?'':V[k].aim].join(':')).join(' ');});
- ok(gv==='police:Police Cruiser:vehicle:130:1: dispersal:Riot Dispersal Cruiser:vehicle:170:2: transport:Riot Transport Cruiser:vehicle:150:4: strider:Strider Mk I:bot:220::2',
-   'owned vehicles read the roster; the owned Strider keeps its own numbers until C-21 '+gv);
+ ok(gv==='police:Police Cruiser:vehicle:130:1: dispersal:Riot Dispersal Cruiser:vehicle:170:2: transport:Riot Transport Cruiser:vehicle:150:4: strider:Strider Mk I:bot:240::1',
+   'owned vehicles and Bots read the roster, the Strider too (C-21) '+gv);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'enemies-smoke: all checks passed');
