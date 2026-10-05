@@ -3145,6 +3145,7 @@ function playerAttack(){
   const c=engageQ&&engageQ.cur;
   if(!c||c.stage!=='await')return;
   tutFlags.attacked=1;
+  if(tutIdx>=4)tutFlags.shot=1;   // the Take the shot card only counts a shot taken once it is the current card
   sTick();c.stage='roll';c.stageAt=performance.now();sDice();syncUI();
 }
 function throwNade(s,gx,gy){
@@ -5744,19 +5745,23 @@ function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven
 /* Each card can carry when() \u2014 it waits, hidden, until that is true \u2014 and pause:true: during real-time
    play (FREE) the simulation freezes until the player clicks Got it; in PLANNING/ENGAGE the game already
    waits, so the button shows without a freeze. An acknowledged card stays up until its done() fires. (A4) */
-let tutFlags={moved:0,sneaked:0,executed:0,attacked:0,fs:0,fsCard:0};
+let tutFlags={moved:0,sneaked:0,executed:0,attacked:0,shot:0,fs:0,fsCard:0};
 let tutIdx=0,tutAck=[];
 const TUT=[
   {title:'Move out',pause:true,text:'<b>Out of combat, you can move your squad in real time.</b> <b>'+(SR.touch?'Tap the ground':'Right-click')+'</b>'+(SR.touch?'':' (or tap the ground)')+' to move your squad. Walk them up the canyon toward the squatter camp at the base mouth.',
    done:()=>tutFlags.moved},
-  {title:'Sneak past',pause:true,text:'Those <b>blue searchlights</b> are enemy sightlines. The orange inner band catches your characters while sneaking. Press <span class="sr-kbd">C</span> (or the Sneak button) to go low.',
+  {title:'Sneak past',pause:true,when:()=>town==='alerted'||U.some(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&hostilesActive().some(l=>lookout(l)&&dist(r,l)<sightRange(l)+180)),
+   text:'Those <b>blue searchlights</b> are enemy sightlines. The orange inner band catches your characters while sneaking. Press <span class="sr-kbd">C</span> (or the Sneak button) to go low.',
    done:()=>tutFlags.sneaked||town==='alerted'},
-  {title:'Start the fight',pause:true,text:'Ambushing gives you the opportunity to swing a fight in your favour from the first turn. <b>Click a squatter</b> and everyone with a clear shot can open fire with a bonus to hit.',
+  {title:'Start the fight',pause:true,when:()=>town==='alerted'||U.some(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&hostilesActive().some(l=>unitSeen(l)&&dist(r,l)<520)),
+   text:'Ambushing gives you the opportunity to swing a fight in your favour from the first turn. <b>Click a squatter</b> and everyone with a clear shot can open fire with a bonus to hit.',
    done:()=>town==='alerted'},
-  {title:'Plan the round',text:'Each rebel takes one order. <b>Move</b> relocates a character, <b>Sprint</b> increases move distance but the character can\u2019t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings indicate cover to make your characters harder to hit. Press <b>Execute</b> when you have finished giving orders.',
+  {title:'Plan the round',when:()=>phase==='PLANNING'||hostilesActive().length===0,
+   text:'Each rebel takes one order. <b>Move</b> relocates a character, <b>Sprint</b> increases move distance but the character can\u2019t shoot, <b>Hold</b> braces (+2 ATK) and fires on anyone crossing its lane. Green rings indicate cover to make your characters harder to hit. Press <b>Execute</b> when you have finished giving orders.',
    done:()=>tutFlags.executed||hostilesActive().length===0},
-  {title:'Take the shot',text:'Shots resolve one at a time on the attack panel in initiative order. Tap another squatter to retarget \u2014 or tap a <b>red canister</b> to blow it \u2014 then hit <b>Attack</b>.',
-   done:()=>tutFlags.attacked||hostilesActive().length===0},
+  {title:'Take the shot',when:()=>phase==='ENGAGE'||hostilesActive().length===0,
+   text:'Shots resolve one at a time on the attack panel in initiative order. Tap another squatter to retarget \u2014 or tap a <b>red canister</b> to blow it \u2014 then hit <b>Attack</b>.',
+   done:()=>tutFlags.shot||hostilesActive().length===0},
   {title:'Fire Support',pause:true,when:()=>round>=1&&phase==='PLANNING',
    text:'Fire Support can help turn the tide of battle. Select the <b>Fire Support</b> action from the action menu and click on an area to summon Cass to provide door gunner cover there.',
    done:()=>tutFlags.fs||hostilesActive().length===0},
@@ -5765,20 +5770,27 @@ const TUT=[
   {title:'Raise the signal',text:'The rock is yours. Push inside, walk a soldier to the command-room console, and <b>raise the signal</b>.',
    done:()=>false},
 ];
-function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0,fs:0,fsCard:0};tutIdx=0;tutAck=[];tutShown=-1;tutAckShown=null;}
-let tutShown=-1,tutAckShown=null;
+function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0,shot:0,fs:0,fsCard:0};tutIdx=0;tutAck=[];tutShown=-1;tutAckShown=null;tutStage=-1;tutGateT=0;}
+let tutShown=-1,tutAckShown=null,tutStage=-1,tutGateT=0;
+const TUT_GAP=1400;   // breathing room before the next card comes up; the first card shows at once
 function tutNeedsAck(){const t=TUT[tutIdx];return !!(t&&t.pause&&!tutAck[tutIdx]&&!t.done());}
+/* a card is ready to show once its when() is met and the breathing gap since the last card has passed */
+function tutReady(){
+  const t=TUT[tutIdx];
+  if(!t||(t.when&&!t.when()))return false;
+  return performance.now()>=tutGateT;
+}
 function tutFrozen(){
   if(!SCN||!SCN.tutorial||phase!=='FREE')return false;
-  const t=TUT[tutIdx];
-  return tutNeedsAck()&&!(t.when&&!t.when());
+  return tutNeedsAck()&&tutReady();
 }
 function tutTick(){
   const card=byId('tutCard');
   if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
   while(tutIdx<TUT.length-1&&TUT[tutIdx].done())tutIdx++;
-  // a card with an unmet when() waits unseen \u2014 show nothing until it is ready
-  if(TUT[tutIdx].when&&!TUT[tutIdx].when()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
+  if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=performance.now()+(tutIdx?TUT_GAP:0);}
+  // a card waits unseen until its when() is met and it has had a beat to breathe
+  if(!tutReady()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
   if(tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;fsCassIntro();syncUI();}   // the Fire Support card is up: Cass unlocks and pipes up (A5)
   if(card.hidden){card.hidden=false;tutShown=-1;}
   const fold=phase==='ENGAGE'&&cssW<1000;           // the VS panel is already teaching; give the fight the room

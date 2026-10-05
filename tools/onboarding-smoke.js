@@ -79,14 +79,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  // A4/A5: card 6 and the Fire Support action stay hidden until round>=1 in PLANNING
  const pre=await E(()=>{
   const D=window.DBGground;
-  D.tutFlags.sneaked=1;D.tutFlags.executed=1;D.tutFlags.attacked=1;
+  D.tutFlags.sneaked=1;D.tutFlags.executed=1;D.tutFlags.attacked=1;D.tutFlags.shot=1;
   D.fn.tutTick();
   return {idx:D.tutIdx,fs:D.fn.fsItems().length,round:D.round};
  });
  ok(pre.idx<5,'card 6 waits while the camp is calm, idx='+pre.idx);
  ok(pre.fs===0,'Fire Support is locked before card 6, items='+pre.fs);
  await E(()=>window.DBGground.fn.alertTown('Smoke test alarm.'));
- await pg.waitForTimeout(400);
+ await pg.waitForTimeout(2100);   // cards keep a breathing gap before they appear
  const plan=await E(()=>{
   const D=window.DBGground;
   return {phase:D.phase,round:D.round,idx:D.tutIdx,card:document.querySelector('#sc-ground #tutCard').hidden,
