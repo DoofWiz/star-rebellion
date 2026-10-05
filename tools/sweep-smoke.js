@@ -23,16 +23,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   {const g=JSON.parse(JSON.stringify(G()));g.revLevel=2;g.renown=60;const before=[g.credits,g.supplies,g.materials,g.fuel,2,60].join();
    f.restoreCampaign({campaign:g,started:true});out.reload=[[G().credits,G().supplies,G().materials,G().fuel,G().revLevel,G().renown].join(),before];}
   const mk=(id,role,extra)=>{const p=R.migrate(Object.assign({id,name:id+' Test',role,level:1,xp:0,assign:'rest',injured:0,bio:'x',charTrait:'brave'},extra||{}));G().people.push(p);return p;};
-  // 2: a live:0 sidearm in the armory is never offered, auto-equipped or left in a slot
-  G().armory.push({id:'hg40',name:'HG-40',n:3,desc:'x'});
-  const dax=P('dax');dax.gear.secondary=null;f.autoEquip();
-  out.auto=dax.gear.secondary;
-  dax.gear.secondary='hg40';f.reconcileGear();
-  out.reconciled=dax.gear.secondary;
-  f.openWin('person',dax);document.querySelector('[data-gear-slot="dax:secondary:0"]').click();
-  out.offered=!!document.querySelector('[data-gear-pick="dax:secondary:0:hg40"]');
+  // 2: a live:0 weapon in the armory is never offered, auto-equipped or left in a slot
+  G().armory.push({id:'plasmasmg',name:'Improvised Plasma SMG',n:3,desc:'x'});
+  const dax=P('dax'),pri=dax.gear.primary;dax.gear.primary=null;G().armory.find(a=>a.id==='akli').n=0;f.autoEquip();
+  out.auto=dax.gear.primary;
+  dax.gear.primary='plasmasmg';f.reconcileGear();
+  out.reconciled=dax.gear.primary;
+  f.openWin('person',dax);document.querySelector('[data-gear-slot="dax:primary:0"]').click();
+  out.offered=!!document.querySelector('[data-gear-pick="dax:primary:0:plasmasmg"]');
   f.closeWin();
-  G().armory=G().armory.filter(x=>x.id!=='hg40');f.autoEquip();
+  G().armory=G().armory.filter(x=>x.id!=='plasmasmg');G().armory.find(a=>a.id==='akli').n=6;dax.gear.primary=pri;f.autoEquip();
   // 5: a Marine and a Soldier, both laid up, heal at the same rate with the barracks staffed
   const sol=mk('sol','Soldier',{injured:6}),mar=mk('mar','Marine',{injured:6}),off=mk('off','Support',{assign:'station:barracks'});
   out.barracks=!!G().rooms.find(r=>r.key==='barracks');
@@ -54,7 +54,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   return out;
  });
  ok(a.reload[0]===a.reload[1],'reloading a new campaign leaves resources and Revolution Level alone '+a.reload);
- ok(a.auto!=='hg40','auto-equip skips live:0 kit '+a.auto);
+ ok(a.auto!=='plasmasmg','auto-equip skips live:0 kit '+a.auto);
  ok(a.reconciled===null,'live:0 kit in a slot is put back in the armory '+a.reconciled);
  ok(!a.offered,'the gear picker does not offer live:0 kit');
  ok(a.win==='reward'&&a.shown.indexOf('XP +55%')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
@@ -105,7 +105,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
 
  // ---- 2 (ground side): a rebel sent with kit that has no combat stats fights bare-handed
  await pg.evaluate(()=>window.SR.go('ground',{test:true,mission:{kind:'ground',missionId:'intel',scenario:'intel',days:1,
-   squad:[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['hg40']},{id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['plasmasmg','cowboy']}]}}));
+   squad:[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['mininglaser']},{id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['plasmasmg','cowboy']}]}}));
  await pg.waitForTimeout(700);
  const g=await pg.evaluate(()=>{const U=window.DBGground.U;return ['dax','runa'].map(id=>U.find(u=>u.id===id).wpns.join('+')).join();});
  ok(g==='unarmed,cowboy','unknown kit is dropped at the ground scene '+g);

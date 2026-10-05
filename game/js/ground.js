@@ -54,6 +54,8 @@ const PROPDEF={
 };
 
 /* ---------- scenarios ---------- */
+/* every enemy spawn names its type in the enemy roster (game/js/enemies.js); the object is its placement and any one-off overrides */
+const foe=(type,o)=>Enemies.spawn(type,o);
 const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
@@ -132,20 +134,20 @@ stealcross:{
     {id:'blamB',    x:1092,y:1112,label:'BLAM crate',     take:'3\u00d7 BLAM frag',       nades:3},
   ],
   foes(){return [
-    {id:'reeve',name:'Sheriff Reeve',first:'Reeve',side:'law',x:1906,y:730,hp:140,maxhp:140,aim:3,def:11,cool:90,wpns:['scatter'],sheriff:1,office:1,
-      lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']},
-    {id:'pell', name:'Dep. Pell', first:'Pell', side:'law',x:1150,y:790,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
-      lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']},
-    {id:'cobb', name:'Dep. Cobb', first:'Cobb', side:'law',x:700,y:788,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:700,y:788},{x:560,y:830}],
-      lines:['Strangers on the west road!','I ain\u2019t paid enough for this.']},
-    {id:'marsh',name:'Dep. Marsh',first:'Marsh',side:'law',x:520,y:860,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
-      lines:['Something came down south of town\u2026','They\u2019re armed! Guns! GUNS!']},
-    {id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', side:'law',x:1300,y:1100,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
-      lines:['Motor pool clear\u2026 mostly.','Fall back to the pad!']},
-    {id:'stack',name:'Dep. Stack',first:'Stack',side:'law',x:2080,y:540,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
-      lines:['Pad\u2019s secure, Sheriff.','They want the ship! They want the ship!']},
-    {id:'wren', name:'Dep. Wren', first:'Wren', side:'law',x:1562,y:436,hp:55,maxhp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,
-      lines:['I can see the whole street from up here.','Say when, Sheriff.']},
+    foe('frontier-sheriff',{id:'reeve',name:'Sheriff Reeve',first:'Reeve',x:1906,y:730,office:1,
+      lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']}),
+    foe('frontier-deputy',{id:'pell', name:'Dep. Pell', first:'Pell', x:1150,y:790,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
+      lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']}),
+    foe('frontier-deputy',{id:'cobb', name:'Dep. Cobb', first:'Cobb', x:700,y:788,patrol:[{x:700,y:788},{x:560,y:830}],
+      lines:['Strangers on the west road!','I ain\u2019t paid enough for this.']}),
+    foe('frontier-deputy',{id:'marsh',name:'Dep. Marsh',first:'Marsh',x:520,y:860,patrol:[{x:520,y:860},{x:760,y:1100},{x:480,y:1180}],
+      lines:['Something came down south of town\u2026','They\u2019re armed! Guns! GUNS!']}),
+    foe('frontier-deputy',{id:'ruiz', name:'Dep. Ruiz', first:'Ruiz', x:1300,y:1100,wpns:['carbine'],guard:1,patrol:[{x:1300,y:1100},{x:1500,y:1120}],
+      lines:['Motor pool clear\u2026 mostly.','Fall back to the pad!']}),
+    foe('frontier-deputy',{id:'stack',name:'Dep. Stack',first:'Stack',x:2080,y:540,guard:1,patrol:[{x:2080,y:540},{x:1990,y:470},{x:2160,y:460}],
+      lines:['Pad\u2019s secure, Sheriff.','They want the ship! They want the ship!']}),
+    foe('frontier-deputy',{id:'wren', name:'Dep. Wren', first:'Wren', x:1562,y:436,hp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,
+      lines:['I can see the whole street from up here.','Say when, Sheriff.']}),
   ];},
   civs(){return [
     {id:'civ1',name:'Townsfolk',first:'townsfolk',side:'civ',x:770, y:836,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:770,y:836},{x:640,y:790},{x:920,y:840}]},
@@ -184,15 +186,15 @@ stealfuel:{
   waves:[
     {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
      foes:[
-       {id:'pcw',veh:'police',side:'law',x:2120,y:560,crew:[{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 4, responding.','Pull over! All of you!']}]},
-       {id:'dill',name:'Guard Dill',first:'Dill',side:'law',x:2150,y:640,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']},
-       {id:'corr',name:'Guard Corr',first:'Corr',side:'law',x:2150,y:720,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']},
+       {id:'pcw',veh:'police',side:'law',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',lines:['Unit 4, responding.','Pull over! All of you!']})]},
+       foe('depot-guard',{id:'dill',name:'Guard Dill',first:'Dill',x:2150,y:640,lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']}),
+       foe('depot-guard',{id:'corr',name:'Guard Corr',first:'Corr',x:2150,y:720,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']}),
      ]},
     {at:3,log:'<span class="h">The depot warden and a second crawler arrive from the north road.</span>',
      foes:[
-       {id:'hask',name:'Warden Hask',first:'Hask',side:'law',x:1420,y:40,hp:95,maxhp:95,aim:2,def:11,cool:85,wpns:['scatter'],lines:['That tithe is the Hegemony’s!','Nobody drains my tanks.']},
-       {id:'orsk',name:'Guard Orsk',first:'Orsk',side:'law',x:1520,y:40,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['North road is ours!','Warden, they’re on the apron!']},
-       {id:'vell',name:'Guard Vell',first:'Vell',side:'law',x:1320,y:40,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],lines:['Cover me!','Not the pumps!']},
+       foe('depot-warden',{id:'hask',name:'Warden Hask',first:'Hask',x:1420,y:40,lines:['That tithe is the Hegemony’s!','Nobody drains my tanks.']}),
+       foe('depot-guard',{id:'orsk',name:'Guard Orsk',first:'Orsk',x:1520,y:40,wpns:['carbine'],lines:['North road is ours!','Warden, they’re on the apron!']}),
+       foe('depot-guard',{id:'vell',name:'Guard Vell',first:'Vell',x:1320,y:40,lines:['Cover me!','Not the pumps!']}),
      ]},
   ],
   bldgs:[
@@ -223,12 +225,12 @@ stealfuel:{
     {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['charge','charge']},
   ],
   foes(){return [
-    {id:'holt',name:'Guard Holt',first:'Holt',side:'law',x:1250,y:620,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']},
-    {id:'vane',name:'Guard Vane',first:'Vane',side:'law',x:1000,y:880,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1000,y:880},{x:760,y:940}],lines:['Dust and more dust…','They’re armed! GUNS!']},
-    {id:'tull',name:'Guard Tull',first:'Tull',side:'law',x:720,y:600,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:600},{x:560,y:720}],lines:['Herders don’t come this way.','West road! Raiders!']},
-    {id:'ruck',name:'Guard Ruck',first:'Ruck',side:'law',x:1780,y:300,hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],guard:1,patrol:[{x:1780,y:300},{x:1890,y:430},{x:1770,y:560}],lines:['Apron’s secure.','They want the tanks!']},
-    {id:'pike2',name:'Guard Pike',first:'Pike',side:'law',x:1620,y:700,hp:60,maxhp:60,aim:1,def:10,wpns:['cowboy'],guard:1,patrol:[{x:1620,y:700},{x:1760,y:660}],lines:['Pumps are locked.','Fall back to the pumps!']},
-    {id:'hale',name:'Tower Hale',first:'Hale',side:'law',x:1330,y:300,hp:55,maxhp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,lines:['Clear view from up here.','Say when, Warden.']},
+    foe('depot-guard',{id:'holt',name:'Guard Holt',first:'Holt',x:1250,y:620,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']}),
+    foe('depot-guard',{id:'vane',name:'Guard Vane',first:'Vane',x:1000,y:880,patrol:[{x:1000,y:880},{x:760,y:940}],lines:['Dust and more dust…','They’re armed! GUNS!']}),
+    foe('depot-guard',{id:'tull',name:'Guard Tull',first:'Tull',x:720,y:600,patrol:[{x:720,y:600},{x:560,y:720}],lines:['Herders don’t come this way.','West road! Raiders!']}),
+    foe('depot-guard',{id:'ruck',name:'Guard Ruck',first:'Ruck',x:1780,y:300,wpns:['carbine'],guard:1,patrol:[{x:1780,y:300},{x:1890,y:430},{x:1770,y:560}],lines:['Apron’s secure.','They want the tanks!']}),
+    foe('depot-guard',{id:'pike2',name:'Guard Pike',first:'Pike',x:1620,y:700,guard:1,patrol:[{x:1620,y:700},{x:1760,y:660}],lines:['Pumps are locked.','Fall back to the pumps!']}),
+    foe('depot-guard',{id:'hale',name:'Tower Hale',first:'Hale',x:1330,y:300,hp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,lines:['Clear view from up here.','Say when, Warden.']}),
   ];},
   civs(){return [
     {id:'civ1',name:'Herder',first:'herder',side:'civ',x:430,y:1000,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:430,y:1000},{x:540,y:1090},{x:380,y:1120}]},
@@ -266,10 +268,10 @@ autofactory:{
     foes:[
       {id:'rtc1',veh:'transport',side:'law',x:700,y:470,
        crew:[
-        {seat:'drv',id:'rtcd',name:'Patrolman Gant',first:'Gant',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unloading!','Squad out, go go go!']},
-        {seat:'bay1',id:'rs2',name:'Riot Shieldman Voss',first:'Voss',side:'law',hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
-        {seat:'bay2',id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the plant!','Shields forward!']},
-        {seat:'bay3',id:'rr3',name:'Riot Rifleman Mek',first:'Mek',side:'law',hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+        foe('security-patrolman',{seat:'drv',id:'rtcd',name:'Patrolman Gant',first:'Gant',lines:['Unloading!','Squad out, go go go!']}),
+        foe('security-riot-shieldman',{seat:'bay1',id:'rs2',name:'Riot Shieldman Voss',first:'Voss',lines:['Riot line! Hold!','Disperse!']}),
+        foe('security-riot-rifleman',{seat:'bay2',id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',lines:['Contact at the plant!','Shields forward!']}),
+        foe('security-riot-rifleman',{seat:'bay3',id:'rr3',name:'Riot Rifleman Mek',first:'Mek',lines:['Suppressing!','Breach team, go!']}),
        ]},
     ]},
   bldgs:[
@@ -296,14 +298,14 @@ autofactory:{
     {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['charge']},
   ],
   foes(){return [
-    {id:'drew',name:'Patrolman Drew',first:'Drew',side:'law',x:780,y:580,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}],lines:['Gate\u2019s quiet.','Who goes there?']},
-    {id:'pb12',name:'Policebot PB-12',first:'PB-12',side:'law',x:830,y:900,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:830,y:900},{x:830,y:740}],lines:['Please remain calm.','Citizen, drop the weapon.']},
-    {id:'pb07',name:'Policebot PB-07',first:'PB-07',side:'law',x:1030,y:1080,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1030,y:1080},{x:1300,y:1180}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
-    {id:'soll',name:'Patrolman Soll',first:'Soll',side:'law',x:1560,y:860,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1560,y:860},{x:1420,y:1000},{x:1700,y:800}],lines:['Nothing on the east side.','Hands where I can see them!']},
-    {id:'pb03',name:'Policebot PB-03',first:'PB-03',side:'law',x:1680,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']},
-    {id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',side:'law',x:1860,y:588,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the breaker.','Shields up!']},
-    {id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',side:'law',x:2020,y:900,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']},
-    {id:'strid1',name:'Strider Mk I',first:'Strider',side:'law',x:1180,y:950,hp:240,maxhp:240,aim:1,def:8,wpns:['strider'],auto:1,autoType:'strider',bot:'strider',hackRounds:3,big:1,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']},
+    foe('security-patrolman',{id:'drew',name:'Patrolman Drew',first:'Drew',x:780,y:580,patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}],lines:['Gate\u2019s quiet.','Who goes there?']}),
+    foe('auto-policebot',{id:'pb12',name:'Policebot PB-12',first:'PB-12',x:830,y:900,patrol:[{x:830,y:900},{x:830,y:740}],lines:['Please remain calm.','Citizen, drop the weapon.']}),
+    foe('auto-policebot',{id:'pb07',name:'Policebot PB-07',first:'PB-07',x:1030,y:1080,patrol:[{x:1030,y:1080},{x:1300,y:1180}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
+    foe('security-patrolman',{id:'soll',name:'Patrolman Soll',first:'Soll',x:1560,y:860,patrol:[{x:1560,y:860},{x:1420,y:1000},{x:1700,y:800}],lines:['Nothing on the east side.','Hands where I can see them!']}),
+    foe('auto-policebot',{id:'pb03',name:'Policebot PB-03',first:'PB-03',x:1680,y:560,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']}),
+    foe('security-riot-shieldman',{id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',x:1860,y:588,guard:1,lines:['Nobody touches the breaker.','Shields up!']}),
+    foe('security-riot-rifleman',{id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',x:2020,y:900,patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']}),
+    foe('strider-mk1',{id:'strid1',name:'Strider Mk I',first:'Strider',x:1180,y:950,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']}),
   ];},
   civs(){return [
     {id:'civ1',name:'Line Worker',first:'worker',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -357,20 +359,20 @@ towers:{
   ],
   foes(){
     const v=this.variant||'ledger';
-    const P=(id,nm,x,y,pat)=>({id,name:'Patrolman '+nm,first:nm,side:'law',x,y,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:pat||undefined,lines:['Tower’s quiet.','Who goes there?']});
-    const B=(id,n,x,y,pat,guard)=>({id,name:'Policebot PB-'+n,first:'PB-'+n,side:'law',x,y,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:guard||0,patrol:pat||undefined,lines:['Please remain calm.','Restricted area.']});
-    const RR=(id,nm,x,y,pat,guard)=>({id,name:'Riot Rifleman '+nm,first:nm,side:'law',x,y,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],guard:guard||0,patrol:pat||undefined,lines:['Compound is sealed.','Rifles up!']});
-    const RS=(id,nm,x,y,guard)=>({id,name:'Riot Shieldman '+nm,first:nm,side:'law',x,y,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:guard||0,lines:['Shields up!','Nobody touches the tower.']});
+    const P=(id,nm,x,y,pat)=>foe('security-patrolman',{id,name:'Patrolman '+nm,first:nm,x,y,patrol:pat||undefined,lines:['Tower’s quiet.','Who goes there?']});
+    const B=(id,n,x,y,pat,guard)=>foe('auto-policebot',{id,name:'Policebot PB-'+n,first:'PB-'+n,x,y,guard:guard||0,patrol:pat||undefined,lines:['Please remain calm.','Restricted area.']});
+    const RR=(id,nm,x,y,pat,guard)=>foe('security-riot-rifleman',{id,name:'Riot Rifleman '+nm,first:nm,x,y,guard:guard||0,patrol:pat||undefined,lines:['Compound is sealed.','Rifles up!']});
+    const RS=(id,nm,x,y,guard)=>foe('security-riot-shieldman',{id,name:'Riot Shieldman '+nm,first:nm,x,y,guard:guard||0,lines:['Shields up!','Nobody touches the tower.']});
     if(v==='dataflats')return [
       B('b1',41,820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',42,1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
       B('b3',43,1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',44,1480,720,[{x:1480,y:720},{x:1620,y:800}]),
       RS('s1','Kade',1900,540,1),P('p1','Crane',600,980,[{x:600,y:980},{x:760,y:900}]),
-      {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 9, responding.','Stay where you are!']}]},
+      {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]},
     ];
     if(v==='quota')return [
       RR('r1','Wick',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2','Tarn',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
       RR('r3','Mek',1800,620,[{x:1800,y:620},{x:1960,y:640}],1),P('p1','Elm',1520,740,[{x:1520,y:740},{x:1620,y:820}]),
-      {id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',side:'law',x:1900,y:540,hp:95,maxhp:95,aim:1,def:10,wpns:['fists'],auto:1,autoType:'bruiser',hackRounds:2,heavy:1,guard:1,lines:['Please remain calm.','Non-compliance detected.']},
+      foe('auto-riot-bruiser',{id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',x:1900,y:540,guard:1,lines:['Please remain calm.','Non-compliance detected.']}),
       P('p2','Soll',620,1000,[{x:620,y:1000},{x:760,y:920}]),
     ];
     return [
@@ -430,14 +432,14 @@ rescue:{
     {id:'rations',x:1650,y:990,label:'Barge rations',take:'72 ▤ supplies',s:72},
   ],
   foes(){return [
-    {id:'fenn',name:'Patrolman Fenn',first:'Fenn',side:'law',x:720,y:470,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']},
-    {id:'pb21',name:'Policebot PB-21',first:'PB-21',side:'law',x:850,y:800,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
-    {id:'pb22',name:'Policebot PB-22',first:'PB-22',side:'law',x:1600,y:520,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1600,y:520},{x:1660,y:560}],lines:['Restricted area.','Please stand still.']},
-    {id:'rs3',name:'Riot Shieldman Orla',first:'Orla',side:'law',x:1720,y:524,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the prisoner.','Shields up!']},
-    {id:'rr4',name:'Riot Rifleman Dace',first:'Dace',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:620}],lines:['Cell block is sealed.','Rifles up!']},
-    {id:'oake',name:'Patrolman Oake',first:'Oake',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the toll office.','Hands where I can see them!']},
-    {id:'bray',name:'Patrolman Bray',first:'Bray',side:'law',x:1700,y:920,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1700,y:920},{x:1850,y:840}],lines:['Barge side is clear.','Stop right there!']},
-    {id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',side:'law',x:1640,y:524,hp:95,maxhp:95,aim:1,def:10,wpns:['fists'],auto:1,autoType:'bruiser',hackRounds:2,heavy:1,guard:1,lines:['Please remain calm.','Non-compliance detected.']},
+    foe('security-patrolman',{id:'fenn',name:'Patrolman Fenn',first:'Fenn',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']}),
+    foe('auto-policebot',{id:'pb21',name:'Policebot PB-21',first:'PB-21',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
+    foe('auto-policebot',{id:'pb22',name:'Policebot PB-22',first:'PB-22',x:1600,y:520,guard:1,patrol:[{x:1600,y:520},{x:1660,y:560}],lines:['Restricted area.','Please stand still.']}),
+    foe('security-riot-shieldman',{id:'rs3',name:'Riot Shieldman Orla',first:'Orla',x:1720,y:524,guard:1,lines:['Nobody touches the prisoner.','Shields up!']}),
+    foe('security-riot-rifleman',{id:'rr4',name:'Riot Rifleman Dace',first:'Dace',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:620}],lines:['Cell block is sealed.','Rifles up!']}),
+    foe('security-patrolman',{id:'oake',name:'Patrolman Oake',first:'Oake',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the toll office.','Hands where I can see them!']}),
+    foe('security-patrolman',{id:'bray',name:'Patrolman Bray',first:'Bray',x:1700,y:920,patrol:[{x:1700,y:920},{x:1850,y:840}],lines:['Barge side is clear.','Stop right there!']}),
+    foe('auto-riot-bruiser',{id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',x:1640,y:524,guard:1,lines:['Please remain calm.','Non-compliance detected.']}),
   ];},
   civs(){return [
     {id:'civ1',name:'Barge Hand',first:'barge hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -470,9 +472,9 @@ intel:{
   work:[{id:'hack',x:1660,y:540,label:'DATABANK TERMINAL',verb:'cracks the databank and copies the drive',needSpec:'fieldtech',rounds:3}],
   alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span> — a shield line and two riflemen.',
     foes:[
-      {id:'rs5',name:'Riot Shieldman Kade',first:'Kade',side:'law',x:640,y:560,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,lines:['Riot line! Hold!','Disperse!']},
-      {id:'rr5',name:'Riot Rifleman Saul',first:'Saul',side:'law',x:600,y:640,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Contact at the databank!','Shields forward!']},
-      {id:'rr6',name:'Riot Rifleman Petra',first:'Petra',side:'law',x:600,y:480,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],lines:['Suppressing!','Breach team, go!']},
+      foe('security-riot-shieldman',{id:'rs5',name:'Riot Shieldman Kade',first:'Kade',x:640,y:560,lines:['Riot line! Hold!','Disperse!']}),
+      foe('security-riot-rifleman',{id:'rr5',name:'Riot Rifleman Saul',first:'Saul',x:600,y:640,lines:['Contact at the databank!','Shields forward!']}),
+      foe('security-riot-rifleman',{id:'rr6',name:'Riot Rifleman Petra',first:'Petra',x:600,y:480,lines:['Suppressing!','Breach team, go!']}),
     ]},
   bldgs:[
     {x:1500,y:260, w:340,h:230,name:'EAST SERVER HALL'},
@@ -495,14 +497,14 @@ intel:{
     {id:'parts',x:700,y:1040,label:'Spare rack parts',take:'72 ▤ supplies',s:72},
   ],
   foes(){return [
-    {id:'crane',name:'Patrolman Crane',first:'Crane',side:'law',x:760,y:600,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:760,y:600},{x:900,y:700},{x:720,y:470}],lines:['Gate’s quiet.','Who goes there?']},
-    {id:'pb31',name:'Policebot PB-31',first:'PB-31',side:'law',x:1150,y:640,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1150,y:640},{x:1000,y:700}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
-    {id:'pb32',name:'Policebot PB-32',first:'PB-32',side:'law',x:1620,y:640,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1620,y:640},{x:1720,y:620}],lines:['Restricted area.','Please stand still.']},
-    {id:'rs4',name:'Riot Shieldman Bour',first:'Bour',side:'law',x:1660,y:600,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the terminal.','Shields up!']},
-    {id:'rr7',name:'Riot Rifleman Wick',first:'Wick',side:'law',x:1400,y:540,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']},
-    {id:'elm',name:'Patrolman Elm',first:'Elm',side:'law',x:1200,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']},
-    {id:'pb33',name:'Policebot PB-33',first:'PB-33',side:'law',x:1800,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
-    {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Unit 9, responding.','Stay where you are!']}]},
+    foe('security-patrolman',{id:'crane',name:'Patrolman Crane',first:'Crane',x:760,y:600,patrol:[{x:760,y:600},{x:900,y:700},{x:720,y:470}],lines:['Gate’s quiet.','Who goes there?']}),
+    foe('auto-policebot',{id:'pb31',name:'Policebot PB-31',first:'PB-31',x:1150,y:640,patrol:[{x:1150,y:640},{x:1000,y:700}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
+    foe('auto-policebot',{id:'pb32',name:'Policebot PB-32',first:'PB-32',x:1620,y:640,guard:1,patrol:[{x:1620,y:640},{x:1720,y:620}],lines:['Restricted area.','Please stand still.']}),
+    foe('security-riot-shieldman',{id:'rs4',name:'Riot Shieldman Bour',first:'Bour',x:1660,y:600,guard:1,lines:['Nobody touches the terminal.','Shields up!']}),
+    foe('security-riot-rifleman',{id:'rr7',name:'Riot Rifleman Wick',first:'Wick',x:1400,y:540,patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']}),
+    foe('security-patrolman',{id:'elm',name:'Patrolman Elm',first:'Elm',x:1200,y:1000,patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']}),
+    foe('auto-policebot',{id:'pb33',name:'Policebot PB-33',first:'PB-33',x:1800,y:940,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
+    {id:'pc1',veh:'police',side:'law',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]},
   ];},
   civs(){return [
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -557,14 +559,14 @@ strider:{
     {id:'rations',x:1650,y:1010,label:'Depot rations',take:'80 ▤ supplies',s:80},
   ],
   foes(){return [
-    {id:'hask2',name:'Patrolman Hale',first:'Hale',side:'law',x:720,y:470,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']},
-    {id:'pb41',name:'Policebot PB-41',first:'PB-41',side:'law',x:850,y:800,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']},
-    {id:'pb42',name:'Policebot PB-42',first:'PB-42',side:'law',x:1600,y:560,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,guard:1,patrol:[{x:1600,y:560},{x:1660,y:600}],lines:['Restricted area.','Please stand still.']},
-    {id:'rs6',name:'Riot Shieldman Ysel',first:'Ysel',side:'law',x:1720,y:540,hp:75,maxhp:75,aim:1,def:10,wpns:['cowboy'],shield:1,guard:1,lines:['Nobody touches the walker.','Shields up!']},
-    {id:'rr8',name:'Riot Rifleman Garr',first:'Garr',side:'law',x:1420,y:500,hp:60,maxhp:60,aim:2,def:10,wpns:['carbine'],patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']},
-    {id:'elm2',name:'Patrolman Voss',first:'Voss',side:'law',x:1150,y:1000,hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']},
-    {id:'pb43',name:'Policebot PB-43',first:'PB-43',side:'law',x:1700,y:940,hp:45,maxhp:45,aim:1,def:9,wpns:['cowboy'],auto:1,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']},
-    {id:'rdc1',veh:'dispersal',side:'law',x:1450,y:690,guard:1,crew:[{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',hp:55,maxhp:55,aim:1,def:10,wpns:['cowboy'],lines:['Yard car, rolling.','Turret, light them up!']},{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',hp:60,maxhp:60,aim:1,def:10,wpns:['carbine'],lines:['Dispersal turret deployed.','Disperse!']}]},
+    foe('security-patrolman',{id:'hask2',name:'Patrolman Hale',first:'Hale',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']}),
+    foe('auto-policebot',{id:'pb41',name:'Policebot PB-41',first:'PB-41',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
+    foe('auto-policebot',{id:'pb42',name:'Policebot PB-42',first:'PB-42',x:1600,y:560,guard:1,patrol:[{x:1600,y:560},{x:1660,y:600}],lines:['Restricted area.','Please stand still.']}),
+    foe('security-riot-shieldman',{id:'rs6',name:'Riot Shieldman Ysel',first:'Ysel',x:1720,y:540,guard:1,lines:['Nobody touches the walker.','Shields up!']}),
+    foe('security-riot-rifleman',{id:'rr8',name:'Riot Rifleman Garr',first:'Garr',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']}),
+    foe('security-patrolman',{id:'elm2',name:'Patrolman Voss',first:'Voss',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']}),
+    foe('auto-policebot',{id:'pb43',name:'Policebot PB-43',first:'PB-43',x:1700,y:940,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
+    {id:'rdc1',veh:'dispersal',side:'law',x:1450,y:690,guard:1,crew:[foe('security-patrolman',{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',lines:['Yard car, rolling.','Turret, light them up!']}),foe('security-riot-rifleman',{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',aim:1,lines:['Dispersal turret deployed.','Disperse!']})]},
   ];},
   civs(){return [
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -635,24 +637,24 @@ haven:{
     {id:'lockbox',x:1330,y:240, label:'Smuggler lockbox',take:'120 \u25c8 credits',c:120},
   ],
   foes(){return [
-    {id:'craw',name:'Boss Craw',first:'Craw',side:'law',x:1245,y:330,hp:120,maxhp:120,aim:3,def:10,cool:85,wpns:['scatter'],sheriff:1,office:1,
-      lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']},
-    {id:'odo',name:'Odo',first:'Odo',side:'law',x:900,y:960,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
-      lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']},
-    {id:'vult',name:'Vult',first:'Vult',side:'law',x:1000,y:900,hp:70,maxhp:70,aim:2,def:9,wpns:['cowboy'],patrol:[{x:1000,y:900},{x:880,y:930}],
-      lines:['Somebody\u2019s sniffin\u2019 round the flat\u2026','WHO LIT THAT UP?!']},
-    {id:'brek',name:'Brek',first:'Brek',side:'law',x:925,y:712,hp:75,maxhp:75,aim:2,def:10,wpns:['cowboy'],guard:1,patrol:[{x:925,y:712},{x:920,y:692}],
-      lines:['Nobody comes through my door.','THE DOOR! They\u2019re at the DOOR!']},
-    {id:'pike',name:'Pike',first:'Pike',side:'law',x:860,y:300,hp:75,maxhp:75,aim:2,def:9,wpns:['carbine'],patrol:[{x:860,y:300},{x:760,y:200},{x:980,y:390}],
-      lines:['The wreck\u2019s mine, I called it.','They\u2019re INSIDE!'] },
-    {id:'mox',name:'Mox',first:'Mox',side:'law',x:1000,y:210,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:1000,y:210},{x:700,y:170}],
-      lines:['That hauler\u2019s worth more\u2019n all of us.','They\u2019re in the CAVE!']},
-    {id:'rzek',name:'Rzek',first:'Rzek',side:'law',x:990,y:620,hp:70,maxhp:70,aim:1,def:9,wpns:['cowboy'],patrol:[{x:990,y:620},{x:870,y:610},{x:1120,y:640}],
-      lines:['Heard somethin\u2019 down the hall\u2026','They\u2019ve got RIFLES!']},
-    {id:'sarn',name:'Sarn',first:'Sarn',side:'law',x:1330,y:640,hp:75,maxhp:75,aim:2,def:10,wpns:['carbine'],guard:1,patrol:[{x:1330,y:640},{x:1270,y:600}],
-      lines:['Bunks\u2019re ours. Boss said.','Boss! COMPANY!']},
-    {id:'hasp',name:'Hasp',first:'Hasp',side:'law',x:1125,y:530,hp:70,maxhp:70,aim:2,def:9,wpns:['carbine'],guard:1,patrol:[{x:1125,y:530},{x:1120,y:458}],
-      lines:['Boss said watch the hall. I watch the hall.','BOSS! GUNS IN THE HALL!']},
+    foe('squatter-boss',{id:'craw',name:'Boss Craw',first:'Craw',x:1245,y:330,office:1,
+      lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']}),
+    foe('squatter',{id:'odo',name:'Odo',first:'Odo',x:900,y:960,patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
+      lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']}),
+    foe('squatter',{id:'vult',name:'Vult',first:'Vult',x:1000,y:900,patrol:[{x:1000,y:900},{x:880,y:930}],
+      lines:['Somebody\u2019s sniffin\u2019 round the flat\u2026','WHO LIT THAT UP?!']}),
+    foe('squatter',{id:'brek',name:'Brek',first:'Brek',x:925,y:712,hp:75,def:10,guard:1,patrol:[{x:925,y:712},{x:920,y:692}],
+      lines:['Nobody comes through my door.','THE DOOR! They\u2019re at the DOOR!']}),
+    foe('squatter',{id:'pike',name:'Pike',first:'Pike',x:860,y:300,hp:75,wpns:['carbine'],patrol:[{x:860,y:300},{x:760,y:200},{x:980,y:390}],
+      lines:['The wreck\u2019s mine, I called it.','They\u2019re INSIDE!'] }),
+    foe('squatter',{id:'mox',name:'Mox',first:'Mox',x:1000,y:210,aim:1,patrol:[{x:1000,y:210},{x:700,y:170}],
+      lines:['That hauler\u2019s worth more\u2019n all of us.','They\u2019re in the CAVE!']}),
+    foe('squatter',{id:'rzek',name:'Rzek',first:'Rzek',x:990,y:620,aim:1,patrol:[{x:990,y:620},{x:870,y:610},{x:1120,y:640}],
+      lines:['Heard somethin\u2019 down the hall\u2026','They\u2019ve got RIFLES!']}),
+    foe('squatter',{id:'sarn',name:'Sarn',first:'Sarn',x:1330,y:640,hp:75,def:10,wpns:['carbine'],guard:1,patrol:[{x:1330,y:640},{x:1270,y:600}],
+      lines:['Bunks\u2019re ours. Boss said.','Boss! COMPANY!']}),
+    foe('squatter',{id:'hasp',name:'Hasp',first:'Hasp',x:1125,y:530,wpns:['carbine'],guard:1,patrol:[{x:1125,y:530},{x:1120,y:458}],
+      lines:['Boss said watch the hall. I watch the hall.','BOSS! GUNS IN THE HALL!']}),
   ];},
   civs(){return [];},
 },
@@ -1454,13 +1456,18 @@ function downUnit(t,by){
   }
   checkDefeat();
 }
+/* a downed enemy leaves what they carried (the roster's kit, DESIGN_BLOCKERS M-24): every usable item, at the
+   rules' enemy_drop_chance, plus the credits on them. Kit with no rules yet (live:false: batons, riot shields)
+   and built-in weapons stay with the body. */
+const DROP_CHANCE=SRDB.rules.enemy_drop_chance===undefined?1:SRDB.rules.enemy_drop_chance;
 function dropLoot(t){
-  if(t.auto||t.vehicle)return;   // scrap, not spoils
-  const m={id:'drop_'+t.id,x:t.x+10,y:t.y+10,label:t.name+'’s effects',drop:1};
-  if(t.sheriff){m.c=136;m.items=['scatter'];m.take='Scattergun + 136 ◈';}
-  else if(t.wpns[0]==='carbine'){m.c=rint(24,56);m.items=['carbine'];m.take='Carbine + credits';}
-  else {m.c=rint(32,72);m.take=m.c+' ◈ credits';}
-  lootMarks.push(m);
+  if(t.vehicle)return;
+  const items=(t.kit||[]).filter(id=>{const r=Items.get(id);return r&&r.category!=='builtin'&&r.live&&Math.random()<DROP_CHANCE;});
+  const c=t.cr?rint(t.cr[0],t.cr[1]):0;
+  if(!items.length&&!c)return;
+  const what=items.map(Items.name);
+  if(c)what.push(c+' ◈');
+  lootMarks.push({id:'drop_'+t.id,x:t.x+10,y:t.y+10,label:t.name+'’s effects',drop:1,c,items,take:what.join(' + ')});
 }
 
 /* ---------- morale, alert, spotting ---------- */
@@ -3515,7 +3522,7 @@ function fireFx(s,t,wkey,hit){
     return;
   }
   const shots=w.pellets?5:(w.shots||1);
-  const bkind=(wkey==='carbine'||wkey==='cruiser'||wkey==='dispersal')?'plasma':'ballistic';
+  const bkind=(wkey==='carbine'||WDAM[wkey]==='plasma')?'plasma':'ballistic';   // the carbine draws as plasma though it hits as ballistic (C-23)
   const bside=s.side==='reb'?'reb':'heg';
   const h0=26*actorScale(s);   // bolts leave at the muzzle, not the feet
   for(let i=0;i<shots;i++){
@@ -3545,7 +3552,7 @@ function sShot(wkey){
   if(A.off())return;
   if(wkey==='akli'){
     for(let i=0;i<3;i++){nz('highpass',2400,1,0.16,0.06,i*0.09);osc('square',220,70,0.1,0.07,i*0.09);}
-  } else if(wkey==='cowboy'){
+  } else if(wkey==='cowboy'||wkey==='hg40'||wkey==='autohand'){
     nz('highpass',1700,1,0.2,0.09);osc('triangle',170,55,0.16,0.13);nz('lowpass',500,1,0.12,0.2,0.02);
   } else if(wkey==='carbine'){
     for(let i=0;i<2;i++){nz('highpass',2600,1,0.15,0.06,i*0.11);osc('square',260,80,0.09,0.07,i*0.11);}
@@ -4179,12 +4186,16 @@ function drawCross(now){
 /* ---------- world art: who someone is (artSpec) and what they're doing (artPose) ---------- */
 const SA=window.SR_ART;
 const actorScale=u=>Math.max(1,0.9/cam.z);
+/* item ids to the art kit's gear keys; anything the kit cannot draw is skipped */
+const ART_GEAR={riotshield:'shield',blam:'frags'};
+const kitArt=kit=>(kit||[]).map(id=>ART_GEAR[id]||id).filter(k=>SA.GEAR&&SA.GEAR[k]);
 function artSpec(u){
   const A=SA;
   if(u.art)return u.art;                                 // any rebel, via squadEntry / the pilot entry
   if(u.side==='civ')return A.ARCH.civ;
   if(u.vip&&!u.bot)return A.ARCH.prisoner;
   if(u.autoType==='bruiser')return Object.assign({},A.ARCH.bot,{big:1.25});   // no Bruiser art in the Enemies doc yet
+  if(u.arch&&A.ARCH[u.arch])return u._spec||(u._spec=Object.assign({},A.ARCH[u.arch],{gear:kitArt(u.kit)}));   // roster spawns
   if(u.auto)return A.ARCH.bot;
   if(u.shield)return A.ARCH.riot;
   if(u.sheriff)return A.ARCH.sheriff;
@@ -4221,7 +4232,7 @@ function artPose(u,now){
   if(c&&c.s===u&&!u.down)pose.aim=Math.atan2(c.t.y-u.y,c.t.x-u.x);   // pupils and gun track the target exactly
   const wk=u.wkey||(u.wpns&&u.wpns[0]);
   pose.weapon=(wk&&SA.WEAPONS[wk])?wk:null;              // unarmed, fists and the vehicle weapons draw nothing
-  const base=(u.art&&u.art.gear)||[];
+  const base=(u.art&&u.art.gear)||(u.arch&&!u.art?artSpec(u).gear:null)||[];   // a rebel's kit, or what a roster enemy wears
   const g=[];
   if(u.shield)g.push('shield');
   if(u.side==='reb'&&!u.auto&&!u.vip&&!u.frail&&NADES>0)g.push('frags');
@@ -5868,7 +5879,7 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{SCENARIOS_:()=>SCENARIOS,WPN_:()=>WPN,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,

@@ -21,7 +21,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const KIT=f.KIT_();
   out.kitIds=Object.keys(KIT).join()===rows.filter(x=>x.category!=='builtin').map(x=>x.id).join();
   out.kitAkli=[KIT.akli.name,KIT.akli.slot,KIT.akli.w,KIT.akli.price,KIT.akli.live,KIT.akli.maker].join();
-  out.kitCarbine=[KIT.carbine.heg,KIT.carbine.price===undefined,KIT.hg40.live].join();
+  out.kitCarbine=[KIT.carbine.heg,KIT.carbine.price===undefined,KIT.baton.live].join();
   // every live weapon has combat stats; no weapon slot holds a builtin
   out.liveNoStats=rows.filter(x=>x.category==='weapon'&&x.live&&x.damage_min==null).map(x=>x.id);
   // the starting armory comes from the table
@@ -53,7 +53,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.grant==='1,3,looted,Akli AR','grant stacks and keeps the first source '+r.grant);
  ok(r.take==='3,0','take stops at what is there and drops the empty stack '+r.take);
  ok(r.guards==='true,true,true','grant refuses display names, builtins and unknown ids '+r.guards);
- ok(r.poolHegWeapons==='carbine'&&r.poolHegAll==='hg40,baton,riotshield','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
+ ok(r.poolHegWeapons==='carbine,hg40'&&r.poolHegAll==='baton,riotshield','pools filter by tag and by live '+r.poolHegWeapons+' / '+r.poolHegAll);
  ok(r.rollArmour==='autohelm,cap,cowboyhat,hardhat','a roll draws only from its pool '+r.rollArmour);
  ok(r.rollWeighted==='longiron'&&r.rollEmpty===null,'weights steer a roll; an empty pool rolls nothing '+r.rollWeighted+' '+r.rollEmpty);
 
@@ -69,12 +69,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.scatter=[!!WPN.scatter.pellets,!!WPN.scatter.falloff,WDAM.rocket,!!WPN.laser.beam].join();
   const S=f.SCENARIOS_(),bad=[];
   for(const k in S)for(const l of S[k].loots||[])for(const it of l.items||[])if(!I.get(it)||I.get(it).category==='builtin')bad.push(k+':'+it);
-  // every enemy carries weapons the table knows
-  for(const k in S){const sc=S[k];for(const fn of ['foes','civs'])if(typeof sc[fn]==='function')for(const u of sc[fn]())for(const w of u.wpns||[])if(!WPN[w])bad.push(k+':'+u.id+':'+w);}
+  // every enemy carries items the table knows, and draws a weapon with stats
+  for(const k in S){const sc=S[k];for(const fn of ['foes','civs'])if(typeof sc[fn]==='function')for(const u of sc[fn]()){
+    for(const w of (u.wpns||[]).concat(u.kit||[]))if(!I.get(w))bad.push(k+':'+u.id+':'+w);
+    if((u.wpns||[]).length&&!WPN[u.wpns[0]])bad.push(k+':'+u.id+':'+u.wpns[0]+' has no stats');}}
   out.bad=bad;
   return out;
  });
- ok(g.wpn==='akli,carbine,cowboy,cruiser,dispersal,fists,laser,longiron,rocket,scatter,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
+ ok(g.wpn==='akli,autohand,carbine,cowboy,cruiser,dispersal,fists,hg40,laser,longiron,rocket,scatter,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
  ok(g.akli==='24,38,540,3,true,ballistic,gun','the Akli keeps its numbers '+g.akli);
  ok(g.scatter==='true,true,explosive,true','flags and damage types carry over '+g.scatter);
  ok(!g.bad.length,'every loot crate and enemy weapon is a known id '+g.bad);

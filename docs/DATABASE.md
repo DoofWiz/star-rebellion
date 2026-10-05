@@ -1,6 +1,7 @@
 # Game database
 
-The data the game systems draw from (ships, ship weapons, personal kit, pilots and the numbers that tie them together).
+The data the game systems draw from (ships, ship weapons, personal kit, ground enemies, pilots and the numbers that tie
+them together).
 The design docs linked from [GDriveMasterSheet](GDriveMasterSheet) are the source of truth for what
 the numbers should be. `game/data/db.json` is the machine-readable copy of them.
 
@@ -18,9 +19,11 @@ icons) are built from the `items` table. The old hand-written tables (`CLS`/`WPN
 | `game/data/db.js` | Generated copy of `db.json` that the page loads. `build.py validate` fails if it is stale. |
 | `game/js/data.js` | `SRDB`: lookups by id or legacy key, plus base TN, skill bonus and movement dial. |
 | `game/js/items.js` | `Items`: the items table for the scenes (`get`, `name`, `kit`, `wpn`, `pool`, `roll`, `grant`, `take`). |
+| `game/js/enemies.js` | `Enemies`: the enemy roster (`get`, `spawn`, `kit`). Every ground enemy spawn goes through `spawn`. |
 | `tools/db/build.py` | Validate, report, and convert to and from a spreadsheet. |
 | `tools/space-smoke.js` | Headless test: plays the space scene (`instructor`, `depot`, `flight`, `loadouts`) and reports errors. |
 | `tools/items-smoke.js` | Headless test: the items table, `Items`, and every scene table, loot crate and enemy weapon built from it. |
+| `tools/enemies-smoke.js` | Headless test: the roster, every enemy spawn, what they hold, wear and drop, and hacked Autos. |
 
 ## Editing in Google Sheets
 
@@ -45,6 +48,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 | `ships` | Starships, drones (no pilot) and structures (never move). Stock model stats only. |
 | `weapons` | Every ship weapon. Any weapon fits any slot. Ammo and damage live here, not on the ship. |
 | `items` | Personal kit (weapons, armour, gadgets, other) and the built-in weapons of units and vehicles. |
+| `enemies` | The ground enemy roster: faction, tier, stats, and what each type carries (item ids). |
 | `pilots` | Level, XP, initiative (1 to 6) and the four skills. Drones carry a built-in "core" pilot. |
 | `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
@@ -112,6 +116,26 @@ column, so do not rename an id once a save may hold it.
 Still in code: market category weights (`CATW` in `base.js`), the gadget stat rows on the market (`BM_GSTATS`), the
 briefing chips in `core.js`, and the art kit's own item keys (`blam` draws as `frags`, `charge` as `c90`).
 
+## Enemies
+
+One row per enemy type, from the Enemies doc (Hegemony and Outworlder factions) plus the types the game needed
+first (`in_doc` FALSE). A row holds stats (`hp`, `aim`, `def`, `cool`), what the type carries (`weapon_1`,
+`weapon_2`, `head`, `body`, `gadget`: item ids), robot rules (`kind`, `auto_type`, `hack_rounds`, `heavy`, `big`),
+whether it leads (`leader`), the credits on the body and the art-kit archetype it is drawn with.
+
+- **Spawning:** every enemy in `ground.js` is `foe('type', {placement})`: id, name, position, patrol, lines. A spawn
+  may override stats or `wpns` for that one enemy (Dep. Pell carries a carbine; the tower lookouts carry hunting
+  rifles and have sniper stats), and nothing else differs from the row.
+- **Fighting:** they draw `weapon_1`, and also carry `weapon_2`. Kit with no combat stats (a baton, a riot shield)
+  is carried but never fired; carrying a riot shield is what gives the frontal shield.
+- **Dropping:** a downed enemy leaves every usable (`live`) item it carried, at the `enemy_drop_chance` rule (1 =
+  always), plus a credit roll between `credits_min` and `credits_max`. Built-in weapons never drop.
+- **Looks:** the `art` archetype, wearing the drawable part of the kit (police vest, riot shield).
+- **Hacked Autos** that join the rebellion keep their row's stats and weapon (`AUTOS` in `base.js` reads them).
+
+Vehicles (cruisers, the transport) are still `VEHDEF` in `ground.js` and `GVEH` in `base.js`; their crews are roster
+spawns.
+
 ## Still in code, because the database has no column for them
 
 The Drone Monitor's call for help and the Mag-Clamper's clamp (`BEHAVIOUR` in `space.js`), the critical-hit table,
@@ -126,5 +150,5 @@ initiative values.
 ## Not in the database yet
 
 Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
-capital ship weapons and attachments, vehicles, bots, autos and enemy soldiers (their weapons are item ids; their
-stats are not in a table yet: see `docs/LEGACY_AUDIT.md` §3).
+capital ship weapons and attachments, ground vehicles (`VEHDEF`/`GVEH`), the player-owned Strider's numbers (C-21) and
+space enemies' line-ups (`DEPLOY` in `space.js`).

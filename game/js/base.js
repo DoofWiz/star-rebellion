@@ -15,10 +15,13 @@ const nz=(...a)=>A.nz(...a);
    with vehicles and equipment, capacities, source-driven recruitment.
    ===================================================================== */
 
-/* Autos: robots that fight for us, the robot equivalent of a character. Stats here seed the ground scene. */
+/* Autos: robots that fight for us, the robot equivalent of a character. A hacked one keeps the stats and weapon its
+   type has in the enemy roster (game/data/db.json); the label and bio are the base's. */
+const autoRow=t=>Enemies.rows.find(r=>r.auto_type===t);
+const autoFrom=(t,label,bio)=>{const r=autoRow(t);return {label,hp:r.hp,def:r.def,wpn:r.weapon_1,big:r.big?1:0,heavy:r.heavy?1:0,bio};};
 const AUTOS={
-  policebot:{label:'Policebot',hp:45,def:9,wpn:'cowboy',big:0,heavy:0,bio:'A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'},
-  bruiser:{label:'Bruiser',hp:95,def:10,wpn:'fists',big:0,heavy:1,bio:'A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'},
+  policebot:autoFrom('policebot','Policebot','A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'),
+  bruiser:autoFrom('bruiser','Bruiser','A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'),
 };
 const autoOf=p=>AUTOS[p.auto]||AUTOS.policebot;
 const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';

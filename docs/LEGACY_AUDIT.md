@@ -125,8 +125,8 @@ DESIGN_BLOCKERS M-24.
 > from it; `GEAR_ICON` and the `SR_WPN` leak are gone; `addArmoryItem` (and its display-name alias map) is replaced by
 > `grantItem` / `Items.grant`, which every grant goes through; loot crates, enemy drops, chain gifts and the smuggler
 > bonus pass ids; descriptions come from the table, with the stack's source as a fallback. `tools/items-smoke.js`
-> checks the tables, every loot crate and every enemy weapon against it. Still to do: step 4 (needs the unit roster
-> in §3 and the drop rules in M-24), loot that rolls (M-24), the art kit's item keys, `core.js`'s briefing chips,
+> checks the tables, every loot crate and every enemy weapon against it. Step 4 is built too (the enemy roster, §3).
+> Still to do: loot that rolls (M-24), the art kit's item keys, `core.js`'s briefing chips,
 > and the market's `CATW` and `BM_GSTATS` (C-10).
 
 A target to work toward, in steps that each keep the game playable:
@@ -181,6 +181,11 @@ old hand-written `CLS`/`WPN`/`SHIPSTATS`/`FUEL_COST` are gone.
 ---
 
 ## 3. Ground units: enemies, vehicles, Bots and Autos
+
+> **Progress (after this audit):** the enemy roster is built. `enemies` in `db.json` holds every enemy type (stats,
+> faction, kit as item ids), `game/js/enemies.js` spawns them, every ground spawn goes through it, and enemies drop
+> what they carry. `AUTOS` in `base.js` reads its numbers from the roster. Still to do: ground vehicles (`GVEH` and
+> `VEHDEF`), the owned Strider's numbers (C-21), and space line-ups.
 
 **Current:** nothing owns them yet (DATABASE.md "Not in the database yet").
 
@@ -365,7 +370,8 @@ Each step is independent and leaves the game playable. The first two are cheap a
    `tools/smoke-all.sh`, delete the dead code in §8.
 3. **Items (§1.5):** ~~the item table and `Items` module, every grant through `Items.grant`, loot by id~~ (done);
    loot that rolls waits on M-24.
-4. **Units (§3):** an enemy and vehicle roster, so scenarios place units by id and drops come from what they carry.
+4. **Units (§3):** ~~an enemy roster, so scenarios place units by id and drops come from what they carry~~ (done);
+   vehicles still to fold in.
 5. **Rebels (§4):** one injury model, one debrief path, space reading traits and rank from `Rebel`.
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
 7. **Save versioning (§6)** and dropping the dead migrations.

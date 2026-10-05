@@ -43,7 +43,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   out.inside=[has('move'),has('hold'),has('lockin'),has('exit'),has('sprint'),has('cover'),has('loot')&&dis('loot'),has('work')&&dis('work'),has('enter')];
   // a lawman can no longer shoot Dax, only the car he sits in
   drv.x=car.x+200;drv.y=car.y;
-  out.lawShots=[f.validShot(drv,dax,'cowboy'),f.validShot(drv,car,'cowboy')];
+  const dw=f.wpnsOf(drv)[0];   // the patrolman's own sidearm (the enemy roster's HG-40)
+  out.lawShots=[f.validShot(drv,dax,dw),f.validShot(drv,car,dw)];
   // the blast of a grenade does not reach inside
   const hp0=dax.hp,chp0=car.hp;f.explode(car.x,car.y,{r:80,d0:10,d1:10});
   out.blast=[dax.hp===hp0,car.hp<chp0];

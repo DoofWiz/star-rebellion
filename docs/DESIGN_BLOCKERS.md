@@ -10,8 +10,9 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`), which added C-20 to C-23
-and M-24 and renumbered the Fleet-tab entry from a duplicate C-12 to C-19.
+**Last updated:** 2026-10-05, after the enemy roster (enemies drop what they carry; C-24 added, M-24 partly answered),
+the legacy-vs-current sweep (`docs/LEGACY_AUDIT.md`, which added C-20 to C-23 and M-24) and the renumbering of the
+Fleet-tab entry from a duplicate C-12 to C-19.
 
 ## How to use this
 
@@ -66,7 +67,8 @@ and M-24 and renumbered the Fleet-tab entry from a duplicate C-12 to C-19.
 | C-21 | ⚪ | The Strider (and other units) have different numbers in base and ground | A hacked Strider loses 20 hp on joining |
 | C-22 | 🟡 | Space reads traits by legacy name; "Veteran" and "Lucky" mean something else there | Earned traits in space; double-dipping Veteran |
 | C-23 | ⚪ | Peacekeeper Carbine: ballistic in the rules, plasma on screen | Armour vs damage type once M-16 lands |
-| M-24 | 🟡 | Loot and drop rules: what enemies drop, random loot, gear lost on death | Hegemony "loot only" kit never drops; Messy |
+| M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
+| C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -81,8 +83,9 @@ Carried over from `docs/ROADMAP.md` "Doc issues" so they live in one place. All 
 block play; I followed the answer in brackets.
 - Base doc says scope is "Rev levels 1 and 2"; the game scope is Level 1 only. *(Level 1 only.)*
 - Base doc lists **Fuel** twice; the second is meant to be **Intel**. *(Intel.)*
-- Enemies doc puts Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum in Rev Tier 3, but Dustfall (Rev 1) uses
-  them; Bureau Officer appears under both Tier 1 and Tier 2. *(Left where Dustfall uses them.)*
+- ~~Enemies doc puts Frontier Sheriff/Deputy/Shorto Shotty/Tavern Scum in Rev Tier 3~~: the doc now gives them their
+  own Outworlder faction at Rev Level 1, which is what the enemy roster uses. Bureau Officer still appears under both
+  Tier 1 and Tier 2. *(Not in the game yet.)*
 - Missions doc tier names are cut off mid-sentence and several Tier 1 rewards are blank. *(Rewards are my numbers.)*
 - Specialties, Locations Regions and Fleet Combat docs have empty or half-finished sections.
 - "Imperium" vs. "Hegemony" in older GDD copy. *(Hegemony; I fixed the sections I touched.)*
@@ -212,10 +215,10 @@ plain "down in the fight" wound should be a condition like the rest. Then I fold
 
 ### C-21 ⚪ The Strider (and other units) have different numbers in base and ground
 Ground units have no shared table, so the same unit is typed out in several places:
-- **Strider:** 220 hp and aim 2 when you own it (`GVEH`), 240 hp and aim 1 as an enemy at Steal the Strider
-  (`ground.js`). A Strider hacked in the field joins with 220, so it loses 20 hp on the way home.
-- Police, Dispersal and Transport cruisers are in `GVEH` and `VEHDEF` (they match today); Policebots and Bruisers
-  are in `AUTOS` and in each scenario's enemy list.
+- **Strider:** 220 hp and aim 2 when you own it (`GVEH`), 240 hp and aim 1 as an enemy (the `strider-mk1` row of
+  the enemy roster). A Strider hacked in the field joins with 220, so it loses 20 hp on the way home.
+- Police, Dispersal and Transport cruisers are in `GVEH` and `VEHDEF` (they match today). Policebots and Bruisers
+  now take their stats from the enemy roster on both sides.
 
 **Needs from you:** which Strider numbers are right. Longer term (`docs/LEGACY_AUDIT.md` §3), a single unit roster
 both scenes read from.
@@ -240,6 +243,28 @@ retire the legacy trait names in space.
 it a plasma muzzle flash. It only matters once armour or traits care about damage type (M-16).
 **Needs from you:** ballistic or plasma.
 **Your call:** _open_
+
+### C-24 ⚪ Enemy types and loadouts the Enemies doc doesn't cover
+The enemy roster (the Enemies tab of the spreadsheet, `enemies` in `db.json`) follows the Enemies doc where it
+says something, and the art kit where the doc is silent. Every enemy spawn names a row, and what the row carries
+is what they fight with and drop. Where I had to guess:
+- **Types the game needs that the doc doesn't have** (`in_doc` FALSE): the Haven Rock squatters and Boss Craw, the
+  Tithe depot's guards and warden. Two tower lookouts are a deputy and a depot guard with a hunting rifle and
+  sniper stats set on the spawn.
+- **Doc types not in the game yet:** Bureau Officer, Shorto Shotty, Tavern Scum, the Floatin' Truck, and all of
+  Tier 2 and 3.
+- **Loadouts:** Hegemony security carries Patriot kit: the HG-40 pistol (Patrolmen, shieldmen, depot guards),
+  Peacekeeper Carbine (riot riflemen), Police Helmet and Vest (riot police; Police Vest on depot guards). Policebots
+  carry the Auto Plasma Hand. Outworlders keep frontier guns (Cowboy, Varmint Shotgun); deputies and the sheriff wear
+  a Police Vest because the art kit draws one, and the sheriff a Cowboy Hat. Squatters wear nothing.
+- **Placeholder stats:** the HG-40 and Auto Plasma Hand had no stats, so they copy the Cowboy No.4 that Patrolmen and
+  Policebots carried before. Every fight plays exactly as it did.
+- **Looks that changed:** riot riflemen are drawn as riot police (they borrowed the deputy look before); Patrolmen no
+  longer draw a vest; riot shieldmen now draw the vest the art kit gave them. The Police Helmet has no art yet.
+
+**Needs from you:** the real loadout per type whenever you spec it (straight into the Enemies tab), stats for the
+HG-40 and Auto Plasma Hand, and whether the squatters and depot guards should become doc types.
+**Your call:** _open (loadouts to be specced later, as planned)_
 
 ---
 
@@ -420,10 +445,12 @@ carries `head` and `body` next to `wpns`, so the ground scene can read them the 
 **Your call:** _open_
 
 ### M-17 🟡 Items with no mechanics yet (`live:false` in `KIT`)
-**Blocks:** these catalogue items from being stocked by the Black Market or auto-equipped: Improvised Plasma SMG,
+**Blocks:** these catalogue items from being stocked by the Black Market or carried: Improvised Plasma SMG,
 Repurposed Mining Laser, Molotov Cocktail, Guardian Angel Drone, Auto Core Improvised Charge, Stim as a carried
-item (the ground scene gives every rebel one built-in stim today), HG-40, Power Baton, Riot Shield, Auto Plasma
-Hand. The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
+item (the ground scene gives every rebel one built-in stim today), Power Baton, Riot Shield. Patrolmen carry the
+baton and riot shieldmen the shield (the shield already blocks shots from the front), but neither drops until it
+has rules for a rebel. The **HG-40** and the **Auto Plasma Hand** are live now with placeholder stats copied from the
+Cowboy No.4 (see C-24). The **Improvised Rocket Launcher** is also `live:false`: the supply-drop rule removes a fired rocket from
 the carrier's weapons mid-mission, but nothing says whether an *owned* launcher is spent for good (debited from
 the armory) or just reloaded back home. The **Frontier Floatin’ Truck** stays out of `GVEH` until it has stats
 (see M-15).
@@ -477,28 +504,24 @@ entries.
 Per your spec, any hostile with a rocket launcher now gets a shot at an orbiting door-gun gunship
 (one roll each, **14+ on a d20** brings it down — my number, tune at `DG_FLAK_TN` in `ground.js`). Two gaps:
 1. **No enemy currently carries a rocket launcher** — `rocket` only reaches rebels via the Supply Drop — so the
-   counter never fires today. Tell me which spawns should carry one (a Vult heavy in Take the Rock? riot squads
-   at higher security?) and I'll add them.
+   counter never fires today. Tell me which enemy types (or single spawns) should carry one (a Vult heavy in Take
+   the Rock? riot squads at higher security?). With the roster that is one cell: `rocket` as their `weapon_2`.
 2. **A shot-down support ship**: the crash is visual, the asset is lost for the mission, and the pilot always
    walks away (Cass is story-safe). For the player's *own* Graf later: should the fighter take hull damage or
    be destroyed back at base, and should the support pilot risk injury? Nothing persists right now.
 **Your call:** _open_
 
 ### M-24 🟡 Loot and drop rules
-**Blocks:** the Police Helmet, Police Vest and other "loot only" Hegemony kit (no path in the game gives them),
-random loot of any kind, and the Messy trait.
-**Why:** loot is hand-picked today. Each scenario's crates list fixed items; a downed lawman drops a Scattergun if
-they are a sheriff, a carbine if they carried one, and otherwise credits only, whatever they actually had. The
-Black Market's weekly roll is the only random item draw in the game. When a rebel dies, their gear quietly goes
-back to the armory.
-**Needs from you:**
-1. Do downed enemies drop what they carry? Always, or on a chance?
-2. Should some crates roll their contents (e.g. "a Hegemony sidearm, tier 1") rather than list them?
-3. What happens to a dead rebel's gear: back to the armory, or lost on the field (and recoverable if you win)?
-
-The code side (one item table with a grant function and a random draw by tags) is planned in
-`docs/LEGACY_AUDIT.md` §1.5.
-**Your call:** _open_
+**Blocks:** random loot of any kind, and the Messy trait.
+**Answered (2026-10-05):** downed enemies drop what they carry. Built: every usable item in their roster kit
+(`live` items only; built-ins like fists never drop) plus their credits, at the `enemy_drop_chance` rule, which is 1
+(always) for now. That is a lot more loot than before (a Steal the Cross run now yields six Police Vests), so tune
+the rule, or say "always weapons, sometimes armour", if it floods the stores.
+**Still open:**
+1. Should some crates roll their contents (e.g. "a Hegemony sidearm, tier 1") rather than list them?
+   (`Items.roll` is ready for it.)
+2. What happens to a dead rebel's gear: back to the armory (today), or lost on the field (and recoverable if you win)?
+**Your call:** _part answered; 1 and 2 open_
 
 ---
 
