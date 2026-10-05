@@ -29,7 +29,8 @@ const relUp=(u,kinds)=>!!u&&!!u.rels&&u.rels.some(r=>kinds.indexOf(r[0])>=0&&U.s
 function sk(u,k,n){if(u&&u.side==='reb'&&!u.auto&&!u.ally){u.sk=u.sk||{};u.sk[k]=(u.sk[k]||0)+n;}}
 const NADE_R=300,NADE_BLAST=110;
 const HOT_ROUNDS=2;
-const SHIELD_ARC=1.15;               // half-angle of the turret's frontal shield
+const SANDBAG_ARC=1.15;              // half-angle of the sandbags in front of the Razorrat emplacement
+const SANDBAG_COVER=3;                // what the sandbags add to a shot from the front
 const OFFMAP={x:-99999,y:-99999,r:1};
 let PAD=OFFMAP,LZ={x:300,y:1330,r:130},TOWER=OFFMAP,TURRET={x:-99999,y:-99999,r:26};
 let BLDGS=[],PROPS=[],LOOTS=[],WORKDEF=[],SCN=null;
@@ -70,7 +71,7 @@ stealcross:{
       'Get the squad back to the Graf and lift off',
       {sub:1,text:'Sera carries only a sidearm \u2014 keep her clear of the shooting.'},
     ],
-    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The pad turret is armoured from the front; take it from the side. Stray shots set off the red fuel canisters.',
+    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The machine gun on the pad sits behind sandbags; take it from the side. Stray shots set off the red fuel canisters.',
   },
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
@@ -242,7 +243,7 @@ autofactory:{
   banner:['Blow Up Auto Factory','Every Auto is a policeman we never meet'],
   brief:{
     eyebrow:'Ground Operation \u00b7 Kiln Ridge, Menk',
-    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge Autoworks</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
+    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge AutoCom Plant</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
     objectives:[
       'Get the explosive charge to the Power Plant\u2019s main breaker',
       'Plant it',
@@ -515,7 +516,7 @@ strider:{
   banner:['Steal the Strider','Walk it out'],
   brief:{
     eyebrow:'Ground Operation · Menk Crossing, Menk',
-    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the Autoworks’ Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
+    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
     objectives:[
       'Reach the holding yard behind the depot',
       'Override the Strider’s leash panel',
@@ -760,8 +761,10 @@ function mkU(o){
     order:null,extracted:0,away:0,elev:0,frail:0,sheriff:0,fixed:0,guard:0,
     manning:0,cower:0,det:0,office:0,scanT:Math.random()*7,cool:55,bunkered:0,
     px:0,py:0,path:null,wkey:null,ally:0,hacked:0,hackProg:0,hackT:0,hackTid:null,heavy:0,vehicle:0,big:0,
-    autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0)},o);
+    autoType:o.autoType||(o.auto?'policebot':null),hackRounds:o.hackRounds||(o.auto&&!o.vehicle?1:0),arm:0,shdCap:0},o);
   u.cool0=u.cool;
+  u.maxArm=u.arm=Math.max(0,u.arm||0);              // armour bar over health (worn kit, a vehicle's plating)
+  u.maxShd=Math.max(0,u.shdCap||0);u.shd=0;         // a shield bar over both, empty until the shield is raised
   if(u.wpns&&u.wpns.some(x=>!WPN[x])){const w=u.wpns.filter(x=>WPN[x]);u.wpns=w.length?w:['unarmed'];}   // kit with no combat stats yet fights bare-handed
   return u;
 }
@@ -782,12 +785,17 @@ function defaultSpec(){
     pilot:{id:'sera',name:'Sera Kest',first:'Sera'},
     grafPilot:{id:'joss',name:'Joss Marrek',first:'Joss'}};
 }
+/* a squad member's armour and shield: an Auto's own shell (sp.arm) plus the head and body kit they wear */
+function squadProt(sp){
+  const k=Items.protection([sp.head,sp.body]);
+  return {arm:(sp.arm||0)+k.arm,shdCap:(sp.shdCap||0)+k.shd};
+}
 function initUnits(){
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
-  const squad=spec.squad.map((sp,i)=>mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
+  const squad=spec.squad.map((sp,i)=>mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic}));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic},squadProt(sp))));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -825,9 +833,10 @@ function initUnits(){
 const VEHDEF=Enemies.vehicles();   // by owned_as (police, dispersal, transport): stats, speed and seats from the enemy roster
 const ENTER_R=50;                     // close enough to climb in
 const HATCH_COVER=3;                  // an open gun seat still has the hull around it
+const WRECK_BLAST=130,WRECK_DMG=[12,26];   // a destroyed vehicle's blast: radius, and damage at the centre (my numbers)
 function mkVeh(o){
   const d=VEHDEF[o.veh];
-  const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,aim:0,cool:55},o,
+  const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,arm:d.arm,shdCap:d.shdCap,aim:0,cool:55},o,
     {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null}))}));
   delete v.crew;
   return v;
@@ -853,6 +862,7 @@ const vehOf=u=>(u&&u.mnt)?U.find(v=>v.id===u.mnt.v)||null:null;
 const seatOf=u=>{const v=vehOf(u);return v?v.seats.find(x=>x.k===u.mnt.seat)||null:null;};
 const enclosed=u=>{const st=seatOf(u);return !!(st&&st.enc);};
 const crewIn=v=>(v&&v.seats)?v.seats.map(x=>x.occ&&U.find(u=>u.id===x.occ)).filter(Boolean):[];
+const emptyVeh=t=>!!(t&&t.veh&&!crewIn(t).length);
 const vehSpd=u=>u.veh?VEHDEF[u.veh].spd*(u.wound?0.75:1):u.bot?((Enemies.owned(u.bot)||{}).speed||MOVE_R):MOVE_R;
 /* a bay passenger sees nothing worth reporting; a driver or gunner keeps watch */
 const lookout=u=>{const st=seatOf(u);return !st||!!st.drive||!!st.wkey;};
@@ -943,11 +953,21 @@ function vehDestroyed(v,by){
   for(let i=0;i<24;i++)parts.push({x:v.x+(rng()-0.5)*40,y:v.y+(rng()-0.5)*30,vx:(rng()-0.5)*220,vy:-rng()*160,r:3+rng()*5,a:0.8,col:i%3?'#ff9a3c':'#3a3430',t0:performance.now(),dur:900});
   addFloater(v.x,v.y-50,'DESTROYED',C.hazard);
   log('<span class="b">The '+v.name+' is destroyed</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  for(const c of crewIn(v)){
+  const crew=crewIn(v);
+  for(const c of crew){
     dismount(c,true);
     const dmg=rint(10,22);
     log(nameSpan(c)+' is thrown from the wreck <span class="d">— -'+dmg+'</span>.');
     woundUnit(null,c,dmg,rng()<0.25,'explosive');
+  }
+  /* the wreck goes up: anyone standing close is caught in it, crewed or not (DESIGN_BLOCKERS C-7) */
+  for(const u of U){
+    if(u===v||crew.includes(u)||u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
+    const d=dist(u,v);
+    if(d>=WRECK_BLAST)continue;
+    const dmg=Math.round(rint(WRECK_DMG[0],WRECK_DMG[1])*(1-d/WRECK_BLAST*0.6));
+    woundUnit(null,u,dmg,false,'explosive');
+    if(!u.down)log(nameSpan(u)+' is caught as the '+v.first+' goes up — <b>-'+dmg+'</b>.');
   }
   checkDefeat();
 }
@@ -1191,10 +1211,14 @@ function shieldBlocks(shooter,gunner){
     const a0=Math.atan2(shooter.y-gunner.y,shooter.x-gunner.x);
     if(Math.abs(angNorm(a0-gunner.face))<1.0)return true;
   }
-  // the turret's frontal plate: no shot lands from inside its facing arc
+  return false;
+}
+/* the Razorrat emplacement (Steal the Cross, DESIGN_BLOCKERS C-9): a deployed LMG behind a ring of sandbags. A shot
+   from inside the arc it faces meets the sandbags; from the side the gunner is in the open. */
+function sandbagged(shooter,gunner){
   if(!gunner.manning)return false;
   const a=Math.atan2(shooter.y-TURRET.y,shooter.x-TURRET.x);
-  return Math.abs(angNorm(a-turret.face))<SHIELD_ARC;
+  return Math.abs(angNorm(a-turret.face))<SANDBAG_ARC;
 }
 
 /* ---------- critical injuries (see rebel-injury.js) ----------
@@ -1260,7 +1284,7 @@ function doTreat(h){
   if(wasIncap&&t!==h){h.rescued=h.rescued||[];const id=t.pid||t.id;if(h.rescued.indexOf(id)<0)h.rescued.push(id);}
 }
 function wpnsOf(s){
-  if(s.manning)return ['laser'];
+  if(s.manning)return ['razorrat'];
   if(s.veh)return [];
   if(s.mnt){const st=seatOf(s);return st&&st.wkey?[st.wkey]:[];}
   if(s.oneHand||injOf(s,'brokenarm')){const w=s.wpns.filter(x=>ONE_HAND.indexOf(x)>=0);return w.length?w:['unarmed'];}
@@ -1268,7 +1292,7 @@ function wpnsOf(s){
 }
 function validShot(s,t,wkey){
   if(t.side==='civ'||s.veh)return false;
-  if(t.veh&&(t.owner===s.side||!crewIn(t).length))return false;   // an empty vehicle is scenery until someone climbs in
+  if(t.veh&&(crewIn(t).length?t.owner===s.side:s.side!=='reb'))return false;   // an empty vehicle: only the player shoots it, to blow it up (C-7)
   if(t.mnt&&enclosed(t))return false;                              // shoot the vehicle, not the people inside
   if(stunned(s))return false;
   if(s.office||t.office)return false;
@@ -1289,12 +1313,13 @@ function computeTN(s,t){
   if(t.sprinted){v+=2;e.push(['SPRINTING',2]);}
   const cov=coverOf(s,t);
   if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
-  if(t.manning){v+=2;e.push(['GUN SHIELD EDGE',2]);}
+  if(t.manning&&sandbagged(s,t)){v+=SANDBAG_COVER;e.push(['SANDBAGS',SANDBAG_COVER]);}
   if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
   if(coolStateG(t)==='panic'){v-=2;e.push(['TARGET PANICKING',-2]);}
   if(t.wound){v-=1;e.push([t.veh?'HULL DAMAGED':'TARGET WOUNDED',-1]);}
   if(t.frail){v-=1;e.push(['UNTRAINED',-1]);}
+  if(hasT(t,'weak')){v+=2;e.push(['SCRAWNY',2]);}   // a small target (Rebels & Recruits doc: Scrawny)
   if(t.side==='reb'&&(t.level||1)>=2){
     const xb=Math.min(3,Math.floor((t.level||1)/2));
     v+=xb;e.push(['COMBAT EXPERIENCE',xb]);
@@ -1387,17 +1412,56 @@ function applyShot(s,t,wkey,snap){
   } else if(hit){
     dmg=rollDamage(s,t,wkey,crit);
     if(tn.cover&&tn.cover.prop)dmg=Math.max(1,Math.round(dmg*0.75));
-    woundUnit(s,t,dmg,crit,WDAM[wkey]);
+    woundUnit(s,t,dmg,crit,WDAM[wkey],wkey);
   } else if(tn.cover&&tn.cover.prop){
     chipCover(tn.cover.prop,Math.round(rollDamage(s,t,wkey,false)*0.7));
   }
   return {tn,atk,need,roll,hit,crit,dmg,jammed};
 }
-function woundUnit(s,t,dmg,crit,dsrc){
+/* ---------- armour and shields (Ground Combat doc) ----------
+   A hit drains the shield bar first, then the armour bar, then health. Sundering weapons tear armour faster
+   (armour_sunder_mult); Piercing ones send a share of each hit past the armour (armour_pierce_frac). Whatever a
+   broken bar cannot hold spills on to the next. There are no arcs on the ground. */
+const SUNDER=SRDB.rules.armour_sunder_mult||1,PIERCE=SRDB.rules.armour_pierce_frac||0;
+function soak(t,dmg,wkey){
+  const w=wkey&&WPN[wkey];
+  let rem=dmg,sd=0,ad=0;
+  if(t.shd>0&&rem>0){sd=Math.min(t.shd,rem);t.shd-=sd;rem-=sd;}
+  if(t.arm>0&&rem>0){
+    const pass=w&&w.pierce?Math.round(rem*PIERCE):0,mult=w&&w.sunder?SUNDER:1;
+    const want=(rem-pass)*mult;
+    ad=Math.min(t.arm,Math.round(want));
+    t.arm-=ad;
+    rem=pass+Math.round(Math.max(0,want-ad)/mult);
+  }
+  return {sd,ad,hd:Math.max(0,rem)};
+}
+/* raising a shield fills its bar; enemies raise theirs when the alarm goes up, rebels with the Shield order */
+function raiseShield(u){
+  if(!u||!u.maxShd||u.down||u.shd>=u.maxShd)return false;
+  u.shd=u.maxShd;u.shdUp=1;
+  addFloater(u.x,u.y-48,'SHIELD UP',C.shield);
+  log(nameSpan(u)+' <span class="g">raises a shield</span> <span class="d">('+u.maxShd+')</span>.');
+  return true;
+}
+function woundUnit(s,t,dmg,crit,dsrc,wkey){
   if(s&&s.side==='reb')s.xpGain=(s.xpGain||0)+0.04;
   sk(s,'aim',1);
+  if(t.tr&&t.tr.length&&hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
+  if(t.shd>0||t.arm>0){
+    const sk2=soak(t,dmg,wkey);
+    if(sk2.sd)addFloater(t.x+14,t.y-50,'-'+sk2.sd+' SHIELD',C.shield);
+    if(sk2.ad)addFloater(t.x-14,t.y-50,'-'+sk2.ad+' ARMOUR',C.steel);
+    if(sk2.ad&&!t.arm)log(nameSpan(t)+(t.veh?'’s armour plating gives way.':'’s armour is spent.'));
+    if(sk2.sd&&!t.shd)log(nameSpan(t)+'’s shield collapses.');
+    dmg=sk2.hd;
+    if(dmg<=0){                     // the bars took all of it: no wound, no critical injury
+      dmgRound.add(t.id);
+      adjCoolG(t,-8,'took a hit');
+      return;
+    }
+  }
   if(t.tr&&t.tr.length){
-    if(hasT(t,'cautious'))dmg=Math.max(1,Math.round(dmg*0.9));
     if(t.hp-dmg<=0&&((hasT(t,'lucky')&&rng()<0.05)||(hasT(t,'luckyesc')&&rng()<0.03))){t.luckySaved=1;dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
     if(hasT(t,'shortfuse'))t.fuse=2;
@@ -1428,7 +1492,7 @@ function downUnit(t,by){
     const heir=U.filter(u=>u.side==='reb'&&!u.down&&!u.extracted&&u.id!==t.id).sort((a,b)=>dist(a,t)-dist(b,t))[0];
     if(heir){heir.charge=1;log(nameSpan(heir)+' picks up the <b>explosive charge</b>.');}
   }
-  if(t.manning){t.manning=0;turret.gunner=null;log('The <b>laser turret</b> stands unmanned.');}
+  if(t.manning){t.manning=0;turret.gunner=null;log('The <b>Razorrat</b> stands unmanned.');}
   sThud();
   log(nameSpan(t)+' <span class="b">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
   addFloater(t.x,t.y-46,'DOWN',C.hazard);
@@ -1471,6 +1535,7 @@ function alertTown(why){
   if(caller&&caller.lines)say(caller,caller.lines[caller.lines.length-1]);
   const reeve=U.find(u=>u.id==='reeve');
   if(reeve&&!reeve.down)setTimeout(()=>sayRandom(reeve),1400);
+  for(const u of U)if(u.side==='law'&&u.maxShd&&!u.down&&!u.surr)raiseShield(u);   // shields go up with the alarm
   // townsfolk scatter or hit the dirt
   for(const c of U){
     if(c.side!=='civ'||c.extracted)continue;
@@ -1738,7 +1803,7 @@ function aiPlan(){
       continue;
     }
     // alerted
-    const targets=u.ally?U.filter(r=>r.side==='law'&&!r.down&&!r.surr&&!r.office):U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&!(r.manning&&shieldBlocks(u,r)));
+    const targets=u.ally?U.filter(r=>r.side==='law'&&!r.down&&!r.surr&&!r.office):U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
     if(!targets.length){u.order={type:'hold'};u.braced=1;continue;}
     // one guard runs for the empty turret
     if(u.guard&&!u.sheriff&&!turret.gunner&&!turretClaimed&&dist(u,TURRET)<620){
@@ -1947,8 +2012,8 @@ function manTurret(u){
   turret.gunner=u.id;u.manning=1;u.goingTurret=0;
   u.x=TURRET.x;u.y=TURRET.y;u.rtPath=null;u.path=null;
   u.braced=1;u.order={type:'hold'};u.face=turret.face;
-  log(nameSpan(u)+' mans the <b>laser turret</b>.');
-  addFloater(TURRET.x,TURRET.y-42,'TURRET MANNED',C.shield);
+  log(nameSpan(u)+' gets behind the <b>Razorrat</b>.');
+  addFloater(TURRET.x,TURRET.y-42,'GUN MANNED',C.shield);
   sTick();syncUI();
 }
 function unmanTurret(u){
@@ -1956,7 +2021,7 @@ function unmanTurret(u){
   let ox=TURRET.x+Math.cos(turret.face+Math.PI)*44,oy=TURRET.y+Math.sin(turret.face+Math.PI)*44;
   const d=moveDest(u,ox,oy,60);
   if(d){u.x=d.x;u.y=d.y;}
-  log(nameSpan(u)+' steps off the turret.');
+  log(nameSpan(u)+' leaves the gun.');
   syncUI();
 }
 function workDone(){return WORK.every(w=>w.done);}
@@ -2085,7 +2150,7 @@ function fsItems(){
   });
   (FS.vehicles||[]).forEach((a,i)=>{
     if(a.state!=='ready')return;
-    it.push({key:'v'+i,name:(a.kind==='bot'?'Bot':'Vehicle')+' · '+a.name,
+    it.push({key:'v'+i,name:'Deploy '+a.name,
       sub:a.kind==='bot'?'set down where you call it at the start of the next planning · takes orders like a squad member':'set down empty where you call it at the start of the next planning · someone has to get in'});
   });
   return it;
@@ -2381,9 +2446,9 @@ function fsRoundEnd(){
   }
 }
 function mkSquadUnit(sp,x,y){
-  return mkU({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
+  return mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
     level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
-    wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1});
+    wpns:sp.wpns||['akli','cowboy'],lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1},squadProt(sp)));
 }
 /* a summoned vehicle or Bot: the transport sets it down where it was called */
 function summonVehicle(va,x,y){
@@ -2605,13 +2670,13 @@ function facDetonate(){
   }
   fac.quiet=!fac.everAlerted;
   fac.detonated=true;fac.fx={t0:performance.now()};
-  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole Autoworks goes dark.');
+  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole AutoCom Plant goes dark.');
   explode(SCN.plant.bx,SCN.plant.by,{r:SCN.blastR,d0:80,d1:120});
   camGoal={x:SCN.plant.bx-80,y:SCN.plant.by+120,z:0.8};
   const lead=U.find(u=>u.side==='reb'&&!u.down);
   if(lead)say(lead,'Plant\u2019s gone! Back to the Marta!');
   if(SCN.detWave)spawnFoes(SCN.detWave.foes,SCN.detWave.log);
-  if(town==='calm')alertTown('The Autoworks goes dark.');
+  if(town==='calm')alertTown('The AutoCom Plant goes dark.');
   syncUI();
 }
 function drawCage(now){
@@ -2999,7 +3064,7 @@ function buildEngage(){
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&town!=='alerted')continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
-    const anyT=U.some(t=>t.side!==s.side&&wpnsOf(s).some(w=>validShot(s,t,w)));
+    const anyT=U.some(t=>t.side!==s.side&&!emptyVeh(t)&&wpnsOf(s).some(w=>validShot(s,t,w)));
     if(!anyT)continue;
     list.push(s);
   }
@@ -3015,7 +3080,7 @@ function pickTarget(s){
   let best=null,bp=-1e9,bw=null;
   const hasOther=s.side==='law'&&U.some(t=>t.side==='reb'&&t.id!=='sera'&&!t.down&&!t.extracted&&wpnsOf(s).some(w=>validShot(s,t,w)));
   for(const t of U){
-    if(t.side===s.side||t.down||t.surr||t.extracted||t.away)continue;
+    if(t.side===s.side||t.down||t.surr||t.extracted||t.away||emptyVeh(t))continue;   // an empty vehicle only when the player picks it
     for(const w of wpnsOf(s)){
       if(!validShot(s,t,w))continue;
       s.wkey=w;
@@ -3110,7 +3175,7 @@ function attackUpdate(now){
         const soaked=!!(c.tn.cover&&c.tn.cover.prop);
         if(soaked)dmg=Math.max(1,Math.round(dmg*0.75));
         c.dmg=dmg;
-        woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey]);
+        woundUnit(c.s,c.t,dmg,c.crit,WDAM[c.wkey],c.wkey);
         if(c.wkey==='rocket')c.s.wpns=c.s.wpns.filter(w=>w!=='rocket');
         log(nameSpan(c.s)+' hits '+nameSpan(c.t)+' — <b>'+dmg+'</b>'+(soaked?' <span class="d">(cover soaked it)</span>':'')+(c.crit?' <span class="a">(critical)</span>':'')+'.');
       } else {
@@ -3186,8 +3251,7 @@ function retargetCanister(p){
 }
 function retarget(t){
   const c=engageQ&&engageQ.cur;
-  if(!c||c.stage!=='await'||!(t.side==='law'||(t.veh&&t.owner==='law'))||t.down||t.surr)return;
-  if(t.manning&&shieldBlocks(c.s,t)){addFloater(t.x,t.y-30,'TURRET SHIELD',C.shield);return;}
+  if(!c||c.stage!=='await'||!(t.side==='law'||(t.veh&&(t.owner==='law'||!crewIn(t).length)))||t.down||t.surr)return;
   const w=bestWeapon(c.s,t)||c.wkey;
   if(!validShot(c.s,t,w))return;
   engageQ.cur=makeCur(c.s,t,w);
@@ -3500,7 +3564,7 @@ function clipShot(x1,y1,x2,y2){
 function fireFx(s,t,wkey,hit){
   const w=WPN[wkey];
   const ang=Math.atan2(t.y-s.y,t.x-s.x);
-  if(s.manning)turret.face=ang; // the gun (and its shield) tracks where it shoots
+  if(s.manning)turret.face=ang; // the gun (and its sandbags' open side) tracks where it shoots
   if(w.beam){
     const end=hit?{x:t.x,y:t.y}:clipShot(s.x,s.y,s.x+Math.cos(ang+0.06)*(dist(s,t)+90),s.y+Math.sin(ang+0.06)*(dist(s,t)+90));
     tracers.push({x1:s.x+Math.cos(ang)*30,y1:s.y+Math.sin(ang)*30,x2:end.x,y2:end.y,t0:performance.now(),dur:200,col:s.side==='reb'?C.rebel:C.heg,beam:1});
@@ -3546,6 +3610,8 @@ function sShot(wkey){
     for(let i=0;i<2;i++){nz('highpass',2600,1,0.15,0.06,i*0.11);osc('square',260,80,0.09,0.07,i*0.11);}
   } else if(wkey==='scatter'){
     osc('sine',120,30,0.42,0.5);nz('lowpass',800,0.8,0.4,0.55,0,60);nz('bandpass',320,1.2,0.16,0.3,0.03);
+  } else if(wkey==='razorrat'){ // a short LMG burst
+    for(let i=0;i<5;i++){nz('highpass',2200,1,0.14,0.05,i*0.07);osc('square',190,65,0.09,0.06,i*0.07);}
   } else if(wkey==='doorgun'){ // the heavy door gun: five slow, deep reports
     for(let i=0;i<5;i++){osc('sine',100,34,0.3,0.12,i*0.095);nz('lowpass',700,0.9,0.22,0.16,i*0.095);nz('highpass',2000,1,0.08,0.04,i*0.095);}
   } else { // longiron
@@ -3890,18 +3956,23 @@ function drawTurret(now){
   ctx.strokeStyle='#12151c';ctx.lineWidth=3;ctx.stroke();
   ctx.strokeStyle='#3c4250';ctx.lineWidth=1.5;
   ctx.beginPath();ctx.arc(0,0,TURRET.r*0.62,0,7);ctx.stroke();
-  // barrel
+  // the Razorrat on its bipod (placeholder drawing until the art kit has one: DESIGN_BLOCKERS M-26)
   ctx.rotate(turret.face);
-  ctx.strokeStyle='#0c0f14';ctx.lineWidth=7;
-  ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(TURRET.r+26,0);ctx.stroke();
-  ctx.strokeStyle=col;ctx.lineWidth=2.5;
-  ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(TURRET.r+24,0);ctx.stroke();
-  // frontal shield — flank it or eat laser
-  const pul=0.5+0.3*Math.sin(now*0.005);
-  ctx.strokeStyle=T.rgba(C.shield,0.55+0.3*pul);ctx.lineWidth=5;
-  ctx.beginPath();ctx.arc(0,0,TURRET.r+9,-SHIELD_ARC,SHIELD_ARC);ctx.stroke();
-  ctx.strokeStyle=T.rgba(C.shield,0.9);ctx.lineWidth=1.6;
-  ctx.beginPath();ctx.arc(0,0,TURRET.r+12,-SHIELD_ARC,SHIELD_ARC);ctx.stroke();
+  ctx.strokeStyle='#0c0f14';ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(TURRET.r+8,0);ctx.lineTo(TURRET.r+2,-9);ctx.moveTo(TURRET.r+8,0);ctx.lineTo(TURRET.r+2,9);ctx.stroke();
+  ctx.fillStyle='#8a5a32';ctx.fillRect(-8,-4,12,8);                         // Bhord wood furniture
+  ctx.fillStyle='#3b3a44';ctx.fillRect(2,-5,16,10);ctx.fillRect(4,5,8,7);   // receiver and box magazine
+  ctx.strokeStyle='#0c0f14';ctx.lineWidth=5;
+  ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(TURRET.r+26,0);ctx.stroke();
+  ctx.strokeStyle=col;ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(18,0);ctx.lineTo(TURRET.r+24,0);ctx.stroke();
+  // sandbags across the front: flank it or eat lead
+  for(let i=-2;i<=2;i++){
+    const a=i*SANDBAG_ARC/2.4,R=TURRET.r+14;
+    ctx.save();ctx.translate(Math.cos(a)*R,Math.sin(a)*R);ctx.rotate(a+Math.PI/2);
+    T.rr(ctx,-9,-5,18,10,4);ctx.fillStyle='#b59a68';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#4a3a22';ctx.stroke();
+    ctx.restore();
+  }
   ctx.restore();
 }
 function drawWork(now){
@@ -4383,7 +4454,7 @@ function hudA(now){
   if(SCN.hasTurret&&cam.z>0.55){
     const g=turret.gunner&&U.find(x=>x.id===turret.gunner);
     const [x,y]=worldToCss(TURRET.x,TURRET.y+TURRET.r+22);
-    L.add(g?'Turret · '+g.first:'Laser turret · unmanned',x,y,{color:g?(g.side==='reb'?C.rebel:C.heg):C.text3,size:12},1);
+    L.add(g?'Razorrat · '+g.first:'Razorrat LMG · unmanned',x,y,{color:g?(g.side==='reb'?C.rebel:C.heg):C.text3,size:12},1);
   }
   hudUnits(L,now);
   L.flush(ctx);
@@ -4400,7 +4471,7 @@ function hudUnits(L,now){
     const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
     if(!u.down&&!civ){
       if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-16*cam.z,y+8,u.bunkered?2:cl);}
-      if(!u.surr)T.hpPips(ctx,x,topY,{hp:u.hp,max:u.maxhp});
+      if(!u.surr)T.hpPips(ctx,x,topY,{hp:u.hp,max:u.maxhp,arm:u.arm,maxArm:u.maxArm,shd:u.shd,maxShd:u.maxShd});
       if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,topY-20*cam.z,Math.min(1,u.det/100));
     }
     if(u.veh&&!u.down){
@@ -5080,8 +5151,8 @@ const OM={
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',key:'5',rule:'Steady your nerve. A panicking rebel can do nothing else.'},
   loot:{label:'Loot',icon:'loot',family:'util',key:'6',rule:'Grab anything lootable within reach at the end of the round.'},
   work:{label:'Work',icon:'work',family:'util',key:'7',rule:'Finish a job at a panel, clamp or fuel line.'},
-  man:{label:'Man gun',icon:'turret',family:'stance',key:'8',rule:'Take the laser turret. Its front plate stops every shot.'},
-  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the turret at the end of the round.'},
+  man:{label:'Man gun',icon:'turret',family:'stance',key:'8',rule:'Get behind the Razorrat LMG. Its sandbags cover shots from the front (+'+SANDBAG_COVER+' TN).'},
+  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the gun at the end of the round.'},
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run, a gunship, reinforcements, or a vehicle or Bot you brought.'},
@@ -5209,6 +5280,8 @@ function dockHTML(){
     }
     if(canNade)orders.push(HUD.order({label:'Grenade ×'+NADES,icon:'grenade',family:'fight',key:key(),active:pickMode==='nadeToss',attrs:'data-nade',
       tip:{title:'BLAM frag',rule:'Tap the ground to throw. It lands primed and goes off next round.'}}));
+    if(c.s.side==='reb'&&c.s.maxShd>0)orders.push(HUD.order({label:'Shield up',icon:'shield',family:'util',key:key(),attrs:'data-shield',
+      disabled:c.s.shd>=c.s.maxShd,why:'The shield is already up.',tip:{title:'Shield up',rule:'Raise a '+c.s.maxShd+'-point shield over armour and health. It takes hits first. Costs the shot.'}}));
     if(c.s.side==='reb'&&c.s.stims>0)orders.push(HUD.order({label:'Stim ×'+c.s.stims,icon:'stim',family:'util',key:key(),attrs:'data-stim',
       disabled:c.s.hp>=c.s.maxhp,why:'Already at full health.',tip:{title:'Stim',rule:'Heal 30% of max health. Costs the shot.'}}));
     return HUD.cmdbar({
@@ -5233,7 +5306,7 @@ function statusTag(u){
   if(u.extracted)return tag('Extracted','good');
   if(u.down)return tag('Down','bad');
   if(u.surr)return tag('Surrendered','');
-  if(u.manning)return tag('On turret','friend','turret');
+  if(u.manning)return tag('On the gun','friend','turret');
   if(u.office)return tag('In his office','');
   if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return tag('Hotwiring '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'action');
   if(u.jam)return tag('Jammed','bad','unjam');
@@ -5264,7 +5337,11 @@ function unitRow(u){
   const frac=u.maxhp?u.hp/u.maxhp:0;
   let cells='';
   for(let i=0;i<5;i++)cells+='<i class="sr-hp__cell'+(u.hp>i*(u.maxhp/5)?' is-on':'')+'"></i>';
-  const hp='<span class="sr-hp'+(frac<0.35?' sr-hp--low':frac<0.6?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+cells+'</span>'+
+  const bar=(v,max,c,lab)=>{let g='';for(let i=0;i<5;i++)g+='<i class="sr-hp__cell'+(v>i*(max/5)?' is-on':'')+'"></i>';
+    return '<span class="sr-hp sr-hp--layer" style="--hp:var('+c+')"'+HUD.tip(lab,Math.max(0,Math.round(v))+' of '+max)+'><span class="sr-hp__cells">'+g+'</span>'+
+      (foe?'':'<span class="sr-hp__num">'+Math.max(0,Math.round(v))+'</span>')+'</span>';};
+  const hp=(u.maxShd&&u.shd>0?bar(u.shd,u.maxShd,'--sr-shield','Shield'):'')+(u.maxArm?bar(u.arm,u.maxArm,'--sr-steel','Armour'):'')+
+    '<span class="sr-hp'+(frac<0.35?' sr-hp--low':frac<0.6?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+cells+'</span>'+
     (foe?'':'<span class="sr-hp__num">'+Math.max(0,Math.round(u.hp))+'</span>')+'</span>';
   const nm=u.name+(u.charge?' ✸':'')+(u.spec==='fieldtech'?' ⌨':'');
   const gone=u.down||u.extracted||u.away||u.surr;
@@ -5494,6 +5571,10 @@ DOCK.addEventListener('click',ev=>{
   else if(b.hasAttribute('data-stim')){
     const c=engageQ&&engageQ.cur;
     if(c&&c.stage==='await')useStim(c.s);
+  }
+  else if(b.hasAttribute('data-shield')){
+    const c=engageQ&&engageQ.cur;
+    if(c&&c.stage==='await'&&raiseShield(c.s)){sTick();engageQ.cur=null;engageQ.nextAt=performance.now()+450;syncUI();}
   }
   else if(b.hasAttribute('data-nade')){
     if(engageQ&&engageQ.cur&&engageQ.cur.stage==='await'&&NADES>0){
@@ -5868,10 +5949,10 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{SCENARIOS_:()=>SCENARIOS,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
-      computeATK,computeTN,rollDamage,woundUnit,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
+      computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},
       engageAwait(){return !!(engageQ&&engageQ.cur&&engageQ.cur.stage==='await');}}};
 }

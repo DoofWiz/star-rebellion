@@ -45,15 +45,24 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.saveSnap();
   let stored=null;try{stored=JSON.parse(localStorage.getItem('star-rebellion-campaign-v1'));}catch(e){}
   out.persist=!!stored&&stored.campaign&&stored.campaign.v===V;
+  // C-17: missions keep world and region ids; renaming a world in PLANETDEF renames it on missions already saved
+  const PD=f.PLANETDEF_(),d=PD.find(x=>x.regions&&x.regions.length),reg=d.regions[0];
+  const mm=f.spawnMission('fuel',{loc:d.id,region:reg.id});if(!G().missions.includes(mm))G().missions.push(mm);
+  const keep=[d.name,reg.name];d.name='Renamed World';reg.name='Renamed Region';
+  f.restoreCampaign({campaign:clone(),started:true});
+  const m2=G().missions.find(x=>x.id===mm.id);
+  out.rename=m2?[m2.ctx.locName,m2.ctx.place].join('|'):'missing';
+  d.name=keep[0];reg.name=keep[1];
   return out;
  });
- ok(/^1,1,true$/.test(r.born),'a new campaign is born at the current version '+r.born);
- ok(r.v0==='1,hangar,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
- ok(r.v1==='1,bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
- ok(r.chain==='1,2,2,1','a new migration runs exactly once and moves the version on '+r.chain);
+ ok(/^2,2,true$/.test(r.born),'a new campaign is born at the current version '+r.born);
+ ok(r.v0==='2,hangar,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
+ ok(r.v1==='2,bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
+ ok(r.chain==='1,3,3,1','a new migration runs exactly once and moves the version on '+r.chain);
  ok(r.every==='true,true','every-load work still runs on a current save '+r.every);
  ok(r.newer&&warns.some(w=>/newer build/.test(w)),'a newer save loads as it is, with a warning '+r.newer+' '+warns.length);
  ok(r.persist,'the version is saved with the campaign');
+ ok(r.rename==='Renamed World|Renamed Region','a renamed world or region shows its new name on saved missions '+r.rename);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'save-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);

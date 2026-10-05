@@ -16,7 +16,7 @@ const A=SR.audio,osc=A.osc,nz=A.nz;
 /* Autos: robots that fight for us, the robot equivalent of a character. A hacked one keeps the stats and weapon its
    type has in the enemy roster (game/data/db.json); the label and bio are the base's. */
 const autoRow=t=>Enemies.owned(t);
-const autoFrom=(t,label,bio)=>{const r=autoRow(t);return {label,hp:r.hp,def:r.def,wpn:r.weapon_1,big:r.big?1:0,heavy:r.heavy?1:0,bio};};
+const autoFrom=(t,label,bio)=>{const r=autoRow(t);return {label,hp:r.hp,def:r.def,arm:Enemies.protection(r).arm,wpn:r.weapon_1,big:r.big?1:0,heavy:r.heavy?1:0,bio};};
 const AUTOS={
   policebot:autoFrom('policebot','Policebot','A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'),
   bruiser:autoFrom('bruiser','Bruiser','A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'),
@@ -29,8 +29,9 @@ const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';
    gun come from that roster row (game/data/db.json). The label and bio are the base's. */
 const ownedVeh=(type,bio)=>{
   const r=Enemies.owned(type);
-  if(r.kind==='bot')return {label:r.name,kind:'bot',hp:r.hp,def:r.def,aim:r.aim,wpn:r.weapon_1,big:r.big?1:0,bio};   // an owned Bot is the enemy one, reprogrammed (C-21)
-  return {label:r.name,kind:'vehicle',hp:r.hp,def:r.def,seats:Enemies.seats(r.id).length,bio};
+  const arm=Enemies.protection(r).arm;   // armour plating is mended between missions; hp carries the damage home
+  if(r.kind==='bot')return {label:r.name,kind:'bot',hp:r.hp,def:r.def,arm,aim:r.aim,wpn:r.weapon_1,big:r.big?1:0,bio};   // an owned Bot is the enemy one, reprogrammed (C-21)
+  return {label:r.name,kind:'vehicle',hp:r.hp,def:r.def,arm,seats:Enemies.seats(r.id).length,bio};
 };
 const GVEH={
   strider:ownedVeh('strider','A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'),
@@ -134,6 +135,13 @@ const itemBlurb=a=>(Items.get(a.id)||{}).description||a.desc||SRC_LINE[a.src]||'
 const kitNameId=id=>(KIT[id]&&KIT[id].name)||((G&&G.armory.find(a=>a.id===id))||{}).name||id;
 const kitName=a=>(KIT[a.id]&&KIT[a.id].name)||a.name;
 /* the market pool rule (the Black Market draws from this once it lands) */
+/* the Black Market's lot weights by category, from the market_weights table (the highest row at or below lvl) */
+const MARKET_CATS=['weapon','gadget','merc','armour','shipwpn','vehicle','ship'];
+function marketWeights(lvl){
+  const rows=(SRDB.raw.market_weights||[]).filter(x=>x.rev<=lvl).sort((x,y)=>y.rev-x.rev);
+  const row=rows[0]||{weapon:1};
+  return MARKET_CATS.map(c=>[c,row[c]||0]);
+}
 const marketable=id=>{const m=KIT[id];return !!(m&&m.live&&!m.heg&&!m.dropOnly&&(m.rev||1)<=(G&&G.revLevel||1)&&m.price);};
 const GEAR_COLS=8;
 function gearCapacity(){return 24+12*tilesOf('store');}
@@ -185,7 +193,7 @@ function pilotInit(p){
 /* a rebel's skills on the database's 0..50 scale, which is what the space scene reads */
 function pilotSkills(p){return {aim:Rebel.dbSkill(p,'aim'),cunning:Rebel.dbSkill(p,'cun'),focus:Rebel.dbSkill(p,'foc'),presence:Rebel.dbSkill(p,'pre')};}
 /* what sits on top of the database's skill-and-level bonus: mood, injury and the Dogfighter specialty */
-function pilotAimMod(p){return Rebel.moraleFx(p).aim+Rebel.injFx(p).aim+(p.spec==='dogfighter'?1:0);}
+function pilotAimMod(p){return Rebel.moraleFx(p).aim+Rebel.injFx(p).aim+Rebel.wearyFx(p).aim+(p.spec==='dogfighter'?1:0);}
 
 /* ---------- state ---------- */
 let G=null,tilePopAt=null,winMode=null,winArg=null,started=false,viewRoom=null,srcSel=null;
@@ -291,7 +299,7 @@ const STAFFABLE={
   training:{post:'Drill Instructor',perk:'+50% training XP'},
 };
 const STLBL={barracks:'Garrison',hangar:'Deck',diplo:'Diplo',command:'Command',store:'Stores',workshop:'Workshop',infirmary:'Medbay',comms:'Comms',training:'Drill'};
-function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!laidUp(p));}
+function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!laidUp(p)&&!Rebel.conked(p));}
 function medStaff(){return staffOf('infirmary');}
 const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
 /* ---------- morale: every rebel has their own; G.morale is the base's mood, their average ---------- */
@@ -306,7 +314,7 @@ function mood(){const c=crewOf();G.morale=c.length?c.reduce((a,p)=>a+(p.morale==
    p.gear = {primary, secondary, head, body, gad:[a,b]}. Old saves gain head/body here, lazily.
    An item can only be carried by one rebel per unit in stock. New kit is handed out automatically to empty
    slots, best first to the most experienced; anything the player chose by hand is left alone. */
-const SLOT_LABEL={primary:'Primary weapon',secondary:'Secondary weapon',head:'Head',body:'Body',gad:'Gadget'};
+const SLOT_LABEL={primary:'Primary weapon',secondary:'Secondary weapon',back:'Back',head:'Head',body:'Body',gad:'Gadget'};
 const gearSlots=p=>Rebel.gearSlots(p);
 function gearHeld(p){
   const g=p.gear=p.gear||{primary:null,secondary:null,head:null,body:null,gad:[null,null]};
@@ -453,6 +461,15 @@ function healRate(p){
 /* off duty (laid up), and how many days until they are back at today's rate */
 const laidUp=p=>Rebel.laidUp(p)>0;
 const outDays=p=>Math.ceil(Rebel.laidUp(p)/healRate(p));
+/* rest (rebel-rest.js): a Weary rebel can still go, at a cost; a Conked one is in their bunk until rested */
+const conked=p=>Rebel.conked(p);
+const offDuty=p=>laidUp(p)||conked(p);
+const restTag=p=>{
+  if(!Rebel.weary(p))return '';
+  const n=Rebel.restDays(p),d=n+' day'+(n>1?'s':'');
+  return conked(p)?'<span class="sr-tag sr-tag--bad" title="Conked out: in their bunk for '+d+'" aria-label="Conked out, '+d+'">Zz '+d+'</span>':
+    '<span class="sr-tag sr-tag--warn" title="Weary: needs '+d+' of rest. Sent out now, they lose morale and fight worse." aria-label="Weary, '+d+' of rest">Zz Weary</span>';
+};
 function applyInjuries(p,list,hadState){
   const msgs=[];
   for(const i of list||[]){
@@ -596,6 +613,13 @@ function squadTension(squad){
 }
 const nm0=p=>'<b>'+p.name+'</b> ';
 
+/* back from a mission: one more without rest (rebel-rest.js), and the news when it tips them over */
+function tireNews(p){
+  const t=Rebel.tire(p);
+  if(t==='weary')news('<b>'+p.name+'</b> is weary and needs a break: '+Rebel.restDays(p)+' days at the base. Send someone else.','a');
+  else if(t==='conked')news('<b>'+p.name+'</b> has collapsed in their bunk in the Barracks. Out for '+Rebel.restDays(p)+' days.','h');
+  return t;
+}
 function creditMission(p){
   if(p&&p.merc)p.merc.missions=(p.merc.missions||0)+1;   // contract missions count toward "join the cause"
   if(Rebel.credit(p))news('<b>'+p.name+'</b> has earned a promotion. Say the word in their file.','p');
@@ -871,7 +895,7 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   loc:'menk',region:'menkcross',lib:15,
   vip:{name:'Strider SK-1',first:'Strider',hp:Enemies.owned('strider').hp,def:Enemies.owned('strider').def,wpns:[Enemies.owned('strider').weapon_1],strider:1},
   req:{team:3,teamRole:'Soldier',transport:1,prize:0},
-  desc:'With the Power Plant gone, the Autoworks is shipping its last Strider Mk I out of the Crossing depot. It is parked in a locked holding yard, waiting for a hauler. A robotic mech like that could be reprogrammed to fight for us, if we can steal it and guide it out of there on its own two legs.',
+  desc:'With the Power Plant gone, the AutoCom Plant is shipping its last Strider Mk I out of the Crossing depot. It is parked in a locked holding yard, waiting for a hauler. A robotic mech like that could be reprogrammed to fight for us, if we can steal it and guide it out of there on its own two legs.',
   objectives:['Override the Strider\u2019s leash panel in the holding yard','(Optional) Do it without the enemy realising you were there','Guide the Strider and the squad back to the Marta'],
   rew:{c:450,m:200,xp:0.3},bonus:{c:300},
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
@@ -904,7 +928,7 @@ const MTYPE_DEFS={
     obj:['Hack into the Hegemony databanks at the {target}','Extract with the stolen data'],
     after:['<b>{SRC}:</b> “The drive came through. I have been reading for six hours and I cannot stop shaking. There are names in there we can protect. Thank you.”']},
   autofactory:{name:'Blow Up Auto Factory',scenario:'autofactory',days:2,riskTxt:'Moderate',lib:20,
-    variants:['Auto Factory','Autoworks','Bot Assembly Plant'],
+    variants:['Auto Factory','AutoCom Plant','Bot Assembly Plant'],
     req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{id:'charge',n:1,label:'Explosive Charge'}]},
     rew:{c:450,m:160,xp:0.2},bonus:{i:2,c:250},
     hook:'Vast local resources are being poured into the {target} at {place}. The whole line runs off one power plant. If somebody had a charge and a little nerve, it would all go dark.',
@@ -932,7 +956,7 @@ MTYPE_DEFS.towers={name:'Disrupt Comm Towers',scenario:'towers',days:2,riskTxt:'
 const MSTORY={stealfuel:'fuel',rescue:'rescue',autofactory:'autofactory',stealintel:'intel'};
 const CTXDEF={
   stealfuel:{src:'cass',loc:'brakka',region:'flats',target:'fuel depot'},
-  autofactory:{src:'tess',loc:'menk',region:'kilnridge',target:'Autoworks'},
+  autofactory:{src:'tess',loc:'menk',region:'kilnridge',target:'AutoCom Plant'},
   rescue:{src:'pell',loc:'ballakan',region:'tollgate',target:'security outpost'},
   stealintel:{src:'cask',loc:'parity',region:'dataflats',target:'server farm'},
 };
@@ -948,6 +972,14 @@ function fillMission(m,str){
   return String(str).replace(/\{npc\}/g,m.npc?m.npc.name:'').replace(/\{npc1\}/g,m.npc?m.npc.first:'')
     .replace(/\{target\}/g,c.target||'target').replace(/\{place\}/g,c.place||'the target')
     .replace(/\{SRC\}/g,(sn[sn.length-1]||'CONTACT').toUpperCase());
+}
+/* a mission's place names from its world and region ids (m.loc, m.region): names are display only, ids are kept */
+function ctxNames(m){
+  const d=m&&m.ctx&&m.loc&&pdef(m.loc);
+  if(!d||m.ctx.locName===undefined)return;
+  const reg=d.regions&&m.region?d.regions.find(r=>r.id===m.region):null;
+  m.ctx.place=reg?reg.name:d.name;m.ctx.locName=d.name;
+  if(m.oppId)m.from='Intelligence \u00b7 '+d.name;
 }
 function spawnMission(tid,ctx){
   const T=MTYPE_DEFS[tid];
@@ -1318,7 +1350,7 @@ function storySignal(src){
     return true;
   }
   if(src.id==='tess'&&!hasStory('autofactory')){
-    src.signal={kind:'mission',mid:'autofactory',text:'\u201cThe Autoworks at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'};
+    src.signal={kind:'mission',mid:'autofactory',text:'\u201cThe AutoCom Plant at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'};
     return true;
   }
   if(src.id==='cass'&&G.postDepot&&!hasStory('stealfuel')){
@@ -1328,7 +1360,7 @@ function storySignal(src){
   }
   if(src.id==='tess'&&storyDone('autofactory')&&!G.missions.some(m=>m.id==='stealstrider')){
     src.signal={kind:'mission',mid:'stealstrider',
-      text:'\u201cThe Autoworks is shutting down for repairs, and they are moving the last Strider out through the Crossing depot. Nobody thinks the thing needs a proper guard; it is bigger than the guards. If somebody can get to its leash panel, it will walk wherever you tell it.\u201d'};
+      text:'\u201cThe AutoCom Plant is shutting down for repairs, and they are moving the last Strider out through the Crossing depot. Nobody thinks the thing needs a proper guard; it is bigger than the guards. If somebody can get to its leash panel, it will walk wherever you tell it.\u201d'};
     return true;
   }
   if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
@@ -1597,6 +1629,7 @@ function advanceDay(){
         if(def.after==='nearlydead'&&Rebel.expGrant(p,'nearlydead'))news('<b>'+p.name+'</b> was not expected to walk again, and does.','p');
       }
     }
+    if(p.assign!=='mission'&&Rebel.restDay(p)==='rested')news('<b>'+p.name+'</b> has slept it off and is fit for duty again.','g');
     if(wasUp)continue;   // off duty: no training, no rest bonus
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
     if(p.assign==='rest')Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
@@ -1645,7 +1678,7 @@ function advanceDay(){
     }
     const tess2=G.sources.find(x=>x.id==='tess'&&x.alive);
     if(tess2&&!tess2.signal&&!G.missions.some(m=>m.id==='stealstrider')&&storySignal(tess2)){
-      news('<b>Tessaly Brandt</b> is on the wire: the Autoworks is moving something big.','a');sAlert();
+      news('<b>Tessaly Brandt</b> is on the wire: the AutoCom Plant is moving something big.','a');sAlert();
     }
   }
   genOpportunities();
@@ -1842,7 +1875,7 @@ function resolveMission(m){
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
   const cmdBonus=staffOf('command').length?0.05:0;
   const ok=rng()<Math.min(0.92,0.45+avgLvl*0.08+G.morale*0.002+cmdBonus);
-  for(const p of pilots)p.assign='rest';
+  for(const p of pilots){p.assign='rest';tireNews(p);}
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   if(ok){
     let rew=[];
@@ -2052,7 +2085,7 @@ function openOpp(id){
 }
 /* ---------- Patrol Local Space (Hangar task) ---------- */
 const PATROL_DAYS=2;
-function patrolPilot(f){return G.people.find(p=>isFlyer(p)&&p.ship===f.id&&!laidUp(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function patrolPilot(f){return G.people.find(p=>isFlyer(p)&&p.ship===f.id&&!offDuty(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function patrolReady(f){return !f.out&&f.hull>=60&&G.fuel>=fuelOf(f)&&!!patrolPilot(f);}
 function startPatrol(fid){
   const f=G.fighters.find(x=>x.id===fid);
@@ -4546,7 +4579,7 @@ function renderWin(){
   else if(winMode==='person'){
     const p=winArg;
     const pct=Math.round(p.xp*100);
-    let b=dossierHead(p,laidUp(p)?wTag('Injured '+outDays(p)+' days','bad'):'');
+    let b=dossierHead(p,laidUp(p)?wTag('Injured '+outDays(p)+' days','bad'):restTag(p));
     if(p.role==='Pilot'||p.role==='Hero'){
       const f=G.fighters.find(x=>x.id===p.ship);
       if(f){
@@ -4715,6 +4748,7 @@ function syncUI(){
     let tag;
     if(laidUp(p))tag='<span class="sr-tag sr-tag--bad" title="Injured, '+outDays(p)+' day'+(outDays(p)>1?'s':'')+'" aria-label="Injured, '+outDays(p)+' days">'+IC('heart')+outDays(p)+' day'+(outDays(p)>1?'s':'')+'</span>';
     else if(p.assign==='mission')tag='<span class="sr-tag sr-tag--info">On mission</span>';
+    else if(Rebel.weary(p))tag=restTag(p);
     else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
     else if(p.assign.startsWith('station:'))tag='<span class="sr-tag sr-tag--good">'+(STLBL[p.assign.slice(8)]||'Post')+'</span>';
     else tag='<span class="sr-tag">Resting</span>';
@@ -4936,6 +4970,8 @@ function arDossierHTML(){
     const stats='<dl class="kit-stat">'+
       statRow('Kind',(AR_CATLBL[m.cat]||'Other')+(m.origin&&m.origin!=='factory'?' · '+m.origin:''))+
       statRow('Slot',m.slot?SLOT_LABEL[m.slot==='gadget'?'gad':m.slot]:'Mission stores — not carried in a slot')+
+      (m.cat==='armour'?statRow('Armour',m.arm?m.arm+' over health in a fight':'None — cosmetic'):'')+
+      (m.shd?statRow('Shield',m.shd+' when raised'):'')+
       statRow('Size',m.w+'×'+m.h+' storeroom slot'+(m.w*m.h>1?'s':''))+
       (m.price?statRow('Street value',m.price+' credits'):'')+
       '</dl>';
@@ -4962,7 +4998,7 @@ function arDossierHTML(){
     return well(vehArt(v.type))+
       '<div><div class="ar-dossier__name">'+esc(v.name)+'</div><div class="ar-dossier__kind">'+wTag(d.kind==='bot'?'Bot':'Vehicle','info')+'</div></div>'+
       (d.bio?'<p class="ar-blurb">'+esc(d.bio)+'</p>':'')+
-      '<dl class="kit-stat">'+statRow('Type',esc(d.label))+statRow('Health',Math.round(v.hp)+'%')+
+      '<dl class="kit-stat">'+statRow('Type',esc(d.label))+statRow('Health',Math.round(v.hp)+'%')+(d.arm?statRow('Armour',String(d.arm)):'')+
       statRow('Crew',d.kind==='bot'?'Drives itself':(d.seats||1)+' seat'+((d.seats||1)>1?'s':''))+'</dl>'+
       '<p class="ar-blurb">Bring it to a ground mission from the plan’s Fire support area.</p>';
   }
@@ -5388,9 +5424,9 @@ function rollMarket(){
   addKit(pickFrom(byCat('weapon')));
   addKit(pickFrom(pool));
   addKit(pickFrom(pool));
-  // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls (Rev 2+ weights: M-18;
-  // vehicles wait on GVEH.truck getting stats, M-17, so their weight falls back onto the others)
-  const CATW=[['weapon',28],['gadget',24],['merc',14],['armour',12],['shipwpn',10],['vehicle',8],['ship',4]];
+  // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls. The weights are the
+  // market_weights table in db.json, the highest row at or below the Revolution Level (Rev 2+ rows: M-18)
+  const CATW=marketWeights(G.revLevel||1);
   const notTaken=keys=>keys.filter(k2=>!taken.includes(k2));
   const eligible=c=>
     (c==='weapon'||c==='gadget'||c==='armour')?byCat(c).filter(id=>!taken.includes(id)):
@@ -5615,7 +5651,7 @@ function lotStats(l){
       st.push(['Shots',wp.shots+(wp.jams?', can jam':'')]);
     }
   } else if(m.cat==='armour'){
-    st.push(['Protects',m.q?(m.slot==='head'?'Head':'Body'):'Nothing — style']);
+    st.push(['Armour',m.arm?String(m.arm):'None — style']);
     st.push(['Slot',m.slot==='head'?'Head':'Body']);
   } else {
     for(const row of BM_GSTATS[l.key]||[])st.push(row);
@@ -6135,11 +6171,11 @@ function seedNews(){
 }
 
 /* ---------- leading missions in person ---------- */
-function ablePilots(){return G.people.filter(p=>isFlyer(p)&&!laidUp(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function ablePilots(){return G.people.filter(p=>isFlyer(p)&&!offDuty(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function grafReady(){return G.fighters.some(f=>f.cls==='graf'&&!f.out&&f.hull>=60);}
 /* ---------- mission requirements & the planning board ---------- */
 function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
-function soldierPool(){return G.people.filter(p=>isGround(p)&&!laidUp(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
+function soldierPool(){return G.people.filter(p=>isGround(p)&&!offDuty(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&f.hull>=60);}
 function shipPool(r){return G.fighters.filter(f=>!f.out&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
 function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
@@ -6351,11 +6387,11 @@ function chipHTML(rid){
   }
   const p=G.people.find(x=>x.id===id);
   return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
-    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--friend">Available</span></span></div>';
+    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side">'+(restTag(p)||'<span class="sr-tag sr-tag--friend">Available</span>')+'</span></div>';
 }
 /* people who can't go right now stay on the list, greyed, with the reason */
 function offHTML(p){
-  const why=laidUp(p)?'Injured, '+outDays(p)+' day'+(outDays(p)>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':Rebel.expHas(p,'grieving')?'Grieving':'';
+  const why=laidUp(p)?'Injured, '+outDays(p)+' day'+(outDays(p)>1?'s':''):conked(p)?'Conked out, '+Rebel.restDays(p)+' day'+(Rebel.restDays(p)>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':Rebel.expHas(p,'grieving')?'Grieving':'';
   return '<div class="sr-unit is-down"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
     '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">'+why+'</span></span></div>';
 }
@@ -6376,8 +6412,8 @@ function planHTML(m){
   const away=list=>list.map(offHTML).join('');
   const soldiersAll=G.people.filter(isGround),pilotsAll=G.people.filter(isFlyer);
   const roster='<div class="sr-h3">Roster</div><div class="sr-stack">'+
-    (r.transport?'<span class="bs-rh">Soldiers</span>'+avail(soldierPool(),'p:')+away(soldiersAll.filter(p=>!soldierPool().includes(p)&&(laidUp(p)||p.assign==='mission'||p.assign==='spec'))):'')+
-    '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(laidUp(p)||p.assign==='mission'||p.assign==='spec')))+
+    (r.transport?'<span class="bs-rh">Soldiers</span>'+avail(soldierPool(),'p:')+away(soldiersAll.filter(p=>!soldierPool().includes(p)&&(offDuty(p)||p.assign==='mission'||p.assign==='spec'))):'')+
+    '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(offDuty(p)||p.assign==='mission'||p.assign==='spec')))+
     '<span class="bs-rh">'+(r.transport?'Transports':'Ships')+'</span>'+avail(r.transport?transportPool():shipPool(r),'f:')+
     (PL.assets.length?'<span class="bs-rh">Support ships</span>'+avail(G.fighters.filter(f=>!f.out&&f.hull>=60),'f:'):'')+
     (r.transport&&(G.vehicles||[]).length?'<span class="bs-rh">Vehicles and Bots</span>'+avail(vehPool(),'v:'):'')+
@@ -6418,16 +6454,16 @@ function assetsHTML(){
       '<p class="sr-fine" style="margin:0">'+(mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to '+cap+' more soldier'+(cap===1?'':'s')+' where you call it (fill as many seats as you like).')+(gun?'':' No Door Mounted Gun fitted, so no door gunner.')+'</p>');
   });
   {const gv=PL.slots.filter(sl=>sl.acc==='gveh');
-   if(gv.length)h+=gv.map(slotHTML).join('')+'<p class="sr-fine" style="margin:0">Rides in with the team. Summon it from the Fire Support menu once the shooting starts; a vehicle needs someone to get in it, a Bot drives itself.</p>';}
+   if(gv.length)h+=gv.map(slotHTML).join('')+'<p class="sr-fine" style="margin:0">Adds <b>Deploy</b> to the Fire Support menu: once the shooting starts, call it down where you can see. A vehicle needs someone to get in it, a Bot drives itself.</p>';}
   h+='<div class="bs-chips">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&f.hull>=60).length>1?rbtn('data-addasset','+ Support ship',false,'sr-btn--sm'):'')+(PL.assets.length?rbtn('data-rmasset','Remove last',false,'sr-btn--sm'):'')+'</div></div>';
   return h;
 }
 function squadEntry(p,scatterFirst){
   return {id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,spec:p.spec,art:p.auto?undefined:SA.lookOf(p),tr:Rebel.keys(p),rels:(p.traits||[]).filter(t=>t.with&&BOND_KINDS.indexOf(t.k)>=0).map(t=>[t.k,t.with]),hero:p.role==='Hero'?1:0,
-    aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
+    aim:p.auto?soldierAim(p):Math.max(0,soldierAim(p)+Rebel.injFx(p).aim+Rebel.wearyFx(p).aim),hp:p.auto?autoOf(p).hp:Math.round(Rebel.hpOf(p)*(1+Rebel.injFx(p).hpPct)),agi:p.auto?1:Rebel.moveMul(p)*Rebel.injFx(p).spd,nv:p.auto?1:Rebel.nerveMul(p),cool:p.auto?undefined:Math.max(15,Rebel.coolOf(p,'g')+Rebel.injFx(p).cool+Rebel.wearyFx(p).cool),nosprint:p.auto?0:Rebel.injFx(p).nosprint,oneHand:p.auto?0:Rebel.injFx(p).oneHand,cview:p.auto?0:Rebel.injFx(p).view,def:p.auto?autoOf(p).def:undefined,big:p.auto?autoOf(p).big:0,heavy:p.auto?autoOf(p).heavy:0,autoType:p.auto?autoKey(p):undefined,
     meds:p.auto?0:packsCarried(p),
-    /* head/body ride along for the proposed armour rule; the ground scene ignores them for now (DESIGN_BLOCKERS M-16) */
-    head:p.auto?undefined:(p.gear||{}).head||undefined,body:p.auto?undefined:(p.gear||{}).body||undefined,
+    /* head and body kit give the armour bar in a fight (Items.protection); an Auto brings its own shell */
+    head:p.auto?undefined:(p.gear||{}).head||undefined,body:p.auto?undefined:(p.gear||{}).body||undefined,arm:p.auto?autoOf(p).arm:undefined,
     wpns:p.auto?[autoOf(p).wpn]:wpnsFromGear(p)};
 }
 function startPlan(){
@@ -6463,7 +6499,7 @@ function startPlan(){
           soldiers:mode==='reinforce'?Array.from({length:SEATS[f.cls]||0},(_,q)=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
       }),vehicles:PL.slots.filter(sl=>sl.acc==='gveh'&&PL.v[sl.key]).map(sl=>{
         const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
-        return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,aim:d.aim,wpn:d.wpn,big:d.big};
+        return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,arm:d.arm,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
@@ -6569,6 +6605,7 @@ function applyDebrief(r){
       news('<b>'+p.name+'</b> should not have made it. The surgery room says otherwise.','g');
     }
     if(state!=='lost'&&pr.inj&&pr.inj.length)for(const m of applyInjuries(p,pr.inj,state==='injured'))news('<b>'+p.name+'</b> '+m,'h');
+    if(state!=='lost')tireNews(p);
     if(state==='lost'){
       G.people=G.people.filter(x=>x.id!==p.id);lostP.push(p);
       moraleAll(-6,'death',(r.people||[]).map(x=>x.id),-10);
@@ -6755,6 +6792,14 @@ const MIGRATIONS=[
      for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
     for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
   },
+  /* 1 -> 2: rest (rebel-rest.js): everyone starts rested (missions without rest, Weary, Conked). And the Kiln Ridge
+     factory is AutoCom's (DESIGN_BLOCKERS C-18): mission and lead text saved as "Autoworks" is renamed. */
+  function(){
+    for(const p of G.people){p.tired=p.tired||0;p.weary=p.weary||0;p.conked=p.conked||0;}
+    const ren=o=>{if(!o||typeof o!=='object')return;for(const k in o){const v=o[k];
+      if(typeof v==='string')o[k]=v.replace(/Autoworks\u2019|Autoworks'/g,'AutoCom Plant\u2019s').replace(/Autoworks/g,'AutoCom Plant');else ren(v);}};
+    ren(G.missions);ren(G.opps);
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -6783,6 +6828,9 @@ function restoreCampaign(data){
       if(!st.lib)st.lib={};
       if(st.ops===undefined)st.ops=0;
     }
+    // every load: a mission keeps its world and region by id; the names it shows come from PLANETDEF, so a world or
+    // region renamed there is renamed in missions already on the board (DESIGN_BLOCKERS C-17)
+    for(const m of G.missions)ctxNames(m);
     if(G.sortie){   // the page closed mid-mission: the sortie never flew, so its fuel and supply drop come back
       G.fuel+=G.sortie.f||0;G.supplies+=G.sortie.s||0;G.nadesOut=undefined;
       G.news.push({day:G.day,html:'<b>'+G.sortie.name+'</b> was called off before it left. The fuel'+(G.sortie.s?' and the supply drop are':' is')+' back in stores.',cls:'r'});
@@ -6838,7 +6886,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,

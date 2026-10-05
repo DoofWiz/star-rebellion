@@ -184,6 +184,16 @@ window.SR_THEME=(function(){
       rr(ctx,lx+2+i*(o.cw+o.gap),ly+2,o.cw,o.ch,1.5);ctx.fillStyle=i<lit?col:'#1b1f40';ctx.fill();
     }
     if(o.showNum){label(ctx,Math.round(o.hp)+'',lx+w+12,y,{size:11,color:col,pad:4});}
+    /* armour (steel) and a raised shield (cyan) sit over health as thinner segmented bars */
+    let ty=ly;
+    const layer=(v,max,c)=>{
+      const th=4;ty-=th+5;
+      rr(ctx,lx,ty,w,th+4,2.5);ctx.fillStyle=C.ink;ctx.fill();
+      const on=Math.ceil(Math.max(0,v/max)*o.cells-0.001);
+      for(let i=0;i<o.cells;i++){rr(ctx,lx+2+i*(o.cw+o.gap),ty+2,o.cw,th,1.2);ctx.fillStyle=i<on?c:'#1b1f40';ctx.fill();}
+    };
+    if(o.maxArm>0)layer(o.arm,o.maxArm,C.steel);
+    if(o.maxShd>0&&o.shd>0)layer(o.shd,o.maxShd,C.shield);
   }
 
   /* ---------- cover pip (green shield, filled = full cover) ---------- */

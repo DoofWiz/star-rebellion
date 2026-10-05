@@ -247,7 +247,7 @@ window.SR_ART=(function(){
       c.save();rr(c,2,-4.4,7,8.8,0);c.clip();for(let i=-2;i<4;i++){c.fillStyle=i%2?C.gold:C.ink;c.beginPath();c.moveTo(2+i*3,4.4);c.lineTo(5+i*3,-4.4);c.lineTo(8+i*3,-4.4);c.lineTo(5+i*3,4.4);c.fill();}c.restore();
       c.beginPath();c.moveTo(22,-3.6);c.lineTo(27,-3);c.quadraticCurveTo(32,0,27,3);c.lineTo(22,3.6);c.closePath();ink(c,'#d8502e',LW.held);
       part(c,-1,4,3.4,6,1,W.gunDark,1.6);part(c,10,4,3,5,1,W.gunDark,1.6);part(c,3,-9,6,4.6,1.5,W.gunDark,1.6);}},
-    hg40:{name:'HG-40',kind:'Heavy pistol (security)',maker:'patriot',makerProposed:1,tier:1,hold:'one',grips:[0,null],len:18,fx:'ballistic',box:[-3,-6,19,9],draw(c){
+    hg40:{name:'HG-40',kind:'Heavy pistol (security)',maker:'patriot',tier:1,hold:'one',grips:[0,null],len:18,fx:'ballistic',box:[-3,-6,19,9],draw(c){
       c.beginPath();c.moveTo(-1.5,-.5);c.lineTo(4.5,-.5);c.lineTo(3.5,7);c.lineTo(-2.5,7);c.closePath();ink(c,W.hegNavy,LW.held);
       part(c,-1,-4.6,17,5,1.5,W.hegWhite);part(c,15,-3.6,3,3.4,1,'#1a2240',1.6);
       c.save();c.shadowColor=C.heg;c.shadowBlur=4;c.fillStyle=C.hegHi;c.fillRect(2,-2.8,11,1);c.restore();
@@ -259,7 +259,7 @@ window.SR_ART=(function(){
       part(c,8.5,-3.4,6,6.8,2.5,'#b8c2d2');part(c,13,-3.4,8,2.4,1.2,'#b8c2d2',1.6);part(c,9.4,-8,2.4,5.2,1.2,'#b8c2d2',1.6);
       for(let i=0;i<3;i++){circ(c,14+i*1.8,1.4,1.1);ink(c,'#a8b2c2',1);}
       const k=.6+.4*Math.sin(CUR_T*9);circ(c,21,-2.2,1.4+k);c.fillStyle=rgba(C.shield,.5);c.fill();circ(c,21,-2.2,1);c.fillStyle='#e8ffff';c.fill();}},
-    baton:{name:'Power Baton',kind:'Melee',maker:'patriot',makerProposed:1,tier:1,hold:'one',melee:1,grips:[0,null],len:28,fx:'melee',box:[-6,-3,29,3],draw(c){
+    baton:{name:'Power Baton',kind:'Melee',maker:'patriot',tier:1,hold:'one',melee:1,grips:[0,null],len:28,fx:'melee',box:[-6,-3,29,3],draw(c){
       circ(c,-3,0,2.6);ink(c,'#3a4060',1.6);part(c,-2,-2.2,7,4.4,2,W.hegNavy);c.strokeStyle=rgba('#ffffff',.3);c.lineWidth=.6;for(let i=0;i<3;i++){c.beginPath();c.moveTo(i*1.8,-2);c.lineTo(i*1.8,2);c.stroke();}
       part(c,4.5,-1.8,20,3.6,1.8,'#2b2f3e');part(c,23,-2.4,5,4.8,2,'#3a4060');
       c.save();c.shadowColor=C.heg;c.shadowBlur=6;c.fillStyle=C.hegHi;c.fillRect(19,-1.6,3,3.2);c.restore();}},
@@ -917,9 +917,9 @@ window.SR_ART=(function(){
   const ITEMS={};
   for(const k in WEAPONS){const w=WEAPONS[k];ITEMS[k]={name:w.name,short:w.short||w.name,cat:'weapon',kind:w.kind,maker:w.maker,makerProposed:w.makerProposed,origin:w.origin,tier:w.tier,box:w.box,draw:w.draw};}
   Object.assign(ITEMS,{
-    riotshield:{short:'Riot Shield',name:'Riot Shield',cat:'weapon',kind:'Off hand, takes a weapon slot',maker:'patriot',makerProposed:1,tier:1,box:[-10,-16,10,16],draw(c){rr(c,-9,-15,18,30,6);c.fillStyle=rgba('#cfe0ff',.6);c.fill();c.lineWidth=LW.char;c.strokeStyle=C.ink;c.stroke();rr(c,-6,-12,12,24,4);c.lineWidth=1.4;c.strokeStyle=rgba('#ffffff',.6);c.stroke();c.fillStyle=W.hegNavy;c.fillRect(-6,-3,12,3);}},
+    riotshield:{short:'Riot Shield',name:'Riot Shield',cat:'weapon',kind:'Off hand, takes a weapon slot',maker:'patriot',tier:1,box:[-10,-16,10,16],draw(c){rr(c,-9,-15,18,30,6);c.fillStyle=rgba('#cfe0ff',.6);c.fill();c.lineWidth=LW.char;c.strokeStyle=C.ink;c.stroke();rr(c,-6,-12,12,24,4);c.lineWidth=1.4;c.strokeStyle=rgba('#ffffff',.6);c.stroke();c.fillStyle=W.hegNavy;c.fillRect(-6,-3,12,3);}},
     hardhat:{short:'Frontier Hardhat',name:'Frontier Hardhat',cat:'armour',kind:'Helmet (rebel Soldier default)',maker:null,tier:1,box:[-20,-22,20,2],draw(c){helmet(c,0,0,14.5,'front',0);}},
-    policevest:{short:'Police Vest',name:'Police Vest',cat:'armour',kind:'Vest (security forces)',maker:'patriot',makerProposed:1,tier:1,box:[-10,-23,10,-9],draw(c){policeVest(c,'front');}},
+    policevest:{short:'Police Vest',name:'Police Vest',cat:'armour',kind:'Vest (security forces)',maker:'patriot',tier:1,box:[-10,-23,10,-9],draw(c){policeVest(c,'front');}},
     medpack:{short:'Medpack',name:'Medpack',cat:'gadget',kind:'Treats criticals and the downed; consumed',maker:null,tier:1,box:[-9,-6,9,6],draw(c){rr(c,-8,-5,16,10,2.4);ink(c,'#f1ede4',2.2);c.fillStyle=C.rebel;c.fillRect(-1.3,-3.6,2.6,7.2);c.fillRect(-3.6,-1.3,7.2,2.6);rr(c,-3,-7,6,2.6,1);ink(c,'#9aa0aa',1.4);}},
     stim:{short:'Stim',name:'Stim',cat:'gadget',kind:'Heals; consumed',maker:null,tier:1,box:[-3,-10,3,9],draw(c){stimItem(c);}},
     blam:{short:'BLAM Frag',name:'BLAM Frag Grenade',cat:'gadget',kind:'Anti-personnel frag',maker:'blamco',tier:1,box:[-6,-9,7,6],draw(c){circ(c,0,0,5);ink(c,W.frag,2);c.fillStyle='#e0402e';c.fillRect(-4.6,-1.2,9.2,2.4);c.fillStyle=C.gold;c.fillRect(-1.2,-7.6,2.4,2.8);c.beginPath();c.arc(3,-7,2,0,TAU);c.lineWidth=1.2;c.strokeStyle=C.gold;c.stroke();}},
@@ -1026,7 +1026,7 @@ window.SR_ART=(function(){
     const dmg=o.damage||0;if(dmg>.5){for(let i=0;i<4;i++){const k=(t*1.1+i*.25)%1;c.save();c.globalAlpha=(1-k)*.8;circ(c,x+Math.sin(t*2+i)*6*s,y-30*s-k*40*s,(4+k*10)*s);ink(c,'#6a6a72',1.6);c.restore();}if(Math.sin(t*13)>.5)star(c,x+8*s,y-26*s,4*s,'#fff3b0');}}
 
   /* =================================================================
-     STRIDER Mk I — Autoworks' friendly neighbourhood enforcement strider.
+     STRIDER Mk I — AutoCom's friendly neighbourhood enforcement strider.
      Crab legs, two autocannon pods, and a face screen: friendly for
      citizens, angry for dissenters, rebel red once it's been hacked.
      strider(c, x, y, {view, dir, state:'idle'|'walk'|'aim'|'fire'|'down',

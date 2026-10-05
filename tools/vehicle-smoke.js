@@ -25,9 +25,9 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   // put Dax in sight of it and check who can be shot
   dax.x=car.x-260;dax.y=car.y;
   out.shots=[f.validShot(dax,drv,'akli'),f.validShot(dax,car,'akli'),f.validShot(drv,dax,'cruiser'),f.validShot(car,dax,'cruiser')];
-  // the empty car is scenery: nobody shoots it
+  // the empty car: the player may shoot it to blow it up, the enemy never does, and it is never picked for you (C-7)
   f.dismount(drv,true);
-  out.empty=[f.crewIn(car).length,f.validShot(dax,car,'akli'),f.canEnter(drv,car,60)];
+  out.empty=[f.crewIn(car).length,f.validShot(dax,car,'akli'),f.canEnter(drv,car,60),f.validShot(drv,car,f.wpnsOf(drv)[0]),f.pickTarget(dax)&&f.pickTarget(dax).t===car];
   f.mount(drv,car);
   // Dax steals the car once it is empty: enter, drive, switch, exit
   f.dismount(drv,true);drv.x=car.x+900;drv.y=car.y+900;
@@ -46,11 +46,14 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const dw=f.wpnsOf(drv)[0];   // the patrolman's own sidearm (the enemy roster's HG-40)
   out.lawShots=[f.validShot(drv,dax,dw),f.validShot(drv,car,dw)];
   // the blast of a grenade does not reach inside
-  const hp0=dax.hp,chp0=car.hp;f.explode(car.x,car.y,{r:80,d0:10,d1:10});
-  out.blast=[dax.hp===hp0,car.hp<chp0];
+  const hp0=dax.hp,chp0=car.hp+car.arm;f.explode(car.x,car.y,{r:80,d0:10,d1:10});
+  out.blast=[dax.hp===hp0,car.hp+car.arm<chp0,car.hp===car.maxhp];
   // destroyed: Dax is thrown clear and hurt
   const dhp=dax.hp;
+  const by=U.find(u=>u.side==='law'&&!u.mnt&&!u.veh&&!u.down&&u!==drv);   // someone standing beside the wreck
+  by.x=car.x+60;by.y=car.y;by.arm=0;by.shd=0;const bhp=by.hp;
   f.woundUnit(drv,car,999,false,'plasma');
+  out.nearby=by.hp<bhp||!!by.down;
   out.wreck=[!!car.down,!dax.mnt,dax.hp<dhp,Math.hypot(dax.x-car.x,dax.y-car.y)>20,f.crewIn(car).length];
   out.status=f.statusTag(car);
   return out;
@@ -58,14 +61,15 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(a.spawn.join()==='veh,law,true,law,drv,true','the cruiser spawns with its driver inside '+a.spawn);
  ok(a.wpns[0]==='cruiser'&&a.wpns[1]===0,'the driver fires the pulse cannon; the car never fires itself '+a.wpns);
  ok(a.shots.join()==='false,true,true,false','enclosed crew cannot be targeted, the car can '+a.shots);
- ok(a.empty[0]===0&&a.empty[1]===false&&a.empty[2]===true,'an empty car is not a target and can be entered '+a.empty);
+ ok(a.empty.join()==='0,true,true,false,false','an empty car: the player can shoot it, the enemy cannot, nobody picks it by default; it can be entered '+a.empty);
  ok(a.enterOffer==='pc1'&&a.card,'Enter appears near a free vehicle '+a.enterOffer+' '+a.card);
  ok(a.stolen[0]==='reb'&&a.stolen[1]==='drv'&&a.stolen[2]===385&&a.stolen[3]==='cruiser','a rebel can take the wheel '+a.stolen);
  ok(a.inside.join()==='true,true,true,true,false,false,true,true,false','inside: move, hold, lock in, exit; no sprint or cover; loot and work out of reach '+a.inside);
  ok(a.lawShots.join()==='false,true','enemies shoot the car, not the driver '+a.lawShots);
- ok(a.blast[0]&&a.blast[1],'blasts hit the hull, not the crew '+a.blast);
+ ok(a.blast.join()==='true,true,true','blasts hit the hull (its armour first), not the crew '+a.blast);
  ok(a.wreck.join()==='true,true,true,true,0','a destroyed vehicle throws its crew clear and hurts them '+a.wreck);
  ok(/Wrecked/.test(a.status),'wreck status');
+ ok(a.nearby,'a wreck going up hurts whoever stands beside it (C-7)');
 
  // ---- a turret on the roof (Steal the Strider: Riot Dispersal Cruiser) and the Strider as a Bot
  await go(spec('strider',{vip:{name:'Strider SK-1',first:'Strider',hp:220,def:8,wpns:['strider'],strider:1}}));

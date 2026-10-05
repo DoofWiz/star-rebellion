@@ -122,7 +122,7 @@ The three layers now run as **one playable game** (`game/index.html` +
   Is Burned* — paged with ◀ ▶ arrows at the bottom of each window and
   closing back onto the galaxy map.
 - **Ground combat depth pass.** Every weapon hits ~20% harder and the
-  laser turret is a genuine threat (42–62 damage, ATK +4); Dustfall's
+  laser turret (now the Razorrat LMG) is a genuine threat (42–62 damage, ATK +4); Dustfall's
   deputies drop to 55–60 hp **and aim 1** (the tower sniper to aim 3),
   rank-and-file law damage lands at 85%, and rebel soldiers carry a
   harder base profile (12) — cover is where fights are won, the open is
@@ -220,10 +220,10 @@ The three layers now run as **one playable game** (`game/index.html` +
   while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space
   missions never belong to a region.
 
-- **Blow Up Auto Factory (Tier 1).** Tessaly Brandt points you at the Kiln Ridge Autoworks on Menk.
+- **Blow Up Auto Factory (Tier 1).** Tessaly Brandt points you at the Kiln Ridge AutoCom Plant on Menk.
   Carry an Explosive Charge to the Power Plant, plant it, clear the blast zone and detonate,
   ideally without the plant ever raising the alarm (stealth bonus). Introduces Policebots and
-  riot shields. Charges come from looting the Redrock depot and the Autoworks' blasting shed.
+  riot shields. Charges come from looting the Redrock depot and the AutoCom Plant's blasting shed.
 
 - **Rescue Dissident (Tier 1).** Orrin Pell sends you into the Tollgate security outpost on
   Ballakan to free a prisoner from the detention cage and bring them out alive, ideally unseen.
@@ -246,7 +246,7 @@ The three layers now run as **one playable game** (`game/index.html` +
   the roster), a **fire support menu** (Supply Drop, Strafing Run, Door Gunner, Reinforcements) set up on
   the planning board, and space **Drone Monitors, Pursuers, Mag-Clampers and VC Motes** in Cook the Depots.
 
-- **Rebels, in depth.** Every rebel is a person: a generated name, a level (1–20), one Character Trait from a list of 45 and up to three earned Rebel Traits (friendships, rivalries, mentors, scars, grief…), a **morale** that moves with wins, losses and rest and nudges their aim and nerve, skills that grow with experience, a **rank** with its own insignia that the player hands out (Army, Marine or Air Force ladders, and an officer commission), and gear carried in slots from the shared armory. Recruits arrive through the Command Center's *Recruit new Revolutionaries* task (and Sources and rescues) on a multi-card **New Recruit** screen. A critical hit can leave a **critical injury** that a **Treat Wound** order patches in the field and the Infirmary heals over days; treating a wound uses a **Med Pack** (the Infirmary makes more), and a rebel who stands out can become a **Hero** with a once-per-mission action (one in Revolution Level 1, more from Level 2). The record is in [`docs/REBELS_PLAN.md`](docs/REBELS_PLAN.md); what is stuck on a design decision is in [`docs/DESIGN_BLOCKERS.md`](docs/DESIGN_BLOCKERS.md); the smoke tests are `tools/*-smoke.js` (run each with `NODE_PATH=$(npm root -g) node tools/<name>-smoke.js`).
+- **Rebels, in depth.** Every rebel is a person: a generated name, a level (1–20), one Character Trait from a list of 45 and up to three earned Rebel Traits (friendships, rivalries, mentors, scars, grief…), a **morale** that moves with wins, losses and rest and nudges their aim and nerve, skills that grow with experience, a **rank** with its own insignia that the player hands out (Army, Marine or Air Force ladders, and an officer commission), and gear carried in slots from the shared armory. Recruits arrive through the Command Center's *Recruit new Revolutionaries* task (and Sources and rescues) on a multi-card **New Recruit** screen. A critical hit can leave a **critical injury** that a **Treat Wound** order patches in the field and the Infirmary heals over days; treating a wound uses a **Med Pack** (the Infirmary makes more), and a rebel who stands out can become a **Hero** with a once-per-mission action (one in Revolution Level 1, more from Level 2). **Armour** in the Head and Body slots adds an armour bar over health in ground combat (hats are cosmetic), and a raised **shield** sits over both; Sundering weapons tear armour faster and Piercing ones go partly through it. Rebels need **rest**: two missions without a break make them Weary (a morale hit and worse in a fight if sent out anyway), four leave them Conked in their bunk. The record is in [`docs/REBELS_PLAN.md`](docs/REBELS_PLAN.md); what is stuck on a design decision is in [`docs/DESIGN_BLOCKERS.md`](docs/DESIGN_BLOCKERS.md); the smoke tests are `tools/*-smoke.js` (run each with `NODE_PATH=$(npm root -g) node tools/<name>-smoke.js`).
 
 The three standalone prototypes below remain in the repo untouched as
 references and iteration history.
@@ -457,12 +457,11 @@ Clear the street and time runs free again for the mop-up.
   DESTROYED") it becomes rubble worth nothing. Cover is signposted with green
   shield pips, ringed cover pockets while plotting, and a COVER tag on
   qualifying destinations.
-- **The laser turret** — one fixed emplacement covering the pad approach.
-  Either side can man it (radial "Man Gun" in combat, click it in free move;
-  the law sends a guard sprinting for it when the alarm goes). It fires a
-  brutal beam, and a frontal energy shield blocks all shots from its facing
-  arc — which tracks where it shoots — so it has to be flanked, blasted with
-  a canister, or starved of gunners.
+- **The Razorrat LMG** — a deployed Bhord machine gun behind sandbags covering the pad approach
+  (it replaced the old laser turret). Either side can man it (radial "Man Gun" in combat, click it in
+  free move; the law sends a guard sprinting for it when the alarm goes). The sandbags add +3 TN to
+  shots from the arc it faces — which tracks where it shoots — so it is best flanked, blasted with a
+  canister, or starved of gunners.
 - **Fuel canisters** — red environmental explosives clustered near the pad
   (and one by the motor pool). Shoot one deliberately (tap it to retarget
   during engagement) or let a stray round find it: a big blast that wounds

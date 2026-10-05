@@ -66,7 +66,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const WPN=f.WPN_(),WDAM=f.WDAM_(),WICON=f.WICON_();
   out.wpn=Object.keys(WPN).sort().join();
   out.akli=[WPN.akli.d0,WPN.akli.d1,WPN.akli.rng,WPN.akli.shots,!!WPN.akli.jam,WDAM.akli,WICON.akli].join();
-  out.scatter=[!!WPN.scatter.pellets,!!WPN.scatter.falloff,WDAM.rocket,!!WPN.laser.beam].join();
+  out.scatter=[!!WPN.scatter.pellets,!!WPN.scatter.falloff,WDAM.rocket,!!WPN.razorrat.pierce,!!WPN.stiletto.sunder].join();
   const S=f.SCENARIOS_(),bad=[];
   for(const k in S)for(const l of S[k].loots||[])for(const it of l.items||[])if(!I.get(it)||I.get(it).category==='builtin')bad.push(k+':'+it);
   // every enemy carries items the table knows, and draws a weapon with stats
@@ -76,9 +76,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.bad=bad;
   return out;
  });
- ok(g.wpn==='akli,autohand,carbine,cowboy,cruiser,dispersal,fists,hg40,laser,longiron,rocket,scatter,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
+ ok(g.wpn==='akli,autohand,carbine,cowboy,cruiser,dispersal,fists,hg40,longiron,razorrat,rocket,scatter,stiletto,strider,unarmed','the ground scene has every weapon with stats '+g.wpn);
  ok(g.akli==='24,38,540,3,true,ballistic,gun','the Akli keeps its numbers '+g.akli);
- ok(g.scatter==='true,true,explosive,true','flags and damage types carry over '+g.scatter);
+ ok(g.scatter==='true,true,explosive,true,true','flags and damage types carry over '+g.scatter);
  ok(!g.bad.length,'every loot crate and enemy weapon is a known id '+g.bad);
 
  // ---- the debrief turns loot ids into armory stacks and readable reward lines
@@ -97,14 +97,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // the Arsenal dossier reads the table's description, then a looted stack's source line
   f.openArsenal();f.setArSel('kit','akli');
   out.blurbAkli=(document.querySelector('.ar-blurb')||{}).textContent||'';
-  f.setArSel('kit','scatter');
+  f.setArSel('kit','carbine');
   out.blurbScatter=(document.querySelector('.ar-blurb')||{}).textContent||'';
   f.closeArsenal();
   return out;
  });
  ok(d.armory==='carbine:1:looted,scatter:2:looted','loot ids become armory stacks '+d.armory);
  ok(d.reward.indexOf('Peacekeeper Carbine')>=0&&d.reward.indexOf('Varmint Shotgun')>=0,'the reward window names the loot '+d.reward.slice(0,200));
- ok(/^Ballistic assault rifle/.test(d.blurbAkli),'the Arsenal shows the table description '+d.blurbAkli);
+ ok(/^About as common a sight/.test(d.blurbAkli),'the Arsenal shows the table description '+d.blurbAkli);
  ok(/Hegemony/.test(d.blurbScatter),'looted kit without a description says where it came from '+d.blurbScatter);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));

@@ -400,3 +400,7 @@
 /* the art bridge renders SR_ART to data-URL imgs; size them like the canvases they stand in for */
 #sc-base .it-art>img{display:block;width:100%;height:100%;object-fit:contain;}
 #sc-base .kf>img{display:block;width:100%;height:100%;border-radius:50%;}
+/* armour and shield bars ride over the health bar as thinner rows (Ground Combat doc: armour and shields) */
+.sr-hp--layer{margin-bottom:-3px;}
+.sr-hp--layer .sr-hp__cell{height:4px;}
+.sr-hp--layer .sr-hp__num{font-size:10px;color:var(--hp);}

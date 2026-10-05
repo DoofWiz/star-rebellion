@@ -83,7 +83,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   out.fired=fired;
   // vehicles: the ground scene's definitions are the roster's, seats and all
   const V=window.Enemies.vehicles();
-  out.veh=['police','dispersal','transport'].map(k=>[k,V[k].hp,V[k].def,V[k].spd,V[k].seats.map(x=>x.k+(x.drive?'*':'')+(x.wkey?'='+x.wkey:'')+(x.enc?'':'!')).join('/')].join(':')).join(' ');
+  out.veh=['police','dispersal','transport'].map(k=>[k,V[k].hp,V[k].arm,V[k].def,V[k].spd,V[k].seats.map(x=>x.k+(x.drive?'*':'')+(x.wkey?'='+x.wkey:'')+(x.enc?'':'!')).join('/')].join(':')).join(' ');
   out.botSpeed=window.Enemies.owned('strider').speed;
   return out;
  });
@@ -91,7 +91,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
  ok(d.look==='- shield+policevest policevest shield+policevest','what they wear is what is drawn '+d.look);
  ok(d.weaponArt==='hg40,autohand','the art kit draws their actual weapons '+d.weaponArt);
  ok(d.drops==='drew:hg40:c pb12:autohand:- rs1:hg40+policehelmet+policevest:c rr1:carbine+policehelmet+policevest:c','downed enemies drop the usable kit they carried '+d.drops);
- ok(d.veh==='police:130:7:385:drv*=cruiser dispersal:170:7:310:drv*/gun=dispersal! transport:150:7:335:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
+ ok(d.veh==='police:100:30:7:385:drv*=cruiser dispersal:130:40:7:310:drv*/gun=dispersal! transport:115:35:7:335:drv*/bay1/bay2/bay3','vehicles come from the roster with their seats '+d.veh);
  ok(d.botSpeed===265,'the Strider walks at its roster speed '+d.botSpeed);
  ok(d.fired===2,'Policebots and Patrolmen fire their new sidearms without a hitch');
  ok(/^HG-40 \+ \d+ ◈$/.test(d.take||'')&&d.drewC,'the drop is labelled and carries their credits '+d.take);
@@ -99,8 +99,8 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
  await go('intel');
  const car=await pg.evaluate(()=>{const gd=window.DBGground,f=gd.fn,c=gd.U.find(u=>u.id==='pc1');
   const n1=f.lootMarks_().length;f.dropLoot(c);
-  return [c.type,c.veh,c.maxhp,c.def,c.seats.map(x=>x.k+':'+(x.occ||'-')).join('/'),f.lootMarks_().length-n1].join();});
- ok(car==='police-cruiser,police,130,7,drv:pc1d,0','an enemy cruiser spawns from its type with its crew aboard, and leaves no loot '+car);
+  return [c.type,c.veh,c.maxhp,c.maxArm,c.def,c.seats.map(x=>x.k+':'+(x.occ||'-')).join('/'),f.lootMarks_().length-n1].join();});
+ ok(car==='police-cruiser,police,100,30,7,drv:pc1d,0','an enemy cruiser spawns from its type with its crew aboard, and leaves no loot '+car);
 
  await go('stealcross');
  const r=await pg.evaluate(()=>{
@@ -123,8 +123,8 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
   return p?[p.auto,e.wpns.join('+'),e.hp,e.def].join():'missing';
  });
  ok(h==='policebot,autohand,45,9','a hacked Policebot keeps its roster stats and Auto Plasma Hand '+h);
- const gv=await pg.evaluate(()=>{const V=window.DBGbase.fn.GVEH_();return ['police','dispersal','transport','strider'].map(k=>[k,V[k].label,V[k].kind,V[k].hp,V[k].seats||'',V[k].aim===undefined?'':V[k].aim].join(':')).join(' ');});
- ok(gv==='police:Police Cruiser:vehicle:130:1: dispersal:Riot Dispersal Cruiser:vehicle:170:2: transport:Riot Transport Cruiser:vehicle:150:4: strider:Strider Mk I:bot:240::1',
+ const gv=await pg.evaluate(()=>{const V=window.DBGbase.fn.GVEH_();return ['police','dispersal','transport','strider'].map(k=>[k,V[k].label,V[k].kind,V[k].hp,V[k].arm,V[k].seats||'',V[k].aim===undefined?'':V[k].aim].join(':')).join(' ');});
+ ok(gv==='police:Police Cruiser:vehicle:100:30:1: dispersal:Riot Dispersal Cruiser:vehicle:130:40:2: transport:Riot Transport Cruiser:vehicle:115:35:4: strider:Strider Mk I:bot:190:50::1',
    'owned vehicles and Bots read the roster, the Strider too (C-21) '+gv);
 
  // ---- space: line-ups and reinforcements come from the space roster

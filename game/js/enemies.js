@@ -15,8 +15,9 @@
                            placement (id, name, x, y, patrol, lines, guard, a
                            vehicle's crew...) and may override stats or weapons
    Enemies.kit(row)        every item id the type carries
+   Enemies.protection(row) its armour and shield bars ({arm, shd}): innate plus worn kit
    Enemies.vehicles()      vehicle definitions by owned_as, in the ground
-                           scene's shape ({name, first, hp, def, spd, art, seats})
+                           scene's shape ({name, first, hp, def, arm, shdCap, spd, art, seats})
    Enemies.space(id)       a space_enemies row (ship, pilot, maneuvers, lead,
                            flees, calls, clamps, age, bio); throws if unknown
    ===================================================================== */
@@ -51,12 +52,21 @@ window.Enemies=(function(){
     Object.assign(u,o);
     if(o.hp!==undefined&&o.maxhp===undefined)u.maxhp=o.hp;
     if(o.wpns){u.wpns=wpns;u.kit=wpns.concat(gear(r));}
+    const pr=protection(r);                        // armour and shield bars: innate plus what they wear
+    if(o.arm===undefined)u.arm=pr.arm;
+    if(o.shdCap===undefined)u.shdCap=pr.shd;
     return u;
+  }
+  /* Ground Combat doc: armour and shields. A row's own armour and shield (a vehicle's or Bot's plating) plus
+     whatever its head and body kit adds (Items.protection). Vehicle armour is this column, not a ship's. */
+  function protection(r){
+    const k=Items.protection(gear(r));
+    return {arm:(r.armour||0)+k.arm,shd:(r.shield||0)+k.shd};
   }
   function vehicles(){
     const v={};
     for(const r of rows)if(r.kind==='vehicle')v[r.owned_as]={type:r.id,name:r.name,first:r.name.split(' ').pop(),hp:r.hp,def:r.def,
-      spd:r.speed,art:r.art,seats:seats(r.id).map(x=>({k:x.seat,n:x.name,drive:x.drives?1:0,wkey:x.weapon||undefined,enc:x.enclosed?1:0}))};
+      arm:protection(r).arm,shdCap:protection(r).shd,spd:r.speed,art:r.art,seats:seats(r.id).map(x=>({k:x.seat,n:x.name,drive:x.drives?1:0,wkey:x.weapon||undefined,enc:x.enclosed?1:0}))};
     return v;
   }
   const spaceRows=SRDB.raw.space_enemies||[];
@@ -66,5 +76,5 @@ window.Enemies=(function(){
     if(!r)throw new Error('Unknown space enemy "'+id+'": add it to the space_enemies table in game/data/db.json');
     return r;
   }
-  return {rows,get,owned,must,spawn,kit,vehicles,seats,spaceRows,space};
+  return {rows,get,owned,must,spawn,kit,protection,vehicles,seats,spaceRows,space};
 })();

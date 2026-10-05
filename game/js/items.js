@@ -11,6 +11,7 @@
    Items.name(id)         display name (the id itself if unknown)
    Items.kit()            owned kit in the base's shape ({name, cat, slot, w, h, q, maker, price, live, ...})
    Items.wpn()            every item with combat stats in the ground scene's shape ({name, d0, d1, rng, ...})
+   Items.protection(ids)  the armour and shield bars a set of worn kit gives ({arm, shd})
    Items.pool(filter)     ids matching a filter, in table order
    Items.roll(filter,rng) one id drawn from the pool (optionally weighted), or null
    Items.grant(armory,id,n,src)  the only way kit enters an armory; returns the entry
@@ -33,15 +34,24 @@ window.Items=(function(){
     const k={};
     for(const r of rows)if(owned(r))k[r.id]={name:r.name,sub:r.sub||undefined,cat:r.category,slot:r.slot,w:r.width,h:r.height,
       q:r.quality==null?undefined:r.quality,maker:r.manufacturer?makers[r.manufacturer]:undefined,origin:r.origin||undefined,
-      price:r.price==null?undefined:r.price,live:r.live?1:0,rev:r.rev,heg:r.hegemony?1:0,dropOnly:r.drop_only?1:0};
+      price:r.price==null?undefined:r.price,live:r.live?1:0,rev:r.rev,heg:r.hegemony?1:0,dropOnly:r.drop_only?1:0,
+      arm:r.armour||0,shd:r.shield||0};
     return k;
   }
   /* the ground scene's weapon shape */
   function wpn(){
     const w={};
     for(const r of rows)if(r.damage_min!=null)w[r.id]={name:r.name,d0:r.damage_min,d1:r.damage_max,rng:r.range,atk:r.attack,shots:r.shots,
-      dmg:r.damage_type,oneHand:r.one_handed,jam:r.jams||undefined,pellets:r.pellets||undefined,falloff:r.falloff||undefined,beam:r.beam||undefined,icon:r.icon};
+      dmg:r.damage_type,oneHand:r.one_handed,jam:r.jams||undefined,pellets:r.pellets||undefined,falloff:r.falloff||undefined,beam:r.beam||undefined,icon:r.icon,
+      sunder:r.sundering||undefined,pierce:r.piercing||undefined};
     return w;
+  }
+  /* Ground Combat doc, armour and shields: worn kit adds an armour bar over health, and a shield source a
+     shield bar over both. Cosmetic headwear (armour blank) adds nothing. */
+  function protection(ids){
+    let arm=0,shd=0;
+    for(const id of ids||[]){const r=byId[id];if(!r)continue;arm+=r.armour||0;shd+=r.shield||0;}
+    return {arm,shd};
   }
   /* filter: {cat, slot, heg, dropOnly, origin, maker, maxRev, sold, live (default true), not:[ids]} */
   function pool(f){
@@ -88,5 +98,5 @@ window.Items=(function(){
     if(a.n<=0)armory.splice(armory.indexOf(a),1);   // an empty stack leaves the armory
     return k;
   }
-  return {rows,get,name,must,kit,wpn,pool,roll,grant,take};
+  return {rows,get,name,must,kit,wpn,protection,pool,roll,grant,take};
 })();
