@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after Phase 3 of the Black Market / Arsenal handoff (mercenaries).
+**Last updated:** 2026-10-05, after Phase 4 of the Black Market / Arsenal handoff (ships, ship weapons and deliveries).
 
 ## How to use this
 
@@ -53,7 +53,6 @@
 | M-16 | 🔴 | Armour effects for the new Head and Body slots | Armour is visible in the Arsenal but does nothing in a fight |
 | M-17 | 🟡 | Items with no mechanics yet (`live:false` in `KIT`) | 10+ catalogue items; they are kept out of the market |
 | M-18 | 🟡 | Rev 2+ market weights | Black Market stock once Level 2 lands |
-| M-19 | 🟡 | Ship weapon storage (`G.shipKit`) feeding the hangar loadouts | Buying ship weapons from Sweet Tooth |
 | M-20 | 🟡 | Sweet Tooth needs an `SR_ART` character spec | The Black Market fence portrait |
 
 (Counts are as of today: 14 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
@@ -345,15 +344,6 @@ Rev 2+ is to move weight from kit toward ships, vehicles and mercs.
 **Needs from you:** the Rev 2+ weight table, before Level 2 content lands.
 **Your call:** _open_
 
-### M-19 🟡 Ship weapon storage (`G.shipKit`) feeding the hangar loadouts
-**Blocks:** buying ship weapons from Sweet Tooth (handoff §3.3) and refitting ships from a stock of spares.
-**Why:** a fighter's `loadout` is a list of weapon ids with no store behind it — there is no hangar loadout
-picker that draws from an inventory, and swapped-out weapons have nowhere to go. The Arsenal's Ship kit view
-already reads `G.shipKit` (`[{id,n}]`) plus whatever the fleet has fitted, so the store side is ready.
-**Needs from you:** confirm the model — bought ship weapons land in `G.shipKit`, a hangar picker fits them to a
-ship (freeing what was mounted back to the racks) — or say ships keep fixed loadouts and the market sells none.
-**Your call:** _open_
-
 ### M-20 🟡 Sweet Tooth needs an `SR_ART` character spec
 **Blocks:** the Black Market fence portrait (the rail's 150px head and the phone strip).
 **Why:** `sr-art.js` is not on `main` and she has no character spec anywhere. The mockup stand-in had a big
@@ -375,5 +365,6 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 | C-2 | The scripted opening rebels are the same for every player but are generated from the same database as every other rebel. | 2026-10-02 | `Rebel.scripted(spec, row)` builds the cast through the normal rebel path. Joss and Sera take level, experience, initiative and skills from their database rows (Joss now starts at level 4 and Sera arrives at level 3, as the database says); the soldiers use fixed values. Sera's Lucky is her Character Trait, not a special case. Petra only exists in the space scenario. |
 | C-3 | Revolution Level 1 lets exactly one Hero emerge in a playthrough; if they die there is no replacement. | 2026-10-02 | `G.heroesMade` counts Heroes ever made; Level 1 allows one, Level 2 and above use the normal rules. In ten bot runs a Hero appeared before the escalation in five (days 45–83). The one Hero is for testing; the rate is easy to raise. |
 | C-5 | A specialty should give a cool active ability plus slight bonuses to a related skill, depending on the specialty. Support rebels need base-specific skills later. | 2026-10-02 | Direction only for now. Combat Medic is live as the first example (see C-6). The ability for each specialty is M-13; Support skills are M-14. |
+| M-19 | Ship weapons live in a store (`G.shipKit`) and a picker fits them — the model the Market/Arsenal handoff §3.3 itself specifies, so no separate answer was needed. | 2026-10-05 | Sweet Tooth sells the BLS-T Light Repeaters, Missiles and Door Mounted Gun; bought weapons land on the hangar racks (`G.shipKit`); the Arsenal's Ships view gains a **Refit** order that fits rack weapons to a ship's mounts (`weapon_slots` from the db) and returns swapped-out weapons to the racks. Built with Phase 4. |
 | C-6 | Treating a wound needs an item (a Med Pack); specialist training should add bonuses, never make it harder for the untrained. | 2026-10-02 | A **Med Pack** gadget (four at the start). Ground rebels are handed one in their second gadget slot; Treat Wound uses one pack per action and the card shows how many are left. A used pack leaves the armory at the debrief. The Infirmary makes a pack every three days (two with someone on station) for 8 supplies, up to 4 plus 2 per Infirmary tile. **Combat Medic** is live: treats from 1.5× as far, one pack covers two wounds, and +3 Presence. |
 | — | The Strider is a **Bot** (Auto = robot character, Bot = robot vehicle, Drone = robot ship): automated, cannot be manned | 2026-10-02 | `26e3afc` |

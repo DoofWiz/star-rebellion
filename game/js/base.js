@@ -1543,6 +1543,25 @@ function advanceDay(){
     news('<b>'+p.name+'</b> steps off the morning freighter, kit on their back. Fourteen days on the clock.','g');
   }
   if(G.mercQ&&G.mercQ.length){G.mercQ=[];mood();autoEquip();sBuild();}
+  // deliveries from Nyx: a bought ship or vehicle takes two days to reach the pad
+  for(const dv of (G.inbound||[]))dv.days--;
+  for(const dv of (G.inbound||[]).filter(x=>x.days<=0)){
+    if(dv.kind==='ship'){
+      if(G.fighters.length>=fighterCap()){   // the pad it held got converted away: it waits overhead
+        if(!dv.noted){dv.noted=1;news('<b>'+dv.name+'</b> circles overhead — no landing pad free.','h');}
+        continue;
+      }
+      G.fighters.push(newFighter({id:'bm_'+dv.cls+'_'+G.day+'_'+G.fighters.length,cls:dv.cls,hull:100,name:dv.name}));
+      news('<b>'+dv.name+'</b> sets down on the pad. Ours now.','g');
+      G.inbound=G.inbound.filter(x=>x!==dv);
+      sBuild();
+    } else if(dv.kind==='vehicle'){
+      const v=addVehicle(dv.type);
+      news('<b>'+v.name+'</b> rolls off the freighter ramp and into the vehicle pool.','g');
+      G.inbound=G.inbound.filter(x=>x!==dv);
+      sBuild();
+    }
+  }
   // a contract that has run out waits for the commander's word (the window re-queues daily until decided)
   for(const p of crewOf())if(p.merc&&G.day>=p.merc.until)RQ.push({t:'contract',id:p.id});
   moraleTick();
@@ -3861,7 +3880,7 @@ const AR_CATS=[['all','All kit'],['weapon','Weapons'],['armour','Armour'],['gadg
 const AR_CATLBL={weapon:'Weapon',armour:'Armour',gadget:'Gadget',other:'Other'};
 const MAKER_COL={Bhord:'#c9573b',Patriot:'#2f6fd0',BLAMCo:'#ffb454',TenTiU:'#43b0a0',AutoCom:'#8a93b5',MenDon:'#57a8ff'};
 const START_IDS=['akli','cowboy','medpack'];   // the day-one armory: everything else non-Hegemony was stolen
-let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false;
+let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false,arRefit=null;
 const arLast={};   // last selection per category chip (module state, not saved)
 const itArt=(id,cls)=>'<span class="it-art'+(cls?' '+cls:'')+'">'+IC(gearIconId(id))+'</span>';
 const avat=(p,px)=>'<span class="sr-avatar" style="width:'+px+'px;height:'+px+'px">'+ini(p.name)+'</span>';
@@ -3893,7 +3912,7 @@ function setTopbar(title,sub){
 }
 function openArsenal(){
   closeWin();closeTilePop();exitRoomView();closeMarket();
-  arOpen=true;arOverlay=null;arGive=false;
+  arOpen=true;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
   setTopbar('Arsenal','Haven Rock · everything we own');
@@ -3901,7 +3920,7 @@ function openArsenal(){
 }
 function closeArsenal(){
   if(!arOpen)return;
-  arOpen=false;arOverlay=null;arGive=false;
+  arOpen=false;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=true;
   shell.classList.remove('is-arsenal');
   $('railArsenal').hidden=true;
@@ -3955,6 +3974,7 @@ function renderArsenal(){
   let ov='';
   if(arOverlay){const p=G.people.find(x=>x.id===arOverlay.pid);ov=p?gearOverlayHTML(p,arOverlay):'';}
   else if(arGive&&arSel&&arSel.t==='kit')ov=arGiveHTML();
+  else if(arRefit)ov=arRefitHTML();
   if(ov)$('arView').insertAdjacentHTML('beforeend',ov);
 }
 const statRow=(dt,dd)=>'<dt>'+dt+'</dt><dd>'+dd+'</dd>';
@@ -3990,7 +4010,7 @@ function arDossierHTML(){
       '<dl class="kit-stat">'+statRow('Class',esc((r.name||f.cls)+(r.role?' · '+r.role:'')))+statRow('Hull',Math.round(f.hull)+'%')+
       statRow('Shields',(r.shield_front||0)+'F / '+(r.shield_rear||0)+'A')+statRow('Weapons',(f.loadout||[]).map(wpnLabel).join(', ')||'None fitted')+
       statRow('Pilot',pilot?esc(pilot.name):'Unassigned')+'</dl>'+
-      '<p class="ar-blurb">Repairs and refits happen on the pads — step into the Hangar.</p>';
+      '<p class="ar-blurb">Refit swaps weapons with the hangar racks; repairs happen on the pads.</p>';
   }
   if(arSel.t==='veh'){
     const v=(G.vehicles||[]).find(x=>x.id===arSel.id);if(!v)return '';
@@ -4008,7 +4028,7 @@ function arDossierHTML(){
     return well('<span class="it-art">'+IC('turret')+'</span>')+
       '<div><div class="ar-dossier__name">'+esc(w?w.name:arSel.id)+'</div><div class="ar-dossier__kind">'+wTag('Ship weapon','info')+'</div></div>'+
       '<dl class="kit-stat">'+statRow('On the racks',String(row.n))+statRow('Fitted',row.fitted+(row.ships.length?' · '+row.ships.map(esc).join(', '):''))+'</dl>'+
-      '<p class="ar-blurb">Hangar racks · no limit. Fitting happens in the Hangar.</p>';
+      '<p class="ar-blurb">Hangar racks · no limit. Fit them from a ship’s Refit order in the Ships view.</p>';
   }
   return '';
 }
@@ -4079,7 +4099,7 @@ function arBaysHTML(){
         (seats?' · '+seats+' passenger'+(seats>1?'s':''):'');
       cards+='<button class="ar-bay'+(sel?' is-sel':'')+'" data-arsel="ship:'+f.id+'" aria-pressed="'+sel+'"><div class="kit-well"><span class="it-art">'+IC('ship')+'</span></div>'+
         '<div class="ar-bay__body"><div class="ar-bay__name">'+esc(f.name)+(f.out?' '+wTag('Out','info'):'')+'</div>'+
-        '<div class="ar-bay__sub">'+esc((r.name||f.cls)+(r.role?' · '+r.role:''))+'</div>'+hp10(f.hull,'Hull')+
+        '<div class="ar-bay__sub">'+esc((r.name||f.cls)+(r.role?' · '+r.role:'')+(r.manufacturer?' · '+makerName(r.manufacturer):''))+'</div>'+hp10(f.hull,'Hull')+
         '<div class="ar-mounts">'+mounts+'</div><div class="ar-bay__sub">'+crew+'</div></div></button>';
     }
     const free=Math.max(0,fighterCap()-G.fighters.length);
@@ -4162,7 +4182,8 @@ function arCmdbar(){
     if(f){
       lead='<span class="it-art kit-who-art">'+IC('ship')+'</span>';name=esc(f.name);
       hint='Hull '+Math.round(f.hull)+'% · '+((f.loadout||[]).length?(f.loadout||[]).map(wpnLabel).join(' · '):'no weapons fitted');
-      btns=order(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar');
+      btns=order(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar')+
+        order(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Swap weapons with the hangar racks');
     }
   } else if(arSel.t==='veh'){
     const v=(G.vehicles||[]).find(x=>x.id===arSel.id);
@@ -4192,6 +4213,60 @@ function arGiveHTML(){
     '<div class="bs-overlay__panel" role="dialog" aria-label="Give to"><div class="sr-window__head"><span class="sr-window__title">Give the '+esc(kitNameId(id))+' to…</span>'+wX('data-rank-close')+'</div>'+
     '<div class="sr-window__body"><div class="bs-gearpicks">'+list+'</div></div></div></div>';
 }
+/* Refit: swap a ship's mounted weapons with the hangar racks (G.shipKit). A cleared mount goes back
+   to the racks; fitting takes one off them. Mount count comes from the db's weapon_slots. */
+function arRefitHTML(){
+  const f=G.fighters.find(x=>x.id===arRefit.sid);
+  if(!f)return '';
+  const slots=(SRDB.ship(f.cls)||{}).weapon_slots||2;
+  const panel=(title,body)=>'<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close"></button>'+
+    '<div class="bs-overlay__panel" role="dialog" aria-label="Refit"><div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+wX('data-rank-close')+'</div>'+
+    '<div class="sr-window__body"><div class="bs-gearpicks">'+body+'</div></div></div></div>';
+  if(arRefit.mi===null){
+    const rows=Array.from({length:slots},(_,i)=>{
+      const id=(f.loadout||[])[i];
+      return '<button class="bs-gearpick" data-armount="'+i+'"><span class="bs-gearpick__n">'+IC('turret')+'<span>Mount '+(i+1)+'</span></span>'+
+        '<span class="bs-sub">'+(id?esc(wpnLabel(id)):'Empty')+'</span></button>';
+    }).join('');
+    return panel(esc(f.name)+' · Refit',rows+'<p class="sr-fine" style="margin:8px 0 0">Swapped-out weapons go back on the hangar racks.</p>');
+  }
+  const cur=(f.loadout||[])[arRefit.mi];
+  const rack=(G.shipKit||[]).filter(e=>e.n>0);
+  const rows=(cur?'<button class="bs-gearpick" data-arfit=""><span class="bs-gearpick__n">Leave empty</span><span class="bs-sub">The '+esc(wpnLabel(cur))+' goes back on the racks</span></button>':'')+
+    rack.map(e=>{
+      const w=SRDB.weapon(e.id);
+      return '<button class="bs-gearpick'+(cur===e.id?' is-on':'')+'" data-arfit="'+e.id+'"><span class="bs-gearpick__n">'+IC('turret')+'<span>'+esc(w?w.name:e.id)+'</span></span><span class="bs-sub">×'+e.n+' on the racks</span></button>';
+    }).join('')||(cur?'':'<div class="sr-empty">The racks are bare. Sweet Tooth sometimes has ship weapons.</div>');
+  return panel(esc(f.name)+' · Mount '+(arRefit.mi+1),rows);
+}
+function arFit(id){
+  const f=G.fighters.find(x=>x.id===arRefit.sid);
+  if(!f)return false;
+  const mi=arRefit.mi;
+  f.loadout=f.loadout||[];
+  G.shipKit=G.shipKit||[];
+  if(id){
+    const e=G.shipKit.find(x=>x.id===id);
+    if(!e||e.n<=0)return false;
+    if(mi<f.loadout.length&&f.loadout[mi]===id)return true;   // already fitted there
+    e.n--;
+    if(mi<f.loadout.length){
+      const old=f.loadout[mi];
+      const oe=G.shipKit.find(x=>x.id===old);
+      if(oe)oe.n++;else G.shipKit.push({id:old,n:1});
+      f.loadout[mi]=id;
+    } else f.loadout.push(id);
+    news('<b>'+esc(wpnLabel(id))+'</b> fitted to the <b>'+esc(f.name)+'</b>.','d');
+  } else if(mi<f.loadout.length){
+    const old=f.loadout[mi];
+    f.loadout.splice(mi,1);
+    const oe=G.shipKit.find(x=>x.id===old);
+    if(oe)oe.n++;else G.shipKit.push({id:old,n:1});
+    news('The <b>'+esc(wpnLabel(old))+'</b> comes off the <b>'+esc(f.name)+'</b> and onto the racks.','d');
+  }
+  saveSnap();
+  return true;
+}
 function arGiveTo(pid){
   const id=arSel.id,p=G.people.find(x=>x.id===pid);
   if(!p)return;
@@ -4210,8 +4285,16 @@ function arClick(ev){
   const sel=t.getAttribute('data-arsel');
   if(sel){const q=sel.indexOf(':');arSel={t:sel.slice(0,q),id:sel.slice(q+1)};arLast[arCat]=arSel;renderArsenal();return;}
   const slot=t.getAttribute('data-arslot');
-  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;renderArsenal();return;}
-  if(t.hasAttribute('data-rank-close')){arOverlay=null;arGive=false;renderArsenal();return;}
+  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;arRefit=null;renderArsenal();return;}
+  if(t.hasAttribute('data-rank-close')){arOverlay=null;arGive=false;arRefit=null;renderArsenal();return;}
+  const mount=t.getAttribute('data-armount');
+  if(mount!==null&&arRefit){arRefit.mi=+mount;renderArsenal();return;}
+  const fit=t.getAttribute('data-arfit');
+  if(fit!==null&&arRefit&&arRefit.mi!==null){
+    arFit(fit||null);
+    arRefit.mi=null;   // back to the mount list to keep refitting
+    syncUI();return;
+  }
   const pick=t.getAttribute('data-gear-pick');
   if(pick){
     const [pid,k,i,id]=pick.split(':');
@@ -4235,7 +4318,8 @@ $('arOrders').addEventListener('click',ev=>{
   }
   if(!arOpen||!arSel)return;
   sClick();
-  if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;renderArsenal();return;}
+  if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;arRefit=null;renderArsenal();return;}
+  if(t.hasAttribute('data-arrefit')){arRefit={sid:arSel.id,mi:null};arOverlay=null;arGive=false;renderArsenal();return;}
   if(t.hasAttribute('data-arsell')){sellItem(arSel.id);return;}
   if(t.hasAttribute('data-arhangar')){
     const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
@@ -4257,6 +4341,7 @@ const ST_LINES={
   boughtKit:'Pleasure, sugar. It’s already in your Arsenal. Don’t ask how.',
   hiredMerc:'They’ll be at your door by morning. Feed them, pay them, and don’t ask about the name.',   // the handoff says to use the merc's pronoun; rebels carry none, so they/them
   needBunk:'…And sugar, they’ll want a bunk waiting. Build one first.',
+  needPad:'…And it needs a pad to land on, sugar. Clear one first.',
   boughtShip:'Done. My lads will fly it to you in two days. Try not to crash it before it lands.',       // Phase 4
   soldOut:'Gone. Should’ve been quicker, sugar.',
   noHeg:'It’s serial-stamped, sugar. It gets stalls burned.',   // optional flavour: why no Hegemony kit
@@ -4293,6 +4378,19 @@ const BM_GSTATS={
   blam:[['Effect','Frag blast'],['Best vs','Infantry in a bunch'],['Use','Thrown']],
   charge:[['Effect','Demolition'],['Best vs','Walls and objectives'],['Use','Planted, remote fuse']],
 };
+/* ships, vehicles and ship weapons Sweet Tooth sells: prices from the handoff §1; their data stays in the db.
+   Varrondow and AutoCom craft, drones, structures and Hegemony-issue vehicles never reach her table. */
+const SHIP_PRICE={talon:2200,cross:2600,graf:3200};
+const SHIPWPN_PRICE={'bls-t-light-repeaters':380,'missiles':520,'door-mounted-gun':300};
+const VEH_PRICE={truck:1100};   // listed, but only sellable once GVEH.truck exists (stats are a blocker: M-17)
+const SHIP_SHORT={talon:'Talon',cross:'Cross',graf:'Hauler'};
+const makerName=id=>{const m=(SRDB.raw.manufacturers||[]).find(x=>x.id===id);return m?m.name:'';};
+const inboundShips=()=>((G.inbound||[]).filter(x=>x.kind==='ship').length);
+const padFree=()=>G.fighters.length+inboundShips()<fighterCap();   // a bought ship needs a pad held for it
+const shipSerial=cls=>{
+  const n=G.fighters.filter(f=>f.cls===cls).length+(G.inbound||[]).filter(x=>x.kind==='ship'&&x.cls===cls).length+1;
+  return (SHIP_SHORT[cls]||((SRDB.ship(cls)||{}).name||cls))+' '+n;   // the class's short name plus a number
+};
 /* a small deterministic RNG: the campaign seed and the week decide the stock, so a reload never rerolls */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 const marketWeek=()=>Math.floor((G.day-1)/7)+1;   // week k covers days 7k-6 .. 7k
@@ -4309,14 +4407,22 @@ function rollMarket(){
     const left=list.filter(id=>!taken.includes(id));
     return left.length?left[Math.floor(r()*left.length)]:null;
   };
+  const swingPrice=base=>{
+    const swing=0.85+r()*0.40;
+    return {price:Math.max(2,Math.round(base*swing/2)*2),deal:swing<=0.95?'good':swing>=1.10?'steep':'fair'};   // base × swing, to the nearest 2
+  };
   const addKit=id=>{
     if(!id)return;
     taken.push(id);
     const m=KIT[id];
     const stock=m.cat==='gadget'?2+Math.floor(r()*3):1;   // gadgets 2-4, everything else 1
-    const swing=0.85+r()*0.40;
-    const price=Math.max(2,Math.round(m.price*swing/2)*2);   // base × swing, to the nearest 2
-    lots.push({kind:'kit',key:id,stock,price,deal:swing<=0.95?'good':swing>=1.10?'steep':'fair'});
+    const sp=swingPrice(m.price);
+    lots.push({kind:'kit',key:id,stock,price:sp.price,deal:sp.deal});
+  };
+  const addBig=(kind,key,base)=>{   // ships, vehicles and ship weapons: stock 1
+    taken.push(key);
+    const sp=swingPrice(base);
+    lots.push({kind,key,stock:1,price:sp.price,deal:sp.deal});
   };
   // mercenaries: generated like any recruit (Rebel.gen with the seeded rng), the record stored in the lot
   const takenNames=new Set(G.people.map(p=>p.name));
@@ -4339,20 +4445,30 @@ function rollMarket(){
   addKit(pickFrom(pool));
   addKit(pickFrom(pool));
   // lots 4-6: weighted, no duplicate keys; a category with nothing eligible rerolls (Rev 2+ weights: M-18;
-  // ships, vehicles and ship weapons wait on their phases and M-19, so their weight falls back onto kit)
+  // vehicles wait on GVEH.truck getting stats, M-17, so their weight falls back onto the others)
   const CATW=[['weapon',28],['gadget',24],['merc',14],['armour',12],['shipwpn',10],['vehicle',8],['ship',4]];
-  const eligible=c=>(c==='weapon'||c==='gadget'||c==='armour')?byCat(c).filter(id=>!taken.includes(id)):[];
+  const notTaken=keys=>keys.filter(k2=>!taken.includes(k2));
+  const eligible=c=>
+    (c==='weapon'||c==='gadget'||c==='armour')?byCat(c).filter(id=>!taken.includes(id)):
+    c==='ship'?notTaken(Object.keys(SHIP_PRICE)):
+    c==='shipwpn'?notTaken(Object.keys(SHIPWPN_PRICE)):
+    c==='vehicle'?notTaken(Object.keys(VEH_PRICE).filter(t=>GVEH[t])):
+    [];
   for(let k=0;k<3;k++){
-    let id=null,isMerc=false,guard=0;
-    while(!id&&!isMerc&&guard++<40){
+    let id=null,cat=null,guard=0;
+    while(!id&&cat!=='merc'&&guard++<40){
       let x=r()*CATW.reduce((a,b)=>a+b[1],0);
-      let cat=CATW[CATW.length-1][0];
+      cat=CATW[CATW.length-1][0];
       for(const [c,w] of CATW){x-=w;if(x<0){cat=c;break;}}
-      if(cat==='merc'){isMerc=true;break;}
+      if(cat==='merc')break;
       const el=eligible(cat);
       if(el.length)id=el[Math.floor(r()*el.length)];
+      else cat=null;
     }
-    if(isMerc)addMerc(k);
+    if(cat==='merc')addMerc(k);
+    else if(id&&cat==='ship')addBig('ship',id,SHIP_PRICE[id]);
+    else if(id&&cat==='shipwpn')addBig('shipwpn',id,SHIPWPN_PRICE[id]);
+    else if(id&&cat==='vehicle')addBig('vehicle',id,VEH_PRICE[id]);
     else addKit(id||pickFrom(pool));
   }
   G.market={week,next:week*7+1,lots,unseen:lots.length};
@@ -4390,6 +4506,7 @@ function buyLot(i,all){
   if(!l||l.stock<=0)return false;
   if(all&&l.stock<2)return false;
   if(l.kind==='merc'&&!mercBunkFree())return false;
+  if(l.kind==='ship'&&!padFree())return false;
   const n=all?l.stock:1;
   const cost=lotPrice(l)*n;
   if(G.credits<cost)return false;
@@ -4404,6 +4521,19 @@ function buyLot(i,all){
     G.mercQ=G.mercQ||[];
     G.mercQ.push({rec:JSON.parse(JSON.stringify(l.merc)),fee:cost});   // the renew fee is what was actually paid
     news('<b>'+esc(l.merc.name)+'</b> signs a 14-day contract. Arrives tomorrow.','g');
+  } else if(l.kind==='ship'){
+    G.inbound=G.inbound||[];
+    G.inbound.push({kind:'ship',cls:l.key,name:shipSerial(l.key),days:2});   // the pad stays held for it
+    news('<b>'+esc((SRDB.ship(l.key)||{}).name||l.key)+'</b> is on its way from Nyx. Lands in 2 days.','g');
+  } else if(l.kind==='vehicle'){
+    G.inbound=G.inbound||[];
+    G.inbound.push({kind:'vehicle',type:l.key,days:2});
+    news('<b>'+esc((GVEH[l.key]||{}).label||l.key)+'</b> is on its way from Nyx. Arrives in 2 days.','g');
+  } else if(l.kind==='shipwpn'){
+    G.shipKit=G.shipKit||[];
+    const e=G.shipKit.find(x=>x.id===l.key);
+    if(e)e.n+=n;else G.shipKit.push({id:l.key,n});
+    news('<b>'+esc((SRDB.weapon(l.key)||{}).name||l.key)+'</b> bought. It’s on the hangar racks.','g');
   }
   bmLine={k:'bought',kind:l.kind};
   saveSnap();syncUI();
@@ -4411,7 +4541,7 @@ function buyLot(i,all){
 }
 /* which of her lines fits the moment */
 function stLine(){
-  if(bmLine&&bmLine.k==='bought')return bmLine.kind==='kit'?ST_LINES.boughtKit:bmLine.kind==='merc'?ST_LINES.hiredMerc:ST_LINES.boughtShip;
+  if(bmLine&&bmLine.k==='bought')return (bmLine.kind==='kit'||bmLine.kind==='shipwpn')?ST_LINES.boughtKit:bmLine.kind==='merc'?ST_LINES.hiredMerc:ST_LINES.boughtShip;
   const l=bmSel!==null&&G.market?G.market.lots[bmSel]:null;
   if(!l)return ST_LINES.greet;
   if(l.stock<=0)return ST_LINES.soldOut;
@@ -4420,23 +4550,45 @@ function stLine(){
     const m=l.merc,wk=m.ownKit.primary||m.ownKit.secondary;
     pitch=ST_LINES.mercTpl.replace(/\[First\]/g,m.first||m.name.split(' ')[0]).replace(/\[them\]/g,'them').replace(/\[they\]/g,'they').replace(/\[their\]/g,'their').replace(/\[weapon\]/g,kitNameId(wk));
     if(!mercBunkFree())return pitch+' '+ST_LINES.needBunk;   // the blocked reason lives in her line (no hint text)
-  } else pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[(KIT[l.key]||{}).cat]||ST_LINES.greet;
+  } else {
+    pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind]||ST_LINES.greet;
+    if(l.kind==='ship'&&!padFree())return pitch+' '+ST_LINES.needPad;
+  }
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
 }
 const stHead='<span class="kf"><span class="sr-avatar">ST</span></span>';   // SR_ART spec pending (DESIGN_BLOCKERS M-20)
 function bmCardHTML(l,i){
   const merc=l.kind==='merc'?l.merc:null;
-  const m=merc?{}:(KIT[l.key]||{});
-  const cm=merc?BM_CAT.merc:(BM_CAT[m.cat]||BM_CAT.weapon);
+  const m=l.kind==='kit'?(KIT[l.key]||{}):{};
   const sel=bmSel===i,sold=l.stock<=0;
   const price=lotPrice(l),short=price>G.credits;
-  const name=merc?merc.name:kitNameId(l.key);
-  const sub=merc?merc.role+' · Level '+merc.level+(merc.spec?' · '+(SPECNAME[merc.spec]||merc.spec):'')
-    :(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
-  const well=merc
-    ?'<div class="bm-merc"><span class="kf"><span class="sr-avatar">'+ini(merc.name)+'</span></span><div class="bm-merc__kit">'+itArt(merc.ownKit.primary||merc.ownKit.secondary)+'<span>Brings own kit</span></div></div>'
-    :itArt(l.key);
-  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
+  let cm,name,sub,well;
+  if(merc){
+    cm=BM_CAT.merc;name=merc.name;
+    sub=merc.role+' · Level '+merc.level+(merc.spec?' · '+(SPECNAME[merc.spec]||merc.spec):'');
+    well='<div class="bm-merc"><span class="kf"><span class="sr-avatar">'+ini(merc.name)+'</span></span><div class="bm-merc__kit">'+itArt(merc.ownKit.primary||merc.ownKit.secondary)+'<span>Brings own kit</span></div></div>';
+  } else if(l.kind==='ship'){
+    const s=SRDB.ship(l.key)||{};
+    cm=BM_CAT.ship;name=s.name||l.key;
+    sub=(s.role||'Starship')+(s.manufacturer?' · '+makerName(s.manufacturer):'');
+    well='<span class="it-art">'+IC('ship')+'</span>';
+  } else if(l.kind==='vehicle'){
+    const d2=GVEH[l.key]||{};
+    cm=BM_CAT.vehicle;name=d2.label||l.key;
+    sub=(d2.kind==='bot'?'Bot':'Vehicle')+' · '+(d2.seats||1)+' seat'+((d2.seats||1)>1?'s':'');
+    well='<span class="it-art">'+IC('vehicle')+'</span>';
+  } else if(l.kind==='shipwpn'){
+    const w2=SRDB.weapon(l.key)||{};
+    cm=BM_CAT.shipwpn;name=w2.name||l.key;
+    sub='Ship weapon'+(w2.kind?' · '+sentence(w2.kind):'');
+    well='<span class="it-art">'+IC('turret')+'</span>';
+  } else {
+    cm=BM_CAT[m.cat]||BM_CAT.weapon;name=kitNameId(l.key);
+    sub=(m.sub||'')+(m.maker&&m.maker!=='TBC'?(m.sub?' · ':'')+m.maker:'');
+    well=itArt(l.key);
+  }
+  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
+    (l.kind==='ship'?'<span class="bm-ribbon">Rare</span>':'')+
     '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
     '<div class="kit-well">'+well+'</div>'+
     '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div></div>'+
@@ -4478,6 +4630,21 @@ function lotStats(l){
     st.push(['Level',String(mr.level)]);
     st.push(['Specialty',mr.spec?(SPECNAME[mr.spec]||mr.spec):'None']);
     st.push(['Kit','Brings own']);
+  } else if(l.kind==='ship'){
+    const s=SRDB.ship(l.key)||{};
+    st.push(['Hull',String(s.hull||'?')]);
+    st.push(['Shields',(s.shield_front||0)+'F / '+(s.shield_rear||0)+'A']);
+    st.push(['Speed',String(s.straight_max||'?')]);   // top straight speed
+  } else if(l.kind==='vehicle'){
+    const d2=GVEH[l.key]||{};
+    st.push(['Health',String(d2.hp||'?')]);
+    st.push(['Seats',d2.kind==='bot'?'Drives itself':String(d2.seats||1)]);
+    st.push(['Role',d2.kind==='bot'?'Bot':'Vehicle']);
+  } else if(l.kind==='shipwpn'){
+    const w2=SRDB.weapon(l.key)||{};
+    st.push(['Damage',(w2.damage_min||'?')+'–'+(w2.damage_max||'?')]);
+    st.push(['Ammo',w2.ammo?String(w2.ammo):'Unlimited']);
+    st.push(['Kind',sentence(w2.kind||'ship weapon')]);
   } else if(m.cat==='weapon'){
     const wp=(window.SR_WPN||{})[l.key];
     if(wp){
@@ -4500,11 +4667,16 @@ function bmCmdbar(){
   if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
   const merc=l.kind==='merc'?l.merc:null;
   const price=lotPrice(l),sold=l.stock<=0;
-  const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
+  const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree()?'Needs a free landing pad':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
   const allCost=price*l.stock;
   const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
-  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+ini(merc.name)+'</span></span>':itArt(l.key,'kit-who-art');
-  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(merc?merc.name:kitNameId(l.key))+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
+  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+ini(merc.name)+'</span></span>'
+    :l.kind==='ship'?'<span class="it-art kit-who-art">'+IC('ship')+'</span>'
+    :l.kind==='vehicle'?'<span class="it-art kit-who-art">'+IC('vehicle')+'</span>'
+    :l.kind==='shipwpn'?'<span class="it-art kit-who-art">'+IC('turret')+'</span>'
+    :itArt(l.key,'kit-who-art');
+  const bmName=merc?merc.name:l.kind==='ship'?((SRDB.ship(l.key)||{}).name||l.key):l.kind==='vehicle'?((GVEH[l.key]||{}).label||l.key):l.kind==='shipwpn'?((SRDB.weapon(l.key)||{}).name||l.key):kitNameId(l.key);
+  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(bmName)+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
   orders.innerHTML=cmdOrder(1,'credits',merc?'Hire':'Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
   who.hidden=false;orders.hidden=false;
 }
@@ -4913,7 +5085,7 @@ addEventListener('keydown',ev=>{
   if(ev.key==='Escape'){
     if(!menu.hidden){closeMenu();return;}
     if(rankOverlay||gearOverlay){rankOverlay=null;gearOverlay=null;renderWin();return;}
-    if(!winMode&&arOpen&&(arOverlay||arGive)){arOverlay=null;arGive=false;renderArsenal();return;}
+    if(!winMode&&arOpen&&(arOverlay||arGive||arRefit)){arOverlay=null;arGive=false;arRefit=null;renderArsenal();return;}
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
@@ -4923,7 +5095,7 @@ addEventListener('keydown',ev=>{
     return;
   }
   // Arsenal / Black Market: keys 1-2 press the command-bar orders
-  if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+  if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&!arRefit&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
     const btn=[...$('arOrders').querySelectorAll('.sr-order')][+ev.key-1];
     if(btn&&!btn.disabled){ev.preventDefault();btn.click();}
     return;
@@ -5571,7 +5743,7 @@ function restoreCampaign(data){
       if(st.ops===undefined)st.ops=0;
     }
     G.opps=G.opps||[];
-    G.mercQ=G.mercQ||[];
+    G.mercQ=G.mercQ||[];G.inbound=G.inbound||[];G.shipKit=G.shipKit||[];
     G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];G.chains=G.chains||{};
     for(const rm of G.rooms){
       if(rm.key==='bay')rm.key='hangar';
@@ -5663,6 +5835,7 @@ if(location.hash==='#test'){
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
+      padFree,inboundShips,shipSerial,arFit,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList}};
 }

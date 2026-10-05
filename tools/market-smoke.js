@@ -17,11 +17,17 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     M.lots.filter(l=>KIT[l.key]&&KIT[l.key].cat==='weapon').length,M.week,M.next,
     new Set(M.lots.map(l=>l.key)).size];
   // --- no lot is heg, dropOnly or not live; stock and prices follow the rules (merc lots carry a record instead)
-  out.legal=M.lots.every(l=>l.kind==='merc'?(!!l.merc&&!!l.merc.name):(()=>{const m=KIT[l.key];return !!m&&!!m.live&&!m.heg&&!m.dropOnly&&!!m.price;})());
-  out.stock=M.lots.every(l=>l.kind==='merc'?l.stock===1:(KIT[l.key].cat==='gadget'?l.stock>=2&&l.stock<=4:l.stock===1));
+  const baseOf=l=>l.kind==='kit'?(KIT[l.key]||{}).price:l.kind==='ship'?f.SHIP_PRICE_()[l.key]:l.kind==='shipwpn'?f.SHIPWPN_PRICE_()[l.key]:null;
+  out.legal=M.lots.every(l=>{
+    if(l.kind==='merc')return !!l.merc&&!!l.merc.name;
+    if(l.kind==='ship')return ['talon','cross','graf'].includes(l.key);
+    if(l.kind==='shipwpn')return !!f.SHIPWPN_PRICE_()[l.key];
+    if(l.kind==='vehicle')return false;   // nothing sellable until GVEH.truck exists (M-17)
+    const m=KIT[l.key];return !!m&&!!m.live&&!m.heg&&!m.dropOnly&&!!m.price;});
+  out.stock=M.lots.every(l=>(l.kind==='kit'&&KIT[l.key].cat==='gadget')?l.stock>=2&&l.stock<=4:l.stock===1);
   out.price=M.lots.every(l=>{
     if(l.kind==='merc')return l.price>=380&&l.price<=600;
-    const b2=KIT[l.key].price;
+    const b2=baseOf(l);
     return l.price%2===0&&l.price>=Math.floor(b2*0.85)-2&&l.price<=Math.ceil(b2*1.25)+2&&['good','fair','steep'].includes(l.deal);});
   // --- a save and load keeps the lots; the same seed and week reroll to the same lots
   const snap=JSON.stringify(M.lots);
@@ -194,6 +200,79 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   $('#winCardB [data-mercjoin]').click();
   out.join=[!p3.merc,!p3.ownKit,((G().armory.find(a=>a.id==='scatter')||{n:0}).n)===sc0+1,
     ((G().armory.find(a=>a.id==='cowboy')||{n:0}).n)===cw0+1,G().people.some(p=>p.id==='m3x')];
+  // ===== Phase 4: ships, ship weapons and 2-day deliveries =====
+  const drain=()=>{let g4=0;while(f.getWin()&&g4++<6)f.closeWin();};
+  const findSeed=pred=>{for(let s3=1;s3<3000;s3++){G().seed=s3;f.rollMarket();if(G().market.lots.some(pred))return s3;}return 0;};
+  out.shipSeed=findSeed(l=>l.kind==='ship'&&l.key!=='graf')>0;
+  f.openMarket();
+  const si=lots().findIndex(l=>l.kind==='ship');
+  const sl2=()=>G().market.lots[si];
+  const scls=sl2().key;
+  out.shipLot=[['talon','cross'].includes(scls),sl2().stock===1,
+    $$('#bmView .bm-card')[si].className.indexOf('is-rare')>=0,
+    $$('#bmView .bm-card')[si].innerHTML.indexOf('bm-ribbon')>=0];
+  f.setBmSel(si);
+  out.shipStats=['Hull','Shields','Speed'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  // pad check: with the pads full, Buy is greyed with the reason and her line says so
+  const cap3=f.fighterCap();
+  while(G().fighters.length<cap3)G().fighters.push(f.newFighter({id:'pf'+G().fighters.length,name:'Pad Filler '+G().fighters.length,cls:'talon',hull:100}));
+  G().credits=100000;f.renderMarket();
+  const sb2=$('#arOrders [data-bmbuy]');
+  out.noPad=[sb2.disabled,sb2.title,(($('#bmSay')||{}).textContent||'').indexOf('pad')>=0];
+  G().fighters=G().fighters.filter(x=>!String(x.id).startsWith('pf'));
+  f.renderMarket();
+  // buy: the fee leaves, the lot sells out, the ship is inbound for two days
+  const sc2=G().credits,sp2=f.lotPrice(sl2());
+  $('#arOrders [data-bmbuy]').click();
+  out.shipBuy=[sc2-G().credits===sp2,(G().inbound||[]).filter(x=>x.kind==='ship').length===1,sl2().stock===0,
+    G().news.some(n=>n.html.indexOf('on its way from Nyx')>=0)];
+  const fl0=G().fighters.length;
+  f.closeMarket();
+  f.advanceDay();drain();
+  out.shipDay1=G().fighters.length===fl0;
+  f.advanceDay();drain();
+  const bought=G().fighters[G().fighters.length-1];
+  out.shipLand=[G().fighters.length===fl0+1,bought&&bought.cls===scls,bought&&bought.hull===100,
+    bought&&/\s\d+$/.test(bought.name),(G().inbound||[]).length===0,!!(bought&&bought.loadout&&bought.loadout.length)];
+  // ship weapons land on the hangar racks
+  out.wpnSeed=findSeed(l=>l.kind==='shipwpn')>0;
+  f.openMarket();
+  const wi2=lots().findIndex(l=>l.kind==='shipwpn');
+  const wkey=lots()[wi2].key;
+  f.setBmSel(wi2);
+  out.wpnStats=['Damage','Ammo','Kind'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  G().credits=100000;f.renderMarket();
+  const wc0=G().credits,wp2=f.lotPrice(lots()[wi2]);
+  $('#arOrders [data-bmbuy]').click();
+  const rack=id2=>(G().shipKit||[]).find(x=>x.id===id2)||{n:0};
+  out.wpnBuy=[wc0-G().credits===wp2,rack(wkey).n===1,lots()[wi2].stock===0,
+    G().news.some(n=>n.html.indexOf('hangar racks')>=0)];
+  f.closeMarket();
+  // Refit: fit the bought weapon to an empty mount, then clear a mount back onto the racks
+  f.openArsenal();f.setArCat('ships');f.setArSel('ship',bought.id);
+  $('#arOrders [data-arrefit]').click();
+  out.refitOpen=$$('#arView [data-armount]').length>=2;
+  const emptyMi=(bought.loadout||[]).length;
+  $$('#arView [data-armount]')[emptyMi].click();
+  const fitBtn=$('#arView [data-arfit="'+wkey+'"]');
+  out.fitBtn=!!fitBtn;
+  fitBtn.click();
+  out.fit=[bought.loadout.includes(wkey),rack(wkey).n===0];
+  const old0=bought.loadout[0];
+  $$('#arView [data-armount]')[0].click();
+  $('#arView [data-arfit=""]').click();
+  out.unfit=[bought.loadout.length===1,rack(old0).n>=1];
+  f.closeArsenal();
+  // vehicle delivery plumbing (nothing is sellable until GVEH.truck exists: M-17)
+  G().market.lots[0]={kind:'vehicle',key:'strider',stock:1,price:500,deal:'fair'};
+  f.openMarket();f.setBmSel(0);
+  out.vehStats=['Health','Seats','Role'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  const vn0=(G().vehicles||[]).length,vc2=G().credits,vp2=f.lotPrice(G().market.lots[0]);
+  $('#arOrders [data-bmbuy]').click();
+  out.vehBuy=[vc2-G().credits===vp2,(G().inbound||[]).some(x=>x.kind==='vehicle')];
+  f.closeMarket();
+  f.advanceDay();drain();f.advanceDay();drain();
+  out.vehLand=[(G().vehicles||[]).length===vn0+1,(G().inbound||[]).length===0];
   return out;
  });
  ok(r.roll[0]===1&&r.roll[1]===6&&r.roll[2]>=3&&r.roll[3]>=1&&r.roll[4]===1&&r.roll[5]===8&&r.roll[6]===6,'day-1 roll: 6 unique lots, 3+ kit, 1+ weapon, week 1, next day 8 '+r.roll);
@@ -234,6 +313,21 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.contractWin&&r.renew.every(Boolean),'contract window: Renew charges the fee and resets the clock '+[r.contractWin,r.renew]);
  ok(r.goWin&&r.letgo.every(Boolean),'Let them go: they leave and their kit leaves with them '+[r.goWin,r.letgo]);
  ok(r.joinBtn&&r.join.every(Boolean),'Join the cause: free, contract gone, own kit joins the armory '+[r.joinBtn,r.join]);
+ // Phase 4: ships, ship weapons and deliveries
+ ok(r.shipSeed,'a seed with a ship lot was found');
+ ok(r.shipLot.every(Boolean),'ship lot: known class, stock 1, Rare ribbon on a purple card '+r.shipLot);
+ ok(r.shipStats,'ship stats row: Hull / Shields / Speed');
+ ok(r.noPad[0]===true&&r.noPad[1]==='Needs a free landing pad'&&r.noPad[2],'full pads grey the Buy with the reason, her line says so '+r.noPad);
+ ok(r.shipBuy.every(Boolean),'ship buy: paid, inbound, sold out, on-its-way comm '+r.shipBuy);
+ ok(r.shipDay1===true,'nothing lands on day one of the delivery');
+ ok(r.shipLand.every(Boolean),'the ship lands on day two: full hull, serial name, default loadout '+r.shipLand);
+ ok(r.wpnSeed,'a seed with a ship-weapon lot was found');
+ ok(r.wpnStats,'ship-weapon stats row: Damage / Ammo / Kind');
+ ok(r.wpnBuy.every(Boolean),'ship-weapon buy: paid, on the racks, sold out, racks comm '+r.wpnBuy);
+ ok(r.refitOpen&&r.fitBtn,'Refit opens the mounts and offers the rack weapon '+[r.refitOpen,r.fitBtn]);
+ ok(r.fit.every(Boolean),'fitting takes the weapon off the racks and onto the mount '+r.fit);
+ ok(r.unfit.every(Boolean),'clearing a mount returns the weapon to the racks '+r.unfit);
+ ok(r.vehStats&&r.vehBuy.every(Boolean)&&r.vehLand.every(Boolean),'vehicle plumbing: stats, inbound, lands in G.vehicles in 2 days '+[r.vehStats,r.vehBuy,r.vehLand]);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'market-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);
