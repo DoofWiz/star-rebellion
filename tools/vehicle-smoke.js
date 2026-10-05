@@ -159,7 +159,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const D=window.DBGbase,f=D.fn,out={};
   const G0=JSON.parse(JSON.stringify(D.G));
   G0.people.push({id:'strider',name:'Strider SK-1',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'strider'});
-  delete G0.vehicles;
+  delete G0.vehicles;delete G0.v;   // a save from before versioning
   f.restoreCampaign({campaign:G0,started:true});
   const G=D.G;
   out.mig=[G.people.some(p=>p.id==='strider'),(G.vehicles||[]).map(v=>v.id+':'+v.type+':'+v.hp).join()];

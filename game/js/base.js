@@ -225,7 +225,7 @@ function newGame(){
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],
     news:[],
-    econ4:1,locModel:1,medSeeded:1,   // born on today's rules: restoreCampaign's one-off fixes for older saves must not fire
+    v:saveVersion(),   // born at the current save version: no migration runs on it (MIGRATIONS below)
   };
   for(const [id,n] of [['akli',6],['cowboy',4],['medpack',4]])Items.grant(g0.armory,id,n,'start');
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
@@ -6351,31 +6351,24 @@ function saveSnap(){
   try{SR.persist({campaign:JSON.parse(JSON.stringify(G)),started});}catch(e){}
 }
 let booted=false;
-function restoreCampaign(data){
-  if(data&&data.campaign&&data.started){
-    G=data.campaign;started=true;
+/* ---------- save versions ----------
+   G.v is the save's schema version; a save from before versioning has none (version 0). MIGRATIONS[i] upgrades a
+   save from version i to i+1, exactly once, and they run in order on load. To change the shape of G: add a function
+   at the end (saveVersion() follows, and newGame() is born at it). Work every load needs (rebinding functions,
+   picking up new content, the market) belongs in restoreCampaign itself, not here. */
+const MIGRATIONS=[
+  /* 0 -> 1: everything patched into older saves before saves had a version (2026-09-27 to 2026-10-05) */
+  function(){
     if(G.introDone===undefined)G.introDone=true;
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
     if(G.onboard===undefined)G.onboard='done';
     G.misPopQ=G.misPopQ||[];
     G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
-    mood();
     G.heroesMade=Math.max(G.heroesMade||0,G.people.filter(p=>p.role==='Hero').length);
     if(!G.medSeeded){G.medSeeded=1;if(!G.armory.some(x=>x.id==='medpack'))Items.grant(G.armory,'medpack',4,'start');}
     for(const p of crewOf())if(!p.gear)gearFromEquip(p);
-    autoEquip();
     G.candQ=G.candQ||[];
-    if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
-    for(const d of PLANETDEF){
-      let st=G.planets.find(x=>x.id===d.id);
-      if(!st){st=mkPlanet(d);G.planets.push(st);}
-      if(d.access&&!d.base&&!st.access){st.known=st.access=st.scouted=true;}
-      if(st.acc===undefined||(st.access&&!d.base&&!st.acc))st.acc=st.access&&!d.base?1:0;
-      if(st.sup===undefined)st.sup=d.sup||0;
-      if(!st.lib)st.lib={};
-      if(st.ops===undefined)st.ops=0;
-    }
     G.opps=G.opps||[];
     G.upq=G.upq||[];G.dip=G.dip||[];G.patrols=G.patrols||[];G.chains=G.chains||{};
     for(const rm of G.rooms){
@@ -6410,14 +6403,43 @@ function restoreCampaign(data){
     if(!G.locModel){G.locModel=1;G.renown=Math.min(G.renown,40);G.revNoted=false;G.revLevel=1;}
     for(const p of G.people)if(p.assign==='medbay')p.assign='station:infirmary';
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
+    {const WNAMES={cowboy:'Cowboy No.4',longiron:'Longhorn \u201928 Hunting Rifle',scatter:'Varmint Shotgun',rocket:'Improvised Rocket Launcher'};
+     for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
+    for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
+  },
+];
+const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
+/* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
+function upgradeSave(){
+  const from=G.v||0,to=saveVersion();
+  if(from>to)console.warn('Star Rebellion: this save is from a newer build (version '+from+', this build reads '+to+'); loading it as it is.');
+  for(let v=from;v<to;v++){MIGRATIONS[v]();G.v=v+1;}
+  return from;
+}
+function restoreCampaign(data){
+  if(data&&data.campaign&&data.started){
+    G=data.campaign;started=true;
+    upgradeSave();
+    // every load: rebels pick up fields newer rebel code relies on (Rebel.migrate is idempotent), and the mood follows them
+    for(const p of G.people)Rebel.migrate(p);
+    mood();
+    autoEquip();   // empty slots (new ones too, like Head and Body) fill from free stock
+    // every load: worlds added to PLANETDEF since the save appear
+    if(!G.planets)G.planets=PLANETDEF.map(mkPlanet);
+    for(const d of PLANETDEF){
+      let st=G.planets.find(x=>x.id===d.id);
+      if(!st){st=mkPlanet(d);G.planets.push(st);}
+      if(d.access&&!d.base&&!st.access){st.known=st.access=st.scouted=true;}
+      if(st.acc===undefined||(st.access&&!d.base&&!st.acc))st.acc=st.access&&!d.base?1:0;
+      if(st.sup===undefined)st.sup=d.sup||0;
+      if(!st.lib)st.lib={};
+      if(st.ops===undefined)st.ops=0;
+    }
     if(G.sortie){   // the page closed mid-mission: the sortie never flew, so its fuel and supply drop come back
       G.fuel+=G.sortie.f||0;G.supplies+=G.sortie.s||0;G.nadesOut=undefined;
       G.news.push({day:G.day,html:'<b>'+G.sortie.name+'</b> was called off before it left. The fuel'+(G.sortie.s?' and the supply drop are':' is')+' back in stores.',cls:'r'});
       G.sortie=undefined;
     }
-    {const WNAMES={cowboy:'Cowboy No.4',longiron:'Longhorn \u201928 Hunting Rifle',scatter:'Varmint Shotgun',rocket:'Improvised Rocket Launcher'};
-     for(const a of G.armory)if(WNAMES[a.id])a.name=WNAMES[a.id];}
-    for(const f of G.fighters)if(!f.loadout)f.loadout=defaultLoadout(f);   // saves from before weapons were per ship
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
     for(const m of G.missions)bindNpc(m);
@@ -6471,7 +6493,7 @@ if(location.hash==='#test'){
     fn:{castRebel,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,startProsthetic,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
-      restoreCampaign,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,
+      restoreCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,staffOf,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,

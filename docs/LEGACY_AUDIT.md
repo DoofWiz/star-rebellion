@@ -259,6 +259,14 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 
 ## 6. Save data
 
+> **Progress (after this audit):** saves are versioned. `G.v` is the schema version (a save without one is version
+> 0); `MIGRATIONS` in `base.js` is a numbered list, each entry upgrading one version, run once and in order by
+> `upgradeSave()`, and `newGame()` is born at `saveVersion()`. Every one-off fix that used to run on each load is now
+> migration 0 -> 1 (kept whole, so no save from before versioning is lost); the work every load needs (rebels'
+> defaults, new worlds, the sortie refund, re-binding functions, refreshing mission data, the market) stays in
+> `restoreCampaign`. The `econ4`/`locModel`/`medSeeded` flags only matter to version-0 saves now. A save from a newer
+> build loads as it is, with a console warning. Checked by `tools/save-smoke.js`.
+
 - One key (`star-rebellion-campaign-v1`, `core.js:59`), no schema version inside the payload. Migrations in
   `restoreCampaign` (`base.js:6383-6463`) detect old shapes or set one-off flags (`medSeeded`, `econ4`).
 - **Probably dead** (they fix saves from the first days of the repo, before the ×4 economy and the room renames):
@@ -381,5 +389,6 @@ Each step is independent and leaves the game playable. The first two are cheap a
    (done).
 5. **Rebels (§4):** one injury model, one debrief path, space reading traits and rank from `Rebel`.
 6. **Ships (§2):** database ids everywhere instead of legacy keys; behaviours and fire-support numbers as columns.
-7. **Save versioning (§6)** and dropping the dead migrations.
+7. ~~**Save versioning (§6)**~~ (done; the pre-versioning fixes live on as migration 0 -> 1 and can be dropped once
+   no version-0 save matters).
 8. **Base onto the UI kit (§7)** and shared helpers into `SR.util`, opportunistically, when a screen is touched anyway.
