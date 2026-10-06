@@ -58,7 +58,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.closeWin();f.syncUI();
   out.rail=[!$('#heroSec').hidden,$$('#heroList .sr-unit').length,f.ablePilots().some(p=>p.id===h.id),f.isGround(h)];
   f.openWin('person',h);const html=$('#winCardB').innerHTML;
-  out.dossier=[html.indexOf('Hero of the Rebellion')>=0,html.indexOf('was Soldier')>=0,html.indexOf('Rank')>=0||html.indexOf('data-rank-open')>=0];
+  out.dossier=[html.indexOf('Hero of the Rebellion')>=0,html.indexOf('bs-dz__role">Hero<')>=0,html.indexOf('Rank')>=0||html.indexOf('data-rank-open')>=0];
   // squad entry flags it and carries the buffed profile
   const e=f.squadEntry(h,false);out.entry=[e.hero,e.hp>=125];
   // a hero cannot be a hero twice

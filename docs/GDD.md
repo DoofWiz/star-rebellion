@@ -286,9 +286,18 @@ phase-by-phase record, and its section 7 for what the unbuilt traits are waiting
 - **Rank** (seniority, separate from level): Army enlisted for Soldiers and Support, USMC enlisted for Marines, USAF enlisted for Pilots, earned by missions served and handed out by the player; from Sergeant at level 5 a rebel can be commissioned onto the officer ladder.
 - **Skills** (cap 50): Aim, Constitution, Agility, Presence for Soldiers and Marines; Aim, Cunning, Focus, Presence for Pilots; none for Support; all six for a Hero. Derived from level plus experience from missions.
 - **Gear** in slots: a primary weapon, a secondary weapon and two gadgets (Soldiers and Marines); secondary and gadgets (Pilots); none (Support). Equipped automatically from the player's pool, changeable by hand.
-- A **dossier** with all of it, including a medical section and a service record.
+- A **Personnel File** with all of it, including a medical section and a service record, beside a full-body **paper doll** of the rebel (front and, with a Back item, back) in the kit they carry, redrawn as their gear changes. It shows their type only (no joined date, no flavour line) and the level ring stands in for an experience bar. A double-click on a rebel opens it during a mission too (read-only).
 
 **Recruiting.** Rebels are recruited through the Command Center's *Recruit new Revolutionaries* task, by Sources, and by rescue missions. Candidates appear on the **New Recruit** screen as cards (one or several at once); the player recruits or dismisses each.
+
+**Death.** Enemies die when they drop. A rebel dies when they are hit again while down, when a critical hit
+drops them, or when one hit takes them from full health to nothing; otherwise they go down unconscious, and a
+squad mate's **Treat Wound** (a Med Pack) brings them round at a quarter health. A downed rebel with untreated
+Severe Bleeding bleeds out at the end of the second round. Blasts hit the downed. The rescued VIP and the prologue
+(Take the Rock) are exempt. The dead do not come home; the Doctor's Stabilise can still pull one back in Critical
+Condition. (DESIGN_BLOCKERS C-29.)
+
+**Stims** are a planning Action (heal 30% of max health as the round opens); the rebel still shoots that round.
 
 **Injury and recovery.** A critical hit on a rebel inflicts one of twelve critical injuries (Concussion, Broken Arm, Broken Leg, Severe Bleeding, Internal Injury, Shrapnel, Burns, Eye Injury, Maimed, Spinal Injury, Ruptured Eardrum, Facial Trauma) with an immediate combat effect, removed in the encounter by the **Treat Wound** action. Most injuries then go home as a medical condition to be recovered at the Infirmary over time; an Eye Injury left too long, and Maiming, are permanent until a prosthetic is fitted in a Surgery Room.
 
@@ -639,11 +648,13 @@ The data and rules are in `game/js/support.js`; the numbers in the Rules tab; wh
   else is **Staff**, who run the Lead's Jobs plus fork Jobs of their own and learn 50% faster under a higher Lead.
 - **Niches** are trained at level 3 in the classroom (300 credits, 3 days) while they keep working. Unlocks come at 3,
   7, 11, 15 and 19, with a permanent fork at 7 and 15. Live first: Cyberneticist (prosthetics), Physio, Analyst,
-  Aerogineer, Slicer, Smuggler, Instructor, Propagandist, Tactician.
+  Aerogineer, Slicer, Smuggler, Instructor, Propagandist, Tactician, Flight Controller, Combat Support.
 - **Jobs:** standing Jobs fill themselves each day (Treatment two patients per Doctor, Repairs one craft per Mechanic,
   Rehab, Drill…); timed Jobs start from the room (a prosthetic, a Strength Programme, Fighter Tuning, a Data Tap, a
   Special Order, a campaign); mission Jobs are picked on the planning board's **Base support** (Pre-hack, Map Theft,
-  Overwatch, Mission Intel), and a free Mission Control specialist supports every mission.
+  Overwatch, Mission Intel), and a free Mission Control specialist supports every mission (a Tactician or Combat
+  Support first for a ground mission, a Flight Controller for a space one: Vectoring, Scramble, Intercept Plot, Rapid
+  Turnaround, Tight Wing and Emergency Jump).
 - **Experience** comes from working the room and from Jobs. Postings, losing specialists to raids and the
   Crewman wait on systems that are not in the game yet.
 
@@ -702,7 +713,8 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
 
 ### Fire support (built, Phase 4)
 The planning board's **Fire support** area takes assets for ground missions:
-- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it.
+- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it. It can also
+  be called in free move, before the shooting starts: a quiet chute that lands a few seconds later.
   Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
   single-target damage, good against vehicles and Striders).
 - **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
@@ -712,6 +724,11 @@ The planning board's **Fire support** area takes assets for ground missions:
   set down at the start of the next planning phase where you call them).
 - In the mission, any soldier's radial **Fire Support** opens a menu top-left; pick an item, then tap a spot
   you can see. Level 1 only has one Graf, so Door Gunner and Reinforcements wait for a second hauler.
+- **Combat Support** (a Mission Control niche) adds to a supported mission: one extra call, a steadier door gunner,
+  calls that land at once, Evac on Call, a wider zone, no friendly blast damage and a Heavy Bombardment.
+- **Steal the Cross:** the transport drops the squad and lifts off; it comes back to the LZ once the Cross is away,
+  and the squad extracts when it is down. The tower guard is drawn on the tower's deck, and the Hegemony only shoots
+  what it could see (within the squad's own sight range); a shot gives the shooter away.
 
 ### Space enemies (built, Phase 4)
 Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),

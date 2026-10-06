@@ -77,7 +77,7 @@ window.SR_HUD=(function(){
     return (w.length>1?w[0][0]+w[1][0]:w[0].slice(0,2)).toUpperCase();
   }
   function avatar(o){
-    return '<span class="sr-avatar'+(o.cls?' '+o.cls:'')+'">'+esc(o.initials||initials(o.name))+
+    return '<span class="sr-avatar'+(o.cls?' '+o.cls:'')+'">'+(o.img?'<img class="bs-face" src="'+o.img+'" alt="">':esc(o.initials||initials(o.name)))+   // o.img: a portrait (data URL)
       (o.badge?'<span class="sr-avatar__role">'+ico(o.badge)+'</span>':'')+'</span>';
   }
   /* ---------- buttons & order cards ---------- */

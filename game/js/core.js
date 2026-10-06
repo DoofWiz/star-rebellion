@@ -193,7 +193,8 @@ window.SR=(function(){
       return (list||[]).map(w=>{const g=GEAR[w]||{n:w,i:null};return {icon:g.i,label:g.n};});
     },
     squadCard(o){
-      let h='<div class="sr-squadcard"><span class="sr-avatar'+(o.pilot?' sr-avatar--pilot':'')+'">'+window.SR_HUD.initials(o.name||'?')+'</span><div>';
+      // o.img: a portrait (data URL), drawn like the base's crew avatars; initials when there is none
+      let h='<div class="sr-squadcard"><span class="sr-avatar'+(o.pilot?' sr-avatar--pilot':'')+'">'+(o.img?'<img class="bs-face" src="'+o.img+'" alt="">':window.SR_HUD.initials(o.name||'?'))+'</span><div>';
       h+='<div class="sr-squadcard__name">'+o.name+'</div>';
       h+='<div class="sr-squadcard__role">'+(o.role||(o.pilot?'Pilot':''))+'</div>';
       h+='<div class="sr-squadcard__gear">';

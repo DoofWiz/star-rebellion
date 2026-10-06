@@ -250,6 +250,10 @@ let salvage=0;   // Materials in the wrecks of ships we destroyed
 function deploy(withCutscene){
   if(CTX&&CTX.flight&&CTX.flight.length){
     const P=[[650,2450],[430,2560],[870,2620],[540,2380]];
+    // Intercept Plot (Flight Controller): the wing starts where Mission Control put it
+    const plot=(CTX.sup&&CTX.sup.plot)||'';
+    const OFF={left:[-520,120],right:[620,60],close:[260,-480]}[plot];
+    if(OFF)for(const q of P){q[0]+=OFF[0];q[1]+=OFF[1];}
     const flight=CTX.flight.slice(0,4);
     ships=flight.map((f,i)=>{
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
@@ -259,7 +263,7 @@ function deploy(withCutscene){
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
       // the base's work on the ship: Fighter Tuning, Heavy Frames, Pre-flight Checks (Aerogineer)
-      sh.tune=f.tune||null;
+      sh.tune=f.tune||null;sh.tight=f.tight||0;
       if(f.frame){sh.maxHull+=f.frame;sh.hull=sh.maxHull;}
       if(f.shield){sh.segs.F.max+=f.shield;sh.segs.F.val+=f.shield;}
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
@@ -275,7 +279,7 @@ function deploy(withCutscene){
     ships=DEPLOY.map(d=>mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7])))).concat(LINEUPS.instructor.map(fromLineup));
   }
   makeRocks();
-  salvage=0;
+  salvage=0;jumpUsed=false;
   round=1;selId='P1';bolts=[];parts=[];floaters=[];missFx=[];bubbles=[];boomFx=[];
   vols=[];pops=[];impFx=[];shFx=[];killFx=[];PFX.list.length=0;SHK.trauma=0;
   exec=null;attackQ=null;awaitAction=null;lockPickMode=false;subMenu='root';infoShip=null;
@@ -470,6 +474,7 @@ function computeTN(s,t){
   if(t.tokens.evade){v+=3;e.push(['FLYING DEFENSIVE',3]);}
   if(t.tokens.broll){v+=2;e.push(['BARREL ROLL',2]);}
   if(t.tune&&t.tune.evade){v+=t.tune.evade;e.push(['TUNED',t.tune.evade]);}
+  if(t.tight){v+=1;e.push(['TIGHT WING',1]);}   // Tight Wing (Flight Controller)
   const defl=Math.abs(angNorm(Math.atan2(t.y-s.y,t.x-s.x)-t.h));
   if(defl>Math.PI-0.6){v-=2;e.push(['TAIL SHOT',-2]);}
   else if(defl>0.9&&defl<Math.PI-0.9){v+=2;e.push(['DEFLECTION',2]);}
@@ -2343,6 +2348,7 @@ const AM={
   fixcrit:{label:'Fix critical',icon:'work',family:'util',rule:'Clear one critical hit.'},
   broll:{label:'Barrel roll',icon:'roll',family:'move',rule:'Slide sideways out of the line of fire. Enemy shots need 2 more to hit you.',nums:[{t:'+2 enemy difficulty',kind:'good'}]},
   pass:{label:'Pass',icon:'pass',family:'',rule:'Hold your action this turn.'},
+  jump:{label:'Emergency jump',icon:'leave',family:'move',rule:'Mission Control pulls the whole wing out: every ship jumps clear with no losses. The mission fails. Once per mission.'},
   back:{label:'Back',icon:'back',family:'',rule:'Return to the main actions.'}};
 function actOrders(s){
   const sub=subMenu;                          // root | evade | repair | fixpick
@@ -2363,6 +2369,7 @@ function actOrders(s){
     mk('repmenu',Object.assign({active:parent==='repmenu'},rk))];
   if(s.pilot.mans.includes('broll'))out.push(mk('broll',rk));
   if(s.pilot.hero&&!s.pilot.heroUsed)out.splice(1,0,mk('hero',rk));
+  if(sub==='root'&&CTX&&CTX.sup&&CTX.sup.jump&&!jumpUsed)out.push(HUD.sep(),mk('jump'));   // Emergency Jump (Flight Controller)
   if(sub==='root')out.push(HUD.sep(),mk('pass'));
   else {
     out.push(HUD.sep(),mk('back',{key:'X',nokey:true}));
@@ -2497,9 +2504,18 @@ function setMan(str){
   sTick();
   syncUI();
 }
+let jumpUsed=false;
+/* Emergency Jump (Flight Controller): the whole wing leaves the sector with no losses; the mission fails */
+function emergencyJump(){
+  jumpUsed=true;awaitAction=null;
+  for(const s of ships)if(s.alive&&s.faction==='reb'){s.alive=false;s.fledOut=true;}
+  log('<span class="a">Mission Control:</span> <b>Emergency jump.</b> The whole wing is out of the sector. Nobody lost.');
+  gameOver(false);
+}
 function actionPick(a){
   if(!awaitAction)return;
   sTick();
+  if(a==='jump'){emergencyJump();return;}
   if(a==='lock'){lockPickMode=true;subMenu='root';syncUI();return;}
   if(a==='evmenu'){subMenu=subMenu==='evade'?'root':'evade';syncUI();return;}
   if(a==='repmenu'){subMenu=subMenu==='repair'||subMenu==='fixpick'?'root':'repair';syncUI();return;}
@@ -2699,15 +2715,25 @@ function briefUI(){
   if(CTX&&CTX.flight&&CTX.flight.length){
     cards=CTX.flight.slice(0,4).map(f=>{
       const cls=CLS[f.cls]?f.cls:'viper';
-      return SR.ui.squadCard({name:f.name,pilot:true,chips:flightChips(cls,f.loadout),
+      return SR.ui.squadCard({name:f.name,pilot:true,img:facePic(f),chips:flightChips(cls,f.loadout),
         role:(f.fighterName?f.fighterName+' · ':'')+CLS[cls].label});
     });
+    if(CTX.sup&&CTX.sup.vector&&ships.length){   // Vectoring (Flight Controller): the enemy wing on the briefing
+      const by={};
+      for(const t of ships.filter(x=>x.faction==='heg')){const r=t.type&&Enemies.space&&Enemies.space(t.type);const n=(r&&r.name)||CLS[t.cls].label;by[n]=(by[n]||0)+1;}
+      cards.push('<p class="sr-fine" style="grid-column:1/-1"><b>Mission Control:</b> the enemy wing is '+Object.keys(by).map(n=>by[n]+' \u00d7 '+n).join(', ')+'.</p>');
+    }
   } else {
     cards=DEPLOY.filter(d=>d[3]==='reb').map(d=>
       SR.ui.squadCard({name:d[7].pname,pilot:true,chips:flightChips(d[2]),
         role:d[1]+' · '+CLS[d[2]].label}));
   }
   byId('spFlight').innerHTML=cards.join('');
+}
+/* a pilot's face for the briefing, as on the base's crew list */
+function facePic(f){
+  if(!f||!f.art)return null;
+  try{const c=document.createElement('canvas');c.width=c.height=48;window.SR_ART.portrait(c.getContext('2d'),24,24,22,f.art,{t:0});return c.toDataURL();}catch(e){return null;}
 }
 function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven Rock */}
 function enter(params){

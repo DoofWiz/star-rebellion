@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -37,6 +37,8 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
 | C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | C-28 | ⚪ | Support specialties: the numbers and readings I chose while building them | How every Support rebel plays |
+| C-29 | ⚪ | Death: the readings I chose for who dies and how to save them | Every ground fight |
+| C-30 | ⚪ | Steal the Cross and the field: the tower guard, calls before the shooting, the transport that leaves | Steal the Cross; how far enemies shoot everywhere |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -60,7 +62,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-29 | 🟡 | Art follow-ups from the October 5 art handoffs | A weary icon; Helix and the ship weapon makers in the Gear doc; poses that wait on items |
 | M-30 | 🟡 | One map per mission type | Every deployment of a type plays on the same layout; only the names change |
 | M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
-| M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 110 of 161 niche unlocks and 3 of 16 base effects; 14 niches have nothing live yet |
+| M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 97 of 161 niche unlocks and 3 of 16 base effects; 12 niches have nothing live yet |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -68,7 +70,7 @@ bar, fire-support art and ships parked in the iso hangar.
 
 ## 1. Conflicts
 
-Open: C-13, C-15, C-18, C-19, C-24, C-27 and C-28; the rest are in the resolved log at the bottom.
+Open: C-13, C-15, C-18, C-19, C-24, C-27, C-28, C-29 and C-30; the rest are in the resolved log at the bottom.
 
 ### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab
 *(Numbered C-12 by mistake when it was added; C-12 is Cass's Door Gunner in the Resolved log.)*
@@ -208,9 +210,59 @@ chose, and what replaced what:
      **Martyrs**: ½ a flag where they fell, half the morale loss at base.
    - *Instructor:* **Drill** takes 25% off training and makes the Training Hall's mats 50% faster (the old Drill
      Instructor's perk). **Veteran Mentors** count a level 11+ rebel resting at base as an Instructor.
+   - *Flight Controller* (a free one supports space missions first): **Vectoring** lists the enemy wing on the
+     briefing; **Scramble** adds one optional pilot and ship to the board (four at most); **Intercept Plot** is a
+     choice on the board (flank left, head on, flank right, close in); there is nothing stopping a ship flying again,
+     so **Rapid Turnaround** means pilots who bring an undamaged ship home are not tired by it; **Tight Wing** +1 to be
+     hit; **Emergency Jump** pulls the wing out with no losses and fails the mission. **Formation Calls** waits on the
+     Leader's Take Point (M-13).
+   - *Combat Support* (a Tactician or Combat Support specialist supports ground missions first): fire support never
+     scatters, so **Precision Strikes** makes the door gunner hit on 6+ instead of 9+; **Fire Coordination** lets the
+     first drop or ship be called once more; **Rapid Response** lands drops, reinforcements and vehicles at once;
+     **Evac on Call** flies a downed rebel out (home injured, not dead); **Saturation** widens the door gunner's zone
+     by half, up to 5 targets, and the strafing blasts; **Danger Close** spares the squad from its own fire support;
+     **Heavy Bombardment** is six big blasts on a spot the squad can see, once.
    - *Base Rules:* **Salvage** +10% to +40% Materials from mission rewards; **Maintenance** a 10% to 40% chance a used Med
      Pack, grenade or charge comes back; **Inventory Control** +4 to +20 Arsenal slots (the grid still only warns).
 **Needs from you:** anything above you would like different, and an experience pace.
+**Your call:** _open_
+
+### C-29 ⚪ Death: the readings I chose
+You asked that enemies die, and that a rebel die when hit while unconscious, when a critical hit drops them, or when
+one hit takes all their health; otherwise they are downed for a rescue. Built that way. Where I had to choose:
+1. **"All their health in a single hit"** means from full health to nothing in one hit (armour and shields soak
+   first, as always).
+2. **Rescue:** a squad mate's Treat Wound (one Med Pack) brings a downed rebel round at a quarter health. Before,
+   only someone dropped by a Spinal Injury or Maiming could be treated where they lay.
+3. **Bleeding out:** a downed rebel with untreated Severe Bleeding dies at the end of the second round. Blasts
+   (grenades, rockets, strafing runs) hit the downed; shots never target them.
+4. **Exempt:** the rescued VIP (their fall already fails the mission) and Take the Rock, the prologue, where there is
+   no base to come home to yet.
+5. **After the mission:** the dead are lost (as a pilot shot down in space was before). The Doctor's Stabilise, Lucky
+   and Iron Constitution still apply. Enemies, Autos and Bots die; a downed enemy no longer shows stars, and its name
+   tag only shows under the pointer.
+**Needs from you:** whether any of these should change (the bleed-out clock, a revive at more than a quarter health,
+a chance to survive in the field without a medic).
+**Your call:** _open_
+
+### C-30 ⚪ Steal the Cross and the field: what I changed
+1. **The tower guard (Dep. Wren, on the "Condenser" tower)** was drawn under the tower top, so she could not be
+   seen or picked, and she shot from beyond the squad's sight with a braced, Steady Longhorn every round. She is now
+   drawn on the deck, no longer braces every round, and a shot gives any shooter away. **For every mission, the
+   Hegemony now only shoots targets within the squad's own sight range (560).** That is a balance change: tell me if
+   you would rather keep long shots and only reveal the shooter. Extra guards added at higher Security no longer
+   copy the tower guard or the Sheriff in his office.
+2. **The supply drop** worked, but fire support could only be called while planning a combat round, which a quiet run
+   never reaches. In free move the drop (and the Tactician's scan) can now be called: a quiet chute a few seconds
+   later that does not raise the alarm. The Ground Combat doc says it "lands at the start of movement in the next
+   round"; that still holds once the shooting starts.
+3. **The transport** drops the squad and lifts off, comes back to the LZ when the Cross is in the air, and the squad
+   extracts once it is down. Only in Steal the Cross for now (the flag is `grafLeaves`): say if every mission's
+   transport should do the same.
+4. **Stims** are a planning Action like Treat Wound: the rebel still shoots that round.
+5. **Tags:** allies, live enemies and loot keep their name tags; civilians, the dead and downed enemies, and wrecks
+   only show theirs under the pointer (nothing on a touch screen).
+**Needs from you:** the long-shot rule (1) and whether other missions' transports should leave (3).
 **Your call:** _open_
 
 ---
@@ -485,10 +537,10 @@ need its own ground art.
 **Your call:** _open_
 
 ### M-32 🟡 Support unlocks that wait on systems not built
-The Support Specialties doc lists 161 niche unlocks and 16 base effects; 51 unlocks and 13 base effects work (C-28).
+The Support Specialties doc lists 161 niche unlocks and 16 base effects; 64 unlocks and 13 base effects work (C-28).
 The rest show on the dossier with what they need. Niches with nothing working yet cannot be trained: Chemist, Handler,
-Counterintelligence, Roboticist, Ordnance Tech, Armourer, Signals, Quartermaster, Procurer, Scientist, Envoy, Agitator,
-Flight Controller and Combat Support. Crewman is parked until capital ships; Archaeologist is left out (optional in the doc).
+Counterintelligence, Roboticist, Ordnance Tech, Armourer, Signals, Quartermaster, Procurer, Scientist, Envoy and
+Agitator. Crewman is parked until capital ships; Archaeologist is left out (optional in the doc).
 | Waits on | Unlocks |
 |---|---|
 | The Network (Agents, Cover, Leads, Exposure, the Bureau) and postings | 28: all of Handler and Counterintelligence, most of Signals, Source Vetting, Read the Bureau, Smuggler's Haven, Shadow Economy, Uprising Prep, Day of Revolt, and the four Postings |
@@ -500,9 +552,9 @@ Flight Controller and Combat Support. Crewman is parked until capital ships; Arc
 | Drones and building Autos | 7: Roboticist |
 | Research, neutral factions, Hegemony stability, Support decay | 19: Scientist, Envoy, Agitator, Goodwill |
 | Deployment zones, mission approaches | 2: Insertion Point, Adaptive Orders |
-| Nothing missing, just not built yet | 14: Flight Controller and Combat Support |
-**Needs from you:** which of these to build next. The Network proposal unlocks the most (Postings too); Flight
-Controller and Combat Support need no new systems. Also: the Network proposal's Access ladder (Foothold, Network,
+| The Leader's Take Point (M-13) | 1: Formation Calls |
+**Done since:** Flight Controller and Combat Support (all but Formation Calls), at your word.
+**Needs from you:** which of these to build next. The Network proposal unlocks the most (Postings too). Also: the Network proposal's Access ladder (Foothold, Network,
 Uprising) is not in the game, which Postings need.
 **Your call:** _open_
 
@@ -515,6 +567,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| — | Your October 6 field list: Flight Controller and Combat Support next; a slimmer Personnel File with a paper doll; faces on the mission briefing; stims as an Action; enemies die and rebels can; the Steal the Cross tower guard, supply drop and transport; no MOVE OUT screen; the Personnel File by double-click in a mission; fewer tags; ships drawn in the roster and ship window; no recruit Terms; Experiences "None". | 2026-10-06 | All built; the readings are C-29 and C-30, Flight Controller and Combat Support are in C-28. the "Field changes" commit |
 | M-14 | Support rebels get no skills: they have a base specialty from level 1, a niche at level 3 and unlocks at 3, 7, 11, 15 and 19 (the Support Specialties doc). The staff posts are replaced by the Department Head, Lead Specialist and Staff system, and new features supersede old ones wherever they can. | 2026-10-06 | The whole doc's framework and 51 of its unlocks: see C-28 for what replaced what and M-32 for what waits. Save version 5 turns each post into its room. the "Support specialties" commit |
 | C-26 | Curly `{variables}` everywhere; ordinary guards get random names; story missions keep their own endings. | 2026-10-06 | Each reusable type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Disrupt Comm Towers) has one text set in `game/js/mission-text.js`: name, target names, offer, follow-up, banner, briefing, objectives (the board, the briefing and the live list read the same ones), hint, arrival call, log lines, end screen. Variables: `{transport}` `{pilot}` `{target}` `{place}` `{npc}` `{npc1}` `{carrier}` `{device}` `{hacker}` `{fallen}`. The transport picked on the planning board now reaches the mission (its name on the LZ, the hauler, the call-in button, every line). Missions on the board read their type's words live (save version 4 drops the old per-mission copy). Hegemony guards get a surname from a pool (a serial for a robot) and their type's lines: alarm calls when they raise the alarm, idle chatter while all is quiet (new: it was never spoken before). Sheriff Reeve, his deputies, Boss Craw and the squatters keep theirs. Lines tied to one place (the toll office, the herders) were made generic or dropped. Each map is still one per type. `tools/mission-text-smoke.js`. The "Mission text per type" commit |
 | C-25 | The final slot list is primary, secondary, two gadgets, head, body and back. | 2026-10-05 | Soldiers, Marines and Heroes get a **Back** slot (Pilots and Support do not), in the Arsenal, the personnel file, auto-equip and the squad entry; old saves get an empty one (save version 3). The **Razorrat LMG** and the **Riot Shield** are live. A rebel with one on their back gets **Deploy** (as the round opens, no shot): the Razorrat is set up where they stand and they man it (no sandbags in the field; one emplacement per map), the Riot Shield goes into their hands in place of the primary. Riot shields, the enemy's too, now soak hits from the front until they break (60, the `riot_shield_hp` rule; a broken one is used up and does not drop). **Effect:** riot shieldmen can now be worn down from the front instead of only flanked; the mission hints say so. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |

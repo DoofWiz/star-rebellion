@@ -63,6 +63,7 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
+  grafLeaves:true,   // the transport drops the squad and lifts off; it comes back once the Cross is away
   title:'Steal the Cross',sub:'Dustfall · Brakka',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
   banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
@@ -634,7 +635,7 @@ function contextScenario(base,c,sec){
   if(extra>0&&base.foes){
     const f0=base.foes;
     S.foes=function(){
-      const L=f0.call(this),pool=L.filter(f=>!f.auto&&!f.veh&&!f.shield&&!f.tower&&!f.manning);
+      const L=f0.call(this),pool=L.filter(f=>!f.auto&&!f.veh&&!f.shield&&!f.tower&&!f.elev&&!f.office&&!f.manning);
       const out=L.slice();
       for(let i=0;i<extra&&pool.length;i++){
         const f=pool[i%pool.length];
@@ -1198,6 +1199,15 @@ function moveDest(u,px,py,r){
    log() keeps the full record (behind "All reports") and feeds the short-lived
    comms stack under the minimap. Span classes: r rebel, h hostile, a action, g good, b danger, d quiet. */
 const logWin=HUD.win(ROOT,{id:'logWin',title:'All reports',size:'sm',body:'<div class="sr-log" id="log"></div>'});
+/* a squad member's Personnel File, on a double-click on them or their row (base.js SR.personFile) */
+const fileWin=HUD.win(ROOT,{id:'fileWin',title:'Personnel file',body:'<div class="sr-pfile" id="pfileBody"></div>'});
+function openFile(u){
+  if(!u||u.side!=='reb'||u.veh)return false;
+  const html=SR.personFile&&SR.personFile(u.pid||u.id);
+  if(!html)return false;
+  byId('pfileBody').innerHTML=html;fileWin.open();
+  return true;
+}
 const logEl=byId('log');
 const feed=HUD.comms(byId('comms'),{max:3,ttl:6000});
 function feedKind(html){
@@ -1322,7 +1332,7 @@ function treatTarget(h){
   if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
   const reach=medic(h)?TREAT_R*1.5:TREAT_R;
-  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&!x.mnt&&hasInj(x)&&(!x.down||x.downInj)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
+  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&!x.mnt&&!x.dead&&(hasInj(x)||x.down)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
   return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
 }
 const treatPick=h=>h&&h.meds>0?treatTarget(h):null;
@@ -1332,13 +1342,19 @@ function doTreat(h){
   const sev=['spinal','maimed','concussion','bleeding','internal','brokenleg','brokenarm','burns','shrapnel','eye','eardrum','facial'];
   const wasIncap=!!t.down||stunned(t);
   h.meds--;h.packsUsed=(h.packsUsed||0)+1;
+  if(t.down&&!t.downInj){   // brought round: back on their feet at a quarter health
+    t.down=0;t.bleedOut=0;t.hp=Math.max(1,Math.round(t.maxhp*0.25));t.order=null;
+    addFloater(t.x,t.y-64,'REVIVED',C.go);
+    log(nameSpan(h)+' <span class="g">brings '+nameSpan(t)+' round</span> <span class="d">\u2014 back up at a quarter health</span>.');
+    h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.08;
+  }
   for(let n=medic(h)?2:1;n>0;n--){
-    const inj=t.inj.filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
+    const inj=(t.inj||[]).filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
     if(!inj)break;
     inj.treated=true;
     if(inj.k==='internal'&&t.maxhp0){t.maxhp=t.maxhp0;}
     if((inj.k==='spinal'||inj.k==='maimed')&&t.down&&t.downInj){
-      t.down=0;t.downInj=0;t.hp=Math.max(t.hpSave||1,Math.round(t.maxhp*0.25));t.order=null;
+      t.down=0;t.downInj=0;t.bleedOut=0;t.hp=Math.max(t.hpSave||1,Math.round(t.maxhp*0.25));t.order=null;
     }
     t.wound=hasInj(t)?1:0;
     h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.06;
@@ -1364,6 +1380,7 @@ function validShot(s,t,wkey){
   if(wkey==='akli'&&s.jam)return false;
   if(t.down||t.surr||t.extracted||t.away)return false;
   if(dist(s,t)>WPN[wkey].rng)return false;
+  if(s.side==='law'&&dist(s,t)>VIEW_R)return false;   // the Hegemony only shoots what it could see: no shots from beyond the squad's own sight
   if(losBlocked(s,t))return false;
   return true;
 }
@@ -1586,6 +1603,9 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
       return;
     }
   }
+  // a rebel already down dies to any more harm (the doc: unconscious and hit again)
+  if(t.down&&!t.dead){if(canDie(t))killUnit(t,s,'while down');return;}
+  const fromFull=t.hp>=t.maxhp;   // one-shot: their whole health gone to a single hit
   if(t.tr&&t.tr.length){
     if(t.hp-dmg<=0&&((hasT(t,'lucky')&&rng()<0.05)||(hasT(t,'luckyesc')&&rng()<0.03))){t.luckySaved=1;dmg=Math.max(0,t.hp-1);addFloater(t.x,t.y-64,'LUCKY',C.go);log(nameSpan(t)+' <span class="g">shrugs off a killing blow</span> <span class="d">(lucky)</span>.');}
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
@@ -1606,9 +1626,28 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
   }
   if(!quiet)addPop(t.x,t.y-38,'-'+dmg,t.side==='reb'?C.hazard:C.goldHi,{crit});
   if(!quiet&&!machine(t)&&goreOn()&&(Math.random()<0.5||dmg>20))bleed(t,null,dmg);
-  if(t.hp<=0)downUnit(t,s);
+  if(t.hp<=0){
+    // the Hegemony's people die; a rebel dies to a critical hit that drops them, or a single hit from full health,
+    // and otherwise goes down unconscious, for a Treat Wound to bring back (DESIGN_BLOCKERS C-29)
+    if(t.side==='law'||(canDie(t)&&(crit||fromFull)))killUnit(t,s,crit?'crit':fromFull?'oneshot':'');
+    else downUnit(t,s);
+  }
 }
-function downUnit(t,by){
+/* who can die: every enemy; rebels, Autos and hacked allies too, except the rescued VIP and in Take the Rock */
+const canDie=t=>!t.veh&&!t.vip&&!t.dead&&(t.side==='law'||(t.side==='reb'&&SCN.mode!=='haven'));
+function killUnit(t,by,how){
+  const was=t.down;
+  if(!was)downUnit(t,by,true);
+  t.dead=1;t.down=1;t.hp=0;t.downInj=0;t.order=null;
+  if(was){
+    if(t.side==='reb')for(const m of U)if(m.side==='reb'&&m!==t&&!m.down)adjCoolG(m,-20,t.first+' killed');
+    log(nameSpan(t)+' <span class="b">is dead</span>'+(how==='bleed'?' \u2014 bled out where they lay':by?' \u2014 '+nameSpan(by)+' finished them':'')+'.');
+    addPop(t.x,t.y-60,t.side==='reb'?'KILLED':'DEAD',C.hazard,{size:20});
+  }
+  if(t.side==='reb'&&!t.ally){const mate=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted&&u.id!==t.id);if(mate)say(mate,'No! '+t.first+'\u2019s dead!');}
+  checkDefeat();
+}
+function downUnit(t,by,dead){
   if(t.veh){vehDestroyed(t,by);return;}
   if(t.mnt)dismount(t,true);
   if(by&&by.side==='reb'&&t.side==='law'){by.xpGain=(by.xpGain||0)+0.2;by.kills=(by.kills||0)+1;}
@@ -1624,8 +1663,8 @@ function downUnit(t,by){
   if(t.manning){t.manning=0;turret.gunner=null;log('The <b>Razorrat</b> stands unmanned.');}
   sThud();
   t._downT=clock();juice('down',t.x,t.y);
-  log(nameSpan(t)+' <span class="b">is down</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
-  addPop(t.x,t.y-60,'DOWN',C.hazard,{size:20});
+  log(nameSpan(t)+' <span class="b">'+(dead?(t.side==='reb'?'is killed':'is dead'):'is down')+'</span>'+(by?' — '+nameSpan(by)+'’s shot':'')+'.');
+  addPop(t.x,t.y-60,dead?(t.side==='reb'?'KILLED':'DEAD'):'DOWN',C.hazard,{size:20});
   if(t.side==='law'){
     dropLoot(t);
     if(t.sheriff){
@@ -1633,7 +1672,7 @@ function downUnit(t,by){
       const dep=U.find(u=>u.side==='law'&&!u.down&&!u.surr&&!u.sheriff);
       if(dep)say(dep,'Sheriff’s down… Sheriff’s DOWN!');
     }
-  } else {
+  } else if(!dead){
     const mate=U.find(u=>u.side==='reb'&&!u.down&&!u.extracted&&u.id!==t.id);
     if(mate)say(mate,t.first+'’s hit! '+t.first+' is down!');
   }
@@ -1804,17 +1843,18 @@ function updateVision(now){
     }
   }
   if(engageQ&&engageQ.cur&&engageQ.cur.t&&engageQ.cur.t.id)visUnits.add(engageQ.cur.t.id);
+  if(engageQ&&engageQ.cur&&engageQ.cur.s&&engageQ.cur.s.side==='law')visUnits.add(engageQ.cur.s.id);   // a muzzle flash gives the shooter away
 }
 /* what the base sent with the mission (base.js supportStart; the Support Specialties doc) */
 const SUP=()=>(CTX&&CTX.sup)||{};
-let scanRound=0;   // Overwatch (Tactician): every enemy shows for the round it is called
+let scanRound=null;   // Overwatch (Tactician): every enemy shows for the round it is called
 /* Map Theft (Slicer): the layout is known, so the terrain fog lifts; enemies still need to be seen */
 const fogOn=()=>!!SCN&&!!SCN.fog&&!SUP().mapAll;
 /* Battle Plan / Perfect Plan (Tactician): the Hegemony neither moves nor fires for the first round or two */
 const lawHolds=()=>round>0&&round<=(SUP().free||0);
 function unitSeen(u){
   if(!SCN||!SCN.fog||phase==='CUTSCENE')return true;
-  if(scanRound&&scanRound===round)return true;
+  if(scanRound!==null&&scanRound===round)return true;
   return u.side==='reb'||(u.veh&&u.owner==='reb')||visUnits.has(u.id);
 }
 function drawFog(){
@@ -1928,7 +1968,7 @@ function aiPlan(){
     if(u.mnt){aiCrew(u);continue;}
     if(coolStateG(u)==='panic'&&town==='alerted'){u.order={type:'lockin'};continue;}
     if(u.manning){u.order={type:'hold'};u.braced=1;continue;}
-    if(u.fixed){u.order={type:'hold'};u.braced=1;continue;}
+    if(u.fixed){u.order=u.elev?null:{type:'hold'};u.braced=u.elev?0:1;continue;}   // a tower guard no longer holds a braced, Steady aim every round
     if(!wpnsOf(u).length){u.order={type:'hold'};u.braced=1;continue;}
     if(u.ally&&town==='calm'){u.order=null;continue;}
     if(town==='calm'){
@@ -2274,6 +2314,8 @@ function checkBoss(){
 function fsItems(){
   if(!FS)return [];
   const it=[];
+  if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · once · danger close'});
+  if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))it.push({key:'evac',name:'Evac on call',sub:'tap a downed squad mate: a support pilot pulls them out · once'});
   if(FS.scan&&!FS.scanUsed)it.push({key:'scan',name:'Overwatch scan',sub:'Mission Control patches in every sensor they can reach: every enemy shows for this round · once'});
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
   FS.ships.forEach((a,i)=>{
@@ -2293,16 +2335,36 @@ function fsItems(){
 }
 function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
 function fsPlace(key,pt){
+  if(key==='evac'){   // Evac on Call (Combat Support): a downed rebel near the tap is flown out
+    const u=U.filter(x=>x.side==='reb'&&x.down&&!x.dead&&!x.extracted&&!x.away&&!x.veh).sort((a,b)=>dist(a,pt)-dist(b,pt))[0];
+    if(!u||dist(u,pt)>140){addFloater(pt.x,pt.y-20,'NO ONE DOWN HERE',C.text3);return false;}
+    FS.evac=2;u.extracted=1;u.order=null;
+    fsFx.push({k:'landing',x:u.x,y:u.y,t0:clock(),dur:LAND_MS+500});sLand();
+    addFloater(u.x,u.y-50,'EVAC',C.go);
+    log('<span class="g">Evac on call:</span> a support pilot sets down beside '+nameSpan(u)+' and pulls them out.');
+    return true;
+  }
   if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL',C.text3);return false;}
+  if(key==='bombard'){   // Heavy Bombardment (Combat Support)
+    FS.bombard=2;const t0=clock();
+    for(let k=0;k<6;k++){const a=k*1.05,r=k?60+rng()*70:0;exploQ.push({x:pt.x+Math.cos(a)*r,y:pt.y+Math.sin(a)*r,at:t0+500+k*260,opt:{r:150,d0:50,d1:80,fs:1}});}
+    log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> inbound. Heads down!');
+    sTakeoff();return true;
+  }
   if(key==='drop'){
-    FS.dropUsed=true;FS.orders.push({kind:'drop',x:pt.x,y:pt.y,landed:false});
-    log('<span class="a">Supply drop called in.</span> It lands as the next round begins.');
+    if(FS.extra>0){FS.extra--;log('<span class="g">Fire Coordination:</span> Mission Control has another drop lined up after this one.');}
+    else FS.dropUsed=true;
+    const free=phase==='FREE';   // in free move the chute comes down a few seconds later, quietly
+    FS.orders.push({kind:'drop',x:pt.x,y:pt.y,landed:false,at:free&&!SUP().rapid?clock()+4000:0});
+    log('<span class="a">Supply drop called in.</span> '+(SUP().rapid?'Rapid Response: it is already on its way down.':free?'A quiet chute, down in a few seconds.':'It lands as the next round begins.'));
+    if(SUP().rapid)fsExecute();
     sTick();return true;
   }
   if(key[0]==='v'){
     const va=FS.vehicles[+key.slice(1)];
     if(!va)return true;
-    va.state='called';FS.orders.push({kind:'vehicle',veh:+key.slice(1),x:pt.x,y:pt.y,at:round+1,done:false});
+    va.state='called';FS.orders.push({kind:'vehicle',veh:+key.slice(1),x:pt.x,y:pt.y,at:SUP().rapid?round:round+1,done:false});
+    if(SUP().rapid)setTimeout(fsPlanStart,0);   // Rapid Response: down now
     log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+va.name+' is on the hook. Down at the start of the next planning.');
     sTakeoff();return true;
   }
@@ -2317,7 +2379,8 @@ function fsPlace(key,pt){
     sTakeoff();return true;
   }
   if(a.mode==='reinforce'){
-    a.state='called';FS.orders.push({kind:'reinforce',ship:i,x:pt.x,y:pt.y,at:round+1,done:false});
+    a.state='called';FS.orders.push({kind:'reinforce',ship:i,x:pt.x,y:pt.y,at:SUP().rapid?round:round+1,done:false});
+    if(SUP().rapid)setTimeout(fsPlanStart,0);
     log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Reinforcements inbound. Down at the start of the next planning.');
     sTakeoff();return true;
   }
@@ -2328,10 +2391,11 @@ function fsPlace(key,pt){
   log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Strafing run plotted. Keep your heads down at the end of the round.');
   sTakeoff();return true;
 }
+const FREE_FS=['drop','scan'];   // what can be called in free move (stealth): nothing that makes noise
 function fsExecute(){
   if(!FS)return;
   for(const o of FS.orders){
-    if(o.kind!=='drop'||o.landed)continue;
+    if(o.kind!=='drop'||o.landed||(o.at&&clock()<o.at))continue;
     o.landed=true;FS.n++;
     lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
     fsFx.push({k:'drop',x:o.x,y:o.y,t0:clock(),dur:1500});
@@ -2349,11 +2413,12 @@ function supplyDrop(u){
 }
 /* up to 3 visible hostiles near the player's mark; the choice of where to put the mark is the skill */
 const DG_ZONE=240;   // the circle the player places IS the kill zone: the gunner works what's inside it
-const dgZone=()=>DG_ZONE*((SCN&&SCN.layoutK)||1);   // it grows with a scaled-up layout, like the rooms do
+const dgZone=()=>DG_ZONE*((SCN&&SCN.layoutK)||1)*(SUP().saturate?1.5:1);   // it grows with a scaled-up layout, like the rooms do; Saturation (Combat Support) widens it
+const dgTN=()=>SUP().precise?6:9;   // Precision Strikes (Combat Support): the door gunner hits more often
 function dgTargets(mark){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
   if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<dgZone())
-    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,3);
+    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,SUP().saturate?5:3);
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
   return pick;
@@ -2365,6 +2430,15 @@ function dgFlakers(at){
   return U.filter(u=>u.side==='law'&&!u.down&&!u.surr&&!u.veh&&!u.mnt&&coolStateG(u)!=='panic'&&
     (u.wpns||[]).includes('rocket')&&Math.hypot(u.x-at.x,u.y-at.y)<700);
 }
+/* a fire support ship has done its job: with Fire Coordination it can be called once more */
+function fsSpent(a){
+  if(FS&&FS.extra>0&&!a.downed){
+    FS.extra--;a.state='ready';a.left=0;
+    log('<span class="g">Fire Coordination:</span> Mission Control re-tasks <b>'+a.name+'</b>. One more call.');
+    return;
+  }
+  a.state='spent';
+}
 function dgShotDown(a){
   a.left=0;a.state='spent';a.downed=1;
 }
@@ -2375,7 +2449,7 @@ function dgAttack(a){
   else{
     const t0=clock();
     for(const t of pick){
-      const hit=rint(1,20)>=9;
+      const hit=rint(1,20)>=dgTN();
       tracers.push({x1:t.x-260,y1:t.y-260,x2:t.x,y2:t.y,t0,dur:260,heavy:1});
       if(hit){const dmg=rint(16,28);woundUnit(null,t,dmg,false);log('The door gunner hits '+nameSpan(t)+' — <b>'+dmg+'</b>.');}
       else log('The door gunner misses '+nameSpan(t)+'.');
@@ -2394,7 +2468,7 @@ function dgAttack(a){
 }
 function dgSpend(a){
   a.left--;
-  if(a.left<=0&&a.state!=='spent'){a.state='spent';log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
+  if(a.left<=0&&a.state!=='spent'){fsSpent(a);if(a.state==='ready')return;log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> Door gunner is bingo. Breaking off.');}
 }
 /* ---------- the gun run: the gunship rolls in from off the map, orbits the player's mark with the
    heavy door gun working, then climbs away until its next pass. It plays as its own beat between
@@ -2445,7 +2519,7 @@ function dgNext(){
 }
 /* one working of the heavy door gun: five big slugs, pockmarks in the dirt, brass from altitude */
 function dgBurst(R,u,now){
-  const hit=rint(1,20)>=9;
+  const hit=rint(1,20)>=dgTN();
   for(let i=0;i<5;i++){
     const ft=now+i*95;
     const S=dgShipPos(R,ft);
@@ -2566,12 +2640,12 @@ function drawDgRun(now){
    is scheduled to land as its explosion shows, at the same spot */
 const STRAFE_LEN=900,STRAFE_MS=2400;
 function strafeRun(o){
-  const a=FS.ships[o.ship];a.state='spent';o.done=true;
-  const t0=clock(),ca=Math.cos(o.ang),sa=Math.sin(o.ang);
+  const a=FS.ships[o.ship];fsSpent(a);o.done=true;
+  const t0=clock(),ca=Math.cos(o.ang),sa=Math.sin(o.ang),R0=SUP().saturate?100:70;
   for(let k=0;k<10;k++){
     const u=(k+0.5)/10,jx=Math.sin(k*7.3)*12,jy=Math.cos(k*4.1)*10;   // SR_ART.strafe's own ladder
     const x=o.x1+ca*STRAFE_LEN*u-sa*jx,y=o.y1+sa*STRAFE_LEN*u+ca*jy;
-    exploQ.push({x,y,at:t0+STRAFE_MS*(u*0.8+0.06),opt:{r:70,d0:28,d1:44,quiet:1}});
+    exploQ.push({x,y,at:t0+STRAFE_MS*(u*0.8+0.06),opt:{r:R0,d0:28,d1:44,quiet:1,fs:1}});
   }
   fsFx.push({k:'strafe',x:o.x1,y:o.y1,ang:o.ang,t0,dur:STRAFE_MS+400,ship:SA.SHIP_FOR_GAME[a.cls]||(SA.SHIPS[a.cls]?a.cls:'talon')});
   log('<b>'+a.pilot.first+'</b> <span class="d">('+a.name+'):</span> <span class="a">Here she comes.</span> Strafing run!');
@@ -2622,7 +2696,7 @@ function fsPlanStart(){
   for(const o of FS.orders){
     if(o.kind!=='reinforce'||o.done||o.at>round)continue;
     o.done=true;
-    const a=FS.ships[o.ship];a.state='spent';
+    const a=FS.ships[o.ship];fsSpent(a);
     const landAt=clock()+LAND_MS*0.85;
     fsFx.push({k:'landing',x:o.x,y:o.y,t0:clock(),dur:LAND_MS+500});
     a.soldiers.forEach((sp,j)=>{
@@ -2890,12 +2964,13 @@ function drawFactory(now){
     if(rng()<0.25)parts.push({x:P.x+rng()*P.w,y:P.y+rng()*P.h,vx:(rng()-0.5)*30,vy:-30-rng()*40,r:4+rng()*6,a:0.35,col:'#3a3430',t0:now,dur:1600});
   }
 }
+const grafHome=()=>!SCN.grafLeaves||grafState==='landed';   // a transport that left has to be back on the LZ for the pickup
 function extractReady(){
   if(ix)return ix.hacked&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(rs)return rs.released&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
-  return crossAway&&hostilesActive().length===0&&
+  return crossAway&&grafHome()&&hostilesActive().length===0&&
     U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
 }
 function rtStep(u,dt){
@@ -2911,6 +2986,7 @@ function rtStep(u,dt){
   if(u.rtPath&&!u.rtPath.length)u.rtPath=null;
 }
 function rtUpdate(now,dt){
+  if(FS&&FS.orders.some(o=>o.kind==='drop'&&!o.landed&&o.at))fsExecute();   // a free-move drop lands on its timer
   for(const u of U){
     if(u.down||u.surr||u.extracted||u.away||u.mnt)continue;   // the crew ride
     if(u.veh){
@@ -3127,6 +3203,8 @@ function execute(){
       u.sprinted=0;u.braced=0;
     } else if(o&&o.type==='treat'){
       u.sprinted=0;u.braced=0;doTreat(u);
+    } else if(o&&o.type==='stim'){   // an Action like Treat Wound: they still shoot this round
+      u.sprinted=0;u.braced=0;useStim(u);
     } else if(o&&o.type==='rally'&&u.hero&&!u.heroUsed&&!injOf(u,'shrapnel')){
       u.sprinted=0;u.braced=0;u.heroUsed=1;
       addFloater(u.x,u.y-48,'RALLY!',C.go);
@@ -3439,7 +3517,14 @@ function retarget(t){
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
   for(const u of U){
-    if(u.side!=='reb'||u.down||u.extracted||u.away||!injOf(u,'bleeding'))continue;
+    if(u.side!=='reb'||u.dead||u.extracted||u.away||!injOf(u,'bleeding'))continue;
+    if(u.down){   // unconscious and bleeding: two rounds for someone to treat them
+      if(!canDie(u))continue;
+      u.bleedOut=(u.bleedOut||0)+1;
+      if(u.bleedOut>=2)killUnit(u,null,'bleed');
+      else{addFloater(u.x,u.y-52,'BLEEDING OUT',C.hazard);log(nameSpan(u)+' <span class="b">is bleeding out</span> <span class="d">\u2014 treat them this round or lose them</span>.');}
+      continue;
+    }
     u.hp-=6;u.minHp=Math.min(u.minHp===undefined?1:u.minHp,Math.max(0,u.hp)/u.maxhp);
     addFloater(u.x,u.y-38,'-6',C.hazard);
     log(nameSpan(u)+' <span class="b">bleeds</span> <span class="d">\u2014 -6</span>');
@@ -3497,7 +3582,7 @@ function endRound(){
   moraleCheck();
   spotCheck();
   // extraction
-  if(exitOpen()){
+  if(exitOpen()&&grafHome()){
     const clear=!hostilesActive().some(l=>Math.hypot(l.x-LZ.x,l.y-LZ.y)<300);
     for(const u of U){
       if(u.side!=='reb'||u.id==='sera'||u.down||u.extracted)continue;
@@ -3537,7 +3622,8 @@ function doCrossAway(){
   sTakeoff();
   camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
   log('<span class="g">The Cross is up!</span> Our Pilot takes her low over the rooftops and out into space.');
-  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
+  if(SCN.grafLeaves){grafReturn();log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. I’m coming back for you. Get to the LZ.');}
+  else log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
   const lead=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down);
   if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
   syncUI();
@@ -3678,7 +3764,7 @@ function buildResult(win){
   for(const u of U){
     if(u.side!=='reb'||u.asset)continue;
     let state='ok';
-    if(u.down)state=haven?(win?'injured':'ok'):'injured'; // nobody is buried this early in the war
+    if(u.down)state=haven?(win?'injured':'ok'):u.dead?'lost':'injured'; // nobody is buried this early in the war
     const xp=Math.round(((u.xpGain||0)+(win?0.12:0.03))*100)/100;
     const rec={id:u.pid||u.id,xp,state,dur:haven?rint(1,3):rint(3,6)};
     if(u.sk){rec.sk={};for(const k in u.sk)rec.sk[k]=Math.round(u.sk[k]*10)/10;}
@@ -3714,7 +3800,8 @@ function explode(x,y,opt){
   decals.push({x,y,r:(R/135)*(52+rng()*14)});
   if(!(opt&&opt.quiet))boomFx.push({x,y,t0:clock(),dur:700,R});   // quiet: the art kit draws this one (a strafing run)
   for(const u of U){
-    if(u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
+    if(u.side==='civ'||u.dead||(u.down&&u.side!=='reb')||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
+    if(opt&&opt.fs&&SUP().dangerClose&&u.side==='reb')continue;   // Danger Close (Combat Support)
     const d=Math.hypot(u.x-x,u.y-y);
     if(d<R){
       const dmg=Math.round((D0+rng()*(D1-D0))*(1-d/R*0.55));
@@ -4480,10 +4567,12 @@ function drawGraf(now){
     ox=-e*1500;oy=e*260;
     if(t>=1)return;
   }
-  if(!lifting)groundShadow(grafPos.x,grafPos.y,110,38);
-  SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,5.0*sc,HUD.reduced?0:now/1000,
-    {livery:'rebel',dark:true,boost:lifting,off:!lifting});
-  if(!(extractFx&&extractFx.stage==='lift'))plb(trName().toUpperCase(),grafPos.x,grafPos.y-96,C.shield,12);
+  if(grafState==='gone'&&!lifting)return;   // left the LZ (SCN.grafLeaves); the extraction lift draws itself
+  const flying=grafState==='flying'&&!lifting;
+  if(!lifting&&!flying)groundShadow(grafPos.x,grafPos.y,110,38);
+  SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,5.0*sc*(flying?1.15:1),HUD.reduced?0:now/1000,
+    {livery:'rebel',dark:true,boost:lifting||flying,off:!lifting&&!flying});
+  if(!(extractFx&&extractFx.stage==='lift')&&!flying)plb(trName().toUpperCase(),grafPos.x,grafPos.y-96,C.shield,12);
 }
 function drawCross(now){
   if(crossAway&&!crossFx)return;
@@ -4521,7 +4610,7 @@ function artSpec(u){
   if(u.side==='law')return SCN.style==='rock'?A.ARCH.squatter:A.ARCH.deputy;   // Take the Rock's opposition is the Vult gang
   return A.recruit(u.name||u.id);                       // last resort for a rebel with no record (debug spawns)
 }
-const ORDER_POSE={deploy:'deploy',hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat'};
+const ORDER_POSE={deploy:'deploy',hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat',stim:'treat'};
 /* a fixed per-unit phase so units don't blink and bob in sync — never the live
    position: an offset that moves with the unit speeds the cycle up one way and
    runs it backwards the other */
@@ -4547,6 +4636,7 @@ function artPose(u,now){
   else if(sneaking)state='crouch';
   const vd=SA.viewFor(u.face);
   const pose={state,view:vd.view,dir:vd.dir,t,s:actorScale(u)};
+  if(u.dead)pose.dead=1;   // no stars over the dead
   if(c&&c.s===u&&!u.down)pose.aim=Math.atan2(c.t.y-u.y,c.t.x-u.x);   // pupils and gun track the target exactly
   const wk=u.wkey||(u.wpns&&u.wpns[0]);
   pose.weapon=(wk&&SA.WEAPONS[wk])?wk:null;              // unarmed, fists and the vehicle weapons draw nothing
@@ -4580,7 +4670,7 @@ function drawActors(now){
   for(const p of PROPS)if(p.dead)SA.scorch(ctx,p.x,p.y,PROPDEF[p.kind].r*1.5);
   const items=[];
   const list=actorList();
-  for(const u of list)items.push({y:u.y,f:()=>drawUnitActor(u,now)});
+  for(const u of list)if(!u.elev)items.push({y:u.y,f:()=>drawUnitActor(u,now)});   // anyone on the tower stands on its deck (render)
   for(const p of PROPS)if(!p.dead)items.push({y:p.y,f:()=>SA.prop(ctx,p.kind,p.x,p.y,{t,biome})});
   for(const b of BLDGS)if(!b.terrain)items.push({y:b.y+b.h,f:()=>drawWallActor(b,now)});
   if(SCN.hasGraf)items.push({y:grafPos.y+50,f:()=>drawGraf(now)});
@@ -4765,8 +4855,11 @@ function hudUnits(L,now){
     if(phase==='PLANNING'&&reb&&!u.down&&(u.veh?crew.some(q=>q.side==='reb'&&q.order):!!u.order)){
       ctx.beginPath();ctx.arc(x+12*cam.z,y+7,5,0,7);ctx.fillStyle=C.gold;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();
     }
-    const nm=u.veh?(u.down?u.first+' · wreck':crew.length?u.first:u.first+' · empty'):civ?(u.cower?'Civilian · down flat':'Civilian'):u.down?u.first+' · down':u.surr?u.first+' · surrendered':u.first;
+    const nm=u.veh?(u.down?u.first+' · wreck':crew.length?u.first:u.first+' · empty'):civ?(u.cower?'Civilian · down flat':'Civilian'):u.dead?u.first+' · dead':u.down?u.first+' · down':u.surr?u.first+' · surrendered':u.first;
     if(u.mnt)continue;   // the gunner's name would sit on the vehicle's
+    // allies and live enemies keep their tags; civilians, the fallen and wrecks only show theirs under the pointer
+    const quietTag=civ||(u.down&&!reb)||(u.veh&&u.down);
+    if(quietTag&&!(hoverCss&&Math.hypot(x-hoverCss.x,y-hoverCss.y)<34))continue;
     L.add(nm,x,y+(u.veh?26:16)*cam.z,{color:civ||u.down||u.surr||(u.veh&&!crew.length)?C.text3:sera?C.gold:reb?C.rebel:C.heg,size:civ?11:12},civ?1:3);
   }
 }
@@ -5057,6 +5150,28 @@ function drawMinimap(now){
 }
 /* ---------- cutscene ---------- */
 const grafPos={x:LZ.x,y:LZ.y,a:0.12};
+/* a transport that leaves the LZ after the drop and comes back for the pickup (SCN.grafLeaves) */
+let grafFx=null;
+function grafFly(k,to,dur){grafState='flying';grafFx={k,t0:clock(),dur,from:{x:grafPos.x,y:grafPos.y},to};sTakeoff();}
+function grafLeave(){
+  grafFly('leave',{x:-600,y:H+400},3200);
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> You’re down. I’m off the deck before someone notices a hauler parked in town. Call when you need the ramp.');
+}
+function grafReturn(){
+  if(!SCN.grafLeaves||grafState==='landed'||(grafFx&&grafFx.k==='return'))return;
+  grafPos.x=-600;grafPos.y=H+400;
+  grafFly('return',{x:LZ.x,y:LZ.y},3800);
+}
+function grafUpdate(now){
+  if(!grafFx)return;
+  const t=Math.min(1,(now-grafFx.t0)/grafFx.dur),e=ease(t);
+  grafPos.x=lerp(grafFx.from.x,grafFx.to.x,e);grafPos.y=lerp(grafFx.from.y,grafFx.to.y,e);
+  grafPos.a=grafFx.k==='leave'?lerp(0.12,0.6,e):lerp(0.6,0.12,e);
+  if(t>=1){
+    const back=grafFx.k==='return';grafFx=null;grafState=back?'landed':'gone';
+    if(back){sLand();log('<b>'+grafName()+'</b> <span class="d">(comms):</span> On the LZ. Ramp’s down. Get aboard.');syncUI();}
+  }
+}
 function startCutscene(){
   phase='CUTSCENE';
   byId('app').classList.add('cine');
@@ -5147,8 +5262,8 @@ function endCutscene(){
     return;
   }
   fsCassIntro();
+  if(SCN.grafLeaves)grafLeave();
   enterFree(null);
-  SR.transition('flag',{text:'MOVE OUT'});   // mission start
 }
 /* ---------- prologue: Cass's comm window and the soldier quips (A2/A3) ---------- */
 function drawGroundStatic(now){
@@ -5198,7 +5313,7 @@ function prologueQuips(){
   });
 }
 /* ---------- main render ---------- */
-let hoverW=null;
+let hoverW=null,hoverCss=null;
 function render(rnow){
   try{
     const now=clock(rnow);
@@ -5207,7 +5322,7 @@ function render(rnow){
     SHK.enabled=!!(!SR.settings||SR.settings.shake())&&!HUD.reduced;SHK.update(rdt);
     PFX.update(dt);
     if(phase==='CUTSCENE'&&cs)csUpdate(now);
-    if(phase!=='CUTSCENE')fuelUpdate(now);
+    if(phase!=='CUTSCENE'){fuelUpdate(now);grafUpdate(now);}
     if(phase==='FREE'&&!tutFrozen())rtUpdate(now,dt);   // a pause-card freeze stops movement, detection, AI and timers (A4)
     if(phase==='EXTRACT'&&extractFx)extractUpdate(now,dt);
     if(phase==='EXEC')execUpdate(now);
@@ -5245,7 +5360,14 @@ function render(rnow){
     drawBldgs();                    // terrain plates only; walls join the actor sort
     hudUnderlay(now);               // rings and arcs under the feet
     drawActors(now);                // props, walls, landed ships and the Bobbleheads, one depth sort
-    if(SCN.hasTower)drawTowerTop();
+    if(SCN.hasTower){
+      drawTowerTop();
+      for(const u of actorList())if(u.elev){   // drawn over the tower top, so the guard up there is seen and can be picked
+        const c=engageQ&&engageQ.cur;
+        if(c&&c.t===u&&!u.down){ctx.save();ctx.translate(u.x,u.y);ctx.scale(1,0.5);T.reticle(ctx,0,0,30,hudT);ctx.restore();}
+        drawUnitActor(u,now);
+      }
+    }
     hudA(now);                      // pips, markers, names: before the fog, so unseen ground stays dark
     drawFog();
     drawFx(now);
@@ -5290,10 +5412,16 @@ cv.addEventListener('pointerdown',ev=>{
     pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:cam.z};drag=null;
   }
 });
+cv.addEventListener('pointerleave',()=>{hoverCss=null;});
+cv.addEventListener('dblclick',ev=>{
+  const u=unitAtCss(ev.offsetX,ev.offsetY)||U.find(x=>x.side==='reb'&&x.down&&!x.veh&&(()=>{const [px,py]=tokCss(x);return Math.hypot(px-ev.offsetX,py-ev.offsetY)<26;})());
+  if(u)openFile(u);
+});
 cv.addEventListener('pointermove',ev=>{
   const p=ptrs.get(ev.pointerId);
   if(p){p.x=ev.offsetX;p.y=ev.offsetY;}
   hoverW=cssToWorld(ev.offsetX,ev.offsetY);
+  hoverCss={x:ev.offsetX,y:ev.offsetY};
   if(pinch&&ptrs.size===2){
     const [a,b]=[...ptrs.values()];
     const d=Math.hypot(a.x-b.x,a.y-b.y);
@@ -5332,6 +5460,11 @@ cv.addEventListener('pointerup',ev=>{
   const px=ev.offsetX,py=ev.offsetY;
   if(phase==='FREE'){
     if(tutFrozen())return;   // frozen on a tutorial card: the world takes no clicks until Got it
+    if(pickMode&&pickMode.startsWith('fs:')){   // a supply drop called before the shooting starts
+      const done=fsPlace(pickMode.slice(3),cssToWorld(px,py));
+      if(done){pickMode=null;fsDraft=null;}
+      syncUI();return;
+    }
     // the turret is a clickable station: man it, or step off it
     const wpt0=cssToWorld(px,py);
     if(Math.hypot(wpt0.x-TURRET.x,wpt0.y-TURRET.y)<TURRET.r+14){
@@ -5450,6 +5583,7 @@ const OM={
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run, a gunship, reinforcements, or a vehicle or Bot you brought.'},
   treat:{label:'Treat wound',icon:'patch',family:'util',key:'',rule:'Use a Med Pack to patch the worst untreated injury on yourself or an ally within reach. A stunned or downed ally can only be treated by someone else. A Combat Medic reaches further and a pack covers two wounds.'},
+  stim:{label:'Stim',icon:'stim',family:'util',key:'',rule:'Slam a stim as the round opens: heal 30% of max health. An Action, so you still shoot this round.'},
   enter:{label:'Enter',icon:'enter',family:'move',key:'8',rule:'Walk to a vehicle within reach and climb in at the end of the move. Inside an enclosed seat you cannot be shot: the vehicle takes the hits.'},
   exit:{label:'Exit',icon:'leave',family:'move',key:'8',rule:'Get out of the vehicle as the round opens. No shot this round.'},
   switch:{label:'Switch position',icon:'switch',family:'stance',key:'',rule:'Move to another free position in this vehicle as the round opens. No shot this round.'},
@@ -5491,6 +5625,8 @@ function ordersFor(s){
   {const et=enterTargets(s);if(et.length)g3.push(card('enter',{active:!pm&&cur==='enter',tip:{title:'Enter',rule:OM.enter.rule+' Nearest: '+et[0].name+'.'}}));}
   if(fsItems().length)g3.push(card('fs',{active:fsMenuOn||(pm&&pm.startsWith('fs:'))}));
   if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
+  if(s.side==='reb'&&!s.auto)g3.push(card('stim',{label:'Stim ×'+(s.stims||0),active:!pm&&cur==='stim',disabled:!s.stims||s.hp>=s.maxhp||!!injOf(s,'shrapnel'),
+    why:!s.stims?'No stim left.':injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already at full health.'}));
   {const tp=treatPick(s),tt=treatTarget(s);g3.push(card('treat',{label:'Treat wound ×'+(s.meds||0),active:!pm&&cur==='treat',disabled:!tp,why:tt&&!s.meds?'No med pack left.':'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
@@ -5578,8 +5714,6 @@ function dockHTML(){
       tip:{title:'BLAM frag',rule:'Tap the ground to throw. It lands primed and goes off next round.'}}));
     if(c.s.side==='reb'&&c.s.maxShd>0)orders.push(HUD.order({label:'Shield up',icon:'shield',family:'util',key:key(),attrs:'data-shield',
       disabled:c.s.shd>=c.s.maxShd,why:'The shield is already up.',tip:{title:'Shield up',rule:'Raise a '+c.s.maxShd+'-point shield over armour and health. It takes hits first. Costs the shot.'}}));
-    if(c.s.side==='reb'&&c.s.stims>0)orders.push(HUD.order({label:'Stim ×'+c.s.stims,icon:'stim',family:'util',key:key(),attrs:'data-stim',
-      disabled:c.s.hp>=c.s.maxhp,why:'Already at full health.',tip:{title:'Stim',rule:'Heal 30% of max health. Costs the shot.'}}));
     return HUD.cmdbar({
       who:{lead:whoLead(c.s),name:c.s.name,hint:pickMode==='nadeToss'?'Tap the ground to throw. It goes off next round.':'Pick a weapon or retarget'},
       orders,go:{html:HUD.btn({id:'attackBtn',label:'Attack',icon:'attack',variant:'primary',size:'lg'})+
@@ -5669,8 +5803,10 @@ function unitRow(u){
   const nm=u.name+(u.charge?' ✸':'')+(hasSp(u,'fieldtech')?' ⌨':'');
   const gone=u.down||u.extracted||u.away||u.surr;
   const cls='sr-unit'+(foe?' sr-unit--foe':'')+(u.id===selId?' is-selected':'')+(gone?' is-down':'')+(c&&c.s===u?' is-acting':'');
-  const av=foe?HUD.avatar({initials:HUD.initials(u.first),cls:'sr-avatar--foe'}):
-    HUD.avatar({name:u.name,cls:u.id==='sera'?'sr-avatar--pilot':'',badge:u.id==='sera'?'pilot':(u.auto||u.vip)?null:'soldier'});
+  // faces, as on the base's crew list and the briefing; initials only where there is no art (vehicles)
+  const face=u.veh?null:portraitImg({id:foe?'foe:'+(u.arch||u.type||u.id):u.id,art:u.art||(u.arch||u.auto?artSpec(u):null)});
+  const av=foe?HUD.avatar({initials:HUD.initials(u.first),img:face,cls:'sr-avatar--foe'}):
+    HUD.avatar({name:u.name,img:face,cls:u.id==='sera'?'sr-avatar--pilot':'',badge:u.id==='sera'?'pilot':(u.auto||u.vip)?null:'soldier'});
   const body='<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+nm+'</span>'+
     (foe||u.vip||u.veh?'':'<span class="sr-unit__role">Lv '+(u.level||1)+'</span>')+'</span>'+hp+'</span>'+
     '<span class="sr-unit__side">'+statusTag(u)+nerveHtml(u)+'</span>';
@@ -5830,16 +5966,16 @@ function syncBar(){
   const pick=!!pickMode||(hackArm&&phase==='FREE');
   PILL.hidden=!pick;
   if(pick)HUD.render(PILL,pickText()+' <span class="sr-kbd">Esc</span>');
-  if(phase!=='PLANNING')fsMenuOn=false;
-  const fsl=fsItems();
+  if(phase!=='PLANNING'&&phase!=='FREE')fsMenuOn=false;
+  const fsl=fsItems().filter(i=>phase!=='FREE'||FREE_FS.includes(i.key));
   const fsBox=byId('fsBox'),fsLive=!!FS&&phase!=='BRIEF'&&phase!=='CUTSCENE'&&phase!=='GAMEOVER';
   fsBox.hidden=!fsLive;
   if(fsLive){
-    const canCall=phase==='PLANNING'&&fsl.length>0;
+    const canCall=(phase==='PLANNING'||(phase==='FREE'&&!tutFrozen()))&&fsl.length>0;
     HUD.render(byId('fsBtnHost'),HUD.btn({id:'fsBtn',label:'Fire support',icon:'firesupport',size:'sm',soft:!canCall,
       pressed:canCall?fsMenuOn:null,
       tip:{title:'Fire support',rule:'Call in the support you arranged: a supply drop, a strafing run, a door gunner or reinforcements.'},
-      why:canCall?'':fsl.length?'Calls are made while planning the round.':'Everything arranged for this run has been used.'})+
+      why:canCall?'':fsl.length?'Calls are made while planning the round.':phase==='FREE'&&fsItems().length?'Only the supply drop and a scan can be called before the shooting starts.':'Everything arranged for this run has been used.'})+
       (fsl.length?'<span class="sr-badge">'+fsl.length+'</span>':''));
   }
   FSM.hidden=!(fsMenuOn&&fsl.length);
@@ -5867,6 +6003,7 @@ function orderAct(act,el){
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
   else if(act==='deploy'){if(canDeploy(s)&&!deployWhy(s)){s.order={type:'deploy'};autoAdvance();}}
   else if(act==='treat'){if(treatPick(s)){s.order={type:'treat'};autoAdvance();}}
+  else if(act==='stim'){if(s.stims>0&&s.hp<s.maxhp){s.order={type:'stim'};autoAdvance();}}
   else if(act==='rally'){if(s.hero&&!s.heroUsed){s.order={type:'rally'};autoAdvance();}}
   else if(act==='work'){
     const wp=activeWork(s);
@@ -5928,7 +6065,7 @@ DOCK.addEventListener('click',ev=>{
 PILL.addEventListener('click',()=>{pickMode=null;fsDraft=null;hackArm=false;syncUI();});
 byId('fsBox').addEventListener('click',ev=>{
   const b=ev.target.closest('#fsBtn');
-  if(!b||b.getAttribute('aria-disabled')==='true'||phase!=='PLANNING')return;
+  if(!b||b.getAttribute('aria-disabled')==='true'||(phase!=='PLANNING'&&phase!=='FREE'))return;
   sTick();fsMenuOn=!fsMenuOn;syncUI();
 });
 FSM.addEventListener('click',ev=>{
@@ -5940,6 +6077,10 @@ FSM.addEventListener('click',ev=>{
     syncUI();return;
   }
   pickMode='fs:'+b.getAttribute('data-fs');fsDraft=null;fsMenuOn=false;sTick();syncUI();
+});
+byId('panel').addEventListener('dblclick',ev=>{
+  const r=ev.target.closest('[data-unit]');
+  if(r)openFile(U.find(u=>u.id===r.getAttribute('data-unit')));
 });
 byId('panel').addEventListener('click',ev=>{
   const r=ev.target.closest('[data-unit]');
@@ -6098,12 +6239,13 @@ addEventListener('keydown',ev=>{
 function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
-  round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';
+  round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
-   if(SUP().scan){FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};FS.scan=1;FS.scanUsed=0;}
-   scanRound=0;
+   if(SUP().scan||SUP().evac||SUP().bombard)FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+   if(FS){FS.scan=SUP().scan?1:0;FS.scanUsed=0;FS.extra=SUP().fsExtra?1:0;FS.evac=SUP().evac?1:0;FS.bombard=SUP().bombard?1:0;}
+   scanRound=null;
    fsMenuOn=false;fsDraft=null;
    /* Take the Rock only: Cass, the smuggler who set the squad down in the canyon, keeps his own
       freighter upstairs as a Door Gunner. No other mission grants this — fire support after the
@@ -6247,7 +6389,20 @@ function oppBrief(){
   hint.innerHTML=(base?base+'<br>':'')+'<b>Mission Control:</b> opposition at the start: '+line+'. Reinforcements not counted.';
   hint.hidden=false;
 }
+/* a squad member's face for the briefing, as on the base's crew list (a 48px portrait as a data URL) */
+const portraitCacheG=new Map();
+function portraitImg(sp){
+  if(!sp||!sp.art)return null;
+  const key=sp.id||sp.name;
+  if(portraitCacheG.has(key))return portraitCacheG.get(key);
+  try{
+    const c=document.createElement('canvas');c.width=c.height=48;
+    window.SR_ART.portrait(c.getContext('2d'),24,24,22,sp.art,{t:0});
+    const u=c.toDataURL();portraitCacheG.set(key,u);return u;
+  }catch(e){return null;}
+}
 function scenarioUI(){
+  portraitCacheG.clear();   // faces change between missions (injuries, rank)
   byId('gTitle').textContent=SCN.title;
   byId('gSub').textContent=SCN.sub;
   byId('foeHead').textContent=SCN.foesLabel;
@@ -6260,8 +6415,8 @@ function scenarioUI(){
   hint.innerHTML=B.hint||'';
   hint.hidden=!B.hint;
   const spec=CTX||defaultSpec();
-  const cards=(spec.squad||[]).map(sp=>SR.ui.squadCard({name:sp.name,role:'Soldier',chips:SR.ui.gearChips(sp.wpns||['akli','cowboy'])}));
-  if(spec.pilot)cards.push(SR.ui.squadCard({name:spec.pilot.name,role:'Pilot',pilot:true,chips:SR.ui.gearChips(spec.pilot.wpns||['cowboy'])}));
+  const cards=(spec.squad||[]).map(sp=>SR.ui.squadCard({name:sp.name,role:sp.autoType?'Auto':'Soldier',img:portraitImg(sp),chips:SR.ui.gearChips(sp.wpns||['akli','cowboy'])}));
+  if(spec.pilot)cards.push(SR.ui.squadCard({name:spec.pilot.name,role:'Pilot',pilot:true,img:portraitImg(spec.pilot),chips:SR.ui.gearChips(spec.pilot.wpns||['cowboy'])}));
   byId('gSquad').innerHTML=cards.join('');
 }
 let navFor=null;
@@ -6324,7 +6479,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},

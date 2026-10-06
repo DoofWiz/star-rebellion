@@ -67,7 +67,7 @@
     implants:'implants',stims:'carried stims',gadgets:'specialty gadgets as items',utilities:'ship Utilities',attach:'weapon attachments',
     crafting:'crafting',research:'research',factions:'neutral factions',stability:'Hegemony stability',trackers:'trackers on Hegemony items',
     gearwear:'gear damage',decay:'Support decay',capital:'capital ships',bureau:'the Bureau',neighbours:'neighbouring worlds',
-    drones:'drones',deploy:'deployment zones',approach:'mission approaches',autos:'building Autos',later:'a later build',
+    drones:'drones',deploy:'deployment zones',approach:'mission approaches',autos:'building Autos',later:'a later build',leader:'the Leader’s Take Point (M-13)',
   };
   /* Base-specialty effects: one Job and one Rule each. */
   const B=(spec,k,n,t,d,o)=>Object.assign({spec,k,n,t,d,lv:1,f:''},o||{});
@@ -248,20 +248,20 @@
     X('tactician',15,'A','battleplan','Battle Plan','rule','Supported squads take a free first round: the Hegemony neither moves nor fires in round 1.',{live:1}),
     X('tactician',15,'B','adaptive','Adaptive Orders','rule','Supported squads can switch to an alternative approach for one objective mid-mission.',{needs:'approach'}),
     X('tactician',19,'','perfectplan','Perfect Plan','rule','Once every 30 days, a supported mission begins with two free rounds before the Hegemony acts.',{cd:30,live:1}),
-    X('flightctl',3,'','vectoring','Vectoring','job','Reveal enemy wing composition for a supported space mission.',{needs:'later'}),
-    X('flightctl',7,'A','scramble','Scramble','job','Launch one extra ship into a supported space mission.',{needs:'later'}),
-    X('flightctl',7,'B','formation','Formation Calls','job','A Leader’s Take Point radius doubles in a supported mission.',{needs:'later'}),
-    X('flightctl',11,'','interceptplot','Intercept Plot','job','Choose the wing’s starting position in a supported space mission.',{needs:'later'}),
-    X('flightctl',15,'A','turnaround','Rapid Turnaround','rule','Undamaged ships can fly again on the day they return.',{needs:'later'}),
-    X('flightctl',15,'B','tightwing','Tight Wing','rule','All ships in supported missions are harder to hit.',{needs:'later'}),
-    X('flightctl',19,'','emergencyjump','Emergency Jump','rule','Once per mission, the whole wing can jump out of a supported space mission with no losses.',{needs:'later'}),
-    X('combatsupport',3,'','firecoord','Fire Coordination','job','A supported mission gets one extra fire support call.',{needs:'later'}),
-    X('combatsupport',7,'A','precision','Precision Strikes','job','Strikes in a supported mission scatter half as much; with a coordinating Radioman, not at all.',{needs:'later'}),
-    X('combatsupport',7,'B','rapidresp','Rapid Response','job','Fire support in a supported mission arrives a round sooner.',{needs:'later'}),
-    X('combatsupport',11,'','evac','Evac on Call','job','Once per supported mission, a fire support pilot can pull out one downed rebel.',{needs:'later'}),
-    X('combatsupport',15,'A','saturation','Saturation','rule','Fire support strikes hit a larger area.',{needs:'later'}),
-    X('combatsupport',15,'B','dangerclose','Danger Close','rule','Rebels take no damage from their own fire support.',{needs:'later'}),
-    X('combatsupport',19,'','bombard','Heavy Bombardment','rule','Once per supported mission, call a heavy bombardment on any area a squad member can see.',{needs:'later'}),
+    X('flightctl',3,'','vectoring','Vectoring','job','Supports a space mission: the briefing lists the enemy wing.',{live:1}),
+    X('flightctl',7,'A','scramble','Scramble','job','One more pilot and ship can fly a supported space mission.',{live:1}),
+    X('flightctl',7,'B','formation','Formation Calls','job','A Leader’s Take Point radius doubles in a supported mission.',{needs:'leader'}),
+    X('flightctl',11,'','interceptplot','Intercept Plot','job','Choose where the wing starts in a supported space mission: flank left, head on, flank right or close in.',{live:1}),
+    X('flightctl',15,'A','turnaround','Rapid Turnaround','rule','Pilots who bring a ship home undamaged from a supported space mission are not tired by it, so they can fly again.',{live:1}),
+    X('flightctl',15,'B','tightwing','Tight Wing','rule','Ships in supported space missions are harder to hit (+1).',{live:1}),
+    X('flightctl',19,'','emergencyjump','Emergency Jump','rule','Once per supported space mission, the whole wing jumps out with no losses. The mission fails.',{live:1}),
+    X('combatsupport',3,'','firecoord','Fire Coordination','job','A supported mission gets one extra fire support call: the first drop or ship can be called once more.',{live:1}),
+    X('combatsupport',7,'A','precision','Precision Strikes','job','The door gunner in a supported mission hits on 6+ instead of 9+. (Fire support never scatters in the game.)',{live:1}),
+    X('combatsupport',7,'B','rapidresp','Rapid Response','job','Supply drops, reinforcements and vehicles called in a supported mission come down at once, not next round.',{live:1}),
+    X('combatsupport',11,'','evac','Evac on Call','job','Once per supported mission, a support pilot flies out one downed rebel: they come home injured, not dead.',{live:1}),
+    X('combatsupport',15,'A','saturation','Saturation','rule','The door gunner’s zone is half again as wide and works up to 5 enemies; strafing blasts are wider.',{live:1}),
+    X('combatsupport',15,'B','dangerclose','Danger Close','rule','Rebels take no damage from their own fire support.',{live:1}),
+    X('combatsupport',19,'','bombard','Heavy Bombardment','rule','Once per supported mission, call a heavy bombardment on any spot a squad member can see.',{live:1}),
   ];
   const UK={};for(const u of BASE)UK[u.spec+'.'+u.k]=u;for(const u of UNLOCKS)UK[u.niche+'.'+u.k]=u;
   const LEVELS=[3,7,11,15,19],FORK_LEVELS=[7,15];

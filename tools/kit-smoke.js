@@ -91,7 +91,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(g.auto===-5,'automatic is -5 to hit '+g.auto);
  ok(g.semi===2,'semi-auto adds its chain on the same target '+g.semi);
  ok(g.chain==='true,2','each semi-auto shot at the same target adds one '+g.chain);
- ok(g.fan===2,'fan hammer doubles the damage '+g.fan);
+ ok(g.fan>=1.8&&g.fan<=2.2,'fan hammer doubles the damage (a ratio of two random sums) '+g.fan);
  ok(g.toggle==='true,1','the toggle is offered for the Akli, not the single-mode Longhorn '+g.toggle);
  ok(g.steady==='true,false','holding gives +2 only with a Steady weapon '+g.steady);
  ok(g.held,'holding fire on a target primes Steady for it');
