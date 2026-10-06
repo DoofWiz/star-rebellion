@@ -24,6 +24,24 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     await sleep(350);log.push('room '+key);
     f.exitRoomView();f.syncUI();
   }
+  // Haven Rock (art update 4): every room, an L-shaped merged room, upgrades that take a tile, a room being built,
+  // a tile being dug and the alert, on the map and walked into
+  {
+    const keep=JSON.stringify({rooms:G.rooms,grid:G.grid,fighters:G.fighters,risk:G.risk});
+    const add=(key,r,c,extra)=>{G.rooms.push(Object.assign({id:'rm_'+r+'_'+c,key,r,c,w:1,h:1,up:[]},extra||{}));G.grid[r][c]={t:'room',room:key};};
+    add('barracks',6,5);add('store',5,1);add('store',5,2);add('techlab',1,6);add('techlab',1,7);
+    add('infirmary',5,7,{up:['surgery']});add('infirmary',5,8);add('training',2,8);add('comms',3,7);add('diplo',3,8);add('workshop',3,9);add('workshop',4,9,{build:{days:2}});
+    G.rooms.find(r=>r.key==='hangar').up=['refuel','arm','lounge','mbay'];
+    G.fighters.push({id:'hr1',name:'Red One',cls:'talon',hull:60},{id:'hr2',name:'Red Two',cls:'talon',hull:100,out:true});
+    G.grid[1][4].dig=1;G.risk=90;
+    f.syncUI();await sleep(300);log.push('haven rock map');
+    for(const key of ['command','hangar','barracks','store','comms','diplo','workshop','infirmary','training','techlab']){
+      if(!f.enterRoom(key))return {fail:'Haven Rock: could not walk into the '+key};
+      await sleep(200);log.push('walk-in '+key);
+      f.exitRoomView();f.syncUI();
+    }
+    const k=JSON.parse(keep);G.rooms=k.rooms;G.grid=k.grid;G.fighters=k.fighters;G.risk=k.risk;f.syncUI();
+  }
   f.openWin('sources');await sleep(400);log.push('galaxy');
   if(f.getWin())f.closeWin();   // the first-look primer
   await sleep(200);
