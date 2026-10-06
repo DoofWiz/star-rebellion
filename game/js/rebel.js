@@ -285,6 +285,11 @@ window.Rebel=(function(){
      an optional database pilot (level, experience, initiative and the four skills, set as earned skill experience). */
   function scripted(spec,row){
     const p=Object.assign({assign:'rest',injured:0,level:1,xp:0},spec);
+    if(!p.bio){   // an origin line from the role's list like anyone else's, the same one every campaign
+      const pool=BIO[p.role]||BIO.Soldier;let h=0;
+      for(const ch of p.name)h=(h*31+ch.charCodeAt(0))>>>0;
+      p.bio=pool[h%pool.length];
+    }
     if(row){
       p.level=row.level;p.xp=row.xp/100;p.init=row.initiative;p.sx={};
       for(const k of (SKILLSET[p.role]||[]))if(DBKEY[k]&&row[DBKEY[k]]!==undefined)p.sx[k]=Math.round((fromDb(k,row[DBKEY[k]])-(5+(p.level-1)*1.6))*10)/10;

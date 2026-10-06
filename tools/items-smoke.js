@@ -105,7 +105,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(d.armory==='carbine:1:looted,scatter:2:looted','loot ids become armory stacks '+d.armory);
  ok(d.reward.indexOf('Peacekeeper Carbine')>=0&&d.reward.indexOf('Varmint Shotgun')>=0,'the reward window names the loot '+d.reward.slice(0,200));
  ok(/^About as common a sight/.test(d.blurbAkli),'the Arsenal shows the table description '+d.blurbAkli);
- ok(/Hegemony/.test(d.blurbScatter),'looted kit without a description says where it came from '+d.blurbScatter);
+ ok(d.blurbScatter==='Stolen','looted kit without a description says where it came from '+d.blurbScatter);
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'items-smoke: all checks passed');

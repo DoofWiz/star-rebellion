@@ -1192,6 +1192,11 @@ GUIDE = [
     ("5. Kind: Dialog is someone talking (barks, comms, briefings, the merchant). Text is narration and descriptions. "
      "Label is a short button, title or tag; check it still fits before making it longer.", "text"),
     ("6. Use the filter on row 1 to show one Kind, or search (Ctrl+F) for a line you saw in the game.", "text"),
+    ("7. To ask for a change instead of making it (a value that should not be fixed, a line to delete), write "
+     "[Note for Claude: ...] or [Remove] in the Text cell. Those rows are never written into the game; the import "
+     "lists them for Claude to act on.", "text"),
+    ("8. Sheets reads a cell that starts with + or = as a formula. To start a line with +, type an apostrophe first: "
+     "'+5% mission success.", "text"),
     ("", "text"),
     ("WHAT IS NOT HERE", "h"),
     ("Item, ship, weapon and enemy names and descriptions live in the game database (python3 tools/db/build.py "
@@ -1271,7 +1276,8 @@ def read_xlsx(path):
     """{id: text} for every row, plus {id: original}."""
     _need_openpyxl()
     from openpyxl import load_workbook
-    wb = load_workbook(path, data_only=True)
+    # formulas as written, not their results: Sheets turns a line typed as "+5% ..." into the formula "=5% ..."
+    wb = load_workbook(path, data_only=False)
     texts, origs = {}, {}
     for ws in wb.worksheets:
         head = [c.value for c in ws[1]]
@@ -1284,11 +1290,23 @@ def read_xlsx(path):
                 continue
             rid = str(row[ci]).strip()
             v = row[ct]
+            o = row[co] if co is not None else None
+            if isinstance(v, str) and v.startswith("=") and not (isinstance(o, str) and o.startswith("=")):
+                v = (o[0] if isinstance(o, str) and o[:1] in "+-" else "") + v[1:]
             texts[rid] = "" if v is None else str(v).replace("\r\n", "\n").replace("\r", "\n")
             if co is not None:
                 o = row[co]
                 origs[rid] = "" if o is None else str(o).replace("\r\n", "\n").replace("\r", "\n")
     return texts, origs
+
+
+NOTE = re.compile(r"\[\s*(note for claude|remove|delete|deprecate)\b", re.I)
+
+
+def notes(changes):
+    """Rows that ask Claude for something ([Note for Claude: ...], [Remove]) rather than give the new words.
+    They are never written into the game: they are listed for Claude to act on by hand."""
+    return {rid: t for rid, t in changes.items() if NOTE.search(t)}
 
 
 def changed(texts, origs, rows):
@@ -1430,8 +1448,18 @@ def main():
         texts, origs = read_xlsx(a.path)
         rows = collect()
         ch = changed(texts, origs, rows)
+        held = notes(ch)
+        ch = {k: v for k, v in ch.items() if k not in held}
+        by_id = {r.id: r for r in rows}
+        if held:
+            print("Notes for Claude (not imported; these need a code change, so ask Claude to act on them):")
+            for rid, t in held.items():
+                r = by_id.get(rid)
+                where = "%s line %d  [%s]" % (r.file, r.line, r.where or r.kind) if r else rid
+                print("  %s\n    now: %s\n    note: %s" % (where, (r.text if r else "?").replace("\n", "\\n"), t.replace("\n", "\\n")))
+            print()
         if not ch:
-            print("No edits found in %s." % a.path)
+            print("No other edits found in %s." % a.path)
             return
         applied, problems, _ = apply_edits(ch, write=not a.dry_run)
         by_id = {r.id: r for r in rows}

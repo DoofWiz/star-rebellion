@@ -63,20 +63,19 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
-  title:'Steal the Cross',sub:'Dustfall \u00b7 Brakka \u2014 Revolution I',
+  title:'Steal the Cross',sub:'Dustfall · Brakka',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
-  banner:['Steal the Cross','Sheriff\u2019s law is Hegemony law'],
+  banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
   brief:{
     eyebrow:'Ground Operation \u00b7 Dustfall, Brakka',
-    flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff\u2019s HQ. Sheriff Reeve enforces Hegemony law here. We enforce ours.',
+    flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff’s HQ. Sheriff Reeve enforces Hegemony law here, so that makes him and his men targets.',
     objectives:[
-      'Get Sera Kest to the Cross on the pad north-east of town',
-      'Cover her while she hotwires it \u2014 two rounds at the panel',
+      'Get the Pilot to the Ship on the landing pad north-east of town',
+      'Cover the Pilot while they hotwire it.',
       'Release the docking clamps and pull the fuel line',
-      'Get the squad back to the Graf and lift off',
-      {sub:1,text:'Sera carries only a sidearm \u2014 keep her clear of the shooting.'},
+      'Get the squad back to the transport and extract',
+      {sub:1,text:'Keep the Pilot alive.'},
     ],
-    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The machine gun on the pad sits behind sandbags; take it from the side. Stray shots set off the red fuel canisters.',
   },
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
@@ -88,7 +87,7 @@ stealcross:{
   bossTrigger:{x:2130,y:330,r:420},
   bossDoor:{x:1880,y:588},
   bossFloat:'THE SHERIFF',
-  bossLog:'<span class="h">Sheriff Reeve kicks his office door open</span> \u2014 scattergun first.',
+  bossLog:'<span class="h">Sheriff Reeve kicks his office door open</span> shotgun first.',
   bossAlert:'The Sheriff himself is on the boards.',
   work:[
     {id:'clamp',x:2022,y:360,label:'DOCKING CLAMPS',verb:'releases the docking clamps'},
@@ -138,7 +137,7 @@ stealcross:{
   ],
   foes(){return [
     foe('frontier-sheriff',{id:'reeve',name:'Sheriff Reeve',first:'Reeve',x:1906,y:730,office:1,
-      lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']}),
+      lines:['You picked the wrong town, drifters.','I ain\'t sufferin\' no disorder \'round my town.','Nobody touches that ship!']}),
     foe('frontier-deputy',{id:'pell', name:'Dep. Pell', first:'Pell', x:1150,y:790,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
       lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']}),
     foe('frontier-deputy',{id:'cobb', name:'Dep. Cobb', first:'Cobb', x:700,y:788,patrol:[{x:700,y:788},{x:560,y:830}],
@@ -162,46 +161,46 @@ stealcross:{
 stealfuel:{
   mode:'stealfuel',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:true,hasTurret:false,hasGraf:true,tumbleweed:true,
-  title:'Steal Fuel',sub:'Redrock Flats · Brakka — Revolution I',
-  foesLabel:'Tithe Guard',calmLabel:'Depot is quiet',alertLabel:'Depot alerted',
+  title:'Steal Fuel',sub:'Redrock Flats · Brakka',
+  foesLabel:'Depot Guard',calmLabel:'Depot is quiet',alertLabel:'Depot alerted',
   banner:['Steal Fuel','Nothing flies without it'],
   brief:{
     eyebrow:'Ground Operation · Redrock Flats, Brakka',
-    flavour:'Every herder on Brakka pays the fuel tithe, and every drop of it ends up in the <b>Redrock tithe depot</b>: tanks, a pump house and a bored guard detail. Nobody has ever tried to take it back. Walk in, call the Marta down onto the loading apron, and keep the pumps safe while she drinks.',
+    flavour:'Every herder on Brakka pays an unfair fuel tithe to the authorities even in tough times, and every drop of it ends up in the <b>Redrock tithe depot</b>. There\'s a bored guard detail guarding the silos and little else. Nobody has ever tried anything against them. Walk in, call a transport down onto the loading apron, and keep the pumps safe while we steal as much of that fuel as we can.',
     objectives:[
       'Reach the fuel depot on the east side of the flats',
-      'Call in the Marta and bring her down on the loading apron',
-      'Defend her while the fuel lines pump — five rounds',
-      'Get the squad aboard and lift off',
-      {sub:1,text:'The Marta’s engines will wake the whole depot. Expect company.'},
+      'Call in a transport and bring her down on the loading apron',
+      'Defend the transport while the fuel lines pump.',
+      'Get the squad aboard',
+      {sub:1,text:'Our ship\'s engines will alert the whole depot. Expect company!'},
     ],
-    hint:'Stay out of the guards’ sight cones on the way in. Once the Marta lands, at least one of you has to stand on the apron for the tanks to keep filling. The red drums around the pumps go up if a stray round finds them.',
+    hint:'Once our ship arrives, at least one of the team needs to stand in range of the landing zone for the tanks to keep filling.',
   },
   towerLabel:'WATCHTOWER',
   lamps:[[1640,360],[1810,540],[1260,560],[900,820],[1560,760]],
-  csLine:'Redrock Flats. I’ll keep her warm and stay out of sight — call me when you’re at the pumps.',
-  lzLabel:'MARTA LZ',
+  csLine:'We\'ve arrived. I’ll keep her warm and stay out of sight. Call me when you’re at the pumps.',
+  lzLabel:'LZ',
   LZ:{x:260,y:1190,r:130},PAD:{x:1700,y:440,r:150},
   TOWER:{x:1330,y:300,r:54},
   panTo:{x:1500,y:480},
   guardPt:{x:1700,y:470},
   work:[],
   waves:[
-    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
+    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span>.',
      foes:[
        foe('police-cruiser',{id:'pcw',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',lines:['Unit 4, responding.','Pull over! All of you!']})]}),
        foe('depot-guard',{id:'dill',name:'Guard Dill',first:'Dill',x:2150,y:640,lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']}),
        foe('depot-guard',{id:'corr',name:'Guard Corr',first:'Corr',x:2150,y:720,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']}),
      ]},
-    {at:3,log:'<span class="h">The depot warden and a second crawler arrive from the north road.</span>',
+    {at:3,log:'<span class="h">The depot warden and a second crawler are arriving from the north road.</span>',
      foes:[
-       foe('depot-warden',{id:'hask',name:'Warden Hask',first:'Hask',x:1420,y:40,lines:['That tithe is the Hegemony’s!','Nobody drains my tanks.']}),
+       foe('depot-warden',{id:'hask',name:'Warden Hask',first:'Hask',x:1420,y:40,lines:['That fuel belongs to the Empress!','Nobody drains my tanks.']}),
        foe('depot-guard',{id:'orsk',name:'Guard Orsk',first:'Orsk',x:1520,y:40,wpns:['carbine'],lines:['North road is ours!','Warden, they’re on the apron!']}),
        foe('depot-guard',{id:'vell',name:'Guard Vell',first:'Vell',x:1320,y:40,lines:['Cover me!','Not the pumps!']}),
      ]},
   ],
   bldgs:[
-    {x:1100,y:340, w:280,h:200,name:'TITHE DEPOT',sign:1},
+    {x:1100,y:340, w:280,h:200,name:'FUEL DEPOT',sign:1},
     {x:1480,y:640, w:220,h:150,name:'PUMP HOUSE',solar:1},
     {x:760, y:720, w:240,h:160,name:'GUARD POST'},
     {x:470, y:470, w:200,h:150,name:'GRAIN STORE',solar:1},
@@ -221,7 +220,7 @@ stealfuel:{
     {x:1180,y:700,kind:'crate'},{x:1120,y:780,kind:'crate'},
   ],
   loots:[
-    {id:'strongbox',x:1236,y:510,label:'Tithe strongbox',take:'480 ◈ credits',c:480},
+    {id:'strongbox',x:1236,y:510,label:'Outpost strongbox',take:'480 ◈ credits',c:480},
     {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'64 ▤ supplies',s:64},
     {id:'grain',x:560,y:620,label:'Grain store',take:'88 ▤ supplies',s:88},
     {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
@@ -243,31 +242,31 @@ stealfuel:{
 autofactory:{
   mode:'autofactory',W:2400,H:1600,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Blow Up Auto Factory',sub:'Kiln Ridge \u00b7 Menk \u2014 Revolution I',
+  title:'Blow Up Auto Factory',sub:'Kiln Ridge · Menk',
   foesLabel:'Security',calmLabel:'Plant is quiet',alertLabel:'Plant alerted',
-  banner:['Blow Up Auto Factory','Every Auto is a policeman we never meet'],
+  banner:['Blow Up Auto Factory','Plant explosives in the factory and escape'],
   brief:{
     eyebrow:'Ground Operation \u00b7 Kiln Ridge, Menk',
-    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge AutoCom Plant</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
+    flavour:'The Hegemony is pouring Menk’s salt and labour into the <b>Kiln Ridge AutoCom Plant</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and light this place up.',
     objectives:[
       'Get the explosive charge to the Power Plant\u2019s main breaker',
       'Plant it',
       'Get clear of the blast zone, then detonate',
-      'Get the squad back to the Marta',
+      'Get the squad back to the transport and extract',
       {sub:1,text:'(Optional) Do it without the plant ever raising the alarm.'},
     ],
     hint:'One of you carries the charge (marked \u2738). Only the carrier can plant it. Riot shields soak every shot from the front until they break, so flank them. Policebots never panic, but they are flimsy. Stay out of the sight cones and the plant may never know you were here.',
   },
   towerLabel:'',
   lamps:[[820,620],[1500,560],[1870,560],[700,980],[1620,1000]],
-  csLine:'Kiln Ridge. I\u2019ll be at the LZ with the engines warm. Light the fuse and come home.',
-  lzLabel:'MARTA LZ',
+  csLine:'We\'re at Kiln Ridge. I’ll be at the LZ with the engines warm. Light the fuse and come home.',
+  lzLabel:'LZ',
   LZ:{x:260,y:1280,r:130},PAD:{x:1860,y:512,r:60},
   plant:{x:1700,y:240,w:320,h:230,bx:1860,by:355},
   blastR:330,safeR:400,
   guardPt:{x:1860,y:560},
   work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
-  detWave:{log:'<span class="h">A Riot Transport Cruiser screams in through the gate.</span>',
+  detWave:{log:'<span class="h">A Riot Transport Cruiser is coming in through the gate.</span>',
     foes:[
       foe('riot-transport-cruiser',{id:'rtc1',x:700,y:470,
        crew:[
@@ -318,7 +317,7 @@ autofactory:{
 towers:{
   mode:'towers',W:2200,H:1400,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Disrupt Comm Towers',sub:'Parity IV — Revolution I',
+  title:'Disrupt Comm Towers',sub:'Parity IV',
   foesLabel:'Security',calmLabel:'Compound is quiet',alertLabel:'Compound alerted',
   banner:['Disrupt Comm Towers','Take the tower, leave them listening'],
   brief:{
@@ -391,25 +390,25 @@ towers:{
 rescue:{
   mode:'rescue',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Rescue Dissident',sub:'Tollgate Landing · Ballakan — Revolution I',
+  title:'Rescue Dissident',sub:'Tollgate Landing · Ballakan',
   foesLabel:'Security',calmLabel:'Outpost is quiet',alertLabel:'Outpost alerted',
   banner:['Rescue Dissident','Somebody has to open the door'],
   brief:{
     eyebrow:'Ground Operation · Tollgate Landing, Ballakan',
-    flavour:'A well-known voice on the river has been locked in the <b>Tollgate security outpost</b>, waiting for a transfer nobody will ever hear about. Get in, open the cell, and bring them out.',
+    flavour:'A well-known dissonant voice has been locked up in the <b>Tollgate security outpost</b>, waiting for a transfer that\'ll put them away for good. Get in, open the cell, and extract them.',
     objectives:[
       'Reach the detention cage behind the guardhouse',
       'Release the prisoner from confinement',
-      'Bring them and the squad back to the Marta',
+      'Bring them and the squad back to the transport',
       {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
-      {sub:1,text:'The prisoner is unarmed in all but name. If they go down, the mission fails.'},
+      {sub:1,text:'Protect the prisoner from harm.'},
     ],
     hint:'Stay out of the sight cones and the outpost may never know you were here. The prisoner follows your orders once freed, but is fragile. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[700,520],[1300,470],[1720,560],[1100,900],[1600,930]],
-  csLine:'Tollgate Landing. I’ll be here. Bring them out the way you went in.',
-  lzLabel:'MARTA LZ',
+  csLine:'This is Tollgate Landing. I’ll be waiting, just be quick. Bring the prisoner back here and we\'ll get out of here right quick.',
+  lzLabel:'LZ',
   LZ:{x:250,y:1150,r:130},PAD:{x:1720,y:470,r:60},
   cage:{x:1660,y:330,w:120,h:120,dx:1720,dy:470},
   guardPt:{x:1720,y:540},
@@ -452,7 +451,7 @@ rescue:{
 intel:{
   mode:'intel',W:2400,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Steal Intelligence',sub:'Data Flats · Parity IV — Revolution I',
+  title:'Steal Intelligence',sub:'Data Flats · Parity IV',
   foesLabel:'Security',calmLabel:'Farm is quiet',alertLabel:'Farm alerted',
   banner:['Steal Intelligence','Everything they know, in one drive'],
   brief:{
@@ -460,20 +459,19 @@ intel:{
     flavour:'The Bureau keeps its Parity IV registry backups on a <b>server farm</b> out on the Data Flats: fences, Policebots and a terminal bank in the east hall. Get your <b>Field Technician</b> to the databank terminal and keep them alive while they crack it.',
     objectives:[
       'Reach the databank terminal in the east server hall',
-      'Hack into the Hegemony databanks — three rounds, your Field Technician only',
+      'Hack into the Hegemony databanks',
       'Extract with the stolen data',
-      {sub:1,text:'Finishing the hack sets off the trace. Expect a response.'},
     ],
-    hint:'Only the Field Technician (marked ⌨) can work the terminal. Stay out of the sight cones for as long as you can; the hack keeps running only while they stay on the terminal. Riot shields soak every shot from the front until they break, so flank them.',
+    hint:'Only a Field Technician can operate the terminal. Avoid combat for as long as you can. The hack can only stay running while the Field Technician is on the terminal.',
   },
   towerLabel:'',
   lamps:[[760,560],[1300,520],[1660,600],[1100,900],[1800,900]],
-  csLine:'Data Flats. Engines warm, lights off. Copy fast and come home.',
-  lzLabel:'MARTA LZ',
+  csLine:'We\'re at the Data Flats. Engines warm, and lights off. Get that data downloaded and we\'ll bring it home together.',
+  lzLabel:'LZ',
   LZ:{x:260,y:1200,r:130},PAD:{x:1660,y:540,r:60},
   guardPt:{x:1660,y:600},
   work:[{id:'hack',x:1660,y:540,label:'DATABANK TERMINAL',verb:'cracks the databank and copies the drive',needSpec:'fieldtech',rounds:3}],
-  alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span> — a shield line and two riflemen.',
+  alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span>.',
     foes:[
       foe('security-riot-shieldman',{id:'rs5',name:'Riot Shieldman Kade',first:'Kade',x:640,y:560,lines:['Riot line! Hold!','Disperse!']}),
       foe('security-riot-rifleman',{id:'rr5',name:'Riot Rifleman Saul',first:'Saul',x:600,y:640,lines:['Contact at the databank!','Shields forward!']}),
@@ -516,31 +514,31 @@ intel:{
 strider:{
   mode:'strider',W:2400,H:1600,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Steal the Strider',sub:'Menk Crossing · Menk — Revolution I',
+  title:'Steal the Strider',sub:'Menk Crossing · Menk',
   foesLabel:'Security',calmLabel:'Yard is quiet',alertLabel:'Yard alerted',
   banner:['Steal the Strider','Walk it out'],
   brief:{
     eyebrow:'Ground Operation · Menk Crossing, Menk',
-    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
+    flavour:'A <b>Strider Mk I</b>, the Hegemony’s friendly neighbourhood enforcement walker, is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its access panel can be found on site. Get in, override its loyalty subroutines, and walk it out.',
     objectives:[
       'Reach the holding yard behind the depot',
       'Override the Strider’s leash panel',
-      'Guide the Strider and the squad back to the Marta',
+      'Guide the Strider and the squad back to the transport.',
       {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
-      {sub:1,text:'If the Strider is destroyed, the mission fails.'},
+      {sub:1,text:'The Strider must not be destroyed.'},
     ],
-    hint:'Once the leash is off the Strider follows your orders like any rebel: heavy, tough and loud. Keep it out of sight cones until you need it. Riot shields soak every shot from the front until they break, so flank them.',
+    hint:'The Strider is a powerful ally, but an equally powerful foe. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[760,640],[1300,560],[1720,600],[1200,980],[1800,1000]],
-  csLine:'Menk Crossing. I will keep the cargo bay open. Try not to scratch it.',
-  lzLabel:'MARTA LZ',
+  csLine:'Menk Crossing ahead. I will keep the cargo bay open. Try not to scratch the paint!',
+  lzLabel:'LZ',
   LZ:{x:260,y:1250,r:130},PAD:{x:1720,y:480,r:60},
   cage:{x:1640,y:340,w:160,h:140,dx:1720,dy:490,label:'HOLDING YARD'},
   guardPt:{x:1720,y:560},
-  releaseText:{float:'STRIDER ONLINE',log:'The leash panel gives. The Strider stands up, its face-screen cheerfully reading <b>“We’re all in this together.”</b> Get it and the squad back to the Marta.',
-    obj:['Reach the holding yard','Override the Strider’s leash panel','(Optional) Stay unseen','Get the Strider and the squad aboard']},
-  work:[{id:'release',x:1720,y:496,label:'LEASH PANEL',verb:'overrides the Strider’s leash panel',rounds:2}],
+  releaseText:{float:'STRIDER ONLINE',log:'The hack is successful. The Strider stands up, its face-screen cheerfully reading <b>“We’re all in this together.”</b> Get it and the squad back to the transport.',
+    obj:['Reach the holding yard','Hack the Strider','(Optional) Stay unseen','Get the Strider and the squad aboard']},
+  work:[{id:'release',x:1720,y:496,label:'ACCESS PANEL',verb:'accesses the Strider’s subroutines',rounds:2}],
   bldgs:[
     {x:1240,y:260, w:260,h:180,name:'CROSSING DEPOT'},
     {x:640, y:560, w:300,h:170,name:'PRECINCT HOUSE'},
@@ -578,15 +576,15 @@ strider:{
 haven:{
   mode:'haven',W:1600,H:1200,scale:1.45,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
-  title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
+  title:'Take the Rock',sub:'Haven Rock · the Drift',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
-  banner:['Take the Rock','Every war starts with a kicked-in door'],
+  banner:['Take the Rock','Eliminate the criminal squatters from our new home'],
   brief:{
     eyebrow:'Prologue · The Drift',
     flavour:'Until now, you have been little more than disgruntled civilians. Angry at the Hegemony, willing to bend its laws, but never organised enough to do anything about it.<br><br><b>That ends here.</b><br><br>A smuggler’s bolt-hole has been carved into a mountain, hidden from the Hegemony and absent from every official chart. It has a hangar, a command room and enough bunks to house a small crew. Unfortunately, it’s already occupied by a handful of <b>Vult gang squatters</b>. Take the base, and you’ll have somewhere to build the revolution.',
     objectives:[
-      'Clear the squatters holding the rock — outside, then room by room',
-      'Take the command room from Boss Craw',
+      'Clear the squatters out of the area.',
+      'Eliminate the squatter leader.',
       'Raise the rebel signal at the command console',
     ],
     hint:'',
@@ -601,7 +599,7 @@ haven:{
   bossTrigger:{x:1125,y:470,r:280},
   bossDoor:{x:1125,y:480},
   bossFloat:'BOSS CRAW',
-  bossLog:'<span class="h">Boss Craw storms out of the command room</span> \u2014 scattergun and spit.',
+  bossLog:'<span class="h">Boss Craw storms out of the command room</span>, scattergun armed.',
   bossAlert:'Craw\u2019s roar rattles the corridors.',
   solids:[{x:620,y:80,w:900,h:710},{x:0,y:40,w:620,h:180}],
   opens:[
@@ -641,7 +639,7 @@ haven:{
   ],
   foes(){return [
     foe('squatter-boss',{id:'craw',name:'Boss Craw',first:'Craw',x:1245,y:330,office:1,
-      lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']}),
+      lines:['Vult gang runs this place!','Burn them out!','This is CLAIMED, you hear?!']}),
     foe('squatter',{id:'odo',name:'Odo',first:'Odo',x:900,y:960,patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
       lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']}),
     foe('squatter',{id:'vult',name:'Vult',first:'Vult',x:1000,y:900,patrol:[{x:1000,y:900},{x:880,y:930}],
@@ -695,7 +693,7 @@ function genWalls(solids,opens){
   }
   return out;
 }
-const KEY_BLDG={towers:'TOWER COMPOUND',intel:'EAST SERVER HALL',stealfuel:'TITHE DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
+const KEY_BLDG={towers:'TOWER COMPOUND',intel:'EAST SERVER HALL',stealfuel:'FUEL DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
 /* a mission type replayed in a new narrative context: rename the place, relabel the key building, thicken security with the world's Security level */
 function contextScenario(base,c,sec){
   const S=Object.assign({},base);
@@ -781,7 +779,7 @@ const REB_LINES={
   kel:['I’ve poached under worse moons than this.','Tower. Rifle. Watch the tower.','Wind’s with us. Take the shot.'],
   generic:['Eyes open. This is their town.','Cover to cover. No heroes.','Quiet feet, loud rifle.'],
 };
-const PILOT_LINES=['Just get me to that Cross in one piece.','I fly things. I don’t shoot things. Mostly.','Two rounds at the panel. Keep them off me.'];
+const PILOT_LINES=['Just keep me in one piece.','I fly things. I don’t shoot things. Mostly.','This isn\'t my natural habitat. Keep them off me.'];
 let CTX=null; // mission spec from the base layer
 function defaultSpec(){
   return {kind:'ground',missionId:'stealcross',days:2,
@@ -1720,9 +1718,8 @@ function startAmbush(t){
   shooters.sort((a,b)=>initKey(b)-initKey(a));
   phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
   engageQ={list:shooters,idx:0,cur:null,nextAt:clock()+300,forceT:t};
-  log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
-    ' fire from ambush.</span>');
-  alertTown('Rebel guns spoke first.');
+  log('<span class="a">'+(shooters.length>1?'The squad ambushed the enemy.':nameSpan(shooters[0])+' opens fire from ambush.')+'</span>');
+  alertTown('');
   camGoal={x:t.x,y:t.y,z:Math.max(cam.z,0.95)};
   syncUI();
   return true;
@@ -1771,7 +1768,7 @@ function detUpdate(dt){
     if(rate>0){r.det=Math.min(100,r.det+rate*dt);r.seer=seer;}
     else r.det=Math.max(0,r.det-38*dt);
     if(r.det>=100){
-      alertTown(nameSpan(r.seer)+' made '+nameSpan(r)+'.');
+      alertTown(nameSpan(r.seer)+' saw '+nameSpan(r)+'.');
       return;
     }
   }
@@ -1862,8 +1859,8 @@ function setSneak(on){
   tutFlags.sneaked=1;
   sneak=on;
   for(const u of U)if(u.side==='reb'&&u.rtPath)u.rtSpd=sneak?SNEAK_SPEED:RT_SPEED;
-  log(sneak?'<span class="d">Squad goes low and slow — harder to spot, half the pace.</span>':
-            '<span class="d">Squad moves upright — full pace, full profile.</span>');
+  log(sneak?'<span class="d">Squad in stealth.</span>':
+            '<span class="d">Squad out of stealth</span>');
   sTick();syncUI();
 }
 function coolStateG(u){return u.cool>=70?'cool':u.cool<=30?'panic':'steady';}
@@ -1912,7 +1909,7 @@ function moraleCheck(){
     if(!crew.length||rint(1,20)>=7)continue;
     for(const c of crew)dismount(c,true);
     addFloater(v.x,v.y-50,'CREW BAILS OUT',C.go);
-    log('<span class="g">The '+v.name+'’s crew bail out</span> <span class="d">— it stands empty, and anyone can take it</span>.');
+    log('<span class="g">The '+v.name+'’s crew bail out.</span>');
   }
 }
 function alliesUp(side){return U.filter(u=>u.side===side&&!u.down&&!u.surr).length;}
@@ -2148,7 +2145,7 @@ function enterFree(msg){
   phase='FREE';
   selId=null;pickMode=null;engageQ=null;hotT=0;
   for(const g of nades.splice(0)){
-    log('<span class="a">A primed BLAM cooks off in the quiet.</span>');
+    log('<span class="a">A grenade went off.</span>');
     explode(g.x,g.y,{r:NADE_BLAST,d0:32,d1:52});
   }
   for(const u of U){
@@ -2160,7 +2157,7 @@ function enterFree(msg){
   if(msg)log(msg);
   if(!freeHinted){
     freeHinted=true;
-    log('<span class="d">'+(SR.touch?'Tap the ground':'Right-click (or tap the ground)')+' and the squad follows, scooping up anything lootable on the way. Gunfire drops time into rounds.</span>');
+    log('<span class="d">'+(SR.touch?'Tap the ground':'Right-click (or tap the ground)')+' and the squad follows.</span>');
   }
   saveSnap();
   syncUI();
@@ -3503,12 +3500,12 @@ function endRound(){
   // hotwire
   const sera=U.find(u=>u.id==='sera');
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
-    if(!sera.reached){sera.reached=true;log('<span class="g">Sera is at the Cross.</span> Keep them off her.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
+    if(!sera.reached){sera.reached=true;log('<span class="g">Pilot is at the Cross.</span> Keep them off them.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
     hot++;
     addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
     sSpark();
     if(hot>=HOT_ROUNDS)tryLaunch();
-    else log('Sera works the ignition bypass — <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
+    else log('Pilot works the ignition bypass: <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
   }
   moraleCheck();
   spotCheck();
@@ -3524,7 +3521,7 @@ function endRound(){
           log(nameSpan(u)+' <span class="g">is up the Graf’s ramp.</span>');
           addFloater(u.x,u.y-40,'EXTRACTED',C.go);
         } else {
-          log('<span class="a">Lawmen too close to the Graf — ramp stays shut.</span>');
+          log('<span class="a">Hostiles too close to the transport. Eliminate them.</span>');
         }
       }
     }
@@ -3552,10 +3549,10 @@ function doCrossAway(){
   crossFx={t0:clock()};
   sTakeoff();
   camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
-  log('<span class="g">The Cross is up!</span> Sera takes her low over the rooftops and gone.');
-  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down — get my ground-pounders home.');
+  log('<span class="g">The Cross is up!</span> Our Pilot takes her low over the rooftops and out into space.');
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
   const lead=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down);
-  if(lead)say(lead,'Bird’s away! Everyone back to the Graf!');
+  if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
   syncUI();
 }
 function checkDefeat(){
@@ -3589,8 +3586,8 @@ function gameOver(win,why){
     byId('endEyebrow').textContent='Prologue · Haven Rock';
     byId('endTitle').textContent=win?'Haven Rock Is Ours':'Thrown Back';
     byId('endText').textContent=win?
-      'The squatters are gone and the rebel signal hums through the mountain’s own antenna. It isn’t much — a command centre, bunks for five, a hangar cave — but it’s ours, and nobody knows it exists. And under a decade of dust in that cave: a derelict Graf Type 1 Hauler. Joss is already talking to it. Day one of the rest of the war starts now.':
-      'The squatters held. The squad fell back down the canyon — bruised, furious, and alive. Catch your breath, come around, and take the rock. There is no revolution without a home.';
+      'The squatters are gone and the signal of the revolution hums through the antenna. It isn’t much, yet. A command centre, bunks for five, a hangar cave, but it’s ours, and it\'s hidden from the Hegemony. We also found, under a decade of dust in that cave, a derelict Graf Type 1 Hauler. We should restore it to working condition as a priority. Day one of the war starts today.':
+      'The squatters repelled our attack. The squad fell back down the canyon. Catch your breath, come around, and try again. There is no revolution without a home base.';
     let lh2='';
     if(win){
       lh2+=LL('Haven Rock','Secured');
@@ -3611,15 +3608,15 @@ function gameOver(win,why){
   byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?(SCN.mode==='towers'?(fac.method==='limpet'?'Tower Tapped':'Tower Down'):'Lights Out'):fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
   let txt;
   if(ix){
-    txt=win?'The Field Technician walked out of '+place+' with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left behind. We don\u2019t forget that.':''):
+    txt=win?'The Field Technician walked out of '+place+' with the Bureau’s registry backups on a single drive. Every name, every quota, every dissident file.'+(left.length?' It cost us: '+left.join(', ')+' left behind. We don\u2019t forget that.':''):
       'The squad was overrun around the target and the Marta lifted with nothing. The databank is still sealed.';
   } else if(SCN.mode==='strider'){
-    txt=win?'A Strider Mk I walked up the Marta\u2019s ramp with its face-screen still reading \u201cWe\u2019re all in this together\u201d and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We are in one.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
-      (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the Marta lifted empty. The Strider is still chained in its yard.');
+    txt=win?'A Strider Mk I walked up the transport\'s ramp with its face-screen still reading “We’re all in this together” and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We\'ve got one of our own.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
+      (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the transport lifted empty. The Strider is still chained in its yard.');
   } else if(rs){
     const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
-    txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
-      (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
+    txt=win?vn+' stepped aboard the transport shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
+      (why==='vip'?vn+' went down before the transport was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the transport lifted empty. The cell is still locked.');
   } else if(fac&&SCN.mode==='towers'){
     txt=win?(fac.method==='limpet'?'The limpet is on the tower and the tower does not know it. Every packet that crosses '+place+' now crosses our desk first.':'The tower came down in a shower of sparks and the whole compound went quiet. Somewhere in '+place+' a technician is shouting into a dead handset.')+(fac.quiet?' Nobody saw us come or go.':'')+(left.length?' It cost us: '+left.join(', ')+' left at the compound. We don\u2019t forget that.':''):
       'The squad was overrun before the device was on the tower and the Marta lifted empty. The tower is still talking.';

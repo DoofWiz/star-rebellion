@@ -19,7 +19,7 @@ const autoRow=t=>Enemies.owned(t);
 const autoFrom=(t,label,bio)=>{const r=autoRow(t);return {label,hp:r.hp,def:r.def,arm:Enemies.protection(r).arm,wpn:r.weapon_1,big:r.big?1:0,heavy:r.heavy?1:0,bio};};
 const AUTOS={
   policebot:autoFrom('policebot','Policebot','A Hegemony Policebot with a new master and a face-screen that still says \u201cfriendly and helpful\u201d.'),
-  bruiser:autoFrom('bruiser','Bruiser','A riot Bruiser, reprogrammed. It still beats up anyone who does not comply. Now that means them.'),
+  bruiser:autoFrom('bruiser','Bruiser','A reprogrammed riot Bruiser. It beats up anyone who does not comply. That just means the Heggies now.'),
 };
 const autoOf=p=>AUTOS[p.auto]||AUTOS.policebot;
 const autoKey=p=>AUTOS[p.auto]?p.auto:'policebot';
@@ -34,9 +34,9 @@ const ownedVeh=(type,bio)=>{
   return {label:r.name,kind:'vehicle',hp:r.hp,def:r.def,arm,seats:Enemies.seats(r.id).length,bio};
 };
 const GVEH={
-  strider:ownedVeh('strider','A Hegemony enforcement Strider, reprogrammed. Its face-screen is permanently stuck on \u201cWe\u2019re all in this together.\u201d'),
-  police:ownedVeh('police','A patrol car with a pulse cannon in the nose. One seat: the driver flies it and fires it.'),
-  dispersal:ownedVeh('dispersal','A riot car with a dispersal turret on the roof. A driver and an exposed turret gunner.'),
+  strider:ownedVeh('strider','A reprogrammed Hegemony enforcement Strider. Its face-screen is permanently stuck on “We’re all in this together.”'),
+  police:ownedVeh('police','A patrol car with a pulse cannon in the nose.'),
+  dispersal:ownedVeh('dispersal','A riot car with a dispersal turret on the roof. Seats a driver and an exposed turret gunner.'),
   transport:ownedVeh('transport','Unarmed. A driver and a troop bay for three.'),
 };
 const gvehOf=v=>GVEH[v.type]||GVEH.strider;
@@ -80,14 +80,14 @@ function needWhy(b){
 /* ---------- rooms & builds (copy in the commander's voice) ---------- */
 const ROOMS={
   command:{name:'Command Center',ck:'gold',ic:'base',desc:'Where the revolution gets planned. Sources, missions, bad coffee.'},
-  hangar:{name:'Hangar',ck:'shield',ic:'hangar',desc:'The fighters live here. So does Joss, practically.'},
-  barracks:{name:'Barracks',ck:'rebel',ic:'soldier',desc:'Bunks and quiet. People break without both.'},
-  store:{name:'Storeroom',ck:'go',ic:'supplies',desc:'Everything we own, counted twice by Mira.'},
-  comms:{name:'Intelligence Center',ck:'shield',ic:'comms',desc:'Officers keep an ear on the galaxy. One more intel a day per room, and room for one more source.'},
-  diplo:{name:'Diplomatic Quarter',ck:'rebelHi',ic:'people',desc:'Diplomats and liaisons win hearts and minds without getting caught at it. A Chief Diplomat runs the tasks.'},
-  workshop:{name:'Workshop',ck:'steel',ic:'work',desc:'Broken fighters go in. Working fighters come out. Three times the pace.'},
-  infirmary:{name:'Infirmary',ck:'go',ic:'heart',desc:'Beds and bacta. People mend twice as fast with someone on station.'},
-  training:{name:'Training Hall',ck:'psi',ic:'star',desc:'Sweat now, live later.'},
+  hangar:{name:'Hangar',ck:'shield',ic:'hangar',desc:'The hanger bay holds berths for all of our smaller craft: fighters, gunships & transports.'},
+  barracks:{name:'Barracks',ck:'rebel',ic:'soldier',desc:'The barracks accommodates our soldiers, marines and pilots, and serves as a R&R spot.'},
+  store:{name:'Storeroom',ck:'go',ic:'supplies',desc:'The storeroom expands our supplies and materials resource capacity.'},
+  comms:{name:'Intelligence Center',ck:'shield',ic:'comms',desc:'The intelligence center is the nerve center of our galactic network of espionage.'},
+  diplo:{name:'Diplomatic Quarter',ck:'rebelHi',ic:'people',desc:'The diplomatic quarter is the hub of work for winning the hearts & minds of the galaxy.'},
+  workshop:{name:'Workshop',ck:'steel',ic:'work',desc:'The workshop fixes up damaged ships and vehicles, getting them back into fighting shape.'},
+  infirmary:{name:'Infirmary',ck:'go',ic:'heart',desc:'The infirmary accommodates wounded revolutionaries and aids in their recovery.'},
+  training:{name:'Training Hall',ck:'psi',ic:'star',desc:'The training hall turns the experience of rebels into specialties and new abilities.'},
 };
 /* room colours come from the kit palette (resolved at draw time so the CSS tokens stay the single source) */
 const rcol=key=>K[ROOMS[key].ck]||K.steel;
@@ -104,18 +104,18 @@ const BUILDS={
 /* adjacent rooms of one type merge into a single bigger room; upgrades apply to the whole merged room */
 const UPGRADES={
   barracks:[
-    {k:'bunks',n:'Bunks',c:260,m:140,days:2,d:'Stack the beds: +2 beds in every barracks room.'},
-    {k:'quarters',n:'Quarters',c:320,m:160,s:60,days:2,d:'Thin partitions, one more bed in each bay: +2 more beds per room.'},
-    {k:'rec',n:'Rec Room',c:300,m:160,s:80,days:2,conv:1,minTiles:3,d:'Converts one barracks room (its beds) into a rec room: resting rebels recover morale twice as fast. Needs an expansion first.'},
+    {k:'bunks',n:'Bunks',c:260,m:140,days:2,d:'Bunkbeds: +2 beds in every barracks room.'},
+    {k:'quarters',n:'Quarters',c:320,m:160,s:60,days:2,d:'Sub-partitions: +2 more beds per room.'},
+    {k:'rec',n:'Rec Room',c:300,m:160,s:80,days:2,conv:1,minTiles:3,d:'Convert into a rec room: resting rebels recover from exhaustion twice as fast.'},
   ],
   infirmary:[
-    {k:'surgery',n:'Surgery Room',c:600,m:240,s:100,days:3,d:'When someone would be lost in the field, a staffed surgery gives them a 60% chance to be pulled back from the brink (out for 6 days).'},
+    {k:'surgery',n:'Surgery Room',c:600,m:240,s:100,days:3,d:'When someone would be lost in the field, a staffed surgery gives them a 60% chance to survive.'},
   ],
   hangar:[
     {k:'refuel',n:'Refuelling Station',c:400,m:240,days:2,d:'Dedicated fuel storage and pumps: sorties burn 25% less fuel.'},
     {k:'arm',n:'Robot Maintenance Arm',c:440,m:260,days:3,d:'A robotic mechanic: ships repair 5% a day faster on the pads.'},
-    {k:'lounge',n:'Ready Lounge',c:520,m:220,days:3,conv:1,minTiles:2,d:'Converts one landing pad into a standby lounge: pilots get to a mission a day sooner (every sortie takes 1 day less, minimum 1).'},
-    {k:'mbay',n:'Maintenance Bay',c:560,m:320,days:3,conv:1,minTiles:2,d:'Converts one landing pad into a dedicated bay: the most damaged ship moves in and repairs 10% a day faster until it is whole.'},
+    {k:'lounge',n:'Ready Lounge',c:520,m:220,days:3,conv:1,minTiles:2,d:'Convert into standby lounge: pilots get to a mission a day sooner (every sortie takes 1 day less, minimum 1).'},
+    {k:'mbay',n:'Maintenance Bay',c:560,m:320,days:3,conv:1,minTiles:2,d:'Converts into a dedicated bay: the most damaged ship in the hanger enters and repairs 10% a day faster until fully fixed.'},
   ],
 };
 const DIP_COST={c:400,s:60},DIP_DAYS=4;
@@ -129,8 +129,8 @@ const SPEC_COST=300;
 const KIT=Items.kit();
 const gearMeta=a=>KIT[a.id]||{cat:'other',w:2,h:1};
 /* the Arsenal's line about an item: the table's description, else what an older save wrote on the stack, else where it came from */
-const SRC_LINE={bought:'From Sweet Tooth\u2019s stall at Nyx. No receipts.',looted:'Taken off the Hegemony\u2019s people. Ours now.',
-  made:'Made in our own workshops.',gift:'Put together by our own people.',start:'Part of what we started with.'};
+const SRC_LINE={bought:'From the Black Market',looted:'Stolen',
+  made:'Crafted',gift:'Gifted'};
 const itemBlurb=a=>(Items.get(a.id)||{}).description||a.desc||SRC_LINE[a.src]||'';
 const kitNameId=id=>(KIT[id]&&KIT[id].name)||((G&&G.armory.find(a=>a.id===id))||{}).name||id;
 const kitName=a=>(KIT[a.id]&&KIT[a.id].name)||a.name;
@@ -220,10 +220,10 @@ function newGame(){
     wreck:{restored:false,restoring:0},
     armory:[],
     people:[
-      castRebel({id:'joss',name:'Joss Marrek',role:'Pilot',charTrait:'reckless',equip:['cowboy'],bio:'Best stick in the sector, flying a converted hauler. Ask him about it. He’ll tell you anyway.'},'joss-marrek'),
-      castRebel({id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,charTrait:'cautious',equip:['akli','cowboy'],bio:'Ex-dock enforcer. Good in a corridor.'}),
-      castRebel({id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,charTrait:'shortfuse',equip:['akli','cowboy'],bio:'Demolitions. Do not startle her.'}),
-      castRebel({id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,charTrait:'hunter',equip:['akli','cowboy'],bio:'Poacher turned partisan. Knows every ridge on three moons.'}),
+      castRebel({id:'joss',name:'Joss Marrek',role:'Pilot',charTrait:'reckless',equip:['cowboy']},'joss-marrek'),
+      castRebel({id:'dax',name:'Dax Ferro',role:'Soldier',level:1,xp:0.2,charTrait:'cautious',equip:['akli','cowboy']}),
+      castRebel({id:'runa',name:'Runa Vel',role:'Soldier',level:1,xp:0.45,charTrait:'shortfuse',equip:['akli','cowboy']}),
+      castRebel({id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,charTrait:'hunter',equip:['akli','cowboy']}),
     ],
     sources:[],
     onboard:'intro',
@@ -282,23 +282,30 @@ function clampSupplies(){
   const cap=supCap();
   if(G.supplies>cap){
     const lost=Math.round(G.supplies-cap);G.supplies=cap;
-    if(lost>=10)news('The storerooms are full. '+S(lost)+' spoiled or walked off. Build another Storeroom.','d');
+    if(lost>=10)news('The storerooms are full. '+S(lost)+' spoiled. Build another Storeroom.','d');
   }
 }
 const bunksUsed=()=>G.people.filter(p=>!p.auto).length;   // Autos don't sleep
 /* Support crew man stations; a room without its operator underperforms */
+/* the numbers behind each post live in the database's Rules tab (RU), so the perk text always says what the game does */
+const RU=SRDB.rules;
+const pctOf=x=>Math.round(x*100);
+const timesAsFast=x=>x===2?'twice':x===3?'three times':(Math.round(x*10)/10)+'×';
 const STAFFABLE={
-  command:{post:'Flight Coordinator',perk:'+5% mission success'},
-  barracks:{post:'Garrison Officer',perk:'wounded ground fighters recover faster (+1 day of recovery a day)'},
-  hangar:{post:'Flight Deck Officer',perk:'ships repair 4% a day faster on the pads'},
-  diplo:{post:'Chief Diplomat',perk:'runs diplomatic tasks that raise local Support'},
-  store:{post:'Quartermaster',perk:'repairs cost 4⚙ instead of 8⚙'},
-  workshop:{post:'Crew Chief',perk:'repairs 15%/day instead of 8%'},
-  infirmary:{post:'Medic',perk:'injuries heal twice as fast'},
-  comms:{post:'Signals Operator',perk:'intel flows (+1/day per array)'},
-  training:{post:'Drill Instructor',perk:'+50% training XP'},
+  command:{post:'Flight Coordinator',perk:'+'+pctOf(RU.staff_command_success)+'% mission success'},
+  barracks:{post:'Garrison Officer',perk:'Wounded ground fighters recover faster (+'+RU.staff_garrison_recovery+' day of recovery a day)'},
+  hangar:{post:'Flight Deck Officer',perk:'Ships repair '+RU.staff_hangar_repair+'% a day faster on the pads'},
+  diplo:{post:'Chief Diplomat',perk:'Enables diplomatic tasks that raise local Support'},
+  store:{post:'Quartermaster',perk:'Repairs cost '+RU.staff_store_repair_cost+'⚙ instead of '+RU.repair_cost+'⚙'},
+  workshop:{post:'Crew Chief',perk:'Repairs '+RU.staff_workshop_repair+'%/day instead of '+RU.repair_rate_workshop+'%'},
+  infirmary:{post:'Medic',perk:'Injuries heal '+timesAsFast(1+RU.staff_infirmary_recovery)+' as fast'},
+  comms:{post:'Signals Operator',perk:'Intel improvement (+'+RU.staff_comms_intel+'/day per array)'},
+  training:{post:'Drill Instructor',perk:'+'+Math.round((RU.staff_training_xp_rate/RU.train_xp_rate-1)*100)+'% training XP'},
 };
 const STLBL={barracks:'Garrison',hangar:'Deck',diplo:'Diplo',command:'Command',store:'Stores',workshop:'Workshop',infirmary:'Medbay',comms:'Comms',training:'Drill'};
+/* repair % a day before the Hangar's extras, and Materials per repair day */
+function repairBase(){return hasRoom('workshop')?(staffOf('workshop').length?RU.staff_workshop_repair:RU.repair_rate_workshop):RU.repair_rate_no_workshop;}
+function repairCost(){return staffOf('store').length?RU.staff_store_repair_cost:RU.repair_cost;}
 function staffOf(key){return G.people.filter(p=>p.assign==='station:'+key&&!laidUp(p)&&!Rebel.conked(p));}
 function medStaff(){return staffOf('infirmary');}
 const staffHas=(key,trait)=>staffOf(key).some(p=>Rebel.has(p,trait));
@@ -455,9 +462,9 @@ const PROS_COST={c:300,m:120};
 /* the one recovery rate (days of recovery per day): slow without an Infirmary, faster with staff on it; a Garrison
    Officer in the Barracks speeds up the ground fighters (its post's perk). DESIGN_BLOCKERS C-20. */
 function healRate(p){
-  const garrison=(p&&isGround(p)&&staffOf('barracks').length)?1:0;
+  const garrison=(p&&isGround(p)&&staffOf('barracks').length)?RU.staff_garrison_recovery:0;
   if(!hasRoom('infirmary'))return Rebel.NO_INFIRMARY+garrison;
-  return 1+(medStaff().length?1:0)+(staffHas('infirmary','medic')?0.5:0)+(staffHas('infirmary','doctor')?1:0)+(upAny('infirmary','surgery')?0.5:0)+garrison;
+  return 1+(medStaff().length?RU.staff_infirmary_recovery:0)+(staffHas('infirmary','medic')?0.5:0)+(staffHas('infirmary','doctor')?1:0)+(upAny('infirmary','surgery')?0.5:0)+garrison;
 }
 /* off duty (laid up), and how many days until they are back at today's rate */
 const laidUp=p=>Rebel.laidUp(p)>0;
@@ -469,7 +476,7 @@ const restTag=p=>{
   if(!Rebel.weary(p))return '';
   const n=Rebel.restDays(p),d=n+' day'+(n>1?'s':'');
   return conked(p)?'<span class="sr-tag sr-tag--bad" title="Conked out: in their bunk for '+d+'" aria-label="Conked out, '+d+'">Zz '+d+'</span>':
-    '<span class="sr-tag sr-tag--warn" title="Weary: needs '+d+' of rest. Sent out now, they lose morale and fight worse." aria-label="Weary, '+d+' of rest">Zz Weary</span>';
+    '<span class="sr-tag sr-tag--warn" title="Weary: needs '+d+' of rest. If sent on a mission in this state, they will lose morale and fight worse." aria-label="Weary, '+d+' of rest">Zz Weary</span>';
 };
 function applyInjuries(p,list,hadState){
   const msgs=[];
@@ -486,7 +493,7 @@ function applyInjuries(p,list,hadState){
       msgs.push('has a spinal injury and will need prolonged treatment.');
     } else {
       Rebel.addCond(p,def.cond,i.treated?0:2);
-      msgs.push('comes back with '+def.n.toLowerCase()+(i.treated?'':' — never patched in the field, it will take longer')+'.');
+      msgs.push('comes back with '+def.n.toLowerCase()+(i.treated?'':' It will take a while to heal.')+'.');
     }
     Rebel.moraleBump(p,-3,'injury');
   }
@@ -501,7 +508,7 @@ function prostheticCards(){
   const surg=upAny('infirmary','surgery');
   return lost.map(([p,part])=>{
     const why=!surg?'Needs a Surgery Room.':p.assign==='mission'?'On a mission.':laidUp(p)?'Still recovering.':G.credits<PROS_COST.c||G.materials<PROS_COST.m?'Not enough credits or materials.':'';
-    return '<div class="sr-card sr-card--foe"><div class="sr-card__title">'+esc(p.name)+' \u00b7 '+(part==='eye'?'blinded eye':'lost '+part)+'</div><div class="sr-card__body">A prosthetic '+part+' takes 5 days in the Surgery Room and removes the penalty.</div>'+
+    return '<div class="sr-card sr-card--foe"><div class="sr-card__title">'+esc(p.name)+' \u00b7 '+(part==='eye'?'blinded eye':'lost '+part)+'</div><div class="sr-card__body">A prosthetic '+part+' takes '+RU.prosthetic_days+' days in the Surgery Room and removes the penalty.</div>'+
       '<div class="bs-build__row"><span class="sr-card__meta">'+C(PROS_COST.c,G.credits<PROS_COST.c)+M(PROS_COST.m,G.materials<PROS_COST.m)+'</span>'+rbtn('data-pros="'+p.id+':'+part+'"'+(why?' title="'+esc(why)+'"':''),'Fit prosthetic',!!why,'sr-btn--sm sr-btn--primary')+'</div></div>';
   }).join('');
 }
@@ -510,8 +517,8 @@ function startProsthetic(pid,part){
   if(!p||!upAny('infirmary','surgery')||!p.body||p.body[part]!==1||p.assign==='mission'||laidUp(p))return false;
   if(G.credits<PROS_COST.c||G.materials<PROS_COST.m)return false;
   G.credits-=PROS_COST.c;G.materials-=PROS_COST.m;
-  Rebel.layUp(p,'surgery',5,{part});
-  news('<b>'+p.name+'</b> goes under the knife for a prosthetic '+part+'. Five days.','a');
+  Rebel.layUp(p,'surgery',RU.prosthetic_days,{part});
+  news('<b>'+p.name+'</b> goes under the knife for a prosthetic '+part+'. '+RU.prosthetic_days+' days.','a');
   sBuild();saveSnap();syncUI();
   return true;
 }
@@ -623,11 +630,11 @@ function tireNews(p){
 }
 function creditMission(p){
   if(p&&p.merc)p.merc.missions=(p.merc.missions||0)+1;   // contract missions count toward "join the cause"
-  if(Rebel.credit(p))news('<b>'+p.name+'</b> has earned a promotion. Say the word in their file.','p');
+  if(Rebel.credit(p))news('<b>'+p.name+'</b> is eligible a promotion.','p');
 }
 function gainXp(p,x){
   const n=Rebel.gainXp(p,x);
-  for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'.','p');sAlert();}
+  for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'!','p');sAlert();}
 }
 
 /* ---------- source events (some open missions) ---------- */
@@ -674,7 +681,7 @@ const SRC_EVENTS={
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
-    desc:'A Hegemony flight instructor — Commandant Dral Vex — trains the next class of killers over the drift, four cadets at a time. Kill the teacher before the lessons take.',
+    desc:'A Hegemony flight instructor, Commandant Dral Vex, trains the next class of Hegemony aces in this location. Kill the instructor to set their flight school back.',
     rew:{c:400,i:2,xp:0.2}},
   intercept:{name:'Intercept Transport',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
     desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
@@ -710,11 +717,11 @@ const MPOOL={
 };
 const SIGNALS={
   halt:[
-    {kind:'mission',mid:'toi',text:'“The flight instructor, Vex. Every pilot who’ll ever shoot at you learns it from him — and he runs his little academy over MY yard. Just saying.”'},
-    {kind:'mission',mid:'intercept',text:'“A supply transport crosses my sector Thursday. Light escort. I have the schedule, if you have the nerve.”'},
-    {kind:'recruit',text:'“There are dockhands here asking the right questions. Want me to point them somewhere?”'},
-    {kind:'recruitP',text:'\u201cOne of the yard\u2019s test pilots just got written up for landing too gently. Wants out. Wants to fly something that matters.\u201d'},
-    {kind:'cache',text:'“Pallet miscount in bay six. Forty crates of it. Nobody misses what was never counted.”',
+    {kind:'mission',mid:'toi',text:'“There\'s a flight instructor, named Vex. A lot of the Hegemony pilot\'s who shoot at you around here will have learned it from this guy. And he\'s been running practices for his latest students over MY yard. Just passing it along...”'},
+    {kind:'mission',mid:'intercept',text:'“A supply transport is crossing my location soon. There\'s only going to be a light escort. I have the schedule, and if you have the nerve, maybe I can pass it along.”'},
+    {kind:'recruit',text:'“There are dockhands here asking some questions about joining up with \'the struggle\'. Want me to point them somewhere?”'},
+    {kind:'recruitP',text:'“One of the yard’s test pilots just got written up for insubordination. Wants out. Wants to fly for something that matters. Are you interested?”'},
+    {kind:'cache',text:'“Pallet miscount in bay six, forty crates of it.”',
      apply(){G.supplies+=160;return 'Recovered '+S(160)+' from bay six. Mira is thrilled.';}},
     {kind:'recruitS',text:'“The tower coordinator got passed over, same as me. He’d run your flight deck better than theirs.”'},
     {kind:'mission',mid:'fighters',text:'“Pad nine, every third night. Two Talons, fueled, and a sentry who reads on shift.”'},
@@ -1563,9 +1570,9 @@ function advanceDay(){
     G.dip=G.dip.filter(t=>t.days>0);
     chainTick();
   }
-  const rate=((hasRoom('workshop')?(staffOf('workshop').length?15:8):5)+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))*(staffHas('workshop','mechanic')?1.15:1);
+  const rate=(repairBase()+(staffOf('hangar').length?RU.staff_hangar_repair:0)+(hangarUp('arm')?5:0))*(staffHas('workshop','mechanic')?1.15:1);
   G.fuel+=4;   // the old hangar-cave tanks weep a little every day
-  const repCost=staffOf('store').length?4:8;
+  const repCost=repairCost();
   const worst=hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
@@ -1577,7 +1584,7 @@ function advanceDay(){
   }
   patrolTick();
   specTick();
-  const xpRate=staffOf('training').length?0.09:0.06;
+  const xpRate=staffOf('training').length?RU.staff_training_xp_rate:RU.train_xp_rate;
   // hired mercenaries arrive the morning after the handshake, their own kit already on their backs
   for(const q of (G.mercQ||[])){
     const p=Rebel.migrate(Object.assign({assign:'rest',injured:0,xp:0},q.rec));
@@ -1670,7 +1677,7 @@ function advanceDay(){
       if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Galaxy.','a');sAlert();}
     }
   }
-  if(hasRoom('comms')&&staffOf('comms').length)G.intel+=tilesOf('comms');
+  if(hasRoom('comms')&&staffOf('comms').length)G.intel+=tilesOf('comms')*RU.staff_comms_intel;
   else if(hasRoom('comms'))news('The Intelligence Center hums to nobody. Assign a Signals Operator or it’s just furniture.','d');
   {
     const cass2=G.sources.find(x=>x.id==='cass'&&x.alive);
@@ -1874,7 +1881,7 @@ function applyRew(rw,got){
 function resolveMission(m){
   const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
-  const cmdBonus=staffOf('command').length?0.05:0;
+  const cmdBonus=staffOf('command').length?RU.staff_command_success:0;
   const ok=rng()<Math.min(0.92,0.45+avgLvl*0.08+G.morale*0.002+cmdBonus);
   for(const p of pilots){p.assign='rest';tireNews(p);}
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
@@ -2533,8 +2540,8 @@ function renderRoomBar(){
   const R=ROOMS[rm.key],bar=$('roomViewBar');
   let info='';
   if(rm.key==='hangar'){
-    const rate=hasRoom('workshop')?(staffOf('workshop').length?15:8):5;
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(staffOf('hangar').length?4:0)+(hangarUp('arm')?5:0))+'%/day at '+M(staffOf('store').length?4:8)+' each'+staffLine('hangar');
+    const rate=repairBase();
+    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(staffOf('hangar').length?RU.staff_hangar_repair:0)+(hangarUp('arm')?5:0))+'%/day at '+M(repairCost())+' each'+staffLine('hangar');
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'){
     info='Bunks '+bunksUsed()+'/'+bunkCap()+' · '+clusterTiles(clusterOf(rm))+' rooms · morale '+Math.round(G.morale)+staffLine('barracks')+
@@ -2556,7 +2563,7 @@ function renderRoomBar(){
   } else if(rm.key==='command'){
     info='Revolution progress '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk)+staffLine('command');
   } else if(rm.key==='workshop'){
-    info='Repair pace '+(staffOf('workshop').length?15:8)+'%/day'+staffLine('workshop');
+    info='Repair pace '+repairBase()+'%/day'+staffLine('workshop');
   }
   /* cards (upgrades, patrols, the derelict) sit in the body; window-openers sit in the foot */
   let cards='',acts='';
@@ -6520,7 +6527,7 @@ function startPlan(){
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
       sec:m.ctx?m.ctx.sec:undefined,
       ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,variant:m.region,
-        sub:m.ctx.place+' \u00b7 '+m.ctx.locName+' \u2014 Revolution I',
+        sub:m.ctx.place+' \u00b7 '+m.ctx.locName,
         eyebrow:'Ground Operation \u00b7 '+m.ctx.place+', '+m.ctx.locName,flavour:m.desc}:undefined,
       squad:squad.map(p=>{const e=squadEntry(p,false);if(Rebel.expHas(p,'mspec',m.tid||m.id))e.ms=1;return e;}),
       assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
