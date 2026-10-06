@@ -55,12 +55,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   dax.cond=dax.cond||[];f.openWin('person',dax);
   const html=document.querySelector('#winCardB').innerHTML;out.med=[html.indexOf('Medical')>=0,html.indexOf('Broken Leg')>=0];
   f.closeWin();f.syncUI();out.mark=document.querySelector('#panel').innerHTML.indexOf('✚')>=0;
-  // ---- prosthetics need a Surgery Room, money and time
-  runa.body={arm:1};runa.cond=(runa.cond||[]).filter(c=>!R.CONDK[c.k].laidUp);runa.assign='rest';G().credits=2000;G().materials=500;const c0=G().credits;
-  out.pros=[f.startProsthetic('runa','arm'),c0-G().credits,R.laidUp(runa)];
+  // ---- prosthetics are a Cyberneticist's Job in the Infirmary (Support Specialties doc): supplies and time
+  runa.body={arm:1};runa.cond=(runa.cond||[]).filter(c=>!R.CONDK[c.k].laidUp);runa.assign='rest';G().supplies=900;
+  out.prosNo=!!f.startJob('dax','cyberneticist.prosthetics','runa:arm',null);   // nobody who can
+  const cy=R.migrate({id:'cy1',name:'Cy Bern',role:'Support',level:3,xp:0,assign:'room:infirmary',bio:'Physician.',morale:60,niche:'cyberneticist'});G().people.push(cy);
+  const s0=G().supplies;
+  out.pros=[!!f.startJob('cy1','cyberneticist.prosthetics','runa:arm',null),s0-G().supplies,R.laidUp(runa)];
   for(let i=0;i<6;i++)f.advanceDay();
-  out.prosDone=[runa.body.arm,R.laidUp(runa),R.injFx(runa).oneHand];
-  out.prosNo=(()=>{G().rooms.find(r=>r.key==='infirmary').up=[];runa.body={leg:1};return f.startProsthetic('runa','leg');})();
+  out.prosDone=[runa.body.arm,R.laidUp(runa),R.injFx(runa).aim,runa.pros.arm];
   return out;
  });
  ok(r.table[0]===12&&r.table[1]>=9&&r.table[2],'tables '+r.table);
@@ -82,9 +84,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.rates[0]===1&&r.rates[1]===1.5,'infirmary rates '+r.rates);
  ok(r.heal[0]&&r.heal[1],'recovery runs at the base only '+r.heal);
  ok(r.med[0]&&r.med[1]&&r.mark,'file and roster show injuries '+r.med+' '+r.mark);
- ok(r.pros[0]===true&&r.pros[1]===300&&r.pros[2]===5,'prosthetic starts '+r.pros);
- ok(r.prosDone[0]===2&&r.prosDone[1]===0&&r.prosDone[2]===0,'prosthetic fitted '+r.prosDone);
- ok(r.prosNo===false,'no Surgery Room, no prosthetic');
+ ok(r.pros[0]===true&&r.pros[1]===80&&r.pros[2]===5,'a Cyberneticist starts a prosthetic: 80 supplies, 5 days laid up '+r.pros);
+ ok(r.prosDone[0]===2&&r.prosDone[1]===0&&r.prosDone[3]==='basic','a basic prosthetic fitted '+r.prosDone);
+ ok(r.prosNo===false,'no Cyberneticist, no prosthetic');
  // ---- the scene
  await pg.evaluate(()=>window.SR.go('ground',{test:true}));
  await pg.waitForTimeout(1200);

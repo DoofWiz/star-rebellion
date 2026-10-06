@@ -21,7 +21,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const at=s=>html.indexOf(s);
   out.order=[at('data-rank-open'),at('>Morale<'),at('>Character<'),at('>Skills<'),at('Service record'),at('>Assignment<')];
   out.sorted=out.order.every((v,i)=>v>=0&&(i===0||v>out.order[i-1]));
-  out.since=html.indexOf('with us since day 1')>=0;
+  out.since=html.indexOf('with us since')<0&&html.indexOf('bs-bio')<0&&html.indexOf('bs-doll')>=0;   // no joined line, no flavour line; the paper doll
   // specialty replaces Rookie
   dax.spec='vanguard';f.openWin('person',dax);html=$('#winCardB').innerHTML;out.vanguard=html.indexOf('Vanguard')>=0&&html.indexOf('Rookie')<0;dax.spec=undefined;
   // morale band tag only when not middling
@@ -30,7 +30,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   dax.morale=90;out.highTag=f.dossierHead(dax).indexOf('Very High morale')>=0;
   dax.morale=60;
   // experience meter and the cap
-  dax.level=20;dax.xp=0;out.max=f.meterBlock(dax).indexOf('MAX')>=0;dax.level=1;dax.xp=0.42;out.xpVal=f.meterBlock(dax).indexOf('>42<')>=0;dax.level=1;
+  dax.level=20;dax.xp=0;out.max=f.meterBlock(dax).indexOf('Experience')<0;dax.level=1;dax.xp=0.42;out.xpVal=f.meterBlock(dax).indexOf('>42<')<0;dax.level=1;   // no experience bar: the level ring shows it
   // record from a debrief: kills and injuries add up
   dax.kills=0;dax.injuries=0;dax.missions=0;
   f.applyDebrief({missionId:'none',days:0,win:true,people:[{id:'dax',xp:0,state:'injured',dur:1,kills:3},{id:'runa',xp:0,state:'ok',kills:2}]});
@@ -42,7 +42,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const sup=R.migrate({id:'s1',name:'Sup Port',role:'Support',level:1,xp:0,assign:'rest',injured:0,bio:'x'});sup.joined=2;
   G().people.push(sup);
   f.openWin('person',sup);html=$('#winCardB').innerHTML;
-  out.support=[html.indexOf('>Skills<')<0,html.indexOf('Rookie')>=0,$$('#winCardB .bs-meters .sr-meter').length];
+  out.support=[html.indexOf('>Skills<')<0,html.indexOf('Rookie')<0&&html.indexOf(window.Support.title(sup))>=0,$$('#winCardB .bs-meters .sr-meter').length];   // Support show their specialty, never Rookie
   const auto={id:'a1',name:'Bot',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'policebot',bio:'beep'};G().people.push(auto);
   f.openWin('person',auto);html=$('#winCardB').innerHTML;
   out.auto=[html.indexOf('Rookie')<0,html.indexOf('Morale')<0,html.indexOf('Service record')<0,html.indexOf('data-rank-open')<0];
@@ -56,16 +56,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   return out;
  });
  ok(r.rookie,'Rookie shown');
- ok(r.meters===6,'six bars (morale, experience, four skills): '+r.meters+' '+r.labels);
+ ok(r.meters===5,'five bars (morale, four skills): '+r.meters+' '+r.labels);
  ok(r.sorted,'section order '+r.order);
- ok(r.since,'with-us-since line');
+ ok(r.since,'no with-us-since or flavour line; a paper doll');
  ok(r.vanguard,'specialty replaces Rookie');
  ok(r.midTag&&r.lowTag&&r.highTag,'morale tags '+[r.midTag,r.lowTag,r.highTag]);
- ok(r.max&&r.xpVal,'experience meter '+[r.max,r.xpVal]);
+ ok(r.max&&r.xpVal,'no experience meter '+[r.max,r.xpVal]);
  ok(JSON.stringify(r.record)==='[3,1,1,2]','record '+r.record);
  ok(r.recordHTML.indexOf('Confirmed kills')>=0,'record card');
  ok(r.pilotSkills,'pilot skill bars');
- ok(r.support[0]&&r.support[1]&&r.support[2]===2,'support dossier '+r.support);
+ ok(r.support[0]&&r.support[1]&&r.support[2]===1,'support dossier '+r.support);
  ok(r.auto.every(Boolean),'autos stay plain '+r.auto);
  ok(JSON.stringify(r.recruit)==='[true,true,true,true,true]','recruit offer '+r.recruit);
  ok(r.rosterTitle,'roster full-text tooltip');

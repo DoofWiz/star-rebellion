@@ -367,12 +367,14 @@ spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
 - **The base** — a fixed, expandable isometric map of a hidden rock hideout.
   Starting rooms (Command, Hangar, Barracks, Storeroom); rubble chambers can be
   excavated and open floors built out (Intelligence Center, Workshop, Infirmary,
-  Training Hall, Diplomatic Quarter, Storeroom), with costs in credits/supplies and multi-day
+  Training Hall, Diplomatic Quarter, Storeroom, Tech Lab), with costs in credits/supplies and multi-day
   construction. Same-type rooms that touch merge into one bigger room (more landing pads,
   beds and source slots) and take upgrades such as Bunks or the Refuelling Station.
-  The Diplomatic Quarter's Chief Diplomat sends teams to raise local Support. Hangars can
+  Support rebels work in their specialty's home room (Doctor in the Infirmary, Mechanic in
+  the Workshop…) as Department Head, Lead Specialist or Staff, train a niche at level 3 and
+  run Jobs (`game/js/support.js`; `docs/GDD.md`). Diplomats send teams to raise local Support. Hangars can
   patrol local space for Intel and salvage, rooms can convert tiles into a Ready Lounge,
-  Maintenance Bay or Rec Room, an Infirmary Surgery Room can save the fallen, and the
+  Maintenance Bay or Rec Room, and the
   Storeroom's Gear Grid shows all kit by category and size. Controls stay contextual: clicking a tile opens its popup.
 - **Sources** — the GDD's spy-network loop: Ferren Halt (the depot manager who
   sold out Vex — jumpy, high risk) and Sen. Vokk, plus a recruitable Scientist

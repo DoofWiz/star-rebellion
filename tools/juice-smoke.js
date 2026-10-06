@@ -64,7 +64,7 @@ const spec=sc=>({kind:'ground',missionId:sc,scenario:sc,days:2,squad:SQUAD,grafP
   f.woundUnit(dax,foe,5,false,'ballistic','akli');
   const p1=f.artPose(foe,f.clock());out.flash=[p1.flash>0,p1.squash>0].join();
   foe.hp=1;f.woundUnit(dax,foe,30,false,'ballistic','akli');
-  const p2=f.artPose(foe,f.clock()+300);out.fall=[foe.down,p2.state,p2.fall>0&&p2.fall<1,J().pops.some(p=>p.text==='DOWN')].join();
+  const p2=f.artPose(foe,f.clock()+300);out.fall=[foe.down,p2.state,p2.fall>0&&p2.fall<1,J().pops.some(p=>p.text==='DEAD')].join();   // an enemy dies (DESIGN_BLOCKERS C-29)
   // a grenade: hitstop, shake, particles, scorch
   f.juiceOn(true);
   const sc0=f.decals_().filter(d=>!d.blood).length;
@@ -85,7 +85,7 @@ const spec=sc=>({kind:'ground',missionId:sc,scenario:sc,days:2,squad:SQUAD,grafP
  ok(g.wait==='0,12','rounds wait to land until the damage is in '+g.wait);
  ok(g.blood==='true,true,true','a flesh hit bleeds; with Blood off it does not '+g.blood);
  ok(g.flash==='true,true','a hit flashes and squashes the target '+g.flash);
- ok(g.fall==='1,down,true,true','going down topples over about 0.6 s, with a DOWN pop '+g.fall);
+ ok(g.fall==='1,down,true,true','going down topples over about 0.6 s, with a DEAD pop for an enemy '+g.fall);
  ok(g.grenade==='true,true,true,true','a grenade freezes, shakes, throws debris and scorches '+g.grenade);
  ok(g.frozen,'the game clock stands still in a hitstop');
  ok(g.menu==='true,true','the ground menu has Screen shake and Blood '+g.menu);

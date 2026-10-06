@@ -34,9 +34,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.offered=!!document.querySelector('[data-gear-pick="dax:primary:0:plasmasmg"]');
   f.closeWin();
   G().armory=G().armory.filter(x=>x.id!=='plasmasmg');G().armory.find(a=>a.id==='akli').n=6;dax.gear.primary=pri;f.autoEquip();
-  // 5: a Marine and a Soldier, both laid up, heal at the same rate with the barracks staffed
-  const sol=mk('sol','Soldier'),mar=mk('mar','Marine'),off=mk('off','Support',{assign:'station:barracks'});R.layUp(sol,'downed',6);R.layUp(mar,'downed',6);
-  out.barracks=!!G().rooms.find(r=>r.key==='barracks');
+  // 5: a Marine and a Soldier, both laid up, heal at the same rate under a Doctor's Treatment
+  if(!G().rooms.some(r=>r.key==='infirmary'))G().rooms.push({id:'rm_sw',key:'infirmary',r:1,c:1,w:1,h:1,up:[]});
+  const sol=mk('sol','Soldier'),mar=mk('mar','Marine'),off=mk('off','Support',{assign:'room:infirmary',bio:'Physician.'});R.layUp(sol,'downed',6);R.layUp(mar,'downed',6);
+  out.barracks=f.treatedBy()[sol.id]===off&&f.treatedBy()[mar.id]===off;
   f.advanceDay();
   out.heal=[6-R.laidUp(sol),6-R.laidUp(mar)];
   G().people=G().people.filter(p=>!['sol','mar','off'].includes(p.id));
@@ -59,7 +60,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(a.reconciled===null,'live:0 kit in a slot is put back in the armory '+a.reconciled);
  ok(!a.offered,'the gear picker does not offer live:0 kit');
  ok(a.win==='reward'&&a.shown.indexOf('XP +55%')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
- ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>=1,'Marines get the barracks perk too '+a.heal);
+ ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>1,'Marines are treated like Soldiers '+a.heal);
 
  // ---- 1 and 6: launch a ground mission with a support Graf carrying four reinforcements
  const c=await pg.evaluate(()=>{
@@ -81,14 +82,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   PL.v.team0='lead';PL.v.tv0='gA';PL.v.tp0='pa';
   f.plAddAsset();PL.v.as0s='gB';PL.v.as0p='pb';PL.assets[0].mode='reinforce';f.plSyncAssets();
   rs.forEach((p,i)=>{PL.v['as0r'+i]=p.id;});
-  PL.drop=true;
   out.seats=PL.slots.filter(sl=>sl.acc==='rsoldier').length;
   const f0=G().fuel,s0=G().supplies;
   f.startPlan();
   out.spent=[f0-G().fuel,s0-G().supplies];
   out.armed=[lead,...rs].map(p=>p.gear.primary||'-').join();
   out.sortie=G().sortie&&[G().sortie.f,G().sortie.s];
-  // the page reloads mid-mission: the saved campaign comes back with its fuel and supply drop
+  out.drop=window.SR.mission&&window.SR.mission.assets&&window.SR.mission.assets.drop;
+  // the page reloads mid-mission: the saved campaign comes back with its fuel
   const saved=JSON.parse(JSON.stringify(G()));
   f.restoreCampaign({campaign:saved,started:true});
   out.back=[G().fuel===f0,G().supplies===s0,G().sortie===undefined,G().news.some(n=>n.html.indexOf('called off')>=0)];
@@ -96,13 +97,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().sortie={name:'x',f:5,s:0};
   f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[]});
   out.cleared=G().sortie===undefined;
+  {const s1=G().supplies;f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[],dropUsed:true});out.paid=s1-G().supplies;}
   return out;
  });
  ok(c.seats===4,'a Graf offers four reinforcement seats '+c.seats);
  ok(c.armed==='akli,akli,akli,akli,akli','the squad and all four reinforcements carry rifles '+c.armed);
- ok(c.spent[0]>0&&c.spent[1]===160&&c.sortie&&c.sortie[0]===c.spent[0]&&c.sortie[1]===160,'the sortie records what it spent '+c.spent+' '+c.sortie);
- ok(c.back.every(Boolean),'a mid-mission reload hands the fuel and the drop back '+c.back);
+ ok(c.spent[0]>0&&c.spent[1]===0&&c.sortie&&c.sortie[0]===c.spent[0]&&c.sortie[1]===0,'the sortie records the fuel it burned; a supply drop is paid for only when called '+c.spent+' '+c.sortie);
+ ok(c.drop===true,'the transport can fly a supply drop in on call '+c.drop);
+ ok(c.back.every(Boolean),'a mid-mission reload hands the fuel back '+c.back);
  ok(c.cleared,'a debrief clears the sortie record');
+ ok(c.paid===160,'a supply drop called in the field is paid for at the debrief '+c.paid);
 
  // ---- 2 (ground side): a rebel sent with kit that has no combat stats fights bare-handed
  await pg.evaluate(()=>window.SR.go('ground',{test:true,mission:{kind:'ground',missionId:'intel',scenario:'intel',days:1,

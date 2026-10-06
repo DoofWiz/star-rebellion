@@ -273,7 +273,7 @@ phase-by-phase record, and its section 7 for what the unbuilt traits are waiting
 - **Soldier** — the core character on any ground mission.
 - **Pilot** — the core character in space combat.
 - **Marine** — the core character in boarding actions (data and rules only; no Level 1 recruits, no boarding theatre yet).
-- **Support** — runs the base's rooms, grants their bonuses; has no skills and equips no gear.
+- **Support** — works in the base's rooms with a specialty of their own (see *Support specialties*); has no skills and equips no gear.
 - **Hero** — see below. *(The earlier GDD also listed Crew for large ships; not part of Level 1.)*
 
 **Per rebel**:
@@ -286,9 +286,24 @@ phase-by-phase record, and its section 7 for what the unbuilt traits are waiting
 - **Rank** (seniority, separate from level): Army enlisted for Soldiers and Support, USMC enlisted for Marines, USAF enlisted for Pilots, earned by missions served and handed out by the player; from Sergeant at level 5 a rebel can be commissioned onto the officer ladder.
 - **Skills** (cap 50): Aim, Constitution, Agility, Presence for Soldiers and Marines; Aim, Cunning, Focus, Presence for Pilots; none for Support; all six for a Hero. Derived from level plus experience from missions.
 - **Gear** in slots: a primary weapon, a secondary weapon and two gadgets (Soldiers and Marines); secondary and gadgets (Pilots); none (Support). Equipped automatically from the player's pool, changeable by hand.
-- A **dossier** with all of it, including a medical section and a service record.
+- A **Personnel File** with all of it, including a medical section and a service record, beside a full-body **paper doll** of the rebel (front and, with a Back item, back) in the kit they carry, redrawn as their gear changes. It shows their type only (no joined date, no flavour line) and the level ring stands in for an experience bar. A double-click on a rebel opens it during a mission too (read-only).
 
 **Recruiting.** Rebels are recruited through the Command Center's *Recruit new Revolutionaries* task, by Sources, and by rescue missions. Candidates appear on the **New Recruit** screen as cards (one or several at once); the player recruits or dismisses each.
+
+**Death.** Enemies die when they drop. A rebel dies when they are hit again while down, when a critical hit
+drops them, or when one hit takes them from full health to nothing; otherwise they go down unconscious, and a
+squad mate's **Treat Wound** (a Med Pack) brings them round at a quarter health. A downed rebel with untreated
+Severe Bleeding bleeds out at the end of the second round. Blasts hit the downed. The prologue (Take the Rock) is
+exempt. The dead do not come home; the Doctor's Stabilise can still pull one back in Critical Condition.
+(DESIGN_BLOCKERS C-29.)
+
+**Characters the objective needs** (the rescued VIP, the Pilot in Steal the Cross) follow the same rules. Going down
+does not fail the mission: it fails when they die, or when they are down and nobody can bring them round (no one
+standing carries a Med Pack, no supply crate is on the ground, inbound or still to call, and for the VIP no Evac on
+Call). Nobody extracts while the VIP is down. A Strider is a machine: it cannot be treated, so its fall still ends
+the mission. (DESIGN_BLOCKERS C-31.)
+
+**Stims** are a planning Action (heal 30% of max health as the round opens); the rebel still shoots that round.
 
 **Injury and recovery.** A critical hit on a rebel inflicts one of twelve critical injuries (Concussion, Broken Arm, Broken Leg, Severe Bleeding, Internal Injury, Shrapnel, Burns, Eye Injury, Maimed, Spinal Injury, Ruptured Eardrum, Facial Trauma) with an immediate combat effect, removed in the encounter by the **Treat Wound** action. Most injuries then go home as a medical condition to be recovered at the Infirmary over time; an Eye Injury left too long, and Maiming, are permanent until a prosthetic is fitted in a Surgery Room.
 
@@ -623,7 +638,31 @@ specialty shows on their dossier, roster chips and planning slots. Only some spe
 effects yet: **Field Technician** (cracks databanks), **Vanguard** (+1 aim), **Dogfighter** (+1 pilot
 aim). The rest are listed as "later" from the docs (Gunner, Commando, Assault, Combat Medic,
 Demolitions Specialist, Marksman, Commander, Driver; Leader, Bomber, Fire Support, Flight Engineer,
-Shipbuster). Support specialties are still to come.
+Shipbuster). Cross-Training (an Instructor's Job) can give a soldier or pilot a second specialty.
+
+### Support specialties (built, first pass; the Support Specialties doc)
+The data and rules are in `game/js/support.js`; the numbers in the Rules tab; what was chosen is
+`docs/DESIGN_BLOCKERS.md` C-28 and what waits is M-32.
+- **Base specialty from level 1**, read from the recruit's origin line: Doctor (Infirmary), Intelligence Officer
+  (Intelligence Center), Mechanic (Workshop), Technician (the new **Tech Lab**), Logistics Specialist (Storeroom),
+  Academic (Training Hall), Diplomat (Diplomatic Quarter), Mission Control (Command Center). They work only in that
+  room; it holds 2, plus 1 per extra tile. Each base specialty has a Job and a Rule: Treatment and Stabilise, Processing
+  (and the room's Intel), Repairs and Salvage, Maintenance, Supply Handling and Inventory Control, Tutoring and
+  Curriculum, Outreach, Mission Support and Briefings (Early Warning, Gadget Workshop and Goodwill wait).
+- **In a room:** the **Department Head** (highest level of the specialty) sets the base Rules' strength; each niche's
+  **Lead Specialist** (highest level, or one the player names, who takes over the next day) sets its Rules; everyone
+  else is **Staff**, who run the Lead's Jobs plus fork Jobs of their own and learn 50% faster under a higher Lead.
+- **Niches** are trained at level 3 in the classroom (300 credits, 3 days) while they keep working. Unlocks come at 3,
+  7, 11, 15 and 19, with a permanent fork at 7 and 15. Live first: Cyberneticist (prosthetics), Physio, Analyst,
+  Aerogineer, Slicer, Smuggler, Instructor, Propagandist, Tactician, Flight Controller, Combat Support.
+- **Jobs:** standing Jobs fill themselves each day (Treatment two patients per Doctor, Repairs one craft per Mechanic,
+  Rehab, Drill…); timed Jobs start from the room (a prosthetic, a Strength Programme, Fighter Tuning, a Data Tap, a
+  Special Order, a campaign); mission Jobs are picked on the planning board's **Base support** (Pre-hack, Map Theft,
+  Overwatch, Mission Intel), and a free Mission Control specialist supports every mission (a Tactician or Combat
+  Support first for a ground mission, a Flight Controller for a space one: Vectoring, Scramble, Intercept Plot, Rapid
+  Turnaround, Tight Wing and Emergency Jump).
+- **Experience** comes from working the room and from Jobs. Postings, losing specialists to raids and the
+  Crewman wait on systems that are not in the game yet.
 
 ### Level 1 enemies, vehicles and hacking (built, Phase 4)
 - **Enemy roster:** Patrolman, Auto Policebot, Riot Shieldman (front-blocking shield), Riot Rifleman,
@@ -679,10 +718,17 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
   a wreck is lost.
 
 ### Fire support (built, Phase 4)
-The planning board's **Fire support** area takes assets for ground missions:
-- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it.
-  Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
-  single-target damage, good against vehicles and Striders).
+**The transport** drops the squad, lifts off and comes back to the LZ for the pickup once the job is done (the exit
+opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air. While
+it is up it gives fire support of its own:
+- **Supply Drop** (paid only when called: 160 supplies, taken at the debrief; offered when the stores hold that much):
+  a crate lands as the next round begins, where you call it. It can also be called in free move, before the shooting
+  starts: a quiet chute that lands a few seconds later. Looting it gives **5 stims, 2 Med Packs, 2 BLAM frags and 2
+  makeshift rocket launchers** (one shot each, big single-target damage, good against vehicles and Striders).
+- **Door Gunner Cover** when the transport has a Door Mounted Gun fitted (two passes). A rocket hit makes it break
+  off, not crash: it still has the pickup to make. It leaves the gun when it heads back for the squad.
+
+The planning board's **Fire support** area shows what the transport offers and takes extra assets:
 - **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
   **Strafing Run** (tap the start, then the heading; ten imprecise blasts along a line at the end of the
   round, **danger close** to your own people). A spare **Graf** can be a **Door Gunner** (circles two
@@ -690,6 +736,11 @@ The planning board's **Fire support** area takes assets for ground missions:
   set down at the start of the next planning phase where you call them).
 - In the mission, any soldier's radial **Fire Support** opens a menu top-left; pick an item, then tap a spot
   you can see. Level 1 only has one Graf, so Door Gunner and Reinforcements wait for a second hauler.
+- **Combat Support** (a Mission Control niche) adds to a supported mission: one extra call, a steadier door gunner,
+  calls that land at once, Evac on Call, a wider zone, no friendly blast damage and a Heavy Bombardment.
+- **Enemy range:** the Hegemony shoots to its weapons' full reach, but a shot gives the shooter away: they stay
+  visible through the next round, so the squad can answer (DESIGN_BLOCKERS C-31). In Steal the Cross the tower
+  guard is drawn on the tower's deck.
 
 ### Space enemies (built, Phase 4)
 Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
@@ -756,19 +807,18 @@ double-click.
   Barracks: *Bunks* (+2 beds per tile), *Quarters* (+2 more). Hangar: *Refuelling Station*
   (sorties burn 25% less fuel), *Robot Maintenance Arm* (+5%/day ship repair). Bought from the
   room's interior view.
-- **Staff posts** (Support rebels): Garrison Officer (wounded soldiers heal a day faster), Flight Deck
-  Officer (+4%/day repairs on the pads), Chief Diplomat. The Infirmary gains one medic post per tile.
-- **Diplomatic Quarter:** a Chief Diplomat sends teams to any world where we have Access
-  (**400 credits + 60 supplies, 4 days**, one team per Quarter tile). A team adds **+½ Support**, or
-  **+1 flag** when the Chief Diplomat is level 3+. Support is what gates liberation, so this is the
-  player's way to grow it without waiting for source events.
+- **Support at work:** the staff posts are gone; Support rebels work in their specialty's home room (see
+  *Support specialties*). A room holds 2 of them, plus 1 per extra tile.
+- **Diplomatic Quarter:** each Diplomat working here sends one team at a time to any world where we have Access
+  (**400 credits + 60 supplies, 4 days**). A team adds **½ a flag of Support plus 25%** (Outreach). Support is what
+  gates liberation, so this is the player's way to grow it without waiting for source events.
 - **Conversions** turn one tile of a merged room into something else (it needs a spare tile, so the
   room must have been expanded): *Ready Lounge* (hangar: loses a pad; every sortie takes 1 day
   less, minimum 1), *Maintenance Bay* (hangar: loses a pad; the most damaged ship repairs 10%/day
   faster), *Rec Room* (barracks, needs 3+ tiles: loses a tile of beds; resting rebels gain morale
   twice as fast). A conversion is refused if it would leave a ship or rebel without a berth.
-- **Surgery Room** (Infirmary upgrade): with a medic on station, a rebel who would be lost in the field
-  has a 60% chance to survive, out for 6 days.
+- **Surgery Room** (Infirmary upgrade): everyone in the Infirmary recovers half a day faster each day. (Saving the
+  fallen is now the Doctor's Stabilise.)
 - **Patrol Local Space** (Hangar task): a ready ship (hull 60%+, fuel, its pilot free) goes out for 2
   days; it brings back +1 Intel, often 60-100 Materials of salvage, and a 25% chance of a scrap that
   costs 10-20% hull. *Restore Broken Ship* was already built.

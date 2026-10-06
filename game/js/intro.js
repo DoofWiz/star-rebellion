@@ -2,7 +2,9 @@
 /* =====================================================================
    STAR REBELLION — title screen.
    Not a scene: a layer over everything that holds the game back until
-   the player starts it. The logo is a rebel badge — flame crest, STAR,
+   the player starts it. It opens on the developer's mark: a Graf hauler
+   crosses the sky and its wake paints PERCHANG in behind it; the mark
+   holds, fades, and then the game's logo lands. The logo is a rebel badge — flame crest, STAR,
    a red ribbon carrying REBELLION — that crashes down onto the screen
    like a stamp: shake, flash, shockwave, debris, then it sits there
    slightly crooked the way a stamp lands. #test and #deploy boot
@@ -14,8 +16,13 @@ window.SR_INTRO=(function(){
   let el=null,cv=null,c2=null,W=0,H=0,dpr=1;
   let bg=null,badge=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null;
   let stars=[],nextFly=0,fly=null,impactFired=false,impactAt=0,debris=[];
+  let dev=null;   // the developer's mark (art/brand/perchang.webp); without it the badge lands straight away
 
-  const STAMP_AT=600,STAMP_MS=380,SETTLE_MS=260,READY_AT=1900,TILT=-0.045;
+  const STAMP_MS=380,SETTLE_MS=260,TILT=-0.045;
+  const DEV_IN=350,DEV_FLY=2100,DEV_HOLD=900,DEV_OUT=600,DEV_GAP=250;   // the mark: fade up, the fly-past, hold, fade
+  let STAMP_AT=600,READY_AT=1900;
+  let markImg=null;   // loaded in time for the opening, or not used at all
+  const timeline=()=>{dev=markImg;STAMP_AT=dev?DEV_IN+DEV_FLY+DEV_HOLD+DEV_OUT+DEV_GAP:600;READY_AT=STAMP_AT+1300;};
 
   /* the rebellion flag from the game's own icon set (i-revflame, 24x24) */
   const FLAG_POLE=new Path2D('M6 21.5V3.5');
@@ -158,6 +165,43 @@ window.SR_INTRO=(function(){
     badge={cv:oc,w:bw,h:bh,Rb};
   }
   const clamp=k=>SR.util.clamp(k,0,1);
+  const easeIO=k=>k<0.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+
+  /* the developer's mark: a Graf crosses the sky and its wake paints the word in behind it */
+  function drawDev(t,now){
+    if(!dev||t>=STAMP_AT)return;
+    const lw=Math.min(W*0.7,640),lh=lw*dev.naturalHeight/dev.naturalWidth;
+    const cx=W/2,cy=H*0.44,x0=cx-lw/2;
+    const kf=clamp((t-DEV_IN)/DEV_FLY);
+    const sx=-220+(W+440)*(0.15*kf+0.85*easeIO(kf));   // it comes in fast, eases over the word, and goes
+    const sy=cy+lh*0.02+Math.sin(now/260)*1.5;
+    const rx=sx-lh*0.45;                                 // the paint dries a little behind the engines
+    const out=clamp((t-(DEV_IN+DEV_FLY+DEV_HOLD))/DEV_OUT);
+    // the word, as far as the wake has reached
+    if(rx>x0){
+      c2.save();
+      c2.beginPath();c2.rect(0,0,Math.max(0,rx),H);c2.clip();
+      c2.globalAlpha=1-out;
+      c2.translate(cx,cy);c2.scale(1+0.05*out,1+0.05*out);
+      c2.drawImage(dev,-lw/2,-lh/2,lw,lh);
+      c2.restore();
+    }
+    if(kf<=0||kf>=1)return;
+    // the wake: a hot streak trailing the engines, brightest where the paint is going on
+    c2.save();
+    c2.globalCompositeOperation='lighter';
+    const tl=Math.min(lw*0.55,360);
+    const g=c2.createLinearGradient(sx-tl,0,sx,0);
+    g.addColorStop(0,'rgba(255,90,20,0)');g.addColorStop(0.7,'rgba(255,120,40,0.35)');g.addColorStop(1,'rgba(255,230,190,0.7)');
+    c2.fillStyle=g;c2.fillRect(sx-tl,sy-lh*0.06,tl,lh*0.12);
+    if(rx>x0-30&&rx<x0+lw+30){
+      const rg=c2.createRadialGradient(rx,cy,0,rx,cy,lh*0.9);
+      rg.addColorStop(0,'rgba(255,170,90,0.55)');rg.addColorStop(1,'rgba(255,69,0,0)');
+      c2.fillStyle=rg;c2.fillRect(rx-lh,cy-lh,lh*2,lh*2);
+    }
+    c2.restore();
+    SA.ship(c2,'graf',sx,sy,0.02,lh*0.95/27,now/1000,{livery:'rebel',boost:true});
+  }
 
   function spawnDebris(cx,cy){
     const rn=U.mkRng(5);
@@ -188,9 +232,10 @@ window.SR_INTRO=(function(){
       c2.beginPath();c2.arc(s.x,s.y,s.r*1.4,0,7);c2.fill();
     }
     c2.restore();
+    drawDev(t,now);
     // traffic behind the badge
     if(!RM){
-      if(t>1500&&now>nextFly){nextFly=now+8000+Math.random()*7000;fly={t0:now,y:H*(0.1+Math.random()*0.16),dir:Math.random()<0.5?1:-1,kind:Math.random()<0.35?'graf':'mote'};}
+      if(t>STAMP_AT+900&&now>nextFly){nextFly=now+8000+Math.random()*7000;fly={t0:now,y:H*(0.1+Math.random()*0.16),dir:Math.random()<0.5?1:-1,kind:Math.random()<0.35?'graf':'mote'};}
       if(fly){
         const k=(now-fly.t0)/5200;
         if(k>1)fly=null;
@@ -238,6 +283,8 @@ window.SR_INTRO=(function(){
       c2.globalAlpha=1;
       debris=debris.filter(d=>now-d.t0<d.dur);
     }
+    if(dev&&t<DEV_IN){c2.fillStyle='rgba(0,0,0,'+(1-t/DEV_IN)+')';c2.fillRect(0,0,W,H);}   // up from black
+    el.dataset.stage=t<STAMP_AT?'dev':'title';
     if(t>READY_AT&&!ready){ready=true;el.classList.add('is-ready');const btn=el.querySelector('#splashStart');if(btn)btn.focus({preventScroll:true});}
   }
   function start(){
@@ -262,8 +309,10 @@ window.SR_INTRO=(function(){
     cv=el.querySelector('canvas');c2=cv.getContext('2d');
     try{const sv=SR.loadSave();if(sv&&sv.started)el.querySelector('#splashStart').textContent='Continue';}catch(e){}
     el.querySelector('#splashStart').addEventListener('click',start);
-    el.addEventListener('pointerdown',ev=>{   // a tap anywhere slams it home early
-      if(!ready&&ev.target.id!=='splashStart')skipTo=STAMP_AT+STAMP_MS+SETTLE_MS+20;
+    el.addEventListener('pointerdown',ev=>{   // a tap skips the developer's mark; a second slams the badge home early
+      if(ready||ev.target.id==='splashStart')return;
+      const t=performance.now()-t0;
+      skipTo=(dev&&t<STAMP_AT&&skipTo<STAMP_AT)?STAMP_AT:STAMP_AT+STAMP_MS+SETTLE_MS+20;
     });
     addEventListener('keydown',function onKey(ev){
       if(!el){removeEventListener('keydown',onKey);return;}
@@ -274,7 +323,9 @@ window.SR_INTRO=(function(){
     // Bungee first, but the title never waits long for the network
     const fonts=(document.fonts&&document.fonts.load)?
       Promise.all([document.fonts.load('400 90px Bungee'),document.fonts.load('600 16px "Exo 2"')]).catch(()=>{}):Promise.resolve();
-    Promise.race([fonts,new Promise(r=>setTimeout(r,900))]).then(()=>{
+    const mark=new Promise(r=>{const im=new Image();im.onload=()=>{markImg=im;r();};im.onerror=()=>r();im.src='art/brand/perchang.webp';});
+    Promise.race([Promise.all([fonts,mark]),new Promise(r=>setTimeout(r,900))]).then(()=>{
+      timeline();
       buildBadge();           // rebuild with the real face on
       t0=performance.now();raf=requestAnimationFrame(tick);
     });

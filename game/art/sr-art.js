@@ -618,7 +618,7 @@ window.SR_ART=(function(){
     // ---- upright overlays
     const fx=P.fx;
     if(fx==='sweat'){const k=(t*1.6)%1;c.save();c.translate(x+(16-shake)*S,y-(46-k*10)*S);c.globalAlpha=1-k*.6;c.beginPath();c.moveTo(0,-6);c.quadraticCurveTo(5,1,0,4);c.quadraticCurveTo(-5,1,0,-6);ink(c,W.sweat,2);c.restore();}
-    if(st==='down'){for(let i=0;i<3;i++){const a=t*3+i*TAU/3;star(c,x-6*S+Math.cos(a)*12*S,y-20*S+Math.sin(a)*4*S,4*S);}}
+    if(st==='down'&&!p.dead){for(let i=0;i<3;i++){const a=t*3+i*TAU/3;star(c,x-6*S+Math.cos(a)*12*S,y-20*S+Math.sin(a)*4*S,4*S);}}   // stars for the knocked out; the dead get none (repo addition)
     if(fx==='code'){c.save();c.font=`800 ${8*S}px "Exo 2",system-ui`;c.textAlign='center';for(let i=0;i<2;i++){const k=(t*.8+i*.5)%1;c.globalAlpha=1-k;c.fillStyle=C.shield;c.fillText(i?'01':'10',x+(i?12:-10)*S,y-(52+k*14)*S);}c.restore();}
     if(fx==='shh'){c.save();c.globalAlpha=.6;c.fillStyle='#fffaf0';c.font=`800 ${8*S}px "Exo 2",system-ui`;c.textAlign='center';c.fillText('shh',x-16*S*(flip?-1:1),y-40*S);c.restore();}
     if(fx==='sparks'){const d=flip?-1:1;for(let i=0;i<4;i++){const k=(t*3+i*.25)%1;const a=-1.2+i*.5;c.fillStyle=k<.5?'#fff3b0':'#ffb347';c.fillRect(x+(16+Math.cos(a)*k*14)*S*d,y+(-6+Math.sin(a)*k*14+k*k*10)*S,2*S,2*S);}}

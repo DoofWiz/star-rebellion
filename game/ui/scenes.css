@@ -33,7 +33,7 @@
 #sc-base .bs-desc{margin:0 0 10px;font:500 14px/1.5 var(--sr-font-ui);color:var(--sr-text-2);}
 #sc-base .bs-info{margin:0 0 12px;font:600 14px/1.7 var(--sr-font-ui);color:var(--sr-text);}
 #sc-base .bs-info b{color:var(--sr-text);}
-#sc-base .bs-good{color:var(--sr-go);} #sc-base .bs-bad{color:var(--sr-c-bad);} #sc-base .bs-gold{color:var(--sr-gold);}
+:is(#sc-base,.sr-pfile) .bs-good{color:var(--sr-go);} :is(#sc-base,.sr-pfile) .bs-bad{color:var(--sr-c-bad);} :is(#sc-base,.sr-pfile) .bs-gold{color:var(--sr-gold);}
 #sc-base .bs-sub{display:block;margin-top:2px;font:600 12px/1.35 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-from{margin-left:auto;font:600 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-from+.sr-tag{margin-left:0;}
@@ -50,7 +50,7 @@
 #sc-base .bs-rh{margin:4px 0 -2px;font:800 12px/1 var(--sr-font-ui);color:var(--sr-text-3);}
 #sc-base .bs-tagwrap{height:auto;white-space:normal;margin-top:14px;padding:8px 12px;border-radius:var(--sr-r);line-height:1.4;font-size:13px;}
 #sc-base .bs-rowtags{display:flex;gap:6px;margin-left:auto;}
-#sc-base .bs-meters{display:grid;gap:8px;margin:0 0 12px;}
+:is(#sc-base,.sr-pfile) .bs-meters{display:grid;gap:8px;margin:0 0 12px;}
 #sc-base .bs-build{padding:9px 12px;}
 #sc-base .bs-build .sr-card__body{margin:3px 0 8px;font-size:13px;line-height:1.45;}
 #sc-base .bs-build__row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -80,10 +80,17 @@
 #sc-base .bs-region__bar u{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1px;background:var(--sr-gold);border-radius:2px;box-shadow:0 0 0 1px var(--sr-ink);}
 #sc-base .bs-region__p{font:800 13px/1 var(--sr-font-ui);text-align:right;color:var(--sr-text-2);}
 /* personnel file / recruit dossier */
-#sc-base .bs-dz{display:flex;gap:16px;align-items:center;}
-#sc-base .bs-dz__name{font:800 18px/1.1 var(--sr-font-ui);}
-#sc-base .bs-dz__tags{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 5px;}
-#sc-base .bs-dz__role{font-size:13px;font-weight:600;}
+:is(#sc-base,.sr-pfile) .bs-dz{display:flex;gap:16px;align-items:center;}
+:is(#sc-base,.sr-pfile) .bs-dz__name{font:800 18px/1.1 var(--sr-font-ui);}
+:is(#sc-base,.sr-pfile) .bs-dz__tags{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 5px;}
+:is(#sc-base,.sr-pfile) .bs-dz__role{font-size:13px;font-weight:600;}
+/* the Personnel File's paper doll: the whole rebel in their kit, beside the file (above it on a phone) */
+:is(#sc-base,.sr-pfile) .bs-file{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;align-items:start;}
+:is(#sc-base,.sr-pfile) .bs-file:not(:has(.bs-doll)){grid-template-columns:minmax(0,1fr);}
+:is(#sc-base,.sr-pfile) .bs-doll{position:sticky;top:0;border-radius:14px;background:radial-gradient(ellipse at 50% 85%,rgba(255,200,58,.14),transparent 62%),var(--sr-night,#101330);border:2px solid var(--sr-seam,#2b3060);padding:8px 4px 0;}
+:is(#sc-base,.sr-pfile) .bs-doll img{display:block;width:100%;height:auto;}
+@container (max-width:560px){:is(#sc-base,.sr-pfile) .bs-file{grid-template-columns:minmax(0,1fr);}:is(#sc-base,.sr-pfile) .bs-doll{position:static;max-width:280px;margin:0 auto;}}
+@media (max-width:600px){:is(#sc-base,.sr-pfile) .bs-file{grid-template-columns:minmax(0,1fr);}:is(#sc-base,.sr-pfile) .bs-doll{position:static;max-width:280px;margin:0 auto;}}
 /* mission planning */
 #sc-base .bs-plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);grid-template-areas:"l r" "ro r";grid-template-rows:auto 1fr;gap:0 22px;align-items:start;}
 #sc-base .bs-plan .planL{grid-area:l;} #sc-base .bs-plan .planRo{grid-area:ro;} #sc-base .bs-plan .planR{grid-area:r;}
@@ -273,34 +280,34 @@
 #sc-base .bs-reccard{margin:0;}
 
 /* dossier: morale, experience and skills as bars */
-#sc-base .bs-meters{display:grid;gap:9px;margin:12px 0 16px;}
-#sc-base .bs-meters .sr-meter{grid-template-columns:104px 1fr 38px;}
+:is(#sc-base,.sr-pfile) .bs-meters{display:grid;gap:9px;margin:12px 0 16px;}
+:is(#sc-base,.sr-pfile) .bs-meters .sr-meter{grid-template-columns:104px 1fr 38px;}
 
 /* rank line beside the bars, and the rank details that float over the personnel file */
 #sc-base #winCardB{position:relative;}
-#sc-base .bs-rank{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
-#sc-base .bs-rank:hover,#sc-base .bs-rank:focus-visible{border-color:var(--sr-gold);}
-#sc-base .bs-rank__ico{display:inline-flex;flex:none;}
-#sc-base .bs-rank__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-#sc-base .bs-rank__prog{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
-#sc-base .bs-rank__flag{flex:none;color:var(--sr-ink);background:var(--sr-go);border-radius:999px;padding:4px 9px;font-size:var(--sr-fs-xs);}
-#sc-base .bs-rank.is-ready{border-color:var(--sr-go);}
-#sc-base .bs-rank__go{display:inline-flex;flex:none;color:var(--sr-text-3);}
-#sc-base .bs-rank__go .sr-ico{width:16px;height:16px;}
-@media (prefers-reduced-motion:no-preference){#sc-base .bs-rank.is-ready .bs-rank__flag{animation:bs-readypulse 1.8s ease-in-out infinite;}}
+:is(#sc-base,.sr-pfile) .bs-rank{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+:is(#sc-base,.sr-pfile) .bs-rank:hover,:is(#sc-base,.sr-pfile) .bs-rank:focus-visible{border-color:var(--sr-gold);}
+:is(#sc-base,.sr-pfile) .bs-rank__ico{display:inline-flex;flex:none;}
+:is(#sc-base,.sr-pfile) .bs-rank__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:is(#sc-base,.sr-pfile) .bs-rank__prog{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
+:is(#sc-base,.sr-pfile) .bs-rank__flag{flex:none;color:var(--sr-ink);background:var(--sr-go);border-radius:999px;padding:4px 9px;font-size:var(--sr-fs-xs);}
+:is(#sc-base,.sr-pfile) .bs-rank.is-ready{border-color:var(--sr-go);}
+:is(#sc-base,.sr-pfile) .bs-rank__go{display:inline-flex;flex:none;color:var(--sr-text-3);}
+:is(#sc-base,.sr-pfile) .bs-rank__go .sr-ico{width:16px;height:16px;}
+@media (prefers-reduced-motion:no-preference){:is(#sc-base,.sr-pfile) .bs-rank.is-ready .bs-rank__flag{animation:bs-readypulse 1.8s ease-in-out infinite;}}
 @keyframes bs-readypulse{50%{filter:brightness(1.25);}}
 #sc-base .bs-overlay{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:16px;}
 #sc-base .bs-overlay__scrim{position:absolute;inset:0;border:0;background:rgba(5,8,20,.72);cursor:default;}
 #sc-base .bs-overlay__panel{position:relative;width:min(380px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);overflow:hidden;}
 
 /* gear slots in the dossier and the picker that floats over it */
-#sc-base .bs-gearslots{display:grid;gap:6px;margin:0 0 14px;}
-#sc-base .bs-gearslot{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
-#sc-base .bs-gearslot:hover:not(:disabled),#sc-base .bs-gearslot:focus-visible{border-color:var(--sr-gold);}
-#sc-base .bs-gearslot:disabled{opacity:.6;cursor:default;}
-#sc-base .bs-gearslot__k{flex:none;width:140px;white-space:nowrap;color:var(--sr-text-3);font-size:var(--sr-fs-xs);text-transform:uppercase;letter-spacing:.04em;}
-#sc-base .bs-gearslot__v{flex:1;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden;}
-#sc-base .bs-gearslot__v span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:is(#sc-base,.sr-pfile) .bs-gearslots{display:grid;gap:6px;margin:0 0 14px;}
+:is(#sc-base,.sr-pfile) .bs-gearslot{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+:is(#sc-base,.sr-pfile) .bs-gearslot:hover:not(:disabled),:is(#sc-base,.sr-pfile) .bs-gearslot:focus-visible{border-color:var(--sr-gold);}
+:is(#sc-base,.sr-pfile) .bs-gearslot:disabled{opacity:.6;cursor:default;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__k{flex:none;width:140px;white-space:nowrap;color:var(--sr-text-3);font-size:var(--sr-fs-xs);text-transform:uppercase;letter-spacing:.04em;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__v{flex:1;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__v span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #sc-base .bs-gearpicks{display:grid;gap:8px;}
 #sc-base .bs-gearpick{display:grid;gap:3px;width:100%;padding:9px 11px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:600 var(--sr-fs-sm)/1.25 var(--sr-font-ui);text-align:left;cursor:pointer;}
 #sc-base .bs-gearpick:hover:not(:disabled),#sc-base .bs-gearpick:focus-visible{border-color:var(--sr-gold);}
@@ -382,7 +389,7 @@
 }
 /* kit portraits inside the kit's avatar rings */
 .sr-avatar .bs-face{width:100%;height:100%;border-radius:50%;display:block;}
-#sc-base .bs-dz__av{width:48px;height:48px;flex:none;}
+:is(#sc-base,.sr-pfile) .bs-dz__av{width:48px;height:48px;flex:none;}
 
 /* ---------- title screen ---------- */
 #splash{position:fixed;inset:0;z-index:200;background:#04060d;touch-action:manipulation;}
@@ -430,3 +437,12 @@
 .bm-card .kit-trait{width:22px;height:22px;}
 /* the scene-transition overlay (SR.transition): over everything, never in the way of a click */
 .sr-transition{position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;pointer-events:none;}
+
+/* the ship window: a big top-down view of the ship beside its sheet (above it on a phone) */
+#sc-base .bs-shipwin{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start;}
+#sc-base .bs-shipview{position:sticky;top:0;border-radius:14px;border:2px solid var(--sr-seam,#2b3060);padding:6px;text-align:center;
+  background:radial-gradient(circle at 50% 50%,rgba(74,224,232,.12),transparent 65%),repeating-linear-gradient(0deg,transparent 0 23px,rgba(255,255,255,.04) 23px 24px),repeating-linear-gradient(90deg,transparent 0 23px,rgba(255,255,255,.04) 23px 24px),var(--sr-night,#101330);}
+#sc-base .bs-shipview img{display:block;width:100%;height:auto;}
+#sc-base .bs-shipview__n{display:block;font:800 14px/1.2 var(--sr-font-ui);margin:4px 0 2px;}
+#sc-base .bs-shipface{border-radius:50%;background:var(--sr-night,#101330);}
+@media (max-width:600px){#sc-base .bs-shipwin{grid-template-columns:minmax(0,1fr);}#sc-base .bs-shipview{position:static;max-width:240px;margin:0 auto;}}

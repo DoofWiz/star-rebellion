@@ -30,7 +30,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // sent out Weary: a morale hit; pushed to four they are Conked and off the list
   back(a);out.three=[a.tired,a.morale].join();
   back(a);out.four=[a.tired,!!a.conked,f.soldierPool().includes(a)].join();
-  a.assign='station:barracks';out.staff=f.staffOf('barracks').includes(a);a.assign='rest';
+  {const w=R.migrate({id:'rw',name:'Rw Test',role:'Support',level:1,xp:0,assign:'room:command',bio:'Dispatcher.',morale:60,conked:1,weary:1,tired:5});G().people.push(w);
+   out.staff=f.crewIn('command').includes(w);G().people=G().people.filter(p=>p!==w);}
   // a day at the base rests one mission off; the day they are fit again there is news
   const d0=a.tired;f.advanceDay();out.day=[d0-a.tired,!!a.conked].join();
   for(let i=0;i<10&&a.tired>0;i++)f.advanceDay();
@@ -62,7 +63,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.fx==='1,10','Weary costs 1 aim and 10 nerve in a fight '+r.fx);
  ok(r.three==='3,53','sent out Weary: another morale hit '+r.three);
  ok(r.four==='6,true,false','four without rest: Conked (plus two days), off the mission list '+r.four);
- ok(r.staff===false,'a Conked rebel does not work a post');
+ ok(r.staff===false,'a Conked rebel does not work their room');
  ok(r.day==='1,true','a day at the base rests one mission off '+r.day);
  ok(r.fit==='0,false,false,true','rested back to zero they are fit again '+r.fit);
  ok(r.fitNews,'the news says when they have slept it off');
