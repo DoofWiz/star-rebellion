@@ -35,6 +35,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-18 | ⚪ | Ship and truck attachment lists are still guesses | The Armoury copy when attachments arrive |
 | C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
+| C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -57,6 +58,8 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
 | M-28 | 🟡 | Vehicle criticals and wreck damage are placeholders | How vehicle fights feel |
 | M-29 | 🟡 | Art follow-ups from the October 5 art handoffs | A weary icon; Helix and the ship weapon makers in the Gear doc; poses that wait on items |
+| M-30 | 🟡 | One map per mission type | Every deployment of a type plays on the same layout; only the names change |
+| M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -131,6 +134,21 @@ is what they fight with and drop. Where I had to guess:
 **Needs from you:** the real loadout per type whenever you spec it in the Enemies doc (straight into the Enemies
 tab), stats for the HG-40 and Auto Plasma Hand, and whether the squatters and depot guards should become doc types.
 **Your call:** _open (Enemies doc update pending)_
+
+### C-27 ⚪ Guard lines: idle chatter is now spoken; place-bound lines changed
+With C-26 every Hegemony guard type has two kinds of line in `game/js/mission-text.js` (the Missions tab of the text
+sheet): **alarm** lines, said by whoever raises the alarm, and **idle** lines. Before, each guard had two or three
+hand-written lines but the game only ever spoke the last one; the rest were never shown. They are now the idle lines,
+and a guard the squad can see says one every 9 to 17 seconds while all is quiet. That is new behaviour I chose so
+the lines get used.
+Because any guard can now turn up in any mission, lines tied to one place were changed: "Nothing at the toll office"
+is "Nothing at the {target}", "Cell block is sealed" is "The {target} is sealed", "Contact at the databank!" is
+"Contact at the {target}!". Dropped: "Herders don’t come this way", "Sheriff’ll have my head", "Barge side is clear",
+"Cooling plant clear", "Nothing at the store", and the vehicle crews' radio lines ("Unit 4, responding",
+"Unloading!", "Turret, light them up!", "Pull over! All of you!").
+**Needs from you:** whether idle chatter should stay (and how often), and any lines you want back, written for any
+location. Edit them in the Missions tab.
+**Your call:** _open_
 
 ---
 
@@ -390,6 +408,26 @@ The handoff landed everything in the resolved log's M-26 row; a few loose ends r
   Power Baton), the Mining Laser's sweep and `recharge` (all M-17). A concussed rebel already uses `stunned`.
 - **Personal shields:** the hex bubble and the shield bar are wired, but no Level 1 item grants a shield.
 **Needs from you:** Helix and the ship weapon makers in the Gear doc; a weary icon is the art chat's.
+**Your call:** _open_
+
+### M-30 🟡 One map per mission type
+C-26 made a mission type's words reusable, but each type still has exactly one hand-built map in `SCENARIOS`
+(`game/js/ground.js`): every Steal Fuel is the Redrock Flats depot, every Blow Up Auto Factory the Kiln Ridge plant,
+whatever world the board says. Only the names change (the place, the target, the key building's label). Disrupt
+Comm Towers already picks its guard roster by region (`variant`); the layout is still the same.
+**Blocks:** maps that differ between deployments of a type.
+**Needs from you:** how you want variety: several hand-built layouts per type picked at random, layouts per world
+style (desert town, industrial, river port), or generated layouts from a set of building blocks (the Take the Rock
+map is already built that way from carved rooms). Also whether a world's look should change the map's art.
+**Your call:** _open_
+
+### M-31 ⚪ Ship names
+Mission text now names the transport the player picked (C-26). The Marta and Dustfall are named; a ship bought
+from the Black Market is called by its class and a number ("Hauler 2", "Talon 3"), so a mission reads "Call in the
+Hauler 2". Only the Graf carries troops today, so the ground scene always draws a Graf; a new transport class would
+need its own ground art.
+**Blocks:** nothing live; how bought ships read in mission text.
+**Needs from you:** a list of ship names to draw from, or a rename button in the Arsenal, or both.
 **Your call:** _open_
 
 ---
