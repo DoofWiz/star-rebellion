@@ -2121,7 +2121,7 @@ function dossierHTML(s){
     '<div class="sr-meter sp-nerve" style="--c:'+nc+'"><span>Nerve</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(p.cool)+'%"></span></span><span class="sr-meter__val">'+Math.round(p.cool)+'</span></div>'+
     '<p class="sr-p sp-bio">“'+esc(p.bio)+'”</p>'+
     (p.tr.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.tr.map(t=>{const d=Rebel.def(t.k);if(!d)return '';const b=partnerName(t.with);
-      return '<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(d.n.replace('[B]',b))+'</div><div class="sr-card__body">'+esc(d.e.replace(/\[B\]/g,b))+'</div></div>';}).join('')+'</div>':'')+
+      return '<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(d.n.replace('{partner}',b))+'</div><div class="sr-card__body">'+esc(d.e.replace(/\{partner\}/g,b))+'</div></div>';}).join('')+'</div>':'')+
     (p.mans&&p.mans.length?'<div class="sr-h3">Pilot maneuvers</div><div class="sp-tags">'+p.mans.map(m=>tag(m==='loop'?'Loop ↺':'Barrel Roll ⇹','progress')).join('')+'</div>':'')+
     '<p class="sr-fine">XP '+pctXP+'% to next grade · manual promotion arrives with the persistent campaign</p>'+
     '</div>';

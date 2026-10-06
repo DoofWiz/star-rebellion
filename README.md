@@ -25,7 +25,8 @@ See `docs/DATABASE.md`.
 ## Game text (`tools/text/`, `docs/TEXT.md`)
 
 Every line of dialog, briefing, tooltip and label is written into the code. `python3 tools/text/text.py export`
-puts all of it in a workbook to edit in Google Sheets, and `import` writes the edits back. See `docs/TEXT.md`.
+puts all of it in a workbook to edit in Google Sheets, and `import` writes the edits back. See `docs/TEXT.md`. Each reusable
+mission type's words live once, in `game/js/mission-text.js`, with `{variables}` for the transport, target and place.
 
 ## `game/` — the unified game
 

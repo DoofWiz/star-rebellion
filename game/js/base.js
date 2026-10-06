@@ -919,47 +919,24 @@ const opTag=m=>{const k=OPKIND[opKind(m)];return '<span class="sr-tag bs-op sr-t
    offer any type, again and again: nothing here is used up by being done once. */
 const SPEC_FT={key:'fieldtech',label:'Field Technician',hint:'Missing Field Technician: train a soldier to level 3 and use the Training Center to give them the Field Technician specialty to attempt this mission.'};
 const MTYPE_DEFS={
-  fuel:{name:'Steal Fuel',scenario:'stealfuel',days:2,riskTxt:'Moderate',lib:10,
-    variants:['fuel depot','fuel store','refuelling yard'],
+  fuel:{scenario:'stealfuel',days:2,riskTxt:'Moderate',lib:10,
     req:{team:3,teamRole:'Soldier',transport:1,prize:0},
-    rew:{f:240,c:300,xp:0.2},
-    hook:'The {target} at {place} holds fuel for the whole district, guarded by people who would rather be somewhere else. We could be gone before they finish the paperwork.',
-    desc:'We need fuel to keep our ships running and operating. The {target} at {place} is thinly guarded. Get in, call the Marta down onto the apron, hold the pumps while she drinks, and get out before they figure anything out.',
-    obj:['Reach the {target} at {place}','Call in the Marta and land her on the apron','Defend her while the tanks fill (5 rounds)','Board and lift off'],
-    after:['<b>{SRC}:</b> “Full tanks, and a {target} that will spend a month explaining where the fuel went. Nice work.”']},
-  intel:{name:'Steal Intelligence',scenario:'intel',days:2,riskTxt:'Moderate',lib:15,
-    variants:['listening post','satellite array','communications array','server farm'],
+    rew:{f:240,c:300,xp:0.2}},
+  intel:{scenario:'intel',days:2,riskTxt:'Moderate',lib:15,
     req:{team:3,teamRole:'Soldier',transport:1,prize:0,spec:SPEC_FT},
-    rew:{c:400,i:6,xp:0.3},
-    hook:'The {target} at {place} sees everything the Hegemony says about this district. If somebody who knows what they are doing could crack its databank, we would know what they know.',
-    desc:'A covert operation to infiltrate the {target} at {place} could yield valuable intelligence we could turn against the Heggies. Someone who knows their way around a databank has to break in and crack it.',
-    obj:['Hack into the Hegemony databanks at the {target}','Extract with the stolen data'],
-    after:['<b>{SRC}:</b> “The drive came through. I have been reading for six hours and I cannot stop shaking. There are names in there we can protect. Thank you.”']},
-  autofactory:{name:'Blow Up Auto Factory',scenario:'autofactory',days:2,riskTxt:'Moderate',lib:20,
-    variants:['Auto Factory','AutoCom Plant','Bot Assembly Plant'],
+    rew:{c:400,i:6,xp:0.3}},
+  autofactory:{scenario:'autofactory',days:2,riskTxt:'Moderate',lib:20,
     req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{id:'charge',n:1,label:'Explosive Charge'}]},
-    rew:{c:450,m:160,xp:0.2},bonus:{i:2,c:250},
-    hook:'Vast local resources are being poured into the {target} at {place}. The whole line runs off one power plant. If somebody had a charge and a little nerve, it would all go dark.',
-    desc:'Vast local resources are being poured into building Autos at the {target} in {place}. If we could make it stop doing its thing, we could gain a big advantage in this region. The whole line runs off one Power Plant: plant a charge on the main breaker, get clear, and let the lights go out.',
-    obj:['Plant the explosive at the Power Plant’s main breaker','Detonate it from a safe distance','(Optional) Do it without the enemy realising you were there','Board the Marta'],
-    after:['<b>{SRC}:</b> “The night shift walked out to watch it burn and nobody went back in. The foreman is asking who gave the orders, and nobody can remember there being any.”']},
-  rescue:{name:'Rescue Dissident',scenario:'rescue',days:2,riskTxt:'Moderate',lib:15,npcRole:'Support',
-    variants:['security outpost','police station','detention annex'],
+    rew:{c:450,m:160,xp:0.2},bonus:{i:2,c:250}},
+  rescue:{scenario:'rescue',days:2,riskTxt:'Moderate',lib:15,npcRole:'Support',
     req:{team:3,teamRole:'Soldier',transport:1,prize:0},
-    rew:{c:500,xp:0.35},bonus:{i:2},
-    hook:'They picked up a voice off the street and put it in the {target} at {place}. A lot of people would follow that voice, and the Hegemony knows it. The place is thin on guards and thick on locks.',
-    desc:'{npc} has been arrested and is being held in the {target} at {place}. A voice like theirs has a following, and the Hegemony knows it. If we rescue them, they could add real value to our cause.',
-    obj:['Release {npc} from the {target}','(Optional) Do it without the enemy realising you were there','Bring {npc1} and the squad back to the Marta'],
-    after:['<b>{SRC}:</b> “{npc} is out, and the whole district knows it by breakfast. Nobody is saying who did it, which is how I know it worked. They will want to meet you.”']},
+    rew:{c:500,xp:0.35},bonus:{i:2}},
 };
-MTYPE_DEFS.towers={name:'Disrupt Comm Towers',scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
-  variants:['comm tower'],
+MTYPE_DEFS.towers={scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
   req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{ids:['charge','limpet'],n:1,label:'Explosive Charge or Data Limpet'}]},
-  rew:{i:5,xp:0.3},
-  hook:'The {target} at {place} carries more than it should.',
-  desc:'The data we were given puts a {target} at {place}. It is remote, but it is still guarded. Get a device onto its base before they raise the alarm: an Explosive Charge drops it, a Data Limpet leaves it standing and lets us listen.',
-  obj:['Reach the {target} at {place}','Attach the device to the tower base','Return to the Marta'],
-  after:['<b>{SRC}:</b> \u201cThe tower at {place} has changed. I can hear it in the logs. Two to go.\u201d']};
+  rew:{i:5,xp:0.3}};
+/* the words of each type (name, target names, offer, objectives, follow-up line) are in game/js/mission-text.js */
+for(const k in MTYPE_DEFS){const t=MT.type(k);Object.assign(MTYPE_DEFS[k],{name:t.name,variants:t.targets,hook:t.hook,desc:t.desc,obj:MT.objList(k),after:t.after});}
 /* the first, scripted offer of each type keeps its original story context */
 const MSTORY={stealfuel:'fuel',rescue:'rescue',autofactory:'autofactory',stealintel:'intel'};
 const CTXDEF={
@@ -977,9 +954,9 @@ function missionName(mid){return (MPOOL[mid]||{}).name||(MTYPE_DEFS[MSTORY[mid]]
 function srcInfo(id){return G.sources.find(x=>x.id===id)||CANDS[id]||STORY_SRC[id]||null;}
 function fillMission(m,str){
   const c=m.ctx||{},sn=(m.srcName||'').split(' ');
-  return String(str).replace(/\{npc\}/g,m.npc?m.npc.name:'').replace(/\{npc1\}/g,m.npc?m.npc.first:'')
-    .replace(/\{target\}/g,c.target||'target').replace(/\{place\}/g,c.place||'the target')
-    .replace(/\{SRC\}/g,(sn[sn.length-1]||'CONTACT').toUpperCase());
+  // the transport is picked at planning, so on the board it is just "the transport"
+  return MT.fill(str,{npc:m.npc?m.npc.name:'',npc1:m.npc?m.npc.first:'',target:c.target||'target',place:c.place||'the target',
+    SRC:(sn[sn.length-1]||'CONTACT').toUpperCase(),transport:'transport'});
 }
 /* a mission's place names from its world and region ids (m.loc, m.region): names are display only, ids are kept */
 function ctxNames(m){
@@ -1004,7 +981,6 @@ function spawnMission(tid,ctx){
     need:3,days:T.days,riskTxt:sec>=3?'High':T.riskTxt,lead:'ground',ground:true,type:'ground',scenario:T.scenario,
     loc:ctx.loc,region:ctx.region||undefined,lib:Math.max(5,Math.round(T.lib*REV_W.libMul/5)*5),req:JSON.parse(JSON.stringify(T.req)),rew,bonus:T.bonus,
     npcRole:T.npcRole,ctx:{target,place:reg?reg.name:(d?d.name:'the target'),locName:d?d.name:'',sec}};
-  m.tpl={desc:T.desc,obj:T.obj,after:T.after};
   if(T.npcRole)m.npc=holdRecruit(T.npcRole);
   bindNpc(m);
   return m;
@@ -1321,10 +1297,11 @@ function holdRecruit(role){
   return {name:r[0],first:s.first,last:s.last,role,bio:r[1]};
 }
 function bindNpc(m){
-  if(m.tpl){
-    m.desc=fillMission(m,m.tpl.desc);
-    m.objectives=m.tpl.obj.map(x=>fillMission(m,x));
-    m.after=(m.tpl.after||[]).map(x=>fillMission(m,x));
+  const T=m.tid&&MTYPE_DEFS[m.tid];   // a type's words are read live, so an edit reaches missions already on the board
+  if(T){
+    m.desc=fillMission(m,T.desc);
+    m.objectives=T.obj.map(x=>fillMission(m,x));
+    m.after=(T.after||[]).map(x=>fillMission(m,x));
     return;
   }
   const t=MPOOL[m.id];
@@ -4254,7 +4231,7 @@ function expCards(p,quiet){
   return '<div class="sr-h3">Experiences <span class="sr-faint">'+l.length+'/'+Rebel.EXP_MAX+'</span></div><div class="sr-stack">'+l.map(t=>{
     const d=Rebel.RTK[t.k];
     return '<div class="sr-card sr-card--progress"><div class="sr-card__top"><span class="sr-card__title">'+esc(Rebel.expTitle(t,nameOfRebel))+'</span>'+(d.temp?wTag('Temporary','info'):'')+'</div>'+
-      '<div class="sr-card__body">'+esc(Rebel.expText(t,p,nameOfRebel))+'<br><span class="sr-faint">'+esc(d.e.replace(/\[B\]/g,t.with?nameOfRebel(t.with):'them'))+'</span></div></div>';
+      '<div class="sr-card__body">'+esc(Rebel.expText(t,p,nameOfRebel))+'<br><span class="sr-faint">'+esc(d.e.replace(/\{partner\}/g,t.with?nameOfRebel(t.with):'them'))+'</span></div></div>';
   }).join('')+'</div>';
 }
 /* a labelled bar: label, fill 0..1, value, tooltip */
@@ -5362,7 +5339,7 @@ const ST_LINES={
   boughtShip:'Done. My lads will fly it to you in two days. Try not to crash it before it lands.',       // Phase 4
   soldOut:'Gone. Should’ve been quicker, sugar.',
   noHeg:'It’s serial-stamped, sugar. It gets stalls burned.',   // optional flavour: why no Hegemony kit
-  mercTpl:'[First] shoots for money, not for flags. Pay [them] well and [they] might start caring. Comes with [their] own [weapon].',   // Phase 3
+  mercTpl:'{first} shoots for money, not for flags. Pay {them} well and {they} might start caring. Comes with {their} own {weapon}.',   // Phase 3
   pitch:{
     longiron:'Off a poacher who won’t be needing it. Not my doing. Mostly. Reaches further than anything else on this table.',
     akli:'Bhord build them to be dropped in mud. These fell off a garrison truck. Twice.',
@@ -5567,7 +5544,7 @@ function stLine(){
   let pitch;
   if(l.kind==='merc'){
     const m=l.merc,wk=m.ownKit.primary||m.ownKit.secondary;
-    pitch=ST_LINES.mercTpl.replace(/\[First\]/g,m.first||m.name.split(' ')[0]).replace(/\[them\]/g,'them').replace(/\[they\]/g,'they').replace(/\[their\]/g,'their').replace(/\[weapon\]/g,kitNameId(wk));
+    pitch=MT.fill(ST_LINES.mercTpl,{first:m.first||m.name.split(' ')[0],them:'them',they:'they',their:'their',weapon:kitNameId(wk)});
     if(!mercBunkFree())return pitch+' '+ST_LINES.needBunk;   // the blocked reason lives in her line (no hint text)
   } else {
     pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind]||ST_LINES.greet;
@@ -6232,7 +6209,7 @@ function precondList(m){
   } else {
     const n=r.ships||r.team;
     out.push({ok:ablePilots().length>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available'});
-    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — the Marta won’t do':'')});
+    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':'')});
   }
   for(const it of r.items||[]){
     const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);
@@ -6513,6 +6490,7 @@ function startPlan(){
   if(PL.req.transport){
     const squad=PL.slots.filter(sl=>sl.acc==='soldier').map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
     const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
+    const tv=G.fighters.find(f=>f.id===PL.v.tv0);
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
     const reinforce=[];PL.assets.forEach((a,k)=>{if(plAssetMode(k)!=='reinforce')return;const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']);
       for(let q=0;q<((f&&SEATS[f.cls])||0);q++){const rp=G.people.find(x=>x.id===PL.v['as'+k+'r'+q]);if(rp)reinforce.push(rp);}});
@@ -6540,7 +6518,8 @@ function startPlan(){
         return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,arm:d.arm,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
-      grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]}};
+      grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]},
+      transport:tv?{id:tv.id,name:tv.name,cls:tv.cls}:undefined};
   } else {
     const flight=[];
     for(const sl of PL.slots.filter(x=>x.acc==='pilot')){
@@ -6845,6 +6824,11 @@ const MIGRATIONS=[
   /* 2 -> 3: the Back slot (DESIGN_BLOCKERS C-25): everyone with gear gets an empty one */
   function(){
     for(const p of G.people)if(p.gear&&p.gear.back===undefined)p.gear.back=null;
+  },
+  /* 3 -> 4: a mission of a type no longer carries its own copy of the type's words (m.tpl); bindNpc reads the type
+     (game/js/mission-text.js), so text edits reach missions already on the board (DESIGN_BLOCKERS C-26) */
+  function(){
+    for(const m of G.missions)delete m.tpl;
   },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes

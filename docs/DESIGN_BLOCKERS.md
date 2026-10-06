@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, adding C-26 (mission text is written per mission, not per type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -34,7 +34,6 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-15 | ⚪ | Prologue quips are placeholder lines | The designer's own opening lines |
 | C-18 | ⚪ | Ship and truck attachment lists are still guesses | The Armoury copy when attachments arrive |
 | C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
-| C-26 | 🔴 | Mission types are reusable on the board, but their ground-scene text is written per mission and names the Marta | Any transport but the Marta; new mission types without hundreds of new lines |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
@@ -104,40 +103,6 @@ armour is built; the four head items have art.
   the game.
 **Needs from you:** the ship and truck attachment lists, whenever you get to them.
 **Your call:** _part answered; attachments open_
-
-### C-26 🔴 Mission types are reusable on the board, but their ground-scene text is written per mission
-The GDD (§8, *Mission types and narrative contexts*) says a mission is a type plus a narrative context, and the
-board does that: `MTYPE_DEFS` in `base.js` fills `{target}`, `{place}` and `{npc}` per deployment. The ground scene
-does not. It was built one mission at a time, and only the title, place, flavour paragraph and the key building's
-label are swapped in from the context. Found while building the text tool (`docs/TEXT.md`):
-- **The transport is always the Marta.** About 50 lines say "the Marta" (objectives, logs, the LZ label, the end
-  screen, the *Call in the Marta* button). Deeper than the text: the planning board's transport pick (`tv0`) is never
-  sent to the ground scene, which always draws a Graf labelled MARTA. `grafName()` in `ground.js` is the transport's
-  *pilot*, not the ship.
-- **Each type's words live in three places that can drift apart:** the board's objectives (`MTYPE_DEFS.*.obj`), the
-  ground briefing (`SCENARIOS.*.brief`) and the in-mission objective strip and end screen (code branches in
-  `syncUI()` and `gameOver()`, 83 lines in `gameOver()` alone).
-- **The first story deployment's setting leaks into every later one.** Every Steal Fuel ends with Brakka's herders,
-  the tithe and "the warden is still smug", wherever it happens; the briefing hint and LZ label do the same; if a
-  context has no place, the end screen falls back to the story's (Data Flats, Kiln Ridge, Redrock Flats, Tollgate
-  Landing).
-- **Every guard is hand-written:** 242 lines in `foes()` are individually named guards, each with their own barks,
-  scenario by scenario. The enemy roster already has types (`enemies` in `db.json`); barks and names could come from
-  the type.
-- (Not text, but the same root: each mission type has one fixed map, so only the names change between deployments.)
-
-Unique story missions (Take the Rock, Steal the Cross, Steal the Strider, the Depot Run), source chains (`CHAINS`)
-and source events stay bespoke on purpose, as the GDD says.
-
-**Proposal:** one text set per mission type, in data the text sheet edits: briefing, objectives, hint, key log lines,
-win and lose endings, using variables the game fills in: `{transport}`, `{pilot}`, `{target}`, `{place}`, `{npc}`,
-`{carrier}`, `{lead}`. The chosen transport goes to the ground scene (its name on the LZ, the button, the art).
-Enemy barks move to the enemy type (alert, spotted, hit, ally down, surrender), names to a pool per faction; named
-characters (Sheriff Reeve, Boss Craw) stay named. A new deployment then needs no new lines; a new type needs one set.
-**Needs from you:** agree the variable names (the game also uses `[First]` and `[A]` in a few places; I would make
-everything `{curly}`), whether ordinary guards keep personal names, and whether the story missions keep their own
-endings.
-**Your call:** _open_
 
 ### C-24 ⚪ Enemy types and loadouts the Enemies doc doesn't cover
 The enemy roster (the Enemies tab of the spreadsheet, `enemies` in `db.json`) follows the Enemies doc where it
@@ -436,6 +401,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-26 | Curly `{variables}` everywhere; ordinary guards get random names; story missions keep their own endings. | 2026-10-06 | Each reusable type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Disrupt Comm Towers) has one text set in `game/js/mission-text.js`: name, target names, offer, follow-up, banner, briefing, objectives (the board, the briefing and the live list read the same ones), hint, arrival call, log lines, end screen. Variables: `{transport}` `{pilot}` `{target}` `{place}` `{npc}` `{npc1}` `{carrier}` `{device}` `{hacker}` `{fallen}`. The transport picked on the planning board now reaches the mission (its name on the LZ, the hauler, the call-in button, every line). Missions on the board read their type's words live (save version 4 drops the old per-mission copy). Hegemony guards get a surname from a pool (a serial for a robot) and their type's lines: alarm calls when they raise the alarm, idle chatter while all is quiet (new: it was never spoken before). Sheriff Reeve, his deputies, Boss Craw and the squatters keep theirs. Lines tied to one place (the toll office, the herders) were made generic or dropped. Each map is still one per type. `tools/mission-text-smoke.js`. The "Mission text per type" commit |
 | C-25 | The final slot list is primary, secondary, two gadgets, head, body and back. | 2026-10-05 | Soldiers, Marines and Heroes get a **Back** slot (Pilots and Support do not), in the Arsenal, the personnel file, auto-equip and the squad entry; old saves get an empty one (save version 3). The **Razorrat LMG** and the **Riot Shield** are live. A rebel with one on their back gets **Deploy** (as the round opens, no shot): the Razorrat is set up where they stand and they man it (no sandbags in the field; one emplacement per map), the Riot Shield goes into their hands in place of the primary. Riot shields, the enemy's too, now soak hits from the front until they break (60, the `riot_shield_hp` rule; a broken one is used up and does not drop). **Effect:** riot shieldmen can now be worn down from the front instead of only flanked; the mission hints say so. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
 | M-15 | A wrecked vehicle or Bot is lost for good (to revisit later). | 2026-10-05 | No change: that was already the rule. The rest of M-15 stays open. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
 | M-26 | Claude Design's October 5 art handoff covers the new kit and makers. | 2026-10-05 | New `sr-art.js`, style guide and handoff in. Art for the ST Stiletto, Razorrat, the four head items, the limpet, the shell box and the C90 (the alias is gone); **maker badges** on Arsenal and Black Market cards; **trait and damage-type icons** on the cards and in weapon tooltips; the **EG-55 Peacekeeper Carbine** is Fightstar plasma (C-23 settled); riot police wear Police Helmets (`riot`, `riotrifle`); **Sweet Tooth** has her own character (M-20 settled); the layered **vitals** bar over units and matching plate and hex shapes in the rail; the shield bubble, armour, shield, Sundering and Piercing hit effects; the `deploy`, `knocked` and `stunned` poses; strafing runs, supply drops and landings drawn by the kit (the run flies the assigned ship); ships parked in the iso hangar with `shipIso`. Loose ends are M-29. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
