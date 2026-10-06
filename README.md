@@ -22,6 +22,11 @@ Ships, ship weapons, personal kit (`items`), the ground enemy roster (`enemies`)
 live in `game/data/db.json`; the game reads them through `game/js/data.js`, `game/js/items.js` and `game/js/enemies.js`. Edit them in Google Sheets with `python3 tools/db/build.py export-xlsx` and `import-xlsx`.
 See `docs/DATABASE.md`.
 
+## Game text (`tools/text/`, `docs/TEXT.md`)
+
+Every line of dialog, briefing, tooltip and label is written into the code. `python3 tools/text/text.py export`
+puts all of it in a workbook to edit in Google Sheets, and `import` writes the edits back. See `docs/TEXT.md`.
+
 ## `game/` — the unified game
 
 The three layers now run as **one playable game** (`game/index.html` +
