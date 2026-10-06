@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the screens handoff, screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -38,6 +38,8 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | C-28 | ⚪ | Support specialties: the numbers and readings I chose while building them | How every Support rebel plays |
 | C-31 | ⚪ | Downed VIPs, the shooter's reveal, the transport's fire support and supply drop billing, reworded arrival lines | Rescue and Steal the Cross; fire support in every mission |
+| C-32 | 🟡 | Screens handoff: the open questions its §6 lists (cultivation scale, holo callouts, injured days, count-first labels, win objectives, Cass bubble, Market/Arsenal amendment) | The comm burst, the briefing room, the personnel file; the Market and Arsenal footers |
+| C-33 | ⚪ | Mission report: what I chose (Intel tile, extra source rows, a level-up bar, space objectives) | How the report reads |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -251,6 +253,43 @@ Your answers on C-29 and C-30 are built (see the resolved log). Where I had to c
    lines)** said the pilot would wait at the LZ with the engines warm. I reworded them so the pilot stays overhead
    and comes back. Please check the words in the spreadsheet.
 **Needs from you:** whether any of these should change, and your wording for (6).
+**Your call:** _open_
+
+### C-32 🟡 Screens handoff (`docs/ui/SCREENS-HANDOFF.md`): the open questions
+The handoff's §6 asks for these to be logged. Screen 1 (the mission report) is built; the others wait for your
+review of it, in the handoff's order: personnel file, comm burst, Missions tab.
+1. **Cultivation meter scale** (comm burst, screen 3): is it `cult / 100` toward the next level?
+2. **Holo callouts** (Missions tab, screen 4): a new optional `holo` field per mission. Please write the callout
+   lines for each mission; until then the first two objectives stand in as Target and Extract.
+3. **Injured days counter** (personnel file, screen 2): kept on the Medical card, though the mission report
+   dropped it. Keep it there?
+4. **Requirement labels** (Missions tab): count-first everywhere ("1 Transport", "3 Soldiers"). You accepted it for
+   the transport; confirm the others.
+5. **Win objectives** (mission report, built): collapsed to the "All N objectives" pill, as you reviewed. I can
+   bring the full list back.
+6. **Cass's transmission** (`cassIntro`, screen 3): adopt the comm burst's speech bubble (recommended, not signed
+   off).
+7. **Market and Arsenal amendment (§0.1):** Buy / Buy all onto the selected lot, Give to… / Sell and Fit / Refit /
+   Assign into the dossier, no command bar out of combat. Both screens are built; confirm the change applies to
+   them and I will make it with the briefing room.
+**Needs from you:** an answer to each.
+**Your call:** _open_
+
+### C-33 ⚪ Mission report: what I chose
+Built from the handoff's §1 (`reportHTML` in `game/js/base.js`, `game/ui/sr-report.css`).
+1. **Intel:** the handoff names four resource tiles, but six missions pay Intel. Intel gets a fifth tile in its
+   `--sr-res-intel` colour when gained (it wraps to a second row).
+2. **Source rows beyond pay and found:** the stealth bonus shows as its own "+N stealth bonus" row (it used to be
+   tagged), Scavenger's Eye materials as "salvaged", and a ship sold for want of a berth as "fenced, no berth".
+3. **A level-up** fills the whole XP bar in gold (the old level finished), and the line under the gain reads the
+   new level and its fill ("Lv 3 · 20%").
+4. **Revolution rows:** the handoff's parts (mission, first or second operation, liberation, region liberated) plus
+   "Symbol of the Revolution" when the Propagandist's bonus adds to it.
+5. **A failed space mission** does not track objectives, so all of them show as missed. Ground missions report
+   which were met.
+6. **Hacked units** (a Policebot that joins the roster) show as a Bot tile with an icon; there is no art for them
+   outside combat.
+**Needs from you:** anything above you would like different.
 **Your call:** _open_
 
 ---

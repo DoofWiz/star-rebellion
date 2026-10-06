@@ -50,7 +50,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.gained=Math.round((ql.xp-xp0+(ql.level-1)*100)*100)/100;
   for(let i=0;i<6&&f.getWin()&&f.getWin()!=='reward';i++)f.closeWin();
   out.win=f.getWin();
-  const row=[...document.querySelectorAll('.sr-loot')].find(r=>r.textContent.indexOf('ql Test')>=0);
+  const row=[...document.querySelectorAll('.rp-mate')].find(r=>r.textContent.indexOf('ql Test')>=0);
   out.shown=row?row.textContent:'';
   f.closeWin();
   return out;
@@ -59,7 +59,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(a.auto!=='plasmasmg','auto-equip skips live:0 kit '+a.auto);
  ok(a.reconciled===null,'live:0 kit in a slot is put back in the armory '+a.reconciled);
  ok(!a.offered,'the gear picker does not offer live:0 kit');
- ok(a.win==='reward'&&a.shown.indexOf('XP +55%')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
+ ok(a.win==='reward'&&a.shown.indexOf('+55% XP')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
  ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>1,'Marines are treated like Soldiers '+a.heal);
 
  // ---- 1 and 6: launch a ground mission with a support Graf carrying four reinforcements

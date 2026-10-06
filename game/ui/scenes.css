@@ -137,6 +137,7 @@
 @container sr-app (max-width:900px) or (max-height:520px){
   #sc-base .sr-scrim{padding:30px 8px 8px;}
   #sc-base .sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 38px);}   /* the foot stays on screen; the body scrolls */
+  #sc-base .sr-scrim.bs-winfull{padding:0;} #sc-base .bs-winfull>.sr-window{max-height:none;}   /* the report and the personnel file take the whole screen */
   #sc-base .sr-slot-tl{left:8px;--bs-top:calc(var(--sr-gutter) + 22px + 62px);}
   #sc-base .bs-dock{width:min(380px,calc(100cqw - 16px));max-height:calc(100cqh - var(--sr-topbar-h) - var(--bs-top) - 84px);}   /* portrait: Advance day sits full-width below */
   #sc-base .bs-plan{grid-template-columns:minmax(0,1fr);grid-template-areas:"l" "r" "ro";grid-template-rows:auto;gap:0;}
