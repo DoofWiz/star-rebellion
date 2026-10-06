@@ -299,8 +299,7 @@ exempt. The dead do not come home; the Doctor's Stabilise can still pull one bac
 
 **Characters the objective needs** (the rescued VIP, the Pilot in Steal the Cross) follow the same rules. Going down
 does not fail the mission: it fails when they die, or when they are down and nobody can bring them round (no one
-standing carries a Med Pack, no supply crate is on the ground, inbound or still to call, and for the VIP no Evac on
-Call). Nobody extracts while the VIP is down. A Strider is a machine: it cannot be treated, so its fall still ends
+standing carries a Med Pack, and for the VIP no Evac on Call). Nobody extracts while the VIP is down. A Strider is a machine: it cannot be treated, so its fall still ends
 the mission. (DESIGN_BLOCKERS C-31.)
 
 **Stims** are a planning Action (heal 30% of max health as the round opens); the rebel still shoots that round.
@@ -720,23 +719,27 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
 
 ### Fire support (built, Phase 4)
 **The transport** drops the squad, lifts off and comes back to the LZ for the pickup once the job is done (the exit
-opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air. While
-it is up it gives fire support of its own:
-- **Supply Drop** (paid only when called: 160 supplies, taken at the debrief; offered when the stores hold that much):
-  a crate lands as the next round begins, where you call it. It can also be called in free move, before the shooting
-  starts: a quiet chute that lands a few seconds later. Looting it gives **5 stims, 2 Med Packs, 2 BLAM frags and 2
-  makeshift rocket launchers** (one shot each, big single-target damage, good against vehicles and Striders).
-- **Door Gunner Cover** when the transport has a Door Mounted Gun fitted (two passes). A rocket hit makes it break
-  off, not crash: it still has the pickup to make. It leaves the gun when it heads back for the squad.
+opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air.
 
-The planning board's **Fire support** area shows what the transport offers and takes extra assets:
+The planning board's **Fire support** area shows what the assigned transport brings by itself, no second ship
+needed, and takes extra assets. Each of the transport's options is a toggle (Arranged / Not arranged):
+- **Supply Drop** (160 supplies, paid at launch), when the transport's type can fly one (the Ships table's
+  `supply_drop`: the Graf Hauler can): a crate lands as the next round begins, where you call it. It can also
+  be called in free move, before the shooting starts: a quiet chute that lands a few seconds later.
+  Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
+  single-target damage, good against vehicles and Striders).
+- **Door Gunner Cover** (free, on by default), when the transport has a gunner position and a Door Mounted Gun
+  fitted (Marta starts with one): once the squad is down it circles two rounds and rakes up to three visible
+  enemies a round. A rocket hit makes it break off, not crash: it still has the pickup to make. It leaves the gun
+  when it comes down for the squad, or to the pumps in Steal Fuel.
 - **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
   **Strafing Run** (tap the start, then the heading; ten imprecise blasts along a line at the end of the
   round, **danger close** to your own people). A spare **Graf** can be a **Door Gunner** (circles two
   rounds, rakes up to three visible enemies a round) or carry **Reinforcements** (up to two more soldiers,
   set down at the start of the next planning phase where you call them).
 - In the mission, any soldier's radial **Fire Support** opens a menu top-left; pick an item, then tap a spot
-  you can see. Level 1 only has one Graf, so Door Gunner and Reinforcements wait for a second hauler.
+  you can see. With one Graf, its own Supply Drop and door gun are the fire support; Reinforcements, a second
+  door gunner and Strafing Runs need a spare ship.
 - **Combat Support** (a Mission Control niche) adds to a supported mission: one extra call, a steadier door gunner,
   calls that land at once, Evac on Call, a wider zone, no friendly blast damage and a Heavy Bombardment.
 - **Enemy range:** the Hegemony shoots to its weapons' full reach, but a shot gives the shooter away: they stay

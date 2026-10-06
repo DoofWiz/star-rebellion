@@ -98,7 +98,11 @@ the ship, and traits or morale may push the effective value outside 1 to 6.
   saved on the pilot. (The space scene's `mkPilot` still accepts the old `aim x 10` shape for its own fixtures.)
 - **Target number:** `base TN + Focus bonus`, shown in the engagement panel as `SIZE n HULL` and `PILOT FOCUS`.
 - **Door Gunner Support:** needs a ship with a gunner position carrying a weapon whose `fire_support` is `door_gunner`.
-  Reinforcements land up to the transport's `extra_people` seats; filling them is optional.
+  The mission's own transport offers it when it qualifies; a spare ship can too. Reinforcements land up to the
+  transport's `extra_people` seats; filling them is optional.
+- **Supply Drop:** offered on the planning board when the mission's transport is a ship whose `supply_drop` is TRUE
+  (the Graf Hauler). It needs `extra_people`, since only a ship that carries the squad flies one. A workbook exported
+  before this column existed still imports: the column keeps its values from `db.json`.
 
 ## Items
 
