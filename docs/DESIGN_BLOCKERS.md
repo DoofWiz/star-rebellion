@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the screens handoff, screen 2 (the personnel file: C-34). Before that, 2026-10-06, after screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the screens handoff, screen 3 (the comm burst: C-35). Before that, 2026-10-06, after screen 2 (the personnel file: C-34). Before that, 2026-10-06, after screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -41,6 +41,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-32 | 🟡 | Screens handoff: the open questions its §6 lists (cultivation scale, holo callouts, injured days, count-first labels, win objectives, Cass bubble, Market/Arsenal amendment) | The comm burst, the briefing room, the personnel file; the Market and Arsenal footers |
 | C-33 | ⚪ | Mission report: what I chose (Intel tile, extra source rows, a level-up bar, space objectives) | How the report reads |
 | C-34 | 🟡 | Personnel file: pilot Aim and Focus read the database bonus, not the handoff's formulas; trait chip wording; what I chose | What the skill tiles promise; how every file reads |
+| C-35 | ⚪ | Comm burst: what follows Acknowledge, source events, the level-up meter | How talking to a source reads |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -257,9 +258,10 @@ Your answers on C-29 and C-30 are built (see the resolved log). Where I had to c
 **Your call:** _open_
 
 ### C-32 🟡 Screens handoff (`docs/ui/SCREENS-HANDOFF.md`): the open questions
-The handoff's §6 asks for these to be logged. Screens 1 (the mission report) and 2 (the personnel file) are built;
-the comm burst and the Missions tab follow, in the handoff's order.
-1. **Cultivation meter scale** (comm burst, screen 3): is it `cult / 100` toward the next level?
+The handoff's §6 asks for these to be logged. Screens 1 (the mission report), 2 (the personnel file) and 3 (the
+comm burst) are built; the Missions tab follows.
+1. **Cultivation meter scale** (comm burst, built): built as `cult / 100` toward the next level, which is how
+   `checkCultLevel` levels a source today. Is that the scale you want?
 2. **Holo callouts** (Missions tab, screen 4): a new optional `holo` field per mission. Please write the callout
    lines for each mission; until then the first two objectives stand in as Target and Extract.
 3. **Injured days counter** (personnel file, built): kept on the Injured card ("20 days to go"), though the mission
@@ -268,8 +270,8 @@ the comm burst and the Missions tab follow, in the handoff's order.
    the transport; confirm the others.
 5. **Win objectives** (mission report, built): collapsed to the "All N objectives" pill, as you reviewed. I can
    bring the full list back.
-6. **Cass's transmission** (`cassIntro`, screen 3): adopt the comm burst's speech bubble (recommended, not signed
-   off).
+6. **Cass's transmission** (`cassIntro`, built): adopted the comm burst's speech bubble and channel strip, as the
+   handoff recommends. Not signed off yet: say if you want the old window back.
 7. **Market and Arsenal amendment (§0.1):** Buy / Buy all onto the selected lot, Give to… / Sell and Fit / Refit /
    Assign into the dossier, no command bar out of combat. Both screens are built; confirm the change applies to
    them and I will make it with the briefing room.
@@ -318,6 +320,25 @@ at the Personnel File block in `game/ui/scenes.css`).
 9. **Icons** I picked: a d20 for Character, one per experience category, one per specialty, and Job/Rule icons.
 **Needs from you:** whether (1) should change the space numbers or the tiles; anything else you would like
 different, especially the chip wording in (2).
+**Your call:** _open_
+
+### C-35 ⚪ Comm burst: what I chose
+Built from the handoff's §3 (`commHTML` in `game/js/base.js`, `game/ui/sr-comm.css`; glue in `game/ui/scenes.css`).
+1. **After Acknowledge** the channel stays open: what happened becomes a log line ("New mission on the board…",
+   with Cass's second-pilot note during onboarding), then "No signal waiting." and Close channel. The handoff does
+   not say what follows Acknowledge.
+2. **Source events** (a source raising something, with answers to pick) use the same window: their words in the
+   bubble with no Signal tag, the answers below it, no footer.
+3. **A level-up** fills the meter and names the new level (cultivation restarts at 0 when a source levels).
+4. **Narration:** the bare "Cultivation increased." and a visit's "Cultivation +10" lines are gone (the meter shows
+   them); a visit's "Their risk +6: being seen costs." stays as a log line. An answer's lines keep their numbers.
+5. **Sources have no portraits**, so the avatar is their initials.
+6. **The lead card** reads "Ground · Moderate risk · Brakka · Dustfall" for a ground lead and "Space · High risk"
+   (with "· {World} orbit" when the mission has a world) for a space one. Recruit and other signals add no
+   mission, so they show no lead card.
+7. **Cass's transmission** puts "Unregistered freighter · voices masked" in the channel strip (it was the footer
+   note) and has no Signal tag.
+**Needs from you:** anything above you would like different.
 **Your call:** _open_
 
 ---

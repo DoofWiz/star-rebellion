@@ -147,6 +147,13 @@
 #sc-base .pf-body{min-height:0;overflow-y:auto;}   /* fits at 900px tall; only a shorter screen scrolls */
 #sc-base .pf-skill{padding:7px 10px 8px;} #sc-base .pf-skill .pf-bar{margin-top:5px;} #sc-base .pf-skill__fx{margin-top:5px;}
 #sc-base .pf-stage.is-hurt .pf-pegs--l{top:96px;}   /* clear of the Injured ribbon */
+/* the comm burst (ui/sr-comm.css): the waveform is today's canvas, the sections carry their own margins */
+#sc-base .cm-chan canvas{display:block;width:100%;height:30px;margin-top:6px;}
+#sc-base .cm-body{padding:0 0 16px;}
+#sc-base .cm-body>.cm-lead:last-child,#sc-base .cm-body>.cm-quiet:last-child{margin-bottom:0;}
+#sc-base .cm-choices{display:flex;flex-direction:column;gap:8px;margin:14px 16px 0;}
+#sc-base .cm-log b{color:var(--sr-text-2);}
+#sc-base .cm-chan__top b{white-space:nowrap;} #sc-base .cm-chan__top span{text-align:right;}
 /* phones: windows scroll as a whole; the room window and its neighbours get out of each other's way */
 @container sr-app (max-width:900px) or (max-height:520px){
   #sc-base .sr-scrim{padding:30px 8px 8px;}

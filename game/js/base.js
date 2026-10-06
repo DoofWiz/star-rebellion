@@ -2349,37 +2349,41 @@ function resolveMission(m){
 }
 
 /* ---------- source actions (results delivered over comms) ---------- */
+/* cultivation before and after, for the comm burst's meter (a level-up fills it) */
+const cultOf=(src,c0,l0)=>({from:c0,to:src.level>l0?100:src.cult,lvl0:l0,lvl1:src.level});
 function srcVisit(src){
   if(src.visited)return;
   src.visited=true;
+  const c0=src.cult,l0=src.level;
   src.cult=Math.min(100,src.cult+10);
   src.risk=Math.min(100,src.risk+6);
   G.risk=Math.min(100,G.risk+1);
   const lvl=checkCultLevel(src);
   rollSignal(src);
   const lines=['You make the crossing to '+src.loc+' yourself. '+src.name.split(' ')[0]+' needed a face, not a frequency.',
-    'Cultivation +10. Their risk +6 — being seen costs.'];
+    'Their risk +6: being seen costs.'];
   if(lvl)lines.push(lvl);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function srcContact(src){
   if(src.pendingEvent){openComm(src,{event:src.pendingEvent});return;}
   if(src.contacted&&!src.signal)return;
+  const c0=src.cult,l0=src.level;
   if(!src.contacted){
     src.contacted=true;
     src.cult=Math.min(100,src.cult+3);
     rollSignal(src);
   }
   const lvl=checkCultLevel(src);
-  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.','Cultivation increased.'];
+  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.'];
   if(lvl)lines.push(lvl);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function srcAnswer(src,idx){
   const ev=src.pendingEvent;
-  const kind=ev.opts[idx][1];
+  const kind=ev.opts[idx][1],c0=src.cult,l0=src.level;
   src.pendingEvent=null;
   src.eventsSeen++;
   src.contacted=true;
@@ -2400,7 +2404,7 @@ function srcAnswer(src,idx){
   const lvl=checkCultLevel(src);
   if(lvl)lines.push(lvl);
   rollSignal(src);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function checkCultLevel(src){
@@ -4553,23 +4557,18 @@ function drawCommStatic(now){
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
   const t=RM?0:now,nz=RM?()=>0.5:rng;     // reduced motion: a steady line, no flicker
-  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
-  for(let i=0;i<240;i++){
-    c2.fillStyle=TH.rgba(K.rebel,nz()*0.2);
+  c2.clearRect(0,0,w,h);   // the channel strip is the background; the flavour text lives in the strip
+  for(let i=0;i<60;i++){
+    c2.fillStyle=TH.rgba(K.rebel,nz()*0.18);
     c2.fillRect(nz()*w,nz()*h,1.5,1.5);
   }
-  const sy=(t*0.05)%h;
-  c2.fillStyle=TH.rgba(K.rebel,0.08);c2.fillRect(0,sy,w,7);
-  c2.strokeStyle=K.rebel;c2.lineWidth=2;
+  c2.strokeStyle=K.rebel;c2.lineWidth=1.5;
   c2.beginPath();
   for(let x=0;x<w;x+=3){
-    const y=h/2+Math.sin(x*0.08+t*0.01)*6*nz()+(nz()-0.5)*8;
+    const y=h/2+Math.sin(x*0.08+t*0.01)*(h*0.22)*nz()+(nz()-0.5)*h*0.25;
     x===0?c2.moveTo(x,y):c2.lineTo(x,y);
   }
   c2.stroke();
-  c2.font='700 11px '+TH.FONT.ui;c2.textAlign='left';
-  c2.fillStyle=K.text2;
-  c2.fillText('Encrypted · rebel net'+(winArg&&winArg.src?' · '+winArg.src.loc:''),10,15);
 }
 
 /* ---------- main render ---------- */
@@ -5054,19 +5053,8 @@ function renderWin(){
       wFoot('<div class="sr-btngroup">'+rbtn('data-tut-prev aria-label="Previous page"',IC('back'),pg===0,'sr-btn--icon')+rbtn('data-tut-next aria-label="Next page"',IC('chevron'),pg===TUT_PAGES.length-1,'sr-btn--icon')+'</div>','Page '+(pg+1)+' of '+TUT_PAGES.length);
   }
   else if(winMode==='comm'){
-    const {src,payload}=winArg;
-    let body='<canvas id="commStatic" class="sr-signal"></canvas>',foot='';
-    const q=t=>'<div class="sr-quote">'+(/^<b>/.test(t)?'':'<div class="sr-quote__who">'+IC('signal')+src.name+'</div>')+t+'</div>';
-    if(payload.event){
-      body+=q(payload.event.text)+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('');
-    } else {
-      body+=q(payload.lines[0])+payload.lines.slice(1).map(l=>'<p class="sr-p" style="margin:12px 0 0">'+l+'</p>').join('');
-      if(payload.signal){
-        body+='<div class="sr-tag sr-tag--bad bs-tagwrap"><span><b>Signal:</b> '+payload.signal.text+'</span></div>';
-        foot=rbtn('data-follow','Acknowledge',false,'sr-btn--primary');
-      } else foot=rbtn('data-close','Close channel.',false,'sr-btn--primary');
-    }
-    h=wHead('Comm burst',{tags:wTag(src.name,'friend')})+wBody(body)+wFoot(foot,'carrier locked · lag 4.2s · voices masked');
+    h=commHTML(winArg.src,winArg.payload);
+    size='';cls=' cm-win';
   }
   else if(winMode==='newmission'){
     const m=winArg;
@@ -5175,11 +5163,11 @@ function renderWin(){
       wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
   }
   else if(winMode==='cassIntro'){
-    h=wHead('Incoming transmission',{x:false})+wBody(
-      '<canvas id="commStatic" class="sr-signal"></canvas>'+
-      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”</div>'+
-      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.</p>')+
-      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter');
+    h=wHead('Incoming transmission',{x:false})+'<div class="sr-window__body cm-body">'+cmChan('Unregistered freighter · voices masked')+
+      cmSay('CW','Cass Wender','“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”')+
+      cmLog('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.')+'</div>'+
+      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'));
+    size='';cls=' cm-win';
   }
   else if(winMode==='recruit'){
     const cards=winArg.cards,multi=cards.length>1,batch=!!winArg.batch;
@@ -5288,6 +5276,58 @@ function renderWin(){
     }
   }
   markWin();
+}
+
+/* ---------- the comm burst (docs/ui/SCREENS-HANDOFF.md §3) ----------
+   Each kind of information has one home: who (and their cultivation), the channel and its flavour, our narration
+   as log lines, the source's own words in one bubble, and what acknowledging does. */
+const cmChan=flavour=>'<div class="cm-chan"><div class="cm-chan__top"><b>Carrier locked</b><span>'+flavour+'</span></div><canvas id="commStatic" class="cm-wave" aria-hidden="true"></canvas></div>';
+const cmLog=t=>'<div class="cm-log"><span>'+t+'</span></div>';
+const cmSay=(ini2,name,text,tag)=>'<div class="cm-say"><span class="cm-say__ava" aria-hidden="true">'+esc(ini2)+'</span><div class="cm-bubble">'+
+  '<div class="cm-bubble__top">'+esc(name)+(tag?wTag(tag,'action'):'')+'</div><p>'+text+'</p></div></div>';
+/* the mission a signal would put on the board, read without putting it there */
+function signalLead(sig){
+  let m=null;
+  if(sig.kind==='mission'){
+    if(MSTORY[sig.mid]){const T=MTYPE_DEFS[MSTORY[sig.mid]],c=CTXDEF[sig.mid]||{};if(T)m={name:T.name,ground:true,type:'ground',riskTxt:T.riskTxt,loc:c.loc,region:c.region};}
+    else if(MPOOL[sig.mid])m=Object.assign({id:sig.mid},MPOOL[sig.mid]);
+  } else if(sig.kind==='offer'){
+    const T=MTYPE_DEFS[sig.tid],d=sig.ctx&&pdef(sig.ctx.loc);
+    if(T)m={name:T.name,ground:true,type:'ground',riskTxt:d&&d.sec>=3?'High':T.riskTxt,loc:sig.ctx.loc,region:sig.ctx.region};
+  }
+  if(!m)return null;
+  const k=opKind(m),d=m.loc&&pdef(m.loc);
+  const where=k==='space'?(d?d.name+' orbit':''):whereHTML(m);
+  return {name:m.name,kind:k,meta:esc([OPKIND[k].label,m.riskTxt?m.riskTxt+' risk':'',where].filter(Boolean).join(' · '))};
+}
+function commHTML(src,payload){
+  const cu=payload.cult||{from:src.cult,to:src.cult,lvl1:src.level};
+  const gain=Math.round(cu.to-cu.from);
+  const who='<div class="cm-who"><span class="cm-ava">'+esc(ini(src.name))+'<i>'+IC('signal')+'</i></span>'+
+    '<div style="min-width:0"><div class="cm-name">'+esc(src.name)+'</div><div class="cm-role">'+esc([src.type,src.loc].filter(Boolean).join(' · '))+'</div></div>'+
+    '<div class="cm-who__end"><span class="cm-lvl">Source · Level '+(cu.lvl1||src.level)+'</span>'+
+    '<span class="cm-meter" style="--from:'+Math.round(cu.from)+';--to:'+Math.round(cu.to)+'" title="Cultivation '+Math.round(src.cult)+' / 100 toward the next level"><i class="was"></i><i class="now"></i></span>'+
+    (gain>0?'<span class="cm-gain">Cultivation +'+gain+'</span>':'')+'</div></div>';
+  let body=cmChan('Encrypted · rebel net · lag 4.2s · voices masked'),foot;
+  if(payload.event){
+    const said=String(payload.event.text).replace(/^<b>[^<]*<\/b>\s*/,'');   // the bubble names the speaker
+    body+=cmSay(ini(src.name),src.name,said)+'<div class="cm-choices">'+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('')+'</div>';
+    foot='';
+  } else {
+    body+=(payload.lines||[]).filter(Boolean).map(cmLog).join('');
+    const sig=payload.signal;
+    if(sig){
+      body+=cmSay(ini(src.name),src.name,sig.text||'',"Signal");
+      const ld=signalLead(sig);
+      if(ld)body+='<div class="cm-lead"><span class="cm-lead__ico">'+IC(OPKIND[ld.kind].icon)+'</span><div style="min-width:0"><div class="cm-lead__k">New Lead – Added to Mission Board</div>'+
+        '<div class="cm-lead__n">'+esc(ld.name)+'</div><div class="cm-lead__m">'+ld.meta+'</div></div></div>';
+      foot=rbtn('data-follow','Acknowledge',false,'sr-btn--primary');
+    } else {
+      body+='<div class="cm-quiet">No signal waiting.</div>';
+      foot=rbtn('data-close','Close channel',false,'sr-btn--primary');
+    }
+  }
+  return wHead('Comm burst')+who+'<div class="sr-window__body cm-body">'+body+'</div>'+(foot?wFoot(foot):'');
 }
 
 /* ---------- the Personnel File (docs/ui/SCREENS-HANDOFF.md §2) ----------
