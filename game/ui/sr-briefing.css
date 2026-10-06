@@ -1,0 +1,115 @@
+/* =====================================================================
+   STAR REBELLION — Missions tab: the briefing room (sr-briefing.css). Prefix bf-.
+   Builds on sr-theme.css. Hologram colour = info/intel (--sr-shield).
+   ===================================================================== */
+.bf-stage{background:
+  radial-gradient(ellipse 46% 34% at 56% 70%,rgba(54,227,242,.13),transparent 70%),
+  linear-gradient(180deg,#0d1030 0%,#0a0c26 62%,#080a1e 100%);}
+.bf-stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,rgba(54,227,242,.025) 0 1px,transparent 1px 64px),repeating-linear-gradient(0deg,rgba(54,227,242,.025) 0 1px,transparent 1px 64px);}
+
+/* ---------- board (left) ---------- */
+.bf-board{position:absolute;left:24px;top:116px;bottom:124px;width:330px;display:flex;flex-direction:column;gap:10px;}
+.bf-board__head{display:flex;align-items:center;gap:8px;font:400 18px/1 var(--sr-font-display);color:var(--sr-text);}
+.bf-board__head .sr-ico{width:20px;height:20px;color:var(--sr-shield);}
+.bf-board__head span{margin-left:auto;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.bf-filters{display:flex;gap:6px;}
+.bf-list{display:flex;flex-direction:column;gap:8px;overflow:hidden;}
+.bf-card{position:relative;display:grid;grid-template-columns:38px minmax(0,1fr);gap:4px 10px;align-items:center;padding:10px 12px 10px 10px;text-align:left;color:var(--sr-text);
+  background:linear-gradient(90deg,rgba(54,227,242,.10),rgba(20,24,64,.85) 60%);border:2px solid rgba(54,227,242,.35);border-radius:var(--sr-r-lg);
+  box-shadow:inset 0 0 18px rgba(54,227,242,.08);cursor:pointer;font:inherit;transition:border-color var(--sr-t-fast),transform var(--sr-t-fast);}
+.bf-card:hover{border-color:rgba(54,227,242,.7);}
+.bf-card.is-sel{border-color:var(--sr-shield);background:linear-gradient(90deg,rgba(54,227,242,.22),rgba(20,24,64,.9) 70%);
+  box-shadow:inset 0 0 22px rgba(54,227,242,.18),0 0 18px rgba(54,227,242,.25);transform:translateX(6px);}
+.bf-card.is-sel::after{content:"";position:absolute;right:-16px;top:50%;width:12px;height:2px;background:var(--sr-shield);box-shadow:0 0 8px var(--sr-shield);}
+.bf-card.is-locked{opacity:.6;}
+.bf-card__ico{grid-row:1/3;display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:rgba(7,8,24,.7);border:2px solid rgba(54,227,242,.45);color:var(--sr-shield);}
+.bf-card__ico .sr-ico{width:20px;height:20px;}
+.bf-card__name{font:800 var(--sr-fs-md)/1.1 var(--sr-font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bf-card__meta{display:flex;align-items:center;gap:8px;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);white-space:nowrap;overflow:hidden;}
+.bf-risk{display:inline-flex;gap:2px;}
+.bf-risk i{width:6px;height:10px;border-radius:2px;background:rgba(255,255,255,.12);}
+.bf-risk i.is-on{background:var(--rc);}
+.bf-card__flag{position:absolute;right:10px;top:9px;font:800 9px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;padding:3px 6px;border-radius:999px;border:2px solid var(--sr-ink);}
+
+/* ---------- the projection (centre) ---------- */
+.bf-holo{position:absolute;left:372px;right:24px;top:96px;bottom:118px;}
+.bf-table{position:absolute;left:50%;bottom:6px;width:520px;height:120px;transform:translateX(-50%);}
+.bf-beam{position:absolute;left:50%;bottom:58px;width:470px;height:470px;transform:translateX(-50%);
+  background:linear-gradient(0deg,rgba(54,227,242,.20),rgba(54,227,242,.04) 70%,transparent);clip-path:polygon(28% 100%,72% 100%,100% 0,0 0);opacity:.8;}
+.bf-proj{position:absolute;left:50%;top:8px;width:640px;height:520px;transform:translateX(-50%);animation:bf-flicker 5s infinite;}
+.bf-proj svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.bf-scan{position:absolute;left:12%;right:12%;height:2px;top:0;background:linear-gradient(90deg,transparent,rgba(160,250,255,.8),transparent);animation:bf-scan 3.6s linear infinite;opacity:.6;}
+.bf-spin{transform-origin:320px 250px;animation:bf-spin 24s linear infinite;}
+.bf-spin2{transform-origin:320px 250px;animation:bf-spin 40s linear infinite reverse;}
+.bf-pulse{transform-box:fill-box;transform-origin:center;animation:bf-pulse 1.6s ease-out infinite;}
+.bf-callout{position:absolute;min-width:150px;max-width:210px;padding:8px 10px;background:rgba(8,30,48,.72);border:2px solid rgba(54,227,242,.7);border-radius:8px;
+  box-shadow:0 0 16px rgba(54,227,242,.25),inset 0 0 12px rgba(54,227,242,.12);color:#c8fbff;backdrop-filter:blur(2px);}
+.bf-callout b{display:block;font:800 10px/1 var(--sr-font-ui);letter-spacing:.09em;text-transform:uppercase;color:var(--sr-shield);}
+.bf-callout span{display:block;margin-top:4px;font:700 13px/1.3 var(--sr-font-ui);color:#e6fdff;}
+.bf-callout.is-foe{border-color:rgba(122,170,255,.8);background:rgba(16,28,72,.75);}
+.bf-callout.is-foe b{color:#8fb6ff;}
+.bf-title{position:absolute;left:50%;top:auto;bottom:132px;z-index:5;white-space:nowrap;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:6px 14px;
+  font:800 11px/1 var(--sr-font-ui);letter-spacing:.14em;text-transform:uppercase;color:var(--sr-shield);border:2px solid rgba(54,227,242,.45);border-radius:999px;background:rgba(8,20,40,.6);}
+.bf-title i{width:8px;height:8px;border-radius:50%;background:var(--sr-shield);box-shadow:0 0 8px var(--sr-shield);animation:bf-blink 1.2s steps(2) infinite;}
+
+/* ---------- briefing dossier (rail) ---------- */
+.bf-brief{display:flex;flex-direction:column;gap:14px;}
+.bf-brief__type{display:flex;align-items:center;gap:8px;}
+.bf-brief__title{font:400 26px/1.05 var(--sr-font-display);color:var(--sr-text);text-shadow:0 3px 0 var(--sr-ink);}
+.bf-loc{display:flex;align-items:center;gap:8px;margin-top:6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-2);}
+.bf-loc .sr-ico{width:14px;height:14px;color:var(--sr-rebel);}
+.bf-src{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);}
+.bf-src__ava{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:50%;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);
+  box-shadow:inset 0 0 0 3px var(--sr-rebel);font:400 15px/1 var(--sr-font-display);color:var(--sr-text);}
+.bf-src b{display:block;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);}
+.bf-src span{display:block;margin-top:3px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+.bf-quote{margin:0;font:500 italic var(--sr-fs-sm)/1.5 var(--sr-font-ui);color:var(--sr-text-2);}
+.bf-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+.bf-fact{padding:8px 6px;text-align:center;background:var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);}
+.bf-fact b{display:block;font:400 17px/1 var(--sr-font-display);color:var(--c,var(--sr-text));}
+.bf-fact span{display:block;margin-top:4px;font:800 9px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-3);}
+.bf-sec{display:flex;flex-direction:column;gap:6px;}
+.bf-sec__h{display:flex;align-items:center;gap:7px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-2);}
+.bf-sec__h .sr-ico{width:14px;height:14px;color:var(--sr-text-3);}
+.bf-req{display:flex;align-items:center;gap:8px;font:700 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text);}
+.bf-req .sr-ico{width:16px;height:16px;flex:none;}
+.bf-req.is-ok .sr-ico{color:var(--sr-go);}
+.bf-req.is-no{color:var(--sr-text-2);}
+.bf-req.is-no .sr-ico{color:var(--sr-hazard);}
+.bf-req em{margin-left:auto;font-style:normal;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.bf-obj{display:grid;grid-template-columns:18px 1fr;gap:8px;font:600 var(--sr-fs-sm)/1.35 var(--sr-font-ui);color:var(--sr-text-2);}
+.bf-obj i{width:14px;height:14px;margin-top:2px;border:2px dashed var(--sr-shield);border-radius:4px;}
+.bf-rew{display:flex;flex-wrap:wrap;gap:6px;}
+.bf-rew span{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--c);background:var(--sr-void);border:2px solid var(--sr-ink);border-radius:var(--sr-r-sm);}
+.bf-rew .sr-ico{width:15px;height:15px;}
+
+@keyframes bf-spin{to{transform:rotate(360deg);}}
+@keyframes bf-pulse{0%{transform:scale(.6);opacity:1;}100%{transform:scale(2.2);opacity:0;}}
+@keyframes bf-scan{0%{top:6%;}100%{top:88%;}}
+@keyframes bf-flicker{0%,100%{opacity:1;}47%{opacity:1;}48%{opacity:.82;}49%{opacity:1;}72%{opacity:.94;}}
+@keyframes bf-blink{50%{opacity:.2;}}
+@media (prefers-reduced-motion:reduce){.bf-proj,.bf-scan,.bf-spin,.bf-spin2,.bf-pulse,.bf-title i{animation:none !important;}}
+
+/* ===== additions from the review rounds ===== */
+.bf-railtitle{display:flex;align-items:center;gap:8px;padding-bottom:10px;margin-bottom:10px;border-bottom:3px solid var(--sr-seam);font:400 22px/1 var(--sr-font-display);color:var(--sr-text);}
+.bf-railtitle .sr-ico{width:22px;height:22px;color:var(--sr-shield);}
+.bf-rail{overflow:hidden;padding-top:14px;padding-bottom:14px;}       /* the briefing must fit: never scrolls */
+.bf-brief{gap:10px;}
+.bf-brief__title{font-size:23px;}
+.bf-loc .sr-btn{margin-left:auto;height:26px;padding:0 8px;font-size:11px;}   /* Show on map */
+.bf-src{padding:7px 10px;gap:9px;} .bf-src__ava{width:32px;height:32px;font-size:12px;}
+.bf-quote{font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}   /* full text in title */
+.bf-fact{padding:6px 4px;} .bf-fact b{font-size:15px;}
+.bf-sec{gap:5px;}
+.bf-req{display:grid;grid-template-columns:18px minmax(0,1fr);gap:3px 8px;align-items:start;}
+.bf-req>.sr-ico{grid-row:1/3;margin-top:1px;}
+.bf-req em{margin-left:0;grid-column:2;font-size:12px;line-height:1.3;}
+.bf-obj{font-size:12.5px;line-height:1.3;gap:7px;}
+.bf-rew span{padding:4px 8px;font-size:13px;}
+.bf-plan{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:2px dashed var(--sr-seam);}
+.bf-plan .sr-btn{justify-content:center;width:100%;}
+.bf-plan__why{display:flex;align-items:center;gap:6px;font:700 12px/1.35 var(--sr-font-ui);color:var(--sr-hazard);}
+.bf-plan__why .sr-ico{width:14px;height:14px;}
+.bf-go{display:flex;flex-direction:column;align-items:flex-end;}      /* Advance day on its own, no command bar */
+

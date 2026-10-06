@@ -84,6 +84,10 @@
     T('proved','Proved Themselves','Positive',4,1,'{name} had something to prove. Apparently, they proved it.','A small permanent boost to morale.'),
   ];
   const RTK={};for(const t of RT)RTK[t.k]=t;
+  /* the ones that mostly cost the rebel something: the Personnel File marks their effect chip as bad (orange) */
+  const BAD=['rivals','friends','family','lostsquad','panicky','grieving','haunted','guilt','broken','tortured','lostEye','lostArm','limp','oldwound','shrapnel',
+    'wanted','hegfamily','betrayed','abandoned','failedsave','survivor','disgraced','court'];
+  for(const k of BAD)RTK[k].bad=1;
   const list=p=>p.traits||(p.traits=[]);
   const has=(p,k,w)=>!!p&&(p.traits||[]).some(t=>t.k===k&&(w===undefined||t.with===w));
   const get=(p,k,w)=>(p.traits||[]).find(t=>t.k===k&&(w===undefined||t.with===w));

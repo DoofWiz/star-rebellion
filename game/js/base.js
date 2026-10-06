@@ -1011,6 +1011,8 @@ const MTYPES={
 };
 const MEXTRA={
   stealcross:{src:'cass',req:{team:3,teamRole:'Soldier',transport:1,prize:1},
+    // the holo-table's callouts (docs/ui/SCREENS-HANDOFF.md §4); missions without `holo` show their first two objectives
+    holo:[{k:'Target',t:'FT-4 Cross on the pad behind the sheriff’s HQ'},{k:'Opposition',t:'Sheriff Reeve enforces Hegemony law here',foe:1},{k:'Extract',t:'Walk a pilot to the pad and fly it home'}],
     objectives:['Reach the FT-4 Cross on the pad behind the sheriff’s HQ','Hotwire her, release the clamps and pull the fuel line','Get the Cross and the squad out of Dustfall']},
   depotrun:{src:'venn',objectives:['Destroy all four orbital fuel depots','Survive the sentry drones']},
   toi:{src:'halt',objectives:['Eliminate Commandant Dral Vex','(Optional) Bring every pilot home']},
@@ -2259,7 +2261,8 @@ function maintenance(r,got){
   const used={medpack:(r.people||[]).reduce((a,pr)=>a+(pr.packs||0),0),blam:r.nadesUsed||0,charge:r.chargeUsed||0,limpet:r.limpetUsed||0};
   let back=[];
   for(const id in used)for(let i=0;i<used[id];i++)if(rng()<ch){grantItem(id,1,'made');back.push(Items.name(id));}
-  if(back.length){got.push('recovered: '+back.join(', '));news('The Tech Lab gets '+back.join(', ')+' working again.','g');}
+  for(const id of back)gotLoot(got,{id,n:1});
+  if(back.length)news('The Tech Lab gets '+back.join(', ')+' working again.','g');
 }
 /* Walk It Off (Physio): laid up with a little time to go, they can still be picked, a little slower */
 const walkItOff=p=>on('physio.walkitoff')&&laidUp(p)&&Rebel.laidUp(p)<=3&&!(p.cond||[]).some(c=>['spinal','amputation','surgery','critical'].includes(c.k));
@@ -2289,20 +2292,47 @@ function supportTick(){
   for(const p of G.people.filter(isSupport)){
     const fd=SP.forkDue(p);
     if(fd&&p.forkNoted!==fd){p.forkNoted=fd;news('<b>'+p.name+'</b> has a choice to make as a '+SP.NICHE[p.niche].n+' (level '+fd+'). Open their file.','p');sAlert();}
-    if(p.level>=3&&!p.niche&&!p.nicheTrain&&!p.nicheNoted&&hasRoom('training')){p.nicheNoted=1;news('<b>'+p.name+'</b> is ready for the classroom: a '+SP.SPEC[p.sspec].n+' niche at level 3. Open their file.','p');}
+    if(p.level>=3&&!p.niche&&!p.nicheTrain&&!p.nicheNoted&&hasRoom('training')){p.nicheNoted=1;news('<b>'+p.name+'</b> is ready for the classroom: a '+SP.SPEC[p.sspec].n+' niche at level 3. Train them in the Training Hall.','p');}
   }
   // Inside Line (Smuggler): every 3 days two lots change, besides the weekly restock
   if(on('smuggler.insideline')&&G.market&&G.market.lots&&G.day%3===0&&G.day<G.market.next)marketSwap(2);
 }
 /* ---------- mission flow: arrive → reward screen → the source calls back ---------- */
 let RQ=[],HOLD=false;
+/* what a mission brought home, for the report window (docs/ui/SCREENS-HANDOFF.md §1):
+   res[k] = {pay, found, ...}: each resource by where it came from (one diamond row per non-zero source);
+   loot = [{id|type, name, n, kind:'item'|'ship'|'vehicle'|'bot'|'unit', foe}]: everything else that came home */
+const newGot=()=>({res:{},loot:[]});
+function gotRes(got,k,n,src){
+  if(!n)return;
+  const r=got.res[k]=got.res[k]||{};
+  r[src||'pay']=(r[src||'pay']||0)+n;
+}
+function gotLoot(got,e){
+  e=Object.assign({kind:'item',n:1},e);
+  if(e.kind==='item'){
+    e.name=e.name||Items.name(e.id);
+    e.foe=!!(KIT[e.id]&&KIT[e.id].heg);
+    const had=got.loot.find(x=>x.kind==='item'&&x.id===e.id);
+    if(had){had.n+=e.n;return;}
+  }
+  got.loot.push(e);
+}
+const gotTotal=r=>Object.values(r||{}).reduce((a,n)=>a+n,0);
+/* the same haul as one line for the news log */
+function gotText(got){
+  const tot={};for(const k in got.res)tot[k]=gotTotal(got.res[k]);
+  const o=[bundleHTML(tot)].filter(Boolean);
+  for(const e of got.loot)o.push(esc(e.name)+(e.n>1?' ×'+e.n:''));
+  return o.join(' · ');
+}
 function buildReport(m,win,got,people,cr,arrive){
   let follow=null;
   if(win&&m.src){
     const src=G.sources.find(x=>x.id===m.src&&x.alive);
     if(src)follow={src:src.id,lines:m.after||['<b>'+src.name.split(' ').pop().toUpperCase()+':</b> “Word travels. Well done.”']};
   }
-  return {m,win,got,people:people||[],cr:cr||null,arrive:!!arrive,follow};
+  return {m,win,got:got||newGot(),people:people||[],cr:cr||null,arrive:!!arrive,follow};
 }
 function queueReport(rpt){
   if(rpt.arrive)RQ.push({t:'arrive',rpt});
@@ -2340,16 +2370,22 @@ function nextReport(){
   }
   return true;
 }
-/* pay out a mission's fixed reward (ships are handled by each caller) */
-function applyRew(rw,got){
+/* pay out a mission's fixed reward (ships are handled by each caller); src names the report row ('pay' by default) */
+function applyRew(rw,got,src){
   if(!rw)return;
   if(rw.c)G.credits+=rw.c;
   if(rw.s)G.supplies+=rw.s;
   if(rw.m)G.materials+=rw.m;
   if(rw.f)G.fuel+=rw.f;
   if(rw.i)G.intel+=rw.i;
-  const b=bundleHTML(rw);
-  if(b)got.push(b);
+  for(const k of ['c','s','m','f','i'])gotRes(got,k,rw[k],src);
+}
+/* a rebel's XP before and after a gain, for the report's crew rows */
+function xpInfo(p,x){
+  const o={id:p.id,who:p,name:p.name,role:p.role,lvl0:p.level,xp0:p.xp};
+  if(x)gainXp(p,x);
+  o.lvl1=p.level;o.xp1=p.xp;
+  return o;
 }
 function resolveMission(m){
   const pilots=G.people.filter(p=>m.progress.pilots.includes(p.id));
@@ -2360,26 +2396,28 @@ function resolveMission(m){
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   supportDone(m,{win:ok});
   if(ok){
-    let rew=[];
+    const rew=newGot();
     applyRew(salvaged(m.rew),rew);
     if(m.rew.fighter){
       if(berthFree('talon')){
-        G.fighters.push(newFighter({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70}));
-        rew.push('+1 fighter');
-      } else {G.credits+=600;rew.push('no berth — sold for '+C(600));}
+        const f=newFighter({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70});
+        G.fighters.push(f);gotLoot(rew,{type:'talon',name:f.name,kind:'ship'});
+      } else {G.credits+=600;gotRes(rew,'c',600,'fenced');}
     }
     if(m.rew.cross){
       if(berthFree('cross')){
         G.fighters.push(newFighter({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85}));
-        rew.push('+FT-4 Cross');
-      } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
+        gotLoot(rew,{type:'cross',name:'FT-4 Cross',kind:'ship'});
+      } else {G.credits+=800;gotRes(rew,'c',800,'fenced');}
     }
-    for(const p of pilots){gainXp(p,m.rew.xp||0.1);creditMission(p);}
+    const xg=m.rew.xp||0.1;
+    const pinfo=pilots.map(p=>Object.assign(xpInfo(p,xg),{xp:xg*Rebel.xpMult(p)}));
+    for(const p of pilots)creditMission(p);
     moraleAll(1,'win',pilots.map(p=>p.id),3);
     m.state='done';m.meta='SUCCESS';
     const cr=missionCredit(m);
-    queueReport(buildReport(m,true,rew,pilots.map(p=>({name:p.name,xp:m.rew.xp||0.1})),cr,false));
-    news('<b>'+m.name+'</b> — SUCCESS. '+rew.join(' · ')+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
+    queueReport(buildReport(m,true,rew,pinfo,cr,false));
+    news('<b>'+m.name+'</b> — SUCCESS. '+gotText(rew)+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
     missionAftermath(m.id);
   } else {
@@ -2389,7 +2427,7 @@ function resolveMission(m){
     if(f)f.hull=Math.max(15,f.hull-30);
     moraleAll(-3,'loss',pilots.map(p=>p.id),-8);hurt.injuries=(hurt.injuries||0)+1;Rebel.moraleBump(hurt,-5,'injury');mood();
     m.state='avail';m.progress=null;
-    queueReport(buildReport(m,false,[],[{name:hurt.name,xp:0,state:'injured'}],null,false));
+    queueReport(buildReport(m,false,newGot(),pilots.map(p=>Object.assign(xpInfo(p,0),{xp:0,state:p===hurt?'injured':'ok'})),null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
     sAlert();
   }
@@ -2397,37 +2435,41 @@ function resolveMission(m){
 }
 
 /* ---------- source actions (results delivered over comms) ---------- */
+/* cultivation before and after, for the comm burst's meter (a level-up fills it) */
+const cultOf=(src,c0,l0)=>({from:c0,to:src.level>l0?100:src.cult,lvl0:l0,lvl1:src.level});
 function srcVisit(src){
   if(src.visited)return;
   src.visited=true;
+  const c0=src.cult,l0=src.level;
   src.cult=Math.min(100,src.cult+10);
   src.risk=Math.min(100,src.risk+6);
   G.risk=Math.min(100,G.risk+1);
   const lvl=checkCultLevel(src);
   rollSignal(src);
   const lines=['You make the crossing to '+src.loc+' yourself. '+src.name.split(' ')[0]+' needed a face, not a frequency.',
-    'Cultivation +10. Their risk +6 — being seen costs.'];
+    'Their risk +6: being seen costs.'];
   if(lvl)lines.push(lvl);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function srcContact(src){
   if(src.pendingEvent){openComm(src,{event:src.pendingEvent});return;}
   if(src.contacted&&!src.signal)return;
+  const c0=src.cult,l0=src.level;
   if(!src.contacted){
     src.contacted=true;
     src.cult=Math.min(100,src.cult+3);
     rollSignal(src);
   }
   const lvl=checkCultLevel(src);
-  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.','Cultivation increased.'];
+  const lines=['Coded burst to '+src.loc+'. '+src.name.split(' ')[0]+' is responding on our secure channel.'];
   if(lvl)lines.push(lvl);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function srcAnswer(src,idx){
   const ev=src.pendingEvent;
-  const kind=ev.opts[idx][1];
+  const kind=ev.opts[idx][1],c0=src.cult,l0=src.level;
   src.pendingEvent=null;
   src.eventsSeen++;
   src.contacted=true;
@@ -2448,7 +2490,7 @@ function srcAnswer(src,idx){
   const lvl=checkCultLevel(src);
   if(lvl)lines.push(lvl);
   rollSignal(src);
-  openComm(src,{lines,signal:src.signal});
+  openComm(src,{lines,signal:src.signal,cult:cultOf(src,c0,l0)});
   syncUI();
 }
 function checkCultLevel(src){
@@ -2718,13 +2760,16 @@ const REV_W={momentum:0.55,libMul:1.6,mission:1.2,firstLoc:3,secondLoc:1,midRepe
 /* every finished mission feeds the progress meter; a new location is worth the most */
 function missionCredit(m){
   let gain=REV_W.mission;
-  const info={gain:0,lib:null,first:false};
+  const info={gain:0,lib:null,first:false,renown0:G.renown||0,parts:{mission:REV_W.mission}};
   if(m.opp||m.oppId){const o=(G.opps||[]).find(x=>x.id===(m.oppId||m.id));if(o)o.done=true;}
   const st=m.loc?pst(m.loc):null,d=m.loc?pdef(m.loc):null;
   if(st){
     st.ops=(st.ops||0)+1;
     info.first=st.ops===1;
-    gain=REV_W.mission*(st.ops<=2?1:st.ops<=5?REV_W.midRepeat:REV_W.lateRepeat)+(st.ops===1?REV_W.firstLoc:st.ops===2?REV_W.secondLoc:0);
+    info.parts.mission=REV_W.mission*(st.ops<=2?1:st.ops<=5?REV_W.midRepeat:REV_W.lateRepeat);
+    if(st.ops===1)info.parts.first=REV_W.firstLoc;
+    else if(st.ops===2)info.parts.second=REV_W.secondLoc;
+    gain=info.parts.mission+(info.parts.first||0)+(info.parts.second||0);
     if(m.region&&m.lib&&d&&d.regions){
       const r=d.regions.find(x=>x.id===m.region);
       const cur=st.lib[m.region]||0,cap=locCap(st);
@@ -2732,13 +2777,16 @@ function missionCredit(m){
       st.lib[m.region]=to;
       info.lib={region:r.name,from:cur,to,capped:to>=cap&&to<100};
       if(to>cur){
-        gain+=(to-cur)*REV_W.lib;
+        gain+=info.parts.lib=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');SR.transition('flag',{text:'LIBERATED'});}
+        if(to>=100){gain+=info.parts.libFull=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');SR.transition('flag',{text:'LIBERATED'});}
       }
     }
   }
   revGain(gain);
+  info.renown1=G.renown||0;
+  const sym=info.renown1-info.renown0-gain;   // Symbol of the Revolution adds its share on top
+  if(sym>0.05)info.parts.symbol=sym;
   news('Revolution progress +'+(Math.round(gain*10)/10)+' ('+Math.round(G.renown)+'/100).','d');
   if(m.loc)syncLocalOps(m.loc);
   info.gain=Math.round(gain*10)/10;
@@ -4599,23 +4647,18 @@ function drawCommStatic(now){
   c2.setTransform(dpr,0,0,dpr,0,0);
   const w=r.width,h=r.height;
   const t=RM?0:now,nz=RM?()=>0.5:rng;     // reduced motion: a steady line, no flicker
-  c2.fillStyle=K.void;c2.fillRect(0,0,w,h);
-  for(let i=0;i<240;i++){
-    c2.fillStyle=TH.rgba(K.rebel,nz()*0.2);
+  c2.clearRect(0,0,w,h);   // the channel strip is the background; the flavour text lives in the strip
+  for(let i=0;i<60;i++){
+    c2.fillStyle=TH.rgba(K.rebel,nz()*0.18);
     c2.fillRect(nz()*w,nz()*h,1.5,1.5);
   }
-  const sy=(t*0.05)%h;
-  c2.fillStyle=TH.rgba(K.rebel,0.08);c2.fillRect(0,sy,w,7);
-  c2.strokeStyle=K.rebel;c2.lineWidth=2;
+  c2.strokeStyle=K.rebel;c2.lineWidth=1.5;
   c2.beginPath();
   for(let x=0;x<w;x+=3){
-    const y=h/2+Math.sin(x*0.08+t*0.01)*6*nz()+(nz()-0.5)*8;
+    const y=h/2+Math.sin(x*0.08+t*0.01)*(h*0.22)*nz()+(nz()-0.5)*h*0.25;
     x===0?c2.moveTo(x,y):c2.lineTo(x,y);
   }
   c2.stroke();
-  c2.font='700 11px '+TH.FONT.ui;c2.textAlign='left';
-  c2.fillStyle=K.text2;
-  c2.fillText('Encrypted · rebel net'+(winArg&&winArg.src?' · '+winArg.src.loc:''),10,15);
 }
 
 /* ---------- main render ---------- */
@@ -4817,7 +4860,7 @@ function updateGuide(){
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
+    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen&&!msOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -4841,6 +4884,8 @@ function updateGuide(){
 function openWin(mode,arg){
   // the old sources window became the Galaxy view: every opener lands there
   if(mode==='sources'){winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;showView('galaxy');return;}
+  // the Mission Board popup became the Missions tab (docs/ui/SCREENS-HANDOFF.md §4): every opener lands there
+  if(mode==='missions'){if(winMode)closeWin();if(baseView!=='base')setView('base');openMissions(arg&&arg.id);return;}
   winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;gearOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
@@ -5093,7 +5138,7 @@ function traitCard(p){
 }
 function renderWin(){
   const card=$('winCardB');
-  let h='',size=sizeOf[winMode]||'',accent=accentOf[winMode]||'';
+  let h='',size=sizeOf[winMode]||'',accent=accentOf[winMode]||'',cls='';
   if(winMode==='srcTutIntro'){
     h=wHead('Build Your Network',{q:wQ('data-srchelp','Learn more'),x:false})+wBody(
       tutP('Your Sources are the foundation of your intelligence network.')+
@@ -5114,19 +5159,8 @@ function renderWin(){
       wFoot('<div class="sr-btngroup">'+rbtn('data-tut-prev aria-label="Previous page"',IC('back'),pg===0,'sr-btn--icon')+rbtn('data-tut-next aria-label="Next page"',IC('chevron'),pg===TUT_PAGES.length-1,'sr-btn--icon')+'</div>','Page '+(pg+1)+' of '+TUT_PAGES.length);
   }
   else if(winMode==='comm'){
-    const {src,payload}=winArg;
-    let body='<canvas id="commStatic" class="sr-signal"></canvas>',foot='';
-    const q=t=>'<div class="sr-quote">'+(/^<b>/.test(t)?'':'<div class="sr-quote__who">'+IC('signal')+src.name+'</div>')+t+'</div>';
-    if(payload.event){
-      body+=q(payload.event.text)+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('');
-    } else {
-      body+=q(payload.lines[0])+payload.lines.slice(1).map(l=>'<p class="sr-p" style="margin:12px 0 0">'+l+'</p>').join('');
-      if(payload.signal){
-        body+='<div class="sr-tag sr-tag--bad bs-tagwrap"><span><b>Signal:</b> '+payload.signal.text+'</span></div>';
-        foot=rbtn('data-follow','Acknowledge',false,'sr-btn--primary');
-      } else foot=rbtn('data-close','Close channel.',false,'sr-btn--primary');
-    }
-    h=wHead('Comm burst',{tags:wTag(src.name,'friend')})+wBody(body)+wFoot(foot,'carrier locked · lag 4.2s · voices masked');
+    h=commHTML(winArg.src,winArg.payload);
+    size='';cls=' cm-win';
   }
   else if(winMode==='newmission'){
     const m=winArg;
@@ -5164,21 +5198,8 @@ function renderWin(){
       wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'),'The rebellion has a Hero.');
   }
   else if(winMode==='reward'){
-    const rp=winArg,m=rp.m;
-    const gotHTML=a=>/^<span class="sr-cost/.test(a)?a:wTag(a,'info');
-    const crew=rp.people.map(p=>'<div class="sr-loot"><span>'+p.name+'</span><b class="bs-rowtags">'+(p.state==='lost'?wTag('Lost','bad'):p.state==='injured'?wTag('Injured','bad'):'')+(p.xp?wTag('XP +'+Math.round(p.xp*100)+'%','progress'):'')+'</b></div>').join('');
-    h=wHead(rp.win?'Mission Complete':'Mission Failed')+
-      '<div class="sr-brief__hero bs-hero"><div>'+wTag(whereHTML(m)||'Haven Rock','progress')+'<h3 class="sr-brief__title">'+m.name+'</h3></div>'+
-      '<span class="sr-stamp '+(rp.win?'sr-stamp--action':'sr-stamp--bad')+'">'+(rp.win?'Secured':'Mission failed')+'</span></div>'+
-      wBody(
-      (rp.win?'<div class="sr-h3">Objectives</div>'+(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(').map(o=>'<div class="sr-obj is-done"><span class="sr-obj__mark">'+IC('check')+'</span><span>'+o+'</span></div>').join(''):
-        '<p class="sr-p">The job stays on the board. Regroup and try again.</p>')+
-      '<div class="sr-h3">'+(rp.win?'Rewards':'Recovered')+'</div><div class="sr-card__meta">'+(rp.got.length?rp.got.map(gotHTML).join(' '):'<span class="sr-faint">Nothing.</span>')+'</div>'+
-      (crew?'<div class="sr-h3">Crew</div><div class="sr-stack">'+crew+'</div>':'')+
-      (rp.cr?'<div class="sr-h3">The revolution</div><div class="sr-stack"><div class="sr-loot"><span>Revolution progress</span><b>+'+rp.cr.gain+'</b></div>'+
-        (rp.cr.first?'<div class="sr-loot"><span>First operation in '+(pdef(m.loc)||{}).name+'</span><b>noticed</b></div>':'')+
-        (rp.cr.lib?'<div class="sr-loot"><span>'+rp.cr.lib.region+' liberation</span><b>'+rp.cr.lib.from+'% → '+rp.cr.lib.to+'%'+(rp.cr.lib.capped?' (capped)':'')+'</b></div>':'')+'</div>':''))+
-      wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
+    h=reportHTML(winArg);
+    size='';cls=' rp-win'+(winArg.win?'':' rp-win--fail');
   }
   else if(winMode==='spec'){
     const row=(role,label)=>Array.from({length:spaceCap()},(_,i)=>{
@@ -5248,11 +5269,11 @@ function renderWin(){
       wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
   }
   else if(winMode==='cassIntro'){
-    h=wHead('Incoming transmission',{x:false})+wBody(
-      '<canvas id="commStatic" class="sr-signal"></canvas>'+
-      '<div class="sr-quote"><div class="sr-quote__who">'+IC('signal')+'Cass Wender</div>“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”</div>'+
-      '<p class="sr-p" style="margin-top:14px">First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.</p>')+
-      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'),'carrier locked · unregistered freighter');
+    h=wHead('Incoming transmission',{x:false})+'<div class="sr-window__body cm-body">'+cmChan('Unregistered freighter · voices masked')+
+      cmSay('CW','Cass Wender','“Told you the rock was worth it. You and your revolution, huh? Crazy! I might just stick around for a while and see where this goes. I might know some people who hate the Hegemony as much as you do. Raise me when you’re ready to listen.”')+
+      cmLog('First contact on the wire: <b>Cass Wender</b>, the smuggler who flew you in. Open the <b>Galaxy</b> and raise him.')+'</div>'+
+      wFoot(rbtn('data-close','Got it',false,'sr-btn--primary'));
+    size='';cls=' cm-win';
   }
   else if(winMode==='recruit'){
     const cards=winArg.cards,multi=cards.length>1,batch=!!winArg.batch;
@@ -5306,34 +5327,9 @@ function renderWin(){
   }
   else if(winMode==='person'){
     const p=winArg;
-    const pct=Math.round(p.xp*100);
-    let b=dossierHead(p,laidUp(p)?wTag('Injured '+outDays(p)+' days','bad'):restTag(p));
-    if(p.role==='Pilot'||p.role==='Hero'){
-      const f=G.fighters.find(x=>x.id===p.ship);
-      if(f){
-        const st=shipStats(f),n=Math.round(f.hull/20);
-        b+='<div class="sr-h3">Assigned craft</div><div class="sr-card sr-card--info"><div class="sr-card__top"><span class="sr-card__title">'+f.name+'</span>'+(f.out?wTag('On mission','info'):'')+'</div>'+
-          '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+(st.wpns.length?st.wpns.map(w=>w[0]).join(' · '):'No weapons fitted')+'</div>'+
-          '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
-      }
-      b+=gearSection(p);
-    } else if(p.role==='Soldier'||p.role==='Marine'){
-      if(p.auto)b+='<div class="sr-h3">Equipment</div><p class="sr-p">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</p>';
-      else b+=gearSection(p);
-    } else if(isSupport(p))b+=supportCard(p);
-    b+=recordCard(p);
-    if(!laidUp(p)&&p.assign!=='mission'){
-      b+='<div class="sr-h3">Assignment</div><div class="bs-chips">'+
-        rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(p.assign==='rest')+'"','Rest',false,'sr-btn--sm')+
-        rbtn('data-as="train:'+p.id+'" aria-pressed="'+(p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',!hasRoom('training'),'sr-btn--sm');
-      if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
-        const key=SP.homeOf(p),mine=p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
-        const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
-        b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,!!why,'sr-btn--sm');
-      }
-      b+='</div>';
-    }
-    h=wHead('Personnel file')+wBody('<div class="bs-file">'+dollHTML(p)+'<div class="bs-file__main">'+b+'</div></div>')+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
+    h=wHead('Personnel file')+personHTML(p)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+
+      (rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
+    size='';cls=' pf-win';
   }
   else if(winMode==='contract'){
     const p=G.people.find(x=>x.id===winArg);
@@ -5367,7 +5363,9 @@ function renderWin(){
   else if(winMode==='news'){
     h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
   }
-  card.className='sr-window'+(size?' sr-window--'+size:'')+(accent?' sr-window--'+accent:'');
+  card.className='sr-window'+(size?' sr-window--'+size:'')+(accent?' sr-window--'+accent:'')+cls;
+  $('winsB').classList.toggle('bs-winfull',/\b(rp|pf)-win\b/.test(cls));   // full screen on a phone
+  $('winsB').classList.toggle('bs-winwide',/\bpf-win\b/.test(cls));   // the personnel file needs the whole stage
   card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
@@ -5385,6 +5383,628 @@ function renderWin(){
   }
   markWin();
 }
+
+/* ---------- the Missions tab: the briefing room (docs/ui/SCREENS-HANDOFF.md §4) ----------
+   A stage view like the Galaxy and the Arsenal: the board on the left, the holo-table in the middle, the briefing
+   in the rail. No command bar: Advance day stands alone bottom-right. */
+let msOpen=false,msSel=null,msFilter='all';
+const msList=()=>G.missions.filter(m=>m.state==='avail'||m.state==='prog'||m.state==='locked');
+const msKind=m=>opKind(m);
+const msRisk=m=>/high/i.test(m.riskTxt)?3:/moder/i.test(m.riskTxt)?2:1;
+const MS_RISK_C=['','var(--sr-go)','var(--sr-gold)','var(--sr-hazard)'];
+const msLocked=m=>m.state==='locked';
+function openMissions(id){
+  closeTilePop();exitRoomView();closeArsenal();closeMarket();
+  msOpen=true;
+  if(id)msSel=id;
+  $('msView').hidden=false;
+  shell.classList.add('is-missions');
+  $('railBase').classList.add('bf-rail');
+  setDrawer(false);
+  setTopbar('Missions','Briefing room · Haven Rock');
+  drawerLabel();
+  renderMissions();syncTabs();
+}
+function closeMissions(){
+  if(!msOpen)return;
+  msOpen=false;
+  $('msView').hidden=true;
+  shell.classList.remove('is-missions');
+  $('railBase').classList.remove('bf-rail');
+  $('railMissions').hidden=true;
+  msGo(false);
+  setDrawer(false);
+  setTopbar('Haven Rock','Hidden base');
+  drawerLabel();syncTabs();
+  if(started&&G)syncUI();   // the command bar gets its parts back
+}
+/* Advance day on its own: the command bar's wrapper becomes the bare .bf-go, everything else in it hidden */
+function msGo(on){
+  const cb=$('baseCmdbar');
+  cb.classList.toggle('sr-cmdbar',!on);cb.classList.toggle('bf-go',!!on);
+  for(const id of ['arWho','arOrders','gxOrders','dockNote'])if(on)$(id).hidden=true;
+}
+function renderMissions(){
+  if(!msOpen||!G)return;
+  const all=msList(),list=all.filter(m=>msFilter==='all'||msKind(m)===msFilter);
+  if(!list.some(m=>m.id===msSel))msSel=(list[0]||{}).id||null;
+  const m=list.find(x=>x.id===msSel)||null;
+  $('msBoard').innerHTML=msBoardHTML(list,m);
+  if(m&&!msLocked(m))m.seen=1;   // looking at it is reading it: its New flag goes on the next look
+  $('msHolo').innerHTML=m?msHoloHTML(m):'';
+  $('railMissions').innerHTML=m?msBriefHTML(m):'<div class="bf-railtitle">'+IC('missions')+'Briefing</div><div class="sr-empty">No jobs on the board. Work your sources; follow their signals.</div>';
+  $('railMissions').hidden=false;
+  msGo(true);
+  msFit();
+}
+/* the briefing never scrolls: clamp the pitch (always), then the objectives to one line each, then drop their notes */
+function msFit(){
+  const rail=$('railBase'),b=$('railMissions').querySelector('.bf-brief');
+  if(!b)return;
+  b.classList.remove('is-tight','is-tighter');
+  if(rail.scrollHeight>rail.clientHeight+1)b.classList.add('is-tight');
+  if(rail.scrollHeight>rail.clientHeight+1)b.classList.add('is-tighter');
+}
+function msBoardHTML(list,sel){
+  const chip=(k,l)=>rbtn('data-msfilter="'+k+'" aria-pressed="'+(msFilter===k)+'"',l,false,'sr-btn--sm');
+  const cards=list.map(m=>{
+    const k=msKind(m),lock=msLocked(m),r=msRisk(m);
+    const src=(m.src&&srcInfo(m.src)||{}).name||m.from||'';
+    const flag=lock?'<span class="bf-card__flag" style="background:var(--sr-seam);color:var(--sr-text-2)">Locked</span>':
+      m.state==='prog'?'<span class="bf-card__flag" style="background:var(--sr-shield);color:var(--sr-ink)">Under way</span>':
+      !m.seen?'<span class="bf-card__flag" style="background:var(--sr-gold);color:var(--sr-ink)">New</span>':'';
+    return '<button class="bf-card'+(sel&&m.id===sel.id?' is-sel':'')+(lock?' is-locked':'')+(flag?' has-flag':'')+'" type="button" data-msel="'+m.id+'" aria-pressed="'+(!!sel&&m.id===sel.id)+'">'+
+      '<span class="bf-card__ico">'+IC(OPKIND[k].icon)+'</span><span class="bf-card__name">'+esc(lock?'Signal encrypted':m.name)+'</span>'+
+      '<span class="bf-card__meta">'+OPKIND[k].label+'<span class="bf-risk" style="--rc:'+MS_RISK_C[r]+'" title="'+esc(m.riskTxt||'')+' risk">'+[1,2,3].map(i=>'<i'+(i<=r?' class="is-on"':'')+'></i>').join('')+'</span>'+esc(src)+'</span>'+flag+'</button>';
+  }).join('');
+  return '<div class="bf-board__head">'+IC('missions')+'Mission board</div><div class="bf-filters">'+chip('all','All')+chip('ground','Ground')+chip('space','Space')+'</div>'+
+    '<div class="bf-list">'+(cards||'<div class="sr-empty">Nothing here. Work your sources; follow their signals.</div>')+'</div>';
+}
+/* the label over the table: world and region (or orbit), encrypted when locked */
+function msPlace(m){
+  const d=m.loc&&pdef(m.loc);
+  if(!d)return msKind(m)==='space'?'Open space':'Unknown';
+  if(msKind(m)==='space')return d.name+' · Orbit';
+  return whereHTML(m)||d.name;
+}
+/* where the region sits on the projected disc: the hand-tuned anchor, else a seeded spot */
+function msAnchor(m){
+  const a=m.region&&REGION_DECOR[m.region];
+  if(a){const t=a.find(x=>x[0]==='town'||x[0]==='job')||a[0];return [t[1],t[2]];}
+  const h=SR.util.hashStr((m.loc||'')+'|'+(m.region||m.id));
+  return [((h%1000)/1000-0.5)*1.1,(((h>>>10)%1000)/1000-0.5)*1.1];
+}
+/* the world's texture as holo lines, seeded so a world always looks the same */
+function msTexture(id,tex,R,cx,cy){
+  let h=SR.util.hashStr(id||'x');
+  const rnd=()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296;};
+  const P=(u,v)=>(cx+u*R).toFixed(1)+' '+(cy+v*R).toFixed(1);
+  let o='';
+  if(tex==='bands')for(const v of [-.55,-.2,.15,.5])o+='<path d="M'+P(-1,v)+' Q'+P(-.5,v-.08)+' '+P(0,v)+' T'+P(1,v)+'"/>';
+  else if(tex==='dunes')for(let i=0;i<9;i++){const u=rnd()*1.4-.7,v=rnd()*1.4-.7;o+='<path d="M'+P(u-.12,v)+' q'+(R*.06)+' '+(-R*.05)+' '+(R*.12)+' 0 t'+(R*.12)+' 0"/>';}
+  else if(tex==='craters')for(let i=0;i<8;i++){const u=rnd()*1.4-.7,v=rnd()*1.4-.7;o+='<circle cx="'+(cx+u*R).toFixed(1)+'" cy="'+(cy+v*R).toFixed(1)+'" r="'+(R*(.05+rnd()*.07)).toFixed(1)+'"/>';}
+  else if(tex==='cap')o+='<ellipse cx="'+cx+'" cy="'+(cy-R*.78)+'" rx="'+(R*.5)+'" ry="'+(R*.16)+'"/><ellipse cx="'+cx+'" cy="'+(cy+R*.82)+'" rx="'+(R*.38)+'" ry="'+(R*.12)+'"/>';
+  else if(tex==='islands')for(let i=0;i<5;i++){const u=rnd()*1.2-.6,v=rnd()*1.2-.6;o+='<ellipse cx="'+(cx+u*R).toFixed(1)+'" cy="'+(cy+v*R).toFixed(1)+'" rx="'+(R*(.1+rnd()*.12)).toFixed(1)+'" ry="'+(R*(.06+rnd()*.08)).toFixed(1)+'"/>';}
+  else if(tex==='cracks')for(let i=0;i<4;i++){let u=rnd()*1.2-.6,v=rnd()*1.2-.6,d='M'+P(u,v);for(let j=0;j<4;j++){u+=rnd()*.3-.1;v+=rnd()*.3-.15;d+=' L'+P(u,v);}o+='<path d="'+d+'"/>';}
+  else if(tex==='river')o+='<path d="M'+P(-.9,-.3)+' C'+P(-.4,.2)+' '+P(.1,-.5)+' '+P(.9,.3)+'"/>';
+  else if(tex==='grid'||tex==='flats')for(const v of [-.6,-.3,0,.3,.6])o+='<path d="M'+P(-1,v+.3)+' L'+P(1,v-.3)+'"/>';
+  return o;
+}
+function msHoloHTML(m){
+  const lock=msLocked(m),k=msKind(m),lk=WORLD_LOOK[m.loc]||{col:'#9aa6c4'};
+  const cx=320,cy=250,R=k==='space'?118:150;
+  const cyan='var(--sr-shield)',foe='#7aaaff';
+  let svg='<defs><clipPath id="bfClip"><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'"/></clipPath></defs>'+
+    '<circle class="bf-spin" cx="'+cx+'" cy="'+cy+'" r="'+(R+40)+'" fill="none" stroke="'+cyan+'" stroke-opacity=".5" stroke-width="2" stroke-dasharray="4 10"/>'+
+    '<circle class="bf-spin2" cx="'+cx+'" cy="'+cy+'" r="'+(R+56)+'" fill="none" stroke="'+cyan+'" stroke-opacity=".25" stroke-width="2" stroke-dasharray="30 8"/>';
+  const pts=[];   // what the callouts point at
+  if(lock){
+    let h=SR.util.hashStr(m.id);const rnd=()=>{h=Math.imul(h^(h>>>15),2246822507);h^=h>>>13;return (h>>>0)/4294967296;};
+    for(let i=0;i<16;i++){const w=60+rnd()*220,y=cy-R+i*(2*R/16);svg+='<rect x="'+(cx-w/2+(rnd()-.5)*60).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(6+rnd()*6).toFixed(1)+'" fill="'+cyan+'" fill-opacity="'+(.15+rnd()*.35).toFixed(2)+'"/>';}
+  } else {
+    // the world as a wireframe sphere: rim, meridians, latitudes and its texture
+    let g='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+cyan+'" fill-opacity=".06" stroke="'+cyan+'" stroke-width="2.5"/>';
+    for(const q of [.28,.62,.9])g+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(R*q).toFixed(1)+'" ry="'+R+'" fill="none"/>';
+    g+='<path d="M'+cx+' '+(cy-R)+' V'+(cy+R)+'" fill="none"/>';
+    for(const lat of [-.66,-.33,0,.33,.66]){const rx=R*Math.sqrt(1-lat*lat);g+='<ellipse cx="'+cx+'" cy="'+(cy+lat*R).toFixed(1)+'" rx="'+rx.toFixed(1)+'" ry="'+(rx*.16).toFixed(1)+'" fill="none"/>';}
+    svg+='<g stroke="'+cyan+'" stroke-opacity=".38" stroke-width="1.4">'+g+'</g>'+
+      '<g clip-path="url(#bfClip)" fill="none" stroke="'+cyan+'" stroke-opacity=".55" stroke-width="1.6">'+msTexture(m.loc,lk.tex,R,cx,cy)+'</g>';
+    if(k==='space'){
+      // a tilted orbit with the targets (diamonds) and the threats (Hegemony-blue triangles) on it
+      const ox=R*2,oy=R*.52,tilt=-14*Math.PI/180;
+      const on=t=>{const x=ox*Math.cos(t),y=oy*Math.sin(t);return [cx+x*Math.cos(tilt)-y*Math.sin(tilt),cy+x*Math.sin(tilt)+y*Math.cos(tilt)];};
+      svg+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+ox+'" ry="'+oy+'" transform="rotate(-14 '+cx+' '+cy+')" fill="none" stroke="'+cyan+'" stroke-width="2" stroke-opacity=".8"/>';
+      const [tx,ty]=on(.55);
+      svg+='<g class="bf-pulse"><path d="M'+tx+' '+(ty-11)+' l11 11 -11 11 -11 -11z" fill="'+cyan+'" fill-opacity=".35" stroke="'+cyan+'" stroke-width="2"/></g>'+
+        '<path d="M'+tx+' '+(ty-9)+' l9 9 -9 9 -9 -9z" fill="'+cyan+'"/>';
+      pts.target=[tx,ty];
+      const thr=[2.3,3.4].map(on);
+      for(const [x,y] of thr)svg+='<path d="M'+x.toFixed(1)+' '+(y-10).toFixed(1)+' l10 17 h-20z" fill="'+foe+'" fill-opacity=".35" stroke="'+foe+'" stroke-width="2"/>';
+      pts.threat=thr[0];pts.other=on(4.6);
+    } else {
+      // the region as a highlighted patch, and a pulsing pin
+      const [u,v]=msAnchor(m),px=cx+u*R*.85,py=cy+v*R*.85;
+      svg+='<ellipse cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" rx="'+(R*.32).toFixed(1)+'" ry="'+(R*.2).toFixed(1)+'" fill="'+cyan+'" fill-opacity=".2" stroke="'+cyan+'" stroke-width="2" stroke-dasharray="6 4"/>'+
+        '<circle class="bf-pulse" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="10" fill="none" stroke="'+cyan+'" stroke-width="3"/>'+
+        '<path d="M'+px.toFixed(1)+' '+py.toFixed(1)+' c-8 -10 -11 -14 -11 -19 a11 11 0 0 1 22 0 c0 5 -3 9 -11 19z" fill="'+cyan+'" stroke="#06202a" stroke-width="2"/>'+
+        '<circle cx="'+px.toFixed(1)+'" cy="'+(py-19).toFixed(1)+'" r="4" fill="#06202a"/>';
+      pts.target=pts.threat=pts.other=[px,py-12];
+    }
+  }
+  // callouts: the mission's own holo lines, else the first two objectives as Target and Extract
+  const objs=(m.objectives||[]).filter(o=>o[0]!=='(');
+  const lines=lock?[]:(m.holo&&m.holo.length?m.holo:[{k:'Target',t:objs[0]},{k:'Extract',t:objs[1]}].filter(x=>x.t)).slice(0,3);
+  const SLOTS=[{x:4,y:36,w:190,side:'l'},{x:446,y:26,w:190,side:'r'},{x:446,y:330,w:190,side:'r'}];
+  let calls='',leads='';
+  lines.forEach((c,i)=>{
+    const sl=SLOTS[i],foeC=!!c.foe||/oppos|threat/i.test(c.k);
+    const at=foeC?pts.threat:/target/i.test(c.k)?pts.target:pts.other;
+    calls+='<div class="bf-callout'+(foeC?' is-foe':'')+'" style="left:'+sl.x+'px;top:'+sl.y+'px;width:'+sl.w+'px"><b>'+esc(c.k)+'</b><span>'+c.t+'</span></div>';
+    if(at){const ex=sl.side==='l'?sl.x+sl.w:sl.x,ey=sl.y+22;
+      leads+='<polyline points="'+ex+','+ey+' '+(ex+(sl.side==='l'?24:-24))+','+ey+' '+at[0].toFixed(1)+','+at[1].toFixed(1)+'" fill="none" stroke="'+(foeC?foe:cyan)+'" stroke-width="1.6" stroke-opacity=".8"/>';}
+  });
+  const table='<svg class="bf-table" viewBox="0 0 520 120" aria-hidden="true"><ellipse cx="260" cy="70" rx="250" ry="44" fill="#0b1430" stroke="#070818" stroke-width="4"/>'+
+    '<ellipse cx="260" cy="56" rx="230" ry="36" fill="#121d44" stroke="rgba(54,227,242,.55)" stroke-width="3"/>'+
+    '<ellipse cx="260" cy="56" rx="120" ry="18" fill="rgba(54,227,242,.25)" stroke="var(--sr-shield)" stroke-width="2"/></svg>';
+  return table+'<div class="bf-beam"></div><div class="bf-proj'+(lock?' is-locked':'')+'" data-holo="'+(lock?'locked':k)+'"><svg viewBox="0 0 640 520" aria-hidden="true">'+svg+leads+'</svg><div class="bf-scan"></div>'+calls+'</div>'+
+    '<div class="bf-title"><i></i>'+esc(lock?'Signal encrypted':msPlace(m))+'</div>';
+}
+/* the reward chips: assets first, then resources, then what it does for the region */
+function msRewards(m){
+  const r=m.rew||{},o=[];
+  const chip=(c,ico,t)=>'<span style="--c:'+c+'">'+IC(ico)+t+'</span>';
+  if(r.cross)o.push(chip('var(--sr-gold)','ship','FT-4 Cross'));
+  if(r.fighter)o.push(chip('var(--sr-gold)','ship','+1 fighter'));
+  if(m.vip&&m.vip.strider)o.push(chip('var(--sr-gold)','vehicle',esc(m.vip.name)));
+  if(m.npc)o.push(chip('var(--sr-rebel)','people',esc(m.npc.name)));
+  for(const k of ['c','s','m','f','i'])if(r[k])o.push(chip('var(--sr-res-'+RES[k][0]+')',RES[k][0],r[k]));
+  if(m.region&&m.lib){const d=pdef(m.loc),rg=d&&d.regions&&d.regions.find(x=>x.id===m.region);if(rg)o.push(chip('var(--sr-rebel)','revflame',esc(rg.name)+' +'+m.lib+'%'));}
+  return o.join('');
+}
+function msBriefHTML(m){
+  const lock=msLocked(m),k=msKind(m),si=m.src?srcInfo(m.src):null;
+  const place=msPlace(m),d=m.loc&&pdef(m.loc);
+  const srcName=si?si.name:(m.from||'The network'),srcSub=si?[si.type,si.loc].filter(Boolean).join(' · '):(m.from?'':'');
+  const r=reqOf(m),risk=msRisk(m);
+  const squad=r.transport?String(r.team):(r.ships||r.team)+' ship'+((r.ships||r.team)>1?'s':'');
+  const plain=String(m.desc||'').replace(/<[^>]*>/g,'');
+  let h='<div class="bf-railtitle">'+IC('missions')+'Briefing</div><div class="bf-brief" data-mid="'+m.id+'">'+
+    '<div><div class="bf-brief__title">'+esc(lock?'Signal encrypted':m.name)+'</div><div class="bf-loc">'+IC('targetlock')+'<span>'+esc(lock?'Unknown':place)+'</span>'+
+      (d&&!lock?rbtn('data-msmap="'+m.loc+'"','Show on map',false,'sr-btn--ghost sr-btn--sm'):'')+'</div></div>'+
+    '<div class="bf-src"><div class="bf-src__ava">'+esc(ini(srcName))+'</div><div style="min-width:0"><b>'+esc(srcName)+'</b>'+(srcSub?'<span>'+esc(srcSub)+'</span>':'')+'</div></div>';
+  if(lock)return h+'<p class="bf-quote">The source holding this job has not been raised yet. Raise them to decrypt it.</p></div>';
+  h+='<p class="bf-quote" title="'+esc(plain)+'">'+m.desc+'</p>'+
+    '<div class="bf-facts"><div class="bf-fact" style="--c:'+MS_RISK_C[risk]+'"><b>'+esc(m.riskTxt||'Low')+'</b><span>Risk</span></div>'+
+    '<div class="bf-fact"><b>'+m.days+' day'+(m.days===1?'':'s')+'</b><span>Travel time</span></div>'+
+    '<div class="bf-fact"><b>'+squad+'</b><span>Max squad size</span></div></div>';
+  const pc=precondList(m);
+  h+='<section class="bf-sec" data-sec="req"><div class="bf-sec__h">'+IC('lock')+'Requirements</div>'+pc.map(c=>
+    '<div class="bf-req '+(c.ok?'is-ok':'is-no')+'">'+IC(c.ok?'check':'lock')+'<span>'+esc(c.brief)+'</span>'+(!c.ok&&c.detail?'<em>'+esc(c.detail)+'</em>':'')+'</div>').join('')+'</section>';
+  h+='<section class="bf-sec" data-sec="obj"><div class="bf-sec__h">'+IC('missions')+'Objectives</div>'+(m.objectives||['Complete the operation']).map(o=>'<div class="bf-obj"><i></i><span>'+o+'</span></div>').join('')+'</section>';
+  const rw=msRewards(m);
+  if(rw)h+='<section class="bf-sec" data-sec="rew"><div class="bf-sec__h">'+IC('loot')+'Rewards</div><div class="bf-rew">'+rw+'</div></section>';
+  let plan;
+  if(m.state==='prog')plan=rbtn('disabled','Under way · '+m.progress.daysLeft+' day'+(m.progress.daysLeft===1?'':'s')+' left',true,'sr-btn--primary sr-btn--lg');
+  else{
+    const ok=canPlan(m),why=ok?'':(pc.find(c=>!c.ok&&!c.soft)||{}).why||'';
+    plan=rbtn('data-mplan="'+m.id+'"','Plan mission',!ok,'sr-btn--primary sr-btn--lg')+(why?'<div class="bf-plan__why">'+IC('lock')+esc(why)+'</div>':'');
+  }
+  return h+'<div class="bf-plan">'+plan+'</div></div>';
+}
+function msClick(ev){
+  const t=ev.target.closest('button');
+  if(!t||t.disabled)return;
+  const sel=t.getAttribute('data-msel');
+  if(sel){sClick();msSel=sel;renderMissions();if(ROOT.clientWidth<=900)setDrawer(true);return;}   // phones: the briefing is in the drawer
+  const f=t.getAttribute('data-msfilter');
+  if(f){sClick();msFilter=f;renderMissions();return;}
+  const map=t.getAttribute('data-msmap');
+  if(map){sClick();closeMissions();setView('galaxy');enterWorld(map);return;}
+  const mp=t.getAttribute('data-mplan');
+  if(mp){const m=G.missions.find(x=>x.id===mp);if(m&&canPlan(m)){sClick();openPlan(m);}return;}
+}
+
+/* ---------- the comm burst (docs/ui/SCREENS-HANDOFF.md §3) ----------
+   Each kind of information has one home: who (and their cultivation), the channel and its flavour, our narration
+   as log lines, the source's own words in one bubble, and what acknowledging does. */
+const cmChan=flavour=>'<div class="cm-chan"><div class="cm-chan__top"><b>Carrier locked</b><span>'+flavour+'</span></div><canvas id="commStatic" class="cm-wave" aria-hidden="true"></canvas></div>';
+const cmLog=t=>'<div class="cm-log"><span>'+t+'</span></div>';
+const cmSay=(ini2,name,text,tag)=>'<div class="cm-say"><span class="cm-say__ava" aria-hidden="true">'+esc(ini2)+'</span><div class="cm-bubble">'+
+  '<div class="cm-bubble__top">'+esc(name)+(tag?wTag(tag,'action'):'')+'</div><p>'+text+'</p></div></div>';
+/* the mission a signal would put on the board, read without putting it there */
+function signalLead(sig){
+  let m=null;
+  if(sig.kind==='mission'){
+    if(MSTORY[sig.mid]){const T=MTYPE_DEFS[MSTORY[sig.mid]],c=CTXDEF[sig.mid]||{};if(T)m={name:T.name,ground:true,type:'ground',riskTxt:T.riskTxt,loc:c.loc,region:c.region};}
+    else if(MPOOL[sig.mid])m=Object.assign({id:sig.mid},MPOOL[sig.mid]);
+  } else if(sig.kind==='offer'){
+    const T=MTYPE_DEFS[sig.tid],d=sig.ctx&&pdef(sig.ctx.loc);
+    if(T)m={name:T.name,ground:true,type:'ground',riskTxt:d&&d.sec>=3?'High':T.riskTxt,loc:sig.ctx.loc,region:sig.ctx.region};
+  }
+  if(!m)return null;
+  const k=opKind(m),d=m.loc&&pdef(m.loc);
+  const where=k==='space'?(d?d.name+' orbit':''):whereHTML(m);
+  return {name:m.name,kind:k,meta:esc([OPKIND[k].label,m.riskTxt?m.riskTxt+' risk':'',where].filter(Boolean).join(' · '))};
+}
+function commHTML(src,payload){
+  const cu=payload.cult||{from:src.cult,to:src.cult,lvl1:src.level};
+  const gain=Math.round(cu.to-cu.from);
+  const who='<div class="cm-who"><span class="cm-ava">'+esc(ini(src.name))+'<i>'+IC('signal')+'</i></span>'+
+    '<div style="min-width:0"><div class="cm-name">'+esc(src.name)+'</div><div class="cm-role">'+esc([src.type,src.loc].filter(Boolean).join(' · '))+'</div></div>'+
+    '<div class="cm-who__end"><span class="cm-lvl">Source · Level '+(cu.lvl1||src.level)+'</span>'+
+    '<span class="cm-meter" style="--from:'+Math.round(cu.from)+';--to:'+Math.round(cu.to)+'" title="Cultivation '+Math.round(src.cult)+' / 100 toward the next level"><i class="was"></i><i class="now"></i></span>'+
+    (gain>0?'<span class="cm-gain">Cultivation +'+gain+'</span>':'')+'</div></div>';
+  let body=cmChan('Encrypted · rebel net · lag 4.2s · voices masked'),foot;
+  if(payload.event){
+    const said=String(payload.event.text).replace(/^<b>[^<]*<\/b>\s*/,'');   // the bubble names the speaker
+    body+=cmSay(ini(src.name),src.name,said)+'<div class="cm-choices">'+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('')+'</div>';
+    foot='';
+  } else {
+    body+=(payload.lines||[]).filter(Boolean).map(cmLog).join('');
+    const sig=payload.signal;
+    if(sig){
+      body+=cmSay(ini(src.name),src.name,sig.text||'',"Signal");
+      const ld=signalLead(sig);
+      if(ld)body+='<div class="cm-lead"><span class="cm-lead__ico">'+IC(OPKIND[ld.kind].icon)+'</span><div style="min-width:0"><div class="cm-lead__k">New Lead – Added to Mission Board</div>'+
+        '<div class="cm-lead__n">'+esc(ld.name)+'</div><div class="cm-lead__m">'+ld.meta+'</div></div></div>';
+      foot=rbtn('data-follow','Acknowledge',false,'sr-btn--primary');
+    } else {
+      body+='<div class="cm-quiet">No signal waiting.</div>';
+      foot=rbtn('data-close','Close channel',false,'sr-btn--primary');
+    }
+  }
+  return wHead('Comm burst')+who+'<div class="sr-window__body cm-body">'+body+'</div>'+(foot?wFoot(foot):'');
+}
+
+/* ---------- the Personnel File (docs/ui/SCREENS-HANDOFF.md §2) ----------
+   A stage with the rebel's figure and gear pegs, a header plate, then the middle column (medical, morale, character,
+   experiences, skills or specialty) and the side column (craft, service record, assignment). Detail buttons open a
+   popover to their right on hover, focus or tap. */
+const PEG_LABEL={primary:'Primary',secondary:'Sidearm',back:'Back',head:'Head',body:'Body',gad:'Gadget'};
+const ROLE_ICO={Soldier:'soldier',Marine:'marine',Pilot:'pilot',Support:'support',Hero:'star'};
+const SPEC_ICO={doctor:'heart',intel:'intel',mechanic:'work',support_technician:'hack',logistics:'supplies',academic:'help',diplomat:'comms',control:'dial'};
+const UNIT_ICO={job:'work',rule:'shield',posting:'galaxy'};
+const EXP_ICO={Relationships:'people',Battlefield:'sword',Psychological:'panic',Successes:'star',Injuries:'patch',Rebellion:'revflame',Consequences:'skull',Positive:'heart'};
+const GOOD='var(--sr-go)',BAD='var(--sr-hazard)';
+/* the figure drawn large for the stage (the smaller figureURL serves the mission window) */
+const figureBigCache=new Map();
+function figureBigURL(p){
+  if(p.auto||!p.id)return null;
+  const key=portraitKey(p)+'|'+JSON.stringify(p.gear||{})+'|'+(p.spec2||'');
+  const hit=figureBigCache.get(p.id);
+  if(hit&&hit.key===key)return hit.url;
+  try{
+    const W=420,H=460,c=document.createElement('canvas');c.width=W*2;c.height=H*2;
+    const g=c.getContext('2d');g.scale(2,2);
+    SA.character(g,W/2,H-34,personSpec(p),{view:'front',t:0,s:6.2});
+    const url=c.toDataURL();
+    figureBigCache.set(p.id,{key,url});
+    return url;
+  }catch(e){return null;}
+}
+const pfFx=(t,good)=>'<span style="--c:'+(good?GOOD:BAD)+'">'+esc(t)+'</span>';
+const pfDots=list=>list.length?'<span class="pf-dots">'+list.map(g=>'<i style="--c:'+(g?GOOD:BAD)+'"></i>').join('')+'</span>':'';
+const pfPop=(name,kind,body,fx)=>'<div class="pf-pop" role="tooltip"><div class="pf-pop__name">'+name+'</div><div class="pf-pop__kind">'+kind+'</div>'+
+  (body?'<p>'+body+'</p>':'')+(fx?'<div class="pf-fx">'+fx+'</div>':'')+'</div>';
+const pfTip=(btn,pop,wide)=>'<div class="pf-tip'+(wide?' is-wide':'')+'">'+btn+pop+'</div>';
+/* a compact detail button: icon disc, name, kind, then markers and a chevron */
+function pfBtn(o){
+  return '<button class="pf-btn'+(o.dashed?' is-dashed':'')+'" type="button" data-pftip'+(o.attrs||'')+'><span class="pf-btn__ico" style="--c:'+(o.c||'var(--sr-psi)')+'">'+IC(o.ico)+'</span>'+
+    '<span style="min-width:0"><span class="pf-btn__name">'+o.name+'</span><span class="pf-btn__kind">'+o.kind+'</span></span><span class="pf-btn__end">'+(o.dots||'')+IC('chevron')+'</span></button>';
+}
+const pfH=(ico,t,right)=>'<div class="pf-h">'+IC(ico)+t+(right?'<b>'+right+'</b>':'')+'</div>';
+const pfSec=(key,h)=>h?'<section class="pf-sec" data-sec="'+key+'">'+h+'</section>':'';
+/* the header plate: level ring, name, role and what sets them apart, the rank button */
+function pfPlate(p){
+  const tags=[];
+  if(!p.auto)tags.push('<em>'+esc(specOf(p)||'Rookie')+'</em>');
+  else tags.push('<em>'+esc(rankFor(p))+'</em>');
+  if(p.merc)tags.push('<em>Mercenary · '+Math.max(0,p.merc.until-G.day)+'d left</em>');
+  if(laidUp(p))tags.push('<em style="color:var(--sr-hazard)">Injured</em>');
+  else if(Rebel.weary(p))tags.push('<em style="color:var(--sr-hazard)" title="Needs '+Rebel.restDays(p)+' day'+(Rebel.restDays(p)>1?'s':'')+' of rest">'+(conked(p)?'Conked out':'Weary')+'</em>');
+  let rank='';
+  if(!p.auto&&p.rank!==undefined){
+    const ready=Rebel.canPromote(p),com=!ready&&Rebel.canCommission(p),nx=Rebel.nextRank(p),need=Rebel.needMissions(p),have=Math.min(need,p.rankMissions||0);
+    const hint=ready?'Ready for promotion to '+nx:com?'Can be commissioned as an officer':nx?have+' of '+need+' missions toward '+nx:'Top of the ladder';
+    rank='<button class="pf-rank'+(ready||com?' is-ready':'')+'" type="button" data-rank-open="'+p.id+'" title="'+esc(hint+'. Tap for details.')+'" aria-label="Rank: '+esc(rankFor(p))+'. '+esc(hint)+'. Open rank details">'+
+      insignia(p,26)+'<b>'+esc(rankFor(p))+'</b>'+(ready?'<em class="pf-rank__flag">\u25b2 Promotion ready</em>':com?'<em class="pf-rank__flag">\u2605 Can be commissioned</em>':'')+(nx?'<span>'+Array.from({length:need},(_,i)=>'<i'+(i<have?' class="is-on"':'')+'></i>').join('')+'</span>':'')+'</button>';
+  }
+  return '<div class="pf-plate"><span class="pf-lvl" style="--xp:'+Math.round((p.xp||0)*100)+'" aria-label="Level '+p.level+', '+Math.round((p.xp||0)*100)+'% to the next"><b>'+p.level+'</b><small>LVL</small></span>'+
+    '<div style="min-width:0"><div class="pf-name">'+esc(p.name)+'</div><div class="pf-role">'+IC(ROLE_ICO[p.role]||'people')+esc(p.role)+tags.join('')+'</div></div>'+rank+'</div>';
+}
+/* the stage: the figure, gear pegs either side, and what has happened to them */
+function pfStage(p){
+  const slots=gearSlots(p),key=s=>s.k==='gad'?'gad'+(s.i||0):s.k;
+  const pilot=p.role==='Pilot';
+  const sides=[pilot?['secondary','gad0']:['primary','secondary','back'],pilot?['head','body','gad1']:['head','body','gad0','gad1']];
+  const away=p.assign==='mission';
+  const peg=s=>{
+    const id=slotGet(p,s),own=isOwnSlot(p,s);
+    const why=own?'Their own kit: not ours to reassign':away?'Away on a mission':'';
+    return '<button class="pf-peg'+(id?'':' is-empty')+'" type="button" data-gear-slot="'+p.id+':'+s.k+':'+(s.i||0)+'"'+(why?' disabled':'')+' title="'+esc(why||SLOT_LABEL[s.k]+': '+(id?kitNameId(id):'empty'))+'">'+
+      '<span class="pf-peg__box">'+(id?itArt(id):'')+'</span><span class="pf-peg__lbl">'+PEG_LABEL[s.k]+'</span><span class="pf-peg__name">'+(id?esc(kitNameId(id)):'Empty')+'</span></button>';
+  };
+  const col=(list,side)=>{const ss=list.map(k=>slots.find(s=>key(s)===k)).filter(Boolean);return ss.length?'<div class="pf-pegs pf-pegs--'+side+'">'+ss.map(peg).join('')+'</div>':'';};
+  const u=figureBigURL(p);
+  const post=isSupport(p)?pfPost(p):'';
+  return '<div class="pf-stage'+(laidUp(p)?' is-hurt':'')+'">'+
+    '<svg class="pf-flag" viewBox="0 0 46 62" aria-hidden="true"><path d="M4 2v58" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M6 6h34l-8 11 8 11H6z" fill="currentColor"/></svg>'+
+    (u?'<img class="pf-doll" src="'+u+'" alt="'+esc(p.name)+' in their kit">':'')+
+    (slots.length?col(sides[0],'l')+col(sides[1],'r'):'')+
+    (post?'<span class="pf-stagebadge">'+IC('star')+esc(post)+'</span>':'')+
+    (laidUp(p)?'<div class="pf-ribbon">Injured</div>':'')+'</div>';
+}
+/* a Support rebel's post in their room: Department Head, else the Lead of their niche */
+function pfPost(p){
+  const key=SP.homeOf(p);
+  if(!key||p.assign!=='room:'+key||!crewIn(key).includes(p))return '';
+  if(headOf(key)===p)return 'Department Head';
+  return nicheOf(p)&&leadOf(p.niche)===p?'Niche Lead':'';
+}
+/* off duty, with the conditions behind it in the popover; permanent changes as buttons below */
+function pfMedical(p){
+  let h='';
+  if(laidUp(p)){
+    const d=outDays(p);
+    const conds=(p.cond||[]).map(c=>{
+      const D=Rebel.CONDK[c.k];if(!D)return '';
+      return '<b>'+esc(D.n)+'</b> · '+(c.k==='eye'&&c.age>=8?'getting worse':Math.max(1,Math.ceil(c.days))+' day'+(Math.ceil(c.days)>1?'s':'')+' to go')+'<br>'+esc(D.text);
+    }).filter(Boolean).join('<br><br>');
+    const warn=(p.cond||[]).length&&!hasRoom('infirmary')?'<br><br>No Infirmary: wounds mend very slowly, and an eye injury can become permanent.':'';
+    h+=pfTip('<div class="pf-medical" role="button" tabindex="0" data-pftip>'+IC('patch')+'<div><b>Injured</b><span>This character is off duty until they have recovered from their injuries.</span></div>'+
+      '<strong>'+d+'<small>day'+(d>1?'s':'')+' to go</small></strong></div>',pfPop('Injured','Medical',(conds||'Laid up.')+warn));
+  }
+  else for(const c of p.cond||[]){   // on their feet with something still mending
+    const D=Rebel.CONDK[c.k];if(!D)continue;
+    const left=c.k==='eye'&&c.age>=8?'Getting worse':Math.max(1,Math.ceil(c.days))+' day'+(Math.ceil(c.days)>1?'s':'')+' to go';
+    h+=pfTip(pfBtn({ico:'patch',c:BAD,name:esc(D.n),kind:left}),pfPop(esc(D.n),'Medical · '+left.toLowerCase(),esc(D.text)),true);
+  }
+  const b=p.body||{},perm=[];
+  for(const part of ['arm','leg','eye']){
+    if(b[part]===1){
+      const n=part==='eye'?'Blinded in one eye':'Lost '+(part==='arm'?'an arm':'a leg');
+      perm.push(pfTip(pfBtn({ico:'patch',c:BAD,name:n,kind:'Permanent'}),pfPop(n,'Permanent',(part==='eye'?'A significant accuracy penalty.':part==='arm'?'No two-handed weapons.':'Slowed and cannot sprint.')+' A Cyberneticist’s prosthetic would fix it.')));
+    } else if(b[part]===2){
+      const kind=(p.pros||{})[part]||'fitted',fx=(Rebel.PROS_FX[kind]||{})[part]||{};
+      const n=sentence(Rebel.PROS_NAME[kind])+' prosthetic '+part;
+      const what=fx.aim?(fx.aim>0?'+':'')+fx.aim+' aim.':fx.spd?(fx.spd>1?'A little faster on their feet.':'A little slower on their feet.'):'It works. Mostly.';
+      perm.push(pfTip(pfBtn({ico:'patch',c:GOOD,name:esc(n),kind:'Prosthetic'}),pfPop(esc(n),'Prosthetic · fitted',what)));
+    }
+  }
+  if(perm.length)h+='<div class="pf-btngrid">'+perm.join('')+'</div>';
+  return h;
+}
+function pfMorale(p){
+  if(p.auto||p.morale===undefined)return '';
+  const b=Rebel.mband(p),col=b.tone==='bad'?'var(--sr-c-bad)':b.tone==='good'?'var(--sr-go)':'var(--sr-gold)';
+  return '<div class="pf-morale" style="--c:'+col+'" title="Morale '+Math.round(p.morale)+' / 100"><span class="pf-morale__lbl">Morale</span>'+
+    '<div class="pf-bar" style="--v:'+Math.round(p.morale)+'"><i></i></div><span class="pf-morale__v">'+b.n+'</span></div>';
+}
+function pfCharacter(p){
+  const t=Rebel.CTK[p.charTrait];
+  if(!t)return '';
+  const g=t.g||[],b=t.b||[];
+  let h=pfTip(pfBtn({ico:'d20',name:esc(t.n),kind:'Character trait',dots:pfDots(g.map(()=>1).concat(b.map(()=>0)))}),
+    pfPop(esc(t.n),'Character trait'+(t.live?'':' · effect soon'),'<em>'+esc(Rebel.traitText(t,p))+'</em>',g.map(x=>pfFx(x,1)).join('')+b.map(x=>pfFx(x,0)).join('')));
+  if(p.role==='Hero')h+=pfTip(pfBtn({ico:'star',c:'var(--sr-gold)',name:'Hero of the Rebellion',kind:'Hero'}),
+    pfPop('Hero of the Rebellion','Hero','+'+Rebel.HERO_SKILL+' to every skill and +'+Rebel.HERO_HP+' health. <b>Rally cry</b> (ground): the squad steadies and takes +2 to hit for a round. <b>Heroic surge</b> (space): shields full, half the hull back, +4 to hit for a round. Each once per mission.'));
+  return pfH('d20','Character')+h;
+}
+function pfExperiences(p){
+  if(p.auto||p.charTrait===undefined)return '';
+  const l=p.traits||[];
+  const body=l.length?'<div class="pf-btngrid">'+l.map(t=>{
+    const d=Rebel.RTK[t.k];if(!d)return '';
+    const name=esc(Rebel.expTitle(t,nameOfRebel)),e=d.e.replace(/\{partner\}/g,t.with?nameOfRebel(t.with):'them');
+    return pfTip(pfBtn({ico:EXP_ICO[d.cat]||'star',c:d.bad?BAD:'var(--sr-psi)',name,kind:esc(d.cat)+(d.temp?' · for now':''),dots:pfDots([!d.bad])}),
+      pfPop(name,esc(d.cat)+(d.temp?' · temporary':''),'<em>'+esc(Rebel.expText(t,p,nameOfRebel))+'</em>',pfFx(e,!d.bad)));
+  }).join('')+'</div>':'<div class="pf-none">None yet. Missions write these.</div>';
+  return pfH('star','Experiences',l.length+' / '+Rebel.EXP_MAX)+body;
+}
+/* what each point of a skill actually does, from the numbers the scenes use: on foot Aim is soldierAim; in the
+   cockpit Aim and Focus are the database's skill-and-level bonus the space scene reads (DESIGN_BLOCKERS C-35) */
+function skillFx(p,k){
+  const sp=p.role==='Pilot';
+  if(k==='aim')return '+'+(sp?pilotAim(p):soldierAim(p))+' to hit'+(sp?' in space':'');
+  if(k==='con')return Rebel.hpOf(p)+' health';
+  if(k==='agi')return '+'+Math.round((Rebel.moveMul(p)-1)*100)+'% move speed';
+  if(k==='pre')return Rebel.coolOf(p,sp?'s':'g')+' Cool'+(sp?' in space':'');
+  if(k==='cun')return '+'+Math.round((Rebel.cunMul(p)-1)*100)+'% repairs & shields';
+  if(k==='foc')return '+'+SRDB.skillBonus(Rebel.dbSkill(p,'foc'),p.level)+' harder to hit';
+  return '';
+}
+function pfSkills(p){
+  const ks=Rebel.skillKeys(p);
+  if(!ks.length)return '';
+  return pfH('d20','Skills','max '+Rebel.SKILL_CAP)+'<div class="pf-skills">'+ks.map(k=>{
+    const v=Rebel.skill(p,k),S=Rebel.SKILLS[k];
+    return '<div class="pf-skill" data-skill="'+k+'" title="'+esc(S.d+' '+v+' of '+Rebel.SKILL_CAP+'.')+'"><div class="pf-skill__top">'+S.n+'<b>'+v+'</b></div>'+
+      '<div class="pf-bar" style="--v:'+Math.round(v/Rebel.SKILL_CAP*100)+'"><i></i></div><div class="pf-skill__fx">'+skillFx(p,k)+'</div></div>';
+  }).join('')+'</div>';
+}
+/* Support: their specialty and its Jobs and Rules, then the niche they actually have and its next fork */
+function pfUnit(u,got,p,ld){
+  const tag=TYPE_TAG[u.t][0];
+  const live=u.live?'':'<br><br>Not working yet: needs '+esc(SP.NEEDS[u.needs]||'a later build')+'.';
+  return pfTip(pfBtn({ico:UNIT_ICO[u.t]||'work',c:u.live?'var(--sr-psi)':'var(--sr-seam)',name:esc(u.n),kind:tag+(u.lv>1?' · level '+u.lv+(u.f||''):'')}),
+    pfPop(esc(u.n),tag+(u.lead?' · Lead only':''),esc(u.d)+live));
+}
+function pfSupport(p){
+  const S=SP.SPEC[p.sspec];
+  if(!S)return '';
+  const key=S.room,head=hasRoom(key)&&headOf(key)===p&&p.assign==='room:'+key;
+  const headBtn=(cls,ico,name,sub,post)=>'<div class="pf-spec__head'+cls+'" role="button" tabindex="0" data-pftip>'+IC(ico)+'<div style="min-width:0"><div class="pf-spec__name">'+name+'</div><div class="pf-spec__sub">'+sub+'</div></div>'+(post?wTag(post,'good'):'')+'</div>';
+  let h='<section class="pf-sec" data-sec="spec">'+pfH('support','Specialty')+'<div class="pf-btngrid">'+
+    pfTip(headBtn('',SPEC_ICO[p.sspec]||'support',esc(S.n),'Works in the '+esc(ROOMS[key].name)+(hasRoom(key)?'':' (not built yet)'),head?'Department Head':''),
+      pfPop(esc(S.n),'Specialty',esc(S.d)+(doingLine(p)?'<br><br>Now: '+esc(doingLine(p)):'')),true)+
+    SP.baseOf(p.sspec).map(u=>pfUnit(u,true,p)).join('')+'</div></section>';
+  const n=nicheOf(p);
+  h+='<section class="pf-sec" data-sec="niche">'+pfH('help','Niche');
+  if(!n){
+    h+='<div class="pf-none">No niche yet'+(p.nicheTrain?'. In the classroom: '+esc(SP.NICHE[p.nicheTrain.k].n)+', '+Math.max(1,Math.ceil(p.nicheTrain.days))+' day'+(Math.ceil(p.nicheTrain.days)>1?'s':'')+' to go.':'.')+'</div></section>';
+    return h;
+  }
+  const N=SP.NICHE[n],lead=leadOf(n)===p&&crewIn(key).includes(p);
+  const got=SP.unlocksOf(n).filter(u=>SP.reached(p,u));
+  const fork=[7,15].find(lv=>!(p.forks&&p.forks[lv])),due=SP.forkDue(p);
+  let forkTip='';
+  if(fork){
+    const opts=SP.unlocksOf(n).filter(u=>u.lv===fork&&u.f);
+    forkTip=pfTip(pfBtn({ico:'d20',c:due?'var(--sr-gold)':'var(--sr-seam)',name:'Level '+fork+': pick one',kind:opts.map(u=>esc(u.n)).join(' or '),dashed:true}),
+      pfPop('Level '+fork+': pick one',due?'Choose now · for good':'A fork at level '+fork,opts.map(u=>'<b>'+esc(u.n)+'</b> ('+TYPE_TAG[u.t][0]+'): '+esc(u.d)+(u.live?'':' <span class="sr-faint">Not working yet.</span>')+
+        (due===fork?'<br>'+rbtn('data-fork="'+p.id+':'+u.lv+':'+u.f+'"','Choose '+esc(u.n),false,'sr-btn--sm sr-btn--primary'):'')).join('<br><br>')),true);
+  }
+  h+='<div class="pf-btngrid">'+pfTip(headBtn(' pf-spec__head--niche','support',esc(N.n),esc(S.n)+' niche',lead?'Niche Lead':''),pfPop(esc(N.n),'Niche',esc(N.d)),true)+
+    got.map(u=>pfUnit(u,true,p)).join('')+forkTip+'</div></section>';
+  return h;
+}
+/* the side column */
+function pfCraft(p){
+  if(p.role!=='Pilot'&&p.role!=='Hero')return '';
+  const f=G.fighters.find(x=>x.id===p.ship);
+  if(!f)return '';
+  const r=SRDB.ship(f.cls)||{},mk=(SRDB.raw.manufacturers||[]).find(x=>x.id===r.manufacturer),n=Math.round(f.hull/20);
+  return pfH('ship','Assigned craft')+'<div class="pf-craft"><div class="pf-craft__top">'+shipArt(f.cls)+'<div style="min-width:0"><b>'+esc(f.name)+'</b><span>'+esc([r.role,mk&&mk.name].filter(Boolean).join(' · '))+(f.out?' · on a mission':'')+'</span></div></div>'+
+    '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
+}
+function pfRecord(p){
+  if(p.auto)return '';
+  const medal=(c,ico,l,n)=>'<div class="pf-medal" style="--c:'+c+'"><span class="pf-medal__ico">'+IC(ico)+'</span><span class="pf-medal__lbl">'+l+'</span><b class="pf-medal__n">'+n+'</b></div>';
+  return pfH('star','Service record')+'<div class="pf-record">'+medal('var(--sr-gold)','missions','Missions served',p.missions||0)+medal('var(--sr-rebel)','attack','Confirmed kills',p.kills||0)+medal('var(--sr-hazard)','patch','Times injured',p.injuries||0)+'</div>';
+}
+function pfAssign(p){
+  const hurt=laidUp(p),away=p.assign==='mission',lock=hurt||away;
+  let b=rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'"','Rest',lock,'sr-btn--sm')+
+    rbtn('data-as="train:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',lock||!hasRoom('training'),'sr-btn--sm');
+  if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
+    const key=SP.homeOf(p),mine=!hurt&&p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
+    const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
+    b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,lock||!!why,'sr-btn--sm sr-btn--wide');
+  }
+  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':'');
+}
+function personHTML(p){
+  const mid=pfSec('medical',pfMedical(p))+pfMorale(p)+pfSec('character',pfCharacter(p))+pfSec('exp',pfExperiences(p))+
+    (isSupport(p)?pfSupport(p):pfSec('skills',p.auto?pfH('d20','Equipment')+'<div class="pf-none">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</div>':pfSkills(p)));
+  const side=pfSec('craft',pfCraft(p))+pfSec('record',pfRecord(p))+pfSec('assign',pfAssign(p));
+  return '<div class="pf-body">'+pfPlate(p)+'<div class="pf-col pf-col--stage">'+pfStage(p)+'</div>'+
+    '<div class="pf-col pf-col--mid">'+mid+'</div><div class="pf-col pf-col--side">'+side+'</div></div>';
+}
+
+/* ---------- the mission report (docs/ui/SCREENS-HANDOFF.md §1) ---------- */
+const fmtN=n=>Math.round(n).toLocaleString('en-US');
+const fmt1=n=>String(Math.round(n*10)/10);
+const RP_SRC={pay:'pay',found:'found',bonus:'stealth bonus',salvaged:'salvaged',fenced:'fenced, no berth'};
+const rpDrow=(c,n,label)=>'<div class="rp-drow" style="--c:'+c+'"><i></i><b>+'+n+'</b>'+label+'</div>';
+const rpSec=(d,ico,title,count,body,cls)=>'<section class="rp-sec'+(cls?' '+cls:'')+'" style="--d:'+d+'s"><div class="rp-sec__head">'+IC(ico)+title+(count||'')+'</div>'+body+'</section>';
+/* the hero's skyline: mesas over the dusk (darker for a failure; the gradient is the stylesheet's) */
+function rpSkyline(){
+  return '<svg class="rp-hero__land" viewBox="0 0 880 76" preserveAspectRatio="none" aria-hidden="true">'+
+    '<path d="M0 76V44h60l12-14h70l10 14h40l8-22h96l10 22h120l14-30h84l12 30h70l10-10h90l8 10h80l14-18h60l12 18v32Z" fill="rgba(20,12,40,.45)"/>'+
+    '<path d="M0 76V58h120l14-20h110l12 20h150l10-12h70l8 12h160l16-26h96l10 26h104v18Z" fill="rgba(11,8,26,.8)"/></svg>';
+}
+/* the location block: the world as a small planet, a dotted line, a red pin over the region */
+function rpLoc(m){
+  const d=m.loc&&pdef(m.loc);
+  if(!d)return '<div class="rp-loc"><div class="rp-loc__item"><span class="rp-loc__lbl">Haven Rock</span></div></div>';
+  const r=m.region&&d.regions&&d.regions.find(x=>x.id===m.region);
+  const pin='<svg viewBox="0 0 36 36" aria-hidden="true"><path d="M18 33C11 24 8 19 8 14a10 10 0 0 1 20 0c0 5-3 10-10 19Z" fill="var(--sr-rebel)" stroke="var(--sr-ink)" stroke-width="3" stroke-linejoin="round"/><circle cx="18" cy="14" r="4" fill="var(--sr-ink)"/></svg>';
+  return '<div class="rp-loc"><div class="rp-loc__item"><img src="'+planetURL(d.id)+'" alt="" width="36" height="36" style="display:block;width:36px;height:36px"><span class="rp-loc__lbl">'+esc(d.name)+'</span></div>'+
+    (r?'<span class="rp-loc__dots"></span><div class="rp-loc__item">'+pin+'<span class="rp-loc__lbl">'+esc(r.name)+'</span></div>':'')+'</div>';
+}
+/* one tile per resource gained, the total and a diamond row per source */
+function rpRes(got){
+  return ['c','s','m','f','i'].filter(k=>gotTotal(got.res[k])>0).map((k,i)=>{
+    const r=got.res[k],c='var(--sr-res-'+RES[k][0]+')';
+    const rows=Object.keys(RP_SRC).concat(Object.keys(r).filter(x=>!RP_SRC[x])).filter(x=>r[x]>0).map(x=>rpDrow(c,fmtN(r[x]),RP_SRC[x]||x)).join('');
+    return '<div class="rp-tile" data-res="'+k+'" style="--c:'+c+';--d:'+(0.2+i*0.06).toFixed(2)+'s"><span class="rp-tile__top">'+IC(RES[k][0])+RES[k][1]+'</span>'+
+      '<b class="rp-tile__n">'+fmtN(gotTotal(r))+'</b><div class="rp-drows">'+rows+'</div></div>';
+  }).join('');
+}
+/* everything else that came home: assets first, two rows of four at most, the last cell counts the rest */
+const RP_KIND={ship:'Ship',vehicle:'Vehicle',bot:'Bot',unit:'Bot'};
+function rpLootArt(e){
+  if(e.kind==='item')return itArt(e.id);
+  if(e.kind==='ship')return shipArt(e.type);
+  if(e.kind==='bot'||e.kind==='vehicle')return vehArt(e.type);
+  return '<span class="it-art">'+IC('people')+'</span>';
+}
+function rpLoot(got,max){
+  const all=got.loot.filter(e=>e.kind!=='item').concat(got.loot.filter(e=>e.kind==='item'));
+  const cut=all.length>max?max-1:all.length;
+  return all.slice(0,cut).map((e,i)=>{
+    const asset=e.kind!=='item';
+    return '<div class="rp-loot__tile'+(asset?' is-asset':'')+(e.foe&&!asset?' is-foe':'')+'" style="--d:'+(0.3+i*0.05).toFixed(2)+'s" title="'+esc(e.name)+'">'+
+      (asset?'<span class="rp-loot__badge">'+(e.kind==='bot'||e.kind==='unit'?'Bot':RP_KIND[e.kind])+'</span>':'')+
+      (e.n>1?'<span class="rp-loot__q">×'+e.n+'</span>':'')+rpLootArt(e)+'<span class="rp-loot__name">'+esc(e.name)+'</span></div>';
+  }).join('')+(all.length>cut?'<div class="rp-loot__more"><b>+'+(all.length-cut)+' more</b><span>in the Arsenal</span></div>':'');
+}
+/* one crew row: portrait with a state badge, the XP bar growing from the old fill, the gain */
+function rpMate(pi,i){
+  const p=pi.who||{},lost=pi.state==='lost',hurt=pi.state==='injured',up=(pi.lvl1||0)>(pi.lvl0||0);
+  const d=(0.35+i*0.08).toFixed(2)+'s';
+  const u=p.id?portraitURL(p):null;
+  const badge=lost?'<span class="rp-mate__badge" style="--c:var(--sr-text-3)">'+IC('skull')+'</span>':hurt?'<span class="rp-mate__badge" style="--c:var(--sr-c-warn)">'+IC('patch')+'</span>':'';
+  const state=lost?'<span class="rp-mate__state" style="--c:var(--sr-text-3)">Lost</span>':hurt?'<span class="rp-mate__state" style="--c:var(--sr-c-warn)">Injured</span>':'';
+  const pct=x=>Math.round(Math.max(0,Math.min(1,x||0))*100);
+  const from=up?0:pct(pi.xp0),gain=up?100:Math.max(0,pct(pi.xp1)-pct(pi.xp0));
+  const role=(pi.role||p.role||'')+(pi.lvl1?' · Lv '+pi.lvl1:'');
+  return '<div class="rp-mate'+(lost?' is-lost':'')+'" style="--d:'+d+'" data-pid="'+esc(pi.id||'')+'">'+
+    '<span class="rp-mate__ava"><span class="kf">'+(u?'<img src="'+u+'" alt="">':'')+'</span>'+badge+'</span>'+
+    '<div><div class="rp-mate__name">'+esc(pi.name)+'<span>'+esc(role)+'</span>'+state+(up&&!lost?'<span class="rp-lvl">Level '+pi.lvl1+'</span>':'')+'</div>'+
+    (lost?'':'<div class="rp-xp'+(up?' is-up':'')+'" style="--from:'+from+'%;--gain:'+gain+'%"><i class="was"></i><i class="now"></i></div>')+'</div>'+
+    (lost?'<span></span>':'<div class="rp-mate__gain">+'+Math.round((pi.xp||0)*100)+'% XP<small>Lv '+pi.lvl1+' · '+pct(pi.xp1)+'%</small></div>')+'</div>';
+}
+/* Revolution progress in the hub's ember, then the region's liberation on the rebel-red wheel */
+function rpRev(m,cr){
+  const lvl=G.revLevel||1,r0=cr.renown0||0,r1=cr.renown1===undefined?r0+cr.gain:cr.renown1;
+  const where=(pdef(m.loc)||{}).name||'';
+  const P=cr.parts||{mission:cr.gain};
+  const lines=[[P.mission,'mission'],[P.first,'first operation in '+where],[P.second,'second operation in '+where],[P.lib,'liberation'],
+    [P.libFull,cr.lib?cr.lib.region+' liberated':'region liberated'],[P.symbol,'Symbol of the Revolution']]
+    .filter(x=>x[0]>0).map(x=>rpDrow('var(--sr-ember-hi)',fmt1(x[0]),x[1])).join('');
+  let h='<div class="rp-meter is-rev" style="--c:var(--sr-ember-hi);--from:'+fmt1(r0)+';--to:'+fmt1(r1)+';--d:.5s">'+
+    '<span class="rp-revring" style="--to:'+fmt1(r1)+'"><span>'+IC('revflame')+'<b>'+ROMAN[Math.max(0,Math.min(4,lvl-1))]+'</b></span></span>'+
+    '<div><div class="rp-meter__top">Revolution progress<em>+'+fmt1(r1-r0)+'</em></div><div class="rp-bar"><i class="was"></i><i class="now"></i></div>'+
+    '<div class="rp-meter__sub">'+fmt1(r0)+' → '+fmt1(r1)+' of 100'+(lvl<5?' to Level '+ROMAN[lvl]:'')+'</div>'+
+    (lines?'<div class="rp-drows">'+lines+'</div>':'')+'</div></div>';
+  if(cr.lib){
+    const L=cr.lib;
+    h+='<div class="rp-meter is-lib" style="--c:var(--sr-rebel);--from:'+L.from+';--to:'+L.to+';--d:.6s">'+
+      '<span class="gx-wheel" style="--p:'+L.to+'" role="img" aria-label="'+L.to+'% liberated">'+IC('revflame')+'</span>'+
+      '<div><div class="rp-meter__top">'+esc(L.region)+' liberation<em>+'+(L.to-L.from)+'%</em></div><div class="rp-bar"><i class="was"></i><i class="now"></i></div>'+
+      '<div class="rp-meter__sub">'+L.from+'% → '+L.to+'%'+(L.capped?' (capped)':'')+'</div></div></div>';
+  }
+  return '<div class="rp-rev">'+h+'</div>';
+}
+function reportHTML(rp){
+  const m=rp.m,got=rp.got||newGot();
+  const objs=(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(');
+  const hero='<div class="rp-hero">'+rpSkyline()+'<div class="rp-hero__txt">'+rpLoc(m)+'<h3 class="sr-brief__title">'+m.name+'</h3>'+
+    (rp.win?'<div class="rp-hero__meta"><span class="rp-objpill">'+IC('check')+'All '+objs.length+' objective'+(objs.length===1?'':'s')+'</span></div>':'')+'</div>'+
+    '<span class="sr-stamp '+(rp.win?'sr-stamp--action':'sr-stamp--bad')+'">'+(rp.win?'Secured':'Mission failed')+'</span></div>';
+  const res=rpRes(got);
+  const nLoot=got.loot.length;
+  const left=[];
+  if(!rp.win){
+    const list=rp.objs&&rp.objs.length?rp.objs:objs.map(t=>({t,done:false}));
+    const done=list.filter(o=>o.done).length;
+    left.push(rpSec(0.1,'missions','Objectives','<b class="is-bad">'+done+' / '+list.length+'</b>','<div class="rp-objs">'+list.map(o=>o.done?
+      '<div class="sr-obj is-done"><span class="sr-obj__mark">'+IC('check')+'</span><span>'+o.t+'</span></div>':
+      '<div class="sr-obj rp-obj-fail"><span class="sr-obj__mark">'+IC('clear')+'</span><span>'+o.t+'</span></div>').join('')+'</div>'));
+  }
+  if(res)left.push(rpSec(0.15,'credits',rp.win?'Resources':'Recovered','','<div class="rp-res">'+res+'</div>'));
+  if(nLoot)left.push(rpSec(0.25,'loot','Loot','<b>'+got.loot.reduce((a,e)=>a+e.n,0)+'</b>','<div class="rp-loot">'+rpLoot(got,RP_LOOT_MAX())+'</div>'));
+  if(!rp.win&&!res&&!nLoot)left.push(rpSec(0.15,'loot','Recovered','','<div class="pf-none">Nothing.</div>'));
+  if(rp.win&&rp.cr)left.push(rpSec(0.4,'revolution','The revolution','',rpRev(m,rp.cr)));
+  if(!rp.win)left.push('<section class="rp-sec" style="--d:.4s"><div class="rp-next">'+IC('missions')+'<span><b>'+m.name+'</b> stays on the Mission Board. Regroup and try again.</span></div></section>');
+  const crew=rp.people.length?rpSec(0.2,'people','Crew','','<div class="rp-crew">'+rp.people.map(rpMate).join('')+'</div>'):'';
+  return wHead(rp.win?'Mission Complete':'Mission Failed')+hero+
+    '<div class="sr-window__body rp-body"><div class="rp-col">'+left.join('')+'</div><div class="rp-col">'+crew+'</div></div>'+
+    wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
+}
+/* loot cells: two rows of four, of three on a phone */
+const RP_LOOT_MAX=()=>ROOT.clientWidth&&ROOT.clientWidth<=900?6:8;
 
 /* ---------- top bar, rail, tabs ---------- */
 const ROMAN=['I','II','III','IV','V'];
@@ -5420,7 +6040,7 @@ function markWin(){markShort();}
 /* the tabs show where the player is; Base is "no window open and no view up" */
 function syncTabs(){
   let sel;
-  if(winMode==='missions')sel='navMissions';
+  if(msOpen&&!winMode)sel='navMissions';
   else if(winMode==='srcTutIntro'||winMode==='srcTut')sel=baseView==='galaxy'?'navSources':null;
   else if(winMode)sel=null;
   else if(arOpen)sel='navArsenal';
@@ -5518,6 +6138,7 @@ function syncUI(){
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
   if(arOpen)renderArsenal();
+  if(msOpen)renderMissions();
   if(bmOpen)renderMarket();
   syncGxDOM();
   syncTabs();markShort();
@@ -5627,11 +6248,11 @@ function setTopbar(title,sub){
 /* the phone drawer button says what the drawer holds: Loadouts in the Arsenal, the fence at the market */
 function drawerLabel(){
   const btn=$('drawerBtn');
-  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':'Crew and flight';
+  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':msOpen?'Briefing':'Crew and flight';
   btn.setAttribute('aria-label',lbl);btn.title=lbl;
 }
 function openArsenal(){
-  closeWin();closeTilePop();exitRoomView();closeMarket();
+  closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();
   arOpen=true;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
@@ -6038,6 +6659,8 @@ function arClick(ev){
   if(give){arGiveTo(give);return;}
 }
 $('arView').addEventListener('click',arClick);
+$('msView').addEventListener('click',msClick);
+$('railMissions').addEventListener('click',msClick);
 $('railArsenal').addEventListener('click',arClick);   // the Loadouts slots live in the rail
 $('arOrders').addEventListener('click',ev=>{
   const t=ev.target.closest('button');
@@ -6234,7 +6857,7 @@ function ensureMarket(){
   if(!G.market||!G.market.lots)rollMarket();
 }
 function openMarket(){
-  closeWin();closeTilePop();exitRoomView();closeArsenal();
+  closeWin();closeTilePop();exitRoomView();closeArsenal();closeMissions();
   ensureMarket();
   bmOpen=true;bmSel=null;bmLine=null;
   G.market.unseen=0;
@@ -6457,7 +7080,7 @@ $('bmView').addEventListener('click',ev=>{
   if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
 });
 /* phones re-pick their column counts when the viewport changes */
-addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();});
+addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();if(msOpen)msFit();});
 
 /* ---------- input ---------- */
 function figAt(px,py){
@@ -6641,6 +7264,11 @@ $('winsB').addEventListener('click',ev=>{
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
     const chip=ev.target.closest('[data-rid]');
     if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
+  }
+  if(winMode==='person'){   // the file's detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
+    const tip=ev.target.closest('[data-pftip]'),open=$('winCardB').querySelectorAll('.pf-tip.is-open');
+    if(tip){const w=tip.closest('.pf-tip'),was=w.classList.contains('is-open');open.forEach(x=>x.classList.remove('is-open'));if(!was)w.classList.add('is-open');return;}
+    if(!ev.target.closest('.pf-pop'))open.forEach(x=>x.classList.remove('is-open'));
   }
   const t=ev.target.closest('button,a,input');
   if(!t)return;
@@ -6862,11 +7490,12 @@ $('navBase').addEventListener('click',()=>{
   sClick();
   if(arOpen){closeArsenal();return;}
   if(bmOpen){closeMarket();return;}
+  if(msOpen){closeMissions();return;}
   if(winMode)closeWin();
   showView('base');
 });
-$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();if(winMode)closeWin();showView('galaxy');});
-$('navMissions').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('missions');});
+$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();closeMissions();if(winMode)closeWin();showView('galaxy');});
+$('navMissions').addEventListener('click',()=>{sClick();if(winMode)closeWin();if(baseView!=='base')setView('base');openMissions();});
 $('navArsenal').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openArsenal();});
 $('navMarket').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openMarket();});
 $('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
@@ -6906,6 +7535,7 @@ addEventListener('keydown',ev=>{
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
     else if(bmOpen)closeMarket();
+    else if(msOpen)closeMissions();
     else if(baseView==='galaxy'&&(gxRegion||gxWorld||srcSel))gxBack();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
@@ -7004,27 +7634,34 @@ function minFuel(m){
   const n=r.transport?transportSlots(r):(r.ships||r.team);
   return costs.slice(0,n).reduce((a,b)=>a+b,0)||fuelPer('cross')*n;
 }
+/* what a mission needs. label: the planning board's line; brief: the briefing's count-first label ("3 Soldiers"),
+   detail: a generic reason when unmet (it never names anyone), why: what the Plan button says when blocked */
 function precondList(m){
   const r=reqOf(m),out=[];
+  const pl=(n,w)=>n+' '+w+(n>1?'s':'');
+  const short=(have,n)=>have?'Only '+have+' available':'None available';
+  const needs=(n,w)=>'Needs '+(n>1?n+' '+w+'s':(/^[aeiou]/i.test(w)?'an ':'a ')+w.toLowerCase());
   if(r.transport){
-    const T=transportSlots(r),np=T+(r.prize||0);
-    out.push({ok:soldierPool().length>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available'});
-    out.push({ok:ablePilots().length>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':'')});
-    out.push({ok:transportPool().length>=T,label:T+' hauler'+(T>1?'s':'')+' available'});
+    const T=transportSlots(r),np=T+(r.prize||0),sp=soldierPool().length,ap=ablePilots().length,tp=transportPool().length;
+    out.push({ok:sp>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Soldier'),detail:short(sp,r.team),why:needs(r.team,'soldier')});
+    out.push({ok:ap>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':''),brief:pl(np,'Pilot'),detail:short(ap,np),why:needs(np,'pilot')});
+    out.push({ok:tp>=T,label:T+' hauler'+(T>1?'s':'')+' available',brief:pl(T,'Transport'),
+      detail:G.wreck&&!G.wreck.restored&&!G.wreck.restoring?'Restore the hauler in the Hangar':short(tp,T),why:needs(T,'transport')});   // the onboarding hauler step
   } else {
-    const n=r.ships||r.team;
-    out.push({ok:ablePilots().length>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available'});
-    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':'')});
+    const n=r.ships||r.team,ap=ablePilots().length,shp=shipPool(r).length,w=r.starfighter?'Starfighter':'Ship';
+    out.push({ok:ap>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Pilot'),detail:short(ap,r.team),why:needs(r.team,'pilot')});
+    out.push({ok:shp>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':''),brief:pl(n,w),
+      detail:r.starfighter&&!shp&&G.fighters.length?'A transport won’t do':short(shp,n),why:needs(n,w.toLowerCase())});
   }
   for(const it of r.items||[]){
     const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);
-    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span class="sr-faint">(have '+have+')</span>'});
+    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span class="sr-faint">(have '+have+')</span>',brief:pl(it.n,it.label),detail:'Have '+have,why:needs(it.n,it.label)});
   }
   if(r.spec){
-    out.push({ok:soldierPool().some(p=>hasSpec(p,r.spec.key)),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint});
+    out.push({ok:soldierPool().some(p=>hasSpec(p,r.spec.key)),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint,brief:'1 '+r.spec.label,detail:r.spec.hint||'None available',why:needs(1,r.spec.label)});
   }
   const need=minFuel(m);
-  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need,G.fuel<need)+' <span class="sr-faint">(have '+Math.floor(G.fuel)+')</span>'});
+  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need,G.fuel<need)+' <span class="sr-faint">(have '+Math.floor(G.fuel)+')</span>',brief:need+' Fuel',detail:'Have '+Math.floor(G.fuel),why:'Needs more fuel'});
   return out;
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
@@ -7444,15 +8081,16 @@ function applyDebrief(r){
     p.assign='rest';
     const mt=Rebel.expGet(p,'mentored');
     const xg=(pr.xp||0)*(mt&&teamIds.includes(mt.with)?1.3:1)*(p.taught&&on('instructor.lessons')?1.25:1);   // Battle Lessons
-    if(xg)gainXp(p,xg);Rebel.trainSkills(p,pr.sk);
+    const pi=xpInfo(p,xg);Rebel.trainSkills(p,pr.sk);
     p.kills=(p.kills||0)+(pr.kills||0);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
-    pinfo.push({name:p.name,xp:xg*Rebel.xpMult(p),state});   // what gainXp actually added
+    pi.xp=xg*Rebel.xpMult(p);pi.state=state;   // what gainXp actually added
+    pinfo.push(pi);
     if(r.win&&state!=='lost')creditMission(p);
     let critical=false;
     if(state==='lost'&&headOf('infirmary')&&rng()<headScale('infirmary',RU.stabilise_min,RU.stabilise_max)){   // Stabilise
-      state='injured';critical=true;nearIds.push(p.id);
+      state='injured';critical=true;nearIds.push(p.id);pi.state=state;
       news('<b>'+p.name+'</b> should not have made it. <b>'+headOf('infirmary').name+'</b> kept them breathing: Critical Condition.','g');
     }
     const noNewInj=!r.win&&m&&m.supFx&&m.supFx.extraction;   // Extraction Plan
@@ -7476,15 +8114,15 @@ function applyDebrief(r){
       news('<b>'+p.name+'</b> came back on a stretcher \u2014 out '+outDays(p)+' day'+(outDays(p)>1?'s':'')+'.','h');
     }
   }
-  const got=[];
+  const got=newGot();
   if(r.loot){
-    if(r.loot.c){G.credits+=r.loot.c;got.push(C(r.loot.c));}
-    if(r.loot.s){G.supplies+=r.loot.s;got.push(S(r.loot.s));}
-    for(const it of r.loot.items||[]){grantItem(it,1,'looted');got.push(Items.name(it));}
+    if(r.loot.c){G.credits+=r.loot.c;gotRes(got,'c',r.loot.c,'found');}
+    if(r.loot.s){G.supplies+=r.loot.s;gotRes(got,'s',r.loot.s,'found');}
+    for(const it of r.loot.items||[]){grantItem(it,1,'looted');gotLoot(got,{id:it});}
   }
   if(r.win&&r.kind==='ground'&&(r.people||[]).some(pr=>pr.state!=='lost'&&Rebel.has(G.people.find(x=>x.id===pr.id),'smuggler'))&&rng()<0.25){
     const it=rng()<0.5?'cowboy':'shells';
-    grantItem(it,1,'looted');got.push(Items.name(it));
+    grantItem(it,1,'looted');gotLoot(got,{id:it});
     news('A former smuggler\u2019s instincts paid off: an extra <b>'+Items.name(it)+'</b> in the haul.','g');
   }
   if(r.kind==='ground'&&r.nades!==undefined){
@@ -7492,7 +8130,7 @@ function applyDebrief(r){
     const given=G.nadesOut===undefined?(a?a.n:0):G.nadesOut;G.nadesOut=undefined;
     const had=a?a.n:0,want=Math.max(0,had-given+r.nades);   // unused frags (the drop's and the crates') join the stores
     if(want>had)Items.grant(G.armory,'blam',want-had,'looted');else if(want<had)Items.take(G.armory,'blam',had-want);
-    if(r.nades>0&&!a)got.push('BLAM frags ×'+r.nades);
+    if(r.nades>0&&!a)gotLoot(got,{id:'blam',n:r.nades});
     r.nadesUsed=Math.max(0,given-r.nades);
   }
   if(r.win&&r.cross){
@@ -7502,8 +8140,8 @@ function applyDebrief(r){
       const orphan=G.people.find(p=>p.role==='Pilot'&&flew.includes(p.id)&&!G.fighters.some(f=>f.id===p.ship))
         ||G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(f=>f.id===p.ship));
       if(orphan)orphan.ship='dustfall';
-      got.push('the FT-4 Cross \u201cDustfall\u201d');
-    } else {G.credits+=800;got.push('no berth \u2014 the Cross fenced for '+C(800));}
+      gotLoot(got,{type:'cross',name:'FT-4 Cross',kind:'ship'});
+    } else {G.credits+=800;gotRes(got,'c',800,'fenced');}
   }
   for(const fr of r.fighters||[]){
     const f=G.fighters.find(x=>x.id===fr.fighterId);
@@ -7521,7 +8159,7 @@ function applyDebrief(r){
     Items.take(G.armory,'charge',r.chargeUsed);
   }
   if(r.win&&m)applyRew(salvaged(m.rew),got);
-  if(r.salvage&&on('aerogineer.scavenger')){G.materials+=r.salvage;got.push(M(r.salvage)+' salvaged');}   // Scavenger's Eye
+  if(r.salvage&&on('aerogineer.scavenger')){G.materials+=r.salvage;gotRes(got,'m',r.salvage,'salvaged');}   // Scavenger's Eye
   maintenance(r,got);
   for(const vr of r.vehicles||[]){
     const v=(G.vehicles||[]).find(x=>x.id===vr.id);
@@ -7534,24 +8172,24 @@ function applyDebrief(r){
   if(r.win&&m&&m.vip&&m.vip.strider&&r.vipOut&&!(G.vehicles||[]).some(v=>v.id==='strider')){
     G.vehicles=G.vehicles||[];
     G.vehicles.push({id:'strider',name:m.vip.name,type:'strider',hp:100});
-    got.push('<b>'+m.vip.name+'</b> joins the vehicle pool');
+    gotLoot(got,{type:'strider',name:m.vip.name,kind:'bot'});
     news('<b>'+m.vip.name+'</b>, a reprogrammed Strider Mk I, joins the rebellion as a Bot. Bring it to a ground mission as fire support.','g');
   }
   for(const g of r.gained||[]){
     if(GVEH[g.type]&&GVEH[g.type].kind==='bot'){
       if((G.vehicles||[]).some(v=>v.name===g.name))continue;
       const v=addVehicle(g.type,g.name);
-      got.push('<b>'+v.name+'</b> (hacked) joins the vehicle pool');
+      gotLoot(got,{type:g.type,name:v.name,kind:'bot'});
       news('<b>'+v.name+'</b>, a hacked '+GVEH[g.type].label+', joins the rebellion as a Bot.','g');
       continue;
     }
     const A=AUTOS[g.type];if(!A)continue;
     if(G.people.some(p=>p.name===g.name))continue;
     G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'rest',auto:g.type,bio:A.bio});
-    got.push('<b>'+g.name+'</b> (hacked) joins the roster');
+    gotLoot(got,{type:g.type,name:g.name,kind:'unit'});
     news('<b>'+g.name+'</b>, a hacked '+A.label+', joins the rebellion. It does not need a bunk.','g');
   }
-  if(r.win&&m&&m.bonus&&r.quiet){applyRew(m.bonus,got);got.push('<b>stealth bonus</b>');}
+  if(r.win&&m&&m.bonus&&r.quiet)applyRew(m.bonus,got,'bonus');
   if(m){
     supportDone(m,r);
     if(r.win){
@@ -7561,13 +8199,15 @@ function applyDebrief(r){
       queueReport(buildReport(m,true,got,pinfo,cr,true));
       if(m.npc)RQ.push({t:'recruit',m});
       moraleAll(1,'win',(r.people||[]).map(x=>x.id),3);
-      news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(got.length?got.join(' \u00b7 ')+'.':''),'g');
+      const gt=gotText(got);
+      news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(gt?gt+'.':''),'g');
       sBuild();
       missionAftermath(m.id);
     } else {
       m.state='avail';m.progress=null;
       moraleAll(-3,'loss',(r.people||[]).map(x=>x.id),-8);
-      queueReport(buildReport(m,false,got,pinfo,null,true));
+      const rpt=buildReport(m,false,got,pinfo,null,true);rpt.objs=r.objs;
+      queueReport(rpt);
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
       sAlert();
     }
@@ -7724,6 +8364,11 @@ const MIGRATIONS=[
     for(const u of G.upq||[])if(u.key==='hangar'&&u.ids.some(id=>ids.includes(id)))u.ids=[G.rooms.find(r=>r.key==='hangar').id];
     if(oldH.length)G.news.push({day:G.day,html:'The ships move out of the old cave into the east cavern: a proper Hangar at last, with a large pad for the hauler.',cls:'g'});
   },
+  /* 6 -> 7: the Missions tab (docs/ui/SCREENS-HANDOFF.md §4): a mission flags itself New until it has been looked at
+     (m.seen). Jobs already on an older save's board have been seen in the old popup. */
+  function(){
+    for(const m of G.missions||[])m.seen=1;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -7801,7 +8446,7 @@ function enter(params){
   syncUI();renderNews();
 }
 function exit(){
-  closeMenu();setDrawer(false);
+  closeMenu();setDrawer(false);closeMissions();
   closeWin();closeTilePop();
   saveSnap();
 }

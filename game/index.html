@@ -19,6 +19,10 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 </style>
 <link rel="stylesheet" href="ui/sr-theme.css">
 <link rel="stylesheet" href="ui/sr-kit.css">
+<link rel="stylesheet" href="ui/sr-report.css">
+<link rel="stylesheet" href="ui/sr-personnel.css">
+<link rel="stylesheet" href="ui/sr-comm.css">
+<link rel="stylesheet" href="ui/sr-briefing.css">
 <link rel="stylesheet" href="ui/sr-hud.css">
 <link rel="stylesheet" href="ui/scenes.css">
 <body>
@@ -62,6 +66,10 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         <div class="ar-dossier" id="arDossier"></div>
         <div class="ar-main" id="arMain"></div>
       </div>
+    </div>
+    <div class="kit-view bf-stage" id="msView" hidden>
+      <div class="bf-board" id="msBoard"></div>
+      <div class="bf-holo" id="msHolo"></div>
     </div>
     <div class="kit-view bm-view" id="bmView" hidden>
       <div class="bm-stall" id="bmStall"></div>
@@ -139,6 +147,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       </section>
       <div id="railArsenal" hidden></div>
       <div id="railMarket" hidden></div>
+      <div id="railMissions" hidden></div>
     </div>
   </aside>
 </div>

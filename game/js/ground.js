@@ -3820,7 +3820,8 @@ function buildResult(win){
   });
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,dropUsed:!!(FS&&FS.orders.some(o=>o.kind==='drop')),quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,dropUsed:!!(FS&&FS.orders.some(o=>o.kind==='drop')),quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,
+    objs:(lastObjs||[]).filter(o=>!/^\(/.test(o.t)).map(o=>({t:o.t.replace(/\s+—\s+\d+\/\d+$/,''),done:!!o.done}))};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -5861,6 +5862,7 @@ function lootHtml(){
 }
 const PHASE_UI={FREE:['free','Free move'],PLANNING:['plan','Planning'],EXEC:['exec','Moving'],ENGAGE:['fight','Engagement'],CUTSCENE:['exec','Insertion'],EXTRACT:['exec','Extraction'],GAMEOVER:['exec','Debrief'],BRIEF:['exec','Briefing'],INTRO:['exec','Briefing']};
 const BANNER_PHASES={FREE:1,PLANNING:1,EXEC:1,ENGAGE:1,EXTRACT:1};
+let lastObjs=null;   // the objectives as last shown; the debrief reports which were met
 function objRow(o){
   let t=o.t,count='';
   const m=/^(.*?)\s+—\s+(\d+\/\d+)$/.exec(t);
@@ -5963,6 +5965,7 @@ function syncUI(){
     ob.hidden=hideO;
     ob.classList.toggle('is-compact',phase==='PLANNING'||phase==='EXEC'||phase==='ENGAGE');
     HUD.render($('objList'),objs.map(objRow).join(''));
+    lastObjs=objs;
   }
   // rail
   const reb=U.filter(u=>u.side==='reb');
