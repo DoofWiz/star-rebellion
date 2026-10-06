@@ -299,8 +299,7 @@ exempt. The dead do not come home; the Doctor's Stabilise can still pull one bac
 
 **Characters the objective needs** (the rescued VIP, the Pilot in Steal the Cross) follow the same rules. Going down
 does not fail the mission: it fails when they die, or when they are down and nobody can bring them round (no one
-standing carries a Med Pack, no supply crate is on the ground, inbound or still to call, and for the VIP no Evac on
-Call). Nobody extracts while the VIP is down. A Strider is a machine: it cannot be treated, so its fall still ends
+standing carries a Med Pack, and for the VIP no Evac on Call). Nobody extracts while the VIP is down. A Strider is a machine: it cannot be treated, so its fall still ends
 the mission. (DESIGN_BLOCKERS C-31.)
 
 **Stims** are a planning Action (heal 30% of max health as the round opens); the rebel still shoots that round.
@@ -720,16 +719,13 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
 
 ### Fire support (built, Phase 4)
 **The transport** drops the squad, lifts off and comes back to the LZ for the pickup once the job is done (the exit
-opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air. While
-it is up it gives fire support of its own:
-- **Supply Drop** (paid only when called: 160 supplies, taken at the debrief; offered when the stores hold that much):
-  a crate lands as the next round begins, where you call it. It can also be called in free move, before the shooting
-  starts: a quiet chute that lands a few seconds later. Looting it gives **5 stims, 2 Med Packs, 2 BLAM frags and 2
-  makeshift rocket launchers** (one shot each, big single-target damage, good against vehicles and Striders).
-- **Door Gunner Cover** when the transport has a Door Mounted Gun fitted (two passes). A rocket hit makes it break
-  off, not crash: it still has the pickup to make. It leaves the gun when it heads back for the squad.
+opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air.
 
-The planning board's **Fire support** area shows what the transport offers and takes extra assets:
+The planning board's **Fire support** area takes assets for ground missions:
+- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it. It can also
+  be called in free move, before the shooting starts: a quiet chute that lands a few seconds later.
+  Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
+  single-target damage, good against vehicles and Striders).
 - **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
   **Strafing Run** (tap the start, then the heading; ten imprecise blasts along a line at the end of the
   round, **danger close** to your own people). A spare **Graf** can be a **Door Gunner** (circles two

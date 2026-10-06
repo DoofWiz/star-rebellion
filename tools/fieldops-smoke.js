@@ -2,8 +2,8 @@
    Death (DESIGN_BLOCKERS C-29): enemies die; a rebel dies when hit while down, to a critical hit that drops them,
    or to one hit from full health, and otherwise is downed for a Treat Wound to bring back (bleeding out after two
    rounds). Stims are a planning Action. Steal the Cross: the tower guard is drawn, keeps her range and is marked
-   when she fires; the supply drop works before the shooting starts. Every transport leaves and comes back, and offers
-   a supply drop and its door gun. A downed VIP or Pilot fails the mission only when dead or past saving (C-31). The briefing shows
+   when she fires; the supply drop works before the shooting starts. Every transport leaves and comes back.
+   A downed VIP or Pilot fails the mission only when dead or past saving (C-31). The briefing shows
    faces, MOVE OUT is gone, a double-click opens the Personnel File. Flight Controller and Combat Support. The base
    screens: no Experience bar, no flavour line, a paper doll, no recruit Terms, ships drawn in the roster and the
    ship window. */
@@ -107,27 +107,28 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   return out;
  });
  ok(dr.phase==='FREE'&&dr.placed&&dr.early===false,'a supply drop can be called before the shooting starts, and lands on a timer '+JSON.stringify(dr));
- // every transport leaves after the drop and comes back when the job is done; from the air it offers fire support
- await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf',doorgun:1},assets:{drop:true,ships:[],vehicles:[]}}));
+ // every transport leaves after the drop and comes back when the job is done
+ await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf'}}));
  const tr=await pg.evaluate(()=>{
   const gd=window.DBGground,f=gd.fn,out={};
   f.endCutscene();out.leaves=f.grafState_();
   f.grafUpdate(f.clock()+5000);out.gone=f.grafState_();
-  out.items=f.fsItems().map(i=>i.key+':'+i.name).join('|');
-  const own=gd.FS.ships.find(a=>a.own);
+  out.fs=gd.FS;   // fire support is only what the planning board arranged
   out.notReady=f.extractReady();
   gd.ix.hacked=true;
   f.grafUpdate(f.clock());out.back=f.grafState_();
-  out.ownSpent=own.state;
   f.grafUpdate(f.clock()+6000);out.landed=f.grafState_();
-  const dax=gd.U.find(u=>u.id==='dax');f.fsPlace('drop',{x:dax.x+40,y:dax.y});
-  out.dropUsed=f.buildResult(true).dropUsed;
   return out;
  });
  ok(tr.leaves==='flying'&&tr.gone==='gone'&&tr.back==='flying'&&tr.landed==='landed','the transport leaves and comes back when the job is done '+JSON.stringify(tr));
- ok(/drop:Supply Drop/.test(tr.items)&&/s0:Door Gunner Cover · Marta/.test(tr.items),'the transport offers a supply drop and its door gun '+tr.items);
- ok(tr.notReady===false&&tr.ownSpent==='spent','no pickup until it is back; it leaves the gun to make the pickup '+[tr.notReady,tr.ownSpent]);
- ok(tr.dropUsed===true,'the debrief hears a drop was called, to pay for it '+tr.dropUsed);
+ ok(tr.notReady===false,'no pickup until it is back '+tr.notReady);
+ ok(tr.fs===null,'the transport brings no fire support the board did not arrange '+JSON.stringify(tr.fs));
+ // Steal Fuel: the transport that left is called down onto the apron, and lands there
+ await go(spec('stealfuel'));
+ await pg.evaluate(()=>{const gd=window.DBGground,f=gd.fn;f.endCutscene();f.grafUpdate(f.clock()+5000);gd.fs.reached=true;f.callTransport();});
+ await pg.waitForTimeout(4600);
+ const sf=await pg.evaluate(()=>{const gd=window.DBGground,f=window.DBGground.fn;return {landed:gd.fs.landed,state:f.grafState_(),near:Math.hypot(gd.grafPos.x-gd.PAD.x,gd.grafPos.y-gd.PAD.y)<80};});
+ ok(sf.landed&&sf.state==='landed'&&sf.near,'Steal Fuel: called from the air, the transport lands on the apron '+JSON.stringify(sf));
  // the Pilot is needed for the objective: going down is not the end, dying or running out of Med Packs is (C-31)
  await go(spec('stealcross',{pilot:{id:'sera',name:'Sera Kest',first:'Sera',level:2,wpns:['cowboy']}}));
  const vp=await pg.evaluate(()=>{

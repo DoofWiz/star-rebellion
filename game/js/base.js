@@ -6065,6 +6065,7 @@ function markShort(){
   if(winMode==='plan'&&PL){
     const need=plFuel()||minFuel(PL.m);
     if(G.fuel<need)short.f=1;
+    if(PL.drop&&G.supplies<DROP_COST)short.s=1;
   } else if(winMode==='newmission'&&winArg){
     if(G.fuel<minFuel(winArg))short.f=1;
   } else if(!winMode&&baseView==='galaxy'&&srcSel&&srcSel.t==='p'){
@@ -7304,6 +7305,8 @@ $('winsB').addEventListener('click',ev=>{
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
     const chip=ev.target.closest('[data-rid]');
     if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
+    const dc=ev.target.closest('[data-drop]');
+    if(dc){PL.drop=!PL.drop;sClick();renderWin();return;}
   }
   if(winMode==='person'){   // the file's detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
     const tip=ev.target.closest('[data-pftip]'),open=$('winCardB').querySelectorAll('.pf-tip.is-open');
@@ -7815,6 +7818,7 @@ function plSyncAssets(){
     }
   });
 }
+const plDropOk=()=>!PL.drop||G.supplies>=DROP_COST;
 function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
 function plFuel(){
   let t=0;
@@ -7921,7 +7925,7 @@ function planHTML(m){
     (r.transport?slotBox(['vehicle','pilot'],'Transport & pilots'):slotBox(['pilot','ship'],'Flight'))+
     (r.transport?assetsHTML():'')+baseSupportHTML()+
     '</div>';
-  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel;
+  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel&&plDropOk();
   const empty=PL.slots.filter(sl=>!PL.v[sl.key]&&!sl.opt).length;
   const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
@@ -7934,12 +7938,8 @@ function planHTML(m){
 function assetsHTML(){
   let h='<div class="sr-h3">Fire support</div><div class="sr-stack">';
   const can=G.supplies>=DROP_COST;
-  // the transport drops the squad and lifts off: from the air it can fly a supply crate in, or work its door gun
-  const tv=G.fighters.find(x=>x.id===PL.v.tv0);
-  h+='<div class="sr-slot'+(can?' is-filled':' is-off')+'"><span><span class="sr-slot__label">From the transport</span><span class="sr-slot__name">Supply Drop on call</span>'+
-    '<span class="bs-sub">'+S(DROP_COST,!can)+' if called · 5 stims, 2 Med Packs, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies to call one')+'</span></span></div>';
-  if(tv&&hasDoorGun(tv))h+='<div class="sr-slot is-filled"><span><span class="sr-slot__label">From the transport</span><span class="sr-slot__name">Door Gunner Cover</span>'+
-    '<span class="bs-sub">'+esc(tv.name)+'’s Door Mounted Gun · 2 passes once the squad is down</span></span></div>';
+  h+='<div class="sr-slot'+(PL.drop?' is-filled':'')+(can||PL.drop?'':' is-off')+'" '+(can||PL.drop?'data-drop':'')+'><span><span class="sr-slot__label">Supply drop</span><span class="sr-slot__name">Supply Drop</span>'+
+    '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span></div>';
   PL.assets.forEach((a,i)=>{
     const mode=plAssetMode(i);
     const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']),gun=!!af&&hasDoorGun(af),cap=af?SEATS[af.cls]||0:0;
@@ -7970,7 +7970,7 @@ function squadEntry(p,scatterFirst){
 }
 function startPlan(){
   const m=PL.m;
-  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel())return;
+  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel()||!plDropOk())return;
   sClick();
   if(!m.lead){launchMission(m);return;}
   const fuel=plFuel();
@@ -7986,6 +7986,7 @@ function startPlan(){
     const fx=supportStart(m,'ground',plJobPicks());
     G.nadesOut=nadesCarried(squad);
     G.fuel-=fuel;
+    if(PL.drop)G.supplies-=DROP_COST;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:nadesCarried(squad),
       charges:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='charge')||{}).n)||0):((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       limpets:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='limpet')||{}).n)||0):0,
@@ -7999,7 +8000,7 @@ function startPlan(){
         if(walkItOff(p))e.agi*=0.9;
         return e;}),
       sup:fx,
-      assets:{drop:G.supplies>=DROP_COST,ships:PL.assets.map((a,k)=>{
+      assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=plAssetMode(k);
         return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
@@ -8010,7 +8011,7 @@ function startPlan(){
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]},
-      transport:tv?{id:tv.id,name:tv.name,cls:tv.cls,doorgun:hasDoorGun(tv)?1:0}:undefined};
+      transport:tv?{id:tv.id,name:tv.name,cls:tv.cls}:undefined};
   } else {
     const flight=[];
     const sfx=supportStart(m,'space',[]);
@@ -8029,7 +8030,7 @@ function startPlan(){
     SR.mission={kind:'space',missionId:m.id,days:missionDays(m),flight,sup:sfx};
   }
   // the scene is not saved: if the page reloads mid-mission, restoreCampaign hands this back
-  G.sortie={name:m.name,f:fuel,s:0};
+  G.sortie={name:m.name,f:fuel,s:(PL.req.transport&&PL.drop)?DROP_COST:0};
   closeWin();closeTilePop();
   saveSnap();
   // into a ground mission through an iris on the target; out to a space fight through hyperspace
@@ -8058,7 +8059,6 @@ function applyDebrief(r){
   if(!r)return;
   SR.mission=null;G.sortie=undefined;
   usePacks(r);
-  if(r.dropUsed){G.supplies=Math.max(0,G.supplies-DROP_COST);news('The supply drop the squad called in cost <b>'+DROP_COST+'</b> supplies.','r');}   // paid for when called, not when planned
   if(r.missionId==='haven'){
     if(r.win){
       G.introDone=true;started=true;
