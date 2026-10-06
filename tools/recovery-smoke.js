@@ -21,11 +21,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // laid up means off duty
   const fit=mk('fit','Soldier');
   out.duty=[f.soldierPool().includes(o1),f.soldierPool().includes(fit)].join();
-  o1.assign='station:barracks';out.staff=f.staffOf('barracks').includes(o1);o1.assign='rest';
-  // one rate for everything: no Infirmary is 0.25 a day; a Garrison Officer adds 1 for ground fighters only
+  const lw=mk('lw','Support',{bio:'Physician.',assign:'room:infirmary'});R.layUp(lw,'downed',3);out.staff=f.crewIn('infirmary').includes(lw);G().people=G().people.filter(p=>p!==lw);
+  // one rate for everything: no Infirmary is 0.25 a day; a Doctor needs an Infirmary to treat anyone
   const sup=mk('sup','Support');R.layUp(sup,'downed',3);
   out.rate0=[f.healRate(o1),f.healRate(sup)].join();
-  const off=mk('off','Support',{assign:'station:barracks'});
+  const off=mk('off','Support',{bio:'Physician.',assign:'room:infirmary'});
   out.rateG=[f.healRate(o1),f.healRate(sup)].join();
   G().people=G().people.filter(p=>p!==off);
   // a laid-up condition and an ordinary one heal side by side at the same rate
@@ -36,7 +36,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().rooms.push({id:'rm_inf',key:'infirmary',r:1,c:1,w:1,h:1,up:['surgery']});
   const sc=mk('sc','Soldier');R.layUp(sc,'downed',6);
   const sp=mk('sp','Soldier');f.applyInjuries(sp,[{k:'spinal',treated:true}],true);
-  const pr=mk('pr','Soldier',{body:{leg:1}});G().credits=5000;G().materials=900;f.startProsthetic('pr','leg');
+  const pr=mk('pr','Soldier',{body:{leg:1}});G().supplies=900;
+  const cy=mk('cy','Support',{bio:'Physician.',level:3,niche:'cyberneticist',assign:'room:infirmary'});f.startJob('cy','cyberneticist.prosthetics','pr:leg',null);
   for(let i=0;i<12;i++)f.advanceDay();
   out.ends=[R.laidUp(sc),R.expHas(sc,'scarred'),R.laidUp(sp),R.expHas(sp,'nearlydead'),pr.body.leg,R.expHas(pr,'scarred'),R.laidUp(pr)].join();
   // the debrief lays a stretcher case up for the mission's days, at the rate of the day
@@ -49,10 +50,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  });
  ok(r.mig==='downed:4 spinal:7 surgery:3 arm 7 false','old saves: injured becomes a laid-up condition (spinal for a critical, surgery with its part) '+r.mig);
  ok(r.duty==='false,true'&&r.staff===false,'laid up means no missions and no posts '+r.duty+' '+r.staff);
- ok(r.rate0==='0.25,0.25'&&r.rateG==='1.25,0.25','one rate: 0.25 without an Infirmary; the Garrison Officer speeds ground fighters only '+r.rate0+' / '+r.rateG);
+ ok(r.rate0==='0.25,0.25'&&r.rateG==='0.25,0.25','one rate: 0.25 without an Infirmary, and a Doctor cannot treat without one '+r.rate0+' / '+r.rateG);
  ok(r.side==='downed:3+concussed:5 -> downed:2.75+concussed:4.75','laid up and a lingering condition heal at the same rate '+r.side);
  ok(r.tag===11,'the Injured tag counts days at today’s rate '+r.tag);
- ok(r.ends==='0,true,0,true,2,false,0','back on their feet, Scarred after a long one, Nearly Dead after a spinal injury, the prosthetic after surgery '+r.ends);
+ ok(r.ends==='0,true,0,true,2,false,0','back on their feet, Scarred after a long one, Nearly Dead after a spinal injury, the prosthetic after a Cyberneticist\u2019s fitting '+r.ends);
  ok(/^downed:4,1,true$/.test(r.stretcher),'a stretcher case is laid up for the mission’s days '+r.stretcher);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'recovery-smoke: all checks passed');

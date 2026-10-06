@@ -137,12 +137,17 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    for(const s of G.fighters){if(!s.out&&s.cls!=='graf'&&f.startPatrol(s.id))return;}
   }
   function staff(){
-   const ST={comms:'Support',store:'Support',infirmary:'Support',diplo:'Support',training:'Support',workshop:'Support'};
-   for(const key of ['comms','diplo','training','infirmary','store','workshop']){
-    if(!have(key))continue;
-    if(G.people.some(p=>p.assign==='station:'+key))continue;
-    const p=G.people.find(x=>x.role==='Support'&&x.assign==='rest'&&!window.Rebel.laidUp(x));
-    if(p)p.assign='station:'+key;
+   // every Support rebel works in their specialty's home room when it is built and has space (Support Specialties doc)
+   for(const p of G.people){
+    if(p.role!=='Support'||p.auto||p.assign!=='rest'||window.Rebel.laidUp(p))continue;
+    const key=window.Support.homeOf(p);
+    if(key&&have(key)&&f.postedTo(key).length<f.roomCap(key))p.assign='room:'+key;
+   }
+   // a Support rebel at level 3 trains the first niche that works, and forks take option A
+   for(const p of G.people){
+    if(p.role!=='Support'||p.auto)continue;
+    if(p.level>=3&&!p.niche&&!p.nicheTrain)for(const k of window.Support.SPEC[p.sspec].niches)if(f.startNiche(p.id,k))break;
+    const fd=window.Support.forkDue(p);if(fd)f.chooseFork(p.id,fd,'A');
    }
    // soldiers train when idle and a hall exists
    if(have('training')){for(const p of G.people){if(p.role==='Soldier'&&!p.auto&&p.assign==='rest'&&p.level<3&&!window.Rebel.laidUp(p))p.assign='train';}}
@@ -162,7 +167,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    }
   }
   function prosthetics(){
-   for(const p of G.people){if(p.body)for(const part of ['arm','leg','eye'])if(p.body[part]===1&&f.startProsthetic(p.id,part))return;}
+   // a Cyberneticist with a free hand fits whoever has lost a limb
+   for(const c of G.people)for(const k of f.jobsFor(c))if(/prosthetics|rapidfit/.test(k)){const t=f.JOBS_()[k].targets()[0];if(t&&f.startJob(c.id,k,t.id,null))return;}
   }
   function diplomacy(){
    if(!have('diplo'))return;

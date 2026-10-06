@@ -140,7 +140,7 @@ function maxShield(s){return s.segs.F.max+s.segs.R.max;}
 function critCount(s,id){return s.crits.filter(c=>c===id).length;}
 /* Engine damage and mag-clamps cap top speed, but never below the ship's slowest straight move, so it can always fly.
    A bank or turn whose slowest speed is above the cap drops off the dial. */
-function maxSpeedOf(s){const c=CLS[s.cls];return Math.max(c.minSpd,c.maxSpd-critCount(s,'engine')-(s.magClamp>0?2:0));}
+function maxSpeedOf(s){const c=CLS[s.cls];return Math.max(c.minSpd,c.maxSpd+((s.tune&&s.tune.spd)||0)-critCount(s,'engine')-(s.magClamp>0?2:0));}   // + Fighter Tuning (Aerogineer)
 function dialAvail(s){
   let d=CLS[s.cls].dial().slice();
   if(s.pilot.mans&&s.pilot.mans.includes('loop'))d.push([3,'K']);
@@ -246,6 +246,7 @@ function spaceFoe(id,name,type,x,y,h,o){
 }
 const fromLineup=d=>spaceFoe(d[0],d[1],d[2],d[3],d[4],d[5],d[6]);
 let CTX=null; // mission spec from the base layer (null => sim/default cast)
+let salvage=0;   // Materials in the wrecks of ships we destroyed
 function deploy(withCutscene){
   if(CTX&&CTX.flight&&CTX.flight.length){
     const P=[[650,2450],[430,2560],[870,2620],[540,2380]];
@@ -257,6 +258,10 @@ function deploy(withCutscene){
           rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,tr:f.tr||[],who:f.pilotId,mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
+      // the base's work on the ship: Fighter Tuning, Heavy Frames, Pre-flight Checks (Aerogineer)
+      sh.tune=f.tune||null;
+      if(f.frame){sh.maxHull+=f.frame;sh.hull=sh.maxHull;}
+      if(f.shield){sh.segs.F.max+=f.shield;sh.segs.F.val+=f.shield;}
       if(f.hull!==undefined){sh.hull=Math.max(6,Math.round(sh.maxHull*f.hull/100));}
       return sh;
     });
@@ -270,6 +275,7 @@ function deploy(withCutscene){
     ships=DEPLOY.map(d=>mkShip(d[0],d[1],d[2],d[3],d[4],d[5],d[6],mkPilot(Object.assign({},d[7])))).concat(LINEUPS.instructor.map(fromLineup));
   }
   makeRocks();
+  salvage=0;
   round=1;selId='P1';bolts=[];parts=[];floaters=[];missFx=[];bubbles=[];boomFx=[];
   vols=[];pops=[];impFx=[];shFx=[];killFx=[];PFX.list.length=0;SHK.trauma=0;
   exec=null;attackQ=null;awaitAction=null;lockPickMode=false;subMenu='root';infoShip=null;
@@ -463,6 +469,7 @@ function computeTN(s,t){
   if(b===2){v+=2;e.push(['RANGE 2',2]);} else if(b===3){v+=3;e.push(['LONG RANGE',3]);}
   if(t.tokens.evade){v+=3;e.push(['FLYING DEFENSIVE',3]);}
   if(t.tokens.broll){v+=2;e.push(['BARREL ROLL',2]);}
+  if(t.tune&&t.tune.evade){v+=t.tune.evade;e.push(['TUNED',t.tune.evade]);}
   const defl=Math.abs(angNorm(Math.atan2(t.y-s.y,t.x-s.x)-t.h));
   if(defl>Math.PI-0.6){v-=2;e.push(['TAIL SHOT',-2]);}
   else if(defl>0.9&&defl<Math.PI-0.9){v+=2;e.push(['DEFLECTION',2]);}
@@ -995,6 +1002,7 @@ function destroyShip(t,killer){
   if(killer&&killer.faction==='reb'&&t.faction==='heg'){
     if(!isStruct(t))killer.pilot.kills=(killer.pilot.kills||0)+1;
     killer.pilot.xpGain=(killer.pilot.xpGain||0)+((SCEN==='instructor'&&t.lead)?0.45:isStruct(t)?0.3:0.22);
+    salvage+=isStruct(t)?40:20;   // what an Aerogineer's Scavenger's Eye can strip from the wreck
   }
   t.alive=false;
   if(infoShip===t.id)closeInfo();
@@ -1152,7 +1160,7 @@ function buildResult(win){
       hull:Math.round(sh.hull/sh.maxHull*100),
       destroyed:!sh.alive&&!sh.fledOut};
   }).filter(Boolean);
-  return {kind:'space',missionId:CTX.missionId,days:CTX.days||2,win,people,fighters};
+  return {kind:'space',missionId:CTX.missionId,days:CTX.days||2,win,people,fighters,salvage};
 }
 
 /* ---------- effects ---------- */

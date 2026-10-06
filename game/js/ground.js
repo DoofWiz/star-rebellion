@@ -745,7 +745,7 @@ function initUnits(){
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
     x:spots[i%4][0],y:spots[i%4][1],hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],back:sp.back||null,lines:REB_LINES[sp.id]||REB_LINES.generic},squadProt(sp))));
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,spec2:sp.spec2||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,wpns:sp.wpns||['akli','cowboy'],back:sp.back||null,lines:REB_LINES[sp.id]||REB_LINES.generic},squadProt(sp))));
   if(SCN.mode==='autofactory'&&(spec.charges||0)>0&&squad[0])squad[0].charge=1;
   if(SCN.mode==='towers'){
     const devs=[];
@@ -948,6 +948,7 @@ function vehDestroyed(v,by){
 /* the transport's squad gets out as the alarm goes up */
 function deployUnits(v){
   v.deployed=1;
+  if(SUP().noReinf&&v.side==='law')return;   // Blackout: the transport never got the order to unload
   const bay=crewIn(v).filter(c=>{const st=seatOf(c);return st&&!st.drive&&!st.wkey;});
   if(!bay.length)return;
   for(const c of bay)dismount(c,true);
@@ -1314,7 +1315,9 @@ function inflictInjury(t,src,force){
 /* who a Treat Wound could help right now: the incapacitated first, then the bleeding, then whoever is closest */
 /* Treating a wound uses a Med Pack from the rebel's gadget slots (one pack, one action). Anyone can do it; a Combat
    Medic reaches further and makes one pack cover two wounds. */
-const medic=u=>!!u&&u.spec==='medic';
+/* a specialty, their own or one they were cross-trained in (Instructor, Cross-Training) */
+const hasSp=(u,k)=>!!u&&!!k&&(u.spec===k||u.spec2===k);
+const medic=u=>!!u&&hasSp(u,'medic');
 function treatTarget(h){
   if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
@@ -1588,6 +1591,9 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
     if(crit&&hasT(t,'selfpres')&&rng()<0.6)crit=false;
     if(hasT(t,'shortfuse'))t.fuse=2;
   }
+  if(t.side==='reb'&&!t.vip&&!t.auto&&!t.veh&&SUP().ironcon&&!t.ironUsed&&t.hp-dmg<=0&&t.hp>1){   // Iron Constitution (Physio)
+    t.ironUsed=1;dmg=t.hp-1;addFloater(t.x,t.y-64,'IRON',C.go);log(nameSpan(t)+' <span class="g">shrugs off a hit that should have dropped them.</span>');
+  }
   t.hp-=dmg;sk0.hd=dmg;
   if(t.side==='reb')t.minHp=Math.min(t.minHp===undefined?1:t.minHp,Math.max(0,t.hp)/t.maxhp);
   sk(t,'con',dmg/10);
@@ -1799,12 +1805,20 @@ function updateVision(now){
   }
   if(engageQ&&engageQ.cur&&engageQ.cur.t&&engageQ.cur.t.id)visUnits.add(engageQ.cur.t.id);
 }
+/* what the base sent with the mission (base.js supportStart; the Support Specialties doc) */
+const SUP=()=>(CTX&&CTX.sup)||{};
+let scanRound=0;   // Overwatch (Tactician): every enemy shows for the round it is called
+/* Map Theft (Slicer): the layout is known, so the terrain fog lifts; enemies still need to be seen */
+const fogOn=()=>!!SCN&&!!SCN.fog&&!SUP().mapAll;
+/* Battle Plan / Perfect Plan (Tactician): the Hegemony neither moves nor fires for the first round or two */
+const lawHolds=()=>round>0&&round<=(SUP().free||0);
 function unitSeen(u){
   if(!SCN||!SCN.fog||phase==='CUTSCENE')return true;
+  if(scanRound&&scanRound===round)return true;
   return u.side==='reb'||(u.veh&&u.owner==='reb')||visUnits.has(u.id);
 }
 function drawFog(){
-  if(!SCN.fog||phase==='CUTSCENE'||!fogCtx)return;
+  if(!fogOn()||phase==='CUTSCENE'||!fogCtx)return;
   fogCtx.setTransform(1,0,0,1,0,0);
   fogCtx.globalCompositeOperation='source-over';
   fogCtx.clearRect(0,0,fogCv.width,fogCv.height);
@@ -1908,6 +1922,7 @@ function aiPlan(){
     if((u.side!=='law'&&!u.ally)||u.down||u.surr||u.office)continue;
     u.order=null;u.sprinted=0;u.owUsed=0;u.goingTurret=0;u.wkey=wpnsOf(u)[0];u.bunkered=0;
     if(!u.manning)u.braced=0;
+    if(u.side==='law'&&lawHolds())continue;   // a free round for a supported squad
     // the transport's squad gets out once the alarm is up, then plans like anyone else on foot
     if(u.mnt&&town==='alerted'&&!lookout(u)){const v=vehOf(u);if(v&&!v.deployed)deployUnits(v);}
     if(u.mnt){aiCrew(u);continue;}
@@ -2259,6 +2274,7 @@ function checkBoss(){
 function fsItems(){
   if(!FS)return [];
   const it=[];
+  if(FS.scan&&!FS.scanUsed)it.push({key:'scan',name:'Overwatch scan',sub:'Mission Control patches in every sensor they can reach: every enemy shows for this round · once'});
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
   FS.ships.forEach((a,i)=>{
     if(a.state!=='ready')return;
@@ -2573,7 +2589,7 @@ function fsRoundEnd(){
 }
 function mkSquadUnit(sp,x,y){
   return mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',x,y,hp:sp.hp||100,maxhp:sp.hp||100,aim:sp.aim||2,def:sp.def||12,cool:sp.cool||65,
-    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
+    level:sp.level||1,tr:sp.tr||[],rels:sp.rels||[],ms:sp.ms||0,hero:sp.hero||0,nosprint:sp.nosprint||0,oneHand:sp.oneHand||0,cview:sp.cview||0,agi:sp.agi||1,nv:sp.nv||1,stims:sp.autoType?0:1,meds:sp.autoType?0:(sp.meds===undefined?1:sp.meds),packsUsed:0,spec:sp.spec||null,spec2:sp.spec2||null,big:sp.big?1:0,heavy:sp.heavy?1:0,auto:sp.autoType?1:0,autoType:sp.autoType||null,hackRounds:0,
     wpns:sp.wpns||['akli','cowboy'],back:sp.back||null,lines:REB_LINES[sp.id]||REB_LINES.generic,reinf:1},squadProt(sp)));
 }
 /* a summoned vehicle or Bot: the transport sets it down where it was called */
@@ -2683,9 +2699,11 @@ let hackArm=false;
 /* fire support: Supply Drop, Strafing Run, Door Gunner, Reinforcements (World in Conflict style) */
 let FS=null,fsMenuOn=false,fsDraft=null;
 function canHack(s,t){
-  return !!(s&&t&&s.spec==='fieldtech'&&!s.down&&!s.extracted&&!s.away&&!s.manning&&!s.mnt&&
+  return !!(s&&t&&hasSp(s,'fieldtech')&&!s.down&&!s.extracted&&!s.away&&!s.manning&&!s.mnt&&
     t.side==='law'&&t.auto&&t.hackRounds&&!t.down&&!t.surr&&dist(s,t)<=HACK_R&&!losBlocked(s,t));
 }
+/* rounds a hack takes: one with a Slicer on Overwatch */
+const hackNeed=t=>SUP().hack1?1:t.hackRounds;
 function hackTargets(s){return U.filter(t=>canHack(s,t));}
 function hackFlip(s,t){
   t.side='reb';t.ally=1;t.hacked=1;t.order=null;t.hackProg=0;t.braced=0;t.path=null;t.rtPath=null;t.guard=0;t.patrol=null;
@@ -2705,11 +2723,11 @@ function hackResolve(){
     if(u.down||!t||!canHack(u,t)){u.order=null;continue;}
     t.hackedNow=1;
     t.hackProg=(t.hackProg||0)+1;
-    addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,C.shield);
-    if(t.hackProg>=t.hackRounds)hackFlip(u,t);
-    else log(nameSpan(u)+' works on <b>'+t.name+'</b> — <span class="a">'+t.hackProg+'/'+t.hackRounds+'</span>.');
+    addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,hackNeed(t))+'/'+hackNeed(t),C.shield);
+    if(t.hackProg>=hackNeed(t))hackFlip(u,t);
+    else log(nameSpan(u)+' works on <b>'+t.name+'</b> — <span class="a">'+t.hackProg+'/'+hackNeed(t)+'</span>.');
   }
-  for(const t of U)if(t.hackProg>0&&!t.hackedNow&&t.side==='law')t.hackProg=0;
+  if(!SUP().backdoors)for(const t of U)if(t.hackProg>0&&!t.hackedNow&&t.side==='law')t.hackProg=0;   // Backdoors (Slicer) keep it
 }
 function startFreeHack(t){
   const tech=U.find(x=>canHack(x,t));
@@ -2723,12 +2741,12 @@ function hackFreeStep(dt){
   for(const s of U){
     if(!s.hackTid)continue;
     const t=U.find(x=>x.id===s.hackTid);
-    if(!t||!canHack(s,t)||s.rtPath){if(t)addFloater(t.x,t.y-50,'HACK BROKEN',C.hazard);s.hackTid=null;if(t)t.hackProg=0;continue;}
+    if(!t||!canHack(s,t)||s.rtPath){if(t)addFloater(t.x,t.y-50,'HACK BROKEN',C.hazard);s.hackTid=null;if(t&&!SUP().backdoors)t.hackProg=0;continue;}
     t.hackT+=dt;
     if(t.hackT>=4){
       t.hackT=0;t.hackProg++;
-      addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,t.hackRounds)+'/'+t.hackRounds,C.shield);
-      if(t.hackProg>=t.hackRounds)hackFlip(s,t);
+      addFloater(t.x,t.y-50,'HACK '+Math.min(t.hackProg,hackNeed(t))+'/'+hackNeed(t),C.shield);
+      if(t.hackProg>=hackNeed(t))hackFlip(s,t);
     }
   }
 }
@@ -2770,6 +2788,7 @@ function fuelUpdate(now){
   }
 }
 function spawnFoes(list,msg){
+  if(SUP().noReinf){log('<span class="g">Blackout:</span> the Hegemony calls for help and nobody answers.');return;}
   for(const u of nameFoes(expandUnits(list.map(f=>Object.assign({},f))),U)){
     u.face=Math.PI;u.wave=1;
     U.push(u);
@@ -2957,7 +2976,7 @@ function rtUpdate(now,dt){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
       if(wp.t>=4){wp.t=0;workStep(wp,worker);}
@@ -3032,6 +3051,7 @@ function extractUpdate(now,dt){
 function startPlanning(){
   phase='PLANNING';round++;
   fsPlanStart();
+  if(lawHolds())log('<span class="g">Mission Control called it:</span> the Hegemony is caught flat-footed. <b>A free round.</b>');
   for(const u of U){
     if(u.side!=='reb')continue;
     u.order=null;u.braced=0;u.sprinted=0;u.owUsed=0;u.path=null;u.bunkered=0;
@@ -3174,7 +3194,7 @@ function execUpdate(now){
     for(const h of U){
       if(!h.braced||h.owUsed||h.down||h.surr||h.extracted||h.away)continue;
       if(coolStateG(h)==='panic')continue;
-      if(h.side==='law'&&town!=='alerted')continue;
+      if(h.side==='law'&&(town!=='alerted'||lawHolds()))continue;
       for(const m of U){
         if(m.side===h.side||m.down||m.surr||m.extracted||m.away||!m.path)continue;
         const wkey=bestWeapon(h,m);
@@ -3209,7 +3229,7 @@ function buildEngage(){
     const o=s.order;
     if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
-    if(s.side==='law'&&town!=='alerted')continue;
+    if(s.side==='law'&&(town!=='alerted'||lawHolds()))continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
     const anyT=U.some(t=>t.side!==s.side&&!emptyVeh(t)&&wpnsOf(s).some(w=>validShot(s,t,w)));
     if(!anyT)continue;
@@ -3451,7 +3471,7 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||u.spec===wp.needSpec)&&(!wp.needCharge||u.charge)&&
+    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)workStep(wp,worker);
   }
@@ -5021,12 +5041,12 @@ function drawMinimap(now){
   g.strokeStyle=T.rgba(C.shield,0.8);g.beginPath();g.arc(ox+LZ.x*k,oy+LZ.y*k,Math.max(3,LZ.r*k),0,7);g.stroke();
   if(PAD!==OFFMAP){g.strokeStyle=T.rgba(C.shield,0.6);g.beginPath();g.arc(ox+PAD.x*k,oy+PAD.y*k,Math.max(3,PAD.r*k),0,7);g.stroke();}
   for(const m of lootMarks){
-    if(m.taken||(SCN.fog&&!m.spotted))continue;
+    if(m.taken||(fogOn()&&!m.spotted))continue;
     g.fillStyle=C.go;g.fillRect(ox+m.x*k-1.5,oy+m.y*k-1.5,3,3);
   }
   for(const u of U){
     if(u.extracted||u.away)continue;
-    if(!unitSeen(u))continue;
+    if(!unitSeen(u)&&!(SUP().minimap&&u.side==='law'))continue;   // Mission Intel (Analyst): every enemy on the minimap
     g.fillStyle=u.down||u.surr?C.text3:u.side==='reb'?(u.id==='sera'?C.gold:C.rebel):u.side==='civ'?C.steel:C.heg;
     g.beginPath();g.arc(ox+u.x*k,oy+u.y*k,u.down?2:3.2,0,7);g.fill();
     if(!u.down){g.lineWidth=1.2;g.strokeStyle=C.ink;g.stroke();}
@@ -5437,7 +5457,7 @@ const OM={
   cancel:{label:'Clear',icon:'clear',family:'',key:'X',rule:'Cancel this rebel’s order.'}};
 const WICON={};for(const k in WPN)WICON[k]=WPN[k].icon;
 function activeWork(s){
-  return WORK.find(w=>!w.done&&(!s.mnt||w.inVeh)&&(!w.needSpec||s.spec===w.needSpec)&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
+  return WORK.find(w=>!w.done&&(!s.mnt||w.inVeh)&&(!w.needSpec||hasSp(s,w.needSpec))&&(!w.needCharge||s.charge)&&!(w.needClear&&hostilesActive().length)&&Math.hypot(s.x-w.x,s.y-w.y)<MOVE_R+60);
 }
 function ordersFor(s){
   const used=new Set();
@@ -5507,7 +5527,7 @@ function dockHTML(){
   const detOn=!!(fac&&fac.planted&&!fac.detonated);
   const detBtn=()=>HUD.btn({id:'detBtn',label:'Detonate',icon:'grenade',variant:'danger',size:'lg',soft:facUnsafe(),why:facUnsafe()?'Clear the blast zone first.':'',tip:{title:'Detonate',rule:'Blow the planted charge once everyone is clear.'}});
   if(phase==='FREE'){
-    const hasTech=U.some(x=>x.spec==='fieldtech'&&!x.down&&!x.extracted&&!x.away);
+    const hasTech=U.some(x=>hasSp(x,'fieldtech')&&!x.down&&!x.extracted&&!x.away);
     const calm=town==='calm';
     const orders=[HUD.order({id:'sneakBtn',label:'Sneak',icon:'sneak',family:'stance',key:'C',active:sneak,disabled:!calm,why:calm?'':'The alarm is up. Sneaking no longer helps.',
       tip:{title:'Sneak',rule:'Go low and slow: half the pace, but much harder to spot.'}})];
@@ -5646,7 +5666,7 @@ function unitRow(u){
   const hp=(u.maxShd&&u.shd>0?bar(u.shd,u.maxShd,'--sr-shield','Shield').replace('sr-hp--layer','sr-hp--layer sr-hp--shd'):'')+(u.maxArm?bar(u.arm,u.maxArm,'--sr-steel','Armour').replace('sr-hp--layer','sr-hp--layer sr-hp--arm'):'')+
     '<span class="sr-hp'+(frac<0.35?' sr-hp--low':frac<0.6?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+cells+'</span>'+
     (foe?'':'<span class="sr-hp__num">'+Math.max(0,Math.round(u.hp))+'</span>')+'</span>';
-  const nm=u.name+(u.charge?' ✸':'')+(u.spec==='fieldtech'?' ⌨':'');
+  const nm=u.name+(u.charge?' ✸':'')+(hasSp(u,'fieldtech')?' ⌨':'');
   const gone=u.down||u.extracted||u.away||u.surr;
   const cls='sr-unit'+(foe?' sr-unit--foe':'')+(u.id===selId?' is-selected':'')+(gone?' is-down':'')+(c&&c.s===u?' is-acting':'');
   const av=foe?HUD.avatar({initials:HUD.initials(u.first),cls:'sr-avatar--foe'}):
@@ -5698,7 +5718,7 @@ function typeObjectives(soldiers,ext){
     st={reach:{done:fs.reached,now:!fs.reached},call:{done:fs.landed,now:fs.reached&&!fs.landed},
       defend:{done:fs.done,now:fs.landed&&!fs.done,prog:[Math.min(fs.pump,FUEL_ROUNDS),FUEL_ROUNDS]},aboard:{done:won,now:fs.done,prog:aboard}};
   } else if(k==='intel'){
-    const tech=U.find(u=>u.spec==='fieldtech'&&!u.down),hk=WORK.find(w=>w.id==='hack'),R=(hk&&hk.rounds)||3;
+    const tech=U.find(u=>hasSp(u,'fieldtech')&&!u.down),hk=WORK.find(w=>w.id==='hack'),R=(hk&&hk.rounds)||3;
     if(!ix.reached&&tech&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,PAD)<260))ix.reached=true;
     st={reach:{done:ix.reached||ix.hacked,now:!ix.reached&&!ix.hacked,who:tech&&{hacker:tech.first}},
       hack:{done:ix.hacked,now:ix.reached&&!ix.hacked,prog:[Math.min((hk&&hk.prog)||0,R),R]},
@@ -5914,6 +5934,11 @@ byId('fsBox').addEventListener('click',ev=>{
 FSM.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-fs]');
   if(!b)return;
+  if(b.getAttribute('data-fs')==='scan'){   // no target: it covers the whole map
+    FS.scanUsed=1;scanRound=round;fsMenuOn=false;sTick();
+    log('<span class="g">Overwatch:</span> Mission Control lights up every contact on the map. <b>This round only.</b>');
+    syncUI();return;
+  }
   pickMode='fs:'+b.getAttribute('data-fs');fsDraft=null;fsMenuOn=false;sTick();syncUI();
 });
 byId('panel').addEventListener('click',ev=>{
@@ -6077,6 +6102,8 @@ function initState(){
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
+   if(SUP().scan){FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};FS.scan=1;FS.scanUsed=0;}
+   scanRound=0;
    fsMenuOn=false;fsDraft=null;
    /* Take the Rock only: Cass, the smuggler who set the squad down in the canyon, keeps his own
       freighter upstairs as a Door Gunner. No other mission grants this — fire support after the
@@ -6094,6 +6121,10 @@ function initState(){
   tally={c:0,s:0,items:[]};
   lootMarks=LOOTS.map(l=>Object.assign({},l,{taken:false}));
   WORK=SCN.work.map(w=>Object.assign({},w,{done:false,t:0}));
+  for(const w of WORK)if(w.needSpec==='fieldtech'&&w.rounds>1){
+    if(SUP().hack1)w.rounds=1;                         // Overwatch (Slicer): a hack takes one round
+    else if(SUP().prehack)w.prog=w.rounds-1;           // Pre-hack (Slicer): one round from done
+  }
   PROPS=SCN.props.map(pr=>Object.assign({},pr,{hp:PROPDEF[pr.kind].hp,dead:false}));
   turret={gunner:null,face:Math.PI};
   NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
@@ -6101,6 +6132,7 @@ function initState(){
   floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];hitFx=[];fsFx=[];
   pops=[];vols=[];impFx=[];jfx=[];PFX.list.length=0;SHK.trauma=0;
   fogInit();
+  supportStartScene();
   tutReset();
   engageQ=null;gameEnd=null;selId=null;pickMode=null;extractFx=null;
   dgRun=null;dgQueue.length=0;
@@ -6195,6 +6227,26 @@ function tutTick(){
   }
 }
 /* ---------- scenario chrome ---------- */
+/* the base's work, in the scene as it starts: Pre-hack hands over the first Auto (DESIGN_BLOCKERS C-28) */
+function supportStartScene(){
+  if(SUP().prehack&&!WORK.some(w=>w.needSpec==='fieldtech')){
+    const t=U.find(u=>u.side==='law'&&u.auto&&u.hackRounds&&!u.veh);
+    if(t){t.side='reb';t.ally=1;t.hacked=1;t.order=null;t.hackProg=0;t.guard=0;t.patrol=null;
+      log('<span class="g">Pre-hack:</span> <b>'+t.name+'</b> wakes up on our side. The Tech Lab sends its regards.');}
+  }
+  oppBrief();
+}
+/* Briefings (Mission Control), Battle Briefing (Tactician), Mission Intel (Analyst): the opposition on the briefing */
+function oppBrief(){
+  const lv=SUP().brief||0,hint=byId('gHint');
+  if(!lv||!hint)return;
+  const foes=U.filter(u=>u.side==='law'&&!u.ally&&!(u.veh&&u.empty));
+  const by={};for(const u of foes){const r=window.Enemies&&Enemies.get(u.type);const n=(r&&r.name)||u.type||'Unknown';by[n]=(by[n]||0)+1;}
+  const line=lv>=2?Object.keys(by).map(n=>by[n]+' \u00d7 '+n).join(', '):foes.length+' on the ground';
+  const base=(SCN.brief||{}).hint||'';   // rebuilt from the scenario's own hint, so a restart does not repeat it
+  hint.innerHTML=(base?base+'<br>':'')+'<b>Mission Control:</b> opposition at the start: '+line+'. Reinforcements not counted.';
+  hint.hidden=false;
+}
 function scenarioUI(){
   byId('gTitle').textContent=SCN.title;
   byId('gSub').textContent=SCN.sub;
@@ -6272,7 +6324,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},

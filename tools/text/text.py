@@ -31,7 +31,7 @@ SOURCES = [
     ("Base", ["game/js/base.js"]),
     ("Ground", ["game/js/ground.js"]),
     ("Space", ["game/js/space.js"]),
-    ("Rebels", ["game/js/rebel.js", "game/js/rebel-exp.js", "game/js/rebel-injury.js", "game/js/rebel-rest.js"]),
+    ("Rebels", ["game/js/rebel.js", "game/js/rebel-exp.js", "game/js/rebel-injury.js", "game/js/rebel-rest.js", "game/js/support.js"]),
     ("Title", ["game/js/intro.js"]),
     ("Shared", ["game/js/core.js", "game/js/items.js", "game/js/enemies.js", "game/js/data.js", "game/ui/sr-hud.js"]),
     ("Page", ["game/index.html"]),

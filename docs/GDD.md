@@ -273,7 +273,7 @@ phase-by-phase record, and its section 7 for what the unbuilt traits are waiting
 - **Soldier** — the core character on any ground mission.
 - **Pilot** — the core character in space combat.
 - **Marine** — the core character in boarding actions (data and rules only; no Level 1 recruits, no boarding theatre yet).
-- **Support** — runs the base's rooms, grants their bonuses; has no skills and equips no gear.
+- **Support** — works in the base's rooms with a specialty of their own (see *Support specialties*); has no skills and equips no gear.
 - **Hero** — see below. *(The earlier GDD also listed Crew for large ships; not part of Level 1.)*
 
 **Per rebel**:
@@ -623,7 +623,29 @@ specialty shows on their dossier, roster chips and planning slots. Only some spe
 effects yet: **Field Technician** (cracks databanks), **Vanguard** (+1 aim), **Dogfighter** (+1 pilot
 aim). The rest are listed as "later" from the docs (Gunner, Commando, Assault, Combat Medic,
 Demolitions Specialist, Marksman, Commander, Driver; Leader, Bomber, Fire Support, Flight Engineer,
-Shipbuster). Support specialties are still to come.
+Shipbuster). Cross-Training (an Instructor's Job) can give a soldier or pilot a second specialty.
+
+### Support specialties (built, first pass; the Support Specialties doc)
+The data and rules are in `game/js/support.js`; the numbers in the Rules tab; what was chosen is
+`docs/DESIGN_BLOCKERS.md` C-28 and what waits is M-32.
+- **Base specialty from level 1**, read from the recruit's origin line: Doctor (Infirmary), Intelligence Officer
+  (Intelligence Center), Mechanic (Workshop), Technician (the new **Tech Lab**), Logistics Specialist (Storeroom),
+  Academic (Training Hall), Diplomat (Diplomatic Quarter), Mission Control (Command Center). They work only in that
+  room; it holds 2, plus 1 per extra tile. Each base specialty has a Job and a Rule: Treatment and Stabilise, Processing
+  (and the room's Intel), Repairs and Salvage, Maintenance, Supply Handling and Inventory Control, Tutoring and
+  Curriculum, Outreach, Mission Support and Briefings (Early Warning, Gadget Workshop and Goodwill wait).
+- **In a room:** the **Department Head** (highest level of the specialty) sets the base Rules' strength; each niche's
+  **Lead Specialist** (highest level, or one the player names, who takes over the next day) sets its Rules; everyone
+  else is **Staff**, who run the Lead's Jobs plus fork Jobs of their own and learn 50% faster under a higher Lead.
+- **Niches** are trained at level 3 in the classroom (300 credits, 3 days) while they keep working. Unlocks come at 3,
+  7, 11, 15 and 19, with a permanent fork at 7 and 15. Live first: Cyberneticist (prosthetics), Physio, Analyst,
+  Aerogineer, Slicer, Smuggler, Instructor, Propagandist, Tactician.
+- **Jobs:** standing Jobs fill themselves each day (Treatment two patients per Doctor, Repairs one craft per Mechanic,
+  Rehab, Drill…); timed Jobs start from the room (a prosthetic, a Strength Programme, Fighter Tuning, a Data Tap, a
+  Special Order, a campaign); mission Jobs are picked on the planning board's **Base support** (Pre-hack, Map Theft,
+  Overwatch, Mission Intel), and a free Mission Control specialist supports every mission.
+- **Experience** comes from working the room and from Jobs. Postings, losing specialists to raids and the
+  Crewman wait on systems that are not in the game yet.
 
 ### Level 1 enemies, vehicles and hacking (built, Phase 4)
 - **Enemy roster:** Patrolman, Auto Policebot, Riot Shieldman (front-blocking shield), Riot Rifleman,
@@ -756,19 +778,18 @@ double-click.
   Barracks: *Bunks* (+2 beds per tile), *Quarters* (+2 more). Hangar: *Refuelling Station*
   (sorties burn 25% less fuel), *Robot Maintenance Arm* (+5%/day ship repair). Bought from the
   room's interior view.
-- **Staff posts** (Support rebels): Garrison Officer (wounded soldiers heal a day faster), Flight Deck
-  Officer (+4%/day repairs on the pads), Chief Diplomat. The Infirmary gains one medic post per tile.
-- **Diplomatic Quarter:** a Chief Diplomat sends teams to any world where we have Access
-  (**400 credits + 60 supplies, 4 days**, one team per Quarter tile). A team adds **+½ Support**, or
-  **+1 flag** when the Chief Diplomat is level 3+. Support is what gates liberation, so this is the
-  player's way to grow it without waiting for source events.
+- **Support at work:** the staff posts are gone; Support rebels work in their specialty's home room (see
+  *Support specialties*). A room holds 2 of them, plus 1 per extra tile.
+- **Diplomatic Quarter:** each Diplomat working here sends one team at a time to any world where we have Access
+  (**400 credits + 60 supplies, 4 days**). A team adds **½ a flag of Support plus 25%** (Outreach). Support is what
+  gates liberation, so this is the player's way to grow it without waiting for source events.
 - **Conversions** turn one tile of a merged room into something else (it needs a spare tile, so the
   room must have been expanded): *Ready Lounge* (hangar: loses a pad; every sortie takes 1 day
   less, minimum 1), *Maintenance Bay* (hangar: loses a pad; the most damaged ship repairs 10%/day
   faster), *Rec Room* (barracks, needs 3+ tiles: loses a tile of beds; resting rebels gain morale
   twice as fast). A conversion is refused if it would leave a ship or rebel without a berth.
-- **Surgery Room** (Infirmary upgrade): with a medic on station, a rebel who would be lost in the field
-  has a 60% chance to survive, out for 6 days.
+- **Surgery Room** (Infirmary upgrade): everyone in the Infirmary recovers half a day faster each day. (Saving the
+  fallen is now the Doctor's Stabilise.)
 - **Patrol Local Space** (Hangar task): a ready ship (hull 60%+, fuel, its pilot free) goes out for 2
   days; it brings back +1 Intel, often 60-100 Materials of salvage, and a 25% chance of a scrap that
   costs 10-20% hull. *Restore Broken Ship* was already built.

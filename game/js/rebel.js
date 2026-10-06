@@ -22,7 +22,7 @@ window.Rebel=(function(){
   const BIO={
     Soldier:['Dockyard loader with a long memory and a short temper.','Ex-militia. Left before they could be ordered to do something worse.','Worked the salt flats until the Hegemony raised the quota again.','Mechanic who got tired of fixing other people’s weapons.','Courier who knows every back alley between here and the capital.','Farmhand. Has shot more varmints than anyone else here, and is a little proud of it.','Mine foreman. Knows what a well-placed charge does to a ceiling.','Bouncer in a port cantina. Dislikes uniforms on principle.','Cargo handler who saw something on a manifest and stopped asking questions.','Former tollgate guard. Lost the argument about who the gate is really for.'],
     Pilot:['Crop-duster who has flown under more bridges than the law allows.','Ferry pilot with a thousand hours and no patience for protocol.','Racing circuit regular who ran out of sponsors before they ran out of nerve.','Cargo hauler who can set down a freighter on a pad the size of a tablecloth.','Survey flyer, bored of charting worlds someone else will own.','Taxi pilot. Knows every back channel in the drift.'],
-    Support:['Quartermaster type. Counts every bolt twice.','Clerk who read everything they were supposed to file.','Union organiser. Can get two hundred people to do one thing quietly.','Medic’s assistant who ended up doing most of the medicine.','Lab technician who fixes what they are told is unfixable.','Dispatcher with a gift for knowing where everybody is.','Schoolteacher who has opinions about how this should be run.','Ledger keeper for a smuggling ring. Can make money disappear, legally.'],
+    Support:['Quartermaster type. Counts every bolt twice.','Clerk who read everything they were supposed to file.','Union organiser. Can get two hundred people to do one thing quietly.','Medic’s assistant who ended up doing most of the medicine.','Lab technician who fixes what they are told is unfixable.','Dispatcher with a gift for knowing where everybody is.','Schoolteacher who has opinions about how this should be run.','Ledger keeper for a smuggling ring. Can make money disappear, legally.','Grease monkey who can rebuild a hauler drive from scrap and spite.'],
     Marine:['Dockside brawler with a talent for getting aboard things uninvited.','Ex-boarding crew. Knows exactly how thin a hull is.','Salvage hand, used to cutting their way into wrecks.'],
   };
   const pick=SR.util.pick;
@@ -170,7 +170,8 @@ window.Rebel=(function(){
   /* ---------- skills ----------
      Derived, never stored: level gives a steady base and p.sx (earned in missions, capped) adds the rest.
      Soldiers and Marines: Aim, Constitution, Agility, Presence. Pilots: Aim, Cunning, Focus, Presence.
-     Support have none; a Hero has all six. Everything caps at 50, and each point is only a small nudge. */
+     Support have none; a Hero has all six. Everything caps at 50, and each point is only a small nudge.
+     p.sb holds permanent bonuses from the base (a Physio's Strength Programme, Scar Tissue). */
   const SKILL_CAP=50,SX_CAP=15,HERO_SKILL=8,HERO_HP=25;
   /* a specialty gives a slight bonus to its related skill (the rest of what a specialty does is its ability) */
   const SPECSK={medic:{pre:3}};
@@ -187,7 +188,7 @@ window.Rebel=(function(){
   const clamp=SR.util.clamp;
   function skill(p,k){
     if(skillKeys(p).indexOf(k)<0)return 0;
-    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0)+((SPECSK[p.spec]||{})[k]||0));
+    return Math.min(SKILL_CAP,Math.round(5+(p.level-1)*1.6+((p.sx&&p.sx[k])||0))+(p.role==='Hero'?HERO_SKILL:0)+((SPECSK[p.spec]||{})[k]||0)+((SPECSK[p.spec2]||{})[k]||0)+((p.sb&&p.sb[k])||0));
   }
   /* what the combat scenes read; the curves keep a fresh rebel where the old level formulas had them */
   const aimOf=(p,theatre)=>clamp((theatre==='s'?Math.round(2+(skill(p,'aim')-5)/3.2-0.25):Math.round(2+(skill(p,'aim')-5)/4.8))+moraleFx(p).aim,1,6);
@@ -276,6 +277,8 @@ window.Rebel=(function(){
     if(!p.auto&&p.morale===undefined)p.morale=MORALE_START;
     if(!p.auto&&p.rank===undefined){p.rank=Math.min(8,Math.floor(((p.level||1)-1)/2));p.rankMissions=0;p.missions=p.missions||0;}
     if(!p.auto&&p.tired===undefined){p.tired=0;p.weary=0;p.conked=0;}   // rest (rebel-rest.js): missions without rest
+    // a Support rebel is recruited with a base specialty (support.js), read from their origin line
+    if(!p.auto&&p.role==='Support'&&!p.sspec&&window.Support){p.sspec=window.Support.guess(p);p.niche=p.niche||null;p.forks=p.forks||{};}
     if('injured' in p&&window.Rebel.migrateInjured)window.Rebel.migrateInjured(p);   // the old days-off counter becomes a condition
     return p;
   }

@@ -154,8 +154,9 @@ mission gives yet. See `docs/GDD.md` §8. Original scope:
 ### Phase 5 — Base — **built**
 Built: merged rooms, Hangar/Barracks/Intelligence Center expansion and capacity, Storeroom Supplies cap,
 Barracks and Hangar upgrades including the Ready Lounge, Maintenance Bay and Rec Room conversions,
-the Infirmary Surgery Room, Garrison/Flight Deck/Chief Diplomat posts, the Diplomatic Quarter and its
-Support tasks, Patrol Local Space, and the Gear Grid. Left for later: enforcing the gear-slot limit and
+the Infirmary Surgery Room, the Diplomatic Quarter and its Support tasks, Patrol Local Space, and the Gear
+Grid. The staff posts (Garrison, Flight Deck, Chief Diplomat…) were later replaced by the Support specialties
+(Phase 5b below). Left for later: enforcing the gear-slot limit and
 Armour items. See `docs/GDD.md` §8. Original scope:
 - Turn the fixed room list into the docs' model: adjacent rooms **merge into one bigger
   room**, and rooms take **upgrades**.
@@ -172,6 +173,13 @@ Armour items. See `docs/GDD.md` §8. Original scope:
   stages.
 - **Starting hangar:** change to four landing pads to match the docs, and rebalance
   the onboarding around it (the derelict Marta no longer fills the only spare berth).
+
+### Phase 5b — Support specialties — **built (first pass)**
+The Support Specialties doc: a base specialty from level 1 working in its home room (2 + 1 per extra tile), the
+Department Head / Lead Specialist / Staff rules, niche training in the classroom at level 3, forks at 7 and 15, Jobs
+(standing, timed from the room, and per mission on the planning board), experience from work, and the new **Tech Lab**.
+51 of 161 niche unlocks and 13 of 16 base effects are live; the rest wait on the Network, crafting, research and
+others (`docs/DESIGN_BLOCKERS.md` C-28, M-32). Postings wait on the Network's Access ladder.
 
 ### Phone support — **built** (iPhone 12 Pro, portrait and landscape; see `docs/GDD.md` §8)
 

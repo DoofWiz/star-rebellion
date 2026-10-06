@@ -21,8 +21,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.cardBusy=f.recruitCard().indexOf('3 day')>=0;
   // nobody yet after two days, someone on the third
   days(2);out.before=[G().recWait.length,f.getWin()];
-  // staff the command post so there are at least two candidates
-  const dax=G().people.find(p=>p.id==='dax');dax.assign='station:command';
+  // someone working the Command Center means at least two candidates
+  // Mission Control working the Command Center (a bunk of their own, so a barracks room more)
+  G().rooms.push({id:'rm_bx',key:'barracks',r:7,c:9,w:1,h:1,up:[]});
+  const mc=window.Rebel.migrate({id:'mcx',name:'Mic Control',role:'Support',level:1,xp:0,assign:'room:command',bio:'Dispatcher with a gift for knowing where everybody is.',morale:60});G().people.push(mc);
   days(1);
   out.win=f.getWin();
   out.waiting=G().recWait.length;

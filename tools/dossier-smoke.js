@@ -42,7 +42,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const sup=R.migrate({id:'s1',name:'Sup Port',role:'Support',level:1,xp:0,assign:'rest',injured:0,bio:'x'});sup.joined=2;
   G().people.push(sup);
   f.openWin('person',sup);html=$('#winCardB').innerHTML;
-  out.support=[html.indexOf('>Skills<')<0,html.indexOf('Rookie')>=0,$$('#winCardB .bs-meters .sr-meter').length];
+  out.support=[html.indexOf('>Skills<')<0,html.indexOf('Rookie')<0&&html.indexOf(window.Support.title(sup))>=0,$$('#winCardB .bs-meters .sr-meter').length];   // Support show their specialty, never Rookie
   const auto={id:'a1',name:'Bot',role:'Soldier',level:1,xp:0,assign:'rest',injured:0,auto:'policebot',bio:'beep'};G().people.push(auto);
   f.openWin('person',auto);html=$('#winCardB').innerHTML;
   out.auto=[html.indexOf('Rookie')<0,html.indexOf('Morale')<0,html.indexOf('Service record')<0,html.indexOf('data-rank-open')<0];

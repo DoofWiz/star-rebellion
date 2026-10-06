@@ -16,7 +16,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   if(!window.SR_ART)return {fail:'SR_ART missing'};
   if(document.getElementById('splash'))return {fail:'title screen leaked into the #test boot'};
   // staff a post and put someone in a bunk so the room views have people in them
-  const dax=G.people.find(p=>p.id==='dax');if(dax)dax.assign='station:command';
+  G.people.push(window.Rebel.migrate({id:'artmc',name:'Odo Fenn',role:'Support',level:2,xp:0,assign:'room:command',bio:'Ran a Hegemony flight tower for nine years.',morale:60}));   // someone at work in the Command Center
   f.syncUI();
   await sleep(300);log.push('base map');
   for(const key of ['command','hangar','barracks']){
