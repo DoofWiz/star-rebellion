@@ -91,6 +91,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    const B=f.BUILDS_()[key];if(!B||!canPay(B))return false;
    const fl=FLOOR();
    let spot=null;
+   if(key==='hangar'){   // a whole 4 × 4 section on a block of cleared floor (DESIGN_BLOCKERS C-32)
+     const at=fl.find(([r,c])=>f.hangarBlockAt(r,c));
+     if(!at)return false;
+     f.buildAt(at[0],at[1],key);return true;
+   }
    if(expandOf){for(const [r,c] of fl){if(G.rooms.some(o=>o.key===key&&!o.build&&f.roomsAdj({r,c,w:1,h:1},o))){spot=[r,c];break;}}}
    if(!spot&&!expandOf&&fl.length){
      const free=fl.filter(([r,c])=>key==='comms'||!G.rooms.some(o=>o.key==='comms'&&f.roomsAdj({r,c,w:1,h:1},o)));

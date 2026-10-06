@@ -535,6 +535,57 @@ SR_ART.shot(ctx, weaponKey, x0, y0, x1, y1, time, {mode, plan});    // draws the
 
 `SR_ART.hangarShip(ctx, id, x, y, s, k, t, {livery, damage, loadout, heading, cold})` replaces `shipIso` (and `fighterTop`) in the base's hangar views. Each Tier 1 ship has a small hand-built 3D model (`SR_ART.HM`): bevelled hull blocks, upright fins, round engine barrels, glass domes and the Graf's dish. It's projected into the room's isometric view at any `heading` (the default faces the viewer's left). Pass `cold:true` for parked ships (dark engines and sensor eyes). Door guns appear when the Graf's loadout has them. Ships with no model (drones, the frigate mock) fall back to `shipIso`.
 
+
+## Haven Rock: the base map and room interiors
+
+The guide's **Haven Rock** section is the target, with an interactive map and walk-in view. The principle is **one furniture set, two zoom levels**. Each room is laid out in floor units (100 per tile; x along columns, y along rows) and drawn through a projection, so the same layout furnishes the room on the map and in its walk-in view. Merged rooms grow tile by tile, and upgrades appear as furniture.
+
+### Base map (`renderBase` in base.js)
+
+```js
+SR_ART.baseBackdrop(ctx, cssW, cssH, t, {alert, mountain: [[x,y],...]})   // sky, peaks; pass a polygon around the grid's corners for the mountain mass
+SR_ART.baseTile(ctx, 'rock'|'rubble'|'floor', x, y, S, {r, c, openS, openE, dig, digger, t})
+SR_ART.baseRoom(ctx, tiles, key, cellToCss, S, {up, build, fill, t, worker})  // tiles = the merged cluster's [[r,c],...]; returns {posts, beds, pads, center} in screen coords
+```
+
+- **Draw order: far to near.** Interleave tiles and rooms by `r + c`, because rock is raised and its cliff faces must overlap rooms behind it. Rooms go in at their top-left tile's depth plus 0.1.
+- **Rock:**
+  - `openS` and `openE` are true when the tile to the south or east isn't rock, or the tile is on the grid's edge. They draw the cliff faces.
+  - **Rubble being dug** (`cell.dig > 0`) gets the digging scene. Pass any rebel spec as `digger`; the `dig` pose is in the kit.
+- **Rooms:**
+  - `tiles` is the merged cluster's `[r, c]` list (from `clusterOf`). `up` is the cluster's upgrades (the union of `r.up`). `build` is set while the room is under construction and shows scaffolding and a builder. `fill` is supplies over capacity (`G.supplies / supCap()`) for the Storeroom.
+  - **Room labels:** keep the existing `TH.labelLayer` names, but draw them after all tiles. Drop the furniture glyphs and the chunky icon markers on finished rooms; the furniture now says what a room is. Keep the work marker on rooms being built.
+  - **Hangar:** place parked ships on `res.pads` with `hangarShip` at the map's scale (about `S * 0.42` of the walk-in size).
+  - Optionally, put one staffer at `res.posts[0]` and resting rebels on `res.beds` (`state:'down', fall:1`).
+- **Ambient life:** one or two rebels walking corridor tiles (`state:'walk'`) makes the base feel lived in.
+- **Alert:** pass `alert: true` (the whole base pulses red) when a raid is imminent or `G.risk` is over your threshold.
+- **Rooms that grow.** Both views read the room's real tiles, never its bounding rectangle, so building next to a room just works:
+  - floors and walls follow the shape, with walls only along real far edges, including an L's inside corner;
+  - per-tile furniture (beds, pads, desks, crate stacks, dummies) only goes on real tiles;
+  - wall-mounted pieces sit on the real wall runs;
+  - centrepieces go on the most central tile;
+  - tile-taking upgrades (Rec Room, Ready Lounge, Maintenance Bay, Surgery, the Workshop lift) claim the front-most real tiles.
+
+  Nothing is stored, so a room redraws correctly the moment it grows. `SR_ART.shapeOf(tiles)` exposes the wall runs and the centre and front tiles if the game needs them, for example to place a door.
+
+### Walk-in view (`renderRoomView`)
+
+```js
+const res = SR_ART.roomInterior(ctx, rm.key, {tiles, up, build, fill, alert, t, worker});   // tiles = the same cluster [[r,c],...] as the map
+// draws walls, floor, lighting and furniture inside the existing ±250 × ±130 frame (call it inside your translate/scale)
+// res.posts: staffed stations [{x, y, pose, emote, sparks}]; res.beds: [{x, y}]; res.pads: hangar berths [{x, y, bay}]; res.scale
+```
+
+- Replace the hand-drawn floor diamond, back-wall hints and per-room shapes with this one call. Pass the cluster's real `tiles`. `{w, h}` still works for a plain rectangle.
+- Place staff (`staffOf(key)`) on `res.posts` in order, using each post's `pose` and `emote`. Spawn sparks at posts with `sparks`.
+- Lay resting rebels (barracks) and patients (infirmary) on `res.beds`.
+- **Hangar:** use `res.pads` for berths instead of the g×g grid. There's one pad per hangar tile, minus the tiles converted to the Ready Lounge and Maintenance Bay, which matches `fighterCap()`. A pad with `bay:1` is the Maintenance Bay. Draw ships with `hangarShip(..., 2.6 * res.scale, 1.25, ...)` at any heading.
+- **Upgrades drawn:**
+  - Barracks: `bunks`, `quarters`, `rec`.
+  - Infirmary: `surgery`.
+  - Hangar: `refuel`, `arm`, `lounge`, `mbay`.
+  - Upgrades still in the build queue aren't drawn until they finish.
+
 ## Rebel acceptance checks
 
 - Two rebels generated in the same batch never look identical (different id, so different genes). The same rebel looks identical after a reload.

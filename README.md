@@ -364,8 +364,9 @@ at `b78577f`, if we want to revert or compare.
 The hub the player returns to between missions, per the GDD's Base Management
 spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
 
-- **The base** — a fixed, expandable isometric map of a hidden rock hideout.
-  Starting rooms (Command, Hangar, Barracks, Storeroom); rubble chambers can be
+- **The base** — a fixed, expandable 14 × 18 isometric map of a hidden rock hideout (drag to pan, wheel or
+  pinch to zoom). Starting rooms (Command, Hangar, Barracks); the Hangar is built in 4 × 4 sections of small
+  and large landing pads. Rubble chambers can be
   excavated and open floors built out (Intelligence Center, Workshop, Infirmary,
   Training Hall, Diplomatic Quarter, Storeroom, Tech Lab), with costs in credits/supplies and multi-day
   construction. Same-type rooms that touch merge into one bigger room (more landing pads,
@@ -376,6 +377,10 @@ spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
   patrol local space for Intel and salvage, rooms can convert tiles into a Ready Lounge,
   Maintenance Bay or Rec Room, and the
   Storeroom's Gear Grid shows all kit by category and size. Controls stay contextual: clicking a tile opens its popup.
+  The art kit draws it (`docs/art/HANDOFF.md`, "Haven Rock"): raised rock with cliff faces, rubble with a digger at
+  work, corridors with wandering rebels, and each room furnished on its real tiles, with the same layout on the map
+  and in its walk-in view. Upgrades show as furniture, staff stand at their posts, ships park on the pads, sleepers
+  and patients lie on the beds, and the base pulses red at high network exposure.
 - **Sources** — the GDD's spy-network loop: Ferren Halt (the depot manager who
   sold out Vex — jumpy, high risk) and Sen. Vokk, plus a recruitable Scientist
   approach. Each has level, cultivation and risk meters, daily income
