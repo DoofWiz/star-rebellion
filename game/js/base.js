@@ -2206,7 +2206,7 @@ function supportTick(){
   for(const p of G.people.filter(isSupport)){
     const fd=SP.forkDue(p);
     if(fd&&p.forkNoted!==fd){p.forkNoted=fd;news('<b>'+p.name+'</b> has a choice to make as a '+SP.NICHE[p.niche].n+' (level '+fd+'). Open their file.','p');sAlert();}
-    if(p.level>=3&&!p.niche&&!p.nicheTrain&&!p.nicheNoted&&hasRoom('training')){p.nicheNoted=1;news('<b>'+p.name+'</b> is ready for the classroom: a '+SP.SPEC[p.sspec].n+' niche at level 3. Open their file.','p');}
+    if(p.level>=3&&!p.niche&&!p.nicheTrain&&!p.nicheNoted&&hasRoom('training')){p.nicheNoted=1;news('<b>'+p.name+'</b> is ready for the classroom: a '+SP.SPEC[p.sspec].n+' niche at level 3. Train them in the Training Hall.','p');}
   }
   // Inside Line (Smuggler): every 3 days two lots change, besides the weekly restock
   if(on('smuggler.insideline')&&G.market&&G.market.lots&&G.day%3===0&&G.day<G.market.next)marketSwap(2);
@@ -5233,34 +5233,9 @@ function renderWin(){
   }
   else if(winMode==='person'){
     const p=winArg;
-    const pct=Math.round(p.xp*100);
-    let b=dossierHead(p,laidUp(p)?wTag('Injured '+outDays(p)+' days','bad'):restTag(p));
-    if(p.role==='Pilot'||p.role==='Hero'){
-      const f=G.fighters.find(x=>x.id===p.ship);
-      if(f){
-        const st=shipStats(f),n=Math.round(f.hull/20);
-        b+='<div class="sr-h3">Assigned craft</div><div class="sr-card sr-card--info"><div class="sr-card__top"><span class="sr-card__title">'+f.name+'</span>'+(f.out?wTag('On mission','info'):'')+'</div>'+
-          '<div class="sr-card__body" style="margin-bottom:8px">'+st.label+'<br>Shields '+st.shd+' · Armour '+st.arm+' · Hull '+st.hull+'<br>'+(st.wpns.length?st.wpns.map(w=>w[0]).join(' · '):'No weapons fitted')+'</div>'+
-          '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
-      }
-      b+=gearSection(p);
-    } else if(p.role==='Soldier'||p.role==='Marine'){
-      if(p.auto)b+='<div class="sr-h3">Equipment</div><p class="sr-p">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</p>';
-      else b+=gearSection(p);
-    } else if(isSupport(p))b+=supportCard(p);
-    b+=recordCard(p);
-    if(!laidUp(p)&&p.assign!=='mission'){
-      b+='<div class="sr-h3">Assignment</div><div class="bs-chips">'+
-        rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(p.assign==='rest')+'"','Rest',false,'sr-btn--sm')+
-        rbtn('data-as="train:'+p.id+'" aria-pressed="'+(p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',!hasRoom('training'),'sr-btn--sm');
-      if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
-        const key=SP.homeOf(p),mine=p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
-        const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
-        b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,!!why,'sr-btn--sm');
-      }
-      b+='</div>';
-    }
-    h=wHead('Personnel file')+wBody('<div class="bs-file">'+dollHTML(p)+'<div class="bs-file__main">'+b+'</div></div>')+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+(rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
+    h=wHead('Personnel file')+personHTML(p)+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'))+
+      (rankOverlay===p.id&&!p.auto?rankOverlayHTML(p):'')+(gearOverlay&&gearOverlay.pid===p.id&&!p.auto?gearOverlayHTML(p):'');
+    size='';cls=' pf-win';
   }
   else if(winMode==='contract'){
     const p=G.people.find(x=>x.id===winArg);
@@ -5296,6 +5271,7 @@ function renderWin(){
   }
   card.className='sr-window'+(size?' sr-window--'+size:'')+(accent?' sr-window--'+accent:'')+cls;
   $('winsB').classList.toggle('bs-winfull',/\b(rp|pf)-win\b/.test(cls));   // full screen on a phone
+  $('winsB').classList.toggle('bs-winwide',/\bpf-win\b/.test(cls));   // the personnel file needs the whole stage
   card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
@@ -5312,6 +5288,241 @@ function renderWin(){
     }
   }
   markWin();
+}
+
+/* ---------- the Personnel File (docs/ui/SCREENS-HANDOFF.md §2) ----------
+   A stage with the rebel's figure and gear pegs, a header plate, then the middle column (medical, morale, character,
+   experiences, skills or specialty) and the side column (craft, service record, assignment). Detail buttons open a
+   popover to their right on hover, focus or tap. */
+const PEG_LABEL={primary:'Primary',secondary:'Sidearm',back:'Back',head:'Head',body:'Body',gad:'Gadget'};
+const ROLE_ICO={Soldier:'soldier',Marine:'marine',Pilot:'pilot',Support:'support',Hero:'star'};
+const SPEC_ICO={doctor:'heart',intel:'intel',mechanic:'work',support_technician:'hack',logistics:'supplies',academic:'help',diplomat:'comms',control:'dial'};
+const UNIT_ICO={job:'work',rule:'shield',posting:'galaxy'};
+const EXP_ICO={Relationships:'people',Battlefield:'sword',Psychological:'panic',Successes:'star',Injuries:'patch',Rebellion:'revflame',Consequences:'skull',Positive:'heart'};
+const GOOD='var(--sr-go)',BAD='var(--sr-hazard)';
+/* the figure drawn large for the stage (the smaller figureURL serves the mission window) */
+const figureBigCache=new Map();
+function figureBigURL(p){
+  if(p.auto||!p.id)return null;
+  const key=portraitKey(p)+'|'+JSON.stringify(p.gear||{})+'|'+(p.spec2||'');
+  const hit=figureBigCache.get(p.id);
+  if(hit&&hit.key===key)return hit.url;
+  try{
+    const W=420,H=460,c=document.createElement('canvas');c.width=W*2;c.height=H*2;
+    const g=c.getContext('2d');g.scale(2,2);
+    SA.character(g,W/2,H-34,personSpec(p),{view:'front',t:0,s:6.2});
+    const url=c.toDataURL();
+    figureBigCache.set(p.id,{key,url});
+    return url;
+  }catch(e){return null;}
+}
+const pfFx=(t,good)=>'<span style="--c:'+(good?GOOD:BAD)+'">'+esc(t)+'</span>';
+const pfDots=list=>list.length?'<span class="pf-dots">'+list.map(g=>'<i style="--c:'+(g?GOOD:BAD)+'"></i>').join('')+'</span>':'';
+const pfPop=(name,kind,body,fx)=>'<div class="pf-pop" role="tooltip"><div class="pf-pop__name">'+name+'</div><div class="pf-pop__kind">'+kind+'</div>'+
+  (body?'<p>'+body+'</p>':'')+(fx?'<div class="pf-fx">'+fx+'</div>':'')+'</div>';
+const pfTip=(btn,pop,wide)=>'<div class="pf-tip'+(wide?' is-wide':'')+'">'+btn+pop+'</div>';
+/* a compact detail button: icon disc, name, kind, then markers and a chevron */
+function pfBtn(o){
+  return '<button class="pf-btn'+(o.dashed?' is-dashed':'')+'" type="button" data-pftip'+(o.attrs||'')+'><span class="pf-btn__ico" style="--c:'+(o.c||'var(--sr-psi)')+'">'+IC(o.ico)+'</span>'+
+    '<span style="min-width:0"><span class="pf-btn__name">'+o.name+'</span><span class="pf-btn__kind">'+o.kind+'</span></span><span class="pf-btn__end">'+(o.dots||'')+IC('chevron')+'</span></button>';
+}
+const pfH=(ico,t,right)=>'<div class="pf-h">'+IC(ico)+t+(right?'<b>'+right+'</b>':'')+'</div>';
+const pfSec=(key,h)=>h?'<section class="pf-sec" data-sec="'+key+'">'+h+'</section>':'';
+/* the header plate: level ring, name, role and what sets them apart, the rank button */
+function pfPlate(p){
+  const tags=[];
+  if(!p.auto)tags.push('<em>'+esc(specOf(p)||'Rookie')+'</em>');
+  else tags.push('<em>'+esc(rankFor(p))+'</em>');
+  if(p.merc)tags.push('<em>Mercenary · '+Math.max(0,p.merc.until-G.day)+'d left</em>');
+  if(laidUp(p))tags.push('<em style="color:var(--sr-hazard)">Injured</em>');
+  else if(Rebel.weary(p))tags.push('<em style="color:var(--sr-hazard)" title="Needs '+Rebel.restDays(p)+' day'+(Rebel.restDays(p)>1?'s':'')+' of rest">'+(conked(p)?'Conked out':'Weary')+'</em>');
+  let rank='';
+  if(!p.auto&&p.rank!==undefined){
+    const ready=Rebel.canPromote(p),com=!ready&&Rebel.canCommission(p),nx=Rebel.nextRank(p),need=Rebel.needMissions(p),have=Math.min(need,p.rankMissions||0);
+    const hint=ready?'Ready for promotion to '+nx:com?'Can be commissioned as an officer':nx?have+' of '+need+' missions toward '+nx:'Top of the ladder';
+    rank='<button class="pf-rank'+(ready||com?' is-ready':'')+'" type="button" data-rank-open="'+p.id+'" title="'+esc(hint+'. Tap for details.')+'" aria-label="Rank: '+esc(rankFor(p))+'. '+esc(hint)+'. Open rank details">'+
+      insignia(p,26)+'<b>'+esc(rankFor(p))+'</b>'+(ready?'<em class="pf-rank__flag">\u25b2 Promotion ready</em>':com?'<em class="pf-rank__flag">\u2605 Can be commissioned</em>':'')+(nx?'<span>'+Array.from({length:need},(_,i)=>'<i'+(i<have?' class="is-on"':'')+'></i>').join('')+'</span>':'')+'</button>';
+  }
+  return '<div class="pf-plate"><span class="pf-lvl" style="--xp:'+Math.round((p.xp||0)*100)+'" aria-label="Level '+p.level+', '+Math.round((p.xp||0)*100)+'% to the next"><b>'+p.level+'</b><small>LVL</small></span>'+
+    '<div style="min-width:0"><div class="pf-name">'+esc(p.name)+'</div><div class="pf-role">'+IC(ROLE_ICO[p.role]||'people')+esc(p.role)+tags.join('')+'</div></div>'+rank+'</div>';
+}
+/* the stage: the figure, gear pegs either side, and what has happened to them */
+function pfStage(p){
+  const slots=gearSlots(p),key=s=>s.k==='gad'?'gad'+(s.i||0):s.k;
+  const pilot=p.role==='Pilot';
+  const sides=[pilot?['secondary','gad0']:['primary','secondary','back'],pilot?['head','body','gad1']:['head','body','gad0','gad1']];
+  const away=p.assign==='mission';
+  const peg=s=>{
+    const id=slotGet(p,s),own=isOwnSlot(p,s);
+    const why=own?'Their own kit: not ours to reassign':away?'Away on a mission':'';
+    return '<button class="pf-peg'+(id?'':' is-empty')+'" type="button" data-gear-slot="'+p.id+':'+s.k+':'+(s.i||0)+'"'+(why?' disabled':'')+' title="'+esc(why||SLOT_LABEL[s.k]+': '+(id?kitNameId(id):'empty'))+'">'+
+      '<span class="pf-peg__box">'+(id?itArt(id):'')+'</span><span class="pf-peg__lbl">'+PEG_LABEL[s.k]+'</span><span class="pf-peg__name">'+(id?esc(kitNameId(id)):'Empty')+'</span></button>';
+  };
+  const col=(list,side)=>{const ss=list.map(k=>slots.find(s=>key(s)===k)).filter(Boolean);return ss.length?'<div class="pf-pegs pf-pegs--'+side+'">'+ss.map(peg).join('')+'</div>':'';};
+  const u=figureBigURL(p);
+  const post=isSupport(p)?pfPost(p):'';
+  return '<div class="pf-stage'+(laidUp(p)?' is-hurt':'')+'">'+
+    '<svg class="pf-flag" viewBox="0 0 46 62" aria-hidden="true"><path d="M4 2v58" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M6 6h34l-8 11 8 11H6z" fill="currentColor"/></svg>'+
+    (u?'<img class="pf-doll" src="'+u+'" alt="'+esc(p.name)+' in their kit">':'')+
+    (slots.length?col(sides[0],'l')+col(sides[1],'r'):'')+
+    (post?'<span class="pf-stagebadge">'+IC('star')+esc(post)+'</span>':'')+
+    (laidUp(p)?'<div class="pf-ribbon">Injured</div>':'')+'</div>';
+}
+/* a Support rebel's post in their room: Department Head, else the Lead of their niche */
+function pfPost(p){
+  const key=SP.homeOf(p);
+  if(!key||p.assign!=='room:'+key||!crewIn(key).includes(p))return '';
+  if(headOf(key)===p)return 'Department Head';
+  return nicheOf(p)&&leadOf(p.niche)===p?'Niche Lead':'';
+}
+/* off duty, with the conditions behind it in the popover; permanent changes as buttons below */
+function pfMedical(p){
+  let h='';
+  if(laidUp(p)){
+    const d=outDays(p);
+    const conds=(p.cond||[]).map(c=>{
+      const D=Rebel.CONDK[c.k];if(!D)return '';
+      return '<b>'+esc(D.n)+'</b> · '+(c.k==='eye'&&c.age>=8?'getting worse':Math.max(1,Math.ceil(c.days))+' day'+(Math.ceil(c.days)>1?'s':'')+' to go')+'<br>'+esc(D.text);
+    }).filter(Boolean).join('<br><br>');
+    const warn=(p.cond||[]).length&&!hasRoom('infirmary')?'<br><br>No Infirmary: wounds mend very slowly, and an eye injury can become permanent.':'';
+    h+=pfTip('<div class="pf-medical" role="button" tabindex="0" data-pftip>'+IC('patch')+'<div><b>Injured</b><span>This character is off duty until they have recovered from their injuries.</span></div>'+
+      '<strong>'+d+'<small>day'+(d>1?'s':'')+' to go</small></strong></div>',pfPop('Injured','Medical',(conds||'Laid up.')+warn));
+  }
+  else for(const c of p.cond||[]){   // on their feet with something still mending
+    const D=Rebel.CONDK[c.k];if(!D)continue;
+    const left=c.k==='eye'&&c.age>=8?'Getting worse':Math.max(1,Math.ceil(c.days))+' day'+(Math.ceil(c.days)>1?'s':'')+' to go';
+    h+=pfTip(pfBtn({ico:'patch',c:BAD,name:esc(D.n),kind:left}),pfPop(esc(D.n),'Medical · '+left.toLowerCase(),esc(D.text)),true);
+  }
+  const b=p.body||{},perm=[];
+  for(const part of ['arm','leg','eye']){
+    if(b[part]===1){
+      const n=part==='eye'?'Blinded in one eye':'Lost '+(part==='arm'?'an arm':'a leg');
+      perm.push(pfTip(pfBtn({ico:'patch',c:BAD,name:n,kind:'Permanent'}),pfPop(n,'Permanent',(part==='eye'?'A significant accuracy penalty.':part==='arm'?'No two-handed weapons.':'Slowed and cannot sprint.')+' A Cyberneticist’s prosthetic would fix it.')));
+    } else if(b[part]===2){
+      const kind=(p.pros||{})[part]||'fitted',fx=(Rebel.PROS_FX[kind]||{})[part]||{};
+      const n=sentence(Rebel.PROS_NAME[kind])+' prosthetic '+part;
+      const what=fx.aim?(fx.aim>0?'+':'')+fx.aim+' aim.':fx.spd?(fx.spd>1?'A little faster on their feet.':'A little slower on their feet.'):'It works. Mostly.';
+      perm.push(pfTip(pfBtn({ico:'patch',c:GOOD,name:esc(n),kind:'Prosthetic'}),pfPop(esc(n),'Prosthetic · fitted',what)));
+    }
+  }
+  if(perm.length)h+='<div class="pf-btngrid">'+perm.join('')+'</div>';
+  return h;
+}
+function pfMorale(p){
+  if(p.auto||p.morale===undefined)return '';
+  const b=Rebel.mband(p),col=b.tone==='bad'?'var(--sr-c-bad)':b.tone==='good'?'var(--sr-go)':'var(--sr-gold)';
+  return '<div class="pf-morale" style="--c:'+col+'" title="Morale '+Math.round(p.morale)+' / 100"><span class="pf-morale__lbl">Morale</span>'+
+    '<div class="pf-bar" style="--v:'+Math.round(p.morale)+'"><i></i></div><span class="pf-morale__v">'+b.n+'</span></div>';
+}
+function pfCharacter(p){
+  const t=Rebel.CTK[p.charTrait];
+  if(!t)return '';
+  const g=t.g||[],b=t.b||[];
+  let h=pfTip(pfBtn({ico:'d20',name:esc(t.n),kind:'Character trait',dots:pfDots(g.map(()=>1).concat(b.map(()=>0)))}),
+    pfPop(esc(t.n),'Character trait'+(t.live?'':' · effect soon'),'<em>'+esc(Rebel.traitText(t,p))+'</em>',g.map(x=>pfFx(x,1)).join('')+b.map(x=>pfFx(x,0)).join('')));
+  if(p.role==='Hero')h+=pfTip(pfBtn({ico:'star',c:'var(--sr-gold)',name:'Hero of the Rebellion',kind:'Hero'}),
+    pfPop('Hero of the Rebellion','Hero','+'+Rebel.HERO_SKILL+' to every skill and +'+Rebel.HERO_HP+' health. <b>Rally cry</b> (ground): the squad steadies and takes +2 to hit for a round. <b>Heroic surge</b> (space): shields full, half the hull back, +4 to hit for a round. Each once per mission.'));
+  return pfH('d20','Character')+h;
+}
+function pfExperiences(p){
+  if(p.auto||p.charTrait===undefined)return '';
+  const l=p.traits||[];
+  const body=l.length?'<div class="pf-btngrid">'+l.map(t=>{
+    const d=Rebel.RTK[t.k];if(!d)return '';
+    const name=esc(Rebel.expTitle(t,nameOfRebel)),e=d.e.replace(/\{partner\}/g,t.with?nameOfRebel(t.with):'them');
+    return pfTip(pfBtn({ico:EXP_ICO[d.cat]||'star',c:d.bad?BAD:'var(--sr-psi)',name,kind:esc(d.cat)+(d.temp?' · for now':''),dots:pfDots([!d.bad])}),
+      pfPop(name,esc(d.cat)+(d.temp?' · temporary':''),'<em>'+esc(Rebel.expText(t,p,nameOfRebel))+'</em>',pfFx(e,!d.bad)));
+  }).join('')+'</div>':'<div class="pf-none">None yet. Missions write these.</div>';
+  return pfH('star','Experiences',l.length+' / '+Rebel.EXP_MAX)+body;
+}
+/* what each point of a skill actually does, from the numbers the scenes use: on foot Aim is soldierAim; in the
+   cockpit Aim and Focus are the database's skill-and-level bonus the space scene reads (DESIGN_BLOCKERS C-34) */
+function skillFx(p,k){
+  const sp=p.role==='Pilot';
+  if(k==='aim')return '+'+(sp?pilotAim(p):soldierAim(p))+' to hit'+(sp?' in space':'');
+  if(k==='con')return Rebel.hpOf(p)+' health';
+  if(k==='agi')return '+'+Math.round((Rebel.moveMul(p)-1)*100)+'% move speed';
+  if(k==='pre')return Rebel.coolOf(p,sp?'s':'g')+' Cool'+(sp?' in space':'');
+  if(k==='cun')return '+'+Math.round((Rebel.cunMul(p)-1)*100)+'% repairs & shields';
+  if(k==='foc')return '+'+SRDB.skillBonus(Rebel.dbSkill(p,'foc'),p.level)+' harder to hit';
+  return '';
+}
+function pfSkills(p){
+  const ks=Rebel.skillKeys(p);
+  if(!ks.length)return '';
+  return pfH('d20','Skills','max '+Rebel.SKILL_CAP)+'<div class="pf-skills">'+ks.map(k=>{
+    const v=Rebel.skill(p,k),S=Rebel.SKILLS[k];
+    return '<div class="pf-skill" data-skill="'+k+'" title="'+esc(S.d+' '+v+' of '+Rebel.SKILL_CAP+'.')+'"><div class="pf-skill__top">'+S.n+'<b>'+v+'</b></div>'+
+      '<div class="pf-bar" style="--v:'+Math.round(v/Rebel.SKILL_CAP*100)+'"><i></i></div><div class="pf-skill__fx">'+skillFx(p,k)+'</div></div>';
+  }).join('')+'</div>';
+}
+/* Support: their specialty and its Jobs and Rules, then the niche they actually have and its next fork */
+function pfUnit(u,got,p,ld){
+  const tag=TYPE_TAG[u.t][0];
+  const live=u.live?'':'<br><br>Not working yet: needs '+esc(SP.NEEDS[u.needs]||'a later build')+'.';
+  return pfTip(pfBtn({ico:UNIT_ICO[u.t]||'work',c:u.live?'var(--sr-psi)':'var(--sr-seam)',name:esc(u.n),kind:tag+(u.lv>1?' · level '+u.lv+(u.f||''):'')}),
+    pfPop(esc(u.n),tag+(u.lead?' · Lead only':''),esc(u.d)+live));
+}
+function pfSupport(p){
+  const S=SP.SPEC[p.sspec];
+  if(!S)return '';
+  const key=S.room,head=hasRoom(key)&&headOf(key)===p&&p.assign==='room:'+key;
+  const headBtn=(cls,ico,name,sub,post)=>'<div class="pf-spec__head'+cls+'" role="button" tabindex="0" data-pftip>'+IC(ico)+'<div style="min-width:0"><div class="pf-spec__name">'+name+'</div><div class="pf-spec__sub">'+sub+'</div></div>'+(post?wTag(post,'good'):'')+'</div>';
+  let h='<section class="pf-sec" data-sec="spec">'+pfH('support','Specialty')+'<div class="pf-btngrid">'+
+    pfTip(headBtn('',SPEC_ICO[p.sspec]||'support',esc(S.n),'Works in the '+esc(ROOMS[key].name)+(hasRoom(key)?'':' (not built yet)'),head?'Department Head':''),
+      pfPop(esc(S.n),'Specialty',esc(S.d)+(doingLine(p)?'<br><br>Now: '+esc(doingLine(p)):'')),true)+
+    SP.baseOf(p.sspec).map(u=>pfUnit(u,true,p)).join('')+'</div></section>';
+  const n=nicheOf(p);
+  h+='<section class="pf-sec" data-sec="niche">'+pfH('help','Niche');
+  if(!n){
+    h+='<div class="pf-none">No niche yet'+(p.nicheTrain?'. In the classroom: '+esc(SP.NICHE[p.nicheTrain.k].n)+', '+Math.max(1,Math.ceil(p.nicheTrain.days))+' day'+(Math.ceil(p.nicheTrain.days)>1?'s':'')+' to go.':'.')+'</div></section>';
+    return h;
+  }
+  const N=SP.NICHE[n],lead=leadOf(n)===p&&crewIn(key).includes(p);
+  const got=SP.unlocksOf(n).filter(u=>SP.reached(p,u));
+  const fork=[7,15].find(lv=>!(p.forks&&p.forks[lv])),due=SP.forkDue(p);
+  let forkTip='';
+  if(fork){
+    const opts=SP.unlocksOf(n).filter(u=>u.lv===fork&&u.f);
+    forkTip=pfTip(pfBtn({ico:'d20',c:due?'var(--sr-gold)':'var(--sr-seam)',name:'Level '+fork+': pick one',kind:opts.map(u=>esc(u.n)).join(' or '),dashed:true}),
+      pfPop('Level '+fork+': pick one',due?'Choose now · for good':'A fork at level '+fork,opts.map(u=>'<b>'+esc(u.n)+'</b> ('+TYPE_TAG[u.t][0]+'): '+esc(u.d)+(u.live?'':' <span class="sr-faint">Not working yet.</span>')+
+        (due===fork?'<br>'+rbtn('data-fork="'+p.id+':'+u.lv+':'+u.f+'"','Choose '+esc(u.n),false,'sr-btn--sm sr-btn--primary'):'')).join('<br><br>')),true);
+  }
+  h+='<div class="pf-btngrid">'+pfTip(headBtn(' pf-spec__head--niche','support',esc(N.n),esc(S.n)+' niche',lead?'Niche Lead':''),pfPop(esc(N.n),'Niche',esc(N.d)),true)+
+    got.map(u=>pfUnit(u,true,p)).join('')+forkTip+'</div></section>';
+  return h;
+}
+/* the side column */
+function pfCraft(p){
+  if(p.role!=='Pilot'&&p.role!=='Hero')return '';
+  const f=G.fighters.find(x=>x.id===p.ship);
+  if(!f)return '';
+  const r=SRDB.ship(f.cls)||{},mk=(SRDB.raw.manufacturers||[]).find(x=>x.id===r.manufacturer),n=Math.round(f.hull/20);
+  return pfH('ship','Assigned craft')+'<div class="pf-craft"><div class="pf-craft__top">'+shipArt(f.cls)+'<div style="min-width:0"><b>'+esc(f.name)+'</b><span>'+esc([r.role,mk&&mk.name].filter(Boolean).join(' · '))+(f.out?' · on a mission':'')+'</span></div></div>'+
+    '<span class="sr-hp'+(f.hull<35?' sr-hp--low':f.hull<60?' sr-hp--mid':'')+'"><span class="sr-hp__cells">'+[0,1,2,3,4].map(i=>'<i class="sr-hp__cell'+(i<n?' is-on':'')+'"></i>').join('')+'</span><span class="sr-hp__num">Hull '+Math.round(f.hull)+'%</span></span></div>';
+}
+function pfRecord(p){
+  if(p.auto)return '';
+  const medal=(c,ico,l,n)=>'<div class="pf-medal" style="--c:'+c+'"><span class="pf-medal__ico">'+IC(ico)+'</span><span class="pf-medal__lbl">'+l+'</span><b class="pf-medal__n">'+n+'</b></div>';
+  return pfH('star','Service record')+'<div class="pf-record">'+medal('var(--sr-gold)','missions','Missions served',p.missions||0)+medal('var(--sr-rebel)','attack','Confirmed kills',p.kills||0)+medal('var(--sr-hazard)','patch','Times injured',p.injuries||0)+'</div>';
+}
+function pfAssign(p){
+  const hurt=laidUp(p),away=p.assign==='mission',lock=hurt||away;
+  let b=rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'"','Rest',lock,'sr-btn--sm')+
+    rbtn('data-as="train:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',lock||!hasRoom('training'),'sr-btn--sm');
+  if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
+    const key=SP.homeOf(p),mine=!hurt&&p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
+    const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
+    b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,lock||!!why,'sr-btn--sm sr-btn--wide');
+  }
+  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':'');
+}
+function personHTML(p){
+  const mid=pfSec('medical',pfMedical(p))+pfMorale(p)+pfSec('character',pfCharacter(p))+pfSec('exp',pfExperiences(p))+
+    (isSupport(p)?pfSupport(p):pfSec('skills',p.auto?pfH('d20','Equipment')+'<div class="pf-none">Integral autocannon arm. The face-screen is permanently, cheerfully, on.</div>':pfSkills(p)));
+  const side=pfSec('craft',pfCraft(p))+pfSec('record',pfRecord(p))+pfSec('assign',pfAssign(p));
+  return '<div class="pf-body">'+pfPlate(p)+'<div class="pf-col pf-col--stage">'+pfStage(p)+'</div>'+
+    '<div class="pf-col pf-col--mid">'+mid+'</div><div class="pf-col pf-col--side">'+side+'</div></div>';
 }
 
 /* ---------- the mission report (docs/ui/SCREENS-HANDOFF.md §1) ---------- */
@@ -6652,6 +6863,11 @@ $('winsB').addEventListener('click',ev=>{
     if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
     const chip=ev.target.closest('[data-rid]');
     if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
+  }
+  if(winMode==='person'){   // the file's detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
+    const tip=ev.target.closest('[data-pftip]'),open=$('winCardB').querySelectorAll('.pf-tip.is-open');
+    if(tip){const w=tip.closest('.pf-tip'),was=w.classList.contains('is-open');open.forEach(x=>x.classList.remove('is-open'));if(!was)w.classList.add('is-open');return;}
+    if(!ev.target.closest('.pf-pop'))open.forEach(x=>x.classList.remove('is-open'));
   }
   const t=ev.target.closest('button,a,input');
   if(!t)return;

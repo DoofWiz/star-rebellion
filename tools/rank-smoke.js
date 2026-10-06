@@ -46,9 +46,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.fileShow=f.dossierHead(dax).indexOf('Private')>=0;
   // pressing the button
   f.openWin('person',dax);
-  // the rank sits with the bars as a row with insignia and a ready flag; the details are an overlay
+  // the rank is a button on the file's plate with insignia and a ready flag; the details are an overlay
   const row=document.querySelector('[data-rank-open="dax"]');
-  out.row=[!!row,!!(row&&row.querySelector('svg.bs-insig')),!!(row&&row.querySelector('.bs-rank__flag')),!!row&&row.textContent.indexOf('Private')>=0,!!document.querySelector('.bs-overlay'),!!document.querySelector('#winCardB [data-promote]')];
+  out.row=[!!row,!!(row&&row.querySelector('svg.bs-insig')),!!(row&&row.querySelector('.pf-rank__flag')),!!row&&row.textContent.indexOf('Private')>=0,!!document.querySelector('.bs-overlay'),!!document.querySelector('#winCardB [data-promote]')];
   row.click();
   out.overlay=[!!document.querySelector('.bs-overlay'),!!document.querySelector('.bs-overlay [data-promote="dax"]'),!!document.querySelector('.bs-overlay svg.bs-insig'),f.getRankOverlay()];
   document.querySelector('.bs-overlay [data-rank-close]').click();
@@ -90,7 +90,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(JSON.stringify(r.failNoCredit)==='[1,1]','a failure does not '+r.failNoCredit);
  ok(r.eligibleNow&&r.card.indexOf('data-promote="dax"')>=0,'promote button appears');
  ok(r.recruitHide&&r.fileShow,'recruit offer hides rank');
- ok(JSON.stringify(r.row)==='[true,true,true,true,false,false]','rank row beside the bars '+r.row);
+ ok(JSON.stringify(r.row)==='[true,true,true,true,false,false]','rank button on the plate '+r.row);
  ok(JSON.stringify(r.overlay)==='[true,true,true,"dax"]','overlay opens with the details '+r.overlay);
  ok(r.dismissed[0]===false&&r.dismissed[1]==='person','overlay dismisses, file stays '+r.dismissed);
  ok(r.escOverlay[0]===false&&r.escOverlay[1]==='person','Escape closes the overlay first '+r.escOverlay);

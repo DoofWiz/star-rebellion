@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the screens handoff, screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the screens handoff, screen 2 (the personnel file: C-34). Before that, 2026-10-06, after screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -40,6 +40,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-31 | ⚪ | Downed VIPs, the shooter's reveal, the transport's fire support and supply drop billing, reworded arrival lines | Rescue and Steal the Cross; fire support in every mission |
 | C-32 | 🟡 | Screens handoff: the open questions its §6 lists (cultivation scale, holo callouts, injured days, count-first labels, win objectives, Cass bubble, Market/Arsenal amendment) | The comm burst, the briefing room, the personnel file; the Market and Arsenal footers |
 | C-33 | ⚪ | Mission report: what I chose (Intel tile, extra source rows, a level-up bar, space objectives) | How the report reads |
+| C-34 | 🟡 | Personnel file: pilot Aim and Focus read the database bonus, not the handoff's formulas; trait chip wording; what I chose | What the skill tiles promise; how every file reads |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -256,13 +257,13 @@ Your answers on C-29 and C-30 are built (see the resolved log). Where I had to c
 **Your call:** _open_
 
 ### C-32 🟡 Screens handoff (`docs/ui/SCREENS-HANDOFF.md`): the open questions
-The handoff's §6 asks for these to be logged. Screen 1 (the mission report) is built; the others wait for your
-review of it, in the handoff's order: personnel file, comm burst, Missions tab.
+The handoff's §6 asks for these to be logged. Screens 1 (the mission report) and 2 (the personnel file) are built;
+the comm burst and the Missions tab follow, in the handoff's order.
 1. **Cultivation meter scale** (comm burst, screen 3): is it `cult / 100` toward the next level?
 2. **Holo callouts** (Missions tab, screen 4): a new optional `holo` field per mission. Please write the callout
    lines for each mission; until then the first two objectives stand in as Target and Extract.
-3. **Injured days counter** (personnel file, screen 2): kept on the Medical card, though the mission report
-   dropped it. Keep it there?
+3. **Injured days counter** (personnel file, built): kept on the Injured card ("20 days to go"), though the mission
+   report dropped it. Keep it there?
 4. **Requirement labels** (Missions tab): count-first everywhere ("1 Transport", "3 Soldiers"). You accepted it for
    the transport; confirm the others.
 5. **Win objectives** (mission report, built): collapsed to the "All N objectives" pill, as you reviewed. I can
@@ -290,6 +291,33 @@ Built from the handoff's §1 (`reportHTML` in `game/js/base.js`, `game/ui/sr-rep
 6. **Hacked units** (a Policebot that joins the roster) show as a Bot tile with an icon; there is no art for them
    outside combat.
 **Needs from you:** anything above you would like different.
+**Your call:** _open_
+
+### C-34 🟡 Personnel file: what I chose
+Built from the handoff's §2 (`personHTML` in `game/js/base.js`, `game/ui/sr-personnel.css`; the build's own glue is
+at the Personnel File block in `game/ui/scenes.css`).
+1. **Skill effects for pilots (a conflict).** The handoff says Aim reads `aimOf(p,'s')` and Focus `focusTN`, but the
+   space scene flies with the database's skill-and-level bonus (`pilotAim`, `SRDB.skillBonus`), and `focusTN` is
+   read nowhere. They differ: a level 4 pilot is "+6 to hit" by `aimOf` and +4 in the cockpit. The tiles show what
+   the game does. On foot Aim is `soldierAim` (the Vanguard bonus included). Constitution, Agility, Presence and
+   Cunning use the handoff's formulas, which are the ones the scenes read.
+2. **Good and bad effect chips** for every Character Trait are my wording, split from the effect line (`g` and `b`
+   in `CT`, `game/js/rebel.js`). Experiences get one chip, marked bad for the ones that mostly cost the rebel
+   (`BAD` in `game/js/rebel-exp.js`); mixed ones (Hardened, Desensitised, In Love…) count as good.
+3. **The popover is 250px wide**, not 300: at 300 it runs off the window's right edge. To fit 1100px beside the rail
+   at 1440×900 the window's surround is trimmed to 12px, and the column and skill-tile gaps are a little tighter.
+4. **Medical:** the Injured card's popover lists each condition and its days; a rebel on their feet with something
+   still mending gets a button per condition; lost limbs and fitted prosthetics are buttons too.
+5. **The figure** is the front view only. The old doll drew the back view beside it when a Back item was carried;
+   the Back peg shows that item now.
+6. **The rank button** adds a "▲ Promotion ready" or "★ Can be commissioned" line when it applies.
+7. **Heroes** get a "Hero of the Rebellion" button under Character (Rally cry, Heroic surge). Weary and Mercenary
+   show in the role line beside Rookie or the specialty.
+8. **The next fork's** popover holds the Choose buttons once it is due. The classroom is no longer on the file, so
+   the "ready for the classroom" news now says to train them in the Training Hall.
+9. **Icons** I picked: a d20 for Character, one per experience category, one per specialty, and Job/Rule icons.
+**Needs from you:** whether (1) should change the space numbers or the tiles; anything else you would like
+different, especially the chip wording in (2).
 **Your call:** _open_
 
 ---

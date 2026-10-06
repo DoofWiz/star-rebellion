@@ -133,11 +133,26 @@
 #sc-base .bs-escn{font:400 72px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 4px 0 var(--sr-ink),0 0 24px rgba(255,90,31,.9);animation:bs-escPop 1s var(--sr-ease-pop) both;}
 @keyframes bs-escRing{0%{transform:scale(.35);opacity:.9;}100%{transform:scale(1.5);opacity:0;}}
 @keyframes bs-escPop{0%{transform:scale(.2);opacity:0;}100%{transform:scale(1);opacity:1;}}
+/* the Personnel File (ui/sr-personnel.css): the window wants the whole stage, and its detail buttons act as buttons */
+#sc-base .sr-scrim.bs-winwide{padding:12px 10px;}
+#sc-base .bs-winwide>.pf-win.sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 24px);}
+#sc-base .pf-pop{width:250px;}   /* the handoff's 300px would run off the window's right edge */
+#sc-base .pf-medical,#sc-base .pf-spec__head{cursor:pointer;}
+#sc-base .pf-medical:hover,#sc-base .pf-spec__head:hover,#sc-base .pf-tip.is-open>.pf-medical,#sc-base .pf-tip.is-open>.pf-spec__head{border-color:var(--sr-gold);}
+#sc-base .pf-rank.is-ready{border-color:var(--sr-gold);box-shadow:0 0 12px rgba(255,212,90,.35);}
+#sc-base .pf-rank__flag{font:800 9px/1 var(--sr-font-ui);font-style:normal;letter-spacing:.05em;text-transform:uppercase;color:var(--sr-gold);white-space:nowrap;}
+#sc-base .pf-peg:disabled{cursor:default;opacity:.7;}
+#sc-base .pf-pop .sr-btn{margin-top:6px;}
+#sc-base .pf-sec{display:flex;flex-direction:column;gap:8px;} #sc-base .pf-col{gap:12px;}
+#sc-base .pf-body{min-height:0;overflow-y:auto;}   /* fits at 900px tall; only a shorter screen scrolls */
+#sc-base .pf-skill{padding:7px 10px 8px;} #sc-base .pf-skill .pf-bar{margin-top:5px;} #sc-base .pf-skill__fx{margin-top:5px;}
+#sc-base .pf-stage.is-hurt .pf-pegs--l{top:96px;}   /* clear of the Injured ribbon */
 /* phones: windows scroll as a whole; the room window and its neighbours get out of each other's way */
 @container sr-app (max-width:900px) or (max-height:520px){
   #sc-base .sr-scrim{padding:30px 8px 8px;}
   #sc-base .sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 38px);}   /* the foot stays on screen; the body scrolls */
   #sc-base .sr-scrim.bs-winfull{padding:0;} #sc-base .bs-winfull>.sr-window{max-height:none;}   /* the report and the personnel file take the whole screen */
+  #sc-base .pf-pop{width:auto;}   /* popovers drop below their button, full width */
   #sc-base .sr-slot-tl{left:8px;--bs-top:calc(var(--sr-gutter) + 22px + 62px);}
   #sc-base .bs-dock{width:min(380px,calc(100cqw - 16px));max-height:calc(100cqh - var(--sr-topbar-h) - var(--bs-top) - 84px);}   /* portrait: Advance day sits full-width below */
   #sc-base .bs-plan{grid-template-columns:minmax(0,1fr);grid-template-areas:"l" "r" "ro";grid-template-rows:auto;gap:0;}

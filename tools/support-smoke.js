@@ -141,8 +141,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.fx=[fx.cool,fx.brief,fx.free,fx.scan,!!m.ctl,fx.prehack,!!fx.minimap];
   // ---- screens: the file, the room panel, the job window, the training window
   try{
-    f.openWin('person',d1);out.file=/Physio unlocks/.test(document.getElementById('winCardB').innerText)&&/Department Head/.test(document.getElementById('winCardB').innerText);
-    f.openWin('person',mk('Medic.',{level:3}));out.fileNiche=/Ready for the classroom/.test(document.getElementById('winCardB').innerText);
+    f.openWin('person',d1);out.file=(document.querySelector('#winCardB .pf-spec__head--niche .pf-spec__name')||{}).textContent==='Physio'&&/Department Head/.test(document.getElementById('winCardB').innerText);
+    f.openWin('person',mk('Medic.',{level:3}));out.fileNiche=/No niche yet/.test(document.getElementById('winCardB').innerText)&&!/classroom/i.test(document.getElementById('winCardB').innerText);   // the classroom lives in the Training Hall
     f.openWin('sjob',{pid:cy.id,k:'cyberneticist.prosthetics'});out.jobWin=/Prosthetics/.test(document.getElementById('winCardB').innerText);
     f.openWin('spec');out.classroom=/Classroom/.test(document.getElementById('winCardB').innerText);
     f.closeWin();

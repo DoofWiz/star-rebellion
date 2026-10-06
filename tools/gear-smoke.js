@@ -46,7 +46,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // manual change through the dossier: tap a slot, pick an item held by someone else
   const kel=P('kel');G().armory.find(a=>a.id==='akli').n=G().people.filter(p=>p.gear&&p.gear.primary==='akli').length;  // no spare rifles
   f.openWin('person',kel);
-  out.rows=$$('#winCardB .bs-gearslot').length;
+  out.rows=$$('#winCardB .pf-peg').length;
   $('[data-gear-slot="kel:primary:0"]').click();
   out.picker=[!!$('.bs-overlay'),$$('.bs-gearpick').length,f.getGearOverlay()&&f.getGearOverlay().k];
   window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
@@ -86,10 +86,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // the Arsenal grid shows what is carried (the Gear Grid window became the Arsenal tab)
   f.openArsenal();out.grid=!!$('#arView .ar-tile__c');f.closeArsenal();
   // away on a mission: slots locked
-  dax.assign='mission';f.openWin('person',dax);out.locked=$$('#winCardB .bs-gearslot:disabled').length;
+  dax.assign='mission';f.openWin('person',dax);out.locked=$$('#winCardB .pf-peg:disabled').length;
   dax.assign='rest';
   // support dossier has no gear
-  G().people.push(sup);f.openWin('person',sup);out.supportGear=$$('#winCardB .bs-gearslot').length;
+  G().people.push(sup);f.openWin('person',sup);out.supportGear=$$('#winCardB .pf-peg').length;
   return out;
  });
  ok(r.start.every((g,i)=>i<3?g==='{"primary":"akli","secondary":"cowboy","head":null,"body":null,"back":null,"gad":[null,"medpack"]}':g==='{"primary":null,"secondary":"cowboy","head":null,"body":null,"back":null,"gad":[null,null]}'),'opening gear: the soldiers carry a Med Pack in the utility slot, the pilot does not '+r.start);

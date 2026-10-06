@@ -184,8 +184,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const dax=G.people.find(p=>p.id==='dax');
   f.openWin('person',dax);
   const h=document.getElementById('winCardB').innerHTML;
-  out.file=[h.indexOf('>Experience<')<0,h.indexOf('bs-bio')<0,h.indexOf('with us since')<0,h.indexOf('bs-doll')>=0];
-  out.none=/<p class="sr-p sr-faint">None<\/p>/.test(h);
+  out.file=[h.indexOf('>Experience<')<0,h.indexOf('bs-bio')<0,h.indexOf('with us since')<0,h.indexOf('pf-doll')>=0];
+  out.none=/None yet\. Missions write these\./.test(h);
   f.closeWin();
   const rec=R.migrate({id:'rcx',name:'Rec Ruit',role:'Soldier',level:1,xp:0,assign:'rest',bio:'x'});
   f.openWin('recruit',{cards:[{p:rec}]});out.terms=document.getElementById('winCardB').innerHTML.indexOf('>Terms<')<0;f.closeWin();
