@@ -8,6 +8,7 @@
 window.SR=(function(){
   /* ---------- audio: one engine for every scene ---------- */
   let AC=null,master=null,noiseBuf=null,muted=false;
+  const soundSubs=[];   // every scene's sound button, kept true together (the settings.bind pattern)
   function ensure(){
     if(!AC){
       AC=new (window.AudioContext||window.webkitAudioContext)();
@@ -33,7 +34,24 @@ window.SR=(function(){
   const audio={
     off(){return muted||!AC;},
     muted(){return muted;},
-    setMuted(m){muted=!!m;if(!muted)audio.wake();},
+    setMuted(m){muted=!!m;settings.set('sound',!muted);if(!muted)audio.wake();for(const f of soundSubs)f();},
+    toggle(){audio.setMuted(!muted);},
+    /* one wiring for every scene's sound controls: the top-bar button (its id differs by scene)
+       and the menu's Sound row. Clicks toggle; every bound root stays true when any of them does. */
+    bindSound(root,btnId){
+      const ids=[btnId,'menuSound'];
+      const sync=()=>{
+        const off=muted,lab=off?'Sound off':'Sound on';
+        for(const id of ids){
+          const b=root.querySelector('#'+id);if(!b)continue;
+          b.setAttribute('aria-label',lab);b.title=lab;
+          for(const u of b.querySelectorAll('use'))u.setAttribute('href','#i-sound'+(off?'off':'on'));
+          const sp=b.querySelector('span:not(.sr-kbd)');if(sp)sp.textContent='Sound: '+(off?'off':'on');
+        }
+      };
+      for(const id of ids){const b=root.querySelector('#'+id);if(b)b.addEventListener('click',audio.toggle);}
+      soundSubs.push(sync);sync();
+    },
     wake(){ensure();if(AC&&AC.state==='suspended')AC.resume();},
     osc(type,f0,f1,v,t,at){
       if(muted||!AC)return;
@@ -75,7 +93,8 @@ window.SR=(function(){
   /* ---------- player settings: screen shake and blood (art handoff: Juice) ----------
      Remembered in this browser. Reduced motion turns shake, hitstop and transitions off whatever the setting says. */
   const PREF_KEY='star-rebellion-prefs';
-  const prefs=Object.assign({shake:true,gore:true},(()=>{try{return JSON.parse(localStorage.getItem(PREF_KEY))||{};}catch(e){return {};}})());
+  const prefs=Object.assign({shake:true,gore:true,sound:true},(()=>{try{return JSON.parse(localStorage.getItem(PREF_KEY))||{};}catch(e){return {};}})());
+  muted=prefs.sound===false;   // sound off stays off across reloads, like the other prefs (nothing wakes the engine here)
   const prefSubs=[];
   const reducedMotion=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   function applyPrefs(){if(window.SR_ART&&window.SR_ART.setGore)window.SR_ART.setGore(prefs.gore);}

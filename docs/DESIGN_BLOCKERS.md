@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -44,6 +44,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-35 | 🟡 | Personnel file: pilot Aim and Focus read the database bonus, not the handoff's formulas; trait chip wording; what I chose | What the skill tiles promise; how every file reads |
 | C-36 | ⚪ | Comm burst: what follows Acknowledge, source events, the level-up meter | How talking to a source reads |
 | C-37 | 🟡 | Missions tab: decorative space targets, which missions the board lists, fitting the rail, the phone layout | The briefing room |
+| C-38 | ⚪ | Audio pass: the sound setting persists, and the base's one alert became three sounds (good / bad / ping) — my mapping of events to each | How the base sounds |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -401,6 +402,21 @@ in `game/ui/scenes.css`). The popup is gone: everything that opened it opens the
 12. The handoff's comms line ("Cass Wender marked Steal the Cross as urgent…", §5 placeholder) is not built; the
     feed shows the real news.
 **Needs from you:** (1), and anything else you would like different.
+**Your call:** _open_
+
+### C-38 ⚪ Audio pass: what I chose
+Bringing the audio up to the rest of the game's standard (`SR.audio` in `game/js/core.js`, the base palette in
+`game/js/base.js`).
+1. **Sound on/off now persists** with the other player settings (screen shake, blood) and one press anywhere
+   flips every scene's button. It used to reset to "on" on every reload.
+2. **The base scene played one alert for everything.** It now has three, keyed to the news feed's own kinds:
+   a *rising chime* for good news ('p'/'g': level-ups, promotions and commissions, recruits arriving, a new hero,
+   a merc's contract, a Support fork, a new source), a *falling tone* for bad news ('h': a burned or assassinated
+   source, a walkout, a failed auto or field op, the Hegemony's escalation), and the old *ping* for news that
+   waits (new missions and leads, sources calling in). Tell me if any event should move buckets.
+3. **The base's sounds gained a layer each** (a wrench on the build chime, a carrier crackle on the comm, an
+   engine growl under the launch) to match the combat scenes' layered engines. Nothing changed in ground or space.
+**Needs from you:** nothing — overrule any bucket in (2) you hear differently.
 **Your call:** _open_
 
 ---

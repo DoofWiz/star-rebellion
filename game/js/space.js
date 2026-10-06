@@ -2600,13 +2600,6 @@ $('followBtn').addEventListener('click',ev=>{
   follow=!follow;
   ev.currentTarget.setAttribute('aria-pressed',String(follow));
 });
-function syncSound(){
-  const m=A.muted();
-  $('muteBtn').setAttribute('aria-label',m?'Sound off':'Sound on');
-  for(const u of ROOT.querySelectorAll('#muteBtn use,#menuSound use'))u.setAttribute('href','#i-'+(m?'soundoff':'soundon'));
-}
-function toggleSound(){A.setMuted(!A.muted());syncSound();}
-$('muteBtn').addEventListener('click',toggleSound);
 $('logBtn').addEventListener('click',openLog);
 function restart(){closeInfo();byId('endscreen').hidden=true;lastPhase=null;deploy(true);}
 /* menu: sound, reports, controls, restart (asks first), debug */
@@ -2621,6 +2614,7 @@ menuEl.innerHTML=HUD.menuHtml([
   {id:'dbgSkip',icon:'debug',label:'Debug: skip mission',kind:'debug'}]);
 HUD.menuBind(menuEl,$('menuBtn'));
 SR.settings.bind(menuEl);
+A.bindSound(ROOT,'muteBtn');   // the top-bar button and the menu's Sound row (shared wiring, persisted)
 const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
   '<div class="sr-stack">'+[
     ['Click a fighter','Select it'],
@@ -2633,7 +2627,6 @@ const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
     ['M','Toggle sound'],
     ['Drag, wheel, pinch','Pan and zoom'],
     ['W A S D, + −','Pan and zoom from the keyboard']].map(r=>'<div class="sr-mod"><span>'+r[1]+'</span><b><span class="sr-kbd">'+r[0]+'</span></b></div>').join('')+'</div>'});
-$('menuSound').addEventListener('click',toggleSound);
 $('menuLog').addEventListener('click',openLog);
 $('menuControls').addEventListener('click',()=>ctlWin.open());
 $('restartBtn').addEventListener('click',()=>{
@@ -2680,7 +2673,7 @@ addEventListener('keydown',ev=>{
   }
   const k=key.toLowerCase();
   if(k==='x'){const b=DOCK.querySelector('[data-ract="back"]:not(:disabled)');if(b)b.click();return;}
-  if(k==='m'){toggleSound();return;}
+  if(k==='m'){A.toggle();return;}
   if(key==='Enter'&&!onBtn){
     const b=DOCK.querySelector('#attackBtn:not(:disabled),#executeBtn:not(:disabled)');
     if(b)b.click();
@@ -2745,7 +2738,7 @@ function enter(params){
   bn.querySelector('.big').textContent=SCENS[SCEN].banner[0];
   bn.querySelector('.small').textContent=SCENS[SCEN].banner[1];
   fitCanvas();
-  syncSound();drawerOpen(false);menuEl.hidden=true;lastPhase=null;
+  drawerOpen(false);menuEl.hidden=true;lastPhase=null;
   pendingResult=null;
   byId('endscreen').hidden=true;
   closeInfo();

@@ -6142,13 +6142,6 @@ $('followBtn').addEventListener('click',ev=>{
   follow=!follow;
   ev.currentTarget.setAttribute('aria-pressed',follow);
 });
-function syncSound(){
-  const m=A.muted();
-  $('muteBtn').setAttribute('aria-label',m?'Sound off':'Sound on');
-  for(const u of ROOT.querySelectorAll('#muteBtn use,#menuSound use'))u.setAttribute('href','#i-'+(m?'soundoff':'soundon'));
-}
-function toggleSound(){A.setMuted(!A.muted());syncSound();}
-$('muteBtn').addEventListener('click',toggleSound);
 $('logBtn').addEventListener('click',openLog);
 /* menu: sound, reports, controls, restart (asks first), debug */
 const menuEl=$('gMenu');
@@ -6162,6 +6155,7 @@ menuEl.innerHTML=HUD.menuHtml([
   {id:'dbgSkip',icon:'debug',label:'Debug: skip mission',kind:'debug'}]);
 HUD.menuBind(menuEl,$('menuBtn'));
 SR.settings.bind(menuEl);
+A.bindSound(ROOT,'muteBtn');   // the top-bar button and the menu's Sound row (shared wiring, persisted)
 const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
   '<div class="sr-stack">'+[
     [SR.touch?'Tap the ground':'Right-click the ground','Send the squad (free move)'],
@@ -6173,7 +6167,6 @@ const ctlWin=HUD.win(ROOT,{id:'ctlWin',title:'Controls',size:'sm',body:
     ['C','Toggle sneak'],
     ['M','Toggle sound'],
     ['Drag, wheel, pinch','Pan and zoom']].map(r=>'<div class="sr-mod"><span>'+r[1]+'</span><b><span class="sr-kbd">'+r[0]+'</span></b></div>').join('')+'</div>'});
-$('menuSound').addEventListener('click',toggleSound);
 $('menuLog').addEventListener('click',openLog);
 $('menuControls').addEventListener('click',()=>ctlWin.open());
 $('restartBtn').addEventListener('click',()=>{
@@ -6261,7 +6254,7 @@ addEventListener('keydown',ev=>{
     return;
   }
   if(k==='x'||k==='X'){const b=DOCK.querySelector('[data-ract="cancel"]:not(:disabled)');if(b)b.click();return;}
-  if(k==='m'||k==='M'){toggleSound();return;}
+  if(k==='m'||k==='M'){A.toggle();return;}
   if(k==='f'||k==='F'){   // cycle the fire mode in the attack window
     const c=engageQ&&engageQ.cur;
     if(c&&c.stage==='await'&&c.s.side==='reb'){const ms=modesOf(c.wkey);if(ms.length>1){ev.preventDefault();pickFireMode(ms[(ms.indexOf(modeOf(c.s,c.wkey))+1)%ms.length]);}}
@@ -6475,7 +6468,7 @@ function enter(params){
     navInit();
     COVER_PTS.length=0;COVER_PTS.push(...coverPoints());
   }
-  syncSound();drawerOpen(false);menuEl.hidden=true;lastPhase=null;
+  drawerOpen(false);menuEl.hidden=true;lastPhase=null;
   initState();
   pendingResult=null;
   byId('app').classList.remove('cine');

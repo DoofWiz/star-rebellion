@@ -303,8 +303,10 @@ patrol, lines). Base and ground read the same row, so owned and enemy Striders c
 > and `core.js` uses the kit's icon and initials helpers. Staying put on purpose: `log`, `say`, `nameSpan` and
 > `addFloater` read each scene's own state (its feed, its units, its floaters), so they are scene code, not copies;
 > the art kit keeps its own `mkRng`/`hashStr`/`pick` because its style guide loads `sr-art.js` without `core.js`.
-> `tools/sweep-smoke.js` pins the helpers. Still to do: the remaining inline styles (mostly data-driven widths and
-> grid positions, which belong inline).
+> `tools/sweep-smoke.js` pins the helpers. The audio pass (C-38) finished the sound toggle: the three copies of
+> `syncSound`/`toggleSound` are one `SR.audio.bindSound(root, btnId)` wiring in `core.js`, and the sound setting
+> persists with the other player prefs; `tools/audio-smoke.js` pins it. Still to do: the remaining inline styles
+> (mostly data-driven widths and grid positions, which belong inline).
 
 - **Copied between scenes:** `rint`, `dist`, `addFloater`, `log`, `nameSpan`, `say`, `sTick` (identical), `sDice`,
   `osc`/`nz`/`byId`/`$`, the reduced-motion check (five copies), three RNGs (`mulberry32`, `sr-art`'s `mkRng`, the

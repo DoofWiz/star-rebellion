@@ -769,7 +769,7 @@ function creditMission(p){
 }
 function gainXp(p,x){
   const n=Rebel.gainXp(p,x);
-  for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'!','p');sAlert();}
+  for(let i=p.level-n+1;i<=p.level;i++){news('<b>'+p.name+'</b> reached level '+i+'!','p');sGood();}
 }
 
 /* ---------- source events (some open missions) ---------- */
@@ -1576,7 +1576,7 @@ function recruitTick(){
     G.recWait.push(p);
   }
   news('<b>'+G.recWait.length+' '+(G.recWait.length>1?'people have':'person has')+'</b> answered the call. They are waiting at the Command Center.','p');
-  sAlert();
+  sGood();
   RQ.push({t:'recruits'});
 }
 /* the Command Center card: start the task, watch it run, or review who turned up */
@@ -1789,7 +1789,7 @@ function advanceDay(){
       G.risk=Math.min(100,G.risk+15);
       moraleAll(-6,'loss');
       news('<b>'+src.name+'</b> has been BURNED. Counter-intelligence took them at '+src.loc+'. Assume they talk.','h');
-      sAlert();
+      sWarn();
     } else if(src.risk>70){
       news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Decide something before the Hegemony does.','h');
     }
@@ -1868,7 +1868,7 @@ function missionAftermath(mid){
     G.onboard='friend';
     storySignal(venn);
     news('Word crosses the drift ahead of us: <b>Maro Venn</b>, keeper of the Dry Comet cantina in Dustfall, is asking after the crew that humbled Reeve. A new source — and he’s already signalling.','g');
-    sAlert();
+    sGood();
   }
   if(mid==='depotrun'&&!G.postDepot){
     G.postDepot=true;
@@ -1929,7 +1929,7 @@ function moraleTick(){
       G.people=G.people.filter(x=>x!==p);
       news('<b>'+p.name+'</b> has had enough and walks out of the revolution. Their bunk is empty by morning.','h');
       for(const q of crewOf()){Rebel.moraleBump(q,-3,'loss');Rebel.bereave(q,p.id,'left');}
-      sAlert();continue;
+      sWarn();continue;
     }
     if(p.assign==='mission')continue;   // away: nothing changes until they are back
     if(p.morale<=20&&!p.mwarn){p.mwarn=1;news('<b>'+p.name+'</b>\u2019s morale has collapsed. Rest, wins or a lift from the others, or they will leave.','h');}
@@ -2291,7 +2291,7 @@ function supportTick(){
   }
   for(const p of G.people.filter(isSupport)){
     const fd=SP.forkDue(p);
-    if(fd&&p.forkNoted!==fd){p.forkNoted=fd;news('<b>'+p.name+'</b> has a choice to make as a '+SP.NICHE[p.niche].n+' (level '+fd+'). Open their file.','p');sAlert();}
+    if(fd&&p.forkNoted!==fd){p.forkNoted=fd;news('<b>'+p.name+'</b> has a choice to make as a '+SP.NICHE[p.niche].n+' (level '+fd+'). Open their file.','p');sGood();}
     if(p.level>=3&&!p.niche&&!p.nicheTrain&&!p.nicheNoted&&hasRoom('training')){p.nicheNoted=1;news('<b>'+p.name+'</b> is ready for the classroom: a '+SP.SPEC[p.sspec].n+' niche at level 3. Train them in the Training Hall.','p');}
   }
   // Inside Line (Smuggler): every 3 days two lots change, besides the weekly restock
@@ -2352,12 +2352,12 @@ function nextReport(){
   }
   else if(n.t==='hero'){
     if(!G.people.some(p=>p.id===n.id))return nextReport();
-    sAlert();openWin('newhero',n.id);
+    sGood();openWin('newhero',n.id);
   }
   else if(n.t==='contract'){
     const p=G.people.find(x=>x.id===n.id);
     if(!p||!p.merc||G.day<p.merc.until)return nextReport();
-    sAlert();openWin('contract',n.id);
+    sGood();openWin('contract',n.id);
   }
   else if(n.t==='recruits'){
     if(!G.recWait.length)return nextReport();
@@ -2429,7 +2429,7 @@ function resolveMission(m){
     m.state='avail';m.progress=null;
     queueReport(buildReport(m,false,newGot(),pilots.map(p=>Object.assign(xpInfo(p,0),{xp:0,state:p===hurt?'injured':'ok'})),null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
-    sAlert();
+    sWarn();
   }
   m.progress=null;
 }
@@ -2509,7 +2509,7 @@ function srcSilence(src){
   src.alive=false;
   moraleAll(-10,'loss');
   news('The assassin reports in: <b>'+src.name+'</b> won’t be talking to anyone. The crew heard anyway.','h');
-  sAlert();
+  sWarn();
   if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
   closeWin();showView('galaxy');
   syncUI();
@@ -2734,7 +2734,7 @@ function checkEscalation(){
 function openEscalation(){
   if(!G.escPending)return false;
   G.escPending=false;G.revLevel=2;
-  openWin('escalate');sAlert();
+  openWin('escalate');sWarn();
   return true;
 }
 /* a local op waits on the board for every region that can still move */
@@ -2792,13 +2792,53 @@ function missionCredit(m){
   info.gain=Math.round(gain*10)/10;
   return info;
 }
-/* ---------- audio ---------- */
-function sDay(){osc('sine',90,45,0.28,0.5);nz('bandpass',400,2,0.1,0.5,0,1200);}
-function sBuild(){osc('triangle',220,110,0.16,0.3);osc('triangle',330,165,0.1,0.34,0.05);}
-function sAlert(){osc('square',880,880,0.06,0.08);osc('square',660,660,0.06,0.1,0.1);}
-function sLaunch(){nz('bandpass',200,2,0.14,0.7,0,1800);osc('sine',60,140,0.14,0.6);}
-function sClick(){osc('square',1400,1200,0.02,0.04);}
-function sComm(){nz('bandpass',1800,1.4,0.05,0.5);osc('sine',1100,900,0.02,0.15,0.1);}
+/* ---------- audio ----------
+   Layered like the combat scenes' engines, and split the way the news feed already is:
+   sAlert pings for news that waits ('a'), sGood rises for good news ('p'/'g'), sWarn falls for bad ('h'). */
+function sDay(){
+  if(A.off())return;
+  osc('sine',90,45,0.28,0.5);
+  nz('bandpass',400,2,0.1,0.5,0,1200);
+  osc('triangle',180,90,0.05,0.4,0.04);   // a low horn under the day turning over
+}
+function sBuild(){
+  if(A.off())return;
+  osc('triangle',220,110,0.16,0.3);
+  osc('triangle',330,165,0.1,0.34,0.05);
+  nz('bandpass',1100,2.5,0.05,0.1,0.02);   // the wrench on the frame
+}
+function sAlert(){
+  if(A.off())return;
+  osc('square',880,880,0.06,0.08);
+  osc('square',660,660,0.06,0.1,0.1);
+  nz('bandpass',1800,3,0.03,0.14);
+}
+function sGood(){
+  if(A.off())return;
+  osc('triangle',523,523,0.08,0.09);
+  osc('triangle',659,659,0.08,0.09,0.09);
+  osc('triangle',880,880,0.1,0.18,0.18);
+  nz('highpass',3800,1,0.03,0.08,0.18);   // a glint on the last note
+}
+function sWarn(){
+  if(A.off())return;
+  osc('sawtooth',320,190,0.1,0.32);
+  osc('square',160,95,0.07,0.36,0.02);
+  nz('lowpass',600,1,0.08,0.32,0.04);
+}
+function sLaunch(){
+  if(A.off())return;
+  nz('bandpass',200,2,0.14,0.7,0,1800);
+  osc('sine',60,140,0.14,0.6);
+  osc('sawtooth',48,110,0.05,0.65);   // engine growl under the wash
+}
+function sClick(){if(A.off())return;osc('square',1400,1200,0.02,0.04);}
+function sComm(){
+  if(A.off())return;
+  nz('bandpass',1800,1.4,0.05,0.5);
+  osc('sine',1100,900,0.02,0.15,0.1);
+  nz('highpass',4200,2,0.02,0.06,0.32);   // the carrier crackle at the end
+}
 
 /* ---------- canvas & iso ---------- */
 const cv=$('cv'),ctx=cv.getContext('2d');
@@ -7425,13 +7465,13 @@ $('winsB').addEventListener('click',ev=>{
   const promoId=t.getAttribute('data-promote');
   if(promoId){
     const p=G.people.find(x=>x.id===promoId),was=p&&rankFor(p),now=p&&Rebel.promote(p);
-    if(now){Rebel.moraleBump(p,5,'promo');mood();news('<b>'+p.name+'</b> promoted from '+was+' to <b>'+now+'</b>.','g');sAlert();sBuild();saveSnap();syncUI();renderWin();}
+    if(now){Rebel.moraleBump(p,5,'promo');mood();news('<b>'+p.name+'</b> promoted from '+was+' to <b>'+now+'</b>.','g');sGood();sBuild();saveSnap();syncUI();renderWin();}
     return;
   }
   const comId=t.getAttribute('data-commission');
   if(comId){
     const p=G.people.find(x=>x.id===comId),was=p&&rankFor(p),now=p&&Rebel.commission(p);
-    if(now){Rebel.moraleBump(p,8,'promo');mood();news('<b>'+p.name+'</b> is commissioned: '+was+' to <b>'+now+'</b>.','g');sAlert();sBuild();saveSnap();syncUI();renderWin();}
+    if(now){Rebel.moraleBump(p,8,'promo');mood();news('<b>'+p.name+'</b> is commissioned: '+was+' to <b>'+now+'</b>.','g');sGood();sBuild();saveSnap();syncUI();renderWin();}
     return;
   }
   const specBtn=t.getAttribute('data-spec');
@@ -7513,17 +7553,7 @@ SR.settings.bind(menu);   // screen shake and blood (art handoff: Juice)
 $('menuBtn').addEventListener('click',sClick);
 function closeMenu(){menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');}
 $('menuNews').addEventListener('click',()=>{sClick();openWin('news');});
-function syncSound(){
-  const off=A.muted();
-  $('soundBtn').setAttribute('aria-label',off?'Sound off':'Sound on');
-  $('soundBtn').title=off?'Sound off':'Sound on';
-  $('soundBtn').querySelector('use').setAttribute('href','#i-sound'+(off?'off':'on'));
-  $('menuSound').querySelector('use').setAttribute('href','#i-sound'+(off?'off':'on'));
-  $('menuSound').querySelector('span').textContent='Sound: '+(off?'off':'on');
-}
-function toggleSound(){A.setMuted(!A.muted());syncSound();}
-$('soundBtn').addEventListener('click',toggleSound);
-$('menuSound').addEventListener('click',toggleSound);
+A.bindSound(ROOT,'soundBtn');   // the top-bar button and the menu's Sound row (shared wiring, persisted)
 addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
   if(ev.key==='Escape'){
@@ -8209,7 +8239,7 @@ function applyDebrief(r){
       const rpt=buildReport(m,false,got,pinfo,null,true);rpt.objs=r.objs;
       queueReport(rpt);
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
-      sAlert();
+      sWarn();
     }
   }
   heroCheck(r,m,runExperiences(r,m,{lostP,nearIds}));
@@ -8428,7 +8458,7 @@ function restoreCampaign(data){
 }
 function enter(params){
   fitCanvas();
-  syncSound();setDrawer(false);
+  setDrawer(false);
   if(!booted){
     booted=true;
     if(!restoreCampaign(SR.loadSave())){
@@ -8455,7 +8485,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
