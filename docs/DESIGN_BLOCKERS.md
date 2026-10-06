@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -62,6 +62,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-30 | 🟡 | One map per mission type | Every deployment of a type plays on the same layout; only the names change |
 | M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
 | M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 97 of 161 niche unlocks and 3 of 16 base effects; 12 niches have nothing live yet |
+| M-33 | 🟡 | Haven Rock art: no Tech Lab furniture or simulator pod in the kit; the base alert has no rule | The Tech Lab draws a stand-in; the alert fires at 70 network exposure |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -544,6 +545,26 @@ Agitator. Crewman is parked until capital ships; Archaeologist is left out (opti
 **Done since:** Flight Controller and Combat Support (all but Formation Calls), at your word.
 **Needs from you:** which of these to build next. The Network proposal unlocks the most (Postings too). Also: the Network proposal's Access ladder (Foothold, Network,
 Uprising) is not in the game, which Postings need.
+**Your call:** _open_
+
+### M-33 🟡 Haven Rock art: the Tech Lab, the simulator and the base alert
+The Haven Rock handoff (art update 4) now draws the base map and every walk-in view. Three things it doesn't cover:
+- **The Tech Lab** isn't in the kit (it furnishes nine rooms; the game has ten). It gets the kit's walls and floor
+  in the Command Center's floor colours and a grey stripe, plus a stand-in I drew: a bench with two glowing screens
+  per tile, a Technician's post at each bench (💻), and two small screens per tile on the map.
+- **The Training Hall's simulator pod** isn't in the kit's Training Hall (target wall, dummies, mat, weight rack),
+  so the walk-in view no longer shows it. The Simulator button in the room window still works.
+- **The base alert.** There are no raids yet, so the whole base pulses red when network exposure (`G.risk`)
+  reaches **70** (`BASE_ALERT_RISK` in `base.js`). I picked 70, where a Source starts to risk a burn.
+
+Smaller choices: the Maintenance Bay's pad holds the most damaged ship (the one the bay repairs); Surgery in a
+one-tile Infirmary isn't drawn, because the kit only gives it a tile in a bigger room; free rebels walk the longest
+corridors; resting and conked-out rebels sleep on the Barracks beds, and the laid-up lie on the Infirmary beds.
+The kit's Barracks shows 3 beds a tile whatever the upgrades (Bunks stack them, Quarters add partitions), so the
+beds on screen can number fewer than `bunkCap()`.
+**Blocks:** what the Tech Lab and the simulator look like; when the base alert fires.
+**Needs from you:** Tech Lab furniture and a simulator pod in `sr-art.js`, and an alert rule (an exposure threshold,
+or the raid system when it exists).
 **Your call:** _open_
 
 ---

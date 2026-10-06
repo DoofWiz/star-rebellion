@@ -376,6 +376,10 @@ spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
   patrol local space for Intel and salvage, rooms can convert tiles into a Ready Lounge,
   Maintenance Bay or Rec Room, and the
   Storeroom's Gear Grid shows all kit by category and size. Controls stay contextual: clicking a tile opens its popup.
+  The art kit draws it (`docs/art/HANDOFF.md`, "Haven Rock"): raised rock with cliff faces, rubble with a digger at
+  work, corridors with wandering rebels, and each room furnished on its real tiles, with the same layout on the map
+  and in its walk-in view. Upgrades show as furniture, staff stand at their posts, ships park on the pads, sleepers
+  and patients lie on the beds, and the base pulses red at high network exposure.
 - **Sources** — the GDD's spy-network loop: Ferren Halt (the depot manager who
   sold out Vex — jumpy, high risk) and Sen. Vokk, plus a recruitable Scientist
   approach. Each has level, cultivation and risk meters, daily income

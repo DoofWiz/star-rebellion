@@ -1610,7 +1610,7 @@ function advanceDay(){
   for(const f of G.fighters)if(f.refit>0&&--f.refit<=0){delete f.refit;news('<b>'+f.name+'</b>\u2019s refit is done.','g');}
   const repCost=repairCost(),crew=repairCrew(),fmech=staffHas('workshop','mechanic')?1.15:1;
   const rateOf=x=>((crew.get(x)?mechRate(crew.get(x)):repairBase())+(hangarUp('arm')?5:0))*fmech;
-  const worst=hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
+  const worst=bayShip();
   for(const f of G.fighters){
     if(f.out||f.hull>=100)continue;
     if(G.materials>=repCost){G.materials-=repCost;f.hull=Math.min(100,Math.round(f.hull+rateOf(f)+(f===worst?10:0)));}
@@ -2828,127 +2828,163 @@ function craftIso(cls,x,y,k,o){
 }
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
+/* ---------- Haven Rock: who is where on the map and in the walk-in views (docs/art/HANDOFF.md, "Haven Rock") ----------
+   Everything here is read from the save at draw time; nothing is stored. */
+const BASE_ALERT_RISK=70;   // network exposure at which the whole base pulses red (DESIGN_BLOCKERS M-33)
+const baseAlert=()=>(G.risk||0)>=BASE_ALERT_RISK;
+/* a cluster's real tiles as [[r,c],...] and its finished upgrades (the art reads both; upgrades still queued aren't drawn) */
+function clusterCells(cl){const out=[];for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++)out.push([r,c]);return out;}
+const clusterUps=cl=>[...new Set(cl.flatMap(q=>q.up||[]))];
+/* the Maintenance Bay takes the most damaged ship in the hangar (advanceDay repairs it faster) */
+const bayShip=()=>hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
+/* the kit's tile-taking upgrades (Rec Room, Surgery, Ready Lounge, Maintenance Bay) only claim a tile in a room of two or more */
+const convTile=(cl,k)=>clUp(cl,k)&&clusterTiles(cl)>1?1:0;
+/* how many pads / beds the art lays out in a cluster, so each cluster of a key takes the next share of ships and sleepers */
+const padSlots=cl=>clusterTiles(cl)-convTile(cl,'lounge')-convTile(cl,'mbay');
+const bedSlots=(cl,key)=>key==='barracks'?3*(clusterTiles(cl)-convTile(cl,'rec')):key==='infirmary'?2*(clusterTiles(cl)-convTile(cl,'surgery')):0;
+function slotOffset(cl,key,slots){
+  let n=0;
+  for(const o of clustersOf(key)){if(o.includes(cl[0]))return n;n+=slots(o,key);}
+  return n;
+}
+/* the hangar's berths, in pad order: every ship but the one in the Maintenance Bay, then the derelict Graf if there is one */
+function hangarBerths(){
+  const bay=bayShip();
+  const list=G.fighters.filter(f=>f!==bay).map(f=>({f}));
+  if(G.wreck&&!G.wreck.restored)list.push({wreck:true});
+  return {bay,list};
+}
+/* resting and conked-out rebels sleep in the Barracks; the laid-up lie in the Infirmary */
+const sleepers=()=>G.people.filter(p=>!p.auto&&((p.assign==='rest'&&!laidUp(p))||(Rebel.conked(p)&&!laidUp(p))));
+const patients=()=>G.people.filter(laidUp);
+const bedsFor=key=>key==='barracks'?sleepers():key==='infirmary'?patients():[];
+/* the Tech Lab has no furniture in the art kit yet (DESIGN_BLOCKERS M-33): a bench of screens per tile, drawn through the
+   kit's own walk-in projection so it sits on the room's real floor */
+function rvProjFor(cells){
+  const r0=Math.min(...cells.map(q=>q[0])),c0=Math.min(...cells.map(q=>q[1]));
+  const rel=cells.map(q=>[q[1]-c0,q[0]-r0]);
+  const W=(Math.max(...rel.map(q=>q[0]))+1)*100,D=(Math.max(...rel.map(q=>q[1]))+1)*100,k=400/(Math.max(W,200)+Math.max(D,200));
+  return {rel,k,proj:(fx,fy,z)=>[((fx-W/2)-(fy-D/2))*1.25*k,((fx-W/2)+(fy-D/2))*0.65*k-(z||0)*k]};
+}
+function techBenches(proj,rel,k,t,unit){
+  const col=rcol('techlab'),posts=[];
+  const quad=pts=>{ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();};
+  rel.slice().sort((a,b)=>(a[0]+a[1])-(b[0]+b[1])).forEach(([tx,ty],i)=>{
+    const x=tx*100+22,y=ty*100+34,w=56,d=20,h=12;
+    quad([proj(x,y+d,0),proj(x+w,y+d,0),proj(x+w,y+d,h),proj(x,y+d,h)]);ctx.fillStyle='#3e4250';ctx.fill();
+    quad([proj(x+w,y,0),proj(x+w,y+d,0),proj(x+w,y+d,h),proj(x+w,y,h)]);ctx.fillStyle='#30333e';ctx.fill();
+    quad([proj(x,y,h),proj(x+w,y,h),proj(x+w,y+d,h),proj(x,y+d,h)]);ctx.fillStyle='#4a4e5a';ctx.fill();
+    ctx.lineWidth=Math.max(0.6,1.4*unit);ctx.strokeStyle=K.ink;ctx.stroke();
+    for(let s=0;s<2;s++){
+      const sx=x+6+s*26;
+      quad([proj(sx,y+4,h+2),proj(sx+20,y+4,h+2),proj(sx+20,y+4,h+20),proj(sx,y+4,h+20)]);
+      ctx.fillStyle=TH.rgba(col,0.35+0.25*Math.abs(Math.sin(t*3+i+s)));ctx.fill();ctx.stroke();
+    }
+    posts.push({x:x+w/2,y:y+d+16,pose:'hack',emote:'💻',sparks:i===0?1:0});
+  });
+  return posts.map(q=>{const p=proj(q.x,q.y,0);return Object.assign({},q,{x:p[0],y:p[1]});});
+}
+/* free rebels wander the corridors: the longest straight runs of floor tiles */
+function corridorRuns(){
+  const runs=[],fl=(r,c)=>G.grid[r]&&G.grid[r][c]&&G.grid[r][c].t==='floor';
+  for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
+    if(fl(r,c)&&!fl(r,c-1)){let e=c;while(fl(r,e+1))e++;if(e>c)runs.push({r0:r,c0:c,r1:r,c1:e,n:e-c});}
+    if(fl(r,c)&&!fl(r-1,c)){let e=r;while(fl(e+1,c))e++;if(e>r)runs.push({r0:r,c0:c,r1:e,c1:c,n:e-r});}
+  }
+  return runs.sort((a,b)=>b.n-a.n);
+}
+/* far to near. Rock is raised, so its cliffs must overlap the rooms behind it, and room walls must overlap the rock
+   behind them: a tile south or east of a room is drawn after it, one north or west before it, and the rest by depth */
+function baseDrawOrder(items){
+  const roomAtCell=new Map();
+  items.forEach((it,i)=>{if(it.cells)for(const [r,c] of it.cells)roomAtCell.set(r+','+c,i);});
+  const after=items.map(()=>new Set()),need=items.map(()=>0);
+  const edge=(a,b)=>{if(a!==b&&!after[a].has(b)){after[a].add(b);need[b]++;}};
+  const near=(r,c,dirs)=>{const s=new Set();for(const [dr,dc] of dirs){const i=roomAtCell.get((r+dr)+','+(c+dc));if(i!==undefined)s.add(i);}return s;};
+  const BEHIND=[[-1,0],[0,-1],[-1,-1]],AHEAD=[[1,0],[0,1],[1,1]];
+  items.forEach((it,i)=>{
+    const cells=it.cells||(it.r!==undefined?[[it.r,it.c]]:[]);
+    const back=new Set(),front=new Set();
+    for(const [r,c] of cells){near(r,c,BEHIND).forEach(j=>back.add(j));near(r,c,AHEAD).forEach(j=>front.add(j));}
+    for(const j of back)if(!front.has(j))edge(j,i);   // a room behind it is drawn first, one ahead of it after it
+    for(const j of front)if(!back.has(j))edge(i,j);   // (a tile in an L's inside corner, both at once, falls back on depth)
+  });
+  const out=[],done=items.map(()=>false);
+  for(let n=0;n<items.length;n++){
+    let best=-1;
+    for(let i=0;i<items.length;i++)if(!done[i]&&!need[i]&&(best<0||items[i].d<items[best].d))best=i;
+    if(best<0)for(let i=0;i<items.length;i++)if(!done[i]&&(best<0||items[i].d<items[best].d))best=i;   // a cycle: break it by depth
+    done[best]=true;out.push(items[best]);
+    for(const j of after[best])need[j]--;
+  }
+  return out;
+}
+
 /* ---------- base map render ---------- */
 function renderBase(now){
-  const t=RM?0:now/1000,Lb=TH.labelLayer();
+  const t=RM?0:now/1000,Lb=TH.labelLayer(),{S}=isoParams(),alert=baseAlert();
+  const cn=[cellToCss(-0.5,-0.5),cellToCss(-0.5,G.cols-0.5),cellToCss(G.rows-0.5,G.cols-0.5),cellToCss(G.rows-0.5,-0.5)];
+  SA.baseBackdrop(ctx,cssW,cssH,t,{alert,mountain:[[cn[0][0],cn[0][1]-60*S],[cn[1][0]+40*S,cn[1][1]-20*S],[cn[1][0]+40*S,cn[1][1]+30*S],
+    [cn[2][0],cn[2][1]+40*S],[cn[3][0]-40*S,cn[3][1]+30*S],[cn[3][0]-40*S,cn[3][1]-20*S]]});
+  const crew=G.people.filter(p=>!p.auto&&p.assign!=='mission'&&!offDuty(p));
+  const digger=(r,c)=>crew.length?personSpec(crew[(r*3+c)%crew.length]):undefined;
+  const items=[];
+  const notRock=(r,c)=>!G.grid[r]||!G.grid[r][c]||G.grid[r][c].t!=='rock';
   for(let r=0;r<G.rows;r++)for(let c=0;c<G.cols;c++){
     const cell=G.grid[r][c];
-    const [x,y,S]=cellToCss(r,c);
-    if(cell.t==='rock'){
-      diamond(x,y,S,2);
-      ctx.fillStyle=TH.rgba(K.ink,0.55);ctx.fill();
-      ctx.strokeStyle=TH.rgba(K.seam,0.22);ctx.lineWidth=1;ctx.stroke();
-      ctx.fillStyle=TH.rgba(K.seam,0.18);
-      ctx.beginPath();ctx.arc(x+((r*7+c*13)%17-8)*S,y+((r*11+c*5)%9-4)*S,1.6*S,0,7);ctx.fill();
-      continue;
-    }
-    if(cell.t==='rubble'){
-      diamond(x,y,S,2);
-      ctx.fillStyle=K.night;ctx.fill();
-      ctx.strokeStyle=TH.rgba(K.seam,0.6);ctx.lineWidth=1;ctx.stroke();
-      ctx.strokeStyle=TH.rgba(K.text3,0.45);
-      ctx.beginPath();
-      ctx.moveTo(x-10*S,y-2*S);ctx.lineTo(x-2*S,y+3*S);ctx.moveTo(x+4*S,y-4*S);ctx.lineTo(x+11*S,y+1*S);
-      ctx.stroke();
-      if(cell.dig){
-        ctx.strokeStyle=TH.rgba(K.go,0.8);ctx.lineWidth=1.6;ctx.setLineDash([4,4]);
-        diamond(x,y,S,5);ctx.stroke();ctx.setLineDash([]);
-        TH.marker(ctx,x,y+4*S,{icon:'work',color:K.go,t,size:26});
-        Lb.add(cell.dig+'d',x,y+30*S+4,{color:K.go,size:12},1);
+    if(cell.t==='room')continue;
+    items.push({d:r+c,r,c,fn:()=>{
+      const [x,y]=cellToCss(r,c);
+      if(cell.t==='rock')SA.baseTile(ctx,'rock',x,y,S,{r,c,openS:notRock(r+1,c),openE:notRock(r,c+1)});
+      else if(cell.t==='rubble'){
+        SA.baseTile(ctx,'rubble',x,y,S,{r,c,dig:cell.dig||0,t,digger:cell.dig?digger(r,c):undefined});
+        if(cell.dig)Lb.add(cell.dig+'d',x,y+16*S+4,{color:K.go,size:12},1);
       }
-      continue;
-    }
-    const rm=roomAt(r,c);
-    const col=rm?rcol(rm.key):null;
-    diamond(x,y,S,1);
-    ctx.fillStyle=(r+c)%2?'#141838':'#171b3f';ctx.fill();
-    if(rm){diamond(x,y,S,1);ctx.fillStyle=TH.rgba(col,rm.build?0.1:0.22);ctx.fill();}
-    diamond(x,y,S,1);ctx.strokeStyle=TH.rgba(K.ink,0.9);ctx.lineWidth=1;ctx.stroke();
-    if(rm&&rm.build){
-      ctx.save();diamond(x,y,S,1);ctx.clip();
-      ctx.strokeStyle=TH.rgba(K.gold,0.35);ctx.lineWidth=2;
-      for(let k=-3;k<=3;k++){ctx.beginPath();ctx.moveTo(x+k*10*S-20,y-20);ctx.lineTo(x+k*10*S+20,y+20);ctx.stroke();}
-      ctx.restore();
-    }
+      else SA.baseTile(ctx,'floor',x,y,S,{r,c});
+    }});
   }
-  // rooms as single entities: one outline, one feature, one marker, one label
-  const leaders=G.rooms.filter(rm=>clusterOf(rm)[0]===rm).map(rm=>({rm,y:roomCenter(rm)[1]})).sort((a,b)=>a.y-b.y);   // far rooms first, so near markers sit on top
-  for(const {rm} of leaders){
-    const cl=clusterOf(rm);   // a merged room is drawn once
+  const berths=hangarBerths();
+  for(const rm of G.rooms.filter(rm=>clusterOf(rm)[0]===rm)){
+    const cl=clusterOf(rm),cells=clusterCells(cl);   // a merged room is drawn once, on its real tiles
     cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
-    const col=rcol(rm.key);
-    roomOutline(rm);
-    ctx.lineWidth=5;ctx.strokeStyle=K.ink;ctx.stroke();
-    ctx.lineWidth=2.5;ctx.strokeStyle=rm.build?TH.rgba(col,0.6):col;ctx.stroke();
-    const [x,y,S]=roomCenter(rm);
-    const pul=RM?0.8:0.6+0.4*Math.sin(worldT*0.002+rm.r+rm.c);   // reduced motion: no pulsing
-    if(!rm.build){
-      // room-specific furniture sits low in the room; the icon marker rides above it
-      ctx.save();ctx.translate(0,7*S);
-      if(rm.key==='command'){
-        ctx.strokeStyle=TH.rgba(col,0.35+0.3*pul);ctx.lineWidth=1.6;
-        ctx.beginPath();ctx.ellipse(x,y-6*S,11*S,5.5*S,0,0,Math.PI*2);ctx.stroke();
-        ctx.strokeStyle=TH.rgba(col,0.25);
-        ctx.beginPath();ctx.ellipse(x,y-6*S,6*S,3*S,0,0,Math.PI*2);ctx.stroke();
-      } else if(rm.key==='hangar'){
-        if(G.wreck&&!G.wreck.restored){
-          ctx.globalAlpha=0.55;
-          craftIso('graf',x+6*S,y-2*S,S*0.32,{livery:'civ',damage:0.5});
-          ctx.globalAlpha=1;
-        }
-        for(let i=0;i<Math.min(3,G.fighters.length);i++){
-          const f=G.fighters[i];
-          ctx.globalAlpha=f.out?0.25:0.95;
-          craftIso(f.cls,x+(i-1)*16*S,y+(i-1)*4*S-4*S,S*0.32,{damage:1-f.hull/100,fighter:f});
-          ctx.globalAlpha=1;
-          if(!f.out){
-            ctx.fillStyle=hullCol(f.hull);
-            ctx.beginPath();ctx.arc(x+(i-1)*16*S-8*S,y+(i-1)*4*S-4*S,1.8*S,0,7);ctx.fill();
+    const r0=Math.min(...cells.map(q=>q[0])),c0=Math.min(...cells.map(q=>q[1]));
+    items.push({d:r0+c0+0.1,cells,fn:()=>{
+      const res=SA.baseRoom(ctx,cells,rm.key,cellToCss,S,{up:clusterUps(cl),build:rm.build,t,
+        fill:rm.key==='store'?G.supplies/supCap():undefined,worker:crew.length?personSpec(crew[0]):undefined});
+      const [x,y]=roomCenter(rm);
+      if(rm.build){TH.marker(ctx,x,y-2*S,{icon:'work',color:K.gold,t,size:26});}
+      else{
+        if(rm.key==='techlab'){const P=cellToCss;   // the kit has no Tech Lab furniture yet: two glowing screens per tile
+          for(const [r,c] of cells){const [tx,ty]=P(r,c);for(let s=0;s<2;s++){ctx.fillStyle=TH.rgba(rcol('techlab'),0.35+0.3*Math.abs(Math.sin(t*3+r+c+s)));ctx.fillRect(tx-9*S+s*10*S,ty-8*S,7*S,5*S);ctx.strokeStyle=K.ink;ctx.lineWidth=1;ctx.strokeRect(tx-9*S+s*10*S,ty-8*S,7*S,5*S);}}}
+        if(rm.key==='hangar'){
+          const off=slotOffset(cl,'hangar',padSlots);let i=0;
+          for(const pad of res.pads){
+            const b=pad.bay?(berths.bay&&clustersOf('hangar').find(o=>convTile(o,'mbay')).includes(rm)?{f:berths.bay}:null):berths.list[off+(i++)];
+            if(!b||(b.f&&b.f.out))continue;
+            if(b.wreck)craftIso('graf',pad.x,pad.y,S*0.32,{livery:'civ',damage:0.5});
+            else craftIso(b.f.cls,pad.x,pad.y,S*0.32,{damage:1-b.f.hull/100,fighter:b.f});
           }
         }
-      } else if(rm.key==='comms'){
-        ctx.strokeStyle=TH.rgba(col,0.3+0.4*pul);ctx.lineWidth=1.4;
-        ctx.beginPath();ctx.arc(x,y-8*S,5*S,Math.PI*0.9,Math.PI*1.9);ctx.stroke();
-        ctx.beginPath();ctx.arc(x,y-8*S,(8+3*pul)*S,Math.PI*1.15,Math.PI*1.65);ctx.stroke();
-      } else if(rm.key==='barracks'){
-        ctx.fillStyle=TH.rgba(col,0.4);
-        for(let i=0;i<3;i++)ctx.fillRect(x-12*S+i*9*S,y-3*S,6*S,4*S);
-      } else if(rm.key==='store'){
-        ctx.fillStyle=TH.rgba(col,0.45);
-        ctx.fillRect(x-6*S,y-5*S,5*S,4*S);ctx.fillRect(x+1*S,y-3*S,5*S,4*S);
-      } else if(rm.key==='workshop'){
-        if(!RM&&rng()<0.06){ctx.fillStyle=K.goldHi;ctx.beginPath();ctx.arc(x+(rng()-0.5)*10*S,y-2*S,1.2,0,7);ctx.fill();}
-        ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.4;
-        ctx.strokeRect(x-6*S,y-6*S,12*S,6*S);
-      } else if(rm.key==='techlab'){
-        ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.4;
-        ctx.strokeRect(x-8*S,y-7*S,7*S,5*S);ctx.strokeRect(x+1*S,y-7*S,7*S,5*S);
-        ctx.fillStyle=TH.rgba(col,0.3+0.3*pul);ctx.fillRect(x-7*S,y-6*S,5*S,3*S);
-      } else if(rm.key==='infirmary'){
-        ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
-        ctx.beginPath();ctx.moveTo(x-4*S,y-4*S);ctx.lineTo(x+4*S,y-4*S);ctx.moveTo(x,y-8*S);ctx.lineTo(x,y);ctx.stroke();
-      } else if(rm.key==='training'){
-        ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.4;
-        ctx.beginPath();ctx.arc(x,y-4*S,4.5*S,0,Math.PI*2);ctx.stroke();
-        ctx.beginPath();ctx.arc(x,y-4*S,1.6*S,0,Math.PI*2);ctx.stroke();
-      } else if(rm.key==='diplo'){
-        ctx.strokeStyle=TH.rgba(col,0.35+0.3*pul);ctx.lineWidth=1.4;
-        ctx.beginPath();ctx.ellipse(x,y-4*S,8*S,4*S,0,0,Math.PI*2);ctx.stroke();
-        ctx.fillStyle=TH.rgba(col,0.45);
-        for(let i=0;i<4;i++){const a=i*Math.PI/2;ctx.fillRect(x+Math.cos(a)*11*S-1.5*S,y-4*S+Math.sin(a)*5.5*S-1.5*S,3*S,3*S);}
+        const staff=crewIn(rm.key);
+        if(staff.length&&res.posts.length&&clustersOf(rm.key)[0].includes(rm)){const p=res.posts[0];
+          SA.character(ctx,p.x,p.y,personSpec(staff[0]),{view:'front',state:p.pose||'idle',t:t+rm.c,s:0.42*S});}
+        const lying=bedsFor(rm.key),bo=slotOffset(cl,rm.key,bedSlots);
+        res.beds.forEach((b,i)=>{const p=lying[bo+i];if(p)SA.character(ctx,b.x,b.y,personSpec(p),{view:'front',state:'down',fall:1,t,s:0.36*S,weapon:null});});
       }
-      ctx.restore();
-      // the room's icon marker
-      const bs=Math.max(22,Math.round(18+8*S));
-      TH.chunky(ctx,x-bs/2,y-bs*1.05,bs,bs,8,col,{drop:3,line:2.5});
-      TH.icon(ctx,ROOMS[rm.key].ic,x,y-bs*0.55,bs*0.62,K.ink,{weight:2.6});
-    } else {
-      TH.marker(ctx,x,y-2*S,{icon:'work',color:K.gold,t,size:26});
-    }
-    const ly=y+TH2*(cl.h===1?0.9:1.6)*S+12;
-    Lb.add(ROOMS[rm.key].name+(rm.build?' · '+rm.build.days+'d':''),x,ly,{color:rm.build?K.gold:col,size:12},rm.build?1:2);
+      const ly=y+TH2*(cl.h===1?0.9:1.6)*S+12;
+      Lb.add(ROOMS[rm.key].name+(rm.build?' · '+rm.build.days+'d':''),x,ly,{color:rm.build?K.gold:rcol(rm.key),size:12},rm.build?1:2);
+    }});
   }
-  Lb.flush(ctx);
+  // ambient life: free rebels walking the corridors, back and forth
+  const free=crew.filter(p=>!p.assign),runs=corridorRuns();
+  free.slice(0,Math.min(2,runs.length)).forEach((p,i)=>{
+    const run=runs[i],len=run.n,ph=((t*0.6/Math.max(1,len))+i*0.37)%2,k=ph<1?ph:2-ph,back=ph>=1;
+    const rr=run.r0+(run.r1-run.r0)*k,cc=run.c0+(run.c1-run.c0)*k,along=run.c1>run.c0;
+    items.push({d:rr+cc+0.5,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
+      SA.character(ctx,wx,wy+4*S,personSpec(p),{view:'side',dir:(along?1:-1)*(back?-1:1),state:'walk',t:t+i,s:0.4*S});}});
+  });
+  for(const it of baseDrawOrder(items))it.fn();
+  Lb.flush(ctx);   // room names after every tile
   // hover / selection: whole-room outlines
   const hovRm=hoverCell?roomAt(hoverCell.r,hoverCell.c):null;
   if(hovRm){roomOutline(hovRm);ctx.lineWidth=2.5;ctx.strokeStyle=TH.rgba(K.gold,0.85);ctx.stroke();}
@@ -3217,211 +3253,107 @@ function renderRoomView(now){
   const Sx=Math.min(rw/560,rh/340);
   rvSx=Sx;
   const cx=rx+rw/2,cy=ry+rh*0.6;
-  const col=rcol(rm.key);
   const fnt=(px,wt)=>(wt||700)+' '+Math.max(px,Math.ceil(11/Sx))+'px '+TH.FONT.ui;   // never below 11 screen px
   const dtv=Math.min(0.05,(now-(rvLast||now))/1000);rvLast=now;
   if(RM)now=0;   // reduced motion: the room holds still
+  const t=now/1000;
   rvFigs=[];
-  const addFig=(fx,fy,p,fcol,pose)=>{
-    figure(fx,fy,2,p?p.name.split(' ')[0]:'',fcol,p,pose||jobPose(rm.key));
-    if(p)rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:24,pid:p.id});
-  };
-  const POST_EMOTE={command:'\u2615',workshop:'\ud83d\udd27',comms:'\ud83d\udce1',store:'\ud83d\udce6',techlab:'\ud83d\udcbb'};
-  const addStaff=(fx,fy,p,i)=>{addFig(fx,fy,p);if(POST_EMOTE[rm.key])SA.emote(ctx,fx,fy-66,POST_EMOTE[rm.key],RM?0:now/1000,i||0);};
   const spark=(fx,fy,scol)=>{
     if(RM)return;
     rvParts.push({x:fx,y:fy,vx:(rng()-0.5)*60,vy:-20-rng()*50,life:0,max:0.4+rng()*0.3,col:scol||K.goldHi});
   };
-  // big floor
+  const label=(txt,x,y,col,px,wt)=>{ctx.font=fnt(px||12,wt);ctx.textAlign='center';ctx.fillStyle=col;ctx.fillText(txt,x,y);};
+  /* the room itself: walls, floor, lamps and furniture on the cluster's real tiles, from the art kit (docs/art/HANDOFF.md) */
+  const cl=clusterOf(rm),cells=clusterCells(cl);
   ctx.save();
   ctx.translate(cx,cy);
   ctx.scale(Sx,Sx);
-  ctx.beginPath();
-  ctx.moveTo(0,-130);ctx.lineTo(250,0);ctx.lineTo(0,130);ctx.lineTo(-250,0);ctx.closePath();
-  const fg=ctx.createLinearGradient(0,-130,0,130);
-  fg.addColorStop(0,TH.rgba(col,0.26));fg.addColorStop(1,TH.rgba(col,0.1));
-  ctx.fillStyle=K.night;ctx.fill();
-  ctx.fillStyle=fg;ctx.fill();
-  ctx.lineWidth=7;ctx.strokeStyle=K.ink;ctx.stroke();
-  ctx.lineWidth=3;ctx.strokeStyle=col;ctx.stroke();
-  // back walls hint
-  ctx.strokeStyle=TH.rgba(K.seam,0.7);ctx.lineWidth=2;
-  ctx.beginPath();ctx.moveTo(0,-130);ctx.lineTo(0,-190);ctx.moveTo(250,0);ctx.lineTo(250,-60);ctx.moveTo(-250,0);ctx.lineTo(-250,-60);ctx.stroke();
-  const pul=RM?0.8:0.6+0.4*Math.sin(now*0.002);
-  if(rm.key==='hangar'){
-    const cap=fighterCap();
-    // berths tile the floor: a g×g grid in floor space, each pad a diamond that exactly fits its cell
-    const g=Math.max(2,Math.ceil(Math.sqrt(cap))),bw=250/g*0.86,bh=130/g*0.86,csz=2.4*Math.min(1,2/g);
-    for(let i=0;i<cap;i++){
-      const ga=((i%g)+0.5)*2/g-1,gb=(Math.floor(i/g)+0.5)*2/g-1;
-      const bx=(ga-gb)*125,by=(ga+gb)*65;
-      ctx.strokeStyle=TH.rgba(col,0.45);ctx.lineWidth=1.5;ctx.setLineDash([6,5]);
-      ctx.beginPath();ctx.moveTo(bx,by-bh);ctx.lineTo(bx+bw,by);ctx.lineTo(bx,by+bh);ctx.lineTo(bx-bw,by);ctx.closePath();ctx.stroke();
-      ctx.setLineDash([]);
-      const f=G.fighters[i],ly=by+bh*0.74,cy0=by-bh*0.2;
-      if(!f&&i===G.fighters.length&&rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
-        craftIso('graf',bx,by,csz/2.4,{livery:'civ',damage:0.5});
-        ctx.font=fnt(11);ctx.textAlign='center';
-        ctx.fillStyle=K.gold;
-        ctx.fillText(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',bx,ly+6);
+  const res=SA.roomInterior(ctx,rm.key,{tiles:cells,up:clusterUps(cl),build:rm.build,t,alert:baseAlert(),
+    fill:rm.key==='store'?G.supplies/supCap():undefined});
+  const k=res.scale;
+  let posts=res.posts;
+  if(rm.key==='techlab'){const P=rvProjFor(cells);posts=techBenches(P.proj,P.rel,P.k,t,P.k);}
+  /* a Bobblehead in the room; S matches the old stick-figure scale, so the kit's s = 1.05 × the room's scale */
+  const addFig=(fx,fy,p,pose)=>{
+    figure(fx,fy,2.2*k,p.name.split(' ')[0],null,p,pose||jobPose(rm.key));
+    rvFigs.push({x:cx+fx*Sx,y:cy+fy*Sx,r:24,pid:p.id});
+  };
+  /* staff take the kit's posts in order, with each post's pose and emote; anyone past the last post stands beside one */
+  const staffRoom=(list)=>{
+    if(!posts.length)return;
+    list.forEach((p,i)=>{
+      const q=posts[i%posts.length],n=Math.floor(i/posts.length),fx=q.x+n*26*k,fy=q.y+n*14*k;
+      addFig(fx,fy,p,q.pose);
+      if(q.emote&&!n)SA.emote(ctx,fx+18*k,fy-58*k,q.emote,t,i);
+      if(q.sparks&&!n&&rng()<0.1)spark(fx+14*k,fy-14*k);
+    });
+  };
+  /* the resting (Barracks) and the laid up (Infirmary) lie on the kit's beds */
+  const layOnBeds=(list,tag)=>{
+    res.beds.forEach((b,i)=>{
+      const p=list[i];if(!p)return;
+      SA.character(ctx,b.x,b.y,personSpec(p),{view:'front',state:'down',fall:1,t,s:0.85*k,weapon:null});
+      label(tag(p),b.x,b.y+18*k+4,rm.key==='infirmary'?K.hazard:K.text2,11,600);
+      rvFigs.push({x:cx+b.x*Sx,y:cy+b.y*Sx,r:22,pid:p.id});
+    });
+  };
+  if(rm.build){/* scaffolding and a builder: the kit draws it all */}
+  else if(rm.key==='hangar'){
+    /* one pad per hangar tile (fighterCap); the Maintenance Bay's pad holds the most damaged ship */
+    const berths=hangarBerths(),off=slotOffset(cl,'hangar',padSlots),bayHere=berths.bay&&clustersOf('hangar').find(o=>convTile(o,'mbay')).includes(rm);
+    let i=0;
+    for(const pad of res.pads){
+      const b=pad.bay?(bayHere?{f:berths.bay}:null):berths.list[off+(i++)],ly=pad.y+30*k;
+      if(b&&b.wreck){
+        craftIso('graf',pad.x,pad.y,k,{livery:'civ',damage:0.5});
+        label(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',pad.x,ly+6,K.gold,11);
         continue;
       }
+      const f=b&&b.f;
       if(f&&!f.out){
-        craftIso(f.cls,bx,by,csz/2.4,{damage:1-f.hull/100,fighter:f});
-        ctx.font=fnt(12);ctx.textAlign='center';
-        ctx.fillStyle=K.text;ctx.fillText(f.name,bx,ly+2);
-        ctx.fillStyle=K.ink;ctx.fillRect(bx-27,ly+7,54,7);
+        craftIso(f.cls,pad.x,pad.y,k,{damage:1-f.hull/100,fighter:f});
+        label(f.name+(pad.bay?' · bay':''),pad.x,ly+2,K.text);
+        ctx.fillStyle=K.ink;ctx.fillRect(pad.x-27,ly+7,54,7);
         ctx.fillStyle=hullCol(f.hull);
-        ctx.fillRect(bx-25,ly+9,50*f.hull/100,3);
-        if(f.hull<100&&rng()<0.05)spark(bx+(rng()-0.5)*36,by+8);
-        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:Math.max(26,bh*Sx*0.9),fid:f.id});
-      } else {
-        ctx.font=fnt(11);ctx.textAlign='center';
-        ctx.fillStyle=K.text3;
-        ctx.fillText(f&&f.out?f.name+' — out':'Empty berth',bx,by+4);
-      }
+        ctx.fillRect(pad.x-25,ly+9,50*f.hull/100,3);
+        if(f.hull<100&&rng()<0.05)spark(pad.x+(rng()-0.5)*36*k,pad.y+8*k);
+        rvFigs.push({x:cx+pad.x*Sx,y:cy+pad.y*Sx,r:Math.max(26,30*k*Sx),fid:f.id});
+      } else label(f&&f.out?f.name+' — out':pad.bay?'Maintenance Bay':'Empty berth',pad.x,pad.y+4,K.text3,11);
     }
-  } else if(rm.key==='command'){
-    ctx.strokeStyle=TH.rgba(col,0.4+0.3*pul);ctx.lineWidth=2;
-    ctx.beginPath();ctx.ellipse(0,-10,90,42,0,0,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle=TH.rgba(col,0.25);
-    ctx.beginPath();ctx.ellipse(0,-10,55,25,0,0,Math.PI*2);ctx.stroke();
-    for(let i=0;i<14;i++){
-      ctx.fillStyle=TH.rgba(K.goldHi,0.3+0.5*Math.abs(Math.sin(i*3+now*0.001)));
-      ctx.beginPath();ctx.arc(Math.cos(i*2.4)*60,-10-40-Math.sin(i*1.7)*18,1.4,0,7);ctx.fill();
-    }
-    crewIn('command').forEach((p,i)=>addStaff(-120+i*40,50,p,i));
+    staffRoom(crewIn('hangar'));
   } else if(rm.key==='barracks'){
-    const cap=Math.min(bunkCap(),12);
-    const resters=G.people.filter(p=>p.assign==='rest'&&!laidUp(p));
-    for(let i=0;i<cap;i++){
-      const bx=(i%3-1)*140,by=Math.floor(i/3)*54-40;
-      ctx.fillStyle=TH.rgba(col,0.16);
-      ctx.fillRect(bx-40,by-12,80,24);
-      ctx.strokeStyle=TH.rgba(col,0.5);ctx.lineWidth=1.5;ctx.strokeRect(bx-40,by-12,80,24);
-      const p=resters[i];
-      if(p){
-        ctx.fillStyle=K.rebelHi;
-        ctx.beginPath();ctx.roundRect(bx-28,by-6,44,11,5);ctx.fill();
-        SA.portrait(ctx,bx+26,by-1,9,personSpec(p),{t:0});
-        ctx.font=fnt(11,600);ctx.textAlign='center';
-        ctx.fillStyle=K.text2;ctx.fillText(p.name.split(' ')[0],bx,by+26);
-        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:22,pid:p.id});
-      }
-    }
-  } else if(rm.key==='store'){
-    const stacks=Math.max(2,Math.min(9,Math.round(G.supplies/25)));
-    for(let i=0;i<stacks;i++){
-      const bx=(i%3-1)*110+((i*37)%23-11),by=Math.floor(i/3)*46-40;
-      ctx.fillStyle=TH.rgba(col,0.25+((i*7)%10)/40);
-      ctx.fillRect(bx-22,by-16,44,32);
-      ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.5;ctx.strokeRect(bx-22,by-16,44,32);
-    }
-    // weapon rack
-    ctx.strokeStyle=TH.rgba(K.gold,0.7);ctx.lineWidth=2;
-    ctx.strokeRect(150,-80,80,50);
-    G.armory.forEach((a,i)=>{
-      ctx.font=fnt(12);ctx.textAlign='left';
-      ctx.fillStyle=K.gold;ctx.fillText(a.ic+' ×'+a.n,158,-60+i*Math.max(16,Math.ceil(13/Sx)));
-    });
-    crewIn('store').forEach((p,i)=>addStaff(-160+i*40,60,p,i));
-  } else if(rm.key==='workshop'){
-    const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
-    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
-    ctx.strokeRect(-70,-30,140,46);
-    if(wounded){
-      craftIso(wounded.cls,0,-8,0.9,{damage:1-wounded.hull/100,fighter:wounded});
-      ctx.font=fnt(12);ctx.textAlign='center';
-      ctx.fillStyle=K.text;ctx.fillText(wounded.name+' — '+wounded.hull+'%',0,46);
-      if(rng()<0.12)spark((rng()-0.5)*80,-6);
-    } else {
-      ctx.font=fnt(12);ctx.textAlign='center';
-      ctx.fillStyle=K.text2;ctx.fillText('Lift empty — nothing broken. For once.',0,0);
-    }
-    crewIn('workshop').forEach((p,i)=>addStaff(-110+i*40,50,p,i));
+    layOnBeds(sleepers().slice(slotOffset(cl,'barracks',bedSlots)),p=>p.name.split(' ')[0]);
   } else if(rm.key==='infirmary'){
-    const patients=G.people.filter(laidUp);
-    for(let i=0;i<2;i++){
-      const bx=(i-0.5)*160,by=-10;
-      ctx.fillStyle=TH.rgba(col,0.14);ctx.fillRect(bx-45,by-14,90,28);
-      ctx.strokeStyle=TH.rgba(col,0.55);ctx.lineWidth=1.5;ctx.strokeRect(bx-45,by-14,90,28);
-      const p=patients[i];
-      if(p){
-        ctx.fillStyle=K.hazard;
-        ctx.beginPath();ctx.roundRect(bx-32,by-7,52,12,6);ctx.fill();
-        SA.portrait(ctx,bx+30,by-1,10,personSpec(p),{face:'worried',t:0});
-        ctx.font=fnt(11,600);ctx.textAlign='center';
-        ctx.fillStyle=K.hazard;ctx.fillText(p.name.split(' ')[0]+' · '+outDays(p)+'d',bx,by+30);
-        rvFigs.push({x:cx+bx*Sx,y:cy+by*Sx,r:24,pid:p.id});
-      }
-    }
+    layOnBeds(patients().slice(slotOffset(cl,'infirmary',bedSlots)),p=>p.name.split(' ')[0]+' · '+outDays(p)+'d');
     const staff=crewIn('infirmary');
-    staff.forEach((p,i)=>addFig(-40+i*60,70,p,K.go));
-    if(!staff.length){
-      ctx.font=fnt(12);ctx.textAlign='center';
-      ctx.fillStyle=K.hazard;ctx.fillText('No Doctor at work — put one to work from their file',0,108);
-    }
+    staffRoom(staff);
+    if(!staff.length)label('No Doctor at work — put one to work from their file',0,118,K.hazard);
+  } else if(rm.key==='workshop'){
+    /* the worst-hit ship in the hangar sits on the lift (the kit puts the lift on the front-most tile of a bigger room) */
+    const wounded=G.fighters.find(f=>!f.out&&f.hull<100);
+    const sh=SA.shapeOf(rvProjFor(cells).rel),lt=cells.length>1?sh.front[0]:sh.centre,P=rvProjFor(cells).proj;
+    const [lx,ly]=P(lt.tx*100+50,lt.ty*100+50,36);
+    if(wounded){
+      craftIso(wounded.cls,lx,ly,0.8*k,{damage:1-wounded.hull/100,fighter:wounded});
+      label(wounded.name+' — '+wounded.hull+'%',lx,ly+44*k,K.text);
+      if(rng()<0.12)spark(lx+(rng()-0.5)*60*k,ly-6*k);
+    } else label('Lift empty — nothing broken. For once.',lx,ly+30*k,K.text2);
+    staffRoom(crewIn('workshop'));
   } else if(rm.key==='training'){
-    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(0,0,70,0,Math.PI*2);ctx.stroke();
-    const tr=G.people.filter(p=>p.assign==='train');
-    tr.forEach((p,i)=>{
-      const a=i*2.1+now*0.0012;
-      addFig(Math.cos(a)*40,Math.sin(a)*20,p);
-    });
-    if(!tr.length){
-      ctx.font=fnt(12);ctx.textAlign='center';
-      ctx.fillStyle=K.text2;ctx.fillText('Empty mats — assign rebels from their files',0,4);
-    }
-    crewIn('training').forEach((p,i)=>addFig(90+i*40,-50,p,K.psi));
-    // the simulator pod lives here
-    ctx.strokeStyle=TH.rgba(K.shield,0.8);ctx.lineWidth=2;
-    ctx.beginPath();ctx.roundRect(-190,-70,70,44,10);ctx.stroke();
-    ctx.fillStyle=TH.rgba(K.shield,0.15+0.12*pul);
-    ctx.beginPath();ctx.roundRect(-184,-64,58,32,8);ctx.fill();
-    ctx.font=fnt(11);ctx.textAlign='center';
-    ctx.fillStyle=K.shield;ctx.fillText('Simulator',-155,-12);
-  } else if(rm.key==='comms'){
-    ctx.strokeStyle=TH.rgba(col,0.8);ctx.lineWidth=2;
-    ctx.beginPath();ctx.arc(0,-30,26,Math.PI*0.85,Math.PI*2.05);ctx.stroke();
-    for(let k=1;k<=3;k++){
-      ctx.strokeStyle=TH.rgba(col,(0.5-k*0.13)*pul);
-      ctx.beginPath();ctx.arc(0,-40,26+k*(16+6*pul),Math.PI*1.15,Math.PI*1.85);ctx.stroke();
-    }
-    // waveform
-    ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.6;
-    ctx.beginPath();
-    for(let px=-100;px<=100;px+=4){
-      const vy=60+Math.sin(px*0.11+now*0.006)*8*Math.sin(px*0.023+now*0.001);
-      px===-100?ctx.moveTo(px,vy):ctx.lineTo(px,vy);
-    }
-    ctx.stroke();
-    crewIn('comms').forEach((p,i)=>addStaff(120+i*40,30,p,i));
-  } else if(rm.key==='diplo'){
-    ctx.strokeStyle=TH.rgba(col,0.7);ctx.lineWidth=2;
-    ctx.beginPath();ctx.ellipse(0,0,90,40,0,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle=TH.rgba(col,0.10+0.08*pul);ctx.fill();
-    for(let i=0;i<8;i++){const a=i*Math.PI/4;ctx.fillStyle=TH.rgba(col,0.55);ctx.beginPath();ctx.arc(Math.cos(a)*104,Math.sin(a)*48,5,0,7);ctx.fill();}
-    crewIn('diplo').forEach((p,i)=>addFig(-40+i*40,-30,p,col));
-  } else if(rm.key==='techlab'){
-    // benches of screens and a soldering glow
-    for(let i=0;i<3;i++){
-      const bx=(i-1)*120,by=-40;
-      ctx.fillStyle=TH.rgba(col,0.16);ctx.fillRect(bx-40,by-14,80,28);
-      ctx.strokeStyle=TH.rgba(col,0.6);ctx.lineWidth=1.5;ctx.strokeRect(bx-40,by-14,80,28);
-      ctx.fillStyle=TH.rgba(col,0.25+0.2*Math.abs(Math.sin(now*0.003+i)));ctx.fillRect(bx-30,by-36,26,18);ctx.fillRect(bx+4,by-36,26,18);
-      if(rng()<0.05)spark(bx+(rng()-0.5)*50,by-6,K.shield);
-    }
-    crewIn('techlab').forEach((p,i)=>addStaff(-120+i*50,50,p,i));
-  }
+    /* trainees work the mat in front of the instructor's post */
+    const tr=G.people.filter(p=>p.assign==='train'),q=posts[0]||{x:0,y:0};
+    tr.forEach((p,i)=>{const a=i*2.1+now*0.0012;addFig(q.x+Math.cos(a)*44*k,q.y-26*k+Math.sin(a)*14*k,p);});
+    if(!tr.length)label('Empty mats — assign rebels from their files',q.x,q.y+40*k,K.text2);
+    staffRoom(crewIn('training'));
+  } else staffRoom(crewIn(rm.key));   // command, store, comms, diplo, techlab
   // room-local sparks (persistent particles, not per-frame flicker)
   for(const p of rvParts){p.life+=dtv;p.x+=p.vx*dtv;p.y+=p.vy*dtv;p.vy+=160*dtv;}
   rvParts=rvParts.filter(p=>p.life<p.max);
   for(const p of rvParts){
-    const k=1-p.life/p.max;
-    ctx.globalAlpha=Math.max(0,k);
+    const a=1-p.life/p.max;
+    ctx.globalAlpha=Math.max(0,a);
     ctx.fillStyle=p.col;
-    ctx.beginPath();ctx.arc(p.x,p.y,1.4+k*1.4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p.x,p.y,1.4+a*1.4,0,Math.PI*2);ctx.fill();
   }
   ctx.globalAlpha=1;
   ctx.restore();
