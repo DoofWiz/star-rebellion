@@ -470,8 +470,9 @@ linked from `docs/GDriveMasterSheet`.
   within a location, not necessarily a whole location. These are playtest tuning targets.
 
 ### Starting position
-- The hangar starts with **four landing pads**, one ship per pad. (Supersedes the
-  prototype's reduced day one of capacity 2.) Ships repair slowly on a pad.
+- The hangar starts as **one 4 × 4 section**: a **large pad** (where the derelict Graf waits) and **two small
+  pads**, one ship per pad. (Supersedes the four one-tile pads, and before them the prototype's capacity 2.)
+  Ships repair slowly on a pad.
 
 ### Intel
 - Intel is **the currency that buys Access** to locations and raises Access levels.
@@ -580,7 +581,7 @@ rewards. Map loot is scaled the same way. Old saves are multiplied ×4 once on l
   weeps from the hangar-cave tanks so the player can't soft-lock.
 - Sources and missions can pay Materials and Fuel (Steal Fuel-type jobs, tanker grabs, ore, quarry
   and timber ops).
-- The hangar starts with **four landing pads**; each Hangar Bay adds one.
+- The hangar starts with **a large pad and two small pads**; each new Hangar section adds four small pads.
 
 ### Mission planning (built)
 - A mission is a **type** (ground, space or off-screen) plus a story. The type sets its
@@ -798,7 +799,14 @@ double-click.
 - **Rooms merge.** A room is a rectangle of tiles. Rooms of the same type that touch are one merged
   room: one outline, one label, one set of upgrades (a new room built next to it inherits them). The
   tile popup says *Expand the X* when the build will merge.
-- **Hangar:** one landing pad per hangar tile (four at the start). **Barracks:** 3 beds per tile
+- **The map** is 14 × 18 tiles, with rubble pockets to dig out for rooms and two 4 × 4 rubble caverns
+  beside the Hangar for more sections. Bedrock can't be dug. Drag to pan, wheel or pinch to zoom.
+- **Hangar:** built a **4 × 4 section** at a time (four standard 2 × 2 rooms) on a block of cleared floor
+  (**960 credits, 800 materials, 4 days**, +35% for each section past the first). Each half of a section is
+  either **two small pads** (2 × 2 tiles: a fighter, size 6 or under) or **one large pad** (4 × 2: a hauler or
+  light freighter, size 7-8, like the Graf); switching a half is free while every ship still has a pad. Small
+  ships use a large pad when the small ones are full. A tile is about 10 m, so ships are drawn at their
+  real length, shrunk only to fit their pad. **Barracks:** 3 beds per tile
   (two tiles at the start). **Intelligence Center** (was the Comms Array): +1 source slot and +1
   Intel a day per tile while staffed. **Storeroom:** caps Supplies at 1000 + 250 per tile (+5% per
   extra tile); anything over spoils. The old Hangar Bay and Barracks Annex builds are now just
@@ -813,8 +821,8 @@ double-click.
   (**400 credits + 60 supplies, 4 days**). A team adds **½ a flag of Support plus 25%** (Outreach). Support is what
   gates liberation, so this is the player's way to grow it without waiting for source events.
 - **Conversions** turn one tile of a merged room into something else (it needs a spare tile, so the
-  room must have been expanded): *Ready Lounge* (hangar: loses a pad; every sortie takes 1 day
-  less, minimum 1), *Maintenance Bay* (hangar: loses a pad; the most damaged ship repairs 10%/day
+  room must have been expanded): *Ready Lounge* (hangar: takes a small pad; every sortie takes 1 day
+  less, minimum 1), *Maintenance Bay* (hangar: takes a small pad; the most damaged ship repairs 10%/day
   faster), *Rec Room* (barracks, needs 3+ tiles: loses a tile of beds; resting rebels gain morale
   twice as fast). A conversion is refused if it would leave a ship or rebel without a berth.
 - **Surgery Room** (Infirmary upgrade): everyone in the Infirmary recovers half a day faster each day. (Saving the

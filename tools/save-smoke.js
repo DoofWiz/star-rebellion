@@ -19,15 +19,15 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // a save from before versioning: old shapes are brought up to date once
   const old=clone();delete old.v;
   for(const k of ['econ4','locModel','medSeeded'])delete old[k];
-  old.rooms[0].key='bay';old.fighters.push({id:'fv',name:'Old Viper',cls:'viper',hull:90});
+  old.rooms.find(x=>x.key==='hangar').key='bay';old.fighters.push({id:'fv',name:'Old Viper',cls:'viper',hull:90});
   old.people[0].injured=3;old.credits=100;old.revLevel=1;
   f.restoreCampaign({campaign:old,started:true});
-  out.v0=[G().v,G().rooms[0].key,G().fighters.find(x=>x.id==='fv').cls,G().credits,(G().people[0].cond||[]).some(c=>c.k==='downed'),'injured' in G().people[0]].join();
+  out.v0=[G().v,G().rooms.some(x=>x.key==='hangar')&&!G().rooms.some(x=>x.key==='bay'),G().fighters.find(x=>x.id==='fv').cls,G().credits,(G().people[0].cond||[]).some(c=>c.k==='downed'),'injured' in G().people[0]].join();
   // a current save: no one-off fix runs again (a 'bay' left in a versioned save stays as it is)
   const cur=clone();cur.rooms[0].key='bay';cur.credits=100;
   f.restoreCampaign({campaign:cur,started:true});
   out.v1=[G().v,G().rooms[0].key,G().credits].join();
-  G().rooms[0].key='hangar';
+  G().rooms[0].key='command';
   // a new migration runs once, in order, and the version follows
   let ran=0;f.MIGRATIONS_().push(()=>{ran++;G().migTest=(G().migTest||0)+1;});
   const a=clone();f.restoreCampaign({campaign:a,started:true});
@@ -55,10 +55,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   d.name=keep[0];reg.name=keep[1];
   return out;
  });
- ok(/^5,5,true$/.test(r.born),'a new campaign is born at the current version '+r.born);
- ok(r.v0==='5,hangar,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
- ok(r.v1==='5,bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
- ok(r.chain==='1,6,6,1','a new migration runs exactly once and moves the version on '+r.chain);
+ ok(/^6,6,true$/.test(r.born),'a new campaign is born at the current version '+r.born);
+ ok(r.v0==='6,true,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
+ ok(r.v1==='6,bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
+ ok(r.chain==='1,7,7,1','a new migration runs exactly once and moves the version on '+r.chain);
  ok(r.every==='true,true','every-load work still runs on a current save '+r.every);
  ok(r.newer&&warns.some(w=>/newer build/.test(w)),'a newer save loads as it is, with a warning '+r.newer+' '+warns.length);
  ok(r.persist,'the version is saved with the campaign');

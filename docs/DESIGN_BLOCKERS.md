@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -38,6 +38,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | C-28 | ⚪ | Support specialties: the numbers and readings I chose while building them | How every Support rebel plays |
 | C-31 | ⚪ | Downed VIPs, the shooter's reveal, the transport's fire support and supply drop billing, reworded arrival lines | Rescue and Steal the Cross; fire support in every mission |
+| C-32 | ⚪ | The bigger base and the 4 × 4 Hangar: map, pad sizes, costs, the free switch, old saves, an `sr-art.js` addition | How the base grows; what a ship needs to land |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -252,6 +253,34 @@ Your answers on C-29 and C-30 are built (see the resolved log). Where I had to c
    lines)** said the pilot would wait at the LZ with the engines warm. I reworded them so the pilot stays overhead
    and comes back. Please check the words in the spreadsheet.
 **Needs from you:** whether any of these should change, and your wording for (6).
+**Your call:** _open_
+
+### C-32 ⚪ The bigger base and the 4 × 4 Hangar: what I chose
+Your answers: a hangar section is 4 × 4 tiles (four standard 2 × 2 rooms); a small pad is 2 × 2 and a large pad
+4 × 2, so a section holds 4 small, 2 large or 1 large + 2 small; the map grows with more rubble; the game starts
+with one section holding the Graf's large pad and two small pads. What I filled in:
+- **The map** is 14 × 18 (was 8 × 11). The old map is the top-left corner, unchanged except that its bedrock
+  makes way for tunnels east and south. The old cave hangar is open floor. There are 55 rubble tiles in
+  pockets for rooms, and two 4 × 4 rubble caverns beside the Hangar for its next sections. Bedrock still can't be dug.
+- **Which pad a ship needs:** size 7 and up (the Graf, light freighters) needs a large pad; size 6 and under
+  takes a small pad, or a large one when the small pads are full. The derelict Graf holds its large pad while it
+  waits, and a ship bought from Nyx holds its pad on the way.
+- **A section costs** 960 credits, 800 materials and 4 days (four of the old one-pad tiles), +35% for each
+  section past the first, and needs a 4 × 4 block of cleared floor. A new section has four small pads.
+- **Switching half a section** between two small pads and one large pad is free and instant, from the Hangar
+  window, as long as every ship still has a pad.
+- **The Ready Lounge and Maintenance Bay** each take the front-most small pad (they need one; split a large pad
+  first). The bay holds the most damaged fighter; a damaged hauler repairs on its own pad.
+- **Ship scale:** a tile is about 10 m, so ships are drawn at the length their size class gives (Talon 12 m,
+  Cross 16 m), shrunk only to fit their pad. The Graf's model is wide, so on its 40 × 20 m pad it draws at about
+  27 m rather than 40.
+- **Old saves:** the map grows around the old base, and the cave hangar's tiles become floor (a tile still being
+  built is refunded). Its ships, upgrades and queued upgrades move to the first new section, and a second or third
+  section is added if the fleet needs the room.
+- **Art:** the kit draws one pad per tile, so I added `o.pads` to the kit's Hangar (small circles, large rectangles
+  with corner marks, the lounge and bay sized to a pad). It's marked as a repo addition in `sr-art.js`.
+**Needs from you:** confirm or change the costs, the size cut-off and the free switch. Ask the artist to fold
+`o.pads` into the next art handoff, or the next `sr-art.js` will undo it.
 **Your call:** _open_
 
 ---

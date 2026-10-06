@@ -364,8 +364,9 @@ at `b78577f`, if we want to revert or compare.
 The hub the player returns to between missions, per the GDD's Base Management
 spec, framed as the day after Operation Take Out Instructor. Vertical slice of:
 
-- **The base** — a fixed, expandable isometric map of a hidden rock hideout.
-  Starting rooms (Command, Hangar, Barracks, Storeroom); rubble chambers can be
+- **The base** — a fixed, expandable 14 × 18 isometric map of a hidden rock hideout (drag to pan, wheel or
+  pinch to zoom). Starting rooms (Command, Hangar, Barracks); the Hangar is built in 4 × 4 sections of small
+  and large landing pads. Rubble chambers can be
   excavated and open floors built out (Intelligence Center, Workshop, Infirmary,
   Training Hall, Diplomatic Quarter, Storeroom, Tech Lab), with costs in credits/supplies and multi-day
   construction. Same-type rooms that touch merge into one bigger room (more landing pads,

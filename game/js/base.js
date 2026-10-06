@@ -98,7 +98,7 @@ const BUILDS={
   workshop:{c:400,m:160,days:2},
   infirmary:{c:360,m:80,s:60,days:2},
   training:{c:320,m:100,s:40,days:1},
-  hangar:{c:240,m:200,days:1},
+  hangar:{c:960,m:800,days:4},   // a 4 × 4 section: four small pads' worth of the old one-pad tile (C-32)
   barracks:{c:280,m:120,s:60,days:1},
   diplo:{c:500,m:160,s:60,days:2},
   techlab:{c:400,m:160,days:2},
@@ -200,17 +200,35 @@ function pilotAimMod(p){return Rebel.moraleFx(p).aim+Rebel.injFx(p).aim+Rebel.we
 /* ---------- state ---------- */
 let G=null,tilePopAt=null,winMode=null,winArg=null,started=false,viewRoom=null,srcSel=null;
 
+/* Haven Rock's ground (DESIGN_BLOCKERS C-32): 14 rows × 18 columns. The first 8 rows and 11 columns are the old map, and
+   its bedrock can never have changed, so the new ground reaches into it freely; old saves get the same ground (MIGRATIONS
+   5 -> 6). The Hangar's sections sit along the east side: the first is built, the next two are rubble caverns. */
+const BASE_ROWS=14,BASE_COLS=18,HANGAR_SITES=[[2,13],[6,13],[10,13]];
+function havenGround(){
+  const g=[];for(let r=0;r<BASE_ROWS;r++){g.push([]);for(let c=0;c<BASE_COLS;c++)g[r].push('rock');}
+  const set=(t,cells)=>cells.forEach(([r,c])=>{g[r][c]=t;});
+  const rect=(t,r0,c0,h,w)=>{for(let r=r0;r<r0+h;r++)for(let c=c0;c<c0+w;c++)g[r][c]=t;};
+  // the old caves; the old cave hangar (rows 2-3, columns 1-2) is open floor now
+  rect('floor',4,1,1,8);
+  set('floor',[[3,3],[2,3],[5,3],[3,6],[5,6],[2,1],[2,2],[3,1],[3,2]]);
+  set('rubble',[[4,0],[5,1],[5,2],[1,3],[5,7],[4,9],[3,7],[3,8],[6,4],[6,5],[2,6],[2,7],[1,4],[6,3]]);
+  // tunnels east to the Hangar and south to the lower caves
+  set('floor',[[4,10],[4,11],[4,12],[7,3],[8,3],[9,3]]);
+  rect('floor',5,12,6,1);rect('floor',10,1,1,12);
+  // rubble pockets to dig out for rooms
+  rect('rubble',2,9,2,2);set('rubble',[[5,8],[5,9],[5,10],[6,9],[6,10]]);
+  rect('rubble',8,1,2,2);rect('rubble',8,5,2,2);rect('rubble',8,8,2,3);
+  rect('rubble',11,1,2,3);rect('rubble',11,5,2,3);rect('rubble',11,9,2,3);
+  for(const [r,c] of HANGAR_SITES.slice(1))rect('rubble',r,c,HANGAR_N,HANGAR_N);
+  return g;
+}
+const hangarSection=(r,c,halves)=>({id:'rm_'+r+'_'+c,key:'hangar',r,c,w:HANGAR_N,h:HANGAR_N,up:[],halves});
 function newGame(){
-  const rows=8,cols=11;
-  const grid=[];
-  for(let r=0;r<rows;r++){grid.push([]);for(let c=0;c<cols;c++)grid[r].push({t:'rock'});}
-  const setT=(r,c,t)=>{grid[r][c]={t};};
-  for(let c=1;c<=8;c++)setT(4,c,'floor');
-  setT(3,3,'floor');setT(2,3,'floor');setT(5,3,'floor');setT(3,6,'floor');setT(5,6,'floor');
-  [[4,0],[5,1],[5,2],[1,3],[5,7],[4,9],[3,7],[3,8],[6,4],[6,5],[2,6],[2,7],[1,4],[6,3]].forEach(([r,c])=>setT(r,c,'rubble'));
+  const rows=BASE_ROWS,cols=BASE_COLS;
+  const grid=havenGround().map(row=>row.map(t=>({t})));
   const rooms=[
     {id:'rm_2_4',key:'command',r:2,c:4,w:2,h:2},
-    {id:'rm_2_1',key:'hangar',r:2,c:1,w:2,h:2},
+    hangarSection(HANGAR_SITES[0][0],HANGAR_SITES[0][1],['L','S']),   // the derelict Graf's large pad and two fighter pads
     {id:'rm_5_4',key:'barracks',r:5,c:4,w:2,h:1},
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
@@ -273,7 +291,73 @@ function clustersOf(key){
 }
 const clUp=(cl,k)=>cl.some(r=>(r.up||[]).includes(k));
 /* conversions (Ready Lounge, Maintenance Bay, Rec Room) turn one tile of a merged room into something else */
-function fighterCap(){return clustersOf('hangar').reduce((n,cl)=>n+clusterTiles(cl)-(clUp(cl,'lounge')?1:0)-(clUp(cl,'mbay')?1:0),0);}   // one landing pad per hangar tile; four from the start
+/* ---------- the Hangar: 4 × 4 sections of landing pads (DESIGN_BLOCKERS C-32) ----------
+   A Hangar room is a 4 × 4-tile section. Each half of it (two rows of four tiles) is either two small pads (2 × 2 tiles:
+   a fighter, size 6 or under) or one large pad (4 × 2: a hauler or light freighter, size 7-8); rm.halves holds 'S' or 'L'
+   per half. The Ready Lounge and the Maintenance Bay each take the front-most small pad of their Hangar. */
+const HANGAR_N=4,LARGE_SIZE=7;
+const shipSize=cls=>((SRDB.ship(cls)||{}).size)||5;
+const isLargeShip=cls=>shipSize(cls)>=LARGE_SIZE;
+function sectionPads(rm){
+  const out=[];
+  (rm.halves||['S','S']).forEach((k,h)=>{
+    const r=rm.r+h*2;
+    if(k==='L')out.push({rm,half:h,kind:'large',r,c:rm.c,w:4,h:2});
+    else for(let i=0;i<2;i++)out.push({rm,half:h,kind:'small',r,c:rm.c+i*2,w:2,h:2});
+  });
+  return out;
+}
+function clusterPads(cl){
+  const pads=cl.flatMap(sectionPads);
+  const small=pads.filter(p=>p.kind==='small').sort((a,b)=>(b.r+b.c)-(a.r+a.c)||b.c-a.c);
+  let i=0;
+  for(const k of ['lounge','mbay'])if(clUp(cl,k)&&small[i])small[i++].conv=k;
+  return pads;
+}
+const hangarPads=()=>clustersOf('hangar').flatMap(clusterPads);
+function padCounts(pads){let L=0,S=0;for(const p of pads||hangarPads())if(!p.conv){if(p.kind==='large')L++;else S++;}return {L,S};}
+function fighterCap(){const {L,S}=padCounts();return L+S;}   // every berth, large and small; three from the start
+/* what holds a pad: the fleet, ships on their way from Nyx, and the derelict Graf while it waits on its large pad */
+const wreckClass=()=>G.wreck&&!G.wreck.restored?['graf']:[];
+const fleetClasses=()=>G.fighters.map(f=>f.cls).concat((G.inbound||[]).filter(x=>x.kind==='ship').map(x=>x.cls),wreckClass());
+/* large ships need large pads; small ships take small pads first, then any large pad left over */
+function fleetFits(classes,counts){const {L,S}=counts||padCounts(),big=classes.filter(isLargeShip).length;return big<=L&&classes.length<=L+S;}
+const berthFree=(cls,n)=>fleetFits(fleetClasses().concat(Array(n||1).fill(cls)));
+function padsFree(){
+  const {L,S}=padCounts(),cl=fleetClasses(),big=cl.filter(isLargeShip).length,small=cl.length-big;
+  return {small:Math.max(0,S-small),large:Math.max(0,L-big-Math.max(0,small-S))};
+}
+/* flipping half a section between two small pads and one large pad: free, as long as every ship still has a pad */
+function flipBlocked(rm,h){
+  if(rm.build)return 'Still being built.';
+  const keep=rm.halves[h];rm.halves[h]=keep==='L'?'S':'L';
+  const cl=clusterOf(rm),need=['lounge','mbay'].filter(k=>clUp(cl,k)).length;
+  const small=clusterPads(cl).filter(p=>p.kind==='small').length,fits=fleetFits(fleetClasses());
+  rm.halves[h]=keep;
+  if(small<need)return 'The '+(clUp(cl,'lounge')?'Ready Lounge':'Maintenance Bay')+' needs a small pad.';
+  if(!fits)return keep==='L'?'A hauler needs that large pad.':'Our ships need those pads.';
+  return '';
+}
+function flipHalf(rm,h){
+  if(flipBlocked(rm,h))return false;
+  rm.halves[h]=rm.halves[h]==='L'?'S':'L';
+  news('The Hangar crew repaint the deck: '+(rm.halves[h]==='L'?'one large pad':'two small pads')+' where '+(rm.halves[h]==='L'?'two small ones were':'the large one was')+'.','a');
+  return true;
+}
+/* a new section needs a 4 × 4 block of cleared floor; one beside the Hangar we have is best (it joins it) */
+function hangarBlockAt(r,c){
+  let best=null,bs=-1;
+  for(let r0=r-3;r0<=r;r0++)for(let c0=c-3;c0<=c;c0++){
+    if(r0<0||c0<0||r0+HANGAR_N>G.rows||c0+HANGAR_N>G.cols)continue;
+    let ok=true;
+    for(let i=r0;i<r0+HANGAR_N&&ok;i++)for(let j=c0;j<c0+HANGAR_N;j++)if(G.grid[i][j].t!=='floor'){ok=false;break;}
+    if(!ok)continue;
+    const bl={r:r0,c:c0,w:HANGAR_N,h:HANGAR_N},adj=G.rooms.some(o=>o.key==='hangar'&&!o.build&&roomsAdj(bl,o));
+    const score=(adj?100:0)-(r-r0)-(c-c0);
+    if(score>bs){bs=score;best=Object.assign(bl,{adj});}
+  }
+  return best;
+}
 const bedsPerTile=cl=>3+(clUp(cl,'bunks')?2:0)+(clUp(cl,'quarters')?2:0);
 function bunkCap(){return clustersOf('barracks').reduce((n,cl)=>n+(clusterTiles(cl)-(clUp(cl,'rec')?1:0))*bedsPerTile(cl),0);}
 const missionDays=m=>Math.max(1,(m.days||1)-(hangarUp('lounge')?1:0));
@@ -1640,7 +1724,7 @@ function advanceDay(){
   for(const dv of (G.inbound||[]))dv.days--;
   for(const dv of (G.inbound||[]).filter(x=>x.days<=0)){
     if(dv.kind==='ship'){
-      if(G.fighters.length>=fighterCap()){   // the pad it held got converted away: it waits overhead
+      if(!fleetFits(G.fighters.map(f=>f.cls).concat(wreckClass(),[dv.cls]))){   // the pad it held got converted away: it waits overhead
         if(!dv.noted){dv.noted=1;news('<b>'+dv.name+'</b> circles overhead — no landing pad free.','h');}
         continue;
       }
@@ -2279,13 +2363,13 @@ function resolveMission(m){
     let rew=[];
     applyRew(salvaged(m.rew),rew);
     if(m.rew.fighter){
-      if(G.fighters.length<fighterCap()){
+      if(berthFree('talon')){
         G.fighters.push(newFighter({id:'t'+(G.fighters.length+1),name:'Talon '+(G.fighters.length),cls:'talon',hull:70}));
         rew.push('+1 fighter');
       } else {G.credits+=600;rew.push('no berth — sold for '+C(600));}
     }
     if(m.rew.cross){
-      if(G.fighters.length<fighterCap()){
+      if(berthFree('cross')){
         G.fighters.push(newFighter({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85}));
         rew.push('+FT-4 Cross');
       } else {G.credits+=800;rew.push('no berth — Cross fenced for '+C(800));}
@@ -2514,9 +2598,14 @@ function patrolTick(){
 function upBlocked(rm,d){
   if(!d.conv)return '';
   const cl=clusterOf(rm),t=clusterTiles(cl);
+  if(rm.key==='hangar'){   // the Ready Lounge and Maintenance Bay each take a small pad (C-32)
+    const queued=['lounge','mbay'].filter(k=>!clUp(cl,k)&&upQueued(rm,k)).length;
+    const small=clusterPads(cl).filter(p=>p.kind==='small'&&!p.conv).length-queued;
+    if(small<1)return 'Needs a small pad to convert: split a large pad first.';
+    const n=padCounts();n.S-=1+queued;
+    return fleetFits(fleetClasses(),n)?'':'Every pad is spoken for.';
+  }
   if(t<(d.minTiles||2))return d.minTiles>2?'Needs an expansion first.':'Needs a second room to convert.';
-  const convs=['lounge','mbay'].filter(k=>clUp(cl,k)||upQueued(rm,k)).length;
-  if(rm.key==='hangar'&&(G.fighters.length>fighterCap()-1||t-convs<2))return 'The pad is in use or it is the last one.';
   if(rm.key==='barracks'&&bunksUsed()>bunkCap()-bedsPerTile(cl))return 'Everyone needs their bunk.';
   return '';
 }
@@ -2674,12 +2763,32 @@ function fitCanvas(){
   cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);
 }
 addEventListener('resize',()=>{if(SR.active==='base')fitCanvas();});
-function isoParams(){
+/* the base map's camera: zoom 1 fits the whole mountain; drag to pan, wheel or pinch to zoom (per session, not saved) */
+const baseCam={z:1,x:0,y:0};
+function isoFit(){
   const extW=(G.cols+G.rows)*TW2+80,extH=(G.cols+G.rows)*TH2+120;
-  const S=Math.max(0.7,Math.min(1.5,Math.min((cssW-40)/extW,(cssH-160)/extH)));
-  const ox=cssW/2-((G.cols-1)-(G.rows-1))*TW2*S/2;
-  const oy=(cssH-((G.cols-1+G.rows-1)*TH2)*S)/2+10;
+  return Math.max(0.45,Math.min(1.5,Math.min((cssW-40)/extW,(cssH-160)/extH)));
+}
+function isoParams(){
+  const S=isoFit()*baseCam.z;
+  const ox=cssW/2-((G.cols-1)-(G.rows-1))*TW2*S/2+baseCam.x;
+  const oy=(cssH-((G.cols-1+G.rows-1)*TH2)*S)/2+10+baseCam.y;
   return {S,ox,oy};
+}
+/* keep some of the mountain on screen whatever the pan */
+function clampCam(){
+  const S=isoFit()*baseCam.z,mx=(G.cols+G.rows)*TW2*S/2,my=(G.cols+G.rows)*TH2*S/2;
+  baseCam.x=Math.max(-mx,Math.min(mx,baseCam.x));baseCam.y=Math.max(-my,Math.min(my,baseCam.y));
+}
+/* zoom by f about a screen point, so what is under it stays under it */
+function zoomCam(f,px,py){
+  const a=isoParams(),z=Math.max(1,Math.min(3,baseCam.z*f));
+  if(z===baseCam.z)return;
+  const u=(px-a.ox)/a.S,v=(py-a.oy)/a.S;
+  baseCam.z=z;baseCam.x=0;baseCam.y=0;
+  const b=isoParams();
+  baseCam.x=px-u*b.S-b.ox;baseCam.y=py-v*b.S-b.oy;
+  clampCam();
 }
 function cellToCss(r,c){
   const {S,ox,oy}=isoParams();
@@ -2816,16 +2925,33 @@ function shipTopURL(f,W,H,k){
   }catch(e){return null;}
 }
 /* a ship parked in an isometric space (the hangar's walk-in view, the workshop, the hangar on the base map): the art
-   kit's 3D hangar model (SR_ART.hangarShip), engines cold, facing the viewer's left; door guns show when the Graf has
-   them fitted. Ships with no model fall back to shipIso inside the kit. ISO_K is the room view's isometric scale;
-   s is a size a little under the guide's (the Graf 2.2, a fighter 2.6, so ships sit inside their berths) times the caller's room scale. */
+   kit's 3D hangar model (SR_ART.hangarShip), engines cold; door guns show when the Graf has them fitted. Ships with no
+   model fall back to shipIso inside the kit. ISO_K is the room view's isometric scale; s is hangarShip's size. */
 const ISO_K=1.25;
-function craftIso(cls,x,y,k,o){
+function craftIso(cls,x,y,s,o){
   o=Object.assign({},o||{});
   const id=artShipId(cls),f=o.fighter;delete o.fighter;
   if(f&&hasDoorGun(f))o.loadout={attach:['doorgun']};
-  SA.hangarShip(ctx,id,x,y,(id==='graf'?2.2:2.6)*k,ISO_K,RM?0:worldT/1000,Object.assign({livery:'rebel',cold:true},o));
+  SA.hangarShip(ctx,id,x,y,s,ISO_K,RM?0:worldT/1000,Object.assign({livery:'rebel',cold:true},o));
 }
+/* ships at true scale (C-32): the database's size class gives a length in metres, and a tile is about 10 m (100 floor
+   units). A ship shrinks only as far as it must to sit inside its pad. shipFit is floor units per model unit; shipSWalk
+   and shipSMap turn that into hangarShip's size in a walk-in view of scale k, or on the base map at scale S. */
+const hmDims={};
+function hmDim(id){
+  if(hmDims[id])return hmDims[id];
+  const M=SA.HM&&SA.HM[id],xs=[],ys=[1];
+  if(M)for(const p of M.parts){for(const q of p.pts||[]){xs.push(q[0]);ys.push(Math.abs(q[1]));}if(p.x0!=null)xs.push(p.x0,p.x1);}
+  return hmDims[id]=xs.length?{len:Math.max(...xs)-Math.min(...xs),wid:2*Math.max(...ys)}:{len:40,wid:30};
+}
+const shipMetres=cls=>{const row=(SRDB.raw.size_scale||[]).find(x=>x.size===shipSize(cls));return row?row.approx_length_m:16;};
+function shipFit(cls,pad){
+  const d=hmDim(artShipId(cls)),want=shipMetres(cls)*10/d.len;
+  const fit=pad.kind==='large'?Math.min(0.9*pad.w/d.len,0.9*pad.d/d.wid):0.86*Math.min(pad.w,pad.d)/Math.max(d.len,d.wid);
+  return Math.min(want,fit);
+}
+const shipSWalk=(f,k)=>1.426*f*k,shipSMap=(f,S)=>0.385*f*S;
+const padHeading=pad=>pad.kind==='large'?{heading:0}:{};   // a hauler parks along its large pad
 const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
 /* ---------- Haven Rock: who is where on the map and in the walk-in views (docs/art/HANDOFF.md, "Haven Rock") ----------
@@ -2837,22 +2963,34 @@ function clusterCells(cl){const out=[];for(const q of cl)for(let r=q.r;r<q.r+q.h
 const clusterUps=cl=>[...new Set(cl.flatMap(q=>q.up||[]))];
 /* the Maintenance Bay takes the most damaged ship in the hangar (advanceDay repairs it faster) */
 const bayShip=()=>hangarUp('mbay')?G.fighters.filter(f=>!f.out&&f.hull<100).sort((a,b)=>a.hull-b.hull)[0]:null;
-/* the kit's tile-taking upgrades (Rec Room, Surgery, Ready Lounge, Maintenance Bay) only claim a tile in a room of two or more */
+/* the kit's tile-taking upgrades (Rec Room, Surgery) only claim a tile in a room of two or more */
 const convTile=(cl,k)=>clUp(cl,k)&&clusterTiles(cl)>1?1:0;
-/* how many pads / beds the art lays out in a cluster, so each cluster of a key takes the next share of ships and sleepers */
-const padSlots=cl=>clusterTiles(cl)-convTile(cl,'lounge')-convTile(cl,'mbay');
+/* how many beds the art lays out in a cluster, so each cluster of a key takes the next share of sleepers */
 const bedSlots=(cl,key)=>key==='barracks'?3*(clusterTiles(cl)-convTile(cl,'rec')):key==='infirmary'?2*(clusterTiles(cl)-convTile(cl,'surgery')):0;
 function slotOffset(cl,key,slots){
   let n=0;
   for(const o of clustersOf(key)){if(o.includes(cl[0]))return n;n+=slots(o,key);}
   return n;
 }
-/* the hangar's berths, in pad order: every ship but the one in the Maintenance Bay, then the derelict Graf if there is one */
-function hangarBerths(){
-  const bay=bayShip();
-  const list=G.fighters.filter(f=>f!==bay).map(f=>({f}));
-  if(G.wreck&&!G.wreck.restored)list.push({wreck:true});
-  return {bay,list};
+/* who is on which pad (pads from hangarPads()): haulers on the large pads, fighters on the small ones and then on any
+   large pad left; the Maintenance Bay holds the most damaged fighter; the derelict Graf waits on a large pad; a ship on
+   its way from Nyx has its pad held */
+function padOccupants(pads){
+  const occ=new Map(),bay=bayShip(),bayPad=pads.find(p=>p.conv==='mbay');
+  const inBay=bay&&bayPad&&!isLargeShip(bay.cls)?bay:null;
+  if(inBay)occ.set(bayPad,{f:inBay});
+  const list=G.fighters.filter(f=>f!==inBay).map(f=>({f,cls:f.cls}));
+  if(G.wreck&&!G.wreck.restored)list.push({wreck:true,cls:'graf'});
+  for(const dv of (G.inbound||[]).filter(x=>x.kind==='ship'))list.push({inbound:dv,cls:dv.cls});
+  const free=k=>pads.find(p=>!p.conv&&p.kind===k&&!occ.has(p));
+  for(const o of list.filter(o=>isLargeShip(o.cls))){const p=free('large');if(p)occ.set(p,o);}
+  for(const o of list.filter(o=>!isLargeShip(o.cls))){const p=free('small')||free('large');if(p)occ.set(p,o);}
+  return occ;
+}
+/* a cluster's pads for the art kit, in floor units from the cluster's top-left tile */
+function padsRel(cl,pads){
+  const r0=Math.min(...cl.map(q=>q.r)),c0=Math.min(...cl.map(q=>q.c));
+  return pads.map((p,i)=>({id:i,x:(p.c-c0)*100,y:(p.r-r0)*100,w:p.w*100,d:p.h*100,kind:p.conv==='lounge'?'lounge':p.conv==='mbay'?'bay':p.kind}));
 }
 /* resting and conked-out rebels sleep in the Barracks; the laid-up lie in the Infirmary */
 const sleepers=()=>G.people.filter(p=>!p.auto&&((p.assign==='rest'&&!laidUp(p))||(Rebel.conked(p)&&!laidUp(p))));
@@ -2943,27 +3081,26 @@ function renderBase(now){
       else SA.baseTile(ctx,'floor',x,y,S,{r,c});
     }});
   }
-  const berths=hangarBerths();
+  const allPads=hangarPads(),occ=padOccupants(allPads);
   for(const rm of G.rooms.filter(rm=>clusterOf(rm)[0]===rm)){
     const cl=clusterOf(rm),cells=clusterCells(cl);   // a merged room is drawn once, on its real tiles
     cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
     const r0=Math.min(...cells.map(q=>q[0])),c0=Math.min(...cells.map(q=>q[1]));
+    const myPads=rm.key==='hangar'?allPads.filter(p=>cl.includes(p.rm)):[],rel=padsRel(cl,myPads);
     items.push({d:r0+c0+0.1,cells,fn:()=>{
-      const res=SA.baseRoom(ctx,cells,rm.key,cellToCss,S,{up:clusterUps(cl),build:rm.build,t,
+      const res=SA.baseRoom(ctx,cells,rm.key,cellToCss,S,{up:clusterUps(cl),build:rm.build,t,pads:rm.key==='hangar'?rel:undefined,
         fill:rm.key==='store'?G.supplies/supCap():undefined,worker:crew.length?personSpec(crew[0]):undefined});
       const [x,y]=roomCenter(rm);
       if(rm.build){TH.marker(ctx,x,y-2*S,{icon:'work',color:K.gold,t,size:26});}
       else{
         if(rm.key==='techlab'){const P=cellToCss;   // the kit has no Tech Lab furniture yet: two glowing screens per tile
           for(const [r,c] of cells){const [tx,ty]=P(r,c);for(let s=0;s<2;s++){ctx.fillStyle=TH.rgba(rcol('techlab'),0.35+0.3*Math.abs(Math.sin(t*3+r+c+s)));ctx.fillRect(tx-9*S+s*10*S,ty-8*S,7*S,5*S);ctx.strokeStyle=K.ink;ctx.lineWidth=1;ctx.strokeRect(tx-9*S+s*10*S,ty-8*S,7*S,5*S);}}}
-        if(rm.key==='hangar'){
-          const off=slotOffset(cl,'hangar',padSlots);let i=0;
-          for(const pad of res.pads){
-            const b=pad.bay?(berths.bay&&clustersOf('hangar').find(o=>convTile(o,'mbay')).includes(rm)?{f:berths.bay}:null):berths.list[off+(i++)];
-            if(!b||(b.f&&b.f.out))continue;
-            if(b.wreck)craftIso('graf',pad.x,pad.y,S*0.32,{livery:'civ',damage:0.5});
-            else craftIso(b.f.cls,pad.x,pad.y,S*0.32,{damage:1-b.f.hull/100,fighter:b.f});
-          }
+        if(rm.key==='hangar')for(const pad of res.pads){
+          const b=occ.get(myPads[pad.id]),rp=rel[pad.id];
+          if(!b||b.inbound||(b.f&&b.f.out))continue;
+          const cls=b.wreck?'graf':b.f.cls,s=shipSMap(shipFit(cls,rp),S);
+          if(b.wreck)craftIso('graf',pad.x,pad.y,s,Object.assign({livery:'civ',damage:0.5},padHeading(rp)));
+          else craftIso(cls,pad.x,pad.y,s,Object.assign({damage:1-b.f.hull/100,fighter:b.f},padHeading(rp)));
         }
         const staff=crewIn(rm.key);
         if(staff.length&&res.posts.length&&clustersOf(rm.key)[0].includes(rm)){const p=res.posts[0];
@@ -2994,7 +3131,15 @@ function renderBase(now){
   }
   if(tilePopAt){
     if(tilePopAt.room){roomOutline(tilePopAt.room);ctx.strokeStyle=K.gold;ctx.lineWidth=3;ctx.stroke();}
-    else {const [x,y,S]=cellToCss(tilePopAt.r,tilePopAt.c);diamond(x,y,S,0);ctx.strokeStyle=K.gold;ctx.lineWidth=3;ctx.stroke();}
+    else {
+      const [x,y,S]=cellToCss(tilePopAt.r,tilePopAt.c);diamond(x,y,S,0);ctx.strokeStyle=K.gold;ctx.lineWidth=3;ctx.stroke();
+      const bl=G.grid[tilePopAt.r][tilePopAt.c].t==='floor'&&hangarBlockAt(tilePopAt.r,tilePopAt.c);   // where a Hangar section would go
+      if(bl){
+        const P=(r,c)=>cellToCss(r,c),a=P(bl.r-0.5,bl.c-0.5),b=P(bl.r-0.5,bl.c+3.5),c2=P(bl.r+3.5,bl.c+3.5),d=P(bl.r+3.5,bl.c-0.5);
+        ctx.save();ctx.setLineDash([6,5]);ctx.lineWidth=2;ctx.strokeStyle=TH.rgba(K.shield,0.8);
+        ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c2[0],c2[1]);ctx.lineTo(d[0],d[1]);ctx.closePath();ctx.stroke();ctx.restore();
+      }
+    }
   }
 }
 
@@ -3171,7 +3316,8 @@ function renderRoomBar(){
   let info='';
   if(rm.key==='hangar'){
     const rate=repairBase();
-    info='Berths '+G.fighters.length+'/'+fighterCap()+' · repairs '+(rate+(hangarUp('arm')?5:0))+'%/day at '+M(repairCost())+' each'+(hasRoom('workshop')?' (faster for a craft a Mechanic is working on)':'');
+    const pc=padCounts();
+    info='Pads '+pc.L+' large · '+pc.S+' small · '+G.fighters.length+' ship'+(G.fighters.length===1?'':'s')+' · repairs '+(rate+(hangarUp('arm')?5:0))+'%/day at '+M(repairCost())+' each'+(hasRoom('workshop')?' (faster for a craft a Mechanic is working on)':'');
     if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored)info+='<br>A derelict <b>Graf Hauler</b> sits under ten years of dust. Joss swears she’ll fly.';
   } else if(rm.key==='barracks'){
     info='Bunks '+bunksUsed()+'/'+bunkCap()+' · '+clusterTiles(clusterOf(rm))+' rooms · morale '+Math.round(G.morale)+
@@ -3224,6 +3370,14 @@ function renderRoomBar(){
         '<div class="bs-build__row"><span class="sr-card__meta">'+F(fuelOf(f),G.fuel<fuelOf(f))+'</span>'+rbtn('data-patrol="'+f.id+'"'+(ok?'':' title="'+esc(patrolPilot(f)?(f.hull<60?'Too damaged to fly':'Not enough fuel'):'Needs its pilot free')+'"'),'Patrol',!ok,'sr-btn--sm')+'</div></div>';
     }
   }
+  if(rm.key==='hangar'){   // each half of a section: two small pads or one large pad (C-32)
+    for(const sec of clusterOf(rm))(sec.halves||[]).forEach((k,h)=>{
+      const blk=flipBlocked(sec,h),many=clusterOf(rm).length>1;
+      cards+='<div class="sr-card bs-build"><div class="sr-card__top"><span class="sr-card__title">'+(many?'Section '+(clusterOf(rm).indexOf(sec)+1)+', ':'')+(h?'near':'far')+' half: '+(k==='L'?'one large pad':'two small pads')+'</span></div>'+
+        '<div class="sr-card__body">'+(k==='L'?'Room for a hauler or light freighter.':'Room for two fighters.')+(blk?' <span class="bs-bad">'+blk+'</span>':'')+'</div>'+
+        '<div class="bs-build__row"><span class="sr-card__meta">Free</span>'+rbtn('data-flip="'+sec.id+':'+h+'"'+(blk?' title="'+esc(blk)+'"':''),k==='L'?'Split into two small pads':'Make one large pad',!!blk,'sr-btn--sm')+'</div></div>';
+    });
+  }
   for(const u of (UPGRADES[rm.key]||[])){
     const has=upOf(rm,u.k),q=upQueued(rm,u.k);
     const afford=G.credits>=u.c&&G.materials>=(u.m||0)&&G.supplies>=(u.s||0);
@@ -3265,10 +3419,11 @@ function renderRoomView(now){
   const label=(txt,x,y,col,px,wt)=>{ctx.font=fnt(px||12,wt);ctx.textAlign='center';ctx.fillStyle=col;ctx.fillText(txt,x,y);};
   /* the room itself: walls, floor, lamps and furniture on the cluster's real tiles, from the art kit (docs/art/HANDOFF.md) */
   const cl=clusterOf(rm),cells=clusterCells(cl);
+  const allPads=rm.key==='hangar'?hangarPads():[],myPads=allPads.filter(p=>cl.includes(p.rm)),rel=padsRel(cl,myPads);
   ctx.save();
   ctx.translate(cx,cy);
   ctx.scale(Sx,Sx);
-  const res=SA.roomInterior(ctx,rm.key,{tiles:cells,up:clusterUps(cl),build:rm.build,t,alert:baseAlert(),
+  const res=SA.roomInterior(ctx,rm.key,{tiles:cells,up:clusterUps(cl),build:rm.build,t,alert:baseAlert(),pads:rm.key==='hangar'?rel:undefined,
     fill:rm.key==='store'?G.supplies/supCap():undefined});
   const k=res.scale;
   let posts=res.posts;
@@ -3299,26 +3454,27 @@ function renderRoomView(now){
   };
   if(rm.build){/* scaffolding and a builder: the kit draws it all */}
   else if(rm.key==='hangar'){
-    /* one pad per hangar tile (fighterCap); the Maintenance Bay's pad holds the most damaged ship */
-    const berths=hangarBerths(),off=slotOffset(cl,'hangar',padSlots),bayHere=berths.bay&&clustersOf('hangar').find(o=>convTile(o,'mbay')).includes(rm);
-    let i=0;
+    /* the pads of this Hangar's sections (C-32): haulers on large pads, fighters on small ones, the most damaged fighter
+       in the Maintenance Bay; every ship drawn at its true size, shrunk only to fit its pad */
+    const occ=padOccupants(allPads);
     for(const pad of res.pads){
-      const b=pad.bay?(bayHere?{f:berths.bay}:null):berths.list[off+(i++)],ly=pad.y+30*k;
+      const rp=rel[pad.id],b=occ.get(myPads[pad.id]),ly=pad.y+(rp.kind==='large'?24*k:(rp.w+rp.d)*0.65*k*0.3);   // a large pad's label stays clear of the near half
       if(b&&b.wreck){
-        craftIso('graf',pad.x,pad.y,k,{livery:'civ',damage:0.5});
+        craftIso('graf',pad.x,pad.y,shipSWalk(shipFit('graf',rp),k),Object.assign({livery:'civ',damage:0.5},padHeading(rp)));
         label(G.wreck.restoring?'Restoring · '+G.wreck.restoring+'d':'Derelict',pad.x,ly+6,K.gold,11);
         continue;
       }
+      if(b&&b.inbound){label('Held for '+b.inbound.name,pad.x,pad.y+4,K.text3,11);continue;}
       const f=b&&b.f;
       if(f&&!f.out){
-        craftIso(f.cls,pad.x,pad.y,k,{damage:1-f.hull/100,fighter:f});
+        craftIso(f.cls,pad.x,pad.y,shipSWalk(shipFit(f.cls,rp),k),Object.assign({damage:1-f.hull/100,fighter:f},padHeading(rp)));
         label(f.name+(pad.bay?' · bay':''),pad.x,ly+2,K.text);
         ctx.fillStyle=K.ink;ctx.fillRect(pad.x-27,ly+7,54,7);
         ctx.fillStyle=hullCol(f.hull);
         ctx.fillRect(pad.x-25,ly+9,50*f.hull/100,3);
         if(f.hull<100&&rng()<0.05)spark(pad.x+(rng()-0.5)*36*k,pad.y+8*k);
         rvFigs.push({x:cx+pad.x*Sx,y:cy+pad.y*Sx,r:Math.max(26,30*k*Sx),fid:f.id});
-      } else label(f&&f.out?f.name+' — out':pad.bay?'Maintenance Bay':'Empty berth',pad.x,pad.y+4,K.text3,11);
+      } else label(f&&f.out?f.name+' — out':pad.bay?'Maintenance Bay':rp.kind==='large'?'Empty large pad':'Empty pad',pad.x,pad.y+4,K.text3,11);
     }
     staffRoom(crewIn('hangar'));
   } else if(rm.key==='barracks'){
@@ -3334,7 +3490,7 @@ function renderRoomView(now){
     const sh=SA.shapeOf(rvProjFor(cells).rel),lt=cells.length>1?sh.front[0]:sh.centre,P=rvProjFor(cells).proj;
     const [lx,ly]=P(lt.tx*100+50,lt.ty*100+50,36);
     if(wounded){
-      craftIso(wounded.cls,lx,ly,0.8*k,{damage:1-wounded.hull/100,fighter:wounded});
+      craftIso(wounded.cls,lx,ly,shipSWalk(shipFit(wounded.cls,{w:110,d:110,kind:'small'}),k),{damage:1-wounded.hull/100,fighter:wounded});
       label(wounded.name+' — '+wounded.hull+'%',lx,ly+44*k,K.text);
       if(rng()<0.12)spark(lx+(rng()-0.5)*60*k,ly-6*k);
     } else label('Lift empty — nothing broken. For once.',lx,ly+30*k,K.text2);
@@ -4498,7 +4654,7 @@ function startRestore(){
 function buildCostAt(k,r,c){
   const b=BUILDS[k];
   const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
-  const m=adj?1+0.35*Math.max(0,tilesOf(k)-1):1;
+  const m=k==='hangar'?1+0.35*Math.max(0,roomsOf('hangar').length-1):adj?1+0.35*Math.max(0,tilesOf(k)-1):1;   // a Hangar section costs 35% more for each one past the first
   const out={days:b.days};
   for(const key of ['c','m','s'])if(b[key])out[key]=Math.round(b[key]*m/5)*5;
   return out;
@@ -4510,9 +4666,17 @@ function digAt(r,c){
 }
 function buildAt(r,c,bk){
   const b=buildCostAt(bk,r,c);
+  let nr;
+  if(bk==='hangar'){   // a whole 4 × 4 section at once, four small pads to start
+    const bl=hangarBlockAt(r,c);
+    if(!bl)return false;
+    for(let i=bl.r;i<bl.r+HANGAR_N;i++)for(let j=bl.c;j<bl.c+HANGAR_N;j++)G.grid[i][j]={t:'room',room:bk};
+    nr=Object.assign(hangarSection(bl.r,bl.c,['S','S']),{build:{days:b.days}});
+  } else {
+    G.grid[r][c]={t:'room',room:bk};
+    nr={id:'rm_'+r+'_'+c,key:bk,r,c,w:1,h:1,up:[],build:{days:b.days}};
+  }
   G.credits-=b.c;G.materials-=(b.m||0);G.supplies-=(b.s||0);
-  G.grid[r][c]={t:'room',room:bk};
-  const nr={id:'rm_'+r+'_'+c,key:bk,r,c,w:1,h:1,up:[],build:{days:b.days}};
   const nb=G.rooms.find(o=>o.key===bk&&!o.build&&roomsAdj(nr,o));
   if(nb)nr.up=(clusterOf(nb).find(x=>(x.up||[]).length)||{up:[]}).up.slice();
   G.rooms.push(nr);
@@ -4537,7 +4701,7 @@ function renderTilePop(){
     if(!rm.build){
       if(rm.key==='command')foot+=rbtn('data-open="missions"','Mission Board')+rbtn('data-open="sources"','Source Network');
       if(rm.key==='command')body+='<p class="bs-info">'+(G.recruit.days?'Recruiting: '+G.recruit.days+'d left.':G.recWait.length?G.recWait.length+' candidate'+(G.recWait.length>1?'s':'')+' waiting.':'Step inside to put out a call for recruits.')+'</p>';
-      if(rm.key==='hangar')body+='<p class="bs-info">Berths '+G.fighters.length+'/'+fighterCap()+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</p>';
+      if(rm.key==='hangar')body+='<p class="bs-info">Pads '+padCounts().L+' large · '+padCounts().S+' small · '+G.fighters.length+' ship'+(G.fighters.length===1?'':'s')+(G.wreck&&!G.wreck.restored?' · one derelict hauler'+(G.wreck.restoring?' (restoring, '+G.wreck.restoring+'d)':''):'')+'.</p>';
       if(rm.key==='training')foot+=rbtn('data-open="spec"','Specialty Training');
       if(rm.key==='barracks')body+='<p class="bs-info">Bunks '+bunksUsed()+'/'+bunkCap()+'.</p>';
       if(rm.key==='diplo')foot+=rbtn('data-open="diplo"','Diplomatic Tasks');
@@ -4569,10 +4733,16 @@ function renderTilePop(){
       for(const k in BUILDS){
         const b=buildCostAt(k,r,c);
         const afford=G.credits>=b.c&&G.materials>=(b.m||0)&&G.supplies>=(b.s||0);
-        const adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o));
-        body+='<div class="sr-card sr-card--good bs-build"><div class="sr-card__top"><span class="sr-card__title">'+(adj?'Expand the ':'')+ROOMS[k].name+'</span><span class="sr-tag">'+b.days+'d</span></div>'+
-          '<div class="sr-card__body">'+ROOMS[k].desc+'</div>'+
-          '<div class="bs-build__row"><span class="sr-card__meta">'+bundleHTML(b,WALLET())+'</span>'+rbtn('data-build="'+k+'"'+(afford?'':' title="'+esc(needWhy(b))+'"'),'Build',!afford,'sr-btn--primary sr-btn--sm')+'</div></div>';
+        let adj=G.rooms.some(o=>o.key===k&&!o.build&&roomsAdj({r,c,w:1,h:1},o)),name=ROOMS[k].name,note='',why=afford?'':needWhy(b);
+        if(k==='hangar'){   // a whole 4 × 4 section (C-32)
+          const bl=hangarBlockAt(r,c);
+          adj=!!(bl&&bl.adj);name=adj?'Hangar':'Hangar section';
+          note=' <span class="sr-fine">A section takes 4 × 4 tiles: four small pads, and any half can become a large pad for a hauler.</span>';
+          if(!bl){note+=' <span class="bs-bad">Needs a 4 × 4 block of cleared floor here.</span>';why='Needs a 4 × 4 block of cleared floor';}
+        }
+        body+='<div class="sr-card sr-card--good bs-build"><div class="sr-card__top"><span class="sr-card__title">'+(adj?'Expand the ':'')+name+'</span><span class="sr-tag">'+b.days+'d</span></div>'+
+          '<div class="sr-card__body">'+ROOMS[k].desc+note+'</div>'+
+          '<div class="bs-build__row"><span class="sr-card__meta">'+bundleHTML(b,WALLET())+'</span>'+rbtn('data-build="'+k+'"'+(why?' title="'+esc(why)+'"':''),'Build',!!why,'sr-btn--primary sr-btn--sm')+'</div></div>';
       }
       body+='</div>';
       h=head('Empty Chamber')+'<div class="sr-window__body">'+body+'</div>';
@@ -5658,8 +5828,8 @@ function arBaysHTML(){
         '<div class="ar-bay__sub">'+esc((r.name||f.cls)+(r.role?' · '+r.role:'')+(r.manufacturer?' · '+makerName(r.manufacturer):''))+'</div>'+hp10(f.hull,'Hull')+
         '<div class="ar-mounts">'+mounts+'</div><div class="ar-bay__sub">'+crew+'</div></div></button>';
     }
-    const free=Math.max(0,fighterCap()-G.fighters.length);
-    cards+='<div class="ar-baynew">'+(free?'<b>'+free+' landing pad'+(free>1?'s':'')+' free</b><span>A ship from Sweet Tooth needs one.</span>':'<b>No landing pads free</b><span>A ship from Sweet Tooth would need one — expand the Hangar.</span>')+'</div>';
+    const pf=padsFree(),free=pf.small+pf.large;
+    cards+='<div class="ar-baynew">'+(free?'<b>'+free+' landing pad'+(free>1?'s':'')+' free'+(pf.large?' ('+pf.large+' large)':'')+'</b><span>A ship from Sweet Tooth needs one. Haulers need a large pad.</span>':'<b>No landing pads free</b><span>A ship from Sweet Tooth would need one — expand the Hangar.</span>')+'</div>';
   } else {
     for(const v of G.vehicles||[]){
       const d=gvehOf(v);
@@ -5948,7 +6118,7 @@ const VEH_PRICE={truck:1100};   // listed, but only sellable once GVEH.truck exi
 const SHIP_SHORT={talon:'Talon',cross:'Cross',graf:'Hauler'};
 const makerName=id=>{const m=(SRDB.raw.manufacturers||[]).find(x=>x.id===id);return m?m.name:'';};
 const inboundShips=()=>((G.inbound||[]).filter(x=>x.kind==='ship').length);
-const padFree=()=>G.fighters.length+inboundShips()<fighterCap();   // a bought ship needs a pad held for it
+const padFree=(cls,n)=>berthFree(cls||'talon',n);   // a bought ship needs a pad of its size held for it (C-32)
 const shipSerial=cls=>{
   const n=G.fighters.filter(f=>f.cls===cls).length+(G.inbound||[]).filter(x=>x.kind==='ship'&&x.cls===cls).length+1;
   return (SHIP_SHORT[cls]||((SRDB.ship(cls)||{}).name||cls))+' '+n;   // the class's short name plus a number
@@ -6093,7 +6263,7 @@ function buyLot(i,all){
   if(!l||l.stock<=0)return false;
   if(all&&l.stock<2)return false;
   if(l.kind==='merc'&&!mercBunkFree())return false;
-  if(l.kind==='ship'&&!padFree())return false;
+  if(l.kind==='ship'&&!padFree(l.key,all?l.stock:1))return false;
   const n=all?l.stock:1;
   const cost=lotPrice(l)*n;
   if(G.credits<cost)return false;
@@ -6137,7 +6307,7 @@ function stLine(){
     if(!mercBunkFree())return pitch+' '+ST_LINES.needBunk;   // the blocked reason lives in her line (no hint text)
   } else {
     pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind]||ST_LINES.greet;
-    if(l.kind==='ship'&&!padFree())return pitch+' '+ST_LINES.needPad;
+    if(l.kind==='ship'&&!padFree(l.key))return pitch+' '+ST_LINES.needPad;
   }
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
 }
@@ -6267,7 +6437,7 @@ function bmCmdbar(){
   if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
   const merc=l.kind==='merc'?l.merc:null;
   const price=lotPrice(l),sold=l.stock<=0;
-  const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree()?'Needs a free landing pad':G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
+  const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree(l.key)?(isLargeShip(l.key)?'Needs a free large pad':'Needs a free landing pad'):G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
   const allCost=price*l.stock;
   const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
   const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+faceHTML(merc)+'</span></span>'
@@ -6298,7 +6468,38 @@ function figAt(px,py){
   }
   return best;
 }
+/* the base map pans with a drag and zooms with the wheel or a pinch; a drag never counts as a click */
+const camPtrs=new Map();let camDrag=null,camSwallow=false;
+const onBaseMap=()=>started&&G&&baseView!=='galaxy'&&!viewRoom;
+cv.addEventListener('pointerdown',ev=>{
+  if(!onBaseMap())return;
+  if(!camPtrs.size)camSwallow=false;
+  camPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+  camDrag={x:ev.clientX,y:ev.clientY,moved:false,d:camPtrs.size>1?camSpread():0};
+});
+function camSpread(){const p=[...camPtrs.values()];return p.length>1?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):0;}
+addEventListener('pointerup',ev=>{camPtrs.delete(ev.pointerId);if(!camPtrs.size)camDrag=null;else if(camDrag)camDrag.d=camSpread();});
+addEventListener('pointercancel',ev=>{camPtrs.delete(ev.pointerId);if(!camPtrs.size)camDrag=null;});
+cv.addEventListener('wheel',ev=>{
+  if(!onBaseMap())return;
+  ev.preventDefault();
+  const r=cv.getBoundingClientRect();
+  zoomCam(Math.exp(-ev.deltaY*0.0015),ev.clientX-r.left,ev.clientY-r.top);layoutTilePop();
+},{passive:false});
 cv.addEventListener('pointermove',ev=>{
+  if(camDrag&&camPtrs.has(ev.pointerId)&&onBaseMap()){
+    const prev=camPtrs.get(ev.pointerId);camPtrs.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+    if(!camDrag.moved&&Math.hypot(ev.clientX-camDrag.x,ev.clientY-camDrag.y)>6)camDrag.moved=true;
+    if(camDrag.moved){
+      if(camPtrs.size>1){
+        const d=camSpread(),r=cv.getBoundingClientRect(),p=[...camPtrs.values()];
+        if(camDrag.d)zoomCam(d/camDrag.d,(p[0].x+p[1].x)/2-r.left,(p[0].y+p[1].y)/2-r.top);
+        camDrag.d=d;
+      } else {baseCam.x+=ev.clientX-prev.x;baseCam.y+=ev.clientY-prev.y;clampCam();}
+      camSwallow=true;layoutTilePop();
+      return;
+    }
+  }
   const r=cv.getBoundingClientRect();
   const px=ev.clientX-r.left,py=ev.clientY-r.top;
   if(baseView==='galaxy'){
@@ -6317,6 +6518,7 @@ cv.addEventListener('pointermove',ev=>{
 cv.addEventListener('pointerleave',()=>{hoverCell=null;});
 cv.addEventListener('click',ev=>{
   if(!started)return;
+  if(camSwallow){camSwallow=false;return;}   // the end of a pan or a pinch
   if(shell.classList.contains('is-drawer-open'))setDrawer(false);
   if(baseView==='galaxy'){
     const r=cv.getBoundingClientRect();
@@ -7294,7 +7496,7 @@ function applyDebrief(r){
     r.nadesUsed=Math.max(0,given-r.nades);
   }
   if(r.win&&r.cross){
-    if(G.fighters.length<fighterCap()){
+    if(berthFree('cross')){
       G.fighters.push(newFighter({id:'dustfall',name:'Dustfall',cls:'cross',hull:85}));
       const flew=(r.people||[]).map(pr=>pr.id);
       const orphan=G.people.find(p=>p.role==='Pilot'&&flew.includes(p.id)&&!G.fighters.some(f=>f.id===p.ship))
@@ -7376,6 +7578,12 @@ function applyDebrief(r){
   nextReport();
 }
 ROOT.addEventListener('click',ev=>{
+  const flp=ev.target.closest('[data-flip]');
+  if(flp&&!flp.disabled){
+    const [id,h]=flp.dataset.flip.split(':'),sec=G.rooms.find(r=>r.id===id);
+    if(sec&&flipHalf(sec,+h)){sClick();saveSnap();syncUI();if(viewRoom)renderRoomBar();}
+    return;
+  }
   const rst=ev.target.closest('[data-restore]');
   if(rst&&startRestore()){
     sBuild();saveSnap();syncUI();
@@ -7492,6 +7700,30 @@ const MIGRATIONS=[
     }
     for(const t of G.dip||[])if(!t.pid){const d=G.people.find(q=>q.name===t.by);t.pid=d?d.id:null;}
   },
+  /* 5 -> 6: the bigger base and the 4 × 4 Hangar (DESIGN_BLOCKERS C-32). The map grows to 14 × 18 with the new ground
+     (havenGround; the old bedrock is the only ground it replaces, and that never changes). The old cave hangar closes:
+     its tiles become open floor, a tile still being built is refunded, and its ships, upgrades and queued upgrades move
+     to the new Hangar's first section (a large pad and two small), with more sections if the fleet needs them. */
+  function(){
+    const tpl=havenGround(),old=G.grid,oR=G.rows,oC=G.cols;
+    const oldH=G.rooms.filter(r=>r.key==='hangar'),ups=[...new Set(oldH.flatMap(r=>r.up||[]))];
+    for(const rm of oldH){
+      if(rm.build){G.credits+=240;G.materials+=200;}
+      for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)if(old[r]&&old[r][c])old[r][c]={t:'floor'};
+    }
+    G.rooms=G.rooms.filter(r=>r.key!=='hangar');
+    G.grid=tpl.map((row,r)=>row.map((t,c)=>r<oR&&c<oC&&old[r][c].t!=='rock'?old[r][c]:{t}));
+    G.rows=BASE_ROWS;G.cols=BASE_COLS;
+    const ids=oldH.map(r=>r.id);
+    HANGAR_SITES.forEach(([r,c],i)=>{
+      if(i&&fleetFits(fleetClasses()))return;
+      const sec=hangarSection(r,c,i?['S','S']:['L','S']);sec.up=ups.slice();
+      for(let y=r;y<r+HANGAR_N;y++)for(let x=c;x<c+HANGAR_N;x++)G.grid[y][x]={t:'room',room:'hangar'};
+      G.rooms.push(sec);
+    });
+    for(const u of G.upq||[])if(u.key==='hangar'&&u.ids.some(id=>ids.includes(id)))u.ids=[G.rooms.find(r=>r.key==='hangar').id];
+    if(oldH.length)G.news.push({day:G.day,html:'The ships move out of the old cave into the east cavern: a proper Hangar at last, with a large pad for the hauler.',cls:'g'});
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -7581,7 +7813,7 @@ if(location.hash==='#test'){
     fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
-      restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
+      restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
