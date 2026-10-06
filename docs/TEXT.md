@@ -46,6 +46,9 @@ It refuses the whole file, saving nothing, if a row uses a placeholder the line 
 that line since your export (export again and copy the edit across), or if the edited file would not parse. It names
 each row and why. After a successful import, `git diff` shows exactly what changed.
 
+A few smoke tests check exact wording (a combat label such as `STEADY`, a rank title). Changing that wording
+is fine; the test is updated to match when the import is committed.
+
 It also warns, without refusing, when a name you changed is written somewhere else too: a building name the ground
 scene looks up, or a ship or pilot name that is also in the game database. The game may match those up, so change
 them together (the database through `tools/db/build.py`).
