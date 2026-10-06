@@ -63,7 +63,6 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
-  grafLeaves:true,   // the transport drops the squad and lifts off; it comes back once the Cross is away
   title:'Steal the Cross',sub:'Dustfall · Brakka',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
   banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
@@ -78,7 +77,7 @@ stealcross:{
       {sub:1,text:'Keep the Pilot alive.'},
     ],
   },
-  csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
+  csLine:'Dustfall, as promised. I\u2019ll be overhead till the Cross is up.',
   lzLabel:'GRAF LZ',
   LZ:{x:300,y:1330,r:130},PAD:{x:2130,y:330,r:95},
   TOWER:{x:1562,y:436,r:54},TURRET:{x:1965,y:540,r:26},   // the Razorrat sits clear of the Sheriff HQ's roof
@@ -455,7 +454,7 @@ strider:{
   },
   towerLabel:'',
   lamps:[[760,640],[1300,560],[1720,600],[1200,980],[1800,1000]],
-  csLine:'Menk Crossing ahead. I will keep the cargo bay open. Try not to scratch the paint!',
+  csLine:'Menk Crossing ahead. I\u2019ll be back with the cargo bay open. Try not to scratch the paint!',
   lzLabel:'LZ',
   LZ:{x:260,y:1250,r:130},PAD:{x:1720,y:480,r:60},
   cage:{x:1640,y:340,w:160,h:140,dx:1720,dy:490,label:'HOLDING YARD'},
@@ -584,6 +583,9 @@ haven:{
   civs(){return [];},
 },
 };
+/* every transport drops the squad, lifts off and comes back for the pickup once the job is done; from the air it
+   can fly in a supply crate or work its door gun (DESIGN_BLOCKERS C-30) */
+for(const k in SCENARIOS)if(SCENARIOS[k].hasGraf)SCENARIOS[k].grafLeaves=true;
 function genWalls(solids,opens){
   const out=[];
   for(const so of solids){
@@ -1332,7 +1334,7 @@ function treatTarget(h){
   if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
   const reach=medic(h)?TREAT_R*1.5:TREAT_R;
-  const ok=x=>x.side==='reb'&&!x.auto&&!x.vip&&!x.mnt&&!x.dead&&(hasInj(x)||x.down)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
+  const ok=x=>x.side==='reb'&&!x.auto&&!x.mnt&&!x.dead&&(hasInj(x)||x.down)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
   return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
 }
 const treatPick=h=>h&&h.meds>0?treatTarget(h):null;
@@ -1362,6 +1364,7 @@ function doTreat(h){
     log(nameSpan(h)+' <span class="g">treats '+(t===h?'their own':nameSpan(t)+'’s')+' '+Rebel.INJK[inj.k].n.toLowerCase()+'</span> <span class="d">— '+Rebel.INJK[inj.k].treat+'</span>');
   }
   if(wasIncap&&t!==h){h.rescued=h.rescued||[];const id=t.pid||t.id;if(h.rescued.indexOf(id)<0)h.rescued.push(id);}
+  checkDefeat();   // that may have been the last Med Pack
 }
 function wpnsOf(s){
   if(s.manning)return ['razorrat'];
@@ -1380,7 +1383,6 @@ function validShot(s,t,wkey){
   if(wkey==='akli'&&s.jam)return false;
   if(t.down||t.surr||t.extracted||t.away)return false;
   if(dist(s,t)>WPN[wkey].rng)return false;
-  if(s.side==='law'&&dist(s,t)>VIEW_R)return false;   // the Hegemony only shoots what it could see: no shots from beyond the squad's own sight
   if(losBlocked(s,t))return false;
   return true;
 }
@@ -1633,8 +1635,8 @@ function woundUnit(s,t,dmg,crit,dsrc,wkey){
     else downUnit(t,s);
   }
 }
-/* who can die: every enemy; rebels, Autos and hacked allies too, except the rescued VIP and in Take the Rock */
-const canDie=t=>!t.veh&&!t.vip&&!t.dead&&(t.side==='law'||(t.side==='reb'&&SCN.mode!=='haven'));
+/* who can die: every enemy; rebels, the VIP, Autos and hacked allies too, except in Take the Rock */
+const canDie=t=>!t.veh&&!t.dead&&(t.side==='law'||(t.side==='reb'&&SCN.mode!=='haven'));
 function killUnit(t,by,how){
   const was=t.down;
   if(!was)downUnit(t,by,true);
@@ -1843,7 +1845,9 @@ function updateVision(now){
     }
   }
   if(engageQ&&engageQ.cur&&engageQ.cur.t&&engageQ.cur.t.id)visUnits.add(engageQ.cur.t.id);
-  if(engageQ&&engageQ.cur&&engageQ.cur.s&&engageQ.cur.s.side==='law')visUnits.add(engageQ.cur.s.id);   // a muzzle flash gives the shooter away
+  // a muzzle flash gives the shooter away: they stay marked through the next round, so the squad can answer
+  if(engageQ&&engageQ.cur&&engageQ.cur.s&&engageQ.cur.s.side==='law')engageQ.cur.s.flashR=round+1;
+  for(const t of U)if(t.flashR>=round&&!t.dead)visUnits.add(t.id);
 }
 /* what the base sent with the mission (base.js supportStart; the Support Specialties doc) */
 const SUP=()=>(CTX&&CTX.sup)||{};
@@ -2317,7 +2321,7 @@ function fsItems(){
   if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · once · danger close'});
   if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))it.push({key:'evac',name:'Evac on call',sub:'tap a downed squad mate: a support pilot pulls them out · once'});
   if(FS.scan&&!FS.scanUsed)it.push({key:'scan',name:'Overwatch scan',sub:'Mission Control patches in every sensor they can reach: every enemy shows for this round · once'});
-  if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
+  if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'the transport flies a crate in as the next round begins · 5 stims, 2 Med Packs, 2 BLAM, 2 rockets · paid from stores'});
   FS.ships.forEach((a,i)=>{
     if(a.state!=='ready')return;
     if(a.cassAir&&!tutFlags.fsCard)return;   // Cass stays off the menu until her tutorial card is up (A5)
@@ -2397,7 +2401,7 @@ function fsExecute(){
   for(const o of FS.orders){
     if(o.kind!=='drop'||o.landed||(o.at&&clock()<o.at))continue;
     o.landed=true;FS.n++;
-    lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 BLAM · 2 rockets',supply:1,taken:false});
+    lootMarks.push({id:'supply'+FS.n,x:o.x,y:o.y,label:'Supply drop',take:'5 stims · 2 Med Packs · 2 BLAM · 2 rockets',supply:1,taken:false});
     fsFx.push({k:'drop',x:o.x,y:o.y,t0:clock(),dur:1500});
     addFloater(o.x,o.y-34,'SUPPLY DROP',C.go);sLand();
     log('<span class="g">The supply drop lands.</span> Somebody go and get it.');
@@ -2407,9 +2411,10 @@ function supplyDrop(u){
   const crew=U.filter(x=>x.side==='reb'&&!x.down&&!x.extracted&&!x.away&&!x.auto&&!x.vip);
   if(!crew.length)return;
   for(let k=0;k<5;k++)crew[(crew.indexOf(u)<0?0:crew.indexOf(u)+k)%crew.length].stims++;
+  for(let k=0;k<2;k++)crew[(crew.indexOf(u)<0?0:crew.indexOf(u)+k)%crew.length].meds++;
   NADES+=2;
   crew.slice(0,2).forEach(c=>{if(!c.wpns.includes('rocket'))c.wpns.push('rocket');});
-  log('The crate holds <b>5 stims</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
+  log('The crate holds <b>5 stims</b>, <b>2 Med Packs</b>, <b>2 BLAM frags</b> and <b>2 makeshift rocket launchers</b> (one shot each, anti-vehicle).');
 }
 /* up to 3 visible hostiles near the player's mark; the choice of where to put the mark is the skill */
 const DG_ZONE=240;   // the circle the player places IS the kill zone: the gunner works what's inside it
@@ -2440,8 +2445,9 @@ function fsSpent(a){
   a.state='spent';
 }
 function dgShotDown(a){
-  a.left=0;a.state='spent';a.downed=1;
+  a.left=0;a.state='spent';a.downed=a.own?0:1;   // the squad's own transport limps off: it still has a pickup to make
 }
+const ownHitLine=a=>'<span class="b">'+a.name+' takes the hit</span> and breaks off trailing smoke. '+a.pilot.first+' will still make the pickup.';
 /* reduced motion only: the pass resolves instantly, no fly-by — same rolls, same counterfire */
 function dgAttack(a){
   const pick=dgTargets(a.mark);
@@ -2460,7 +2466,7 @@ function dgAttack(a){
       log(nameSpan(f)+' puts a rocket up at '+a.name+(hit?' — <span class="b">direct hit!</span>':' — it goes wide.'));
       if(hit){
         dgShotDown(a);
-        log('<span class="b">'+a.name+' goes down</span> beyond the fight. '+a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
+        log(a.own?ownHitLine(a):'<span class="b">'+a.name+' goes down</span> beyond the fight. '+a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
         return;
       }
     }
@@ -2550,7 +2556,7 @@ function dgUpdate(now){
       boomFx.push({x:P.x,y:P.y,t0:now,dur:800,R:120});
       decals.push({x:P.x,y:P.y,r:70});
       juice('rocket',P.x,P.y);sBoomBig();
-      log('<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
+      log(R.a.own?ownHitLine(R.a):'<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
       R.endAt=now+1000;
     }
     if(R.endAt&&now>=R.endAt)dgFinish();
@@ -2840,6 +2846,9 @@ function fuelReach(){
 function callTransport(){
   if(!fs||!fs.reached||fs.called||phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
   fs.called=true;
+  if(grafState==='gone'){grafPos.x=-600;grafPos.y=H+400;}
+  grafFx=null;   // whatever it was doing up there, it comes to the pumps now
+  if(FS)for(const a of FS.ships)if(a.own&&a.state!=='spent'){a.state='spent';a.left=0;}
   fs.flying={t0:clock(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
   grafState='flying';
   sTakeoff();
@@ -2965,7 +2974,11 @@ function drawFactory(now){
   }
 }
 const grafHome=()=>!SCN.grafLeaves||grafState==='landed';   // a transport that left has to be back on the LZ for the pickup
+/* nobody leaves while the VIP lies on the ground: bring them round first */
+const vipDown=()=>U.some(u=>u.vip&&u.down&&!u.dead&&!u.extracted&&!u.away);
 function extractReady(){
+  if(vipDown())return false;
+  if(!fs&&!grafHome())return false;   // the transport has to be back on the LZ
   if(ix)return ix.hacked&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(rs)return rs.released&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away);
   if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
@@ -3582,7 +3595,8 @@ function endRound(){
   moraleCheck();
   spotCheck();
   // extraction
-  if(exitOpen()&&grafHome()){
+  if(exitOpen()&&grafHome()&&vipDown())log('<span class="a">'+(U.find(u=>u.vip)||{}).first+' is down.</span> Nobody leaves without them: treat them first.');
+  else if(exitOpen()&&grafHome()){
     const clear=!hostilesActive().some(l=>Math.hypot(l.x-LZ.x,l.y-LZ.y)<300);
     for(const u of U){
       if(u.side!=='reb'||u.id==='sera'||u.down||u.extracted)continue;
@@ -3628,11 +3642,27 @@ function doCrossAway(){
   if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
   syncUI();
 }
+/* who the objective needs: the VIP being rescued, and the Pilot in Steal the Cross. Going down does not end the
+   mission; dying does, and so does lying down with no way left to bring them round (DESIGN_BLOCKERS C-31). */
+const needed=u=>!!u&&(!!u.vip||u.id==='sera');
+let lostHow='';   // 'dead' or 'nomeds', for the end screen
+function canRevive(t){
+  if(!t||t.dead)return false;
+  if(t.auto||t.bot)return false;   // a walker is not patched up with a Med Pack
+  const up=U.filter(u=>u.side==='reb'&&u!==t&&!u.down&&!u.extracted&&!u.away&&!u.auto&&!u.vip);
+  if(up.some(u=>u.meds>0))return true;
+  if(!up.length)return false;
+  // a supply crate carries Med Packs: one on the ground, one on its way, or one still to call
+  if(lootMarks.some(m=>m.supply&&!m.taken))return true;
+  if(FS&&(FS.orders.some(o=>o.kind==='drop'&&!o.landed)||(FS.drop&&!FS.dropUsed)))return true;
+  if(t.vip&&FS&&FS.evac===1)return true;   // Evac on Call flies a downed VIP out
+  return false;
+}
 function checkDefeat(){
-  const vipU=U.find(u=>u.vip);
-  if(vipU&&vipU.down){gameOver(false,'vip');return;}
-  const sera=U.find(u=>u.id==='sera');
-  if(sera&&sera.down&&!sera.away){gameOver(false,'sera');return;}
+  for(const u of U){
+    if(!needed(u)||u.away||u.extracted)continue;
+    if(u.dead||(u.down&&!canRevive(u))){lostHow=u.dead?'dead':'nomeds';gameOver(false,u.vip?'vip':'sera');return;}
+  }
   const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
   if(soldiers.length&&soldiers.every(u=>u.down))gameOver(false,'squad');
 }
@@ -3688,7 +3718,7 @@ function gameOver(win,why){
       'Sheriff Reeve’s Hegemony masters will want an explanation he doesn’t have.';
     if(left.length)txt+=' It cost us: '+left.join(', ')+' left on the street. We don’t forget that.';
   } else if(why==='sera'){
-    txt='Sera went down in the dust a stone’s throw from the Cross. Without a pilot the ship is just sheet metal. The squad pulled back to the '+trName()+' with nothing but her sidearm.';
+    txt=(lostHow==='dead'?'Sera died in the dust a stone’s throw from the Cross.':'Sera went down a stone’s throw from the Cross, and nobody had a Med Pack left to bring her round.')+' Without a pilot the ship is just sheet metal. The squad pulled back to the '+trName()+' with nothing but her sidearm.';
   } else {
     txt='The squad was shot to pieces on Dustfall’s main street. The '+trName()+' lifted empty. Reeve gets to write the report he always wanted.';
   }
@@ -3730,7 +3760,7 @@ function typeEnd(win,why,left){
     txt=win?mtx(L?E.winLimpet:E.winDown)+(fac.quiet?mtx(E.quiet):'')+cost:mtx(E.lose);
     loot=[[E.loot,L?E.lootLimpet:E.lootDown]];unseen=fac.quiet;
   } else if(k==='rescue'){
-    txt=win?mtx(E.win)+mtx(rs.everAlerted?E.winLoud:E.winQuiet)+cost:mtx(why==='vip'?E.loseVip:E.lose);
+    txt=win?mtx(E.win)+mtx(rs.everAlerted?E.winLoud:E.winQuiet)+cost:mtx(why==='vip'?(lostHow==='nomeds'&&E.loseVipDown?E.loseVipDown:E.loseVip):E.lose);
     loot=[['{npc}',E.lootDone]];unseen=!rs.everAlerted;
   }
   byId('endEyebrow').textContent=tagText(mtx(win?K.eyebrowWin:K.eyebrowLose));
@@ -3790,7 +3820,7 @@ function buildResult(win){
   });
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
+    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,dropUsed:!!(FS&&FS.orders.some(o=>o.kind==='drop')),quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people};
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
@@ -5155,14 +5185,19 @@ let grafFx=null;
 function grafFly(k,to,dur){grafState='flying';grafFx={k,t0:clock(),dur,from:{x:grafPos.x,y:grafPos.y},to};sTakeoff();}
 function grafLeave(){
   grafFly('leave',{x:-600,y:H+400},3200);
-  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> You’re down. I’m off the deck before someone notices a hauler parked in town. Call when you need the ramp.');
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> You’re down. I’m off the deck before someone notices a hauler parked in town. I’ll be back for the pickup when the job’s done.');
 }
-function grafReturn(){
-  if(!SCN.grafLeaves||grafState==='landed'||(grafFx&&grafFx.k==='return'))return;
-  grafPos.x=-600;grafPos.y=H+400;
+function grafReturn(line){
+  if(!SCN.grafLeaves||fs||grafState==='landed'||(grafFx&&grafFx.k==='return'))return;
+  if(grafState==='gone'){grafPos.x=-600;grafPos.y=H+400;}
+  if(FS)for(const a of FS.ships)if(a.own&&a.state!=='spent'){a.state='spent';a.left=0;}   // off the gun to make the pickup
   grafFly('return',{x:LZ.x,y:LZ.y},3800);
+  if(line)log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+line);
 }
 function grafUpdate(now){
+  // the job is done: the transport comes back for the squad
+  if(SCN.grafLeaves&&!fs&&exitOpen()&&grafState!=='landed'&&!(grafFx&&grafFx.k==='return')&&phase!=='GAMEOVER'&&phase!=='CUTSCENE')
+    grafReturn('That’s the job done. I’m coming back for you. Get to the LZ.');
   if(!grafFx)return;
   const t=Math.min(1,(now-grafFx.t0)/grafFx.dur),e=ease(t);
   grafPos.x=lerp(grafFx.from.x,grafFx.to.x,e);grafPos.y=lerp(grafFx.from.y,grafFx.to.y,e);
@@ -6239,11 +6274,17 @@ addEventListener('keydown',ev=>{
 function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
-  round=0;town='calm';hot=0;hotT=0;crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
+  round=0;town='calm';hot=0;hotT=0;lostHow='';crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
    if(SUP().scan||SUP().evac||SUP().bombard)FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+   // the transport that set the squad down works its Door Mounted Gun from the air while it waits for the pickup
+   if(CTX&&CTX.transport&&CTX.transport.doorgun&&SCN.grafLeaves){
+     FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+     const gp=CTX.grafPilot||{name:'Joss Marrek',first:'Joss'};
+     FS.ships.push({state:'ready',left:0,mode:'doorgun',cls:CTX.transport.cls||'graf',name:CTX.transport.name,pilot:{name:gp.name,first:gp.first},soldiers:[],own:1});
+   }
    if(FS){FS.scan=SUP().scan?1:0;FS.scanUsed=0;FS.extra=SUP().fsExtra?1:0;FS.evac=SUP().evac?1:0;FS.bombard=SUP().bombard?1:0;}
    scanRound=null;
    fsMenuOn=false;fsDraft=null;
@@ -6479,7 +6520,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},

@@ -1,8 +1,9 @@
 /* The designer's October 6 round of field changes: node tools/fieldops-smoke.js (needs NODE_PATH=$(npm root -g)).
    Death (DESIGN_BLOCKERS C-29): enemies die; a rebel dies when hit while down, to a critical hit that drops them,
    or to one hit from full health, and otherwise is downed for a Treat Wound to bring back (bleeding out after two
-   rounds). Stims are a planning Action. Steal the Cross: the tower guard is drawn and only shoots what she could
-   see; the supply drop works before the shooting starts; the transport leaves and comes back. The briefing shows
+   rounds). Stims are a planning Action. Steal the Cross: the tower guard is drawn, keeps her range and is marked
+   when she fires; the supply drop works before the shooting starts. Every transport leaves and comes back, and offers
+   a supply drop and its door gun. A downed VIP or Pilot fails the mission only when dead or past saving (C-31). The briefing shows
    faces, MOVE OUT is gone, a double-click opens the Personnel File. Flight Controller and Combat Support. The base
    screens: no Experience bar, no flavour line, a paper doll, no recruit Terms, ships drawn in the roster and the
    ship window. */
@@ -76,7 +77,15 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const wren=U.find(u=>u.id==='wren'),dax=U.find(u=>u.id==='dax');
   dax.x=wren.x+700;dax.y=wren.y;
   out.far=f.validShot(wren,dax,'longiron');
-  dax.x=wren.x+300;out.near=f.validShot(wren,dax,'longiron');
+  // her shot gives her away for the round after, so the squad can answer
+  f.setPhase('PLANNING');
+  const hid=U.filter(u=>u.side==='reb').map(u=>[u,u.x,u.y]);
+  for(const [u] of hid){u.x=wren.x+5000;u.y=wren.y;}
+  f.updateVision(1e9);out.hidden=!f.unitSeen(wren);
+  wren.flashR=gd.round+1;f.updateVision(2e9);out.flash=f.unitSeen(wren);
+  wren.flashR=gd.round-1;f.updateVision(3e9);out.faded=!f.unitSeen(wren);
+  for(const [u,x,y] of hid){u.x=x;u.y=y;}
+  delete wren.flashR;f.setPhase('CUTSCENE');
   // the transport leaves after the drop and comes back for the pickup
   f.endCutscene();out.leaves=f.grafState_();
   f.grafUpdate(f.clock()+5000);out.gone=f.grafState_();
@@ -84,7 +93,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   f.grafUpdate(f.clock()+6000);out.landed=f.grafState_();
   return out;
  });
- ok(x.far===false&&x.near===true,'the tower guard only shoots what she could see '+[x.far,x.near]);
+ ok(x.far===true,'the tower guard keeps her rifle\'s reach '+x.far);
+ ok(x.hidden&&x.flash&&x.faded,'her shot marks her for the round after, then she fades '+[x.hidden,x.flash,x.faded]);
  ok(x.leaves==='flying'&&x.gone==='gone'&&x.back==='flying'&&x.landed==='landed','the transport leaves the LZ and comes back '+JSON.stringify(x));
  await go(spec('stealcross',{pilot:{id:'sera',name:'Sera Kest',first:'Sera',level:2,wpns:['cowboy']},assets:{drop:true,ships:[],vehicles:[]}}));
  const dr=await pg.evaluate(()=>{
@@ -97,6 +107,50 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   return out;
  });
  ok(dr.phase==='FREE'&&dr.placed&&dr.early===false,'a supply drop can be called before the shooting starts, and lands on a timer '+JSON.stringify(dr));
+ // every transport leaves after the drop and comes back when the job is done; from the air it offers fire support
+ await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf',doorgun:1},assets:{drop:true,ships:[],vehicles:[]}}));
+ const tr=await pg.evaluate(()=>{
+  const gd=window.DBGground,f=gd.fn,out={};
+  f.endCutscene();out.leaves=f.grafState_();
+  f.grafUpdate(f.clock()+5000);out.gone=f.grafState_();
+  out.items=f.fsItems().map(i=>i.key+':'+i.name).join('|');
+  const own=gd.FS.ships.find(a=>a.own);
+  out.notReady=f.extractReady();
+  gd.ix.hacked=true;
+  f.grafUpdate(f.clock());out.back=f.grafState_();
+  out.ownSpent=own.state;
+  f.grafUpdate(f.clock()+6000);out.landed=f.grafState_();
+  const dax=gd.U.find(u=>u.id==='dax');f.fsPlace('drop',{x:dax.x+40,y:dax.y});
+  out.dropUsed=f.buildResult(true).dropUsed;
+  return out;
+ });
+ ok(tr.leaves==='flying'&&tr.gone==='gone'&&tr.back==='flying'&&tr.landed==='landed','the transport leaves and comes back when the job is done '+JSON.stringify(tr));
+ ok(/drop:Supply Drop/.test(tr.items)&&/s0:Door Gunner Cover · Marta/.test(tr.items),'the transport offers a supply drop and its door gun '+tr.items);
+ ok(tr.notReady===false&&tr.ownSpent==='spent','no pickup until it is back; it leaves the gun to make the pickup '+[tr.notReady,tr.ownSpent]);
+ ok(tr.dropUsed===true,'the debrief hears a drop was called, to pay for it '+tr.dropUsed);
+ // the Pilot is needed for the objective: going down is not the end, dying or running out of Med Packs is (C-31)
+ await go(spec('stealcross',{pilot:{id:'sera',name:'Sera Kest',first:'Sera',level:2,wpns:['cowboy']}}));
+ const vp=await pg.evaluate(()=>{
+  const gd=window.DBGground,f=gd.fn,U=gd.U,out={};
+  f.endCutscene();
+  const sera=U.find(u=>u.id==='sera'),dax=U.find(u=>u.id==='dax');
+  f.downUnit(sera,null);out.down=[sera.down,gd.phase];
+  dax.meds=1;dax.x=sera.x+30;dax.y=sera.y;out.treat=f.treatTarget(dax)===sera;f.doTreat(dax);out.up=[sera.down,gd.phase];
+  for(const u of U)u.meds=0;
+  f.downUnit(sera,null);out.noMeds=gd.phase;
+  return out;
+ });
+ ok(vp.down.join()==='1,FREE'&&vp.treat&&vp.up.join()==='0,FREE','a downed Pilot can be brought round; the mission goes on '+JSON.stringify(vp));
+ ok(vp.noMeds==='GAMEOVER','down with no Med Pack left in the squad: the mission is lost '+vp.noMeds);
+ await go(spec('stealcross',{pilot:{id:'sera',name:'Sera Kest',first:'Sera',level:2,wpns:['cowboy']}}));
+ const vk=await pg.evaluate(()=>{
+  const gd=window.DBGground,f=gd.fn,U=gd.U;
+  f.endCutscene();
+  const sera=U.find(u=>u.id==='sera');
+  f.downUnit(sera,null);f.killUnit(sera,null,'');
+  return [gd.phase,f.canDie(sera)===false&&!!sera.dead];
+ });
+ ok(vk.join()==='GAMEOVER,true','a dead Pilot ends it '+vk);
 
  // ---- Combat Support in the field
  await go(spec('intel',{sup:{evac:1,bombard:1,fsExtra:1,precise:1,saturate:1,dangerClose:1}}));

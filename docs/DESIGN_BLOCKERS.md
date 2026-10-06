@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -37,8 +37,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
 | C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | C-28 | ⚪ | Support specialties: the numbers and readings I chose while building them | How every Support rebel plays |
-| C-29 | ⚪ | Death: the readings I chose for who dies and how to save them | Every ground fight |
-| C-30 | ⚪ | Steal the Cross and the field: the tower guard, calls before the shooting, the transport that leaves | Steal the Cross; how far enemies shoot everywhere |
+| C-31 | ⚪ | Downed VIPs, the shooter's reveal, the transport's fire support and supply drop billing, reworded arrival lines | Rescue and Steal the Cross; fire support in every mission |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -70,7 +69,7 @@ bar, fire-support art and ships parked in the iso hangar.
 
 ## 1. Conflicts
 
-Open: C-13, C-15, C-18, C-19, C-24, C-27, C-28, C-29 and C-30; the rest are in the resolved log at the bottom.
+Open: C-13, C-15, C-18, C-19, C-24, C-27, C-28 and C-31; the rest are in the resolved log at the bottom.
 
 ### C-19 ⚪ Ships live in the Arsenal, not their own Fleet tab
 *(Numbered C-12 by mistake when it was added; C-12 is Cass's Door Gunner in the Resolved log.)*
@@ -227,42 +226,31 @@ chose, and what replaced what:
 **Needs from you:** anything above you would like different, and an experience pace.
 **Your call:** _open_
 
-### C-29 ⚪ Death: the readings I chose
-You asked that enemies die, and that a rebel die when hit while unconscious, when a critical hit drops them, or when
-one hit takes all their health; otherwise they are downed for a rescue. Built that way. Where I had to choose:
-1. **"All their health in a single hit"** means from full health to nothing in one hit (armour and shields soak
-   first, as always).
-2. **Rescue:** a squad mate's Treat Wound (one Med Pack) brings a downed rebel round at a quarter health. Before,
-   only someone dropped by a Spinal Injury or Maiming could be treated where they lay.
-3. **Bleeding out:** a downed rebel with untreated Severe Bleeding dies at the end of the second round. Blasts
-   (grenades, rockets, strafing runs) hit the downed; shots never target them.
-4. **Exempt:** the rescued VIP (their fall already fails the mission) and Take the Rock, the prologue, where there is
-   no base to come home to yet.
-5. **After the mission:** the dead are lost (as a pilot shot down in space was before). The Doctor's Stabilise, Lucky
-   and Iron Constitution still apply. Enemies, Autos and Bots die; a downed enemy no longer shows stars, and its name
-   tag only shows under the pointer.
-**Needs from you:** whether any of these should change (the bleed-out clock, a revive at more than a quarter health,
-a chance to survive in the field without a medic).
-**Your call:** _open_
-
-### C-30 ⚪ Steal the Cross and the field: what I changed
-1. **The tower guard (Dep. Wren, on the "Condenser" tower)** was drawn under the tower top, so she could not be
-   seen or picked, and she shot from beyond the squad's sight with a braced, Steady Longhorn every round. She is now
-   drawn on the deck, no longer braces every round, and a shot gives any shooter away. **For every mission, the
-   Hegemony now only shoots targets within the squad's own sight range (560).** That is a balance change: tell me if
-   you would rather keep long shots and only reveal the shooter. Extra guards added at higher Security no longer
-   copy the tower guard or the Sheriff in his office.
-2. **The supply drop** worked, but fire support could only be called while planning a combat round, which a quiet run
-   never reaches. In free move the drop (and the Tactician's scan) can now be called: a quiet chute a few seconds
-   later that does not raise the alarm. The Ground Combat doc says it "lands at the start of movement in the next
-   round"; that still holds once the shooting starts.
-3. **The transport** drops the squad and lifts off, comes back to the LZ when the Cross is in the air, and the squad
-   extracts once it is down. Only in Steal the Cross for now (the flag is `grafLeaves`): say if every mission's
-   transport should do the same.
-4. **Stims** are a planning Action like Treat Wound: the rebel still shoots that round.
-5. **Tags:** allies, live enemies and loot keep their name tags; civilians, the dead and downed enemies, and wrecks
-   only show theirs under the pointer (nothing on a touch screen).
-**Needs from you:** the long-shot rule (1) and whether other missions' transports should leave (3).
+### C-31 ⚪ Downed VIPs, the shooter's reveal, the transport's fire support: what I chose
+Your answers on C-29 and C-30 are built (see the resolved log). Where I had to choose:
+1. **Who the objective needs:** the rescued VIP and the Pilot in Steal the Cross. Going down no longer fails the
+   mission. It fails when they die, or when they are down and **nobody can bring them round**: no one on their feet
+   carries a Med Pack, no supply crate is on the ground, on its way or still to call, and (VIP only) no Evac on Call.
+   A Treat Wound can now revive the VIP. They can die by the C-29 rules; a VIP takes no injuries, so cannot bleed
+   out. **Nobody extracts while the VIP is down.** The Strider is a machine and cannot be treated, so its fall still
+   ends the mission.
+2. **The supply crate now carries 2 Med Packs** (with the 5 stims, 2 BLAM and 2 rockets), so calling one is a way to
+   save a downed VIP.
+3. **The shooter's reveal:** an enemy who fires stays visible through the next round (its planning and its shots),
+   so the squad can answer. Enemies keep their weapons' full reach.
+4. **Every transport** drops the squad, lifts off and comes back when the exit opens (the Cross away, the charge
+   blown, the prisoner freed, the data taken). The squad can only extract with it on the ground. In Steal Fuel it is
+   still called to the pumps, now from the air.
+5. **The transport's own fire support.** The planning board's Supply Drop toggle is gone: the transport offers a
+   supply drop in every mission when the stores hold 160 supplies, and it is **paid at the debrief, only if
+   called**. A transport with a Door Mounted Gun fitted also offers Door Gunner Cover (two passes); a rocket hit
+   makes it break off, not crash, and it leaves the gun to make the pickup. Spare ships on the board work as before.
+   This is why the fire support button was missing in Steal the Cross: it only appeared if a drop or a ship had been
+   picked on the board.
+6. **Arrival lines (your text, `game/js/mission-text.js` `arrive`, and the Steal the Cross and Strider cutscene
+   lines)** said the pilot would wait at the LZ with the engines warm. I reworded them so the pilot stays overhead
+   and comes back. Please check the words in the spreadsheet.
+**Needs from you:** whether any of these should change, and your wording for (6).
 **Your call:** _open_
 
 ---
@@ -567,6 +555,8 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-30 | Enemies keep their range, with counterplay: the shooter is revealed. Every mission's transport leaves after the drop and comes back for the extraction, which is why it can give fire support (door gunner, supply drop). The fire support button was missing in Steal the Cross. | 2026-10-06 | The sight-range cap on enemy shots is gone; a shot marks the shooter through the next round. Every transport leaves and returns; it offers a supply drop (paid if called) and its door gun. Readings in C-31. "Downed VIPs" commit |
+| C-29 | The rescue readings stand. The mission should not fail when a character the objective needs goes down: only when they die, or cannot be revived for lack of healing items. | 2026-10-06 | One hit from full health kills; a Treat Wound (one Med Pack) revives at a quarter health; untreated Severe Bleeding kills a downed rebel after two rounds; blasts hit the downed; Take the Rock is exempt; the dead are lost, Stabilise still applies. The VIP and the Pilot are now downed rather than lost; readings in C-31. "Downed VIPs" commit |
 | — | Your October 6 field list: Flight Controller and Combat Support next; a slimmer Personnel File with a paper doll; faces on the mission briefing; stims as an Action; enemies die and rebels can; the Steal the Cross tower guard, supply drop and transport; no MOVE OUT screen; the Personnel File by double-click in a mission; fewer tags; ships drawn in the roster and ship window; no recruit Terms; Experiences "None". | 2026-10-06 | All built; the readings are C-29 and C-30, Flight Controller and Combat Support are in C-28. the "Field changes" commit |
 | M-14 | Support rebels get no skills: they have a base specialty from level 1, a niche at level 3 and unlocks at 3, 7, 11, 15 and 19 (the Support Specialties doc). The staff posts are replaced by the Department Head, Lead Specialist and Staff system, and new features supersede old ones wherever they can. | 2026-10-06 | The whole doc's framework and 51 of its unlocks: see C-28 for what replaced what and M-32 for what waits. Save version 5 turns each post into its room. the "Support specialties" commit |
 | C-26 | Curly `{variables}` everywhere; ordinary guards get random names; story missions keep their own endings. | 2026-10-06 | Each reusable type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Disrupt Comm Towers) has one text set in `game/js/mission-text.js`: name, target names, offer, follow-up, banner, briefing, objectives (the board, the briefing and the live list read the same ones), hint, arrival call, log lines, end screen. Variables: `{transport}` `{pilot}` `{target}` `{place}` `{npc}` `{npc1}` `{carrier}` `{device}` `{hacker}` `{fallen}`. The transport picked on the planning board now reaches the mission (its name on the LZ, the hauler, the call-in button, every line). Missions on the board read their type's words live (save version 4 drops the old per-mission copy). Hegemony guards get a surname from a pool (a serial for a robot) and their type's lines: alarm calls when they raise the alarm, idle chatter while all is quiet (new: it was never spoken before). Sheriff Reeve, his deputies, Boss Craw and the squatters keep theirs. Lines tied to one place (the toll office, the herders) were made generic or dropped. Each map is still one per type. `tools/mission-text-smoke.js`. The "Mission text per type" commit |

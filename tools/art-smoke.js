@@ -110,7 +110,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  const pg2=await ctx2.newPage();
  pg2.on('pageerror',e=>errs.push('splash: '+e.message));
  await pg2.goto('file://'+path.resolve(__dirname,'../game/index.html'));
- await pg2.waitForTimeout(3600);
+ // the developer's mark comes first, painted in by a passing ship; then the badge lands
+ await pg2.waitForTimeout(1500);
+ const s0=await pg2.evaluate(()=>{const sp=document.getElementById('splash');return sp&&sp.dataset.stage;});
+ if(s0!=='dev'){console.error('art-smoke FAILED: the developer logo does not open the title screen',s0);process.exit(1);}
+ await pg2.waitForTimeout(4800);
  const s1=await pg2.evaluate(()=>{
    const sp=document.getElementById('splash');
    return {splash:!!sp,ready:!!sp&&sp.className.includes('is-ready'),
