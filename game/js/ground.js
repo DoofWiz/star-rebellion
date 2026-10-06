@@ -63,20 +63,19 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
-  title:'Steal the Cross',sub:'Dustfall \u00b7 Brakka \u2014 Revolution I',
+  title:'Steal the Cross',sub:'Dustfall · Brakka',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
-  banner:['Steal the Cross','Sheriff\u2019s law is Hegemony law'],
+  banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
   brief:{
     eyebrow:'Ground Operation \u00b7 Dustfall, Brakka',
-    flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff\u2019s HQ. Sheriff Reeve enforces Hegemony law here. We enforce ours.',
+    flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff’s HQ. Sheriff Reeve enforces Hegemony law here, so that makes him and his men targets.',
     objectives:[
-      'Get Sera Kest to the Cross on the pad north-east of town',
-      'Cover her while she hotwires it \u2014 two rounds at the panel',
+      'Get the Pilot to the Ship on the landing pad north-east of town',
+      'Cover the Pilot while they hotwire it.',
       'Release the docking clamps and pull the fuel line',
-      'Get the squad back to the Graf and lift off',
-      {sub:1,text:'Sera carries only a sidearm \u2014 keep her clear of the shooting.'},
+      'Get the squad back to the transport and extract',
+      {sub:1,text:'Keep the Pilot alive.'},
     ],
-    hint:'While the town is calm, stay out of the lawmen\u2019s sight cones \u2014 Sneak keeps you low. The machine gun on the pad sits behind sandbags; take it from the side. Stray shots set off the red fuel canisters.',
   },
   csLine:'Dustfall, as promised. I\u2019ll keep the engine warm.',
   lzLabel:'GRAF LZ',
@@ -88,7 +87,7 @@ stealcross:{
   bossTrigger:{x:2130,y:330,r:420},
   bossDoor:{x:1880,y:588},
   bossFloat:'THE SHERIFF',
-  bossLog:'<span class="h">Sheriff Reeve kicks his office door open</span> \u2014 scattergun first.',
+  bossLog:'<span class="h">Sheriff Reeve kicks his office door open</span> shotgun first.',
   bossAlert:'The Sheriff himself is on the boards.',
   work:[
     {id:'clamp',x:2022,y:360,label:'DOCKING CLAMPS',verb:'releases the docking clamps'},
@@ -138,7 +137,7 @@ stealcross:{
   ],
   foes(){return [
     foe('frontier-sheriff',{id:'reeve',name:'Sheriff Reeve',first:'Reeve',x:1906,y:730,office:1,
-      lines:['You picked the wrong town, drifters.','Hegemony pays my wage. I earn it.','Nobody touches that ship!']}),
+      lines:['You picked the wrong town, drifters.','I ain\'t sufferin\' no disorder \'round my town.','Nobody touches that ship!']}),
     foe('frontier-deputy',{id:'pell', name:'Dep. Pell', first:'Pell', x:1150,y:790,wpns:['carbine'],patrol:[{x:1150,y:790},{x:900,y:820},{x:1350,y:820}],
       lines:['Sheriff, movement by the bank!','Who fired? WHO FIRED?']}),
     foe('frontier-deputy',{id:'cobb', name:'Dep. Cobb', first:'Cobb', x:700,y:788,patrol:[{x:700,y:788},{x:560,y:830}],
@@ -162,46 +161,30 @@ stealcross:{
 stealfuel:{
   mode:'stealfuel',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:true,hasTurret:false,hasGraf:true,tumbleweed:true,
-  title:'Steal Fuel',sub:'Redrock Flats · Brakka — Revolution I',
-  foesLabel:'Tithe Guard',calmLabel:'Depot is quiet',alertLabel:'Depot alerted',
-  banner:['Steal Fuel','Nothing flies without it'],
-  brief:{
-    eyebrow:'Ground Operation · Redrock Flats, Brakka',
-    flavour:'Every herder on Brakka pays the fuel tithe, and every drop of it ends up in the <b>Redrock tithe depot</b>: tanks, a pump house and a bored guard detail. Nobody has ever tried to take it back. Walk in, call the Marta down onto the loading apron, and keep the pumps safe while she drinks.',
-    objectives:[
-      'Reach the fuel depot on the east side of the flats',
-      'Call in the Marta and bring her down on the loading apron',
-      'Defend her while the fuel lines pump — five rounds',
-      'Get the squad aboard and lift off',
-      {sub:1,text:'The Marta’s engines will wake the whole depot. Expect company.'},
-    ],
-    hint:'Stay out of the guards’ sight cones on the way in. Once the Marta lands, at least one of you has to stand on the apron for the tanks to keep filling. The red drums around the pumps go up if a stray round finds them.',
-  },
+  sub:'Redrock Flats · Brakka',
   towerLabel:'WATCHTOWER',
   lamps:[[1640,360],[1810,540],[1260,560],[900,820],[1560,760]],
-  csLine:'Redrock Flats. I’ll keep her warm and stay out of sight — call me when you’re at the pumps.',
-  lzLabel:'MARTA LZ',
   LZ:{x:260,y:1190,r:130},PAD:{x:1700,y:440,r:150},
   TOWER:{x:1330,y:300,r:54},
   panTo:{x:1500,y:480},
   guardPt:{x:1700,y:470},
   work:[],
   waves:[
-    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span> — a Police Cruiser and two guards, bailing out fast.',
+    {at:1,log:'<span class="h">A patrol crawler rolls in off the east road</span>.',
      foes:[
-       foe('police-cruiser',{id:'pcw',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd',name:'Patrolman Dace',first:'Dace',lines:['Unit 4, responding.','Pull over! All of you!']})]}),
-       foe('depot-guard',{id:'dill',name:'Guard Dill',first:'Dill',x:2150,y:640,lines:['Fuel thieves! At the apron!','Sheriff’ll have my head.']}),
-       foe('depot-guard',{id:'corr',name:'Guard Corr',first:'Corr',x:2150,y:720,wpns:['carbine'],lines:['Contact! Contact!','Get that ship off my pumps!']}),
+       foe('police-cruiser',{id:'pcw',x:2120,y:560,crew:[foe('security-patrolman',{seat:'drv',id:'pcwd'})]}),
+       foe('depot-guard',{id:'dill',x:2150,y:640}),
+       foe('depot-guard',{id:'corr',x:2150,y:720,wpns:['carbine']}),
      ]},
-    {at:3,log:'<span class="h">The depot warden and a second crawler arrive from the north road.</span>',
+    {at:3,log:'<span class="h">The depot warden and a second crawler are arriving from the north road.</span>',
      foes:[
-       foe('depot-warden',{id:'hask',name:'Warden Hask',first:'Hask',x:1420,y:40,lines:['That tithe is the Hegemony’s!','Nobody drains my tanks.']}),
-       foe('depot-guard',{id:'orsk',name:'Guard Orsk',first:'Orsk',x:1520,y:40,wpns:['carbine'],lines:['North road is ours!','Warden, they’re on the apron!']}),
-       foe('depot-guard',{id:'vell',name:'Guard Vell',first:'Vell',x:1320,y:40,lines:['Cover me!','Not the pumps!']}),
+       foe('depot-warden',{id:'hask',x:1420,y:40}),
+       foe('depot-guard',{id:'orsk',x:1520,y:40,wpns:['carbine']}),
+       foe('depot-guard',{id:'vell',x:1320,y:40}),
      ]},
   ],
   bldgs:[
-    {x:1100,y:340, w:280,h:200,name:'TITHE DEPOT',sign:1},
+    {x:1100,y:340, w:280,h:200,name:'FUEL DEPOT',sign:1},
     {x:1480,y:640, w:220,h:150,name:'PUMP HOUSE',solar:1},
     {x:760, y:720, w:240,h:160,name:'GUARD POST'},
     {x:470, y:470, w:200,h:150,name:'GRAIN STORE',solar:1},
@@ -221,19 +204,19 @@ stealfuel:{
     {x:1180,y:700,kind:'crate'},{x:1120,y:780,kind:'crate'},
   ],
   loots:[
-    {id:'strongbox',x:1236,y:510,label:'Tithe strongbox',take:'480 ◈ credits',c:480},
+    {id:'strongbox',x:1236,y:510,label:'Outpost strongbox',take:'480 ◈ credits',c:480},
     {id:'guardcrate',x:880,y:830,label:'Guard post crate',take:'64 ▤ supplies',s:64},
     {id:'grain',x:560,y:620,label:'Grain store',take:'88 ▤ supplies',s:88},
     {id:'blamA',x:1560,y:800,label:'BLAM crate',take:'3× BLAM frag',nades:3},
     {id:'charges',x:800,y:760,label:'Depot blasting charges',take:'2× Explosive Charge',items:['charge','charge']},
   ],
   foes(){return [
-    foe('depot-guard',{id:'holt',name:'Guard Holt',first:'Holt',x:1250,y:620,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}],lines:['Nothing on the east flats.','Who fired? WHO FIRED?']}),
-    foe('depot-guard',{id:'vane',name:'Guard Vane',first:'Vane',x:1000,y:880,patrol:[{x:1000,y:880},{x:760,y:940}],lines:['Dust and more dust…','They’re armed! GUNS!']}),
-    foe('depot-guard',{id:'tull',name:'Guard Tull',first:'Tull',x:720,y:600,patrol:[{x:720,y:600},{x:560,y:720}],lines:['Herders don’t come this way.','West road! Raiders!']}),
-    foe('depot-guard',{id:'ruck',name:'Guard Ruck',first:'Ruck',x:1780,y:300,wpns:['carbine'],guard:1,patrol:[{x:1780,y:300},{x:1890,y:430},{x:1770,y:560}],lines:['Apron’s secure.','They want the tanks!']}),
-    foe('depot-guard',{id:'pike2',name:'Guard Pike',first:'Pike',x:1620,y:700,guard:1,patrol:[{x:1620,y:700},{x:1760,y:660}],lines:['Pumps are locked.','Fall back to the pumps!']}),
-    foe('depot-guard',{id:'hale',name:'Tower Hale',first:'Hale',x:1330,y:300,hp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,lines:['Clear view from up here.','Say when, Warden.']}),
+    foe('depot-guard',{id:'holt',x:1250,y:620,wpns:['carbine'],patrol:[{x:1250,y:620},{x:1100,y:700},{x:1350,y:740}]}),
+    foe('depot-guard',{id:'vane',x:1000,y:880,patrol:[{x:1000,y:880},{x:760,y:940}]}),
+    foe('depot-guard',{id:'tull',x:720,y:600,patrol:[{x:720,y:600},{x:560,y:720}]}),
+    foe('depot-guard',{id:'ruck',x:1780,y:300,wpns:['carbine'],guard:1,patrol:[{x:1780,y:300},{x:1890,y:430},{x:1770,y:560}]}),
+    foe('depot-guard',{id:'pike2',x:1620,y:700,guard:1,patrol:[{x:1620,y:700},{x:1760,y:660}]}),
+    foe('depot-guard',{id:'hale',x:1330,y:300,hp:55,aim:3,def:12,wpns:['longiron'],elev:1,fixed:1,title:'Tower'}),
   ];},
   civs(){return [
     {id:'civ1',name:'Herder',first:'herder',side:'civ',x:430,y:1000,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:430,y:1000},{x:540,y:1090},{x:380,y:1120}]},
@@ -243,38 +226,22 @@ stealfuel:{
 autofactory:{
   mode:'autofactory',W:2400,H:1600,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Blow Up Auto Factory',sub:'Kiln Ridge \u00b7 Menk \u2014 Revolution I',
-  foesLabel:'Security',calmLabel:'Plant is quiet',alertLabel:'Plant alerted',
-  banner:['Blow Up Auto Factory','Every Auto is a policeman we never meet'],
-  brief:{
-    eyebrow:'Ground Operation \u00b7 Kiln Ridge, Menk',
-    flavour:'The Hegemony pours Menk\u2019s salt and labour into the <b>Kiln Ridge AutoCom Plant</b>, turning out Policebots by the thousand. The whole line runs off one <b>Power Plant</b> on the north side. Put a charge on the main breaker, walk away, and let the lights go out.',
-    objectives:[
-      'Get the explosive charge to the Power Plant\u2019s main breaker',
-      'Plant it',
-      'Get clear of the blast zone, then detonate',
-      'Get the squad back to the Marta',
-      {sub:1,text:'(Optional) Do it without the plant ever raising the alarm.'},
-    ],
-    hint:'One of you carries the charge (marked \u2738). Only the carrier can plant it. Riot shields soak every shot from the front until they break, so flank them. Policebots never panic, but they are flimsy. Stay out of the sight cones and the plant may never know you were here.',
-  },
+  sub:'Kiln Ridge · Menk',
   towerLabel:'',
   lamps:[[820,620],[1500,560],[1870,560],[700,980],[1620,1000]],
-  csLine:'Kiln Ridge. I\u2019ll be at the LZ with the engines warm. Light the fuse and come home.',
-  lzLabel:'MARTA LZ',
   LZ:{x:260,y:1280,r:130},PAD:{x:1860,y:512,r:60},
   plant:{x:1700,y:240,w:320,h:230,bx:1860,by:355},
   blastR:330,safeR:400,
   guardPt:{x:1860,y:560},
   work:[{id:'plant',x:1860,y:512,label:'MAIN BREAKER',verb:'plants the explosive charge on the main breaker',needCharge:1}],
-  detWave:{log:'<span class="h">A Riot Transport Cruiser screams in through the gate.</span>',
+  detWave:{log:'<span class="h">A Riot Transport Cruiser is coming in through the gate.</span>',
     foes:[
       foe('riot-transport-cruiser',{id:'rtc1',x:700,y:470,
        crew:[
-        foe('security-patrolman',{seat:'drv',id:'rtcd',name:'Patrolman Gant',first:'Gant',lines:['Unloading!','Squad out, go go go!']}),
-        foe('security-riot-shieldman',{seat:'bay1',id:'rs2',name:'Riot Shieldman Voss',first:'Voss',lines:['Riot line! Hold!','Disperse!']}),
-        foe('security-riot-rifleman',{seat:'bay2',id:'rr2',name:'Riot Rifleman Tarn',first:'Tarn',lines:['Contact at the plant!','Shields forward!']}),
-        foe('security-riot-rifleman',{seat:'bay3',id:'rr3',name:'Riot Rifleman Mek',first:'Mek',lines:['Suppressing!','Breach team, go!']}),
+        foe('security-patrolman',{seat:'drv',id:'rtcd'}),
+        foe('security-riot-shieldman',{seat:'bay1',id:'rs2'}),
+        foe('security-riot-rifleman',{seat:'bay2',id:'rr2'}),
+        foe('security-riot-rifleman',{seat:'bay3',id:'rr3'}),
        ]}),
     ]},
   bldgs:[
@@ -301,14 +268,14 @@ autofactory:{
     {id:'blasting',x:640,y:1040,label:'Blasting shed',take:'Explosive Charge',items:['charge']},
   ],
   foes(){return [
-    foe('security-patrolman',{id:'drew',name:'Patrolman Drew',first:'Drew',x:780,y:580,patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}],lines:['Gate\u2019s quiet.','Who goes there?']}),
-    foe('auto-policebot',{id:'pb12',name:'Policebot PB-12',first:'PB-12',x:830,y:900,patrol:[{x:830,y:900},{x:830,y:740}],lines:['Please remain calm.','Citizen, drop the weapon.']}),
-    foe('auto-policebot',{id:'pb07',name:'Policebot PB-07',first:'PB-07',x:1030,y:1080,patrol:[{x:1030,y:1080},{x:1300,y:1180}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
-    foe('security-patrolman',{id:'soll',name:'Patrolman Soll',first:'Soll',x:1560,y:860,patrol:[{x:1560,y:860},{x:1420,y:1000},{x:1700,y:800}],lines:['Nothing on the east side.','Hands where I can see them!']}),
-    foe('auto-policebot',{id:'pb03',name:'Policebot PB-03',first:'PB-03',x:1680,y:560,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}],lines:['Restricted area.','Please remain calm.']}),
-    foe('security-riot-shieldman',{id:'rs1',name:'Riot Shieldman Kaan',first:'Kaan',x:1860,y:588,guard:1,lines:['Nobody touches the breaker.','Shields up!']}),
-    foe('security-riot-rifleman',{id:'rr1',name:'Riot Rifleman Brenn',first:'Brenn',x:2020,y:900,patrol:[{x:2020,y:900},{x:1960,y:760}],lines:['Office perimeter clear.','Rifles up!']}),
-    foe('strider-mk1',{id:'strid1',name:'Strider Mk I',first:'Strider',x:1180,y:950,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}],lines:['We\u2019re all in this together.','Please remain calm.']}),
+    foe('security-patrolman',{id:'drew',x:780,y:580,patrol:[{x:780,y:580},{x:760,y:700},{x:830,y:470}]}),
+    foe('auto-policebot',{id:'pb12',x:830,y:900,patrol:[{x:830,y:900},{x:830,y:740}]}),
+    foe('auto-policebot',{id:'pb07',x:1030,y:1080,patrol:[{x:1030,y:1080},{x:1300,y:1180}]}),
+    foe('security-patrolman',{id:'soll',x:1560,y:860,patrol:[{x:1560,y:860},{x:1420,y:1000},{x:1700,y:800}]}),
+    foe('auto-policebot',{id:'pb03',x:1680,y:560,guard:1,patrol:[{x:1680,y:560},{x:1780,y:600}]}),
+    foe('security-riot-shieldman',{id:'rs1',x:1860,y:588,guard:1}),
+    foe('security-riot-rifleman',{id:'rr1',x:2020,y:900,patrol:[{x:2020,y:900},{x:1960,y:760}]}),
+    foe('strider-mk1',{id:'strid1',x:1180,y:950,patrol:[{x:1180,y:950},{x:1300,y:760},{x:1060,y:1100}]}),
   ];},
   civs(){return [
     {id:'civ1',name:'Line Worker',first:'worker',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -318,24 +285,9 @@ autofactory:{
 towers:{
   mode:'towers',W:2200,H:1400,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Disrupt Comm Towers',sub:'Parity IV — Revolution I',
-  foesLabel:'Security',calmLabel:'Compound is quiet',alertLabel:'Compound alerted',
-  banner:['Disrupt Comm Towers','Take the tower, leave them listening'],
-  brief:{
-    eyebrow:'Ground Operation · Parity IV',
-    flavour:'A comm tower, fenced and guarded. Get a device onto its base: an <b>Explosive Charge</b> drops it, a <b>Data Limpet</b> leaves it standing and lets us listen.',
-    objectives:[
-      'Reach the comm tower',
-      'Attach the device to the tower base',
-      'Get the squad back to the Marta',
-      {sub:1,text:'(Optional) Do it without the compound raising the alarm.'},
-    ],
-    hint:'The carrier (marked ✸) is the only one who can attach the device. If two of you carry different devices, pick which one goes on the tower by who walks up. Stay out of the sight cones and the job is quiet.',
-  },
+  sub:'Parity IV',
   towerLabel:'',
   lamps:[[760,420],[1300,360],[1760,560],[900,900],[1500,980]],
-  csLine:'Parity IV. Engines warm, lights off. Hang it on the tower and come home.',
-  lzLabel:'MARTA LZ',
   LZ:{x:240,y:1180,r:130},PAD:{x:1900,y:470,r:60},
   plant:{x:1730,y:250,w:340,h:300,bx:1900,by:400},
   blastR:150,safeR:0,instant:1,
@@ -362,26 +314,26 @@ towers:{
   ],
   foes(){
     const v=this.variant||'ledger';
-    const P=(id,nm,x,y,pat)=>foe('security-patrolman',{id,name:'Patrolman '+nm,first:nm,x,y,patrol:pat||undefined,lines:['Tower’s quiet.','Who goes there?']});
-    const B=(id,n,x,y,pat,guard)=>foe('auto-policebot',{id,name:'Policebot PB-'+n,first:'PB-'+n,x,y,guard:guard||0,patrol:pat||undefined,lines:['Please remain calm.','Restricted area.']});
-    const RR=(id,nm,x,y,pat,guard)=>foe('security-riot-rifleman',{id,name:'Riot Rifleman '+nm,first:nm,x,y,guard:guard||0,patrol:pat||undefined,lines:['Compound is sealed.','Rifles up!']});
-    const RS=(id,nm,x,y,guard)=>foe('security-riot-shieldman',{id,name:'Riot Shieldman '+nm,first:nm,x,y,guard:guard||0,lines:['Shields up!','Nobody touches the tower.']});
+    const P=(id,x,y,pat)=>foe('security-patrolman',{id,x,y,patrol:pat||undefined});
+    const B=(id,x,y,pat,guard)=>foe('auto-policebot',{id,x,y,guard:guard||0,patrol:pat||undefined});
+    const RR=(id,x,y,pat,guard)=>foe('security-riot-rifleman',{id,x,y,guard:guard||0,patrol:pat||undefined});
+    const RS=(id,x,y,guard)=>foe('security-riot-shieldman',{id,x,y,guard:guard||0});
     if(v==='dataflats')return [
-      B('b1',41,820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',42,1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
-      B('b3',43,1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',44,1480,720,[{x:1480,y:720},{x:1620,y:800}]),
-      RS('s1','Kade',1900,540,1),P('p1','Crane',600,980,[{x:600,y:980},{x:760,y:900}]),
-      foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]}),
+      B('b1',820,640,[{x:820,y:640},{x:700,y:780}]),B('b2',1250,900,[{x:1250,y:900},{x:1100,y:1000}]),
+      B('b3',1760,640,[{x:1760,y:640},{x:1860,y:600}],1),B('b4',1480,720,[{x:1480,y:720},{x:1620,y:800}]),
+      RS('s1',1900,540,1),P('p1',600,980,[{x:600,y:980},{x:760,y:900}]),
+      foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d'})]}),
     ];
     if(v==='quota')return [
-      RR('r1','Wick',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2','Tarn',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
-      RR('r3','Mek',1800,620,[{x:1800,y:620},{x:1960,y:640}],1),P('p1','Elm',1520,740,[{x:1520,y:740},{x:1620,y:820}]),
-      foe('auto-riot-bruiser',{id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',x:1900,y:540,guard:1,lines:['Please remain calm.','Non-compliance detected.']}),
-      P('p2','Soll',620,1000,[{x:620,y:1000},{x:760,y:920}]),
+      RR('r1',860,640,[{x:860,y:640},{x:760,y:800}]),RR('r2',1300,880,[{x:1300,y:880},{x:1150,y:1000}]),
+      RR('r3',1800,620,[{x:1800,y:620},{x:1960,y:640}],1),P('p1',1520,740,[{x:1520,y:740},{x:1620,y:820}]),
+      foe('auto-riot-bruiser',{id:'bru1',x:1900,y:540,guard:1}),
+      P('p2',620,1000,[{x:620,y:1000},{x:760,y:920}]),
     ];
     return [
-      P('p1','Drew',820,620,[{x:820,y:620},{x:760,y:780},{x:900,y:540}]),P('p2','Soll',1240,900,[{x:1240,y:900},{x:1100,y:1000},{x:1380,y:860}]),
-      P('p3','Elm',1560,720,[{x:1560,y:720},{x:1700,y:800}]),B('b1',21,1680,640,[{x:1680,y:640},{x:1780,y:600}],1),
-      B('b2',22,900,1060,[{x:900,y:1060},{x:1200,y:1160}]),RR('r1','Brenn',1900,540,null,1),
+      P('p1',820,620,[{x:820,y:620},{x:760,y:780},{x:900,y:540}]),P('p2',1240,900,[{x:1240,y:900},{x:1100,y:1000},{x:1380,y:860}]),
+      P('p3',1560,720,[{x:1560,y:720},{x:1700,y:800}]),B('b1',1680,640,[{x:1680,y:640},{x:1780,y:600}],1),
+      B('b2',900,1060,[{x:900,y:1060},{x:1200,y:1160}]),RR('r1',1900,540,null,1),
     ];
   },
   civs(){return [
@@ -391,25 +343,9 @@ towers:{
 rescue:{
   mode:'rescue',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Rescue Dissident',sub:'Tollgate Landing · Ballakan — Revolution I',
-  foesLabel:'Security',calmLabel:'Outpost is quiet',alertLabel:'Outpost alerted',
-  banner:['Rescue Dissident','Somebody has to open the door'],
-  brief:{
-    eyebrow:'Ground Operation · Tollgate Landing, Ballakan',
-    flavour:'A well-known voice on the river has been locked in the <b>Tollgate security outpost</b>, waiting for a transfer nobody will ever hear about. Get in, open the cell, and bring them out.',
-    objectives:[
-      'Reach the detention cage behind the guardhouse',
-      'Release the prisoner from confinement',
-      'Bring them and the squad back to the Marta',
-      {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
-      {sub:1,text:'The prisoner is unarmed in all but name. If they go down, the mission fails.'},
-    ],
-    hint:'Stay out of the sight cones and the outpost may never know you were here. The prisoner follows your orders once freed, but is fragile. Riot shields soak every shot from the front until they break, so flank them.',
-  },
+  sub:'Tollgate Landing · Ballakan',
   towerLabel:'',
   lamps:[[700,520],[1300,470],[1720,560],[1100,900],[1600,930]],
-  csLine:'Tollgate Landing. I’ll be here. Bring them out the way you went in.',
-  lzLabel:'MARTA LZ',
   LZ:{x:250,y:1150,r:130},PAD:{x:1720,y:470,r:60},
   cage:{x:1660,y:330,w:120,h:120,dx:1720,dy:470},
   guardPt:{x:1720,y:540},
@@ -435,14 +371,14 @@ rescue:{
     {id:'rations',x:1650,y:990,label:'Barge rations',take:'72 ▤ supplies',s:72},
   ],
   foes(){return [
-    foe('security-patrolman',{id:'fenn',name:'Patrolman Fenn',first:'Fenn',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']}),
-    foe('auto-policebot',{id:'pb21',name:'Policebot PB-21',first:'PB-21',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
-    foe('auto-policebot',{id:'pb22',name:'Policebot PB-22',first:'PB-22',x:1600,y:520,guard:1,patrol:[{x:1600,y:520},{x:1660,y:560}],lines:['Restricted area.','Please stand still.']}),
-    foe('security-riot-shieldman',{id:'rs3',name:'Riot Shieldman Orla',first:'Orla',x:1720,y:524,guard:1,lines:['Nobody touches the prisoner.','Shields up!']}),
-    foe('security-riot-rifleman',{id:'rr4',name:'Riot Rifleman Dace',first:'Dace',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:620}],lines:['Cell block is sealed.','Rifles up!']}),
-    foe('security-patrolman',{id:'oake',name:'Patrolman Oake',first:'Oake',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the toll office.','Hands where I can see them!']}),
-    foe('security-patrolman',{id:'bray',name:'Patrolman Bray',first:'Bray',x:1700,y:920,patrol:[{x:1700,y:920},{x:1850,y:840}],lines:['Barge side is clear.','Stop right there!']}),
-    foe('auto-riot-bruiser',{id:'bru1',name:'Riot Bruiser Gorm',first:'Gorm',x:1640,y:524,guard:1,lines:['Please remain calm.','Non-compliance detected.']}),
+    foe('security-patrolman',{id:'fenn',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}]}),
+    foe('auto-policebot',{id:'pb21',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}]}),
+    foe('auto-policebot',{id:'pb22',x:1600,y:520,guard:1,patrol:[{x:1600,y:520},{x:1660,y:560}]}),
+    foe('security-riot-shieldman',{id:'rs3',x:1720,y:524,guard:1}),
+    foe('security-riot-rifleman',{id:'rr4',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:620}]}),
+    foe('security-patrolman',{id:'oake',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}]}),
+    foe('security-patrolman',{id:'bray',x:1700,y:920,patrol:[{x:1700,y:920},{x:1850,y:840}]}),
+    foe('auto-riot-bruiser',{id:'bru1',x:1640,y:524,guard:1}),
   ];},
   civs(){return [
     {id:'civ1',name:'Barge Hand',first:'barge hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -452,32 +388,17 @@ rescue:{
 intel:{
   mode:'intel',W:2400,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Steal Intelligence',sub:'Data Flats · Parity IV — Revolution I',
-  foesLabel:'Security',calmLabel:'Farm is quiet',alertLabel:'Farm alerted',
-  banner:['Steal Intelligence','Everything they know, in one drive'],
-  brief:{
-    eyebrow:'Ground Operation · Data Flats, Parity IV',
-    flavour:'The Bureau keeps its Parity IV registry backups on a <b>server farm</b> out on the Data Flats: fences, Policebots and a terminal bank in the east hall. Get your <b>Field Technician</b> to the databank terminal and keep them alive while they crack it.',
-    objectives:[
-      'Reach the databank terminal in the east server hall',
-      'Hack into the Hegemony databanks — three rounds, your Field Technician only',
-      'Extract with the stolen data',
-      {sub:1,text:'Finishing the hack sets off the trace. Expect a response.'},
-    ],
-    hint:'Only the Field Technician (marked ⌨) can work the terminal. Stay out of the sight cones for as long as you can; the hack keeps running only while they stay on the terminal. Riot shields soak every shot from the front until they break, so flank them.',
-  },
+  sub:'Data Flats · Parity IV',
   towerLabel:'',
   lamps:[[760,560],[1300,520],[1660,600],[1100,900],[1800,900]],
-  csLine:'Data Flats. Engines warm, lights off. Copy fast and come home.',
-  lzLabel:'MARTA LZ',
   LZ:{x:260,y:1200,r:130},PAD:{x:1660,y:540,r:60},
   guardPt:{x:1660,y:600},
   work:[{id:'hack',x:1660,y:540,label:'DATABANK TERMINAL',verb:'cracks the databank and copies the drive',needSpec:'fieldtech',rounds:3}],
-  alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span> — a shield line and two riflemen.',
+  alarmWave:{log:'<span class="h">The trace trips the alarm and a security crawler pulls up at the gate</span>.',
     foes:[
-      foe('security-riot-shieldman',{id:'rs5',name:'Riot Shieldman Kade',first:'Kade',x:640,y:560,lines:['Riot line! Hold!','Disperse!']}),
-      foe('security-riot-rifleman',{id:'rr5',name:'Riot Rifleman Saul',first:'Saul',x:600,y:640,lines:['Contact at the databank!','Shields forward!']}),
-      foe('security-riot-rifleman',{id:'rr6',name:'Riot Rifleman Petra',first:'Petra',x:600,y:480,lines:['Suppressing!','Breach team, go!']}),
+      foe('security-riot-shieldman',{id:'rs5',x:640,y:560}),
+      foe('security-riot-rifleman',{id:'rr5',x:600,y:640}),
+      foe('security-riot-rifleman',{id:'rr6',x:600,y:480}),
     ]},
   bldgs:[
     {x:1500,y:260, w:340,h:230,name:'EAST SERVER HALL'},
@@ -500,14 +421,14 @@ intel:{
     {id:'parts',x:700,y:1040,label:'Spare rack parts',take:'72 ▤ supplies',s:72},
   ],
   foes(){return [
-    foe('security-patrolman',{id:'crane',name:'Patrolman Crane',first:'Crane',x:760,y:600,patrol:[{x:760,y:600},{x:900,y:700},{x:720,y:470}],lines:['Gate’s quiet.','Who goes there?']}),
-    foe('auto-policebot',{id:'pb31',name:'Policebot PB-31',first:'PB-31',x:1150,y:640,patrol:[{x:1150,y:640},{x:1000,y:700}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
-    foe('auto-policebot',{id:'pb32',name:'Policebot PB-32',first:'PB-32',x:1620,y:640,guard:1,patrol:[{x:1620,y:640},{x:1720,y:620}],lines:['Restricted area.','Please stand still.']}),
-    foe('security-riot-shieldman',{id:'rs4',name:'Riot Shieldman Bour',first:'Bour',x:1660,y:600,guard:1,lines:['Nobody touches the terminal.','Shields up!']}),
-    foe('security-riot-rifleman',{id:'rr7',name:'Riot Rifleman Wick',first:'Wick',x:1400,y:540,patrol:[{x:1400,y:540},{x:1500,y:680}],lines:['East hall is sealed.','Rifles up!']}),
-    foe('security-patrolman',{id:'elm',name:'Patrolman Elm',first:'Elm',x:1200,y:1000,patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}],lines:['Cooling plant clear.','Hands where I can see them!']}),
-    foe('auto-policebot',{id:'pb33',name:'Policebot PB-33',first:'PB-33',x:1800,y:940,patrol:[{x:1800,y:940},{x:1950,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
-    foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d',name:'Patrolman Rusk',first:'Rusk',lines:['Unit 9, responding.','Stay where you are!']})]}),
+    foe('security-patrolman',{id:'crane',x:760,y:600,patrol:[{x:760,y:600},{x:900,y:700},{x:720,y:470}]}),
+    foe('auto-policebot',{id:'pb31',x:1150,y:640,patrol:[{x:1150,y:640},{x:1000,y:700}]}),
+    foe('auto-policebot',{id:'pb32',x:1620,y:640,guard:1,patrol:[{x:1620,y:640},{x:1720,y:620}]}),
+    foe('security-riot-shieldman',{id:'rs4',x:1660,y:600,guard:1}),
+    foe('security-riot-rifleman',{id:'rr7',x:1400,y:540,patrol:[{x:1400,y:540},{x:1500,y:680}]}),
+    foe('security-patrolman',{id:'elm',x:1200,y:1000,patrol:[{x:1200,y:1000},{x:1050,y:900},{x:1350,y:1050}]}),
+    foe('auto-policebot',{id:'pb33',x:1800,y:940,patrol:[{x:1800,y:940},{x:1950,y:860}]}),
+    foe('police-cruiser',{id:'pc1',x:1050,y:1180,patrol:[{x:1050,y:1180},{x:1500,y:1120},{x:1250,y:1230}],crew:[foe('security-patrolman',{seat:'drv',id:'pc1d'})]}),
   ];},
   civs(){return [
     {id:'civ1',name:'Data Clerk',first:'clerk',side:'civ',x:1150,y:1160,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1150,y:1160},{x:1000,y:1200},{x:1260,y:1130}]},
@@ -516,31 +437,31 @@ intel:{
 strider:{
   mode:'strider',W:2400,H:1600,style:'town',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
-  title:'Steal the Strider',sub:'Menk Crossing · Menk — Revolution I',
+  title:'Steal the Strider',sub:'Menk Crossing · Menk',
   foesLabel:'Security',calmLabel:'Yard is quiet',alertLabel:'Yard alerted',
   banner:['Steal the Strider','Walk it out'],
   brief:{
     eyebrow:'Ground Operation · Menk Crossing, Menk',
-    flavour:'A <b>Strider Mk I</b> — the Hegemony’s friendly neighbourhood enforcement walker — is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its leash panel can be overridden on site. Get in, wake it up, and walk it out.',
+    flavour:'A <b>Strider Mk I</b>, the Hegemony’s friendly neighbourhood enforcement walker, is parked in a locked holding yard behind the AutoCom Plant’s Crossing depot, waiting for delivery. Its access panel can be found on site. Get in, override its loyalty subroutines, and walk it out.',
     objectives:[
       'Reach the holding yard behind the depot',
       'Override the Strider’s leash panel',
-      'Guide the Strider and the squad back to the Marta',
+      'Guide the Strider and the squad back to the transport.',
       {sub:1,text:'(Optional) Do it without the enemy realising you were there.'},
-      {sub:1,text:'If the Strider is destroyed, the mission fails.'},
+      {sub:1,text:'The Strider must not be destroyed.'},
     ],
-    hint:'Once the leash is off the Strider follows your orders like any rebel: heavy, tough and loud. Keep it out of sight cones until you need it. Riot shields soak every shot from the front until they break, so flank them.',
+    hint:'The Strider is a powerful ally, but an equally powerful foe. Riot shields soak every shot from the front until they break, so flank them.',
   },
   towerLabel:'',
   lamps:[[760,640],[1300,560],[1720,600],[1200,980],[1800,1000]],
-  csLine:'Menk Crossing. I will keep the cargo bay open. Try not to scratch it.',
-  lzLabel:'MARTA LZ',
+  csLine:'Menk Crossing ahead. I will keep the cargo bay open. Try not to scratch the paint!',
+  lzLabel:'LZ',
   LZ:{x:260,y:1250,r:130},PAD:{x:1720,y:480,r:60},
   cage:{x:1640,y:340,w:160,h:140,dx:1720,dy:490,label:'HOLDING YARD'},
   guardPt:{x:1720,y:560},
-  releaseText:{float:'STRIDER ONLINE',log:'The leash panel gives. The Strider stands up, its face-screen cheerfully reading <b>“We’re all in this together.”</b> Get it and the squad back to the Marta.',
-    obj:['Reach the holding yard','Override the Strider’s leash panel','(Optional) Stay unseen','Get the Strider and the squad aboard']},
-  work:[{id:'release',x:1720,y:496,label:'LEASH PANEL',verb:'overrides the Strider’s leash panel',rounds:2}],
+  releaseText:{float:'STRIDER ONLINE',log:'The hack is successful. The Strider stands up, its face-screen cheerfully reading <b>“We’re all in this together.”</b> Get it and the squad back to the transport.',
+    obj:['Reach the holding yard','Hack the Strider','(Optional) Stay unseen','Get the Strider and the squad aboard']},
+  work:[{id:'release',x:1720,y:496,label:'ACCESS PANEL',verb:'accesses the Strider’s subroutines',rounds:2}],
   bldgs:[
     {x:1240,y:260, w:260,h:180,name:'CROSSING DEPOT'},
     {x:640, y:560, w:300,h:170,name:'PRECINCT HOUSE'},
@@ -562,14 +483,14 @@ strider:{
     {id:'rations',x:1650,y:1010,label:'Depot rations',take:'80 ▤ supplies',s:80},
   ],
   foes(){return [
-    foe('security-patrolman',{id:'hask2',name:'Patrolman Hale',first:'Hale',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}],lines:['Gate’s quiet.','Who goes there?']}),
-    foe('auto-policebot',{id:'pb41',name:'Policebot PB-41',first:'PB-41',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}],lines:['Please remain calm.','Citizen, you are in a restricted area.']}),
-    foe('auto-policebot',{id:'pb42',name:'Policebot PB-42',first:'PB-42',x:1600,y:560,guard:1,patrol:[{x:1600,y:560},{x:1660,y:600}],lines:['Restricted area.','Please stand still.']}),
-    foe('security-riot-shieldman',{id:'rs6',name:'Riot Shieldman Ysel',first:'Ysel',x:1720,y:540,guard:1,lines:['Nobody touches the walker.','Shields up!']}),
-    foe('security-riot-rifleman',{id:'rr8',name:'Riot Rifleman Garr',first:'Garr',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:640}],lines:['Yard is sealed.','Rifles up!']}),
-    foe('security-patrolman',{id:'elm2',name:'Patrolman Voss',first:'Voss',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}],lines:['Nothing at the store.','Hands where I can see them!']}),
-    foe('auto-policebot',{id:'pb43',name:'Policebot PB-43',first:'PB-43',x:1700,y:940,patrol:[{x:1700,y:940},{x:1850,y:860}],lines:['You are in violation of Ordinance 9.','Please stand still.']}),
-    foe('riot-dispersal-cruiser',{id:'rdc1',x:1450,y:690,guard:1,crew:[foe('security-patrolman',{seat:'drv',id:'rdcd',name:'Patrolman Lusk',first:'Lusk',lines:['Yard car, rolling.','Turret, light them up!']}),foe('security-riot-rifleman',{seat:'gun',id:'rdcg',name:'Riot Gunner Pell',first:'Pell',aim:1,lines:['Dispersal turret deployed.','Disperse!']})]}),
+    foe('security-patrolman',{id:'hask2',x:720,y:470,patrol:[{x:720,y:470},{x:800,y:620},{x:640,y:480}]}),
+    foe('auto-policebot',{id:'pb41',x:850,y:800,patrol:[{x:850,y:800},{x:960,y:660}]}),
+    foe('auto-policebot',{id:'pb42',x:1600,y:560,guard:1,patrol:[{x:1600,y:560},{x:1660,y:600}]}),
+    foe('security-riot-shieldman',{id:'rs6',x:1720,y:540,guard:1}),
+    foe('security-riot-rifleman',{id:'rr8',x:1420,y:500,patrol:[{x:1420,y:500},{x:1520,y:640}]}),
+    foe('security-patrolman',{id:'elm2',x:1150,y:1000,patrol:[{x:1150,y:1000},{x:1000,y:850},{x:1250,y:900}]}),
+    foe('auto-policebot',{id:'pb43',x:1700,y:940,patrol:[{x:1700,y:940},{x:1850,y:860}]}),
+    foe('riot-dispersal-cruiser',{id:'rdc1',x:1450,y:690,guard:1,crew:[foe('security-patrolman',{seat:'drv',id:'rdcd'}),foe('security-riot-rifleman',{seat:'gun',id:'rdcg',aim:1,title:'Riot Gunner'})]}),
   ];},
   civs(){return [
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
@@ -578,15 +499,15 @@ strider:{
 haven:{
   mode:'haven',W:1600,H:1200,scale:1.45,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
-  title:'Take the Rock',sub:'Haven Rock \u00b7 the Drift \u2014 Prologue',
+  title:'Take the Rock',sub:'Haven Rock · the Drift',
   foesLabel:'Squatters',calmLabel:'Camp is quiet',alertLabel:'Camp alerted',
-  banner:['Take the Rock','Every war starts with a kicked-in door'],
+  banner:['Take the Rock','Eliminate the criminal squatters from our new home'],
   brief:{
     eyebrow:'Prologue · The Drift',
     flavour:'Until now, you have been little more than disgruntled civilians. Angry at the Hegemony, willing to bend its laws, but never organised enough to do anything about it.<br><br><b>That ends here.</b><br><br>A smuggler’s bolt-hole has been carved into a mountain, hidden from the Hegemony and absent from every official chart. It has a hangar, a command room and enough bunks to house a small crew. Unfortunately, it’s already occupied by a handful of <b>Vult gang squatters</b>. Take the base, and you’ll have somewhere to build the revolution.',
     objectives:[
-      'Clear the squatters holding the rock — outside, then room by room',
-      'Take the command room from Boss Craw',
+      'Clear the squatters out of the area.',
+      'Eliminate the squatter leader.',
       'Raise the rebel signal at the command console',
     ],
     hint:'',
@@ -601,7 +522,7 @@ haven:{
   bossTrigger:{x:1125,y:470,r:280},
   bossDoor:{x:1125,y:480},
   bossFloat:'BOSS CRAW',
-  bossLog:'<span class="h">Boss Craw storms out of the command room</span> \u2014 scattergun and spit.',
+  bossLog:'<span class="h">Boss Craw storms out of the command room</span>, scattergun armed.',
   bossAlert:'Craw\u2019s roar rattles the corridors.',
   solids:[{x:620,y:80,w:900,h:710},{x:0,y:40,w:620,h:180}],
   opens:[
@@ -641,7 +562,7 @@ haven:{
   ],
   foes(){return [
     foe('squatter-boss',{id:'craw',name:'Boss Craw',first:'Craw',x:1245,y:330,office:1,
-      lines:['Vult gang runs this drift!','Burn them out!','This rock is CLAIMED, you hear?!']}),
+      lines:['Vult gang runs this place!','Burn them out!','This is CLAIMED, you hear?!']}),
     foe('squatter',{id:'odo',name:'Odo',first:'Odo',x:900,y:960,patrol:[{x:900,y:960},{x:1010,y:1000},{x:820,y:1000}],
       lines:['Trail\u2019s quiet. Too quiet. Nah, just quiet.','It\u2019s a raid! IT\u2019S A RAID!']}),
     foe('squatter',{id:'vult',name:'Vult',first:'Vult',x:1000,y:900,patrol:[{x:1000,y:900},{x:880,y:930}],
@@ -695,15 +616,15 @@ function genWalls(solids,opens){
   }
   return out;
 }
-const KEY_BLDG={towers:'TOWER COMPOUND',intel:'EAST SERVER HALL',stealfuel:'TITHE DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
+const KEY_BLDG={towers:'TOWER COMPOUND',intel:'EAST SERVER HALL',stealfuel:'FUEL DEPOT',autofactory:'AUTO ASSEMBLY',rescue:'GUARDHOUSE'};
 /* a mission type replayed in a new narrative context: rename the place, relabel the key building, thicken security with the world's Security level */
 function contextScenario(base,c,sec){
   const S=Object.assign({},base);
   if(c){
     if(c.title)S.title=c.title;
     if(c.sub)S.sub=c.sub;
-    S.brief=Object.assign({},base.brief,{eyebrow:c.eyebrow||base.brief.eyebrow,flavour:c.flavour||base.brief.flavour});
-    if(c.place)S.csLine=c.place+'. '+String(base.csLine).replace(/^[^.]*\.\s*/,'');
+    S.brief=Object.assign({},base.brief,{eyebrow:c.eyebrow||(base.brief||{}).eyebrow,flavour:c.flavour||(base.brief||{}).flavour});
+    if(c.place&&base.csLine)S.csLine=c.place+'. '+String(base.csLine).replace(/^[^.]*\.\s*/,'');
     const key=KEY_BLDG[base.mode]||KEY_BLDG[base.id];
     if(key&&c.target&&base.bldgs)S.bldgs=base.bldgs.map(b=>b.name===key?Object.assign({},b,{name:c.target.toUpperCase()}):b);
     S.place=c.place||'';
@@ -717,12 +638,32 @@ function contextScenario(base,c,sec){
       const out=L.slice();
       for(let i=0;i<extra&&pool.length;i++){
         const f=pool[i%pool.length];
-        out.push(Object.assign({},f,{id:f.id+'x'+i,name:f.name.replace(/\S+$/,'Auxiliary'+(i+1)),first:'Aux'+(i+1),x:f.x+30+i*9,y:f.y+22,
+        out.push(Object.assign({},f,{id:f.id+'x'+i,name:f.name?f.name.replace(/\S+$/,'Auxiliary'+(i+1)):undefined,first:f.name?'Aux'+(i+1):undefined,x:f.x+30+i*9,y:f.y+22,
           patrol:f.patrol?f.patrol.map(q=>({x:q.x+30,y:q.y+22})):undefined,guard:0}));
       }
       return out;
     };
   }
+  return S;
+}
+/* a mission type's words on the scenario: title, banner, briefing, arrival call and labels all come from its text set
+   (game/js/mission-text.js), filled in for this deployment. The scenario keeps the map. */
+function typeText(base,c){
+  const S=Object.assign({},base),mt=MT.forScenario(base.mode);
+  S.mt=mt;
+  S.place=(c&&c.place)||base.place||String(base.sub||'').split(' \u00b7 ')[0]||'the target';
+  S.target=(c&&c.target)||mt.targets[0];
+  const f=str=>MT.fill(str,mvars({target:S.target,place:S.place}));
+  S.title=(c&&c.title)||mt.name;
+  S.sub=(c&&c.sub)||base.sub;
+  S.banner=[S.title,f(mt.banner)];
+  S.foesLabel=f(mt.foes);S.calmLabel=f(mt.calm);S.alertLabel=f(mt.alert);
+  S.brief={eyebrow:(c&&c.eyebrow)||'Ground Operation \u00b7 '+String(base.sub||S.place).replace(' \u00b7 ',', '),
+    flavour:(c&&c.flavour)||f(mt.desc),
+    objectives:mt.obj.filter(o=>!o.opt).map(o=>f(o.t)).concat(mt.obj.filter(o=>o.opt).map(o=>({sub:1,text:f(o.t)})),(mt.notes||[]).map(t=>({sub:1,text:f(t)}))),
+    hint:f(mt.hint)};
+  S.csLine=f(mt.arrive);
+  S.lzLabel=f(MT.COMMON.lz);
   return S;
 }
 /* The Bobbleheads stand bigger than the old tokens, so a scenario can ask to be laid out larger:
@@ -749,7 +690,8 @@ function scaleScenario(S0,k){
 function initScenario(id){
   {const b0=SCENARIOS[id]||SCENARIOS.stealcross;
    const b=b0.scale?scaleScenario(b0,b0.scale):b0;
-   SCN=(CTX&&(CTX.ctx||CTX.sec>2))?contextScenario(b,CTX.ctx,CTX.sec):b;}
+   SCN=(CTX&&(CTX.ctx||CTX.sec>2))?contextScenario(b,CTX.ctx,CTX.sec):b;
+   if(MT.forScenario(SCN.mode))SCN=typeText(SCN,CTX&&CTX.ctx);}
   W=SCN.W;H=SCN.H;
   LZ=SCN.LZ;
   PAD=SCN.PAD||OFFMAP;
@@ -781,7 +723,7 @@ const REB_LINES={
   kel:['I’ve poached under worse moons than this.','Tower. Rifle. Watch the tower.','Wind’s with us. Take the shot.'],
   generic:['Eyes open. This is their town.','Cover to cover. No heroes.','Quiet feet, loud rifle.'],
 };
-const PILOT_LINES=['Just get me to that Cross in one piece.','I fly things. I don’t shoot things. Mostly.','Two rounds at the panel. Keep them off me.'];
+const PILOT_LINES=['Just keep me in one piece.','I fly things. I don’t shoot things. Mostly.','This isn\'t my natural habitat. Keep them off me.'];
 let CTX=null; // mission spec from the base layer
 function defaultSpec(){
   return {kind:'ground',missionId:'stealcross',days:2,
@@ -789,7 +731,8 @@ function defaultSpec(){
            {id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['akli','cowboy']},
            {id:'kel',name:'Kel Brasso',first:'Kel',aim:2,hp:100,wpns:['akli','cowboy']}],
     pilot:{id:'sera',name:'Sera Kest',first:'Sera'},
-    grafPilot:{id:'joss',name:'Joss Marrek',first:'Joss'}};
+    grafPilot:{id:'joss',name:'Joss Marrek',first:'Joss'},
+    transport:{id:'graf',name:'Marta',cls:'graf'}};
 }
 /* a squad member's armour and shield: an Auto's own shell (sp.arm) plus the head and body kit they wear */
 function squadProt(sp){
@@ -797,6 +740,7 @@ function squadProt(sp){
   return {arm:(sp.arm||0)+k.arm,shdCap:(sp.shdCap||0)+k.shd};
 }
 function initUnits(){
+  chatT=6;
   const spec=CTX||defaultSpec();
   const spots=[[LZ.x-30,LZ.y-64],[LZ.x+42,LZ.y-52],[LZ.x-72,LZ.y+10],[LZ.x-96,LZ.y-40]];
   const squad=spec.squad.map((sp,i)=>mkU(Object.assign({id:sp.id,pid:sp.id,name:sp.name,first:sp.first,side:'reb',art:sp.art,
@@ -814,7 +758,7 @@ function initUnits(){
     const big=!!spec.vip.strider;
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
       x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
-      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:['Thank God. Get me out of here.','I can\u2019t fight, but I can run.','Keep the shooting away from me!']}));
+      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:MT.type('rescue').vip.slice()}));
   }
   if(spec.pilot){
     roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',art:spec.pilot.art,
@@ -822,7 +766,7 @@ function initUnits(){
   }
   U=[
     ...roster,
-    ...expandUnits(SCN.foes()),
+    ...nameFoes(expandUnits(SCN.foes()),[]),
     ...SCN.civs().map(mkU),
   ];
   for(const u of U)u.face=u.side==='reb'?-Math.PI/4:u.side==='civ'?Math.PI*Math.random():Math.PI*0.8;
@@ -848,6 +792,30 @@ function mkVeh(o){
   return v;
 }
 /* roster entries: one with veh is a vehicle, and its crew list arrives already mounted */
+/* Hegemony guards come unnamed from the scenario: each gets a name from their type's pool and their type's lines
+   (game/js/mission-text.js). Story characters (Sheriff Reeve, Boss Craw, the squatters) arrive with their own. */
+function nameFoes(list,others){
+  const taken=new Set(others.concat(list).map(u=>u.name).filter(Boolean));
+  for(const u of list){
+    if(u.side!=='law'||u.veh||u.name)continue;
+    const n=MT.foeName(u.type,taken,rng,u.title);
+    if(!n)continue;
+    u.name=n.name;u.first=n.first;taken.add(n.name);
+    const T=MT.FOES.types[u.type];
+    u.lines=T.alarm.map(x=>mtx(x));u.idle=T.idle.map(x=>mtx(x));u.pooled=1;
+  }
+  return list;
+}
+/* now and then, while all is quiet, a guard the squad can see mutters one of their type's idle lines */
+let chatT=6;
+function chatterUpdate(dt){
+  if(town!=='calm')return;
+  chatT-=dt;
+  if(chatT>0)return;
+  chatT=9+rng()*8;
+  const l=U.filter(u=>u.side==='law'&&u.idle&&u.idle.length&&!u.down&&!u.surr&&visUnits.has(u.id));
+  if(l.length){const u=l[rint(0,l.length-1)];say(u,u.idle[rint(0,u.idle.length-1)],3000);}
+}
 function expandUnits(list){
   const out=[];
   for(const o of list){
@@ -1688,7 +1656,7 @@ function alertTown(why){
   sAlert();
   log('<span class="b">The town is up.</span> '+why);
   const caller=U.find(u=>u.side==='law'&&!u.down&&!u.surr);
-  if(caller&&caller.lines)say(caller,caller.lines[caller.lines.length-1]);
+  if(caller&&caller.lines)say(caller,caller.pooled?caller.lines[rint(0,caller.lines.length-1)]:caller.lines[caller.lines.length-1]);
   const reeve=U.find(u=>u.id==='reeve');
   if(reeve&&!reeve.down)setTimeout(()=>sayRandom(reeve),1400);
   for(const u of U)if(u.side==='law'&&u.maxShd&&!u.down&&!u.surr)raiseShield(u);   // shields go up with the alarm
@@ -1720,9 +1688,8 @@ function startAmbush(t){
   shooters.sort((a,b)=>initKey(b)-initKey(a));
   phase='ENGAGE'; // set before the alert so time doesn't skip straight to planning
   engageQ={list:shooters,idx:0,cur:null,nextAt:clock()+300,forceT:t};
-  log('<span class="a">'+(shooters.length>1?'The squad opens':nameSpan(shooters[0])+' opens')+
-    ' fire from ambush.</span>');
-  alertTown('Rebel guns spoke first.');
+  log('<span class="a">'+(shooters.length>1?'The squad ambushed the enemy.':nameSpan(shooters[0])+' opens fire from ambush.')+'</span>');
+  alertTown('');
   camGoal={x:t.x,y:t.y,z:Math.max(cam.z,0.95)};
   syncUI();
   return true;
@@ -1771,7 +1738,7 @@ function detUpdate(dt){
     if(rate>0){r.det=Math.min(100,r.det+rate*dt);r.seer=seer;}
     else r.det=Math.max(0,r.det-38*dt);
     if(r.det>=100){
-      alertTown(nameSpan(r.seer)+' made '+nameSpan(r)+'.');
+      alertTown(nameSpan(r.seer)+' saw '+nameSpan(r)+'.');
       return;
     }
   }
@@ -1862,8 +1829,8 @@ function setSneak(on){
   tutFlags.sneaked=1;
   sneak=on;
   for(const u of U)if(u.side==='reb'&&u.rtPath)u.rtSpd=sneak?SNEAK_SPEED:RT_SPEED;
-  log(sneak?'<span class="d">Squad goes low and slow — harder to spot, half the pace.</span>':
-            '<span class="d">Squad moves upright — full pace, full profile.</span>');
+  log(sneak?'<span class="d">Squad in stealth.</span>':
+            '<span class="d">Squad out of stealth</span>');
   sTick();syncUI();
 }
 function coolStateG(u){return u.cool>=70?'cool':u.cool<=30?'panic':'steady';}
@@ -1912,7 +1879,7 @@ function moraleCheck(){
     if(!crew.length||rint(1,20)>=7)continue;
     for(const c of crew)dismount(c,true);
     addFloater(v.x,v.y-50,'CREW BAILS OUT',C.go);
-    log('<span class="g">The '+v.name+'’s crew bail out</span> <span class="d">— it stands empty, and anyone can take it</span>.');
+    log('<span class="g">The '+v.name+'’s crew bail out.</span>');
   }
 }
 function alliesUp(side){return U.filter(u=>u.side===side&&!u.down&&!u.surr).length;}
@@ -2148,7 +2115,7 @@ function enterFree(msg){
   phase='FREE';
   selId=null;pickMode=null;engageQ=null;hotT=0;
   for(const g of nades.splice(0)){
-    log('<span class="a">A primed BLAM cooks off in the quiet.</span>');
+    log('<span class="a">A grenade went off.</span>');
     explode(g.x,g.y,{r:NADE_BLAST,d0:32,d1:52});
   }
   for(const u of U){
@@ -2160,7 +2127,7 @@ function enterFree(msg){
   if(msg)log(msg);
   if(!freeHinted){
     freeHinted=true;
-    log('<span class="d">'+(SR.touch?'Tap the ground':'Right-click (or tap the ground)')+' and the squad follows, scooping up anything lootable on the way. Gunfire drops time into rounds.</span>');
+    log('<span class="d">'+(SR.touch?'Tap the ground':'Right-click (or tap the ground)')+' and the squad follows.</span>');
   }
   saveSnap();
   syncUI();
@@ -2205,12 +2172,12 @@ function completeWork(wp,u){
   }
   if(wp.id==='hack'){
     ix.hacked=true;
-    addFloater(wp.x,wp.y-60,'DATA SECURED',C.go);
-    log('<span class="g">The databank is cracked and the drive is in '+u.first+'\u2019s hand.</span> The trace is already running. Get out.');
-    say(u,'Got it! Drive is in my hand, the trace is live!');
+    addFloater(wp.x,wp.y-60,mtx(SCN.mt.float.secured),C.go);
+    log(mtx(SCN.mt.log.hacked,{hacker:u.first}));
+    say(u,mtx(SCN.mt.say.hacked));
     sSpark();
     if(SCN.alarmWave)spawnFoes(SCN.alarmWave.foes,SCN.alarmWave.log);
-    if(town==='calm')alertTown('The databank trace raises the alarm.');
+    if(town==='calm')alertTown(mtx(SCN.mt.alarm.hacked));
     camGoal={x:LZ.x+240,y:LZ.y-160,z:0.85};
     syncUI();
     return;
@@ -2221,8 +2188,8 @@ function completeWork(wp,u){
       v.caged=0;v.away=0;v.order=null;
       v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
-      addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:v.first.toUpperCase()+' IS FREE'),C.go);
-      log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':'<span class="g">'+v.name+' is out of the cell.</span> Get them and the squad back to the Marta.');
+      addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:mtx(SCN.mt.float.free).toUpperCase()),C.go);
+      log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':mtx(SCN.mt.log.free));
       say(v,v.lines[0]);
     }
     syncUI();
@@ -2232,25 +2199,21 @@ function completeWork(wp,u){
     const method=u.device||'charge';
     u.charge=0;u.device=null;fac.planted=true;fac.method=method;fac.quiet=!fac.everAlerted;
     fac.detonated=true;fac.fx={t0:clock()};
-    if(method==='charge'){
-      addFloater(wp.x,wp.y-46,'TOWER DOWN',C.hazard);
-      log('<span class="g">The charge drops the tower.</span> The compound goes dark. Back to the Marta.');
-      explode(wp.x,wp.y-90,{r:SCN.blastR,d0:1,d1:2});
-    } else {
-      addFloater(wp.x,wp.y-46,'LIMPET ATTACHED',C.shield);
-      log('<span class="g">The data limpet latches on.</span> The tower stays up and every packet it carries is ours. Back to the Marta.');
-      sSpark();
-    }
-    say(u,method==='charge'?'Tower’s coming down. Move!':'We’re listening. Go quiet and go home.');
-    if(town==='calm'&&method==='charge')alertTown('A comm tower is destroyed.');
+    const K=method==='charge'?'down':'limpet';
+    addFloater(wp.x,wp.y-46,mtx(SCN.mt.float[K]),method==='charge'?C.hazard:C.shield);
+    log(mtx(SCN.mt.log[K]));
+    if(method==='charge')explode(wp.x,wp.y-90,{r:SCN.blastR,d0:1,d1:2});
+    else sSpark();
+    say(u,mtx(SCN.mt.say[K]));
+    if(town==='calm'&&method==='charge')alertTown(mtx(SCN.mt.alarm.down));
     syncUI();
     return;
   }
   if(wp.id==='plant'){
     u.charge=0;fac.planted=true;
-    addFloater(wp.x,wp.y-46,'CHARGE SET',C.hazard);
-    log('<span class="a">The charge is set.</span> Get everyone out of the blast zone, then detonate.');
-    say(u,'Charge is set. Clear the zone, then blow it.');
+    addFloater(wp.x,wp.y-46,mtx(SCN.mt.float.set),C.hazard);
+    log(mtx(SCN.mt.log.set));
+    say(u,mtx(SCN.mt.say.set));
     syncUI();
     return;
   }
@@ -2775,10 +2738,10 @@ function fuelReach(){
   if(!fs||fs.reached)return;
   if(U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&dist(u,PAD)<PAD.r+70)){
     fs.reached=true;
-    addFloater(PAD.x,PAD.y-70,'DEPOT REACHED',C.go);
-    log('<span class="g">The squad is at the pumps.</span> Call the Marta down onto the apron when you are ready.');
+    addFloater(PAD.x,PAD.y-70,mtx(SCN.mt.float.reached),C.go);
+    log(mtx(SCN.mt.log.reached));
     const lead=U.find(u=>u.side==='reb'&&!u.down);
-    if(lead)say(lead,'Pumps are right there. Call her in.');
+    if(lead)say(lead,mtx(SCN.mt.say.reached));
     sTick();syncUI();
   }
 }
@@ -2788,7 +2751,7 @@ function callTransport(){
   fs.flying={t0:clock(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
   grafState='flying';
   sTakeoff();
-  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> Inbound to the apron. Keep it clear, I do not land on people.');
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+mtx(SCN.mt.log.inbound));
   syncUI();
 }
 function fuelUpdate(now){
@@ -2801,13 +2764,13 @@ function fuelUpdate(now){
     fs.flying=null;fs.landed=true;grafState='landed';
     sLand();SHK.add(0.3);
     for(let i=0;i<26;i++)parts.push({x:PAD.x+(rng()-0.5)*220,y:PAD.y+(rng()-0.5)*170,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
-    log('<span class="g">The Marta is down on the apron and the fuel lines are out.</span> Hold the pumps: '+FUEL_ROUNDS+' rounds.');
+    log(mtx(SCN.mt.log.landed,{total:FUEL_ROUNDS}));
     camGoal={x:PAD.x-100,y:PAD.y+40,z:0.85};
-    alertTown('The Marta’s engines wake the whole depot.');
+    alertTown(mtx(SCN.mt.alarm.landed));
   }
 }
 function spawnFoes(list,msg){
-  for(const u of expandUnits(list.map(f=>Object.assign({},f)))){
+  for(const u of nameFoes(expandUnits(list.map(f=>Object.assign({},f))),U)){
     u.face=Math.PI;u.wave=1;
     U.push(u);
   }
@@ -2816,11 +2779,11 @@ function spawnFoes(list,msg){
 function fuelPumpStep(){
   if(!fs||!fs.landed||fs.done)return;
   if(!fuelGuards()){
-    addFloater(PAD.x,PAD.y-60,'PUMPS STALLED — NO ONE ON THE APRON',C.hazard);
+    addFloater(PAD.x,PAD.y-60,mtx(SCN.mt.float.stalled),C.hazard);
     return;
   }
   fs.pump++;
-  addFloater(PAD.x,PAD.y-60,'FUEL '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,C.shield);
+  addFloater(PAD.x,PAD.y-60,mtx(SCN.mt.float.pump,{n:Math.min(fs.pump,FUEL_ROUNDS),total:FUEL_ROUNDS}),C.shield);
   sSpark();
   for(const w of (SCN.waves||[])){
     if(w.at!==fs.pump)continue;
@@ -2828,11 +2791,11 @@ function fuelPumpStep(){
   }
   if(fs.pump>=FUEL_ROUNDS){
     fs.done=true;
-    addFloater(PAD.x,PAD.y-88,'TANKS FULL',C.go);
-    log('<span class="g">The Marta’s tanks are full.</span> '+(hostilesActive().length?'Clear the apron, then everyone aboard.':'Everyone aboard.'));
+    addFloater(PAD.x,PAD.y-88,mtx(SCN.mt.float.full),C.go);
+    log(mtx(hostilesActive().length?SCN.mt.log.full:SCN.mt.log.fullClear));
     const lead=U.find(u=>u.side==='reb'&&!u.down);
-    if(lead)say(lead,'That is her full! Everybody on the ramp!');
-  } else log('Fuel pumping — <span class="a">'+fs.pump+'/'+FUEL_ROUNDS+'</span>.');
+    if(lead)say(lead,mtx(SCN.mt.say.full));
+  } else log(mtx(SCN.mt.log.pumping,{n:fs.pump,total:FUEL_ROUNDS}));
   syncUI();
 }
 /* ---------- Blow Up Auto Factory ---------- */
@@ -2844,19 +2807,19 @@ function facDetonate(){
   if(!fac||!fac.planted||fac.detonated)return;
   if(phase==='CUTSCENE'||phase==='EXTRACT'||phase==='GAMEOVER')return;
   if(facUnsafe()){
-    addFloater(SCN.plant.bx,SCN.plant.by-130,'TOO CLOSE \u2014 CLEAR THE BLAST ZONE',C.hazard);
-    log('<span class="a">Too close.</span> Everyone out of the blast zone before you detonate.');
+    addFloater(SCN.plant.bx,SCN.plant.by-130,mtx(SCN.mt.float.tooClose),C.hazard);
+    log(mtx(SCN.mt.log.tooClose));
     return;
   }
   fac.quiet=!fac.everAlerted;
   fac.detonated=true;fac.fx={t0:clock()};
-  log('<span class="g">The charge goes up.</span> The Power Plant tears itself apart and the whole AutoCom Plant goes dark.');
+  log(mtx(SCN.mt.log.blown));
   explode(SCN.plant.bx,SCN.plant.by,{r:SCN.blastR,d0:80,d1:120});
   camGoal={x:SCN.plant.bx-80,y:SCN.plant.by+120,z:0.8};
   const lead=U.find(u=>u.side==='reb'&&!u.down);
-  if(lead)say(lead,'Plant\u2019s gone! Back to the Marta!');
+  if(lead)say(lead,mtx(SCN.mt.say.blown));
   if(SCN.detWave)spawnFoes(SCN.detWave.foes,SCN.detWave.log);
-  if(town==='calm')alertTown('The AutoCom Plant goes dark.');
+  if(town==='calm')alertTown(mtx(SCN.mt.alarm.blown));
   syncUI();
 }
 function drawCage(now){
@@ -3001,6 +2964,7 @@ function rtUpdate(now,dt){
     }
   }
   detUpdate(dt);
+  chatterUpdate(dt);
 }
 function civStep(dt){
   for(const u of U){
@@ -3503,12 +3467,12 @@ function endRound(){
   // hotwire
   const sera=U.find(u=>u.id==='sera');
   if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
-    if(!sera.reached){sera.reached=true;log('<span class="g">Sera is at the Cross.</span> Keep them off her.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
+    if(!sera.reached){sera.reached=true;log('<span class="g">Pilot is at the Cross.</span> Keep them off them.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
     hot++;
     addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
     sSpark();
     if(hot>=HOT_ROUNDS)tryLaunch();
-    else log('Sera works the ignition bypass — <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
+    else log('Pilot works the ignition bypass: <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
   }
   moraleCheck();
   spotCheck();
@@ -3521,10 +3485,10 @@ function endRound(){
         if(clear){
           if(u.mnt)dismount(u,true);
           u.extracted=1;u.order=null;
-          log(nameSpan(u)+' <span class="g">is up the Graf’s ramp.</span>');
+          log(nameSpan(u)+' '+mtx(MT.COMMON.aboard));
           addFloater(u.x,u.y-40,'EXTRACTED',C.go);
         } else {
-          log('<span class="a">Lawmen too close to the Graf — ramp stays shut.</span>');
+          log('<span class="a">Hostiles too close to the transport. Eliminate them.</span>');
         }
       }
     }
@@ -3552,10 +3516,10 @@ function doCrossAway(){
   crossFx={t0:clock()};
   sTakeoff();
   camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
-  log('<span class="g">The Cross is up!</span> Sera takes her low over the rooftops and gone.');
-  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down — get my ground-pounders home.');
+  log('<span class="g">The Cross is up!</span> Our Pilot takes her low over the rooftops and out into space.');
+  log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
   const lead=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down);
-  if(lead)say(lead,'Bird’s away! Everyone back to the Graf!');
+  if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
   syncUI();
 }
 function checkDefeat(){
@@ -3589,8 +3553,8 @@ function gameOver(win,why){
     byId('endEyebrow').textContent='Prologue · Haven Rock';
     byId('endTitle').textContent=win?'Haven Rock Is Ours':'Thrown Back';
     byId('endText').textContent=win?
-      'The squatters are gone and the rebel signal hums through the mountain’s own antenna. It isn’t much — a command centre, bunks for five, a hangar cave — but it’s ours, and nobody knows it exists. And under a decade of dust in that cave: a derelict Graf Type 1 Hauler. Joss is already talking to it. Day one of the rest of the war starts now.':
-      'The squatters held. The squad fell back down the canyon — bruised, furious, and alive. Catch your breath, come around, and take the rock. There is no revolution without a home.';
+      'The squatters are gone and the signal of the revolution hums through the antenna. It isn’t much, yet. A command centre, bunks for five, a hangar cave, but it’s ours, and it\'s hidden from the Hegemony. We also found, under a decade of dust in that cave, a derelict Graf Type 1 Hauler. We should restore it to working condition as a priority. Day one of the war starts today.':
+      'The squatters repelled our attack. The squad fell back down the canyon. Catch your breath, come around, and try again. There is no revolution without a home base.';
     let lh2='';
     if(win){
       lh2+=LL('Haven Rock','Secured');
@@ -3605,61 +3569,72 @@ function gameOver(win,why){
     syncUI();
     return;
   }
-  endChrome(win,(SCN.mode==='stealcross'||SCN.mode==='stealfuel'||SCN.mode==='autofactory'||SCN.mode==='towers'||SCN.mode==='rescue'||SCN.mode==='intel'||SCN.mode==='strider')&&!win);
-  const place=SCN.place||({intel:'Data Flats',autofactory:'Kiln Ridge',stealfuel:'Redrock Flats',rescue:'Tollgate Landing',towers:'Parity IV'})[SCN.mode]||'the target';
-  byId('endEyebrow').textContent=tagText(win?(ix||fac||fs||(rs&&SCN.mode==='rescue')?'Mission Report · '+place:SCN.mode==='strider'?'Mission Report · Menk Crossing':'Mission Report · Dustfall'):'Mission Report · It went wrong');
-  byId('endTitle').textContent=win?(ix?'Data Secured':SCN.mode==='strider'?'The Strider Is Ours':rs?'Freed':fac?(SCN.mode==='towers'?(fac.method==='limpet'?'Tower Tapped':'Tower Down'):'Lights Out'):fs?'Tanks Full':'The Cross Is Ours'):'Mission Failed';
+  endChrome(win,(SCN.mt||SCN.mode==='stealcross'||SCN.mode==='strider')&&!win);
+  if(SCN.mt){typeEnd(win,why,left);return;}
+  byId('endEyebrow').textContent=tagText(win?(SCN.mode==='strider'?'Mission Report · Menk Crossing':'Mission Report · Dustfall'):'Mission Report · It went wrong');
+  byId('endTitle').textContent=win?(SCN.mode==='strider'?'The Strider Is Ours':'The Cross Is Ours'):'Mission Failed';
   let txt;
-  if(ix){
-    txt=win?'The Field Technician walked out of '+place+' with the Bureau\u2019s registry backups on a single drive. Every name, every quota, every dissident file. Somewhere in the Hegemony a very quiet meeting has just started.'+(left.length?' It cost us: '+left.join(', ')+' left behind. We don\u2019t forget that.':''):
-      'The squad was overrun around the target and the Marta lifted with nothing. The databank is still sealed.';
-  } else if(SCN.mode==='strider'){
-    txt=win?'A Strider Mk I walked up the Marta\u2019s ramp with its face-screen still reading \u201cWe\u2019re all in this together\u201d and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We are in one.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
-      (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the Marta lifted empty. The Strider is still chained in its yard.');
-  } else if(rs){
-    const vn=(U.find(u=>u.vip)||{name:'The prisoner'}).name;
-    txt=win?vn+' stepped aboard the Marta shaking, quiet and very much alive. '+(rs.everAlerted?'The outpost will spend a week working out what happened.':'The outpost will spend a week working out who opened the door, and never find out.')+(left.length?' It cost us: '+left.join(', ')+' left at the outpost. We don\u2019t forget that.':''):
-      (why==='vip'?vn+' went down before the Marta was in reach. There is no bringing that back. The squad pulled out with nothing.':'The squad was overrun around the outpost and the Marta lifted empty. The cell is still locked.');
-  } else if(fac&&SCN.mode==='towers'){
-    txt=win?(fac.method==='limpet'?'The limpet is on the tower and the tower does not know it. Every packet that crosses '+place+' now crosses our desk first.':'The tower came down in a shower of sparks and the whole compound went quiet. Somewhere in '+place+' a technician is shouting into a dead handset.')+(fac.quiet?' Nobody saw us come or go.':'')+(left.length?' It cost us: '+left.join(', ')+' left at the compound. We don\u2019t forget that.':''):
-      'The squad was overrun before the device was on the tower and the Marta lifted empty. The tower is still talking.';
-  } else if(fac){
-    txt=win?(fac.quiet?'Nobody in '+place+' saw us come or go. One moment the plant was humming; the next the whole plant was dark and the night shift was standing outside wondering who to blame.':'The Power Plant is a crater and the plant is dark. The alarm had already gone, but it made no difference: the line will not turn out another Auto for a long time.')+(left.length?' It cost us: '+left.join(', ')+' left on the plant floor. We don\u2019t forget that.':''):
-      (fac.planted&&!fac.detonated?'The charge never got its chance. The squad was pulled out before the plant could be dropped, and Security will find the charge by morning.':'The squad was overrun inside the plant and the Marta lifted empty. The line keeps running.');
-  } else if(fs){
-    txt=win?'The Marta lifted off '+place+' heavy with the tithe: every drop the herders paid, pumped back out of the depot that took it. Somewhere a warden is writing a very long report.'+(left.length?' It cost us: '+left.join(', ')+' left on the apron. We don\u2019t forget that.':''):
-      'The squad was overrun around the apron and the Marta lifted empty. The depot is still full and the warden is still smug.';
+  if(SCN.mode==='strider'){
+    txt=win?'A Strider Mk I walked up the transport\'s ramp with its face-screen still reading “We’re all in this together” and a fresh rebel badge scratched into its chest plate. The Hegemony is out one walker. We\'ve got one of our own.'+(rs.everAlerted?'':' Nobody at the Crossing saw it leave.')+(left.length?' It cost us: '+left.join(', ')+' left at the depot. We don\u2019t forget that.':''):
+      (why==='vip'?'The Strider went down in the yard, and with it the whole plan. The squad pulled out with nothing to show for it.':'The squad was overrun around the depot and the transport lifted empty. The Strider is still chained in its yard.');
   } else if(win){
     txt='Sera put the FT-4 down at Haven Rock with the fuel light on and a grin she won’t drop for a week. '+
       'Sheriff Reeve’s Hegemony masters will want an explanation he doesn’t have.';
     if(left.length)txt+=' It cost us: '+left.join(', ')+' left on the street. We don’t forget that.';
   } else if(why==='sera'){
-    txt='Sera went down in the dust a stone’s throw from the Cross. Without a pilot the ship is just sheet metal. The squad pulled back to the Graf with nothing but her sidearm.';
+    txt='Sera went down in the dust a stone’s throw from the Cross. Without a pilot the ship is just sheet metal. The squad pulled back to the '+trName()+' with nothing but her sidearm.';
   } else {
-    txt='The squad was shot to pieces on Dustfall’s main street. The Graf lifted empty. Reeve gets to write the report he always wanted.';
+    txt='The squad was shot to pieces on Dustfall’s main street. The '+trName()+' lifted empty. Reeve gets to write the report he always wanted.';
   }
   byId('endText').textContent=txt;
   let lh='';
-  const tail=()=>{
-    let t='';
-    if(tally.c)t+=LL('Credits looted','+'+tally.c,'credits');
-    if(tally.s)t+=LL('Supplies looted','+'+tally.s,'supplies');
-    for(const it of tally.items)t+=LL(Items.name(it),'Taken','loot');
-    return t;
-  };
-  if(win&&ix){
-    lh+=LL('Bureau registry backups','Copied')+tail();
-  } else if(win&&rs){
+  if(win&&rs){
     const vn=(U.find(u=>u.vip)||{name:'Prisoner'}).name;
-    lh+=LL(vn,SCN.mode==='strider'?'Stolen':'Freed')+LL('Stayed unseen',rs.everAlerted?'No':'Yes, bonus')+tail();
-  } else if(win&&fac){
-    lh+=(SCN.mode==='towers'?LL('Comm tower',fac.method==='limpet'?'Tapped':'Destroyed'):LL('Power Plant','Destroyed'))+
-      LL('Stayed unseen',fac.quiet?'Yes, bonus':'No')+tail();
-  } else if(win&&fs){
-    lh+=LL('Marta\u2019s fuel tanks','Full')+tail();
+    lh+=LL(vn,'Stolen')+LL('Stayed unseen',rs.everAlerted?'No':'Yes, bonus')+lootTail();
   } else if(win){
-    lh+=LL('FT-4 Cross starfighter','Secured')+tail();
+    lh+=LL('FT-4 Cross starfighter','Secured')+lootTail();
     if(!tally.c&&!tally.s&&!tally.items.length)lh+=LL('Loot','None. Clean and quiet.');
+  }
+  byId('endLoot').innerHTML=lh;
+  byId('endscreen').hidden=false;
+  pendingResult=buildResult(win);
+  syncUI();
+}
+/* what the squad carried off, for any end screen */
+function lootTail(){
+  let t='';
+  if(tally.c)t+=LL('Credits looted','+'+tally.c,'credits');
+  if(tally.s)t+=LL('Supplies looted','+'+tally.s,'supplies');
+  for(const it of tally.items)t+=LL(Items.name(it),'Taken','loot');
+  return t;
+}
+/* a mission type's end screen: the words come from its text set (game/js/mission-text.js), the choice of words from
+   how it went */
+function typeEnd(win,why,left){
+  const k=MT.keyForScenario(SCN.mode),E=SCN.mt.end,K=MT.COMMON;
+  const cost=left.length?mtx(E.cost,{fallen:left.join(', ')}):'';
+  let title=E.title,txt,loot=[],unseen=null;
+  if(k==='fuel'||k==='intel'){txt=win?mtx(E.win)+cost:mtx(E.lose);loot=[[E.loot,E.lootDone]];}
+  else if(k==='autofactory'){
+    txt=win?mtx(fac.quiet?E.winQuiet:E.winLoud)+cost:mtx(fac.planted&&!fac.detonated?E.loseUnblown:E.lose);
+    loot=[[E.loot,E.lootDone]];unseen=fac.quiet;
+  } else if(k==='towers'){
+    const L=fac.method==='limpet';
+    title=L?E.titleLimpet:E.titleDown;
+    txt=win?mtx(L?E.winLimpet:E.winDown)+(fac.quiet?mtx(E.quiet):'')+cost:mtx(E.lose);
+    loot=[[E.loot,L?E.lootLimpet:E.lootDown]];unseen=fac.quiet;
+  } else if(k==='rescue'){
+    txt=win?mtx(E.win)+mtx(rs.everAlerted?E.winLoud:E.winQuiet)+cost:mtx(why==='vip'?E.loseVip:E.lose);
+    loot=[['{npc}',E.lootDone]];unseen=!rs.everAlerted;
+  }
+  byId('endEyebrow').textContent=tagText(mtx(win?K.eyebrowWin:K.eyebrowLose));
+  byId('endTitle').textContent=mtx(win?title:K.titleLose);
+  byId('endText').textContent=txt;
+  let lh='';
+  if(win){
+    for(const [a,b] of loot)lh+=LL(HUD.esc(mtx(a)),HUD.esc(mtx(b)));
+    if(unseen!==null)lh+=LL(HUD.esc(mtx(K.unseen)),HUD.esc(mtx(unseen?K.unseenYes:K.unseenNo)));
+    lh+=lootTail();
   }
   byId('endLoot').innerHTML=lh;
   byId('endscreen').hidden=false;
@@ -3668,6 +3643,15 @@ function gameOver(win,why){
 }
 let pendingResult=null;
 function grafName(){return (CTX&&CTX.grafPilot&&CTX.grafPilot.first)||'Joss';}
+/* the transport the player picked for this mission (DESIGN_BLOCKERS C-26) */
+function trName(){const t=(CTX||defaultSpec()).transport;return (t&&t.name)||'transport';}
+/* the variables a mission type's text uses (game/js/mission-text.js) */
+function mvars(extra){
+  const sp=CTX||defaultSpec(),v=U.find(u=>u.vip)||sp.vip;
+  return Object.assign({transport:trName(),pilot:grafName(),target:SCN.target||'target',place:SCN.place||'the target',
+    npc:v?v.name:'the prisoner',npc1:v?v.first:'the prisoner'},extra||{});
+}
+const mtx=(str,extra)=>MT.fill(str,mvars(extra));
 function buildResult(win){
   const haven=SCN.mode==='haven';
   const people=[];
@@ -4479,7 +4463,7 @@ function drawGraf(now){
   if(!lifting)groundShadow(grafPos.x,grafPos.y,110,38);
   SA.ship(ctx,'graf',grafPos.x+ox,grafPos.y+oy,grafPos.a,5.0*sc,HUD.reduced?0:now/1000,
     {livery:'rebel',dark:true,boost:lifting,off:!lifting});
-  if(!(extractFx&&extractFx.stage==='lift'))plb('MARTA',grafPos.x,grafPos.y-96,C.shield,12);
+  if(!(extractFx&&extractFx.stage==='lift'))plb(trName().toUpperCase(),grafPos.x,grafPos.y-96,C.shield,12);
 }
 function drawCross(now){
   if(crossAway&&!crossFx)return;
@@ -5533,7 +5517,7 @@ function dockHTML(){
       orders.push(HUD.order({id:'vehOutBtn',label:'Exit',icon:'leave',family:'move',tip:{title:'Exit',rule:'Everyone in a vehicle gets out. Tap a vehicle to send the nearest rebel in.'}}));
     let go='';
     if(extractReady())go=HUD.btn({id:'extractBtn',label:'Extract',icon:'extract',variant:'primary',size:'lg',go:true,iconAfter:true});
-    else if(callBtn)go=HUD.btn({id:'callBtn',label:'Call in the Marta',icon:'ship',variant:'primary',size:'lg',go:true,iconAfter:true});
+    else if(callBtn)go=HUD.btn({id:'callBtn',label:mtx(SCN.mt.button),icon:'ship',variant:'primary',size:'lg',go:true,iconAfter:true});
     else if(detOn)go=detBtn();
     const hint=(SR.touch?'Tap to move. Tap an enemy to open fire.':'Right-click to move. Click an enemy to ambush.')+(crossAway?'':' Watch the sight cones.');
     return HUD.cmdbar({
@@ -5543,7 +5527,7 @@ function dockHTML(){
   if(phase==='PLANNING'){
     const s=U.find(x=>x.id===selId);
     const squad=plotted(),done=squad.filter(u=>u.order).length;
-    const extra=(callBtn?HUD.btn({id:'callBtn',label:'Call in the Marta',icon:'ship',size:'sm'}):'')+(detOn?detBtn().replace('sr-btn--lg','sr-btn--sm'):'');
+    const extra=(callBtn?HUD.btn({id:'callBtn',label:mtx(SCN.mt.button),icon:'ship',size:'sm'}):'')+(detOn?detBtn().replace('sr-btn--lg','sr-btn--sm'):'');
     return HUD.cmdbar({
       who:s?{lead:whoLead(s),name:s.name,hint:'Choose an order'}:
         {lead:'<span class="sr-avatar">'+HUD.ico('soldier')+'</span>',name:'Squad orders',hint:SR.touch?'Tap a rebel to give orders':'Pick a rebel to give orders'},
@@ -5705,6 +5689,43 @@ function syncTop(){
     lastPhase=phase;
   }
 }
+/* a mission type's live objectives: the words from its text set (game/js/mission-text.js), what is done and what is
+   current from the scene, and a progress count where there is one */
+function typeObjectives(soldiers,ext){
+  const k=MT.keyForScenario(SCN.mode),won=!!(phase==='GAMEOVER'&&gameEnd&&gameEnd.win),aboard=[ext,soldiers.length];
+  let st={};
+  if(k==='fuel'){
+    st={reach:{done:fs.reached,now:!fs.reached},call:{done:fs.landed,now:fs.reached&&!fs.landed},
+      defend:{done:fs.done,now:fs.landed&&!fs.done,prog:[Math.min(fs.pump,FUEL_ROUNDS),FUEL_ROUNDS]},aboard:{done:won,now:fs.done,prog:aboard}};
+  } else if(k==='intel'){
+    const tech=U.find(u=>u.spec==='fieldtech'&&!u.down),hk=WORK.find(w=>w.id==='hack'),R=(hk&&hk.rounds)||3;
+    if(!ix.reached&&tech&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,PAD)<260))ix.reached=true;
+    st={reach:{done:ix.reached||ix.hacked,now:!ix.reached&&!ix.hacked,who:tech&&{hacker:tech.first}},
+      hack:{done:ix.hacked,now:ix.reached&&!ix.hacked,prog:[Math.min((hk&&hk.prog)||0,R),R]},
+      extract:{done:won,now:ix.hacked,prog:aboard}};
+  } else if(k==='autofactory'){
+    const carrier=U.find(u=>u.charge&&!u.down);
+    st={carry:{done:fac.planted,now:!fac.planted,who:carrier&&{carrier:carrier.first}},plant:{done:fac.planted,now:false},
+      detonate:{done:fac.detonated,now:fac.planted&&!fac.detonated},
+      quiet:{done:fac.detonated&&fac.quiet,now:false,fail:fac.everAlerted&&!fac.detonated},
+      extract:{done:won,now:fac.detonated,prog:aboard}};
+  } else if(k==='towers'){
+    const carrier=U.find(u=>u.charge&&!u.down);
+    st={reach:{done:fac.planted,now:!fac.planted,who:carrier&&{carrier:carrier.first,device:MT.COMMON.devices[carrier.device==='limpet'?'limpet':'charge']}},
+      attach:{done:fac.planted,now:false},
+      quiet:{done:fac.planted&&fac.quiet&&won,now:false,fail:fac.everAlerted&&!fac.planted},
+      extract:{done:won,now:fac.detonated,prog:aboard}};
+  } else if(k==='rescue'){
+    const v=U.find(u=>u.vip);
+    if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
+    st={reach:{done:rs.reached||rs.released,now:!rs.reached&&!rs.released},release:{done:rs.released,now:rs.reached&&!rs.released},
+      quiet:{done:rs.released&&!rs.everAlerted&&won,now:false},extract:{done:won,now:rs.released,prog:aboard}};
+  }
+  return SCN.mt.obj.map(o=>{
+    const x=st[o.k]||{};
+    return {t:mtx(o.t)+(x.who&&o.who?' — '+mtx(o.who,x.who):'')+(x.prog?' — '+x.prog[0]+'/'+x.prog[1]:''),done:!!x.done,now:!!x.now,fail:!!x.fail};
+  });
+}
 function syncUI(){
   syncTop();
   // objectives
@@ -5722,15 +5743,8 @@ function syncUI(){
       {t:'Clear the squatters off the rock — '+downN+'/'+foesAll.length,done:cleared,now:!cleared},
       {t:'Raise the signal in the command room',done:!!(flag&&flag.done),now:cleared},
     ];
-  } else if(ix){
-    const tech=U.find(u=>u.spec==='fieldtech'&&!u.down);
-    const hk=WORK.find(w=>w.id==='hack');
-    if(!ix.reached&&tech&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,PAD)<260))ix.reached=true;
-    objs=[
-      {t:'Reach the databank terminal'+(tech?' — '+tech.first+' is the hacker':''),done:ix.reached||ix.hacked,now:!ix.reached&&!ix.hacked},
-      {t:'Hack the databanks — '+Math.min((hk&&hk.prog)||0,3)+'/3',done:ix.hacked,now:ix.reached&&!ix.hacked},
-      {t:'Extract with the stolen data — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:ix.hacked},
-    ];
+  } else if(SCN.mt){
+    objs=typeObjectives(soldiers,ext);
   } else if(rs){
     const v=U.find(u=>u.vip);const nm=v?v.first:'the prisoner';const RO=SCN.releaseText?SCN.releaseText.obj:null;
     if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
@@ -5740,30 +5754,6 @@ function syncUI(){
       {t:(RO?RO[2]:'(Optional) Stay unseen'),done:rs.released&&!rs.everAlerted&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false},
       {t:(RO?RO[3]:'Get '+nm+' and the squad aboard')+' — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:rs.released},
     ];
-  } else if(fac&&SCN.mode==='towers'){
-    const carrier=U.find(u=>u.charge&&!u.down);
-    objs=[
-      {t:'Reach the comm tower'+(carrier?' — '+carrier.first+' carries the '+(carrier.device==='limpet'?'data limpet':'charge'):''),done:fac.planted,now:!fac.planted},
-      {t:'Attach the device to the tower base',done:fac.planted,now:false},
-      {t:'(Optional) Stay unseen',done:fac.planted&&fac.quiet&&phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:false,fail:fac.everAlerted&&!fac.planted},
-      {t:'Get the squad back to the Marta — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fac.detonated},
-    ];
-  } else if(fac){
-    const carrier=U.find(u=>u.charge&&!u.down);
-    objs=[
-      {t:'Get the charge to the Power Plant’s main breaker'+(carrier?' — '+carrier.first+' carries it':''),done:fac.planted,now:!fac.planted},
-      {t:'Plant it',done:fac.planted,now:false},
-      {t:'Clear the blast zone, then detonate',done:fac.detonated,now:fac.planted&&!fac.detonated},
-      {t:'(Optional) Stay unseen until it blows',done:fac.detonated&&fac.quiet,now:false,fail:fac.everAlerted&&!fac.detonated},
-      {t:'Get the squad back to the Marta — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fac.detonated},
-    ];
-  } else if(fs){
-    objs=[
-      {t:'Reach the fuel depot',done:fs.reached,now:!fs.reached},
-      {t:'Call in the Marta and land her on the apron',done:fs.landed,now:fs.reached&&!fs.landed},
-      {t:'Defend her while the tanks fill — '+Math.min(fs.pump,FUEL_ROUNDS)+'/'+FUEL_ROUNDS,done:fs.done,now:fs.landed&&!fs.done},
-      {t:'Get the squad aboard — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:fs.done},
-    ];
   } else {
   const wClamp=WORK.find(w=>w.id==='clamp'),wFuel=WORK.find(w=>w.id==='fuel');
   objs=[
@@ -5772,7 +5762,7 @@ function syncUI(){
     {t:'Release the docking clamps',done:!!(wClamp&&wClamp.done)||crossAway,now:!!(sera&&sera.reached&&wClamp&&!wClamp.done)},
     {t:'Pull the fuel line',done:!!(wFuel&&wFuel.done)||crossAway,now:!!(sera&&sera.reached&&wFuel&&!wFuel.done)},
     {t:'Cross in the air',done:crossAway,now:false},
-    {t:'Extract the squad at the Graf — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:crossAway},
+    {t:'Extract the squad at the '+trName()+' — '+ext+'/'+soldiers.length,done:phase==='GAMEOVER'&&gameEnd&&gameEnd.win,now:crossAway},
   ];
   }
   {
@@ -6134,7 +6124,8 @@ function resetGame(withCine){
     cam={x:LZ.x+240,y:LZ.y-180,z:0.9};clampCam();camGoal=null;
     log(SCN.mode==='haven'?
       '<span class="d">Three of you, on foot, at the bottom of the canyon. The base mouth is up the trail past the squatter camp.</span>':
-      '<span class="d">Squad on the ground at the Graf LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
+      SCN.mt?'<span class="d">Squad on the ground at the '+trName()+' LZ.</span> '+SCN.csLine:
+      '<span class="d">Squad on the ground at the '+trName()+' LZ. The Cross is on the pad behind the sheriff’s HQ, far side of town.</span>');
     enterFree(null);
   }
 }
@@ -6280,7 +6271,7 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{SCENARIOS_:()=>SCENARIOS,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,

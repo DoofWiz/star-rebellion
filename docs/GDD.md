@@ -808,6 +808,11 @@ or by our own Intelligence**, and is never "done for good".
   Each has target-name variants (e.g. listening post, satellite array, server farm) and text with
   `{target} {place} {npc}` slots. Every deployment is its own instance (`fuel_3`) with a context
   (`target, place, locName, sec`), so the same type can sit on the board several times.
+- **One text set per type** (`game/js/mission-text.js`, DESIGN_BLOCKERS C-26): the offer, briefing, objectives,
+  hint, arrival call, log lines and end screen are written once per type with `{transport}`, `{target}`, `{place}`,
+  `{npc}` and the rest, and filled in per deployment. The transport picked on the planning board flies the mission
+  and is named everywhere. Hegemony guards take a random surname (a serial for a robot) and their type's idle and
+  alarm lines; story characters keep their own.
 - **Context reaches the ground scene.** The briefing, call-sign line, key building label and the
   mission report use the context's place and target. Rewards scale ×(1+12% per Security above 1)
   and Security 3+ worlds add **+2 / +4 / +6 auxiliary guards** (Security 3, 4, 5).

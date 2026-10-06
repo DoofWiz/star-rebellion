@@ -286,7 +286,12 @@ SCHEMA = {
 TABLE_ORDER = list(SCHEMA)
 SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "market_weights", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
-                  "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max"]
+                  "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max",
+                  # the base's staffed posts and repair, read by game/js/base.js (RU)
+                  "staff_command_success", "staff_garrison_recovery", "repair_rate_no_workshop", "repair_rate_workshop",
+                  "staff_workshop_repair", "staff_hangar_repair", "repair_cost", "staff_store_repair_cost",
+                  "staff_infirmary_recovery", "staff_comms_intel", "train_xp_rate", "staff_training_xp_rate",
+                  "prosthetic_days"]
 
 
 # --------------------------------------------------------------------------

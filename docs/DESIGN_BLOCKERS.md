@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -35,6 +35,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-18 | ⚪ | Ship and truck attachment lists are still guesses | The Armoury copy when attachments arrive |
 | C-19 | ⚪ | Ships live in the Arsenal, not their own Fleet tab (was a duplicate C-12) | Where the fleet is browsed |
 | C-24 | ⚪ | Enemy types and loadouts the Enemies doc doesn't cover | Which enemies exist and exactly what each carries |
+| C-27 | ⚪ | Guard lines: idle chatter is now spoken; a few place-bound lines were made generic or dropped | How guards sound on patrol |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -57,6 +58,8 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-24 | 🟡 | Loot rules still open: random crates, gear lost on death (enemy drops are built) | Rolling loot crates; Messy |
 | M-28 | 🟡 | Vehicle criticals and wreck damage are placeholders | How vehicle fights feel |
 | M-29 | 🟡 | Art follow-ups from the October 5 art handoffs | A weary icon; Helix and the ship weapon makers in the Gear doc; poses that wait on items |
+| M-30 | 🟡 | One map per mission type | Every deployment of a type plays on the same layout; only the names change |
+| M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -131,6 +134,21 @@ is what they fight with and drop. Where I had to guess:
 **Needs from you:** the real loadout per type whenever you spec it in the Enemies doc (straight into the Enemies
 tab), stats for the HG-40 and Auto Plasma Hand, and whether the squatters and depot guards should become doc types.
 **Your call:** _open (Enemies doc update pending)_
+
+### C-27 ⚪ Guard lines: idle chatter is now spoken; place-bound lines changed
+With C-26 every Hegemony guard type has two kinds of line in `game/js/mission-text.js` (the Missions tab of the text
+sheet): **alarm** lines, said by whoever raises the alarm, and **idle** lines. Before, each guard had two or three
+hand-written lines but the game only ever spoke the last one; the rest were never shown. They are now the idle lines,
+and a guard the squad can see says one every 9 to 17 seconds while all is quiet. That is new behaviour I chose so
+the lines get used.
+Because any guard can now turn up in any mission, lines tied to one place were changed: "Nothing at the toll office"
+is "Nothing at the {target}", "Cell block is sealed" is "The {target} is sealed", "Contact at the databank!" is
+"Contact at the {target}!". Dropped: "Herders don’t come this way", "Sheriff’ll have my head", "Barge side is clear",
+"Cooling plant clear", "Nothing at the store", and the vehicle crews' radio lines ("Unit 4, responding",
+"Unloading!", "Turret, light them up!", "Pull over! All of you!").
+**Needs from you:** whether idle chatter should stay (and how often), and any lines you want back, written for any
+location. Edit them in the Missions tab.
+**Your call:** _open_
 
 ---
 
@@ -392,6 +410,26 @@ The handoff landed everything in the resolved log's M-26 row; a few loose ends r
 **Needs from you:** Helix and the ship weapon makers in the Gear doc; a weary icon is the art chat's.
 **Your call:** _open_
 
+### M-30 🟡 One map per mission type
+C-26 made a mission type's words reusable, but each type still has exactly one hand-built map in `SCENARIOS`
+(`game/js/ground.js`): every Steal Fuel is the Redrock Flats depot, every Blow Up Auto Factory the Kiln Ridge plant,
+whatever world the board says. Only the names change (the place, the target, the key building's label). Disrupt
+Comm Towers already picks its guard roster by region (`variant`); the layout is still the same.
+**Blocks:** maps that differ between deployments of a type.
+**Needs from you:** how you want variety: several hand-built layouts per type picked at random, layouts per world
+style (desert town, industrial, river port), or generated layouts from a set of building blocks (the Take the Rock
+map is already built that way from carved rooms). Also whether a world's look should change the map's art.
+**Your call:** _open_
+
+### M-31 ⚪ Ship names
+Mission text now names the transport the player picked (C-26). The Marta and Dustfall are named; a ship bought
+from the Black Market is called by its class and a number ("Hauler 2", "Talon 3"), so a mission reads "Call in the
+Hauler 2". Only the Graf carries troops today, so the ground scene always draws a Graf; a new transport class would
+need its own ground art.
+**Blocks:** nothing live; how bought ships read in mission text.
+**Needs from you:** a list of ship names to draw from, or a rename button in the Arsenal, or both.
+**Your call:** _open_
+
 ---
 
 ## 3. Resolved log
@@ -401,6 +439,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-26 | Curly `{variables}` everywhere; ordinary guards get random names; story missions keep their own endings. | 2026-10-06 | Each reusable type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Disrupt Comm Towers) has one text set in `game/js/mission-text.js`: name, target names, offer, follow-up, banner, briefing, objectives (the board, the briefing and the live list read the same ones), hint, arrival call, log lines, end screen. Variables: `{transport}` `{pilot}` `{target}` `{place}` `{npc}` `{npc1}` `{carrier}` `{device}` `{hacker}` `{fallen}`. The transport picked on the planning board now reaches the mission (its name on the LZ, the hauler, the call-in button, every line). Missions on the board read their type's words live (save version 4 drops the old per-mission copy). Hegemony guards get a surname from a pool (a serial for a robot) and their type's lines: alarm calls when they raise the alarm, idle chatter while all is quiet (new: it was never spoken before). Sheriff Reeve, his deputies, Boss Craw and the squatters keep theirs. Lines tied to one place (the toll office, the herders) were made generic or dropped. Each map is still one per type. `tools/mission-text-smoke.js`. The "Mission text per type" commit |
 | C-25 | The final slot list is primary, secondary, two gadgets, head, body and back. | 2026-10-05 | Soldiers, Marines and Heroes get a **Back** slot (Pilots and Support do not), in the Arsenal, the personnel file, auto-equip and the squad entry; old saves get an empty one (save version 3). The **Razorrat LMG** and the **Riot Shield** are live. A rebel with one on their back gets **Deploy** (as the round opens, no shot): the Razorrat is set up where they stand and they man it (no sandbags in the field; one emplacement per map), the Riot Shield goes into their hands in place of the primary. Riot shields, the enemy's too, now soak hits from the front until they break (60, the `riot_shield_hp` rule; a broken one is used up and does not drop). **Effect:** riot shieldmen can now be worn down from the front instead of only flanked; the mission hints say so. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
 | M-15 | A wrecked vehicle or Bot is lost for good (to revisit later). | 2026-10-05 | No change: that was already the rule. The rest of M-15 stays open. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |
 | M-26 | Claude Design's October 5 art handoff covers the new kit and makers. | 2026-10-05 | New `sr-art.js`, style guide and handoff in. Art for the ST Stiletto, Razorrat, the four head items, the limpet, the shell box and the C90 (the alias is gone); **maker badges** on Arsenal and Black Market cards; **trait and damage-type icons** on the cards and in weapon tooltips; the **EG-55 Peacekeeper Carbine** is Fightstar plasma (C-23 settled); riot police wear Police Helmets (`riot`, `riotrifle`); **Sweet Tooth** has her own character (M-20 settled); the layered **vitals** bar over units and matching plate and hex shapes in the rail; the shield bubble, armour, shield, Sundering and Piercing hit effects; the `deploy`, `knocked` and `stunned` poses; strafing runs, supply drops and landings drawn by the kit (the run flies the assigned ship); ships parked in the iso hangar with `shipIso`. Loose ends are M-29. the "Back slot, deployables, fire modes and the October 5 art handoff" commit |

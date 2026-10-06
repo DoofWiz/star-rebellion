@@ -15,7 +15,20 @@ window.SR_DB={
   {"key": "enemy_drop_chance", "value": 1, "note": "Chance that each usable item a downed enemy carries is left on the body for the taking. 1 = always. Kit with live FALSE (riot shield, baton) stays with the body either way. DESIGN_BLOCKERS M-24."},
   {"key": "armour_sunder_mult", "value": 1.5, "note": "Sundering weapons multiply the damage they do to an armour bar by this (Gear doc: especially effective against armour). Ground Combat doc: armour. My number."},
   {"key": "armour_pierce_frac", "value": 0.25, "note": "Piercing weapons send this share of each hit past the armour bar straight to health while the armour lasts. My number."},
-  {"key": "riot_shield_hp", "value": 60, "note": "What a riot shield soaks from the front before it breaks (Gear doc: until it breaks). My number."}
+  {"key": "riot_shield_hp", "value": 60, "note": "What a riot shield soaks from the front before it breaks (Gear doc: until it breaks). My number."},
+  {"key": "staff_command_success", "value": 0.05, "note": "A Flight Coordinator on the Command Center post adds this to a sent team's chance of success (0.05 = +5%)."},
+  {"key": "staff_garrison_recovery", "value": 1, "note": "A Garrison Officer in the Barracks: wounded ground fighters recover this many extra days of recovery a day."},
+  {"key": "repair_rate_no_workshop", "value": 5, "note": "Ship and vehicle repair, % of hull a day, with no Workshop built."},
+  {"key": "repair_rate_workshop", "value": 8, "note": "Repair, % a day, with a Workshop and nobody on its post."},
+  {"key": "staff_workshop_repair", "value": 15, "note": "Repair, % a day, with a Crew Chief on the Workshop post (replaces repair_rate_workshop)."},
+  {"key": "staff_hangar_repair", "value": 4, "note": "A Flight Deck Officer on the Hangar post adds this many % a day to repairs."},
+  {"key": "repair_cost", "value": 8, "note": "Materials each damaged ship or vehicle costs per day of repair."},
+  {"key": "staff_store_repair_cost", "value": 4, "note": "Repair cost in Materials with a Quartermaster on the Storeroom post (replaces repair_cost)."},
+  {"key": "staff_infirmary_recovery", "value": 1, "note": "A Medic on the Infirmary post adds this many days of recovery a day (the Infirmary alone gives 1, so 1 more = twice as fast)."},
+  {"key": "staff_comms_intel", "value": 1, "note": "Intel a day per Intelligence Center room while a Signals Operator is on the post."},
+  {"key": "train_xp_rate", "value": 0.06, "note": "XP a day for a rebel in the Training Hall."},
+  {"key": "staff_training_xp_rate", "value": 0.09, "note": "Training XP a day with a Drill Instructor on the post (replaces train_xp_rate)."},
+  {"key": "prosthetic_days", "value": 5, "note": "Days in the Surgery Room to fit a prosthetic."}
  ],
  "manufacturers": [
   {"id": "bhord", "name": "Bhord", "description": "Makes the equivalent of AK-47s: the cheap and effective kind of small arms and ship weapons.", "makes": "personal weapons, ship weapons"},

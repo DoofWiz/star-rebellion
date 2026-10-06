@@ -8,7 +8,7 @@
    plain rebel objects; base.js decides when to call it and shows the
    results. Traits whose systems don't exist yet are listed with
    live:0 and are never granted.
-   [A] in a quote is the rebel, [B] is the other person in a pair.
+   {name} in a quote is the rebel, {partner} is the other person in a pair.
    ===================================================================== */
 (function(){
   const R=window.Rebel;
@@ -16,72 +16,72 @@
   const T=(k,n,cat,pri,live,q,e,o)=>Object.assign({k,n,cat,pri,live,q,e,where:'g'},o||{});
   const RT=[
     /* ---- relationships ---- */
-    T('friends','Friends with [B]','Relationships',5,1,'[A] and [B] have become close. Close enough that one of them is going to have a very bad day eventually.','Panics at once if [B] goes down. Takes a major morale loss, and grieves, if [B] dies.',{pair:1,where:'gs'}),
-    T('rivals','Rivals with [B]','Relationships',4,1,'[A] and [B] have never particularly liked each other. They have also never agreed on why.','Both lose morale when sent out in the same squad. Small chance of a combat edge when the other is there.',{pair:1}),
-    T('mentored','Mentored by [B]','Relationships',5,1,'[B] has been teaching [A] everything they know. Hopefully not all of it.','Gains more experience fighting alongside [B]. If [B] is killed, becomes Avenging.',{pair:1}),
-    T('mentoring','Mentoring [B]','Relationships',5,1,'[A] has taken [B] under their wing. This was not discussed with anyone else.','[B] gains more experience fighting alongside them. Takes a major morale loss if [B] is killed.',{pair:1}),
-    T('love','In Love with [B]','Relationships',7,1,'Somewhere between surviving firefights and stealing Hegemony equipment, this happened.','Large morale bonus after a mission beside [B]. Panics if [B] is downed. Grieves if [B] dies.',{pair:1,where:'gs'}),
-    T('family','Family of [B]','Relationships',5,0,'Apparently the rebellion is now a family business.','Large morale effect when the relative is present or absent. Grieves if the relative is killed.',{pair:1}),
+    T('friends','Friends with {partner}','Relationships',5,1,'{name} and {partner} have become close. Close enough that one of them is going to have a very bad day eventually.','Panics at once if {partner} goes down. Takes a major morale loss, and grieves, if {partner} dies.',{pair:1,where:'gs'}),
+    T('rivals','Rivals with {partner}','Relationships',4,1,'{name} and {partner} have never particularly liked each other. They have also never agreed on why.','Both lose morale when sent out in the same squad. Small chance of a combat edge when the other is there.',{pair:1}),
+    T('mentored','Mentored by {partner}','Relationships',5,1,'{partner} has been teaching {name} everything they know. Hopefully not all of it.','Gains more experience fighting alongside {partner}. If {partner} is killed, becomes Avenging.',{pair:1}),
+    T('mentoring','Mentoring {partner}','Relationships',5,1,'{name} has taken {partner} under their wing. This was not discussed with anyone else.','{partner} gains more experience fighting alongside them. Takes a major morale loss if {partner} is killed.',{pair:1}),
+    T('love','In Love with {partner}','Relationships',7,1,'Somewhere between surviving firefights and stealing Hegemony equipment, this happened.','Large morale bonus after a mission beside {partner}. Panics if {partner} is downed. Grieves if {partner} dies.',{pair:1,where:'gs'}),
+    T('family','Family of {partner}','Relationships',5,0,'Apparently the rebellion is now a family business.','Large morale effect when the relative is present or absent. Grieves if the relative is killed.',{pair:1}),
     /* ---- battlefield experiences ---- */
-    T('battlehard','Battle-Hardened','Battlefield',3,1,'[A] has seen enough firefights to stop being surprised by them.','Panics less, and loses less morale to injuries and defeats.'),
-    T('blooded','Blooded','Battlefield',2,1,'[A] has killed someone. They remember the first one. They probably remember the others too.','Slightly harder to panic.'),
-    T('firesupport','Fire Support','Battlefield',3,1,'[A] has spent enough time behind a heavy weapon to develop strong opinions about where everyone else should stand.','+1 accuracy with heavy weapons.'),
-    T('scarred','Scarred','Battlefield',4,1,'[A] has the sort of scars that tend to end conversations.','Loses a little less morale to bad news.'),
-    T('nearlydead','Nearly Dead','Battlefield',5,1,'[A] was not expected to make it. They did anyway.','Far less likely to panic once wounded.'),
-    T('ambush','Survived an Ambush','Battlefield',3,0,'[A] has learned that ‘we’re probably safe’ is not a useful military assessment.','Less likely to be surprised or ambushed on future missions.'),
-    T('captured','Captured','Battlefield',4,0,'[A] spent some time as a guest of the Hegemony. They were not particularly good hosts.','Less likely to panic when isolated or surrounded. May gain Hegemony Trauma.'),
-    T('tortured','Tortured','Battlefield',5,0,'[A] knows exactly what the Hegemony does to people who know too much.','Major resistance to interrogation. A small permanent morale penalty.'),
-    T('lostsquad','Lost a Squad','Battlefield',6,1,'[A] went into the mission with a squad. They came back without one.','A major morale blow, then less shaken when squadmates fall in future.'),
-    T('laststanding','Last One Standing','Battlefield',5,1,'Everyone else went down. [A] didn’t.','+2 accuracy when badly outnumbered. A little uneasy starting a mission with a full squad.'),
+    T('battlehard','Battle-Hardened','Battlefield',3,1,'{name} has seen enough firefights to stop being surprised by them.','Panics less, and loses less morale to injuries and defeats.'),
+    T('blooded','Blooded','Battlefield',2,1,'{name} has killed someone. They remember the first one. They probably remember the others too.','Slightly harder to panic.'),
+    T('firesupport','Fire Support','Battlefield',3,1,'{name} has spent enough time behind a heavy weapon to develop strong opinions about where everyone else should stand.','+1 accuracy with heavy weapons.'),
+    T('scarred','Scarred','Battlefield',4,1,'{name} has the sort of scars that tend to end conversations.','Loses a little less morale to bad news.'),
+    T('nearlydead','Nearly Dead','Battlefield',5,1,'{name} was not expected to make it. They did anyway.','Far less likely to panic once wounded.'),
+    T('ambush','Survived an Ambush','Battlefield',3,0,'{name} has learned that ‘we’re probably safe’ is not a useful military assessment.','Less likely to be surprised or ambushed on future missions.'),
+    T('captured','Captured','Battlefield',4,0,'{name} spent some time as a guest of the Hegemony. They were not particularly good hosts.','Less likely to panic when isolated or surrounded. May gain Hegemony Trauma.'),
+    T('tortured','Tortured','Battlefield',5,0,'{name} knows exactly what the Hegemony does to people who know too much.','Major resistance to interrogation. A small permanent morale penalty.'),
+    T('lostsquad','Lost a Squad','Battlefield',6,1,'{name} went into the mission with a squad. They came back without one.','A major morale blow, then less shaken when squadmates fall in future.'),
+    T('laststanding','Last One Standing','Battlefield',5,1,'Everyone else went down. {name} didn’t.','+2 accuracy when badly outnumbered. A little uneasy starting a mission with a full squad.'),
     /* ---- psychological ---- */
-    T('panicky','Panicky','Psychological',4,1,'[A] has seen something they weren’t ready for and now they’re generally freaked out.','Panics more easily when allies go down.'),
-    T('grieving','Grieving','Psychological',8,1,'[A] is still dealing with the loss of someone they cared about.','Morale drains. Will not go on missions. Recovers in time.',{temp:1}),
-    T('vengeful','Vengeful','Psychological',5,1,'[A] has decided that someone is going to pay for what happened.','+10% damage against the Hegemony.'),
-    T('haunted','Haunted','Psychological',3,0,'[A] keeps dreaming about what happened. When they sleep at all.','Reduced morale after missions like the one that did it.'),
-    T('guilt','Survivor’s Guilt','Psychological',4,1,'[A] isn’t sure why they came back when everyone else didn’t.','Loses morale after any mission where allies are killed.'),
-    T('hardened','Hardened','Psychological',5,1,'[A] has been through enough that very little surprises them anymore.','Loses less morale to deaths, injuries and defeats, and gains a little less from good news.'),
-    T('desens','Desensitised','Psychological',4,1,'[A] has stopped reacting to things that used to bother them.','Panics less. Gains less morale from good news.'),
-    T('broken','Broken','Psychological',8,1,'[A] is still here. That is about all that can currently be said.','Fights badly and loses their nerve easily until they get some rest.',{temp:1}),
+    T('panicky','Panicky','Psychological',4,1,'{name} has seen something they weren’t ready for and now they’re generally freaked out.','Panics more easily when allies go down.'),
+    T('grieving','Grieving','Psychological',8,1,'{name} is still dealing with the loss of someone they cared about.','Morale drains. Will not go on missions. Recovers in time.',{temp:1}),
+    T('vengeful','Vengeful','Psychological',5,1,'{name} has decided that someone is going to pay for what happened.','+10% damage against the Hegemony.'),
+    T('haunted','Haunted','Psychological',3,0,'{name} keeps dreaming about what happened. When they sleep at all.','Reduced morale after missions like the one that did it.'),
+    T('guilt','Survivor’s Guilt','Psychological',4,1,'{name} isn’t sure why they came back when everyone else didn’t.','Loses morale after any mission where allies are killed.'),
+    T('hardened','Hardened','Psychological',5,1,'{name} has been through enough that very little surprises them anymore.','Loses less morale to deaths, injuries and defeats, and gains a little less from good news.'),
+    T('desens','Desensitised','Psychological',4,1,'{name} has stopped reacting to things that used to bother them.','Panics less. Gains less morale from good news.'),
+    T('broken','Broken','Psychological',8,1,'{name} is still here. That is about all that can currently be said.','Fights badly and loses their nerve easily until they get some rest.',{temp:1}),
     /* ---- successes ---- */
-    T('decorated','Decorated','Successes',4,1,'Someone decided [A] deserved a medal. [A] agrees.','A little extra morale from every win.'),
-    T('hero','Hero of the Rebellion','Successes',7,0,'[A] did something spectacularly brave. Unfortunately, everyone saw it.','Large morale bonus to nearby rebels. Increased Risk where their identity is known.'),
-    T('name','Made a Name for Themselves','Successes',4,0,'People have started recognising [A]. This is either useful or extremely inconvenient.','Improved recruitment or morale effects. Increased Risk in populated areas.'),
-    T('veteran','Veteran','Successes',6,1,'[A] has been doing this for a while. They have the scars to prove it.','+1 accuracy and slower to panic.',{where:'gs'}),
-    T('mspec','Mission Specialist','Successes',4,1,'After enough missions doing the same thing, [A] has become very good at it.','+1 accuracy on that kind of mission.'),
-    T('luckyesc','Lucky Escape','Successes',4,1,'[A] was one second away from dying. Nobody has quite worked out how they didn’t.','Small chance to survive an otherwise lethal blow.'),
-    T('nemesis','Hegemony Nemesis','Successes',5,1,'[A] has caused enough trouble that the Hegemony has started keeping track.','+1 accuracy and +5% damage against the Hegemony.'),
+    T('decorated','Decorated','Successes',4,1,'Someone decided {name} deserved a medal. {name} agrees.','A little extra morale from every win.'),
+    T('hero','Hero of the Rebellion','Successes',7,0,'{name} did something spectacularly brave. Unfortunately, everyone saw it.','Large morale bonus to nearby rebels. Increased Risk where their identity is known.'),
+    T('name','Made a Name for Themselves','Successes',4,0,'People have started recognising {name}. This is either useful or extremely inconvenient.','Improved recruitment or morale effects. Increased Risk in populated areas.'),
+    T('veteran','Veteran','Successes',6,1,'{name} has been doing this for a while. They have the scars to prove it.','+1 accuracy and slower to panic.',{where:'gs'}),
+    T('mspec','Mission Specialist','Successes',4,1,'After enough missions doing the same thing, {name} has become very good at it.','+1 accuracy on that kind of mission.'),
+    T('luckyesc','Lucky Escape','Successes',4,1,'{name} was one second away from dying. Nobody has quite worked out how they didn’t.','Small chance to survive an otherwise lethal blow.'),
+    T('nemesis','Hegemony Nemesis','Successes',5,1,'{name} has caused enough trouble that the Hegemony has started keeping track.','+1 accuracy and +5% damage against the Hegemony.'),
     /* ---- injuries and physical changes (waiting on a deeper injury system) ---- */
-    T('lostEye','Lost an Eye','Injuries',6,0,'[A] has had to get used to having slightly less of them.','Reduced accuracy. Less affected by flashes.'),
-    T('lostArm','Lost an Arm','Injuries',6,0,'[A] has had to learn how to do most things again.','Cannot use certain two-handed equipment. Can be fitted with a prosthetic.'),
-    T('prosthetic','Prosthetic','Injuries',4,0,'[A] has a replacement [limb/eye]. It works. Mostly.','Removes the penalties of a lost limb or eye.'),
-    T('limp','Limp','Injuries',4,0,'[A] walks differently now. They insist it isn’t a problem.','Reduced movement speed.'),
-    T('oldwound','Old Wound','Injuries',3,0,'[A] has an injury that never quite stopped hurting.','Small chance of being injured after a strenuous mission.'),
-    T('shrapnel','Shrapnel','Injuries',3,0,'[A] still has a few souvenirs from that explosion.','A small permanent penalty with occasional flare-ups.'),
+    T('lostEye','Lost an Eye','Injuries',6,0,'{name} has had to get used to having slightly less of them.','Reduced accuracy. Less affected by flashes.'),
+    T('lostArm','Lost an Arm','Injuries',6,0,'{name} has had to learn how to do most things again.','Cannot use certain two-handed equipment. Can be fitted with a prosthetic.'),
+    T('prosthetic','Prosthetic','Injuries',4,0,'{name} has a replacement [limb/eye]. It works. Mostly.','Removes the penalties of a lost limb or eye.'),
+    T('limp','Limp','Injuries',4,0,'{name} walks differently now. They insist it isn’t a problem.','Reduced movement speed.'),
+    T('oldwound','Old Wound','Injuries',3,0,'{name} has an injury that never quite stopped hurting.','Small chance of being injured after a strenuous mission.'),
+    T('shrapnel','Shrapnel','Injuries',3,0,'{name} still has a few souvenirs from that explosion.','A small permanent penalty with occasional flare-ups.'),
     /* ---- the rebellion itself ---- */
-    T('wanted','Wanted','Rebellion',4,0,'[A] has appeared on a Hegemony wanted list. They were not consulted.','Increased Risk on civilian operations.'),
-    T('informant','Hegemony Informant','Rebellion',4,0,'[A] knows considerably more about Hegemony procedures than they used to.','Improved Intel. Increased Risk if their identity becomes known.'),
-    T('defector','Defector','Rebellion',4,0,'[A] used to wear the other uniform.','Stronger against former colleagues. Some rebels may distrust them.'),
-    T('celebrity','Rebel Celebrity','Rebellion',5,0,'[A] has become unexpectedly famous within the rebellion.','Improved morale and recruitment. Greater impact when killed.'),
-    T('poster','Propaganda Poster','Rebellion',4,0,'[A] has somehow ended up on a poster.','Increased Rebel Support from successful missions. Increased Hegemony attention.'),
-    T('symbol','Symbol of the Rebellion','Rebellion',7,0,'People have started seeing [A] as more than just another rebel.','Significant morale effect on nearby rebels. Their death is felt across the base.'),
-    T('hegfamily','Hegemony Family','Rebellion',3,0,'Someone in [A]’s family still works for the Hegemony. Nobody finds this particularly comfortable.','Increased Risk when the connection is discovered.'),
+    T('wanted','Wanted','Rebellion',4,0,'{name} has appeared on a Hegemony wanted list. They were not consulted.','Increased Risk on civilian operations.'),
+    T('informant','Hegemony Informant','Rebellion',4,0,'{name} knows considerably more about Hegemony procedures than they used to.','Improved Intel. Increased Risk if their identity becomes known.'),
+    T('defector','Defector','Rebellion',4,0,'{name} used to wear the other uniform.','Stronger against former colleagues. Some rebels may distrust them.'),
+    T('celebrity','Rebel Celebrity','Rebellion',5,0,'{name} has become unexpectedly famous within the rebellion.','Improved morale and recruitment. Greater impact when killed.'),
+    T('poster','Propaganda Poster','Rebellion',4,0,'{name} has somehow ended up on a poster.','Increased Rebel Support from successful missions. Increased Hegemony attention.'),
+    T('symbol','Symbol of the Rebellion','Rebellion',7,0,'People have started seeing {name} as more than just another rebel.','Significant morale effect on nearby rebels. Their death is felt across the base.'),
+    T('hegfamily','Hegemony Family','Rebellion',3,0,'Someone in {name}’s family still works for the Hegemony. Nobody finds this particularly comfortable.','Increased Risk when the connection is discovered.'),
     /* ---- consequences ---- */
-    T('betrayed','Betrayed by [B]','Consequences',6,0,'[B] was trusted once. That was a mistake.','Major morale penalty when [B] is nearby.',{pair:1}),
-    T('abandoned','Abandoned by Squad','Consequences',4,0,'[A] was left behind once. They have not forgotten.','Reduced trust in squadmates. More likely to retreat when badly wounded.'),
-    T('failedsave','Failed to Save [B]','Consequences',5,0,'[A] knows they could have done something. Whether that is true is another matter.','A morale penalty beside people like the one they failed.',{pair:1}),
-    T('survivor','Survivor','Consequences',3,0,'[A] was one of the few who made it out.','A small morale penalty after allied deaths. Less panic when surrounded.'),
-    T('disgraced','Disgraced','Consequences',5,0,'[A] made a mistake. Unfortunately, it was a very public one.','Reduced morale and effectiveness in leadership roles.'),
-    T('court','Court-Martialled','Consequences',5,0,'[A] and the rebellion’s command structure have had a disagreement.','Reduced trust from commanders. May win it back after proving themselves.'),
+    T('betrayed','Betrayed by {partner}','Consequences',6,0,'{partner} was trusted once. That was a mistake.','Major morale penalty when {partner} is nearby.',{pair:1}),
+    T('abandoned','Abandoned by Squad','Consequences',4,0,'{name} was left behind once. They have not forgotten.','Reduced trust in squadmates. More likely to retreat when badly wounded.'),
+    T('failedsave','Failed to Save {partner}','Consequences',5,0,'{name} knows they could have done something. Whether that is true is another matter.','A morale penalty beside people like the one they failed.',{pair:1}),
+    T('survivor','Survivor','Consequences',3,0,'{name} was one of the few who made it out.','A small morale penalty after allied deaths. Less panic when surrounded.'),
+    T('disgraced','Disgraced','Consequences',5,0,'{name} made a mistake. Unfortunately, it was a very public one.','Reduced morale and effectiveness in leadership roles.'),
+    T('court','Court-Martialled','Consequences',5,0,'{name} and the rebellion’s command structure have had a disagreement.','Reduced trust from commanders. May win it back after proving themselves.'),
     /* ---- positive development ---- */
-    T('redeemed','Redeemed','Positive',5,1,'[A] got another chance. They decided to make something of it.','A small permanent boost to morale.'),
-    T('avenging','Avenging','Positive',5,1,'Someone hurt [A]’s people. [A] has not forgotten.','+1 accuracy against the Hegemony.'),
-    T('resolve','Survivor’s Resolve','Positive',5,1,'[A] has lost people. They intend to make sure it meant something.','Loses much less morale when allies die.'),
-    T('oldfriends','Old Friends with [B]','Positive',6,1,'[A] and [B] have been through enough together that neither needs to explain much anymore.','+1 accuracy together. A significant morale loss if [B] dies.',{pair:1}),
-    T('battlebros','Battle Brothers with [B]','Positive',7,1,'[A] and [B] have saved each other’s lives often enough that it has become routine.','+2 accuracy together. A severe morale loss if [B] dies.',{pair:1}),
-    T('owes','Owes a Life to [B]','Positive',4,1,'[A] remembers who dragged them out of that firefight.','+1 accuracy beside [B]. Grieves if [B] dies.',{pair:1}),
-    T('saved','Saved [B]’s Life','Positive',4,1,'[A] pulled [B] out when they should have been left behind.','A small morale lift after a mission beside [B].',{pair:1}),
-    T('inspired','Inspired','Positive',3,0,'[A] saw someone do something extraordinary. It changed them.','A morale bonus after witnessing something heroic.'),
-    T('proved','Proved Themselves','Positive',4,1,'[A] had something to prove. Apparently, they proved it.','A small permanent boost to morale.'),
+    T('redeemed','Redeemed','Positive',5,1,'{name} got another chance. They decided to make something of it.','A small permanent boost to morale.'),
+    T('avenging','Avenging','Positive',5,1,'Someone hurt {name}’s people. {name} has not forgotten.','+1 accuracy against the Hegemony.'),
+    T('resolve','Survivor’s Resolve','Positive',5,1,'{name} has lost people. They intend to make sure it meant something.','Loses much less morale when allies die.'),
+    T('oldfriends','Old Friends with {partner}','Positive',6,1,'{name} and {partner} have been through enough together that neither needs to explain much anymore.','+1 accuracy together. A significant morale loss if {partner} dies.',{pair:1}),
+    T('battlebros','Battle Brothers with {partner}','Positive',7,1,'{name} and {partner} have saved each other’s lives often enough that it has become routine.','+2 accuracy together. A severe morale loss if {partner} dies.',{pair:1}),
+    T('owes','Owes a Life to {partner}','Positive',4,1,'{name} remembers who dragged them out of that firefight.','+1 accuracy beside {partner}. Grieves if {partner} dies.',{pair:1}),
+    T('saved','Saved {partner}’s Life','Positive',4,1,'{name} pulled {partner} out when they should have been left behind.','A small morale lift after a mission beside {partner}.',{pair:1}),
+    T('inspired','Inspired','Positive',3,0,'{name} saw someone do something extraordinary. It changed them.','A morale bonus after witnessing something heroic.'),
+    T('proved','Proved Themselves','Positive',4,1,'{name} had something to prove. Apparently, they proved it.','A small permanent boost to morale.'),
   ];
   const RTK={};for(const t of RT)RTK[t.k]=t;
   const list=p=>p.traits||(p.traits=[]);
@@ -89,8 +89,8 @@
   const get=(p,k,w)=>(p.traits||[]).find(t=>t.k===k&&(w===undefined||t.with===w));
 
   /* the name and the copy of one earned trait; nameOf turns a rebel id into a first name */
-  const title=(t,nameOf)=>RTK[t.k].n.replace('[B]',t.with&&nameOf?nameOf(t.with):'someone');
-  const text=(t,p,nameOf)=>RTK[t.k].q.replace(/\[A\]/g,(p&&p.first)||'They').replace(/\[B\]/g,t.with&&nameOf?nameOf(t.with):'someone');
+  const title=(t,nameOf)=>RTK[t.k].n.replace('{partner}',t.with&&nameOf?nameOf(t.with):'someone');
+  const text=(t,p,nameOf)=>RTK[t.k].q.replace(/\{name\}/g,(p&&p.first)||'They').replace(/\{partner\}/g,t.with&&nameOf?nameOf(t.with):'someone');
 
   /* can a trait of this kind be added: free slot, or weaker than something already carried */
   function room(p,k){

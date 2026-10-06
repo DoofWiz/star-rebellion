@@ -50,7 +50,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
     if(Array.isArray(x)){x.forEach(y=>walk(k,y));return;}
     if(!x||typeof x!=='object')return;
     if(x.veh){chk(k,Object.assign({name:x.id},x));(x.crew||[]).forEach(c=>chk(k,c));return;}
-    if(x.side==='law'&&x.name)chk(k,x);
+    if(x.side==='law'&&x.type)chk(k,x);   // guards come unnamed: Enemies.spawn gives them their type
     else for(const v of Object.values(x))if(v&&typeof v==='object')walk(k,v);
   };
   for(const k in S){const sc=S[k];
