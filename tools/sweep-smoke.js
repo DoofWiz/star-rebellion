@@ -97,6 +97,19 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().sortie={name:'x',f:5,s:0};
   f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[]});
   out.cleared=G().sortie===undefined;
+  // the transport brings its own fire support: a Graf can fly a Supply Drop, and its Door Mounted Gun gives Door Gunner Cover
+  {G().fighters.push(f.newFighter({id:'gM',name:'Marta',cls:'graf',hull:100,loadout:['door-mounted-gun']}));
+   G().supplies=500;
+   f.openPlan(m);const PL=f.getPL();
+   const rows=()=>({drop:!!document.querySelector('[data-drop]'),gun:!!document.querySelector('[data-tvgun]'),hint:/Assign the transport/.test(document.querySelector('.bs-plan').textContent),
+     fit:/Fit a Door Mounted Gun/.test(document.querySelector('.bs-plan').textContent)});
+   out.noTv=rows();
+   PL.v.team0='lead';PL.v.tv0='gA';PL.v.tp0='pa';f.renderWin();out.bare=rows();   // a Graf with no gun fitted
+   PL.v.tv0='gM';f.renderWin();out.marta=rows();
+   document.querySelector('[data-drop]').click();
+   const s0=G().supplies;f.startPlan();
+   const A=window.SR.mission.assets,T=window.SR.mission.transport;
+   out.launch=[A.drop,T.doorgun,s0-G().supplies,A.ships.length];}
   return out;
  });
  ok(c.seats===4,'a Graf offers four reinforcement seats '+c.seats);
@@ -104,6 +117,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(c.spent[0]>0&&c.spent[1]===160&&c.sortie&&c.sortie[0]===c.spent[0]&&c.sortie[1]===160,'the sortie records what it spent '+c.spent+' '+c.sortie);
  ok(c.back.every(Boolean),'a mid-mission reload hands the fuel and the drop back '+c.back);
  ok(c.cleared,'a debrief clears the sortie record');
+ ok(c.noTv.hint&&!c.noTv.drop&&!c.noTv.gun,'no transport yet: the board says it will show what the transport brings '+JSON.stringify(c.noTv));
+ ok(c.bare.drop&&!c.bare.gun&&c.bare.fit,'a Graf offers a Supply Drop; with no gun fitted, no door gunner '+JSON.stringify(c.bare));
+ ok(c.marta.drop&&c.marta.gun,'Marta brings a Supply Drop and Door Gunner Cover without a second ship '+JSON.stringify(c.marta));
+ ok(c.launch.join()==='true,1,160,0','the drop is paid at launch; the transport flies its door gun '+c.launch);
 
  // ---- 2 (ground side): a rebel sent with kit that has no combat stats fights bare-handed
  await pg.evaluate(()=>window.SR.go('ground',{test:true,mission:{kind:'ground',missionId:'intel',scenario:'intel',days:1,

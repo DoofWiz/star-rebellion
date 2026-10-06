@@ -721,18 +721,25 @@ equivalent of a character, a **Bot** the robot equivalent of a vehicle, a **Dron
 **The transport** drops the squad, lifts off and comes back to the LZ for the pickup once the job is done (the exit
 opens); the squad can only extract with it on the ground. In Steal Fuel it is called to the pumps from the air.
 
-The planning board's **Fire support** area takes assets for ground missions:
-- **Supply Drop** (160 supplies, a toggle): a crate lands as the next round begins, where you call it. It can also
+The planning board's **Fire support** area shows what the assigned transport brings by itself, no second ship
+needed, and takes extra assets. Each of the transport's options is a toggle (Arranged / Not arranged):
+- **Supply Drop** (160 supplies, paid at launch), when the transport's type can fly one (the Ships table's
+  `supply_drop`: the Graf Hauler can): a crate lands as the next round begins, where you call it. It can also
   be called in free move, before the shooting starts: a quiet chute that lands a few seconds later.
   Looting it gives **5 stims, 2 BLAM frags and 2 makeshift rocket launchers** (one shot each, big
   single-target damage, good against vehicles and Striders).
+- **Door Gunner Cover** (free, on by default), when the transport has a gunner position and a Door Mounted Gun
+  fitted (Marta starts with one): once the squad is down it circles two rounds and rakes up to three visible
+  enemies a round. A rocket hit makes it break off, not crash: it still has the pickup to make. It leaves the gun
+  when it comes down for the squad, or to the pumps in Steal Fuel.
 - **Support ships** (up to two, each a spare ship plus a pilot, burning fuel): a **starfighter** flies a
   **Strafing Run** (tap the start, then the heading; ten imprecise blasts along a line at the end of the
   round, **danger close** to your own people). A spare **Graf** can be a **Door Gunner** (circles two
   rounds, rakes up to three visible enemies a round) or carry **Reinforcements** (up to two more soldiers,
   set down at the start of the next planning phase where you call them).
 - In the mission, any soldier's radial **Fire Support** opens a menu top-left; pick an item, then tap a spot
-  you can see. Level 1 only has one Graf, so Door Gunner and Reinforcements wait for a second hauler.
+  you can see. With one Graf, its own Supply Drop and door gun are the fire support; Reinforcements, a second
+  door gunner and Strafing Runs need a spare ship.
 - **Combat Support** (a Mission Control niche) adds to a supported mission: one extra call, a steadier door gunner,
   calls that land at once, Evac on Call, a wider zone, no friendly blast damage and a Heavy Bombardment.
 - **Enemy range:** the Hegemony shoots to its weapons' full reach, but a shot gives the shooter away: they stay

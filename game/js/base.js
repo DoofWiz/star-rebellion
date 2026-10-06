@@ -6065,7 +6065,7 @@ function markShort(){
   if(winMode==='plan'&&PL){
     const need=plFuel()||minFuel(PL.m);
     if(G.fuel<need)short.f=1;
-    if(PL.drop&&G.supplies<DROP_COST)short.s=1;
+    if(plDropOn()&&G.supplies<DROP_COST)short.s=1;
   } else if(winMode==='newmission'&&winArg){
     if(G.fuel<minFuel(winArg))short.f=1;
   } else if(!winMode&&baseView==='galaxy'&&srcSel&&srcSel.t==='p'){
@@ -7307,6 +7307,7 @@ $('winsB').addEventListener('click',ev=>{
     if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
     const dc=ev.target.closest('[data-drop]');
     if(dc){PL.drop=!PL.drop;sClick();renderWin();return;}
+    if(ev.target.closest('[data-tvgun]')){PL.noGun=!PL.noGun;sClick();renderWin();return;}
   }
   if(winMode==='person'){   // the file's detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
     const tip=ev.target.closest('[data-pftip]'),open=$('winCardB').querySelectorAll('.pf-tip.is-open');
@@ -7818,7 +7819,13 @@ function plSyncAssets(){
     }
   });
 }
-const plDropOk=()=>!PL.drop||G.supplies>=DROP_COST;
+/* what the transport carrying the squad brings by itself, without a second ship: a Supply Drop if its type can fly
+   one (the Ships table's supply_drop), Door Gunner Cover if it has a gunner position and a Door Mounted Gun fitted */
+const plTransport=()=>PL&&PL.req.transport?G.fighters.find(x=>x.id===PL.v.tv0)||null:null;
+const canSupplyDrop=f=>{const r=f&&SRDB.ship(f.cls);return !!(r&&r.supply_drop);};
+const plDropOn=()=>!!PL.drop&&canSupplyDrop(plTransport());
+const plGunOn=()=>{const tv=plTransport();return !!tv&&hasDoorGun(tv)&&!PL.noGun;};
+const plDropOk=()=>!plDropOn()||G.supplies>=DROP_COST;
 function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
 function plFuel(){
   let t=0;
@@ -7937,9 +7944,19 @@ function planHTML(m){
 }
 function assetsHTML(){
   let h='<div class="sr-h3">Fire support</div><div class="sr-stack">';
-  const can=G.supplies>=DROP_COST;
-  h+='<div class="sr-slot'+(PL.drop?' is-filled':'')+(can||PL.drop?'':' is-off')+'" '+(can||PL.drop?'data-drop':'')+'><span><span class="sr-slot__label">Supply drop</span><span class="sr-slot__name">Supply Drop</span>'+
-    '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span></div>';
+  const can=G.supplies>=DROP_COST,tv=plTransport();
+  if(!tv)h+='<p class="sr-fine" style="margin:0">Assign the transport: what it can do from the air shows here.</p>';
+  else{
+    const from='<span class="sr-slot__label">From '+esc(tv.name)+'</span>';
+    const onTag=on=>'<span class="sr-slot__clear">'+(on?wTag('Arranged','good'):wTag('Not arranged'))+'</span>';   // a click toggles it
+    if(canSupplyDrop(tv)){const on=plDropOn();
+      h+='<div class="sr-slot'+(on?' is-filled':'')+(can||on?'':' is-off')+'" '+(can||on?'data-drop':'')+'><span>'+from+'<span class="sr-slot__name">Supply Drop</span>'+
+        '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span>'+(can||on?onTag(on):'')+'</div>';}
+    else h+='<div class="sr-slot is-off"><span>'+from+'<span class="sr-slot__name">Supply Drop</span><span class="bs-sub">A '+esc((SRDB.ship(tv.cls)||{}).name||'ship')+' can’t fly a supply drop.</span></span></div>';
+    if(hasDoorGun(tv))h+='<div class="sr-slot'+(plGunOn()?' is-filled':'')+'" data-tvgun><span>'+from+'<span class="sr-slot__name">Door Gunner Cover</span>'+
+      '<span class="bs-sub">Its Door Mounted Gun, once the squad is down: circles two rounds and rakes up to three enemies a round</span></span>'+onTag(plGunOn())+'</div>';
+    else if(((SRDB.ship(tv.cls)||{}).gunner_positions||0)>0)h+='<div class="sr-slot is-off"><span>'+from+'<span class="sr-slot__name">Door Gunner Cover</span><span class="bs-sub">Fit a Door Mounted Gun to offer it.</span></span></div>';
+  }
   PL.assets.forEach((a,i)=>{
     const mode=plAssetMode(i);
     const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']),gun=!!af&&hasDoorGun(af),cap=af?SEATS[af.cls]||0:0;
@@ -7986,7 +8003,7 @@ function startPlan(){
     const fx=supportStart(m,'ground',plJobPicks());
     G.nadesOut=nadesCarried(squad);
     G.fuel-=fuel;
-    if(PL.drop)G.supplies-=DROP_COST;
+    if(plDropOn())G.supplies-=DROP_COST;
     SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:nadesCarried(squad),
       charges:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='charge')||{}).n)||0):((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       limpets:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='limpet')||{}).n)||0):0,
@@ -8000,7 +8017,7 @@ function startPlan(){
         if(walkItOff(p))e.agi*=0.9;
         return e;}),
       sup:fx,
-      assets:{drop:PL.drop,ships:PL.assets.map((a,k)=>{
+      assets:{drop:plDropOn(),ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=plAssetMode(k);
         return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
@@ -8011,7 +8028,7 @@ function startPlan(){
       })},
       pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]},
-      transport:tv?{id:tv.id,name:tv.name,cls:tv.cls}:undefined};
+      transport:tv?{id:tv.id,name:tv.name,cls:tv.cls,doorgun:plGunOn()?1:0}:undefined};
   } else {
     const flight=[];
     const sfx=supportStart(m,'space',[]);
@@ -8030,7 +8047,7 @@ function startPlan(){
     SR.mission={kind:'space',missionId:m.id,days:missionDays(m),flight,sup:sfx};
   }
   // the scene is not saved: if the page reloads mid-mission, restoreCampaign hands this back
-  G.sortie={name:m.name,f:fuel,s:(PL.req.transport&&PL.drop)?DROP_COST:0};
+  G.sortie={name:m.name,f:fuel,s:(PL.req.transport&&plDropOn())?DROP_COST:0};
   closeWin();closeTilePop();
   saveSnap();
   // into a ground mission through an iris on the target; out to a space fight through hyperspace

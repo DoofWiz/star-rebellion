@@ -2443,8 +2443,11 @@ function fsSpent(a){
   a.state='spent';
 }
 function dgShotDown(a){
-  a.left=0;a.state='spent';a.downed=1;
+  a.left=0;a.state='spent';a.downed=a.own?0:1;   // the squad's own transport limps off: it still has a pickup to make
 }
+const ownHitLine=a=>'<span class="b">'+a.name+' takes the hit</span> and breaks off trailing smoke. '+a.pilot.first+' will still make the pickup.';
+/* the transport stops working its gun when it comes down for the squad (or to the pumps) */
+function ownGunDone(){if(FS)for(const a of FS.ships)if(a.own&&a.state!=='spent'){a.state='spent';a.left=0;}}
 /* reduced motion only: the pass resolves instantly, no fly-by — same rolls, same counterfire */
 function dgAttack(a){
   const pick=dgTargets(a.mark);
@@ -2463,7 +2466,7 @@ function dgAttack(a){
       log(nameSpan(f)+' puts a rocket up at '+a.name+(hit?' — <span class="b">direct hit!</span>':' — it goes wide.'));
       if(hit){
         dgShotDown(a);
-        log('<span class="b">'+a.name+' goes down</span> beyond the fight. '+a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
+        log(a.own?ownHitLine(a):'<span class="b">'+a.name+' goes down</span> beyond the fight. '+a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
         return;
       }
     }
@@ -2485,7 +2488,7 @@ function dgShipPos(R,now){
   if(R.down){
     const k=Math.min(1,(now-R.down.t0)/R.down.dur);
     return {x:R.down.x+Math.cos(R.down.ang)*k*980,y:R.down.y+Math.sin(R.down.ang)*k*980,
-      ang:R.down.ang,alt:R.alt*(1-k*k),k:-1,crash:k>=1};
+      ang:R.down.ang,alt:R.a.own?R.alt:R.alt*(1-k*k),k:-1,crash:k>=1};   // the squad's own transport holds its height and limps off
   }
   const e=now-R.t0;
   const p0=dgOrbP(R,R.th0),tn0=dgTan(R,R.th0);
@@ -2550,10 +2553,8 @@ function dgUpdate(now){
     if(rng()<0.6)parts.push({x:P.x+(rng()-0.5)*14,y:P.y-P.alt,vx:(rng()-0.5)*40,vy:-rng()*20,r:2.5+rng()*2,a:0.8,col:'#ff9a3a',t0:now,dur:260,flash:1});
     if(P.crash&&!R.crashed){
       R.crashed=1;
-      boomFx.push({x:P.x,y:P.y,t0:now,dur:800,R:120});
-      decals.push({x:P.x,y:P.y,r:70});
-      juice('rocket',P.x,P.y);sBoomBig();
-      log('<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
+      if(!R.a.own){boomFx.push({x:P.x,y:P.y,t0:now,dur:800,R:120});decals.push({x:P.x,y:P.y,r:70});juice('rocket',P.x,P.y);sBoomBig();}
+      log(R.a.own?ownHitLine(R.a):'<span class="b">'+R.a.name+' goes in hard</span> beyond the fight. '+R.a.pilot.first+' walks away from the wreck — the bird won’t fly again.');
       R.endAt=now+1000;
     }
     if(R.endAt&&now>=R.endAt)dgFinish();
@@ -2845,6 +2846,7 @@ function callTransport(){
   fs.called=true;
   if(grafState==='gone'){grafPos.x=-600;grafPos.y=H+400;}
   grafFx=null;   // whatever it was doing up there, it comes to the pumps now
+  ownGunDone();
   fs.flying={t0:clock(),dur:3800,from:{x:grafPos.x,y:grafPos.y}};
   grafState='flying';
   sTakeoff();
@@ -5184,6 +5186,7 @@ function grafLeave(){
 function grafReturn(line){
   if(!SCN.grafLeaves||fs||grafState==='landed'||(grafFx&&grafFx.k==='return'))return;
   if(grafState==='gone'){grafPos.x=-600;grafPos.y=H+400;}
+  ownGunDone();
   grafFly('return',{x:LZ.x,y:LZ.y},3800);
   if(line)log('<b>'+grafName()+'</b> <span class="d">(comms):</span> '+line);
 }
@@ -6267,6 +6270,13 @@ function initState(){
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
    if(SUP().scan||SUP().evac||SUP().bombard)FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+   // the transport that set the squad down works its own Door Mounted Gun from the air (the planning board's
+   // Door Gunner Cover): no second ship needed
+   if(CTX&&CTX.transport&&CTX.transport.doorgun&&SCN.grafLeaves){
+     FS=FS||{drop:false,dropUsed:false,ships:[],vehicles:[],orders:[],n:0};
+     const gp=CTX.grafPilot||{name:'Joss Marrek',first:'Joss'};
+     FS.ships.push({state:'ready',left:0,mode:'doorgun',cls:CTX.transport.cls||'graf',name:CTX.transport.name,pilot:{name:gp.name,first:gp.first},soldiers:[],own:1});
+   }
    if(FS){FS.scan=SUP().scan?1:0;FS.scanUsed=0;FS.extra=SUP().fsExtra?1:0;FS.evac=SUP().evac?1:0;FS.bombard=SUP().bombard?1:0;}
    scanRound=null;
    fsMenuOn=false;fsDraft=null;
@@ -6502,7 +6512,7 @@ if(location.hash==='#test'){
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,canRevive,checkDefeat,needed,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       seen(){return [...visUnits];},

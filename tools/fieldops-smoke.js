@@ -108,27 +108,33 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  });
  ok(dr.phase==='FREE'&&dr.placed&&dr.early===false,'a supply drop can be called before the shooting starts, and lands on a timer '+JSON.stringify(dr));
  // every transport leaves after the drop and comes back when the job is done
- await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf'}}));
+ await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf',doorgun:1}}));
  const tr=await pg.evaluate(()=>{
   const gd=window.DBGground,f=gd.fn,out={};
   f.endCutscene();out.leaves=f.grafState_();
   f.grafUpdate(f.clock()+5000);out.gone=f.grafState_();
-  out.fs=gd.FS;   // fire support is only what the planning board arranged
+  out.items=f.fsItems().map(i=>i.key+':'+i.name).join('|');   // Door Gunner Cover from the transport itself
+  const own=gd.FS.ships.find(a=>a.own);
   out.notReady=f.extractReady();
   gd.ix.hacked=true;
-  f.grafUpdate(f.clock());out.back=f.grafState_();
+  f.grafUpdate(f.clock());out.back=f.grafState_();out.ownSpent=own.state;
   f.grafUpdate(f.clock()+6000);out.landed=f.grafState_();
+  f.dgShotDown(own);out.limps=own.downed;
   return out;
  });
  ok(tr.leaves==='flying'&&tr.gone==='gone'&&tr.back==='flying'&&tr.landed==='landed','the transport leaves and comes back when the job is done '+JSON.stringify(tr));
  ok(tr.notReady===false,'no pickup until it is back '+tr.notReady);
- ok(tr.fs===null,'the transport brings no fire support the board did not arrange '+JSON.stringify(tr.fs));
+ ok(tr.items==='s0:Door Gunner Cover · Marta','the transport works its own door gun: no second ship '+tr.items);
+ ok(tr.ownSpent==='spent'&&tr.limps===0,'it leaves the gun to make the pickup, and a rocket hit makes it break off, not crash '+[tr.ownSpent,tr.limps]);
+ await go(spec('intel',{transport:{id:'marta',name:'Marta',cls:'graf'}}));
+ ok(await pg.evaluate(()=>window.DBGground.FS===null),'no gun fitted and nothing arranged: no fire support');
  // Steal Fuel: the transport that left is called down onto the apron, and lands there
- await go(spec('stealfuel'));
+ await go(spec('stealfuel',{transport:{id:'marta',name:'Marta',cls:'graf',doorgun:1}}));
  await pg.evaluate(()=>{const gd=window.DBGground,f=gd.fn;f.endCutscene();f.grafUpdate(f.clock()+5000);gd.fs.reached=true;f.callTransport();});
  await pg.waitForTimeout(4600);
- const sf=await pg.evaluate(()=>{const gd=window.DBGground,f=window.DBGground.fn;return {landed:gd.fs.landed,state:f.grafState_(),near:Math.hypot(gd.grafPos.x-gd.PAD.x,gd.grafPos.y-gd.PAD.y)<80};});
+ const sf=await pg.evaluate(()=>{const gd=window.DBGground,f=window.DBGground.fn;return {landed:gd.fs.landed,state:f.grafState_(),near:Math.hypot(gd.grafPos.x-gd.PAD.x,gd.grafPos.y-gd.PAD.y)<80,gun:gd.FS.ships[0].state,items:f.fsItems().length};});
  ok(sf.landed&&sf.state==='landed'&&sf.near,'Steal Fuel: called from the air, the transport lands on the apron '+JSON.stringify(sf));
+ ok(sf.gun==='spent'&&sf.items===0,'on the apron it is off the gun '+JSON.stringify(sf));
  // the Pilot is needed for the objective: going down is not the end, dying or running out of Med Packs is (C-31)
  await go(spec('stealcross',{pilot:{id:'sera',name:'Sera Kest',first:'Sera',level:2,wpns:['cowboy']}}));
  const vp=await pg.evaluate(()=>{
