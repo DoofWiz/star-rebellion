@@ -147,6 +147,33 @@
 #sc-base .pf-body{min-height:0;overflow-y:auto;}   /* fits at 900px tall; only a shorter screen scrolls */
 #sc-base .pf-skill{padding:7px 10px 8px;} #sc-base .pf-skill .pf-bar{margin-top:5px;} #sc-base .pf-skill__fx{margin-top:5px;}
 #sc-base .pf-stage.is-hurt .pf-pegs--l{top:96px;}   /* clear of the Injured ribbon */
+/* the Missions tab (ui/sr-briefing.css): the rail is the briefing, the bar is the lone Advance day */
+#sc-base .sr-shell.is-missions .sr-rail__scroll>*:not(#railMissions){display:none;}
+#sc-base .bf-board .bf-list{flex:1;min-height:0;overflow-y:auto;padding:2px 22px 4px 2px;margin-right:-22px;}
+#sc-base .bf-card.has-flag .bf-card__name{padding-right:58px;}
+#sc-base .bf-card__meta .bf-risk{margin-right:2px;}
+#sc-base .bf-loc>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-base .bf-proj.is-locked{animation-duration:1.4s;}
+#sc-base .bf-callout span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+#sc-base .bf-brief.is-tight .bf-obj span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sc-base .bf-brief.is-tighter .bf-req em{display:none;}
+#sc-base .bf-brief.is-tighter .bf-quote{-webkit-line-clamp:2;}
+#sc-base .bf-plan .sr-btn:disabled{opacity:.55;}
+/* phones: sr-briefing.css has no phone block of its own. The board and a smaller table stack and scroll; the
+   briefing is the drawer (a card opens it); callouts are left out at this size */
+@container sr-app (max-width:900px){
+  #sc-base .bf-board{position:relative;left:auto;top:auto;bottom:auto;width:auto;margin:150px 12px 0;}
+  #sc-base .bf-board .bf-list{overflow:visible;margin-right:0;padding-right:2px;}
+  #sc-base .bf-card.is-sel{transform:none;} #sc-base .bf-card.is-sel::after{display:none;}
+  #sc-base .bf-holo{position:relative;left:auto;right:auto;top:auto;bottom:auto;height:330px;margin:12px 12px 0;overflow:hidden;}
+  #sc-base .bf-proj{transform:translateX(-50%) scale(.52);transform-origin:50% 0;top:0;}
+  #sc-base .bf-callout{display:none;}
+  #sc-base .bf-proj svg polyline{display:none;}
+  #sc-base .bf-beam{width:260px;height:250px;bottom:40px;}
+  #sc-base .bf-table{width:300px;height:70px;}
+  #sc-base .bf-title{bottom:78px;}
+  #sc-base .sr-rail__scroll.bf-rail{overflow-y:auto;}
+}
 /* the comm burst (ui/sr-comm.css): the waveform is today's canvas, the sections carry their own margins */
 #sc-base .cm-chan canvas{display:block;width:100%;height:30px;margin-top:6px;}
 #sc-base .cm-body{padding:0 0 16px;}

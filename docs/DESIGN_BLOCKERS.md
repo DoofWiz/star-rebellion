@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after the screens handoff, screen 3 (the comm burst: C-35). Before that, 2026-10-06, after screen 2 (the personnel file: C-34). Before that, 2026-10-06, after screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-36; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-35). Before that, 2026-10-06, after screen 2 (the personnel file: C-34). Before that, 2026-10-06, after screen 1 (the mission report: C-32, C-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -42,6 +42,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-33 | ⚪ | Mission report: what I chose (Intel tile, extra source rows, a level-up bar, space objectives) | How the report reads |
 | C-34 | 🟡 | Personnel file: pilot Aim and Focus read the database bonus, not the handoff's formulas; trait chip wording; what I chose | What the skill tiles promise; how every file reads |
 | C-35 | ⚪ | Comm burst: what follows Acknowledge, source events, the level-up meter | How talking to a source reads |
+| C-36 | 🟡 | Missions tab: decorative space targets, which missions the board lists, fitting the rail, the phone layout | The briefing room |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -258,23 +259,24 @@ Your answers on C-29 and C-30 are built (see the resolved log). Where I had to c
 **Your call:** _open_
 
 ### C-32 🟡 Screens handoff (`docs/ui/SCREENS-HANDOFF.md`): the open questions
-The handoff's §6 asks for these to be logged. Screens 1 (the mission report), 2 (the personnel file) and 3 (the
-comm burst) are built; the Missions tab follows.
+The handoff's §6 asks for these to be logged. All four screens are built: the mission report, the personnel file,
+the comm burst and the Missions tab.
 1. **Cultivation meter scale** (comm burst, built): built as `cult / 100` toward the next level, which is how
    `checkCultLevel` levels a source today. Is that the scale you want?
-2. **Holo callouts** (Missions tab, screen 4): a new optional `holo` field per mission. Please write the callout
-   lines for each mission; until then the first two objectives stand in as Target and Extract.
+2. **Holo callouts** (Missions tab, built): the optional `holo` field per mission (`MPOOL` / `MEXTRA`). Steal the
+   Cross has your example lines; every other mission shows its first two objectives as Target and Extract (optional
+   ones skipped). Please write the callout lines for each mission.
 3. **Injured days counter** (personnel file, built): kept on the Injured card ("20 days to go"), though the mission
    report dropped it. Keep it there?
-4. **Requirement labels** (Missions tab): count-first everywhere ("1 Transport", "3 Soldiers"). You accepted it for
-   the transport; confirm the others.
+4. **Requirement labels** (Missions tab, built): count-first everywhere ("3 Soldiers", "2 Pilots", "1 Transport",
+   "2 Starfighters", "24 Fuel", items and specialty). You accepted it for the transport; confirm the others.
 5. **Win objectives** (mission report, built): collapsed to the "All N objectives" pill, as you reviewed. I can
    bring the full list back.
 6. **Cass's transmission** (`cassIntro`, built): adopted the comm burst's speech bubble and channel strip, as the
    handoff recommends. Not signed off yet: say if you want the old window back.
 7. **Market and Arsenal amendment (§0.1):** Buy / Buy all onto the selected lot, Give to… / Sell and Fit / Refit /
-   Assign into the dossier, no command bar out of combat. Both screens are built; confirm the change applies to
-   them and I will make it with the briefing room.
+   Assign into the dossier, no command bar out of combat. Both screens are built and still use the bar (the
+   Missions tab does not); confirm the change applies to them and I will make it.
 **Needs from you:** an answer to each.
 **Your call:** _open_
 
@@ -339,6 +341,36 @@ Built from the handoff's §3 (`commHTML` in `game/js/base.js`, `game/ui/sr-comm.
 7. **Cass's transmission** puts "Unregistered freighter · voices masked" in the channel strip (it was the footer
    note) and has no Signal tag.
 **Needs from you:** anything above you would like different.
+**Your call:** _open_
+
+### C-36 🟡 Missions tab: what I chose
+Built from the handoff's §4 (`openMissions` / `renderMissions` in `game/js/base.js`, `game/ui/sr-briefing.css`; glue
+in `game/ui/scenes.css`). The popup is gone: everything that opened it opens the tab.
+1. **Space targets and threats are decorative.** No mission says how many targets or Hegemony ships a sortie
+   has, so the orbit always shows one target diamond and two threat triangles. Tell me if they should read the
+   mission (the space scene's enemy list, say).
+2. **Which missions the board lists:** available ones, ones under way (flagged "Under way"; the Plan button reads
+   "Under way · N days left") and locked ones. Finished missions leave the board.
+3. **New** stays on a card until it has been looked at in the briefing (`m.seen`); an older save's board counts as
+   seen (a save migration).
+4. **Locked:** no mission is locked today (only an old Strider state used it). A locked card reads "Signal
+   encrypted", the table shows scrambled bars, and the briefing says to raise the source; there is no Plan.
+5. **The label** for space reads "{World} · Orbit", or "Open space" for a mission with no world.
+6. **Requirement details** are generic: "Only 1 available", "None available", "Have 0" for items and fuel, "A
+   transport won't do" for a starfighter. The hauler hint shows while the derelict hauler is not restored or
+   being restored. The orange reason under Plan is the first unmet requirement ("Needs 2 pilots").
+7. **Rewards** list assets first (FT-4 Cross, a fighter, the Strider, a recruit by name), then resources, then the
+   region's liberation. There is no XP chip.
+8. **Fitting the rail:** the pitch is always 3 lines; if the briefing still runs long, objectives go to one line
+   each, then the requirement details are hidden and the pitch drops to 2 lines. At 1440×900 everything fits; at
+   1280×800 the objectives clamp.
+9. **Phone:** the board and a smaller table stack and scroll, without callouts; a card opens the briefing in the
+   drawer (its button reads "Briefing"). `sr-briefing.css` has no phone block of its own, so this is my layout.
+10. **Advance day** is the command bar's own button: while the tab is up its wrapper becomes the bare `.bf-go`.
+11. **Show on map** closes the tab and opens the world in the Galaxy.
+12. The handoff's comms line ("Cass Wender marked Steal the Cross as urgent…", §5 placeholder) is not built; the
+    feed shows the real news.
+**Needs from you:** (1), and anything else you would like different.
 **Your call:** _open_
 
 ---
@@ -537,8 +569,8 @@ entries.
    markers and the region card's Local job. Adding `region` to `MPOOL` entries makes placement exact.
 3. **The phone World view** uses the provisional layout (planet on top, panels as a bottom sheet, minimap
    hidden) and needs its own design pass.
-4. **The Missions view** is the next design pass: the gold mission pins and the region card's "+n more" link
-   currently open the old Missions window.
+4. **The Missions view** is built (the screens handoff's §4, C-36): the region card's "+n more" link and anything
+   else that opened the old Missions window now opens the Missions tab.
 **Your call:** _open_
 
 ### M-23 🟡 Gunship counterfire is live, but nobody can shoot back yet

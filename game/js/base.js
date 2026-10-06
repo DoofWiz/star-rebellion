@@ -927,6 +927,8 @@ const MTYPES={
 };
 const MEXTRA={
   stealcross:{src:'cass',req:{team:3,teamRole:'Soldier',transport:1,prize:1},
+    // the holo-table's callouts (docs/ui/SCREENS-HANDOFF.md §4); missions without `holo` show their first two objectives
+    holo:[{k:'Target',t:'FT-4 Cross on the pad behind the sheriff’s HQ'},{k:'Opposition',t:'Sheriff Reeve enforces Hegemony law here',foe:1},{k:'Extract',t:'Walk a pilot to the pad and fly it home'}],
     objectives:['Reach the FT-4 Cross on the pad behind the sheriff’s HQ','Hotwire her, release the clamps and pull the fuel line','Get the Cross and the squad out of Dustfall']},
   depotrun:{src:'venn',objectives:['Destroy all four orbital fuel depots','Survive the sentry drones']},
   toi:{src:'halt',objectives:['Eliminate Commandant Dral Vex','(Optional) Bring every pilot home']},
@@ -4756,7 +4758,7 @@ function updateGuide(){
       }
       el.hidden=true;return;
     }
-    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
+    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen&&!msOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
     el.hidden=true;return;
   }
   // the hangar guide: the derelict hauler is a base mission of its own
@@ -4780,6 +4782,8 @@ function updateGuide(){
 function openWin(mode,arg){
   // the old sources window became the Galaxy view: every opener lands there
   if(mode==='sources'){winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;showView('galaxy');return;}
+  // the Mission Board popup became the Missions tab (docs/ui/SCREENS-HANDOFF.md §4): every opener lands there
+  if(mode==='missions'){if(winMode)closeWin();if(baseView!=='base')setView('base');openMissions(arg&&arg.id);return;}
   winMode=mode;winArg=arg||null;cutArm=null;rankOverlay=null;gearOverlay=null;renderWin();$('winsB').hidden=false;syncTabs();
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
@@ -5278,6 +5282,226 @@ function renderWin(){
   markWin();
 }
 
+/* ---------- the Missions tab: the briefing room (docs/ui/SCREENS-HANDOFF.md §4) ----------
+   A stage view like the Galaxy and the Arsenal: the board on the left, the holo-table in the middle, the briefing
+   in the rail. No command bar: Advance day stands alone bottom-right. */
+let msOpen=false,msSel=null,msFilter='all';
+const msList=()=>G.missions.filter(m=>m.state==='avail'||m.state==='prog'||m.state==='locked');
+const msKind=m=>opKind(m);
+const msRisk=m=>/high/i.test(m.riskTxt)?3:/moder/i.test(m.riskTxt)?2:1;
+const MS_RISK_C=['','var(--sr-go)','var(--sr-gold)','var(--sr-hazard)'];
+const msLocked=m=>m.state==='locked';
+function openMissions(id){
+  closeTilePop();exitRoomView();closeArsenal();closeMarket();
+  msOpen=true;
+  if(id)msSel=id;
+  $('msView').hidden=false;
+  shell.classList.add('is-missions');
+  $('railBase').classList.add('bf-rail');
+  setDrawer(false);
+  setTopbar('Missions','Briefing room · Haven Rock');
+  drawerLabel();
+  renderMissions();syncTabs();
+}
+function closeMissions(){
+  if(!msOpen)return;
+  msOpen=false;
+  $('msView').hidden=true;
+  shell.classList.remove('is-missions');
+  $('railBase').classList.remove('bf-rail');
+  $('railMissions').hidden=true;
+  msGo(false);
+  setDrawer(false);
+  setTopbar('Haven Rock','Hidden base');
+  drawerLabel();syncTabs();
+  if(started&&G)syncUI();   // the command bar gets its parts back
+}
+/* Advance day on its own: the command bar's wrapper becomes the bare .bf-go, everything else in it hidden */
+function msGo(on){
+  const cb=$('baseCmdbar');
+  cb.classList.toggle('sr-cmdbar',!on);cb.classList.toggle('bf-go',!!on);
+  for(const id of ['arWho','arOrders','gxOrders','dockNote'])if(on)$(id).hidden=true;
+}
+function renderMissions(){
+  if(!msOpen||!G)return;
+  const all=msList(),list=all.filter(m=>msFilter==='all'||msKind(m)===msFilter);
+  if(!list.some(m=>m.id===msSel))msSel=(list[0]||{}).id||null;
+  const m=list.find(x=>x.id===msSel)||null;
+  $('msBoard').innerHTML=msBoardHTML(list,m);
+  if(m&&!msLocked(m))m.seen=1;   // looking at it is reading it: its New flag goes on the next look
+  $('msHolo').innerHTML=m?msHoloHTML(m):'';
+  $('railMissions').innerHTML=m?msBriefHTML(m):'<div class="bf-railtitle">'+IC('missions')+'Briefing</div><div class="sr-empty">No jobs on the board. Work your sources; follow their signals.</div>';
+  $('railMissions').hidden=false;
+  msGo(true);
+  msFit();
+}
+/* the briefing never scrolls: clamp the pitch (always), then the objectives to one line each, then drop their notes */
+function msFit(){
+  const rail=$('railBase'),b=$('railMissions').querySelector('.bf-brief');
+  if(!b)return;
+  b.classList.remove('is-tight','is-tighter');
+  if(rail.scrollHeight>rail.clientHeight+1)b.classList.add('is-tight');
+  if(rail.scrollHeight>rail.clientHeight+1)b.classList.add('is-tighter');
+}
+function msBoardHTML(list,sel){
+  const chip=(k,l)=>rbtn('data-msfilter="'+k+'" aria-pressed="'+(msFilter===k)+'"',l,false,'sr-btn--sm');
+  const cards=list.map(m=>{
+    const k=msKind(m),lock=msLocked(m),r=msRisk(m);
+    const src=(m.src&&srcInfo(m.src)||{}).name||m.from||'';
+    const flag=lock?'<span class="bf-card__flag" style="background:var(--sr-seam);color:var(--sr-text-2)">Locked</span>':
+      m.state==='prog'?'<span class="bf-card__flag" style="background:var(--sr-shield);color:var(--sr-ink)">Under way</span>':
+      !m.seen?'<span class="bf-card__flag" style="background:var(--sr-gold);color:var(--sr-ink)">New</span>':'';
+    return '<button class="bf-card'+(sel&&m.id===sel.id?' is-sel':'')+(lock?' is-locked':'')+(flag?' has-flag':'')+'" type="button" data-msel="'+m.id+'" aria-pressed="'+(!!sel&&m.id===sel.id)+'">'+
+      '<span class="bf-card__ico">'+IC(OPKIND[k].icon)+'</span><span class="bf-card__name">'+esc(lock?'Signal encrypted':m.name)+'</span>'+
+      '<span class="bf-card__meta">'+OPKIND[k].label+'<span class="bf-risk" style="--rc:'+MS_RISK_C[r]+'" title="'+esc(m.riskTxt||'')+' risk">'+[1,2,3].map(i=>'<i'+(i<=r?' class="is-on"':'')+'></i>').join('')+'</span>'+esc(src)+'</span>'+flag+'</button>';
+  }).join('');
+  return '<div class="bf-board__head">'+IC('missions')+'Mission board</div><div class="bf-filters">'+chip('all','All')+chip('ground','Ground')+chip('space','Space')+'</div>'+
+    '<div class="bf-list">'+(cards||'<div class="sr-empty">Nothing here. Work your sources; follow their signals.</div>')+'</div>';
+}
+/* the label over the table: world and region (or orbit), encrypted when locked */
+function msPlace(m){
+  const d=m.loc&&pdef(m.loc);
+  if(!d)return msKind(m)==='space'?'Open space':'Unknown';
+  if(msKind(m)==='space')return d.name+' · Orbit';
+  return whereHTML(m)||d.name;
+}
+/* where the region sits on the projected disc: the hand-tuned anchor, else a seeded spot */
+function msAnchor(m){
+  const a=m.region&&REGION_DECOR[m.region];
+  if(a){const t=a.find(x=>x[0]==='town'||x[0]==='job')||a[0];return [t[1],t[2]];}
+  const h=SR.util.hashStr((m.loc||'')+'|'+(m.region||m.id));
+  return [((h%1000)/1000-0.5)*1.1,(((h>>>10)%1000)/1000-0.5)*1.1];
+}
+/* the world's texture as holo lines, seeded so a world always looks the same */
+function msTexture(id,tex,R,cx,cy){
+  let h=SR.util.hashStr(id||'x');
+  const rnd=()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return (h>>>0)/4294967296;};
+  const P=(u,v)=>(cx+u*R).toFixed(1)+' '+(cy+v*R).toFixed(1);
+  let o='';
+  if(tex==='bands')for(const v of [-.55,-.2,.15,.5])o+='<path d="M'+P(-1,v)+' Q'+P(-.5,v-.08)+' '+P(0,v)+' T'+P(1,v)+'"/>';
+  else if(tex==='dunes')for(let i=0;i<9;i++){const u=rnd()*1.4-.7,v=rnd()*1.4-.7;o+='<path d="M'+P(u-.12,v)+' q'+(R*.06)+' '+(-R*.05)+' '+(R*.12)+' 0 t'+(R*.12)+' 0"/>';}
+  else if(tex==='craters')for(let i=0;i<8;i++){const u=rnd()*1.4-.7,v=rnd()*1.4-.7;o+='<circle cx="'+(cx+u*R).toFixed(1)+'" cy="'+(cy+v*R).toFixed(1)+'" r="'+(R*(.05+rnd()*.07)).toFixed(1)+'"/>';}
+  else if(tex==='cap')o+='<ellipse cx="'+cx+'" cy="'+(cy-R*.78)+'" rx="'+(R*.5)+'" ry="'+(R*.16)+'"/><ellipse cx="'+cx+'" cy="'+(cy+R*.82)+'" rx="'+(R*.38)+'" ry="'+(R*.12)+'"/>';
+  else if(tex==='islands')for(let i=0;i<5;i++){const u=rnd()*1.2-.6,v=rnd()*1.2-.6;o+='<ellipse cx="'+(cx+u*R).toFixed(1)+'" cy="'+(cy+v*R).toFixed(1)+'" rx="'+(R*(.1+rnd()*.12)).toFixed(1)+'" ry="'+(R*(.06+rnd()*.08)).toFixed(1)+'"/>';}
+  else if(tex==='cracks')for(let i=0;i<4;i++){let u=rnd()*1.2-.6,v=rnd()*1.2-.6,d='M'+P(u,v);for(let j=0;j<4;j++){u+=rnd()*.3-.1;v+=rnd()*.3-.15;d+=' L'+P(u,v);}o+='<path d="'+d+'"/>';}
+  else if(tex==='river')o+='<path d="M'+P(-.9,-.3)+' C'+P(-.4,.2)+' '+P(.1,-.5)+' '+P(.9,.3)+'"/>';
+  else if(tex==='grid'||tex==='flats')for(const v of [-.6,-.3,0,.3,.6])o+='<path d="M'+P(-1,v+.3)+' L'+P(1,v-.3)+'"/>';
+  return o;
+}
+function msHoloHTML(m){
+  const lock=msLocked(m),k=msKind(m),lk=WORLD_LOOK[m.loc]||{col:'#9aa6c4'};
+  const cx=320,cy=250,R=k==='space'?118:150;
+  const cyan='var(--sr-shield)',foe='#7aaaff';
+  let svg='<defs><clipPath id="bfClip"><circle cx="'+cx+'" cy="'+cy+'" r="'+R+'"/></clipPath></defs>'+
+    '<circle class="bf-spin" cx="'+cx+'" cy="'+cy+'" r="'+(R+40)+'" fill="none" stroke="'+cyan+'" stroke-opacity=".5" stroke-width="2" stroke-dasharray="4 10"/>'+
+    '<circle class="bf-spin2" cx="'+cx+'" cy="'+cy+'" r="'+(R+56)+'" fill="none" stroke="'+cyan+'" stroke-opacity=".25" stroke-width="2" stroke-dasharray="30 8"/>';
+  const pts=[];   // what the callouts point at
+  if(lock){
+    let h=SR.util.hashStr(m.id);const rnd=()=>{h=Math.imul(h^(h>>>15),2246822507);h^=h>>>13;return (h>>>0)/4294967296;};
+    for(let i=0;i<16;i++){const w=60+rnd()*220,y=cy-R+i*(2*R/16);svg+='<rect x="'+(cx-w/2+(rnd()-.5)*60).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+(6+rnd()*6).toFixed(1)+'" fill="'+cyan+'" fill-opacity="'+(.15+rnd()*.35).toFixed(2)+'"/>';}
+  } else {
+    // the world as a wireframe sphere: rim, meridians, latitudes and its texture
+    let g='<circle cx="'+cx+'" cy="'+cy+'" r="'+R+'" fill="'+cyan+'" fill-opacity=".06" stroke="'+cyan+'" stroke-width="2.5"/>';
+    for(const q of [.28,.62,.9])g+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+(R*q).toFixed(1)+'" ry="'+R+'" fill="none"/>';
+    g+='<path d="M'+cx+' '+(cy-R)+' V'+(cy+R)+'" fill="none"/>';
+    for(const lat of [-.66,-.33,0,.33,.66]){const rx=R*Math.sqrt(1-lat*lat);g+='<ellipse cx="'+cx+'" cy="'+(cy+lat*R).toFixed(1)+'" rx="'+rx.toFixed(1)+'" ry="'+(rx*.16).toFixed(1)+'" fill="none"/>';}
+    svg+='<g stroke="'+cyan+'" stroke-opacity=".38" stroke-width="1.4">'+g+'</g>'+
+      '<g clip-path="url(#bfClip)" fill="none" stroke="'+cyan+'" stroke-opacity=".55" stroke-width="1.6">'+msTexture(m.loc,lk.tex,R,cx,cy)+'</g>';
+    if(k==='space'){
+      // a tilted orbit with the targets (diamonds) and the threats (Hegemony-blue triangles) on it
+      const ox=R*2,oy=R*.52,tilt=-14*Math.PI/180;
+      const on=t=>{const x=ox*Math.cos(t),y=oy*Math.sin(t);return [cx+x*Math.cos(tilt)-y*Math.sin(tilt),cy+x*Math.sin(tilt)+y*Math.cos(tilt)];};
+      svg+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+ox+'" ry="'+oy+'" transform="rotate(-14 '+cx+' '+cy+')" fill="none" stroke="'+cyan+'" stroke-width="2" stroke-opacity=".8"/>';
+      const [tx,ty]=on(.55);
+      svg+='<g class="bf-pulse"><path d="M'+tx+' '+(ty-11)+' l11 11 -11 11 -11 -11z" fill="'+cyan+'" fill-opacity=".35" stroke="'+cyan+'" stroke-width="2"/></g>'+
+        '<path d="M'+tx+' '+(ty-9)+' l9 9 -9 9 -9 -9z" fill="'+cyan+'"/>';
+      pts.target=[tx,ty];
+      const thr=[2.3,3.4].map(on);
+      for(const [x,y] of thr)svg+='<path d="M'+x.toFixed(1)+' '+(y-10).toFixed(1)+' l10 17 h-20z" fill="'+foe+'" fill-opacity=".35" stroke="'+foe+'" stroke-width="2"/>';
+      pts.threat=thr[0];pts.other=on(4.6);
+    } else {
+      // the region as a highlighted patch, and a pulsing pin
+      const [u,v]=msAnchor(m),px=cx+u*R*.85,py=cy+v*R*.85;
+      svg+='<ellipse cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" rx="'+(R*.32).toFixed(1)+'" ry="'+(R*.2).toFixed(1)+'" fill="'+cyan+'" fill-opacity=".2" stroke="'+cyan+'" stroke-width="2" stroke-dasharray="6 4"/>'+
+        '<circle class="bf-pulse" cx="'+px.toFixed(1)+'" cy="'+py.toFixed(1)+'" r="10" fill="none" stroke="'+cyan+'" stroke-width="3"/>'+
+        '<path d="M'+px.toFixed(1)+' '+py.toFixed(1)+' c-8 -10 -11 -14 -11 -19 a11 11 0 0 1 22 0 c0 5 -3 9 -11 19z" fill="'+cyan+'" stroke="#06202a" stroke-width="2"/>'+
+        '<circle cx="'+px.toFixed(1)+'" cy="'+(py-19).toFixed(1)+'" r="4" fill="#06202a"/>';
+      pts.target=pts.threat=pts.other=[px,py-12];
+    }
+  }
+  // callouts: the mission's own holo lines, else the first two objectives as Target and Extract
+  const objs=(m.objectives||[]).filter(o=>o[0]!=='(');
+  const lines=lock?[]:(m.holo&&m.holo.length?m.holo:[{k:'Target',t:objs[0]},{k:'Extract',t:objs[1]}].filter(x=>x.t)).slice(0,3);
+  const SLOTS=[{x:4,y:36,w:190,side:'l'},{x:446,y:26,w:190,side:'r'},{x:446,y:330,w:190,side:'r'}];
+  let calls='',leads='';
+  lines.forEach((c,i)=>{
+    const sl=SLOTS[i],foeC=!!c.foe||/oppos|threat/i.test(c.k);
+    const at=foeC?pts.threat:/target/i.test(c.k)?pts.target:pts.other;
+    calls+='<div class="bf-callout'+(foeC?' is-foe':'')+'" style="left:'+sl.x+'px;top:'+sl.y+'px;width:'+sl.w+'px"><b>'+esc(c.k)+'</b><span>'+c.t+'</span></div>';
+    if(at){const ex=sl.side==='l'?sl.x+sl.w:sl.x,ey=sl.y+22;
+      leads+='<polyline points="'+ex+','+ey+' '+(ex+(sl.side==='l'?24:-24))+','+ey+' '+at[0].toFixed(1)+','+at[1].toFixed(1)+'" fill="none" stroke="'+(foeC?foe:cyan)+'" stroke-width="1.6" stroke-opacity=".8"/>';}
+  });
+  const table='<svg class="bf-table" viewBox="0 0 520 120" aria-hidden="true"><ellipse cx="260" cy="70" rx="250" ry="44" fill="#0b1430" stroke="#070818" stroke-width="4"/>'+
+    '<ellipse cx="260" cy="56" rx="230" ry="36" fill="#121d44" stroke="rgba(54,227,242,.55)" stroke-width="3"/>'+
+    '<ellipse cx="260" cy="56" rx="120" ry="18" fill="rgba(54,227,242,.25)" stroke="var(--sr-shield)" stroke-width="2"/></svg>';
+  return table+'<div class="bf-beam"></div><div class="bf-proj'+(lock?' is-locked':'')+'" data-holo="'+(lock?'locked':k)+'"><svg viewBox="0 0 640 520" aria-hidden="true">'+svg+leads+'</svg><div class="bf-scan"></div>'+calls+'</div>'+
+    '<div class="bf-title"><i></i>'+esc(lock?'Signal encrypted':msPlace(m))+'</div>';
+}
+/* the reward chips: assets first, then resources, then what it does for the region */
+function msRewards(m){
+  const r=m.rew||{},o=[];
+  const chip=(c,ico,t)=>'<span style="--c:'+c+'">'+IC(ico)+t+'</span>';
+  if(r.cross)o.push(chip('var(--sr-gold)','ship','FT-4 Cross'));
+  if(r.fighter)o.push(chip('var(--sr-gold)','ship','+1 fighter'));
+  if(m.vip&&m.vip.strider)o.push(chip('var(--sr-gold)','vehicle',esc(m.vip.name)));
+  if(m.npc)o.push(chip('var(--sr-rebel)','people',esc(m.npc.name)));
+  for(const k of ['c','s','m','f','i'])if(r[k])o.push(chip('var(--sr-res-'+RES[k][0]+')',RES[k][0],r[k]));
+  if(m.region&&m.lib){const d=pdef(m.loc),rg=d&&d.regions&&d.regions.find(x=>x.id===m.region);if(rg)o.push(chip('var(--sr-rebel)','revflame',esc(rg.name)+' +'+m.lib+'%'));}
+  return o.join('');
+}
+function msBriefHTML(m){
+  const lock=msLocked(m),k=msKind(m),si=m.src?srcInfo(m.src):null;
+  const place=msPlace(m),d=m.loc&&pdef(m.loc);
+  const srcName=si?si.name:(m.from||'The network'),srcSub=si?[si.type,si.loc].filter(Boolean).join(' · '):(m.from?'':'');
+  const r=reqOf(m),risk=msRisk(m);
+  const squad=r.transport?String(r.team):(r.ships||r.team)+' ship'+((r.ships||r.team)>1?'s':'');
+  const plain=String(m.desc||'').replace(/<[^>]*>/g,'');
+  let h='<div class="bf-railtitle">'+IC('missions')+'Briefing</div><div class="bf-brief" data-mid="'+m.id+'">'+
+    '<div><div class="bf-brief__title">'+esc(lock?'Signal encrypted':m.name)+'</div><div class="bf-loc">'+IC('targetlock')+'<span>'+esc(lock?'Unknown':place)+'</span>'+
+      (d&&!lock?rbtn('data-msmap="'+m.loc+'"','Show on map',false,'sr-btn--ghost sr-btn--sm'):'')+'</div></div>'+
+    '<div class="bf-src"><div class="bf-src__ava">'+esc(ini(srcName))+'</div><div style="min-width:0"><b>'+esc(srcName)+'</b>'+(srcSub?'<span>'+esc(srcSub)+'</span>':'')+'</div></div>';
+  if(lock)return h+'<p class="bf-quote">The source holding this job has not been raised yet. Raise them to decrypt it.</p></div>';
+  h+='<p class="bf-quote" title="'+esc(plain)+'">'+m.desc+'</p>'+
+    '<div class="bf-facts"><div class="bf-fact" style="--c:'+MS_RISK_C[risk]+'"><b>'+esc(m.riskTxt||'Low')+'</b><span>Risk</span></div>'+
+    '<div class="bf-fact"><b>'+m.days+' day'+(m.days===1?'':'s')+'</b><span>Travel time</span></div>'+
+    '<div class="bf-fact"><b>'+squad+'</b><span>Max squad size</span></div></div>';
+  const pc=precondList(m);
+  h+='<section class="bf-sec" data-sec="req"><div class="bf-sec__h">'+IC('lock')+'Requirements</div>'+pc.map(c=>
+    '<div class="bf-req '+(c.ok?'is-ok':'is-no')+'">'+IC(c.ok?'check':'lock')+'<span>'+esc(c.brief)+'</span>'+(!c.ok&&c.detail?'<em>'+esc(c.detail)+'</em>':'')+'</div>').join('')+'</section>';
+  h+='<section class="bf-sec" data-sec="obj"><div class="bf-sec__h">'+IC('missions')+'Objectives</div>'+(m.objectives||['Complete the operation']).map(o=>'<div class="bf-obj"><i></i><span>'+o+'</span></div>').join('')+'</section>';
+  const rw=msRewards(m);
+  if(rw)h+='<section class="bf-sec" data-sec="rew"><div class="bf-sec__h">'+IC('loot')+'Rewards</div><div class="bf-rew">'+rw+'</div></section>';
+  let plan;
+  if(m.state==='prog')plan=rbtn('disabled','Under way · '+m.progress.daysLeft+' day'+(m.progress.daysLeft===1?'':'s')+' left',true,'sr-btn--primary sr-btn--lg');
+  else{
+    const ok=canPlan(m),why=ok?'':(pc.find(c=>!c.ok&&!c.soft)||{}).why||'';
+    plan=rbtn('data-mplan="'+m.id+'"','Plan mission',!ok,'sr-btn--primary sr-btn--lg')+(why?'<div class="bf-plan__why">'+IC('lock')+esc(why)+'</div>':'');
+  }
+  return h+'<div class="bf-plan">'+plan+'</div></div>';
+}
+function msClick(ev){
+  const t=ev.target.closest('button');
+  if(!t||t.disabled)return;
+  const sel=t.getAttribute('data-msel');
+  if(sel){sClick();msSel=sel;renderMissions();if(ROOT.clientWidth<=900)setDrawer(true);return;}   // phones: the briefing is in the drawer
+  const f=t.getAttribute('data-msfilter');
+  if(f){sClick();msFilter=f;renderMissions();return;}
+  const map=t.getAttribute('data-msmap');
+  if(map){sClick();closeMissions();setView('galaxy');enterWorld(map);return;}
+  const mp=t.getAttribute('data-mplan');
+  if(mp){const m=G.missions.find(x=>x.id===mp);if(m&&canPlan(m)){sClick();openPlan(m);}return;}
+}
+
 /* ---------- the comm burst (docs/ui/SCREENS-HANDOFF.md §3) ----------
    Each kind of information has one home: who (and their cultivation), the channel and its flavour, our narration
    as log lines, the source's own words in one bubble, and what acknowledging does. */
@@ -5714,7 +5938,7 @@ function markWin(){markShort();}
 /* the tabs show where the player is; Base is "no window open and no view up" */
 function syncTabs(){
   let sel;
-  if(winMode==='missions')sel='navMissions';
+  if(msOpen&&!winMode)sel='navMissions';
   else if(winMode==='srcTutIntro'||winMode==='srcTut')sel=baseView==='galaxy'?'navSources':null;
   else if(winMode)sel=null;
   else if(arOpen)sel='navArsenal';
@@ -5812,6 +6036,7 @@ function syncUI(){
   if(winMode)renderWin();
   if(tilePopAt)renderTilePop();
   if(arOpen)renderArsenal();
+  if(msOpen)renderMissions();
   if(bmOpen)renderMarket();
   syncGxDOM();
   syncTabs();markShort();
@@ -5921,11 +6146,11 @@ function setTopbar(title,sub){
 /* the phone drawer button says what the drawer holds: Loadouts in the Arsenal, the fence at the market */
 function drawerLabel(){
   const btn=$('drawerBtn');
-  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':'Crew and flight';
+  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':msOpen?'Briefing':'Crew and flight';
   btn.setAttribute('aria-label',lbl);btn.title=lbl;
 }
 function openArsenal(){
-  closeWin();closeTilePop();exitRoomView();closeMarket();
+  closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();
   arOpen=true;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
@@ -6332,6 +6557,8 @@ function arClick(ev){
   if(give){arGiveTo(give);return;}
 }
 $('arView').addEventListener('click',arClick);
+$('msView').addEventListener('click',msClick);
+$('railMissions').addEventListener('click',msClick);
 $('railArsenal').addEventListener('click',arClick);   // the Loadouts slots live in the rail
 $('arOrders').addEventListener('click',ev=>{
   const t=ev.target.closest('button');
@@ -6528,7 +6755,7 @@ function ensureMarket(){
   if(!G.market||!G.market.lots)rollMarket();
 }
 function openMarket(){
-  closeWin();closeTilePop();exitRoomView();closeArsenal();
+  closeWin();closeTilePop();exitRoomView();closeArsenal();closeMissions();
   ensureMarket();
   bmOpen=true;bmSel=null;bmLine=null;
   G.market.unseen=0;
@@ -6751,7 +6978,7 @@ $('bmView').addEventListener('click',ev=>{
   if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
 });
 /* phones re-pick their column counts when the viewport changes */
-addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();});
+addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();if(msOpen)msFit();});
 
 /* ---------- input ---------- */
 function figAt(px,py){
@@ -7129,11 +7356,12 @@ $('navBase').addEventListener('click',()=>{
   sClick();
   if(arOpen){closeArsenal();return;}
   if(bmOpen){closeMarket();return;}
+  if(msOpen){closeMissions();return;}
   if(winMode)closeWin();
   showView('base');
 });
-$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();if(winMode)closeWin();showView('galaxy');});
-$('navMissions').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();openWin('missions');});
+$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();closeMissions();if(winMode)closeWin();showView('galaxy');});
+$('navMissions').addEventListener('click',()=>{sClick();if(winMode)closeWin();if(baseView!=='base')setView('base');openMissions();});
 $('navArsenal').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openArsenal();});
 $('navMarket').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openMarket();});
 $('newsBtn').addEventListener('click',()=>{sClick();openWin('news');});
@@ -7173,6 +7401,7 @@ addEventListener('keydown',ev=>{
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
     else if(bmOpen)closeMarket();
+    else if(msOpen)closeMissions();
     else if(baseView==='galaxy'&&(gxRegion||gxWorld||srcSel))gxBack();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
@@ -7271,27 +7500,34 @@ function minFuel(m){
   const n=r.transport?transportSlots(r):(r.ships||r.team);
   return costs.slice(0,n).reduce((a,b)=>a+b,0)||fuelPer('cross')*n;
 }
+/* what a mission needs. label: the planning board's line; brief: the briefing's count-first label ("3 Soldiers"),
+   detail: a generic reason when unmet (it never names anyone), why: what the Plan button says when blocked */
 function precondList(m){
   const r=reqOf(m),out=[];
+  const pl=(n,w)=>n+' '+w+(n>1?'s':'');
+  const short=(have,n)=>have?'Only '+have+' available':'None available';
+  const needs=(n,w)=>'Needs '+(n>1?n+' '+w+'s':(/^[aeiou]/i.test(w)?'an ':'a ')+w.toLowerCase());
   if(r.transport){
-    const T=transportSlots(r),np=T+(r.prize||0);
-    out.push({ok:soldierPool().length>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available'});
-    out.push({ok:ablePilots().length>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':'')});
-    out.push({ok:transportPool().length>=T,label:T+' hauler'+(T>1?'s':'')+' available'});
+    const T=transportSlots(r),np=T+(r.prize||0),sp=soldierPool().length,ap=ablePilots().length,tp=transportPool().length;
+    out.push({ok:sp>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Soldier'),detail:short(sp,r.team),why:needs(r.team,'soldier')});
+    out.push({ok:ap>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':''),brief:pl(np,'Pilot'),detail:short(ap,np),why:needs(np,'pilot')});
+    out.push({ok:tp>=T,label:T+' hauler'+(T>1?'s':'')+' available',brief:pl(T,'Transport'),
+      detail:G.wreck&&!G.wreck.restored&&!G.wreck.restoring?'Restore the hauler in the Hangar':short(tp,T),why:needs(T,'transport')});   // the onboarding hauler step
   } else {
-    const n=r.ships||r.team;
-    out.push({ok:ablePilots().length>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available'});
-    out.push({ok:shipPool(r).length>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':'')});
+    const n=r.ships||r.team,ap=ablePilots().length,shp=shipPool(r).length,w=r.starfighter?'Starfighter':'Ship';
+    out.push({ok:ap>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Pilot'),detail:short(ap,r.team),why:needs(r.team,'pilot')});
+    out.push({ok:shp>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':''),brief:pl(n,w),
+      detail:r.starfighter&&!shp&&G.fighters.length?'A transport won’t do':short(shp,n),why:needs(n,w.toLowerCase())});
   }
   for(const it of r.items||[]){
     const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);
-    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span class="sr-faint">(have '+have+')</span>'});
+    out.push({ok:have>=it.n,label:it.n+' '+it.label+(it.n>1?'s':'')+' in the armory <span class="sr-faint">(have '+have+')</span>',brief:pl(it.n,it.label),detail:'Have '+have,why:needs(it.n,it.label)});
   }
   if(r.spec){
-    out.push({ok:soldierPool().some(p=>hasSpec(p,r.spec.key)),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint});
+    out.push({ok:soldierPool().some(p=>hasSpec(p,r.spec.key)),soft:true,label:'1 '+r.spec.label+' available',hint:r.spec.hint,brief:'1 '+r.spec.label,detail:r.spec.hint||'None available',why:needs(1,r.spec.label)});
   }
   const need=minFuel(m);
-  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need,G.fuel<need)+' <span class="sr-faint">(have '+Math.floor(G.fuel)+')</span>'});
+  out.push({ok:G.fuel>=need,label:'Fuel for the sortie: '+F(need,G.fuel<need)+' <span class="sr-faint">(have '+Math.floor(G.fuel)+')</span>',brief:need+' Fuel',detail:'Have '+Math.floor(G.fuel),why:'Needs more fuel'});
   return out;
 }
 function canAttempt(m){return precondList(m).every(c=>c.ok);}
@@ -7964,6 +8200,11 @@ const MIGRATIONS=[
     }
     for(const t of G.dip||[])if(!t.pid){const d=G.people.find(q=>q.name===t.by);t.pid=d?d.id:null;}
   },
+  /* the Missions tab (docs/ui/SCREENS-HANDOFF.md §4): a mission flags itself New until it has been looked at
+     (m.seen). Jobs already on an older save's board have been seen in the old popup. */
+  function(){
+    for(const m of G.missions||[])m.seen=1;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -8041,7 +8282,7 @@ function enter(params){
   syncUI();renderNews();
 }
 function exit(){
-  closeMenu();setDrawer(false);
+  closeMenu();setDrawer(false);closeMissions();
   closeWin();closeTilePop();
   saveSnap();
 }
