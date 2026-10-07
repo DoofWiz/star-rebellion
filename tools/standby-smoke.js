@@ -45,6 +45,19 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     for(const k of ['barracks','command','infirmary']){f.enterRoom(k);}
     f.exitRoomView();
   }catch(e){out.err=e.message;}
+  // a walker stepping onto the next tile is drawn after it (it used to paint over them for half a step), after a
+  // room behind them and before a room in front of them
+  {
+    const items=[],seq=[];
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(r!==0&&r!==3)items.push({d:r+c,r,c,fn:()=>seq.push('t'+r+c)});
+    items.push({d:0.1,cells:[[0,0],[0,1],[0,2],[0,3]],fn:()=>seq.push('back')});    // a room along the north
+    items.push({d:3.1,cells:[[3,0],[3,1],[3,2],[3,3]],fn:()=>seq.push('front')});   // and one along the south
+    const rr=1,cc=1.4;   // walking east, 40% of the way from (1,1) to (1,2)
+    items.push({d:Math.ceil(rr)+Math.ceil(cc)+0.5,on:[[1,1],[1,2]],fn:()=>seq.push('walker')});
+    for(const it of f.baseDrawOrder(items))it.fn();
+    const at=k=>seq.indexOf(k);
+    out.walkOrder=[at('walker')>at('t12'),at('walker')>at('t11'),at('walker')>at('back'),at('walker')<at('front')].join();
+  }
   // an older save: Rest was everyone's default, so they stand up onto Standby
   const old=JSON.parse(JSON.stringify(G()));
   old.v=9;for(const p of old.people)if(!p.auto&&p.assign==='standby')p.assign='rest';
@@ -66,6 +79,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.clicked==='rest'&&r.clicked2==='standby','the buttons set the assignment '+[r.clicked,r.clicked2]);
  ok(r.work==='Working','a rebel posted to a room is Working '+r.work);
  ok(!r.err&&r.lounge==='barracks','the scene draws them, and they hang about the Barracks '+[r.err,r.lounge]);
+ ok(r.walkOrder==='true,true,true,true','a walker is drawn over the tile they step onto, after the room behind, before the room in front '+r.walkOrder);
  ok(r.migr==='standby','an older save: resters stand up onto Standby '+r.migr);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  await b.close();

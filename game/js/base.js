@@ -3145,16 +3145,19 @@ function corridorRuns(){
   return runs.sort((a,b)=>b.n-a.n);
 }
 /* far to near. Rock is raised, so its cliffs must overlap the rooms behind it, and room walls must overlap the rock
-   behind them: a tile south or east of a room is drawn after it, one north or west before it, and the rest by depth */
+   behind them: a tile south or east of a room is drawn after it, one north or west before it, and the rest by depth.
+   Someone walking (an item with `on`, the tiles their figure overlaps) is drawn after every one of those tiles, so the
+   tile they are stepping onto never paints over them, and like a tile against the rooms round those tiles. */
 function baseDrawOrder(items){
-  const roomAtCell=new Map();
-  items.forEach((it,i)=>{if(it.cells)for(const [r,c] of it.cells)roomAtCell.set(r+','+c,i);});
+  const roomAtCell=new Map(),tileAt=new Map();
+  items.forEach((it,i)=>{if(it.cells)for(const [r,c] of it.cells)roomAtCell.set(r+','+c,i);else if(it.r!==undefined)tileAt.set(it.r+','+it.c,i);});
   const after=items.map(()=>new Set()),need=items.map(()=>0);
   const edge=(a,b)=>{if(a!==b&&!after[a].has(b)){after[a].add(b);need[b]++;}};
   const near=(r,c,dirs)=>{const s=new Set();for(const [dr,dc] of dirs){const i=roomAtCell.get((r+dr)+','+(c+dc));if(i!==undefined)s.add(i);}return s;};
   const BEHIND=[[-1,0],[0,-1],[-1,-1]],AHEAD=[[1,0],[0,1],[1,1]];
   items.forEach((it,i)=>{
-    const cells=it.cells||(it.r!==undefined?[[it.r,it.c]]:[]);
+    const cells=it.cells||it.on||(it.r!==undefined?[[it.r,it.c]]:[]);
+    if(it.on)for(const [r,c] of it.on){const j=tileAt.get(r+','+c);if(j!==undefined)edge(j,i);}   // the floor under them first
     const back=new Set(),front=new Set();
     for(const [r,c] of cells){near(r,c,BEHIND).forEach(j=>back.add(j));near(r,c,AHEAD).forEach(j=>front.add(j));}
     for(const j of back)if(!front.has(j))edge(j,i);   // a room behind it is drawn first, one ahead of it after it
@@ -3244,7 +3247,8 @@ function renderBase(now){
   free.slice(0,walkers).forEach((p,i)=>{
     const run=runs[i],len=run.n,ph=((t*0.6/Math.max(1,len))+i*0.37)%2,k=ph<1?ph:2-ph,back=ph>=1;
     const rr=run.r0+(run.r1-run.r0)*k,cc=run.c0+(run.c1-run.c0)*k,along=run.c1>run.c0;
-    items.push({d:rr+cc+0.5,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
+    const on=[[Math.floor(rr),Math.floor(cc)],[Math.ceil(rr),Math.ceil(cc)]];   // the tile they are on and the one they are stepping onto
+    items.push({d:Math.ceil(rr)+Math.ceil(cc)+0.5,on,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
       SA.character(ctx,wx,wy+4*S,personSpec(p),{view:'side',dir:(along?1:-1)*(back?-1:1),state:'walk',t:t+i,s:0.4*S});}});
   });
   for(const it of baseDrawOrder(items))it.fn();
@@ -9235,7 +9239,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
+    fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
       openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
