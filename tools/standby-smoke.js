@@ -64,6 +64,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const keep=D.G;D.G=old;f.upgradeSave();
   out.migr=[...new Set(old.people.filter(p=>!p.auto&&!String(p.assign).startsWith('room:')).map(p=>p.assign))].join();
   D.G=keep;
+  // an older save from before the planet Brakka became Akkaro: every id, key and line is renamed, case kept
+  {
+    const old2=JSON.parse(JSON.stringify(G()));old2.v=10;
+    const pl=old2.planets&&old2.planets.find(p=>p.id==='akkaro');if(pl){pl.id='brakka';pl.name='Brakka';}
+    old2._probe={brakka:'op_brakka_flats',list:['Dustfall, Brakka','BRAKKA']};
+    D.G=old2;f.upgradeSave();
+    const left=JSON.stringify(old2).match(/brakka/gi);
+    out.renamed=[!left,old2._probe.akkaro,old2._probe.list.join('|'),!pl||(pl.id==='akkaro'&&pl.name==='Akkaro')].join();
+    D.G=keep;
+  }
   G().people=G().people.filter(p=>p!==doc);
   return out;
  });
@@ -80,6 +90,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.work==='Working','a rebel posted to a room is Working '+r.work);
  ok(!r.err&&r.lounge==='barracks','the scene draws them, and they hang about the Barracks '+[r.err,r.lounge]);
  ok(r.walkOrder==='true,true,true,true','a walker is drawn over the tile they step onto, after the room behind, before the room in front '+r.walkOrder);
+ ok(r.renamed==='true,op_akkaro_flats,Dustfall, Akkaro|AKKARO,true','an older save: Brakka becomes Akkaro everywhere, keys too '+r.renamed);
  ok(r.migr==='standby','an older save: resters stand up onto Standby '+r.migr);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  await b.close();

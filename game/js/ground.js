@@ -63,11 +63,11 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
-  title:'Steal the Cross',sub:'Dustfall · Brakka',
+  title:'Steal the Cross',sub:'Dustfall · Akkaro',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
   banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
   brief:{
-    eyebrow:'Ground Operation \u00b7 Dustfall, Brakka',
+    eyebrow:'Ground Operation \u00b7 Dustfall, Akkaro',
     flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff’s HQ. Sheriff Reeve enforces Hegemony law here, so that makes him and his men targets.',
     objectives:[
       'Get the Pilot to the Ship on the landing pad north-east of town',
@@ -161,7 +161,7 @@ stealcross:{
 stealfuel:{
   mode:'stealfuel',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:true,hasTurret:false,hasGraf:true,tumbleweed:true,
-  sub:'Redrock Flats · Brakka',
+  sub:'Redrock Flats · Akkaro',
   towerLabel:'WATCHTOWER',
   lamps:[[1640,360],[1810,540],[1260,560],[900,820],[1560,760]],
   LZ:{x:260,y:1190,r:130},PAD:{x:1700,y:440,r:150},

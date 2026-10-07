@@ -222,7 +222,7 @@ The three layers now run as **one playable game** (`game/index.html` +
   jobs (one per region) and a check-in whose ending depends on how you played. Engineer, CEO, Professor and Double
   Agent sources now exist too.
 - **Steal Fuel (first Tier 1 mission).** Cass sends you to the Redrock tithe depot on
-  Brakka: reach the depot, call the Marta down onto the apron, hold the pumps for five rounds
+  Akkaro: reach the depot, call the Marta down onto the apron, hold the pumps for five rounds
   while reinforcements arrive, then board. It pays 60 Fuel. Regions are land only; space
   missions never belong to a region.
 
@@ -405,7 +405,7 @@ a large starmap — core worlds are always known but expensive, frontier worlds
 are cheap or entirely uncharted, and the player starts with access to only
 Veray Yards and Relay Kess near the base. **Intel is spent to scout** a world,
 which grants access (missions, sources, signals there) and a pathfinder report
-with whatever the scouts found: new missions (Brakka's Steal the Cross ground
+with whatever the scouts found: new missions (Akkaro's Steal the Cross ground
 op, Dreymar's ore barge, Volund's manifests), source candidates (Marr on
 Callis, Customs Chief Renn on Meridian), caches, or honest duds. Scout costs scale with the world:
 a wild rock runs 3 intel, the Capital 14. *GDD note*: the GDD defines Intel as
@@ -430,7 +430,7 @@ enlisted ranks (Recruit → Sergeant Major) via `rankFor()`.
 
 ### `ground-combat.html` — Mission: Steal the Cross (first ground scenario)
 
-First pass at ground combat, playable from Brakka's scout report in the base
+First pass at ground combat, playable from Akkaro's scout report in the base
 layer ("Fight it on the ground") or standalone. Rev Level 1 framing: the squad
 are civilians with stolen Aklis and no armor; the opposition is basically
 police with civilian-grade gear.

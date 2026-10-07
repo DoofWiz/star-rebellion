@@ -763,7 +763,7 @@
 .gx-region__cap{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;background:var(--sr-gold);border-radius:2px;box-shadow:0 0 0 1px var(--sr-ink);}
 .gx-region__p{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-align:right;color:var(--sr-text-2);}
 
-/* "On Brakka": the sources, missions and jobs at this world, as rows */
+/* "On Akkaro": the sources, missions and jobs at this world, as rows */
 .gx-here{display:flex;flex-direction:column;gap:6px;}
 .gx-here .sr-unit{padding:7px 10px 7px 12px;gap:10px;}
 .gx-here .sr-avatar{width:32px;height:32px;}

@@ -497,11 +497,11 @@ Each location has four statistics:
   Quarter tasks.
 - **Liberation** (0–100%): derived from the liberation of the location's **regions and
   settlements** (Hegemony-controlled, contested, revolution-controlled).
-- **Onboarding worlds** (Haven Rock, Brakka, Veray Yards, Relay Kess) sit close together
-  near the base and all start with **Access 1**. Brakka is a general frontier backwater
+- **Onboarding worlds** (Haven Rock, Akkaro, Veray Yards, Relay Kess) sit close together
+  near the base and all start with **Access 1**. Akkaro is a general frontier backwater
   with two regions: **Dustfall** (where *Steal the Cross* happens) and **Redrock Flats**
   (*Steal Fuel*). Story missions only *start* a region's liberation (*Steal the Cross* adds
-  10%); they never finish one. Brakka's repeatable local ops only open once the onboarding is
+  10%); they never finish one. Akkaro's repeatable local ops only open once the onboarding is
   finished.
 - **Regions are land only.** Space combat is auto-generated in orbit over a location and never
   belongs to a region, so space missions (Cook the Depots, fuel-hauler skims, relay taps) carry
@@ -604,7 +604,7 @@ too, on top of loot.
 
 ### Steal Fuel (built, the first Tier 1 mission)
 Given by Cass Wender once the depot run is done (he also reaches out on his own). Played on
-**Redrock Flats, Brakka** as a ground operation: (1) **reach the fuel depot**, (2) **call in
+**Redrock Flats, Akkaro** as a ground operation: (1) **reach the fuel depot**, (2) **call in
 the Marta**, who flies from the LZ and lands on the loading apron (this wakes the depot),
 (3) **defend her while the tanks fill: 5 rounds** (or ~6 seconds each out of combat), and only
 while at least one rebel holds the apron. Reinforcement waves arrive after rounds 1 and 3,
@@ -878,7 +878,7 @@ or by our own Intelligence**, and is never "done for good".
   mission report use the context's place and target. Rewards scale ×(1+12% per Security above 1)
   and Security 3+ worlds add **+2 / +4 / +6 auxiliary guards** (Security 3, 4, 5).
 - **Story first, then the network.** Each Source's first job keeps its scripted story context
-  (Brakka, Kiln Ridge, Tollgate, Data Flats). After that, a Source with a matching specialty
+  (Akkaro, Kiln Ridge, Tollgate, Data Flats). After that, a Source with a matching specialty
   (`SRC_OFFERS`: e.g. Tess offers Auto Factory / Fuel / Rescue) sends fresh contexts at any
   Access 1+ world with regions.
 - **Intelligence leads** (Opportunities) pick a type at random for the world and spawn an

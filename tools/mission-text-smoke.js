@@ -41,7 +41,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
  // ---- the board: a deployment's words come from its type; the transport is not picked yet
  const bd=await pg.evaluate(()=>{
   const D=window.DBGbase,f=D.fn,G=()=>D.G,out={};
-  const m=f.spawnMission('fuel',{loc:'brakka',region:'flats',target:'fuel store'});
+  const m=f.spawnMission('fuel',{loc:'akkaro',region:'flats',target:'fuel store'});
   out.obj=m.objectives.join(' | ');out.desc=m.desc;out.tpl=m.tpl===undefined;
   // an older save's mission with its own copy of the words: the migration drops it, the type's words come back
   const old=f.spawnMission('towers',{loc:'parity',region:'dataflats'});
@@ -57,7 +57,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
   const s1=mk('ts1','Soldier'),s2=mk('ts2','Soldier'),s3=mk('ts3','Soldier'),pl=mk('tp1','Pilot');
   G().fighters.push(f.newFighter({id:'h2',name:'Hauler 2',cls:'graf',hull:100}));
   G().fuel=500;
-  const mm=f.spawnMission('fuel',{loc:'brakka',region:'flats',target:'fuel store'});
+  const mm=f.spawnMission('fuel',{loc:'akkaro',region:'flats',target:'fuel store'});
   mm.state='avail';G().missions.push(mm);
   f.openPlan(mm);
   const PL=f.getPL();
@@ -95,7 +95,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
    const tag=sc+(win?' (win)':' (lose)');
    ok(!left(all),tag+': no {variable} left: '+all.match(/\{\w+\}/));
    ok(!/Marta|\bGraf\b/.test(all),tag+': nothing names the Marta');
-   ok(!/Brakka|Redrock|Kiln Ridge|Tollgate|Data Flats|Parity|herder|tithe/i.test(all),tag+': nothing from the first story deployment leaks in');
+   ok(!/Akkaro|Redrock|Kiln Ridge|Tollgate|Data Flats|Parity|herder|tithe/i.test(all),tag+': nothing from the first story deployment leaks in');
    if(win){
     if(r.usesTransport)ok(/Hauler 2/.test(r.brief+r.objs),tag+': the briefing and objectives name the transport picked');
     ok(/Saltreach/.test(r.arrive)&&r.lz==='LZ'&&r.title==='Test Job',tag+': arrival call, LZ and title follow the context '+[r.arrive,r.lz,r.title]);

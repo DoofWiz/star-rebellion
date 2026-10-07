@@ -141,7 +141,7 @@ A new top-level tab, **after Missions**: Base · Galaxy · Missions · **Intelli
 ### 3.2 Stage: the network graph
 - **Nodes** (absolutely positioned buttons over an SVG edge layer):
   - **Intelligence Centre** (`.in-node--hub`, base icon), labelled with its world only, e.g. "Haven Rock". **No "no Leads" text.**
-  - **Agents** (`.in-node--agent`): initials disc with a red ring, name, and ⚑ **"{posted location} Cell"** with a world dot (e.g. "Brakka Cell", "Veray Yards Cell").
+  - **Agents** (`.in-node--agent`): initials disc with a red ring, name, and ⚑ **"{posted location} Cell"** with a world dot (e.g. "Akkaro Cell", "Veray Yards Cell").
     - ⚑ **Cell capacity sits on the icon** as an `.in-cap` pill ("2/2").
     - A Lead on the Agent shows a red target badge; a pending Lead (their Source is under interrogation) shows an orange eye badge. Both have hover text.
   - **Sources** (`.in-node--src`): initials, name, location with a world dot, and an `.in-risk` ring (orange, filled to Risk %; title "Risk n%").
@@ -285,7 +285,7 @@ This is a redesign of the planning window. Today's version shows everything at o
 - Mission Control shows unstaffed or staffed correctly.
 
 ## 5. Placeholders in the mock (not for the build)
-- Agent names (Ilka Vos, Teodor Kade, Nim Sarro), their stats and cells, Day 31, and Vos's Lead "from a sweep on Brakka".
+- Agent names (Ilka Vos, Teodor Kade, Nim Sarro), their stats and cells, Day 31, and Vos's Lead "from a sweep on Akkaro".
 - Approach flavour "dead drop · unsigned".
 - The Loop popover line.
 - Tam Reyes's and Talia Okafor's faces (sprite stand-ins).

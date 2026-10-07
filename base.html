@@ -492,10 +492,10 @@ const MPOOL={
   chart:{name:'Chart the Cordon',from:'Prof. Marr',need:2,days:2,riskTxt:'Low',
     desc:'Fly Marr’s survey corridor and map what the Hegemony thinks is hidden.',
     rew:{i:4,xp:0.1}},
-  garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
+  garrison:{name:'Akkaro Garrison Raid',from:'Scout Report · Akkaro',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:60,s:25,xp:0.12}},
-  stealcross:{name:'Steal the Cross',from:'Scout Report · Brakka',need:3,days:2,riskTxt:'Moderate',
+  stealcross:{name:'Steal the Cross',from:'Scout Report · Akkaro',need:3,days:2,riskTxt:'Moderate',
     play:true,url:GROUND_URL,playTxt:'Fight it on the ground',ground:true,
     desc:'Dustfall keeps one FT-4 Cross on the pad behind the sheriff’s HQ. The FT-4 is built for frontier sheriffs who need something cheap and reliable to deter smugglers and gangs in their turf. When you strap more guns and missiles to it however, it becomes rather useful in a pinch. Sheriff Reeve enforces Hegemony law here. Put Sera on the stick and walk her to the pad.',
     rew:{cross:1,c:120,s:30,xp:0.2}},
@@ -542,7 +542,7 @@ const PLANETDEF=[
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
   {id:'kess',name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.19,y:0.44,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'brakka',name:'Brakka',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
+  {id:'akkaro',name:'Akkaro',kind:'Backwater',pop:'120K',x:0.42,y:0.80,known:true,scout:3,
    sit:'Dust, herders, and the frontier town of Dustfall — where Sheriff Reeve keeps Hegemony law and one FT-4 Cross on the pad.'},
   {id:'callis',name:'Callis',kind:'Academic World',pop:'300M',x:0.55,y:0.30,known:true,scout:7,
    sit:'Universities, observatories, and a professor with a labor-camp grudge waiting for a signal.'},
@@ -875,7 +875,7 @@ function scoutPlanet(id){
   news('Scout report: <b>'+d.name+'</b> charted. We have access.','r');
   const lines=[(wasKnown?'Eyes on '+d.name+' at last.':'The uncharted signal resolves: <b>'+d.name+'</b>, '+d.kind.toLowerCase()+'.'),d.sit];
   // what the scouts turned up
-  if(id==='brakka'){addMission('stealcross');lines.push('A sheriff town called Dustfall. One FT-4 Cross on the pad, and the deputies patrol like the war’s already won. There’s a theft in this.');}
+  if(id==='akkaro'){addMission('stealcross');lines.push('A sheriff town called Dustfall. One FT-4 Cross on the pad, and the deputies patrol like the war’s already won. There’s a theft in this.');}
   else if(id==='dreymar'){addMission('orehaul');lines.push('Payday barge, no escort. The miners practically drew us a map.');}
   else if(id==='volund'){addMission('foundry');lines.push('A clerk in freight control sells manifests. There’s a job here.');}
   else if(id==='callis'){G.candQ.push('marr');lines.push('And a dead drop was waiting for us — someone at the Institute knew we’d come.');}
@@ -2073,7 +2073,7 @@ function boot(data){
     for(const f of G.fighters)if(f.cls==='viper')f.cls='cross';
     // refresh static mission fields (play links, ground flags) from the pool
     for(const m of G.missions)if(MPOOL[m.id])for(const k in MPOOL[m.id])if(!(k in {state:1,progress:1,meta:1}))m[k]=MPOOL[m.id][k];
-    const bk=G.planets&&G.planets.find(p=>p.id==='brakka');
+    const bk=G.planets&&G.planets.find(p=>p.id==='akkaro');
     if(bk&&bk.scouted&&!G.missions.some(m=>m.id==='stealcross'))addMission('stealcross');
     // event/signal functions can't survive serialization — rebind from pools
     for(const s of G.sources){

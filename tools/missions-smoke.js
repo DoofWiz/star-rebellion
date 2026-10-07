@@ -39,7 +39,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.ground={holo:($('.bf-proj')||{}).getAttribute('data-holo'),pin:!!$('.bf-proj .bf-pulse'),label:($('.bf-title')||{}).textContent,
     title:($('.bf-brief__title')||{}).textContent,sel:card('stealcross').classList.contains('is-sel'),
     calls:$$('.bf-callout').map(e=>e.querySelector('b').textContent+(e.classList.contains('is-foe')?'!':'')).join(','),
-    loc:($('.bf-loc span')||{}).textContent,map:!!$('.bf-loc [data-msmap="brakka"]'),
+    loc:($('.bf-loc span')||{}).textContent,map:!!$('.bf-loc [data-msmap="akkaro"]'),
     facts:$$('.bf-fact').map(e=>e.querySelector('span').textContent+'='+e.querySelector('b').textContent).join(','),
     quote:[$('.bf-quote')&&getComputedStyle($('.bf-quote')).webkitLineClamp,!!($('.bf-quote')||{}).title],
     reqs:$$('.bf-req').map(e=>(e.classList.contains('is-ok')?'+':'-')+e.querySelector('span').textContent+(e.querySelector('em')?'('+e.querySelector('em').textContent+')':'')),
@@ -79,10 +79,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.cards===3&&r.pips.join()==='3,1,2','cards with risk pips (high 3, low 1, moderate 2) '+r.cards+' '+r.pips);
  ok(r.newFlag==='New','a fresh mission is flagged New '+r.newFlag);
  const g=r.ground;
- ok(g.holo==='ground'&&g.pin&&g.label==='Brakka · Dustfall','ground: the region pin, the label world · region '+[g.holo,g.pin,g.label]);
+ ok(g.holo==='ground'&&g.pin&&g.label==='Akkaro · Dustfall','ground: the region pin, the label world · region '+[g.holo,g.pin,g.label]);
  ok(g.title==='Steal the Cross'&&g.sel,'selecting a card swaps the briefing '+g.title);
  ok(g.calls==='Target,Opposition!,Extract','the holo callouts, Opposition in Hegemony blue '+g.calls);
- ok(g.loc==='Brakka · Dustfall'&&g.map,'the location line and Show on map');
+ ok(g.loc==='Akkaro · Dustfall'&&g.map,'the location line and Show on map');
  ok(g.facts==='Risk=Moderate,Travel time=2 days,Max squad size=3','the three fact tiles '+g.facts);
  ok(g.quote[0]==='3'&&g.quote[1],'the pitch is clamped to 3 lines with the full text in its title '+g.quote);
  ok(g.reqs[0]==='+3 Soldiers'&&/^-2 Pilots\(Only 1 available\)$/.test(g.reqs[1])&&/^-1 Transport/.test(g.reqs[2])&&/^\+24 Fuel$/.test(g.reqs[3]),'count-first requirements '+g.reqs.join(' | '));

@@ -841,11 +841,11 @@ const MPOOL={
   chart:{name:'Chart the Cordon',from:'Prof. Marr',need:2,days:2,riskTxt:'Low',
     desc:'Fly Marr’s survey corridor and map what the Hegemony thinks is hidden.',
     rew:{i:4,xp:0.1}},
-  garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
+  garrison:{name:'Akkaro Garrison Raid',from:'Scout Report · Akkaro',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:240,s:100,xp:0.12}},
   depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
-    desc:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
+    desc:'Four Hegemony fuel depots hang in orbit over Akkaro, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
     rew:{i:5,xp:0.2}},
   stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
     lead:'ground',leadTxt:'Fight it on the ground',ground:true,
@@ -896,7 +896,7 @@ const PLANETDEF=[
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
   {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.13,y:0.58,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'brakka',sec:1,sup:3,name:'Brakka',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
+  {id:'akkaro',sec:1,sup:3,name:'Akkaro',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
    sit:'Dust, herders and a scatter of frontier towns the Hegemony never bothered to garrison properly. The law is whoever wears the badge. Small stakes, soft targets, and a good place for a rebellion to learn its trade.',
    regions:[
     {id:'dustfall',name:'Dustfall',kind:'Settlement',blurb:'A frontier town: one cantina, one landing pad and one sheriff.',
@@ -957,11 +957,11 @@ const PLANETDEF=[
      op:{name:'Free the Quota Block',desc:'A night transfer, a locked dormitory and a hundred names someone wants off the list.',c:30,s:50}},
    ]},
 ];
-const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
+const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'akkaro',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
 
 /* ---------- galaxy view statics (docs/ui/GALAXY-HANDOFF.md §7; cosmetic, never saved) ---------- */
 /* hyperlanes: a static picture of how the drift hangs together; no travel rules */
-const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','veray'],['veray','menk'],['brakka','menk'],
+const LANES=[['haven','kess'],['haven','akkaro'],['haven','veray'],['kess','veray'],['veray','menk'],['akkaro','menk'],
  ['kess','oubli'],['oubli','sable'],['sable','parity'],['veray','parity'],['parity','callis'],['parity','ballakan'],
  ['menk','dreymar'],['dreymar','ballakan'],['ballakan','volund'],['menk','nyx'],['nyx','volund'],['callis','tarsis'],
  ['callis','meridian'],['tarsis','meridian'],['meridian','halcyon'],['halcyon','volund'],['ballakan','callis']];
@@ -970,7 +970,7 @@ const WORLD_LOOK={
   haven:{R:12,col:'#7a6656',tex:'craters',home:true},
   veray:{R:12,col:'#c0623a',tex:'bands'},
   kess:{R:8,col:'#9aa6c4'},
-  brakka:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
+  akkaro:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
   callis:{R:12,col:'#4fb0a0',tex:'cap'},
   meridian:{R:17,col:'#ffd866',tex:'bands',ring:true,heg:true},
   volund:{R:16,col:'#d0563a',tex:'cracks',heg:true},
@@ -1006,7 +1006,7 @@ const REGION_DECOR={
 const ACC_CAP=[0,20,40,60,80,100];
 const supCol=i=>[K.hegDeep,K.heg,K.steel,K.rebelHi,K.rebel][Math.max(0,Math.min(4,i))];   // low support = Hegemony blue … high = rebel red
 const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
-  garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
+  garrison:'akkaro',depotrun:'akkaro',stealcross:'akkaro',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
 MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=10;   // a first foothold, not a liberation
 // space combat happens in orbit over a world, never in a region: Cook the Depots has none
@@ -1034,7 +1034,7 @@ const MEXTRA={
   foundry:{objectives:['Copy the Forge freight manifests']},
 };
 MEXTRA.stealcross.after=['<b>WENDER:</b> “You actually did it. A Cross, flying, and a sheriff who will never live it down. The cantinas are already talking. Keep your head down and your ears open. Somebody in Dustfall is going to want to thank you.”'];
-MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Brakka watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
+MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Akkaro watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
 MEXTRA.toi.after=['<b>HALT:</b> “The academy is in uproar. Vex is dead and nobody at the yards will say his name. Let me see what they do next.”'];
 MEXTRA.intercept.after=['<b>HALT:</b> “Supply transport missing, manifest clerk drinking at noon. You are a natural disaster, Commander.”'];
 MEXTRA.tanker.after=['<b>HALT:</b> “They are blaming the weather. The weather has an alibi. More soon.”'];
@@ -1085,7 +1085,7 @@ for(const k in MTYPE_DEFS){const t=MT.type(k);Object.assign(MTYPE_DEFS[k],{name:
 /* the first, scripted offer of each type keeps its original story context */
 const MSTORY={stealfuel:'fuel',rescue:'rescue',autofactory:'autofactory',stealintel:'intel'};
 const CTXDEF={
-  stealfuel:{src:'cass',loc:'brakka',region:'flats',target:'fuel depot'},
+  stealfuel:{src:'cass',loc:'akkaro',region:'flats',target:'fuel depot'},
   autofactory:{src:'tess',loc:'menk',region:'kilnridge',target:'AutoCom Plant'},
   rescue:{src:'pell',loc:'ballakan',region:'tollgate',target:'security outpost'},
   stealintel:{src:'cask',loc:'parity',region:'dataflats',target:'server farm'},
@@ -1178,7 +1178,7 @@ for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
     riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c*4,s:(r.op.s||0)*4,xp:0.12},loc:d.id,region:r.id,lib:20,
     objectives:['Reach the target in '+r.name,'Strike, then get clear'],type:'abstract'};
 }
-const OPX={op_menk_saltreach:{m:120},op_menk_kilnridge:{m:140},op_ballakan_canopy:{m:180},op_ballakan_sawmill:{m:120},op_brakka_flats:{m:100}};
+const OPX={op_menk_saltreach:{m:120},op_menk_kilnridge:{m:140},op_ballakan_canopy:{m:180},op_ballakan_sawmill:{m:120},op_akkaro_flats:{m:100}};
 for(const k in OPX)if(MPOOL[k])Object.assign(MPOOL[k].rew,OPX[k]);
 
 function mkPlanet(d){
@@ -1195,7 +1195,7 @@ function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
     bio:'Flew you in and didn’t ask questions. Knows every port, every price, and every sheriff’s bad habit between here and the core.'},
-  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:48},
+  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Akkaro',level:1,cult:30,risk:15,inc:{c:48},
     bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
 };
 function addStorySource(id){
@@ -1208,7 +1208,7 @@ function addStorySource(id){
 const CANDS={
   halt:{id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,inc:{s:24},
     bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.',
-    pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Brakka depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
+    pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Akkaro depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
   vokk:{id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,inc:{c:100},
     bio:'Votes loyal, funds otherwise. Terrified of audits.',
     pitch:'<b>Senator Adria Vokk</b> votes loyal and funds otherwise. Her courier found ours at Relay Kess with a first payment and one condition: no one ever says her name aloud.'},
@@ -1468,7 +1468,7 @@ function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
   if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
     src.signal={kind:'mission',mid:'stealcross',
-      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Brakka, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
+      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Akkaro, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
     G.onboard='revealed';
     return true;
   }
@@ -1501,7 +1501,7 @@ function storySignal(src){
   }
   if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
     src.signal={kind:'mission',mid:'depotrun',
-      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Brakka feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
+      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Akkaro feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
     return true;
   }
   return false;
@@ -1880,7 +1880,7 @@ function missionAftermath(mid){
     news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
     G.candQ.push('halt');
     G.candQ.push('vokk');
-    syncLocalOps('brakka',true);
+    syncLocalOps('akkaro',true);
   }
 }
 /* ---------- specialties (Training Center) ----------
@@ -9152,6 +9152,24 @@ const MIGRATIONS=[
      only a rebel told to Rest stays in their bunk. An older save cannot tell the two apart, so its resters stand up. */
   function(){
     for(const p of G.people)if(p.assign==='rest'||!p.assign)p.assign='standby';
+  },
+  /* 10 -> 11: the planet Brakka is renamed Akkaro, its id with it (brakka -> akkaro, op_brakka_flats -> op_akkaro_flats).
+     An older save holds the old name everywhere: planet and source ids, missions, operations, news and logs. Every
+     string and key in the save is renamed, keeping its case. (This upgrade and its test in standby-smoke are the only
+     places the old name is left in the project.) */
+  function(){
+    const OLD=/brakka/gi,ren=str=>str.replace(OLD,m=>m==='BRAKKA'?'AKKARO':m[0]==='B'?'Akkaro':'akkaro');
+    const walk=o=>{
+      if(Array.isArray(o)){for(let i=0;i<o.length;i++){if(typeof o[i]==='string')o[i]=ren(o[i]);else if(o[i]&&typeof o[i]==='object')walk(o[i]);}return;}
+      for(const k of Object.keys(o)){
+        let v=o[k];
+        if(typeof v==='string')v=ren(v);else if(v&&typeof v==='object')walk(v);
+        const k2=ren(k);
+        if(k2!==k)delete o[k];
+        o[k2]=v;
+      }
+    };
+    walk(G);
   },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes

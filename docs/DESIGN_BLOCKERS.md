@@ -423,7 +423,7 @@ Built from the handoff's §3 (`commHTML` in `game/js/base.js`, `game/ui/sr-comm.
 4. **Narration:** the bare "Cultivation increased." and a visit's "Cultivation +10" lines are gone (the meter shows
    them); a visit's "Their risk +6: being seen costs." stays as a log line. An answer's lines keep their numbers.
 5. **Sources have no portraits**, so the avatar is their initials.
-6. **The lead card** reads "Ground · Moderate risk · Brakka · Dustfall" for a ground lead and "Space · High risk"
+6. **The lead card** reads "Ground · Moderate risk · Akkaro · Dustfall" for a ground lead and "Space · High risk"
    (with "· {World} orbit" when the mission has a world) for a space one. Recruit and other signals add no
    mission, so they show no lead card.
 7. **Cass's transmission** puts "Unregistered freighter · voices masked" in the channel strip (it was the footer
@@ -747,7 +747,7 @@ entries.
 ### M-22 🟡 Galaxy view follow-ups from the handoff's own open questions
 1. **Locked and uncharted worlds don't dive in** — they open the docked panel at galaxy level, as the handoff
    ships it. Its proposal (dive in shrouded) waits on you.
-2. **Missions without a `region`** (e.g. Brakka Garrison Raid) fall back to the world's first settlement for
+2. **Missions without a `region`** (e.g. Akkaro Garrison Raid) fall back to the world's first settlement for
    markers and the region card's Local job. Adding `region` to `MPOOL` entries makes placement exact.
 3. **The phone World view** uses the provisional layout (planet on top, panels as a bottom sheet, minimap
    hidden) and needs its own design pass.
