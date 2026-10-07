@@ -251,6 +251,7 @@ function newGame(){
     ],
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],standby:[],
+    agents:[],agentSeq:0,exposure:0,leads:[],interrogations:[],
     news:[],
     v:saveVersion(),   // born at the current save version: no migration runs on it (MIGRATIONS below)
   };
@@ -258,6 +259,7 @@ function newGame(){
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
   {const keep=G;G=g0;g0.people.forEach(gearFromEquip);autoEquip();G=keep;}
   g0.morale=Rebel.MORALE_START;
+  {const ag=mkAgent('haven',g0);g0.agents.push(ag);for(const s of g0.sources)s.agent=ag.id;}   // the Network opens with one handler (§3)
   return g0;
 }
 
@@ -1545,25 +1547,25 @@ function followSignal(src){
 /* ---------- recruiting: the Command Center task ----------
    Issue it, wait a few days, and a handful of candidates turn up to be looked over on the New Recruit screen.
    A staffed Command Center and a Charismatic rebel both bring more people through the door. */
-const RECRUIT_DAYS=3,RECRUIT_COST=200;
+const RECRUIT_DAYS=3;
 const freeBunks=()=>Math.max(0,bunkCap()-bunksUsed());
-function canRecruit(){return hasRoom('command')&&!G.recruit.days&&!G.recWait.length&&G.credits>=RECRUIT_COST&&freeBunks()>0;}
-function recruitWhy(){
-  if(G.recruit.days)return 'Already out looking: '+G.recruit.days+' day'+(G.recruit.days>1?'s':'')+' left.';
-  if(G.recWait.length)return 'Candidates are waiting for your decision.';
-  if(G.credits<RECRUIT_COST)return 'Needs '+RECRUIT_COST+' credits.';
-  if(!freeBunks())return 'No bunks free. Build a quarters annex first.';
-  return '';
-}
-function startRecruit(){
-  if(!canRecruit())return;
-  G.credits-=RECRUIT_COST;G.recruit={days:RECRUIT_DAYS};
-  news('Word goes out through the docks and the dormitories. In <b>'+RECRUIT_DAYS+' days</b> we will see who answers.','a');
-  sBuild();saveSnap();syncUI();
-}
+/* the 200-credit Command Center drive retired with SCREENS-HANDOFF-2 §3.5: an Agent's Recruit operation runs the search */
 function recruitTick(){
   if(!G.recruit.days)return;
   if(--G.recruit.days>0)return;
+  // an Agent's search can turn up a potential source on their posted world instead of rebels (§3.5)
+  const ag=G.recruit.agent&&agentOf(G.recruit.agent);
+  if(ag){
+    const world=ag.postedTo;
+    const cand=Object.keys(CANDS).find(cid=>(CANDS[cid].locId||SRCPOS[cid])===world&&
+      !G.sources.some(s=>s.id===cid)&&!(G.candQ||[]).includes(cid)&&!(G.standby||[]).includes(cid));
+    if(cand&&(rng()<0.5||!freeBunks())){
+      G.candQ.push(cand);
+      news('<b>'+ag.name+'</b> turns up a potential source on '+pdef(world).name+'.','p');
+      sGood();return;
+    }
+    if(!freeBunks()){news('<b>'+ag.name+'</b> comes back empty-handed — no bunks for anyone new, and nobody on '+pdef(world).name+' worth a dead drop.','d');return;}
+  }
   const taken=new Set(G.people.map(p=>p.name).concat(G.poolHeld||[],G.recWait.map(p=>p.name)));
   let n=1+(crewIn('command').length?1:0)+(crewOf().some(p=>Rebel.has(p,'charismatic')&&!laidUp(p)&&p.assign!=='mission')&&rng()<0.5?1:0);
   n=Math.min(3,n,Math.max(1,freeBunks()));
@@ -1585,9 +1587,9 @@ function recruitCard(){
   if(G.recruit.days)body='Out looking. <b>'+G.recruit.days+' day'+(G.recruit.days>1?'s':'')+'</b> until someone turns up.';
   else if(G.recWait.length){body='<b>'+G.recWait.length+'</b> candidate'+(G.recWait.length>1?'s are':' is')+' waiting for your decision.';acts=rbtn('data-recruit-review','Review candidates',false,'sr-btn--sm sr-btn--primary');}
   else{
-    const why=recruitWhy();
-    body='Put the word out and see who answers. Takes '+RECRUIT_DAYS+' days; a staffed Command Center brings more people.';
-    acts='<span class="sr-card__meta">'+C(RECRUIT_COST,G.credits<RECRUIT_COST)+'</span>'+rbtn('data-recruit-start'+(why?' title="'+esc(why)+'"':''),'Recruit new Revolutionaries',!!why,'sr-btn--sm sr-btn--primary');
+    // the drive moved to the network (docs/ui/SCREENS-HANDOFF-2.md §3.5): an Agent's Recruit operation runs it
+    body='Recruiting runs through the network now: an Agent’s <b>Recruit</b> operation on the Intelligence tab searches their posted world for new Sources or Rebels.';
+    acts=rbtn('data-gointel','Intelligence',false,'sr-btn--sm sr-btn--ghost');
   }
   return '<div class="sr-card sr-card--friend"><div class="sr-card__title">Recruit new Revolutionaries</div><div class="sr-card__body">'+body+'</div>'+(acts?'<div class="bs-build__row">'+acts+'</div>':'')+'</div>';
 }
@@ -1777,23 +1779,23 @@ function advanceDay(){
   for(const src of G.sources){
     if(!src.alive)continue;
     src.visited=false;src.contacted=false;
+    const hA=agentOf(src.agent),hLow=!!(hA&&hA.lielow>0);
+    if(hLow){src.risk=Math.max(0,src.risk-3);continue;}   // Lie Low: risk bleeds off, nothing comes in
     if(src.inc.c)G.credits+=src.inc.c;
     if(src.inc.s)G.supplies+=src.inc.s*(handled.has(src.id)?1+RU.handling_bonus:1);
     if(src.inc.m)G.materials+=src.inc.m;
     if(src.inc.f)G.fuel+=src.inc.f;
     if(src.inc.i)G.intel+=src.inc.i*(procd.has(src.id)?1+RU.processing_bonus:1);
-    src.risk=Math.min(100,src.risk+(src.level===1?2:src.level===2?1:0.5));
+    const tcMul=hA?Math.max(0.4,1-hA.tradecraft/100):1;   // Tradecraft: his Sources gain less Risk
+    src.risk=Math.min(100,src.risk+(src.level===1?2:src.level===2?1:0.5)*tcMul);
     maybeQueueEvent(src);
     if(src.risk>70&&rng()<(src.risk-70)/220){
-      src.alive=false;
-      G.risk=Math.min(100,G.risk+15);
-      moraleAll(-6,'loss');
-      news('<b>'+src.name+'</b> has been BURNED. Counter-intelligence took them at '+src.loc+'. Assume they talk.','h');
-      sWarn();
+      captureSource(src);   // burned: the interrogation clock starts (docs/ui/SCREENS-HANDOFF-2.md §3)
     } else if(src.risk>70){
       news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Decide something before the Hegemony does.','h');
     }
   }
+  agentsTick();interrogationTick();bureauTick();
   // standby contacts wait on the Galaxy map (docs/ui/SCREENS-HANDOFF-2.md §2); the player reopens them there
   // the network comes through: Cass finds the pilot the Dustfall job needs
   if((G.onboard==='pilotwait'||G.onboard==='seraoffered')&&!G.people.some(p=>p.id==='sera')){
@@ -2356,6 +2358,10 @@ function nextReport(){
     if(!p||!p.merc||G.day<p.merc.until)return nextReport();
     sGood();openWin('contract',n.id);
   }
+  else if(n.t==='intg'){
+    if(!intgOf(n.id))return nextReport();
+    sWarn();openWin('interrogation',n.id);
+  }
   else if(n.t==='recruits'){
     if(!G.recWait.length)return nextReport();
     openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});
@@ -2436,7 +2442,7 @@ function resolveMission(m){
 const cultOf=(src,c0,l0)=>({from:c0,to:src.level>l0?100:src.cult,lvl0:l0,lvl1:src.level});
 function srcVisit(src){
   if(src.visited)return;
-  src.visited=true;
+  src.visited=true;src.met=1;   // a face-to-face source knows the way home (§3: what a capture gives up)
   const c0=src.cult,l0=src.level;
   src.cult=Math.min(100,src.cult+10);
   src.risk=Math.min(100,src.risk+6);
@@ -2508,16 +2514,16 @@ function srcSilence(src){
   news('The assassin reports in: <b>'+src.name+'</b> won’t be talking to anyone. The crew heard anyway.','h');
   sWarn();
   if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
-  closeWin();showView('galaxy');
+  closeWin();if(!inOpen)showView('galaxy');
   syncUI();
 }
 function srcCutLoose(src){
   src.alive=false;
   moraleAll(-6,'loss');
-  for(const o of G.sources)if(o.alive&&o!==src)o.cult=Math.max(0,o.cult-20);
-  news('<b>'+src.name+'</b> cut loose — codes burned, drops abandoned. The whole network feels the cold.','h');
+  for(const o of G.sources)if(o.alive&&o!==src&&o.agent===src.agent)o.cult=Math.max(0,o.cult-20);   // only this cell feels it (§3)
+  news('<b>'+src.name+'</b> cut loose — codes burned, drops abandoned. The '+(agentOf(src.agent)?pdef(agentOf(src.agent).postedTo).name+' cell feels':'cell feels')+' the cold.','h');
   if(srcSel&&srcSel.t==='s'&&srcSel.id===src.id)srcSel=null;
-  closeWin();showView('galaxy');
+  closeWin();if(!inOpen)showView('galaxy');
   syncUI();
 }
 function acceptCandidate(id){
@@ -2526,8 +2532,10 @@ function acceptCandidate(id){
   if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
   if(G.sources.filter(s=>s.alive).length>=sourceCap())return standbyCandidate(id);   // the window disables Take on when full
   G.standby=(G.standby||[]).filter(x=>x!==id);
-  G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
-    JSON.parse(JSON.stringify(cd))));
+  const nsrc=Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
+    JSON.parse(JSON.stringify(cd)));
+  assignCell(nsrc);
+  G.sources.push(nsrc);
   news('<b>'+cd.name+'</b> joins the network.','g');
   G.risk=Math.min(100,G.risk+4);
   closeWin();syncUI();
@@ -2789,7 +2797,8 @@ function missionCredit(m){
       if(to>cur){
         gain+=info.parts.lib=(to-cur)*REV_W.lib;
         news('<b>'+r.name+'</b> ('+d.name+'): liberation '+to+'%'+(to>=cap&&to<100?' — capped by '+(ACC_CAP[st.acc]<=ACC_CAP[Math.floor(st.sup)]?'Access':'Support')+'.':'.'),'p');
-        if(to>=100){gain+=info.parts.libFull=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');SR.transition('flag',{text:'LIBERATED'});}
+        expGain(INTEL_N.expLib,'liberation makes noise');
+        if(to>=100){gain+=info.parts.libFull=REV_W.libFull;news('<b>'+r.name+'</b> is LIBERATED. The flag goes up.','g');moraleAll(4,'win');flashMsg('<b>'+r.name+'</b> liberated','good');SR.transition('flag',{text:'LIBERATED'});expGain(INTEL_N.expLibFull,'a liberated region');}
       }
     }
   }
@@ -4559,7 +4568,8 @@ function renderGxBar(){
 function syncGxDOM(){
   const gal=baseView==='galaxy';
   ROOT.classList.toggle('gx-view',gal);
-  $('railBase').hidden=gal;$('railGx').hidden=!gal;
+  $('railBase').hidden=gal||inOpen;$('railGx').hidden=!gal;
+  $('railIntel').hidden=!inOpen;
   $('gxTools').hidden=!gal;
   const tabs=ROOT.querySelector('.sr-tabs');
   if(tabs)tabs.style.display=(gal&&gxWorld)?'none':'';
@@ -5338,6 +5348,10 @@ function renderWin(){
     size='';cls=' cm-win';
     h=candHTML(CANDS[winArg]||CANDS.marr);
   }
+  else if(winMode==='interrogation'){
+    size='';cls=' in-int';
+    h=interrogationHTML(winArg);
+  }
   else if(winMode==='missions'){
     let list='';
     for(const m of G.missions){
@@ -5423,7 +5437,7 @@ const msRisk=m=>/high/i.test(m.riskTxt)?3:/moder/i.test(m.riskTxt)?2:1;
 const MS_RISK_C=['','var(--sr-go)','var(--sr-gold)','var(--sr-hazard)'];
 const msLocked=m=>m.state==='locked';
 function openMissions(id){
-  closeTilePop();exitRoomView();closeArsenal();closeMarket();
+  closeTilePop();exitRoomView();closeArsenal();closeMarket();closeIntel();
   msOpen=true;
   if(id)msSel=id;
   $('msView').hidden=false;
@@ -5632,6 +5646,474 @@ function msClick(ev){
   const mp=t.getAttribute('data-mplan');
   if(mp){const m=G.missions.find(x=>x.id===mp);if(m&&canPlan(m)){sClick();openPlan(m);}return;}
 }
+
+/* ---------- the Intelligence tab: The Network (docs/ui/SCREENS-HANDOFF-2.md §3) ----------
+   A full stage view after Missions: the Intelligence Centre, its Agents and their cells of Sources as a graph,
+   the Bureau's Exposure, interrogations with their clocks, and Leads. Numbers the Network doc fixes are
+   placeholders here (C-42): the interrogation clock, exposure gains, band thresholds, agent stats and growth. */
+const INTEL_N={clock:4,expLead:4,expMission:2,expLib:1,expLibFull:6,disinfoCost:2,repostDays:2,repostCover:15,lieLowDays:3,sweepCalm:3};
+const EXP_BANDS=[
+  {k:'Low',max:24,c:'var(--sr-go)',does:'The Bureau files reports. Nothing moves unless we hand them a Lead.'},
+  {k:'Medium',max:49,c:'var(--sr-gold)',does:'An active desk: every Lead is worked within days, and leaded Sources run hotter.'},
+  {k:'High',max:74,c:'var(--sr-hazard)',does:'Field teams sweep leaded worlds, and handlers with Leads are traced.'},
+  {k:'Max',max:100,c:'var(--sr-c-bad)',does:'A task force. Anything with a Lead gets raided, and soon.'}];
+function expBand(){const e=G.exposure||0;return Math.max(0,EXP_BANDS.findIndex(b=>e<=b.max));}
+function expGain(n,why){
+  if(G.exposure===undefined)return;
+  const b0=expBand();
+  G.exposure=Math.max(0,Math.min(100,G.exposure+n));
+  if(expBand()>b0)news('Exposure has reached <b>'+EXP_BANDS[expBand()].k+'</b>'+(why?' — '+why:'')+'. '+EXP_BANDS[expBand()].does,'h');
+}
+const agentOf=id=>(G.agents||[]).find(a=>a.id===id);
+const srcById=id=>G.sources.find(s=>s.id===id);
+const cellOf=a=>G.sources.filter(s=>s.agent===a.id&&(s.alive||(s.captured&&intgOf(s.id))));
+const cellLive=a=>G.sources.filter(s=>s.agent===a.id&&s.alive);
+const agentCap=a=>a.cap+Math.max(0,sourceCap()-2);   // the base cell plus the Intelligence Centre's growth
+const agentCover=a=>Math.max(0,Math.round(a.cover-(a.moving?INTEL_N.repostCover:0)));
+const intgOf=srcId=>(G.interrogations||[]).find(ig=>ig.source===srcId);
+const agentLeads=a=>(G.leads||[]).filter(l=>l.target.kind==='agent'&&l.target.id===a.id);
+const srcLeads=s=>(G.leads||[]).filter(l=>l.target.kind==='source'&&l.target.id===s.id);
+const agentPending=a=>(G.interrogations||[]).some(ig=>{const s=srcById(ig.source);return s&&s.agent===a.id&&ig.expectedLeads.some(t=>t.kind==='agent'&&t.id===a.id);});
+const agentWorld=a=>pdef(a.postedTo)||pdef('haven');
+function mkAgent(world,g){
+  g=g||G;
+  const gen=Rebel.gen('Support',new Set(g.people.map(p=>p.name).concat((g.agents||[]).map(a=>a.name))),rng);
+  g.agentSeq=(g.agentSeq||0)+1;
+  return {id:'ag'+g.agentSeq,name:gen.name,level:1,xp:0,tradecraft:15,cover:70,rapport:20,cap:2,postedTo:world||'haven',moving:null,lielow:0,leads:[]};
+}
+/* a new source joins the cell with room, or the first agent's */
+function assignCell(src){
+  const a=(G.agents||[]).find(x=>cellLive(x).length<agentCap(x))||(G.agents||[])[0];
+  if(a)src.agent=a.id;
+}
+/* a burned source is captured: the interrogation clock starts, and what they hold becomes expected Leads */
+function captureSource(src){
+  src.alive=false;src.captured=1;
+  G.risk=Math.min(100,G.risk+15);
+  moraleAll(-6,'loss');
+  const a=agentOf(src.agent);
+  const expected=[];
+  if(a)expected.push({kind:'agent',id:a.id});
+  expected.push(src.met?{kind:'base'}:{kind:'location',id:SRCPOS[src.id]||src.locId||'veray'});   // a face-to-face source knows the way home
+  G.interrogations.push({source:src.id,daysLeft:INTEL_N.clock,clock:INTEL_N.clock,expectedLeads:expected});
+  news('<b>'+src.name+'</b> has been BURNED. Counter-intelligence took them at '+src.loc+' — under interrogation. Assume the clock is running.','h');
+  sWarn();
+  RQ.push({t:'intg',id:src.id});
+}
+function extractLeads(ig,cold){
+  const src=srcById(ig.source);
+  for(const t of ig.expectedLeads)G.leads.push({target:t,from:ig.source,day:G.day,cold:cold?1:0});
+  expGain(INTEL_N.expLead*ig.expectedLeads.length,'extracted Leads');
+  news('The Bureau breaks <b>'+(src?src.name:'a source')+'</b>. '+(cold?'The trail they give up is cold.':'Leads are moving.'),'h');
+}
+function endInterrogation(ig){G.interrogations=G.interrogations.filter(x=>x!==ig);}
+function interrogationTick(){
+  for(const ig of (G.interrogations||[]).slice()){
+    if(--ig.daysLeft>0)continue;
+    endInterrogation(ig);
+    const src=srcById(ig.source);
+    if(!ig.contained&&rng()<0.45)news('<b>'+(src?src.name:'Our source')+'</b> holds out. The Bureau gets nothing it can use.','r');
+    else extractLeads(ig,ig.contained);
+  }
+}
+/* what a rescue mission's return means for the clock it answered */
+function resolveRescue(ig,win){
+  endInterrogation(ig);
+  const src=srcById(ig.source);
+  if(win){
+    if(src){src.captured=0;src.saved=1;}
+    news('<b>'+(src?src.name:'The source')+'</b> is out — bruised, breathing, and off the Bureau’s table. No Leads.','g');
+  } else {
+    ig.expectedLeads.push({kind:'location',id:SRCPOS[ig.source]||'veray'});
+    extractLeads(ig,false);
+    news('The rescue failed, and the Bureau worked faster afterwards.','h');
+  }
+}
+/* the Bureau's day, scaled by the Exposure band: leaded nodes heat up; High and Max bands hunt */
+function bureauTick(){
+  const band=expBand();
+  for(const ld of G.leads||[]){
+    if(ld.cold)continue;
+    if(ld.target.kind==='source'){const s=srcById(ld.target.id);if(s&&s.alive)s.risk=Math.min(100,s.risk+1+band);}
+    if(ld.target.kind==='agent'){const a=agentOf(ld.target.id);if(a)a.cover=Math.max(0,a.cover-(band>=2?2:0.5));}
+  }
+  if(band>=2&&(G.leads||[]).some(l=>!l.cold)&&rng()<0.4){
+    const ld=G.leads.filter(l=>!l.cold)[0];
+    const w=ld.target.kind==='source'?(SRCPOS[ld.target.id]||'veray'):ld.target.kind==='agent'?(agentOf(ld.target.id)||{}).postedTo:ld.target.id;
+    const d=w&&pdef(w);
+    if(d){
+      for(const s of G.sources)if(s.alive&&(SRCPOS[s.id]||s.locId)===w)s.risk=Math.min(100,s.risk+4);
+      news('Bureau sweep on <b>'+d.name+'</b> — everyone we run there feels the heat.','h');
+    }
+  }
+  if(band>=3){
+    const a=(G.agents||[]).find(x=>agentLeads(x).length&&agentCover(x)<30);
+    const hot=a&&cellLive(a).sort((x,y)=>y.risk-x.risk)[0];
+    if(hot&&rng()<0.3)captureSource(hot);
+  }
+}
+function agentsTick(){
+  for(const a of G.agents||[]){
+    if(a.lielow>0)a.lielow--;
+    if(a.moving&&--a.moving.days<=0){
+      a.postedTo=a.moving.to;a.moving=null;
+      news('<b>'+a.name+'</b> has set up on '+agentWorld(a).name+'. The '+agentWorld(a).name+' Cell is open for business.','r');
+    }
+  }
+}
+/* ----- the agents' operations (costs and durations are C-42 placeholders) ----- */
+function agentRecruit(a){
+  if(G.recruit.days||G.recWait.length)return;
+  G.recruit={days:RECRUIT_DAYS,agent:a.id};
+  news('<b>'+a.name+'</b> works '+agentWorld(a).name+' for new blood — sources or rebels. <b>'+RECRUIT_DAYS+' days</b>.','a');
+  sBuild();saveSnap();syncUI();
+}
+function agentLieLow(a){
+  if(a.lielow>0)return;
+  a.lielow=INTEL_N.lieLowDays;
+  news('The '+agentWorld(a).name+' Cell goes quiet: <b>'+a.name+'</b> orders everyone to lie low for '+INTEL_N.lieLowDays+' days. Risk bleeds off; nothing comes in.','r');
+  syncUI();
+}
+function agentSweep(a){
+  const found=rng()<0.2;
+  for(const s of cellLive(a))s.risk=Math.max(0,s.risk-INTEL_N.sweepCalm);
+  news('<b>'+a.name+'</b> sweeps the '+agentWorld(a).name+' Cell for Bureau plants: '+(found?'a tail is spotted and shaken off — close one.':'clean, as far as anyone can tell.'),found?'h':'r');
+  syncUI();
+}
+function agentRepost(a,world){
+  if(a.moving)return;
+  a.moving={to:world,days:INTEL_N.repostDays};
+  news('<b>'+a.name+'</b> is in transit to '+pdef(world).name+' — Cover drops on the road. '+INTEL_N.repostDays+' days.','r');
+  inRepost=null;syncUI();
+}
+function agentDisinfo(a){
+  const ld=(G.leads||[]).find(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cellOf(a).some(s=>s.id===l.target.id))));
+  if(!ld||G.intel<INTEL_N.disinfoCost)return;
+  G.intel-=INTEL_N.disinfoCost;
+  G.leads=G.leads.filter(l=>l!==ld);
+  news('<b>'+a.name+'</b> feeds the Bureau a better story. A Lead goes cold chasing a decoy. '+I(INTEL_N.disinfoCost)+' spent.','r');
+  syncUI();
+}
+function srcExfiltrate(src){
+  src.alive=false;src.exfil=1;
+  news('<b>'+src.name+'</b> is pulled out ahead of the knock on the door. Safe, grateful, and no use to us now.','r');
+  if(inSel&&inSel.t==='src'&&inSel.id===src.id)inSel=src.agent?{t:'agent',id:src.agent}:null;
+  syncUI();
+}
+/* ----- the stage: the network graph ----- */
+let inOpen=false,inSel=null,inRepost=null;
+function openIntel(){
+  closeWin();closeTilePop();exitRoomView();closeArsenal();closeMarket();closeMissions();
+  if(baseView!=='base')setView('base');
+  inOpen=true;
+  if(!inSel&&(G.agents||[]).length)inSel={t:'agent',id:G.agents[0].id};
+  $('inView').hidden=false;
+  shell.classList.add('is-intel');
+  setDrawer(false);
+  setTopbar('Intelligence','Intelligence Centre · Haven Rock');
+  drawerLabel();
+  msGo(true);
+  renderIntel();syncTabs();syncGxDOM();
+}
+function closeIntel(){
+  if(!inOpen)return;
+  inOpen=false;inRepost=null;
+  $('inView').hidden=true;
+  shell.classList.remove('is-intel');
+  msGo(false);
+  setTopbar('Haven Rock','Hidden base');
+  drawerLabel();syncTabs();
+  if(started&&G)syncUI();
+}
+const inIni=n=>HUD.initials(n);
+const inTip=(a,b)=>HUD.tip?HUD.tip(a,b):'';
+function inNodeLayout(){
+  const agents=G.agents||[];
+  const rows=[];let total=0;
+  for(const a of agents){
+    const srcs=cellOf(a);
+    const free=Math.max(0,agentCap(a)-cellLive(a).length);
+    const h=Math.max(1,srcs.length+free);
+    rows.push({a,srcs,free,h});total+=h;
+  }
+  let y=0;
+  for(const r of rows){
+    r.y0=(y+r.h/2)/Math.max(1,total);   // the agent sits mid-cell
+    r.yTop=y/Math.max(1,total);
+    y+=r.h;
+  }
+  return {rows,total:Math.max(1,total)};
+}
+const inY=f=>21+f*62;   // vertical band of the stage, in %
+function renderIntel(){
+  if(!inOpen||!G)return;
+  const {rows,total}=inNodeLayout();
+  const hubY=50;
+  let nodes='',edges='';
+  nodes+='<div class="in-node in-node--hub" style="left:11%;top:'+hubY+'%"><span class="in-node__disc">'+IC('base')+'</span>'+
+    '<span class="in-node__name">Haven Rock</span></div>';
+  for(const r of rows){
+    const a=r.a,ax=36,ay=inY(r.y0),wd=agentWorld(a),lk=WORLD_LOOK[wd.id]||{col:'#9aa6c4'};
+    const leads=agentLeads(a).length,pending=agentPending(a);
+    edges+='<path d="M13 '+hubY+' L'+(ax-3)+' '+ay+'" stroke="var(--sr-rebel)" stroke-width="2" stroke-dasharray="2 5"'+inTip('Intelligence Centre','The Intelligence Centre handles '+a.name)+'/>';
+    nodes+='<button type="button" class="in-node in-node--agent'+(inSel&&inSel.t==='agent'&&inSel.id===a.id?' is-sel':'')+'" style="left:'+ax+'%;top:'+ay+'%" data-insel="agent:'+a.id+'">'+
+      '<span class="in-node__disc">'+esc(inIni(a.name))+
+      '<span class="in-cap">'+cellLive(a).length+'/'+agentCap(a)+'</span>'+
+      (leads?'<span class="in-badge in-badge--tr" style="--c:var(--sr-c-bad)"'+inTip('A Lead','The Bureau holds a Lead on '+a.name)+'>'+IC('targetlock')+'</span>':'')+
+      (pending?'<span class="in-badge in-badge--br" style="--c:var(--sr-hazard)"'+inTip('Lead pending','A Lead on '+a.name+' if their source talks')+'>'+IC('eye')+'</span>':'')+
+      '</span><span class="in-node__name">'+esc(a.name)+'</span>'+
+      '<span class="in-node__sub"><i style="--pc:'+lk.col+'"></i>'+esc(wd.name)+' Cell'+(a.moving?' · in transit':'')+'</span></button>';
+    let slot=0;
+    const items=r.srcs.map(s=>({s})).concat(Array.from({length:r.free},()=>({free:1})));
+    items.forEach((it,i)=>{
+      const yy=inY(r.yTop+((i+0.5)/items.length)*(r.h/total));
+      const x=68;
+      if(it.free){
+        edges+='<path d="M'+(ax+3)+' '+ay+' L'+(x-4)+' '+yy+'" stroke="var(--sr-seam)" stroke-width="2" stroke-dasharray="4 5"'+inTip('Open slot','Room in '+a.name+'’s cell')+'/>';
+        nodes+='<button type="button" class="in-node in-node--empty" style="left:'+x+'%;top:'+yy+'%" data-insel="agent:'+a.id+'">'+
+          '<span class="in-node__disc">+</span><span class="in-node__name">Open slot</span><span class="in-node__sub">Recruit in '+esc(wd.name)+'</span></button>';
+        return;
+      }
+      const s=it.s,ig=intgOf(s.id),burned=!!ig||(!s.alive&&s.captured);
+      const sd=pdef(SRCPOS[s.id]||s.locId||'veray')||wd,slk=WORLD_LOOK[sd.id]||{col:'#9aa6c4'};
+      if(burned)edges+='<path d="M'+(x-4)+' '+yy+' L'+(ax+3)+' '+ay+'" stroke="var(--sr-hazard)" stroke-width="2.4" stroke-dasharray="6 5"'+inTip('The Bureau’s trail','The Bureau is following this trail from '+s.name+' to '+a.name)+'/>';
+      else edges+='<path d="M'+(ax+3)+' '+ay+' L'+(x-4)+' '+yy+'" stroke="var(--sr-shield)" stroke-width="2"'+inTip(a.name,a.name+' runs '+s.name)+'/>';
+      nodes+='<button type="button" class="in-node in-node--src'+(burned?' is-burned':'')+(inSel&&inSel.t==='src'&&inSel.id===s.id?' is-sel':'')+'" style="left:'+x+'%;top:'+yy+'%" data-insel="src:'+s.id+'">'+
+        '<span class="in-node__disc">'+esc(inIni(s.name))+
+        (burned?'<span class="in-badge in-badge--tr" style="--c:var(--sr-steel)"'+inTip('Captured','Taken by counter-intelligence')+'>'+IC('lock')+'</span>':
+          '<span class="in-risk" style="--r:'+Math.round(s.risk)+';--c:var(--sr-hazard)" title="Risk '+Math.round(s.risk)+'%"></span>')+
+        '</span><span class="in-node__name">'+esc(s.name)+'</span>'+
+        '<span class="in-node__sub"><i style="--pc:'+slk.col+'"></i>'+esc(sd.name)+'</span>'+
+        (ig?'<span class="in-clock">'+IC('day')+'Interrogation · '+ig.daysLeft+'d</span>':'')+'</button>';
+    });
+  }
+  // the exposure panel (a button: the Bureau in the rail)
+  const b=expBand();
+  let segs='';for(let i=0;i<4;i++)segs+='<i style="--c:'+EXP_BANDS[i].c+'"'+(i<=b?' class="is-on"':'')+'></i>';
+  const lbls=EXP_BANDS.map((x,i)=>'<span'+(i===b?' class="is-now"':'')+'>'+x.k+'</span>').join('');
+  const exp='<button type="button" class="in-exp'+(inSel&&inSel.t==='bureau'?' is-sel':'')+'" data-insel="bureau" title="Exposure '+Math.round(G.exposure||0)+' / 100">'+
+    '<span class="in-exp__top">'+IC('eye')+'<b>Exposure</b><em>'+EXP_BANDS[b].k+'</em></span>'+
+    '<span class="in-bands">'+segs+'</span><span class="in-bands__lbl">'+lbls+'</span>'+
+    '<p>'+EXP_BANDS[b].does+'</p></button>';
+  // one alert per interrogation, the soonest first
+  const igs=(G.interrogations||[]).slice().sort((x,y)=>x.daysLeft-y.daysLeft);
+  const alerts=igs.length?'<div class="in-alerts">'+igs.map(ig=>{const s=srcById(ig.source);
+    return '<div class="in-alert">'+IC('panic')+'<span><b>'+esc(s?s.name:'A source')+'</b> is under interrogation. The Bureau extracts Leads in <b>'+ig.daysLeft+' day'+(ig.daysLeft>1?'s':'')+'</b>.</span>'+
+      rbtn('type="button" data-respond="'+ig.source+'"','Respond',false,'sr-btn--sm sr-btn--attn')+'</div>';}).join('')+'</div>':'';
+  $('inView').innerHTML='<svg class="in-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+edges+'</svg>'+
+    '<div class="in-graph">'+nodes+'</div>'+exp+alerts;
+  renderIntelRail();
+}
+/* ----- the rail: Agent, Source or The Bureau ----- */
+const inH=(ico2,t,right)=>'<div class="in-h">'+IC(ico2)+t+(right?'<b>'+right+'</b>':'')+'</div>';
+const inRow=(c,txt,end)=>'<div class="in-row" style="--c:'+c+'"><i></i><span>'+txt+'</span>'+(end?'<em>'+end+'</em>':'')+'</div>';
+const inOp=(attrs,ico2,name,sub,o)=>'<button type="button" class="in-op'+(o&&o.danger?' in-op--danger':'')+'" '+attrs+(o&&o.dis?' disabled':'')+
+  '><span class="in-op__ico"'+(o&&o.c?' style="--c:'+o.c+'"':'')+'>'+IC(ico2)+'</span><span style="min-width:0"><b>'+name+'</b><small>'+sub+'</small></span></button>';
+function inAgentRail(a){
+  const wd=agentWorld(a),cell=cellOf(a);
+  let status='';
+  for(const ig of (G.interrogations||[])){
+    const s=srcById(ig.source);
+    if(s&&s.agent===a.id)status+=inRow('var(--sr-hazard)','Lead pending · if <b>'+esc(s.name)+'</b> talks',ig.daysLeft+'d');
+  }
+  for(const ld of agentLeads(a))status+=inRow('var(--sr-c-bad)','The Bureau holds a <b>Lead</b> on him','day '+ld.day);
+  if(a.moving)status+=inRow('var(--sr-gold)','In transit to <b>'+esc(pdef(a.moving.to).name)+'</b>',a.moving.days+'d');
+  if(a.lielow)status+=inRow('var(--sr-shield)','The cell is lying low',a.lielow+'d');
+  if(G.recruit.days&&G.recruit.agent===a.id)status+=inRow('var(--sr-gold)','Recruiting on '+esc(wd.name),G.recruit.days+'d');
+  status+=cell.map(s=>inRow(s.alive?'var(--sr-shield)':'var(--sr-steel)',esc(s.name),s.alive?'Risk '+Math.round(s.risk)+'%':'captured')).join('')||inRow('var(--sr-seam)','No sources yet');
+  const lowCover=agentCover(a)<30;
+  const stat=(n,v,p,c)=>'<div class="in-stat"'+(c?' style="--c:'+c+'"':'')+'><div class="in-stat__top">'+n+'<b>'+v+'</b></div><p>'+p+'</p></div>';
+  const busy=a.moving?'In transit.':a.lielow?'Lying low.':'';
+  const canDis=(G.leads||[]).some(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cell.some(s=>s.id===l.target.id))));
+  let ops;
+  if(inRepost===a.id){
+    ops=inH('galaxy','Repost to')+'<div class="in-ops">'+G.planets.filter(p2=>p2.access&&p2.id!==a.postedTo).map(p2=>{
+      const d=pdef(p2.id);return inOp('data-repost="'+a.id+':'+p2.id+'"','galaxy',esc(d.name),esc(d.kind||''));}).join('')+
+      inOp('data-repostcancel','back','Stay put','Keep the '+esc(wd.name)+' Cell')+'</div>';
+  } else {
+    ops=inH('work','Operations')+'<div class="in-ops">'+
+      inOp('data-op="lielow:'+a.id+'"','sneak','Lie Low','The cell rests: Risk bleeds off, nothing comes in',{dis:!!busy||a.lielow>0})+
+      inOp('data-op="sweep:'+a.id+'"','eye','Counter-Intel Sweep','Check the cell for Bureau plants',{dis:!!busy})+
+      inOp('data-op="recruit:'+a.id+'"','people','Recruit','Search '+esc(wd.name)+' for new Sources or Rebels',{dis:!!busy||!!G.recruit.days||!!G.recWait.length})+
+      inOp('data-op="repost:'+a.id+'"','galaxy','Repost','Move to another world; Cover drops in transit',{dis:!!a.moving})+
+      inOp('data-op="disinfo:'+a.id+'"','comms','Disinformation','Clear a Lead, or send the Bureau after a decoy',{dis:!canDis||G.intel<INTEL_N.disinfoCost})+
+      '</div>';
+  }
+  return '<div class="in-railtitle">'+IC('intel')+'Agent</div>'+
+    '<div class="in-who"><span class="in-who__disc" style="box-shadow:inset 0 0 0 3px var(--sr-rebel)">'+esc(inIni(a.name))+'</span>'+
+    '<div style="min-width:0"><div class="in-kicker" style="--c:var(--sr-rebel)">Agent · Level '+a.level+'</div>'+
+    '<div class="in-name">'+esc(a.name)+'</div><div class="in-sub">'+esc(wd.name)+' Cell</div></div></div>'+
+    '<div class="in-card">'+status+'</div>'+
+    '<div class="in-stats">'+
+    stat('Tradecraft',a.tradecraft,'His Sources gain less Risk','var(--sr-psi)')+
+    stat('Cover',agentCover(a),'Easy to trace if a Source burns',lowCover?'var(--sr-hazard)':'var(--sr-go)')+
+    stat('Rapport',a.rapport,'Better cultivation outcomes','var(--sr-gold)')+
+    stat('Cell',cellLive(a).length+'/'+agentCap(a),'Grows with his level and the Centre','var(--sr-shield)')+
+    '</div>'+ops;
+}
+function inSrcRail(s){
+  const a=agentOf(s.agent),ig=intgOf(s.id);
+  const wd=pdef(SRCPOS[s.id]||s.locId||'veray');
+  const incKey=Object.keys(s.inc||{}).find(k=>s.inc[k]);
+  const incTxt=incKey?('+'+s.inc[incKey]+' '+({c:'credits',s:'supplies',m:'materials',f:'fuel',i:'Intel'})[incKey]+' a day'):'no income';
+  const onSite=a&&!a.moving&&a.postedTo===(SRCPOS[s.id]||s.locId);
+  const wheel=(lbl,ico2,v,c,center,small)=>'<div class="in-wheel"><span class="in-wheel__ring" style="--v:'+v+';--c:'+c+'"><span><small>'+small+'</small><b>'+center+'</b></span></span>'+
+    '<span class="in-wheel__lbl" style="--c:'+c+'">'+IC(ico2)+lbl+'</span></div>';
+  let acts;
+  if(ig)acts=inH('lock','Under interrogation')+'<div class="in-ops">'+inOp('data-respond="'+s.id+'"','panic','Respond','The Bureau extracts Leads in '+ig.daysLeft+'d',{c:'var(--sr-hazard)'})+'</div>';
+  else if(!s.alive)acts='';
+  else acts=inH('work','Actions')+'<div class="in-ops">'+
+    inOp('data-sop="contact:'+s.id+'"','comms','Contact','Check in remotely and safely')+
+    inOp('data-sop="visit:'+s.id+'"','people','Visit','Face-to-face with '+esc(s.name.split(' ')[0]),{dis:!onSite})+
+    inOp('data-sop="exfil:'+s.id+'"','extract','Exfiltrate','Pull them out alive; their benefits end')+
+    inOp('data-sop="cut:'+s.id+'"','leave','Cut Loose','Only this cell’s Sources are downgraded',{danger:1})+
+    inOp('data-sop="silence:'+s.id+'"','skull','Silence','Gone for good',{danger:1})+
+    '</div>';
+  return '<div class="in-railtitle">'+IC('signal')+'Source</div>'+
+    '<div class="in-who"><span class="in-who__disc" style="box-shadow:inset 0 0 0 3px var(--sr-shield)'+(s.alive?'':';filter:grayscale(1)')+'">'+esc(inIni(s.name))+'</span>'+
+    '<div style="min-width:0"><div class="in-kicker" style="--c:var(--sr-shield)">Source · Level '+(s.level||1)+'</div>'+
+    '<div class="in-name">'+esc(s.name)+'</div><div class="in-sub">'+esc(s.type||'')+'</div></div></div>'+
+    '<div class="in-card">'+
+    inRow('var(--sr-gold)','Located at <b>'+esc(wd?wd.name:s.loc)+'</b>')+
+    inRow('var(--sr-rebel)',a?'Handled by <b>'+esc(a.name)+'</b>':'No handler')+
+    inRow('var(--sr-res-credits)',esc(incTxt))+
+    '</div>'+
+    '<div class="in-wheels">'+
+    wheel('Risk','panic',Math.round(s.risk),'var(--sr-hazard)',Math.round(s.risk)+'%','risk')+
+    wheel('Cultivation','heart',Math.round(s.cult),'var(--sr-psi)','LEVEL '+(s.level||1),'cult')+
+    '</div>'+acts;
+}
+function inBureauRail(){
+  const b=expBand();
+  const bands=EXP_BANDS.map((x,i)=>'<div class="in-band'+(i===b?' is-now':'')+'" style="--c:'+x.c+'"><b>'+x.k+'</b><span>'+x.does+'</span></div>').join('');
+  let leads='';
+  for(const ld of G.leads||[]){
+    const from=srcById(ld.from);
+    const name=ld.target.kind==='agent'?('Agent '+esc((agentOf(ld.target.id)||{}).name||'?')):
+      ld.target.kind==='source'?esc((srcById(ld.target.id)||{}).name||'?'):
+      ld.target.kind==='base'?'Haven Rock':('The '+esc((pdef(ld.target.id)||{}).name||'?')+' cell');
+    leads+=inRow(ld.cold?'var(--sr-seam)':'var(--sr-c-bad)',name+(ld.cold?' · cold':''),from?'from '+esc(from.name.split(' ').pop()):'');
+  }
+  for(const ig of G.interrogations||[])for(const t of ig.expectedLeads){
+    const s=srcById(ig.source);
+    const name=t.kind==='agent'?('Agent '+esc((agentOf(t.id)||{}).name||'?')):t.kind==='base'?'Haven Rock':('The '+esc((pdef(t.id)||{}).name||'?')+' cell');
+    leads+=inRow('var(--sr-hazard)',name+' · pending','if '+esc(s?s.name.split(' ').pop():'?')+' talks');
+  }
+  const home=(G.leads||[]).some(l=>l.target.kind==='base'&&!l.cold);
+  leads+=inRow(home?'var(--sr-c-bad)':'var(--sr-go)',home?'A Lead points <b>home</b>':'Haven Rock is off their map');
+  return '<div class="in-railtitle">'+IC('eye')+'The Bureau</div>'+
+    '<div class="in-who"><span class="in-who__disc" style="box-shadow:inset 0 0 0 3px var(--sr-heg,#3a7bd5);color:var(--sr-shield)">'+IC('eye')+'</span>'+
+    '<div style="min-width:0"><div class="in-kicker" style="--c:var(--sr-shield)">The Bureau</div>'+
+    '<div class="in-name">Exposure: '+EXP_BANDS[b].k+'</div><div class="in-sub">Rises with Leads, Missions and Liberation</div></div></div>'+
+    bands+
+    inH('targetlock','Current Leads')+'<div class="in-card">'+leads+'</div>'+
+    '<div class="in-card" style="border-style:dashed;opacity:.8"><div class="in-h">'+IC('lock')+'Investigator<b>Revolution Level 2</b></div>'+
+    '<p style="margin:6px 0 0;font:600 var(--sr-fs-xs)/1.4 var(--sr-font-ui);color:var(--sr-text-3)">The Bureau has not assigned an Investigator into our activities yet.</p></div>';
+}
+function renderIntelRail(){
+  const el=$('railIntel');
+  if(!inOpen){el.hidden=true;return;}
+  el.hidden=false;
+  let h='';
+  if(inSel&&inSel.t==='agent'){const a=agentOf(inSel.id);h=a?inAgentRail(a):'';}
+  else if(inSel&&inSel.t==='src'){const s=srcById(inSel.id);h=s?inSrcRail(s):'';}
+  else if(inSel&&inSel.t==='bureau')h=inBureauRail();
+  el.innerHTML=h||'<div class="in-railtitle">'+IC('intel')+'The Network</div><p class="sr-fine">Select an Agent or a Source on the stage.</p>';
+}
+/* ----- the interrogation window (sr-window in-int) ----- */
+function interrogationHTML(srcId){
+  const s=srcById(srcId),ig=intgOf(srcId);
+  if(!s||!ig)return wHead('Interrogation')+'<div class="sr-window__body"><p class="sr-p">The clock has already run out.</p></div>'+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
+  const a=agentOf(s.agent);
+  let pips='';for(let i=0;i<ig.clock;i++)pips+='<i'+(i<ig.daysLeft?' class="is-on"':'')+'></i>';
+  const who='<div class="cm-who"><span class="cm-ava" style="filter:grayscale(1);box-shadow:inset 0 0 0 3px var(--sr-steel)">'+esc(inIni(s.name))+'<i style="background:var(--sr-steel)">'+IC('lock')+'</i></span>'+
+    '<div style="min-width:0"><div class="cm-kicker" style="--c:var(--sr-hazard)">Captured · under interrogation</div>'+
+    '<div class="cm-name">'+esc(s.name)+'</div><div class="cm-role">'+esc([s.type,s.loc,a?'handled by '+a.name:''].filter(Boolean).join(' · '))+'</div></div>'+
+    '<div class="cm-who__end"><b>'+ig.daysLeft+' day'+(ig.daysLeft>1?'s':'')+'</b><span class="in-clockpips">'+pips+'</span><small>until the Bureau extracts Leads</small></div></div>';
+  const chip=t=>{
+    const name=t.kind==='agent'?('Agent '+esc((agentOf(t.id)||{}).name||'?')+' · their handler'):
+      t.kind==='base'?'The way to Haven Rock':('The '+esc((pdef(t.id)||{}).name||'?')+' cell');
+    return '<span class="in-leadchip">'+IC(t.kind==='agent'?'targetlock':t.kind==='base'?'base':'galaxy')+name+'</span>';
+  };
+  const drow=(c,txt,val)=>'<span class="cm-drow" style="--c:'+c+'"><i></i>'+(val!==undefined?'<b>'+val+'</b>&nbsp;':'')+txt+'</span>';
+  const choice2=(n,how,title,rows)=>'<button type="button" class="cm-choice" data-intg="'+how+':'+s.id+'">'+
+    '<span class="sr-kbd sr-choice__key">'+n+'</span><span class="cm-choice__t">'+title+'</span><span class="cm-choice__rows">'+rows+'</span></button>';
+  const first=s.name.split(' ')[0];
+  return wHead('Interrogation')+who+'<div class="sr-window__body">'+
+    inH('intel','Information they hold')+'<div class="in-leadchips">'+ig.expectedLeads.map(chip).join('')+'</div>'+
+    '<div class="in-responses">'+
+    choice2(1,'rescue','Rescue.',drow('var(--sr-hazard)','A high-risk extraction mission')+drow('var(--sr-go)',esc(first)+' saved, no Leads')+drow('var(--sr-gold)','A failed rescue can add Leads'))+
+    choice2(2,'silence','Silence.',drow('var(--sr-hazard)',esc(first)+' lost forever; morale hit')+drow('var(--sr-go)','No Leads extracted'))+
+    choice2(3,'contain','Contain.',drow('var(--sr-hazard)',a?('Agent '+esc(a.name.split(' ')[0])+' recalled; the cell lies low'):'The cell lies low')+drow('var(--sr-gold)','Leads still come, but point at a cold trail'))+
+    choice2(4,'wait','Let it play out.',drow('var(--sr-gold)','Nothing up front')+drow('var(--sr-gold)','A gamble on their loyalty and what they know'))+
+    '</div></div>'+
+    wFoot(rbtn('data-close','Decide later',false,'sr-btn--ghost'));
+}
+function answerInterrogation(how,srcId){
+  const s=srcById(srcId),ig=intgOf(srcId);
+  if(!s||!ig){closeWin();return;}
+  if(how==='wait'){closeWin();return;}   // the clock keeps running
+  if(how==='silence'){endInterrogation(ig);srcSilence(s);return;}
+  if(how==='contain'){
+    ig.contained=1;
+    const a=agentOf(s.agent);
+    if(a){a.postedTo='haven';a.moving=null;a.lielow=INTEL_N.lieLowDays;}
+    news((a?'<b>'+a.name+'</b> is recalled and the cell lies low. ':'The cell lies low. ')+'Whatever '+s.name.split(' ')[0]+' gives up will point at a cold trail.','r');
+    closeWin();syncUI();return;
+  }
+  if(how==='rescue'){
+    const w=SRCPOS[s.id]||s.locId||'veray';
+    const d=pdef(w),reg=(d&&d.regions&&d.regions[0])||null;
+    const m2=spawnMission('rescue',{loc:w,region:reg?reg.id:undefined,target:'holding block'});
+    m2.name='Rescue '+s.name.split(' ')[0];
+    m2.state='avail';m2.seen=0;
+    if(!G.missions.includes(m2))G.missions.push(m2);
+    ig.rescue=m2.id;
+    news('A rescue goes on the board: <b>'+m2.name+'</b>. Beat the clock.','a');
+    closeWin();syncUI();return;
+  }
+}
+/* the stage and the rail share one dispatch: select, respond, run an operation */
+function intelClick(ev){
+  const sel=ev.target.closest('[data-insel]');
+  const rsp=ev.target.closest('[data-respond]');
+  if(rsp){sClick();openWin('interrogation',rsp.getAttribute('data-respond'));return;}
+  if(sel){
+    const [t,id]=sel.getAttribute('data-insel').split(':');
+    sClick();inRepost=null;inSel=t==='bureau'?{t:'bureau'}:{t,id};
+    renderIntel();return;
+  }
+  const op=ev.target.closest('[data-op]');
+  if(op&&!op.disabled){
+    const [k,id]=op.getAttribute('data-op').split(':'),a=agentOf(id);
+    if(!a)return;
+    sClick();
+    if(k==='lielow')agentLieLow(a);
+    else if(k==='sweep')agentSweep(a);
+    else if(k==='recruit')agentRecruit(a);
+    else if(k==='repost'){inRepost=a.id;renderIntelRail();}
+    else if(k==='disinfo')agentDisinfo(a);
+    return;
+  }
+  const rp=ev.target.closest('[data-repost]');
+  if(rp){const [id,w]=rp.getAttribute('data-repost').split(':');const a=agentOf(id);if(a){sClick();agentRepost(a,w);}return;}
+  if(ev.target.closest('[data-repostcancel]')){sClick();inRepost=null;renderIntelRail();return;}
+  const sop=ev.target.closest('[data-sop]');
+  if(sop&&!sop.disabled){
+    const [k,id]=sop.getAttribute('data-sop').split(':'),s=srcById(id);
+    if(!s)return;
+    sClick();
+    if(k==='contact'){sComm();srcContact(s);}
+    else if(k==='visit')srcVisit(s);
+    else if(k==='exfil')srcExfiltrate(s);
+    else if(k==='cut')srcCutLoose(s);
+    else if(k==='silence')openWin('silence',s);
+    return;
+  }
+}
+$('inView').addEventListener('click',intelClick);
+$('railIntel').addEventListener('click',intelClick);
+$('navIntel').addEventListener('click',()=>{sClick();openIntel();});
 
 /* ---------- the comm burst (docs/ui/SCREENS-HANDOFF.md §3) ----------
    Each kind of information has one home: who (and their cultivation), the channel and its flavour, our narration
@@ -6105,12 +6587,13 @@ function markWin(){markShort();}
 function syncTabs(){
   let sel;
   if(msOpen&&!winMode)sel='navMissions';
+  else if(inOpen&&!winMode)sel='navIntel';
   else if(winMode==='srcTutIntro'||winMode==='srcTut')sel=baseView==='galaxy'?'navSources':null;
   else if(winMode)sel=null;
   else if(arOpen)sel='navArsenal';
   else if(bmOpen)sel='navMarket';
   else sel=baseView==='galaxy'?'navSources':'navBase';
-  for(const id of ['navBase','navSources','navMissions','navArsenal','navMarket'])$(id).setAttribute('aria-selected',String(id===sel));
+  for(const id of ['navBase','navSources','navMissions','navIntel','navArsenal','navMarket'])$(id).setAttribute('aria-selected',String(id===sel));
 }
 const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
 function syncUI(){
@@ -6203,6 +6686,7 @@ function syncUI(){
   if(tilePopAt)renderTilePop();
   if(arOpen)renderArsenal();
   if(msOpen)renderMissions();
+  if(inOpen)renderIntel();
   if(bmOpen)renderMarket();
   syncGxDOM();
   syncTabs();markShort();
@@ -6312,11 +6796,11 @@ function setTopbar(title,sub){
 /* the phone drawer button says what the drawer holds: Loadouts in the Arsenal, the fence at the market */
 function drawerLabel(){
   const btn=$('drawerBtn');
-  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':msOpen?'Briefing':'Crew and flight';
+  const lbl=arOpen?'Loadouts':bmOpen?'Sweet Tooth':msOpen?'Briefing':inOpen?'The Network':'Crew and flight';
   btn.setAttribute('aria-label',lbl);btn.title=lbl;
 }
 function openArsenal(){
-  closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();
+  closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();closeIntel();
   arOpen=true;arOverlay=null;arGive=false;arRefit=null;
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
@@ -6921,7 +7405,7 @@ function ensureMarket(){
   if(!G.market||!G.market.lots)rollMarket();
 }
 function openMarket(){
-  closeWin();closeTilePop();exitRoomView();closeArsenal();closeMissions();
+  closeWin();closeTilePop();exitRoomView();closeArsenal();closeMissions();closeIntel();
   ensureMarket();
   bmOpen=true;bmSel=null;bmLine=null;
   G.market.unseen=0;
@@ -7434,7 +7918,6 @@ $('winsB').addEventListener('click',ev=>{
     if(!winArg.batch)for(const c of winArg.cards)news('You passed on '+c.p.name+'. They never knew.','d');
     closeWin();syncUI();return;
   }
-  if(t.hasAttribute('data-recruit-start')){startRecruit();if(viewRoom)renderRoomBar();renderTilePop();return;}
   if(t.hasAttribute('data-recruit-review')){
     if(G.recWait.length){closeTilePop();openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});}
     return;
@@ -7445,6 +7928,9 @@ $('winsB').addEventListener('click',ev=>{
     if(rm){G.guideHangar=1;enterRoomView(rm);}
     syncUI();return;
   }
+  const intg=t.getAttribute('data-intg');
+  if(intg){const [how,id]=intg.split(':');answerInterrogation(how,id);return;}
+  if(t.hasAttribute('data-gointel')){closeWin();openIntel();return;}
   if(t.hasAttribute('data-gocommand')){   // the unstaffed Mission Control card points at the Command Center
     const rm=G.rooms.find(r=>r.key==='command'&&!r.build);
     closeWin();
@@ -7582,10 +8068,11 @@ $('navBase').addEventListener('click',()=>{
   if(arOpen){closeArsenal();return;}
   if(bmOpen){closeMarket();return;}
   if(msOpen){closeMissions();return;}
+  if(inOpen){closeIntel();return;}
   if(winMode)closeWin();
   showView('base');
 });
-$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();closeMissions();if(winMode)closeWin();showView('galaxy');});
+$('navSources').addEventListener('click',()=>{sClick();closeArsenal();closeMarket();closeMissions();closeIntel();if(winMode)closeWin();showView('galaxy');});
 $('navMissions').addEventListener('click',()=>{sClick();if(winMode)closeWin();if(baseView!=='base')setView('base');openMissions();});
 $('navArsenal').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openArsenal();});
 $('navMarket').addEventListener('click',()=>{sClick();if(baseView!=='base')showView('base');openMarket();});
@@ -7617,6 +8104,7 @@ addEventListener('keydown',ev=>{
     else if(arOpen)closeArsenal();
     else if(bmOpen)closeMarket();
     else if(msOpen)closeMissions();
+    else if(inOpen)closeIntel();
     else if(baseView==='galaxy'&&(gxRegion||gxWorld||srcSel))gxBack();
     else if(viewRoom){exitRoomView();syncUI();}
     else closeTilePop();
@@ -8263,6 +8751,9 @@ function applyDebrief(r){
     G.supplies+=G.sortie.s;
     news('The supply drop was never called in — '+S(G.sortie.s)+' back in stores.','r');
   }
+  // a rescue answering an interrogation beats the clock, or feeds it (SCREENS-HANDOFF-2 §3.4)
+  {const igr=(G.interrogations||[]).find(x=>x.rescue===r.missionId);
+   if(igr)resolveRescue(igr,!!r.win);}
   SR.mission=null;G.sortie=undefined;
   usePacks(r);
   if(r.missionId==='haven'){
@@ -8304,6 +8795,7 @@ function applyDebrief(r){
     saveSnap();syncUI();return;
   }
   const m=G.missions.find(x=>x.id===r.missionId);
+  if(m&&m.lead&&!r.sim)expGain(INTEL_N.expMission,'the '+m.name+' operation');   // missions make noise (§3)
   // the mission days pass while they are in the field
   for(const pr of r.people||[]){const p=G.people.find(x=>x.id===pr.id);if(p)p.assign='mission';}
   HOLD=true;
@@ -8611,6 +9103,19 @@ const MIGRATIONS=[
     G.standby=(G.candWait||[]).filter((id,i,a)=>a.indexOf(id)===i&&CANDS[id]&&!G.sources.some(s=>s.id===id));
     delete G.candWait;
   },
+  /* 8 -> 9: The Network (docs/ui/SCREENS-HANDOFF-2.md §3): Agents, Leads, Exposure, interrogations. One Agent
+     is seeded where most of the sources are; an in-progress recruit drive becomes his search. */
+  function(){
+    G.agentSeq=G.agentSeq||0;
+    G.exposure=G.exposure||0;G.leads=G.leads||[];G.interrogations=G.interrogations||[];
+    if(!G.agents||!G.agents.length){
+      const byW={};for(const s of G.sources)if(s.alive){const w=SRCPOS[s.id]||s.locId||'haven';byW[w]=(byW[w]||0)+1;}
+      const world=Object.keys(byW).sort((a,b)=>byW[b]-byW[a])[0]||'haven';
+      G.agents=[mkAgent(world)];
+    }
+    for(const s of G.sources)if(!s.agent)s.agent=G.agents[0].id;
+    if(G.recruit&&G.recruit.days&&!G.recruit.agent)G.recruit.agent=G.agents[0].id;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -8697,7 +9202,8 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
+      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,

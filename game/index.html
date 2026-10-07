@@ -74,6 +74,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       <div class="bf-board" id="msBoard"></div>
       <div class="bf-holo" id="msHolo"></div>
     </div>
+    <div class="kit-view in-stage" id="inView" hidden></div>
     <div class="kit-view bm-view" id="bmView" hidden>
       <div class="bm-stall" id="bmStall"></div>
     </div>
@@ -86,6 +87,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
         <button class="sr-tab" id="navBase" role="tab" aria-selected="true"><svg class="sr-ico"><use href="#i-base"/></svg>Base</button>
         <button class="sr-tab" id="navSources" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-galaxy"/></svg>Galaxy<span class="sr-badge" id="srcBadge" hidden>0</span></button>
         <button class="sr-tab" id="navMissions" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-missions"/></svg>Missions<span class="sr-badge" id="misBadge" hidden>0</span></button>
+        <button class="sr-tab" id="navIntel" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-eye"/></svg>Intelligence<span class="sr-badge" id="inBadge" hidden>0</span></button>
         <button class="sr-tab" id="navArsenal" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-loot"/></svg>Arsenal</button>
         <button class="sr-tab" id="navMarket" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-credits"/></svg><span class="nav-market-l">Black Market</span><span class="nav-market-s">Market</span><span class="sr-badge" id="bmBadge" hidden>6</span></button>
         <button class="sr-tab sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Crew and flight" aria-expanded="false"><svg class="sr-ico"><use href="#i-people"/></svg></button>
@@ -117,6 +119,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </div>
   <aside class="sr-rail" id="panel">
     <div class="sr-rail__scroll" id="railGx" hidden></div>
+    <div class="sr-rail__scroll in-rail" id="railIntel" hidden></div>
     <div class="sr-rail__scroll" id="railBase">
       <section>
         <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-pilot"/></svg>Pilots<span class="sr-section__count" id="pilotCount"></span></div>

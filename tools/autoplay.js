@@ -31,6 +31,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     if(w==='candidate'){b=[...document.querySelectorAll('[data-cand]')].find(x=>x.getAttribute('data-cand')!=='no');
       if(b&&!b.disabled){b.click();continue;}
       b=$q('[data-cand="no"]');if(b){b.click();continue;}}
+    else if(w==='interrogation'){b=$q('[data-intg^="contain"]')||$q('[data-intg^="wait"]')||$q('[data-close]');if(b){b.click();continue;}}
     else if(w==='recruit'){b=$q('[data-rec-accept]');if(b){b.click();continue;}b=$q('[data-rec-no]');if(b){b.click();continue;}}
     else if(w==='chain'){
       b=$q('[data-chain$=":yes"]')||$q('[data-chain$=":ok"]:not([disabled])');
@@ -268,7 +269,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
    if(esc)break;
    rooms();upgrades();patrol();staff();meas('diplo',diplomacy);
    promotions();prosthetics();
-   if(f.canRecruit()&&G.credits>=1200)f.startRecruit();   // the Command Center call for recruits, whenever the war chest allows
+   if(!G.recruit.days&&!G.recWait.length&&G.agents&&G.agents[0]&&G.credits>=1200)f.agentRecruit(G.agents[0]);   // an Agent's search for recruits, whenever the war chest allows
    if(G.day-lastSnap>=5){tl.push(snap());lastSnap=G.day;}
    if(G.escPending){f.closeWin();windows();if(G.revLevel===2||G.revNoted){markEsc();if(!EXTRA)break;}}
    meas('days',()=>f.advanceDay());
