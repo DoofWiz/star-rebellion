@@ -1,6 +1,6 @@
 /* Fixes from the legacy sweep (docs/LEGACY_AUDIT.md §10): node tools/sweep-smoke.js (needs NODE_PATH=$(npm root -g)).
    0  reloading a new campaign does not re-run the old-save fixes (the ×4 economy, the Revolution Level reset).
-   1  every reinforcement seat on a support Graf is outfitted, and nobody strips seats 3 and 4 to arm the squad.
+   1  a support asset flies with the sortie; what the launch spends (fuel, the up-front Supply Drop) is recorded.
    2  live:0 kit cannot be carried, and a ground unit handed kit with no combat stats fights bare-handed.
    5  the barracks healing perk covers Marines and Heroes, not just Soldiers.
    6  a reload mid-mission gives back the sortie's fuel and supply drop.
@@ -62,63 +62,58 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(a.win==='reward'&&a.shown.indexOf('+55% XP')>=0,'the reward window shows the XP gained after traits '+a.win+' '+a.shown);
  ok(a.barracks&&a.heal[0]===a.heal[1]&&a.heal[0]>1,'Marines are treated like Soldiers '+a.heal);
 
- // ---- 1 and 6: launch a ground mission with a support Graf carrying four reinforcements
+ // ---- 1 and 6: launch a ground mission with a support asset; costs are recorded, a reload refunds them
  const c=await pg.evaluate(()=>{
   const D=window.DBGbase,f=D.fn,G=()=>D.G,R=window.Rebel,out={};
   const mk=(id,role)=>{const p=R.migrate({id,name:id+' Test',role,level:1,xp:0,assign:'rest',injured:0,bio:'x',charTrait:'brave'});G().people.push(p);return p;};
-  const lead=mk('lead','Soldier'),rs=[1,2,3,4].map(i=>mk('rf'+i,'Soldier')),home=[1,2,3,4,5].map(i=>mk('hm'+i,'Soldier'));
+  const lead=mk('lead','Soldier');
   const p1=mk('pa','Pilot'),p2=mk('pb','Pilot');
   G().fighters.push(f.newFighter({id:'gA',name:'Graf A',cls:'graf',hull:100}),f.newFighter({id:'gB',name:'Graf B',cls:'graf',hull:100}));
-  // exactly enough rifles for whoever is armed now; reinforcements 3 and 4 already hold theirs
   f.autoEquip();
-  for(const p of G().people)if(p.gear)p.gear.primary=null;
-  for(const p of [rs[2],rs[3],...home])p.gear.primary='akli';
-  G().armory.find(a=>a.id==='akli').n=7;
   G().fuel=500;G().supplies=500;
-  const m={id:'rftest',name:'Reinforcement test',desc:'Test.',objectives:['Test'],req:{transport:true,team:1},days:1,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:10}};
+  const m={id:'rftest',name:'Support test',desc:'Test.',objectives:['Test'],req:{transport:true,team:1},days:1,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:10}};
   G().missions.push(m);
   f.openPlan(m);
   const PL=f.getPL();
   PL.v.team0='lead';PL.v.tv0='gA';PL.v.tp0='pa';
-  f.plAddAsset();PL.v.as0s='gB';PL.v.as0p='pb';PL.assets[0].mode='reinforce';f.plSyncAssets();
-  rs.forEach((p,i)=>{PL.v['as0r'+i]=p.id;});
-  PL.drop=true;
-  out.seats=PL.slots.filter(sl=>sl.acc==='rsoldier').length;
+  f.plAddAsset();PL.v.as0s='gB';PL.v.as0p='pb';
   const f0=G().fuel,s0=G().supplies;
-  f.startPlan();
+  f.startPlan();   // a Graf can fly a Supply Drop, so the 160 is paid up front, automatically
   out.spent=[f0-G().fuel,s0-G().supplies];
-  out.armed=[lead,...rs].map(p=>p.gear.primary||'-').join();
   out.sortie=G().sortie&&[G().sortie.f,G().sortie.s];
   // the page reloads mid-mission: the saved campaign comes back with its fuel and supply drop
   const saved=JSON.parse(JSON.stringify(G()));
   f.restoreCampaign({campaign:saved,started:true});
   out.back=[G().fuel===f0,G().supplies===s0,G().sortie===undefined,G().news.some(n=>n.html.indexOf('called off')>=0)];
-  // a debrief clears the record, so a normal return refunds nothing
-  G().sortie={name:'x',f:5,s:0};
-  f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[]});
-  out.cleared=G().sortie===undefined;
-  // the transport brings its own fire support: a Graf can fly a Supply Drop, and its Door Mounted Gun gives Door Gunner Cover
+  // a drop that was called stays spent; a debrief clears the record
+  G().sortie={name:'x',f:5,s:160};const sk=G().supplies;
+  f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[],dropUsed:true});
+  out.cleared=[G().sortie===undefined,G().supplies===sk];
+  // a drop that was never called comes back in the debrief
+  G().sortie={name:'x',f:0,s:160};
+  f.applyDebrief({missionId:'rftest',kind:'ground',days:0,win:false,people:[],dropUsed:false});
+  out.refund=[G().supplies===sk+160,G().news.some(n=>/never called in/.test(n.html))];
+  // the transport brings its own fire support, with no toggles: a Graf flies a Supply Drop, a fitted gun covers the door
   {G().fighters.push(f.newFighter({id:'gM',name:'Marta',cls:'graf',hull:100,loadout:['door-mounted-gun']}));
    G().supplies=500;
    f.openPlan(m);const PL=f.getPL();
-   const rows=()=>({drop:!!document.querySelector('[data-drop]'),gun:!!document.querySelector('[data-tvgun]'),hint:/Assign the transport/.test(document.querySelector('.bs-plan').textContent),
-     fit:/Fit a Door Mounted Gun/.test(document.querySelector('.bs-plan').textContent)});
+   const chips=()=>[...document.querySelectorAll('#winCardB .pl-ab')].map(c=>c.textContent.replace(/\s+/g,' ')+(c.classList.contains('is-off')?'[off]':''));
+   const rows=()=>({drop:chips().some(c=>/Supply Drop/.test(c)&&!/\[off\]/.test(c)),gun:chips().some(c=>/Door Gunner/.test(c)),
+     hint:/Assign the transport/.test(document.querySelector('#winCardB').textContent)});
    out.noTv=rows();
    PL.v.team0='lead';PL.v.tv0='gA';PL.v.tp0='pa';f.renderWin();out.bare=rows();   // a Graf with no gun fitted
    PL.v.tv0='gM';f.renderWin();out.marta=rows();
-   document.querySelector('[data-drop]').click();
-   const s0=G().supplies;f.startPlan();
+   const s2=G().supplies;f.startPlan();
    const A=window.SR.mission.assets,T=window.SR.mission.transport;
-   out.launch=[A.drop,T.doorgun,s0-G().supplies,A.ships.length];}
+   out.launch=[A.drop,T.doorgun,s2-G().supplies,A.ships.length];}
   return out;
  });
- ok(c.seats===4,'a Graf offers four reinforcement seats '+c.seats);
- ok(c.armed==='akli,akli,akli,akli,akli','the squad and all four reinforcements carry rifles '+c.armed);
  ok(c.spent[0]>0&&c.spent[1]===160&&c.sortie&&c.sortie[0]===c.spent[0]&&c.sortie[1]===160,'the sortie records what it spent '+c.spent+' '+c.sortie);
  ok(c.back.every(Boolean),'a mid-mission reload hands the fuel and the drop back '+c.back);
- ok(c.cleared,'a debrief clears the sortie record');
- ok(c.noTv.hint&&!c.noTv.drop&&!c.noTv.gun,'no transport yet: the board says it will show what the transport brings '+JSON.stringify(c.noTv));
- ok(c.bare.drop&&!c.bare.gun&&c.bare.fit,'a Graf offers a Supply Drop; with no gun fitted, no door gunner '+JSON.stringify(c.bare));
+ ok(c.cleared.every(Boolean),'a called drop stays spent and the debrief clears the record '+c.cleared);
+ ok(c.refund.every(Boolean),'an uncalled drop is refunded in the debrief '+c.refund);
+ ok(c.noTv.hint&&!c.noTv.drop&&!c.noTv.gun,'no transport yet: the board says it will show what the assets bring '+JSON.stringify(c.noTv));
+ ok(c.bare.drop&&!c.bare.gun,'a Graf offers a Supply Drop; with no gun fitted, no door gunner '+JSON.stringify(c.bare));
  ok(c.marta.drop&&c.marta.gun,'Marta brings a Supply Drop and Door Gunner Cover without a second ship '+JSON.stringify(c.marta));
  ok(c.launch.join()==='true,1,160,0','the drop is paid at launch; the transport flies its door gun '+c.launch);
 

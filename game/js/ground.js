@@ -3815,6 +3815,7 @@ function buildResult(win){
   });
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
+    dropUsed:!!(FS&&FS.dropUsed),
     win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,
     objs:(lastObjs||[]).filter(o=>!/^\(/.test(o.t)).map(o=>({t:o.t.replace(/\s+—\s+\d+\/\d+$/,''),done:!!o.done}))};
 }

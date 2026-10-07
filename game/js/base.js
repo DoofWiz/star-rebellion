@@ -3369,34 +3369,6 @@ function classroomHTML(){
 }
 /* the planning board: what the base sends with this mission */
 function plJobPicks(){return Object.keys((PL&&PL.sj)||{}).filter(k=>PL.sj[k]).map(k=>({k,pid:PL.sj[k]}));}
-function baseSupportHTML(){
-  const ground=!!PL.req.transport;
-  const ctl=pickControl(ground?'ground':'space');
-  let h='<div class="sr-h3">Base support</div><div class="sr-stack">';
-  h+='<p class="sr-fine" style="margin:0">'+(ctl?'<b>'+esc(ctl.name)+'</b> runs Mission Control: the squad starts steadier (+'+RU.mission_support_cool+' Cool)'+(nicheOf(ctl)==='tactician'?', with their Tactician’s calls':'')+'.':'Nobody free on Mission Control (Command Center).')+'</p>';
-  if(ground){
-    PL.sj=PL.sj||{};
-    for(const k of MJOBS){
-      const rs=mjobRunners(k);
-      if(!rs.length)continue;
-      const u=SP.UK[k];
-      h+='<div class="bs-chips" title="'+esc(u.d)+'"><span class="sr-fine" style="margin-right:6px">'+esc(u.n)+'</span>'+rs.map(p=>{
-        const taken=Object.keys(PL.sj).some(x=>x!==k&&PL.sj[x]===p.id);
-        return rbtn('data-pljob="'+k+'|'+p.id+'" aria-pressed="'+(PL.sj[k]===p.id)+'"',esc(p.name.split(' ')[0]),taken,'sr-btn--sm');
-      }).join('')+'</div>';
-    }
-  } else {
-    const fcl=pickControl('space');
-    if(fcl&&PL.m.lead&&SP.canRun(fcl,SP.UK['flightctl.interceptplot'],leadOf('flightctl'))){   // Intercept Plot
-      PL.plot=PL.plot||'centre';
-      h+='<div class="bs-chips" title="'+esc(SP.UK['flightctl.interceptplot'].d)+'"><span class="sr-fine" style="margin-right:6px">Intercept Plot</span>'+
-        [['left','Flank left'],['centre','Head on'],['right','Flank right'],['close','Close in']].map(([k,n])=>rbtn('data-plot="'+k+'" aria-pressed="'+(PL.plot===k)+'"',n,false,'sr-btn--sm')).join('')+'</div>';
-    }
-    const n=runnersOf('aerogineer.preflight').filter(jobFree).length*2;
-    if(n)h+='<p class="sr-fine" style="margin:0">Pre-flight Checks: up to '+n+' ship'+(n>1?'s':'')+' start with +'+RU.preflight_shield+' front shield.</p>';
-  }
-  return h+'</div>';
-}
 /* ---------- room interior view ---------- */
 function enterRoomView(rm){
   if(rm.build)return;
@@ -5384,6 +5356,7 @@ function renderWin(){
   }
   else if(winMode==='plan'){
     const m=winArg;
+    size='';cls=' pl-win';
     h=planHTML(m);
   }
   else if(winMode==='sjob'){
@@ -6115,7 +6088,7 @@ function markShort(){
   if(winMode==='plan'&&PL){
     const need=plFuel()||minFuel(PL.m);
     if(G.fuel<need)short.f=1;
-    if(plDropOn()&&G.supplies<DROP_COST)short.s=1;
+    {const tv=plTransport();if(tv&&canSupplyDrop(tv)&&G.supplies<DROP_COST)short.s=1;}   // a drop the stores can't cover
   } else if(winMode==='newmission'&&winArg){
     if(G.fuel<minFuel(winArg))short.f=1;
   } else if(!winMode&&baseView==='galaxy'&&srcSel&&srcSel.t==='p'){
@@ -7352,15 +7325,32 @@ $('winsB').addEventListener('drop',ev=>{
 $('winsB').addEventListener('click',ev=>{
   if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
   if(winMode==='plan'&&PL){
-    const slotEl=ev.target.closest('[data-slot]');
-    if(slotEl){const k=slotEl.getAttribute('data-slot');if(PL.v[k]){delete PL.v[k];sClick();renderWin();}return;}
-    const chip=ev.target.closest('[data-rid]');
-    if(chip){plPlace(chip.getAttribute('data-rid'));sClick();renderWin();return;}
-    const dc=ev.target.closest('[data-drop]');
-    if(dc){PL.drop=!PL.drop;sClick();renderWin();return;}
-    if(ev.target.closest('[data-tvgun]')){PL.noGun=!PL.noGun;sClick();renderWin();return;}
+    const un=ev.target.closest('[data-unslot]');
+    if(un){delete PL.v[un.getAttribute('data-unslot')];PL.pick=null;sClick();renderWin();return;}
+    const rma=ev.target.closest('[data-rmasset]');
+    if(rma){plRemoveAsset(+rma.getAttribute('data-rmasset'));PL.pick=null;sClick();renderWin();return;}
+    const pv=ev.target.closest('[data-pickval]');
+    if(pv){
+      if(pv.disabled)return;
+      const rid=pv.getAttribute('data-pickval'),key=PL.pick;
+      PL.pick=null;
+      if(key==='addasset'){
+        if(rid[0]==='v')plSet('gv0',rid);
+        else{const i=plAddAsset();if(i>=0)plSet('as'+i+'s',rid);}
+      } else plDrop(key,rid);
+      sClick();renderWin();return;
+    }
+    const pk=ev.target.closest('[data-pick]');
+    if(pk){const k=pk.getAttribute('data-pick');PL.pick=PL.pick===k?null:k;sClick();renderWin();return;}
+    const gt=ev.target.closest('[data-goto]');
+    if(gt){
+      const el=$('winCardB').querySelector('[data-slot="'+gt.getAttribute('data-goto')+'"]');
+      if(el){el.scrollIntoView({block:'nearest'});el.classList.remove('is-pulse');void el.offsetWidth;el.classList.add('is-pulse');}
+      return;
+    }
+    if(PL.pick&&!ev.target.closest('.pl-pick')){PL.pick=null;renderWin();return;}
   }
-  if(winMode==='person'){   // the file's detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
+  if(winMode==='person'||winMode==='plan'){   // detail buttons: a tap pins the popover open; another tap, or a tap elsewhere, closes it
     const tip=ev.target.closest('[data-pftip]'),open=$('winCardB').querySelectorAll('.pf-tip.is-open');
     if(tip){const w=tip.closest('.pf-tip'),was=w.classList.contains('is-open');open.forEach(x=>x.classList.remove('is-open'));if(!was)w.classList.add('is-open');return;}
     if(!ev.target.closest('.pf-pop'))open.forEach(x=>x.classList.remove('is-open'));
@@ -7453,6 +7443,12 @@ $('winsB').addEventListener('click',ev=>{
     const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
     closeWin();
     if(rm){G.guideHangar=1;enterRoomView(rm);}
+    syncUI();return;
+  }
+  if(t.hasAttribute('data-gocommand')){   // the unstaffed Mission Control card points at the Command Center
+    const rm=G.rooms.find(r=>r.key==='command'&&!r.build);
+    closeWin();
+    if(rm)enterRoomView(rm);
     syncUI();return;
   }
   const cand=t.getAttribute('data-cand');
@@ -7768,11 +7764,10 @@ function whereHTML(m){
    Slots: team0.. (soldiers) · tv0/tp0.. (transport + its pilot) · pz0.. (prize pilot)
           rp0/rs0.. (pilot + ship rows for space sorties) */
 const DROP_COST=160;   // supplies for a Supply Drop
-const ridPre=acc=>(acc==='soldier'||acc==='rsoldier'||acc==='pilot'||acc==='apilot')?'p:':acc==='gveh'?'v:':'f:';
 let PL=null;
 function openPlan(m){
   const r=reqOf(m);
-  PL={m,req:r,v:{},slots:[],drop:false,assets:[]};
+  PL={m,req:r,v:{},slots:[],assets:[],pick:null};
   if(r.transport){
     for(let i=0;i<r.team;i++)PL.slots.push({key:'team'+i,acc:'soldier',label:'Soldier '+(i+1)});
     for(let i=0;i<transportSlots(r);i++){
@@ -7839,45 +7834,50 @@ function plSpecOk(){
   return PL.slots.some(sl=>sl.acc==='soldier'&&PL.v[sl.key]&&hasSpec(G.people.find(p=>p.id===PL.v[sl.key])||{},sp.key));
 }
 function plAddAsset(){
-  if(!PL.req.transport||PL.assets.length>=2)return;
+  if(!PL.req.transport||PL.assets.length>=2)return -1;
   const i=PL.assets.length;
-  PL.assets.push({mode:'doorgun'});
+  PL.assets.push({});
   PL.slots.push({key:'as'+i+'s',acc:'assetship',label:'Support ship'},{key:'as'+i+'p',acc:'apilot',label:'Support pilot'});
+  return i;
 }
-function plRemoveAsset(){
-  if(!PL.assets.length)return;
-  const i=PL.assets.length-1;
-  PL.slots=PL.slots.filter(sl=>!sl.key.startsWith('as'+i));
-  for(const k of Object.keys(PL.v))if(k.startsWith('as'+i))delete PL.v[k];
-  PL.assets.pop();
+function plRemoveAsset(i){
+  if(i===undefined)i=PL.assets.length-1;
+  if(i<0||i>=PL.assets.length)return;
+  const keep=[];
+  PL.assets.forEach((a,k)=>{if(k!==i)keep.push({s:PL.v['as'+k+'s'],p:PL.v['as'+k+'p']});});
+  PL.slots=PL.slots.filter(sl=>!/^as\d/.test(sl.key));
+  for(const k of Object.keys(PL.v))if(/^as\d/.test(k))delete PL.v[k];
+  PL.assets=[];
+  for(const kv of keep){const j=plAddAsset();if(j>=0){if(kv.s)PL.v['as'+j+'s']=kv.s;if(kv.p)PL.v['as'+j+'p']=kv.p;}}
 }
-/* a spare transport can reinforce (up to its seats, filling them is optional); a starfighter strafes; a transport with a door gun can be a door gunner */
+/* what an asset grants is its nature's, not a toggle's: a starfighter strafes, a transport with a Door Mounted Gun
+   covers the squad from the door. (What a spare gunless transport grants — the old Reinforce mode — is a blocker.) */
 function plAssetMode(i){
   const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
   if(!f)return null;
   if(!SEATS[f.cls])return 'strafe';
-  return PL.assets[i].mode==='doorgun'&&!hasDoorGun(f)?'reinforce':PL.assets[i].mode;
+  return hasDoorGun(f)?'doorgun':null;
 }
-function plSyncAssets(){
-  PL.assets.forEach((a,i)=>{
-    const want=plAssetMode(i)==='reinforce';
-    const has=PL.slots.some(sl=>sl.key==='as'+i+'r0');
-    const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
-    if(want&&!has)for(let k=0;k<(af?SEATS[af.cls]||0:0);k++)PL.slots.push({key:'as'+i+'r'+k,acc:'rsoldier',label:'Reinforcement '+(k+1),opt:true});
-    if(!want&&has){
-      PL.slots=PL.slots.filter(sl=>!sl.key.startsWith('as'+i+'r'));
-      for(const k of Object.keys(PL.v))if(k.startsWith('as'+i+'r'))delete PL.v[k];
-    }
-  });
-}
-/* what the transport carrying the squad brings by itself, without a second ship: a Supply Drop if its type can fly
-   one (the Ships table's supply_drop), Door Gunner Cover if it has a gunner position and a Door Mounted Gun fitted */
+/* fire support is granted by the assets assigned, with no toggles: a Supply Drop if the transport's type can fly
+   one (the Ships table's supply_drop) and the supplies are there, Door Gunner Cover if a Door Mounted Gun is fitted */
 const plTransport=()=>PL&&PL.req.transport?G.fighters.find(x=>x.id===PL.v.tv0)||null:null;
 const canSupplyDrop=f=>{const r=f&&SRDB.ship(f.cls);return !!(r&&r.supply_drop);};
-const plDropOn=()=>!!PL.drop&&canSupplyDrop(plTransport());
-const plGunOn=()=>{const tv=plTransport();return !!tv&&hasDoorGun(tv)&&!PL.noGun;};
-const plDropOk=()=>!plDropOn()||G.supplies>=DROP_COST;
-function plComplete(){return PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
+const plDropOn=()=>{const tv=plTransport();return !!tv&&canSupplyDrop(tv)&&G.supplies>=DROP_COST;};
+const plGunOn=()=>{const tv=plTransport();return !!tv&&hasDoorGun(tv);};
+/* the squad size: the mission's, capped by the seats of the transports actually assigned */
+function plSquadMax(){
+  const r=PL.req;
+  if(!r.transport)return 0;
+  const tvs=PL.slots.filter(sl=>sl.acc==='vehicle'&&PL.v[sl.key]).map(sl=>G.fighters.find(f=>f.id===PL.v[sl.key])).filter(Boolean);
+  if(!tvs.length)return r.team;
+  return Math.max(1,Math.min(r.team,tvs.reduce((n,f)=>n+(SEATS[f.cls]||0),0)));
+}
+/* the slots this plan actually needs: soldier slots beyond the seat cap don't count */
+function plActiveSlots(){
+  const max=plSquadMax();let si=0;
+  return PL.slots.filter(sl=>sl.acc!=='soldier'||si++<max);
+}
+function plComplete(){return plActiveSlots().every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
 function plFuel(){
   let t=0;
   for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
@@ -7886,7 +7886,7 @@ function plFuel(){
 function plAutoFill(){
   for(const k of Object.keys(PL.v))if(!/^as/.test(k))delete PL.v[k];
   const m=PL.m;
-  for(const sl of PL.slots){
+  for(const sl of plActiveSlots()){
     if(PL.v[sl.key]||/^as/.test(sl.key)||sl.acc==='gveh')continue;
     const used=plUsedIds();
     let pool=[];
@@ -7904,122 +7904,258 @@ const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
 const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';
 const vehSub=v=>gvehOf(v).label+' \u00b7 '+(gvehOf(v).kind==='bot'?'Bot':'vehicle, '+gvehOf(v).seats+' seat'+(gvehOf(v).seats>1?'s':''))+' \u00b7 '+Math.round(v.hp)+'%';
-/* a filled slot: avatar, label, name, a line of detail */
-function slotOccHTML(sl){
-  const id=PL.v[sl.key];
-  if(!id)return null;
-  if(sl.acc==='gveh'){
-    const v=G.vehicles.find(x=>x.id===id);
-    return vehAvatar()+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+v.name+'</span><span class="bs-sub">'+vehSub(v)+'</span></span>';
-  }
-  if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){
-    const f=G.fighters.find(x=>x.id===id);
-    return shipAvatar('',f)+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+f.name+'</span><span class="bs-sub">'+shipSub(f)+' · hull '+f.hull+'% · '+F(fuelOf(f))+(SEATS[f.cls]?' · seats '+SEATS[f.cls]:'')+'</span></span>';
-  }
-  const p=G.people.find(x=>x.id===id);
-  return personAvatar(p)+'<span><span class="sr-slot__label">'+sl.label+'</span><span class="sr-slot__name">'+p.name+'</span><span class="bs-sub">'+personSub(p)+'</span></span>';
+/* ---------- the planning window (docs/ui/SCREENS-HANDOFF-2.md §4) ----------
+   Built around filling slots: the briefing strip, the squad cards with a seat counter, the asset cards with
+   their pilots layered on, fire support granted by the assets (no toggles), Mission Control, and a footer whose
+   blocker names the empty slots. No roster column, no checklist; a click on any empty slot opens a picker. */
+const plFace=p=>'<span class="kf">'+faceHTML(p)+'</span>';
+const plLvl=p=>'<span class="pl-lvl" style="--xp:'+Math.round((p.xp||0)*100)+'" title="Level '+p.level+'"><b>'+p.level+'</b></span>';
+/* who or what fits a slot, with the reason when they can't come */
+function plWhyPerson(p,used){
+  if(used.has(p.id))return 'In squad';
+  if(laidUp(p))return 'Injured · '+outDays(p)+' day'+(outDays(p)>1?'s':'');
+  if(conked(p))return 'Resting · '+Rebel.restDays(p)+' day'+(Rebel.restDays(p)>1?'s':'');
+  if(p.assign==='mission')return 'On a mission';
+  if(p.assign==='spec')return 'Training';
+  if(Rebel.expHas(p,'grieving'))return 'Grieving';
+  return null;
 }
-const slotHTML=sl=>{
-  const occ=slotOccHTML(sl);
-  return '<div class="sr-slot'+(occ?' is-filled':'')+'" data-slot="'+sl.key+'"'+(occ?' draggable="true" data-rid="'+ridPre(sl.acc)+PL.v[sl.key]+'"':'')+'>'+
-    (occ?occ+'<button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-slot__clear" aria-label="Remove" tabindex="-1">'+IC('clear')+'</button>':
-      '<span><span class="sr-slot__label">'+sl.label+'</span>Click or drag a roster entry here</span>')+'</div>';
-};
-/* roster entries: draggable, one click places them in the first slot that takes them */
-function chipHTML(rid){
-  const kind=rid[0],id=rid.slice(2);
-  if(kind==='v'){
-    const v=G.vehicles.find(x=>x.id===id);
-    return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'" style="--c:var(--sr-gold)">'+vehAvatar()+
-      '<span class="sr-unit__main"><span class="sr-unit__name">'+v.name+'</span><span class="sr-unit__role">'+vehSub(v)+'</span></span></div>';
-  }
-  if(kind==='f'){
-    const f=G.fighters.find(x=>x.id===id);
-    return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'" style="--c:var(--sr-shield)">'+shipAvatar('',f)+
-      '<span class="sr-unit__main"><span class="sr-unit__name">'+f.name+'</span><span class="sr-unit__role">'+shipSub(f)+'</span></span><span class="sr-unit__side">'+F(fuelOf(f))+'</span></div>';
-  }
-  const p=G.people.find(x=>x.id===id);
-  return '<div class="sr-unit" role="button" tabindex="0" draggable="true" data-rid="'+rid+'"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
-    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side">'+(restTag(p)||'<span class="sr-tag sr-tag--friend">Available</span>')+'</span></div>';
+function plWhyShip(f,used,sl){
+  if(used.has(f.id))return 'Assigned';
+  if(f.out)return 'On a mission';
+  if(f.refit>0)return 'In refit';
+  if(f.hull<60)return 'Hull '+f.hull+'%';
+  if(sl.acc==='ship'&&PL.req.starfighter&&SEATS[f.cls])return 'A transport won’t do';
+  if(sl.acc==='vehicle'&&!SEATS[f.cls])return 'No seats';
+  return null;
 }
-/* people who can't go right now stay on the list, greyed, with the reason */
-function offHTML(p){
-  const why=laidUp(p)?'Injured, '+outDays(p)+' day'+(outDays(p)>1?'s':''):conked(p)?'Conked out, '+Rebel.restDays(p)+' day'+(Rebel.restDays(p)>1?'s':''):p.assign==='mission'?'On mission':p.assign==='spec'?'Training':Rebel.expHas(p,'grieving')?'Grieving':'';
-  return '<div class="sr-unit is-down"'+(p.role==='Pilot'||p.role==='Hero'?' style="--c:var(--sr-gold)"':'')+'>'+personAvatar(p)+
-    '<span class="sr-unit__main"><span class="sr-unit__name">'+p.name+'</span><span class="sr-unit__role">'+personSub(p)+'</span></span><span class="sr-unit__side"><span class="sr-tag sr-tag--bad">'+why+'</span></span></div>';
+function plPickHTML(key){
+  const used=plUsedIds();
+  const opts=[];
+  const opt=(rid,art,name,sub,why)=>opts.push('<button type="button" class="pl-opt" data-pickval="'+rid+'"'+(why?' disabled':'')+'>'+art+
+    '<span><b>'+esc(name)+'</b><small>'+esc(sub)+'</small></span><em style="--c:'+(why?'var(--sr-text-3)':'var(--sr-go)')+'">'+esc(why||'Available')+'</em></button>');
+  const people=list=>{for(const p of list)opt('p:'+p.id,plFace(p),p.name,personSub(p),plWhyPerson(p,used));};
+  const ships=(list,sl)=>{for(const f of list){const u=shipTopURL(f,48,48,1.15);
+    opt('f:'+f.id,'<span class="kf">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>',
+      f.name,shipSub(f)+' · '+F(fuelOf(f))+(SEATS[f.cls]?' · '+SEATS[f.cls]+' seats':''),plWhyShip(f,used,sl));}};
+  const vehs=()=>{for(const v of vehPool())opt('v:'+v.id,'<span class="kf">'+IC('vehicle')+'</span>',v.name,vehSub(v),used.has(v.id)?'Assigned':null);};
+  let title='Pick';
+  if(key==='addasset'){
+    title='Add an asset';
+    if(PL.assets.length<2)ships(G.fighters,{acc:'assetship'});
+    if(PL.slots.some(sl=>sl.acc==='gveh'&&!PL.v[sl.key]))vehs();
+  } else {
+    const sl=PL.slots.find(x=>x.key===key);
+    if(!sl)return '';
+    title=sl.label;
+    if(sl.acc==='soldier')people(G.people.filter(isGround));
+    else if(sl.acc==='pilot'||sl.acc==='apilot')people(G.people.filter(isFlyer));
+    else if(sl.acc==='gveh')vehs();
+    else ships(G.fighters.filter(f=>sl.acc!=='vehicle'||SEATS[f.cls]),sl);
+  }
+  return '<div class="pl-pick" style="left:0;top:calc(100% + 8px)"><div class="pl-pick__t">'+esc(title)+'<span>'+opts.length+' to pick</span></div>'+
+    (opts.join('')||'<div class="pf-none">Nobody fits this slot.</div>')+'</div>';
 }
-function planHTML(m){
-  plSyncAssets();
-  const r=PL.req,used=plUsedIds();
-  const objs=(m.objectives||['Complete the operation']).map(o=>'<div class="sr-obj'+(o[0]==='('?' sr-obj--note':'')+'"><span class="sr-obj__mark"></span><span>'+o+'</span></div>').join('');
-  const hangarNote=(r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring)?
-      '<p class="sr-fine bs-gold">The derelict hauler in the hangar can fly again — restoring it is a base job: '+C(240)+' '+M(160)+' and two days.</p>':
-    (r.transport&&!grafReady()&&G.wreck&&G.wreck.restoring)?
-      '<p class="sr-fine bs-gold">Hauler restoration under way — '+G.wreck.restoring+' day'+(G.wreck.restoring>1?'s':'')+' left. Advance the day.</p>':'';
-  const slotBox=(keys,title)=>{
-    const sls=PL.slots.filter(sl=>keys.includes(sl.acc));
-    if(!sls.length)return '';
-    return '<div class="sr-h3">'+title+'</div><div class="sr-stack">'+sls.map(slotHTML).join('')+'</div>';
+/* the briefing strip: where, what, the odds and the pay */
+function plBriefHTML(m){
+  const d=m.loc&&pdef(m.loc),lk=d?(WORLD_LOOK[d.id]||{col:'#9aa6c4'}):null;
+  const reg=m.region&&d&&d.regions&&d.regions.find(x=>x.id===m.region);
+  const place=reg?reg.name:(m.ctx&&m.ctx.place)||'';
+  const loc=d?'<div class="pl-loc"><span class="pl-loc__it"><svg viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="13" fill="'+lk.col+'" stroke="var(--sr-ink)" stroke-width="2.5"/></svg><span class="pl-loc__lbl">'+esc(d.name)+'</span></span>'+
+    '<span class="pl-loc__dots"></span>'+
+    '<span class="pl-loc__it"><svg viewBox="0 0 34 34" aria-hidden="true"><path d="M17 31c6.4-8.4 9.6-13 9.6-18A9.6 9.6 0 1 0 7.4 13c0 5 3.2 9.6 9.6 18Z" fill="var(--sr-rebel)" stroke="var(--sr-ink)" stroke-width="2.5"/><circle cx="17" cy="13.4" r="3.4" fill="var(--sr-ink)"/></svg><span class="pl-loc__lbl">'+esc(place||'Target')+'</span></span></div>':'';
+  const objs=(m.objectives||['Complete the operation']);
+  const nObjs=objs.filter(o=>o[0]!=='(').length;
+  const objBtn='<div class="pf-tip">'+rbtn('type="button" data-pftip',nObjs+' objective'+(nObjs>1?'s':''),false,'sr-btn--ghost sr-btn--sm')+
+    '<div class="pf-pop" role="tooltip"><div class="pf-pop__name">Objectives</div><div class="pf-pop__kind">'+esc(m.name)+'</div>'+
+    objs.map(o=>'<div class="sr-obj'+(o[0]==='('?' sr-obj--note':'')+'"><span class="sr-obj__mark"></span><span>'+o+'</span></div>').join('')+'</div></div>';
+  const kind=OPKIND[opKind(m)];
+  const rl=/high/i.test(m.riskTxt)?3:/moder/i.test(m.riskTxt)?2:1;
+  const rcol=rl===3?'var(--sr-c-bad)':rl===2?'var(--sr-hazard)':'var(--sr-go)';
+  let rpips='';for(let i=0;i<3;i++)rpips+='<i'+(i<rl?' class="is-on"':'')+'></i>';
+  const facts='<span class="pl-fact"><b>'+IC(kind.icon)+'</b><span>'+kind.label+'</span></span>'+
+    '<span class="pl-fact" style="--c:'+rcol+'"><span class="pl-pips">'+rpips+'</span><b>'+esc(m.riskTxt||'Low')+'</b><span>Risk</span></span>'+
+    '<span class="pl-fact"><b>'+m.days+' day'+(m.days>1?'s':'')+'</b><span>Travel time</span></span>';
+  const RES3={c:['credits','var(--sr-res-credits)'],s:['supplies','var(--sr-res-supplies)'],m:['materials','var(--sr-res-materials)'],f:['fuel','var(--sr-res-fuel)'],i:['intel','var(--sr-res-intel)']};
+  const rr=m.rew||{},rews=[];
+  if(rr.cross||rr.fighter)rews.push('<span style="--c:var(--sr-shield)">'+IC('ship')+(rr.cross?'FT-4 Cross':'+1 fighter')+'</span>');
+  for(const k in RES3)if(rr[k])rews.push('<span style="--c:'+RES3[k][1]+'">'+IC(RES3[k][0])+'+'+rr[k]+'</span>');
+  rews.push('<span style="--c:var(--sr-psi)">'+IC('star')+'+XP</span>');
+  const rew='<span class="pl-rew"><span class="pl-rew__row">'+rews.join('')+'</span></span>';
+  return '<div class="pl-brief"><div class="pl-brief__left">'+loc+
+    '<div style="min-width:0"><p class="pl-desc" title="'+esc(String(m.desc).replace(/<[^>]+>/g,''))+'">'+m.desc+'</p>'+
+    '<div class="pl-meta">'+(m.from?'<span>From <b>'+esc(m.from)+'</b></span>':'')+objBtn+'</div></div></div>'+
+    '<div class="pl-facts">'+facts+rew+'</div></div>';
+}
+/* one squad card per seat; empty seats are slots to fill, never "optional" */
+function plSoldCard(sl,sub,emptyLbl,slotLine){
+  const p=PL.v[sl.key]&&G.people.find(x=>x.id===PL.v[sl.key]);
+  const pick=PL.pick===sl.key?plPickHTML(sl.key):'';
+  if(!p)return '<div class="pl-sold pl-sold--empty pl-sold--need" data-slot="'+sl.key+'" data-pick="'+sl.key+'" role="button" tabindex="0">'+
+    '<span class="pl-plus">+</span><span class="pl-sub">'+emptyLbl+'</span><span class="pl-sold__slot">'+esc(slotLine)+'</span>'+pick+'</div>';
+  const kit=['primary','secondary'].map(k=>(p.gear||{})[k]).filter(Boolean).map(id=>itArt(id)).join('');
+  return '<div class="pl-sold" data-slot="'+sl.key+'" data-pick="'+sl.key+'" role="button" tabindex="0" draggable="true" data-rid="p:'+p.id+'">'+
+    '<span class="pl-sold__face">'+plFace(p)+plLvl(p)+'</span>'+
+    '<span class="pl-name">'+esc(p.name)+'</span><span class="pl-sub">'+esc(sub||rankFor(p))+'</span>'+
+    (kit?'<span class="pl-kit">'+kit+'</span>':'')+
+    '<button type="button" class="pl-card__x" data-unslot="'+sl.key+'" aria-label="Remove '+esc(p.name)+'">'+IC('clear')+'</button>'+pick+'</div>';
+}
+function plSquadHTML(){
+  const max=plSquadMax();
+  const sls=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,max);
+  const n=sls.filter(sl=>PL.v[sl.key]).length;
+  let pips='';for(let i=0;i<max;i++)pips+='<i'+(i<n?'':' class="is-free"')+'></i>';
+  const count='<span class="pl-count'+(n>=max?' is-full':'')+'"><b>'+n+'/'+max+'</b><span><small>Squad size</small><span class="pl-seats">'+pips+'</span></span></span>';
+  const cards=sls.map((sl,i)=>plSoldCard(sl,null,'+ Soldier','Slot '+(i+1)+' of '+max)).join('')+
+    PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>plSoldCard(sl,sl.label,'+ Pilot',sl.label)).join('');
+  return '<div><div class="pl-h">'+IC('soldier')+'Squad<span class="pl-h__end">'+count+'</span></div><div class="pl-soldiers">'+cards+'</div></div>';
+}
+/* an asset card: the craft with its pilot layered on; the transport is the primary */
+function plAssetCard(o){
+  const f=o.sKey&&PL.v[o.sKey]&&G.fighters.find(x=>x.id===PL.v[o.sKey]);
+  const pick=PL.pick===o.sKey?plPickHTML(o.sKey):PL.pick===o.pKey?plPickHTML(o.pKey):'';
+  const badge=k=>{
+    if(!k)return '';
+    const p=PL.v[k]&&G.people.find(x=>x.id===PL.v[k]);
+    if(!p)return '<button type="button" class="pl-pilot pl-pilot--empty" data-pick="'+k+'" data-slot="'+k+'">+ Pilot</button>';
+    return '<button type="button" class="pl-pilot" data-pick="'+k+'" data-slot="'+k+'" draggable="true" data-rid="p:'+p.id+'">'+plFace(p)+
+      '<span><b>'+esc(p.name.split(' ')[0])+'</b><small>Pilot</small></span></button>';
   };
-  const avail=(list,pre)=>list.filter(x=>!used.has(x.id)).map(x=>chipHTML(pre+x.id)).join('')||'<div class="sr-empty">None available.</div>';
-  const away=list=>list.map(offHTML).join('');
-  const soldiersAll=G.people.filter(isGround),pilotsAll=G.people.filter(isFlyer);
-  const roster='<div class="sr-h3">Roster</div><div class="sr-stack">'+
-    (r.transport?'<span class="bs-rh">Soldiers</span>'+avail(soldierPool(),'p:')+away(soldiersAll.filter(p=>!soldierPool().includes(p)&&(offDuty(p)||p.assign==='mission'||p.assign==='spec'))):'')+
-    '<span class="bs-rh">Pilots</span>'+avail(ablePilots(),'p:')+away(pilotsAll.filter(p=>!ablePilots().includes(p)&&(offDuty(p)||p.assign==='mission'||p.assign==='spec')))+
-    '<span class="bs-rh">'+(r.transport?'Transports':'Ships')+'</span>'+avail(r.transport?transportPool():shipPool(r),'f:')+
-    (PL.assets.length?'<span class="bs-rh">Support ships</span>'+avail(G.fighters.filter(f=>!f.out&&!(f.refit>0)&&f.hull>=60),'f:'):'')+
-    (r.transport&&(G.vehicles||[]).length?'<span class="bs-rh">Vehicles and Bots</span>'+avail(vehPool(),'v:'):'')+
-    '</div>';
-  const left='<div class="planL">'+
-    '<p class="sr-p">'+m.desc+'</p>'+
-    '<div class="sr-card__meta">'+(whereHTML(m)?wTag(whereHTML(m)+' · '+MTYPES[typeOf(m)].label,'info'):'')+(m.from?wTag(m.from):'')+'</div>'+
-    '<div class="sr-h3">Objectives</div>'+objs+
-    precondHTML(m)+
-    '<div class="sr-h3">Reward</div><div class="sr-card__meta">'+rewHTML(m)+'</div>'+hangarNote+
-    '</div><div class="planRo">'+roster+'</div>';
-  const right='<div class="planR">'+
-    (r.transport?slotBox(['soldier'],'Team'):'')+
-    (r.transport?slotBox(['vehicle','pilot'],'Transport & pilots'):slotBox(['pilot','ship'],'Flight'))+
-    (r.transport?assetsHTML():'')+baseSupportHTML()+
-    '</div>';
-  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel&&plDropOk();
-  const empty=PL.slots.filter(sl=>!PL.v[sl.key]&&!sl.opt).length;
-  const note=plComplete()?'Fuel burned: '+F(fuel,G.fuel<fuel)+' of '+Math.floor(G.fuel):(PL.slots.every(sl=>PL.v[sl.key]||sl.opt)&&!plSpecOk()?'The team needs a '+PL.req.spec.label+'.':'Fill every slot to go. '+empty+' slot'+(empty>1?'s':'')+' empty.');
-  const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
-  return wHead('Plan: '+m.name,{tags:opTag(m)+riskTag(m)+wTag(m.days+' day'+(m.days>1?'s':''),'action')})+
-    '<div class="sr-window__body bs-plan">'+left+right+'</div>'+
-    wFoot((needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
-      rbtn('data-autofill','Auto-fill')+
-      rbtn('id="launchBtn"'+(ok?'':' title="'+esc(note.replace(/<[^>]+>/g,''))+'"'),(m.lead?'Start':'Launch'),!ok,'sr-btn--primary sr-btn--lg'),note);
+  if(!f)return '<div class="pl-asset'+(o.primary?' pl-asset--primary':'')+'" data-slot="'+o.sKey+'">'+
+    '<span class="pl-asset__kick"'+(o.primary?' style="--c:var(--sr-shield)"':'')+'>'+esc(o.kicker)+'</span>'+
+    '<button type="button" class="pl-asset__art pl-asset__art--empty" data-pick="'+o.sKey+'">+ '+esc(o.kicker)+'</button>'+pick+'</div>';
+  const u=shipTopURL(f,150,94,2.6);
+  const stats='<span class="pl-shipstats"><span>'+IC('cover')+f.hull+'%</span><span style="--c:var(--sr-res-fuel)">'+IC('fuel')+Math.round(fuelOf(f))+'</span>'+
+    (SEATS[f.cls]?'<span>'+IC('people')+SEATS[f.cls]+' seats</span>':'')+'</span>';
+  return '<div class="pl-asset'+(o.primary?' pl-asset--primary':'')+'" data-slot="'+o.sKey+'" draggable="true" data-rid="f:'+f.id+'">'+
+    '<span class="pl-asset__kick"'+(o.primary?' style="--c:var(--sr-shield)"':'')+'>'+esc(o.kicker)+'</span>'+
+    '<span class="pl-asset__art" role="button" tabindex="0" data-pick="'+o.sKey+'">'+(u?'<img class="it-art" src="'+u+'" alt="" style="object-fit:contain">':IC('ship'))+badge(o.pKey)+'</span>'+
+    '<span class="pl-asset__name">'+esc(f.name)+'</span><span class="pl-sub">'+esc(shipSub(f))+'</span>'+stats+
+    (o.rm!==undefined?'<button type="button" class="pl-card__x" data-rmasset="'+o.rm+'" aria-label="Remove asset">'+IC('clear')+'</button>':'')+pick+'</div>';
 }
-function assetsHTML(){
-  let h='<div class="sr-h3">Fire support</div><div class="sr-stack">';
-  const can=G.supplies>=DROP_COST,tv=plTransport();
-  if(!tv)h+='<p class="sr-fine" style="margin:0">Assign the transport: what it can do from the air shows here.</p>';
-  else{
-    const from='<span class="sr-slot__label">From '+esc(tv.name)+'</span>';
-    const onTag=on=>'<span class="sr-slot__clear">'+(on?wTag('Arranged','good'):wTag('Not arranged'))+'</span>';   // a click toggles it
-    if(canSupplyDrop(tv)){const on=plDropOn();
-      h+='<div class="sr-slot'+(on?' is-filled':'')+(can||on?'':' is-off')+'" '+(can||on?'data-drop':'')+'><span>'+from+'<span class="sr-slot__name">Supply Drop</span>'+
-        '<span class="bs-sub">'+S(DROP_COST,!can)+' · 5 stims, 2 BLAM frags, 2 makeshift rocket launchers'+(can?'':' · not enough supplies')+'</span></span>'+(can||on?onTag(on):'')+'</div>';}
-    else h+='<div class="sr-slot is-off"><span>'+from+'<span class="sr-slot__name">Supply Drop</span><span class="bs-sub">A '+esc((SRDB.ship(tv.cls)||{}).name||'ship')+' can’t fly a supply drop.</span></span></div>';
-    if(hasDoorGun(tv))h+='<div class="sr-slot'+(plGunOn()?' is-filled':'')+'" data-tvgun><span>'+from+'<span class="sr-slot__name">Door Gunner Cover</span>'+
-      '<span class="bs-sub">Its Door Mounted Gun, once the squad is down: circles two rounds and rakes up to three enemies a round</span></span>'+onTag(plGunOn())+'</div>';
-    else if(((SRDB.ship(tv.cls)||{}).gunner_positions||0)>0)h+='<div class="sr-slot is-off"><span>'+from+'<span class="sr-slot__name">Door Gunner Cover</span><span class="bs-sub">Fit a Door Mounted Gun to offer it.</span></span></div>';
+function plVehCard(sl){
+  const v=PL.v[sl.key]&&G.vehicles.find(x=>x.id===PL.v[sl.key]);
+  if(!v)return '';
+  const pick=PL.pick===sl.key?plPickHTML(sl.key):'';
+  return '<div class="pl-asset" data-slot="'+sl.key+'" draggable="true" data-rid="v:'+v.id+'">'+
+    '<span class="pl-asset__kick">'+(gvehOf(v).kind==='bot'?'Bot':'Vehicle')+'</span>'+
+    '<span class="pl-asset__art" role="button" tabindex="0" data-pick="'+sl.key+'">'+vehArt(v.type)+'</span>'+
+    '<span class="pl-asset__name">'+esc(v.name)+'</span><span class="pl-sub">'+esc(vehSub(v))+'</span>'+
+    '<button type="button" class="pl-card__x" data-unslot="'+sl.key+'" aria-label="Remove">'+IC('clear')+'</button>'+pick+'</div>';
+}
+function plAssetsHTML(){
+  const r=PL.req;
+  let cards='';
+  if(r.transport){
+    PL.slots.filter(sl=>sl.acc==='vehicle').forEach(sl=>{
+      cards+=plAssetCard({kicker:'Transport',sKey:sl.key,pKey:'tp'+sl.key.slice(2),primary:true});
+    });
+    PL.assets.forEach((a,i)=>{cards+=plAssetCard({kicker:'Support ship',sKey:'as'+i+'s',pKey:'as'+i+'p',rm:i});});
+    cards+=PL.slots.filter(sl=>sl.acc==='gveh').map(plVehCard).join('');
+    const room=PL.assets.length<2||PL.slots.some(sl=>sl.acc==='gveh'&&!PL.v[sl.key]);
+    if(room)cards+='<div style="position:relative;display:flex" data-slot="addasset"><button type="button" class="pl-asset__add" data-pick="addasset"><span>+</span>+ Add asset</button>'+(PL.pick==='addasset'?plPickHTML('addasset'):'')+'</div>';
+  } else {
+    PL.slots.filter(sl=>sl.acc==='ship').forEach((sl,i)=>{
+      cards+=plAssetCard({kicker:sl.opt?'Scrambled':'Starfighter '+(i+1),sKey:sl.key,pKey:'rp'+sl.key.slice(2),primary:i===0});
+    });
+  }
+  return '<div><div class="pl-h">'+IC('ship')+'Assets</div><div class="pl-assets">'+cards+'</div></div>';
+}
+/* fire support comes with the assets; an unpiloted asset's ability waits greyed out */
+function plSupportChips(){
+  const chips=[];
+  const chip=(ico2,name,from,o)=>chips.push('<span class="pl-ab'+(o&&o.off?' is-off':'')+'" style="--c:'+((o&&o.c)||'var(--sr-gold)')+'"><span>'+IC(ico2)+'</span>'+name+
+    '<small>'+esc(from)+'</small>'+(o&&o.cost?'<small class="pl-ab__cost">'+IC('supplies')+DROP_COST+'</small>':'')+'</span>');
+  const tv=plTransport(),tvP=!!PL.v.tp0;
+  if(tv){
+    if(canSupplyDrop(tv)){
+      const can=G.supplies>=DROP_COST;
+      chip('supplies','Supply Drop','from '+tv.name+(!tvP?' · needs a pilot':can?'':' · Not enough supplies'),{off:!tvP||!can,cost:can,c:'var(--sr-res-supplies)'});
+    }
+    if(hasDoorGun(tv))chip('gun','Door Gunner Cover','from '+tv.name+(tvP?'':' · needs a pilot'),{off:!tvP});
   }
   PL.assets.forEach((a,i)=>{
-    const mode=plAssetMode(i);
-    const af=G.fighters.find(x=>x.id===PL.v['as'+i+'s']),gun=!!af&&hasDoorGun(af),cap=af?SEATS[af.cls]||0:0;
-    h+=PL.slots.filter(sl=>sl.key.startsWith('as'+i)).map(slotHTML).join('');
-    if(mode)h+=(mode==='strafe'?'<p class="sr-fine" style="margin:0">Strafing Run: a starfighter rakes a line of the battlefield.</p>':
-      '<div class="bs-chips">'+(gun?rbtn('data-assetmode="'+i+':doorgun" aria-pressed="'+(mode==='doorgun')+'"','Door Gunner',false,'sr-btn--sm'):'')+rbtn('data-assetmode="'+i+':reinforce" aria-pressed="'+(mode==='reinforce')+'"','Reinforcements',false,'sr-btn--sm')+'</div>'+
-      '<p class="sr-fine" style="margin:0">'+(mode==='doorgun'?'Circles for two rounds and rakes up to three enemies a round.':'Lands up to '+cap+' more soldier'+(cap===1?'':'s')+' where you call it (fill as many seats as you like).')+(gun?'':' No Door Mounted Gun fitted, so no door gunner.')+'</p>');
+    const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);if(!f)return;
+    const hasP=!!PL.v['as'+i+'p'],mode=plAssetMode(i);
+    if(mode==='strafe')chip('firesupport','Strafing Run','from '+f.name+(hasP?'':' · needs a pilot'),{off:!hasP,c:'var(--sr-hazard)'});
+    else if(mode==='doorgun')chip('gun','Door Gunner Cover','from '+f.name+(hasP?'':' · needs a pilot'),{off:!hasP});
   });
-  {const gv=PL.slots.filter(sl=>sl.acc==='gveh');
-   if(gv.length)h+=gv.map(slotHTML).join('')+'<p class="sr-fine" style="margin:0">Adds <b>Deploy</b> to the Fire Support menu: once the shooting starts, call it down where you can see. A vehicle needs someone to get in it, a Bot drives itself.</p>';}
-  h+='<div class="bs-chips">'+(PL.assets.length<2&&G.fighters.filter(f=>!f.out&&!(f.refit>0)&&f.hull>=60).length>1?rbtn('data-addasset','+ Support ship',false,'sr-btn--sm'):'')+(PL.assets.length?rbtn('data-rmasset','Remove last',false,'sr-btn--sm'):'')+'</div></div>';
+  for(const sl of PL.slots.filter(x=>x.acc==='gveh')){
+    const v=PL.v[sl.key]&&G.vehicles.find(x=>x.id===PL.v[sl.key]);
+    if(v)chip('vehicle','Deploy','from '+v.name,{c:'var(--sr-gold)'});
+  }
+  return '<div><div class="pl-h">'+IC('firesupport')+'Fire support</div>'+
+    (chips.length?'<div class="pl-abil">'+chips.join('')+'</div>':'<p class="sr-fine" style="margin:0">Assign the transport: what the assets can do from the air shows here.</p>')+'</div>';
+}
+/* Mission Control as its own card; a free Controller steadies the squad */
+function plBaseHTML(){
+  const ground=!!PL.req.transport,ctl=pickControl(ground?'ground':'space');
+  const line='A free Controller in the Command Center backs this mission: the squad starts steadier, <em>+'+RU.mission_support_cool+' Cool</em>.';
+  let card;
+  if(!ctl)card='<div class="pl-base"><span class="pl-base__disc">'+IC('people')+'</span><div style="min-width:0"><b>Mission Control <small>Unstaffed</small></b><p>'+line+'</p></div>'+
+    rbtn('type="button" data-gocommand','Command Center',false,'sr-btn--ghost sr-btn--sm')+'</div>';
+  else card='<div class="pl-base is-staffed"><span class="pl-base__disc pl-base__disc--face">'+faceHTML(ctl)+'</span><div style="min-width:0">'+
+    '<b>'+esc(ctl.name)+' <small>Mission Control</small></b><p>The squad starts steadier, <em>+'+RU.mission_support_cool+' Cool</em>'+(nicheOf(ctl)==='tactician'?', with their Tactician’s calls':'')+'.</p></div></div>';
+  return '<div><div class="pl-h">'+IC('base')+'Base support</div>'+card+plSupportJobsHTML(ground)+'</div>';
+}
+/* the Support crew's mission jobs and the Flight Controller's plot ride under the Mission Control card */
+function plSupportJobsHTML(ground){
+  let h='';
+  if(ground){
+    PL.sj=PL.sj||{};
+    for(const k of MJOBS){
+      const rs=mjobRunners(k);
+      if(!rs.length)continue;
+      const u=SP.UK[k];
+      h+='<div class="bs-chips" title="'+esc(u.d)+'"><span class="sr-fine" style="margin-right:6px">'+esc(u.n)+'</span>'+rs.map(p=>{
+        const taken=Object.keys(PL.sj).some(x=>x!==k&&PL.sj[x]===p.id);
+        return rbtn('data-pljob="'+k+'|'+p.id+'" aria-pressed="'+(PL.sj[k]===p.id)+'"',esc(p.name.split(' ')[0]),taken,'sr-btn--sm');
+      }).join('')+'</div>';
+    }
+  } else {
+    const fcl=pickControl('space');
+    if(fcl&&PL.m.lead&&SP.canRun(fcl,SP.UK['flightctl.interceptplot'],leadOf('flightctl'))){
+      PL.plot=PL.plot||'centre';
+      h+='<div class="bs-chips" title="'+esc(SP.UK['flightctl.interceptplot'].d)+'"><span class="sr-fine" style="margin-right:6px">Intercept Plot</span>'+
+        [['left','Flank left'],['centre','Head on'],['right','Flank right'],['close','Close in']].map(([k,n])=>rbtn('data-plot="'+k+'" aria-pressed="'+(PL.plot===k)+'"',n,false,'sr-btn--sm')).join('')+'</div>';
+    }
+    const n=runnersOf('aerogineer.preflight').filter(jobFree).length*2;
+    if(n)h+='<p class="sr-fine" style="margin:0">Pre-flight Checks: up to '+n+' ship'+(n>1?'s':'')+' start with +'+RU.preflight_shield+' front shield.</p>';
+  }
   return h;
+}
+/* what the footer's blocker calls a slot */
+function plSlotName(sl){
+  if(sl.acc==='soldier')return sl.label;
+  if(sl.acc==='vehicle')return 'Transport';
+  if(sl.acc==='pilot'&&/^tp/.test(sl.key)){const tv=plTransport();return tv?tv.name+'’s pilot':'Transport pilot';}
+  if(sl.acc==='apilot'){const f=G.fighters.find(x=>x.id===PL.v['as'+sl.key[2]+'s']);return f?f.name+'’s pilot':'Support pilot';}
+  if(sl.acc==='pilot'&&/^rp/.test(sl.key)){const f=G.fighters.find(x=>x.id===PL.v['rs'+sl.key.slice(2)]);return f?f.name+'’s pilot':sl.label;}
+  if(sl.acc==='assetship')return 'Support ship';
+  return sl.label;
+}
+function planHTML(m){
+  const r=PL.req;
+  const act=plActiveSlots();
+  const missing=act.filter(sl=>!PL.v[sl.key]&&!sl.opt);
+  const fuel=plFuel(),ok=plComplete()&&canAttempt(m)&&G.fuel>=fuel;
+  const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
+  const going=act.filter(sl=>PL.v[sl.key]&&(sl.acc==='soldier'||sl.acc==='pilot'||sl.acc==='apilot')).length;
+  let blocker;
+  if(missing.length)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+missing.length+' slot'+(missing.length>1?'s':'')+' empty: '+
+    missing.map(sl=>'<u data-goto="'+sl.key+'">'+esc(plSlotName(sl))+'</u>').join(', ')+'</span>';
+  else if(!plSpecOk())blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'The team needs a '+esc(r.spec.label)+'</span>';
+  else if(!canAttempt(m))blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+esc((precondList(m).find(c=>!c.ok)||{}).why||'Blocked')+'</span>';
+  else if(G.fuel<fuel)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'Not enough fuel</span>';
+  else blocker='<span class="pl-ready" style="--c:var(--sr-go)">'+IC('check')+'Squad ready</span>';
+  const sum='<span class="pl-sum"><span>'+IC('fuel')+'Fuel&nbsp;<b>'+Math.round(fuel)+'</b>&nbsp;of '+Math.floor(G.fuel)+'</span><span>'+IC('people')+'<b>'+going+'</b>&nbsp;rebel'+(going===1?'':'s')+' going</span></span>';
+  return wHead('Plan: '+m.name)+
+    '<div class="pl-body">'+plBriefHTML(m)+(r.transport?plSquadHTML():'')+plAssetsHTML()+
+    '<div class="pl-supportrow"'+(r.transport?'':' style="grid-template-columns:minmax(0,1fr)"')+'>'+(r.transport?plSupportChips():'')+plBaseHTML()+'</div></div>'+
+    '<div class="pl-foot">'+blocker+sum+'<span style="margin-left:auto;display:flex;gap:10px;align-items:center">'+
+    (needHangar?rbtn('data-gohangar','Go to the hangar',false,'sr-btn--attn'):'')+
+    rbtn('data-autofill','Auto-fill',false,'sr-btn--ghost')+
+    rbtn('id="launchBtn"','Start mission',!ok,'sr-btn--primary sr-btn--lg')+'</span></div>';
 }
 /* the injury penalties a rebel takes into a fight: halved in Rehab (Physio) */
 function fxOf(p){
@@ -8038,18 +8174,16 @@ function squadEntry(p,scatterFirst){
 }
 function startPlan(){
   const m=PL.m;
-  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel()||!plDropOk())return;
+  if(!plComplete()||!canAttempt(m)||G.fuel<plFuel())return;
   sClick();
   if(!m.lead){launchMission(m);return;}
   const fuel=plFuel();
   if(PL.req.transport){
-    const squad=PL.slots.filter(sl=>sl.acc==='soldier').map(sl=>G.people.find(p=>p.id===PL.v[sl.key]));
+    const squad=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,plSquadMax()).map(sl=>G.people.find(p=>p.id===PL.v[sl.key])).filter(Boolean);
     const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
     const tv=G.fighters.find(f=>f.id===PL.v.tv0);
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
-    const reinforce=[];PL.assets.forEach((a,k)=>{if(plAssetMode(k)!=='reinforce')return;const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']);
-      for(let q=0;q<((f&&SEATS[f.cls])||0);q++){const rp=G.people.find(x=>x.id===PL.v['as'+k+'r'+q]);if(rp)reinforce.push(rp);}});
-    outfitSquad(squad.concat(reinforce,prize?[prize]:[]));
+    outfitSquad(squad.concat(prize?[prize]:[]));
     squadTension(squad);
     const fx=supportStart(m,'ground',plJobPicks());
     G.nadesOut=nadesCarried(squad);
@@ -8071,9 +8205,8 @@ function startPlan(){
       assets:{drop:plDropOn(),ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=plAssetMode(k);
-        return {cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},
-          soldiers:mode==='reinforce'?Array.from({length:SEATS[f.cls]||0},(_,q)=>G.people.find(x=>x.id===PL.v['as'+k+'r'+q])).filter(Boolean).map(p=>squadEntry(p,false)):[]};
-      }),vehicles:PL.slots.filter(sl=>sl.acc==='gveh'&&PL.v[sl.key]).map(sl=>{
+        return f&&pl&&mode?{cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},soldiers:[]}:null;
+      }).filter(Boolean),vehicles:PL.slots.filter(sl=>sl.acc==='gveh'&&PL.v[sl.key]).map(sl=>{
         const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
         return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,arm:d.arm,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
@@ -8125,6 +8258,11 @@ function usePacks(r){
 }
 function applyDebrief(r){
   if(!r)return;
+  // the Supply Drop is paid at launch; if it was never called in, the crates come home (SCREENS-HANDOFF-2 §4)
+  if(G.sortie&&G.sortie.s&&r.kind==='ground'&&!r.dropUsed){
+    G.supplies+=G.sortie.s;
+    news('The supply drop was never called in — '+S(G.sortie.s)+' back in stores.','r');
+  }
   SR.mission=null;G.sortie=undefined;
   usePacks(r);
   if(r.missionId==='haven'){
@@ -8561,7 +8699,7 @@ if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
-      newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
+      newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
