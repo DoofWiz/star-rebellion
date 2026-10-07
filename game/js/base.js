@@ -251,7 +251,7 @@ function newGame(){
     ],
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],standby:[],
-    agents:[],agentSeq:0,exposure:0,leads:[],interrogations:[],
+    agents:[],agentSeq:0,exposure:0,bureauLeads:[],interrogations:[],
     news:[],
     v:saveVersion(),   // born at the current save version: no migration runs on it (MIGRATIONS below)
   };
@@ -5671,8 +5671,8 @@ const cellLive=a=>G.sources.filter(s=>s.agent===a.id&&s.alive);
 const agentCap=a=>a.cap+Math.max(0,sourceCap()-2);   // the base cell plus the Intelligence Centre's growth
 const agentCover=a=>Math.max(0,Math.round(a.cover-(a.moving?INTEL_N.repostCover:0)));
 const intgOf=srcId=>(G.interrogations||[]).find(ig=>ig.source===srcId);
-const agentLeads=a=>(G.leads||[]).filter(l=>l.target.kind==='agent'&&l.target.id===a.id);
-const srcLeads=s=>(G.leads||[]).filter(l=>l.target.kind==='source'&&l.target.id===s.id);
+const agentLeads=a=>(G.bureauLeads||[]).filter(l=>l.target.kind==='agent'&&l.target.id===a.id);
+const srcLeads=s=>(G.bureauLeads||[]).filter(l=>l.target.kind==='source'&&l.target.id===s.id);
 const agentPending=a=>(G.interrogations||[]).some(ig=>{const s=srcById(ig.source);return s&&s.agent===a.id&&ig.expectedLeads.some(t=>t.kind==='agent'&&t.id===a.id);});
 const agentWorld=a=>pdef(a.postedTo)||pdef('haven');
 function mkAgent(world,g){
@@ -5702,7 +5702,7 @@ function captureSource(src){
 }
 function extractLeads(ig,cold){
   const src=srcById(ig.source);
-  for(const t of ig.expectedLeads)G.leads.push({target:t,from:ig.source,day:G.day,cold:cold?1:0});
+  for(const t of ig.expectedLeads)G.bureauLeads.push({target:t,from:ig.source,day:G.day,cold:cold?1:0});
   expGain(INTEL_N.expLead*ig.expectedLeads.length,'extracted Leads');
   news('The Bureau breaks <b>'+(src?src.name:'a source')+'</b>. '+(cold?'The trail they give up is cold.':'Leads are moving.'),'h');
 }
@@ -5732,13 +5732,13 @@ function resolveRescue(ig,win){
 /* the Bureau's day, scaled by the Exposure band: leaded nodes heat up; High and Max bands hunt */
 function bureauTick(){
   const band=expBand();
-  for(const ld of G.leads||[]){
+  for(const ld of G.bureauLeads||[]){
     if(ld.cold)continue;
     if(ld.target.kind==='source'){const s=srcById(ld.target.id);if(s&&s.alive)s.risk=Math.min(100,s.risk+1+band);}
     if(ld.target.kind==='agent'){const a=agentOf(ld.target.id);if(a)a.cover=Math.max(0,a.cover-(band>=2?2:0.5));}
   }
-  if(band>=2&&(G.leads||[]).some(l=>!l.cold)&&rng()<0.4){
-    const ld=G.leads.filter(l=>!l.cold)[0];
+  if(band>=2&&(G.bureauLeads||[]).some(l=>!l.cold)&&rng()<0.4){
+    const ld=G.bureauLeads.filter(l=>!l.cold)[0];
     const w=ld.target.kind==='source'?(SRCPOS[ld.target.id]||'veray'):ld.target.kind==='agent'?(agentOf(ld.target.id)||{}).postedTo:ld.target.id;
     const d=w&&pdef(w);
     if(d){
@@ -5787,10 +5787,10 @@ function agentRepost(a,world){
   inRepost=null;syncUI();
 }
 function agentDisinfo(a){
-  const ld=(G.leads||[]).find(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cellOf(a).some(s=>s.id===l.target.id))));
+  const ld=(G.bureauLeads||[]).find(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cellOf(a).some(s=>s.id===l.target.id))));
   if(!ld||G.intel<INTEL_N.disinfoCost)return;
   G.intel-=INTEL_N.disinfoCost;
-  G.leads=G.leads.filter(l=>l!==ld);
+  G.bureauLeads=G.bureauLeads.filter(l=>l!==ld);
   news('<b>'+a.name+'</b> feeds the Bureau a better story. A Lead goes cold chasing a decoy. '+I(INTEL_N.disinfoCost)+' spent.','r');
   syncUI();
 }
@@ -5924,7 +5924,7 @@ function inAgentRail(a){
   const lowCover=agentCover(a)<30;
   const stat=(n,v,p,c)=>'<div class="in-stat"'+(c?' style="--c:'+c+'"':'')+'><div class="in-stat__top">'+n+'<b>'+v+'</b></div><p>'+p+'</p></div>';
   const busy=a.moving?'In transit.':a.lielow?'Lying low.':'';
-  const canDis=(G.leads||[]).some(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cell.some(s=>s.id===l.target.id))));
+  const canDis=(G.bureauLeads||[]).some(l=>!l.cold&&((l.target.kind==='agent'&&l.target.id===a.id)||(l.target.kind==='source'&&cell.some(s=>s.id===l.target.id))));
   let ops;
   if(inRepost===a.id){
     ops=inH('galaxy','Repost to')+'<div class="in-ops">'+G.planets.filter(p2=>p2.access&&p2.id!==a.postedTo).map(p2=>{
@@ -5987,7 +5987,7 @@ function inBureauRail(){
   const b=expBand();
   const bands=EXP_BANDS.map((x,i)=>'<div class="in-band'+(i===b?' is-now':'')+'" style="--c:'+x.c+'"><b>'+x.k+'</b><span>'+x.does+'</span></div>').join('');
   let leads='';
-  for(const ld of G.leads||[]){
+  for(const ld of G.bureauLeads||[]){
     const from=srcById(ld.from);
     const name=ld.target.kind==='agent'?('Agent '+esc((agentOf(ld.target.id)||{}).name||'?')):
       ld.target.kind==='source'?esc((srcById(ld.target.id)||{}).name||'?'):
@@ -5999,7 +5999,7 @@ function inBureauRail(){
     const name=t.kind==='agent'?('Agent '+esc((agentOf(t.id)||{}).name||'?')):t.kind==='base'?'Haven Rock':('The '+esc((pdef(t.id)||{}).name||'?')+' cell');
     leads+=inRow('var(--sr-hazard)',name+' · pending','if '+esc(s?s.name.split(' ').pop():'?')+' talks');
   }
-  const home=(G.leads||[]).some(l=>l.target.kind==='base'&&!l.cold);
+  const home=(G.bureauLeads||[]).some(l=>l.target.kind==='base'&&!l.cold);
   leads+=inRow(home?'var(--sr-c-bad)':'var(--sr-go)',home?'A Lead points <b>home</b>':'Haven Rock is off their map');
   return '<div class="in-railtitle">'+IC('eye')+'The Bureau</div>'+
     '<div class="in-who"><span class="in-who__disc" style="box-shadow:inset 0 0 0 3px var(--sr-heg,#3a7bd5);color:var(--sr-shield)">'+IC('eye')+'</span>'+
@@ -9107,7 +9107,7 @@ const MIGRATIONS=[
      is seeded where most of the sources are; an in-progress recruit drive becomes his search. */
   function(){
     G.agentSeq=G.agentSeq||0;
-    G.exposure=G.exposure||0;G.leads=G.leads||[];G.interrogations=G.interrogations||[];
+    G.exposure=G.exposure||0;G.bureauLeads=G.bureauLeads||[];G.interrogations=G.interrogations||[];
     if(!G.agents||!G.agents.length){
       const byW={};for(const s of G.sources)if(s.alive){const w=SRCPOS[s.id]||s.locId||'haven';byW[w]=(byW[w]||0)+1;}
       const world=Object.keys(byW).sort((a,b)=>byW[b]-byW[a])[0]||'haven';

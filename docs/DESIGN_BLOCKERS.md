@@ -492,6 +492,8 @@ the handoff's §6 numbers are mine until you set them:
 7. **Escalation by band:** leaded Sources gain Risk and leaded handlers lose Cover daily; High sweeps leaded
    worlds; Max can capture a hot Source of a low-Cover leaded Agent. The Investigator shows as the locked
    Revolution-2 card; **the base raid is not built** (it follows the doc's gates).
+8. **The save field is `G.bureauLeads`, not the handoff's `G.leads`** — that name already belongs to the
+   Support system's Niche Leads, and the two collided.
 **Needs from you:** the §6 numbers, a path for recruiting Agents, and a call on the base raid.
 **Your call:** _open_
 

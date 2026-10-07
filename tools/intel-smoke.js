@@ -79,15 +79,15 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.contain=[G().interrogations[0].contained===1,ag2.postedTo==='haven',ag2.lielow>0];
   const e0=G().exposure;
   G().interrogations[0].daysLeft=1;f.advanceDay();flush();
-  out.containLeads=[G().interrogations.length===0,G().leads.length>0,G().leads.every(l=>l.cold),G().exposure>e0];
+  out.containLeads=[G().interrogations.length===0,G().bureauLeads.length>0,G().bureauLeads.every(l=>l.cold),G().exposure>e0];
   out.expLeads=G().exposure-e0;
 
   // --- Silence: gone for good, no leads ---
-  G().leads=[];
+  G().bureauLeads=[];
   const s2=mkSrc({id:'tess',name:'Tessaly Brandt',type:'Steward',loc:'Saltreach',level:1,cult:15,risk:80,inc:{s:20}},ag1.id,80);
   f.captureSource(s2);flush();
   f.answerInterrogation('silence','tess');flush();
-  out.silence=[G().interrogations.length===0,!G().sources.find(s=>s.id==='tess').alive,G().leads.length===0];
+  out.silence=[G().interrogations.length===0,!G().sources.find(s=>s.id==='tess').alive,G().bureauLeads.length===0];
 
   // --- Rescue: a mission goes on the board; winning frees them with no Leads, losing feeds the Bureau ---
   const s3=mkSrc({id:'pell',name:'Orrin Pell',type:'Harbourmaster',loc:'Tollgate',level:1,cult:20,risk:80,inc:{c:60}},ag1.id,80);
@@ -96,16 +96,16 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const rm=G().missions.find(m=>/^Rescue/.test(m.name||''));
   out.rescue=[!!rm,G().interrogations[0]&&G().interrogations[0].rescue===rm.id];
   f.applyDebrief({missionId:rm.id,kind:'ground',days:0,win:true,people:[]});flush();
-  out.rescueWin=[G().interrogations.length===0,G().sources.find(s=>s.id==='pell').saved===1,G().leads.length===0];
+  out.rescueWin=[G().interrogations.length===0,G().sources.find(s=>s.id==='pell').saved===1,G().bureauLeads.length===0];
   const s4=mkSrc({id:'cask',name:'Ione Cask',type:'Clerk',loc:'Ledger Town',level:1,cult:10,risk:80,inc:{i:1}},ag1.id,80);
   f.captureSource(s4);flush();
   f.answerInterrogation('rescue','cask');flush();
   const rm2=G().missions.find(m=>/^Rescue Ione/.test(m.name||''));
   f.applyDebrief({missionId:rm2.id,kind:'ground',days:0,win:false,people:[]});flush();
-  out.rescueFail=[G().interrogations.length===0,G().leads.length>0];
+  out.rescueFail=[G().interrogations.length===0,G().bureauLeads.length>0];
 
   // --- Exposure moves with missions and liberation too ---
-  G().leads=[];
+  G().bureauLeads=[];
   const em0=G().exposure;
   const mm={id:'exptest',name:'Noise test',desc:'x',objectives:['x'],req:{transport:true,team:1},days:0,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:10},loc:'brakka',region:'flats',lib:10,riskTxt:'Low'};
   G().missions.push(mm);
