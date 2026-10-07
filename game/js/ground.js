@@ -1058,9 +1058,10 @@ function losBlocked(a,b){return segBlocked(a.x,a.y,b.x,b.y);}
    - a prop (crates, drums, a truck, a boulder) covers a target within HUG of it when the shot's line passes through it;
    - a building covers a target hugging its wall when the wall faces the shooter (within COVER_ARC): the shot has to
      come round its edge, which is a corner shot.
-   A shot that comes from the side or behind misses the object: that target is FLANKED, and easier to hit. Take cover
-   (pressing up against it) adds a small TAKE_COVER, only against shots the cover is in the way of. */
-const HUG=34,COVER_ARC=1.4,WALL_COVER=9,TAKE_COVER=2,FLANK_PEN=2;
+   A shot that comes from the side or behind misses the object: that target is flanked, and simply gets no cover. Take
+   cover (pressing up against it) adds a small TAKE_COVER, only against shots the cover is in the way of, and they still
+   shoot that round. */
+const HUG=34,COVER_ARC=1.4,WALL_COVER=9,TAKE_COVER=2;
 /* where p falls along the segment a-b (k: 0 at a, 1 at b) and how far it is from the segment */
 function segPt(ax,ay,bx,by,px,py){
   const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy||1,k=((px-ax)*dx+(py-ay)*dy)/L,kc=Math.max(0,Math.min(1,k));
@@ -1446,7 +1447,7 @@ function computeTN(s,t){
   if(cov){
     v+=cov.v;e.push([cov.lab,cov.v]);
     if(t.bunkered){v+=TAKE_COVER;e.push(['TAKING COVER',TAKE_COVER]);}
-  } else if(!t.obj&&!t.veh&&!t.mnt&&!t.elev&&inCoverAt(t.x,t.y)){v-=FLANK_PEN;e.push(['FLANKED',-FLANK_PEN]);}   // hugging cover that is on the wrong side
+  }
   if(t.manning&&sandbagged(s,t)){v+=SANDBAG_COVER;e.push(['SANDBAGS',SANDBAG_COVER]);}
   if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
@@ -3441,7 +3442,7 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='pack'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='pack'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&(town!=='alerted'||lawHolds()))continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
@@ -5809,7 +5810,7 @@ const OM={
   sprint:{label:'Sprint',icon:'sprint',family:'move',key:'2',rule:'Run twice as far. No shot this round, but you are harder to hit.'},
   hold:{label:'Hold',icon:'hold',family:'stance',key:'3',rule:'Brace and watch. Fire on anyone who crosses your lane. A Steady weapon (the Longhorn) takes +2 while braced.',
     nums:[{t:'+2 attack with a Steady weapon',kind:'good'},{t:'−2 snap shot',kind:'bad'}]},
-  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Press up against the cover you are next to: +'+TAKE_COVER+' Defence on top of it this round, against shots it stands in the way of. Cover only counts when it is between you and the shooter; from the side you are flanked. No shot this round.'},
+  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Press up against the cover you are next to: +'+TAKE_COVER+' Defence on top of it this round, against shots it stands in the way of. Cover only counts when it is between you and the shooter; from the side you are flanked. You still shoot this round.'},
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',key:'5',rule:'Steady your nerve. A panicking rebel can do nothing else.'},
   loot:{label:'Loot',icon:'loot',family:'util',key:'6',rule:'Grab anything lootable within reach at the end of the round.'},
   work:{label:'Work',icon:'work',family:'util',key:'7',rule:'Finish a job at a panel, clamp or fuel line.'},
@@ -6738,7 +6739,7 @@ if(location.hash==='#test'){
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
-      coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,
+      coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,buildEngage,
       stunTick,canPack,packTurret,unmanTurret,treatCands,inContact,stillFighting,roundWrap,contactCheck,
       seen(){return [...visUnits];},
       clock,hitstop,juice,juiceTick,decals_:()=>decals,juice_:()=>({pops,vols,impFx,jfx,parts:PFX.list,trauma:SHK.trauma,stopped:!!HS.until&&performance.now()<HS.until}),

@@ -40,6 +40,11 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   const tnF=f.computeTN(dax,law);out.take=tnF.entries.filter(e=>/TAKING COVER/.test(e[0])).map(e=>e[1]).join();
   dax.x=law.x;dax.y=law.y-300;out.takeFlanked=labs(dax,law).some(l=>/TAKING COVER/.test(l));
   law.bunkered=0;
+  // ...and they still get their shot that round
+  kel.x=law.x-200;kel.y=law.y;kel.down=0;kel.order={type:'cover'};kel.bunkered=1;kel.sprinted=0;
+  f.setPhase('EXEC');f.buildEngage();
+  out.coverShoots=!!(gd.engageQ&&gd.engageQ.list.includes(kel));
+  gd.engageQ=null;kel.order=null;kel.bunkered=0;f.setPhase('PLANNING');
   // ---- a building: cover hugging its wall, from round its corner; none from along the wall
   const B=gd.BLDGS[0];
   const t={x:B.x+B.w+14,y:B.y+B.h-8,elev:0};                  // against the east wall, by the south-east corner
@@ -73,9 +78,10 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   return out;
  });
  ok(/CARGO CRATES COVER/.test(r.front)&&!/FLANKED/.test(r.front),'a crate in the line of the shot is cover '+r.front);
- ok(!/COVER/.test(r.side)&&/FLANKED/.test(r.side),'a shot from the side misses the crate: flanked '+r.side);
- ok(!/COVER/.test(r.behind)&&/FLANKED/.test(r.behind),'a shot from behind: flanked '+r.behind);
+ ok(!/COVER/.test(r.side)&&!/FLANKED/.test(r.side),'a shot from the side misses the crate: flanked, no cover and no extra penalty '+r.side);
+ ok(!/COVER/.test(r.behind)&&!/FLANKED/.test(r.behind),'a shot from behind: no cover '+r.behind);
  ok(r.take==='2'&&r.takeFlanked===false,'Take cover adds +2, and nothing against a flanking shot '+[r.take,r.takeFlanked]);
+ ok(r.coverShoots,'a rebel who takes cover still shoots that round');
  ok(r.corner===true&&r.along===false&&r.open===false,'a wall covers from round its corner, not from along it or the open side '+[r.corner,r.along,r.open]);
  ok(r.ai==='true,true,true,true,true','the AI picks cover away from the rebel, not at their crate, and two do not share a spot '+r.ai);
  ok(r.lmg==='AUTOMATIC (DEPLOYED):-2','the Razorrat on its tripod: Automatic (Deployed) -2 '+r.lmg);
