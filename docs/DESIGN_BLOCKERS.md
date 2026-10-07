@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-43). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -49,6 +49,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-40 | ⚪ | Source approach: do standby contacts ever give up? Plus my choices — no auto re-knock, "+4 exposure" still moves `G.risk`, the gold courier strip | How a potential source is taken on, parked or burned |
 | C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
 | C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
+| C-43 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -80,6 +81,36 @@ bar, fire-support art and ships parked in the iso hangar.
 ---
 
 ## 1. Conflicts
+### C-43 ⚪ Standby and Working; the combat-flow fixes: what I chose
+Your notes of 2026-10-07 are built. Where they left a gap I picked:
+1. **Standby is the default** for every rebel with nothing to do (new recruits, anyone back from a mission or
+   out of training). It has no daily effect: Rest still gives the small daily morale gain, Standby does not.
+   Every older save's rebels on Rest move to Standby (Rest was the default; the save cannot tell a chosen Rest
+   apart).
+2. **They rest when they need to:** a rebel on Standby who is Weary (or Conked) goes to their bunk on their own,
+   takes Rest's morale gain, and is back on Standby once fit. I used Weary only, not low morale.
+3. **Working** is the tag for a Support rebel posted to their room (the tooltip names the job and room). On the
+   map, up to three rebels on Standby walk the corridors and the rest hang about the Barracks (the Command
+   Center without one); in the Barracks walk-in they stand among the bunks, labelled Standby.
+4. **A stun lasts the round after it lands**, then wears off ("shakes it off"). The concussion itself stays
+   untreated, goes home to heal, and Treat wound still clears the stun at once. Free time ends any stun.
+5. **Leave gun** puts them back on their own weapons (their primary first, since the Razorrat lives in the Back
+   slot, not the hands; you wrote "secondary": say if you want the primary skipped). **Pack up gun** folds a
+   field-deployed Razorrat onto their back, ready to set up again. The gunner can do it, or anyone beside the
+   unmanned gun with an empty back. The pad's sandbagged gun in Steal the Cross cannot be packed.
+6. **Treat wound** with two or more patients in reach asks which one (they ring green); with one it goes
+   straight to them. The planned order draws a line, a ring and a cross on the patient with their name; the
+   treatment pulses green. If the patient no longer needs it, the most urgent one in reach is treated instead.
+7. **Still in combat?** After each round: if no shot was fired, nobody was hit, no grenade is waiting, no rebel is
+   bleeding out and no hostile and rebel can see each other, that round is quiet. **Two quiet rounds** in a row
+   and time runs free (the alarm stays up, so no sneaking); the first one says so in the log. In free time, the
+   moment either side sees the other, it is rounds again.
+8. **Open:** alerted hostiles out of contact **hold still** in free time (they do not hunt the squad), and free-
+   time **extraction still needs every hostile down** (in rounds, only none near the LZ). Should the Hegemony
+   search for the squad, and should the squad be able to extract with hostiles alive but far away?
+**Needs from you:** confirm the readings above, and a call on item 8.
+**Your call:** _open_
+
 
 Open: C-13, C-15, C-18, C-19, C-24, C-27, C-28 and C-31; the rest are in the resolved log at the bottom.
 

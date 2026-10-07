@@ -184,7 +184,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(!r.tapT||(r.tap&&r.tap.join()==='true,true,true'),'Data Tap: Intel and exposure every day '+r.tap);
  ok(r.fx.join()==='10,2,1,1,true,1,false','Mission Control: Cool, the briefing, Battle Plan, Overwatch scan, a Pre-hack '+r.fx);
  ok(!r.uiErr&&r.file&&r.fileNiche&&r.jobWin&&r.classroom&&r.bar,'screens: file, classroom, job window, room panel '+JSON.stringify([r.uiErr,r.file,r.fileNiche,r.jobWin,r.classroom,r.bar]));
- ok(/^\d+,logistics,room:store,doctor,rest,true$/.test(r.migr.join()),'old save: a post becomes its room, the Barracks post is gone '+r.migr);   // the leading number is saveVersion(), which later migrations move
+ ok(/^\d+,logistics,room:store,doctor,standby,true$/.test(r.migr.join()),'old save: a post becomes its room, the Barracks post is gone (and Rest, the old default, is Standby) '+r.migr);   // the leading number is saveVersion(), which later migrations move
 
  // ---- the ground scene: the base's support reaches the fight
  const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,spec:'fieldtech',wpns:['akli','cowboy']},{id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['akli','cowboy']}];

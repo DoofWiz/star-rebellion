@@ -618,6 +618,12 @@ const outDays=p=>Math.ceil(Rebel.laidUp(p)/healRate(p));
 /* rest (rebel-rest.js): a Weary rebel can still go, at a cost; a Conked one is in their bunk until rested */
 const conked=p=>Rebel.conked(p);
 const offDuty=p=>laidUp(p)||conked(p);
+/* what a rebel at the base is doing (p.assign): Standby (the default: about the base, waiting for something to do),
+   Rest (told to: in their bunk), Training, Working (posted to their room), or away on a mission. A rebel on Standby
+   goes to their bunk when they need to: Weary or Conked, they rest until they are fit again */
+const idle=p=>p.assign==='standby'||p.assign==='rest';
+const resting=p=>!p.auto&&!laidUp(p)&&p.assign!=='mission'&&(p.assign==='rest'||conked(p)||(p.assign==='standby'&&Rebel.weary(p)));
+const onStandby=p=>!p.auto&&p.assign==='standby'&&!offDuty(p)&&!resting(p);
 const restTag=p=>{
   if(!Rebel.weary(p))return '';
   const n=Rebel.restDays(p),d=n+' day'+(n>1?'s':'');
@@ -1572,7 +1578,7 @@ function recruitTick(){
   for(let i=0;i<n;i++){
     const x=rng(),role=x<0.45?'Soldier':x<0.8?'Support':'Pilot';
     const g=Rebel.gen(role,taken,rng);taken.add(g.name);
-    const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:g.name,first:g.first,last:g.last,charTrait:g.charTrait,role,level:1,xp:0,assign:'rest',bio:g.bio});
+    const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:g.name,first:g.first,last:g.last,charTrait:g.charTrait,role,level:1,xp:0,assign:'standby',bio:g.bio});
     if(role==='Soldier')p.equip=['pistol'];
     if(role==='Pilot')p.ship='';
     G.recWait.push(p);
@@ -1603,7 +1609,7 @@ function openRecruitOffer(src,sig){
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
-    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'rest',bio:nm.bio});
+    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'standby',bio:nm.bio});
     if(role==='Soldier')p.equip=['pistol'];
     if(role==='Pilot')p.ship='';
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
@@ -1713,7 +1719,7 @@ function advanceDay(){
   const xpRate=RU.train_xp_rate*(drillOn()?RU.drill_xp_mult:1);
   // hired mercenaries arrive the morning after the handshake, their own kit already on their backs
   for(const q of (G.mercQ||[])){
-    const p=Rebel.migrate(Object.assign({assign:'rest',injured:0,xp:0},q.rec));
+    const p=Rebel.migrate(Object.assign({assign:'standby',injured:0,xp:0},q.rec));
     p.joined=G.day;
     p.merc={until:G.day+14,fee:q.fee,missions:0};
     p.ownKit=q.rec.ownKit||{};
@@ -1771,7 +1777,7 @@ function advanceDay(){
     if(p.assign!=='mission'&&Rebel.restDay(p)==='rested')news('<b>'+p.name+'</b> has slept it off and is fit for duty again.','g');
     if(wasUp)continue;   // off duty: no training, no rest bonus
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
-    if(p.assign==='rest')Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
+    if(resting(p))Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
   }
   mood();
   // Processing (Intelligence Officers) and Supply Handling (Logistics Specialists): each covers a few Sources
@@ -1965,7 +1971,7 @@ const spaceOf=p=>p.nicheTrain?'Support':specRole(p);
    has someone in it: the range, the simulator, the classroom, then the mats (the Hall's everyday training) */
 function drillers(){
   const out=runnersOf('instructor.drill');
-  if(on('instructor.mentors'))out.push(...G.people.filter(p=>!p.auto&&p.level>=11&&p.assign==='rest'&&!offDuty(p)));
+  if(on('instructor.mentors'))out.push(...G.people.filter(p=>!p.auto&&p.level>=11&&idle(p)&&!offDuty(p)));
   return out;
 }
 function supervised(){
@@ -1986,7 +1992,7 @@ function specTick(){
     if(!tr)continue;
     const niche=!!p.nicheTrain;
     if(!niche&&p.assign!=='spec'){p.specTrain=null;continue;}
-    if(laidUp(p)){if(!niche)p.assign='rest';p.specTrain=null;p.nicheTrain=null;news('<b>'+p.name+'</b>’s training stops: they are laid up.','h');continue;}
+    if(laidUp(p)){if(!niche)p.assign='standby';p.specTrain=null;p.nicheTrain=null;news('<b>'+p.name+'</b>’s training stops: they are laid up.','h');continue;}
     const drill=sup.has(spaceOf(p));
     const cut=Math.min(0.6,(drill?RU.drill_time:0)+(cond.has(p.id)?RU.drill_time:0));
     tr.days-=1/(1-cut);
@@ -2001,7 +2007,7 @@ function specTick(){
     } else {
       if(tr.cross){p.spec2=tr.k;news('<b>'+p.name+'</b> is cross-trained: <b>'+SPECNAME[tr.k]+'</b> as well.','g');}
       else{p.spec=tr.k;news('<b>'+p.name+'</b> graduates: <b>'+SPECNAME[p.spec]+'</b>.','g');}
-      p.specTrain=null;p.assign='rest';
+      p.specTrain=null;p.assign='standby';
     }
     sBuild();
   }
@@ -2078,7 +2084,7 @@ const campaign=(fin)=>({targets:()=>worldsOpen().filter(d=>!campaignAt(d.id)).ma
 function campaignRecruit(lvl){
   const x=rng(),role=x<0.5?'Soldier':x<0.8?'Support':'Pilot';
   const r=holdRecruit(role);
-  const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:r.name,first:r.first,last:r.last,charTrait:r.charTrait,role,level:lvl||1,xp:0,assign:'rest',bio:r.bio});
+  const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:r.name,first:r.first,last:r.last,charTrait:r.charTrait,role,level:lvl||1,xp:0,assign:'standby',bio:r.bio});
   if(role==='Soldier')p.equip=['pistol'];
   if(role==='Pilot')p.ship='';
   G.recWait.push(p);
@@ -2346,7 +2352,7 @@ function nextReport(){
   else if(n.t==='reward')openWin('reward',n.rpt);
   else if(n.t==='recruit'){
     const nm=n.m.npc;
-    const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'rest',bio:nm.bio});
+    const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'standby',bio:nm.bio});
     openWin('recruit',{cards:[{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'}]});
   }
   else if(n.t==='hero'){
@@ -2395,7 +2401,7 @@ function resolveMission(m){
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
   const cmdBonus=m.ctl?RU.mission_support_success:0;   // Mission Support
   const ok=rng()<Math.min(0.92,0.45+avgLvl*0.08+G.morale*0.002+cmdBonus);
-  for(const p of pilots){p.assign='rest';tireNews(p);}
+  for(const p of pilots){p.assign='standby';tireNews(p);}
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   supportDone(m,{win:ok});
   if(ok){
@@ -2645,7 +2651,7 @@ function patrolTick(){
   for(const t of G.patrols.filter(x=>x.days<=0)){
     const f=G.fighters.find(x=>x.id===t.fid),p=G.people.find(x=>x.id===t.pid);
     if(f)f.out=false;
-    if(p&&p.assign==='mission')p.assign='rest';
+    if(p&&p.assign==='mission')p.assign='standby';
     const bits=['<b>'+(f?f.name:'The patrol')+'</b> is back.'];
     G.intel+=1;bits.push(I(1)+' from what the sensors heard');
     if(rng()<0.5){const m=60+Math.floor(rng()*5)*10;G.materials+=m;bits.push(M(m)+' salvaged off a drifting wreck');}
@@ -3100,7 +3106,7 @@ function padsRel(cl,pads){
   return pads.map((p,i)=>({id:i,x:(p.c-c0)*100,y:(p.r-r0)*100,w:p.w*100,d:p.h*100,kind:p.conv==='lounge'?'lounge':p.conv==='mbay'?'bay':p.kind}));
 }
 /* resting and conked-out rebels sleep in the Barracks; the laid-up lie in the Infirmary */
-const sleepers=()=>G.people.filter(p=>!p.auto&&((p.assign==='rest'&&!laidUp(p))||(Rebel.conked(p)&&!laidUp(p))));
+const sleepers=()=>G.people.filter(resting);
 const patients=()=>G.people.filter(laidUp);
 const bedsFor=key=>key==='barracks'?sleepers():key==='infirmary'?patients():[];
 /* the Tech Lab has no furniture in the art kit yet (DESIGN_BLOCKERS M-33): a bench of screens per tile, drawn through the
@@ -3165,6 +3171,15 @@ function baseDrawOrder(items){
   return out;
 }
 
+/* where rebels on Standby hang about: the Barracks, else the Command Centre */
+const loungeRoom=()=>hasRoom('barracks')?'barracks':hasRoom('command')?'command':null;
+/* the i-th Standby spot in a room: its idle posts first (the rec table, the coffee), then a loose grid round (cx, cy) */
+function lounge(i,posts,cx,cy,u){
+  const idlers=(posts||[]).filter(q=>!q.pose||q.pose==='idle');
+  if(i<idlers.length)return idlers[i];
+  const k=i-idlers.length,col=k%3-1,row=Math.floor(k/3);
+  return {x:cx+col*24*u+row*12*u,y:cy+row*16*u+col*5*u};
+}
 /* ---------- base map render ---------- */
 function renderBase(now){
   const t=RM?0:now/1000,Lb=TH.labelLayer(),{S}=isoParams(),alert=baseAlert();
@@ -3189,6 +3204,9 @@ function renderBase(now){
     }});
   }
   const allPads=hangarPads(),occ=padOccupants(allPads);
+  /* Standby: a few walk the corridors, the rest hang about the Barracks (or the Command Centre without one) */
+  const free=crew.filter(onStandby),runs=corridorRuns(),walkers=Math.min(3,runs.length),hangOut=loungeRoom();
+  const loungers=free.slice(walkers);
   for(const rm of G.rooms.filter(rm=>clusterOf(rm)[0]===rm)){
     const cl=clusterOf(rm),cells=clusterCells(cl);   // a merged room is drawn once, on its real tiles
     cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
@@ -3214,14 +3232,16 @@ function renderBase(now){
           SA.character(ctx,p.x,p.y,personSpec(staff[0]),{view:'front',state:p.pose||'idle',t:t+rm.c,s:0.42*S});}
         const lying=bedsFor(rm.key),bo=slotOffset(cl,rm.key,bedSlots);
         res.beds.forEach((b,i)=>{const p=lying[bo+i];if(p)SA.character(ctx,b.x,b.y,personSpec(p),{view:'front',state:'down',fall:1,t,s:0.36*S,weapon:null});});
+        if(rm.key===hangOut&&clustersOf(rm.key)[0].includes(rm))loungers.slice(0,6).forEach((p,i)=>{
+          const sp=lounge(i,res.posts,x,y,S);SA.character(ctx,sp.x,sp.y,personSpec(p),{view:'front',state:'idle',t:t+i*1.7,s:0.4*S});
+          if(sp.emote&&i<2)SA.emote(ctx,sp.x+8*S,sp.y-24*S,sp.emote,t,i);});
       }
       const ly=y+TH2*(cl.h===1?0.9:1.6)*S+12;
       Lb.add(ROOMS[rm.key].name+(rm.build?' · '+rm.build.days+'d':''),x,ly,{color:rm.build?K.gold:rcol(rm.key),size:12},rm.build?1:2);
     }});
   }
   // ambient life: free rebels walking the corridors, back and forth
-  const free=crew.filter(p=>!p.assign),runs=corridorRuns();
-  free.slice(0,Math.min(2,runs.length)).forEach((p,i)=>{
+  free.slice(0,walkers).forEach((p,i)=>{
     const run=runs[i],len=run.n,ph=((t*0.6/Math.max(1,len))+i*0.37)%2,k=ph<1?ph:2-ph,back=ph>=1;
     const rr=run.r0+(run.r1-run.r0)*k,cc=run.c0+(run.c1-run.c0)*k,along=run.c1>run.c0;
     items.push({d:rr+cc+0.5,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
@@ -3556,8 +3576,14 @@ function renderRoomView(now){
       } else label(f&&f.out?f.name+' — out':pad.bay?'Maintenance Bay':rp.kind==='large'?'Empty large pad':'Empty pad',pad.x,pad.y+4,K.text3,11);
     }
     staffRoom(crewIn('hangar'));
-  } else if(rm.key==='barracks'){
-    layOnBeds(sleepers().slice(slotOffset(cl,'barracks',bedSlots)),p=>p.name.split(' ')[0]);
+  } else if(rm.key==='barracks'||(rm.key==='command'&&loungeRoom()==='command')){
+    if(rm.key==='barracks')layOnBeds(sleepers().slice(slotOffset(cl,'barracks',bedSlots)),p=>p.name.split(' ')[0]);
+    else staffRoom(crewIn('command'));
+    /* rebels on Standby mill about the room: the rec table and the coffee first */
+    const stb=G.people.filter(onStandby),skip=rm.key==='command'?crewIn('command').length:0;
+    stb.forEach((p,i)=>{const q=lounge(i+skip,posts,0,40*k,k*3);addFig(q.x,q.y,p,'idle');
+      label('Standby',q.x,q.y+9*2.2*k+3+Math.max(Math.round(9*2.2*k),Math.ceil(11/Sx))+2,K.text3,10,600);   // under the name figure() writes
+      if(q.emote&&i<2)SA.emote(ctx,q.x+18*k,q.y-58*k,q.emote,t,i);});
   } else if(rm.key==='infirmary'){
     layOnBeds(patients().slice(slotOffset(cl,'infirmary',bedSlots)),p=>p.name.split(' ')[0]+' · '+outDays(p)+'d');
     const staff=crewIn('infirmary');
@@ -6419,14 +6445,15 @@ function pfRecord(p){
 }
 function pfAssign(p){
   const hurt=laidUp(p),away=p.assign==='mission',lock=hurt||away;
-  let b=rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'"','Rest',lock,'sr-btn--sm')+
+  let b=rbtn('data-as="standby:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='standby')+'" title="About the base, ready for whatever comes up. They go to their bunk on their own when they are Weary."','Standby',lock,'sr-btn--sm')+
+    rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'" title="In their bunk: their morale recovers a little each day."','Rest',lock,'sr-btn--sm')+
     rbtn('data-as="train:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',lock||!hasRoom('training'),'sr-btn--sm');
   if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
     const key=SP.homeOf(p),mine=!hurt&&p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
     const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
     b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,lock||!!why,'sr-btn--sm sr-btn--wide');
   }
-  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':'');
+  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':p.assign==='standby'&&resting(p)?'<p class="pf-assign__note">Weary: resting in their bunk until they are fit, then back on Standby.</p>':'');
 }
 function personHTML(p){
   const mid=pfSec('medical',pfMedical(p))+pfMorale(p)+pfSec('character',pfCharacter(p))+pfSec('exp',pfExperiences(p))+
@@ -6644,8 +6671,9 @@ function syncUI(){
     else if(p.assign==='mission')tag='<span class="sr-tag sr-tag--info">On mission</span>';
     else if(Rebel.weary(p))tag=restTag(p);
     else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
-    else if(p.assign.startsWith('room:'))tag='<span class="sr-tag sr-tag--good" title="'+esc(SP.title(p))+'">'+(ROOMTAG[p.assign.slice(5)]||'Working')+'</span>';
-    else tag='<span class="sr-tag">Resting</span>';
+    else if(p.assign.startsWith('room:'))tag='<span class="sr-tag sr-tag--good" title="Working: '+esc(SP.title(p))+' ('+esc(ROOMTAG[p.assign.slice(5)]||ROOMS[p.assign.slice(5)].name)+')">Working</span>';
+    else if(p.assign==='rest')tag='<span class="sr-tag" title="Resting in their bunk">Resting</span>';
+    else tag='<span class="sr-tag sr-tag--info" title="Standby: about the base, ready for whatever comes up">Standby</span>';
     return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+faceHTML(p)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
       '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+((p.cond&&p.cond.length)||(p.body&&Object.values(p.body).some(v=>v===1))?'<span class="bs-bad" title="'+esc(Rebel.medSummary(p).join(', '))+'" aria-label="Injuries: '+esc(Rebel.medSummary(p).join(', '))+'">\u271a</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
@@ -7340,7 +7368,7 @@ function rollMarket(salt){
     const fee=380+(level-2)*140+(specialty?80:0);   // 380-600, scaled by level and specialty
     // their own kit: rolled from live, non-Hegemony weapons; it never enters the armory
     const ownKit={primary:role==='Soldier'?['akli','scatter','longiron'][Math.floor(r()*3)]:null,secondary:'cowboy'};
-    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'rest',injured:0,ownKit});
+    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'standby',injured:0,ownKit});
     if(specialty)rec.spec=specialty;
     lots.push({kind:'merc',key:rec.id,stock:1,price:fee,deal:'fair',merc:rec});
   };
@@ -8806,7 +8834,7 @@ function applyDebrief(r){
   for(const pr of r.people||[]){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
-    p.assign='rest';
+    p.assign='standby';
     const mt=Rebel.expGet(p,'mentored');
     const xg=(pr.xp||0)*(mt&&teamIds.includes(mt.with)?1.3:1)*(p.taught&&on('instructor.lessons')?1.25:1);   // Battle Lessons
     const pi=xpInfo(p,xg);Rebel.trainSkills(p,pr.sk);
@@ -8913,7 +8941,7 @@ function applyDebrief(r){
     }
     const A=AUTOS[g.type];if(!A)continue;
     if(G.people.some(p=>p.name===g.name))continue;
-    G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'rest',auto:g.type,bio:A.bio});
+    G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'standby',auto:g.type,bio:A.bio});
     gotLoot(got,{type:g.type,name:g.name,kind:'unit'});
     news('<b>'+g.name+'</b>, a hacked '+A.label+', joins the rebellion. It does not need a bunk.','g');
   }
@@ -9116,6 +9144,11 @@ const MIGRATIONS=[
     for(const s of G.sources)if(!s.agent)s.agent=G.agents[0].id;
     if(G.recruit&&G.recruit.days&&!G.recruit.agent)G.recruit.agent=G.agents[0].id;
   },
+  /* 9 -> 10: Standby and Working. Rest was every rebel's default; a rebel with nothing to do is now on Standby, and
+     only a rebel told to Rest stays in their bunk. An older save cannot tell the two apart, so its resters stand up. */
+  function(){
+    for(const p of G.people)if(p.assign==='rest'||!p.assign)p.assign='standby';
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9202,7 +9235,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
+    fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
       openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,

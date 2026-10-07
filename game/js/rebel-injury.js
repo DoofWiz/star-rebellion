@@ -15,7 +15,7 @@
   const ANY=['ballistic','explosive','plasma','blunt'];
   const I=(k,n,w,src,combat,treat,cond)=>({k,n,w,src,combat,treat,cond});
   const INJ=[
-    I('concussion','Concussion',14,ANY,'Stunned: cannot take actions until treated.','Treat Wound clears the stun.','concussed'),
+    I('concussion','Concussion',14,ANY,'Stunned: loses their next round, then shakes it off.','Treat Wound clears the stun at once.','concussed'),
     I('brokenarm','Broken Arm',10,ANY,'Drops their weapon and cannot use two-handed weapons.','Treat Wound lets them fight on with one hand free.','brokenarm'),
     I('brokenleg','Broken Leg',10,ANY,'Slowed, and cannot Sprint.','Treat Wound lets them move normally for the rest of the encounter.','brokenleg'),
     I('bleeding','Severe Bleeding',14,ANY,'Loses health at the end of every round.','Treat Wound stops the bleeding.','wounded'),
