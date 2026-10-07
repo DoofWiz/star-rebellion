@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -45,6 +45,10 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-36 | ⚪ | Comm burst: what follows Acknowledge, source events, the level-up meter | How talking to a source reads |
 | C-37 | 🟡 | Missions tab: decorative space targets, which missions the board lists, fitting the rail, the phone layout | The briefing room |
 | C-38 | ⚪ | Audio pass: the sound setting persists, and the base's one alert became three sounds (good / bad / ping) — my mapping of events to each | How the base sounds |
+| C-39 | ⚪ | Starfighter window: one file for pilot and ship — the hangar sheet's hidden pilot column (confirm), rank chevrons, move-set rows, zone labels, scripted pilots' skill lines | How a ship and its pilot read in combat and the hangar |
+| C-40 | ⚪ | Source approach: do standby contacts ever give up? Plus my choices — no auto re-knock, "+4 exposure" still moves `G.risk`, the gold courier strip | How a potential source is taken on, parked or burned |
+| C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
+| C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -412,6 +416,85 @@ Bringing the audio up to the rest of the game's standard (`SR.audio` in `game/js
 3. **The base's sounds gained a layer each** (a wrench on the build chime, a carrier crackle on the comm, an
    engine growl under the launch) to match the combat scenes' layered engines. Nothing changed in ground or space.
 **Needs from you:** nothing — overrule any bucket in (2) you hear differently.
+**Your call:** _open_
+
+### C-39 ⚪ Starfighter window: what I chose
+The one-window pilot-and-ship file (`docs/ui/SCREENS-HANDOFF-2.md` §1, `game/js/space.js`). What the handoff
+left open, and the guesses I made:
+1. **The hangar's `SR.shipSheet`** now renders the same window with the pilot column, nerve and lock hidden
+   (the handoff's §6 asks you to confirm this). The old side-by-side top-down view is gone with it.
+2. **Rank chevrons** (display only): one chevron per rung of the pilot ladder (officers count their own ladder),
+   at least one, capped at four. A rank the ladders don't know (the Hegemony's "Commandant") shows one chevron.
+3. **The move-set popover's rows** run from the ship's un-critted top speed down to 1, so cells an Engine crit
+   drops read as off instead of vanishing.
+4. **Zone labels** total every segment sitting in the zone: fore and aft both angled forward reads
+   "Fore shield · angled forward 30/30" over one arc, with "Aft zone exposed" under the other.
+5. **Skill effect lines for scripted pilots** (the sim, the instructor's cadets): Cunning's % derives from the
+   skill value; campaign pilots use their rebel record's multiplier as before. Presence's "n Cool" line shows the
+   pilot's current nerve value, which moves in combat.
+6. **Enemy ships open the same window** (foe styling, same "Starfighter" title); drones and structures open the
+   bare variant, like the hangar's.
+**Needs from you:** confirm (1); overrule any of (2)–(6) you want differently.
+**Your call:** _open_
+
+### C-40 ⚪ Source approach: standby contacts, and what I chose
+The Approach window and standby (`docs/ui/SCREENS-HANDOFF-2.md` §2). The handoff's own open question, and my guesses:
+1. **Standby contacts never give up.** The handoff leaves it undecided whether a contact left waiting on the
+   Galaxy map eventually walks away; until you call it, they wait forever.
+2. **The old silent queue is gone.** Before, a full network put accepted candidates in `candWait` and they
+   re-knocked automatically when a slot opened. Now the window offers Standby up front, the contact waits as a
+   gold dashed marker on the map, and *the player* reopens them — nothing re-knocks on its own. Old saves'
+   queued candidates migrate onto standby.
+3. **"+4 exposure" still moves `G.risk`.** The row is worded for §3's Exposure system, which doesn't exist yet;
+   recruiting bumps the network risk number exactly as before. When §3 lands, this becomes `G.exposure`.
+4. **The courier strip got a gold variant** (`.cm-chan--courier` in `sr-comm.css`): gold text and a still dot —
+   a dead drop, not a live carrier — since the handoff's §7 didn't include one.
+**Needs from you:** a call on (1); overrule (2)–(4) if you want them differently.
+**Your call:** _open_
+
+### C-41 ⚪ Mission planning: the handoff's open items, and what I chose
+The slot-filling planning window (`docs/ui/SCREENS-HANDOFF-2.md` §4). Its own open questions, and my guesses:
+1. **The 2-extra-asset cap stays**, as the handoff asks, until you say otherwise.
+2. **The Reinforce mode is retired.** Fire support now comes from what an asset is: a starfighter strafes, a
+   transport with a Door Mounted Gun covers the door, a drop-capable transport flies the Supply Drop. A spare
+   transport with no gun grants nothing — what it *should* grant (the old Reinforce) is the handoff's open
+   question. Nobody rides a support ship any more, and its seats go unused.
+3. **The squad cap** reads the seats of every transport actually assigned (summed, for the rare two-transport
+   mission); with no transport assigned yet it falls back to the mission's squad size.
+4. **The Support crew's mission jobs and the Flight Controller's Intercept Plot** (C-28 features the handoff
+   doesn't place) sit as chip rows under the Mission Control card.
+5. **Space sorties** use the same window: each pilot-and-ship pair is an asset card with the pilot layered on,
+   no squad row and no fire-support chips.
+6. **A few shell rules were added** outside the handoff's §7 (the `.pl-win` width, the soldiers row wrap, the
+   blocker's pulse, picker bounds), marked as a build-additions section at the end of `sr-plan.css`.
+7. **The old roster column's drag-and-drop** survives only between filled slots; the picker is the path now.
+**Needs from you:** calls on (1) and (2); overrule (3)–(7) if you want them differently.
+**Your call:** _open_
+
+### C-42 🟡 The Network (Intelligence tab): every number is a placeholder
+All four phases of `docs/ui/SCREENS-HANDOFF-2.md` §3 are built, but the Network doc's rules weren't in hand, so
+the handoff's §6 numbers are mine until you set them:
+1. **The interrogation clock is 4 days** (the doc says 3–5, by usage and cell size). A burn's expected Leads:
+   the handler, plus — if the Source was ever Visited face-to-face — the way to Haven Rock, otherwise their
+   local cell. A run-out clock has a 45% chance of the Source holding out.
+2. **Exposure:** +4 per extracted Lead, +2 per mission run, +1 per liberation gain and +6 for a liberated
+   region; bands at 0–24 / 25–49 / 50–74 / 75+; no decay.
+3. **Agent stats** seed at Tradecraft 15 (cuts his Sources' daily Risk gain), Cover 70 (−15 while in transit,
+   back on arrival), Rapport 20 (shown but **not yet wired** to cultivation outcomes). The seeded Agent's cell
+   is 2 + the Intelligence Centre's rooms (so it matches the network capacity); later Agents start at 1. Level
+   growth isn't built.
+4. **How new Agents arrive is unbuilt.** The handoff calls them a dedicated recruit type but gives no path;
+   every campaign (and every old save) seeds exactly one, posted where the sources are.
+5. **Costs and durations:** Disinformation 2 Intel; Counter-Intel Sweep free (−3 cell Risk, 20% "tail spotted"
+   flavour); Lie Low 3 days (−3 Risk a day, no income); Repost 2 days.
+6. **Recruitment moved** (§3.5): the Command Center keeps candidate review and its staffing bonus to the
+   search; the 200-credit drive is gone. Confirm what else the room keeps.
+7. **Escalation by band:** leaded Sources gain Risk and leaded handlers lose Cover daily; High sweeps leaded
+   worlds; Max can capture a hot Source of a low-Cover leaded Agent. The Investigator shows as the locked
+   Revolution-2 card; **the base raid is not built** (it follows the doc's gates).
+8. **The save field is `G.bureauLeads`, not the handoff's `G.leads`** — that name already belongs to the
+   Support system's Niche Leads, and the two collided.
+**Needs from you:** the §6 numbers, a path for recruiting Agents, and a call on the base raid.
 **Your call:** _open_
 
 ---

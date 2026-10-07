@@ -88,7 +88,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.build==='6,13,true,4,SS,4,true,hangar','a section builds on a 4 × 4 floor block beside the Hangar '+r.build);
  ok(r.merged==='2,1L6S,7','the new section joins the Hangar with four small pads '+r.merged);
  ok(r.lounge==='1L5S,true,8,15','the Ready Lounge takes the front-most small pad '+r.lounge);
- ok(r.mig==='7,14,18,floor,floor,floor,floor,2,LS|SS,true,true,true,hangar','an old save gets the new ground and sections for its fleet '+r.mig);
+ ok(/^\d+,14,18,floor,floor,floor,floor,2,LS\|SS,true,true,true,hangar$/.test(r.mig),'an old save gets the new ground and sections for its fleet '+r.mig);   // the leading number is saveVersion(), which later migrations move
  ok(r.zoom==='1,true'&&r.zoomOut===1,'the map zooms in about a point and back out to fit '+r.zoom+' '+r.zoomOut);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'hangar-smoke: all checks passed');

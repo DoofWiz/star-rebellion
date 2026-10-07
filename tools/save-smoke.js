@@ -55,10 +55,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   d.name=keep[0];reg.name=keep[1];
   return out;
  });
- ok(/^7,7,true$/.test(r.born),'a new campaign is born at the current version '+r.born);
- ok(r.v0==='7,true,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
- ok(r.v1==='7,bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
- ok(r.chain==='1,8,8,1','a new migration runs exactly once and moves the version on '+r.chain);
+ const bp=r.born.split(','),V=+bp[1];   // whatever version this build writes
+ ok(bp[0]===bp[1]&&bp[2]==='true','a new campaign is born at the current version '+r.born);
+ ok(r.v0===V+',true,cross,400,true,false','a save from before versioning is upgraded once: rooms, ships, the x4 economy, the old injury counter '+r.v0);
+ ok(r.v1===V+',bay,100','a versioned save does not re-run the one-off fixes '+r.v1);
+ ok(r.chain==='1,'+(V+1)+','+(V+1)+',1','a new migration runs exactly once and moves the version on '+r.chain);
  ok(r.every==='true,true','every-load work still runs on a current save '+r.every);
  ok(r.newer&&warns.some(w=>/newer build/.test(w)),'a newer save loads as it is, with a warning '+r.newer+' '+warns.length);
  ok(r.persist,'the version is saved with the campaign');

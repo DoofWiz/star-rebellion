@@ -1,0 +1,96 @@
+/* STAR REBELLION — Space combat unit file: pilot + ship in one window (sr-shipfile.css). Prefix sf-.
+   Builds on sr-theme.css and sr-personnel.css (header plate, buttons, popovers, skills). */
+.sf-win.sr-window{width:1100px;max-height:none;--accent:var(--sr-rebel);}
+.sf-body{display:grid;grid-template-columns:420px minmax(0,1fr) 300px;grid-template-rows:auto 1fr;gap:18px;padding:18px;}
+.sf-body>.pf-plate{grid-column:2/4;grid-row:1;position:relative;left:auto;right:auto;bottom:auto;padding:12px 16px;gap:14px;grid-template-columns:auto auto minmax(0,1fr) auto;}
+.sf-body>.sf-stagecol{grid-column:1;grid-row:1/3;}
+.sf-body>.sf-mid{grid-column:2;grid-row:2;}
+.sf-body>.sf-side{grid-column:3;grid-row:2;}
+.sf-col{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.sf-pilotface{width:56px;height:56px;border-radius:50%;overflow:hidden;flex:none;background:var(--sr-night);box-shadow:0 0 0 var(--sr-line) var(--sr-ink),inset 0 0 0 3px var(--sr-rebel);}
+.sf-pilotface img{width:100%;height:auto;margin-top:-6px;transform:scale(1.9);transform-origin:50% 22%;}
+
+/* the stage: the ship top-down with its shield zones drawn round it */
+.sf-stage{position:relative;height:600px;border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-xl);overflow:hidden;
+  background:radial-gradient(ellipse 55% 42% at 50% 46%,rgba(54,227,242,.10),transparent 70%),radial-gradient(circle at 20% 15%,#1b2152 0,transparent 40%),#080a1f;box-shadow:var(--sr-lift);}
+.sf-stage::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.55) 1px,transparent 1.5px),radial-gradient(rgba(255,255,255,.3) 1px,transparent 1.5px);
+  background-size:97px 89px,53px 61px;background-position:11px 23px,37px 5px;opacity:.5;}
+.sf-stage::after{content:"";position:absolute;left:0;top:0;width:100%;height:10px;background:repeating-linear-gradient(-45deg,var(--sr-rebel) 0 12px,#1b1f4a 12px 24px);opacity:.75;}
+.sf-zones{position:absolute;left:50%;top:44px;width:380px;height:380px;transform:translateX(-50%);}
+.sf-ship{position:absolute;left:50%;top:87px;width:364px;height:294px;transform:translateX(-50%);filter:drop-shadow(0 10px 0 rgba(7,8,24,.4));}
+.sf-zlbl{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:4px 9px;font:800 10px/1 var(--sr-font-ui);letter-spacing:.07em;
+  text-transform:uppercase;color:var(--c);background:rgba(8,10,31,.85);border:2px solid var(--c);border-radius:999px;white-space:nowrap;}
+.sf-zlbl b{font:400 13px/1 var(--sr-font-display);letter-spacing:0;}
+.sf-chip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;background:rgba(20,24,64,.9);border:2px solid var(--sr-ink);border-radius:999px;
+  font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.sf-chip b{font:400 15px/1 var(--sr-font-display);color:var(--sr-text);}
+.sf-chip .sr-ico{width:14px;height:14px;color:var(--sr-shield);}
+/* armour + hull plate across the bottom of the stage */
+.sf-plate{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-direction:column;gap:9px;padding:12px 14px;
+  background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);}
+.sf-plate__top{display:flex;align-items:baseline;gap:10px;}
+.sf-plate__name{font:400 20px/1 var(--sr-font-display);color:var(--sr-text);}
+.sf-plate__cls{font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sf-dur{display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:center;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.sf-dur .sr-hp__cells{display:flex;gap:3px;}
+.sf-dur .sr-hp__cell{flex:1;height:12px;}
+.sf-dur b{font:400 15px/1 var(--sr-font-display);color:var(--sr-text);min-width:52px;text-align:right;}
+
+/* weapons */
+.sf-h{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);text-transform:uppercase;letter-spacing:.06em;}
+.sf-h .sr-ico{width:16px;height:16px;color:var(--sr-text-3);}
+.sf-wpn{display:flex;flex-direction:column;gap:10px;padding:10px 12px;background:var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);
+  border-radius:var(--sr-r-lg);box-shadow:var(--sr-bevel);}
+.sf-wpn.is-off{opacity:.6;}
+.sf-wpn__art{display:grid;place-items:center;width:46px;height:46px;flex:none;border-radius:var(--sr-r);background:var(--sr-void);border:var(--sr-line) solid var(--sr-ink);box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--c) 55%,transparent);color:var(--c);}
+.sf-wpn__art .sr-ico{width:22px;height:22px;}
+.sf-wpn__name{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-md)/1.1 var(--sr-font-ui);color:var(--sr-text);}
+.sf-crit{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;padding:9px 12px;
+  background:repeating-linear-gradient(-45deg,rgba(255,138,31,.12) 0 12px,transparent 12px 24px),var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--sr-hazard) 55%,transparent);}
+.sf-crit>span{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--sr-hazard);border:2px solid var(--sr-ink);color:var(--sr-ink);}
+.sf-crit>span .sr-ico{width:16px;height:16px;}
+.sf-crit b{display:block;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);color:var(--sr-hazard);}
+.sf-crit em{display:block;margin-top:3px;font-style:normal;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
+.sf-lock{display:flex;align-items:center;gap:10px;padding:9px 12px;background:linear-gradient(90deg,rgba(255,74,61,.16),var(--sr-night) 70%);border:2px solid var(--sr-rebel);border-radius:var(--sr-r);
+  font:700 var(--sr-fs-sm)/1.3 var(--sr-font-ui);color:var(--sr-text);}
+.sf-lock .sr-ico{width:18px;height:18px;color:var(--sr-rebel);}
+.sf-lock em{margin-left:auto;font-style:normal;font:400 14px/1 var(--sr-font-display);color:var(--sr-rebel);}
+
+/* ===== additions from the review rounds ===== */
+/* weapon card: top row (icon, name, type chip, slot), bottom row (stat tiles) */
+.sf-wpn__top{display:flex;align-items:center;gap:10px;min-width:0;}
+.sf-wpn__name{font:800 14px/1.15 var(--sr-font-ui);color:var(--sr-text);}
+.sf-wpn__meta{display:flex;align-items:center;gap:8px;margin-top:6px;}
+.sf-slot{font:800 9px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-3);}
+.sf-type{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px 0 3px;cursor:help;font:800 12px/1 var(--sr-font-ui);color:var(--c);
+  background:color-mix(in srgb,var(--c) 16%,var(--sr-void));border:2px solid color-mix(in srgb,var(--c) 55%,var(--sr-ink));border-radius:999px;}
+.sf-type>span{display:grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--c);color:var(--sr-ink);}
+.sf-type>span .sr-ico{width:10px;height:10px;}
+.sf-tiles{display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:6px;}
+.sf-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:8px 4px;background:var(--sr-void);border:2px solid var(--sr-ink);border-radius:var(--sr-r);}
+.sf-tile b{font:400 20px/1 var(--sr-font-display);color:var(--c,var(--sr-text));text-shadow:0 2px 0 var(--sr-ink);}
+.sf-tile>span{font:800 9px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-3);}
+.sf-pips{display:flex;gap:4px;}
+.sf-pips i{width:11px;height:11px;border-radius:3px;border:2px solid var(--sr-ink);background:var(--sr-gold);}
+.sf-pips i.is-spent{background:var(--sr-night);}
+/* "Modifiers" popover rows (to-hit breakdown) */
+.sf-mods{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+.sf-mod{display:flex;align-items:center;gap:8px;font:700 12px/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
+.sf-mod i{width:8px;height:8px;flex:none;background:var(--c);border:2px solid var(--sr-ink);border-radius:2px;transform:rotate(45deg);}
+.sf-mod b{margin-left:auto;font:800 13px/1 var(--sr-font-ui);color:var(--c);}
+.sf-mod--total{padding-top:7px;border-top:2px solid var(--sr-seam);font-weight:800;color:var(--sr-text);}
+/* stage plate chips (Max speed opens the move set) */
+.sf-chiprow{display:flex;gap:6px;}
+.sf-chip{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 6px;background:rgba(20,24,64,.9);border:2px solid var(--sr-ink);border-radius:999px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+.sf-chip b{font:400 15px/1 var(--sr-font-display);color:var(--sr-text);}
+.sf-chip .sr-ico{width:14px;height:14px;color:var(--sr-shield);}
+.sf-plate .pf-pop{top:auto;bottom:-8px;}
+/* move set: speed rows × maneuver columns */
+.sf-dial{display:grid;grid-template-columns:22px repeat(6,30px);gap:4px;margin-top:10px;align-items:center;}
+.sf-dial__h{font:800 8px/1 var(--sr-font-ui);letter-spacing:.04em;text-transform:uppercase;color:var(--sr-text-3);text-align:center;}
+.sf-dial__v{font:400 14px/1 var(--sr-font-display);color:var(--sr-text-2);text-align:center;}
+.sf-dial__c{display:grid;place-items:center;height:26px;border-radius:6px;background:var(--sr-void);border:2px solid #1f2550;font:800 15px/1 var(--sr-font-ui);}
+.sf-dial__c.is-ship{background:rgba(54,227,242,.14);border-color:var(--sr-shield);color:var(--sr-shield);}
+.sf-dial__c.is-pilot{background:rgba(180,124,255,.18);border-color:var(--sr-psi);color:var(--sr-psi);}
+.sf-dial__c.is-off::after{content:"";width:4px;height:4px;border-radius:50%;background:#2c3366;}
