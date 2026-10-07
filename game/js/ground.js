@@ -1053,30 +1053,54 @@ function segBlocked(x1,y1,x2,y2){
   return false;
 }
 function losBlocked(a,b){return segBlocked(a.x,a.y,b.x,b.y);}
-function inCoverAt(x,y){
-  for(const p of PROPS)if(!p.dead&&PROPDEF[p.kind].cov>0&&Math.hypot(p.x-x,p.y-y)<PROPDEF[p.kind].r+34)return true;
-  return false;
+/* ---------- cover: what stands in the line of the shot ----------
+   Cover is an object between the shooter and a target who is hugging it, never a ring round it:
+   - a prop (crates, drums, a truck, a boulder) covers a target within HUG of it when the shot's line passes through it;
+   - a building covers a target hugging its wall when the wall faces the shooter (within COVER_ARC): the shot has to
+     come round its edge, which is a corner shot.
+   A shot that comes from the side or behind misses the object: that target is FLANKED, and easier to hit. Take cover
+   (pressing up against it) adds a small TAKE_COVER, only against shots the cover is in the way of. */
+const HUG=34,COVER_ARC=1.4,WALL_COVER=9,TAKE_COVER=2,FLANK_PEN=2;
+/* where p falls along the segment a-b (k: 0 at a, 1 at b) and how far it is from the segment */
+function segPt(ax,ay,bx,by,px,py){
+  const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy||1,k=((px-ax)*dx+(py-ay)*dy)/L,kc=Math.max(0,Math.min(1,k));
+  return {k,d:Math.hypot(ax+dx*kc-px,ay+dy*kc-py)};
 }
+/* the nearest point of a building's footprint to (x, y), and how far it is */
+function rectNear(b,x,y){const nx=Math.max(b.x,Math.min(b.x+b.w,x)),ny=Math.max(b.y,Math.min(b.y+b.h,y));return {x:nx,y:ny,d:Math.hypot(x-nx,y-ny)};}
+const propsNear=(x,y)=>PROPS.filter(p=>!p.dead&&PROPDEF[p.kind].cov>0&&Math.hypot(p.x-x,p.y-y)<PROPDEF[p.kind].r+HUG);
+const wallsNear=(x,y)=>BLDGS.filter(b=>{const n=rectNear(b,x,y);return n.d>0&&n.d<HUG;});
+function inCoverAt(x,y){return propsNear(x,y).length>0||wallsNear(x,y).length>0;}
 function coverOf(s,t){
-  // best prop hugging the target that sits between shooter and target
   if(t.elev)return {v:2,lab:'TOWER RAILING'};
   if(t.veh||t.mnt)return null;
   let best=null;
-  const angST=Math.atan2(s.y-t.y,s.x-t.x);
-  for(const p of PROPS){
-    const def=PROPDEF[p.kind];
-    if(p.dead||def.cov<=0)continue;
-    const dt=Math.hypot(p.x-t.x,p.y-t.y);
-    if(dt>def.r+34)continue;
-    const angPT=Math.atan2(p.y-t.y,p.x-t.x);
-    if(Math.abs(angNorm(angPT-angST))>1.25)continue;
-    if(dt>dist(s,t))continue;
-    let v=def.cov;
-    if(s.elev)v=Math.max(1,v-2);
-    if(!best||v>best.v)best={v,lab:(s.elev?'COVER (HIGH ANGLE)':def.lab+' COVER'),prop:p};
+  const take=(v,lab,o)=>{if(s.elev){v=Math.max(1,v-2);lab='COVER (HIGH ANGLE)';}if(!best||v>best.v)best=Object.assign({v,lab},o);};
+  for(const p of propsNear(t.x,t.y)){
+    const def=PROPDEF[p.kind],q=segPt(s.x,s.y,t.x,t.y,p.x,p.y);
+    if(q.k>0&&q.k<1&&q.d<=def.r+6)take(def.cov,def.lab+' COVER',{prop:p});   // the line goes through it, between the two
+  }
+  for(const b of wallsNear(t.x,t.y)){
+    const n=rectNear(b,t.x,t.y);
+    if(Math.abs(angNorm(Math.atan2(n.y-t.y,n.x-t.x)-Math.atan2(s.y-t.y,s.x-t.x)))<=COVER_ARC)take(WALL_COVER,'WALL COVER',{wall:b});
   }
   return best;
 }
+/* the cover a spot gives against a set of shooters: the best level (0 none, 1 half, 2 full), from how many of them,
+   and whether there is anything there to hug at all */
+function coverVs(x,y,foes){   // only the ones who could fire on the spot count: in range, with a clear line
+  const t={x,y};let lvl=0,n=0,tot=0;
+  for(const f of foes){
+    const w=WPN[(f.wpns&&f.wpns[0])||'akli'];
+    if((w&&Math.hypot(f.x-x,f.y-y)>w.rng)||segBlocked(f.x,f.y,x,y))continue;
+    tot++;
+    const c=coverOf(f,t);if(c){n++;lvl=Math.max(lvl,c.v>=9?2:1);}
+  }
+  return {lvl,n,tot,hug:inCoverAt(x,y)};
+}
+/* who could shoot at someone on this side: for the squad, only the hostiles it has seen */
+const threatsTo=side=>U.filter(o=>!o.veh&&!o.down&&!o.surr&&!o.extracted&&!o.away&&!o.office&&!o.caged&&
+  (side==='reb'?o.side==='law'&&unitSeen(o):o.side==='reb'));
 function chipCover(prop,dmg){
   if(!prop||prop.dead||PROPDEF[prop.kind].hp===undefined)return;
   prop.hp-=dmg;
@@ -1418,8 +1442,11 @@ function computeTN(s,t){
   if(d>w.rng*0.7){v+=3;e.push(['LONG RANGE',3]);}
   else if(d>w.rng*0.4){v+=2;e.push(['RANGE',2]);}
   if(t.sprinted){v+=2;e.push(['SPRINTING',2]);}
-  const cov=coverOf(s,t);
-  if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
+  const cov=t.obj?null:coverOf(s,t);
+  if(cov){
+    v+=cov.v;e.push([cov.lab,cov.v]);
+    if(t.bunkered){v+=TAKE_COVER;e.push(['TAKING COVER',TAKE_COVER]);}
+  } else if(!t.obj&&!t.veh&&!t.mnt&&!t.elev&&inCoverAt(t.x,t.y)){v-=FLANK_PEN;e.push(['FLANKED',-FLANK_PEN]);}   // hugging cover that is on the wrong side
   if(t.manning&&sandbagged(s,t)){v+=SANDBAG_COVER;e.push(['SANDBAGS',SANDBAG_COVER]);}
   if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
@@ -1438,7 +1465,7 @@ function computeATK(s,t,wkey,snap){
   v+=s.aim;e.push(['TRIGGER SKILL',s.aim,true]);
   if(w.atk){v+=w.atk;e.push([w.name,w.atk]);}
   const md=modeOf(s,wkey);
-  if(md==='auto'){v+=AUTO_PEN;e.push(['AUTOMATIC',AUTO_PEN]);}
+  if(md==='auto'){const ap=autoPen(s,wkey);v+=ap;e.push([ap===AUTO_PEN?'AUTOMATIC':'AUTOMATIC (DEPLOYED)',ap]);}
   else if(md==='fan'){v+=FAN_PEN;e.push(['FAN HAMMER',FAN_PEN]);}
   else if(md==='semi'&&t&&s.semiT===t.id&&s.semiN>0){v+=s.semiN;e.push(['SEMI-AUTO',s.semiN]);}
   if(w.steady&&!snap&&(s.braced||(t&&s.steadyT===t.id))){v+=STEADY_BONUS;e.push(['STEADY',STEADY_BONUS]);}
@@ -1483,11 +1510,13 @@ function jamRoll(s,wkey,roll){
   return hasT(s,'clumsy')&&rng()<0.05;
 }
 /* ---------- fire modes and weapon traits (Gear doc; DESIGN_BLOCKERS M-27) ----------
-   Automatic: -5 to hit, and a hit rolls straight away for a second one at -10. Semi-auto: +1 for every round in a
+   Automatic: -5 to hit (-2 from a deployed Razorrat), and a hit rolls straight away for a second one at -10. Semi-auto: +1 for every round in a
    row spent on the same target, until the shooter moves or panics. Single shot: nothing. Fan hammer: -5 to hit,
    double damage. A weapon starts on its first mode with no penalty (Items.defaultMode); the AI never switches.
    Steady: +2 when braced (Hold) or on a target held fire on with the Hold fire button; holding is Steady's alone. */
-const AUTO_PEN=-5,AUTO_AGAIN=-10,FAN_PEN=-5,STEADY_BONUS=2,KNOCK_DIST=60;
+const AUTO_PEN=-5,AUTO_DEPLOYED=-2,AUTO_AGAIN=-10,FAN_PEN=-5,STEADY_BONUS=2,KNOCK_DIST=60;
+/* a Razorrat fired from its tripod (a field deployment or the pad's emplacement) keeps Automatic at -2, not -5 */
+const autoPen=(s,wkey)=>s&&s.manning&&wkey==='razorrat'?AUTO_DEPLOYED:AUTO_PEN;
 const modesOf=wkey=>(WPN[wkey]&&WPN[wkey].modes)||[];
 function modeOf(s,wkey){
   const m=modesOf(wkey);if(!m.length)return null;
@@ -1504,7 +1533,7 @@ function afterShot(s,t,wkey,hit,tn,atk){
   if(s.steadyT===t.id)s.steadyT=null;
   if(!hit||t.obj)return;
   if(md==='auto'&&!t.down&&!t.surr){
-    const need=needFor(tn.total,atk.total-AUTO_PEN+AUTO_AGAIN),roll=rint(1,20);
+    const need=needFor(tn.total,atk.total-autoPen(s,wkey)+AUTO_AGAIN),roll=rint(1,20);
     if(roll>=need){
       const dmg=rollDamage(s,t,wkey,false);
       log(nameSpan(s)+' <span class="a">keeps the trigger down</span> and hits again — <b>'+dmg+'</b> <span class="d">(rolled '+roll+', needed '+need+')</span>.');
@@ -1969,22 +1998,16 @@ function alliesUp(side){return U.filter(u=>u.side===side&&!u.down&&!u.surr).leng
 function hostilesActive(){return U.filter(u=>u.side==='law'&&!u.down&&!u.surr);}
 
 /* ---------- law AI ---------- */
-function coverPoints(){
+function coverPoints(){   // the building corners: cover from anyone round the corner (pickCoverMove adds the props)
   const out=[];
-  for(const p of PROPS){
-    if(PROPDEF[p.kind].cov<=0)continue;
-    const r=PROPDEF[p.kind].r+22;
-    for(let i=0;i<4;i++){
-      const a=i*Math.PI/2+0.4;
-      const x=p.x+Math.cos(a)*r,y=p.y+Math.sin(a)*r;
-      if(x>20&&x<W-20&&y>20&&y<H-20&&!ptBlocked(x,y,12))out.push({x,y});
-    }
-  }
+  for(const b of BLDGS)for(const [x,y] of [[b.x-18,b.y-18],[b.x+b.w+18,b.y-18],[b.x-18,b.y+b.h+18],[b.x+b.w+18,b.y+b.h+18]])
+    if(x>20&&x<W-20&&y>20&&y<H-20&&!ptBlocked(x,y,12))out.push({x,y});
   return out;
 }
 const COVER_PTS=[];
 function aiPlan(){
   let turretClaimed=false;
+  aiClaims=U.filter(o=>o.side==='law'&&!o.down&&!o.surr).map(o=>({u:o,x:o.x,y:o.y}));   // where everyone stands now
   for(const v of U)if(v.veh){v.order=null;v.sprinted=0;v.owUsed=0;}
   for(const u of U){
     if(u.veh)continue;
@@ -2089,27 +2112,50 @@ function aiCrew(u){
   if(d&&Math.hypot(d.x-v.x,d.y-v.y)>30&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
   hold();
 }
+/* where to move: a spot that puts cover between them and their target (behind a prop, as the target sees it, or round
+   a building's corner), within reach and in range. They keep their distance from the other side (nobody walks up to
+   share a crate with the enemy) and spread out from their own (two of them do not claim the same spot). */
+let aiClaims=[];
+const AI_NOSE=140;   // closer than this to anyone on the other side scores badly
 function pickCoverMove(u,tgt,r,toward){
   let best=null,bs=-1e9;
-  const cand=COVER_PTS.slice();
+  const foes=U.filter(o=>(u.side==='law'?o.side==='reb':o.side==='law')&&!o.veh&&!o.down&&!o.surr&&!o.extracted&&!o.away&&!o.office);
+  const cand=[];
+  for(const p of PROPS){   // behind each prop in reach, from where the target stands (and a little either side)
+    const def=PROPDEF[p.kind];
+    if(p.dead||def.cov<=0||Math.hypot(p.x-u.x,p.y-u.y)>r+def.r+HUG)continue;
+    const a=Math.atan2(p.y-tgt.y,p.x-tgt.x);
+    for(const da of [0,-0.45,0.45])cand.push({x:p.x+Math.cos(a+da)*(def.r+16),y:p.y+Math.sin(a+da)*(def.r+16),prop:p});
+  }
+  cand.push(...COVER_PTS);   // building corners
   for(let i=0;i<8;i++){
     const a=rng()*Math.PI*2;
     cand.push({x:u.x+Math.cos(a)*r*0.8,y:u.y+Math.sin(a)*r*0.8});
   }
+  const wkey=wpnsOf(u)[0],w=WPN[wkey]||WPN[u.wpns[0]];
   for(const c of cand){
     if(Math.hypot(c.x-u.x,c.y-u.y)>r)continue;
     if(c.x<20||c.x>W-20||c.y<20||c.y>H-20||ptBlocked(c.x,c.y,12))continue;
     if(!pathFor(u,c.x,c.y))continue;
     const dNow=dist(u,tgt),dNew=Math.hypot(c.x-tgt.x,c.y-tgt.y);
     let s=toward?(dNow-dNew):(dNew-dNow);
-    const covered=coverOf(tgt,{x:c.x,y:c.y,def:10,elev:0,sprinted:0,wound:0,frail:0,bunkered:0,cool:50});
-    if(covered)s+=90;
+    const cv=coverOf(tgt,{x:c.x,y:c.y});
+    if(cv)s+=60+cv.v*4;
+    for(const o of foes){
+      if(o===tgt)continue;
+      if(dist(o,c)<(w?w.rng:400)&&!segBlocked(o.x,o.y,c.x,c.y))s+=coverOf(o,{x:c.x,y:c.y})?12:-12;   // covered or flanked by the rest
+    }
     for(const g of nades)if(Math.hypot(c.x-g.x,c.y-g.y)<NADE_BLAST+24)s-=170; // nobody stands on a live grenade twice
-    const w=WPN[u.wpns[0]];
-    if(dNew<w.rng*0.9&&!segBlocked(c.x,c.y,tgt.x,tgt.y))s+=70;
-    if(dNew<90)s-=120; // don't hug the enemy
+    if(w&&dNew<w.rng*0.9&&!segBlocked(c.x,c.y,tgt.x,tgt.y))s+=70;
+    for(const o of foes){
+      const d=Math.hypot(c.x-o.x,c.y-o.y);
+      if(d<AI_NOSE)s-=160*(1-d/AI_NOSE)+40;   // don't walk up to the enemy
+      if(c.prop&&Math.hypot(o.x-c.prop.x,o.y-c.prop.y)<PROPDEF[c.prop.kind].r+HUG)s-=150;   // nor share their cover with them
+    }
+    for(const q of aiClaims){if(q.u===u)continue;const d=Math.hypot(c.x-q.x,c.y-q.y);if(d<44)s-=220;else if(d<80)s-=60;}   // spread out
     if(s>bs){bs=s;best=c;}
   }
+  if(best)aiClaims.push({u,x:best.x,y:best.y});
   return best;
 }
 
@@ -3450,6 +3496,12 @@ function attackUpdate(now){
     if(!pk)return;
     q.cur=makeCur(s,pk.t,pk.wkey);
     camGoal=frameGoalOf(s,pk.t);
+    if(s.side==='reb'&&!s.ally)selId=s.id;   // the rebel whose turn it is is the selected one
+    else {   // an enemy (or an ally) shoots straight away: the card opens on the result while the shot flies
+      const c=q.cur;
+      c.fast=1;selId=null;c.reveal=c.tn.entries.length;c.revealA=c.atk.entries.length;c.need=needFor(c.tn.total,c.atk.total);
+      rollShot(c);startFire(c,now);
+    }
     syncUI();
     return;
   }
@@ -3471,24 +3523,9 @@ function attackUpdate(now){
   } else if(c.stage==='await'){
     // waits for the ATTACK button
   } else if(c.stage==='roll'){
-    if(el>780){
-      c.roll=rint(1,20);
-      c.jammed=jamRoll(c.s,c.wkey,c.roll);
-      c.hit=!c.jammed&&c.roll>=c.need;
-      c.crit=critRoll(c.roll,c.t);
-      c.stage='verdict';c.stageAt=now;
-    }
+    if(el>780){rollShot(c);c.stage='verdict';c.stageAt=now;}
   } else if(c.stage==='verdict'){
-    if(el>620){c.stage='fire';c.stageAt=now;
-      if(c.hit&&!c.jammed&&!c.t.obj){
-        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
-        c.soaked=!!(c.tn.cover&&c.tn.cover.prop);
-        if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
-        c.dmg=dmg;
-      }
-      if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
-      if(town==='calm')alertTown('Gunfire in the street.');
-    }
+    if(el>620)startFire(c,now);
   } else if(c.stage==='fire'){
     if(el>(c.applyAt==null?420:c.applyAt)&&!c.applied){
       c.applied=true;c.done=true;
@@ -3524,8 +3561,27 @@ function attackUpdate(now){
         afterShot(c.s,c.t,c.wkey,false,c.tn,c.atk);
       }
     }
-    if(el>(c.endAt||900)){q.cur=null;q.nextAt=now+320;syncUI();}
+    // a fast (enemy) shot hands over as its last rounds land; the tracers finish on their own
+    if(el>(c.endAt||900)||(c.fast&&c.applied&&el>(c.applyAt||420)+FAST_TAIL)){q.cur=null;q.nextAt=now+(c.fast?120:320);if(!c.fast)selId=null;syncUI();}
   }
+}
+const FAST_TAIL=380;   // ms an enemy's result stays up after the hit lands before the next shooter goes
+function rollShot(c){
+  c.roll=rint(1,20);
+  c.jammed=jamRoll(c.s,c.wkey,c.roll);
+  c.hit=!c.jammed&&c.roll>=c.need;
+  c.crit=critRoll(c.roll,c.t);
+}
+function startFire(c,now){
+  c.stage='fire';c.stageAt=now;
+  if(c.hit&&!c.jammed&&!c.t.obj){
+    let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+    c.soaked=!!(c.tn.cover&&(c.tn.cover.prop||c.tn.cover.wall));
+    if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
+    c.dmg=dmg;
+  }
+  if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
+  if(town==='calm')alertTown('Gunfire in the street.');
 }
 function playerAttack(){
   const c=engageQ&&engageQ.cur;
@@ -4887,14 +4943,38 @@ function tokR(u){
   if(u.side==='civ')r*=0.62;else if(u.vehicle)r*=1.3;else if(u.big)r*=1.2;
   return r;
 }
-function coverLevelAt(x,y){                   // 0 none, 1 half (crates, drums), 2 full (rock, truck)
-  let best=0;
-  for(const p of PROPS){
-    const d=PROPDEF[p.kind];
-    if(p.dead||d.cov<=0||Math.hypot(p.x-x,p.y-y)>=d.r+34)continue;
-    best=Math.max(best,d.cov>=9?2:1);
-  }
+function coverLevelAt(x,y){                   // what is there to hug, whatever the angle: 0 none, 1 half (crates, drums), 2 full (rock, truck, a wall)
+  let best=wallsNear(x,y).length?2:0;
+  for(const p of propsNear(x,y))best=Math.max(best,PROPDEF[p.kind].cov>=9?2:1);
   return best;
+}
+/* what a spot is worth to someone on this side against the shooters they know about: Covered (from all of them),
+   Cover n/m (from some), Flanked (hugging cover that faces the wrong way), or just Cover when nobody is in sight */
+function coverHint(x,y,side){
+  const cv=coverVs(x,y,threatsTo(side));
+  if(!cv.hug)return null;
+  if(!cv.tot)return {lvl:coverLevelAt(x,y),text:'Cover',col:C.go};
+  if(cv.n===cv.tot)return {lvl:cv.lvl,text:'Covered',col:C.go};
+  if(cv.n)return {lvl:cv.lvl,text:'Cover from '+cv.n+' of '+cv.tot,col:C.gold};
+  return {lvl:0,text:'Flanked',col:C.hazard};
+}
+/* a token's cover pip, worked out a few times a second (or when they move), not every frame */
+function unitCoverHint(u){
+  const now=clock();
+  if(u._cvH===undefined||now-u._cvT>250||u._cvX!==u.x||u._cvY!==u.y){u._cvH=coverHint(u.x,u.y,u.side==='reb'?'reb':'law');u._cvT=now;u._cvX=u.x;u._cvY=u.y;}
+  return u._cvH;
+}
+/* the spots in reach worth moving to: round every prop, and at every building corner (a corner is cover from round it) */
+function coverSpots(x,y,reach,sparse){   // sparse: four round each prop, not eight (nobody in sight to judge them by)
+  const out=[];
+  for(const p of PROPS){
+    const def=PROPDEF[p.kind];
+    if(p.dead||def.cov<=0||Math.hypot(p.x-x,p.y-y)>reach+def.r+20)continue;
+    for(let i=0;i<8;i+=sparse?2:1){const a=i*Math.PI/4;out.push({x:p.x+Math.cos(a)*(def.r+16),y:p.y+Math.sin(a)*(def.r+16)});}
+  }
+  for(const b of BLDGS)for(const [cx,cy,dx,dy] of [[b.x,b.y,-1,-1],[b.x+b.w,b.y,1,-1],[b.x,b.y+b.h,-1,1],[b.x+b.w,b.y+b.h,1,1]])
+    for(const [ox,oy] of [[dx*16,dy*4],[dx*4,dy*16]])out.push({x:cx+ox,y:cy+oy});
+  return out.filter(q=>Math.hypot(q.x-x,q.y-y)<=reach&&q.x>20&&q.x<W-20&&q.y>20&&q.y<H-20&&!ptBlocked(q.x,q.y,6));
 }
 const WORK_ICON={clamp:'work',fuel:'work',hack:'hack',plant:'grenade',release:'lock',flag:'star'};
 function hudA(now){
@@ -4956,7 +5036,7 @@ function hudUnits(L,now){
     const sc2=actorScale(u);
     const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
     if(!u.down&&!civ){
-      if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-16*cam.z,y+8,u.bunkered?2:cl);}
+      if(!u.surr&&!u.veh&&!u.mnt){const h=unitCoverHint(u);if(h&&h.lvl)T.coverPip(ctx,x-16*cam.z,y+8,h.lvl);}
       if(!u.surr){const v=vitalsOf(u),extra=(v.armMax?1:0)+(v.shMax?1:0);SA.vitals(ctx,x,topY-4-extra*8,Object.assign(v,{s:1}));}
       if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,topY-20*cam.z,Math.min(1,u.det/100));
     }
@@ -5001,6 +5081,7 @@ function drawNades(now){
     plb('BLAM',g.x,g.y-22,C.hazard,12);
   }
 }
+let spotCache=null;   // the move picker's cover spots (drawOrders)
 function drawOrders(now){
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
   const P=(x,y)=>worldToCss(x,y);
@@ -5016,8 +5097,8 @@ function drawOrders(now){
         }
         const e=P(o.tx,o.ty);
         T.label(ctx,u.mnt?'Drive':o.type==='move'?'Move':'Sprint',e[0],e[1]-20,{kind:'float',color:o.type==='move'?C.rebel:C.gold,size:12});
-        const cl=coverLevelAt(o.tx,o.ty);
-        if(cl)T.coverPip(ctx,e[0]+18,e[1]-4,cl);
+        const h=coverHint(o.tx,o.ty,'reb');
+        if(h){if(h.lvl)T.coverPip(ctx,e[0]+18,e[1]-4,h.lvl);T.label(ctx,h.text,e[0],e[1]+22,{kind:'float',color:h.col,size:11});}
       } else if(o.type==='enter'){
         const v=U.find(x=>x.id===o.vid);
         if(v){const a=P(u.x,u.y),b=P(v.x,v.y);T.plotLine(ctx,a[0],a[1],b[0],b[1],'move',hudT);T.label(ctx,'Get in',b[0],b[1]-tokR(v)-22,{kind:'float',color:C.rebel,size:12});}
@@ -5035,12 +5116,18 @@ function drawOrders(now){
       const [sx,sy]=P(sel.x,sel.y);
       const reach=reachOf(sel,pickMode),mv=sel.mnt?vehOf(sel)||sel:sel;
       T.moveRing(ctx,sx,sy,reach*cam.z,pickMode);
-      /* every cover pocket in reach (a vehicle has no use for them) */
-      for(const p of (sel.mnt||sel.bot)?[]:PROPS){
-        const def=PROPDEF[p.kind];
-        if(p.dead||def.cov<=0||Math.hypot(p.x-sel.x,p.y-sel.y)>reach+def.r+40)continue;
-        const [px,py]=P(p.x,p.y);
-        ctx.setLineDash([3,5]);ctx.beginPath();ctx.arc(px,py,(def.r+34)*cam.z,0,7);ctx.lineWidth=2;ctx.strokeStyle=T.rgba(C.go,0.5);ctx.stroke();ctx.setLineDash([]);
+      /* the cover spots in reach, judged against the hostiles in sight: bright where they cover from all of them,
+         faint where only from some; a spot every one of them flanks is left out (a vehicle has no use for any) */
+      if(!sel.mnt&&!sel.bot){
+        const key=sel.id+':'+pickMode+':'+round+':'+Math.round(sel.x)+','+Math.round(sel.y);
+        if(!spotCache||spotCache.key!==key||clock()-spotCache.t>400){   // worked out a few times a second, not every frame
+          const th=threatsTo('reb');
+          spotCache={key,t:clock(),list:coverSpots(sel.x,sel.y,reach,!th.length).map(q=>{
+            const cv=coverVs(q.x,q.y,th),judged=cv.tot>0;
+            return {x:q.x,y:q.y,lvl:judged?cv.lvl:coverLevelAt(q.x,q.y),a:!judged?0.4:cv.n===cv.tot?0.95:0.5};}).filter(q=>q.lvl)};
+        }
+        for(const q of spotCache.list){const [qx,qy]=P(q.x,q.y);ctx.globalAlpha=q.a;T.coverPip(ctx,qx,qy,q.lvl);}
+        ctx.globalAlpha=1;
       }
       if(hoverW){
         const d=moveDest(mv,hoverW.x,hoverW.y,reach);
@@ -5049,8 +5136,8 @@ function drawOrders(now){
           ctx.globalAlpha=0.6;
           for(let i=1;i<p.length;i++){const a=P(p[i-1].x,p[i-1].y),b=P(p[i].x,p[i].y);T.plotLine(ctx,a[0],a[1],b[0],b[1],pickMode,hudT);}
           ctx.globalAlpha=1;
-          const e=P(d.x,d.y),cl=coverLevelAt(d.x,d.y);
-          if(cl){T.coverPip(ctx,e[0]+18,e[1]-4,cl);T.label(ctx,'Cover',e[0],e[1]-22,{kind:'float',color:C.go,size:12});}
+          const e=P(d.x,d.y),h=coverHint(d.x,d.y,'reb');
+          if(h){if(h.lvl)T.coverPip(ctx,e[0]+18,e[1]-4,h.lvl);T.label(ctx,h.text,e[0],e[1]-22,{kind:'float',color:h.col,size:12});}
         }
       }
     } else if(sel&&pickMode==='treat'){
@@ -5722,7 +5809,7 @@ const OM={
   sprint:{label:'Sprint',icon:'sprint',family:'move',key:'2',rule:'Run twice as far. No shot this round, but you are harder to hit.'},
   hold:{label:'Hold',icon:'hold',family:'stance',key:'3',rule:'Brace and watch. Fire on anyone who crosses your lane. A Steady weapon (the Longhorn) takes +2 while braced.',
     nums:[{t:'+2 attack with a Steady weapon',kind:'good'},{t:'−2 snap shot',kind:'bad'}]},
-  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Dive behind cover you are standing next to. It counts double this round.'},
+  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Press up against the cover you are next to: +'+TAKE_COVER+' Defence on top of it this round, against shots it stands in the way of. Cover only counts when it is between you and the shooter; from the side you are flanked. No shot this round.'},
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',key:'5',rule:'Steady your nerve. A panicking rebel can do nothing else.'},
   loot:{label:'Loot',icon:'loot',family:'util',key:'6',rule:'Grab anything lootable within reach at the end of the round.'},
   work:{label:'Work',icon:'work',family:'util',key:'7',rule:'Finish a job at a panel, clamp or fuel line.'},
@@ -5936,7 +6023,7 @@ function statusTag(u){
   }
   if(u.mnt){const st=seatOf(u),v=vehOf(u);if(st&&v)return tag(st.n+' \u00b7 '+v.first,u.side==='reb'?'friend':'',st.wkey?'turret':'vehicle');}
   if(u.side==='reb'&&phase==='FREE'&&u.rtPath)return tag('Moving','',null);
-  if(u.side==='law'&&inCoverAt(u.x,u.y))return tag('Cover','good','cover');
+  if(u.side==='law'&&coverVs(u.x,u.y,threatsTo('law')).n)return tag('Cover','good','cover');
   return '';
 }
 function nerveHtml(u){
@@ -6646,11 +6733,12 @@ if(location.hash==='#test'){
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
+    get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get PROPS(){return PROPS;},get BLDGS(){return BLDGS;},set engageQ(v){engageQ=v;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
+      coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,
       stunTick,canPack,packTurret,unmanTurret,treatCands,inContact,stillFighting,roundWrap,contactCheck,
       seen(){return [...visUnits];},
       clock,hitstop,juice,juiceTick,decals_:()=>decals,juice_:()=>({pops,vols,impFx,jfx,parts:PFX.list,trauma:SHK.trauma,stopped:!!HS.until&&performance.now()<HS.until}),

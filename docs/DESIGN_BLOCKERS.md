@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-43). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-44). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-43). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -49,6 +49,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-40 | ⚪ | Source approach: do standby contacts ever give up? Plus my choices — no auto re-knock, "+4 exposure" still moves `G.risk`, the gold courier strip | How a potential source is taken on, parked or burned |
 | C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
 | C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
+| C-44 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2, Flanked −2), Take cover still costing the shot, what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-43 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
@@ -81,6 +82,33 @@ bar, fire-support art and ships parked in the iso hangar.
 ---
 
 ## 1. Conflicts
+### C-44 ⚪ Cover by the line of the shot: what I chose
+Your cover notes of 2026-10-07 are built: no more 360° ring. The numbers and readings are mine:
+1. **A prop is cover** when the target is within 34 px of it (hugging) and the shot's line passes through it (its
+   radius + 6 px), between shooter and target. Values as before: crates, drums and the charge station +8, the
+   truck +10, a boulder +9. Cover still soaks 25% of a hit's damage, and a miss still chips the prop.
+2. **A building is cover** (+9, "Wall cover") when the target hugs its wall and the shooter is round the corner:
+   the direction to the shooter is within 80° of the direction to the wall. Shooting straight down a wall, or
+   from the open side, gets no cover. Buildings still block sight outright.
+3. **Flanked:** a target hugging cover that is not in the line of this shot is easier to hit, −2 Defence. Say if
+   you would rather it just lose the cover with no extra penalty.
+4. **Take cover** adds +2 on top of the cover, only against shots the cover is in the way of (it used to double
+   the cover). It still costs the rebel their shot that round, which makes +2 a thin trade: should it keep the shot?
+5. **The hints judge cover against the hostiles who could fire on a spot** (in range, clear line, and seen by the
+   squad): the move picker draws a shield at every cover spot in reach (bright: covered from all of them, faint:
+   from some, none: flanked by all); a planned move and the hover say Covered, Cover from n of m, or Flanked.
+6. **The enemy AI** picks spots behind cover as its target sees them (or a building corner), keeps 140 px from
+   the squad, never takes a crate a rebel is hugging, and does not pile onto a spot another of its side has
+   claimed. In a quick check over three maps, enemies ending a move within 100 px of a rebel fell from 16 of 114
+   to 1.
+7. **Enemy shots** open straight on their result card and fire at once; the next shooter goes 0.38 s after the
+   hit lands (the tracers finish on their own). A rebel's shot still plays the whole card, and their portrait is
+   selected when their turn comes.
+8. **The Razorrat** fired from its tripod (a field deployment or the Steal the Cross emplacement) has Automatic
+   at −2, shown as "Automatic (Deployed)"; the second burst on a hit rolls at −10 as before.
+**Needs from you:** confirm the numbers, and calls on items 3 and 4.
+**Your call:** _open_
+
 ### C-43 ⚪ Standby and Working; the combat-flow fixes: what I chose
 Your notes of 2026-10-07 are built. Where they left a gap I picked:
 1. **Standby is the default** for every rebel with nothing to do (new recruits, anyone back from a mission or
