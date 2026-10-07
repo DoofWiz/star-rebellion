@@ -250,7 +250,7 @@ function newGame(){
     missions:[
     ],
     planets:PLANETDEF.map(mkPlanet),
-    recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],
+    recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],standby:[],
     news:[],
     v:saveVersion(),   // born at the current save version: no migration runs on it (MIGRATIONS below)
   };
@@ -1794,10 +1794,7 @@ function advanceDay(){
       news(src.name+' is running hot — risk '+Math.round(src.risk)+'. Decide something before the Hegemony does.','h');
     }
   }
-  // candidates who found the network full try again when a slot opens
-  if(G.candWait&&G.candWait.length&&G.sources.filter(s=>s.alive).length<sourceCap()){
-    G.candQ.push(...G.candWait);G.candWait=[];
-  }
+  // standby contacts wait on the Galaxy map (docs/ui/SCREENS-HANDOFF-2.md §2); the player reopens them there
   // the network comes through: Cass finds the pilot the Dustfall job needs
   if((G.onboard==='pilotwait'||G.onboard==='seraoffered')&&!G.people.some(p=>p.id==='sera')){
     const cass=G.sources.find(s=>s.id==='cass'&&s.alive);
@@ -2527,15 +2524,28 @@ function acceptCandidate(id){
   const cd=CANDS[id];
   if(!cd)return closeWin();
   if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
-  if(G.sources.filter(s=>s.alive).length>=sourceCap()){
-    news('No capacity to run another source safely. <b>'+cd.name+'</b> will wait — grow the network (an Intelligence Center room adds capacity) and they’ll come back around.','h');
-    (G.candWait=G.candWait||[]).push(cd.id);
-  } else {
-    G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
-      JSON.parse(JSON.stringify(cd))));
-    news('<b>'+cd.name+'</b> joins the network.','g');
-    G.risk=Math.min(100,G.risk+4);
+  if(G.sources.filter(s=>s.alive).length>=sourceCap())return standbyCandidate(id);   // the window disables Take on when full
+  G.standby=(G.standby||[]).filter(x=>x!==id);
+  G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
+    JSON.parse(JSON.stringify(cd))));
+  news('<b>'+cd.name+'</b> joins the network.','g');
+  G.risk=Math.min(100,G.risk+4);
+  closeWin();syncUI();
+}
+/* the network is full: the candidate stays on the Galaxy map as a potential contact until a slot frees up */
+function standbyCandidate(id){
+  const cd=CANDS[id];
+  if(!cd)return closeWin();
+  G.standby=G.standby||[];
+  if(!G.standby.includes(id)&&!G.sources.some(s=>s.id===id)){
+    G.standby.push(id);
+    news('<b>'+cd.name+'</b> waits on standby — a potential contact on the Galaxy map until the network has room.','d');
   }
+  closeWin();syncUI();
+}
+function declineCandidate(id){
+  G.standby=(G.standby||[]).filter(x=>x!==id);
+  news('The contact is burned. They never hear back.','d');
   closeWin();syncUI();
 }
 function openComm(src,payload){openWin('comm',{src,payload});}
@@ -3716,6 +3726,14 @@ function drawSrcBadge(x,y,sc,t){
   ctx.fillStyle='#fff4e6';ctx.fillText(ROMAN[Math.max(0,Math.min(4,(sc.level||1)-1))],x,y+11);
   ctx.textBaseline='alphabetic';
 }
+/* a potential contact on standby: dashed gold ring, not one of ours yet; clicking reopens the Approach window */
+function drawCandBadge(x,y){
+  ctx.beginPath();ctx.arc(x+1.5,y+2.5,11,0,7);ctx.fillStyle=TH.rgba(K.ink,.6);ctx.fill();
+  ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fillStyle=TH.rgba(K.ink,.85);ctx.fill();
+  ctx.save();ctx.setLineDash([3.5,3.5]);ctx.lineWidth=2.2;ctx.strokeStyle=K.gold;
+  ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.stroke();ctx.restore();
+  TH.icon(ctx,'sneak',x,y,12,K.gold,{weight:2.4});
+}
 function drawGalaxy(now){
   const t=RM?0:now/1000;
   gxFit(now);
@@ -3850,20 +3868,31 @@ function drawGalaxy(now){
       });
     }
   }
-  /* sources ride a ring around their worlds */
+  /* sources ride a ring around their worlds; standby contacts wait beside them as un-recruited markers */
   if(gxLayers.network){
     const byW={};
-    for(const sc of G.sources){if(!sc.alive)continue;const w=SRCPOS[sc.id]||'veray';(byW[w]=byW[w]||[]).push(sc);}
+    for(const sc of G.sources){if(!sc.alive)continue;const w=SRCPOS[sc.id]||'veray';(byW[w]=byW[w]||[]).push({sc});}
+    for(const id of G.standby||[]){
+      const cd=CANDS[id];if(!cd||G.sources.some(s=>s.id===id))continue;
+      const w=SRCPOS[id]||cd.locId||'veray';(byW[w]=byW[w]||[]).push({sc:cd,stand:1});
+    }
     for(const w in byW){
       const pd=pdef(w);if(!pd)continue;
       const[px,py]=gxPos(pd),R=gxR(w);
-      byW[w].forEach((sc,i)=>{
+      byW[w].forEach((e,i)=>{
+        const sc=e.sc;
         const a=-0.65+i*0.95;
         const x=px+Math.cos(a)*(R+18),y=py+Math.sin(a)*(R+18);
-        drawSrcBadge(x,y,sc,t);
         gxSrcPos[sc.id]=[x,y];
-        if(srcSel&&srcSel.t==='s'&&srcSel.id===sc.id)gxSelRing(x,y,18,t);
         hold(x,y,14);
+        if(e.stand){
+          drawCandBadge(x,y);
+          lab(sc.name.split(' ').pop(),[[x+17,y+4,'left'],[x-17,y+4,'right'],[x,y+30,'center']],K.gold,11,700,6);
+          gxHitL.push({t:'c',id:sc.id,x,y,r:17});
+          return;
+        }
+        drawSrcBadge(x,y,sc,t);
+        if(srcSel&&srcSel.t==='s'&&srcSel.id===sc.id)gxSelRing(x,y,18,t);
         lab(sc.name.split(' ').pop(),[[x+17,y+4,'left'],[x-17,y+4,'right'],[x,y+30,'center']],sc.risk>60?K.hazard:K.rebelHi,11,700,6);
         gxHitL.push({t:'s',id:sc.id,x,y,r:17});
       });
@@ -5334,12 +5363,8 @@ function renderWin(){
         wFoot((cards[0].must?'':rbtn('data-rec-no="0"','Dismiss',false,'sr-btn--ghost'))+rbtn('data-rec-accept="0"','Recruit',full&&!cards[0].must,'sr-btn--primary')));
   }
   else if(winMode==='candidate'){
-    const cd=CANDS[winArg]||CANDS.marr;
-    const inc=bundleHTML(cd.inc);
-    h=wHead('Approach',{tags:wTag('Potential source','friend')})+wBody(
-      '<div class="sr-quote" style="margin-top:0"><div class="sr-quote__who">'+IC('signal')+cd.name+'</div>'+cd.pitch+' Network capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+'.</div>'+
-      choice(1,'data-cand="'+cd.id+'"','Take them on. ('+inc+'<span class="bs-per">/day · exposure +4</span>)')+
-      choice(2,'data-cand="no"','Too dangerous. Burn the contact.'));
+    size='';cls=' cm-win';
+    h=candHTML(CANDS[winArg]||CANDS.marr);
   }
   else if(winMode==='missions'){
     let list='';
@@ -5685,6 +5710,40 @@ function commHTML(src,payload){
     }
   }
   return wHead('Comm burst')+who+'<div class="sr-window__body cm-body">'+body+'</div>'+(foot?wFoot(foot):'');
+}
+
+/* ---------- the source approach (docs/ui/SCREENS-HANDOFF-2.md §2) ----------
+   The Comm burst's window family for someone who isn't ours yet: gold ring, "Potential source" kicker, their
+   starting Cultivation and Risk, the courier strip, the pitch, the network capacity row, then the choices.
+   With room: Take them on / Send no reply. Full: Standby (they wait on the Galaxy map) / Take on disabled / no reply. */
+const CAND_RES={c:['credits','var(--sr-res-credits)'],s:['supplies','var(--sr-res-supplies)'],m:['materials','var(--sr-res-materials)'],
+  f:['fuel','var(--sr-res-fuel)'],i:['Intel','var(--sr-res-intel)']};
+function candHTML(cd){
+  const alive=G.sources.filter(s=>s.alive).length,cap=sourceCap(),full=alive>=cap;
+  const mini=(lbl,v,c)=>'<span class="cm-mini" style="--c:'+c+'"><span>'+lbl+'</span><i style="--v:'+Math.round(v)+'"></i><b>'+Math.round(v)+'</b></span>';
+  const who='<div class="cm-who"><span class="cm-ava cm-ava--potential">'+esc(ini(cd.name))+'<i>'+IC('sneak')+'</i></span>'+
+    '<div style="min-width:0"><div class="cm-kicker">Potential source</div><div class="cm-name">'+esc(cd.name)+'</div>'+
+    '<div class="cm-role">'+esc([cd.type,cd.loc].filter(Boolean).join(' · '))+'</div></div>'+
+    '<div class="cm-who__end">'+mini('Cultivation',cd.cult,'var(--sr-psi)')+mini('Risk',cd.risk,'var(--sr-hazard)')+'</div></div>';
+  const chan='<div class="cm-chan cm-chan--courier"><div class="cm-chan__top"><b>Courier contact</b><span>'+esc(cd.loc)+' · dead drop · unsigned</span></div></div>';
+  let pips='';for(let i=0;i<cap;i++)pips+='<i'+(i<alive?'':' class="is-free"')+'></i>';
+  const capRow='<div class="cm-cap'+(full?' is-full':'')+'">'+IC('people')+'<span class="cm-cap__lbl">Network capacity</span>'+
+    (full?'<span class="cm-cap__full">Full</span>':'')+'<span class="cm-cap__pips">'+pips+'</span><b>'+alive+'/'+cap+'</b></div>';
+  const drow=(c,txt,val)=>'<span class="cm-drow" style="--c:'+c+'"><i></i>'+(val!==undefined?'<b>'+val+'</b>&nbsp;':'')+txt+'</span>';
+  const incRows=Object.keys(cd.inc||{}).filter(k=>CAND_RES[k]&&cd.inc[k]).map(k=>drow(CAND_RES[k][1],CAND_RES[k][0]+' a day','+'+cd.inc[k])).join('')+
+    drow('var(--sr-hazard)','exposure','+4');
+  const cmChoice=(n,attrs,title,rows,primary,dis)=>'<button type="button" class="cm-choice'+(primary?' is-primary':'')+'" '+attrs+(dis?' disabled':'')+'>'+
+    '<span class="sr-kbd sr-choice__key">'+n+'</span><span class="cm-choice__t">'+title+'</span>'+(rows?'<span class="cm-choice__rows">'+rows+'</span>':'')+'</button>';
+  const take=(n,dis)=>cmChoice(n,'data-cand="'+cd.id+'"','Take them on.',
+    dis?'<span class="cm-choice__why">'+IC('lock')+'Network full</span>':incRows,!dis,dis);
+  const noReply=n=>cmChoice(n,'data-cand="no"','Too dangerous. Send no reply.','');
+  const choices=full?
+    cmChoice(1,'data-cand="standby"','Standby.',
+      drow('var(--sr-gold)','Stays on the Galaxy map as a potential contact')+drow('var(--sr-gold)','Recruit them once the network has room'),true)+
+    take(2,true)+noReply(3):
+    take(1)+noReply(2);
+  return wHead('Approach')+who+'<div class="sr-window__body cm-body">'+chan+cmLog(cd.pitch)+capRow+
+    '<div class="cm-choices">'+choices+'</div></div>';
 }
 
 /* ---------- the Personnel File (docs/ui/SCREENS-HANDOFF.md §2) ----------
@@ -7181,13 +7240,14 @@ cv.addEventListener('click',ev=>{
     sClick();
     if(gxWorld){gxWorldClick(px,py);return;}
     let best=null,bd=1e9;
-    const pri={o:0,s:1,p:2};
+    const pri={o:0,s:1,c:1,p:2};
     for(const h of gxHitL){
       const d2=Math.hypot(px-h.x,py-h.y);
       if(d2<h.r){const score=pri[h.t]*1000+d2;if(score<bd){bd=score;best=h;}}
     }
     if(!best){if(srcSel){srcSel=null;syncUI();}return;}
     if(best.t==='o'){openOpp(best.id);return;}
+    if(best.t==='c'){openWin('candidate',best.id);return;}
     if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();return;}
     const st=pst(best.id);
     if(st&&st.access)enterWorld(best.id,best.x,best.y);
@@ -7396,7 +7456,7 @@ $('winsB').addEventListener('click',ev=>{
     syncUI();return;
   }
   const cand=t.getAttribute('data-cand');
-  if(cand){if(cand==='no'){news('The contact is burned. They never hear back.','d');closeWin();}else acceptCandidate(cand);return;}
+  if(cand){if(cand==='no')declineCandidate(winArg);else if(cand==='standby')standbyCandidate(winArg);else acceptCandidate(cand);return;}
   const scout=t.getAttribute('data-scout');
   if(scout){scoutPlanet(scout);return;}
   const raise=t.getAttribute('data-raise');
@@ -7586,7 +7646,7 @@ addEventListener('keydown',ev=>{
   }
   // 1-4 pick dialogue answers
   if(winMode&&/^[1-4]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
-    const opts=[...$('winCardB').querySelectorAll('.sr-choice')];
+    const opts=[...$('winCardB').querySelectorAll('.sr-choice,.cm-choice')];
     const b=opts[+ev.key-1];
     if(b&&!b.disabled){ev.preventDefault();b.click();}
   }
@@ -8407,6 +8467,12 @@ const MIGRATIONS=[
   function(){
     for(const m of G.missions||[])m.seen=1;
   },
+  /* 7 -> 8: standby contacts (docs/ui/SCREENS-HANDOFF-2.md §2). G.standby lists candidates waiting on the Galaxy
+     map as potential contacts; the silent candWait queue becomes it. */
+  function(){
+    G.standby=(G.candWait||[]).filter((id,i,a)=>a.indexOf(id)===i&&CANDS[id]&&!G.sources.some(s=>s.id===id));
+    delete G.candWait;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -8493,7 +8559,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,startRecruit,recruitTick,canRecruit,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plSyncAssets,plAssetMode,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,

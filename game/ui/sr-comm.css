@@ -52,6 +52,9 @@
 
 /* ===== Approach window (potential source) — additions to sr-comm.css ===== */
 .cm-ava--potential{box-shadow:inset 0 0 0 3px var(--sr-gold);} .cm-ava--potential i{background:var(--sr-gold);}
+/* courier strip: a dead drop, not a live carrier — gold, no blink, no waveform */
+.cm-chan--courier .cm-chan__top b{color:var(--sr-gold);}
+.cm-chan--courier .cm-chan__top b::before{background:var(--sr-gold);box-shadow:0 0 6px var(--sr-gold);animation:none;}
 .cm-kicker{margin-bottom:5px;font:800 10px/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--c,var(--sr-gold));}
 .cm-mini{display:flex;align-items:center;gap:8px;}
 .cm-mini>span{width:74px;font:800 10px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--sr-text-3);}
