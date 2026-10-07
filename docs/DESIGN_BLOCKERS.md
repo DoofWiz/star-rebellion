@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-07, after the screens handoff part 2, §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -45,6 +45,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-36 | ⚪ | Comm burst: what follows Acknowledge, source events, the level-up meter | How talking to a source reads |
 | C-37 | 🟡 | Missions tab: decorative space targets, which missions the board lists, fitting the rail, the phone layout | The briefing room |
 | C-38 | ⚪ | Audio pass: the sound setting persists, and the base's one alert became three sounds (good / bad / ping) — my mapping of events to each | How the base sounds |
+| C-39 | ⚪ | Starfighter window: one file for pilot and ship — the hangar sheet's hidden pilot column (confirm), rank chevrons, move-set rows, zone labels, scripted pilots' skill lines | How a ship and its pilot read in combat and the hangar |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -412,6 +413,25 @@ Bringing the audio up to the rest of the game's standard (`SR.audio` in `game/js
 3. **The base's sounds gained a layer each** (a wrench on the build chime, a carrier crackle on the comm, an
    engine growl under the launch) to match the combat scenes' layered engines. Nothing changed in ground or space.
 **Needs from you:** nothing — overrule any bucket in (2) you hear differently.
+**Your call:** _open_
+
+### C-39 ⚪ Starfighter window: what I chose
+The one-window pilot-and-ship file (`docs/ui/SCREENS-HANDOFF-2.md` §1, `game/js/space.js`). What the handoff
+left open, and the guesses I made:
+1. **The hangar's `SR.shipSheet`** now renders the same window with the pilot column, nerve and lock hidden
+   (the handoff's §6 asks you to confirm this). The old side-by-side top-down view is gone with it.
+2. **Rank chevrons** (display only): one chevron per rung of the pilot ladder (officers count their own ladder),
+   at least one, capped at four. A rank the ladders don't know (the Hegemony's "Commandant") shows one chevron.
+3. **The move-set popover's rows** run from the ship's un-critted top speed down to 1, so cells an Engine crit
+   drops read as off instead of vanishing.
+4. **Zone labels** total every segment sitting in the zone: fore and aft both angled forward reads
+   "Fore shield · angled forward 30/30" over one arc, with "Aft zone exposed" under the other.
+5. **Skill effect lines for scripted pilots** (the sim, the instructor's cadets): Cunning's % derives from the
+   skill value; campaign pilots use their rebel record's multiplier as before. Presence's "n Cool" line shows the
+   pilot's current nerve value, which moves in combat.
+6. **Enemy ships open the same window** (foe styling, same "Starfighter" title); drones and structures open the
+   bare variant, like the hangar's.
+**Needs from you:** confirm (1); overrule any of (2)–(6) you want differently.
 **Your call:** _open_
 
 ---

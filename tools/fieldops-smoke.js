@@ -198,7 +198,7 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   f.openWin('recruit',{cards:[{p:rec}]});out.terms=document.getElementById('winCardB').innerHTML.indexOf('>Terms<')<0;f.closeWin();
   G.fighters.push(f.newFighter({id:'mt',name:'Marta',cls:'graf',hull:80}));f.syncUI();
   out.shipFace=!!document.querySelector('#fleetList img.bs-shipface');
-  f.openWin('ship',G.fighters[G.fighters.length-1]);out.shipView=!!document.querySelector('#winCardB .bs-shipview img');f.closeWin();
+  f.openWin('ship',G.fighters[G.fighters.length-1]);out.shipView=!!document.querySelector('#winCardB .sf-stage canvas.sf-ship');f.closeWin();
   // the in-mission file
   out.pfile=!!(window.SR.personFile&&/bs-doll/.test(window.SR.personFile('dax')));
   // Mission Control specialists bring their niche to a supported mission

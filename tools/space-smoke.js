@@ -47,7 +47,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     return {id:s.id,tn:t?t.total:null,entries:t?t.entries.map(e=>e[0]+':'+e[1]).join(' | '):null};
   });
   // the ship-systems card for every ship (weapons, ammo, durability) must render
-  const cards=D.ships.map(s=>{try{const h=F.shipHTML(s);return {id:s.id,ok:h.length>200,weapons:(h.match(/sp-wcard/g)||[]).length,html:h.length};}catch(e){return {id:s.id,error:String(e)};}});
+  const cards=D.ships.map(s=>{try{const h=F.starfighterHTML(s);return {id:s.id,ok:h.length>200,weapons:(h.match(/class="sf-wpn[" ]/g)||[]).length,html:h.length};}catch(e){return {id:s.id,error:String(e)};}});
   // play
   let over=false,guard=0,res=null,lastRound=0;
   const rb=()=>D.ships.filter(s=>s.alive&&s.faction==='reb');

@@ -5398,6 +5398,7 @@ function renderWin(){
     const f=winArg,SS=SR.shipSheet;
     const pilots=G.people.filter(p=>p.role==='Pilot'&&!laidUp(p));
     shipSheetShip=SS.make(f.cls,f.name,f.out?100:f.hull,pilots.length?Math.max(...pilots.map(pilotAim)):2);
+    size='';cls=' sf-win';
     h=SS.html(shipSheetShip,f.name)+wFoot(rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
   }
   else if(winMode==='news'){
@@ -5410,17 +5411,7 @@ function renderWin(){
   card.innerHTML=h;
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
-  if(winMode==='ship'){   // the sheet sits beside a big top-down view of the ship itself
-    const body=card.querySelector('.sr-window__body'),f=winArg,u=shipTopURL(f,300,380,6);
-    const old=card.querySelector('#shipIconCv');if(old)old.remove();
-    if(body&&u&&!body.querySelector('.bs-shipview')){
-      const main=document.createElement('div');main.className='bs-shipwin__main';
-      while(body.firstChild)main.appendChild(body.firstChild);
-      const wrap=document.createElement('div');wrap.className='bs-shipwin';
-      wrap.innerHTML='<div class="bs-shipview"><img src="'+u+'" alt="'+esc(f.name)+' from above"><span class="bs-shipview__n">'+esc(f.name)+'</span></div>';
-      wrap.appendChild(main);body.appendChild(wrap);
-    }
-  }
+  if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);   // the stage's big top-down ship
   markWin();
 }
 
@@ -8039,7 +8030,7 @@ function startPlan(){
       flight.push({pilotId:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,art:SA.lookOf(p),
         rankName:rankFor(p),hero:p.role==='Hero'?1:0,skills:pilotSkills(p),aimMod:pilotAimMod(p),init:pilotInit(p),
         cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),cun:Rebel.cunMul(p),nv:Rebel.nerveMul(p),
-        tr:Rebel.traitsFor(p,'s'),
+        tr:Rebel.traitsFor(p,'s'),charTrait:p.charTrait,
         cls:f.cls,fighterId:f.id,fighterName:f.name,hull:f.hull,loadout:f.loadout,
         tune:f.tune,frame:f.frame||0,shield:(prepared-->0)?RU.preflight_shield:0,tight:sfx.tight?1:0});
     }
