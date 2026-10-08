@@ -75,6 +75,11 @@ const PRO_TEXT={
   mercTut:'[TEXT NEEDED: the hire-a-mercenary tutorial: this mercenary will always be available here; hire them]',
   haulerBuy:'[TEXT NEEDED: the hauler tutorial: buy a second Graf hauler from the Black Market]',
   haulerHangar:'[TEXT NEEDED: the hauler tutorial: build Hangar room for 4 starfighters and 2 transports]',
+  // Raid the Bunker: the plan's tutorial, and the card in the fight when the pilots can be called in
+  bunkerPlan:'[TEXT NEEDED: the plan tutorial: add the second hauler as an asset; it brings the pilots in later as Reinforcements]',
+  bunkerPass:'[TEXT NEEDED: the plan tutorial: load the three pilots into the reinforcements hauler (a Graf seats 4, so the fifth soldier rides with them)]',
+  bunkerCallT:'[TEXT NEEDED: card title]',
+  bunkerCall:'[TEXT NEEDED: the combat card: once it is safer, call the pilots in with Reinforcements from Fire Support, and they take the ships]',
   btnNext:'Next',
   btnGotIt:'Got it',
   // debug builds only
@@ -134,11 +139,21 @@ const PRO_TUTS={
     {at:'bm.lot:merc',text:'mercTut',until:{hired:true}},
   ]},
   // beat 22: make room in the Hangar (a hauler needs a large pad to land on), then buy the second hauler
+  // beat 23: the plan for Raid the Bunker: the second hauler as an asset, then its passengers
+  bunkerPlan:{steps:[
+    {at:'plan.assetslot',text:'bunkerPlan',until:{asset:'graf'}},
+    {at:'plan.pass',text:'bunkerPass',next:'btnGotIt',until:{next:true}},
+  ]},
   hauler:{steps:[
     {at:'base.hangar',text:'haulerHangar',done:h=>h.hangarFits()},
     {at:'bm.lot:graf',text:'haulerBuy',done:h=>h.transports()>=2},
   ]},
 };
+
+/* Raid the Bunker (beats 18, 19 and 23): Steal Ship with three ships pinned, five soldiers, and the pilots coming in later
+   with the second hauler (r.reinforce: the plan's first transport asset carries them) */
+const BUNKER={type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
+  name:'raidBunker',ships:['cross','talon','talon'],req:{team:5,reinforce:1}};
 
 /* ---------- the beats ---------- */
 const PROLOGUE=[
@@ -195,7 +210,7 @@ const PROLOGUE=[
    until:{won:'stealfuel'}},
   // 12: straight after Steal Fuel's reward, Venn asks the player to rescue Tachi Gard
   {id:'tachi_offer',
-   setup:h=>h.winMission('stealfuel'),
+   setup:h=>{h.openGate('plan.assets');h.tutDone('strafingRun');h.winMission('stealfuel');},
    does:[{comm:{who:'venn',text:'tachiOffer'}},
      {mission:{id:'rescuetachi',from:'venn',spec:{type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},
        name:'rescueTachi',npc:'tachi',recruit:false,follow:false}}}],
@@ -226,13 +241,11 @@ const PROLOGUE=[
   // 18: Cass knows where the Sheriff's bunker is: Raid the Bunker goes on the board (its plan lists what is missing)
   {id:'bunker_offer',
    does:[{comm:{who:'cass',text:'bunkerOffer'}},
-     {mission:{id:'raidbunker',from:'cass',spec:{type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
-       name:'raidBunker',ships:['cross','talon','talon'],req:{team:5}}}}],
+     {mission:{id:'raidbunker',from:'cass',spec:BUNKER}}],
    until:{accepted:'raidbunker'}},
   // 19: the next day, Tachi will find pilots: the next Recruit to finish brings three
   {id:'tachi_recruit',starts:{day:1},
-   setup:h=>h.addMission('raidbunker',{type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
-     name:'raidBunker',ships:['cross','talon','talon'],req:{team:5}}),
+   setup:h=>h.addMission('raidbunker',BUNKER),
    does:[{flag:{recruitAs:{role:'Pilot',n:3}}},{comm:{who:'tachi',text:'tachiPilots'}},{tutorial:'tachiRecruit'}],   // the flag holds from the start
    until:{joined:{role:'Pilot',n:3}}},
   // 20: Cass points the player at the Black Market
@@ -250,7 +263,12 @@ const PROLOGUE=[
    setup:h=>h.join('Soldier'),
    does:[{marketLot:{cat:'ship',id:'graf',keep:true}},{tutorial:'hauler'}],
    until:[h=>h.transports()>=2,h=>h.hangarFits()]},
-  // P5 (docs/PROLOGUE-HANDOFF.md §6) goes here, before the frontier.
+  // 23: Raid the Bunker. The plan's tutorial points at the second hauler (Reinforcements) and its passengers; in the
+  // fight, a card says when the pilots can be called in (the ground scene shows it: SR.mission.coach)
+  {id:'bunker',
+   setup:h=>{h.secondHauler();h.hangarRoom();},
+   does:[{tutorial:'bunkerPlan'}],
+   until:{won:'raidbunker'}},
   // DESIGN OPEN: security_arrives — security forces arrive at Akkaro. Waits on the regional Alert system.
   // {id:'security_arrives'},
   // DESIGN OPEN: campaign — Venn delivers the first Campaign, Liberate Akkaro. Waits on the Campaign design (CHAINS

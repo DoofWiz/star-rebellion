@@ -233,6 +233,7 @@ window.MT=(function(){
         {k:'hotwire',t:'Hotwire the ship'},
         {k:'lines',t:'Remove fuel line and clamps'},
         {k:'board',t:'Board {ship} with {shipPilot}'},
+        {k:'extract',t:'Get the squad back to the {transport}',all:1},   // once, after every ship's four
       ],
       notes:[],
       hint:'[TEXT NEEDED: the briefing hint: a pilot hotwires their ship (Work, or just stay near it out of combat), and the fuel line and clamps come off the same way]',
@@ -240,6 +241,7 @@ window.MT=(function(){
       work:{hotwire:{label:'HOTWIRE',verb:'hotwires {ship}'},clamp:{label:'DOCKING CLAMPS',verb:'releases the docking clamps'},fuel:{label:'FUEL LINE',verb:'pulls the fuel line'}},
       float:{away:'[TEXT NEEDED: {ship} is in the air]'},
       log:{
+        atPanel:'[TEXT NEEDED: log line: {shipPilot} is at the panel of {ship}; keep them covered]',
         away:'[TEXT NEEDED: log line: {shipPilot} lifts {ship} off the pad]',
         allAway:'[TEXT NEEDED: log line: every ship is ours; get the squad back to the {transport}]',
       },

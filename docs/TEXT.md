@@ -32,7 +32,7 @@ and **Page** (the static labels in `game/index.html`). Each row is one line:
 ## Mission types (the Missions tab)
 
 A reusable mission type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Ambush: Extract VIP,
-Disrupt Comm Towers) is written once, in `game/js/mission-text.js`, and every deployment of it fills in its own names. Its offer on the
+Steal Ship, Disrupt Comm Towers) is written once, in `game/js/mission-text.js`, and every deployment of it fills in its own names. Its offer on the
 board, the briefing, the objectives (the board, the briefing and the live list all use the same ones), the hint, the
 pilot's arrival call, the log lines and the end screen are all there. The variables:
 
@@ -47,6 +47,7 @@ pilot's arrival call, the log lines and the end screen are all there. The variab
 | `{hacker}` | the Field Technician on the job |
 | `{fallen}` | the rebels left behind, as a list |
 | `{n}` `{total}` | progress counts |
+| `{ship}` `{shipPilot}` | Steal Ship: the ship being stolen (FT-4 Cross, SF-11 Talon) and the first name of the pilot taking it |
 | `{SRC}` | the source's surname in capitals, in their follow-up line |
 
 The same tab holds the Hegemony guards: a pool of surnames (robots get a serial number), and per enemy type a title,

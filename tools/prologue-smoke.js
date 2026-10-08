@@ -10,7 +10,8 @@
    4  safety net: a soldier lost before Steal Fuel brings a replacement from Cass
    5  Recruit returns Rebels only during the prologue, even where a potential Source is waiting
    6  the Recruit after beat 19 returns exactly three Pilots, also when beat 14's Recruit is still running
-   (P1 to P4 of the handoff: beats 1 to 22.) */
+   7  Raid the Bunker: the plan's tutorial, the second hauler as Reinforcements, and the win reaching the frontier
+   (P1 to P5 of the handoff: beats 1 to 24.) */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -78,6 +79,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   market:   T=>[T.G.people.filter(p=>p.role==='Pilot').length===5,!window.Pro.gate('tab.market')||T.q().includes('act:gate')||T.win()==='comm'],
   sweet_tooth:T=>[window.Pro.gate('tab.market'),T.G.market.lots.some(l=>l.keep&&l.kind==='merc')],
   hauler:   T=>[T.G.market.lots.some(l=>l.keep&&l.kind==='ship'&&l.key==='graf'),T.G.prologue.tut&&T.G.prologue.tut.key==='hauler'],
+  bunker:   T=>[T.mis('raidbunker').state==='avail',T.G.fighters.filter(f=>f.cls==='graf').length===2,T.G.prologue.tut&&T.G.prologue.tut.key==='bunkerPlan',window.Pro.gate('plan.assets')],
   frontier: T=>[window.Pro.done(),window.Pro.GATES.every(g=>window.Pro.gate(g)),T.G.agents.length===1],
  };
  const ids=await E(()=>window.Pro.PROLOGUE.map(b=>b.id));
@@ -368,8 +370,19 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  ok(r.step==='haulerBuy'&&r.up&&/buy a second Graf hauler/.test(r.txt),'room made: the tutorial moves to the hauler lot '+JSON.stringify({step:r.step,up:r.up}));
  await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='ship');T.f.buyLot(i,false);T.f.syncUI();});
  await wait(200);
- r=await E(()=>({at:window.Pro.beat()}));
- ok(r.at==='smoke_after','with the hauler and the Hangar room the next beat begins: here the runtime beat '+r.at);
+ r=await E(()=>({at:window.Pro.beat(),tut:T.G.prologue.tut&&T.G.prologue.tut.key}));
+ ok(r.at==='bunker'&&r.tut==='bunkerPlan','with the hauler and the Hangar room, Raid the Bunker: its plan has a tutorial '+JSON.stringify(r));
+ // the hauler is delivered; Raid the Bunker flies with the second hauler as Reinforcements, the pilots aboard
+ await E(()=>{for(let i=0;i<8&&(T.G.inbound||[]).length;i++){T.f.advanceDay();T.f.closeWin();}});
+ await closeUntilEmpty();
+ await runMission('raidbunker',true,T=>{
+  const PL=T.f.getPL(),g2=T.G.fighters.find(x=>x.cls==='graf'&&x.id!==PL.v.tv0);
+  const i=T.f.plAddAsset();T.f.plSet('as'+i+'s','f:'+g2.id);
+  const used=new Set(Object.values(PL.v)),pp=T.f.ablePilots().find(p=>!used.has(p.id));if(pp)T.f.plSet('as'+i+'p','p:'+pp.id);
+  T.f.plAutoFill();
+ });
+ r=await E(()=>({at:window.Pro.beat(),ships:T.G.fighters.map(f=>f.cls).join(),won:T.mis('raidbunker').state}));
+ ok(r.won==='done'&&/cross.*talon.*talon/.test(r.ships)&&r.at==='smoke_after','Raid the Bunker won: the ships are home, and the next beat begins: here the runtime beat '+JSON.stringify(r));
  await pg.waitForFunction(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent),null,{timeout:5000}).catch(()=>{});
  for(let i=0;i<4;i++){const w=await E(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent));if(w)break;await E(()=>T.f.closeWin());await wait(100);}
  r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent}));

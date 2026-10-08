@@ -1087,8 +1087,9 @@ const MTYPE_DEFS={
 MTYPE_DEFS.ambush={scenario:'ambush',days:2,riskTxt:'Moderate',lib:15,npcRole:'Support',
   req:{team:3,teamRole:'Soldier',transport:1,prize:0},
   rew:{c:400,xp:0.3}};
-/* Steal Ship (docs/PROLOGUE-HANDOFF.md P5): y ships, a pilot for each (prize pilots); the reward is the ships */
-MTYPE_DEFS.stealship={scenario:'stealship',days:2,riskTxt:'Moderate',lib:15,ships:['talon'],
+/* Steal Ship (docs/PROLOGUE-HANDOFF.md P5): y ships, a pilot for each (prize pilots); the reward is the ships. Its one map
+   so far is the bunker's (a ship on each of its first y pads) */
+MTYPE_DEFS.stealship={scenario:'bunker',days:2,riskTxt:'Moderate',lib:15,ships:['talon'],
   req:{team:3,teamRole:'Soldier',transport:1,prize:1},
   rew:{xp:0.3}};
 MTYPE_DEFS.towers={scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
@@ -5037,6 +5038,11 @@ function guideTarget(at){
     const l=Math.min(...rs.map(r=>r.left)),t=Math.min(...rs.map(r=>r.top)),r2=Math.max(...rs.map(r=>r.right)),b=Math.max(...rs.map(r=>r.bottom));
     return {left:l,top:t,width:r2-l,height:b-t,right:r2,bottom:b};
   }
+  if(k==='plan.pass'){   // the Reinforcements hauler's passengers (Raid the Bunker)
+    if(winMode!=='plan'||!PL||PL.pick)return null;
+    const el=$('winCardB').querySelector('.pl-pass');
+    return el?inView(el):null;
+  }
   if(k==='plan.assetslot'){   // the empty fire support slot: an unfilled support ship, else Add asset
     if(winMode!=='plan'||!PL||PL.pick)return null;
     const el=$('winCardB').querySelector('.pl-asset__art--empty[data-pick^="as"]')||$('winCardB').querySelector('[data-slot="addasset"]');
@@ -8528,7 +8534,7 @@ Pro.bind({
   // the role a mission cannot be planned for because of deaths or injuries, or null (away on a job or weary is not short)
   shortRole:e=>{
     const r=reqOf(e.m),n=f=>G.people.filter(p=>f(p)&&!laidUp(p)).length;
-    if(r.transport)return n(isGround)<r.team?'Soldier':n(isFlyer)<transportSlots(r)+(r.prize||0)?'Pilot':null;
+    if(r.transport)return n(isGround)<r.team?'Soldier':n(isFlyer)<haulersNeeded(r)+(r.prize||0)?'Pilot':null;
     return n(isFlyer)<r.team?'Pilot':null;
   },
   act:{
@@ -8599,6 +8605,9 @@ Pro.bind({
       G.wreck.restored=true;G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
       const j=G.people.find(p=>p.id==='joss');if(j)j.ship='graf';
     },
+    // beat 22 done: the second Graf bought and delivered, and Hangar room for it and the bunker's ships
+    secondHauler:()=>{if(G.fighters.filter(f=>SEATS[f.cls]).length<2)G.fighters.push(newFighter({id:'graf_2',name:'Graf 2',cls:'graf',hull:100}));},
+    hangarRoom:()=>{if(!fleetFits(['graf','graf','talon','talon','talon','talon'],padCounts()))G.rooms.push({id:'rm_pro_h',key:'hangar',r:6,c:13,w:4,h:4,halves:['L','S'],up:[]});},
     agent:v=>Pro.hostAct('agent',v),
     lead:id=>Pro.hostAct('lead',{on:id}),
     tutDone:k=>{G.prologue.flags.tut[k]=1;},
@@ -8624,11 +8633,14 @@ function reqOf(m){return m.req||MTYPES[typeOf(m)].req(m);}
 function soldierPool(){return G.people.filter(p=>isGround(p)&&(!offDuty(p)||(walkItOff(p)&&!conked(p)))&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'));}
 function transportPool(){return G.fighters.filter(f=>SEATS[f.cls]&&!f.out&&!(f.refit>0)&&f.hull>=60);}
 function shipPool(r){return G.fighters.filter(f=>!f.out&&!(f.refit>0)&&f.hull>=60&&(!r.starfighter||!SEATS[f.cls]));}
-function transportSlots(r){return Math.ceil(r.team/SEATS.graf);}
+/* the haulers that set the squad down. A mission flown with Reinforcements (r.reinforce, Raid the Bunker) has one, and a
+   second that comes in later as an asset with the prize pilots and whoever didn't fit (docs/PROLOGUE-HANDOFF.md P5) */
+function transportSlots(r){return r.reinforce?1:Math.ceil(r.team/SEATS.graf);}
+const haulersNeeded=r=>transportSlots(r)+(r.reinforce?1:0);
 function minFuel(m){
   const r=reqOf(m);
   const costs=(r.transport?transportPool():shipPool(r)).map(fuelOf).sort((a,b)=>a-b);
-  const n=r.transport?transportSlots(r):(r.ships||r.team);
+  const n=r.transport?haulersNeeded(r):(r.ships||r.team);
   return costs.slice(0,n).reduce((a,b)=>a+b,0)||fuelPer('cross')*n;
 }
 /* what a mission needs. label: the planning board's line; brief: the briefing's count-first label ("3 Soldiers"),
@@ -8639,7 +8651,7 @@ function precondList(m){
   const short=(have,n)=>have?'Only '+have+' available':'None available';
   const needs=(n,w)=>'Needs '+(n>1?n+' '+w+'s':(/^[aeiou]/i.test(w)?'an ':'a ')+w.toLowerCase());
   if(r.transport){
-    const T=transportSlots(r),np=T+(r.prize||0),sp=soldierPool().length,ap=ablePilots().length,tp=transportPool().length;
+    const T=haulersNeeded(r),np=T+(r.prize||0),sp=soldierPool().length,ap=ablePilots().length,tp=transportPool().length;
     out.push({ok:sp>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Soldier'),detail:short(sp,r.team),why:needs(r.team,'soldier')});
     out.push({ok:ap>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — '+(T>1?T+' to fly the haulers':'one to fly the hauler')+', '+(r.prize>1?r.prize+' for the prizes':'one for the prize'):''),brief:pl(np,'Pilot'),detail:short(ap,np),why:needs(np,'pilot')});
     out.push({ok:tp>=T,label:T+' hauler'+(T>1?'s':'')+' available',brief:pl(T,'Transport'),
@@ -8779,7 +8791,20 @@ function plAssetMode(i){
   const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);
   if(!f)return null;
   if(!SEATS[f.cls])return 'strafe';
+  if(PL.req.reinforce&&plReinf()===i)return 'reinforce';
   return hasDoorGun(f)?'doorgun':null;
+}
+/* Reinforcements (Raid the Bunker): the first transport added as an asset; -1 when there is none yet */
+function plReinf(){
+  if(!PL||!PL.req.reinforce)return -1;
+  return PL.assets.findIndex((a,i)=>{const f=G.fighters.find(x=>x.id===PL.v['as'+i+'s']);return !!(f&&SEATS[f.cls]);});
+}
+/* who rides in with the reinforcements: the prize pilots, and the soldiers the first hauler had no seat for */
+function plPax(){
+  const i=plReinf();if(i<0)return {soldiers:[],pilots:[]};
+  const tv=plTransport(),first=tv?(SEATS[tv.cls]||0):0;
+  const sold=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,plSquadMax()).filter(sl=>PL.v[sl.key]);
+  return {soldiers:sold.slice(first).map(sl=>PL.v[sl.key]),pilots:PL.slots.filter(sl=>/^pz/.test(sl.key)&&PL.v[sl.key]).map(sl=>PL.v[sl.key])};
 }
 /* fire support is granted by the assets assigned, with no toggles: a Supply Drop if the transport's type can fly
    one (the Ships table's supply_drop) and the supplies are there, Door Gunner Cover if a Door Mounted Gun is fitted */
@@ -8793,14 +8818,18 @@ function plSquadMax(){
   if(!r.transport)return 0;
   const tvs=PL.slots.filter(sl=>sl.acc==='vehicle'&&PL.v[sl.key]).map(sl=>G.fighters.find(f=>f.id===PL.v[sl.key])).filter(Boolean);
   if(!tvs.length)return r.team;
-  return Math.max(1,Math.min(r.team,tvs.reduce((n,f)=>n+(SEATS[f.cls]||0),0)));
+  // the Reinforcements hauler's seats, less the prize pilots riding in it
+  const ri=plReinf(),rf=ri>=0&&G.fighters.find(x=>x.id===PL.v['as'+ri+'s']),extra=rf?Math.max(0,(SEATS[rf.cls]||0)-(r.prize||0)):0;
+  return Math.max(1,Math.min(r.team,tvs.reduce((n,f)=>n+(SEATS[f.cls]||0),0)+extra));
 }
 /* the slots this plan actually needs: soldier slots beyond the seat cap don't count */
 function plActiveSlots(){
   const max=plSquadMax();let si=0;
   return PL.slots.filter(sl=>sl.acc!=='soldier'||si++<max);
 }
-function plComplete(){return plActiveSlots().every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk();}
+function plComplete(){return plActiveSlots().every(sl=>PL.v[sl.key]||sl.opt)&&plSpecOk()&&plReinfOk();}
+/* a Reinforcements mission needs its second hauler, and someone to fly it */
+const plReinfOk=()=>!PL.req.reinforce||(plReinf()>=0&&!!PL.v['as'+plReinf()+'p']);
 function plFuel(){
   let t=0;
   for(const sl of PL.slots)if(sl.acc==='vehicle'||sl.acc==='ship'||sl.acc==='assetship'){const f=G.fighters.find(x=>x.id===PL.v[sl.key]);if(f)t+=fuelOf(f);}
@@ -8948,7 +8977,7 @@ function plSquadHTML(){
   let pips='';for(let i=0;i<max;i++)pips+='<i'+(i<n?'':' class="is-free"')+'></i>';
   const count='<span class="pl-count'+(n>=max?' is-full':'')+'"><b>'+n+'/'+max+'</b><span class="pl-count__r"><small>Squad size</small><span class="pl-seats">'+pips+'</span></span></span>';
   const cards=sls.map((sl,i)=>plSoldCard(sl,null,'+ Soldier','Slot '+(i+1)+' of '+max)).join('')+
-    PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>plSoldCard(sl,sl.label,'+ Pilot',sl.label)).join('');
+    (PL.req.reinforce?'':PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>plSoldCard(sl,sl.label,'+ Pilot',sl.label)).join(''));
   return '<div><div class="pl-h">'+IC('soldier')+'Squad<span class="pl-h__end">'+count+'</span></div><div class="pl-soldiers">'+cards+'</div></div>';
 }
 /* an asset card: the craft with its pilot layered on; the transport is the primary */
@@ -8974,6 +9003,18 @@ function plAssetCard(o){
     '<span class="pl-asset__name">'+esc(f.name)+'</span><span class="pl-sub">'+esc(shipSub(f))+'</span>'+stats+
     (o.rm!==undefined?'<button type="button" class="pl-card__x" data-rmasset="'+o.rm+'" aria-label="Remove asset">'+IC('clear')+'</button>':'')+pick+'</div>';
 }
+/* the passengers of the Reinforcements hauler: a seat for each prize pilot (to fill), and the soldiers who overflow */
+function plPaxHTML(){
+  const px=plPax(),pick=PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>{
+    const p=PL.v[sl.key]&&G.people.find(x=>x.id===PL.v[sl.key]);
+    const b=p?'<button type="button" class="pl-pilot" data-pick="'+sl.key+'" data-slot="'+sl.key+'" draggable="true" data-rid="p:'+p.id+'">'+plFace(p)+'<span><b>'+esc(p.name.split(' ')[0])+'</b><small>Prize pilot</small></span></button>':
+      '<button type="button" class="pl-pilot pl-pilot--empty" data-pick="'+sl.key+'" data-slot="'+sl.key+'">+ Pilot</button>';
+    return '<span style="position:relative;display:inline-flex">'+b+(PL.pick===sl.key?plPickHTML(sl.key):'')+'</span>';
+  }).join('');
+  const sold=px.soldiers.map(id=>{const p=G.people.find(x=>x.id===id);return p?esc(p.name.split(' ')[0]):'';}).filter(Boolean);
+  return '<div class="pl-asset pl-pass" data-slot="plpass"><span class="pl-asset__kick">Riding in with the reinforcements</span><span class="pl-pass__row">'+pick+'</span>'+
+    (sold.length?'<span class="pl-sub">Also aboard: '+sold.join(', ')+'</span>':'')+'</div>';
+}
 function plVehCard(sl){
   const v=PL.v[sl.key]&&G.vehicles.find(x=>x.id===PL.v[sl.key]);
   if(!v)return '';
@@ -8991,7 +9032,8 @@ function plAssetsHTML(){
     PL.slots.filter(sl=>sl.acc==='vehicle').forEach(sl=>{
       cards+=plAssetCard({kicker:'Transport',sKey:sl.key,pKey:'tp'+sl.key.slice(2),primary:true});
     });
-    PL.assets.forEach((a,i)=>{cards+=plAssetCard({kicker:'Support ship',sKey:'as'+i+'s',pKey:'as'+i+'p',rm:i});});
+    PL.assets.forEach((a,i)=>{const rf=plReinf()===i;cards+=plAssetCard({kicker:rf?'Reinforcements':'Support ship',sKey:'as'+i+'s',pKey:'as'+i+'p',rm:i})+(rf?plPaxHTML():'');});
+    if(r.reinforce&&plReinf()<0)cards+=plPaxHTML();
     cards+=PL.slots.filter(sl=>sl.acc==='gveh').map(plVehCard).join('');
     const room=Pro.gate('plan.assets')&&(PL.assets.length<2||PL.slots.some(sl=>sl.acc==='gveh'&&!PL.v[sl.key]));
     if(room)cards+='<div style="position:relative;display:flex" data-slot="addasset"><button type="button" class="pl-asset__add" data-pick="addasset"><span>+</span>+ Add asset</button>'+(PL.pick==='addasset'?plPickHTML('addasset'):'')+'</div>';
@@ -9020,6 +9062,7 @@ function plSupportChips(){
     const hasP=!!PL.v['as'+i+'p'],mode=plAssetMode(i);
     if(mode==='strafe')chip('firesupport','Strafing Run','from '+f.name+(hasP?'':' · needs a pilot'),{off:!hasP,c:'var(--sr-hazard)'});
     else if(mode==='doorgun')chip('gun','Door Gunner Cover','from '+f.name+(hasP?'':' · needs a pilot'),{off:!hasP});
+    else if(mode==='reinforce')chip('people','Reinforcements','from '+f.name+(hasP?'':' · needs a pilot'),{off:!hasP,c:'var(--sr-go)'});
   });
   for(const sl of PL.slots.filter(x=>x.acc==='gveh')){
     const v=PL.v[sl.key]&&G.vehicles.find(x=>x.id===PL.v[sl.key]);
@@ -9085,6 +9128,7 @@ function planHTML(m){
   let blocker;
   if(missing.length)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">'+missing.length+' slot'+(missing.length>1?'s':'')+' empty: '+
     missing.map(sl=>'<u data-goto="'+sl.key+'">'+esc(plSlotName(sl))+'</u>').join(', ')+'</span></span>';
+  else if(!plReinfOk())blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">'+(plReinf()<0?'Add a second hauler as an asset: the pilots ride in with the reinforcements':'The reinforcements hauler needs a pilot')+'</span></span>';
   else if(!plSpecOk())blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">The team needs a '+esc(r.spec.label)+'</span></span>';
   else if(!canAttempt(m))blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">'+esc((precondList(m).find(c=>!c.ok)||{}).why||'Blocked')+'</span></span>';
   else if(G.fuel<fuel)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">Not enough fuel</span></span>';
@@ -9120,17 +9164,26 @@ function startPlan(){
   if(!m.lead){launchMission(m);return;}
   const fuel=plFuel();
   if(PL.req.transport){
-    const squad=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,plSquadMax()).map(sl=>G.people.find(p=>p.id===PL.v[sl.key])).filter(Boolean);
+    const all=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,plSquadMax()).map(sl=>G.people.find(p=>p.id===PL.v[sl.key])).filter(Boolean);
+    const pax=plPax(),later=all.filter(p=>pax.soldiers.includes(p.id)),squad=all.filter(p=>!pax.soldiers.includes(p.id));
     const grafPilot=G.people.find(p=>p.id===PL.v.tp0);
     const tv=G.fighters.find(f=>f.id===PL.v.tv0);
     const prizeId=PL.v.pz0,prize=prizeId&&G.people.find(p=>p.id===prizeId);
-    outfitSquad(squad.concat(prize?[prize]:[]));
+    const prizeP=PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>G.people.find(p=>p.id===PL.v[sl.key])).filter(Boolean);
+    const pilotEntry=(p,k)=>({id:p.id,name:p.name,first:p.name.split(' ')[0],level:p.level,wpns:wpnsFromGear(p),art:SA.lookOf(p),prize:k});
+    const multi=PL.req.reinforce||prizeP.length>1;   // several prize pilots, or ones that ride in later
+    outfitSquad(all.concat(prizeP));
     squadTension(squad);
     const fx=supportStart(m,'ground',plJobPicks());
-    G.nadesOut=nadesCarried(squad);
+    G.nadesOut=nadesCarried(all);
+    const sqEntry=p=>{const e=squadEntry(p,false);if(Rebel.expHas(p,'mspec',m.tid||m.id))e.ms=1;
+      const pk=peakOf(p);e.cool=Math.min(95,e.cool+fx.cool+(pk?pk.cool:0));if(pk)e.agi*=pk.agi;   // Mission Support, Rallying Cry, Peak Condition
+      if(walkItOff(p))e.agi*=0.9;
+      return e;};
     G.fuel-=fuel;
     if(plDropOn())G.supplies-=DROP_COST;
-    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:nadesCarried(squad),
+    SR.mission={kind:'ground',missionId:m.id,scenario:m.scenario,days:missionDays(m),nades:nadesCarried(all),
+      prizes:m.ships&&m.ships.length?m.ships.slice():undefined,coach:Pro.done()?undefined:{reinf:{title:Pro.text('bunkerCallT'),text:Pro.text('bunkerCall')}},
       charges:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='charge')||{}).n)||0):((PL.req.items||[]).find(i=>i.id==='charge')||{}).n||0,
       limpets:(PL.req.items||[]).some(i=>i.ids)?Math.min(1,((G.armory.find(a=>a.id==='limpet')||{}).n)||0):0,
       vip:m.vip||(m.npc?{name:m.npc.name,first:m.npc.first}:undefined),
@@ -9138,20 +9191,19 @@ function startPlan(){
       ctx:m.ctx?{title:m.name,place:m.ctx.place,target:m.ctx.target,variant:m.region,
         sub:m.ctx.place+' \u00b7 '+m.ctx.locName,
         eyebrow:'Ground Operation \u00b7 '+m.ctx.place+', '+m.ctx.locName,flavour:m.desc}:undefined,
-      squad:squad.map(p=>{const e=squadEntry(p,false);if(Rebel.expHas(p,'mspec',m.tid||m.id))e.ms=1;
-        const pk=peakOf(p);e.cool=Math.min(95,e.cool+fx.cool+(pk?pk.cool:0));if(pk)e.agi*=pk.agi;   // Mission Support, Rallying Cry, Peak Condition
-        if(walkItOff(p))e.agi*=0.9;
-        return e;}),
+      squad:squad.map(p=>sqEntry(p)),
       sup:fx,
       assets:{drop:plDropOn(),ships:PL.assets.map((a,k)=>{
         const f=G.fighters.find(x=>x.id===PL.v['as'+k+'s']),pl=G.people.find(x=>x.id===PL.v['as'+k+'p']);
         const mode=plAssetMode(k);
-        return f&&pl&&mode?{cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},soldiers:[]}:null;
+        const rf=mode==='reinforce';
+        return f&&pl&&mode?{cls:f.cls,name:f.name,mode,pilot:{name:pl.name,first:pl.name.split(' ')[0]},soldiers:rf?later.map(sqEntry):[],pilots:rf?prizeP.map(pilotEntry):undefined}:null;
       }).filter(Boolean),vehicles:PL.slots.filter(sl=>sl.acc==='gveh'&&PL.v[sl.key]).map(sl=>{
         const v=G.vehicles.find(x=>x.id===PL.v[sl.key]),d=gvehOf(v);
         return {id:v.id,name:v.name,first:v.name.split(' ')[0],type:v.type,kind:d.kind,hp:Math.max(1,Math.round((d.hp||100)*v.hp/100)),maxhp:d.hp||100,hpPct:v.hp,def:d.def,arm:d.arm,aim:d.aim,wpn:d.wpn,big:d.big};
       })},
-      pilot:prize?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
+      pilot:prize&&!multi?{id:prize.id,name:prize.name,first:prize.name.split(' ')[0],level:prize.level,wpns:wpnsFromGear(prize),art:SA.lookOf(prize)}:undefined,
+      pilots:multi&&!PL.req.reinforce?prizeP.map(pilotEntry):undefined,
       grafPilot:{id:grafPilot.id,name:grafPilot.name,first:grafPilot.name.split(' ')[0]},
       transport:tv?{id:tv.id,name:tv.name,cls:tv.cls,doorgun:plGunOn()?1:0}:undefined};
   } else {
@@ -9322,6 +9374,21 @@ function applyDebrief(r){
       if(orphan)orphan.ship='dustfall';
       gotLoot(got,{type:'cross',name:'FT-4 Cross',kind:'ship'});
     } else {G.credits+=800;gotRes(got,'c',800,'fenced');}
+  }
+  if(r.win&&(r.prizes||[]).length){
+    const flew=(r.people||[]).map(pr=>pr.id);
+    for(const cls of r.prizes){
+      const nm=SRDB.ship(cls)?SRDB.ship(cls).name:cls;
+      if(!berthFree(cls)){const c=cls==='cross'?800:600;G.credits+=c;gotRes(got,'c',c,'fenced');continue;}
+      let n=1;while(G.fighters.some(x=>x.id===cls+'_'+n))n++;
+      const base=cls[0].toUpperCase()+cls.slice(1);let k=1;while(G.fighters.some(x=>x.name===base+' '+k))k++;
+      const f=newFighter({id:cls+'_'+n,name:base+' '+k,cls,hull:85});
+      G.fighters.push(f);
+      const orphan=G.people.find(p=>p.role==='Pilot'&&flew.includes(p.id)&&!G.fighters.some(x=>x.id===p.ship))
+        ||G.people.find(p=>p.role==='Pilot'&&!G.fighters.some(x=>x.id===p.ship));
+      if(orphan)orphan.ship=f.id;
+      gotLoot(got,{type:cls,name:nm,kind:'ship'});
+    }
   }
   for(const fr of r.fighters||[]){
     const f=G.fighters.find(x=>x.id===fr.fighterId);
@@ -9630,6 +9697,11 @@ const MIGRATIONS=[
     for(const s of G.sources)if(gone.includes(s.agent))delete s.agent;
     if(G.recruit&&gone.includes(G.recruit.agent))G.recruit={days:0};
   },
+  /* 13 -> 14: Raid the Bunker flies with Reinforcements (docs/PROLOGUE-HANDOFF.md P5). A board from the prologue's phase 4
+     build has it planned for two haulers side by side: it now takes one, and the second comes in later with the pilots. */
+  function(){
+    for(const m of G.missions||[])if(m.story==='raidbunker'&&m.req&&m.state!=='done')m.req.reinforce=1;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9723,7 +9795,7 @@ if(location.hash==='#test'){
     fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
       openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
-      newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
+      newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plReinf,plPax,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},

@@ -18,7 +18,7 @@ tutorial is added, moved or reworded.
 
 | Tutorial | Trigger | Shape | Status | Where |
 |---|---|---|---|---|
-| Take the Rock combat cards (Move out, Sneak past, Start the fight, Plan the round, Take the shot, Fire Support, Cover and nerve, Raise the signal) | During the prologue mission | Cards | Built | `TUT` in `game/js/ground.js` |
+| Take the Rock combat cards (Move out, Sneak past, Start the fight, Plan the round, Take the shot, Fire Support, Cover and nerve, Raise the signal) | During the prologue mission | Cards | Built | `TUT_ROCK` in `game/js/ground.js` |
 | Raise Cass (Open the Galaxy, Select Cass Wender, Contact) | Cass's transmission closes (prologue beat `cass_contact`); ends when Cass is contacted | Guided steps (pointer) | Built | `PRO_TUTS.raiseCass` in `game/js/prologue.js` |
 | Fire support: Strafing Run | Opening Steal Fuel's plan (prologue beat `fuel_plan`); ends when the FT-4 Cross is assigned as an asset | Guided step (callout on the empty fire support slot) | Built | `PRO_TUTS.strafingRun` in `game/js/prologue.js` |
 | Build Your Network (Sources) | The player's first brand-new Source (not Cass or Venn): the farewell beat once it is written; until then the first new Source after the prologue's frontier. The **?** stays on the Sources panel and Cass's and Venn's windows throughout | Intro window + field manual | Built | `srcTutIntro` and `TUT_PAGES` in `game/js/base.js`; `PRO_TUTS.sources` |
@@ -28,6 +28,8 @@ tutorial is added, moved or reworded.
 | Black Market pointer | Prologue beat `market`, after Cass's comm | Pointer | Built (label `[TEXT NEEDED]`) | `PRO_TUTS.marketTab` |
 | Hire a mercenary | Prologue beat `sweet_tooth`: the first look at the Black Market, after Sweet Tooth's intro comm; ends on a hire | Callout on the mercenary lot | Built (text `[TEXT NEEDED]`) | `PRO_TUTS.hireMerc` |
 | The second hauler | Prologue beat `hauler`: Hangar room for 4 starfighters and 2 transports, then the Graf hauler lot | Callouts on the Hangar, then the lot | Built (text `[TEXT NEEDED]`) | `PRO_TUTS.hauler` |
+| Raid the Bunker: the second hauler | Prologue beat `bunker`: Raid the Bunker's plan. A callout on the empty asset slot until a Graf is added (it becomes Reinforcements), then one on its passengers (Got it) | Callouts | Built (text `[TEXT NEEDED]`) | `PRO_TUTS.bunkerPlan` |
+| Raid the Bunker: call the pilots in | In the fight, during the prologue: planning with the Reinforcements hauler ready; gone once it is called | Card | Built (text `[TEXT NEEDED]`) | `SCENARIOS.bunker.tutCards` in `game/js/ground.js`, words `PRO_TEXT.bunkerCallT`/`bunkerCall` |
 | Sources field manual: Agents update | Lands with Build Your Network: from then on, Making Contact is the Agents version | Page swap | Built | `TUT_CONTACT_AGENTS` in `game/js/base.js` |
 
 ## Shapes
