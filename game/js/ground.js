@@ -3701,10 +3701,11 @@ function attackUpdate(now){
     q.cur=makeCur(s,pk.t,pk.wkey);
     camGoal=frameGoalOf(s,pk.t);
     if(s.side==='reb'&&!s.ally)selId=s.id;   // the rebel whose turn it is is the selected one
-    else {   // an enemy (or an ally) shoots straight away: the card opens on the result while the shot flies
+    else {   // an enemy (or an ally): the card opens on the result, and the shot goes once the camera has them both
       const c=q.cur;
       c.fast=1;selId=null;c.reveal=c.tn.entries.length;c.revealA=c.atk.entries.length;c.need=needFor(c.tn.total,c.atk.total);
-      rollShot(c);startFire(c,now);
+      rollShot(c);
+      if(inFrame(s)&&inFrame(pk.t))startFire(c,now);else{c.stage='aim';c.stageAt=now;}
     }
     syncUI();
     return;
@@ -3724,6 +3725,8 @@ function attackUpdate(now){
     }
   } else if(c.stage==='think'){
     if(el>650){c.stage='roll';c.stageAt=now;sDice();}
+  } else if(c.stage==='aim'){   // an enemy shot waits for the camera to frame the shooter and the target
+    if((el>=AIM_MIN&&inFrame(c.s)&&inFrame(c.t))||el>=AIM_MAX)startFire(c,now);
   } else if(c.stage==='await'){
     // waits for the ATTACK button
   } else if(c.stage==='roll'){
@@ -3765,11 +3768,16 @@ function attackUpdate(now){
         afterShot(c.s,c.t,c.wkey,false,c.tn,c.atk);
       }
     }
-    // a fast (enemy) shot hands over as its last rounds land; the tracers finish on their own
-    if(el>(c.endAt||900)||(c.fast&&c.applied&&el>(c.applyAt||420)+FAST_TAIL)){q.cur=null;q.nextAt=now+(c.fast?120:320);if(!c.fast)selId=null;syncUI();}
+    // a fast (enemy) shot holds on its result a moment after its last round lands, so the shot and what it did read
+    // before the camera moves to the next shooter
+    if(c.fast?(c.applied&&el>Math.max(c.applyAt||420,c.lastAt||0)+FAST_TAIL):el>(c.endAt||900)){q.cur=null;q.nextAt=now+(c.fast?FAST_GAP:320);if(!c.fast)selId=null;syncUI();}
   }
 }
-const FAST_TAIL=380;   // ms an enemy's result stays up after the hit lands before the next shooter goes
+const FAST_TAIL=1000;  // ms an enemy's result stays on screen after its last round lands, before the camera moves on
+const FAST_GAP=150;    // ms between that and the next shooter's turn
+const AIM_MIN=250,AIM_MAX=700;   // an enemy shot waits for the camera to frame it: at least this long once it has to move, at most that
+/* a unit is inside the clear part of the view (FR), away from its edges */
+function inFrame(u){const [x,y]=worldToCss(u.x,u.y),m=24;return x>=FR.x0+m&&x<=FR.x1-m&&y>=FR.y0+m&&y<=FR.y1-m;}
 function rollShot(c){
   c.roll=rint(1,20);
   c.jammed=jamRoll(c.s,c.wkey,c.roll);
@@ -3784,7 +3792,7 @@ function startFire(c,now){
     if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
     c.dmg=dmg;
   }
-  if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
+  if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.lastAt=f.last;c.endAt=Math.max(900,f.last+520);}
   if(town==='calm')alertTown('Gunfire in the street.');
 }
 function playerAttack(){

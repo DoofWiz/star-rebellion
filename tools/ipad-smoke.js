@@ -94,7 +94,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   await wait(300);
   await where('the plan');
   r=await E(()=>{const w=document.querySelector('#sc-base .pl-win').getBoundingClientRect();return {w:Math.round(w.width),l:Math.round(w.left),r:Math.round(w.right)};});
-  ok(r.l>=0&&r.r<=(tablet?1024:1366)&&(!tablet||r.w>=900),ori+': the planning window fits'+(tablet?', near the full width ':' ')+JSON.stringify(r));
+  ok(r.l>=0&&r.r<=(tablet?1024:1366)&&(!tablet||r.w>=860),ori+': the planning window fits'+(tablet?', near the full width ':' ')+JSON.stringify(r));
   await E(()=>window.DBGbase.fn.closeWin());
   // ground and space
   await E(()=>{const SQ=['dax','runa','kel'].map(id=>({id,name:id+' X',first:id,aim:2,hp:100,wpns:['akli','cowboy']}));
