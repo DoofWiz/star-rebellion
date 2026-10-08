@@ -136,7 +136,8 @@
 /* the Personnel File (ui/sr-personnel.css): the window wants the whole stage, and its detail buttons act as buttons */
 #sc-base .sr-scrim.bs-winwide{padding:12px 10px;}
 #sc-base .bs-winwide>.pf-win.sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 24px);}
-#sc-base .pl-win.sr-window{max-height:none;}   /* the planning board fills the stage and must fit 1440×900 unscrolled */
+/* the planning board fits the stage: the head and the foot stay put and the board scrolls when the stage is short
+   (a long briefing, a small screen); at 1440×900 with a usual briefing nothing scrolls */
 #sc-base .pf-pop{width:250px;}   /* the handoff's 300px would run off the window's right edge */
 #sc-base .pf-medical,#sc-base .pf-spec__head{cursor:pointer;}
 #sc-base .pf-medical:hover,#sc-base .pf-spec__head:hover,#sc-base .pf-tip.is-open>.pf-medical,#sc-base .pf-tip.is-open>.pf-spec__head{border-color:var(--sr-gold);}

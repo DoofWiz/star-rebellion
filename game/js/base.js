@@ -5450,7 +5450,9 @@ function renderWin(){
   $('winsB').classList.toggle('bs-winfull',/\b(rp|pf)-win\b/.test(cls));   // full screen on a phone
   $('winsB').classList.toggle('bs-winwide',/\bpf-win\b/.test(cls));   // the personnel file needs the whole stage
   card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');
+  const plBody=winMode==='plan'&&card.querySelector('.pl-body'),plTop=plBody?plBody.scrollTop:0;
   card.innerHTML=h;
+  if(winMode==='plan'){const b=card.querySelector('.pl-body');if(b)b.scrollTop=plTop;plPlacePicker(card);}
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
   if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);   // the stage's big top-down ship
@@ -7856,6 +7858,7 @@ $('winsB').addEventListener('click',ev=>{
       } else plDrop(key,rid);
       sClick();renderWin();return;
     }
+    if(ev.target.closest('[data-pldesc]')){PL.descOpen=!PL.descOpen;sClick();renderWin();return;}
     const pk=ev.target.closest('[data-pick]');
     if(pk){const k=pk.getAttribute('data-pick');PL.pick=PL.pick===k?null:k;sClick();renderWin();return;}
     const gt=ev.target.closest('[data-goto]');
@@ -8452,12 +8455,12 @@ function plWhyShip(f,used,sl){
 function plPickHTML(key){
   const used=plUsedIds();
   const opts=[];
-  const opt=(rid,art,name,sub,why)=>opts.push('<button type="button" class="pl-opt" data-pickval="'+rid+'"'+(why?' disabled':'')+'>'+art+
-    '<span><b>'+esc(name)+'</b><small>'+esc(sub)+'</small></span><em style="--c:'+(why?'var(--sr-text-3)':'var(--sr-go)')+'">'+esc(why||'Available')+'</em></button>');
+  const opt=(rid,art,name,sub,why,subHtml)=>opts.push('<button type="button" class="pl-opt" data-pickval="'+rid+'"'+(why?' disabled':'')+'>'+art+
+    '<span><b>'+esc(name)+'</b><small>'+(subHtml?sub:esc(sub))+'</small></span><em style="--c:'+(why?'var(--sr-text-3)':'var(--sr-go)')+'">'+esc(why||'Available')+'</em></button>');
   const people=list=>{for(const p of list)opt('p:'+p.id,plFace(p),p.name,personSub(p),plWhyPerson(p,used));};
   const ships=(list,sl)=>{for(const f of list){const u=shipTopURL(f,48,48,1.15);
     opt('f:'+f.id,'<span class="kf">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>',
-      f.name,shipSub(f)+' · '+F(fuelOf(f))+(SEATS[f.cls]?' · '+SEATS[f.cls]+' seats':''),plWhyShip(f,used,sl));}};
+      f.name,'<span>'+esc(shipSub(f))+'</span> · <span>'+F(fuelOf(f))+'</span>'+(SEATS[f.cls]?' · <span>'+SEATS[f.cls]+' seats</span>':''),plWhyShip(f,used,sl),true);}};
   const vehs=()=>{for(const v of vehPool())opt('v:'+v.id,'<span class="kf">'+IC('vehicle')+'</span>',v.name,vehSub(v),used.has(v.id)?'Assigned':null);};
   let title='Pick';
   if(key==='addasset'){
@@ -8475,6 +8478,22 @@ function plPickHTML(key){
   }
   return '<div class="pl-pick" style="left:0;top:calc(100% + 8px)"><div class="pl-pick__t">'+esc(title)+'<span>'+opts.length+' to pick</span></div>'+
     (opts.join('')||'<div class="pf-none">Nobody fits this slot.</div>')+'</div>';
+}
+/* fit an open picker to the room it has: below its slot, or above it when there is more room there, never past the
+   board's visible edge (the board scrolls on a short screen) or the screen's, and never wider than the board */
+function plPlacePicker(card){
+  const pk=card.querySelector('.pl-pick');if(!pk)return;
+  const body=card.querySelector('.pl-body')||card,br=body.getBoundingClientRect(),ar=pk.parentElement.getBoundingClientRect();
+  const top=Math.max(br.top,0)+8,bot=Math.min(br.bottom,window.innerHeight)-8,gap=8;
+  pk.style.maxHeight='none';
+  const want=pk.scrollHeight,below=bot-(ar.bottom+gap),above=(ar.top-gap)-top;
+  const up=want>below&&above>below;
+  pk.style.top=up?'auto':'calc(100% + '+gap+'px)';
+  pk.style.bottom=up?'calc(100% + '+gap+'px)':'auto';
+  pk.style.maxHeight=Math.max(140,Math.min(want,up?above:below))+'px';
+  pk.classList.toggle('is-up',up);
+  const over=ar.left+pk.offsetWidth-(Math.min(br.right,window.innerWidth)-8);   // keep it inside on the right
+  pk.style.left=over>0?(-over)+'px':'0';
 }
 /* the briefing strip: where, what, the odds and the pay */
 function plBriefHTML(m){
@@ -8503,9 +8522,11 @@ function plBriefHTML(m){
   rews.push('<span style="--c:var(--sr-psi)">'+IC('star')+'+XP</span>');
   const rew='<span class="pl-rew"><span class="pl-rew__row">'+rews.join('')+'</span></span>';
   return '<div class="pl-brief"><div class="pl-brief__left">'+loc+
-    '<div style="min-width:0"><p class="pl-desc" title="'+esc(String(m.desc).replace(/<[^>]+>/g,''))+'">'+m.desc+'</p>'+
-    '<div class="pl-meta">'+(m.from?'<span>From <b>'+esc(m.from)+'</b></span>':'')+objBtn+'</div></div></div>'+
-    '<div class="pl-facts">'+facts+rew+'</div></div>';
+    '<div style="min-width:0">'+(PL.descOpen?'':'<p class="pl-desc">'+m.desc+'</p>')+
+    '<div class="pl-meta">'+(String(m.desc).replace(/<[^>]+>/g,'').length>110?'<button type="button" class="pl-more" data-pldesc aria-expanded="'+!!PL.descOpen+'">'+(PL.descOpen?'Show less':'Read the full briefing')+'</button>':'')+
+    (m.from?'<span>From <b>'+esc(m.from)+'</b></span>':'')+objBtn+'</div></div></div>'+
+    '<div class="pl-facts">'+facts+rew+'</div>'+
+    (PL.descOpen?'<p class="pl-desc pl-desc--full">'+m.desc+'</p>':'')+'</div>';   // the whole briefing, across the strip
 }
 /* one squad card per seat; empty seats are slots to fill, never "optional" */
 function plSoldCard(sl,sub,emptyLbl,slotLine){
@@ -8525,7 +8546,7 @@ function plSquadHTML(){
   const sls=PL.slots.filter(sl=>sl.acc==='soldier').slice(0,max);
   const n=sls.filter(sl=>PL.v[sl.key]).length;
   let pips='';for(let i=0;i<max;i++)pips+='<i'+(i<n?'':' class="is-free"')+'></i>';
-  const count='<span class="pl-count'+(n>=max?' is-full':'')+'"><b>'+n+'/'+max+'</b><span><small>Squad size</small><span class="pl-seats">'+pips+'</span></span></span>';
+  const count='<span class="pl-count'+(n>=max?' is-full':'')+'"><b>'+n+'/'+max+'</b><span class="pl-count__r"><small>Squad size</small><span class="pl-seats">'+pips+'</span></span></span>';
   const cards=sls.map((sl,i)=>plSoldCard(sl,null,'+ Soldier','Slot '+(i+1)+' of '+max)).join('')+
     PL.slots.filter(sl=>/^pz/.test(sl.key)).map(sl=>plSoldCard(sl,sl.label,'+ Pilot',sl.label)).join('');
   return '<div><div class="pl-h">'+IC('soldier')+'Squad<span class="pl-h__end">'+count+'</span></div><div class="pl-soldiers">'+cards+'</div></div>';
@@ -8662,12 +8683,12 @@ function planHTML(m){
   const needHangar=r.transport&&!grafReady()&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring;
   const going=act.filter(sl=>PL.v[sl.key]&&(sl.acc==='soldier'||sl.acc==='pilot'||sl.acc==='apilot')).length;
   let blocker;
-  if(missing.length)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+missing.length+' slot'+(missing.length>1?'s':'')+' empty: '+
-    missing.map(sl=>'<u data-goto="'+sl.key+'">'+esc(plSlotName(sl))+'</u>').join(', ')+'</span>';
-  else if(!plSpecOk())blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'The team needs a '+esc(r.spec.label)+'</span>';
-  else if(!canAttempt(m))blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+esc((precondList(m).find(c=>!c.ok)||{}).why||'Blocked')+'</span>';
-  else if(G.fuel<fuel)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'Not enough fuel</span>';
-  else blocker='<span class="pl-ready" style="--c:var(--sr-go)">'+IC('check')+'Squad ready</span>';
+  if(missing.length)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">'+missing.length+' slot'+(missing.length>1?'s':'')+' empty: '+
+    missing.map(sl=>'<u data-goto="'+sl.key+'">'+esc(plSlotName(sl))+'</u>').join(', ')+'</span></span>';
+  else if(!plSpecOk())blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">The team needs a '+esc(r.spec.label)+'</span></span>';
+  else if(!canAttempt(m))blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">'+esc((precondList(m).find(c=>!c.ok)||{}).why||'Blocked')+'</span></span>';
+  else if(G.fuel<fuel)blocker='<span class="pl-ready" style="--c:var(--sr-hazard)">'+IC('lock')+'<span class="pl-ready__t">Not enough fuel</span></span>';
+  else blocker='<span class="pl-ready" style="--c:var(--sr-go)">'+IC('check')+'<span class="pl-ready__t">Squad ready</span></span>';
   const sum='<span class="pl-sum"><span>'+IC('fuel')+'Fuel&nbsp;<b>'+Math.round(fuel)+'</b>&nbsp;of '+Math.floor(G.fuel)+'</span><span>'+IC('people')+'<b>'+going+'</b>&nbsp;rebel'+(going===1?'':'s')+' going</span></span>';
   return wHead('Plan: '+m.name)+
     '<div class="pl-body">'+plBriefHTML(m)+(r.transport?plSquadHTML():'')+plAssetsHTML()+
