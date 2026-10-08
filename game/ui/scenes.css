@@ -64,6 +64,8 @@
 #sc-base #tutPtr{z-index:var(--sr-z-toast);}
 /* the prologue's guided-step callout (game/js/prologue.js): the coach card beside its target, over windows */
 #sc-base #tutCoach{position:absolute;z-index:var(--sr-z-toast);pointer-events:none;width:300px;}
+#sc-base #tutCoach .pro-coach__btn{pointer-events:auto;}
+#sc-base #tutCoach .pro-coach__txt b{font-weight:800;}
 /* a mechanic the prologue has just opened: its tab pulses once and wears a New tag until it is opened */
 #sc-base .sr-tab.pro-new{animation:pro-pulse 1.2s var(--sr-ease-out) 1;}
 #sc-base .sr-tab .pro-newtag{margin-left:6px;}

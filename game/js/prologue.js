@@ -37,8 +37,31 @@ const PRO_TEXT={
   strafingRun:'Assign assets to missions like vehicles & ships to enable fire support in this mission. Add the FT-4 Cross to enable the ‘Strafing Run’ fire support option.',
   // a mechanic that has just opened
   newTag:'New',
+  // Venn asks for Tachi; the mission's name
+  tachiOffer:'“Ranchers have been telling me that the lawmen based out near their land have been leavin’, abandonin’ their posts and consolidatin’. I think you’ve got ’em scared. I got a personal favour to ask you about… you can say no. But it would mean a lot to me… and I got a feelin’ it could help ya out too. I got a buddy, name of Tachi Gard. She got pulled up yesterday by the Sheriff’s lackeys for ‘instigatin’ trouble’. She’s been locked up in the Sheriff’s office but I’m hearin’ they’re gonna transfer her to somewhere else… don’t know where but we might never see her again. Please, rescue her, if you can.”',
+  rescueTachi:'Rescue Tachi',
+  // Tachi, freed ([location name] in the design doc read as Akkaro: DESIGN_BLOCKERS C-47)
+  tachiThanks:'“You saved my hide there, thank you! Those hillbillies were talking about throwing me in a mine until I dropped dead. They’re going to be looking for me all over Akkaro. If you have space in your crew, I might be able to lay low while passing you on some good intel from Akkaro. No doubt the authorities are starting to look at what’s happening down here with everything you’ve been stirring up. Let me watch out for you.”',
+  // Run Your Network: the guided steps (docs/TUTORIALS.md; the intro window and field manual are in base.js)
+  netStep1T:'Your network',
+  netStep1:'Your network lives here: every Agent, every Source and every thread that connects them.',
+  netStep2T:'Meet your Agent',
+  netStep2:'This is Tachi Gard, your first Agent. Agents don’t go on missions. They work in the shadows, handling your Sources so you never have to meet them yourself.<br>Tachi is posted to Akkaro. Any Sources she handles there are her <b>Akkaro Cell</b>.',
+  netStep3T:'Read her file',
+  netStep3:'<b>Tradecraft</b> reduces the Risk her Sources build up when you contact them or run their missions.<br><b>Cover</b> is how hard she is to trace if one of her Sources is caught.<br><b>Rapport</b> helps her win a Source’s trust.<br><b>Cell</b> is how many Sources she can handle. She can take on two to begin with. That grows as she gains experience and as you expand your Intelligence Center.',
+  netStep4T:'Her cell',
+  netStep4:'Cass and Venn now report to Tachi. Everyone in a cell is connected through their Agent.<br>If one of them is <b>Burned</b>, the Hegemony will start pulling on that thread, and the rest of the cell could be next.<br>One Agent handling many Sources is efficient. Many Agents handling a few Sources each is safer. The choice is yours.',
+  netStep5T:'Put her to work',
+  netStep5:'Agents can do more than handle Sources. Send Tachi to <b>Recruit</b>, and she’ll search Akkaro for people willing to join the cause.<br>Every operation takes time, and every operation carries some risk. Advance the day to let her work.',
+  btnNext:'Next',
+  btnGotIt:'Got it',
   // debug builds only
   frontierToast:'End of the authored prologue: beat ',
+};
+
+/* ---------- the people the beats speak for who are not Sources ---------- */
+const PRO_CAST={
+  tachi:{name:'Tachi Gard',first:'Tachi',loc:'Akkaro'},
 };
 
 /* ---------- guided tutorials ----------
@@ -59,6 +82,15 @@ const PRO_TUTS={
   ]},
   // Build Your Network: plays with the first brand-new Source (docs/PROLOGUE-HANDOFF.md §4)
   sources:{win:'srcTutIntro'},
+  // Run Your Network (docs/TUTORIALS.md): the intro window, then the guided steps once it (or its field manual) closes.
+  // Step 5 opens the Recruit operation; the tutorial ends when a Recruit starts.
+  runNetwork:{win:'agentTutIntro',after:['agentTutIntro','srcTut'],steps:[
+    {at:'tab:intel',title:'netStep1T',text:'netStep1',until:{tab:'intel'}},
+    {at:'in.agent:tachi',title:'netStep2T',text:'netStep2',until:{inSel:'tachi'}},
+    {at:'in.stats',title:'netStep3T',text:'netStep3',next:'btnNext',until:{next:true}},
+    {at:'in.cell',title:'netStep4T',text:'netStep4',next:'btnGotIt',until:{next:true}},
+    {at:'in.op:recruit',title:'netStep5T',text:'netStep5',opens:'op.recruit',until:{op:'recruit'}},
+  ]},
 };
 
 /* ---------- the beats ---------- */
@@ -114,7 +146,24 @@ const PROLOGUE=[
    setup:h=>h.join('Soldier'),
    does:[{gate:'plan.assets'},{tutorial:'strafingRun'}],
    until:{won:'stealfuel'}},
-  // P2 to P5 (docs/PROLOGUE-HANDOFF.md §6) go here, before the frontier.
+  // 12: straight after Steal Fuel's reward, Venn asks the player to rescue Tachi Gard
+  {id:'tachi_offer',
+   setup:h=>h.winMission('stealfuel'),
+   does:[{comm:{who:'venn',text:'tachiOffer'}},
+     {mission:{id:'rescuetachi',from:'venn',spec:{type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},
+       name:'rescueTachi',npc:'tachi',recruit:false,follow:false}}}],
+   until:{won:'rescuetachi'}},
+  // 13: Tachi thanks the player and offers to watch out for them: accept
+  {id:'tachi_joins',
+   setup:h=>h.winMission('rescuetachi',{type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},name:'rescueTachi',npc:'tachi',recruit:false,follow:false}),
+   does:[{comm:{who:'tachi',text:'tachiThanks',accept:'tachi'}}],
+   until:{accepted:'tachi'}},
+  // 14: Tachi is the first Agent, posted to Akkaro with Cass and Venn as her cell; the Intelligence tab opens with
+  // Run Your Network
+  {id:'agents',
+   does:[{agent:{from:'tachi',post:'akkaro',cell:['cass','venn']}},{gate:'tab.intel'},{tutorial:'runNetwork'}],
+   until:{tutDone:'runNetwork'}},
+  // P3 to P5 (docs/PROLOGUE-HANDOFF.md §6) go here, before the frontier.
   // DESIGN OPEN: security_arrives — security forces arrive at Akkaro. Waits on the regional Alert system.
   // {id:'security_arrives'},
   // DESIGN OPEN: campaign — Venn delivers the first Campaign, Liberate Akkaro. Waits on the Campaign design (CHAINS
@@ -125,7 +174,7 @@ const PROLOGUE=[
   // {id:'farewell'},
   // the end of what is authored (§2.6)
   {id:'frontier',
-   setup:h=>h.winMission('stealfuel')},
+   setup:h=>{h.agent({from:'tachi',post:'akkaro',cell:['cass','venn']});h.openGate('tab.intel');h.openGate('op.recruit');}},
 ];
 
 /* the gates (§3): every one is closed during the prologue unless listed here, and all open at the frontier */
@@ -222,10 +271,19 @@ function advance(){
   p.at=PROLOGUE[Math.min(PROLOGUE.length-1,i+1)].id;
   p.since=H.G().day;p.live=false;p.w={};p.short={};
 }
+/* a beat's actions run in order. A window waits its turn in the pop-up queue, and so does every action after it:
+   "Venn's comm, then Rescue Tachi on the board" puts the mission up when the comm closes, not under it */
+const WIN_ACTS=['comm','win','recruitOffer'];
+const isWinAct=a=>{const k=Object.keys(a)[0];return WIN_ACTS.includes(k)||(k==='tutorial'&&!!(PRO_TUTS[a[k]]||{}).win);};
 function goLive(b){
   const p=P();
   p.live=true;p.since=H.G().day;p.w={};
-  for(const a of b.does||[])act(a,b);
+  let waiting=false;
+  for(const a of b.does||[]){
+    if(waiting&&!isWinAct(a)){H.queue({act:a,beat:b.id});continue;}
+    act(a,b);
+    if(isWinAct(a))waiting=true;
+  }
   H.kick();
 }
 /* one action: windows queue (they open in turn, after anything already queued); the rest happen now */
@@ -275,24 +333,38 @@ function startTut(key){
   if(!T||!p)return;
   p.flags.tut=p.flags.tut||{};
   if(p.flags.tut[key])return;
-  if(T.win){p.flags.tut[key]=1;H.queue({tut:key,win:T.win});return;}
-  p.tut={key,i:0};
+  if(T.win)H.queue({tut:key,win:T.win});
+  if(!T.steps){p.flags.tut[key]=1;return;}   // an intro window on its own
+  p.tut={key,i:0,wait:!!T.win};              // guided steps (after the intro window, if there is one)
+  if(!T.win)enterStep();
+}
+/* a step that opens a mechanic opens it as it comes up (Run Your Network's Recruit) */
+function enterStep(){
+  const p=P(),T=p&&p.tut&&PRO_TUTS[p.tut.key],s=T&&T.steps[p.tut.i];
+  if(s&&s.opens)openGate(s.opens);
+  H.kick();
 }
 function stepHear(type,arg){
   const p=P();if(!p||!p.tut)return;
   const T=PRO_TUTS[p.tut.key];
   if(!T){p.tut=null;return;}
+  if(p.tut.wait){   // the steps start when the intro window (or its field manual) closes
+    if(type==='closed'&&(T.after||[T.win]).includes(arg)){p.tut.wait=false;enterStep();}
+    return;
+  }
   // an event can complete the current step or any live-checked step before it
+  const i0=p.tut.i;
   for(let i=p.tut.i;i<T.steps.length;i++){
     const s=T.steps[i];
     if(s.until&&meets(s.until,type,arg,{})){p.tut.i=i+1;break;}
     if(!s.done||!s.done(H))break;
   }
-  if(p.tut.i>=T.steps.length){p.flags.tut[p.tut.key]=1;p.tut=null;}
+  if(p.tut.i>=T.steps.length){const k=p.tut.key;p.flags.tut[k]=1;p.tut=null;emit('tutDone',k);H.kick();}
+  else if(p.tut.i!==i0)enterStep();
 }
 /* the step to show now: the first not yet met, skipping steps whose live check holds */
 function step(){
-  const p=P();if(!p||!p.tut)return null;
+  const p=P();if(!p||!p.tut||p.tut.wait)return null;
   const T=PRO_TUTS[p.tut.key];if(!T)return null;
   for(let i=p.tut.i;i<T.steps.length;i++){
     const s=T.steps[i];
@@ -322,7 +394,11 @@ function replayTuts(){const p=P();if(p){p.flags.tut={};p.tut=null;}}
 /* a beat added at runtime (the smoke test proves adding a beat means editing PROLOGUE only) */
 function addBeat(b,beforeId){const i=ix(beforeId||'frontier');PROLOGUE.splice(i<0?PROLOGUE.length:i,0,b);}
 
-window.Pro={PROLOGUE,PRO_TEXT,PRO_TUTS,GATES,SHORT_DAYS,
+/* the cast (a person the beats speak for), and an action run later from the pop-up queue */
+const cast=id=>PRO_CAST[id]?Object.assign({id},PRO_CAST[id]):null;
+function run(a,beatId){const b=PROLOGUE[ix(beatId)]||{id:beatId};act(a,b);H.kick();}
+
+window.Pro={PROLOGUE,PRO_TEXT,PRO_TUTS,PRO_CAST,GATES,SHORT_DAYS,cast,run,hostAct:(k,v)=>H.act[k](v,{id:'setup'}),
   bind:h=>{H=h;},onGate:f=>onGate.push(f),fresh,
   emit,check,at,past,done:isDone,gate,openGate,text,beat:()=>{const b=beat();return b&&b.id;},live:()=>{const p=P();return !!(p&&p.live);},
   step,tutSeen,startTut,rearm,

@@ -2,12 +2,14 @@
    (needs NODE_PATH=$(npm root -g)).
    1  every beat's setup: jump to it, and its entry actions have fired (signal up, comm queued, mission on the board, gates)
    2  a full run from New Game to the frontier, the missions won with Debug: skip mission and every offer accepted:
-      Halt and Vokk are never queued; Prologue sources don't count against sourceCap(); the Sources tutorial never fires
+      Halt and Vokk are never queued; no Agent until Tachi joins, posted to Akkaro with Cass and Venn in her cell;
+      Prologue sources don't count against sourceCap(); the Sources tutorial never fires
       during the prologue; nothing opens over the reward screen; a beat added at runtime fires in order; every gate is
       open at the frontier, and the first brand-new Source afterwards brings the Sources tutorial
    3  migration: a save at each old G.onboard value lands on its beat
    4  safety net: a soldier lost before Steal Fuel brings a replacement from Cass
-   (P1 of the handoff: beats 1 to 11. The Agent and Recruit checks arrive with P2 to P4.) */
+   5  Recruit returns Rebels only during the prologue, even where a potential Source is waiting
+   (P1 and P2 of the handoff: beats 1 to 14. The three-pilot Recruit checks arrive with P4.) */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -30,7 +32,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   window.T={
    D,f:D.fn,get G(){return D.G;},
    win:()=>D.fn.getWin(),
-   q:()=>(D.G.prologue.q||[]).map(a=>a.comm?'comm:'+a.comm.who:a.recruit?'recruit:'+a.recruit.role:a.win?'win:'+a.win:'?'),
+   q:()=>(D.G.prologue.q||[]).map(a=>a.comm?'comm:'+a.comm.who:a.recruit?'recruit:'+a.recruit.role:a.win?'win:'+a.win:a.act?'act:'+Object.keys(a.act)[0]:'?'),
    src:id=>D.G.sources.find(s=>s.id===id),
    mis:id=>D.G.missions.find(m=>m.id===id||m.story===id),
    vis:id=>!document.querySelector('#sc-base #'+id).hidden,
@@ -63,7 +65,11 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   fuel_offer:T=>[!window.Pro.live(),T.mis('depotrun').state==='done',!T.src('cass').signal],
   fuel_recruit:T=>[T.mis('stealfuel')&&T.mis('stealfuel').req.team===4,T.q().join()==='comm:venn,recruit:Soldier'||(T.win()==='comm'&&T.q().join()==='recruit:Soldier')],
   fuel_plan:T=>[window.Pro.gate('plan.assets'),T.G.prologue.tut&&T.G.prologue.tut.key==='strafingRun',T.G.people.filter(p=>p.role==='Soldier').length===4],
-  frontier: T=>[window.Pro.done(),window.Pro.GATES.every(g=>window.Pro.gate(g))],
+  tachi_offer:T=>[T.G.agents.length===0,T.q().join()==='comm:venn,act:mission'||(T.win()==='comm'&&T.q().join()==='act:mission'),T.mis('stealfuel').state==='done',!T.mis('rescuetachi')],
+  tachi_joins:T=>[T.mis('rescuetachi').state==='done',T.q().join()==='comm:tachi'||T.win()==='comm',T.G.agents.length===0],
+  agents:   T=>[T.G.agents.length===1&&T.G.agents[0].name==='Tachi Gard'&&T.G.agents[0].postedTo==='akkaro',window.Pro.gate('tab.intel'),
+              T.G.sources.every(s=>s.agent===T.G.agents[0].id),T.G.prologue.tut&&T.G.prologue.tut.key==='runNetwork',!window.Pro.gate('op.recruit')],
+  frontier: T=>[window.Pro.done(),window.Pro.GATES.every(g=>window.Pro.gate(g)),T.G.agents.length===1],
  };
  const ids=await E(()=>window.Pro.PROLOGUE.map(b=>b.id));
  ok(JSON.stringify(ids)===JSON.stringify(Object.keys(EXPECT)),'the P1 beats in order: '+ids.join());
@@ -195,8 +201,6 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  r=await E(()=>({add:!!document.querySelector('#winCardB [data-slot="addasset"]'),co:!document.querySelector('#tutCoach').hidden,
    txt:document.querySelector('#tutCoach').textContent,step:(window.Pro.step()||{}).text}));
  ok(r.add&&r.co&&/Strafing Run/.test(r.txt)&&r.step==='strafingRun','the plan opens with the Strafing Run callout on the fire support slot '+JSON.stringify(r));
- // a beat added at runtime fires in order: here a comm from Cass straight after Steal Fuel's report
- await E(()=>window.Pro.addBeat({id:'smoke_after',does:[{comm:{who:'cass',text:'fuelNews'}}],until:{closed:'comm'}},'frontier'));
  await runMission('stealfuel',true,T=>{
   T.f.plAddAsset();
   const cross=T.G.fighters.find(f=>f.cls==='cross');
@@ -207,13 +211,50 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  });
  r=await E(()=>window.__strafe);
  ok(r[0]===1&&r[1]&&r[2]==='strafe','assigning the Cross ends the callout and gives a Strafing Run '+r);
- r=await E(()=>({win:T.win(),q:T.q(),at:window.Pro.beat()}));
- ok(r.win==='reward'&&r.at==='smoke_after'&&r.q.join()==='comm:cass','the report comes first; the runtime beat’s comm waits behind it '+JSON.stringify(r)+' '+(await E(()=>T.seen.slice(-6).join())));
+ // Steal Fuel won (P2): the report first; Venn's comm waits behind it, and Rescue Tachi waits behind the comm
+ r=await E(()=>({win:T.win(),q:T.q(),at:window.Pro.beat(),on:!!T.mis('rescuetachi'),agents:T.G.agents.length}));
+ ok(r.win==='reward'&&r.at==='tachi_offer'&&r.q.join()==='comm:venn,act:mission'&&!r.on,'the report comes first; Venn’s comm and then the mission wait behind it '+JSON.stringify(r));
+ ok(r.agents===0,'no Agent before Tachi joins');
  await E(()=>T.f.closeWin());
- // Cass's own follow-up to the job comes first (the source's report line), then the runtime beat's comm
- for(let i=0;i<4;i++){const w=await E(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent));if(w)break;await E(()=>T.f.closeWin());}
- r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent}));
- ok(r.win==='comm'&&/fuel job/.test(r.txt),'after the reward, the runtime beat’s comm opens '+r.win);
+ for(let i=0;i<4;i++){const w=await E(()=>T.win()==='comm'&&/Tachi Gard/.test(document.querySelector('#winCardB').textContent));if(w)break;await E(()=>T.f.closeWin());}
+ r=await E(()=>({win:T.win(),on:!!T.mis('rescuetachi'),txt:document.querySelector('#winCardB').textContent}));
+ ok(r.win==='comm'&&/Maro Venn/.test(r.txt)&&/Please, rescue her/.test(r.txt)&&!r.on,'after the reward, Venn asks for Tachi; the job is not on the board yet '+r.win);
+ await E(()=>T.f.closeWin());
+ r=await E(()=>({win:T.win(),m:T.mis('rescuetachi')&&T.mis('rescuetachi').name}));
+ ok(r.m==='Rescue Tachi'&&r.win==='newmission','closing the comm puts Rescue Tachi on the board '+JSON.stringify(r));
+ await closeUntilEmpty();
+ await runMission('rescuetachi',true);
+ r=await E(()=>({win:T.win(),q:T.q(),at:window.Pro.beat(),people:T.G.people.some(p=>/Tachi/.test(p.name))}));
+ ok(r.win==='reward'&&r.at==='tachi_joins'&&r.q.join()==='comm:tachi'&&!r.people,'Rescue Tachi won: the report, then Tachi’s comm; she is not a recruit '+JSON.stringify(r));
+ await E(()=>T.f.closeWin());
+ r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent,acc:!!document.querySelector('#winCardB [data-proaccept]')}));
+ ok(r.win==='comm'&&/Tachi Gard/.test(r.txt)&&/all over Akkaro/.test(r.txt)&&!/Source · Level/.test(r.txt)&&r.acc,'Tachi’s comm: [location name] reads Akkaro, no Source level, and an Accept '+r.win);
+ await E(()=>document.querySelector('#winCardB [data-proaccept]').click());
+ await wait(150);
+ r=await E(()=>{const a=T.G.agents[0]||{};return {at:window.Pro.beat(),n:T.G.agents.length,name:a.name,post:a.postedTo,cell:T.G.sources.filter(s=>s.agent===a.id).map(s=>s.id).sort().join(),
+   intel:T.vis('navIntel'),isNew:!!document.querySelector('#navIntel .pro-newtag'),win:T.win()};});
+ ok(r.at==='agents'&&r.n===1&&r.name==='Tachi Gard'&&r.post==='akkaro'&&r.cell==='cass,venn','accepted: Tachi is the first Agent, posted to Akkaro with Cass and Venn in her cell '+JSON.stringify(r));
+ ok(r.intel&&r.isNew&&r.win==='agentTutIntro','the Intelligence tab opens with its New tag, and Run Your Network’s intro window '+JSON.stringify(r));
+ // a beat added at runtime fires in order: here a comm from Cass once Run Your Network is done
+ await E(()=>window.Pro.addBeat({id:'smoke_after',does:[{comm:{who:'cass',text:'fuelNews'}}],until:{closed:'comm'}},'frontier'));
+ // Run Your Network: Got it, then the five guided steps
+ await E(()=>document.querySelector('#winCardB [data-agenttut-done]').click());
+ const coach=()=>E(()=>({t:(document.querySelector('#tutCoach .sr-coach__title')||{}).textContent||'',up:!document.querySelector('#tutCoach').hidden,
+   rec:!!document.querySelector('#railIntel [data-op^="recruit:"]'),lielow:!!document.querySelector('#railIntel [data-op^="lielow:"]')}));
+ await wait(200);r=await coach();
+ ok(r.up&&r.t==='Your network','step 1 points at the Intelligence tab '+JSON.stringify(r));
+ await E(()=>document.querySelector('#sc-base #navIntel').click());await wait(250);r=await coach();
+ ok(r.up&&r.t==='Meet your Agent','step 2 points at Tachi '+JSON.stringify(r));
+ await E(()=>document.querySelector('#inView [data-insel^="agent:"]').click());await wait(250);r=await coach();
+ ok(r.up&&r.t==='Read her file'&&!r.rec,'step 3 reads her file; Recruit is still hidden '+JSON.stringify(r));
+ await E(()=>document.querySelector('#tutCoach [data-pronext]').click());await wait(250);r=await coach();
+ ok(r.up&&r.t==='Her cell','step 4: her cell '+JSON.stringify(r));
+ await E(()=>document.querySelector('#tutCoach [data-pronext]').click());await wait(250);r=await coach();
+ ok(r.up&&r.t==='Put her to work'&&r.rec&&!r.lielow,'step 5 opens Recruit (Lie Low stays hidden) '+JSON.stringify(r));
+ await E(()=>document.querySelector('#railIntel [data-op^="recruit:"]').click());await wait(250);
+ r=await E(()=>({at:window.Pro.beat(),days:T.G.recruit.days,tut:T.G.prologue.flags.tut.runNetwork,win:T.win(),txt:document.querySelector('#winCardB').textContent}));
+ ok(r.days>0&&r.tut===1,'starting the Recruit ends Run Your Network '+JSON.stringify({days:r.days,tut:r.tut}));
+ ok(r.at==='smoke_after'&&r.win==='comm'&&/fuel job/.test(r.txt),'and the runtime beat fires next, in order '+JSON.stringify({at:r.at,win:r.win}));
  await E(()=>T.f.closeWin());
  await wait(200);
  r=await E(()=>({done:window.Pro.done(),gates:window.Pro.GATES.filter(g=>!window.Pro.gate(g)),tabs:['navSources','navMissions','navIntel','navMarket','navArsenal'].filter(id=>!T.vis(id)),
@@ -277,6 +318,17 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  ok(!r.day1.length,'one day short: nothing yet '+r.day1);
  ok((r2.win==='recruit'&&/Cass vouches for them/.test(r2.txt)&&/Soldier/.test(r2.txt))||r.day2.includes('recruit:Soldier'),
   r.days+' days short a soldier: Cass sends a replacement '+JSON.stringify([r.day2,r2.win]));
+
+ // ---------------- 5. Recruit returns Rebels only during the prologue ----------------
+ // (Tachi reposted to Veray Yards, where potential Sources wait, and the dice set to find one)
+ r=await E(()=>{
+  window.Pro.jump('agents');T.f.closeWin();
+  const a=T.G.agents[0];a.postedTo='veray';
+  T.G.people=T.G.people.filter(p=>!['runa','kel'].includes(p.id));   // bunks free for whoever turns up
+  T.f.setRng(()=>0.1);T.f.agentRecruit(a);for(let i=0;i<3;i++)T.f.recruitTick();T.f.setRng(Math.random);
+  return {cand:T.G.candQ.length,rebels:T.G.recWait.length,roles:T.G.recWait.map(p=>p.role).join()};
+ });
+ ok(r.cand===0&&r.rebels>0,'during the prologue Recruit returns Rebels only '+JSON.stringify(r));
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'prologue-smoke: all checks passed');

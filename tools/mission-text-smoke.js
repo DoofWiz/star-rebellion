@@ -13,7 +13,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
 const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','cowboy']},
              {id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['akli','cowboy']},
              {id:'kel',name:'Kel Brasso',first:'Kel',aim:2,hp:100,wpns:['akli','cowboy']}];
-const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
+const TYPES=['stealfuel','intel','autofactory','rescue','ambush','towers'];
 (async()=>{
  const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||'/opt/pw-browsers/chromium'});
  const pg=await b.newPage({viewport:{width:1280,height:800}});
@@ -36,7 +36,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
  ok(st.n>150,'the text sets hold the type text '+st.n);
  ok(!st.left.length,'every line fills with no {variable} left '+st.left.slice(0,5));
  ok(!st.marta.length,'no type line names the Marta or the Graf '+st.marta.slice(0,5));
- ok(st.keys===['stealfuel','intel','autofactory','rescue','towers'].join(),'one text set per reusable type '+st.keys);
+ ok(st.keys===TYPES.join(),'one text set per reusable type '+st.keys);
 
  // ---- the board: a deployment's words come from its type; the transport is not picked yet
  const bd=await pg.evaluate(()=>{
@@ -76,7 +76,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','towers'];
   for(const win of [true,false]){
    const m={kind:'ground',missionId:sc,scenario:sc,days:2,squad:SQUAD,grafPilot:{id:'joss',name:'Joss Marrek',first:'Joss'},
      transport:{id:'h2',name:'Hauler 2',cls:'graf'},charges:1,limpets:0,
-     vip:sc==='rescue'?{name:'Ada Quill',first:'Ada'}:undefined,
+     vip:sc==='rescue'||sc==='ambush'?{name:'Ada Quill',first:'Ada'}:undefined,
      ctx:{title:'Test Job',place:'Saltreach',target:'widget yard',variant:'',sub:'Saltreach · Menk',eyebrow:'Ground Operation · Saltreach, Menk',flavour:'Flavour.'}};
    await pg.evaluate(m=>window.SR.go('ground',{test:true,mission:m}),m);await pg.waitForTimeout(600);
    const r=await pg.evaluate(win=>{

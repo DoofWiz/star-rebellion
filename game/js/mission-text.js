@@ -175,6 +175,46 @@ window.MT=(function(){
       },
     },
 
+    /* Ambush: Extract VIP (the Campaigns & Missions doc). The description and objectives are the doc's; the lines
+       the doc has not written yet say [TEXT NEEDED] (docs/DESIGN_BLOCKERS.md C-48). */
+    ambush:{
+      scenario:'ambush',
+      name:'Ambush: Extract VIP',
+      targets:['convoy'],
+      hook:'[TEXT NEEDED: a source tips us off about a convoy moving a prisoner through {place}]',
+      desc:'A convoy is coming through here with a prisoner they really don’t want to lose. Let’s grab them before they can move them somewhere safe.',
+      after:['<b>{SRC}:</b> “[TEXT NEEDED: the source reacts to {npc} being freed from the convoy]”'],
+      banner:'[TEXT NEEDED: a short banner line under the mission name]',
+      foes:'Security',calm:'[TEXT NEEDED: the convoy has not noticed us]',alert:'[TEXT NEEDED: the convoy is alerted]',
+      obj:[
+        {k:'stop',t:'Destroy holding vehicle'},
+        {k:'release',t:'Unlock the doors'},
+        {k:'extract',t:'Escort {npc} to the extraction point'},
+      ],
+      notes:[],
+      hint:'[TEXT NEEDED: the briefing hint: once the shooting starts the holding vehicle runs for the edge of the map, so stop it first]',
+      arrive:'[TEXT NEEDED: the transport pilot sets the squad down near {place} and pulls back to wait]',
+      work:{label:'DOORS',verb:'unlocks the doors'},
+      float:{flee:'[TEXT NEEDED: the truck is running]',stopped:'[TEXT NEEDED: the truck is stopped]',free:'{npc1} IS FREE'},
+      log:{
+        flee:'[TEXT NEEDED: log line: the holding vehicle guns its engine and makes a run for it]',
+        stopped:'[TEXT NEEDED: log line: the holding vehicle is stopped; get to its doors]',
+        free:'[TEXT NEEDED: log line: {npc} is out of the truck; escort them back to the {transport}]',
+        escaped:'[TEXT NEEDED: log line: the holding vehicle gets away with {npc}]',
+      },
+      vip:['Thank God. Get me out of here.','I can’t fight, but I can run.','Keep the shooting away from me!'],
+      end:{
+        title:'Freed',
+        win:'[TEXT NEEDED: end screen: {npc} is freed from the convoy and aboard the {transport}]',
+        cost:' It cost us: {fallen} left at the {target}. We don’t forget that.',
+        loseEscaped:'[TEXT NEEDED: end screen: the holding vehicle got off the map with {npc} inside]',
+        loseVip:'{npc} died before the {transport} was in reach. There is no bringing that back. The squad pulled out with nothing.',
+        loseVipDown:'{npc} went down short of the {transport}, and nobody had a Med Pack left to bring them round. The squad pulled out with nothing.',
+        lose:'[TEXT NEEDED: end screen: the squad was overrun at the {target}]',
+        lootDone:'Freed',
+      },
+    },
+
     towers:{
       scenario:'towers',
       name:'Disrupt Comm Towers',

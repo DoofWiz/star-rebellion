@@ -260,7 +260,6 @@ function newGame(){
   g0.people.forEach(p=>{Rebel.migrate(p);p.joined=1;});
   {const keep=G;G=g0;g0.people.forEach(gearFromEquip);autoEquip();G=keep;}
   g0.morale=Rebel.MORALE_START;
-  {const ag=mkAgent('haven',g0);g0.agents.push(ag);for(const s of g0.sources)s.agent=ag.id;}   // the Network opens with one handler (§3)
   return g0;
 }
 
@@ -1082,6 +1081,11 @@ const MTYPE_DEFS={
     req:{team:3,teamRole:'Soldier',transport:1,prize:0},
     rew:{c:500,xp:0.35},bonus:{i:2}},
 };
+/* Ambush: Extract VIP (docs/PROLOGUE-HANDOFF.md P2): by default the freed prisoner joins as a Support recruit;
+   an authored instance can say otherwise in its spec (Rescue Tachi: she becomes an Agent instead) */
+MTYPE_DEFS.ambush={scenario:'ambush',days:2,riskTxt:'Moderate',lib:15,npcRole:'Support',
+  req:{team:3,teamRole:'Soldier',transport:1,prize:0},
+  rew:{c:400,xp:0.3}};
 MTYPE_DEFS.towers={scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
   req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{ids:['charge','limpet'],n:1,label:'Explosive Charge or Data Limpet'}]},
   rew:{i:5,xp:0.3}};
@@ -1623,6 +1627,12 @@ function addMission(mid,quiet,spec){
     applySpec(m,spec);
     return pushMission(m,quiet);
   }
+  if(spec&&spec.type&&!MPOOL[mid]){   // an authored instance of a mission type, under its own story id
+    if(hasStory(mid))return null;
+    const m=spawnMission(spec.type,Object.assign({story:mid},spec.ctx));
+    applySpec(m,spec);
+    return pushMission(m,quiet);
+  }
   if(G.missions.some(m=>m.id===mid))return null;
   const m=Object.assign({id:mid,state:'avail',progress:null},MPOOL[mid]);
   if(m.npcRole){m.npc=holdRecruit(m.npcRole);bindNpc(m);}
@@ -1634,6 +1644,10 @@ function addMission(mid,quiet,spec){
 function applySpec(m,spec){
   if(!m||!spec)return;
   if(spec.req)m.req=Object.assign({},m.req||MTYPES[typeOf(m)].req(m),spec.req);
+  if(spec.name)m.name=Pro.text(spec.name);
+  if(spec.npc){const c=Pro.cast(spec.npc);if(c){m.npc=Object.assign({role:m.npcRole||'Support'},c);bindNpc(m);}}
+  if(spec.recruit===false)m.noRecruit=1;   // the freed prisoner does not join as a recruit (a beat decides what happens)
+  if(spec.follow===false)m.noFollow=1;     // no source follow-up after the report (a beat speaks instead)
 }
 function maybeQueueEvent(src){
   if(src.pendingEvent||src.signal||proSrc(src))return;
@@ -2323,7 +2337,7 @@ function gotText(got){
 }
 function buildReport(m,win,got,people,cr,arrive){
   let follow=null;
-  if(win&&m.src){
+  if(win&&m.src&&!m.noFollow){
     const src=G.sources.find(x=>x.id===m.src&&x.alive);
     if(src)follow={src:src.id,lines:m.after||['<b>'+src.name.split(' ').pop().toUpperCase()+':</b> “Word travels. Well done.”']};
   }
@@ -4922,10 +4936,13 @@ function pointAt(rc,label){
   el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(4,rc.top-58)+'px';
 }
 /* a guided step's callout: the coach card, beside its target */
-function coachAt(rc,html){
+function coachAt(rc,st){
   const el=$('tutCoach');
   el.hidden=false;
-  if(el.__html!==html){el.querySelector('.pro-coach__txt').innerHTML=html;el.__html=html;}
+  const html=(st.title?'<div class="sr-coach__head"><span class="sr-coach__title">'+Pro.text(st.title)+'</span></div>':'')+
+    '<span class="pro-coach__txt">'+Pro.text(st.text)+'</span>'+
+    (st.next?'<div class="sr-coach__foot"><button type="button" class="sr-btn pro-coach__btn" data-pronext>'+Pro.text(st.next)+'</button></div>':'');
+  if(el.__html!==html){el.innerHTML=html;el.__html=html;}
   const w=el.offsetWidth||300,h=el.offsetHeight||90;
   // beside the target when there is room (it covers less), else above it, else below
   const side=rc.left+rc.width+w+24<=innerWidth,above=!side&&rc.top-h-14>=8;
@@ -4963,6 +4980,21 @@ function guideTarget(at){
     const btn=gxFree&&ROOT.querySelector('#gxOrders [data-gxo="'+arg+'"]');
     return btn?btn.getBoundingClientRect():null;
   }
+  // the Intelligence tab: an Agent's node (by who they were), the stats on their rail, their cell, an operation
+  if(k.indexOf('in.')===0){
+    if(!inOpen||winMode)return null;
+    const ag=(G.agents||[]).find(a=>a.from===arg)||(G.agents||[])[0];
+    let els=[];
+    if(k==='in.agent'&&ag)els=[$('inView').querySelector('[data-insel="agent:'+ag.id+'"]')];
+    else if(k==='in.stats')els=[$('railIntel').querySelector('.in-stats')];
+    else if(k==='in.cell')els=[...$('inView').querySelectorAll('.in-node--src')];
+    else if(k==='in.op')els=[$('railIntel').querySelector('[data-op^="'+arg+':"]')];
+    els=els.filter(Boolean);
+    if(!els.length)return null;
+    const rs=els.map(e=>e.getBoundingClientRect());
+    const l=Math.min(...rs.map(r=>r.left)),t=Math.min(...rs.map(r=>r.top)),r2=Math.max(...rs.map(r=>r.right)),b=Math.max(...rs.map(r=>r.bottom));
+    return {left:l,top:t,width:r2-l,height:b-t,right:r2,bottom:b};
+  }
   if(k==='plan.assetslot'){   // the empty fire support slot: an unfilled support ship, else Add asset
     if(winMode!=='plan'||!PL||PL.pick)return null;
     const el=$('winCardB').querySelector('.pl-asset__art--empty[data-pick^="as"]')||$('winCardB').querySelector('[data-slot="addasset"]');
@@ -4981,7 +5013,7 @@ function updateGuide(){
   const st=Pro.step();
   if(st){
     const rc=guideTarget(st.at);
-    if(rc&&st.text){el.hidden=true;coachAt(rc,Pro.text(st.text));return;}
+    if(rc&&st.text){el.hidden=true;coachAt(rc,st);return;}
     co.hidden=true;
     if(rc){pointAt(rc,Pro.text(st.label));return;}
     el.hidden=true;return;
@@ -5061,7 +5093,7 @@ const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
 let shipSheetShip=null;
 const accentOf={newhero:'progress',comm:'friend',ship:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
-const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
+const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',agentTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -5074,6 +5106,52 @@ const TUT_CONTACT_AGENTS={t:'Making Contact',h:
   tutS('Contact','Communicate remotely. This works from anywhere and is safer, but it may not stay that way as the Revolution grows and Hegemony surveillance increases.')+
   tutP('Either way, speaking with a Source can lead to new opportunities, requests or Missions.')+
   tutP('Keep an eye on your Sources. They may have something important to tell you.')};
+/* the Agents field manual (docs/TUTORIALS.md, Run Your Network): behind the ? on an Agent and in the intro window */
+const AGENT_PAGES=[
+  {t:'Agents',h:
+    tutP('You can’t run a rebellion from the front line. Someone has to work in the dark.')+
+    tutP('<b>Agents</b> are your handlers. Each one is posted to a location and handles a cell of Sources there. They pass on your requests, calm your Sources’ nerves and keep the rebellion’s secrets.')+
+    tutP('Agents aren’t soldiers. They don’t go on missions. But they level up, they can be hunted, and they can be lost.')+
+    tutP('Look after them. They know more than anyone else in your network.')},
+  {t:'Posting',h:
+    tutP('Every Agent is posted to one location.')+
+    tutS('Visit','Your Agent meets the Source face-to-face. This builds trust faster, but needs the Agent posted on the Source’s world.')+
+    tutS('Contact','Communicate remotely. This is safer and works from anywhere, but it may not stay safe as Hegemony surveillance grows.')+
+    tutP('To move an Agent, <b>Repost</b> them. The journey takes days, and their Cover drops while they travel.')},
+  {t:'Cells',h:
+    tutP('Every Source belongs to an Agent’s <b>cell</b>.')+
+    tutP('A cell only knows its own Agent. Sources in one cell don’t know about Sources in another, and that’s the point.')+
+    tutP('If something goes wrong, the damage stays in that cell. One big cell is easier to manage. Several small cells are much harder to unravel.')+
+    tutP('Each Agent has a <b>Cell capacity</b>, the number of Sources they can handle at once.')},
+  {t:'An Agent’s File',h:
+    tutP('Some Agents are better at this than others.')+
+    tutS('Tradecraft','The skill of staying invisible. The higher it is, the less Risk their Sources gain from contact and missions.')+
+    tutS('Cover','How hard the Agent is to trace when one of their Sources is caught. Low Cover makes them easy to follow.')+
+    tutS('Rapport','How well they win a Source’s trust.')+
+    tutP('Give your most valuable Sources to your most careful Agents.')},
+  {t:'Operations',h:
+    tutP('Agents can act without a mission:')+
+    tutS('Recruit','Search their location for new Sources or Rebels.')+
+    tutS('Lie Low','The cell goes quiet. Risk falls faster, but nothing comes in.')+
+    tutS('Counter-Intel Sweep','Check the cell for Bureau plants.')+
+    tutS('Repost','Move to another world. Cover drops in transit.')+
+    tutS('Disinformation','Spend Intel to clear a Lead, or send the Bureau after a decoy.')+
+    tutP('Every operation takes time. While an Agent is busy, their cell has to wait.')},
+  {t:'Leads',h:
+    tutP('When a Source is Burned, the Hegemony doesn’t just arrest them. They interrogate them.')+
+    tutP('You have a few days to respond:')+
+    tutS('Rescue','A high-risk mission to get them out.')+
+    tutS('Silence','Make sure they never talk.')+
+    tutS('Contain','Recall their Agent and have the cell lie low.')+
+    tutS('Let it play out','Gamble on their loyalty.')+
+    tutP('If they talk, the Bureau gains a <b>Lead</b>. While a Lead is active, the people it points to grow more dangerous by the day.')+
+    tutP('Leads go cold eventually. Until then, someone is following the trail.')},
+  {t:'Exposure',h:
+    tutP('<b>Exposure</b> is how close the Hegemony is to finding the rebellion itself.')+
+    tutP('It rises as the Bureau gathers Leads, and with every mission and liberation. The higher it gets, the harder the Bureau looks, sweeping locations where it suspects you’re operating and putting every Source there at risk.')+
+    tutP('Keep your cells tight, your Agents careful and your Exposure low.')+
+    tutP('They’re looking for you...')},
+];
 const tutPages=()=>Pro.tutSeen('sources')?TUT_PAGES.map(p=>p.t==='Making Contact'?TUT_CONTACT_AGENTS:p):TUT_PAGES;
 const TUT_PAGES=[
   {t:'Sources',h:
@@ -5288,8 +5366,22 @@ function renderWin(){
       '<p class="sr-fine">Click the '+wTag('?','good')+' button to learn more.</p>')+
       wFoot(rbtn('data-srchelp','Field manual',false,'sr-btn--ghost')+rbtn('data-srctut-done','Got it',false,'sr-btn--primary'));
   }
+  else if(winMode==='agentTutIntro'){   // Run Your Network (docs/TUTORIALS.md): the intro window
+    h=wHead('Run Your Network',{q:wQ('data-agenthelp','Learn more'),x:false})+wBody(
+      tutP('You’ve got your first <b>Agent</b>.')+
+      tutP('Agents are your operatives in the shadows. You can’t be everywhere at once, and you can’t risk being seen. Agents handle your Sources for you, so the trail never leads back to Haven Rock.')+
+      tutS('1. Recruit Agents','Find people with the nerve and know-how to work undercover.')+
+      tutS('2. Post Them','Send each Agent to a location. They can only meet Sources where they are.')+
+      tutS('3. Build Their Cell','The Sources an Agent handles form their cell.')+
+      tutS('4. Keep Cells Small','If one Source is caught, everyone in their cell is in danger.')+
+      tutS('5. Protect the Hub','Your Agents know where you are. If one falls into Hegemony hands, so might you.')+
+      tutP('A Source can tell the Hegemony about their Agent. An Agent can tell them about you.')+
+      tutP('The only way to stay hidden is to make sure no one knows too much...')+
+      '<p class="sr-fine">Click the '+wTag('?','good')+' button to learn more.</p>')+
+      wFoot(rbtn('data-agenthelp','Field manual',false,'sr-btn--ghost')+rbtn('data-agenttut-done','Got it',false,'sr-btn--primary'));
+  }
   else if(winMode==='srcTut'){
-    const PAGES=tutPages();
+    const PAGES=winArg&&winArg.book==='agents'?AGENT_PAGES:tutPages();
     const pg=Math.max(0,Math.min(PAGES.length-1,(winArg&&winArg.page)||0));
     const P=PAGES[pg];
     h=wHead(P.t,{x:'data-tut-close'})+wBody(P.h)+
@@ -5773,11 +5865,14 @@ const agentLeads=a=>(G.bureauLeads||[]).filter(l=>l.target.kind==='agent'&&l.tar
 const srcLeads=s=>(G.bureauLeads||[]).filter(l=>l.target.kind==='source'&&l.target.id===s.id);
 const agentPending=a=>(G.interrogations||[]).some(ig=>{const s=srcById(ig.source);return s&&s.agent===a.id&&ig.expectedLeads.some(t=>t.kind==='agent'&&t.id===a.id);});
 const agentWorld=a=>pdef(a.postedTo)||pdef('haven');
-function mkAgent(world,g){
+/* an Agent: a named person (who: {name, from}) or, without one, someone generated */
+function mkAgent(world,g,who){
   g=g||G;
-  const gen=Rebel.gen('Support',new Set(g.people.map(p=>p.name).concat((g.agents||[]).map(a=>a.name))),rng);
+  const name=who&&who.name||Rebel.gen('Support',new Set(g.people.map(p=>p.name).concat((g.agents||[]).map(a=>a.name))),rng).name;
   g.agentSeq=(g.agentSeq||0)+1;
-  return {id:'ag'+g.agentSeq,name:gen.name,level:1,xp:0,tradecraft:15,cover:70,rapport:20,cap:2,postedTo:world||'haven',moving:null,lielow:0,leads:[]};
+  const a={id:'ag'+g.agentSeq,name,level:1,xp:0,tradecraft:15,cover:70,rapport:20,cap:2,postedTo:world||'haven',moving:null,lielow:0,leads:[]};
+  if(who&&who.from)a.from=who.from;
+  return a;
 }
 /* a new source joins the cell with room, or the first agent's */
 function assignCell(src){
@@ -6022,7 +6117,7 @@ function inAgentRail(a){
     const s=srcById(ig.source);
     if(s&&s.agent===a.id)status+=inRow('var(--sr-hazard)','Lead pending · if <b>'+esc(s.name)+'</b> talks',ig.daysLeft+'d');
   }
-  for(const ld of agentLeads(a))status+=inRow('var(--sr-c-bad)','The Bureau holds a <b>Lead</b> on him','day '+ld.day);
+  for(const ld of agentLeads(a))status+=inRow('var(--sr-c-bad)','The Bureau holds a <b>Lead</b> on them','day '+ld.day);
   if(a.moving)status+=inRow('var(--sr-gold)','In transit to <b>'+esc(pdef(a.moving.to).name)+'</b>',a.moving.days+'d');
   if(a.lielow)status+=inRow('var(--sr-shield)','The cell is lying low',a.lielow+'d');
   if(G.recruit.days&&G.recruit.agent===a.id)status+=inRow('var(--sr-gold)','Recruiting on '+esc(wd.name),G.recruit.days+'d');
@@ -6037,7 +6132,8 @@ function inAgentRail(a){
       const d=pdef(p2.id);return inOp('data-repost="'+a.id+':'+p2.id+'"','galaxy',esc(d.name),esc(d.kind||''));}).join('')+
       inOp('data-repostcancel','back','Stay put','Keep the '+esc(wd.name)+' Cell')+'</div>';
   } else {
-    ops=inH('work','Operations')+'<div class="in-ops">'+
+    const opsOn=['op.lielow','op.recruit','op.other'].some(k=>Pro.gate(k));   // during the prologue they appear one by one
+    ops=!opsOn?'':inH('work','Operations')+'<div class="in-ops">'+
       (Pro.gate('op.lielow')?inOp('data-op="lielow:'+a.id+'"','sneak','Lie Low','The cell rests: Risk bleeds off, nothing comes in',{dis:!!busy||a.lielow>0}):'')+
       (Pro.gate('op.other')?inOp('data-op="sweep:'+a.id+'"','eye','Counter-Intel Sweep','Check the cell for Bureau plants',{dis:!!busy}):'')+
       (Pro.gate('op.recruit')?inOp('data-op="recruit:'+a.id+'"','people','Recruit','Search '+esc(wd.name)+' for new Sources or Rebels',{dis:!!busy||!!G.recruit.days||!!G.recWait.length}):'')+
@@ -6045,16 +6141,16 @@ function inAgentRail(a){
       (Pro.gate('op.other')?inOp('data-op="disinfo:'+a.id+'"','comms','Disinformation','Clear a Lead, or send the Bureau after a decoy',{dis:!canDis||G.intel<INTEL_N.disinfoCost}):'')+
       '</div>';
   }
-  return '<div class="in-railtitle">'+IC('intel')+'Agent</div>'+
+  return '<div class="in-railtitle">'+IC('intel')+'Agent'+wQ('data-agenthelp','Field manual')+'</div>'+
     '<div class="in-who"><span class="in-who__disc" style="box-shadow:inset 0 0 0 3px var(--sr-rebel)">'+esc(inIni(a.name))+'</span>'+
     '<div style="min-width:0"><div class="in-kicker" style="--c:var(--sr-rebel)">Agent · Level '+a.level+'</div>'+
     '<div class="in-name">'+esc(a.name)+'</div><div class="in-sub">'+esc(wd.name)+' Cell</div></div></div>'+
     '<div class="in-card">'+status+'</div>'+
     '<div class="in-stats">'+
-    stat('Tradecraft',a.tradecraft,'His Sources gain less Risk','var(--sr-psi)')+
+    stat('Tradecraft',a.tradecraft,'Their Sources gain less Risk','var(--sr-psi)')+
     stat('Cover',agentCover(a),'Easy to trace if a Source burns',lowCover?'var(--sr-hazard)':'var(--sr-go)')+
     stat('Rapport',a.rapport,'Better cultivation outcomes','var(--sr-gold)')+
-    stat('Cell',cellLive(a).length+'/'+agentCap(a),'Grows with his level and the Centre','var(--sr-shield)')+
+    stat('Cell',cellLive(a).length+'/'+agentCap(a),'Grows with their level and the Centre','var(--sr-shield)')+
     '</div>'+ops;
 }
 function inSrcRail(s){
@@ -6187,6 +6283,7 @@ function intelClick(ev){
   if(sel){
     const [t,id]=sel.getAttribute('data-insel').split(':');
     sClick();inRepost=null;inSel=t==='bureau'?{t:'bureau'}:{t,id};
+    Pro.emit('inSel',t==='agent'?Object.assign({kind:'agent'},{id:(agentOf(id)||{}).from||id}):{kind:t,id});
     renderIntel();return;
   }
   const op=ev.target.closest('[data-op]');
@@ -6248,9 +6345,10 @@ function commHTML(src,payload){
   const gain=Math.round(cu.to-cu.from);
   const who='<div class="cm-who"><span class="cm-ava">'+esc(ini(src.name))+'<i>'+IC('signal')+'</i></span>'+
     '<div style="min-width:0"><div class="cm-name">'+esc(src.name)+'</div><div class="cm-role">'+esc([src.type,src.loc].filter(Boolean).join(' · '))+'</div></div>'+
+    (src.person?'':   // someone who is not a Source (Tachi, before she joins) has no level or cultivation
     '<div class="cm-who__end"><span class="cm-lvl">Source · Level '+(cu.lvl1||src.level)+'</span>'+
     '<span class="cm-meter" style="--from:'+Math.round(cu.from)+';--to:'+Math.round(cu.to)+'" title="Cultivation '+Math.round(src.cult)+' / 100 toward the next level"><i class="was"></i><i class="now"></i></span>'+
-    (gain>0?'<span class="cm-gain">Cultivation +'+gain+'</span>':'')+'</div></div>';
+    (gain>0?'<span class="cm-gain">Cultivation +'+gain+'</span>':'')+'</div>')+'</div>';
   let body=cmChan('Encrypted · rebel net · lag 4.2s · voices masked'),foot;
   if(payload.event){
     const said=String(payload.event.text).replace(/^<b>[^<]*<\/b>\s*/,'');   // the bubble names the speaker
@@ -6258,7 +6356,7 @@ function commHTML(src,payload){
     foot='';
   } else if(payload.say){
     body+=cmSay(ini(src.name),src.name,payload.say);
-    foot=rbtn('data-close','Acknowledge',false,'sr-btn--primary');
+    foot=payload.accept?rbtn('data-proaccept="'+payload.accept+'"','Accept',false,'sr-btn--primary'):rbtn('data-close','Acknowledge',false,'sr-btn--primary');
   } else {
     body+=(payload.lines||[]).filter(Boolean).map(cmLog).join('');
     const sig=payload.signal;
@@ -7964,8 +8062,8 @@ $('winsB').addEventListener('click',ev=>{
   sClick();
   if(t.hasAttribute('data-srchelp')){openWin('srcTut',{page:0});return;}
   if(t.hasAttribute('data-srctut-done')||t.hasAttribute('data-tut-close')){closeWin();return;}
-  if(t.hasAttribute('data-tut-prev')){openWin('srcTut',{page:((winArg&&winArg.page)||0)-1});return;}
-  if(t.hasAttribute('data-tut-next')){openWin('srcTut',{page:((winArg&&winArg.page)||0)+1});return;}
+  if(t.hasAttribute('data-tut-prev')){openWin('srcTut',{page:((winArg&&winArg.page)||0)-1,book:winArg&&winArg.book});return;}
+  if(t.hasAttribute('data-tut-next')){openWin('srcTut',{page:((winArg&&winArg.page)||0)+1,book:winArg&&winArg.book});return;}
   const sc=t.getAttribute('data-sc');
   if(sc){const s=G.sources.find(x=>x.id===sc);if(s){sComm();srcContact(s);}return;}
   const sv=t.getAttribute('data-sv');
@@ -8058,6 +8156,10 @@ $('winsB').addEventListener('click',ev=>{
   if(cand){if(cand==='no')declineCandidate(winArg);else if(cand==='standby')standbyCandidate(winArg);else acceptCandidate(cand);return;}
   const scout=t.getAttribute('data-scout');
   if(scout){scoutPlanet(scout);return;}
+  const pa=t.getAttribute('data-proaccept');
+  if(pa){closeWin();Pro.emit('accepted',pa);syncUI();return;}   // a beat's offer, accepted (Tachi joining)
+  if(t.hasAttribute('data-agenthelp')){openWin('srcTut',{page:0,book:'agents'});return;}
+  if(t.hasAttribute('data-agenttut-done')){closeWin();return;}
   const pj=t.getAttribute('data-projump');
   if(pj){proJumpTo(pj);return;}
   if(t.hasAttribute('data-progates')){Pro.openAll();saveSnap();syncUI();renderWin();return;}
@@ -8300,6 +8402,8 @@ function closeEstSplash(){
   setTimeout(()=>{el.classList.remove('is-out');el.hidden=true;if(!winMode)nextReport();},RM?0:400);
 }
 $('estSplash').addEventListener('click',closeEstSplash);
+/* a guided step's own button (Next, Got it) */
+$('tutCoach').addEventListener('click',ev=>{if(ev.target.closest('[data-pronext]')){sClick();Pro.emit('next');}});
 /* ---------- the prologue's host (game/js/prologue.js) ----------
    The runner keeps its place in G.prologue and calls these to act. A window a beat opens waits its turn in the report
    queue (RQ, as {t:'pro'}): after the mission report and reward, never over the splash or the day banner, and one at a
@@ -8308,10 +8412,11 @@ function proQueue(a){const p=G.prologue;p.q=p.q||[];p.q.push(a);RQ.push({t:'pro'
 function proDrop(a){const q=G.prologue&&G.prologue.q;if(q){const i=q.indexOf(a);if(i>=0)q.splice(i,1);}}
 function openPro(a){
   proDrop(a);
+  if(a.act){Pro.run(a.act,a.beat);return false;}
   if(a.comm){
-    const src=G.sources.find(s=>s.id===a.comm.who)||srcInfo(a.comm.who);
+    const c=Pro.cast(a.comm.who),src=G.sources.find(s=>s.id===a.comm.who)||srcInfo(a.comm.who)||(c&&Object.assign({person:1,cult:0,level:1},c));
     if(!src)return false;
-    sComm();openComm(src,{say:Pro.text(a.comm.text)});return true;
+    sComm();openComm(src,{say:Pro.text(a.comm.text),accept:a.comm.accept});return true;
   }
   if(a.recruit){openProRecruit(a.recruit);return true;}
   if(a.win){openWin(a.win);return true;}
@@ -8384,6 +8489,12 @@ Pro.bind({
       return true;
     },
     mission:v=>{addMission(v.id,false,v.spec);},
+    agent:v=>{
+      if(G.agents.some(a=>a.from===v.from))return;
+      const ag=mkAgent(v.post,G,{name:(Pro.cast(v.from)||{}).name,from:v.from});
+      G.agents.push(ag);
+      for(const id of v.cell||[]){const s=G.sources.find(x=>x.id===id);if(s)s.agent=ag.id;}
+    },
     comm:v=>proQueue({comm:v}),
     win:v=>proQueue({win:v}),
     recruitOffer:v=>proQueue({recruit:v}),
@@ -8391,7 +8502,7 @@ Pro.bind({
   },
   // a new game for the debug Jump list
   reset:()=>{
-    RQ.length=0;HOLD=false;rqWin=false;PL=null;srcSel=null;
+    RQ.length=0;HOLD=false;rqWin=false;PL=null;srcSel=null;newGates.clear();
     winMode=null;winArg=null;$('winsB').hidden=true;
     G=newGame();started=false;
   },
@@ -8412,8 +8523,9 @@ Pro.bind({
       G.wreck.restored=true;G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
       const j=G.people.find(p=>p.id==='joss');if(j)j.ship='graf';
     },
-    winMission:id=>{
-      const m=G.missions.find(x=>x.id===id||x.story===id)||addMission(id,true);
+    agent:v=>Pro.hostAct('agent',v),
+    winMission:(id,spec)=>{
+      const m=G.missions.find(x=>x.id===id||x.story===id)||addMission(id,true,spec);
       if(m){m.state='done';m.meta='SUCCESS';}
       if(id==='stealcross'&&!G.fighters.some(f=>f.cls==='cross'))G.fighters.push(newFighter({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85}));
     },
@@ -9181,7 +9293,7 @@ function applyDebrief(r){
       if(m.loc){G.wins=G.wins||{};G.wins[m.loc]=G.day;}   // for Hero Stories
       const cr=missionCredit(m);
       queueReport(buildReport(m,true,got,pinfo,cr,true));
-      if(m.npc)RQ.push({t:'recruit',m});
+      if(m.npc&&!m.noRecruit)RQ.push({t:'recruit',m});
       moraleAll(1,'win',(r.people||[]).map(x=>x.id),3);
       const gt=gotText(got);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(gt?gt+'.':''),'g');
@@ -9422,6 +9534,17 @@ const MIGRATIONS=[
     delete G.onboard;delete G.postDepot;delete G.srcTutSeen;
     G.prologue=P;
   },
+  /* 12 -> 13: no Agent until Tachi Gard joins (docs/PROLOGUE-HANDOFF.md P2, DESIGN_BLOCKERS C-46.1). A campaign begun on
+     the prologue's phase 1 build (still in the prologue, with its gates not opened by the 11 -> 12 upgrade) had a
+     generated handler from day one: it goes, and its Sources wait for Tachi. Older saves keep theirs. */
+  function(){
+    const P=G.prologue;
+    if(!P||P.done||(P.gates&&P.gates['*']))return;
+    const gone=(G.agents||[]).filter(a=>!a.from).map(a=>a.id);
+    G.agents=(G.agents||[]).filter(a=>a.from);
+    for(const s of G.sources)if(gone.includes(s.agent))delete s.agent;
+    if(G.recruit&&gone.includes(G.recruit.agent))G.recruit={days:0};
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9491,6 +9614,7 @@ function enter(params){
       if(location.hash==='#deploy'||location.hash==='#test'){
         // the test harness starts at the first Cass contact with every mechanic open (as an old save is)
         Pro.jump('cass_contact');Pro.openAll();
+        {const ag=mkAgent('haven');G.agents.push(ag);for(const s of G.sources)s.agent=ag.id;}   // an old save's handler
         seedNews();
       }
     }

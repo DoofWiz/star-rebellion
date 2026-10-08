@@ -496,6 +496,46 @@ strider:{
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
   ];},
 },
+/* Ambush: Extract VIP (docs/PROLOGUE-HANDOFF.md P2). A convoy halts on the road with a prisoner in the truck. When the
+   alarm goes up or the first shot is fired, the truck (hold:1) drives the road for the east edge (route); off the map,
+   the mission fails. Destroyed, it stalls rather than blows up, and its doors become the Work point that frees the
+   prisoner, who is escorted back to the transport. The same setup will serve Precious Cargo and Assassinate Officer. */
+ambush:{
+  mode:'ambush',W:2400,H:1500,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:true,
+  sub:'Redrock Flats · Akkaro',
+  towerLabel:'',
+  lamps:[],
+  LZ:{x:260,y:1250,r:130},PAD:{x:1000,y:770,r:60},
+  guardPt:{x:1000,y:770},
+  trails:[{pts:[[-40,830],[600,805],[1100,770],[1600,745],[2000,705],[2440,665]],w:110},{pts:[[260,1150],[420,1010],[640,900]],w:46}],
+  route:[{x:1400,y:752},{x:1800,y:722},{x:2200,y:686},{x:2390,y:668}],   // the truck's dash for the east edge
+  fleeMul:0.45,                                                            // a share of its speed per round on the run (my number)
+  work:[{id:'release',x:-99999,y:-99999,label:MT.type('ambush').work.label,verb:MT.type('ambush').work.verb}],   // placed at the truck's doors when it stops
+  bldgs:[
+    {x:1480,y:1040,w:220,h:140,name:''},
+    {x:400, y:470, w:200,h:130,name:''},
+  ],
+  props:[
+    {x:700,y:960,kind:'rock'},{x:950,y:975,kind:'rock'},{x:1250,y:935,kind:'rock'},{x:1520,y:915,kind:'rock'},{x:1820,y:880,kind:'rock'},
+    {x:880,y:600,kind:'rock'},{x:1300,y:595,kind:'rock'},{x:1720,y:575,kind:'rock'},{x:2120,y:545,kind:'rock'},
+    {x:1120,y:1060,kind:'wagon',a:0.3},{x:590,y:1110,kind:'wagon',a:-0.4},{x:2050,y:930,kind:'wagon',a:0.2},
+    {x:820,y:1030,kind:'crate'},{x:1380,y:1010,kind:'crate'},{x:1660,y:960,kind:'barrel'},{x:1000,y:880,kind:'barrel'},
+    {x:1180,y:640,kind:'crate'},{x:780,y:700,kind:'barrel'},
+    {x:420,y:860,kind:'rock'},{x:2250,y:1100,kind:'rock'},{x:300,y:600,kind:'rock'},{x:1950,y:300,kind:'rock'},
+  ],
+  loots:[],
+  foes(){return [
+    foe('riot-transport-cruiser',{id:'hold',x:1000,y:770,hold:1,noEnter:1,crew:[foe('security-patrolman',{seat:'drv',id:'holdd'})]}),
+    foe('police-cruiser',{id:'esc1',x:760,y:800,crew:[foe('security-patrolman',{seat:'drv',id:'esc1d'})]}),
+    foe('security-riot-shieldman',{id:'rs9',x:1070,y:700,guard:1}),
+    foe('security-riot-rifleman',{id:'rr9',x:1160,y:700,guard:1}),
+    foe('security-patrolman',{id:'p91',x:880,y:870,patrol:[{x:880,y:870},{x:760,y:880},{x:960,y:860}]}),
+    foe('security-patrolman',{id:'p92',x:1230,y:860,patrol:[{x:1230,y:860},{x:1340,y:840}]}),
+    foe('security-patrolman',{id:'p93',x:1650,y:650,patrol:[{x:1650,y:650},{x:1760,y:700},{x:1600,y:690}]}),
+  ];},
+  civs(){return [];},
+},
 haven:{
   mode:'haven',W:1600,H:1200,scale:1.45,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
@@ -756,10 +796,10 @@ function initUnits(){
     devs.forEach((d,i)=>{if(squad[i]){squad[i].charge=1;squad[i].device=d;}});
   }
   const roster=[...squad];
-  if((SCN.mode==='rescue'||SCN.mode==='strider')&&spec.vip){
-    const big=!!spec.vip.strider;
+  if((SCN.mode==='rescue'||SCN.mode==='strider'||SCN.mode==='ambush')&&spec.vip){
+    const big=!!spec.vip.strider,cg=SCN.cage||{x:PAD.x,y:PAD.y,w:0,h:0};
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
-      x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
+      x:cg.x+cg.w/2,y:cg.y+cg.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
       wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:MT.type('rescue').vip.slice()}));
   }
   if(spec.pilot){
@@ -850,7 +890,7 @@ function reachOf(u,mode){
 }
 /* who can climb into v: a character (not a Bot) on their feet, a free seat, and nobody from the other side aboard */
 function canEnter(u,v,near){
-  if(!u||!v||!v.veh||v.down||u.mnt||u.bot||u.veh||u.down||u.surr||u.extracted||u.away||u.caged||u.manning||stunned(u))return false;
+  if(!u||!v||!v.veh||v.down||v.noEnter||u.mnt||u.bot||u.veh||u.down||u.surr||u.extracted||u.away||u.caged||u.manning||stunned(u))return false;
   if(u.side!=='reb'&&u.side!=='law')return false;
   if(!v.seats.some(x=>!x.occ))return false;
   if(crewIn(v).some(c=>c.side!==u.side))return false;
@@ -936,6 +976,7 @@ function vehDestroyed(v,by){
     log(nameSpan(c)+' is thrown from the wreck <span class="d">— -'+dmg+'</span>.');
     woundUnit(null,c,dmg,rng()<0.25,'explosive');
   }
+  if(v.hold&&amb){holdStopped(v);checkDefeat();return;}   // the prisoner's truck stalls: no blast
   /* the wreck goes up: anyone standing close is caught in it, crewed or not (DESIGN_BLOCKERS C-7) */
   for(const u of U){
     if(u===v||crew.includes(u)||u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
@@ -946,6 +987,19 @@ function vehDestroyed(v,by){
     if(!u.down)log(nameSpan(u)+' is caught as the '+v.first+' goes up — <b>-'+dmg+'</b>.');
   }
   checkDefeat();
+}
+/* Ambush: the holding vehicle is stopped. Its doors (a Work point) open beside it, on whichever side is clear */
+function holdStopped(v){
+  amb.stopped=true;
+  const wp=WORK.find(w=>w.id==='release');
+  if(wp){
+    for(let k=0;k<8;k++){
+      const a=(v.face||0)+Math.PI+k*0.8,x=v.x+Math.cos(a)*62,y=v.y+Math.sin(a)*62;
+      if(x>40&&x<W-40&&y>40&&y<H-40&&!ptBlocked(x,y,14)){wp.x=x;wp.y=y;break;}
+    }
+  }
+  addFloater(v.x,v.y-72,mtx(SCN.mt.float.stopped),C.go);
+  log(mtx(SCN.mt.log.stopped));
 }
 /* the transport's squad gets out as the alarm goes up */
 function deployUnits(v){
@@ -976,6 +1030,9 @@ let fac=null;
 let rs=null;
 /* Steal Intelligence: a Field Technician cracks the databank (3 rounds), then the trace trips the alarm */
 let ix=null;
+/* Ambush: the holding vehicle runs for the edge once the alarm is up; stopped, its doors open on the prisoner (rs) */
+let amb=null;
+const holdFleeing=()=>!!(amb&&!amb.stopped&&!amb.escaped&&town==='alerted');
 const exitOpen=()=>crossAway||(fac&&fac.detonated)||(rs&&rs.released)||(ix&&ix.hacked);
 const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
@@ -2096,6 +2153,18 @@ function aiCrew(u){
     u.order={type:'hold'};return;
   }
   const hold=()=>{u.order={type:'hold'};u.braced=st.wkey?1:0;};
+  if(v.hold&&amb){   // the holding vehicle does not fight: it drives the road for the edge
+    const R=SCN.route||[];
+    v.ri=v.ri||0;
+    while(v.ri<R.length-1&&dist(v,R[v.ri])<60)v.ri++;
+    const wp=R[v.ri],d=wp&&moveDest(v,wp.x,wp.y,reach*(SCN.fleeMul||0.45));
+    if(d&&pathFor(v,d.x,d.y)){
+      u.order={type:'move',tx:d.x,ty:d.y};
+      if(!amb.fleeing){amb.fleeing=true;addFloater(v.x,v.y-50,mtx(SCN.mt.float.flee),C.hazard);log(mtx(SCN.mt.log.flee));}
+      return;
+    }
+    return hold();
+  }
   const targets=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
   const gun=v.seats.find(x=>x.wkey&&x.occ);
   if(!targets.length||!gun)return hold();
@@ -2179,7 +2248,7 @@ function inContact(){
 const bleedingOut=()=>U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&injOf(u,'bleeding'));
 /* end of a round with the enemy still about: is this still a fight? */
 function stillFighting(hot){
-  if(hot||nades.length||inContact()||bleedingOut()){quietRounds=0;return true;}
+  if(hot||nades.length||inContact()||bleedingOut()||holdFleeing()){quietRounds=0;return true;}   // a fleeing truck keeps the fight on
   quietRounds++;
   if(quietRounds>=QUIET_ROUNDS){quietRounds=0;return false;}
   log('<span class="d">No contact this round.</span> '+(QUIET_ROUNDS-quietRounds>1?'A few':'One')+' more quiet round'+(QUIET_ROUNDS-quietRounds>1?'s':'')+' and time runs free.');
@@ -2368,7 +2437,8 @@ function completeWork(wp,u){
     const v=U.find(x=>x.vip);
     if(v){
       v.caged=0;v.away=0;v.order=null;
-      v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
+      if(SCN.cage){v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;}else{v.x=wp.x;v.y=wp.y+30;unstick(v);}
+      v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
       addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:mtx(SCN.mt.float.free).toUpperCase()),C.go);
       log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':mtx(SCN.mt.log.free));
@@ -3048,7 +3118,7 @@ function facDetonate(){
   syncUI();
 }
 function drawCage(now){
-  if(!rs)return;
+  if(!rs||!SCN.cage)return;
   const c=SCN.cage;
   ctx.save();
   ctx.fillStyle='rgba(10,12,16,0.5)';ctx.fillRect(c.x,c.y,c.w,c.h);
@@ -3663,6 +3733,15 @@ function retarget(t){
 /* ---------- end of round ---------- */
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
+  if(amb&&!amb.stopped&&!amb.escaped){
+    const v=U.find(x=>x.hold);
+    if(v&&!v.down&&v.x>=W-70){
+      amb.escaped=true;v.away=1;for(const c of crewIn(v))c.away=1;
+      log(mtx(SCN.mt.log.escaped));
+      gameOver(false,'escaped');
+      return;
+    }
+  }
   for(const u of U){
     if(u.side!=='reb'||u.dead||u.extracted||u.away||!injOf(u,'bleeding'))continue;
     if(u.down){   // unconscious and bleeding: two rounds for someone to treat them
@@ -3903,6 +3982,9 @@ function typeEnd(win,why,left){
   } else if(k==='rescue'){
     txt=win?mtx(E.win)+mtx(rs.everAlerted?E.winLoud:E.winQuiet)+cost:mtx(why==='vip'?(lostHow==='nomeds'&&E.loseVipDown?E.loseVipDown:E.loseVip):E.lose);
     loot=[['{npc}',E.lootDone]];unseen=!rs.everAlerted;
+  } else if(k==='ambush'){
+    txt=win?mtx(E.win)+cost:mtx(why==='escaped'?E.loseEscaped:why==='vip'?(lostHow==='nomeds'?E.loseVipDown:E.loseVip):E.lose);
+    loot=[['{npc}',E.lootDone]];
   }
   byId('endEyebrow').textContent=tagText(mtx(win?K.eyebrowWin:K.eyebrowLose));
   byId('endTitle').textContent=mtx(win?title:K.titleLose);
@@ -4383,6 +4465,8 @@ function drawGround(){
     SA.trail(ctx,[[300,824],[1200,824],[2400,824]],biome,110);
     SA.trail(ctx,[[2030,780],[2110,560],[PAD.x,PAD.y+70]],biome,54);
     SA.trail(ctx,[[LZ.x,LZ.y-90],[400,1050],[470,880]],biome,48);
+  } else if(SCN.trails){
+    for(const t of SCN.trails)SA.trail(ctx,t.pts,biome,t.w);
   } else {
     SA.trail(ctx,[[LZ.x,LZ.y-100],[700,1000],[1000,860],[1300,760],[1500,560],[PAD.x-60,PAD.y+80]],biome,70);
     SA.trail(ctx,[[1420,730],[2160,690]],biome,44);
@@ -6142,6 +6226,9 @@ function typeObjectives(soldiers,ext){
       attach:{done:fac.planted,now:false},
       quiet:{done:fac.planted&&fac.quiet&&won,now:false,fail:fac.everAlerted&&!fac.planted},
       extract:{done:won,now:fac.detonated,prog:aboard}};
+  } else if(k==='ambush'){
+    st={stop:{done:amb.stopped,now:!amb.stopped,fail:amb.escaped},release:{done:rs.released,now:amb.stopped&&!rs.released},
+      extract:{done:won,now:rs.released,prog:aboard}};
   } else if(k==='rescue'){
     const v=U.find(u=>u.vip);
     if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
@@ -6536,7 +6623,8 @@ function initState(){
        pilot:{name:'Cass Wender',first:'Cass'},soldiers:[],cassAir:1});
    }}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
-  rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
+  rs=(SCN.mode==='rescue'||SCN.mode==='strider'||SCN.mode==='ambush')?{released:false,everAlerted:false,reached:false}:null;
+  amb=SCN.mode==='ambush'?{stopped:false,escaped:false,fleeing:false}:null;
   fac=(SCN.mode==='autofactory'||SCN.mode==='towers')?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null,method:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
@@ -6752,13 +6840,14 @@ if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
     get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get amb(){return amb;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get PROPS(){return PROPS;},get BLDGS(){return BLDGS;},set engageQ(v){engageQ=v;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,sShot,VOICE_:()=>VOICE,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
+      vehDestroyed,holdStopped,aiCrew,stillFighting,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,buildEngage,
