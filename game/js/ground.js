@@ -2638,7 +2638,7 @@ function checkBoss(){
 function fsItems(){
   if(!FS)return [];
   const it=[];
-  if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · once · danger close'});
+  if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · hits at round end · once · indiscriminate'});
   if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))it.push({key:'evac',name:'Evac on call',sub:'tap a downed squad mate: a support pilot pulls them out · once'});
   if(FS.scan&&!FS.scanUsed)it.push({key:'scan',name:'Overwatch scan',sub:'Mission Control patches in every sensor they can reach: every enemy shows for this round · once'});
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
@@ -2646,8 +2646,8 @@ function fsItems(){
     if(a.state!=='ready')return;
     if(a.cassAir&&!tutFlags.fsCard)return;   // Cass stays off the menu until her tutorial card is up (A5)
     const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
-    const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
-      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works up to 3 enemies inside it · 2 passes · enemy rockets can bring it down':'lands '+fsPax(a)+' at the start of the next planning';
+    const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · indiscriminate':
+      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works every enemy inside it · 2 rounds · enemy rockets can bring it down':'lands '+fsPax(a)+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
   (FS.vehicles||[]).forEach((a,i)=>{
@@ -2662,6 +2662,90 @@ function fsPax(a){
   const n=a.soldiers.length,m=(a.pilots||[]).length,w=(k,s)=>k+' '+s+(k===1?'':'s');
   return n&&m?w(n,'soldier')+' and '+w(m,'pilot'):m?w(m,'pilot'):w(n,'soldier');
 }
+/* The Fire support menu, grouped by where each call comes from (the planning board's assets: the transport, any
+   other ship, Mission Control, vehicles). A row: the call's icon in its colour, its name, when it lands and whether
+   it's danger close, and a little footprint of how you aim it. Calls already on their way stay listed with their
+   status; spent ones drop off. While sneaking, the loud calls show, locked. The full rule sits in the row's tip. */
+const FS_KIND={
+  drop:{ic:'supplies',c:'var(--sr-res-supplies)',fp:'drop',when:'Drops at start of next round',
+    rule:'Mark a spot the squad can see. A crate drops in as the next round begins: 5 stims, 2 BLAM and 2 rockets.'},
+  strafe:{ic:'firesupport',c:'var(--sr-rebel)',fp:'line',when:'Hits at round end',danger:1,
+    rule:'Two taps: where the run starts, then where it ends. The ship rakes everything along that line at the end of the round, our people included.'},
+  doorgun:{ic:'turret',c:'var(--sr-rebel)',fp:'ring',when:'2 Rounds',
+    rule:'Mark a zone. The ship holds a high, wide orbit over it and the door gunner works every enemy inside it, for 2 rounds. Enemy rockets can bring it down.'},
+  reinforce:{ic:'people',c:'var(--sr-rebel)',fp:'land',when:'Lands at the next planning',
+    rule:'Mark a landing spot. The ship sets down whoever it carries at the start of the next planning.'},
+  bombard:{ic:'missile',c:'var(--sr-rebel)',fp:'burst',when:'Hits at round end',danger:1,
+    rule:'Mission Control calls in everything it has on a spot the squad can see. It hits at the end of the round, our people included. Once a mission.'},
+  scan:{ic:'eye',c:'var(--sr-shield)',fp:'scan',when:'Every enemy shows this round',
+    rule:'No target needed. Mission Control patches in every sensor they can reach: every enemy on the map shows for this round. Once a mission.'},
+  evac:{ic:'extract',c:'var(--sr-go)',fp:'evac',when:'Once',
+    rule:'Tap a downed squad mate: a support pilot sets down and pulls them out. Once a mission.'},
+  vehicle:{ic:'vehicle',c:'var(--sr-fuel)',fp:'land',when:'Sets down at the next planning',
+    rule:'Mark where it sets down. It arrives at the start of the next planning.'},
+  bot:{ic:'vehicle',c:'var(--sr-fuel)',fp:'land',when:'Sets down at the next planning',
+    rule:'Mark where it sets down. It arrives at the start of the next planning and takes orders like a squad member.'},
+};
+const FS_FP={   // the footprint: how the call is aimed, drawn on a 56×40 well
+  drop:'<circle cx="28" cy="27" r="7" stroke-dasharray="3 3"/><path d="M28 5v14M23 14l5 5 5-5"/>',
+  line:'<path d="M9 33 45 9" stroke-dasharray="4 3"/><path d="M38 9h7v7"/><circle cx="9" cy="33" r="2.5" fill="currentColor"/>',
+  ring:'<circle cx="28" cy="20" r="15" stroke-dasharray="4 3"/><path d="M21 15l4 4M25 15l-4 4M31 22l4 4M35 22l-4 4"/>',
+  burst:'<circle cx="28" cy="20" r="5"/><circle cx="17" cy="13" r="3.5"/><circle cx="39" cy="14" r="3.5"/><circle cx="18" cy="29" r="3.5"/><circle cx="38" cy="28" r="3.5"/>',
+  scan:'<path d="M10 34a18 18 0 0 1 36 0M16 34a12 12 0 0 1 24 0M22 34a6 6 0 0 1 12 0"/><circle cx="28" cy="34" r="1.8" fill="currentColor"/>',
+  land:'<rect x="17" y="22" width="22" height="13" rx="2" stroke-dasharray="3 3"/><path d="M28 4v13M23 12l5 5 5-5"/>',
+  evac:'<circle cx="28" cy="30" r="4"/><path d="M28 24V6M23 11l5-5 5 5"/>',
+};
+function fsRows(){
+  if(!FS)return [];
+  const free=phase==='FREE',rows=[],tr=CTX&&CTX.transport;
+  const R=(group,key,kind,name,o)=>rows.push(Object.assign({group,key,kind,name},o||{}));
+  const trName=tr&&tr.name;
+  if(FS.drop){
+    const inbound=FS.dropUsed&&FS.orders.some(o=>o.kind==='drop'&&!o.landed);
+    if(!FS.dropUsed)R(trName||'Supply','drop','drop','Supply Drop');
+    else if(inbound)R(trName||'Supply','drop','drop','Supply Drop',{status:'Inbound · next round'});
+  }
+  FS.ships.forEach((a,i)=>{
+    if(a.cassAir&&!tutFlags.fsCard)return;
+    const grp=a.own?a.name:a.name,nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
+    const st=a.state==='ready'?null:a.state==='active'?'Overhead · '+a.left+' round'+(a.left===1?'':'s')+' left':a.state==='called'?(a.mode==='strafe'?'Inbound · round end':'Inbound · next planning'):'gone';
+    if(st==='gone')return;
+    R(grp,'s'+i,a.mode==='strafe'?'strafe':a.mode==='doorgun'?'doorgun':'reinforce',nm,{status:st,pilot:a.pilot&&a.pilot.name,
+      when:a.mode==='reinforce'?fsPax(a)+' · next planning':null});   // Raid the Bunker's hauler brings pilots too
+  });
+  (FS.vehicles||[]).forEach((a,i)=>{
+    if(a.state!=='ready'&&a.state!=='called')return;
+    R('Vehicles','v'+i,a.kind==='bot'?'bot':'vehicle','Deploy '+a.name,{status:a.state==='called'?'Inbound · next planning':null});
+  });
+  const MC='Mission Control';
+  if(FS.bombard===1)R(MC,'bombard','bombard','Heavy Bombardment');
+  else if(FS.bombard===2&&FS.orders.some(o=>o.kind==='bombard'&&!o.done))R(MC,'bombard','bombard','Heavy Bombardment',{status:'Inbound · round end'});
+  if(FS.scan&&!FS.scanUsed)R(MC,'scan','scan','Overwatch Scan');
+  else if(FS.scan&&scanRound===round)R(MC,'scan','scan','Overwatch Scan',{status:'Live this round'});
+  if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))R(MC,'evac','evac','Evac on Call');
+  for(const r of rows)if(free&&!r.status&&!FREE_FS.includes(r.key))r.locked='Too loud while the squad is sneaking. It opens up once the shooting starts.';
+  return rows;
+}
+function fsMenuHTML(){
+  const rows=fsRows(),groups=[];
+  for(const r of rows){let g=groups.find(x=>x.name===r.group);if(!g)groups.push(g={name:r.group,rows:[]});g.rows.push(r);}
+  const tr=CTX&&CTX.transport;
+  const sub=g=>g.name==='Mission Control'?'Command Center':g.name==='Vehicles'?'Brought along':
+    (tr&&g.name===tr.name)?'Your transport':(g.rows.find(r=>r.pilot)||{}).pilot||'';
+  const gIc=g=>g.name==='Mission Control'?'base':g.name==='Vehicles'?'vehicle':g.name==='Supply'?'supplies':'ship';
+  const row=r=>{
+    const k=FS_KIND[r.kind],off=!!(r.status||r.locked);
+    const meta=r.status?'<span class="fsm-status">'+HUD.esc(r.status)+'</span>':
+      '<span class="fsm-when">'+HUD.esc(r.when||k.when)+'</span>'+(k.danger?'<span class="fsm-danger">'+HUD.ico('skull')+'Indiscriminate</span>':'');
+    return '<button type="button" class="fsm-row'+(off?' is-off':'')+(r.locked?' is-locked':'')+'" style="--k:'+k.c+'"'+(off?' aria-disabled="true"':' data-fs="'+r.key+'"')+
+      HUD.tip(r.name,k.rule,r.locked||'')+' data-tip-right>'+
+      '<span class="fsm-ic">'+HUD.ico(r.locked?'lock':k.ic)+'</span>'+
+      '<span class="fsm-txt"><b>'+HUD.esc(r.name)+'</b><span class="fsm-meta">'+meta+'</span></span>'+
+      '<svg class="fsm-fp" viewBox="0 0 56 40" aria-hidden="true">'+FS_FP[k.fp]+'</svg></button>';
+  };
+  return '<div class="sr-window__head"><span class="sr-window__title">Fire support</span></div><div class="sr-window__body fsm-body">'+
+    groups.map(g=>'<section class="fsm-group"><div class="fsm-src">'+HUD.ico(gIc(g))+'<b>'+HUD.esc(g.name)+'</b>'+(sub(g)?'<span>'+HUD.esc(sub(g))+'</span>':'')+'</div>'+g.rows.map(row).join('')+'</section>').join('')+'</div>';
+}
 function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
 function fsPlace(key,pt){
   if(key==='evac'){   // Evac on Call (Combat Support): a downed rebel near the tap is flown out
@@ -2674,11 +2758,10 @@ function fsPlace(key,pt){
     return true;
   }
   if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL',C.text3);return false;}
-  if(key==='bombard'){   // Heavy Bombardment (Combat Support)
-    FS.bombard=2;const t0=clock();
-    for(let k=0;k<6;k++){const a=k*1.05,r=k?60+rng()*70:0;exploQ.push({x:pt.x+Math.cos(a)*r,y:pt.y+Math.sin(a)*r,at:t0+500+k*260,opt:{r:150,d0:50,d1:80,fs:1}});}
-    log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> inbound. Heads down!');
-    sTakeoff();return true;
+  if(key==='bombard'){   // Heavy Bombardment (Combat Support): marked now, it hits at the end of the round like a strafing run
+    FS.bombard=2;FS.orders.push({kind:'bombard',x:pt.x,y:pt.y,done:false});
+    log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> marked. It hits at the end of the round.');
+    sTick();return true;
   }
   if(key==='drop'){
     if(FS.extra>0){FS.extra--;log('<span class="g">Fire Coordination:</span> Mission Control has another drop lined up after this one.');}
@@ -2747,7 +2830,7 @@ const dgTN=()=>SUP().precise?6:9;   // Precision Strikes (Combat Support): the d
 function dgTargets(mark){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
   if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<dgZone())
-    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,SUP().saturate?5:3);
+    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y)));   // every enemy in the zone (designer, Oct 2026)
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
   return pick;
@@ -2983,9 +3066,16 @@ function strafeRun(o){
   sTakeoff();
   camGoal={x:o.x1+Math.cos(o.ang)*400,y:o.y1+Math.sin(o.ang)*400,z:0.8};
 }
+function bombardRun(o){
+  o.done=true;const t0=clock();
+  for(let k=0;k<6;k++){const a=k*1.05,r=k?60+rng()*70:0;exploQ.push({x:o.x+Math.cos(a)*r,y:o.y+Math.sin(a)*r,at:t0+500+k*260,opt:{r:150,d0:50,d1:80,fs:1}});}
+  log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> inbound. Heads down!');
+  sTakeoff();
+}
 function fsRoundEnd(){
   if(!FS)return;
   for(const o of FS.orders)if(o.kind==='strafe'&&!o.done)strafeRun(o);
+  for(const o of FS.orders)if(o.kind==='bombard'&&!o.done)bombardRun(o);
   for(const a of FS.ships){
     if(a.state!=='active')continue;
     if(HUD.reduced){dgAttack(a);dgSpend(a);continue;}  // reduced motion keeps the instant resolution
@@ -3066,6 +3156,10 @@ function drawFS(now){
       ctx.strokeStyle=T.rgba(C.hazard,0.75);ctx.lineWidth=3;ctx.setLineDash([16,10]);
       ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x1+Math.cos(o.ang)*900,o.y1+Math.sin(o.ang)*900);ctx.stroke();ctx.setLineDash([]);
       plb('STRAFING RUN',o.x1,o.y1-18,C.hazard,12);
+    } else if(o.kind==='bombard'){   // the area the shells will cover, waiting for the end of the round
+      ctx.strokeStyle=T.rgba(C.hazard,0.55+0.25*Math.sin(now*0.006));ctx.lineWidth=3;ctx.setLineDash([14,10]);
+      ctx.beginPath();ctx.arc(o.x,o.y,150,0,7);ctx.stroke();ctx.setLineDash([]);
+      plb('BOMBARDMENT',o.x,o.y-166,C.hazard,12);
     } else {
       ctx.strokeStyle=T.rgba(C.shield,0.5+0.3*Math.sin(now*0.006));ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(o.x,o.y,26,0,7);ctx.stroke();
@@ -6499,10 +6593,12 @@ function pickText(){
   if(pickMode==='hack'||(hackArm&&phase==='FREE'))return 'Tap an Auto to hack';
   if(pickMode==='treat')return 'Tap the rebel to treat';
   if(pickMode&&pickMode.startsWith('fs:')){
-    if(fsDraft)return 'Tap where the run ends';
-    const key=pickMode.slice(3);
+    const key=pickMode.slice(3),r=fsRows().find(x=>x.key===key);
     const fa=key[0]==='s'&&FS?FS.ships[+key.slice(1)]:null;
-    return fa&&fa.mode==='doorgun'?'Tap where you want door gunner cover':'Tap a visible spot';
+    const nm=r?'<b class="fsm-pick" style="--k:'+FS_KIND[r.kind].c+'">'+HUD.ico(FS_KIND[r.kind].ic)+r.name+'</b> ':'';
+    if(fsDraft)return nm+'Tap where the run ends <span class="fsm-step">2 of 2</span>';
+    if(fa&&fa.mode==='strafe')return nm+'Tap where the run starts <span class="fsm-step">1 of 2</span>';
+    return nm+(fa&&fa.mode==='doorgun'?'Tap the zone to cover':key==='evac'?'Tap a downed squad mate':key[0]==='v'||(fa&&fa.mode==='reinforce')?'Tap where it sets down':'Tap a spot the squad can see');
   }
   const s=U.find(x=>x.id===selId);
   return 'Pick a destination for '+(s?s.first:'the squad');
@@ -6525,8 +6621,7 @@ function syncBar(){
       (fsl.length?'<span class="sr-badge">'+fsl.length+'</span>':''));
   }
   FSM.hidden=!(fsMenuOn&&fsl.length);
-  if(!FSM.hidden)HUD.render(FSM,'<div class="sr-window__head"><span class="sr-window__title">Fire support</span></div><div class="sr-window__body sr-stack">'+
-    fsl.map(i=>'<button type="button" class="sr-choice" data-fs="'+i.key+'"><b>'+i.name+'</b><span class="sr-fine">'+i.sub+'</span></button>').join('')+'</div>');
+  if(!FSM.hidden)HUD.render(FSM,fsMenuHTML());
   let html=(phase==='PLANNING'||phase==='ENGAGE'||phase==='FREE')?dockHTML():'';
   if(!html&&phase==='ENGAGE'&&c)html='<div class="sr-dockspacer" style="height:'+barH+'px"></div>';   // hold the dock's height while a shot resolves
   DOCK.hidden=!html;
