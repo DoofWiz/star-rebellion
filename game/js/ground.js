@@ -1105,7 +1105,7 @@ const isPP=u=>!!u&&u.prize!==undefined&&u.prize!==null;   // a pilot who came to
 const pilotOf=k=>U.find(u=>u.prize===k&&!u.dead)||null;
 const prizeOf=u=>isPP(u)?PZ[u.prize]||null:null;
 const workPrize=w=>w.prize===undefined?0:w.prize;
-const atPanel=u=>{const p=prizeOf(u);return !!(p&&!p.away&&!u.down&&!u.extracted&&!u.away&&p.hot<HOT_ROUNDS&&dist(u,p.pad)<p.pad.r);};
+const atPanel=u=>{const p=prizeOf(u);return !!(p&&!p.away&&!p.lost&&!u.down&&!u.extracted&&!u.away&&p.hot<HOT_ROUNDS&&dist(u,p.pad)<p.pad.r);};
 /* Steal Fuel: reach the depot, call the Marta down, hold the pumps five rounds, get out */
 let fs=null;
 /* Blow Up Auto Factory: carry the charge, plant it, clear the blast zone, detonate */
@@ -1124,7 +1124,7 @@ function prizeList(){
   const cls=(CTX&&CTX.prizes)||null;
   return pads.slice(0,cls?cls.length:pads.length).map((p,k)=>{
     const c=cls?cls[k]:p.cls,nm=cls?(SRDB.ship(c)||{}).name||c:p.name;
-    return {k,cls:c,name:nm,label:cls?String(nm).toUpperCase():p.label,pad:p.pad,hot:0,hotT:0,away:false,reached:false,nagged:false,fx:null,pilot:prizePilotName(k)};
+    return {k,cls:c,name:nm,label:cls?String(nm).toUpperCase():p.label,pad:p.pad,hot:0,hotT:0,away:false,lost:false,reached:false,nagged:false,fx:null,pilot:prizePilotName(k)};
   });
 }
 /* the first name of the pilot coming for ship k: in the transport, or riding in with the reinforcements */
@@ -2580,7 +2580,7 @@ function sBuildup(){
 const prizeFree=k=>WORK.filter(w=>workPrize(w)===k).every(w=>w.done);   // clamps and fuel line off
 function tryLaunch(k){
   if(k===undefined){PZ.forEach((p,i)=>tryLaunch(i));return;}
-  const p=PZ[k];if(!p||p.away)return;
+  const p=PZ[k];if(!p||p.away||p.lost)return;
   const pl=pilotOf(k);
   if(!pl||pl.down)return;
   if(p.hot>=HOT_ROUNDS&&prizeFree(k))doCrossAway(k);
@@ -3982,7 +3982,7 @@ function doCrossAway(k){
   p.away=true;p.fx={t0:clock()};
   const pl=pilotOf(k);
   if(pl){pl.xpGain=(pl.xpGain||0)+0.25;pl.away=1;pl.order=null;}
-  crossAway=PZ.every(x=>x.away);
+  const was=crossAway;crossAway=prizesSettled();
   sTakeoff();
   camGoal={x:p.pad.x-120,y:p.pad.y,z:0.85};
   const lead=U.find(u=>u.side==='reb'&&!isPP(u)&&!u.down);
@@ -3995,13 +3995,32 @@ function doCrossAway(k){
     const v={ship:p.name,shipPilot:pl?pl.first:''};
     addFloater(p.pad.x,p.pad.y-70,mtx(SCN.mt.float.away,v),C.go);
     log(mtx(SCN.mt.log.away,v));
-    if(crossAway){log(mtx(SCN.mt.log.allAway));if(SCN.grafLeaves)grafReturn();}
+    if(crossAway&&!was)allPrizesUp();
   }
   syncUI();
 }
+/* every ship is in the air or out of reach (its pilot lost), and at least one is ours: the way home opens */
+const prizesSettled=()=>PZ.length>0&&PZ.every(x=>x.away||x.lost)&&PZ.some(x=>x.away);
+function allPrizesUp(){log(mtx(SCN.mt.log.allAway));if(SCN.grafLeaves)grafReturn();}
+/* a prize pilot dead, or down with no way left to bring them round, before their ship is up: that ship stays on its
+   pad. The mission goes on while any ship can still be stolen or is already ours; with every one lost it fails
+   (the designer, 8 October: DESIGN_BLOCKERS Resolved log). Steal the Cross, with one ship, fails as it always did. */
+function prizeLostCheck(){
+  for(const p of PZ){
+    if(p.away||p.lost)continue;
+    const pl=U.find(u=>u.prize===p.k);
+    if(!pl||pl.away||pl.extracted||!(pl.dead||(pl.down&&!canRevive(pl))))continue;
+    p.lost=true;
+    if(!lostHow)lostHow=pl.dead?'dead':'nomeds';
+    if(SCN.mt&&PZ.length>1){const v={ship:p.name,shipPilot:pl.first};addFloater(p.pad.x,p.pad.y-70,mtx(SCN.mt.float.lost,v),C.hazard);log(mtx(SCN.mt.log.lost,v));}
+  }
+  if(PZ.length&&PZ.every(p=>p.lost)){gameOver(false,'sera');return true;}
+  if(!crossAway&&prizesSettled()){crossAway=true;allPrizesUp();syncUI();}
+  return false;
+}
 /* who the objective needs: the VIP being rescued, and the Pilot in Steal the Cross. Going down does not end the
    mission; dying does, and so does lying down with no way left to bring them round (DESIGN_BLOCKERS C-31). */
-const needed=u=>!!u&&(!!u.vip||(isPP(u)&&!(prizeOf(u)||{}).away));
+const needed=u=>!!u&&!!u.vip;   // a prize pilot is the ship's (prizeLostCheck)
 let lostHow='';   // 'dead' or 'nomeds', for the end screen
 function canRevive(t){
   if(!t||t.dead)return false;
@@ -4017,6 +4036,7 @@ function checkDefeat(){
     if(!needed(u)||u.away||u.extracted)continue;
     if(u.dead||(u.down&&!canRevive(u))){lostHow=u.dead?'dead':'nomeds';gameOver(false,u.vip?'vip':'sera');return;}
   }
+  if(prizeLostCheck())return;
   const soldiers=U.filter(u=>u.side==='reb'&&!isPP(u));
   if(soldiers.length&&soldiers.every(u=>u.down))gameOver(false,'squad');
 }
@@ -4120,7 +4140,8 @@ function typeEnd(win,why,left){
     txt=win?mtx(E.win)+cost:mtx(why==='escaped'?E.loseEscaped:why==='vip'?(lostHow==='nomeds'?E.loseVipDown:E.loseVip):E.lose);
     loot=[['{npc}',E.lootDone]];
   } else if(k==='stealship'){
-    txt=win?mtx(E.win)+cost:mtx(why==='sera'?E.losePilot:E.lose);
+    const lost=PZ.filter(p=>p.lost);
+    txt=win?mtx(E.win)+(lost.length?mtx(E.someLost,{ship:lost.map(p=>p.name).join(', ')}):'')+cost:mtx(why==='sera'?E.losePilot:E.lose);
     loot=PZ.filter(p=>p.away).map(p=>[p.name,E.lootDone]);
   }
   byId('endEyebrow').textContent=tagText(mtx(win?K.eyebrowWin:K.eyebrowLose));
@@ -6390,7 +6411,7 @@ function typeObjectives(soldiers,ext){
       const x={escort:{done:p.reached||p.away,now:!!pl&&!p.reached},hotwire:{done:hot||p.away,now:p.reached&&!hot,prog:[Math.min(p.hot,HOT_ROUNDS),HOT_ROUNDS]},
         lines:{done:free||p.away,now:p.reached&&!free},board:{done:p.away,now:hot&&free}};
       const o=per.find(q=>!x[q.k].done)||per[per.length-1],st=x[o.k],v={ship:p.name,shipPilot:p.pilot||'the pilot'};
-      rows.push({t:mtx(o.t,v)+(st.prog&&!st.done?' — '+st.prog[0]+'/'+st.prog[1]:''),done:!!st.done,now:!!st.now,fail:false});
+      rows.push({t:mtx(o.t,v)+(st.prog&&!st.done?' — '+st.prog[0]+'/'+st.prog[1]:''),done:!!st.done,now:!!st.now&&!p.lost,fail:!!p.lost});
     });
     for(const o of SCN.mt.obj.filter(q=>q.all))rows.push({t:mtx(o.t)+' — '+aboard[0]+'/'+aboard[1],done:won,now:crossAway,fail:false});
     return rows;

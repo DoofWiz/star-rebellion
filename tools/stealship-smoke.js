@@ -8,7 +8,7 @@
    - Reinforcements land the pilots as prize pilots; each hotwires their own ship and it flies once its own clamp and
      fuel line are off; every ship up opens the way home; the result lists the ships, and the debrief puts them in the
      Hangar with pilots
-   - a pilot lost before their ship is away fails the mission
+   - a pilot lost before their ship is away grounds that ship and the raid goes on; with every pilot lost it fails
    - the combat card for calling the pilots in shows during the prologue, and goes once they are called
    - a save from the phase 4 build gets Raid the Bunker's Reinforcements (save version 14) */
 const {chromium}=require('playwright');
@@ -135,18 +135,35 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  });
  ok(r.prizes==='cross,talon,talon'&&r.cross===false&&/FT-4 Cross/.test(r.loot)&&/SF-11 Talon/.test(r.loot)&&r.pil===3,'the result: three ships stolen, and the pilots who flew them '+JSON.stringify(r));
 
- // a pilot lost before their ship is up fails the mission
+ // a pilot lost before their ship is up: that ship stays on its pad, the raid goes on; the others flown, the way home
+ // opens and the win brings two ships. With every pilot lost, the mission fails.
  await go();
  r=await E(()=>{
   const D=window.DBGground;
-  for(const o of D.FS.orders)o.at=0;
   const sq=D.U.find(u=>u.side==='reb'&&!u.away);
   D.fn.fsPlace('s0',{x:sq.x+30,y:sq.y-30});for(const o of D.FS.orders)o.at=0;D.fn.fsPlanStart();
   const p=D.U.find(u=>u.prize===1);p.hp=0;p.down=1;p.dead=1;
   D.fn.checkDefeat();
+  const out={phase:D.phase,lost:D.PZ.map(x=>x.lost?1:0).join(),row:D.fn.typeObjectives([],0)[1].fail,open:D.crossAway};
+  const dax=D.U.find(u=>u.side==='reb'&&u.prize===undefined&&!u.away);
+  for(const k of [0,2]){const pl=D.U.find(u=>u.prize===k),pd=D.PZ[k].pad;pl.x=pd.x;pl.y=pd.y+20;pl.landAt=0;D.fn.hotwireStep(k,false);D.fn.hotwireStep(k,false);}
+  for(const w of D.WORK)if(w.prize!==1)D.fn.completeWork(w,dax);
+  out.away=D.PZ.map(x=>x.away?1:0).join();out.home=D.crossAway;
+  D.fn.gameOver(true);
+  out.prizes=(D.pendingResult.prizes||[]).join();out.txt=document.querySelector('#sc-ground #endText').textContent;
+  return out;
+ });
+ ok(r.phase!=='GAMEOVER'&&r.lost==='0,1,0'&&r.row&&!r.open,'a pilot lost: their ship stays grounded, its row fails, the raid goes on '+JSON.stringify(r));
+ ok(r.away==='1,0,1'&&r.home&&r.prizes==='cross,talon'&&/not every ship came home/.test(r.txt),'the other two flown, the way home opens and the win brings two ships '+JSON.stringify(r));
+ await go();
+ r=await E(()=>{
+  const D=window.DBGground;
+  const sq=D.U.find(u=>u.side==='reb'&&!u.away);
+  D.fn.fsPlace('s0',{x:sq.x+30,y:sq.y-30});for(const o of D.FS.orders)o.at=0;D.fn.fsPlanStart();
+  for(const k of [0,1,2]){const p=D.U.find(u=>u.prize===k);p.hp=0;p.down=1;p.dead=1;D.fn.checkDefeat();}
   return {phase:D.phase,win:D.gameEnd&&D.gameEnd.win,txt:document.querySelector('#sc-ground #endText').textContent};
  });
- ok(r.phase==='GAMEOVER'&&r.win===false&&/pilot was lost/.test(r.txt),'a pilot lost before their ship is away: the mission fails '+JSON.stringify(r));
+ ok(r.phase==='GAMEOVER'&&r.win===false&&/every pilot was lost/.test(r.txt),'every pilot lost: the mission fails '+JSON.stringify(r));
 
  // Debug: skip mission counts every ship stolen; the debrief puts them in the Hangar, each with a pilot
  await go();
