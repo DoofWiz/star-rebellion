@@ -2533,7 +2533,7 @@ function fsMenuHTML(){
   const row=r=>{
     const k=FS_KIND[r.kind],off=!!(r.status||r.locked);
     const meta=r.status?'<span class="fsm-status">'+HUD.esc(r.status)+'</span>':
-      '<span class="fsm-when">'+HUD.esc(r.when||k.when)+'</span>'+(k.danger?'<span class="fsm-danger">'+HUD.ico('skull')+'Danger close</span>':'');
+      '<span class="fsm-when">'+HUD.esc(r.when||k.when)+'</span>'+(k.danger?'<span class="fsm-danger">'+HUD.ico('skull')+'Indiscriminate</span>':'');
     return '<button type="button" class="fsm-row'+(off?' is-off':'')+(r.locked?' is-locked':'')+'" style="--k:'+k.c+'"'+(off?' aria-disabled="true"':' data-fs="'+r.key+'"')+
       HUD.tip(r.name,k.rule,r.locked||'')+' data-tip-right>'+
       '<span class="fsm-ic">'+HUD.ico(r.locked?'lock':k.ic)+'</span>'+
