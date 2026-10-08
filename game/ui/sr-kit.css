@@ -66,6 +66,26 @@
 .bm-sub{margin-top:2px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:color-mix(in srgb,var(--tc) 35%,var(--sr-text-2));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bm-foot{display:flex;align-items:center;gap:8px;}
 .bm-foot .kit-deal{margin-left:auto;}
+/* the lot pop-up beside the picked card (the command bar is for combat only) */
+.bm-pop{--tc:var(--sr-seam);--ay:50%;position:absolute;z-index:6;width:280px;display:flex;flex-direction:column;gap:12px;padding:14px 16px 16px;
+  background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);
+  box-shadow:inset 0 3px 0 var(--tc),var(--sr-bevel),0 6px 0 var(--sr-ink),0 18px 40px rgba(0,0,0,.45);}
+.bm-pop::before{content:"";position:absolute;top:calc(var(--ay) - 9px);left:-11px;width:16px;height:16px;background:var(--sr-hull);
+  border-left:var(--sr-line) solid var(--sr-ink);border-bottom:var(--sr-line) solid var(--sr-ink);transform:rotate(45deg);}
+.bm-pop.is-left::before{left:auto;right:-11px;transform:rotate(-135deg);}
+.bm-pop__head{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-lg)/1.1 var(--sr-font-ui);color:var(--sr-text);}
+.bm-pop__head .sr-ico{width:20px;height:20px;color:var(--tc);flex:none;}
+.bm-pop__stats{display:flex;flex-direction:column;gap:7px;}
+.bm-pop__stats div{display:flex;align-items:baseline;gap:8px;font:600 var(--sr-fs-sm)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+.bm-pop__stats div::before{content:"◆";font-size:8px;color:var(--tc);transform:translateY(-1px);}
+.bm-pop__stats b{margin-left:auto;font-weight:800;color:var(--sr-text);text-align:right;}
+.bm-pop__buy{display:flex;flex-direction:column;gap:8px;}
+.bm-pop__buy .sr-btn{width:100%;justify-content:center;gap:10px;}
+.bm-pop__buy small{font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);opacity:.75;}
+.bm-pop__price{display:inline-flex;align-items:center;gap:4px;font-family:var(--sr-font-ui);font-weight:800;}
+.bm-pop__price .sr-ico{width:16px;height:16px;}
+.bm-pop__why{display:flex;align-items:center;gap:6px;font:700 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-hazard);}
+.bm-pop__why .sr-ico{width:14px;height:14px;flex:none;}
 .bm-soldstamp{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-10deg);z-index:3;}
 .bm-merc{display:flex;align-items:center;gap:14px;}
 .bm-merc .kf{width:96px;height:96px;box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}

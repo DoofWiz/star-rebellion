@@ -7576,7 +7576,9 @@ function renderMarket(){
   const header='<div class="bm-head"><div class="bm-sign"><b>Sweet Tooth’s Unclaimed Goods</b></div>'+
     '<div class="bm-week"><span>This week’s stock · <b>Day '+(w*7-6)+'–'+(w*7)+'</b></span>'+wTag('Fixed until Day '+M.next,'action','lock')+'</div></div>';
   const strip='<div class="bm-strip">'+stHead()+'<p>'+line+'</p></div>';   // phones only (CSS)
-  $('bmStall').innerHTML=header+strip+'<div class="bm-grid">'+M.lots.map(bmCardHTML).join('')+'</div>';
+  const sl=bmSel!==null?M.lots[bmSel]:null;
+  $('bmStall').innerHTML=header+strip+'<div class="bm-grid">'+M.lots.map(bmCardHTML).join('')+'</div>'+(sl?bmPopHTML(sl):'');
+  placeBmPop();
   renderBmRail(line);
   bmCmdbar();
 }
@@ -7633,31 +7635,53 @@ function lotStats(l){
   }
   return st.map(x=>'<div><span>'+x[0]+'</span><b>'+esc(x[1])+'</b></div>').join('');
 }
+/* The Black Market keeps the command bar for combat only: a picked lot opens a pop-up beside its card with what it
+   does, the price and Buy (and Buy all for a lot of several). A reason it can't be bought sits under the buttons. */
 function bmCmdbar(){
   if(arOpen)return;
   const who=$('arWho'),orders=$('arOrders');
-  const l=bmOpen&&bmSel!==null&&G.market?G.market.lots[bmSel]:null;
-  if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
-  const merc=l.kind==='merc'?l.merc:null;
-  const price=lotPrice(l),sold=l.stock<=0;
+  who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';
+}
+function bmPopHTML(l){
+  const merc=l.kind==='merc'?l.merc:null,m=l.kind==='kit'?(KIT[l.key]||{}):{};
+  const cm=merc?BM_CAT.merc:BM_CAT[l.kind==='kit'?m.cat:l.kind]||BM_CAT.weapon;
+  const price=lotPrice(l),sold=l.stock<=0,allCost=price*l.stock;
   const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree(l.key)?(isLargeShip(l.key)?'Needs a free large pad':'Needs a free landing pad'):G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
-  const allCost=price*l.stock;
-  const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
-  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+faceHTML(merc)+'</span></span>'
-    :l.kind==='ship'?shipArt(l.key,'kit-who-art')
-    :l.kind==='vehicle'?vehArt(l.key,'kit-who-art')
-    :l.kind==='shipwpn'?swpnArt(l.key,'kit-who-art')
-    :itArt(l.key,'kit-who-art');
-  const bmName=merc?merc.name:l.kind==='ship'?((SRDB.ship(l.key)||{}).name||l.key):l.kind==='vehicle'?((GVEH[l.key]||{}).label||l.key):l.kind==='shipwpn'?((SRDB.weapon(l.key)||{}).name||l.key):kitNameId(l.key);
-  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(bmName)+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
-  orders.innerHTML=cmdOrder(1,'credits',merc?'Hire':'Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
-  who.hidden=false;orders.hidden=false;
+  const whyAll=l.stock<2?'':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits for all '+l.stock:'';
+  const name=merc?merc.name:l.kind==='ship'?((SRDB.ship(l.key)||{}).name||l.key):l.kind==='vehicle'?((GVEH[l.key]||{}).label||l.key):l.kind==='shipwpn'?((SRDB.weapon(l.key)||{}).name||l.key):kitNameId(l.key);
+  const p=n=>'<span class="bm-pop__price">'+IC('credits')+n+'</span>';
+  return '<div class="bm-pop" id="bmPop" role="dialog" aria-label="'+esc(name)+'" style="--tc:'+cm.cc+'">'+
+    '<div class="bm-pop__head">'+IC(l.key==='medpack'?'patch':cm.ic)+'<b>'+esc(name)+'</b></div>'+
+    '<div class="bm-pop__stats">'+lotStats(l)+'</div>'+
+    '<div class="bm-pop__buy">'+
+      '<button type="button" class="sr-btn sr-btn--primary" data-bmbuy'+(whyBuy?' disabled':'')+'>'+(merc?'Hire':'Buy')+p(price)+(merc?'<small>/ 14 days</small>':'')+'</button>'+
+      (l.stock>1?'<button type="button" class="sr-btn sr-btn--ghost" data-bmbuyall'+(whyAll||whyBuy?' disabled':'')+'>Buy all '+l.stock+p(allCost)+'</button>':'')+
+    '</div>'+
+    ((whyBuy||whyAll)?'<div class="bm-pop__why">'+IC('lock')+esc(whyBuy||whyAll)+'</div>':'')+
+    '</div>';
+}
+/* beside the card: right of it, or left when it's in the last column */
+function placeBmPop(){
+  const pop=$('bmPop'),stall=$('bmStall');
+  if(!pop)return;
+  const card=stall.querySelector('.bm-card.is-sel');
+  if(!card){pop.remove();return;}
+  const sr=stall.getBoundingClientRect(),cr=card.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  const right=cr.right+14+pw<=sr.right+8;
+  const x=right?cr.right-sr.left+14:cr.left-sr.left-pw-14;
+  const y=Math.max(0,Math.min(sr.height-ph,cr.top-sr.top+cr.height/2-ph/2));
+  pop.style.left=x+'px';pop.style.top=y+'px';
+  pop.classList.toggle('is-left',!right);
+  pop.style.setProperty('--ay',Math.max(24,Math.min(ph-24,cr.top-sr.top+cr.height/2-y))+'px');
 }
 $('bmView').addEventListener('click',ev=>{
   const t=ev.target.closest('button');
-  if(!t)return;
+  if(!t){if(bmSel!==null&&!ev.target.closest('#bmPop')){bmSel=null;bmLine=null;renderMarket();}return;}   // a press off the cards closes the pop-up
+  if(t.disabled)return;
+  if(t.hasAttribute('data-bmbuy')){sClick();buyLot(bmSel,false);return;}
+  if(t.hasAttribute('data-bmbuyall')){sClick();buyLot(bmSel,true);return;}
   const lot=t.getAttribute('data-bmlot');
-  if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
+  if(lot!==null){sClick();bmSel=bmSel===+lot?null:+lot;bmLine=null;renderMarket();}
 });
 /* phones re-pick their column counts when the viewport changes */
 addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();if(msOpen)msFit();});
@@ -8134,6 +8158,7 @@ addEventListener('keydown',ev=>{
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
+    else if(bmOpen&&bmSel!==null){bmSel=null;bmLine=null;renderMarket();}   // Esc closes the lot pop-up first
     else if(bmOpen)closeMarket();
     else if(msOpen)closeMissions();
     else if(inOpen)closeIntel();
@@ -8142,9 +8167,9 @@ addEventListener('keydown',ev=>{
     else closeTilePop();
     return;
   }
-  // Arsenal / Black Market: keys 1-2 press the command-bar orders
+  // Arsenal: keys 1-2 press the command-bar orders; Black Market: the lot pop-up's Buy and Buy all
   if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&!arRefit&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
-    const btn=[...$('arOrders').querySelectorAll('.sr-order')][+ev.key-1];
+    const btn=bmOpen?[...$('bmStall').querySelectorAll('#bmPop .sr-btn')][+ev.key-1]:[...$('arOrders').querySelectorAll('.sr-order')][+ev.key-1];
     if(btn&&!btn.disabled){ev.preventDefault();btn.click();}
     return;
   }
