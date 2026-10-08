@@ -149,7 +149,9 @@ window.SR_HUD=(function(){
       tip.innerHTML=h;tip.hidden=false;
       const rr=root.getBoundingClientRect(),er=el.getBoundingClientRect(),tw=tip.offsetWidth,th=tip.offsetHeight;
       let x=er.left-rr.left+er.width/2-tw/2,y=er.top-rr.top-th-10;
-      if(y<8)y=er.bottom-rr.top+10;
+      if(el.hasAttribute('data-tip-right')){x=er.right-rr.left+12;y=er.top-rr.top+er.height/2-th/2;}   // menus: beside the row, not over its neighbours
+      else if(y<8)y=er.bottom-rr.top+10;
+      y=Math.max(8,Math.min(rr.height-th-8,y));
       x=Math.max(8,Math.min(rr.width-tw-8,x));
       tip.style.left=x+'px';tip.style.top=y+'px';
       cur=el;

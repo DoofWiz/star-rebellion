@@ -44,25 +44,28 @@
 .bm-week{margin-left:auto;display:flex;align-items:center;gap:10px;font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);}
 .bm-week b{color:var(--sr-text);}
 .bm-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:14px;}
-.bm-card{--c:var(--sr-seam);position:relative;display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px;min-width:0;text-align:left;color:var(--sr-text);
-  background:var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-bevel),var(--sr-lift);cursor:pointer;
+/* a lot card is tinted end to end by its type (--tc, from BM_CAT): a solid header band naming the type, the body
+   washed in the type's colour and the art well lit by it, so a glance across the six lots reads the mix */
+.bm-card{--tc:var(--sr-seam);position:relative;display:flex;flex-direction:column;gap:9px;padding:0 12px 12px;min-width:0;text-align:left;color:var(--sr-text);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--tc) 30%,var(--sr-hull)) 0%,color-mix(in srgb,var(--tc) 13%,var(--sr-hull)) 100%);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);overflow:hidden;
+  box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 38%,transparent),var(--sr-lift);cursor:pointer;
   font:inherit;transition:transform var(--sr-t-fast) var(--sr-ease-pop),box-shadow var(--sr-t-fast);}
-.bm-card:hover{transform:translateY(-2px);box-shadow:var(--sr-bevel),0 5px 0 var(--sr-ink);}
-.bm-card.is-sel{transform:translateY(-4px);box-shadow:var(--sr-bevel),0 0 0 3px var(--sr-gold),0 7px 0 var(--sr-ink),0 0 26px rgba(255,200,58,.25);}
-.bm-card.is-rare{background:linear-gradient(180deg,#3a2f6a,var(--sr-plate) 55%);}
-.bm-card.is-sold{cursor:default;opacity:.55;transform:none;box-shadow:var(--sr-bevel);}
-.bm-card__top{display:flex;align-items:center;gap:8px;}
-.bm-cat{display:inline-flex;align-items:center;gap:5px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--cc,var(--sr-text-2));}
-.bm-cat .sr-ico{width:15px;height:15px;}
-.bm-stock{margin-left:auto;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);background:var(--sr-ink);padding:4px 7px;border-radius:999px;}
-.bm-card .kit-well{flex:1;min-height:0;}
+.bm-card:hover{transform:translateY(-2px);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 60%,transparent),0 5px 0 var(--sr-ink);}
+.bm-card.is-sel{transform:translateY(-4px);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--tc) 60%,transparent),0 0 0 3px var(--sr-gold),0 7px 0 var(--sr-ink),0 0 26px rgba(255,200,58,.25);}
+.bm-card.is-sold{cursor:default;opacity:.6;filter:saturate(.25);transform:none;}
+.bm-card__top{display:flex;align-items:center;gap:8px;margin:0 -12px;padding:8px 10px 8px 12px;background:var(--tc);border-bottom:var(--sr-line) solid var(--sr-ink);color:var(--sr-ink);}
+.bm-cat{display:inline-flex;align-items:center;gap:7px;font:400 15px/1 var(--sr-font-display);letter-spacing:.03em;color:var(--sr-ink);}
+.bm-cat .sr-ico{width:18px;height:18px;}
+.bm-rare{display:inline-flex;align-items:center;padding:4px 8px;font:400 var(--sr-fs-xs)/1 var(--sr-font-display);color:var(--tc);background:var(--sr-ink);border-radius:6px;}
+.bm-stock{margin-left:auto;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text);background:var(--sr-ink);padding:4px 8px;border-radius:999px;}
+.bm-card .kit-well{flex:1;min-height:0;background:radial-gradient(ellipse at 50% 58%,color-mix(in srgb,var(--tc) 30%,var(--sr-void)) 0%,var(--sr-void) 72%);
+  border-color:color-mix(in srgb,var(--tc) 35%,var(--sr-ink));}
 .bm-card .kit-well .it-art{width:192px;height:120px;}
 .bm-name{font:800 var(--sr-fs-md)/1.15 var(--sr-font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.bm-sub{margin-top:2px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bm-sub{margin-top:2px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:color-mix(in srgb,var(--tc) 35%,var(--sr-text-2));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .bm-foot{display:flex;align-items:center;gap:8px;}
 .bm-foot .kit-deal{margin-left:auto;}
-.bm-ribbon{position:absolute;top:12px;right:-6px;padding:5px 10px 5px 12px;font:400 var(--sr-fs-xs)/1 var(--sr-font-display);color:var(--sr-ink);background:var(--sr-psi);
-  border:var(--sr-line) solid var(--sr-ink);border-radius:6px 0 0 6px;box-shadow:var(--sr-lift);z-index:2;}
 .bm-soldstamp{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-10deg);z-index:3;}
 .bm-merc{display:flex;align-items:center;gap:14px;}
 .bm-merc .kf{width:96px;height:96px;box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}

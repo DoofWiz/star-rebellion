@@ -7298,14 +7298,14 @@ const ST_LINES={
     shipwpn:'Bolt it on and point it away from me.',
   },
 };
-const BM_CAT={
-  weapon:{ic:'gun',cc:'var(--sr-rebel-hi)',lab:'Weapon'},
-  armour:{ic:'shield',cc:'var(--sr-shield)',lab:'Armour'},
+const BM_CAT={   // each type tints the whole lot card (--tc): the header band, the body and the art well
+  weapon:{ic:'gun',cc:'var(--sr-rebel)',lab:'Weapon'},
+  armour:{ic:'shield',cc:'var(--sr-steel)',lab:'Armour'},
   gadget:{ic:'grenade',cc:'var(--sr-go)',lab:'Gadget'},
   merc:{ic:'people',cc:'var(--sr-psi)',lab:'Mercenary'},
-  vehicle:{ic:'vehicle',cc:'var(--sr-text-2)',lab:'Vehicle'},
+  vehicle:{ic:'vehicle',cc:'var(--sr-fuel)',lab:'Vehicle'},
   ship:{ic:'ship',cc:'var(--sr-shield)',lab:'Ship'},
-  shipwpn:{ic:'turret',cc:'var(--sr-text-2)',lab:'Ship weapon'},
+  shipwpn:{ic:'turret',cc:'var(--sr-hazard)',lab:'Ship weapon'},
 };
 /* what the command bar shows per gadget (weapons read the ground scene's WPN table) */
 const BM_GSTATS={
@@ -7560,9 +7560,9 @@ function bmCardHTML(l,i){
     sub=(m.sub||'')+(m.maker?(m.sub?' · ':'')+m.maker:'');
     well=itArt(l.key);
   }
-  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
-    (l.kind==='ship'?'<span class="bm-ribbon">Rare</span>':'')+
-    '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
+  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" style="--tc:'+cm.cc+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
+    '<div class="bm-card__top"><span class="bm-cat">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span>'+
+      (l.kind==='ship'?'<span class="bm-rare">Rare</span>':'')+'<span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
     '<div class="kit-well">'+well+'</div>'+
     '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div>'+(l.kind==='kit'?traitIcons(l.key):'')+'</div>'+
     '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+(merc?'<small>/ 14 days</small>':'')+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+

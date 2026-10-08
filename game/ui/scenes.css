@@ -246,10 +246,41 @@
 #sc-ground .sr-fs{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
 #sc-ground #fsBtnHost{display:block;position:relative;}
 #sc-ground .sr-fs .sr-badge{top:-8px;right:-8px;}
-#sc-ground #fsMenu{width:min(360px,100%);max-height:min(56vh,420px);overflow:auto;}
-#sc-ground #fsMenu .sr-window__body{padding:12px;}
-#sc-ground #fsMenu .sr-choice{flex-direction:column;gap:2px;}
-#sc-ground #fsMenu .sr-choice .sr-fine{margin:0;font-weight:500;}
+/* the Fire support menu: calls grouped by where they come from; each row shows the call's colour (--k), name,
+   timing, danger close, and a footprint of how it's aimed. Called ones show their status; locked ones a padlock */
+#sc-ground #fsMenu{width:min(380px,100%);max-height:min(70vh,560px);overflow:auto;}
+#sc-ground .fsm-body{display:flex;flex-direction:column;gap:12px;padding:10px 12px 12px;}
+#sc-ground .fsm-group{display:flex;flex-direction:column;gap:6px;}
+#sc-ground .fsm-src{display:flex;align-items:center;gap:7px;padding:0 2px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-ground .fsm-src .sr-ico{width:14px;height:14px;color:var(--sr-rebel);}
+#sc-ground .fsm-src b{color:var(--sr-text);letter-spacing:.02em;}
+#sc-ground .fsm-src span{color:var(--sr-text-3);font-weight:600;}
+#sc-ground .fsm-src span::before{content:"◆";margin-right:6px;font-size:7px;vertical-align:2px;color:var(--sr-seam);}
+#sc-ground .fsm-row{--k:var(--sr-rebel);display:grid;grid-template-columns:40px minmax(0,1fr) 56px;align-items:center;gap:11px;width:100%;padding:8px 8px 8px 9px;
+  text-align:left;color:var(--sr-text);font:inherit;cursor:pointer;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--k) 16%,var(--sr-plate)),var(--sr-plate) 60%);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:var(--sr-bevel),0 3px 0 var(--sr-ink);
+  transition:transform var(--sr-t-fast) var(--sr-ease-pop),box-shadow var(--sr-t-fast);}
+#sc-ground .fsm-row:hover,#sc-ground .fsm-row:focus-visible{transform:translateY(-2px);box-shadow:var(--sr-bevel),0 0 0 2px var(--sr-gold),0 5px 0 var(--sr-ink);outline:none;}
+#sc-ground .fsm-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--k);color:var(--sr-ink);border:var(--sr-line) solid var(--sr-ink);box-shadow:inset 0 -3px 0 rgba(0,0,0,.22);}
+#sc-ground .fsm-ic .sr-ico{width:21px;height:21px;}
+#sc-ground .fsm-txt{display:flex;flex-direction:column;gap:4px;min-width:0;}
+#sc-ground .fsm-txt b{font:800 15px/1.1 var(--sr-font-ui);}
+#sc-ground .fsm-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-ground .fsm-danger{display:inline-flex;align-items:center;gap:4px;color:var(--sr-hazard);font-weight:800;}
+#sc-ground .fsm-danger .sr-ico{width:15px;height:15px;}
+#sc-ground .fsm-status{color:var(--k);font-weight:800;}
+#sc-ground .fsm-fp{width:56px;height:40px;padding:0;background:var(--sr-void);border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--sr-ink);
+  color:var(--k);fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  background-image:radial-gradient(circle,rgba(179,187,227,.16) 1px,transparent 1.2px);background-size:8px 8px;}
+#sc-ground .fsm-row.is-off{cursor:default;transform:none;background:var(--sr-night);box-shadow:inset 0 0 0 1.5px var(--sr-seam);border-color:var(--sr-ink);}
+#sc-ground .fsm-row.is-off .fsm-ic{background:transparent;color:var(--k);border-color:var(--k);border-style:dashed;box-shadow:none;}
+#sc-ground .fsm-row.is-off .fsm-fp{opacity:.45;}
+#sc-ground .fsm-row.is-locked{--k:var(--sr-text-3);}
+#sc-ground .fsm-row.is-locked .fsm-txt b{color:var(--sr-text-2);}
+#sc-ground .fsm-pick{display:inline-flex;align-items:center;gap:6px;color:var(--k);}
+#sc-ground .fsm-pick .sr-ico{width:16px;height:16px;}
+#sc-ground .fsm-step{margin-left:2px;padding:3px 7px;border-radius:999px;background:var(--sr-ink);color:var(--sr-gold);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);}
 #sc-ground #endLoot{margin-top:6px;}
 #sc-ground .sr-coach.is-folded{padding:8px 12px;}
 #sc-ground .sr-coach.is-folded .sr-coach__head{margin:0;}
