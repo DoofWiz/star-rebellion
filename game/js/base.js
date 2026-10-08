@@ -4986,9 +4986,14 @@ function guideTarget(at){
     const ag=(G.agents||[]).find(a=>a.from===arg)||(G.agents||[])[0];
     let els=[];
     if(k==='in.agent'&&ag)els=[$('inView').querySelector('[data-insel="agent:'+ag.id+'"]')];
+    else if(k==='in.srclead'){const n=$('inView').querySelector('[data-insel="src:'+arg+'"]');els=[n&&(n.querySelector('.in-badge')||n)];}
+    else if(k==='in.exposure')els=[$('inView').querySelector('.in-exp')];
     else if(k==='in.stats')els=[$('railIntel').querySelector('.in-stats')];
     else if(k==='in.cell')els=[...$('inView').querySelectorAll('.in-node--src')];
-    else if(k==='in.op')els=[$('railIntel').querySelector('[data-op^="'+arg+':"]')];
+    else if(k==='in.op'){   // on the rail; when another node is selected, point at the Agent first
+      const b=$('railIntel').querySelector('[data-op^="'+arg+':"]');
+      els=[b||(ag&&$('inView').querySelector('[data-insel="agent:'+ag.id+'"]'))];
+    }
     els=els.filter(Boolean);
     if(!els.length)return null;
     const rs=els.map(e=>e.getBoundingClientRect());
@@ -6082,6 +6087,7 @@ function renderIntel(){
       nodes+='<button type="button" class="in-node in-node--src'+(burned?' is-burned':'')+(inSel&&inSel.t==='src'&&inSel.id===s.id?' is-sel':'')+'" style="left:'+x+'%;top:'+yy+'%" data-insel="src:'+s.id+'">'+
         '<span class="in-node__disc">'+esc(inIni(s.name))+
         (burned?'<span class="in-badge in-badge--tr" style="--c:var(--sr-steel)"'+inTip('Captured','Taken by counter-intelligence')+'>'+IC('lock')+'</span>':
+          (srcLeads(s).some(l=>!l.cold)?'<span class="in-badge in-badge--tr" style="--c:var(--sr-c-bad)"'+inTip('A Lead','The Bureau holds a Lead on '+s.name)+'>'+IC('targetlock')+'</span>':'')+
           '<span class="in-risk" style="--r:'+Math.round(s.risk)+';--c:var(--sr-hazard)" title="Risk '+Math.round(s.risk)+'%"></span>')+
         '</span><span class="in-node__name">'+esc(s.name)+'</span>'+
         '<span class="in-node__sub"><i style="--pc:'+slk.col+'"></i>'+esc(sd.name)+'</span>'+
@@ -6178,6 +6184,7 @@ function inSrcRail(s){
     '<div class="in-card">'+
     inRow('var(--sr-gold)','Located at <b>'+esc(wd?wd.name:s.loc)+'</b>')+
     inRow('var(--sr-rebel)',a?'Handled by <b>'+esc(a.name)+'</b>':'No handler')+
+    srcLeads(s).filter(l=>!l.cold).map(ld=>inRow('var(--sr-c-bad)','The Bureau holds a <b>Lead</b> on them','day '+ld.day)).join('')+
     inRow('var(--sr-res-credits)',esc(incTxt))+
     '</div>'+
     '<div class="in-wheels">'+
@@ -8413,6 +8420,11 @@ function proDrop(a){const q=G.prologue&&G.prologue.q;if(q){const i=q.indexOf(a);
 function openPro(a){
   proDrop(a);
   if(a.act){Pro.run(a.act,a.beat);return false;}
+  if(a.view){   // the game moves to a screen (the Intelligence tab), then the queue carries on
+    rqWin=false;
+    if(a.view==='intel')openIntel();
+    return false;
+  }
   if(a.comm){
     const c=Pro.cast(a.comm.who),src=G.sources.find(s=>s.id===a.comm.who)||srcInfo(a.comm.who)||(c&&Object.assign({person:1,cult:0,level:1},c));
     if(!src)return false;
@@ -8496,6 +8508,14 @@ Pro.bind({
       for(const id of v.cell||[]){const s=G.sources.find(x=>x.id===id);if(s)s.agent=ag.id;}
     },
     comm:v=>proQueue({comm:v}),
+    view:v=>proQueue({view:v}),
+    // a scripted Bureau Lead (docs/PROLOGUE-HANDOFF.md P3): the real Leads system, Exposure moves as for any Lead
+    lead:v=>{
+      const kind=v.kind||'source';
+      if((G.bureauLeads||[]).some(l=>!l.cold&&l.target.kind===kind&&l.target.id===v.on))return;
+      G.bureauLeads.push({target:{kind,id:v.on},from:null,day:G.day,cold:0,scripted:1});
+      expGain(INTEL_N.expLead,'a Lead');
+    },
     win:v=>proQueue({win:v}),
     recruitOffer:v=>proQueue({recruit:v}),
     splash:()=>showEstSplash(),
@@ -8504,6 +8524,7 @@ Pro.bind({
   reset:()=>{
     RQ.length=0;HOLD=false;rqWin=false;PL=null;srcSel=null;newGates.clear();
     winMode=null;winArg=null;$('winsB').hidden=true;
+    if(G&&booted){closeIntel();closeArsenal();closeMarket();closeMissions();exitRoomView();}   // a jump leaves no screen open
     G=newGame();started=false;
   },
   afterJump:()=>{started=!!G.introDone;},
@@ -8524,6 +8545,9 @@ Pro.bind({
       const j=G.people.find(p=>p.id==='joss');if(j)j.ship='graf';
     },
     agent:v=>Pro.hostAct('agent',v),
+    lead:id=>Pro.hostAct('lead',{on:id}),
+    tutDone:k=>{G.prologue.flags.tut[k]=1;},
+    lieLow:from=>{const a=G.agents.find(x=>x.from===from);if(a)a.lielow=INTEL_N.lieLowDays;},
     winMission:(id,spec)=>{
       const m=G.missions.find(x=>x.id===id||x.story===id)||addMission(id,true,spec);
       if(m){m.state='done';m.meta='SUCCESS';}

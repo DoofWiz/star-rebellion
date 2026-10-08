@@ -53,6 +53,15 @@ const PRO_TEXT={
   netStep4:'Cass and Venn now report to Tachi. Everyone in a cell is connected through their Agent.<br>If one of them is <b>Burned</b>, the Hegemony will start pulling on that thread, and the rest of the cell could be next.<br>One Agent handling many Sources is efficient. Many Agents handling a few Sources each is safer. The choice is yours.',
   netStep5T:'Put her to work',
   netStep5:'Agents can do more than handle Sources. Send Tachi to <b>Recruit</b>, and she’ll search Akkaro for people willing to join the cause.<br>Every operation takes time, and every operation carries some risk. Advance the day to let her work.',
+  // the next day: Tachi, then Venn, feel the town tightening
+  tenseTachi:'“Hey boss… checking in. It’s barely been a day and things are getting tenser. The lawmen have been patrolling Dustfall more intensely and I’ve got a good word from Maro that the Sheriff has asked the sector command for some security forces down here. If they come, things are gonna get real bad around here, real fast.”',
+  tenseVenn:'“Some offworlders I don’t know are in my bar today… more strangers on the street acting suspicious. Something’s up, I don’t like it one bit.”',
+  // Someone's Asking Questions: the guided steps (docs/TUTORIALS.md), then Lie Low
+  asqStep1T:'A Lead',
+  asqStep1:'The Bureau has a <b>Lead</b> on Maro Venn.<br>A node with a Lead gains Risk every day until the Lead goes cold. Keep contact to a minimum, or act before they close in.',
+  asqStep2T:'Exposure',
+  asqStep2:'<b>Exposure</b> is how close the Bureau is to finding the rebellion. Every Lead pushes it higher.<br><i>Click the <b>?</b> button to learn more about Leads.</i>',
+  lieLowStep:'[TEXT NEEDED: the step pointing at Lie Low on Tachi’s rail: order her cell to lie low until the heat dies down]',
   btnNext:'Next',
   btnGotIt:'Got it',
   // debug builds only
@@ -90,6 +99,12 @@ const PRO_TUTS={
     {at:'in.stats',title:'netStep3T',text:'netStep3',next:'btnNext',until:{next:true}},
     {at:'in.cell',title:'netStep4T',text:'netStep4',next:'btnGotIt',until:{next:true}},
     {at:'in.op:recruit',title:'netStep5T',text:'netStep5',opens:'op.recruit',until:{op:'recruit'}},
+  ]},
+  // Someone's Asking Questions (docs/TUTORIALS.md), then a step at Lie Low on Tachi's rail that opens it
+  askingQuestions:{steps:[
+    {at:'in.srclead:venn',title:'asqStep1T',text:'asqStep1',until:{inSel:'venn'}},
+    {at:'in.exposure',title:'asqStep2T',text:'asqStep2',until:{inSel:{kind:'bureau'}}},
+    {at:'in.op:lielow',text:'lieLowStep',opens:'op.lielow',until:{op:'lielow'}},
   ]},
 };
 
@@ -163,7 +178,20 @@ const PROLOGUE=[
   {id:'agents',
    does:[{agent:{from:'tachi',post:'akkaro',cell:['cass','venn']}},{gate:'tab.intel'},{tutorial:'runNetwork'}],
    until:{tutDone:'runNetwork'}},
-  // P3 to P5 (docs/PROLOGUE-HANDOFF.md §6) go here, before the frontier.
+  // 15: after the next day advances, Tachi's comm, then Venn's
+  {id:'tense',starts:{day:1},
+   setup:h=>{h.agent({from:'tachi',post:'akkaro',cell:['cass','venn']});h.openGate('tab.intel');h.openGate('op.recruit');h.tutDone('runNetwork');},
+   does:[{comm:{who:'tachi',text:'tenseTachi'}},{comm:{who:'venn',text:'tenseVenn'}}],
+   until:{reportClosed:true}},
+  // 16: the Bureau's first Lead, on Venn: the Intelligence tab opens on Someone's Asking Questions, then Lie Low
+  {id:'first_lead',
+   does:[{lead:{on:'venn'}},{view:'intel'},{tutorial:'askingQuestions'}],
+   until:{op:'lielow'}},
+  // 17: the next beat starts the day after Lie Low is ordered (it doesn't wait for the 3 days to run out)
+  {id:'lielow_wait',
+   setup:h=>{h.lead('venn');h.openGate('op.lielow');h.tutDone('askingQuestions');h.lieLow('tachi');},
+   until:{day:1}},
+  // P4 and P5 (docs/PROLOGUE-HANDOFF.md §6) go here, before the frontier.
   // DESIGN OPEN: security_arrives — security forces arrive at Akkaro. Waits on the regional Alert system.
   // {id:'security_arrives'},
   // DESIGN OPEN: campaign — Venn delivers the first Campaign, Liberate Akkaro. Waits on the Campaign design (CHAINS
@@ -173,8 +201,7 @@ const PROLOGUE=[
   // the Sources tutorial. Waits on the two above.
   // {id:'farewell'},
   // the end of what is authored (§2.6)
-  {id:'frontier',
-   setup:h=>{h.agent({from:'tachi',post:'akkaro',cell:['cass','venn']});h.openGate('tab.intel');h.openGate('op.recruit');}},
+  {id:'frontier'},
 ];
 
 /* the gates (§3): every one is closed during the prologue unless listed here, and all open at the frontier */
@@ -273,7 +300,7 @@ function advance(){
 }
 /* a beat's actions run in order. A window waits its turn in the pop-up queue, and so does every action after it:
    "Venn's comm, then Rescue Tachi on the board" puts the mission up when the comm closes, not under it */
-const WIN_ACTS=['comm','win','recruitOffer'];
+const WIN_ACTS=['comm','win','recruitOffer','view'];   // view: the game moves to a screen, in its turn
 const isWinAct=a=>{const k=Object.keys(a)[0];return WIN_ACTS.includes(k)||(k==='tutorial'&&!!(PRO_TUTS[a[k]]||{}).win);};
 function goLive(b){
   const p=P();

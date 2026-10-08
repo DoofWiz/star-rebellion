@@ -9,7 +9,7 @@
    3  migration: a save at each old G.onboard value lands on its beat
    4  safety net: a soldier lost before Steal Fuel brings a replacement from Cass
    5  Recruit returns Rebels only during the prologue, even where a potential Source is waiting
-   (P1 and P2 of the handoff: beats 1 to 14. The three-pilot Recruit checks arrive with P4.) */
+   (P1 to P3 of the handoff: beats 1 to 17. The three-pilot Recruit checks arrive with P4.) */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -69,6 +69,9 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   tachi_joins:T=>[T.mis('rescuetachi').state==='done',T.q().join()==='comm:tachi'||T.win()==='comm',T.G.agents.length===0],
   agents:   T=>[T.G.agents.length===1&&T.G.agents[0].name==='Tachi Gard'&&T.G.agents[0].postedTo==='akkaro',window.Pro.gate('tab.intel'),
               T.G.sources.every(s=>s.agent===T.G.agents[0].id),T.G.prologue.tut&&T.G.prologue.tut.key==='runNetwork',!window.Pro.gate('op.recruit')],
+  tense:    T=>[!window.Pro.live(),T.G.agents.length===1,T.G.prologue.flags.tut.runNetwork===1,window.Pro.gate('op.recruit'),!window.Pro.gate('op.lielow')],
+  first_lead:T=>[T.G.bureauLeads.some(l=>l.target.id==='venn'),T.G.exposure>0,T.G.prologue.tut&&T.G.prologue.tut.key==='askingQuestions',!window.Pro.gate('op.lielow')],
+  lielow_wait:T=>[window.Pro.live(),window.Pro.gate('op.lielow'),T.G.agents[0].lielow>0,T.G.bureauLeads.length===1],
   frontier: T=>[window.Pro.done(),window.Pro.GATES.every(g=>window.Pro.gate(g)),T.G.agents.length===1],
  };
  const ids=await E(()=>window.Pro.PROLOGUE.map(b=>b.id));
@@ -81,7 +84,8 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  }
  // the two beats that wait on a day begin on the next one
  for(const [id,chk] of [['sera',T=>T.src('cass').signal&&T.src('cass').signal.kind==='recruitSera'&&/on the wire/.test(T.G.news[T.G.news.length-1].html+T.G.news.map(n=>n.html).join())],
-                        ['fuel_offer',T=>T.src('cass').signal&&T.src('cass').signal.mid==='stealfuel'&&T.src('cass').signal.spec.req.team===4]]){
+                        ['fuel_offer',T=>T.src('cass').signal&&T.src('cass').signal.mid==='stealfuel'&&T.src('cass').signal.spec.req.team===4],
+                        ['tense',T=>T.q().join()==='comm:tachi,comm:venn']]){
   const r=await E(([id,src])=>{window.Pro.jump(id);T.f.closeWin();T.f.advanceDay();T.f.closeWin();return {live:window.Pro.live(),c:eval('('+src+')')(window.T)};},[id,chk.toString()]);
   ok(r.live&&r.c,id+' begins the next day with its signal: '+[r.live,r.c]);
  }
@@ -254,7 +258,43 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  await E(()=>document.querySelector('#railIntel [data-op^="recruit:"]').click());await wait(250);
  r=await E(()=>({at:window.Pro.beat(),days:T.G.recruit.days,tut:T.G.prologue.flags.tut.runNetwork,win:T.win(),txt:document.querySelector('#winCardB').textContent}));
  ok(r.days>0&&r.tut===1,'starting the Recruit ends Run Your Network '+JSON.stringify({days:r.days,tut:r.tut}));
- ok(r.at==='smoke_after'&&r.win==='comm'&&/fuel job/.test(r.txt),'and the runtime beat fires next, in order '+JSON.stringify({at:r.at,win:r.win}));
+ ok(r.at==='tense'&&!r.win,'and the tense day waits for the next morning '+JSON.stringify({at:r.at,win:r.win}));
+ // P3: the next day, Tachi's comm and then Venn's
+ await E(()=>{T.f.advanceDay();});
+ await pg.waitForFunction(()=>T.win()==='comm',null,{timeout:5000}).catch(()=>{});
+ r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent,q:T.q()}));
+ ok(r.win==='comm'&&/Hey boss/.test(r.txt)&&r.q.join()==='comm:venn','the next day: Tachi checks in, Venn waits his turn '+JSON.stringify({win:r.win,q:r.q}));
+ await E(()=>T.f.closeWin());
+ r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent,exp:T.G.exposure,leads:T.G.bureauLeads.length}));
+ ok(r.win==='comm'&&/offworlders/.test(r.txt)&&r.leads===0,'then Venn’s comm; no Lead yet '+r.win);
+ const exp0=r.exp;
+ await E(()=>T.f.closeWin());
+ await wait(300);
+ r=await E(()=>({at:window.Pro.beat(),lead:T.G.bureauLeads.map(l=>l.target.kind+':'+l.target.id).join(),exp:T.G.exposure,intel:!document.querySelector('#inView').hidden,
+   badge:!!document.querySelector('#inView [data-insel="src:venn"] .in-badge'),lielow:!!document.querySelector('#railIntel [data-op^="lielow:"]')}));
+ ok(r.at==='first_lead'&&r.lead==='source:venn'&&r.exp>exp0,'the first Lead, on Venn, raises Exposure '+JSON.stringify(r));
+ ok(r.intel&&r.badge&&!r.lielow,'the Intelligence tab opens with the Lead badge on Venn; Lie Low still hidden '+JSON.stringify(r));
+ await wait(200);r=await coach();
+ ok(r.up&&r.t==='A Lead','Someone’s Asking Questions, step 1: the Lead on Venn '+JSON.stringify(r));
+ await E(()=>document.querySelector('#inView [data-insel="src:venn"]').click());await wait(250);
+ r=await coach();const leadRow=await E(()=>/holds a Lead on them/.test(document.querySelector('#railIntel').textContent));
+ ok(r.up&&r.t==='Exposure'&&leadRow,'selecting Venn: his rail shows the Lead; step 2 points at Exposure '+JSON.stringify(r));
+ await E(()=>document.querySelector('#inView .in-exp').click());await wait(250);
+ r=await E(()=>({step:(window.Pro.step()||{}).text,up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent,lielow:!!document.querySelector('#railIntel [data-op^="lielow:"]')}));
+ ok(r.step==='lieLowStep'&&r.up&&/TEXT NEEDED/.test(r.txt),'opening Exposure: the Lie Low step (its words still to write) points at Tachi '+JSON.stringify({step:r.step,up:r.up}));
+ await E(()=>document.querySelector('#inView [data-insel^="agent:"]').click());await wait(250);
+ r=await E(()=>({lielow:!!document.querySelector('#railIntel [data-op^="lielow:"]'),up:!document.querySelector('#tutCoach').hidden}));
+ ok(r.lielow&&r.up,'on Tachi’s rail Lie Low is open and the step points at it '+JSON.stringify(r));
+ await E(()=>document.querySelector('#railIntel [data-op^="lielow:"]').click());await wait(200);
+ r=await E(()=>({at:window.Pro.beat(),live:window.Pro.live(),low:T.G.agents[0].lielow,tut:T.G.prologue.flags.tut.askingQuestions}));
+ ok(r.at==='lielow_wait'&&r.low>0&&r.tut===1,'Lie Low ordered: the tutorial is done and the next beat waits a day '+JSON.stringify(r));
+ // Cass and Venn can't be Burned before the frontier, however hot they run
+ r=await E(()=>{const v=T.src('venn');v.risk=99;T.f.setRng(()=>0.01);T.f.advanceDay();T.f.setRng(Math.random);return {alive:v.alive,at:window.Pro.beat(),ig:T.G.interrogations.length};});
+ ok(r.alive&&!r.ig,'Venn runs hot but is never Burned during the prologue '+JSON.stringify(r));
+ ok(r.at==='smoke_after','a day after Lie Low the next beat begins: here the runtime beat '+r.at);
+ await pg.waitForFunction(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent),null,{timeout:5000}).catch(()=>{});
+ r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent}));
+ ok(r.win==='comm'&&/fuel job/.test(r.txt),'the runtime beat fires next, in order '+r.win);
  await E(()=>T.f.closeWin());
  await wait(200);
  r=await E(()=>({done:window.Pro.done(),gates:window.Pro.GATES.filter(g=>!window.Pro.gate(g)),tabs:['navSources','navMissions','navIntel','navMarket','navArsenal'].filter(id=>!T.vis(id)),

@@ -23,7 +23,7 @@ tutorial is added, moved or reworded.
 | Fire support: Strafing Run | Opening Steal Fuel's plan (prologue beat `fuel_plan`); ends when the FT-4 Cross is assigned as an asset | Guided step (callout on the empty fire support slot) | Built | `PRO_TUTS.strafingRun` in `game/js/prologue.js` |
 | Build Your Network (Sources) | The player's first brand-new Source (not Cass or Venn): the farewell beat once it is written; until then the first new Source after the prologue's frontier. The **?** stays on the Sources panel and Cass's and Venn's windows throughout | Intro window + field manual | Built | `srcTutIntro` and `TUT_PAGES` in `game/js/base.js`; `PRO_TUTS.sources` |
 | Run Your Network (Agents) | Tachi Gard joins as the first Agent after Rescue Tachi (prologue beat `agents`): the intro window, then five guided steps once it (or its field manual) closes; Step 5 opens Recruit, and starting one ends it | Intro window + guided steps + field manual | Built | Intro window `agentTutIntro` and field manual `AGENT_PAGES` in `game/js/base.js` (the **?** on an Agent's rail opens it); steps `PRO_TUTS.runNetwork` in `game/js/prologue.js` |
-| [Someone's Asking Questions](#someones-asking-questions) | The Bureau's first Lead, on Maro Venn | Guided steps | Planned | This file |
+| Someone's Asking Questions | The Bureau's first Lead, on Maro Venn (prologue beat `first_lead`): the game moves to the Intelligence tab after Tachi's and Venn's comms. Step 1 completes on selecting Venn, step 2 on opening Exposure; then a step at **Lie Low** on Tachi's rail (its words still to write: DESIGN_BLOCKERS C-48) opens Lie Low, and ordering it ends the tutorial | Guided steps | Built | `PRO_TUTS.askingQuestions` in `game/js/prologue.js` |
 | Sources field manual: Agents update | Lands with Build Your Network: from then on, Making Contact is the Agents version | Page swap | Built | `TUT_CONTACT_AGENTS` in `game/js/base.js` |
 
 ## Shapes
@@ -35,26 +35,4 @@ tutorial is added, moved or reworded.
 - **Field manual.** Paged reference behind the **?** button, read any time. Opt-in, so it can go deeper than the
   intro.
 - **Card.** A single prompt during combat or on a screen, pausing play where needed.
-
----
-
-## Someone's Asking Questions
-
-**Trigger:** the Bureau gains its first Lead, on Maro Venn, in the onboarding beat where off-worlders start asking
-around town. It opens after Venn's comm. This is where Leads and Exposure are taught; the Agents tutorial only hints
-at them.
-
-**Step 1: A Lead**
-*Points at:* the Lead badge on Venn's node.
-The Bureau has a **Lead** on Maro Venn.
-A node with a Lead gains Risk every day until the Lead goes cold. Keep contact to a minimum, or act before they
-close in.
-*Completes:* the player selects Venn.
-
-**Step 2: Exposure**
-*Points at:* the **Exposure** panel.
-**Exposure** is how close the Bureau is to finding the rebellion. Every Lead pushes it higher.
-*Completes:* the player opens the panel.
-
-*Click the **?** button to learn more about Leads.*
 
