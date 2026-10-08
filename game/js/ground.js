@@ -2469,8 +2469,8 @@ const FS_KIND={
     rule:'Mark a spot the squad can see. A crate drops in as the next round begins: 5 stims, 2 BLAM and 2 rockets.'},
   strafe:{ic:'firesupport',c:'var(--sr-rebel)',fp:'line',when:'Hits at round end',danger:1,
     rule:'Two taps: where the run starts, then where it ends. The ship rakes everything along that line at the end of the round, our people included.'},
-  doorgun:{ic:'turret',c:'var(--sr-rebel)',fp:'ring',when:'2 passes · up to 3 targets',
-    rule:'Mark a zone. The ship holds a high, wide orbit over it and the door gunner works up to 3 enemies inside it, for 2 passes. Enemy rockets can bring it down.'},
+  doorgun:{ic:'turret',c:'var(--sr-rebel)',fp:'ring',when:'2 Rounds',
+    rule:'Mark a zone. The ship holds a high, wide orbit over it and the door gunner works every enemy inside it, for 2 rounds. Enemy rockets can bring it down.'},
   reinforce:{ic:'people',c:'var(--sr-rebel)',fp:'land',when:'Lands at the next planning',
     rule:'Mark a landing spot. The ship sets its soldiers down at the start of the next planning.'},
   bombard:{ic:'missile',c:'var(--sr-rebel)',fp:'burst',when:'Once',danger:1,
@@ -2506,7 +2506,7 @@ function fsRows(){
   FS.ships.forEach((a,i)=>{
     if(a.cassAir&&!tutFlags.fsCard)return;
     const grp=a.own?a.name:a.name,nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
-    const st=a.state==='ready'?null:a.state==='active'?'Overhead · '+a.left+' pass'+(a.left===1?'':'es')+' left':a.state==='called'?(a.mode==='strafe'?'Inbound · round end':'Inbound · next planning'):'gone';
+    const st=a.state==='ready'?null:a.state==='active'?'Overhead · '+a.left+' round'+(a.left===1?'':'s')+' left':a.state==='called'?(a.mode==='strafe'?'Inbound · round end':'Inbound · next planning'):'gone';
     if(st==='gone')return;
     R(grp,'s'+i,a.mode==='strafe'?'strafe':a.mode==='doorgun'?'doorgun':'reinforce',nm,{status:st,pilot:a.pilot&&a.pilot.name,
       when:a.mode==='reinforce'?a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' · next planning':null});
