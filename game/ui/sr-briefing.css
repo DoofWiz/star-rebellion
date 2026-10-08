@@ -9,7 +9,7 @@
   background:repeating-linear-gradient(90deg,rgba(54,227,242,.025) 0 1px,transparent 1px 64px),repeating-linear-gradient(0deg,rgba(54,227,242,.025) 0 1px,transparent 1px 64px);}
 
 /* ---------- board (left) ---------- */
-.bf-board{position:absolute;left:24px;top:116px;bottom:124px;width:330px;display:flex;flex-direction:column;gap:10px;}
+.bf-board{position:absolute;left:24px;top:132px;bottom:124px;width:330px;display:flex;flex-direction:column;gap:10px;}
 .bf-board__head{display:flex;align-items:center;gap:8px;font:400 18px/1 var(--sr-font-display);color:var(--sr-text);}
 .bf-board__head .sr-ico{width:20px;height:20px;color:var(--sr-shield);}
 .bf-board__head span{margin-left:auto;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}

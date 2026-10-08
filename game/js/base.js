@@ -5876,7 +5876,7 @@ function msClick(ev){
   const t=ev.target.closest('button');
   if(!t||t.disabled)return;
   const sel=t.getAttribute('data-msel');
-  if(sel){sClick();msSel=sel;renderMissions();if(ROOT.clientWidth<=900)setDrawer(true);return;}   // phones: the briefing is in the drawer
+  if(sel){sClick();msSel=sel;renderMissions();if(railDrawer())setDrawer(true);return;}   // phones and tablets: the briefing is in the drawer
   const f=t.getAttribute('data-msfilter');
   if(f){sClick();msFilter=f;renderMissions();return;}
   const map=t.getAttribute('data-msmap');
@@ -6334,7 +6334,7 @@ function intelClick(ev){
     const [t,id]=sel.getAttribute('data-insel').split(':');
     sClick();inRepost=null;inSel=t==='bureau'?{t:'bureau'}:{t,id};
     Pro.emit('inSel',t==='agent'?Object.assign({kind:'agent'},{id:(agentOf(id)||{}).from||id}):{kind:t,id});
-    renderIntel();return;
+    renderIntel();tabletRail();return;
   }
   const op=ev.target.closest('[data-op]');
   if(op&&!op.disabled){
@@ -7972,10 +7972,10 @@ cv.addEventListener('click',ev=>{
     if(!best){if(srcSel){srcSel=null;syncUI();}return;}
     if(best.t==='o'){openOpp(best.id);return;}
     if(best.t==='c'){openWin('candidate',best.id);return;}
-    if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();return;}
+    if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();tabletRail();return;}
     const st=pst(best.id);
     if(st&&st.access)enterWorld(best.id,best.x,best.y);
-    else{srcSel={t:'p',id:best.id};syncUI();}
+    else{srcSel={t:'p',id:best.id};syncUI();tabletRail();}
     return;
   }
   if(viewRoom){
@@ -8358,6 +8358,10 @@ $('dayBtn').addEventListener('click',()=>{if(started)advanceDay();});
 /* phones: the rail is a drawer behind the people tab */
 const shell=ROOT.querySelector('.sr-shell');
 function setDrawer(on){shell.classList.toggle('is-drawer-open',!!on);$('drawerBtn').setAttribute('aria-expanded',String(!!on));}
+/* the rail is a drawer: a phone, or a tablet in portrait (the rail slides in from the right: sr-theme.css) */
+const railDrawer=()=>getComputedStyle($('panel')).position==='absolute';
+/* on a tablet, picking something whose details live in the rail opens it (a phone keeps its own flow) */
+function tabletRail(){if(ROOT.clientWidth>900&&railDrawer())setDrawer(true);}
 $('drawerBtn').addEventListener('click',()=>{sClick();setDrawer(!shell.classList.contains('is-drawer-open'));});
 /* top-bar menu: all news, sound, restart (which asks first) */
 HUD.tips(ROOT);   // the kit's floating tooltip for every [data-tip] (the galaxy orders' rules and reasons)
