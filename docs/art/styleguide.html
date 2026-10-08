@@ -2770,7 +2770,7 @@ function isoShips(c,W,H,t){bg(c,W,H,'#1d1520');const k=1.25,ox=W/2,oy=24;const P
   list.sort((a,b)=>(a[2]+a[3])-(b[2]+b[3])).forEach(([id,l,x,y,a])=>{const q=P(x,y);A.hangarShip(c,id,q[0],q[1],id==='graf'?2.6:3.1,k,t,{livery:l,cold:true,heading:a});});
   const lab=(x,y,txt)=>{const q=P(x,y);cap(c,txt,q[0],q[1]+48,'#e8e0ff',1);};lab(95,95,'SF-11 Talon');lab(285,95,'FT-4 Cross');lab(95,285,'Graf Hauler');lab(285,285,'VT-2 Fledgling');}
 /* ---------- galaxy ---------- */
-const SYS=[{n:'Haven Rock',x:.12,y:.76,r:16,col:'#b08a64',home:1},{n:'Relay Kess',x:.2,y:.32,r:12,col:'#8aa2b8'},{n:'Veray Yards',x:.46,y:.6,r:22,col:'#c27a56',ring:1},{n:'Brakka',x:.64,y:.24,r:14,col:'#9aa86a',heg:1},{n:'Dreymar',x:.86,y:.52,r:18,col:'#7a6aa8',heg:1}];
+const SYS=[{n:'Haven Rock',x:.12,y:.76,r:16,col:'#b08a64',home:1},{n:'Relay Kess',x:.2,y:.32,r:12,col:'#8aa2b8'},{n:'Veray Yards',x:.46,y:.6,r:22,col:'#c27a56',ring:1},{n:'Akkaro',x:.64,y:.24,r:14,col:'#9aa86a',heg:1},{n:'Dreymar',x:.86,y:.52,r:18,col:'#7a6aa8',heg:1}];
 const RT=[[0,1],[0,2],[1,3],[2,3],[2,4],[3,4]];
 function galaxy(c,W,H,t){bg(c,W,H,'#22174a');const g=c.createRadialGradient(W*.8,H*.3,10,W*.8,H*.3,W*.6);g.addColorStop(0,'rgba(255,120,200,.22)');g.addColorStop(1,'rgba(255,120,200,0)');c.fillStyle=g;c.fillRect(0,0,W,H);
   const r=U.mkRng(5);for(let i=0;i<60;i++)A.star(c,r()*W,r()*H,1+r()*1.4,'#f1e6ff');

@@ -45,7 +45,7 @@ tools/ui-kit/sr-galaxy.css       the gx- components (append to the kit, see Phas
 8. **The liberation cap is the gold mark** on every liberation bar. Its explanation appears on hover: "Current limit based on level of access and support." No permanent caption.
 9. **Hyperlanes are cosmetic** (a static `LANES` table). No travel rules.
 10. **The Base / Galaxy / Missions tabs are hidden in the World view.** Back is the panel's Galaxy button, the galaxy minimap, the command bar's Back order, or Esc.
-11. **Only live things show on a world.** Finished history (e.g. the burned Brakka depots) is not drawn.
+11. **Only live things show on a world.** Finished history (e.g. the burned Akkaro depots) is not drawn.
 12. **Lore clamps to three lines** in docked panels, with a "Read all" toggle.
 13. **No repeated information.** Don't repeat in the command bar's `__who` what the docked panel directly above it already says, and don't add tags that duplicate a stat shown below (no "Access 3" tag over the Access pips, no "Level 2" tag next to a numeral).
 
@@ -225,7 +225,7 @@ Same component as ground (`.sr-cmdbar` + `.sr-orders` + `__go`), Advance day alw
 ### 7.1 `LANES` (cosmetic)
 
 ```js
-const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','veray'],['veray','menk'],['brakka','menk'],
+const LANES=[['haven','kess'],['haven','akkaro'],['haven','veray'],['kess','veray'],['veray','menk'],['akkaro','menk'],
  ['kess','oubli'],['oubli','sable'],['sable','parity'],['veray','parity'],['parity','callis'],['parity','ballakan'],
  ['menk','dreymar'],['dreymar','ballakan'],['ballakan','volund'],['menk','nyx'],['nyx','volund'],['callis','tarsis'],
  ['callis','meridian'],['tarsis','meridian'],['meridian','halcyon'],['halcyon','volund'],['ballakan','callis']];
@@ -240,13 +240,13 @@ const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','vera
 | haven | 12 | `#7a6656` | craters | | dreymar | 11 | `#a8743a` | craters |
 | veray | 12 | `#c0623a` | bands | | sable | 11 | `#5d8a4a` | islands |
 | kess | 8 | `#9aa6c4` | — | | nyx | 10 | `#8a5aa8` | craters |
-| brakka | 12 | `#c99a5a` | dunes | | tarsis | 12 | `#d8b860` | bands |
+| akkaro | 12 | `#c99a5a` | dunes | | tarsis | 12 | `#d8b860` | bands |
 | callis | 12 | `#4fb0a0` | cap | | oubli | 10 | `#6a6f7a` | craters |
 | meridian | 17 | `#ffd866` | bands, ring, heg | | menk | 12 | `#e6dcc8` | flats |
 | volund | 16 | `#d0563a` | cracks, heg | | ballakan | 13 | `#3f8a5a` | river |
 | halcyon | 14 | `#7fc8d8` | islands, heg | | parity | 12 | `#8a94b0` | grid |
 
-Region fills for the World view (`WORLD_LOOK[id].regions`): Brakka `flats #b9743f`, `dustfall #a88a62`; Menk `saltreach #ece5d6`, `kiln #bfae94`, `crossing #a99a80`. For other worlds, default territory fills to `col` shaded −8% / +8% alternately and settlements to `shade(col,-.2)`.
+Region fills for the World view (`WORLD_LOOK[id].regions`): Akkaro `flats #b9743f`, `dustfall #a88a62`; Menk `saltreach #ece5d6`, `kiln #bfae94`, `crossing #a99a80`. For other worlds, default territory fills to `col` shaded −8% / +8% alternately and settlements to `shade(col,-.2)`.
 
 ### 7.3 `SRC_REGION`, `HEG_SITE`
 
@@ -265,7 +265,7 @@ Deterministic from `hashStr(planetId)`; unit-disc coordinates (−1…1), clippe
 - **Chip point**: territories, the polygon's visual centre pushed 15% toward the rim; settlements, just outside the blob on the side away from the hub.
 - **Decor** (`REGION_DECOR[regionId]`, optional): a list of `[kind,u,v]` where `kind` is `town`, `pad`, `mesa`, `well`, `depot`, `garrison`, `flats`, `crawler`, `ridge`, `kiln`, `road`, plus marker anchors `source`, `job`, `heg`. Regions without decor get a seeded scatter by keyword in their name and blurb (quarry → flats + crawlers, ridge/kiln → ridge + kilns, river/canopy → river + trees, data/server → grid blocks, flats/herder → mesas + wells). Settlements always get 5–6 `isoBox` buildings.
 
-The reference shows the hand-tuned versions for Brakka and Menk. Match those first, then let the generator cover Ballakan and Parity IV.
+The reference shows the hand-tuned versions for Akkaro and Menk. Match those first, then let the generator cover Ballakan and Parity IV.
 
 ## 8. Words
 
@@ -290,7 +290,7 @@ Keep in-world names, lore, source bios and mission names exactly as they are.
 ## 9. Open questions for Tom
 
 1. **Should locked and uncharted worlds dive in too?** Proposed: yes, with the planet shrouded and regions hidden until scouted. This handoff keeps them as galaxy-level panels until you decide.
-2. **Region data for missions.** Some missions have no `region` (e.g. Brakka Garrison Raid). The World view falls back to the first settlement. Adding `region` to `MPOOL` entries makes placement exact.
+2. **Region data for missions.** Some missions have no `region` (e.g. Akkaro Garrison Raid). The World view falls back to the first settlement. Adding `region` to `MPOOL` entries makes placement exact.
 3. **Phone World view** needs its own design pass.
 4. **Missions view** is next: the gold mission pins and the region cards' "Local job" will hand off to it.
 

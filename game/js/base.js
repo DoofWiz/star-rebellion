@@ -618,6 +618,12 @@ const outDays=p=>Math.ceil(Rebel.laidUp(p)/healRate(p));
 /* rest (rebel-rest.js): a Weary rebel can still go, at a cost; a Conked one is in their bunk until rested */
 const conked=p=>Rebel.conked(p);
 const offDuty=p=>laidUp(p)||conked(p);
+/* what a rebel at the base is doing (p.assign): Standby (the default: about the base, waiting for something to do),
+   Rest (told to: in their bunk), Training, Working (posted to their room), or away on a mission. A rebel on Standby
+   goes to their bunk when they need to: Weary or Conked, they rest until they are fit again */
+const idle=p=>p.assign==='standby'||p.assign==='rest';
+const resting=p=>!p.auto&&!laidUp(p)&&p.assign!=='mission'&&(p.assign==='rest'||conked(p)||(p.assign==='standby'&&Rebel.weary(p)));
+const onStandby=p=>!p.auto&&p.assign==='standby'&&!offDuty(p)&&!resting(p);
 const restTag=p=>{
   if(!Rebel.weary(p))return '';
   const n=Rebel.restDays(p),d=n+' day'+(n>1?'s':'');
@@ -835,11 +841,11 @@ const MPOOL={
   chart:{name:'Chart the Cordon',from:'Prof. Marr',need:2,days:2,riskTxt:'Low',
     desc:'Fly Marr’s survey corridor and map what the Hegemony thinks is hidden.',
     rew:{i:4,xp:0.1}},
-  garrison:{name:'Brakka Garrison Raid',from:'Scout Report · Brakka',need:2,days:2,riskTxt:'Low',
+  garrison:{name:'Akkaro Garrison Raid',from:'Scout Report · Akkaro',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:240,s:100,xp:0.12}},
   depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
-    desc:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
+    desc:'Four Hegemony fuel depots hang in orbit over Akkaro, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
     rew:{i:5,xp:0.2}},
   stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
     lead:'ground',leadTxt:'Fight it on the ground',ground:true,
@@ -890,7 +896,7 @@ const PLANETDEF=[
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
   {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.13,y:0.58,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'brakka',sec:1,sup:3,name:'Brakka',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
+  {id:'akkaro',sec:1,sup:3,name:'Akkaro',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
    sit:'Dust, herders and a scatter of frontier towns the Hegemony never bothered to garrison properly. The law is whoever wears the badge. Small stakes, soft targets, and a good place for a rebellion to learn its trade.',
    regions:[
     {id:'dustfall',name:'Dustfall',kind:'Settlement',blurb:'A frontier town: one cantina, one landing pad and one sheriff.',
@@ -951,11 +957,11 @@ const PLANETDEF=[
      op:{name:'Free the Quota Block',desc:'A night transfer, a locked dormitory and a hundred names someone wants off the list.',c:30,s:50}},
    ]},
 ];
-const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'brakka',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
+const SRCPOS={doran:'parity',brook:'dreymar',ostrander:'callis',varr:'veray',cass:'haven',venn:'akkaro',halt:'veray',vokk:'kess',marr:'callis',renn:'meridian',tess:'menk',pell:'ballakan',cask:'parity'};
 
 /* ---------- galaxy view statics (docs/ui/GALAXY-HANDOFF.md §7; cosmetic, never saved) ---------- */
 /* hyperlanes: a static picture of how the drift hangs together; no travel rules */
-const LANES=[['haven','kess'],['haven','brakka'],['haven','veray'],['kess','veray'],['veray','menk'],['brakka','menk'],
+const LANES=[['haven','kess'],['haven','akkaro'],['haven','veray'],['kess','veray'],['veray','menk'],['akkaro','menk'],
  ['kess','oubli'],['oubli','sable'],['sable','parity'],['veray','parity'],['parity','callis'],['parity','ballakan'],
  ['menk','dreymar'],['dreymar','ballakan'],['ballakan','volund'],['menk','nyx'],['nyx','volund'],['callis','tarsis'],
  ['callis','meridian'],['tarsis','meridian'],['meridian','halcyon'],['halcyon','volund'],['ballakan','callis']];
@@ -964,7 +970,7 @@ const WORLD_LOOK={
   haven:{R:12,col:'#7a6656',tex:'craters',home:true},
   veray:{R:12,col:'#c0623a',tex:'bands'},
   kess:{R:8,col:'#9aa6c4'},
-  brakka:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
+  akkaro:{R:12,col:'#c99a5a',tex:'dunes',regions:{flats:'#b9743f',dustfall:'#a88a62'}},
   callis:{R:12,col:'#4fb0a0',tex:'cap'},
   meridian:{R:17,col:'#ffd866',tex:'bands',ring:true,heg:true},
   volund:{R:16,col:'#d0563a',tex:'cracks',heg:true},
@@ -1000,7 +1006,7 @@ const REGION_DECOR={
 const ACC_CAP=[0,20,40,60,80,100];
 const supCol=i=>[K.hegDeep,K.heg,K.steel,K.rebelHi,K.rebel][Math.max(0,Math.min(4,i))];   // low support = Hegemony blue … high = rebel red
 const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
-  garrison:'brakka',depotrun:'brakka',stealcross:'brakka',orehaul:'dreymar',foundry:'volund'};
+  garrison:'akkaro',depotrun:'akkaro',stealcross:'akkaro',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
 MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=10;   // a first foothold, not a liberation
 // space combat happens in orbit over a world, never in a region: Cook the Depots has none
@@ -1028,7 +1034,7 @@ const MEXTRA={
   foundry:{objectives:['Copy the Forge freight manifests']},
 };
 MEXTRA.stealcross.after=['<b>WENDER:</b> “You actually did it. A Cross, flying, and a sheriff who will never live it down. The cantinas are already talking. Keep your head down and your ears open. Somebody in Dustfall is going to want to thank you.”'];
-MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Brakka watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
+MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Akkaro watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
 MEXTRA.toi.after=['<b>HALT:</b> “The academy is in uproar. Vex is dead and nobody at the yards will say his name. Let me see what they do next.”'];
 MEXTRA.intercept.after=['<b>HALT:</b> “Supply transport missing, manifest clerk drinking at noon. You are a natural disaster, Commander.”'];
 MEXTRA.tanker.after=['<b>HALT:</b> “They are blaming the weather. The weather has an alibi. More soon.”'];
@@ -1079,7 +1085,7 @@ for(const k in MTYPE_DEFS){const t=MT.type(k);Object.assign(MTYPE_DEFS[k],{name:
 /* the first, scripted offer of each type keeps its original story context */
 const MSTORY={stealfuel:'fuel',rescue:'rescue',autofactory:'autofactory',stealintel:'intel'};
 const CTXDEF={
-  stealfuel:{src:'cass',loc:'brakka',region:'flats',target:'fuel depot'},
+  stealfuel:{src:'cass',loc:'akkaro',region:'flats',target:'fuel depot'},
   autofactory:{src:'tess',loc:'menk',region:'kilnridge',target:'AutoCom Plant'},
   rescue:{src:'pell',loc:'ballakan',region:'tollgate',target:'security outpost'},
   stealintel:{src:'cask',loc:'parity',region:'dataflats',target:'server farm'},
@@ -1172,7 +1178,7 @@ for(const d of PLANETDEF)if(d.regions)for(const r of d.regions)if(r.op){
     riskTxt:d.sec>=3?'Moderate':'Low',desc:r.op.desc,rew:{c:r.op.c*4,s:(r.op.s||0)*4,xp:0.12},loc:d.id,region:r.id,lib:20,
     objectives:['Reach the target in '+r.name,'Strike, then get clear'],type:'abstract'};
 }
-const OPX={op_menk_saltreach:{m:120},op_menk_kilnridge:{m:140},op_ballakan_canopy:{m:180},op_ballakan_sawmill:{m:120},op_brakka_flats:{m:100}};
+const OPX={op_menk_saltreach:{m:120},op_menk_kilnridge:{m:140},op_ballakan_canopy:{m:180},op_ballakan_sawmill:{m:120},op_akkaro_flats:{m:100}};
 for(const k in OPX)if(MPOOL[k])Object.assign(MPOOL[k].rew,OPX[k]);
 
 function mkPlanet(d){
@@ -1189,7 +1195,7 @@ function accessCost(d,st){return d.sec+(st.acc||0)+1;}
 const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
     bio:'Flew you in and didn’t ask questions. Knows every port, every price, and every sheriff’s bad habit between here and the core.'},
-  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Brakka',level:1,cult:30,risk:15,inc:{c:48},
+  venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Akkaro',level:1,cult:30,risk:15,inc:{c:48},
     bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
 };
 function addStorySource(id){
@@ -1202,7 +1208,7 @@ function addStorySource(id){
 const CANDS={
   halt:{id:'halt',name:'Ferren Halt',type:'Officer · Depot Manager',loc:'Veray Yards',level:1,cult:35,risk:55,inc:{s:24},
     bio:'Passed over for promotion twice. Wants the yards to burn, quietly — as long as nobody sees him hold the match.',
-    pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Brakka depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
+    pitch:'<b>Ferren Halt</b> manages the Veray fuel yards and heard what happened to the Akkaro depots. He was passed over for promotion twice, and he wants in — quietly, expensively, usefully.'},
   vokk:{id:'vokk',name:'Sen. Adria Vokk',type:'Politician',loc:'via Relay Kess',level:1,cult:20,risk:15,inc:{c:100},
     bio:'Votes loyal, funds otherwise. Terrified of audits.',
     pitch:'<b>Senator Adria Vokk</b> votes loyal and funds otherwise. Her courier found ours at Relay Kess with a first payment and one condition: no one ever says her name aloud.'},
@@ -1462,7 +1468,7 @@ function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
   if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
     src.signal={kind:'mission',mid:'stealcross',
-      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Brakka, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
+      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Akkaro, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
     G.onboard='revealed';
     return true;
   }
@@ -1495,7 +1501,7 @@ function storySignal(src){
   }
   if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
     src.signal={kind:'mission',mid:'depotrun',
-      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Brakka feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
+      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Akkaro feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
     return true;
   }
   return false;
@@ -1572,7 +1578,7 @@ function recruitTick(){
   for(let i=0;i<n;i++){
     const x=rng(),role=x<0.45?'Soldier':x<0.8?'Support':'Pilot';
     const g=Rebel.gen(role,taken,rng);taken.add(g.name);
-    const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:g.name,first:g.first,last:g.last,charTrait:g.charTrait,role,level:1,xp:0,assign:'rest',bio:g.bio});
+    const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:g.name,first:g.first,last:g.last,charTrait:g.charTrait,role,level:1,xp:0,assign:'standby',bio:g.bio});
     if(role==='Soldier')p.equip=['pistol'];
     if(role==='Pilot')p.ship='';
     G.recWait.push(p);
@@ -1603,7 +1609,7 @@ function openRecruitOffer(src,sig){
   } else {
     const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
     const nm=holdRecruit(role);
-    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'rest',bio:nm.bio});
+    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'standby',bio:nm.bio});
     if(role==='Soldier')p.equip=['pistol'];
     if(role==='Pilot')p.ship='';
     line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
@@ -1713,7 +1719,7 @@ function advanceDay(){
   const xpRate=RU.train_xp_rate*(drillOn()?RU.drill_xp_mult:1);
   // hired mercenaries arrive the morning after the handshake, their own kit already on their backs
   for(const q of (G.mercQ||[])){
-    const p=Rebel.migrate(Object.assign({assign:'rest',injured:0,xp:0},q.rec));
+    const p=Rebel.migrate(Object.assign({assign:'standby',injured:0,xp:0},q.rec));
     p.joined=G.day;
     p.merc={until:G.day+14,fee:q.fee,missions:0};
     p.ownKit=q.rec.ownKit||{};
@@ -1771,7 +1777,7 @@ function advanceDay(){
     if(p.assign!=='mission'&&Rebel.restDay(p)==='rested')news('<b>'+p.name+'</b> has slept it off and is fit for duty again.','g');
     if(wasUp)continue;   // off duty: no training, no rest bonus
     if(p.assign==='train'&&hasRoom('training'))gainXp(p,xpRate);
-    if(p.assign==='rest')Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
+    if(resting(p))Rebel.moraleBump(p,upAny('barracks','rec')?0.6:0.3,'rest');
   }
   mood();
   // Processing (Intelligence Officers) and Supply Handling (Logistics Specialists): each covers a few Sources
@@ -1874,7 +1880,7 @@ function missionAftermath(mid){
     news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
     G.candQ.push('halt');
     G.candQ.push('vokk');
-    syncLocalOps('brakka',true);
+    syncLocalOps('akkaro',true);
   }
 }
 /* ---------- specialties (Training Center) ----------
@@ -1965,7 +1971,7 @@ const spaceOf=p=>p.nicheTrain?'Support':specRole(p);
    has someone in it: the range, the simulator, the classroom, then the mats (the Hall's everyday training) */
 function drillers(){
   const out=runnersOf('instructor.drill');
-  if(on('instructor.mentors'))out.push(...G.people.filter(p=>!p.auto&&p.level>=11&&p.assign==='rest'&&!offDuty(p)));
+  if(on('instructor.mentors'))out.push(...G.people.filter(p=>!p.auto&&p.level>=11&&idle(p)&&!offDuty(p)));
   return out;
 }
 function supervised(){
@@ -1986,7 +1992,7 @@ function specTick(){
     if(!tr)continue;
     const niche=!!p.nicheTrain;
     if(!niche&&p.assign!=='spec'){p.specTrain=null;continue;}
-    if(laidUp(p)){if(!niche)p.assign='rest';p.specTrain=null;p.nicheTrain=null;news('<b>'+p.name+'</b>’s training stops: they are laid up.','h');continue;}
+    if(laidUp(p)){if(!niche)p.assign='standby';p.specTrain=null;p.nicheTrain=null;news('<b>'+p.name+'</b>’s training stops: they are laid up.','h');continue;}
     const drill=sup.has(spaceOf(p));
     const cut=Math.min(0.6,(drill?RU.drill_time:0)+(cond.has(p.id)?RU.drill_time:0));
     tr.days-=1/(1-cut);
@@ -2001,7 +2007,7 @@ function specTick(){
     } else {
       if(tr.cross){p.spec2=tr.k;news('<b>'+p.name+'</b> is cross-trained: <b>'+SPECNAME[tr.k]+'</b> as well.','g');}
       else{p.spec=tr.k;news('<b>'+p.name+'</b> graduates: <b>'+SPECNAME[p.spec]+'</b>.','g');}
-      p.specTrain=null;p.assign='rest';
+      p.specTrain=null;p.assign='standby';
     }
     sBuild();
   }
@@ -2078,7 +2084,7 @@ const campaign=(fin)=>({targets:()=>worldsOpen().filter(d=>!campaignAt(d.id)).ma
 function campaignRecruit(lvl){
   const x=rng(),role=x<0.5?'Soldier':x<0.8?'Support':'Pilot';
   const r=holdRecruit(role);
-  const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:r.name,first:r.first,last:r.last,charTrait:r.charTrait,role,level:lvl||1,xp:0,assign:'rest',bio:r.bio});
+  const p=Rebel.migrate({id:'rcb'+(++G.recSeq),name:r.name,first:r.first,last:r.last,charTrait:r.charTrait,role,level:lvl||1,xp:0,assign:'standby',bio:r.bio});
   if(role==='Soldier')p.equip=['pistol'];
   if(role==='Pilot')p.ship='';
   G.recWait.push(p);
@@ -2346,7 +2352,7 @@ function nextReport(){
   else if(n.t==='reward')openWin('reward',n.rpt);
   else if(n.t==='recruit'){
     const nm=n.m.npc;
-    const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'rest',bio:nm.bio});
+    const p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role:nm.role,level:1,xp:0,assign:'standby',bio:nm.bio});
     openWin('recruit',{cards:[{p,must:false,line:'<b>'+nm.name+'</b>, freed and still catching their breath, asks to stay and fight.'}]});
   }
   else if(n.t==='hero'){
@@ -2395,7 +2401,7 @@ function resolveMission(m){
   const avgLvl=pilots.reduce((a,p)=>a+p.level,0)/Math.max(1,pilots.length);
   const cmdBonus=m.ctl?RU.mission_support_success:0;   // Mission Support
   const ok=rng()<Math.min(0.92,0.45+avgLvl*0.08+G.morale*0.002+cmdBonus);
-  for(const p of pilots){p.assign='rest';tireNews(p);}
+  for(const p of pilots){p.assign='standby';tireNews(p);}
   for(const fid of m.progress.fighters){const f=G.fighters.find(x=>x.id===fid);if(f)f.out=false;}
   supportDone(m,{win:ok});
   if(ok){
@@ -2645,7 +2651,7 @@ function patrolTick(){
   for(const t of G.patrols.filter(x=>x.days<=0)){
     const f=G.fighters.find(x=>x.id===t.fid),p=G.people.find(x=>x.id===t.pid);
     if(f)f.out=false;
-    if(p&&p.assign==='mission')p.assign='rest';
+    if(p&&p.assign==='mission')p.assign='standby';
     const bits=['<b>'+(f?f.name:'The patrol')+'</b> is back.'];
     G.intel+=1;bits.push(I(1)+' from what the sensors heard');
     if(rng()<0.5){const m=60+Math.floor(rng()*5)*10;G.materials+=m;bits.push(M(m)+' salvaged off a drifting wreck');}
@@ -3100,7 +3106,7 @@ function padsRel(cl,pads){
   return pads.map((p,i)=>({id:i,x:(p.c-c0)*100,y:(p.r-r0)*100,w:p.w*100,d:p.h*100,kind:p.conv==='lounge'?'lounge':p.conv==='mbay'?'bay':p.kind}));
 }
 /* resting and conked-out rebels sleep in the Barracks; the laid-up lie in the Infirmary */
-const sleepers=()=>G.people.filter(p=>!p.auto&&((p.assign==='rest'&&!laidUp(p))||(Rebel.conked(p)&&!laidUp(p))));
+const sleepers=()=>G.people.filter(resting);
 const patients=()=>G.people.filter(laidUp);
 const bedsFor=key=>key==='barracks'?sleepers():key==='infirmary'?patients():[];
 /* the Tech Lab has no furniture in the art kit yet (DESIGN_BLOCKERS M-33): a bench of screens per tile, drawn through the
@@ -3139,16 +3145,19 @@ function corridorRuns(){
   return runs.sort((a,b)=>b.n-a.n);
 }
 /* far to near. Rock is raised, so its cliffs must overlap the rooms behind it, and room walls must overlap the rock
-   behind them: a tile south or east of a room is drawn after it, one north or west before it, and the rest by depth */
+   behind them: a tile south or east of a room is drawn after it, one north or west before it, and the rest by depth.
+   Someone walking (an item with `on`, the tiles their figure overlaps) is drawn after every one of those tiles, so the
+   tile they are stepping onto never paints over them, and like a tile against the rooms round those tiles. */
 function baseDrawOrder(items){
-  const roomAtCell=new Map();
-  items.forEach((it,i)=>{if(it.cells)for(const [r,c] of it.cells)roomAtCell.set(r+','+c,i);});
+  const roomAtCell=new Map(),tileAt=new Map();
+  items.forEach((it,i)=>{if(it.cells)for(const [r,c] of it.cells)roomAtCell.set(r+','+c,i);else if(it.r!==undefined)tileAt.set(it.r+','+it.c,i);});
   const after=items.map(()=>new Set()),need=items.map(()=>0);
   const edge=(a,b)=>{if(a!==b&&!after[a].has(b)){after[a].add(b);need[b]++;}};
   const near=(r,c,dirs)=>{const s=new Set();for(const [dr,dc] of dirs){const i=roomAtCell.get((r+dr)+','+(c+dc));if(i!==undefined)s.add(i);}return s;};
   const BEHIND=[[-1,0],[0,-1],[-1,-1]],AHEAD=[[1,0],[0,1],[1,1]];
   items.forEach((it,i)=>{
-    const cells=it.cells||(it.r!==undefined?[[it.r,it.c]]:[]);
+    const cells=it.cells||it.on||(it.r!==undefined?[[it.r,it.c]]:[]);
+    if(it.on)for(const [r,c] of it.on){const j=tileAt.get(r+','+c);if(j!==undefined)edge(j,i);}   // the floor under them first
     const back=new Set(),front=new Set();
     for(const [r,c] of cells){near(r,c,BEHIND).forEach(j=>back.add(j));near(r,c,AHEAD).forEach(j=>front.add(j));}
     for(const j of back)if(!front.has(j))edge(j,i);   // a room behind it is drawn first, one ahead of it after it
@@ -3165,6 +3174,15 @@ function baseDrawOrder(items){
   return out;
 }
 
+/* where rebels on Standby hang about: the Barracks, else the Command Centre */
+const loungeRoom=()=>hasRoom('barracks')?'barracks':hasRoom('command')?'command':null;
+/* the i-th Standby spot in a room: its idle posts first (the rec table, the coffee), then a loose grid round (cx, cy) */
+function lounge(i,posts,cx,cy,u){
+  const idlers=(posts||[]).filter(q=>!q.pose||q.pose==='idle');
+  if(i<idlers.length)return idlers[i];
+  const k=i-idlers.length,col=k%3-1,row=Math.floor(k/3);
+  return {x:cx+col*24*u+row*12*u,y:cy+row*16*u+col*5*u};
+}
 /* ---------- base map render ---------- */
 function renderBase(now){
   const t=RM?0:now/1000,Lb=TH.labelLayer(),{S}=isoParams(),alert=baseAlert();
@@ -3189,6 +3207,9 @@ function renderBase(now){
     }});
   }
   const allPads=hangarPads(),occ=padOccupants(allPads);
+  /* Standby: a few walk the corridors, the rest hang about the Barracks (or the Command Centre without one) */
+  const free=crew.filter(onStandby),runs=corridorRuns(),walkers=Math.min(3,runs.length),hangOut=loungeRoom();
+  const loungers=free.slice(walkers);
   for(const rm of G.rooms.filter(rm=>clusterOf(rm)[0]===rm)){
     const cl=clusterOf(rm),cells=clusterCells(cl);   // a merged room is drawn once, on its real tiles
     cl.h=Math.max(...cl.map(q=>q.r+q.h))-Math.min(...cl.map(q=>q.r));
@@ -3214,17 +3235,20 @@ function renderBase(now){
           SA.character(ctx,p.x,p.y,personSpec(staff[0]),{view:'front',state:p.pose||'idle',t:t+rm.c,s:0.42*S});}
         const lying=bedsFor(rm.key),bo=slotOffset(cl,rm.key,bedSlots);
         res.beds.forEach((b,i)=>{const p=lying[bo+i];if(p)SA.character(ctx,b.x,b.y,personSpec(p),{view:'front',state:'down',fall:1,t,s:0.36*S,weapon:null});});
+        if(rm.key===hangOut&&clustersOf(rm.key)[0].includes(rm))loungers.slice(0,6).forEach((p,i)=>{
+          const sp=lounge(i,res.posts,x,y,S);SA.character(ctx,sp.x,sp.y,personSpec(p),{view:'front',state:'idle',t:t+i*1.7,s:0.4*S});
+          if(sp.emote&&i<2)SA.emote(ctx,sp.x+8*S,sp.y-24*S,sp.emote,t,i);});
       }
       const ly=y+TH2*(cl.h===1?0.9:1.6)*S+12;
       Lb.add(ROOMS[rm.key].name+(rm.build?' · '+rm.build.days+'d':''),x,ly,{color:rm.build?K.gold:rcol(rm.key),size:12},rm.build?1:2);
     }});
   }
   // ambient life: free rebels walking the corridors, back and forth
-  const free=crew.filter(p=>!p.assign),runs=corridorRuns();
-  free.slice(0,Math.min(2,runs.length)).forEach((p,i)=>{
+  free.slice(0,walkers).forEach((p,i)=>{
     const run=runs[i],len=run.n,ph=((t*0.6/Math.max(1,len))+i*0.37)%2,k=ph<1?ph:2-ph,back=ph>=1;
     const rr=run.r0+(run.r1-run.r0)*k,cc=run.c0+(run.c1-run.c0)*k,along=run.c1>run.c0;
-    items.push({d:rr+cc+0.5,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
+    const on=[[Math.floor(rr),Math.floor(cc)],[Math.ceil(rr),Math.ceil(cc)]];   // the tile they are on and the one they are stepping onto
+    items.push({d:Math.ceil(rr)+Math.ceil(cc)+0.5,on,fn:()=>{const [wx,wy]=cellToCss(rr,cc);
       SA.character(ctx,wx,wy+4*S,personSpec(p),{view:'side',dir:(along?1:-1)*(back?-1:1),state:'walk',t:t+i,s:0.4*S});}});
   });
   for(const it of baseDrawOrder(items))it.fn();
@@ -3556,8 +3580,14 @@ function renderRoomView(now){
       } else label(f&&f.out?f.name+' — out':pad.bay?'Maintenance Bay':rp.kind==='large'?'Empty large pad':'Empty pad',pad.x,pad.y+4,K.text3,11);
     }
     staffRoom(crewIn('hangar'));
-  } else if(rm.key==='barracks'){
-    layOnBeds(sleepers().slice(slotOffset(cl,'barracks',bedSlots)),p=>p.name.split(' ')[0]);
+  } else if(rm.key==='barracks'||(rm.key==='command'&&loungeRoom()==='command')){
+    if(rm.key==='barracks')layOnBeds(sleepers().slice(slotOffset(cl,'barracks',bedSlots)),p=>p.name.split(' ')[0]);
+    else staffRoom(crewIn('command'));
+    /* rebels on Standby mill about the room: the rec table and the coffee first */
+    const stb=G.people.filter(onStandby),skip=rm.key==='command'?crewIn('command').length:0;
+    stb.forEach((p,i)=>{const q=lounge(i+skip,posts,0,40*k,k*3);addFig(q.x,q.y,p,'idle');
+      label('Standby',q.x,q.y+9*2.2*k+3+Math.max(Math.round(9*2.2*k),Math.ceil(11/Sx))+2,K.text3,10,600);   // under the name figure() writes
+      if(q.emote&&i<2)SA.emote(ctx,q.x+18*k,q.y-58*k,q.emote,t,i);});
   } else if(rm.key==='infirmary'){
     layOnBeds(patients().slice(slotOffset(cl,'infirmary',bedSlots)),p=>p.name.split(' ')[0]+' · '+outDays(p)+'d');
     const staff=crewIn('infirmary');
@@ -6419,14 +6449,15 @@ function pfRecord(p){
 }
 function pfAssign(p){
   const hurt=laidUp(p),away=p.assign==='mission',lock=hurt||away;
-  let b=rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'"','Rest',lock,'sr-btn--sm')+
+  let b=rbtn('data-as="standby:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='standby')+'" title="About the base, ready for whatever comes up. They go to their bunk on their own when they are Weary."','Standby',lock,'sr-btn--sm')+
+    rbtn('data-as="rest:'+p.id+'" aria-pressed="'+(hurt||p.assign==='rest')+'" title="In their bunk: their morale recovers a little each day."','Rest',lock,'sr-btn--sm')+
     rbtn('data-as="train:'+p.id+'" aria-pressed="'+(!hurt&&p.assign==='train')+'"'+(hasRoom('training')?'':' title="Needs a Training Hall"'),'Train',lock||!hasRoom('training'),'sr-btn--sm');
   if(isSupport(p)&&SP.homeOf(p)){   // a Support rebel works in their specialty's home room
     const key=SP.homeOf(p),mine=!hurt&&p.assign==='room:'+key,full=!mine&&postedTo(key).length>=roomCap(key);
     const why=!hasRoom(key)?'Build a '+ROOMS[key].name+' first':full?'The '+ROOMS[key].name+' is full ('+roomCap(key)+'): expand it':'';
     b+=rbtn('data-as="room:'+key+':'+p.id+'" aria-pressed="'+mine+'"'+(why?' title="'+esc(why)+'"':''),'Work in the '+ROOMS[key].name,lock||!!why,'sr-btn--sm sr-btn--wide');
   }
-  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':'');
+  return pfH('day','Assignment')+'<div class="pf-assign">'+b+'</div>'+(hurt?'<p class="pf-assign__note">Resting until recovered.</p>':away?'<p class="pf-assign__note">Away on a mission.</p>':p.assign==='standby'&&resting(p)?'<p class="pf-assign__note">Weary: resting in their bunk until they are fit, then back on Standby.</p>':'');
 }
 function personHTML(p){
   const mid=pfSec('medical',pfMedical(p))+pfMorale(p)+pfSec('character',pfCharacter(p))+pfSec('exp',pfExperiences(p))+
@@ -6644,8 +6675,9 @@ function syncUI(){
     else if(p.assign==='mission')tag='<span class="sr-tag sr-tag--info">On mission</span>';
     else if(Rebel.weary(p))tag=restTag(p);
     else if(p.assign==='train'||p.assign==='spec')tag='<span class="sr-tag sr-tag--progress">Training</span>';
-    else if(p.assign.startsWith('room:'))tag='<span class="sr-tag sr-tag--good" title="'+esc(SP.title(p))+'">'+(ROOMTAG[p.assign.slice(5)]||'Working')+'</span>';
-    else tag='<span class="sr-tag">Resting</span>';
+    else if(p.assign.startsWith('room:'))tag='<span class="sr-tag sr-tag--good" title="Working: '+esc(SP.title(p))+' ('+esc(ROOMTAG[p.assign.slice(5)]||ROOMS[p.assign.slice(5)].name)+')">Working</span>';
+    else if(p.assign==='rest')tag='<span class="sr-tag" title="Resting in their bunk">Resting</span>';
+    else tag='<span class="sr-tag sr-tag--info" title="Standby: about the base, ready for whatever comes up">Standby</span>';
     return '<button class="sr-unit" data-person="'+p.id+'"'+(tone?' style="--c:'+tone+'"':'')+'><span class="sr-avatar'+(pilot?' sr-avatar--pilot':'')+'"'+(tone&&!pilot?' style="--c:'+tone+'"':'')+'>'+faceHTML(p)+'<span class="sr-avatar__role">'+IC(ico)+'</span></span>'+
       '<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+p.name+'</span>'+(Rebel.canPromote(p)?'<span class="bs-good" title="Due a promotion" aria-label="Due a promotion">\u25b2</span>':'')+((p.cond&&p.cond.length)||(p.body&&Object.values(p.body).some(v=>v===1))?'<span class="bs-bad" title="'+esc(Rebel.medSummary(p).join(', '))+'" aria-label="Injuries: '+esc(Rebel.medSummary(p).join(', '))+'">\u271a</span>':'')+(!p.auto&&p.morale<=40?'<span class="bs-bad" title="'+(p.morale<=20?'Very low':'Low')+' morale" aria-label="'+(p.morale<=20?'Very low':'Low')+' morale">\u25bc</span>':'')+'</span><span class="sr-unit__role" title="'+esc(rankFor(p))+', level '+p.level+'">'+rankFor(p)+', level '+p.level+'</span></span><span class="sr-unit__side">'+tag+'</span></button>';
   };
@@ -7340,7 +7372,7 @@ function rollMarket(salt){
     const fee=380+(level-2)*140+(specialty?80:0);   // 380-600, scaled by level and specialty
     // their own kit: rolled from live, non-Hegemony weapons; it never enters the armory
     const ownKit={primary:role==='Soldier'?['akli','scatter','longiron'][Math.floor(r()*3)]:null,secondary:'cowboy'};
-    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'rest',injured:0,ownKit});
+    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'standby',injured:0,ownKit});
     if(specialty)rec.spec=specialty;
     lots.push({kind:'merc',key:rec.id,stock:1,price:fee,deal:'fair',merc:rec});
   };
@@ -8806,7 +8838,7 @@ function applyDebrief(r){
   for(const pr of r.people||[]){
     const p=G.people.find(x=>x.id===pr.id);
     if(!p)continue;
-    p.assign='rest';
+    p.assign='standby';
     const mt=Rebel.expGet(p,'mentored');
     const xg=(pr.xp||0)*(mt&&teamIds.includes(mt.with)?1.3:1)*(p.taught&&on('instructor.lessons')?1.25:1);   // Battle Lessons
     const pi=xpInfo(p,xg);Rebel.trainSkills(p,pr.sk);
@@ -8913,7 +8945,7 @@ function applyDebrief(r){
     }
     const A=AUTOS[g.type];if(!A)continue;
     if(G.people.some(p=>p.name===g.name))continue;
-    G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'rest',auto:g.type,bio:A.bio});
+    G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'standby',auto:g.type,bio:A.bio});
     gotLoot(got,{type:g.type,name:g.name,kind:'unit'});
     news('<b>'+g.name+'</b>, a hacked '+A.label+', joins the rebellion. It does not need a bunk.','g');
   }
@@ -9116,6 +9148,29 @@ const MIGRATIONS=[
     for(const s of G.sources)if(!s.agent)s.agent=G.agents[0].id;
     if(G.recruit&&G.recruit.days&&!G.recruit.agent)G.recruit.agent=G.agents[0].id;
   },
+  /* 9 -> 10: Standby and Working. Rest was every rebel's default; a rebel with nothing to do is now on Standby, and
+     only a rebel told to Rest stays in their bunk. An older save cannot tell the two apart, so its resters stand up. */
+  function(){
+    for(const p of G.people)if(p.assign==='rest'||!p.assign)p.assign='standby';
+  },
+  /* 10 -> 11: the planet Brakka is renamed Akkaro, its id with it (brakka -> akkaro, op_brakka_flats -> op_akkaro_flats).
+     An older save holds the old name everywhere: planet and source ids, missions, operations, news and logs. Every
+     string and key in the save is renamed, keeping its case. (This upgrade and its test in standby-smoke are the only
+     places the old name is left in the project.) */
+  function(){
+    const OLD=/brakka/gi,ren=str=>str.replace(OLD,m=>m==='BRAKKA'?'AKKARO':m[0]==='B'?'Akkaro':'akkaro');
+    const walk=o=>{
+      if(Array.isArray(o)){for(let i=0;i<o.length;i++){if(typeof o[i]==='string')o[i]=ren(o[i]);else if(o[i]&&typeof o[i]==='object')walk(o[i]);}return;}
+      for(const k of Object.keys(o)){
+        let v=o[k];
+        if(typeof v==='string')v=ren(v);else if(v&&typeof v==='object')walk(v);
+        const k2=ren(k);
+        if(k2!==k)delete o[k];
+        o[k2]=v;
+      }
+    };
+    walk(G);
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9202,7 +9257,7 @@ SR.register('base',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
-    fn:{castRebel,enterRoomView,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
+    fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
       openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,

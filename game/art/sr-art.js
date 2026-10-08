@@ -1411,7 +1411,7 @@ window.SR_ART=(function(){
      ================================================================= */
   const TRAITS={
     steady:{name:'Steady',kind:'trait',text:'+2 to hit a target you held fire on.'},
-    auto:{name:'Automatic',kind:'mode',text:'−5 to hit; a hit rolls again at −10.'},
+    auto:{name:'Automatic',kind:'mode',text:'−5 to hit (−2 from a deployed Razorrat); a hit rolls again at −10.'},
     semi:{name:'Semi-auto',kind:'mode',text:'+1 each phase on the same target, until you move or panic.'},
     single:{name:'Single shot',kind:'mode',text:'No modifiers.'},
     fan:{name:'Fan hammer',kind:'mode',text:'−5 to hit; double damage on a hit.'},

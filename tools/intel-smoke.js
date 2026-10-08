@@ -107,7 +107,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // --- Exposure moves with missions and liberation too ---
   G().bureauLeads=[];
   const em0=G().exposure;
-  const mm={id:'exptest',name:'Noise test',desc:'x',objectives:['x'],req:{transport:true,team:1},days:0,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:10},loc:'brakka',region:'flats',lib:10,riskTxt:'Low'};
+  const mm={id:'exptest',name:'Noise test',desc:'x',objectives:['x'],req:{transport:true,team:1},days:0,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:10},loc:'akkaro',region:'flats',lib:10,riskTxt:'Low'};
   G().missions.push(mm);
   f.applyDebrief({missionId:'exptest',kind:'ground',days:0,win:true,people:[]});flush();
   out.expMission=G().exposure-em0;   // the operation itself, plus its liberation gain

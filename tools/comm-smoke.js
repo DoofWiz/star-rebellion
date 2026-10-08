@@ -59,7 +59,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(/Carrier locked/.test(s.chan)&&/Encrypted · rebel net · lag 4\.2s · voices masked/.test(s.chan)&&s.wave,'the channel strip holds the flavour and the waveform '+s.chan);
  ok(s.logs.length===1&&/^Coded burst to .+ is responding on our secure channel\.$/.test(s.logs[0]),'the narration is a log line '+s.logs);
  ok(s.bubbles===1&&s.tag==='Signal'&&!s.quote,'one bubble with the Signal tag, no old quote box '+[s.bubbles,s.tag,s.quote]);
- ok(s.lead&&s.lead[0]==='New Lead – Added to Mission Board'&&s.lead[1]==='Steal the Cross'&&/^Ground · \w+ risk · Brakka · Dustfall$/.test(s.lead[2]),'the lead card '+s.lead);
+ ok(s.lead&&s.lead[0]==='New Lead – Added to Mission Board'&&s.lead[1]==='Steal the Cross'&&/^Ground · \w+ risk · Akkaro · Dustfall$/.test(s.lead[2]),'the lead card '+s.lead);
  ok(s.btns==='Acknowledge'&&!s.note,'Acknowledge, no flavour text in the footer '+s.btns);
  ok(!/Cultivation increased/.test(s.text),'no bare "Cultivation increased." line');
  ok(r.board&&r.after.win==='comm'&&r.after.bubbles===0&&!r.after.lead&&r.after.quiet==='No signal waiting.'&&r.after.btns==='Close channel'&&/New mission on the board/.test(r.after.logs.join(' ')),

@@ -145,7 +145,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   function staff(){
    // every Support rebel works in their specialty's home room when it is built and has space (Support Specialties doc)
    for(const p of G.people){
-    if(p.role!=='Support'||p.auto||p.assign!=='rest'||window.Rebel.laidUp(p))continue;
+    if(p.role!=='Support'||p.auto||!(p.assign==='rest'||p.assign==='standby')||window.Rebel.laidUp(p))continue;
     const key=window.Support.homeOf(p);
     if(key&&have(key)&&f.postedTo(key).length<f.roomCap(key))p.assign='room:'+key;
    }
@@ -156,10 +156,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     const fd=window.Support.forkDue(p);if(fd)f.chooseFork(p.id,fd,'A');
    }
    // soldiers train when idle and a hall exists
-   if(have('training')){for(const p of G.people){if(p.role==='Soldier'&&!p.auto&&p.assign==='rest'&&p.level<3&&!window.Rebel.laidUp(p))p.assign='train';}}
-   for(const p of G.people){if(p.assign==='train'&&p.level>=3)p.assign='rest';}
+   if(have('training')){for(const p of G.people){if(p.role==='Soldier'&&!p.auto&&(p.assign==='rest'||p.assign==='standby')&&p.level<3&&!window.Rebel.laidUp(p))p.assign='train';}}
+   for(const p of G.people){if(p.assign==='train'&&p.level>=3)p.assign='standby';}
    // specialties
-   for(const p of G.people){if((p.role==='Soldier'||p.role==='Pilot')&&p.level>=3&&!p.spec&&p.assign==='rest'&&!window.Rebel.laidUp(p)&&have('training')){
+   for(const p of G.people){if((p.role==='Soldier'||p.role==='Pilot')&&p.level>=3&&!p.spec&&(p.assign==='rest'||p.assign==='standby')&&!window.Rebel.laidUp(p)&&have('training')){
      try{f.startSpec(p.id,p.role==='Soldier'?(G.people.some(q=>q.spec==='fieldtech')?'vanguard':'fieldtech'):'dogfighter');}catch(e){}}}
   }
   /* hand out promotions and fit prosthetics, like a player would */

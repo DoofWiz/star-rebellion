@@ -288,7 +288,7 @@ window.Rebel=(function(){
      same for every player. `spec` is what a generated rebel would have (name, role, bio, Character Trait...) and `row`
      an optional database pilot (level, experience, initiative and the four skills, set as earned skill experience). */
   function scripted(spec,row){
-    const p=Object.assign({assign:'rest',injured:0,level:1,xp:0},spec);
+    const p=Object.assign({assign:'standby',injured:0,level:1,xp:0},spec);
     if(!p.bio){   // an origin line from the role's list like anyone else's, the same one every campaign
       const pool=BIO[p.role]||BIO.Soldier;let h=0;
       for(const ch of p.name)h=(h*31+ch.charCodeAt(0))>>>0;

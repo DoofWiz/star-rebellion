@@ -17,9 +17,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const clear=()=>{for(let i=0;i<10&&f.getWin();i++)f.closeWin();};
   clear();
   const dax=G.people.find(p=>p.id==='dax'),runa=G.people.find(p=>p.id==='runa');
-  // ---- a win with pay and loot: Brakka · Dustfall, two soldiers, one levels up, one comes home injured
+  // ---- a win with pay and loot: Akkaro · Dustfall, two soldiers, one levels up, one comes home injured
   const m={id:'rptwin',name:'Report test',desc:'Test.',objectives:['Get in','Get the thing','(Optional) Stay quiet','Get out'],req:{transport:true,team:2},days:0,
-    lead:'ground',ground:true,type:'ground',scenario:'intel',loc:'brakka',region:'dustfall',lib:10,rew:{c:500,s:0,xp:0.2}};
+    lead:'ground',ground:true,type:'ground',scenario:'intel',loc:'akkaro',region:'dustfall',lib:10,rew:{c:500,s:0,xp:0.2}};
   G.missions.push(m);
   dax.level=2;dax.xp=0.9;runa.level=1;runa.xp=0.2;
   const items=['carbine','scatter','scatter','medpack','blam','akli','cowboy','shells','stim'];
@@ -65,7 +65,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.noResTile=!$('.rp-res');   // nothing gained, no tiles at all
   clear();
   // ---- a failure: red objective count, Recovered, the board note, no revolution
-  const m3={id:'rptfail',name:'Fail test',desc:'Test.',objectives:['Reach it','Take it','Leave'],req:{transport:true,team:1},days:0,lead:'ground',ground:true,type:'ground',scenario:'intel',loc:'brakka',rew:{c:300}};
+  const m3={id:'rptfail',name:'Fail test',desc:'Test.',objectives:['Reach it','Take it','Leave'],req:{transport:true,team:1},days:0,lead:'ground',ground:true,type:'ground',scenario:'intel',loc:'akkaro',rew:{c:300}};
   G.missions.push(m3);
   f.applyDebrief({missionId:'rptfail',kind:'ground',days:0,win:false,people:[{id:'dax',xp:0.05,state:'ok'}],loot:{c:40,s:0,items:[]},
     objs:[{t:'Reach it',done:true},{t:'Take it',done:false},{t:'Leave',done:false}]});
@@ -88,13 +88,13 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.tiles===7&&/\+2 more/.test(r.more)&&/Arsenal/.test(r.more),'9 loot entries: 7 tiles and +N more '+r.tiles+' '+r.more);
  ok(r.first[0]&&/Ship/.test(r.first[1])&&/Cross/.test(r.first[1]),'the ship comes first '+r.first);
  ok(r.pill==='All 3 objectives'&&r.objList===0,'a win shows the objectives pill, not the list '+r.pill+' '+r.objList);
- ok(r.loc==='Brakka|Dustfall','the location block names world and region '+r.loc);
+ ok(r.loc==='Akkaro|Dustfall','the location block names world and region '+r.loc);
  ok(r.stamp==='Secured','the Secured stamp '+r.stamp);
  ok(r.levelUp[0]&&r.levelUp[1]==='Level 3','a level-up shows the gold bar and the badge '+r.levelUp);
  ok(r.injured[0]&&r.injured[1]==='Injured'&&!r.injured[2]&&r.injured[3],'injured: badge, the word, no days '+r.injured);
  ok(/--from:20%/.test(r.xpGrow)&&/--gain:10%/.test(r.xpGrow),'the XP bar grows from the old fill '+r.xpGrow);
  ok(r.revBar&&/gradient/.test(r.revNow),'the revolution bar is ember '+r.revNow);
- ok(r.revRows.some(x=>/mission$/.test(x))&&r.revRows.some(x=>/first operation in Brakka/.test(x))&&r.revRows.some(x=>/liberation$/.test(x)),'revolution breakdown rows '+r.revRows.join('|'));
+ ok(r.revRows.some(x=>/mission$/.test(x))&&r.revRows.some(x=>/first operation in Akkaro/.test(x))&&r.revRows.some(x=>/liberation$/.test(x)),'revolution breakdown rows '+r.revRows.join('|'));
  ok(r.lib[0]&&/0% → 10%/.test(r.lib[1]),'liberation on the .gx-wheel '+r.lib);
  ok(r.foot[0]==='Continue'&&r.foot[1],'footer: Continue only, no note '+r.foot);
  ok(Math.round(r.width)===880,'880px window '+r.width);

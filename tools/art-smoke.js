@@ -46,7 +46,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   if(f.getWin())f.closeWin();   // the first-look primer
   await sleep(200);
   // dive into a world, open a region, walk back out
-  const row=document.querySelector('[data-gxworld="brakka"]');
+  const row=document.querySelector('[data-gxworld="akkaro"]');
   if(row){
     row.click();await sleep(700);
     const chip=document.querySelector('[data-gxchip]');

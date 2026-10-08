@@ -42,7 +42,7 @@ Follow `CLAUDE.md`: log anything that conflicts or needs a system that doesn't e
 - **The location block (`.rp-loc`)**, replacing the purple tag:
   - a 36px planet drawn with `SR_ART.planet` in the world's `WORLD_LOOK` colour and texture, with the world name under it in small caps;
   - a dotted connector;
-  - a red map pin with the **region** name under it (e.g. BRAKKA ··· DUSTFALL). Missions with no region show the planet only.
+  - a red map pin with the **region** name under it (e.g. AKKARO ··· DUSTFALL). Missions with no region show the planet only.
 - **Title** (`sr-brief__title`, 44px).
 - **On wins only:** a green `.rp-objpill` reading "All N objectives". There is **no field-time or crew-count line**.
 - **Stamp:** "Secured" (`sr-stamp--action`) or "Mission failed" (`sr-stamp--bad`).
@@ -69,7 +69,7 @@ Follow `CLAUDE.md`: log anything that conflicts or needs a system that doesn't e
 - **Lost:** a grey skull badge, "LOST", a struck-through name and a striped row (`.is-lost`). Lost rebels have no XP bar.
 
 **The revolution (`.rp-rev`):**
-- **Revolution progress:** an ember `.rp-revring` (flame plus level numeral, filled to the new score), an ember bar from old to new, "+4.7" in ember, "38 → 42.7 of 100 to Level II", then ember diamond rows for the breakdown: "+1.2 mission", "+3 first operation in Brakka", "+0.5 liberation".
+- **Revolution progress:** an ember `.rp-revring` (flame plus level numeral, filled to the new score), an ember bar from old to new, "+4.7" in ember, "38 → 42.7 of 100 to Level II", then ember diamond rows for the breakdown: "+1.2 mission", "+3 first operation in Akkaro", "+0.5 liberation".
 - **Liberation (if the mission has a region):** a `.gx-wheel` with the flame at the new %, a rebel-red bar from old to new, and "0% → 10%". Add "(capped)" when capped.
 - Not shown on fail. In its place: a dashed `.rp-next` card, "**{Mission}** stays on the Mission Board. Regroup and try again."
 
@@ -171,7 +171,7 @@ This fixes the inconsistency where the narration sat in the source's speech bubb
 - **Channel strip (`.cm-chan`):** a blinking green "Carrier locked" and **all the transmission flavour in one line**: "Encrypted · rebel net · lag 4.2s · voices masked". Under it, the red waveform: today's `drawCommStatic` canvas, restyled to a thin red line. The footer flavour text is removed.
 - **Narration (`.cm-log`):** "Coded burst to {loc}. {First} is responding on our secure channel." as a grey log line with a red ">" marker. **Not a bubble.**
 - **The source speaking (`.cm-say` / `.cm-bubble`):** one speech bubble with a tail from the source's avatar, name, and a small "Signal" tag (`sr-tag--action`), then the signal text. This is the **only** bubble style a source uses. *Recommended:* restyle the Cass transmission window (`cassIntro`) with the same bubble.
-- **Consequence (`.cm-lead`):** when the signal adds a mission, a cyan card reads **"New Lead – Added to Mission Board"**, with the mission name and "Space · Low risk · Brakka orbit".
+- **Consequence (`.cm-lead`):** when the signal adds a mission, a cyan card reads **"New Lead – Added to Mission Board"**, with the mission name and "Space · Low risk · Akkaro orbit".
 - **Footer:** **Acknowledge** (primary) when there's a signal. With no signal: no bubble or lead, just a dashed `.cm-quiet` **"No signal waiting."** and the button reads **Close channel**.
 
 **Data:**
@@ -207,11 +207,11 @@ Today Missions is a popup window (`winMode==='missions'`). It becomes **a full s
 - **Ground missions:** the mission's planet as a cyan wireframe sphere (meridians, latitudes, the world's texture lines from `WORLD_LOOK`), the mission's **region** as a highlighted patch, and a pulsing pin.
 - **Space missions:** the planet plus a tilted orbit ring, with targets as diamonds on the ring and threats as Hegemony-blue triangles.
 - **Callouts (`.bf-callout`):** 2–3 boxes with leader lines to the pin or targets, labelled e.g. **Target**, **Opposition** (`.is-foe`, blue), **Extract**, **Threat**, **Window**. Add an optional `holo:[{k:'Target',t:'FT-4 Cross on the pad behind the sheriff’s HQ'},{k:'Opposition',t:'Sheriff Reeve enforces Hegemony law here',foe:1},{k:'Extract',t:'Walk a pilot to the pad and fly it home'}]` field to each `MPOOL` / mission def. With no `holo`, fall back to the first two objectives as Target and Extract.
-- **Label chip (`.bf-title`)**, just above the table: **"{World} · {Region}"**, e.g. "Brakka · Dustfall". Locked: "Signal encrypted", with a scrambled-bars projection.
+- **Label chip (`.bf-title`)**, just above the table: **"{World} · {Region}"**, e.g. "Akkaro · Dustfall". Locked: "Signal encrypted", with a scrambled-bars projection.
 
 **Briefing (rail, `.bf-rail`).** It must **fit with no scrolling** at 900px tall; the rail never scrolls. If content runs long, clamp the pitch first, then clamp objectives to one line each. Top to bottom:
 1. **Title:** `.bf-railtitle` "Briefing".
-2. **Mission:** name (23px display font), then the location line (target icon, "Brakka · Dustfall") with a small ghost **Show on map** button on the right. **No Ground/Space tag here.**
+2. **Mission:** name (23px display font), then the location line (target icon, "Akkaro · Dustfall") with a small ghost **Show on map** button on the right. **No Ground/Space tag here.**
 3. **Source card:** 32px avatar, name, type · location.
 4. **Pitch:** the mission description, italic, **clamped to 3 lines**, with the full text in `title`.
 5. **Three fact tiles:** **Risk** (coloured), **Travel time** ("2 days", from `m.days`), **Max squad size** (`req.team`, or e.g. "1 ship").

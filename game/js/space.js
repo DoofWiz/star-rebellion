@@ -199,12 +199,12 @@ const SCENS={
     },
   },
   depot:{
-    sub:'Brakka Orbit',
+    sub:'Akkaro Orbit',
     banner:['Cook the Depots','The patrols fly on what you burn'],
     brief:{
       eyebrow:'A Favour Returned · Maro Venn',
       title:'Cook the Depots',
-      flavour:'Four Hegemony fuel depots hang in orbit over Brakka, feeding every patrol that squeezes the frontier. Tonight nothing guards them but patrol drones: Monitors that shout for help and Pursuers that answer. Burn the fuel and be gone before anything with a pilot shows up.',
+      flavour:'Four Hegemony fuel depots hang in orbit over Akkaro, feeding every patrol that squeezes the frontier. Tonight nothing guards them but patrol drones: Monitors that shout for help and Pursuers that answer. Burn the fuel and be gone before anything with a pilot shows up.',
       objectives:['Destroy all four fuel depots',
         {sub:1,text:'Monitors call in Pursuers, and the patrol answers with a manned Mote and a Mag-Clamper that slows you down. Do not linger.'}],
     },
@@ -1115,13 +1115,13 @@ function gameOver(win){
     if(win){
       t.textContent='Depots Burned';
       const drones=ships.filter(s=>isDrone(s)&&!s.alive).length;
-      x.textContent='Four fireballs over Brakka after '+round+' rounds, and every patrol in the sector suddenly counting its fuel. '
+      x.textContent='Four fireballs over Akkaro after '+round+' rounds, and every patrol in the sector suddenly counting its fuel. '
         +(drones?drones+' patrol drone'+(drones>1?'s':'')+' shot down along the way. ':'')
         +'Venn’s intel was good — and what the depots’ manifests told us on the way in is worth even more.';
       log('<span class="g">— MISSION COMPLETE · all depots destroyed —</span>');
     } else {
       t.textContent='Flight Lost';
-      x.textContent='The drones did exactly what they were built to do. The depots stand, the patrols fly on, and the Cross is scrap over Brakka.';
+      x.textContent='The drones did exactly what they were built to do. The depots stand, the patrols fly on, and the Cross is scrap over Akkaro.';
       log('<span class="b">— MISSION FAILED · flight lost —</span>');
     }
   } else if(win){

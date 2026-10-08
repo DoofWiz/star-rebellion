@@ -94,6 +94,7 @@ const spec=sc=>({kind:'ground',missionId:sc,scenario:sc,days:2,squad:SQUAD,grafP
  await pg.emulateMedia({reducedMotion:'reduce'});
  const rm=await pg.evaluate(()=>{
   const f=window.DBGground.fn;f.juiceOn(true);
+  const w0=performance.now();while(f.juice_().stopped&&performance.now()-w0<1500){}   // let a hitstop already running (the grenade above, a shot) run out first
   const tr=f.juice_().trauma;f.explode(200,200,{r:100});
   return [f.juice_().stopped,window.SR.settings.shake()].join();
  });

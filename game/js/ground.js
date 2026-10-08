@@ -63,11 +63,11 @@ const SCENARIOS={
 stealcross:{
   mode:'stealcross',W:2400,H:1600,style:'town',fog:true,
   hasPad:true,hasTower:true,hasTurret:true,tumbleweed:true,
-  title:'Steal the Cross',sub:'Dustfall · Brakka',
+  title:'Steal the Cross',sub:'Dustfall · Akkaro',
   foesLabel:'Sheriff\u2019s Men',calmLabel:'Town is calm',alertLabel:'Town alerted',
   banner:['Steal the Cross','Escort the Pilot to the fighter and steal it'],
   brief:{
-    eyebrow:'Ground Operation \u00b7 Dustfall, Brakka',
+    eyebrow:'Ground Operation \u00b7 Dustfall, Akkaro',
     flavour:'Dustfall keeps one <b>FT-4 Cross</b> patrol fighter on the pad behind the sheriff’s HQ. Sheriff Reeve enforces Hegemony law here, so that makes him and his men targets.',
     objectives:[
       'Get the Pilot to the Ship on the landing pad north-east of town',
@@ -161,7 +161,7 @@ stealcross:{
 stealfuel:{
   mode:'stealfuel',W:2200,H:1500,style:'town',fog:true,
   hasPad:false,hasTower:true,hasTurret:false,hasGraf:true,tumbleweed:true,
-  sub:'Redrock Flats · Brakka',
+  sub:'Redrock Flats · Akkaro',
   towerLabel:'WATCHTOWER',
   lamps:[[1640,360],[1810,540],[1260,560],[900,820],[1560,760]],
   LZ:{x:260,y:1190,r:130},PAD:{x:1700,y:440,r:150},
@@ -963,6 +963,7 @@ let phase='BRIEF';       // BRIEF, CUTSCENE, FREE, PLANNING, EXEC, ENGAGE, EXTRA
 let round=0,started=false,town='calm';
 let hotT=0,rtPing=null,extractFx=null,freeHinted=false,lastSpotT=0,lastFrame=0,lastReal=0;
 let NADES=0,nades=[],dmgRound=new Set();
+let quietRounds=0,shotRound=false,roundHot=false;   // is the fight still on? (stillFighting)
 let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null;
 let execT0=0,engageQ=null;
@@ -1052,30 +1053,55 @@ function segBlocked(x1,y1,x2,y2){
   return false;
 }
 function losBlocked(a,b){return segBlocked(a.x,a.y,b.x,b.y);}
-function inCoverAt(x,y){
-  for(const p of PROPS)if(!p.dead&&PROPDEF[p.kind].cov>0&&Math.hypot(p.x-x,p.y-y)<PROPDEF[p.kind].r+34)return true;
-  return false;
+/* ---------- cover: what stands in the line of the shot ----------
+   Cover is an object between the shooter and a target who is hugging it, never a ring round it:
+   - a prop (crates, drums, a truck, a boulder) covers a target within HUG of it when the shot's line passes through it;
+   - a building covers a target hugging its wall when the wall faces the shooter (within COVER_ARC): the shot has to
+     come round its edge, which is a corner shot.
+   A shot that comes from the side or behind misses the object: that target is flanked, and simply gets no cover. Take
+   cover (pressing up against it) adds a small TAKE_COVER, only against shots the cover is in the way of, and they still
+   shoot that round. */
+const HUG=34,COVER_ARC=1.4,WALL_COVER=9,TAKE_COVER=2;
+/* where p falls along the segment a-b (k: 0 at a, 1 at b) and how far it is from the segment */
+function segPt(ax,ay,bx,by,px,py){
+  const dx=bx-ax,dy=by-ay,L=dx*dx+dy*dy||1,k=((px-ax)*dx+(py-ay)*dy)/L,kc=Math.max(0,Math.min(1,k));
+  return {k,d:Math.hypot(ax+dx*kc-px,ay+dy*kc-py)};
 }
+/* the nearest point of a building's footprint to (x, y), and how far it is */
+function rectNear(b,x,y){const nx=Math.max(b.x,Math.min(b.x+b.w,x)),ny=Math.max(b.y,Math.min(b.y+b.h,y));return {x:nx,y:ny,d:Math.hypot(x-nx,y-ny)};}
+const propsNear=(x,y)=>PROPS.filter(p=>!p.dead&&PROPDEF[p.kind].cov>0&&Math.hypot(p.x-x,p.y-y)<PROPDEF[p.kind].r+HUG);
+const wallsNear=(x,y)=>BLDGS.filter(b=>{const n=rectNear(b,x,y);return n.d>0&&n.d<HUG;});
+function inCoverAt(x,y){return propsNear(x,y).length>0||wallsNear(x,y).length>0;}
 function coverOf(s,t){
-  // best prop hugging the target that sits between shooter and target
   if(t.elev)return {v:2,lab:'TOWER RAILING'};
   if(t.veh||t.mnt)return null;
   let best=null;
-  const angST=Math.atan2(s.y-t.y,s.x-t.x);
-  for(const p of PROPS){
-    const def=PROPDEF[p.kind];
-    if(p.dead||def.cov<=0)continue;
-    const dt=Math.hypot(p.x-t.x,p.y-t.y);
-    if(dt>def.r+34)continue;
-    const angPT=Math.atan2(p.y-t.y,p.x-t.x);
-    if(Math.abs(angNorm(angPT-angST))>1.25)continue;
-    if(dt>dist(s,t))continue;
-    let v=def.cov;
-    if(s.elev)v=Math.max(1,v-2);
-    if(!best||v>best.v)best={v,lab:(s.elev?'COVER (HIGH ANGLE)':def.lab+' COVER'),prop:p};
+  const take=(v,lab,o)=>{if(s.elev){v=Math.max(1,v-2);lab='COVER (HIGH ANGLE)';}if(!best||v>best.v)best=Object.assign({v,lab},o);};
+  for(const p of propsNear(t.x,t.y)){
+    const def=PROPDEF[p.kind],q=segPt(s.x,s.y,t.x,t.y,p.x,p.y);
+    if(q.k>0&&q.k<1&&q.d<=def.r+6)take(def.cov,def.lab+' COVER',{prop:p});   // the line goes through it, between the two
+  }
+  for(const b of wallsNear(t.x,t.y)){
+    const n=rectNear(b,t.x,t.y);
+    if(Math.abs(angNorm(Math.atan2(n.y-t.y,n.x-t.x)-Math.atan2(s.y-t.y,s.x-t.x)))<=COVER_ARC)take(WALL_COVER,'WALL COVER',{wall:b});
   }
   return best;
 }
+/* the cover a spot gives against a set of shooters: the best level (0 none, 1 half, 2 full), from how many of them,
+   and whether there is anything there to hug at all */
+function coverVs(x,y,foes){   // only the ones who could fire on the spot count: in range, with a clear line
+  const t={x,y};let lvl=0,n=0,tot=0;
+  for(const f of foes){
+    const w=WPN[(f.wpns&&f.wpns[0])||'akli'];
+    if((w&&Math.hypot(f.x-x,f.y-y)>w.rng)||segBlocked(f.x,f.y,x,y))continue;
+    tot++;
+    const c=coverOf(f,t);if(c){n++;lvl=Math.max(lvl,c.v>=9?2:1);}
+  }
+  return {lvl,n,tot,hug:inCoverAt(x,y)};
+}
+/* who could shoot at someone on this side: for the squad, only the hostiles it has seen */
+const threatsTo=side=>U.filter(o=>!o.veh&&!o.down&&!o.surr&&!o.extracted&&!o.away&&!o.office&&!o.caged&&
+  (side==='reb'?o.side==='law'&&unitSeen(o):o.side==='reb'));
 function chipCover(prop,dmg){
   if(!prop||prop.dead||PROPDEF[prop.kind].hp===undefined)return;
   prop.hp-=dmg;
@@ -1301,7 +1327,19 @@ const WDAM={},ONE_HAND=[];for(const k in WPN){WDAM[k]=WPN[k].dmg;if(WPN[k].oneHa
 const TREAT_R=110;
 const injOf=(u,k)=>!!u&&!!u.inj&&u.inj.some(i=>i.k===k&&!i.treated);
 const hasInj=u=>!!u&&!!u.inj&&u.inj.some(i=>!i.treated);
-const stunned=u=>injOf(u,'concussion');
+/* a concussion stuns for the round after it lands (stunTo: the last round it holds), then wears off; the injury stays
+   for the base to heal, and a Treat Wound still clears the stun at once */
+const stunned=u=>!!u&&!!u.inj&&u.inj.some(i=>i.k==='concussion'&&!i.treated&&!i.shook);
+function stunTick(){
+  for(const u of U){
+    const i=(u.inj||[]).find(x=>x.k==='concussion'&&!x.treated&&!x.shook);
+    if(!i||(i.stunTo!==undefined&&i.stunTo>round))continue;
+    i.shook=1;
+    if(u.down||u.dead)continue;
+    addFloater(u.x,u.y-52,'SHAKES IT OFF',C.go);
+    log(nameSpan(u)+' <span class="g">shakes off the stun</span> <span class="d">\u2014 still concussed, but back in the fight</span>.');
+  }
+}
 const cantSprint=u=>!!u&&(u.nosprint||injOf(u,'brokenleg')||!!u.bot||!!u.mnt);
 function inflictInjury(t,src,force){
   if(!t||t.side!=='reb'||t.auto||t.vip||t.caged||t.hp<=0)return null;
@@ -1309,7 +1347,7 @@ function inflictInjury(t,src,force){
   if(have.length>=3)return null;
   const def=force?Rebel.INJK[force]:Rebel.injRoll(src||'ballistic',rng,have);
   if(!def||have.includes(def.k))return null;
-  (t.inj=t.inj||[]).push({k:def.k,treated:false});
+  (t.inj=t.inj||[]).push(def.k==='concussion'?{k:def.k,treated:false,stunTo:round+1}:{k:def.k,treated:false});
   t.wound=1;
   addFloater(t.x,t.y-52,def.n.toUpperCase(),C.hazard);
   log(nameSpan(t)+' <span class="b">suffers '+def.n+'</span> <span class="d">— '+def.combat+'</span>');
@@ -1329,17 +1367,29 @@ function inflictInjury(t,src,force){
 /* a specialty, their own or one they were cross-trained in (Instructor, Cross-Training) */
 const hasSp=(u,k)=>!!u&&!!k&&(u.spec===k||u.spec2===k);
 const medic=u=>!!u&&hasSp(u,'medic');
-function treatTarget(h){
-  if(!h||h.down||stunned(h)||h.extracted||h.away)return null;
+const treatReach=h=>medic(h)?TREAT_R*1.5:TREAT_R;
+function treatCands(h){
+  if(!h||h.down||stunned(h)||h.extracted||h.away)return [];
   const rank=x=>(x.down?0:stunned(x)?1:injOf(x,'bleeding')?2:3);
-  const reach=medic(h)?TREAT_R*1.5:TREAT_R;
+  const reach=treatReach(h);
   const ok=x=>x.side==='reb'&&!x.auto&&!x.mnt&&!x.dead&&(hasInj(x)||x.down)&&!x.extracted&&!x.away&&(x===h?true:dist(h,x)<=reach);
-  return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b))[0]||null;
+  return U.filter(ok).sort((a,b)=>rank(a)-rank(b)||dist(h,a)-dist(h,b));
 }
-const treatPick=h=>h&&h.meds>0?treatTarget(h):null;
+const treatTarget=h=>treatCands(h)[0]||null;
+/* who this medic will treat: the one picked while planning (o.tid) while they still need it, else the most urgent */
+function treatPick(h,tid){
+  if(!h||!(h.meds>0))return null;
+  const cs=treatCands(h);
+  return (tid&&cs.find(x=>x.id===tid))||cs[0]||null;
+}
 function doTreat(h){
-  const t=treatPick(h);
-  if(!t)return;
+  const t=treatPick(h,h&&h.order&&h.order.type==='treat'?h.order.tid:null);
+  if(!t){
+    if(h&&h.order&&h.order.type==='treat'){addFloater(h.x,h.y-44,h.meds>0?'NOBODY TO TREAT':'NO MED PACK',C.text3);log(nameSpan(h)+' <span class="d">has nobody within reach to treat.</span>');}
+    return;
+  }
+  jfx.push({k:'ring',x:t.x,y:t.y-20,t0:clock(),dur:800,col:C.go,r:54});   // a green pulse on the patient: it worked
+  if(t!==h)addFloater(h.x,h.y-44,'MED PACK \u2212'+(medic(h)?'1 (\u00d72)':'1'),C.text2);
   const sev=['spinal','maimed','concussion','bleeding','internal','brokenleg','brokenarm','burns','shrapnel','eye','eardrum','facial'];
   const wasIncap=!!t.down||stunned(t);
   h.meds--;h.packsUsed=(h.packsUsed||0)+1;
@@ -1350,7 +1400,8 @@ function doTreat(h){
     h.treats=(h.treats||0)+1;h.xpGain=(h.xpGain||0)+0.08;
   }
   for(let n=medic(h)?2:1;n>0;n--){
-    const inj=(t.inj||[]).filter(i=>!i.treated).sort((a,b)=>sev.indexOf(a.k)-sev.indexOf(b.k))[0];
+    const rk=i=>i.k==='concussion'&&i.shook?sev.length:sev.indexOf(i.k);   // a stun already shaken off can wait
+    const inj=(t.inj||[]).filter(i=>!i.treated).sort((a,b)=>rk(a)-rk(b))[0];
     if(!inj)break;
     inj.treated=true;
     if(inj.k==='internal'&&t.maxhp0){t.maxhp=t.maxhp0;}
@@ -1392,8 +1443,11 @@ function computeTN(s,t){
   if(d>w.rng*0.7){v+=3;e.push(['LONG RANGE',3]);}
   else if(d>w.rng*0.4){v+=2;e.push(['RANGE',2]);}
   if(t.sprinted){v+=2;e.push(['SPRINTING',2]);}
-  const cov=coverOf(s,t);
-  if(cov){const cv=cov.v*(t.bunkered?2:1);v+=cv;e.push([t.bunkered?cov.lab+' ×2':cov.lab,cv]);}
+  const cov=t.obj?null:coverOf(s,t);
+  if(cov){
+    v+=cov.v;e.push([cov.lab,cov.v]);
+    if(t.bunkered){v+=TAKE_COVER;e.push(['TAKING COVER',TAKE_COVER]);}
+  }
   if(t.manning&&sandbagged(s,t)){v+=SANDBAG_COVER;e.push(['SANDBAGS',SANDBAG_COVER]);}
   if(t.mnt){v+=HATCH_COVER;e.push(['VEHICLE HATCH',HATCH_COVER]);}
   if(coolStateG(t)==='cool'){v+=1;e.push(['TARGET COOL',1]);}
@@ -1412,7 +1466,7 @@ function computeATK(s,t,wkey,snap){
   v+=s.aim;e.push(['TRIGGER SKILL',s.aim,true]);
   if(w.atk){v+=w.atk;e.push([w.name,w.atk]);}
   const md=modeOf(s,wkey);
-  if(md==='auto'){v+=AUTO_PEN;e.push(['AUTOMATIC',AUTO_PEN]);}
+  if(md==='auto'){const ap=autoPen(s,wkey);v+=ap;e.push([ap===AUTO_PEN?'AUTOMATIC':'AUTOMATIC (DEPLOYED)',ap]);}
   else if(md==='fan'){v+=FAN_PEN;e.push(['FAN HAMMER',FAN_PEN]);}
   else if(md==='semi'&&t&&s.semiT===t.id&&s.semiN>0){v+=s.semiN;e.push(['SEMI-AUTO',s.semiN]);}
   if(w.steady&&!snap&&(s.braced||(t&&s.steadyT===t.id))){v+=STEADY_BONUS;e.push(['STEADY',STEADY_BONUS]);}
@@ -1457,11 +1511,13 @@ function jamRoll(s,wkey,roll){
   return hasT(s,'clumsy')&&rng()<0.05;
 }
 /* ---------- fire modes and weapon traits (Gear doc; DESIGN_BLOCKERS M-27) ----------
-   Automatic: -5 to hit, and a hit rolls straight away for a second one at -10. Semi-auto: +1 for every round in a
+   Automatic: -5 to hit (-2 from a deployed Razorrat), and a hit rolls straight away for a second one at -10. Semi-auto: +1 for every round in a
    row spent on the same target, until the shooter moves or panics. Single shot: nothing. Fan hammer: -5 to hit,
    double damage. A weapon starts on its first mode with no penalty (Items.defaultMode); the AI never switches.
    Steady: +2 when braced (Hold) or on a target held fire on with the Hold fire button; holding is Steady's alone. */
-const AUTO_PEN=-5,AUTO_AGAIN=-10,FAN_PEN=-5,STEADY_BONUS=2,KNOCK_DIST=60;
+const AUTO_PEN=-5,AUTO_DEPLOYED=-2,AUTO_AGAIN=-10,FAN_PEN=-5,STEADY_BONUS=2,KNOCK_DIST=60;
+/* a Razorrat fired from its tripod (a field deployment or the pad's emplacement) keeps Automatic at -2, not -5 */
+const autoPen=(s,wkey)=>s&&s.manning&&wkey==='razorrat'?AUTO_DEPLOYED:AUTO_PEN;
 const modesOf=wkey=>(WPN[wkey]&&WPN[wkey].modes)||[];
 function modeOf(s,wkey){
   const m=modesOf(wkey);if(!m.length)return null;
@@ -1478,7 +1534,7 @@ function afterShot(s,t,wkey,hit,tn,atk){
   if(s.steadyT===t.id)s.steadyT=null;
   if(!hit||t.obj)return;
   if(md==='auto'&&!t.down&&!t.surr){
-    const need=needFor(tn.total,atk.total-AUTO_PEN+AUTO_AGAIN),roll=rint(1,20);
+    const need=needFor(tn.total,atk.total-autoPen(s,wkey)+AUTO_AGAIN),roll=rint(1,20);
     if(roll>=need){
       const dmg=rollDamage(s,t,wkey,false);
       log(nameSpan(s)+' <span class="a">keeps the trigger down</span> and hits again — <b>'+dmg+'</b> <span class="d">(rolled '+roll+', needed '+need+')</span>.');
@@ -1943,22 +1999,16 @@ function alliesUp(side){return U.filter(u=>u.side===side&&!u.down&&!u.surr).leng
 function hostilesActive(){return U.filter(u=>u.side==='law'&&!u.down&&!u.surr);}
 
 /* ---------- law AI ---------- */
-function coverPoints(){
+function coverPoints(){   // the building corners: cover from anyone round the corner (pickCoverMove adds the props)
   const out=[];
-  for(const p of PROPS){
-    if(PROPDEF[p.kind].cov<=0)continue;
-    const r=PROPDEF[p.kind].r+22;
-    for(let i=0;i<4;i++){
-      const a=i*Math.PI/2+0.4;
-      const x=p.x+Math.cos(a)*r,y=p.y+Math.sin(a)*r;
-      if(x>20&&x<W-20&&y>20&&y<H-20&&!ptBlocked(x,y,12))out.push({x,y});
-    }
-  }
+  for(const b of BLDGS)for(const [x,y] of [[b.x-18,b.y-18],[b.x+b.w+18,b.y-18],[b.x-18,b.y+b.h+18],[b.x+b.w+18,b.y+b.h+18]])
+    if(x>20&&x<W-20&&y>20&&y<H-20&&!ptBlocked(x,y,12))out.push({x,y});
   return out;
 }
 const COVER_PTS=[];
 function aiPlan(){
   let turretClaimed=false;
+  aiClaims=U.filter(o=>o.side==='law'&&!o.down&&!o.surr).map(o=>({u:o,x:o.x,y:o.y}));   // where everyone stands now
   for(const v of U)if(v.veh){v.order=null;v.sprinted=0;v.owUsed=0;}
   for(const u of U){
     if(u.veh)continue;
@@ -2063,32 +2113,87 @@ function aiCrew(u){
   if(d&&Math.hypot(d.x-v.x,d.y-v.y)>30&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
   hold();
 }
+/* where to move: a spot that puts cover between them and their target (behind a prop, as the target sees it, or round
+   a building's corner), within reach and in range. They keep their distance from the other side (nobody walks up to
+   share a crate with the enemy) and spread out from their own (two of them do not claim the same spot). */
+let aiClaims=[];
+const AI_NOSE=140;   // closer than this to anyone on the other side scores badly
 function pickCoverMove(u,tgt,r,toward){
   let best=null,bs=-1e9;
-  const cand=COVER_PTS.slice();
+  const foes=U.filter(o=>(u.side==='law'?o.side==='reb':o.side==='law')&&!o.veh&&!o.down&&!o.surr&&!o.extracted&&!o.away&&!o.office);
+  const cand=[];
+  for(const p of PROPS){   // behind each prop in reach, from where the target stands (and a little either side)
+    const def=PROPDEF[p.kind];
+    if(p.dead||def.cov<=0||Math.hypot(p.x-u.x,p.y-u.y)>r+def.r+HUG)continue;
+    const a=Math.atan2(p.y-tgt.y,p.x-tgt.x);
+    for(const da of [0,-0.45,0.45])cand.push({x:p.x+Math.cos(a+da)*(def.r+16),y:p.y+Math.sin(a+da)*(def.r+16),prop:p});
+  }
+  cand.push(...COVER_PTS);   // building corners
   for(let i=0;i<8;i++){
     const a=rng()*Math.PI*2;
     cand.push({x:u.x+Math.cos(a)*r*0.8,y:u.y+Math.sin(a)*r*0.8});
   }
+  const wkey=wpnsOf(u)[0],w=WPN[wkey]||WPN[u.wpns[0]];
   for(const c of cand){
     if(Math.hypot(c.x-u.x,c.y-u.y)>r)continue;
     if(c.x<20||c.x>W-20||c.y<20||c.y>H-20||ptBlocked(c.x,c.y,12))continue;
     if(!pathFor(u,c.x,c.y))continue;
     const dNow=dist(u,tgt),dNew=Math.hypot(c.x-tgt.x,c.y-tgt.y);
     let s=toward?(dNow-dNew):(dNew-dNow);
-    const covered=coverOf(tgt,{x:c.x,y:c.y,def:10,elev:0,sprinted:0,wound:0,frail:0,bunkered:0,cool:50});
-    if(covered)s+=90;
+    const cv=coverOf(tgt,{x:c.x,y:c.y});
+    if(cv)s+=60+cv.v*4;
+    for(const o of foes){
+      if(o===tgt)continue;
+      if(dist(o,c)<(w?w.rng:400)&&!segBlocked(o.x,o.y,c.x,c.y))s+=coverOf(o,{x:c.x,y:c.y})?12:-12;   // covered or flanked by the rest
+    }
     for(const g of nades)if(Math.hypot(c.x-g.x,c.y-g.y)<NADE_BLAST+24)s-=170; // nobody stands on a live grenade twice
-    const w=WPN[u.wpns[0]];
-    if(dNew<w.rng*0.9&&!segBlocked(c.x,c.y,tgt.x,tgt.y))s+=70;
-    if(dNew<90)s-=120; // don't hug the enemy
+    if(w&&dNew<w.rng*0.9&&!segBlocked(c.x,c.y,tgt.x,tgt.y))s+=70;
+    for(const o of foes){
+      const d=Math.hypot(c.x-o.x,c.y-o.y);
+      if(d<AI_NOSE)s-=160*(1-d/AI_NOSE)+40;   // don't walk up to the enemy
+      if(c.prop&&Math.hypot(o.x-c.prop.x,o.y-c.prop.y)<PROPDEF[c.prop.kind].r+HUG)s-=150;   // nor share their cover with them
+    }
+    for(const q of aiClaims){if(q.u===u)continue;const d=Math.hypot(c.x-q.x,c.y-q.y);if(d<44)s-=220;else if(d<80)s-=60;}   // spread out
     if(s>bs){bs=s;best=c;}
   }
+  if(best)aiClaims.push({u,x:best.x,y:best.y});
   return best;
 }
 
 /* ---------- free move (real time, out of combat) ---------- */
 function combatActive(){return town==='alerted'&&hostilesActive().length>0;}
+/* contact: a hostile on their feet who can see a rebel, or a rebel who can see them. After every round the game asks
+   whether the fight is still on: QUIET_ROUNDS rounds in a row with no shot fired, nobody hit, no grenade waiting and
+   nobody in sight of the other side, and time runs free again (the alarm stays up, so no sneaking). In free time, the
+   moment either side sees the other, it drops back into rounds. A rebel bleeding out keeps the clock in rounds. */
+const QUIET_ROUNDS=2;
+function inContact(){
+  const foes=hostilesActive().filter(l=>!l.office&&!l.away&&!l.extracted&&!l.caged);
+  const rebs=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&!r.csHide);
+  for(const l of foes)for(const r of rebs){
+    const d=dist(l,r);
+    if((d<sightRange(l)||d<VIEW_R*viewMul(r))&&!losBlocked(l,r))return true;
+  }
+  return false;
+}
+const bleedingOut=()=>U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&injOf(u,'bleeding'));
+/* end of a round with the enemy still about: is this still a fight? */
+function stillFighting(hot){
+  if(hot||nades.length||inContact()||bleedingOut()){quietRounds=0;return true;}
+  quietRounds++;
+  if(quietRounds>=QUIET_ROUNDS){quietRounds=0;return false;}
+  log('<span class="d">No contact this round.</span> '+(QUIET_ROUNDS-quietRounds>1?'A few':'One')+' more quiet round'+(QUIET_ROUNDS-quietRounds>1?'s':'')+' and time runs free.');
+  return true;
+}
+/* free time with the alarm up: someone comes into view, and it is rounds again */
+function contactCheck(){
+  if(town!=='alerted'||!hostilesActive().length||!inContact())return false;
+  haltSquad();
+  log('<span class="b">Contact!</span> <span class="a">Time drops into rounds — plan every rebel’s move.</span>');
+  sAlert();
+  startPlanning();
+  return true;
+}
 function haltSquad(){for(const u of U){u.rtPath=null;}}
 function unstick(u){
   if(!ptBlocked(u.x,u.y,0))return;
@@ -2179,6 +2284,7 @@ function enterFree(msg){
   for(const u of U){
     u.bunkered=0;
     u.cool=Math.max(u.cool,u.cool0);
+    for(const i of u.inj||[])if(i.k==='concussion')i.shook=1;   // time runs free: the stun has worn off
     if(u.manning){u.braced=1;u.order={type:'hold'};u.path=null;u.rtPath=null;continue;}
     u.order=null;u.braced=0;u.sprinted=0;u.path=null;u.rtPath=null;
   }
@@ -2199,12 +2305,30 @@ function manTurret(u){
   sTick();syncUI();
 }
 function unmanTurret(u){
-  turret.gunner=null;u.manning=0;u.braced=0;u.order=null;
+  turret.gunner=null;u.manning=0;u.braced=0;u.order=null;u.wkey=null;resetChain(u);   // back to their own weapons
   let ox=TURRET.x+Math.cos(turret.face+Math.PI)*44,oy=TURRET.y+Math.sin(turret.face+Math.PI)*44;
   const d=moveDest(u,ox,oy,60);
   if(d){u.x=d.x;u.y=d.y;}
   log(nameSpan(u)+' leaves the gun.');
   syncUI();
+}
+/* Pack up gun: a Razorrat set up in the field (not the pad's sandbagged one) folds back onto the back of whoever packs it:
+   its gunner, or a rebel beside it with nothing on their back */
+function canPack(u){
+  if(!u||!turretOn()||!TURRET.field||u.back||u.mnt||u.bot||u.auto||u.down||u.surr||stunned(u))return false;
+  if(u.manning)return true;
+  return !turret.gunner&&dist(u,TURRET)<60;
+}
+function packTurret(u){
+  if(!canPack(u))return false;
+  if(u.manning){turret.gunner=null;u.manning=0;u.braced=0;}
+  u.order=null;u.wkey=null;resetChain(u);
+  u.back='razorrat';u.deployed=null;u._deployT=clock();
+  TURRET={x:-99999,y:-99999,r:26};turret={gunner:null,face:Math.PI};
+  addFloater(u.x,u.y-42,'GUN PACKED',C.shield);
+  log(nameSpan(u)+' packs up the <b>Razorrat LMG</b> and slings it on their back.');
+  sTick();syncUI();
+  return true;
 }
 function workDone(){return WORK.every(w=>w.done);}
 function workStep(wp,u){
@@ -2504,6 +2628,7 @@ function dgShipPos(R,now){
 function dgNext(){
   const a=dgQueue.shift();
   if(!a){roundWrap();return;}
+  roundHot=true;   // a gun run is shooting
   const mark=a.mark;
   const pick=dgTargets(mark);
   if(!mark||!pick.length){
@@ -3038,6 +3163,7 @@ function rtUpdate(now,dt){
     }
   }
   if(phase!=='FREE')return;
+  if(contactCheck())return;
   // auto-loot on the walk
   for(const u of U){
     if(u.side!=='reb'||u.down||u.extracted||u.away||u.mnt||u.bot)continue;
@@ -3316,7 +3442,7 @@ function buildEngage(){
     if(s.down||s.surr||s.extracted||s.away)continue;
     if(s.sprinted)continue;
     const o=s.order;
-    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='cover'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
+    if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='pack'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&(town!=='alerted'||lawHolds()))continue;
     if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
@@ -3349,7 +3475,7 @@ function pickTarget(s){
   return best?{t:best,wkey:bw}:null;
 }
 function makeCur(s,t,wkey){
-  s.wkey=wkey;
+  s.wkey=wkey;shotRound=true;
   s.face=Math.atan2(t.y-s.y,t.x-s.x);
   return {s,t,wkey,tn:computeTN(s,t),atk:computeATK(s,t,wkey,false),
     reveal:0,revealA:0,stage:'reveal',stageAt:clock(),roll:0,hit:false,crit:false,applied:false,need:0};
@@ -3371,6 +3497,12 @@ function attackUpdate(now){
     if(!pk)return;
     q.cur=makeCur(s,pk.t,pk.wkey);
     camGoal=frameGoalOf(s,pk.t);
+    if(s.side==='reb'&&!s.ally)selId=s.id;   // the rebel whose turn it is is the selected one
+    else {   // an enemy (or an ally) shoots straight away: the card opens on the result while the shot flies
+      const c=q.cur;
+      c.fast=1;selId=null;c.reveal=c.tn.entries.length;c.revealA=c.atk.entries.length;c.need=needFor(c.tn.total,c.atk.total);
+      rollShot(c);startFire(c,now);
+    }
     syncUI();
     return;
   }
@@ -3392,24 +3524,9 @@ function attackUpdate(now){
   } else if(c.stage==='await'){
     // waits for the ATTACK button
   } else if(c.stage==='roll'){
-    if(el>780){
-      c.roll=rint(1,20);
-      c.jammed=jamRoll(c.s,c.wkey,c.roll);
-      c.hit=!c.jammed&&c.roll>=c.need;
-      c.crit=critRoll(c.roll,c.t);
-      c.stage='verdict';c.stageAt=now;
-    }
+    if(el>780){rollShot(c);c.stage='verdict';c.stageAt=now;}
   } else if(c.stage==='verdict'){
-    if(el>620){c.stage='fire';c.stageAt=now;
-      if(c.hit&&!c.jammed&&!c.t.obj){
-        let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
-        c.soaked=!!(c.tn.cover&&c.tn.cover.prop);
-        if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
-        c.dmg=dmg;
-      }
-      if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
-      if(town==='calm')alertTown('Gunfire in the street.');
-    }
+    if(el>620)startFire(c,now);
   } else if(c.stage==='fire'){
     if(el>(c.applyAt==null?420:c.applyAt)&&!c.applied){
       c.applied=true;c.done=true;
@@ -3445,8 +3562,27 @@ function attackUpdate(now){
         afterShot(c.s,c.t,c.wkey,false,c.tn,c.atk);
       }
     }
-    if(el>(c.endAt||900)){q.cur=null;q.nextAt=now+320;syncUI();}
+    // a fast (enemy) shot hands over as its last rounds land; the tracers finish on their own
+    if(el>(c.endAt||900)||(c.fast&&c.applied&&el>(c.applyAt||420)+FAST_TAIL)){q.cur=null;q.nextAt=now+(c.fast?120:320);if(!c.fast)selId=null;syncUI();}
   }
+}
+const FAST_TAIL=380;   // ms an enemy's result stays up after the hit lands before the next shooter goes
+function rollShot(c){
+  c.roll=rint(1,20);
+  c.jammed=jamRoll(c.s,c.wkey,c.roll);
+  c.hit=!c.jammed&&c.roll>=c.need;
+  c.crit=critRoll(c.roll,c.t);
+}
+function startFire(c,now){
+  c.stage='fire';c.stageAt=now;
+  if(c.hit&&!c.jammed&&!c.t.obj){
+    let dmg=rollDamage(c.s,c.t,c.wkey,c.crit);
+    c.soaked=!!(c.tn.cover&&(c.tn.cover.prop||c.tn.cover.wall));
+    if(c.soaked)dmg=Math.max(1,Math.round(dmg*0.75));
+    c.dmg=dmg;
+  }
+  if(!c.jammed){const f=fireFx(c.s,c.t,c.wkey,c.hit,c.dmg||0,c);c.applyAt=Math.max(40,Math.min(700,f.first));c.endAt=Math.max(900,f.last+520);}
+  if(town==='calm')alertTown('Gunfire in the street.');
 }
 function playerAttack(){
   const c=engageQ&&engageQ.cur;
@@ -3545,6 +3681,7 @@ function endRound(){
     if(h.side!=='reb'||h.down||h.extracted||h.away||!hasT(h,'empathetic'))continue;
     for(const m of U)if(m!==h&&m.side==='reb'&&!m.down&&!m.extracted&&!m.away&&dist(h,m)<240)adjCoolG(m,3,'steadied by '+h.first);
   }
+  stunTick();
   hackResolve();
   fsRoundEnd();
   // loot pickups
@@ -3559,6 +3696,7 @@ function endRound(){
   for(const u of U){
     if(u.down||u.surr||u.extracted||u.away)continue;
     if(u.order&&u.order.type==='leave'&&u.manning){unmanTurret(u);continue;}
+    if(u.order&&u.order.type==='pack'){packTurret(u);continue;}
     if(!turret.gunner&&!u.manning&&dist(u,TURRET)<52&&
        ((u.order&&u.order.type==='man')||u.goingTurret)){manTurret(u);}
     u.goingTurret=0;
@@ -3577,6 +3715,7 @@ function endRound(){
     if(u.side==='civ'||u.down||u.surr||u.extracted||u.away)continue;
     if(!dmgRound.has(u.id))adjCoolG(u,6,null);
   }
+  roundHot=shotRound||dmgRound.size>0;shotRound=false;
   dmgRound=new Set();
   fuelReach();
   fuelPumpStep();
@@ -3620,7 +3759,14 @@ function endRound(){
 function roundWrap(){
   if(phase==='GAMEOVER')return;
   if(!combatActive()){
+    quietRounds=0;
     enterFree(town==='alerted'?'<span class="g">The street is clear.</span> Time runs free again — sweep the town, then bring everyone home.':null);
+    return;
+  }
+  const hot=roundHot;roundHot=false;
+  if(!stillFighting(hot)){
+    const n=hostilesActive().length;
+    enterFree('<span class="g">Contact lost.</span> Time runs free again, but '+n+' hostile'+(n>1?'s are':' is')+' still out there and the alarm is up: the moment either side sees the other, it is rounds again.');
     return;
   }
   startPlanning();
@@ -3821,6 +3967,7 @@ function buildResult(win){
 }
 /* ---------- explosions ---------- */
 function explode(x,y,opt){
+  shotRound=true;
   const R=(opt&&opt.r)||135,D0=(opt&&opt.d0)||45,D1=(opt&&opt.d1)||70;
   sBoomBig();
   juice(opt&&opt.rocket?'rocket':'grenade',x,y,{r:R});   // freeze, shake, debris, embers, smoke and a shockwave
@@ -4659,7 +4806,7 @@ function artSpec(u){
   if(u.side==='law')return SCN.style==='rock'?A.ARCH.squatter:A.ARCH.deputy;   // Take the Rock's opposition is the Vult gang
   return A.recruit(u.name||u.id);                       // last resort for a rebel with no record (debug spawns)
 }
-const ORDER_POSE={deploy:'deploy',hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat',stim:'treat'};
+const ORDER_POSE={deploy:'deploy',pack:'deploy',hack:'hack',work:'work',loot:'loot',man:'man',lockin:'lockin',leave:'extract',treat:'treat',stim:'treat'};
 /* a fixed per-unit phase so units don't blink and bob in sync — never the live
    position: an offset that moves with the unit speeds the cycle up one way and
    runs it backwards the other */
@@ -4687,7 +4834,8 @@ function artPose(u,now){
   const pose={state,view:vd.view,dir:vd.dir,t,s:actorScale(u)};
   if(u.dead)pose.dead=1;   // no stars over the dead
   if(c&&c.s===u&&!u.down)pose.aim=Math.atan2(c.t.y-u.y,c.t.x-u.x);   // pupils and gun track the target exactly
-  const wk=u.wkey||(u.wpns&&u.wpns[0]);
+  let wk=u.wkey||(u.wpns&&u.wpns[0]);
+  if(wk==='razorrat'&&!u.manning)wk=u.wpns&&u.wpns[0];   // the LMG stays on its tripod (or on their back)
   pose.weapon=(wk&&SA.WEAPONS[wk])?wk:null;              // unarmed, fists and the vehicle weapons draw nothing
   const base=(u.art&&u.art.gear)||(u.arch&&!u.art?artSpec(u).gear:null)||[];   // a rebel's kit, or what a roster enemy wears
   const g=[];
@@ -4818,14 +4966,38 @@ function tokR(u){
   if(u.side==='civ')r*=0.62;else if(u.vehicle)r*=1.3;else if(u.big)r*=1.2;
   return r;
 }
-function coverLevelAt(x,y){                   // 0 none, 1 half (crates, drums), 2 full (rock, truck)
-  let best=0;
-  for(const p of PROPS){
-    const d=PROPDEF[p.kind];
-    if(p.dead||d.cov<=0||Math.hypot(p.x-x,p.y-y)>=d.r+34)continue;
-    best=Math.max(best,d.cov>=9?2:1);
-  }
+function coverLevelAt(x,y){                   // what is there to hug, whatever the angle: 0 none, 1 half (crates, drums), 2 full (rock, truck, a wall)
+  let best=wallsNear(x,y).length?2:0;
+  for(const p of propsNear(x,y))best=Math.max(best,PROPDEF[p.kind].cov>=9?2:1);
   return best;
+}
+/* what a spot is worth to someone on this side against the shooters they know about: Covered (from all of them),
+   Cover n/m (from some), Flanked (hugging cover that faces the wrong way), or just Cover when nobody is in sight */
+function coverHint(x,y,side){
+  const cv=coverVs(x,y,threatsTo(side));
+  if(!cv.hug)return null;
+  if(!cv.tot)return {lvl:coverLevelAt(x,y),text:'Cover',col:C.go};
+  if(cv.n===cv.tot)return {lvl:cv.lvl,text:'Covered',col:C.go};
+  if(cv.n)return {lvl:cv.lvl,text:'Cover from '+cv.n+' of '+cv.tot,col:C.gold};
+  return {lvl:0,text:'Flanked',col:C.hazard};
+}
+/* a token's cover pip, worked out a few times a second (or when they move), not every frame */
+function unitCoverHint(u){
+  const now=clock();
+  if(u._cvH===undefined||now-u._cvT>250||u._cvX!==u.x||u._cvY!==u.y){u._cvH=coverHint(u.x,u.y,u.side==='reb'?'reb':'law');u._cvT=now;u._cvX=u.x;u._cvY=u.y;}
+  return u._cvH;
+}
+/* the spots in reach worth moving to: round every prop, and at every building corner (a corner is cover from round it) */
+function coverSpots(x,y,reach,sparse){   // sparse: four round each prop, not eight (nobody in sight to judge them by)
+  const out=[];
+  for(const p of PROPS){
+    const def=PROPDEF[p.kind];
+    if(p.dead||def.cov<=0||Math.hypot(p.x-x,p.y-y)>reach+def.r+20)continue;
+    for(let i=0;i<8;i+=sparse?2:1){const a=i*Math.PI/4;out.push({x:p.x+Math.cos(a)*(def.r+16),y:p.y+Math.sin(a)*(def.r+16)});}
+  }
+  for(const b of BLDGS)for(const [cx,cy,dx,dy] of [[b.x,b.y,-1,-1],[b.x+b.w,b.y,1,-1],[b.x,b.y+b.h,-1,1],[b.x+b.w,b.y+b.h,1,1]])
+    for(const [ox,oy] of [[dx*16,dy*4],[dx*4,dy*16]])out.push({x:cx+ox,y:cy+oy});
+  return out.filter(q=>Math.hypot(q.x-x,q.y-y)<=reach&&q.x>20&&q.x<W-20&&q.y>20&&q.y<H-20&&!ptBlocked(q.x,q.y,6));
 }
 const WORK_ICON={clamp:'work',fuel:'work',hack:'hack',plant:'grenade',release:'lock',flag:'star'};
 function hudA(now){
@@ -4887,7 +5059,7 @@ function hudUnits(L,now){
     const sc2=actorScale(u);
     const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
     if(!u.down&&!civ){
-      if(!u.surr&&!u.veh&&!u.mnt){const cl=u.bunkered?Math.max(1,coverLevelAt(u.x,u.y)):coverLevelAt(u.x,u.y);if(cl)T.coverPip(ctx,x-16*cam.z,y+8,u.bunkered?2:cl);}
+      if(!u.surr&&!u.veh&&!u.mnt){const h=unitCoverHint(u);if(h&&h.lvl)T.coverPip(ctx,x-16*cam.z,y+8,h.lvl);}
       if(!u.surr){const v=vitalsOf(u),extra=(v.armMax?1:0)+(v.shMax?1:0);SA.vitals(ctx,x,topY-4-extra*8,Object.assign(v,{s:1}));}
       if(reb&&u.det>0.5&&town==='calm')T.detectGauge(ctx,x,topY-20*cam.z,Math.min(1,u.det/100));
     }
@@ -4932,6 +5104,7 @@ function drawNades(now){
     plb('BLAM',g.x,g.y-22,C.hazard,12);
   }
 }
+let spotCache=null;   // the move picker's cover spots (drawOrders)
 function drawOrders(now){
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
   const P=(x,y)=>worldToCss(x,y);
@@ -4947,11 +5120,14 @@ function drawOrders(now){
         }
         const e=P(o.tx,o.ty);
         T.label(ctx,u.mnt?'Drive':o.type==='move'?'Move':'Sprint',e[0],e[1]-20,{kind:'float',color:o.type==='move'?C.rebel:C.gold,size:12});
-        const cl=coverLevelAt(o.tx,o.ty);
-        if(cl)T.coverPip(ctx,e[0]+18,e[1]-4,cl);
+        const h=coverHint(o.tx,o.ty,'reb');
+        if(h){if(h.lvl)T.coverPip(ctx,e[0]+18,e[1]-4,h.lvl);T.label(ctx,h.text,e[0],e[1]+22,{kind:'float',color:h.col,size:11});}
       } else if(o.type==='enter'){
         const v=U.find(x=>x.id===o.vid);
         if(v){const a=P(u.x,u.y),b=P(v.x,v.y);T.plotLine(ctx,a[0],a[1],b[0],b[1],'move',hudT);T.label(ctx,'Get in',b[0],b[1]-tokR(v)-22,{kind:'float',color:C.rebel,size:12});}
+      } else if(o.type==='treat'){
+        const t=treatPick(u,o.tid);
+        if(t)treatMark(P,u,t,now);
       } else if(o.type==='loot'){
         const [x,y]=P(u.x,u.y);
         ctx.beginPath();ctx.arc(x,y,LOOT_AOE*cam.z,0,7);ctx.fillStyle=T.rgba(C.go,0.07);ctx.fill();
@@ -4963,12 +5139,18 @@ function drawOrders(now){
       const [sx,sy]=P(sel.x,sel.y);
       const reach=reachOf(sel,pickMode),mv=sel.mnt?vehOf(sel)||sel:sel;
       T.moveRing(ctx,sx,sy,reach*cam.z,pickMode);
-      /* every cover pocket in reach (a vehicle has no use for them) */
-      for(const p of (sel.mnt||sel.bot)?[]:PROPS){
-        const def=PROPDEF[p.kind];
-        if(p.dead||def.cov<=0||Math.hypot(p.x-sel.x,p.y-sel.y)>reach+def.r+40)continue;
-        const [px,py]=P(p.x,p.y);
-        ctx.setLineDash([3,5]);ctx.beginPath();ctx.arc(px,py,(def.r+34)*cam.z,0,7);ctx.lineWidth=2;ctx.strokeStyle=T.rgba(C.go,0.5);ctx.stroke();ctx.setLineDash([]);
+      /* the cover spots in reach, judged against the hostiles in sight: bright where they cover from all of them,
+         faint where only from some; a spot every one of them flanks is left out (a vehicle has no use for any) */
+      if(!sel.mnt&&!sel.bot){
+        const key=sel.id+':'+pickMode+':'+round+':'+Math.round(sel.x)+','+Math.round(sel.y);
+        if(!spotCache||spotCache.key!==key||clock()-spotCache.t>400){   // worked out a few times a second, not every frame
+          const th=threatsTo('reb');
+          spotCache={key,t:clock(),list:coverSpots(sel.x,sel.y,reach,!th.length).map(q=>{
+            const cv=coverVs(q.x,q.y,th),judged=cv.tot>0;
+            return {x:q.x,y:q.y,lvl:judged?cv.lvl:coverLevelAt(q.x,q.y),a:!judged?0.4:cv.n===cv.tot?0.95:0.5};}).filter(q=>q.lvl)};
+        }
+        for(const q of spotCache.list){const [qx,qy]=P(q.x,q.y);ctx.globalAlpha=q.a;T.coverPip(ctx,qx,qy,q.lvl);}
+        ctx.globalAlpha=1;
       }
       if(hoverW){
         const d=moveDest(mv,hoverW.x,hoverW.y,reach);
@@ -4977,9 +5159,16 @@ function drawOrders(now){
           ctx.globalAlpha=0.6;
           for(let i=1;i<p.length;i++){const a=P(p[i-1].x,p[i-1].y),b=P(p[i].x,p[i].y);T.plotLine(ctx,a[0],a[1],b[0],b[1],pickMode,hudT);}
           ctx.globalAlpha=1;
-          const e=P(d.x,d.y),cl=coverLevelAt(d.x,d.y);
-          if(cl){T.coverPip(ctx,e[0]+18,e[1]-4,cl);T.label(ctx,'Cover',e[0],e[1]-22,{kind:'float',color:C.go,size:12});}
+          const e=P(d.x,d.y),h=coverHint(d.x,d.y,'reb');
+          if(h){if(h.lvl)T.coverPip(ctx,e[0]+18,e[1]-4,h.lvl);T.label(ctx,h.text,e[0],e[1]-22,{kind:'float',color:h.col,size:12});}
         }
+      }
+    } else if(sel&&pickMode==='treat'){
+      const [sx,sy]=P(sel.x,sel.y);
+      ctx.setLineDash([6,6]);ctx.beginPath();ctx.arc(sx,sy,treatReach(sel)*cam.z,0,7);ctx.lineWidth=2;ctx.strokeStyle=T.rgba(C.go,0.55);ctx.stroke();ctx.setLineDash([]);
+      for(const t of treatCands(sel)){
+        const [x,y]=P(t.x,t.y),r=(tokR(t)+12)*cam.z,pulse=0.5+0.5*Math.sin(now/200);
+        ctx.beginPath();ctx.arc(x,y,r+pulse*4,0,7);ctx.lineWidth=3;ctx.strokeStyle=T.rgba(C.go,0.55+0.4*pulse);ctx.stroke();
       }
     } else if(sel&&pickMode==='hack'){
       const [sx,sy]=P(sel.x,sel.y);
@@ -4988,6 +5177,17 @@ function drawOrders(now){
   }
   drawPing(now);
   ctx.restore();
+}
+/* a planned Treat wound: a green line from the medic to the patient, a ring and a cross on the patient, and their name */
+function treatMark(P,u,t,now){
+  const [x,y]=P(t.x,t.y),r=(tokR(t)+10)*cam.z,pulse=0.5+0.5*Math.sin(now/260);
+  if(t!==u){const [ax,ay]=P(u.x,u.y);T.plotLine(ctx,ax,ay,x,y,'move',hudT);}
+  ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=T.rgba(C.go,0.10+0.08*pulse);ctx.fill();
+  ctx.lineWidth=3;ctx.strokeStyle=T.rgba(C.go,0.9);ctx.stroke();
+  const cy=y-r-14,a=7,b=2.6;   // the cross
+  ctx.fillStyle=C.go;ctx.strokeStyle=C.ink||'#0b0f1a';ctx.lineWidth=2;
+  ctx.beginPath();ctx.rect(x-b,cy-a,b*2,a*2);ctx.rect(x-a,cy-b,a*2,b*2);ctx.stroke();ctx.fill();
+  T.label(ctx,t===u?'Treat self':'Treat '+(t.first||t.name),x,cy-14,{kind:'float',color:C.go,size:12});
 }
 function drawPing(){
   if(!rtPing)return;
@@ -5558,6 +5758,12 @@ cv.addEventListener('pointerup',ev=>{
       syncUI();
       return;
     }
+    if(pickMode==='treat'&&sel){
+      const t=unitAtCss(px,py),cs=treatCands(sel);
+      if(t&&cs.includes(t)){sel.order={type:'treat',tid:t.id};sTick();pickMode=null;addFloater(t.x,t.y-56,t===sel?'TREAT SELF':'TREAT '+(t.first||t.name).toUpperCase(),C.go);autoAdvance();syncUI();}
+      else addFloater(sel.x,sel.y-40,'TAP A WOUNDED REBEL IN REACH',C.text3);
+      return;
+    }
     if(pickMode==='hack'&&sel){
       const t=unitAtCss(px,py);
       if(t&&canHack(sel,t)){sel.order={type:'hack',tid:t.id};sTick();pickMode=null;autoAdvance();syncUI();}
@@ -5626,13 +5832,14 @@ const OM={
   sprint:{label:'Sprint',icon:'sprint',family:'move',key:'2',rule:'Run twice as far. No shot this round, but you are harder to hit.'},
   hold:{label:'Hold',icon:'hold',family:'stance',key:'3',rule:'Brace and watch. Fire on anyone who crosses your lane. A Steady weapon (the Longhorn) takes +2 while braced.',
     nums:[{t:'+2 attack with a Steady weapon',kind:'good'},{t:'−2 snap shot',kind:'bad'}]},
-  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Dive behind cover you are standing next to. It counts double this round.'},
+  cover:{label:'Take cover',icon:'cover',family:'stance',key:'4',rule:'Press up against the cover you are next to: +'+TAKE_COVER+' Defence on top of it this round, against shots it stands in the way of. Cover only counts when it is between you and the shooter; from the side you are flanked. You still shoot this round.'},
   lockin:{label:'Lock in',icon:'lockin',family:'nerve',key:'5',rule:'Steady your nerve. A panicking rebel can do nothing else.'},
   loot:{label:'Loot',icon:'loot',family:'util',key:'6',rule:'Grab anything lootable within reach at the end of the round.'},
   work:{label:'Work',icon:'work',family:'util',key:'7',rule:'Finish a job at a panel, clamp or fuel line.'},
   deploy:{label:'Deploy',icon:'turret',family:'util',key:'8',rule:'Set up what is on your back as the round opens: a Razorrat LMG where you stand (you get behind it), or a riot shield in your hands in place of your primary weapon. No shot this round.'},
   man:{label:'Man gun',icon:'turret',family:'stance',key:'8',rule:'Get behind the Razorrat LMG. Its sandbags cover shots from the front (+'+SANDBAG_COVER+' TN).'},
-  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the gun at the end of the round.'},
+  leave:{label:'Leave gun',icon:'leave',family:'stance',key:'8',rule:'Step off the gun at the end of the round and go back to your own weapons. The gun stays set up for anyone to man.'},
+  pack:{label:'Pack up gun',icon:'turret',family:'stance',key:'9',rule:'Fold the Razorrat LMG up at the end of the round and sling it on your back, ready to set up somewhere else. No shot this round.'},
   clear:{label:'Un-jam',icon:'unjam',family:'util',key:'8',rule:'Strip and clear a jammed Akli.'},
   hack:{label:'Hack',icon:'hack',family:'util',key:'8',rule:'Take control of an enemy Auto in range. It takes a few rounds.'},
   fs:{label:'Fire support',icon:'firesupport',family:'fight',key:'9',rule:'Call in a supply drop, a strafing run, a gunship, reinforcements, or a vehicle or Bot you brought.'},
@@ -5657,8 +5864,10 @@ function ordersFor(s){
   };
   const cur=s.order&&s.order.type;
   const pm=pickMode;
-  if(s.manning)return [card('hold',{active:cur==='hold'}),card('leave',{active:cur==='leave'})];
-  if(stunned(s))return [card('hold',{disabled:true,why:'Stunned. Another rebel has to treat the wound before they can act.'})];
+  if(s.manning){const c=[card('hold',{active:cur==='hold'}),card('leave',{active:cur==='leave'})];
+    if(TURRET.field)c.push(card('pack',{active:cur==='pack',disabled:!canPack(s),why:'Stunned.'}));
+    return c;}
+  if(stunned(s))return [card('hold',{disabled:true,why:'Stunned for this round. It wears off as the round ends, or another rebel can treat it now.'})];
   if(coolStateG(s)==='panic')return [card('lockin',{active:cur==='lockin'}),card('cancel')];
   if(s.mnt||s.bot)return vehOrders(s,card,cur,pm);
   const nl=lootsWithin(s,LOOT_AOE).length;
@@ -5672,6 +5881,7 @@ function ordersFor(s){
       why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':(s.id==='sera'||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
   const g3=[];
   if(turretOn()&&!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
+  if(canPack(s))g3.push(card('pack',{active:!pm&&cur==='pack'}));
   if(s.back&&DEPLOY[s.back])g3.push(card('deploy',{active:!pm&&cur==='deploy',disabled:!canDeploy(s)||!!deployWhy(s),why:deployWhy(s)||'Not now.',
     tip:{title:'Deploy '+Items.name(s.back),rule:OM.deploy.rule}}));
   if(hackTargets(s).length)g3.push(card('hack',{active:pm==='hack'||(!pm&&cur==='hack'),disabled:injOf(s,'shrapnel'),why:'Suppressed by shrapnel.'}));
@@ -5681,7 +5891,7 @@ function ordersFor(s){
   if(s.hero)g3.push(card('rally',{active:!pm&&cur==='rally',disabled:!!s.heroUsed||injOf(s,'shrapnel'),why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already used this mission.'}));
   if(s.side==='reb'&&!s.auto)g3.push(card('stim',{label:'Stim ×'+(s.stims||0),active:!pm&&cur==='stim',disabled:!s.stims||s.hp>=s.maxhp||!!injOf(s,'shrapnel'),
     why:!s.stims?'No stim left.':injOf(s,'shrapnel')?'Suppressed by shrapnel.':'Already at full health.'}));
-  {const tp=treatPick(s),tt=treatTarget(s);g3.push(card('treat',{label:'Treat wound ×'+(s.meds||0),active:!pm&&cur==='treat',disabled:!tp,why:tt&&!s.meds?'No med pack left.':'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
+  {const tp=treatPick(s),tt=treatTarget(s);g3.push(card('treat',{label:'Treat wound ×'+(s.meds||0),active:pm==='treat'||(!pm&&cur==='treat'),disabled:!tp,why:tt&&!s.meds?'No med pack left.':'Nobody within reach has a wound to treat.',tip:{title:'Treat wound',rule:OM.treat.rule+(tp?' Next: '+(tp===s?'yourself':tp.first)+'.':'')}}));}
   const out=[...g1,HUD.sep(),...g2];
   if(g3.length)out.push(HUD.sep(),...g3);
   out.push(HUD.sep(),card('cancel'));
@@ -5723,6 +5933,11 @@ function dockHTML(){
       tip:{title:'Sneak',rule:'Go low and slow: half the pace, but much harder to spot.'}})];
     if(hasTech&&U.some(x=>x.side==='law'&&x.auto&&x.hackRounds&&!x.down))
       orders.push(HUD.order({id:'hackBtn',label:'Hack',icon:'hack',family:'util',active:hackArm,tip:{title:'Hack',rule:OM.hack.rule}}));
+    const gunner=U.find(x=>x.side==='reb'&&x.manning&&!x.down);
+    if(gunner){
+      orders.push(HUD.order({id:'leaveBtn',label:'Leave gun',icon:'leave',family:'stance',tip:{title:'Leave gun',rule:OM.leave.rule}}));
+      if(TURRET.field)orders.push(HUD.order({id:'packBtn',label:'Pack up gun',icon:'turret',family:'stance',disabled:!canPack(gunner),why:'Not now.',tip:{title:'Pack up gun',rule:'Fold the Razorrat LMG up and sling it on '+gunner.first+'’s back.'}}));
+    }
     if(U.some(x=>x.side==='reb'&&x.mnt))
       orders.push(HUD.order({id:'vehOutBtn',label:'Exit',icon:'leave',family:'move',tip:{title:'Exit',rule:'Everyone in a vehicle gets out. Tap a vehicle to send the nearest rebel in.'}}));
     let go='';
@@ -5804,7 +6019,7 @@ function pickFireMode(m){
   sTick();syncUI();
 }
 /* rail rows */
-const ORDER_TAG={deploy:['turret','Deploy'],move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
+const ORDER_TAG={deploy:['turret','Deploy'],move:['move','Move'],sprint:['sprint','Sprint'],hold:['hold','Hold'],cover:['cover','Cover'],lockin:['lockin','Lock in'],rally:['firesupport','Rally'],treat:['patch','Treat'],loot:['loot','Loot'],work:['work','Work'],man:['turret','Man gun'],leave:['leave','Leave gun'],pack:['turret','Pack up'],enter:['enter','Enter'],exit:['leave','Exit'],switch:['switch','Switch'],clear:['unjam','Un-jam'],hack:['hack','Hack']};
 const tag=HUD.tag;
 function statusTag(u){
   if(u.veh){
@@ -5826,11 +6041,12 @@ function statusTag(u){
   if(u.side==='reb'&&phase==='PLANNING'){
     if(!u.order)return '<span class="sr-ordertag sr-ordertag--none">No orders</span>';
     const m=ORDER_TAG[u.order.type]||['move',u.order.type];
+    if(u.order.type==='treat'){const t=treatPick(u,u.order.tid);return '<span class="sr-ordertag">'+HUD.ico(m[0])+(t?'Treat '+(t===u?'self':HUD.esc(t.first||t.name)):'Treat')+'</span>';}
     return '<span class="sr-ordertag">'+HUD.ico(m[0])+m[1]+'</span>';
   }
   if(u.mnt){const st=seatOf(u),v=vehOf(u);if(st&&v)return tag(st.n+' \u00b7 '+v.first,u.side==='reb'?'friend':'',st.wkey?'turret':'vehicle');}
   if(u.side==='reb'&&phase==='FREE'&&u.rtPath)return tag('Moving','',null);
-  if(u.side==='law'&&inCoverAt(u.x,u.y))return tag('Cover','good','cover');
+  if(u.side==='law'&&coverVs(u.x,u.y,threatsTo('law')).n)return tag('Cover','good','cover');
   return '';
 }
 function nerveHtml(u){
@@ -6008,6 +6224,7 @@ function syncUI(){
 function pickText(){
   if(pickMode==='nadeToss')return 'Tap where the BLAM lands';
   if(pickMode==='hack'||(hackArm&&phase==='FREE'))return 'Tap an Auto to hack';
+  if(pickMode==='treat')return 'Tap the rebel to treat';
   if(pickMode&&pickMode.startsWith('fs:')){
     if(fsDraft)return 'Tap where the run ends';
     const key=pickMode.slice(3);
@@ -6058,7 +6275,11 @@ function orderAct(act,el){
   else if(act==='cover'){s.order={type:'cover'};autoAdvance();}
   else if(act==='lockin'){s.order={type:'lockin'};autoAdvance();}
   else if(act==='deploy'){if(canDeploy(s)&&!deployWhy(s)){s.order={type:'deploy'};autoAdvance();}}
-  else if(act==='treat'){if(treatPick(s)){s.order={type:'treat'};autoAdvance();}}
+  else if(act==='treat'){   // one patient in reach: treat them; more: tap the one to treat
+    const cs=s.meds>0?treatCands(s):[];
+    if(cs.length===1){s.order={type:'treat',tid:cs[0].id};autoAdvance();}
+    else if(cs.length>1)pickMode='treat';
+  }
   else if(act==='stim'){if(s.stims>0&&s.hp<s.maxhp){s.order={type:'stim'};autoAdvance();}}
   else if(act==='rally'){if(s.hero&&!s.heroUsed){s.order={type:'rally'};autoAdvance();}}
   else if(act==='work'){
@@ -6073,6 +6294,7 @@ function orderAct(act,el){
   else if(act==='exit'){if(s.mnt){s.order={type:'exit'};autoAdvance();}}
   else if(act==='switch'){const k=el&&el.getAttribute('data-seat');if(s.mnt&&k){s.order={type:'switch',seat:k};autoAdvance();}}
   else if(act==='leave'){s.order={type:'leave'};autoAdvance();}
+  else if(act==='pack'){if(canPack(s)){s.order={type:'pack'};autoAdvance();}}
   else if(act==='clear'){s.order={type:'clear'};sJamClr();autoAdvance();}
   else if(act==='cancel'){s.order=null;selId=null;}
   syncUI();
@@ -6086,6 +6308,7 @@ DOCK.addEventListener('click',ev=>{
   else if(b.id==='sneakBtn')setSneak(!sneak);
   else if(b.id==='hackBtn'){hackArm=!hackArm;syncUI();}
   else if(b.id==='vehOutBtn')freeAllOut();
+  else if(b.id==='leaveBtn'||b.id==='packBtn'){const g=U.find(x=>x.side==='reb'&&x.manning);if(g){if(b.id==='packBtn')packTurret(g);else unmanTurret(g);}}
   else if(b.id==='extractBtn')startExtract();
   else if(b.id==='callBtn')callTransport();
   else if(b.id==='detBtn')facDetonate();
@@ -6288,7 +6511,7 @@ addEventListener('keydown',ev=>{
 function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
-  round=0;town='calm';hot=0;hotT=0;lostHow='';crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
+  round=0;town='calm';hot=0;quietRounds=0;shotRound=false;roundHot=false;hotT=0;lostHow='';crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
@@ -6533,11 +6756,13 @@ if(location.hash==='#test'){
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
-    get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
+    get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get PROPS(){return PROPS;},get BLDGS(){return BLDGS;},set engageQ(v){engageQ=v;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,sShot,VOICE_:()=>VOICE,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
+      coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,buildEngage,
+      stunTick,canPack,packTurret,unmanTurret,treatCands,inContact,stillFighting,roundWrap,contactCheck,
       seen(){return [...visUnits];},
       clock,hitstop,juice,juiceTick,decals_:()=>decals,juice_:()=>({pops,vols,impFx,jfx,parts:PFX.list,trauma:SHK.trauma,stopped:!!HS.until&&performance.now()<HS.until}),
       juiceOn(v){juiceLive=v!==false;},

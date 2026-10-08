@@ -20,7 +20,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().fighters.push(f.newFighter({id:'gM',name:'Marta',cls:'graf',hull:92,loadout:['door-mounted-gun']}));
   G().fighters.push(f.newFighter({id:'du',name:'Dustfall',cls:'cross',hull:100}));
   G().fuel=500;G().supplies=480;
-  const m={id:'pltest',name:'Depot Raid',desc:'Hit the depot.',objectives:['Reach the fuel store','Plant the charge'],req:{transport:true,team:3},days:2,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:200},riskTxt:'Moderate',loc:'brakka',region:'flats',from:'Venn'};
+  const m={id:'pltest',name:'Depot Raid',desc:'Hit the depot.',objectives:['Reach the fuel store','Plant the charge'],req:{transport:true,team:3},days:2,lead:'ground',ground:true,type:'ground',scenario:'intel',rew:{c:200},riskTxt:'Moderate',loc:'akkaro',region:'flats',from:'Venn'};
   G().missions.push(m);
   f.openPlan(m);
   const PL=f.getPL();
