@@ -200,10 +200,10 @@ const SCENS={
   },
   depot:{
     sub:'Akkaro Orbit',
-    banner:['Cook the Depots','The patrols fly on what you burn'],
+    banner:['Torch the Depots','The patrols fly on what you burn'],
     brief:{
       eyebrow:'A Favour Returned · Maro Venn',
-      title:'Cook the Depots',
+      title:'Torch the Depots',
       flavour:'Four Hegemony fuel depots hang in orbit over Akkaro, feeding every patrol that squeezes the frontier. Tonight nothing guards them but patrol drones: Monitors that shout for help and Pursuers that answer. Burn the fuel and be gone before anything with a pilot shows up.',
       objectives:['Destroy all four fuel depots',
         {sub:1,text:'Monitors call in Pursuers, and the patrol answers with a manned Mote and a Mag-Clamper that slows you down. Do not linger.'}],

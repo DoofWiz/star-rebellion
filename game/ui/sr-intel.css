@@ -3,7 +3,7 @@
 .in-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(rgba(122,140,220,.16) 1px,transparent 1.4px);background-size:26px 26px;}
 
 /* exposure panel (top-left) */
-.in-exp{position:absolute;left:24px;top:112px;width:318px;padding:12px 14px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);
+.in-exp{position:absolute;left:24px;top:132px;width:318px;padding:12px 14px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);
   border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);cursor:pointer;text-align:left;color:var(--sr-text);font:inherit;}
 .in-exp.is-sel{box-shadow:var(--sr-float),0 0 0 3px var(--sr-gold);}
 .in-exp__top{display:flex;align-items:baseline;gap:8px;}

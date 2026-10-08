@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-08, after iPad Pro 12.9" support (the tablet layout in portrait: C-49). Before that, 2026-10-08, after your phase 5 calls (a lost prize pilot grounds only their ship; Steal the Cross is a Steal Ship; C-47 items 30 to 37 settled as C-47.5; Steal Ship's lines stay placeholders). Before that, 2026-10-08, after the prologue's phase 5 (Raid the Bunker: the Steal Ship type on one engine with Steal the Cross, the indoor bunker map, the player's Reinforcements bringing the pilots; New Game now plays to the frontier: C-47 items 30 to 37, C-48's phase 5 rows, C-41 item 2 in part). Before that, 2026-10-08, after the prologue's phase 4 (Raid the Bunker on the board, Tachi's three pilots, the Black Market and Sweet Tooth, the second hauler and Hangar room: C-47 items 22 to 29, C-48's P4 rows and the Steal Ship type). Before that, 2026-10-08, after the prologue's phase 3 (the tense day, the Bureau's first Lead on Venn, Someone's Asking Questions and Lie Low: C-47 items 18 to 21, C-48's Lie Low row). Before that, 2026-10-08, after the prologue's phase 2 (Rescue Tachi as the new Ambush: Extract VIP mission type, Tachi Gard as the first Agent, Run Your Network built: C-46 resolved, C-47 items 11 to 17, C-48's mission-type rows). Before that, 2026-10-08, after the prologue's phase 1 (`docs/PROLOGUE-HANDOFF.md`: the onboarding as a script of beats, gates that hide mechanics until a beat opens them, today's chain ported with the doc's fixes, the Steal Fuel recruit and Strafing Run callout: C-46 partly built, C-47, C-48, M-34; the designer's prologue decisions in the Resolved log). Before that, 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -49,6 +49,9 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-40 | ⚪ | Source approach: do standby contacts ever give up? Plus my choices — no auto re-knock, "+4 exposure" still moves `G.risk`, the gold courier strip | How a potential source is taken on, parked or burned |
 | C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
 | C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
+| C-47 | 🟡 | Prologue: readings to confirm (other worlds, who gives Steal Fuel, the bunker's fifth soldier, Tachi's "[location name]") and what I chose building it (the roster safety net's 2 days, the test harness, the debug panel, the cap at the frontier; the ambush's truck, numbers and halted convoy; Tachi's Agent stats; the Steal Ship rules, the bunker map, the Reinforcements hauler) | How the onboarding plays; how every ambush and ship theft plays |
+| C-48 | 🟡 | Prologue text still to write: every `[TEXT NEEDED]` the game shows or will show | Ambush: Extract VIP's and Steal Ship's lines, the Lie Low step, beats 19 to 22's pointers and callouts, the bunker raid's plan tutorial and call-in card |
+| C-49 | ⚪ | iPad Pro 12.9": the tablet layout in portrait is my design (the rail slides in from the right); what it doesn't cover yet | How the game plays on a tablet |
 | C-45 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2), what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-44 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | C-43 | ⚪ | Weapon voices: every weapon's own sound, reports per visible round — the character I gave each weapon | How combat sounds |
@@ -77,6 +80,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
 | M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 97 of 161 niche unlocks and 3 of 16 base effects; 12 niches have nothing live yet |
 | M-33 | 🟡 | Haven Rock art: no Tech Lab furniture or simulator pod in the kit; the base alert has no rule | The Tech Lab draws a stand-in; the alert fires at 70 network exposure |
+| M-34 | 🟡 | Prologue: stubbed beats (security forces arrive, the first Campaign, the farewell) | Everything after Raid the Bunker; the prologue ends at its frontier until they are written |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
@@ -517,7 +521,9 @@ The slot-filling planning window (`docs/ui/SCREENS-HANDOFF-2.md` §4). Its own o
 2. **The Reinforce mode is retired.** Fire support now comes from what an asset is: a starfighter strafes, a
    transport with a Door Mounted Gun covers the door, a drop-capable transport flies the Supply Drop. A spare
    transport with no gun grants nothing — what it *should* grant (the old Reinforce) is the handoff's open
-   question. Nobody rides a support ship any more, and its seats go unused.
+   question. Nobody rides a support ship any more, and its seats go unused. *Since the prologue's phase 5:* a mission
+   that flies with Reinforcements (Raid the Bunker) brings it back for itself (C-47.5 in the Resolved log); everywhere else a spare
+   gunless transport still grants nothing.
 3. **The squad cap** reads the seats of every transport actually assigned (summed, for the rare two-transport
    mission); with no transport assigned yet it falls back to the mission's squad size.
 4. **The Support crew's mission jobs and the Flight Controller's Intercept Plot** (C-28 features the handoff
@@ -574,6 +580,169 @@ the Cruiser guns and even bare fists all played the Longhorn's crack, and burst 
 4. **Not touched:** missiles (lock, whoosh and warhead were already event-driven), the mining laser, arclight,
    Power Baton and Plasma SMG have voices waiting but stay live:FALSE (M-17).
 **Needs from you:** nothing — name any weapon that sounds wrong and I'll re-cut its voice.
+**Your call:** _open_
+
+### C-47 ⚪ Prologue: readings to confirm, and what I chose building the runner
+The prologue is now a script of beats (`game/js/prologue.js`, `docs/PROLOGUE-HANDOFF.md`). Phase 1 plays from New
+Game through *Steal Fuel* and stops at the frontier. Readings of the design doc, each with my interim choice:
+1. **Other worlds during the prologue.** Relay Kess, Veray Yards and the rest of the map stay visible; scouting them
+   and raising Access there are hidden (the `galaxy.beyond` gate) until the prologue ends. Haven Rock and Akkaro work
+   as before.
+2. **Who gives Steal Fuel.** The doc's summary paragraph has "Wren" giving the tip and the recruit; the numbered flow
+   has Cass give the mission and Venn send the recruit. I followed the numbered flow and read "Wren" as Venn.
+3. **The fifth soldier on the bunker raid** rides in with the reinforcements, because a Graf seats 4 (phase 5).
+4. **`[location name]` in Tachi's line is Akkaro** (phase 2).
+What I chose while building it:
+5. **The roster safety net waits 2 days** (a placeholder, `SHORT_DAYS` in `prologue.js`): if a prologue mission on the
+   board cannot be planned because of deaths or injuries for 2 days, the contact who gave it sends a recruit of the
+   missing role (the existing "Cass vouches for them" pop-up). Rebels away on a job or Weary don't count as missing.
+   It does not fire while the current beat is itself bringing someone in (Sera, Venn's soldier).
+6. **Cass's signals are signals, not comms.** The handoff's action list has `comm` (a character speaks); Cass's Steal
+   the Cross, Sera and Steal Fuel offers were signals on his Galaxy node, so I added a `signal` action to keep them
+   that way, and a `contacted` event for the guided steps' last step. Venn's recruit line is a `comm` that opens on its
+   own after the Steal Fuel burst closes.
+7. **A prologue window waits for the day banner** to clear, and for the reward screen and the splash, as the handoff
+   asks. If something else is waiting (a New mission card), it can open first; the beat's window follows when it
+   closes.
+8. **The frontier and the source cap.** Cass and Venn stop being free at the frontier, so a player with other Sources
+   by then can be over the cap. Nothing is lost; new contacts wait on standby until there is room.
+9. **The test harness** (`#test`) starts at Cass's first contact with every gate open, as an old save does; the
+   prologue's own test jumps to each beat instead. **The debug panel** is *Debug: Prologue* in the base's menu, shown
+   with `#test` or `#debug` in the address: it shows the beat, jumps to any beat, opens every gate and replays the
+   tutorials.
+10. **Steal Fuel's four soldiers** are the onboarding job's own spec (`req.team = 4`); the Steal Fuel type still asks
+    for three everywhere else.
+Phase 2 (Rescue Tachi, the first Agent):
+11. **The ambush map and its convoy.** One map for now (M-30): a road across Redrock Flats with rock and wreck cover
+    either side, the transport's LZ to the south-west. The holding vehicle is the existing **Riot Transport Cruiser**
+    (a driver and a troop bay; its art), escorted by a Police Cruiser and five on foot. The convoy is **halted on the
+    road** when the squad arrives rather than driving through in real time; it moves once the alarm goes up or the
+    first shot is fired. Nobody can climb into the holding vehicle.
+12. **The dash for the edge** (placeholders): the truck drives the road east at 45% of its speed a round (about 200 px,
+    so 7 rounds from where it stands); a fleeing truck keeps the fight in rounds even out of sight; off the east edge
+    the mission fails. **Destroyed, it stalls rather than blows up** (the prisoner is inside), and its doors, the Work
+    point that frees the prisoner, open beside it.
+13. **The type's defaults** (placeholders): 3 soldiers, 2 days, Moderate risk, 400 credits, and the freed prisoner joins
+    as a Support recruit. No Source offers it yet: only Rescue Tachi uses it (its spec names Tachi as the prisoner,
+    skips the recruit and Venn's follow-up line).
+14. **The extraction point** is the transport's LZ, as in Rescue Dissident; like it, the hostiles must be down or fled
+    before the squad and the prisoner can board.
+15. **Tachi as an Agent** has the standard new Agent's file (Tradecraft 15, Cover 70, Rapport 20, Cell 2). Her offer's
+    one button reads **Accept**. The Agent rail said "his" and "him"; it now says "their" and "them".
+16. **Run Your Network's Step 2** completes when the player clicks Tachi, though the rail opens on her already. Step 5
+    opens Recruit; Lie Low and the other operations stay hidden until their own beats (or the frontier).
+17. **A save from phase 1's build** still in the prologue loses its generated Agent (save version 13); older saves keep
+    theirs.
+Phase 3 (someone's asking questions):
+18. **"The Intelligence tab opens"** I read as the game moving the player there, after Tachi's and Venn's comms close
+    (and after anything else waiting, such as a recruit pop-up). The tense day ends when both comms are closed.
+19. **The scripted Lead on Venn** is a real Bureau Lead (it raises Exposure by the usual 4 and his Risk climbs every day
+    as any leaded node's does), with no Source behind it. It never goes cold by itself (no Lead does yet); Venn can't
+    be Burned before the frontier however hot he runs.
+20. **A Source with a Lead** now wears the same Lead badge on the Network an Agent does, and the Lead is listed on their
+    rail ("The Bureau holds a Lead on them"). Step 1 points at that badge.
+21. **The Lie Low step** points at Lie Low on Tachi's rail; if another node is selected (Exposure, after step 2), it
+    points at Tachi first. Its words are `[TEXT NEEDED]` (C-48). Recruit stays open; Lie Low opens with the step.
+Phase 4 (getting ready for the bunker):
+22. **Cass's bunker offer** is a comm that opens on its own (as Venn's Rescue Tachi offer does), and Raid the Bunker
+    lands on the board when it closes; that landing is the beat's "accepted".
+23. **Tachi's three pilots** apply from the moment her beat starts (before her comm), so a Recruit already running from
+    Run Your Network is the one that brings them; the pointer at Recruit is then skipped. The three are must-take cards:
+    no Dismiss, no Decide later.
+24. **Timing clash:** Tachi's pilot beat starts with one day of Lie Low left on her cell, and operations wait while a
+    cell lies low, so the Recruit she asks for can't start until the next day. Recruit also waits while Run Your
+    Network's recruits sit undecided at the Command Center. The pointer shows either way. Shall the bunker beats start
+    later, or Lie Low not block Recruit?
+25. **Bunks.** The Barracks start with 6 bunks. With Tachi's three pilots (must-take cards ignore the bunk limit) the
+    roster is 9, so the mercenary can't be hired until the Barracks grow by two tiles. Nothing tells the player that yet
+    beyond the stall's own "no bunks" reason. Do you want spare bunks, fewer must-take recruits, or a line in the hire
+    tutorial (C-48)?
+26. **Hangar room before the hauler:** a bought Graf needs a free large pad, so the hauler tutorial asks for the Hangar
+    room first, then the purchase (the doc lists them the other way round). "Room for 4 starfighters and 2 transports"
+    is 2 large pads and 6 pads in all, the second Hangar section's.
+27. **The guaranteed lots** (a Soldier mercenary from beat 21, the Graf hauler from beat 22) sit after the six, are kept
+    through the restock and Inside Line swaps until bought, and are priced as any lot of their kind.
+28. **The plan's pad-space row** reads "Pad space at Haven Rock for 3 stolen ships" and checks the pinned ships fit
+    beside the fleet. The pilots row now reads "2 to fly the haulers, 3 for the prizes".
+29. **Raid the Bunker** is an authored Steal Ship (3 ships pinned: FT-4 Cross, 2 SF-11 Talons; 5 soldiers; Akkaro,
+    Redrock Flats). The Steal Ship type defaults to one SF-11 Talon and 3 soldiers.
+Phase 5 (Raid the Bunker): items 30 to 37 are settled; see "C-47.5" in the Resolved log.
+**Needs from you:** confirm 1 to 4; answer 24 and 25; overrule any of the rest.
+**Your call:** _open_
+
+### C-48 🟡 Prologue text still to write
+The designer is replacing Claude-written tutorial text, so where the doc has no words yet the game shows
+`[TEXT NEEDED: what this must say]`.
+
+**Shown now: Ambush: Extract VIP** (the Missions tab of the text spreadsheet, `TYPES.ambush` in
+`game/js/mission-text.js`). The doc gives its name, description and objectives; a few lines that fit word for word are
+Rescue Dissident's (the prisoner's lines, the cost line, the prisoner lost). Rescue Tachi shows these:
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `hook` | A Source's offer of the job (none offers it yet) | A source tips us off about a convoy moving a prisoner through {place} |
+| `after` | The Source's follow-up after a win (Rescue Tachi skips it) | The source reacts to {npc} being freed |
+| `banner` | Under the mission name as it starts | A short banner line |
+| `calm`, `alert` | The top bar's status | The convoy has not noticed us / the convoy is alerted |
+| `hint` | The briefing's hint | Once the shooting starts the truck runs for the edge, so stop it first |
+| `arrive` | The transport pilot's call on landing | The pilot sets the squad down near {place} and pulls back |
+| `float.flee`, `float.stopped` | Over the truck | It is running / it is stopped |
+| `log.flee`, `log.stopped`, `log.free`, `log.escaped` | The combat log | The truck makes a run for it / it is stopped, get to its doors / {npc} is out, escort them back / it got away with {npc} |
+| `end.win`, `end.loseEscaped`, `end.lose` | The end screen | {npc} freed and aboard / the truck got away with them / the squad was overrun |
+
+**Shown now: the Lie Low step** (`PRO_TEXT.lieLowStep`, the Prologue tab): the guided step after Someone's Asking
+Questions that points at Lie Low on Tachi's rail. It must tell the player to order Tachi's cell to lie low until the
+heat dies down (and, if you like, a title for the step).
+
+**Shown now: phase 4** (`PRO_TEXT`, the Prologue tab):
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `recruitPointer` | The pointer at **Recruit** on Tachi's rail (beat 19); it points at the Intelligence tab first | A short label: send Tachi to recruit the pilots the bunker job needs |
+| `marketPointer` | The pointer at the Black Market tab (beat 20) | A short label: open the Black Market |
+| `mercTut` | The callout on the mercenary lot after Sweet Tooth's intro (beat 21) | How to hire a mercenary (this one is always there); perhaps that a hire needs a free bunk (C-47 item 25) |
+| `haulerHangar` | The callout on the Hangar (beat 22) | Build Hangar room for 4 starfighters and 2 transports |
+| `haulerBuy` | The callout on the Graf hauler lot (beat 22) | Buy a second Graf hauler from the Black Market |
+
+**Shown now: Steal Ship** (`TYPES.stealship` in `game/js/mission-text.js`, the Missions tab). The doc gives its name,
+description and objectives (the last row, "Get the squad back to the {transport}", is Disrupt Comm Towers' words).
+Raid the Bunker shows these:
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `hook` | A Source's offer of the job (none offers it yet) | A source tips us off about a ship we could steal at {place} |
+| `after` | Cass's follow-up after the win | The source reacts to the ships we stole |
+| `banner` | Under the mission name as it starts | A short banner line |
+| `calm`, `alert` | The top bar's status | They have not noticed us / they are alerted |
+| `hint` | The briefing's hint | A pilot hotwires their ship by staying near it; the fuel line and clamps come off with Work |
+| `arrive` | The transport pilot's call on landing | The pilot sets the squad down near {place} |
+| `float.away` | Over a ship as it lifts | {ship} is in the air |
+| `log.atPanel`, `log.away`, `log.allAway` | The combat log | {shipPilot} is at {ship}'s panel, keep them covered / {shipPilot} lifts {ship} off / every ship is ours, back to the {transport} |
+| `float.lost`, `log.lost` | Over a ship, and the log, when its pilot is lost | {ship} stays grounded / {shipPilot} is lost, {ship} stays on its pad, the others can still be taken |
+| `end.title`, `end.win`, `end.someLost`, `end.losePilot`, `end.lose` | The end screen | The ships are ours / stolen and out / not every ship came home ({ship}: those left behind) / every pilot was lost / the squad was overrun |
+
+**Shown now: phase 5** (`PRO_TEXT`, the Prologue tab):
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `bunkerPlan` | The callout on the plan's empty asset slot when Raid the Bunker's plan opens (beat 23) | Add the second hauler as an asset: it brings the pilots in later as Reinforcements |
+| `bunkerPass` | The callout on the Reinforcements hauler's passengers, once it is added | Load the three pilots (a Graf seats 4, so the fifth soldier rides with them) |
+| `bunkerCallT`, `bunkerCall` | The coaching card in the fight, in planning while the hauler is ready (its title, then its text) | Once it's safer, call the pilots in with Reinforcements from Fire Support, and they take the ships |
+**Needs from you:** the words for each row. You'll write them in due course; until then the marked placeholders stay.
+**Your call:** _open_
+
+### C-49 ⚪ iPad Pro 12.9": the tablet layout, and what I chose
+The iPad Pro 12.9" (2021) is 1024 × 1366 in portrait and 1366 × 1024 in landscape, a touch screen. No handoff covers
+tablets, so these are my choices (`tools/ipad-smoke.js` checks them in both orientations):
+1. **Landscape is the desktop layout.** At 1366 wide everything fits as it does on a laptop.
+2. **Portrait gets a tablet layout** (a container query in `sr-theme.css`: wider than 900 and up to 1100, taller
+   than 520, so a narrow desktop window or an iPad in Split View gets it too). Everything keeps its desktop size; the
+   rail becomes a panel that slides in from the right over the stage, opened by the drawer button as on a phone, so
+   the map, the tabs and the planning window have the full width. Picking a mission, a node on the Network or a Source
+   or world on the Galaxy opens it. In a fight, tapping the map closes it.
+3. **The top bar** is a little tighter there (gaps, the resource pills), so the menu button stays on screen.
+4. **The mission board and Exposure** sit 16 to 20 px lower at every size, clear of the tabs (they touched at any width up to
+   1500).
+5. **Not covered yet:** dragging people and ships between plan slots is mouse only (iPad Safari has no drag and drop
+   for these); tapping a slot and picking works. Haven Rock's 180 px home-screen icon is used as is (an iPad Pro asks
+   for 167 px), and there is no launch image for the home-screen app.
+**Needs from you:** confirm the portrait layout, or describe the tablet layout you want.
 **Your call:** _open_
 
 ---
@@ -869,6 +1038,18 @@ Agitator. Crewman is parked until capital ships; Archaeologist is left out (opti
 Uprising) is not in the game, which Postings need.
 **Your call:** _open_
 
+### M-34 🟡 Prologue: stubbed beats
+The design doc's story continues past *Raid the Bunker*, but these beats aren't written yet. Each sits in `PROLOGUE`
+(`game/js/prologue.js`) as a commented-out beat marked `// DESIGN OPEN`, so the order is visible; until they are
+written the prologue ends at its frontier and the normal game takes over.
+| Beat | The doc says | Blocked on |
+|---|---|---|
+| `security_arrives` | Security forces arrive at Akkaro: the enemy moving when the player heats up a location | The regional Alert system (from the Mission Balance design) isn't built |
+| `campaign` | Venn delivers the first **Campaign**, *Liberate Akkaro*: a series of missions with big rewards | The Campaign section is WIP. `CHAINS` is the nearest system to extend. *Gain Space Superiority* (Destroy Squadron) needs a new space scenario (only `depot` and `instructor` exist) |
+| `farewell` | Akkaro liberated; Venn and Cass say goodbye and stop being Sources; the first proper Source (Tessaly) arrives with the Sources tutorial | The two above |
+**Needs from you:** the design for each (the Alert system, the Campaign, the farewell's words).
+**Your call:** _open_
+
 ### M-33 🟡 Haven Rock art: the Tech Lab, the simulator and the base alert
 The Haven Rock handoff (art update 4) now draws the base map and every walk-in view. Three things it doesn't cover:
 - **The Tech Lab** isn't in the kit (it furnishes nine rooms; the game has ten). It gets the kit's walls and floor
@@ -898,6 +1079,10 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-47.5 | **Steal Ship and Raid the Bunker** (the designer, 8 October). A prize pilot lost (dead, or down with no way left to bring them round) before their ship is up does **not** fail the mission: that ship stays on its pad and the others can still be stolen. Only losing every pilot fails it. Steal the Cross works mechanically as a Steal Ship mission (one ship). The rest of phase 5's choices stand: the Reinforcements hauler (the first transport added as an asset on a mission flown with Reinforcements, carrying the prize pilots and any soldier the first hauler has no seat for; once it has brought them it can't be re-tasked); hotwiring by standing on the pad (a round at a time in combat, 4.5 s out of it, 2 to finish, no Work order); a ship flies once hot with its own clamp and fuel line off; one objective row per ship at its current step; the bunker map and its ten guards; stolen ships at 85% hull, named by class and number, each handed to a pilot without a ship, fenced with no pad free; the call-in card only during the prologue. The Steal Ship lines stay `[TEXT NEEDED]` placeholders until the designer writes them (C-48). | 2026-10-08 | Phase 5 built the rest. Lost pilots: `prizeLostCheck()` in `game/js/ground.js` grounds the ship, fails its objective row and logs it; the way home opens once every ship is up or lost and at least one is up; the win's end screen notes the ships left behind and the result lists only the ships flown; every pilot lost fails as before. Three new placeholder lines (`float.lost`, `log.lost`, `end.someLost`). `tools/stealship-smoke.js` covers it. The "Steal Ship: a lost pilot grounds one ship" commit |
+| — | **Prologue: decisions** (the designer, 8 October, `docs/PROLOGUE-HANDOFF.md` §7), recorded so later work doesn't reopen them: (1) the Sources tutorial plays with the first brand-new Source, not before *Raid the Bunker*; the **?** stays on Sources throughout; Cass and Venn are called Sources from the start. (2) Tachi recruits three pilots, not two. (3) *Raid the Bunker* teaches the player's reinforcements: a second transport added as an asset sets up Reinforcements, loaded with the pilots, who are called in once it's safer. (4) Gated tabs are hidden, not shown locked. (5) The bunker job arrives the day after Lie Low is ordered. (6) Recruiting is taught in Run Your Network (Step 5); the later recruit beat is a prompt, with no second tutorial. *Cook the Depots* is now **Torch the Depots**. | 2026-10-08 | Phase 1 builds (1) (the Sources tutorial waits for the first new Source after the frontier, its Making Contact page the Agents version), (4) (every gated tab and button is hidden; one that opens pulses once with a New tag) and the rename. (6) is built in phase 2 (Run Your Network's Step 5 opens Recruit); (5) in phase 3 (the beat after Lie Low waits one day); (2) in phase 4 (the next Recruit brings exactly three Pilots); (3) in phase 5 (Raid the Bunker's second hauler is Reinforcements, carrying the pilots: C-47.5). The "Prologue phase 1" to "Prologue phase 5" commits |
+| C-46.1 | No Agent until Tachi Gard joins; she is the first, posted to Akkaro with Cass and Venn as her cell. | 2026-10-08 | New games seed no Agent; `mkAgent()` takes a named person. Rescue Tachi (Ambush: Extract VIP) frees her; she accepts in her comm and becomes the Agent; the Intelligence tab opens with Run Your Network, whose Step 5 opens Recruit. Old saves keep their Agent; a phase 1 save still in the prologue loses its generated one (save version 13). The "Prologue phase 2" commit |
+| C-46.2, C-46 question | During the prologue Recruit returns Rebels only; the Intelligence tab is hidden until Tachi joins. | 2026-10-08 | Recruit's potential-Source branch waits for the `sources.new` gate, which opens at the frontier; so do new chains and the candidate queue. Halt and Vokk are no longer queued after the depots. The Intelligence tab (and the Command Center's Intelligence button) is hidden until its gate opens, when Tachi joins (phase 2). The "Prologue phase 1" commit |
 | C-45.3, C-45.4 | A flanked target just loses its cover bonus; no extra penalty. Take cover keeps the rebel's shot. | 2026-10-07 | The FLANKED −2 is gone from the Defence card (the move hints still say Flanked). A rebel ordered to Take cover gets +2 and still fires in the engagement; the order's rule says so. "Take cover keeps the shot" commit |
 | C-31.5 | The transport assigned to carry the ground team brings the fire support its features enable, with no second ship: a type that can fly a Supply Drop (Marta's Graf Hauler), and Door Gunner Cover from a fitted Door Mounted Gun. My first version (the board toggle removed, the drop paid at the debrief) broke the planning board's design and was undone. | 2026-10-06 | The planning board shows both under Fire support, "From Marta", each a toggle tagged Arranged / Not arranged: the Supply Drop costs 160 supplies at launch as before, Door Gunner Cover is free and on by default. A new Ships column, `supply_drop` (TRUE for the Graf Hauler), says which types can fly a drop; an older workbook without it still imports. In the field the transport works its gun from the air, breaks off (no crash) when a rocket hits, and leaves the gun to make the pickup or land at the pumps. Steal the Cross now has fire support as soon as Marta carries the squad. "Transport fire support" commit |
 | C-30 | Enemies keep their range, with counterplay: the shooter is revealed. Every mission's transport leaves after the drop and comes back for the extraction, which is why it can give fire support (door gunner, supply drop). The fire support button was missing in Steal the Cross. | 2026-10-06 | The sight-range cap on enemy shots is gone; a shot marks the shooter through the next round. Every transport leaves and returns. The transport's own supply drop and door gun were built, then undone at your call (C-31 item 5). Readings in C-31. "Downed VIPs" commit |

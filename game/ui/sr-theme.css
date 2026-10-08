@@ -523,7 +523,7 @@
 /* ===== windows (one family for every popup) ===== */
 .sr-scrim{position:absolute;inset:0;z-index:var(--sr-z-window);display:grid;place-items:center;padding:24px;overflow:auto;
   background:rgba(7,8,24,.72);backdrop-filter:blur(3px);}
-.sr-window{--accent:var(--sr-gold);display:flex;flex-direction:column;width:min(600px,100%);max-height:calc(100vh - 48px);
+.sr-window{--accent:var(--sr-gold);display:flex;flex-direction:column;width:min(600px,100%);max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px);
   background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);
   overflow:hidden;animation:sr-pop var(--sr-t-slow) var(--sr-ease-pop);}
 .sr-window--sm{width:min(440px,100%);} .sr-window--lg{width:min(920px,100%);}
@@ -699,6 +699,22 @@
   .sr-rail{left:auto;top:0;height:auto;width:min(48%,360px);border-top:0;border-left:var(--sr-line) solid var(--sr-ink);transform:translateX(105%);}
   .sr-vs{width:min(560px,100%);align-self:center;}
   .sr-coach{display:none;}   /* short screens: the coach collapses to the objective line; tap it to expand */
+}
+
+/* ===== tablets in portrait (an iPad Pro 12.9" is 1024 wide) and other narrow desktops =====
+   Between the phone layout and the desktop one: everything keeps its desktop size, but the rail becomes a panel that
+   slides in from the right over the stage (the drawer button opens it, as on a phone), so the stage, the tabs and the
+   windows have the whole width. */
+@container sr-app (min-width:901px) and (max-width:1100px) and (min-height:521px){
+  .sr-shell{grid-template-columns:minmax(0,1fr);}
+  .sr-rail{position:absolute;z-index:var(--sr-z-rail);top:var(--sr-topbar-h);right:0;bottom:0;width:min(400px,46%);
+    transform:translateX(105%);transition:transform var(--sr-t) var(--sr-ease-out);box-shadow:-12px 0 40px rgba(0,0,0,.6);}
+  .sr-shell.is-drawer-open .sr-rail{transform:none;}
+  .sr-btn.sr-phone-only,.sr-drawerbtn.sr-phone-only,.sr-tab.sr-phone-only{display:inline-flex!important;}
+  /* the hub's top bar, a little tighter so the menu button stays on screen */
+  .sr-topbar--hub{gap:8px;}
+  .sr-topbar--hub .sr-topbar__side{gap:8px;}
+  .sr-res{gap:6px;padding:0 9px 0 4px;}
 }
 
 /* ===== motion ===== */

@@ -15,10 +15,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const D=window.DBGbase,f=D.fn,G=()=>D.G,out={};
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const lastNews=()=>G().news[G().news.length-1]||{};
-  const alive=()=>G().sources.filter(s=>s.alive).length;
+  // the network's capacity leaves out the Prologue sources (Cass, Venn) while the prologue runs (PROLOGUE-HANDOFF §6)
+  const alive=()=>f.capUsed(),anyOne=()=>G().sources.find(s=>s.alive&&!s.prologue);
 
   // --- room in the network: two choices, Take on recruits ---
-  while(alive()>=f.sourceCap())G().sources.find(s=>s.alive).alive=false;
+  while(alive()>=f.sourceCap())anyOne().alive=false;
   f.openWin('candidate','tess');
   out.roomChoices=$$('#winCardB .cm-choice').length;
   out.head=[!!$('#winCardB .cm-ava--potential'),($('#winCardB .cm-kicker')||{}).textContent==='Potential source',
@@ -52,7 +53,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   }
 
   // --- a slot frees up: Take on works from the reopened window ---
-  G().sources.find(s=>s.alive).alive=false;
+  anyOne().alive=false;
   f.openWin('candidate','pell');   // re-render with room
   const take2=$('#winCardB [data-cand="pell"]');
   out.freed=!!take2&&!take2.disabled&&$$('#winCardB .cm-choice').length===2;

@@ -496,6 +496,117 @@ strider:{
     {id:'civ1',name:'Depot Hand',first:'depot hand',side:'civ',x:1250,y:1200,hp:40,maxhp:40,aim:0,def:8,wpns:[],haunt:[{x:1250,y:1200},{x:1120,y:1240},{x:1380,y:1180}]},
   ];},
 },
+/* Ambush: Extract VIP (docs/PROLOGUE-HANDOFF.md P2). A convoy halts on the road with a prisoner in the truck. When the
+   alarm goes up or the first shot is fired, the truck (hold:1) drives the road for the east edge (route); off the map,
+   the mission fails. Destroyed, it stalls rather than blows up, and its doors become the Work point that frees the
+   prisoner, who is escorted back to the transport. The same setup will serve Precious Cargo and Assassinate Officer. */
+ambush:{
+  mode:'ambush',W:2400,H:1500,style:'town',fog:true,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:true,
+  sub:'Redrock Flats · Akkaro',
+  towerLabel:'',
+  lamps:[],
+  LZ:{x:260,y:1250,r:130},PAD:{x:1000,y:770,r:60},
+  guardPt:{x:1000,y:770},
+  trails:[{pts:[[-40,830],[600,805],[1100,770],[1600,745],[2000,705],[2440,665]],w:110},{pts:[[260,1150],[420,1010],[640,900]],w:46}],
+  route:[{x:1400,y:752},{x:1800,y:722},{x:2200,y:686},{x:2390,y:668}],   // the truck's dash for the east edge
+  fleeMul:0.45,                                                            // a share of its speed per round on the run (my number)
+  work:[{id:'release',x:-99999,y:-99999,label:MT.type('ambush').work.label,verb:MT.type('ambush').work.verb}],   // placed at the truck's doors when it stops
+  bldgs:[
+    {x:1480,y:1040,w:220,h:140,name:''},
+    {x:400, y:470, w:200,h:130,name:''},
+  ],
+  props:[
+    {x:700,y:960,kind:'rock'},{x:950,y:975,kind:'rock'},{x:1250,y:935,kind:'rock'},{x:1520,y:915,kind:'rock'},{x:1820,y:880,kind:'rock'},
+    {x:880,y:600,kind:'rock'},{x:1300,y:595,kind:'rock'},{x:1720,y:575,kind:'rock'},{x:2120,y:545,kind:'rock'},
+    {x:1120,y:1060,kind:'wagon',a:0.3},{x:590,y:1110,kind:'wagon',a:-0.4},{x:2050,y:930,kind:'wagon',a:0.2},
+    {x:820,y:1030,kind:'crate'},{x:1380,y:1010,kind:'crate'},{x:1660,y:960,kind:'barrel'},{x:1000,y:880,kind:'barrel'},
+    {x:1180,y:640,kind:'crate'},{x:780,y:700,kind:'barrel'},
+    {x:420,y:860,kind:'rock'},{x:2250,y:1100,kind:'rock'},{x:300,y:600,kind:'rock'},{x:1950,y:300,kind:'rock'},
+  ],
+  loots:[],
+  foes(){return [
+    foe('riot-transport-cruiser',{id:'hold',x:1000,y:770,hold:1,noEnter:1,crew:[foe('security-patrolman',{seat:'drv',id:'holdd'})]}),
+    foe('police-cruiser',{id:'esc1',x:760,y:800,crew:[foe('security-patrolman',{seat:'drv',id:'esc1d'})]}),
+    foe('security-riot-shieldman',{id:'rs9',x:1070,y:700,guard:1}),
+    foe('security-riot-rifleman',{id:'rr9',x:1160,y:700,guard:1}),
+    foe('security-patrolman',{id:'p91',x:880,y:870,patrol:[{x:880,y:870},{x:760,y:880},{x:960,y:860}]}),
+    foe('security-patrolman',{id:'p92',x:1230,y:860,patrol:[{x:1230,y:860},{x:1340,y:840}]}),
+    foe('security-patrolman',{id:'p93',x:1650,y:650,patrol:[{x:1650,y:650},{x:1760,y:700},{x:1600,y:690}]}),
+  ];},
+  civs(){return [];},
+},
+/* Raid the Bunker (docs/PROLOGUE-HANDOFF.md P5): Steal Ship indoors. The Sheriff's secure bunker is cut into the rock
+   north of Redrock Flats: the squad lands outside, goes in through the blast door, and works up through the guard
+   post, the armoury and the control room to the hangar, where three ships sit on their pads. The pilots to fly them
+   come in later on the second hauler (Reinforcements). The hangar doors stand open to the east: that is how the
+   ships leave. */
+bunker:{
+  mode:'stealship',W:2400,H:1600,style:'rock',fog:true,gen:1,
+  hasPad:false,hasTower:false,hasTurret:false,hasGraf:true,tumbleweed:false,
+  sub:'Redrock Flats · Akkaro',
+  LZ:{x:330,y:1330,r:130},
+  door:{x:920,y:1372},
+  trailPts:[[290,1620],[330,1330],[620,1420],[920,1390]],
+  panTo:{x:1560,y:420},
+  guardPt:{x:1560,y:560},
+  prizes:[
+    {cls:'cross',name:'FT-4 Cross',label:'FT-4 CROSS',pad:{x:1040,y:420,r:95}},
+    {cls:'talon',name:'SF-11 Talon',label:'SF-11 TALON',pad:{x:1560,y:420,r:95}},
+    {cls:'talon',name:'SF-11 Talon',label:'SF-11 TALON',pad:{x:2080,y:420,r:95}},
+  ],
+  solids:[{x:700,y:0,w:1700,h:1380}],
+  opens:[
+    {x:860, y:1220,w:120,h:160},
+    {x:760, y:960, w:440,h:260,label:'GUARD POST'},
+    {x:1200,y:1050,w:280,h:100},
+    {x:1480,y:980, w:320,h:240,label:'ARMOURY'},
+    {x:1800,y:1050,w:220,h:100},
+    {x:2020,y:960, w:300,h:280,label:'CONTROL'},
+    {x:920, y:780, w:120,h:180},
+    {x:1580,y:780, w:120,h:200},
+    {x:2120,y:780, w:120,h:180},
+    {x:760, y:120, w:1640,h:660,label:'HANGAR'},
+  ],
+  bldgs:[],
+  work:[0,1,2].map(k=>{const P=[1040,1560,2080][k],W=MT.type('stealship').work;
+    return [{id:'clamp'+k,kind:'clamp',prize:k,x:P-108,y:450,label:W.clamp.label,verb:W.clamp.verb},
+            {id:'fuel'+k,kind:'fuel',prize:k,x:P+62,y:516,label:W.fuel.label,verb:W.fuel.verb}];}).flat(),
+  props:[
+    {x:300,y:1100,kind:'rock'},{x:520,y:1250,kind:'rock'},{x:180,y:1450,kind:'rock'},{x:600,y:980,kind:'rock'},{x:420,y:760,kind:'rock'},
+    {x:640,y:1520,kind:'rock'},{x:1200,y:1500,kind:'rock'},{x:1700,y:1480,kind:'rock'},{x:2200,y:1520,kind:'rock'},
+    {x:830,y:1020,kind:'crate'},{x:870,y:1040,kind:'crate'},{x:1120,y:1150,kind:'barrel'},{x:1000,y:1180,kind:'crate'},
+    {x:1530,y:1180,kind:'crate'},{x:1750,y:1020,kind:'crate'},{x:1760,y:1180,kind:'barrel'},{x:1640,y:1120,kind:'canister'},
+    {x:2080,y:1010,kind:'crate'},{x:2270,y:1190,kind:'crate'},{x:2160,y:1100,kind:'barrel'},
+    {x:880,y:250,kind:'crate'},{x:930,y:240,kind:'crate'},{x:1300,y:300,kind:'crate'},{x:1300,y:560,kind:'crate'},{x:1340,y:580,kind:'barrel'},
+    {x:1820,y:300,kind:'crate'},{x:1820,y:560,kind:'crate'},{x:1780,y:580,kind:'barrel'},{x:2300,y:250,kind:'crate'},{x:2300,y:620,kind:'barrel'},
+    {x:1180,y:700,kind:'canister'},{x:1700,y:700,kind:'canister'},{x:2220,y:700,kind:'canister'},{x:960,y:700,kind:'crate'},{x:1450,y:200,kind:'barrel'},
+  ],
+  loots:[
+    {id:'locker', x:1720,y:1060,label:'Armoury locker',take:'Scattergun + shell box',items:['scatter','shells']},
+    {id:'blamB',  x:1540,y:1050,label:'BLAM crate',    take:'3\u00d7 BLAM frag',nades:3},
+    {id:'safe',   x:2260,y:1020,label:'Control safe',  take:'420 \u25c8 credits',c:420},
+    {id:'spares', x:1460,y:640, label:'Hangar spares', take:'90 \u25a4 supplies',s:90},
+  ],
+  foes(){return [
+    foe('frontier-deputy',{id:'bk1',x:880,y:1100,patrol:[{x:880,y:1100},{x:1100,y:1000},{x:900,y:1180}]}),
+    foe('frontier-deputy',{id:'bk2',x:1080,y:1100,wpns:['carbine'],guard:1,patrol:[{x:1080,y:1100},{x:1150,y:1060}]}),
+    foe('security-riot-shieldman',{id:'bk3',x:1560,y:1080,guard:1}),
+    foe('security-riot-rifleman',{id:'bk4',x:1660,y:1060,guard:1}),
+    foe('frontier-deputy',{id:'bk5',x:2140,y:1060,wpns:['carbine'],patrol:[{x:2140,y:1060},{x:2260,y:1160},{x:2060,y:1180}]}),
+    foe('security-patrolman',{id:'bk6',x:2200,y:1100,guard:1}),
+    foe('security-patrolman',{id:'bk7',x:1200,y:420,patrol:[{x:1200,y:420},{x:1400,y:300},{x:1400,y:600}]}),
+    foe('security-patrolman',{id:'bk8',x:1820,y:420,patrol:[{x:1820,y:420},{x:1700,y:250},{x:1950,y:620}]}),
+    foe('security-riot-rifleman',{id:'bk9',x:1560,y:620,guard:1}),
+    foe('frontier-deputy',{id:'bk10',x:2300,y:420,wpns:['carbine'],patrol:[{x:2300,y:420},{x:2280,y:200},{x:2280,y:660}]}),
+  ];},
+  civs(){return [];},
+  /* the prologue's coaching card for calling the pilots in (docs/PROLOGUE-HANDOFF.md P5, text from the base: CTX.coach) */
+  tutCards(){const c=(CTX&&CTX.coach&&CTX.coach.reinf)||null;return c?[
+    {title:c.title,pause:true,when:()=>phase==='PLANNING'&&!!(FS&&FS.ships.some(a=>a.mode==='reinforce'&&a.state==='ready')),
+     text:c.text,done:()=>!!(FS&&FS.ships.some(a=>a.mode==='reinforce'&&a.state!=='ready'))},
+  ]:null;},
+},
 haven:{
   mode:'haven',W:1600,H:1200,scale:1.45,style:'rock',fog:true,
   hasPad:false,hasTower:false,hasTurret:false,hasGraf:false,tumbleweed:false,tutorial:true,gen:1,
@@ -756,16 +867,14 @@ function initUnits(){
     devs.forEach((d,i)=>{if(squad[i]){squad[i].charge=1;squad[i].device=d;}});
   }
   const roster=[...squad];
-  if((SCN.mode==='rescue'||SCN.mode==='strider')&&spec.vip){
-    const big=!!spec.vip.strider;
+  if((SCN.mode==='rescue'||SCN.mode==='strider'||SCN.mode==='ambush')&&spec.vip){
+    const big=!!spec.vip.strider,cg=SCN.cage||{x:PAD.x,y:PAD.y,w:0,h:0};
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
-      x:SCN.cage.x+SCN.cage.w/2,y:SCN.cage.y+SCN.cage.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
+      x:cg.x+cg.w/2,y:cg.y+cg.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
       wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:MT.type('rescue').vip.slice()}));
   }
-  if(spec.pilot){
-    roster.push(mkU({id:'sera',pid:spec.pilot.id,name:spec.pilot.name,first:spec.pilot.first,side:'reb',art:spec.pilot.art,
-      x:LZ.x+16,y:LZ.y+34,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(spec.pilot.level||2),stims:1,wpns:spec.pilot.wpns||['cowboy'],frail:1,lines:PILOT_LINES}));
-  }
+  const pls=spec.pilots||(spec.pilot?[spec.pilot]:[]);
+  pls.forEach((pp,k)=>roster.push(mkPrizePilot(pp,spec.pilots?pp.id:'sera',k,LZ.x+16+k*36,LZ.y+34)));
   U=[
     ...roster,
     ...nameFoes(expandUnits(SCN.foes()),[]),
@@ -774,6 +883,11 @@ function initUnits(){
   for(const u of U)u.face=u.side==='reb'?-Math.PI/4:u.side==='civ'?Math.PI*Math.random():Math.PI*0.8;
 }
 
+/* a pilot who came to steal a ship (prize k): frail, a sidearm, out of the work */
+function mkPrizePilot(pp,id,k,x,y){
+  return mkU({id,pid:pp.id,name:pp.name,first:pp.first,side:'reb',art:pp.art,x,y,hp:55,maxhp:55,aim:1,def:11,cool:45,level:(pp.level||2),stims:1,
+    wpns:pp.wpns||['cowboy'],frail:1,prize:pp.prize===undefined?k:pp.prize,lines:PILOT_LINES});
+}
 /* ---------- vehicles and bots ----------
    A vehicle is not a character. It is a unit in U with side 'veh', the side it answers to in .owner, and seats;
    it never acts on its own. A character mounts it (u.mnt={v,seat}) and acts through the seat: the driver moves
@@ -850,7 +964,7 @@ function reachOf(u,mode){
 }
 /* who can climb into v: a character (not a Bot) on their feet, a free seat, and nobody from the other side aboard */
 function canEnter(u,v,near){
-  if(!u||!v||!v.veh||v.down||u.mnt||u.bot||u.veh||u.down||u.surr||u.extracted||u.away||u.caged||u.manning||stunned(u))return false;
+  if(!u||!v||!v.veh||v.down||v.noEnter||u.mnt||u.bot||u.veh||u.down||u.surr||u.extracted||u.away||u.caged||u.manning||stunned(u))return false;
   if(u.side!=='reb'&&u.side!=='law')return false;
   if(!v.seats.some(x=>!x.occ))return false;
   if(crewIn(v).some(c=>c.side!==u.side))return false;
@@ -936,6 +1050,7 @@ function vehDestroyed(v,by){
     log(nameSpan(c)+' is thrown from the wreck <span class="d">— -'+dmg+'</span>.');
     woundUnit(null,c,dmg,rng()<0.25,'explosive');
   }
+  if(v.hold&&amb){holdStopped(v);checkDefeat();return;}   // the prisoner's truck stalls: no blast
   /* the wreck goes up: anyone standing close is caught in it, crewed or not (DESIGN_BLOCKERS C-7) */
   for(const u of U){
     if(u===v||crew.includes(u)||u.side==='civ'||u.down||u.extracted||u.away||u.office||(u.mnt&&enclosed(u)))continue;
@@ -946,6 +1061,19 @@ function vehDestroyed(v,by){
     if(!u.down)log(nameSpan(u)+' is caught as the '+v.first+' goes up — <b>-'+dmg+'</b>.');
   }
   checkDefeat();
+}
+/* Ambush: the holding vehicle is stopped. Its doors (a Work point) open beside it, on whichever side is clear */
+function holdStopped(v){
+  amb.stopped=true;
+  const wp=WORK.find(w=>w.id==='release');
+  if(wp){
+    for(let k=0;k<8;k++){
+      const a=(v.face||0)+Math.PI+k*0.8,x=v.x+Math.cos(a)*62,y=v.y+Math.sin(a)*62;
+      if(x>40&&x<W-40&&y>40&&y<H-40&&!ptBlocked(x,y,14)){wp.x=x;wp.y=y;break;}
+    }
+  }
+  addFloater(v.x,v.y-72,mtx(SCN.mt.float.stopped),C.go);
+  log(mtx(SCN.mt.log.stopped));
 }
 /* the transport's squad gets out as the alarm goes up */
 function deployUnits(v){
@@ -967,7 +1095,17 @@ let quietRounds=0,shotRound=false,roundHot=false;   // is the fight still on? (s
 let sneak=false,turret={gunner:null,face:Math.PI},WORK=[],decals=[],exploQ=[];
 let selId=null,pickMode=null;
 let execT0=0,engageQ=null;
-let hot=0,crossAway=false,crossFx=null,grafState='landed';
+let crossAway=false,grafState='landed';   // crossAway: every ship to steal is in the air (Steal the Cross: the Cross)
+/* Steal Ship (docs/PROLOGUE-HANDOFF.md P5): the ships to steal, PZ[k]. Each has a pad, a hotwire count and its own clamps
+   and fuel line (Work points with prize:k; a scenario's unmarked ones belong to the first ship). Its pilot (u.prize===k)
+   hotwires it by standing at the panel, a round at a time in combat or on a timer out of it, and it flies once hot and
+   unshackled. Steal the Cross is the one-ship case; Raid the Bunker has three, their pilots landed by Reinforcements. */
+let PZ=[];
+const isPP=u=>!!u&&u.prize!==undefined&&u.prize!==null;   // a pilot who came to steal a ship
+const pilotOf=k=>U.find(u=>u.prize===k&&!u.dead)||null;
+const prizeOf=u=>isPP(u)?PZ[u.prize]||null:null;
+const workPrize=w=>w.prize===undefined?0:w.prize;
+const atPanel=u=>{const p=prizeOf(u);return !!(p&&!p.away&&!p.lost&&!u.down&&!u.extracted&&!u.away&&p.hot<HOT_ROUNDS&&dist(u,p.pad)<p.pad.r);};
 /* Steal Fuel: reach the depot, call the Marta down, hold the pumps five rounds, get out */
 let fs=null;
 /* Blow Up Auto Factory: carry the charge, plant it, clear the blast zone, detonate */
@@ -976,6 +1114,26 @@ let fac=null;
 let rs=null;
 /* Steal Intelligence: a Field Technician cracks the databank (3 rounds), then the trace trips the alarm */
 let ix=null;
+/* Ambush: the holding vehicle runs for the edge once the alarm is up; stopped, its doors open on the prisoner (rs) */
+let amb=null;
+const holdFleeing=()=>!!(amb&&!amb.stopped&&!amb.escaped&&town==='alerted');
+const hot0=()=>PZ[0]?PZ[0].hot:0;   // the first ship's hotwire count (Steal the Cross reads it)
+/* the ships to steal for this mission: the scenario's pads, the classes from the mission (CTX.prizes) or the scenario */
+function prizeList(){
+  const pads=SCN.prizes||(SCN.mode==='stealcross'?[{cls:'cross',name:'FT-4 Cross',label:'FT-4 CROSS',pad:PAD}]:[]);
+  const cls=(CTX&&CTX.prizes)||null;
+  return pads.slice(0,cls?cls.length:pads.length).map((p,k)=>{
+    const c=cls?cls[k]:p.cls,nm=cls?(SRDB.ship(c)||{}).name||c:p.name;
+    return {k,cls:c,name:nm,label:cls?String(nm).toUpperCase():p.label,pad:p.pad,hot:0,hotT:0,away:false,lost:false,reached:false,nagged:false,fx:null,pilot:prizePilotName(k)};
+  });
+}
+/* the first name of the pilot coming for ship k: in the transport, or riding in with the reinforcements */
+function prizePilotName(k){
+  const sp=CTX||defaultSpec();
+  const all=(sp.pilots||(sp.pilot?[sp.pilot]:[])).concat(...(((sp.assets||{}).ships)||[]).map(a=>a.pilots||[]));
+  const pp=all.find((x,i)=>(x.prize===undefined?i:x.prize)===k);
+  return pp?pp.first:'';
+}
 const exitOpen=()=>crossAway||(fac&&fac.detonated)||(rs&&rs.released)||(ix&&ix.hacked);
 const FUEL_ROUNDS=5;
 const exitPt=()=>(fs&&fs.landed)?PAD:LZ;
@@ -2050,7 +2208,7 @@ function aiPlan(){
     let tgt=targets[0],bd=1e9;
     for(const t of targets){
       let d=dist(u,t);
-      if(u.sheriff&&t.id==='sera')d*=0.55;   // Reeve knows what they came for
+      if(u.sheriff&&isPP(t))d*=0.55;   // Reeve knows what they came for
       if(d<bd){bd=d;tgt=t;}
     }
     if(u.shield)u.face=Math.atan2(tgt.y-u.y,tgt.x-u.x);   // the riot shield always turns to the threat
@@ -2096,6 +2254,18 @@ function aiCrew(u){
     u.order={type:'hold'};return;
   }
   const hold=()=>{u.order={type:'hold'};u.braced=st.wkey?1:0;};
+  if(v.hold&&amb){   // the holding vehicle does not fight: it drives the road for the edge
+    const R=SCN.route||[];
+    v.ri=v.ri||0;
+    while(v.ri<R.length-1&&dist(v,R[v.ri])<60)v.ri++;
+    const wp=R[v.ri],d=wp&&moveDest(v,wp.x,wp.y,reach*(SCN.fleeMul||0.45));
+    if(d&&pathFor(v,d.x,d.y)){
+      u.order={type:'move',tx:d.x,ty:d.y};
+      if(!amb.fleeing){amb.fleeing=true;addFloater(v.x,v.y-50,mtx(SCN.mt.float.flee),C.hazard);log(mtx(SCN.mt.log.flee));}
+      return;
+    }
+    return hold();
+  }
   const targets=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
   const gun=v.seats.find(x=>x.wkey&&x.occ);
   if(!targets.length||!gun)return hold();
@@ -2179,7 +2349,7 @@ function inContact(){
 const bleedingOut=()=>U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&injOf(u,'bleeding'));
 /* end of a round with the enemy still about: is this still a fight? */
 function stillFighting(hot){
-  if(hot||nades.length||inContact()||bleedingOut()){quietRounds=0;return true;}
+  if(hot||nades.length||inContact()||bleedingOut()||holdFleeing()){quietRounds=0;return true;}   // a fleeing truck keeps the fight on
   quietRounds++;
   if(quietRounds>=QUIET_ROUNDS){quietRounds=0;return false;}
   log('<span class="d">No contact this round.</span> '+(QUIET_ROUNDS-quietRounds>1?'A few':'One')+' more quiet round'+(QUIET_ROUNDS-quietRounds>1?'s':'')+' and time runs free.');
@@ -2217,7 +2387,7 @@ function freeVehClick(v){
   }
   let best=null,bd=1e9;
   for(const u of U){
-    if(u.side!=='reb'||u.id==='sera'||u.vip||!canEnter(u,v,1e9))continue;
+    if(u.side!=='reb'||isPP(u)||u.vip||!canEnter(u,v,1e9))continue;
     const d=dist(u,v);if(d<bd){bd=d;best=u;}
   }
   if(!best){
@@ -2368,7 +2538,8 @@ function completeWork(wp,u){
     const v=U.find(x=>x.vip);
     if(v){
       v.caged=0;v.away=0;v.order=null;
-      v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;v.spawnX=v.x;v.spawnY=v.y;
+      if(SCN.cage){v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;}else{v.x=wp.x;v.y=wp.y+30;unstick(v);}
+      v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
       addFloater(wp.x,wp.y-46,(SCN.releaseText?SCN.releaseText.float:mtx(SCN.mt.float.free).toUpperCase()),C.go);
       log(SCN.releaseText?'<span class="g">'+SCN.releaseText.log+'</span>':mtx(SCN.mt.log.free));
@@ -2406,18 +2577,44 @@ function sBuildup(){
   if(A.off())return;
   for(let i=0;i<4;i++)osc('triangle',220+i*110,180+i*110,0.12,0.4,i*0.16);
 }
-let launchNagged=false;
-function tryLaunch(){
-  if(crossAway)return;
-  const sera=U.find(u=>u.id==='sera');
-  if(!sera||sera.down)return;
-  if(hot>=HOT_ROUNDS&&workDone())doCrossAway();
-  else if(hot>=HOT_ROUNDS&&!launchNagged){
-    launchNagged=true;
+const prizeFree=k=>WORK.filter(w=>workPrize(w)===k).every(w=>w.done);   // clamps and fuel line off
+function tryLaunch(k){
+  if(k===undefined){PZ.forEach((p,i)=>tryLaunch(i));return;}
+  const p=PZ[k];if(!p||p.away||p.lost)return;
+  const pl=pilotOf(k);
+  if(!pl||pl.down)return;
+  if(p.hot>=HOT_ROUNDS&&prizeFree(k))doCrossAway(k);
+  else if(p.hot>=HOT_ROUNDS&&!p.nagged&&SCN.mode==='stealcross'){
+    p.nagged=true;
     log('<span class="a">The Cross is hot — but still shackled.</span> Clamps and fuel line before she flies.');
-    say(sera,'She’s ready! Get those clamps and the fuel line off her!');
+    say(pl,'She’s ready! Get those clamps and the fuel line off her!');
     syncUI();
   }
+}
+/* the pilot at the panel: one step of the hotwire (a round in combat, a few seconds out of it) */
+function padArrive(k,free){
+  const p=PZ[k],pl=pilotOf(k);
+  if(!p||p.reached||!pl||!atPanel(pl))return;
+  p.reached=true;pl.reached=true;
+  if(SCN.mode==='stealcross'){
+    if(free){log('<span class="g">Sera is at the Cross.</span>');say(pl,'I’m at the panel. Give me a minute.');}
+    else {log('<span class="g">Pilot is at the Cross.</span> Keep them off them.');say(pl,'I’m at the panel. Two rounds. Keep them OFF me.');}
+  } else {
+    const v={ship:p.name,shipPilot:pl.first};
+    log(mtx(SCN.mt.log.atPanel,v));
+  }
+  if(free)syncUI();
+}
+function hotwireStep(k,free){
+  const p=PZ[k],pl=pilotOf(k);
+  if(!p||!pl||!atPanel(pl))return false;
+  const sc=SCN.mode==='stealcross';
+  padArrive(k,free);
+  p.hot++;sSpark();
+  addFloater(pl.x,pl.y-46,'HOTWIRE '+Math.min(p.hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
+  if(p.hot>=HOT_ROUNDS)tryLaunch(k);
+  else if(sc&&!free)log('Pilot works the ignition bypass: <span class="a">'+p.hot+'/'+HOT_ROUNDS+'</span>.');
+  return true;
 }
 function checkBoss(){
   const r=U.find(u=>u.side==='law'&&u.office&&!u.down);
@@ -2425,7 +2622,7 @@ function checkBoss(){
   const tp=SCN.bossTrigger;
   const threat=U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&Math.hypot(u.x-tp.x,u.y-tp.y)<tp.r);
   const lastMan=alliesUp('law')===1;
-  if(!threat&&!lastMan&&!crossAway)return;
+  if(!threat&&!lastMan&&!crossAway)return;   // (Steal the Cross: the Sheriff comes out when the Cross is up)
   r.office=0;
   r.x=SCN.bossDoor.x;r.y=SCN.bossDoor.y;
   unstick(r);
@@ -2450,7 +2647,7 @@ function fsItems(){
     if(a.cassAir&&!tutFlags.fsCard)return;   // Cass stays off the menu until her tutorial card is up (A5)
     const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
     const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
-      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works up to 3 enemies inside it · 2 passes · enemy rockets can bring it down':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
+      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works up to 3 enemies inside it · 2 passes · enemy rockets can bring it down':'lands '+fsPax(a)+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
   (FS.vehicles||[]).forEach((a,i)=>{
@@ -2459,6 +2656,11 @@ function fsItems(){
       sub:a.kind==='bot'?'set down where you call it at the start of the next planning · takes orders like a squad member':'set down empty where you call it at the start of the next planning · someone has to get in'});
   });
   return it;
+}
+/* who a Reinforcements hauler brings: "2 soldiers and 3 pilots" */
+function fsPax(a){
+  const n=a.soldiers.length,m=(a.pilots||[]).length,w=(k,s)=>k+' '+s+(k===1?'':'s');
+  return n&&m?w(n,'soldier')+' and '+w(m,'pilot'):m?w(m,'pilot'):w(n,'soldier');
 }
 function fsSeen(pt){return U.some(u=>u.side==='reb'&&!u.down&&!u.extracted&&!u.away&&!u.ally&&dist(u,pt)<VIEW_R&&!segBlocked(u.x,u.y,pt.x,pt.y));}
 function fsPlace(key,pt){
@@ -2825,17 +3027,20 @@ function fsPlanStart(){
   for(const o of FS.orders){
     if(o.kind!=='reinforce'||o.done||o.at>round)continue;
     o.done=true;
-    const a=FS.ships[o.ship];fsSpent(a);
+    const a=FS.ships[o.ship];
+    if(a.pilots&&a.pilots.length)a.state='spent';else fsSpent(a);   // a hauler that brought the pilots has nobody left to bring
     const landAt=clock()+LAND_MS*0.85;
     fsFx.push({k:'landing',x:o.x,y:o.y,t0:clock(),dur:LAND_MS+500});
-    a.soldiers.forEach((sp,j)=>{
-      const u=mkSquadUnit(sp,o.x+(j-(a.soldiers.length-1)/2)*40,o.y+30);
+    const pax=a.soldiers.length+(a.pilots||[]).length;
+    a.soldiers.concat(a.pilots||[]).forEach((sp,j)=>{
+      const x=o.x+(j-(pax-1)/2)*40,y=o.y+30;
+      const u=j<a.soldiers.length?mkSquadUnit(sp,x,y):Object.assign(mkPrizePilot(sp,sp.id,sp.prize,x,y),{reinf:1});
       const d=moveDest(u,u.x,u.y,120);if(d){u.x=d.x;u.y=d.y;}
       u.face=-Math.PI/2;u.landAt=landAt;U.push(u);   // they step off once the transport is down
     });
     sLand();
     addFloater(o.x,o.y-40,'REINFORCEMENTS',C.go);
-    log('<span class="g">'+a.name+' sets down and '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' pile out.</span>');
+    log('<span class="g">'+a.name+' sets down and '+fsPax(a)+' pile out.</span>');
   }
 }
 const LAND_MS=1400;
@@ -3048,7 +3253,7 @@ function facDetonate(){
   syncUI();
 }
 function drawCage(now){
-  if(!rs)return;
+  if(!rs||!SCN.cage)return;
   const c=SCN.cage;
   ctx.save();
   ctx.fillStyle='rgba(10,12,16,0.5)';ctx.fillRect(c.x,c.y,c.w,c.h);
@@ -3107,7 +3312,7 @@ function extractReady(){
   if(fac)return fac.detonated&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   if(fs)return fs.done&&hostilesActive().length===0&&U.some(u=>u.side==='reb'&&!u.down&&!u.extracted);
   return crossAway&&grafHome()&&hostilesActive().length===0&&
-    U.some(u=>u.side==='reb'&&u.id!=='sera'&&!u.down&&!u.extracted);
+    U.some(u=>u.side==='reb'&&!isPP(u)&&!u.down&&!u.extracted);
 }
 function rtStep(u,dt){
   if(!u.rtPath||!u.rtPath.length)return;
@@ -3176,20 +3381,18 @@ function rtUpdate(now,dt){
     else fs.pumpT=0;
   }
   // pad work runs on timers out of combat
-  const sera=U.find(x=>x.id==='sera');
-  if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
-    if(!sera.reached){sera.reached=true;log('<span class="g">Sera is at the Cross.</span>');say(sera,'I’m at the panel. Give me a minute.');syncUI();}
-    hotT+=dt;
-    if(hotT>=4.5){
-      hotT=0;hot++;sSpark();
-      addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
-      if(hot>=HOT_ROUNDS)tryLaunch();
-    }
-  } else hotT=0;
+  PZ.forEach((p,k)=>{
+    const pl=pilotOf(k);
+    if(pl&&atPanel(pl)){
+      padArrive(k,true);   // arriving says so; the first step still takes its time
+      p.hotT+=dt;
+      if(p.hotT>=4.5){p.hotT=0;hotwireStep(k,true);}
+    } else p.hotT=0;
+  });
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
+    const worker=U.find(u=>u.side==='reb'&&!isPP(u)&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker){
       wp.t+=dt;
       if(wp.t>=4){wp.t=0;workStep(wp,worker);}
@@ -3247,7 +3450,7 @@ function extractUpdate(now,dt){
       }
     }
   }
-  const aboard=U.filter(u=>u.side==='reb'&&u.id!=='sera').every(u=>u.extracted||u.down);
+  const aboard=U.filter(u=>u.side==='reb'&&!isPP(u)).every(u=>u.extracted||u.down);
   if(extractFx.stage==='board'&&aboard){
     extractFx={stage:'lift',t0:now};
     grafState='gone';
@@ -3281,7 +3484,7 @@ function startPlanning(){
   saveSnap();
   syncUI();
 }
-function hotwiring(u){return u.id==='sera'&&!crossAway&&hot<HOT_ROUNDS&&dist(u,PAD)<PAD.r;}
+function hotwiring(u){return atPanel(u);}
 function autoAdvance(){
   // hand the player the next rebel who still needs orders, like the space game
   const nxt=U.find(u=>u.side==='reb'&&!u.ally&&!u.down&&!u.extracted&&!u.away&&!u.manning&&!u.order&&!hotwiring(u)&&!stunned(u));
@@ -3445,7 +3648,7 @@ function buildEngage(){
     if(o&&(o.type==='loot'||o.type==='clear'||o.type==='work'||o.type==='lockin'||o.type==='deploy'||o.type==='pack'||o.type==='hack'||o.type==='enter'||o.type==='exit'||o.type==='switch'))continue;
     if(coolStateG(s)==='panic')continue;
     if(s.side==='law'&&(town!=='alerted'||lawHolds()))continue;
-    if(s.side==='reb'&&s.id==='sera'&&dist(s,PAD)<PAD.r&&!crossAway)continue; // head down in the panel
+    if(s.side==='reb'&&atPanel(s))continue; // head down in the panel
     const anyT=U.some(t=>t.side!==s.side&&!emptyVeh(t)&&wpnsOf(s).some(w=>validShot(s,t,w)));
     if(!anyT)continue;
     list.push(s);
@@ -3460,7 +3663,7 @@ function buildEngage(){
 function initKey(u){return u.aim*3+rint(0,4)-(hasT(u,'nervous')&&round<=1?3:0)-(hasT(u,'perfectionist')?100:0);}
 function pickTarget(s){
   let best=null,bp=-1e9,bw=null;
-  const hasOther=s.side==='law'&&U.some(t=>t.side==='reb'&&t.id!=='sera'&&!t.down&&!t.extracted&&wpnsOf(s).some(w=>validShot(s,t,w)));
+  const hasOther=s.side==='law'&&U.some(t=>t.side==='reb'&&!isPP(t)&&!t.down&&!t.extracted&&wpnsOf(s).some(w=>validShot(s,t,w)));
   for(const t of U){
     if(t.side===s.side||t.down||t.surr||t.extracted||t.away||emptyVeh(t))continue;   // an empty vehicle only when the player picks it
     for(const w of wpnsOf(s)){
@@ -3468,7 +3671,7 @@ function pickTarget(s){
       s.wkey=w;
       let p=pctFor(needFor(computeTN(s,t).total,computeATK(s,t,w).total));
       // deputies shoot at the guns pointed at them; only Reeve hunts the pilot
-      if(s.side==='law'&&!s.sheriff&&t.id==='sera'&&hasOther)p-=18;
+      if(s.side==='law'&&!s.sheriff&&isPP(t)&&hasOther)p-=18;
       if(p>bp){bp=p;best=t;bw=w;}
     }
   }
@@ -3663,6 +3866,15 @@ function retarget(t){
 /* ---------- end of round ---------- */
 function endRound(){
   for(const u of U)u.ambush=0; // surprise is spent with the first volley
+  if(amb&&!amb.stopped&&!amb.escaped){
+    const v=U.find(x=>x.hold);
+    if(v&&!v.down&&v.x>=W-70){
+      amb.escaped=true;v.away=1;for(const c of crewIn(v))c.away=1;
+      log(mtx(SCN.mt.log.escaped));
+      gameOver(false,'escaped');
+      return;
+    }
+  }
   for(const u of U){
     if(u.side!=='reb'||u.dead||u.extracted||u.away||!injOf(u,'bleeding'))continue;
     if(u.down){   // unconscious and bleeding: two rounds for someone to treat them
@@ -3705,7 +3917,7 @@ function endRound(){
   for(const wp of WORK){
     if(wp.done)continue;
     if(wp.needClear&&hostilesActive().length)continue;
-    const worker=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&
+    const worker=U.find(u=>u.side==='reb'&&!isPP(u)&&!u.vip&&!u.away&&!u.down&&!u.extracted&&!u.manning&&!u.bot&&(!u.mnt||wp.inVeh)&&(!wp.needSpec||hasSp(u,wp.needSpec))&&(!wp.needCharge||u.charge)&&
       (!u.order||u.order.type==='hold'||(u.order.type==='work'&&u.order.wp===wp.id))&&Math.hypot(u.x-wp.x,u.y-wp.y)<46);
     if(worker)workStep(wp,worker);
   }
@@ -3719,16 +3931,9 @@ function endRound(){
   dmgRound=new Set();
   fuelReach();
   fuelPumpStep();
-  // hotwire
-  const sera=U.find(u=>u.id==='sera');
-  if(!crossAway&&sera&&!sera.down&&!sera.extracted&&hot<HOT_ROUNDS&&dist(sera,PAD)<PAD.r){
-    if(!sera.reached){sera.reached=true;log('<span class="g">Pilot is at the Cross.</span> Keep them off them.');say(sera,'I’m at the panel. Two rounds. Keep them OFF me.');}
-    hot++;
-    addFloater(sera.x,sera.y-46,'HOTWIRE '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,C.gold);
-    sSpark();
-    if(hot>=HOT_ROUNDS)tryLaunch();
-    else log('Pilot works the ignition bypass: <span class="a">'+hot+'/'+HOT_ROUNDS+'</span>.');
-  }
+  // hotwire: each pilot at their ship's panel
+  PZ.forEach((p,k)=>hotwireStep(k,false));
+  tryLaunch();   // a ship hot before its clamps came off flies once they do
   moraleCheck();
   spotCheck();
   // extraction
@@ -3736,7 +3941,7 @@ function endRound(){
   else if(exitOpen()&&grafHome()){
     const clear=!hostilesActive().some(l=>Math.hypot(l.x-LZ.x,l.y-LZ.y)<300);
     for(const u of U){
-      if(u.side!=='reb'||u.id==='sera'||u.down||u.extracted)continue;
+      if(u.side!=='reb'||isPP(u)||u.down||u.extracted)continue;
       if(Math.hypot(u.x-LZ.x,u.y-LZ.y)<LZ.r){
         if(clear){
           if(u.mnt)dismount(u,true);
@@ -3748,7 +3953,7 @@ function endRound(){
         }
       }
     }
-    const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
+    const soldiers=U.filter(u=>u.side==='reb'&&!isPP(u));
     if(soldiers.every(u=>u.extracted||u.down)&&soldiers.some(u=>u.extracted)){gameOver(true);return;}
   }
   if(phase==='GAMEOVER'){dgQueue.length=0;return;}
@@ -3771,24 +3976,51 @@ function roundWrap(){
   }
   startPlanning();
 }
-function doCrossAway(){
-  crossAway=true;
-  const sera=U.find(u=>u.id==='sera');
-  if(sera)sera.xpGain=(sera.xpGain||0)+0.25;
-  sera.away=1;sera.order=null;
-  crossFx={t0:clock()};
+function doCrossAway(k){
+  k=k||0;
+  const p=PZ[k];if(!p||p.away)return;
+  p.away=true;p.fx={t0:clock()};
+  const pl=pilotOf(k);
+  if(pl){pl.xpGain=(pl.xpGain||0)+0.25;pl.away=1;pl.order=null;}
+  const was=crossAway;crossAway=prizesSettled();
   sTakeoff();
-  camGoal={x:PAD.x-120,y:PAD.y,z:0.85};
-  log('<span class="g">The Cross is up!</span> Our Pilot takes her low over the rooftops and out into space.');
-  if(SCN.grafLeaves){grafReturn();log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. I’m coming back for you. Get to the LZ.');}
-  else log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
-  const lead=U.find(u=>u.side==='reb'&&u.id!=='sera'&&!u.down);
-  if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
+  camGoal={x:p.pad.x-120,y:p.pad.y,z:0.85};
+  const lead=U.find(u=>u.side==='reb'&&!isPP(u)&&!u.down);
+  if(SCN.mode==='stealcross'){
+    log('<span class="g">The Cross is up!</span> Our Pilot takes her low over the rooftops and out into space.');
+    if(SCN.grafLeaves){grafReturn();log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. I’m coming back for you. Get to the LZ.');}
+    else log('<b>'+grafName()+'</b> <span class="d">(comms):</span> There she goes. Ramp’s down. Get my ground-pounders home.');
+    if(lead)say(lead,'Bird’s away! Everyone back to the transport!');
+  } else {
+    const v={ship:p.name,shipPilot:pl?pl.first:''};
+    addFloater(p.pad.x,p.pad.y-70,mtx(SCN.mt.float.away,v),C.go);
+    log(mtx(SCN.mt.log.away,v));
+    if(crossAway&&!was)allPrizesUp();
+  }
   syncUI();
+}
+/* every ship is in the air or out of reach (its pilot lost), and at least one is ours: the way home opens */
+const prizesSettled=()=>PZ.length>0&&PZ.every(x=>x.away||x.lost)&&PZ.some(x=>x.away);
+function allPrizesUp(){log(mtx(SCN.mt.log.allAway));if(SCN.grafLeaves)grafReturn();}
+/* a prize pilot dead, or down with no way left to bring them round, before their ship is up: that ship stays on its
+   pad. The mission goes on while any ship can still be stolen or is already ours; with every one lost it fails
+   (the designer, 8 October: DESIGN_BLOCKERS Resolved log). Steal the Cross, with one ship, fails as it always did. */
+function prizeLostCheck(){
+  for(const p of PZ){
+    if(p.away||p.lost)continue;
+    const pl=U.find(u=>u.prize===p.k);
+    if(!pl||pl.away||pl.extracted||!(pl.dead||(pl.down&&!canRevive(pl))))continue;
+    p.lost=true;
+    if(!lostHow)lostHow=pl.dead?'dead':'nomeds';
+    if(SCN.mt&&PZ.length>1){const v={ship:p.name,shipPilot:pl.first};addFloater(p.pad.x,p.pad.y-70,mtx(SCN.mt.float.lost,v),C.hazard);log(mtx(SCN.mt.log.lost,v));}
+  }
+  if(PZ.length&&PZ.every(p=>p.lost)){gameOver(false,'sera');return true;}
+  if(!crossAway&&prizesSettled()){crossAway=true;allPrizesUp();syncUI();}
+  return false;
 }
 /* who the objective needs: the VIP being rescued, and the Pilot in Steal the Cross. Going down does not end the
    mission; dying does, and so does lying down with no way left to bring them round (DESIGN_BLOCKERS C-31). */
-const needed=u=>!!u&&(!!u.vip||u.id==='sera');
+const needed=u=>!!u&&!!u.vip;   // a prize pilot is the ship's (prizeLostCheck)
 let lostHow='';   // 'dead' or 'nomeds', for the end screen
 function canRevive(t){
   if(!t||t.dead)return false;
@@ -3804,7 +4036,8 @@ function checkDefeat(){
     if(!needed(u)||u.away||u.extracted)continue;
     if(u.dead||(u.down&&!canRevive(u))){lostHow=u.dead?'dead':'nomeds';gameOver(false,u.vip?'vip':'sera');return;}
   }
-  const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
+  if(prizeLostCheck())return;
+  const soldiers=U.filter(u=>u.side==='reb'&&!isPP(u));
   if(soldiers.length&&soldiers.every(u=>u.down))gameOver(false,'squad');
 }
 /* end screen furniture: loot rows, stamp, which button is the gold one */
@@ -3824,7 +4057,7 @@ function gameOver(win,why){
   if(phase==='GAMEOVER')return;
   phase='GAMEOVER';gameEnd={win};
   engageQ=null;
-  const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
+  const soldiers=U.filter(u=>u.side==='reb'&&!isPP(u));
   const left=soldiers.filter(u=>u.down).map(u=>u.name);
   if(SCN.mode==='haven'){
     byId('endEyebrow').textContent='Prologue · Haven Rock';
@@ -3903,6 +4136,13 @@ function typeEnd(win,why,left){
   } else if(k==='rescue'){
     txt=win?mtx(E.win)+mtx(rs.everAlerted?E.winLoud:E.winQuiet)+cost:mtx(why==='vip'?(lostHow==='nomeds'&&E.loseVipDown?E.loseVipDown:E.loseVip):E.lose);
     loot=[['{npc}',E.lootDone]];unseen=!rs.everAlerted;
+  } else if(k==='ambush'){
+    txt=win?mtx(E.win)+cost:mtx(why==='escaped'?E.loseEscaped:why==='vip'?(lostHow==='nomeds'?E.loseVipDown:E.loseVip):E.lose);
+    loot=[['{npc}',E.lootDone]];
+  } else if(k==='stealship'){
+    const lost=PZ.filter(p=>p.lost);
+    txt=win?mtx(E.win)+(lost.length?mtx(E.someLost,{ship:lost.map(p=>p.name).join(', ')}):'')+cost:mtx(why==='sera'?E.losePilot:E.lose);
+    loot=PZ.filter(p=>p.away).map(p=>[p.name,E.lootDone]);
   }
   byId('endEyebrow').textContent=tagText(mtx(win?K.eyebrowWin:K.eyebrowLose));
   byId('endTitle').textContent=mtx(win?title:K.titleLose);
@@ -3962,7 +4202,7 @@ function buildResult(win){
   return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
     dropUsed:!!(FS&&FS.dropUsed),
-    win,cross:SCN.mode==='stealcross'&&!!win,nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,
+    win,cross:SCN.mode==='stealcross'&&!!win,prizes:win&&SCN.mode==='stealship'?PZ.filter(p=>p.away).map(p=>p.cls):[],nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,
     objs:(lastObjs||[]).filter(o=>!/^\(/.test(o.t)).map(o=>({t:o.t.replace(/\s+—\s+\d+\/\d+$/,''),done:!!o.done}))};
 }
 /* ---------- explosions ---------- */
@@ -4325,7 +4565,7 @@ function drawGroundHaven(){
   }
   // worn trail: map edge -> squatter camp -> base mouth
   const lk=SCN.layoutK||1;
-  SA.trail(ctx,[[LZ.x-30,H+20],[LZ.x+40,LZ.y],[620*lk,940*lk],[SCN.camp.x-40,SCN.camp.y+40],[SCN.door.x,SCN.door.y+10]],'rock',46);
+  SA.trail(ctx,SCN.trailPts||[[LZ.x-30,H+20],[LZ.x+40,LZ.y],[620*lk,940*lk],[SCN.camp.x-40,SCN.camp.y+40],[SCN.door.x,SCN.door.y+10]],'rock',46);
   // carved interior: plated floors under the mountain
   for(const op of SCN.opens){
     ctx.fillStyle='#171d26';
@@ -4364,6 +4604,7 @@ function drawGroundHaven(){
   ctx.fillStyle=dg;
   ctx.beginPath();ctx.arc(dr.x,dr.y+14,110,0,7);ctx.fill();
   // squatter campfire
+  if(SCN.camp){
   const fg=ctx.createRadialGradient(SCN.camp.x,SCN.camp.y,4,SCN.camp.x,SCN.camp.y,120);
   const fl=0.10+0.04*Math.sin(now*0.013)+0.02*Math.sin(now*0.031);
   fg.addColorStop(0,'rgba(255,150,60,'+fl+')');fg.addColorStop(1,'rgba(255,150,60,0)');
@@ -4372,8 +4613,16 @@ function drawGroundHaven(){
   for(let k=0;k<5;k++){const a2=k*1.256;ctx.beginPath();ctx.arc(SCN.camp.x+Math.cos(a2)*16,SCN.camp.y+Math.sin(a2)*13,4,0,7);ctx.fill();}
   ctx.fillStyle='rgba(255,190,90,'+(0.6+0.3*Math.sin(now*0.02))+')';
   ctx.beginPath();ctx.arc(SCN.camp.x,SCN.camp.y-2,5,0,7);ctx.fill();
+  }
+  // a transport's LZ, and the pads of the ships to steal (Raid the Bunker)
+  if(SCN.hasGraf){
+    ctx.fillStyle=T.rgba(C.shield,0.06);
+    ctx.beginPath();ctx.arc(LZ.x,LZ.y,LZ.r,0,7);ctx.fill();
+    if(SCN.lzLabel)plb(SCN.lzLabel,LZ.x,LZ.y+LZ.r+24,C.shield,13);
+  }
+  for(const p of PZ)drawPadHex(p.pad);
   // the way in, marked
-  plb('APPROACH',LZ.x,LZ.y+46,C.shield,13);
+  if(!SCN.hasGraf)plb('APPROACH',LZ.x,LZ.y+46,C.shield,13);
 }
 function drawGround(){
   if(SCN.style==='rock'){drawGroundHaven();return;}
@@ -4383,6 +4632,8 @@ function drawGround(){
     SA.trail(ctx,[[300,824],[1200,824],[2400,824]],biome,110);
     SA.trail(ctx,[[2030,780],[2110,560],[PAD.x,PAD.y+70]],biome,54);
     SA.trail(ctx,[[LZ.x,LZ.y-90],[400,1050],[470,880]],biome,48);
+  } else if(SCN.trails){
+    for(const t of SCN.trails)SA.trail(ctx,t.pts,biome,t.w);
   } else {
     SA.trail(ctx,[[LZ.x,LZ.y-100],[700,1000],[1000,860],[1300,760],[1500,560],[PAD.x-60,PAD.y+80]],biome,70);
     SA.trail(ctx,[[1420,730],[2160,690]],biome,44);
@@ -4405,20 +4656,9 @@ function drawGround(){
   ctx.fillStyle=T.rgba(C.shield,0.06);
   ctx.beginPath();ctx.arc(LZ.x,LZ.y,LZ.r,0,7);ctx.fill();
   if(SCN.lzLabel)plb(SCN.lzLabel,LZ.x,LZ.y+LZ.r+24,C.shield,13);
-  // pad
-  ctx.fillStyle='#1a1d22';
-  ctx.beginPath();
-  for(let i=0;i<6;i++){const a=i*Math.PI/3+0.26;const px=PAD.x+Math.cos(a)*110,py=PAD.y+Math.sin(a)*110;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
-  ctx.closePath();ctx.fill();
-  ctx.strokeStyle='rgba(87,168,255,0.5)';ctx.lineWidth=3;ctx.stroke();
-  ctx.strokeStyle='rgba(87,168,255,0.25)';ctx.lineWidth=2;
-  ctx.beginPath();ctx.arc(PAD.x,PAD.y,PAD.r*0.62,0,7);ctx.stroke();
-  for(let i=0;i<6;i++){
-    const a=i*Math.PI/3+0.26;
-    const px=PAD.x+Math.cos(a)*110,py=PAD.y+Math.sin(a)*110;
-    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(clock()*0.004+i))+')';
-    ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();
-  }
+  // pad (and the pad of every other ship to steal)
+  drawPadHex(PAD);
+  for(const p of PZ)if(p.pad!==PAD)drawPadHex(p.pad);
 }
 function drawProps(){
   /* retired: props draw in drawActors' depth sort; dead props leave kit scorch on the ground */
@@ -4533,7 +4773,8 @@ function drawWork(now){
       ctx.restore();continue;
     }
     const pul=0.5+0.5*Math.sin(now*0.005+wp.x);
-    if(wp.id==='clamp'){
+    const wk=wp.kind||wp.id,wpad=(PZ[workPrize(wp)]||{}).pad||PAD;
+    if(wk==='clamp'){
       ctx.strokeStyle='rgba(255,150,60,'+(0.6+0.3*pul)+')';ctx.lineWidth=3;
       ctx.beginPath();ctx.moveTo(-10,-8);ctx.lineTo(-14,-8);ctx.lineTo(-14,8);ctx.lineTo(-10,8);ctx.stroke();
       ctx.beginPath();ctx.moveTo(10,-8);ctx.lineTo(14,-8);ctx.lineTo(14,8);ctx.lineTo(10,8);ctx.stroke();
@@ -4546,13 +4787,13 @@ function drawWork(now){
       ctx.strokeStyle='rgba(255,150,60,'+(0.6+0.3*pul)+')';ctx.lineWidth=3;
       ctx.beginPath();ctx.roundRect(-13,-10,26,20,3);ctx.stroke();
       ctx.beginPath();ctx.moveTo(-7,-3);ctx.lineTo(7,-3);ctx.moveTo(-7,3);ctx.lineTo(7,3);ctx.stroke();
-    } else if(wp.id==='fuel'){
+    } else if(wk==='fuel'){
       // fuel skid + line running to the ship
       ctx.fillStyle='#33383f';ctx.beginPath();ctx.roundRect(-14,-9,28,18,3);ctx.fill();
       ctx.strokeStyle='#181c22';ctx.lineWidth=2;ctx.stroke();
       ctx.strokeStyle='rgba(255,150,60,'+(0.55+0.3*pul)+')';ctx.lineWidth=3;
       ctx.beginPath();ctx.moveTo(0,-9);
-      ctx.quadraticCurveTo(-18,-40,PAD.x-wp.x-14,PAD.y-wp.y+12);
+      ctx.quadraticCurveTo(-18,-40,wpad.x-wp.x-14,wpad.y-wp.y+12);
       ctx.stroke();
     } else {
       // the signal mast, waiting for its flag
@@ -4770,20 +5011,38 @@ function drawGraf(now){
     {livery:'rebel',dark:true,boost:lifting||flying,off:!lifting&&!flying});
   if(!(extractFx&&extractFx.stage==='lift')&&!flying)plb(trName().toUpperCase(),grafPos.x,grafPos.y-96,C.shield,12);
 }
-function drawCross(now){
-  if(crossAway&&!crossFx)return;
-  let x=PAD.x,y=PAD.y,sc=1;
-  if(crossFx){
-    const t=(now-crossFx.t0)/3200;
-    if(t>=1){crossFx=null;return;}
+function drawCross(now,p){
+  p=p||PZ[0];if(!p)return;
+  const P=p.pad;
+  if(p.away&&!p.fx)return;
+  let x=P.x,y=P.y,sc=1;
+  if(p.fx){
+    const t=(now-p.fx.t0)/3200;
+    if(t>=1){p.fx=null;return;}
     const e=t*t;
-    x=PAD.x+e*1400;y=PAD.y-e*180;
+    x=P.x+e*1400;y=P.y-e*180;
     sc=1+t*0.25;
-    if(t<0.5)for(let i=0;i<2;i++)parts.push({x:PAD.x+(rng()-0.5)*120,y:PAD.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
+    if(t<0.5)for(let i=0;i<2;i++)parts.push({x:P.x+(rng()-0.5)*120,y:P.y+(rng()-0.5)*90,vx:(rng()-0.5)*140,vy:-rng()*30,r:3+rng()*4,a:0.4,col:'#b09a78',t0:now,dur:700});
   }
-  if(!crossFx)groundShadow(x,y,79,28);
-  SA.ship(ctx,'cross',x,y,-0.5,3.4*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!crossFx,off:!crossFx});
-  if(!crossAway)plb('FT-4 CROSS',PAD.x,PAD.y+PAD.r+22,C.shield,12);
+  if(!p.fx)groundShadow(x,y,79,28);
+  SA.ship(ctx,p.cls,x,y,-0.5,3.4*sc,HUD.reduced?0:now/1000,{livery:'law',dark:true,boost:!!p.fx,off:!p.fx});
+  if(!p.away)plb(p.label||String(p.name).toUpperCase(),P.x,P.y+P.r+22,C.shield,12);
+}
+/* a landing pad: the hex the Cross sits on, drawn for any ship to steal */
+function drawPadHex(P){
+  ctx.fillStyle='#1a1d22';
+  ctx.beginPath();
+  for(let i=0;i<6;i++){const a=i*Math.PI/3+0.26;const px=P.x+Math.cos(a)*110,py=P.y+Math.sin(a)*110;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+  ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(87,168,255,0.5)';ctx.lineWidth=3;ctx.stroke();
+  ctx.strokeStyle='rgba(87,168,255,0.25)';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(P.x,P.y,P.r*0.62,0,7);ctx.stroke();
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3+0.26;
+    const px=P.x+Math.cos(a)*110,py=P.y+Math.sin(a)*110;
+    ctx.fillStyle='rgba(120,190,255,'+(0.5+0.4*Math.sin(clock()*0.004+i))+')';
+    ctx.beginPath();ctx.arc(px,py,4,0,7);ctx.fill();
+  }
 }
 
 /* ---------- world art: who someone is (artSpec) and what they're doing (artPose) ---------- */
@@ -4872,7 +5131,7 @@ function drawActors(now){
   for(const b of BLDGS)if(!b.terrain)items.push({y:b.y+b.h,f:()=>drawWallActor(b,now)});
   if(SCN.hasGraf)items.push({y:grafPos.y+50,f:()=>drawGraf(now)});
   if(SCN.derelict)items.push({y:SCN.derelict.y+50,f:()=>drawDerelict(now)});
-  if(SCN.hasPad)items.push({y:PAD.y+36,f:()=>drawCross(now)});
+  for(const p of PZ)items.push({y:p.pad.y+36,f:()=>drawCross(now,p)});
   if(turretOn())items.push({y:TURRET.y,f:()=>drawTurret(now)});   // the Razorrat draws its own crouching gunner
   items.sort((a,b)=>a.y-b.y);                            // one depth sort by anchor y
   for(const it of items)it.f();
@@ -4937,8 +5196,8 @@ function hudUnderlay(now){
     if(c&&mine(c.t)&&!u.down&&!u.surr)flat(()=>T.reticle(ctx,0,0,R+10,hudT));
     if(u.hacked&&!u.down)flat(()=>{ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(0,0,R+8,0,7);ctx.lineWidth=2.5;ctx.strokeStyle=C.shield;ctx.stroke();ctx.setLineDash([]);});
     if(u.braced&&!u.down&&phase!=='BRIEF')flat(()=>{ctx.beginPath();ctx.arc(0,0,R+5,u.face-0.6,u.face+0.6);ctx.lineWidth=3;ctx.strokeStyle=T.ROLE.hold;ctx.stroke();});
-    if(u.id==='sera'&&!crossAway&&!u.down&&dist(u,PAD)<PAD.r){
-      const hp2=Math.min(1,(hot+(phase==='FREE'?hotT/4.5:0))/HOT_ROUNDS);
+    if(atPanel(u)){
+      const pz=prizeOf(u),hp2=Math.min(1,(pz.hot+(phase==='FREE'?pz.hotT/4.5:0))/HOT_ROUNDS);
       flat(()=>{
         ctx.beginPath();ctx.arc(0,0,R+10,0,7);ctx.lineWidth=6;ctx.strokeStyle=C.ink;ctx.stroke();
         ctx.beginPath();ctx.arc(0,0,R+10,-Math.PI/2,-Math.PI/2+Math.PI*2*hp2);ctx.lineWidth=3.5;ctx.strokeStyle=C.gold;ctx.stroke();
@@ -5055,7 +5314,7 @@ function hudUnits(L,now){
     const [x,y]=tokCss(u);
     if(x<-70||x>cssW+70||y<-120||y>cssH+70)continue;
     const crew=u.veh?crewIn(u):null;
-    const reb=u.side==='reb'||(u.veh&&u.owner==='reb'),civ=u.side==='civ',sera=u.id==='sera';
+    const reb=u.side==='reb'||(u.veh&&u.owner==='reb'),civ=u.side==='civ',sera=isPP(u);
     const sc2=actorScale(u);
     const topY=u.veh||u.bot?y-(96*sc2+6)*cam.z:y-(60*sc2+6)*cam.z;
     if(!u.down&&!civ){
@@ -5389,7 +5648,7 @@ function drawMinimap(now){
   for(const u of U){
     if(u.extracted||u.away)continue;
     if(!unitSeen(u)&&!(SUP().minimap&&u.side==='law'))continue;   // Mission Intel (Analyst): every enemy on the minimap
-    g.fillStyle=u.down||u.surr?C.text3:u.side==='reb'?(u.id==='sera'?C.gold:C.rebel):u.side==='civ'?C.steel:C.heg;
+    g.fillStyle=u.down||u.surr?C.text3:u.side==='reb'?(isPP(u)?C.gold:C.rebel):u.side==='civ'?C.steel:C.heg;
     g.beginPath();g.arc(ox+u.x*k,oy+u.y*k,u.down?2:3.2,0,7);g.fill();
     if(!u.down){g.lineWidth=1.2;g.strokeStyle=C.ink;g.stroke();}
   }
@@ -5727,7 +5986,7 @@ cv.addEventListener('pointerup',ev=>{
       if(!g){
         let best=null,bd=1e9;
         for(const u2 of U){
-          if(u2.side!=='reb'||u2.id==='sera'||u2.down||u2.extracted||u2.manning)continue;
+          if(u2.side!=='reb'||isPP(u2)||u2.down||u2.extracted||u2.manning)continue;
           const d=dist(u2,TURRET);
           if(d<bd){bd=d;best=u2;}
         }
@@ -5877,8 +6136,8 @@ function ordersFor(s){
     card('cover',{active:!pm&&cur==='cover',disabled:!inCoverAt(s.x,s.y),why:'Stand next to cover first.'})];
   const g2=[card('lockin',{active:!pm&&cur==='lockin'}),
     card('loot',{active:!pm&&cur==='loot',disabled:!nl,why:'Nothing lootable within reach.',tip:{title:'Loot',rule:OM.loot.rule+(nl?' '+nl+' in reach.':'')}}),
-    card('work',{active:!pm&&cur==='work',disabled:!(wp&&s.id!=='sera'&&!s.vip)||injOf(s,'shrapnel'),
-      why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':(s.id==='sera'||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
+    card('work',{active:!pm&&cur==='work',disabled:!(wp&&!isPP(s)&&!s.vip)||injOf(s,'shrapnel'),
+      why:injOf(s,'shrapnel')?'Suppressed by shrapnel.':(isPP(s)||s.vip)?'This one stays out of the work.':'Get within reach of a job first.'})];
   const g3=[];
   if(turretOn()&&!turret.gunner&&dist(s,TURRET)<MOVE_R+60)g3.push(card('man',{active:!pm&&cur==='man'}));
   if(canPack(s))g3.push(card('pack',{active:!pm&&cur==='pack'}));
@@ -5921,7 +6180,7 @@ function vehOrders(s,card,cur,pm){
   out.push(HUD.sep(),card('cancel'));
   return out;
 }
-function whoLead(u){return HUD.avatar({name:u.name,cls:u.id==='sera'?'sr-avatar--pilot':u.side==='law'?'sr-avatar--foe':''});}
+function whoLead(u){return HUD.avatar({name:u.name,cls:isPP(u)?'sr-avatar--pilot':u.side==='law'?'sr-avatar--foe':''});}
 function dockHTML(){
   const callBtn=(fs&&fs.reached&&!fs.called)?true:false;
   const detOn=!!(fac&&fac.planted&&!fac.detonated);
@@ -6034,7 +6293,7 @@ function statusTag(u){
   if(u.surr)return tag('Surrendered','');
   if(u.manning)return tag('On the gun','friend','turret');
   if(u.office)return tag('In his office','');
-  if(u.id==='sera'&&!crossAway&&dist(u,PAD)<PAD.r)return tag('Hotwiring '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'action');
+  if(atPanel(u))return tag('Hotwiring '+Math.min(prizeOf(u).hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,'action');
   if(u.jam)return tag('Jammed','bad','unjam');
   if(stunned(u))return tag('Stunned','bad');
   if(hasInj(u))return tag(Rebel.INJK[u.inj.find(i=>!i.treated).k].n,'bad');
@@ -6076,11 +6335,11 @@ function unitRow(u){
   // faces, as on the base's crew list and the briefing; initials only where there is no art (vehicles)
   const face=u.veh?null:portraitImg({id:foe?'foe:'+(u.arch||u.type||u.id):u.id,art:u.art||(u.arch||u.auto?artSpec(u):null)});
   const av=foe?HUD.avatar({initials:HUD.initials(u.first),img:face,cls:'sr-avatar--foe'}):
-    HUD.avatar({name:u.name,img:face,cls:u.id==='sera'?'sr-avatar--pilot':'',badge:u.id==='sera'?'pilot':(u.auto||u.vip)?null:'soldier'});
+    HUD.avatar({name:u.name,img:face,cls:isPP(u)?'sr-avatar--pilot':'',badge:isPP(u)?'pilot':(u.auto||u.vip)?null:'soldier'});
   const body='<span class="sr-unit__main"><span class="sr-unit__top"><span class="sr-unit__name">'+nm+'</span>'+
     (foe||u.vip||u.veh?'':'<span class="sr-unit__role">Lv '+(u.level||1)+'</span>')+'</span>'+hp+'</span>'+
     '<span class="sr-unit__side">'+statusTag(u)+nerveHtml(u)+'</span>';
-  const st=u.id==='sera'?' style="--c:var(--sr-gold)"':'';
+  const st=isPP(u)?' style="--c:var(--sr-gold)"':'';
   return (foe||u.veh)?'<div class="'+cls+'"'+st+'>'+av+body+'</div>':
     '<button type="button" class="'+cls+'"'+st+' data-unit="'+u.id+'">'+av+body+'</button>';
 }
@@ -6142,6 +6401,20 @@ function typeObjectives(soldiers,ext){
       attach:{done:fac.planted,now:false},
       quiet:{done:fac.planted&&fac.quiet&&won,now:false,fail:fac.everAlerted&&!fac.planted},
       extract:{done:won,now:fac.detonated,prog:aboard}};
+  } else if(k==='ambush'){
+    st={stop:{done:amb.stopped,now:!amb.stopped,fail:amb.escaped},release:{done:rs.released,now:amb.stopped&&!rs.released},
+      extract:{done:won,now:rs.released,prog:aboard}};
+  } else if(k==='stealship'){
+    const per=SCN.mt.obj.filter(o=>!o.all),rows=[];
+    PZ.forEach((p,i)=>{
+      const pl=pilotOf(i),free=prizeFree(i),hot=p.hot>=HOT_ROUNDS;
+      const x={escort:{done:p.reached||p.away,now:!!pl&&!p.reached},hotwire:{done:hot||p.away,now:p.reached&&!hot,prog:[Math.min(p.hot,HOT_ROUNDS),HOT_ROUNDS]},
+        lines:{done:free||p.away,now:p.reached&&!free},board:{done:p.away,now:hot&&free}};
+      const o=per.find(q=>!x[q.k].done)||per[per.length-1],st=x[o.k],v={ship:p.name,shipPilot:p.pilot||'the pilot'};
+      rows.push({t:mtx(o.t,v)+(st.prog&&!st.done?' — '+st.prog[0]+'/'+st.prog[1]:''),done:!!st.done,now:!!st.now&&!p.lost,fail:!!p.lost});
+    });
+    for(const o of SCN.mt.obj.filter(q=>q.all))rows.push({t:mtx(o.t)+' — '+aboard[0]+'/'+aboard[1],done:won,now:crossAway,fail:false});
+    return rows;
   } else if(k==='rescue'){
     const v=U.find(u=>u.vip);
     if(!rs.reached&&v&&U.some(u=>u.side==='reb'&&!u.away&&!u.down&&dist(u,{x:SCN.cage.dx,y:SCN.cage.dy})<260))rs.reached=true;
@@ -6156,8 +6429,8 @@ function typeObjectives(soldiers,ext){
 function syncUI(){
   syncTop();
   // objectives
-  const sera=U.find(u=>u.id==='sera');
-  const soldiers=U.filter(u=>u.side==='reb'&&u.id!=='sera');
+  const sera=pilotOf(0);
+  const soldiers=U.filter(u=>u.side==='reb'&&!isPP(u));
   const ext=soldiers.filter(u=>u.extracted).length;
   let objs;
   if(SCN.mode==='haven'){
@@ -6185,7 +6458,7 @@ function syncUI(){
   const wClamp=WORK.find(w=>w.id==='clamp'),wFuel=WORK.find(w=>w.id==='fuel');
   objs=[
     {t:'Get Sera to the Cross on the north pad',done:!!(sera&&(sera.reached||sera.away)),now:!(sera&&sera.reached)},
-    {t:'Protect her while she hotwires — '+Math.min(hot,HOT_ROUNDS)+'/'+HOT_ROUNDS,done:hot>=HOT_ROUNDS||crossAway,now:!!(sera&&sera.reached&&hot<HOT_ROUNDS&&!crossAway)},
+    {t:'Protect her while she hotwires — '+Math.min(hot0(),HOT_ROUNDS)+'/'+HOT_ROUNDS,done:hot0()>=HOT_ROUNDS||crossAway,now:!!(sera&&sera.reached&&hot0()<HOT_ROUNDS&&!crossAway)},
     {t:'Release the docking clamps',done:!!(wClamp&&wClamp.done)||crossAway,now:!!(sera&&sera.reached&&wClamp&&!wClamp.done)},
     {t:'Pull the fuel line',done:!!(wFuel&&wFuel.done)||crossAway,now:!!(sera&&sera.reached&&wFuel&&!wFuel.done)},
     {t:'Cross in the air',done:crossAway,now:false},
@@ -6459,6 +6732,8 @@ $('dbgSkip').addEventListener('click',()=>{
   byId('gCassComm').hidden=true;
   $('briefing').hidden=true;
   started=true;
+  for(const p of PZ)p.away=true;   // the ships to steal count as stolen
+  if(PZ.length)crossAway=true;
   gameOver(true);
 });
 HUD.tips(ROOT);
@@ -6511,7 +6786,8 @@ addEventListener('keydown',ev=>{
 function initState(){
   initUnits();
   for(const u of U)if(u.side==='reb'){u.spawnX=u.x;u.spawnY=u.y;}
-  round=0;town='calm';hot=0;quietRounds=0;shotRound=false;roundHot=false;hotT=0;lostHow='';crossAway=false;crossFx=null;grafState='landed';grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
+  round=0;town='calm';quietRounds=0;shotRound=false;roundHot=false;hotT=0;lostHow='';crossAway=false;grafState='landed';
+  PZ=prizeList();grafFx=null;grafPos.x=LZ.x;grafPos.y=LZ.y;grafPos.a=0.12;
   {const A=(CTX&&CTX.assets)||null;
    FS=A&&(A.drop||(A.ships&&A.ships.length)||(A.vehicles&&A.vehicles.length))?{drop:!!A.drop,dropUsed:false,ships:(A.ships||[]).map(a=>Object.assign({state:'ready',left:0},a)),
      vehicles:(A.vehicles||[]).map(a=>Object.assign({state:'ready'},a)),orders:[],n:0}:null;
@@ -6536,7 +6812,8 @@ function initState(){
        pilot:{name:'Cass Wender',first:'Cass'},soldiers:[],cassAir:1});
    }}
   ix=SCN.mode==='intel'?{hacked:false,reached:false}:null;
-  rs=(SCN.mode==='rescue'||SCN.mode==='strider')?{released:false,everAlerted:false,reached:false}:null;
+  rs=(SCN.mode==='rescue'||SCN.mode==='strider'||SCN.mode==='ambush')?{released:false,everAlerted:false,reached:false}:null;
+  amb=SCN.mode==='ambush'?{stopped:false,escaped:false,fleeing:false}:null;
   fac=(SCN.mode==='autofactory'||SCN.mode==='towers')?{planted:false,detonated:false,everAlerted:false,quiet:false,fx:null,method:null}:null;
   fs=SCN.mode==='stealfuel'?{reached:false,called:false,flying:null,landed:false,pump:0,pumpT:0,done:false}:null;
   tally={c:0,s:0,items:[]};
@@ -6549,7 +6826,7 @@ function initState(){
   PROPS=SCN.props.map(pr=>Object.assign({},pr,{hp:PROPDEF[pr.kind].hp,dead:false}));
   turret={gunner:null,face:Math.PI};
   NADES=(CTX&&CTX.nades)||0;nades=[];dmgRound=new Set();
-  sneak=false;launchNagged=false;
+  sneak=false;
   floaters=[];tracers=[];parts=[];bubbles=[];casings=[];decals=[];exploQ=[];hits=[];boomFx=[];hitFx=[];fsFx=[];
   pops=[];vols=[];impFx=[];jfx=[];PFX.list.length=0;SHK.trauma=0;
   fogInit();
@@ -6589,7 +6866,8 @@ function saveSnap(){/* combat runs are not persisted; reloading resumes at Haven
    waits, so the button shows without a freeze. An acknowledged card stays up until its done() fires. (A4) */
 let tutFlags={moved:0,sneaked:0,executed:0,attacked:0,shot:0,fs:0,fsCard:0};
 let tutIdx=0,tutAck=[];
-const TUT=[
+let TUT=null;   // the cards for this scene: Take the Rock's, or a scenario's own (SCN.tutCards)
+const TUT_ROCK=[
   {title:'Move out',pause:true,text:'<b>Out of combat, you can move your squad in real time.</b> <b>'+(SR.touch?'Tap the ground':'Right-click')+'</b>'+(SR.touch?'':' (or tap the ground)')+' to move your squad. Walk them up the canyon toward the squatter camp at the base mouth.',
    done:()=>tutFlags.moved},
   {title:'Sneak past',pause:true,when:()=>town==='alerted'||U.some(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away&&hostilesActive().some(l=>lookout(l)&&dist(r,l)<sightRange(l)+180)),
@@ -6612,7 +6890,9 @@ const TUT=[
   {title:'Raise the signal',text:'The rock is yours. Push inside, walk a soldier to the command-room console, and <b>raise the signal</b>.',
    done:()=>false},
 ];
-function tutReset(){tutFlags={moved:0,sneaked:0,executed:0,attacked:0,shot:0,fs:0,fsCard:0};tutIdx=0;tutAck=[];tutShown=-1;tutAckShown=null;tutStage=-1;tutGateT=0;}
+TUT=TUT_ROCK;
+const tutOn=()=>!!(SCN&&(SCN.tutorial||(TUT&&TUT!==TUT_ROCK)));
+function tutReset(){TUT=(SCN&&SCN.tutCards&&SCN.tutCards())||TUT_ROCK;tutFlags={moved:0,sneaked:0,executed:0,attacked:0,shot:0,fs:0,fsCard:0};tutIdx=0;tutAck=[];tutShown=-1;tutAckShown=null;tutStage=-1;tutGateT=0;}
 let tutShown=-1,tutAckShown=null,tutStage=-1,tutGateT=0;
 const TUT_GAP=1400;   // breathing room before the next card comes up; the first card shows at once
 function tutNeedsAck(){const t=TUT[tutIdx];return !!(t&&t.pause&&!tutAck[tutIdx]&&!t.done());}
@@ -6623,17 +6903,18 @@ function tutReady(){
   return clock()>=tutGateT;
 }
 function tutFrozen(){
-  if(!SCN||!SCN.tutorial||phase!=='FREE')return false;
+  if(!tutOn()||phase!=='FREE')return false;
   return tutNeedsAck()&&tutReady();
 }
 function tutTick(){
   const card=byId('tutCard');
-  if(!SCN||!SCN.tutorial||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
+  const over=TUT&&tutIdx===TUT.length-1&&TUT[tutIdx].done();   // a scenario's last card, done: nothing left to show
+  if(!tutOn()||over||phase==='BRIEF'||phase==='CUTSCENE'||phase==='INTRO'||phase==='GAMEOVER'){if(!card.hidden){card.hidden=true;measureHud();}return;}
   while(tutIdx<TUT.length-1&&TUT[tutIdx].done())tutIdx++;
   if(tutStage!==tutIdx){tutStage=tutIdx;tutGateT=clock()+(tutIdx?TUT_GAP:0);}
   // a card waits unseen until its when() is met and it has had a beat to breathe
   if(!tutReady()){if(!card.hidden){card.hidden=true;measureHud();}tutShown=-1;return;}
-  if(tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;fsCassIntro();syncUI();}   // the Fire Support card is up: Cass unlocks and pipes up (A5)
+  if(TUT===TUT_ROCK&&tutIdx===5&&!tutFlags.fsCard){tutFlags.fsCard=1;fsCassIntro();syncUI();}   // the Fire Support card is up: Cass unlocks and pipes up (A5)
   if(card.hidden){card.hidden=false;tutShown=-1;}
   const fold=phase==='ENGAGE'&&cssW<1000;           // the VS panel is already teaching; give the fight the room
   if(card.classList.contains('is-folded')!==fold){card.classList.toggle('is-folded',fold);measureHud();}
@@ -6750,15 +7031,16 @@ SR.register('ground',{enter,exit,frame:render});
 
 if(location.hash==='#test'){
   window.DBGground={get U(){return U;},get phase(){return phase;},get town(){return town;},
-    get hot(){return hot;},set hot(v){hot=v;},get WORK(){return WORK;},get tally(){return tally;},
+    get hot(){return hot0();},set hot(v){if(PZ[0])PZ[0].hot=v;},get PZ(){return PZ;},get WORK(){return WORK;},get tally(){return tally;},
     get gameEnd(){return gameEnd;},get pendingResult(){return pendingResult;},get crossAway(){return crossAway;},
-    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
+    get PAD(){return PAD;},get LZ(){return LZ;},get SCN(){return SCN;},get fs(){return fs;},get fac(){return fac;},get rs(){return rs;},get amb(){return amb;},get hackArm(){return hackArm;},get FS(){return FS;},get ix(){return ix;},get grafPos(){return grafPos;},
     get engageQ(){return engageQ;},get cam(){return cam;},get camGoal(){return camGoal;},get FR(){return FR;},
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get PROPS(){return PROPS;},get BLDGS(){return BLDGS;},set engageQ(v){engageQ=v;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,sShot,VOICE_:()=>VOICE,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
-      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
+      completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,hotwireStep,prizeFree,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
+      vehDestroyed,holdStopped,aiCrew,stillFighting,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,buildEngage,

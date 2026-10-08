@@ -56,6 +56,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
           <button class="sr-menu__item" id="menuSound" role="menuitem"><svg class="sr-ico"><use href="#i-soundon"/></svg><span>Sound: on</span></button>
           <button class="sr-menu__item" id="menuShake" role="menuitem"><svg class="sr-ico"><use href="#i-fit"/></svg><span>Screen shake: on</span></button>
           <button class="sr-menu__item" id="menuGore" role="menuitem"><svg class="sr-ico"><use href="#i-heart"/></svg><span>Blood: on</span></button>
+          <button class="sr-menu__item" id="menuPro" role="menuitem" hidden><svg class="sr-ico"><use href="#i-debug"/></svg><span>Debug: Prologue</span></button>
           <div class="sr-menu__sep"></div>
           <button class="sr-menu__item sr-menu__item--danger" id="restartBtn" role="menuitem"><svg class="sr-ico"><use href="#i-restart"/></svg><span>Restart</span></button>
         </div>
@@ -158,6 +159,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </aside>
 </div>
 <div class="sr-pointer" id="tutPtr" hidden><span class="sr-pointer__label"></span><span class="sr-pointer__arrow"></span></div>
+<div class="sr-coach" id="tutCoach" role="status" hidden></div>
 </div>
 <div class="scene sr-app sr-root" id="sc-space" hidden>
 <div class="sr-shell" id="app">
@@ -395,6 +397,7 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 <script src="js/rebel-rest.js"></script>
 <script src="js/support.js"></script>
 <script src="js/mission-text.js"></script>
+<script src="js/prologue.js"></script>
 <script src="js/base.js"></script>
 <script src="js/space.js"></script>
 <script src="js/ground.js"></script>

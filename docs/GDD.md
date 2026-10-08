@@ -504,7 +504,7 @@ Each location has four statistics:
   10%); they never finish one. Akkaro's repeatable local ops only open once the onboarding is
   finished.
 - **Regions are land only.** Space combat is auto-generated in orbit over a location and never
-  belongs to a region, so space missions (Cook the Depots, fuel-hauler skims, relay taps) carry
+  belongs to a region, so space missions (Torch the Depots, fuel-hauler skims, relay taps) carry
   a location but no region and add no liberation, though they still count for Revolution
   progress.
 - **Scale:** the other existing worlds keep Security, Access and Support but have no regions.
@@ -747,7 +747,7 @@ needed, and takes extra assets. Each of the transport's options is a toggle (Arr
   guard is drawn on the tower's deck.
 
 ### Space enemies (built, Phase 4)
-Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
+Torch the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
 **Drone Pursuers** (fast hunters) and, from round 5, a patrol answer: a manned **VC Mote** fighter and a
 **Drone Mag-Clamper**, whose clamp cuts a ship's top speed by 2 for two rounds.
 
@@ -899,9 +899,9 @@ numbers (DESIGN_BLOCKERS C-4). Rewards scale with Security as above, and loot co
 | Blow Up Auto Factory | blank | 450 credits, 160–200 Materials; +300 credits for staying unseen (built) |
 | Steal Fuel | (x) Fuel | 240 Fuel, 300 credits (built) |
 | Destroy Checkpoint | materials, supplies | *guess:* 120 Materials, 160 Supplies, 150 credits |
-| Ambush: VIP | the prisoner as a Support recruit | *guess:* as the doc, plus 200 credits |
+| Ambush: VIP | the prisoner as a Support recruit | as the doc, plus 400 credits (built) |
 | Ambush: Precious Cargo | whatever gear was in the truck | *guess:* as the doc, plus 100 credits |
-| Steal Ship | the ship | as the doc (Steal the Cross gives the Cross, 500 credits, 120 Supplies) |
+| Steal Ship | the ship | the ships stolen, one per pilot (built: one SF-11 Talon by default; Raid the Bunker pins an FT-4 Cross and two Talons; Steal the Cross gives the Cross, 500 credits, 120 Supplies) |
 | Cause a Riot | blank | *guess:* 160 Supplies, 200 credits, +Support in the region |
 
 ### Opportunities (built)

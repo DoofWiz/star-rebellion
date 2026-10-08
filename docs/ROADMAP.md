@@ -17,12 +17,12 @@ starfighter squadron and no Heroes yet.
 
 | Area | Docs say | Game has |
 |---|---|---|
-| Opening chain | (not specified) | Take the Rock → base → Cass → Sera → Marta → Steal the Cross → Cook the Depots |
+| Opening chain | (not specified) | Take the Rock → base → Cass → Sera → Marta → Steal the Cross → Torch the Depots |
 | Sources | Type list, cultivation, risk, burn, silence, cut loose; **location-tied**; **quest chains** | Everything except location ties and authored chains |
 | Locations | Security (5 helmets), Access (5 eyes), Support (5 flags), Liberation % by region; cinematic intro popup | Planets are `known`/`access` booleans; Intel is spent to scout once |
 | Resources | Credits, Supplies, **Materials**, **Fuel**, Intel | Credits, Supplies, Intel (plus renown, risk, morale) |
 | Missions | Source / Intelligence-generated; Directives; Opportunities (Access 2+); mission types wrapped in narrative | Source-generated only; several ad-hoc missions |
-| Tier 1 missions | Steal Intelligence, Rescue Dissident, Blow Up Auto Factory, Steal Fuel | Steal Cross, Cook the Depots, plus abstract-only jobs; Strider locked |
+| Tier 1 missions | Steal Intelligence, Rescue Dissident, Blow Up Auto Factory, Steal Fuel | Steal Cross, Torch the Depots, plus abstract-only jobs; Strider locked |
 | Mission planning | Team + Assets + transport slot, drag/click from roster | Team and preconditions UI, no Assets or transport slot |
 | Ground combat | Stealth, Fire Support (reinforcements, door gunner, strafing, supply drop, owned vehicles and Bots), hacking Autos, crewed vehicles (enter, exit, switch position) | Stealth, cover, nerve, grenades, stims; no fire support, no hacking |
 | Enemies (Rev 1) | Policebot, Patrolman, Riot Shieldman/Rifleman, Riot Bruiser, Cruisers, Strider Mk I; drone starfighters | Dustfall deputies and Sheriff, RQ-7 drones |

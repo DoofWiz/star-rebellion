@@ -16,6 +16,7 @@ python3 tools/text/text.py import star-rebellion-text.xlsx             # writes 
 Or hand the downloaded workbook to Claude and ask it to import your text edits.
 
 One tab per part of the game: **Missions** (every reusable mission type's words, and the guards' names and lines),
+**Prologue** (the onboarding's comms, signals, guided-step lines and callouts: `PRO_TEXT` in `game/js/prologue.js`),
 **Base**, **Ground**, **Space**, **Rebels** (traits, experiences, injuries, ranks), **Title**, **Shared** (HUD and kit)
 and **Page** (the static labels in `game/index.html`). Each row is one line:
 
@@ -30,8 +31,8 @@ and **Page** (the static labels in `game/index.html`). Each row is one line:
 
 ## Mission types (the Missions tab)
 
-A reusable mission type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Disrupt Comm Towers)
-is written once, in `game/js/mission-text.js`, and every deployment of it fills in its own names. Its offer on the
+A reusable mission type (Steal Fuel, Steal Intelligence, Blow Up Auto Factory, Rescue Dissident, Ambush: Extract VIP,
+Steal Ship, Disrupt Comm Towers) is written once, in `game/js/mission-text.js`, and every deployment of it fills in its own names. Its offer on the
 board, the briefing, the objectives (the board, the briefing and the live list all use the same ones), the hint, the
 pilot's arrival call, the log lines and the end screen are all there. The variables:
 
@@ -46,6 +47,7 @@ pilot's arrival call, the log lines and the end screen are all there. The variab
 | `{hacker}` | the Field Technician on the job |
 | `{fallen}` | the rebels left behind, as a list |
 | `{n}` `{total}` | progress counts |
+| `{ship}` `{shipPilot}` | Steal Ship: the ship being stolen (FT-4 Cross, SF-11 Talon) and the first name of the pilot taking it |
 | `{SRC}` | the source's surname in capitals, in their follow-up line |
 
 The same tab holds the Hegemony guards: a pool of surnames (robots get a serial number), and per enemy type a title,
@@ -65,6 +67,8 @@ Rebel traits use `{name}` for the rebel and `{partner}` for the other one in a p
   already have, or a `{` or `}` of your own, is refused.
 - Some lines carry HTML: `<b>bold</b>`, `<br>`, `<span class="g">` (green), `"b"` (danger), `"d"` (quiet). Keep the
   tags around the words they wrap.
+- Because of that, a word in angle brackets, such as `<muffled shouting>`, would vanish in the game: write it
+  `&lt;muffled shouting&gt;`. In a comm or a Source's signal, a line break inside the cell is a line break on screen.
 - Spaces at either end of a line are kept as they were, because a line built from pieces often needs them
   (`'Day '+n`).
 - Straight and curly quotes and apostrophes are both in the game today; what you type is what you get.

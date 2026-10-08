@@ -136,6 +136,11 @@
 .pl-win [data-slot].is-target{outline:3px dashed var(--sr-gold);outline-offset:2px;}
 .pl-win .is-pulse{animation:pl-pulse .7s ease-out 2;}
 @keyframes pl-pulse{0%{box-shadow:0 0 0 0 var(--sr-gold);}70%{box-shadow:0 0 0 9px rgba(0,0,0,0);}100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}}
+/* the Reinforcements hauler's passengers (Raid the Bunker): the prize pilots' seats, and who else rides along */
+.pl-assets{flex-wrap:wrap;}   /* the passengers card makes a fourth: wrap rather than spill on a narrow screen */
+.pl-pass{width:220px;}
+.pl-pass__row{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+.pl-pass .pl-pilot{position:relative;left:auto;bottom:auto;}
 .pl-base__disc--face{border-style:solid;overflow:hidden;border-radius:50%;}
 .pl-base__disc--face img{width:100%;height:100%;display:block;}
 @media (prefers-reduced-motion:reduce){.pl-win *{animation:none !important;}}
