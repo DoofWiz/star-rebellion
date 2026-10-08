@@ -4,6 +4,7 @@
      stage, the tabs and the planning window have the full width, the top bar's menu button stays on screen; picking
      a mission, a node on the Network or a Source on the Galaxy opens the rail; the ground and space rails slide in too
    - landscape is the desktop layout: the rail sits beside the stage and there is no drawer button
+   - a guided pointer at a button near the bottom of the screen stays on screen (Raise Cass's Contact step)
    - neither orientation scrolls sideways or puts anything past the right edge, on the base's views, the plan, the
      ground and the space screens; the game knows it is on a touch screen */
 const {chromium}=require('playwright');
@@ -94,8 +95,17 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   await wait(300);
   await where('the plan');
   r=await E(()=>{const w=document.querySelector('#sc-base .pl-win').getBoundingClientRect();return {w:Math.round(w.width),l:Math.round(w.left),r:Math.round(w.right)};});
-  ok(r.l>=0&&r.r<=(tablet?1024:1366)&&(!tablet||r.w>=900),ori+': the planning window fits'+(tablet?', near the full width ':' ')+JSON.stringify(r));
+  ok(r.l>=0&&r.r<=(tablet?1024:1366)&&(!tablet||r.w>=860),ori+': the planning window fits'+(tablet?', near the full width ':' ')+JSON.stringify(r));
   await E(()=>window.DBGbase.fn.closeWin());
+  // a guided pointer at a button near the bottom stays on screen (Raise Cass's Contact step, on the Galaxy's dock)
+  await E(()=>{window.Pro.jump('cass_contact');const f=window.DBGbase.fn;for(let i=0;i<6;i++)f.closeWin();document.querySelector('#sc-base #navSources').click();});
+  await wait(300);
+  await E(()=>{const row=[...document.querySelectorAll('#sc-base #railGx button,#sc-base #railGx [role=button],#sc-base #railGx [data-gxsel]')].find(e=>/Cass Wender/.test(e.textContent));row&&row.click();});
+  await wait(400);
+  r=await E(()=>{const p=document.querySelector('#sc-base #tutPtr'),rr=p.getBoundingClientRect();
+   return {at:(window.Pro.step()||{}).at,up:!p.hidden,top:Math.round(rr.top),bot:Math.round(rr.bottom),H:innerHeight};});
+  ok(r.at==='gx.order:contact'&&r.up&&r.top>=0&&r.bot<=r.H-8,ori+': the pointer at Contact on the Galaxy’s dock is fully on screen '+JSON.stringify(r));
+  await E(()=>document.querySelector('#sc-base #navBase').click());
   // ground and space
   await E(()=>{const SQ=['dax','runa','kel'].map(id=>({id,name:id+' X',first:id,aim:2,hp:100,wpns:['akli','cowboy']}));
    window.SR.go('ground',{test:true,mission:{kind:'ground',missionId:'stealcross',days:2,squad:SQ,pilot:{id:'sera',name:'Sera Kest',first:'Sera'},

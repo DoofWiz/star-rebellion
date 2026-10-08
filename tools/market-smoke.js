@@ -99,8 +99,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   $('#bmPop [data-bmbuy]').click();
   out.discBuy=cd-G().credits===disc;
   out.perk=$('#railMarket .bm-perk').className.indexOf('is-on')>=0;
-  // the restock countline rides the command bar's count slot
-  out.note=($('#dockNote').textContent||'').indexOf('Restock in')>=0;
+  // no command bar out of combat: the restock count is Sweet Tooth's, in the rail
+  out.note=/Days to new stock/.test($('#railMarket').textContent)&&!$('#sc-base .sr-cmdbar');
   // ===== Phase 3: mercenaries =====
   f.closeMarket();
   let mseed=0;
@@ -252,7 +252,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.closeMarket();
   // Refit: fit the bought weapon to an empty mount, then clear a mount back onto the racks
   f.openArsenal();f.setArCat('ships');f.setArSel('ship',bought.id);
-  $('#arOrders [data-arrefit]').click();
+  $('#arActs [data-arrefit]').click();
   out.refitOpen=$$('#arView [data-armount]').length>=2;
   const emptyMi=(bought.loadout||[]).length;
   $$('#arView [data-armount]')[emptyMi].click();
@@ -297,7 +297,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.disc[0]&&r.disc[1],'the Nyx Access discount shows on the card '+r.disc);
  ok(r.discBuy,'the Nyx Access discount applies at purchase');
  ok(r.perk,'the perk row goes solid with Access to Nyx');
- ok(r.note,'the command bar carries the restock count line');
+ ok(r.note,'no command bar: the restock count sits in Sweet Tooth’s rail');
  // Phase 3: mercenaries
  ok(r.mercSeed,'a seed with a mercenary lot was found');
  ok(r.mercLot.every(Boolean),'merc lot: stock 1, fee 380-600, Soldier/Pilot level 2-3, own kit rolled '+r.mercLot);

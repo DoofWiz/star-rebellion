@@ -66,9 +66,18 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   out.shot=[f.validShot(law,kel,f.wpnsOf(law)[0]),f.wpnsOf(law).join()].join();
   f.setPhase('ENGAGE');
   gd.engageQ={list:[law,kel],idx:0,cur:null,nextAt:0};
-  f.attackUpdate(performance.now()+10);
+  const t0=performance.now();
+  f.attackUpdate(t0+10);
   const c=gd.engageQ&&gd.engageQ.cur;
-  out.fast=c?[c.s===law,c.stage,!!c.fast,c.reveal===c.tn.entries.length,c.roll>0].join():'none '+out.shot;
+  const st0=c&&c.stage;
+  if(c&&c.stage==='aim')f.attackUpdate(t0+10+800);   // waiting for the camera to frame them: it fires within 0.7 s
+  out.fast=c?[c.s===law,st0==='aim'||st0==='fire',c.stage,!!c.fast,c.reveal===c.tn.entries.length,c.roll>0].join():'none '+out.shot;
+  // once its last round has landed, the result holds a second before the next shooter goes
+  if(c){
+   const fa=c.stageAt,hold=Math.max(c.applyAt||420,c.lastAt||0);
+   f.attackUpdate(fa+hold+900);out.hold=gd.engageQ&&gd.engageQ.cur===c;
+   f.attackUpdate(fa+hold+1100);out.next=!(gd.engageQ&&gd.engageQ.cur===c);
+  }
   gd.engageQ.cur=null;gd.engageQ.nextAt=0;gd.engageQ.idx=1;
   law.x=kel.x+200;law.y=kel.y;
   f.attackUpdate(performance.now()+20);
@@ -86,7 +95,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(r.ai==='true,true,true,true,true','the AI picks cover away from the rebel, not at their crate, and two do not share a spot '+r.ai);
  ok(r.lmg==='AUTOMATIC (DEPLOYED):-2','the Razorrat on its tripod: Automatic (Deployed) -2 '+r.lmg);
  ok(r.akli==='AUTOMATIC:-5','an Akli on automatic is still -5 '+r.akli);
- ok(r.fast==='true,fire,true,true,true','an enemy shot opens on its result and fires at once '+r.fast);
+ ok(r.fast==='true,true,fire,true,true,true','an enemy shot opens on its result card and fires as soon as the camera has the shooter and the target '+r.fast);
+ ok(r.hold===true&&r.next===true,'its result stays up a second after the last round lands, then the next shooter goes '+[r.hold,r.next]);
  ok(r.mine==='true,true,reveal','on a rebel\'s turn they are selected and the card plays out '+r.mine);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  await b.close();

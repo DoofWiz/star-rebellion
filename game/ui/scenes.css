@@ -432,7 +432,18 @@
 .gx-hotrow{box-shadow:0 0 0 2px var(--sr-hazard),0 2px 0 var(--sr-ink);
   background-image:repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,138,31,.08) 10px 20px);}
 .gx-avatar-world img{display:block;width:100%;height:100%;border-radius:50%;}
-#gxOrders .sr-order{min-width:84px;}
+/* out of combat the buttons sit with what they act on (SCREENS-HANDOFF §0.1): the Galaxy's selected panel and the
+   Arsenal's dossier (the Black Market has its lot pop-up, sr-kit.css). A number key on each; a reason under the row for one that can't go. */
+.kit-acts{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.kit-acts__row{display:flex;flex-wrap:wrap;gap:8px;}
+.kit-acts__why{margin:0;}
+.kit-act,.gx-act{position:relative;gap:6px;}
+.kit-act .sr-kbd,.gx-act .sr-kbd{margin-right:2px;}
+.gx-act .sr-badge{top:-7px;right:-7px;}
+.gx-act .sr-cost{margin-left:2px;}
+.gx-act--attn{box-shadow:var(--sr-bevel),var(--sr-lift),0 0 0 3px var(--sr-gold);}
+.gx-act--danger{color:var(--sr-hazard);}
+#sc-base .gx-acts{flex-direction:column;align-items:stretch;gap:6px;}
 #gxDock .gx-dossier,#gxDock .gx-regioncard{pointer-events:auto;}
 #gxDock{display:flex;flex-direction:column;gap:10px;max-height:100%;}
 /* region chips float over the planet; the canvas keeps them in step */
@@ -442,9 +453,10 @@
 .gx-rchip .gx-wheel::before{inset:4px;}
 .gx-rchip .gx-wheel .sr-ico{position:relative;width:11px;height:11px;color:var(--sr-rebel);}
 .gx-minimap canvas{display:block;width:100%;height:100%;}
-/* phones: galaxy panels become a bottom sheet above the command bar (provisional layout) */
+/* phones: galaxy panels become a bottom sheet above Advance day (provisional layout). Placed against the scene (the
+   app's container makes it the box a fixed element sits in): inside the top-left slot it ran off the top. */
 @media (max-width:700px){
-  #sc-base #gxDock{position:absolute;left:8px;right:8px;top:auto;bottom:88px;max-height:60cqh;overflow:auto;}
+  #sc-base #gxDock{position:fixed;left:8px;right:8px;top:auto;bottom:calc(88px + env(safe-area-inset-bottom));max-height:60cqh;overflow:auto;}
   #sc-base .sr-slot-tl:has(#gxDock:not([hidden])){left:0;right:0;}
   #sc-base #gxDock .gx-dossier,#sc-base #gxDock .gx-regioncard{width:auto;}
   #sc-base #gxTools .gx-minimap{display:none;}

@@ -26,7 +26,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.openWin('missions');out.popup=[f.getWin(),shown($('#msView'))];
   // ---- no command bar; Advance day on its own
   out.cmdbar=$$('#sc-base .sr-cmdbar').filter(shown).length;
-  out.go=[shown($('#sc-base .bf-go')),shown($('#dayBtn')),shown($('#dockNote')),shown($('#arOrders')),shown($('#gxOrders'))];
+  out.go=[shown($('#sc-base .bf-go')),shown($('#dayBtn')),!!$('#sc-base .sr-cmdbar__count'),!!$('#sc-base .sr-orders'),!!$('#sc-base .sr-cmdbar__who')];
   // ---- the board: title, chips, cards with risk pips and New flags
   out.head=($('.bf-board__head')||{}).textContent;
   out.chips=$$('.bf-filters .sr-btn').map(e=>e.textContent).join(',');

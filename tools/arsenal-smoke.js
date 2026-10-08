@@ -31,15 +31,15 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   })];
   // --- selling a free unit adds floor(140*0.3) credits and decrements the count
   const c0=G().credits,n0=G().armory.find(a=>a.id==='akli').n;
-  out.sellBtn=($('#arOrders [data-arsell]')||{}).textContent;
+  out.sellBtn=($('#arActs [data-arsell]')||{}).textContent;
   out.sellFree=f.freeOf('akli');
-  $('#arOrders [data-arsell]').click();
+  $('#arActs [data-arsell]').click();
   out.sell=[G().credits-c0,n0-G().armory.find(a=>a.id==='akli').n,f.sellPrice('akli')];
   // --- selling the carbine (Hegemony issue) is disabled
   G().armory.push({id:'carbine',name:'Peacekeeper Carbine',n:1,desc:'x'});f.syncUI();
   $('#arView [data-arsel="kit:carbine"]').click();
-  const sb=$('#arOrders [data-arsell]');
-  out.carbine=[!!sb&&sb.disabled,(sb&&sb.title)||'',($('#arWho')||{}).textContent||''];
+  const sb=$('#arActs [data-arsell]');
+  out.carbine=[!!sb&&sb.disabled,(sb&&sb.title)||'',($('#arActs')||{}).textContent||''];
   out.carbineWhy=f.sellWhy('carbine');
   // the carbine tile reads as Hegemony kit
   out.foeTile=$('#arView [data-arsel="kit:carbine"]').className.indexOf('is-foe')>=0;
@@ -75,7 +75,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.match[0]===r.match[1]&&r.match[0]>0&&r.match[2],'selected Akli lights exactly its holders’ slots '+r.match);
  ok(r.sellFree>0&&String(r.sellBtn).indexOf('Sell +42')>=0,'sell order reads Sell +42 '+r.sellBtn);
  ok(r.sell[0]===42&&r.sell[1]===1&&r.sell[2]===42,'selling a free Akli adds floor(140*0.3)=42 and decrements '+r.sell);
- ok(r.carbine[0]===true&&/Hegemony/.test(r.carbine[1])&&/won’t buy it|won't buy it/.test(r.carbine[2]),'selling the carbine is disabled with the reason '+r.carbine);
+ ok(r.carbine[0]===true&&/Hegemony/.test(r.carbine[1])&&/won’t touch|won't touch/.test(r.carbine[2]),'selling the carbine is disabled, the reason under the buttons in the dossier '+r.carbine);
  ok(r.carbineWhy==='Sweet Tooth won’t touch Hegemony kit','sellWhy for the carbine '+r.carbineWhy);
  ok(r.foeTile,'Hegemony kit gets the blue tile');
  ok(r.picker&&r.pickerClosed[0]&&r.pickerClosed[1]===true,'a loadout slot opens the picker, Escape closes it only '+[r.picker,r.pickerClosed]);

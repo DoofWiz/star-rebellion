@@ -150,7 +150,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  await wait(300);
  r=await E(()=>({ptr:document.querySelector('#tutPtr .sr-pointer__label').textContent,up:!document.querySelector('#tutPtr').hidden}));
  ok(r.up&&r.ptr==='Contact','Cass selected: the pointer moves to Contact '+JSON.stringify(r));
- await E(()=>document.querySelector('#gxOrders [data-gxo="contact"]').click());
+ await E(()=>document.querySelector('#gxDock [data-gxo="contact"]').click());
  await wait(200);
  r=await E(()=>({at:window.Pro.beat(),win:T.win(),sig:(T.src('cass').signal||{}).mid,tut:T.G.prologue.tut,done:T.G.prologue.flags.tut.raiseCass,mis:T.vis('navMissions'),
    txt:document.querySelector('#winCardB').textContent}));
