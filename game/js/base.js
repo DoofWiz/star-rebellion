@@ -199,6 +199,7 @@ function pilotAimMod(p){return Rebel.moraleFx(p).aim+Rebel.injFx(p).aim+Rebel.we
 
 /* ---------- state ---------- */
 let G=null,tilePopAt=null,winMode=null,winArg=null,started=false,viewRoom=null,srcSel=null;
+const DEBUG=/^#(test|debug)\b/.test(location.hash);   // debug builds: the Prologue panel, the frontier toast
 
 /* Haven Rock's ground (DESIGN_BLOCKERS C-32): 14 rows × 18 columns. The first 8 rows and 11 columns are the old map, and
    its bedrock can never have changed, so the new ground reaches into it freely; old saves get the same ground (MIGRATIONS
@@ -246,7 +247,7 @@ function newGame(){
       castRebel({id:'kel',name:'Kel Brasso',role:'Soldier',level:1,xp:0.1,charTrait:'hunter',equip:['akli','cowboy']}),
     ],
     sources:[],
-    onboard:'intro',
+    prologue:Pro.fresh(1),   // the onboarding script (game/js/prologue.js) starts at its first beat
     missions:[
     ],
     planets:PLANETDEF.map(mkPlanet),
@@ -286,6 +287,10 @@ function upAny(key,k){return G&&G.rooms&&G.rooms.some(r=>r.key===key&&!r.build&&
 function hangarUp(k){return G&&G.rooms&&G.rooms.some(r=>r.key==='hangar'&&!r.build&&(r.up||[]).includes(k));}
 function upQueued(rm,k){return (G.upq||[]).some(u=>u.key===rm.key&&u.k===k&&clusterOf(rm).some(r=>u.ids.includes(r.id)));}
 function sourceCap(){return 2+tilesOf('comms');}
+/* a Prologue source (Cass, Venn) is a full Source underneath, but until the prologue's frontier it only says what the
+   beats give it: no random signals or jobs, no events, no capture, and it does not count against sourceCap() */
+const proSrc=s=>!!(s&&s.prologue)&&!Pro.done();
+const capUsed=()=>G.sources.filter(s=>s.alive&&!proSrc(s)).length;
 function clustersOf(key){
   const seen=[],out=[];
   for(const r of roomsOf(key)){if(seen.includes(r))continue;const cl=clusterOf(r);cl.forEach(q=>seen.push(q));out.push(cl);}
@@ -844,7 +849,7 @@ const MPOOL={
   garrison:{name:'Akkaro Garrison Raid',from:'Scout Report · Akkaro',need:2,days:2,riskTxt:'Low',
     desc:'Twelve conscripts, one armory, zero enthusiasm. Hit the garrison, empty the racks, be gone by dust-fall.',
     rew:{c:240,s:100,xp:0.12}},
-  depotrun:{name:'Cook the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
+  depotrun:{name:'Torch the Depots',from:'Maro Venn',need:1,days:2,riskTxt:'Low',lead:'space',leadTxt:'Fly it yourself',fighterReq:'starfighter',
     desc:'Four Hegemony fuel depots hang in orbit over Akkaro, feeding every patrol that squeezes the frontier. A handful of sentry drones watch them. One fast ship, in and out before anything with a pilot shows up.',
     rew:{i:5,xp:0.2}},
   stealcross:{name:'Steal the Cross',from:'Cass Wender',need:3,days:2,riskTxt:'Moderate',
@@ -896,7 +901,7 @@ const PLANETDEF=[
    sit:'Shipyards, fuel farms, and Ferren Halt’s bruised ego. Our hunting ground.'},
   {id:'kess',sec:1,sup:2,name:'Relay Kess',kind:'Waystation',pop:'9,000',x:0.13,y:0.58,known:true,access:true,
    sit:'A refueling nowhere between nowheres. The Senator’s couriers like it that way.'},
-  {id:'akkaro',sec:1,sup:3,name:'Akkaro',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'postDepot',
+  {id:'akkaro',sec:1,sup:3,name:'Akkaro',kind:'Backwater',pop:'120K',x:0.23,y:0.85,known:true,access:true,gate:'depots',
    sit:'Dust, herders and a scatter of frontier towns the Hegemony never bothered to garrison properly. The law is whoever wears the badge. Small stakes, soft targets, and a good place for a rebellion to learn its trade.',
    regions:[
     {id:'dustfall',name:'Dustfall',kind:'Settlement',blurb:'A frontier town: one cantina, one landing pad and one sheriff.',
@@ -1009,7 +1014,7 @@ const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'
   garrison:'akkaro',depotrun:'akkaro',stealcross:'akkaro',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
 MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=10;   // a first foothold, not a liberation
-// space combat happens in orbit over a world, never in a region: Cook the Depots has none
+// space combat happens in orbit over a world, never in a region: Torch the Depots has none
 /* a mission TYPE fixes its shape (what it needs, how it plays); each mission adds its own story.
    `req` can override the type's default: team size, transports, prize pilots, ship class. */
 const MTYPES={
@@ -1300,6 +1305,7 @@ function chainTick(){
   for(const id in CHAINS){
     const C=CHAINS[id],c=G.chains[id];
     if(!c){
+      if(!Pro.gate('sources.new'))continue;   // no new Sources during the prologue (§3)
       const st=pst(C.loc);
       if(st&&st.access&&(st.acc||0)>=(C.trigger.acc||1)&&G.day>=(C.trigger.day||1)){
         G.chains[id]={i:0,show:true,flags:{},snooze:0,wait:0};
@@ -1367,10 +1373,13 @@ function chainAct(id,act,idx){
     renderWin();return;      // the contact window follows straight away
   }
   if(step.k==='contact'){
-    const full=G.sources.filter(x=>x.alive).length>=sourceCap();
+    const full=capUsed()>=sourceCap();
     if(full){return;}
     const def=Object.assign({},CANDS[C.src]);
-    if(!G.sources.some(x=>x.id===C.src))G.sources.push(Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,unique:true,chain:id},JSON.parse(JSON.stringify(def))));
+    if(!G.sources.some(x=>x.id===C.src)){
+      const ns=Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0,unique:true,chain:id},JSON.parse(JSON.stringify(def)));
+      G.sources.push(ns);Pro.emit('source',ns);
+    }
     news('<b>'+def.name+'</b> joins the network.','g');
     chainAdvance(id);
     closeWin();syncUI();return;
@@ -1466,17 +1475,7 @@ function bindNpc(m){
 /* the campaign's scripted first signals — they re-arm if let lie */
 function storySignal(src){
   if(src.signal||src.pendingEvent)return false;
-  if(src.id==='cass'&&(G.onboard==='contact'||G.onboard==='revealed')&&!G.missions.some(m=>m.id==='stealcross')){
-    src.signal={kind:'mission',mid:'stealcross',
-      text:'“So you and your revolutionaries want to matter out here, want to survive? Then you need some wings, and I don’t mean that bucket of bolts hauler in your new hangar. I mean something with some teeth! Dustfall, a frontier town on Akkaro, keeps one has-been FT-4 Cross on the pad behind the HQ. And you can’t afford to be picky when you’re just a group of idealists with nothing but dreams to pay for things with. I can get you the pad layout, but the rest will be up to you. Put your team together, and restore that old Graf in your hangar to get them there. You’ll need a second pilot for the job. I’ll ask around. You’re welcome, by the way!”'};
-    G.onboard='revealed';
-    return true;
-  }
-  if(src.id==='cass'&&G.onboard==='seraoffered'&&!G.people.some(p=>p.id==='sera')){
-    src.signal={kind:'recruitSera',
-      text:'“Don’t thank me too fast, but I’ve found your stick. Sera Kest — ex-Hegemony survey pilot. She’s been asking around unsavoury types for any jobs going to put some dirt in the Empress’ eye and I think she’ll appreciate a real cause like yours. They say she’s grounded for attitude and hungry to fly a fighter again. She’s on my next run over to you if you’ll have her.”'};
-    return true;
-  }
+  if(proSrc(src))return Pro.rearm(src);   // Cass and Venn: the prologue's current beat says what they signal
   if(src.id==='cask'&&!hasStory('stealintel')){
     src.signal={kind:'mission',mid:'stealintel',text:'\u201cThe Data Flats farm holds the registry backups: every name, every quota, every dissident file. There is a fence, some Policebots, and a terminal bank in the east hall that nobody patrols at night. You will need someone who can actually crack a databank.\u201d'};
     return true;
@@ -1489,26 +1488,16 @@ function storySignal(src){
     src.signal={kind:'mission',mid:'autofactory',text:'\u201cThe AutoCom Plant at Kiln Ridge runs off one power plant. One. If somebody had a charge and a little nerve, the whole line would go dark. Half my crews have cousins inside. We would rather they were out of work than out of luck.\u201d'};
     return true;
   }
-  if(src.id==='cass'&&G.postDepot&&!hasStory('stealfuel')){
-    src.signal={kind:'mission',mid:'stealfuel',
-      text:'“Your ships are drinking more than my friends do. Redrock Flats, east of Dustfall: the herders’ fuel tithe all ends up in one depot with a pump house and a bored guard detail. Call your hauler down on their apron and let her drink.”'};
-    return true;
-  }
   if(src.id==='tess'&&storyDone('autofactory')&&!G.missions.some(m=>m.id==='stealstrider')){
     src.signal={kind:'mission',mid:'stealstrider',
       text:'\u201cThe AutoCom Plant is shutting down for repairs, and they are moving the last Strider out through the Crossing depot. Nobody thinks the thing needs a proper guard; it is bigger than the guards. If somebody can get to its leash panel, it will walk wherever you tell it.\u201d'};
-    return true;
-  }
-  if(src.id==='venn'&&G.onboard==='friend'&&!G.missions.some(m=>m.id==='depotrun')){
-    src.signal={kind:'mission',mid:'depotrun',
-      text:'“You gave Reeve the worst day of his life — drinks ran free till dawn. Let me return the favour: the fuel depots over Akkaro feed every patrol that bleeds us. Somebody with a fast ship could cook them off.”'};
     return true;
   }
   return false;
 }
 function rollSignal(src){
   if(storySignal(src))return;
-  if(src.signal||src.pendingEvent)return;
+  if(src.signal||src.pendingEvent||proSrc(src))return;
   const pool=SIGNALS[src.id]||[];
   if(pool.length&&rng()<0.35+0.12*src.level){
     const sig=pool[src.sigIdx%pool.length];
@@ -1535,13 +1524,10 @@ function followSignal(src){
   src.signal=null;
   if(!sig)return '';
   if(sig.kind==='mission'){
-    const nm=addMission(sig.mid);
+    const nm=addMission(sig.mid,false,sig.spec);
     let txt='New mission on the board: <b>'+missionName(sig.mid)+'</b>'+(nm&&nm.ctx?' ('+nm.ctx.place+')':'')+'.';
-    if(sig.mid==='stealcross'&&(G.onboard==='revealed'||G.onboard==='contact')){
-      G.onboard='pilotwait';
-      txt+=' The mission requires two pilots and we have one. Cass is already asking around; advance a day to see what he has found.';
-    }
-    if(sig.mid==='depotrun')G.onboard='done';
+    if(sig.follow)txt+=Pro.text(sig.follow);   // a prologue signal's own follow-up line
+    Pro.emit('accepted',sig.mid);
     return txt;
   }
   if(sig.kind==='offer'){
@@ -1565,12 +1551,12 @@ function recruitTick(){
     const world=ag.postedTo;
     const cand=Object.keys(CANDS).find(cid=>(CANDS[cid].locId||SRCPOS[cid])===world&&
       !G.sources.some(s=>s.id===cid)&&!(G.candQ||[]).includes(cid)&&!(G.standby||[]).includes(cid));
-    if(cand&&(rng()<0.5||!freeBunks())){
+    if(cand&&Pro.gate('sources.new')&&(rng()<0.5||!freeBunks())){   // during the prologue, Recruit brings Rebels only
       G.candQ.push(cand);
       news('<b>'+ag.name+'</b> turns up a potential source on '+pdef(world).name+'.','p');
-      sGood();return;
+      sGood();Pro.emit('opDone',{kind:'recruit',agent:ag.id});return;
     }
-    if(!freeBunks()){news('<b>'+ag.name+'</b> comes back empty-handed — no bunks for anyone new, and nobody on '+pdef(world).name+' worth a dead drop.','d');return;}
+    if(!freeBunks()){news('<b>'+ag.name+'</b> comes back empty-handed — no bunks for anyone new, and nobody on '+pdef(world).name+' worth a dead drop.','d');Pro.emit('opDone',{kind:'recruit',agent:ag.id});return;}
   }
   const taken=new Set(G.people.map(p=>p.name).concat(G.poolHeld||[],G.recWait.map(p=>p.name)));
   let n=1+(crewIn('command').length?1:0)+(crewOf().some(p=>Rebel.has(p,'charismatic')&&!laidUp(p)&&p.assign!=='mission')&&rng()<0.5?1:0);
@@ -1586,6 +1572,7 @@ function recruitTick(){
   news('<b>'+G.recWait.length+' '+(G.recWait.length>1?'people have':'person has')+'</b> answered the call. They are waiting at the Command Center.','p');
   sGood();
   RQ.push({t:'recruits'});
+  Pro.emit('opDone',{kind:'recruit',agent:G.recruit.agent||null});
 }
 /* the Command Center card: start the task, watch it run, or review who turned up */
 function recruitCard(){
@@ -1595,39 +1582,61 @@ function recruitCard(){
   else{
     // the drive moved to the network (docs/ui/SCREENS-HANDOFF-2.md §3.5): an Agent's Recruit operation runs it
     body='Recruiting runs through the network now: an Agent’s <b>Recruit</b> operation on the Intelligence tab searches their posted world for new Sources or Rebels.';
-    acts=rbtn('data-gointel','Intelligence',false,'sr-btn--sm sr-btn--ghost');
+    acts=Pro.gate('tab.intel')?rbtn('data-gointel','Intelligence',false,'sr-btn--sm sr-btn--ghost'):'';
   }
   return '<div class="sr-card sr-card--friend"><div class="sr-card__title">Recruit new Revolutionaries</div><div class="sr-card__body">'+body+'</div>'+(acts?'<div class="bs-build__row">'+acts+'</div>':'')+'</div>';
 }
+const seraRebel=()=>castRebel({id:'sera',name:'Sera Kest',role:'Pilot',charTrait:'lucky',ship:'',
+  bio:'Ex-Hegemony survey pilot. Deserted after an incident at Callis Reach. Looking to put her skills against the Hegemony, ideally for a cause that means something.'},'sera-kest');
 function openRecruitOffer(src,sig){
   let p,must=false,line;
   if(sig.kind==='recruitSera'){
     must=true;
-    p=castRebel({id:'sera',name:'Sera Kest',role:'Pilot',charTrait:'lucky',ship:'',
-      bio:'Ex-Hegemony survey pilot. Deserted after an incident at Callis Reach. Looking to put her skills against the Hegemony, ideally for a cause that means something.'},'sera-kest');
+    p=seraRebel();
     line='Cass’s freighter is inbound. He sets down and down comes the boarding ramp. Walking down, one bag over her shoulder: your new pilot.';
   } else {
-    const role=sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support';
-    const nm=holdRecruit(role);
-    p=Rebel.migrate({id:'rec'+(G.recruitN+1),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'standby',bio:nm.bio});
-    if(role==='Soldier')p.equip=['pistol'];
-    if(role==='Pilot')p.ship='';
-    line=src.name.split(' ')[0]+' vouches for them. The rest is your call.';
+    p=genRecruit(sig.kind==='recruit'?'Soldier':sig.kind==='recruitP'?'Pilot':'Support');
+    line=vouchLine(src);
   }
   openWin('recruit',{cards:[{p,must,line}]});
 }
-function addMission(mid,quiet){
+/* a generated recruit of a role, as a source's signal or a prologue beat brings them */
+function genRecruit(role,k){
+  const nm=holdRecruit(role);
+  const p=Rebel.migrate({id:'rec'+(G.recruitN+1+(k||0)),name:nm.name,first:nm.first,last:nm.last,charTrait:nm.charTrait,role,level:1,xp:0,assign:'standby',bio:nm.bio});
+  if(role==='Soldier')p.equip=['pistol'];
+  if(role==='Pilot')p.ship='';
+  return p;
+}
+const vouchLine=src=>src.name.split(' ')[0]+' vouches for them. The rest is your call.';
+/* a prologue beat's recruit pop-up: n generated people of a role, vouched for by the beat's contact */
+function openProRecruit(o){
+  const src=srcInfo(o.from);
+  const cards=[];
+  for(let k=0;k<(o.n||1);k++)cards.push({p:genRecruit(o.role,k),must:!!o.must,line:src?vouchLine(src):''});
+  openWin('recruit',{cards});
+}
+function addMission(mid,quiet,spec){
   if(MSTORY[mid]){
     if(hasStory(mid))return null;
-    return pushMission(spawnMission(MSTORY[mid],Object.assign({story:mid},CTXDEF[mid])),quiet);
+    const m=spawnMission(MSTORY[mid],Object.assign({story:mid},CTXDEF[mid]));
+    applySpec(m,spec);
+    return pushMission(m,quiet);
   }
   if(G.missions.some(m=>m.id===mid))return null;
   const m=Object.assign({id:mid,state:'avail',progress:null},MPOOL[mid]);
   if(m.npcRole){m.npc=holdRecruit(m.npcRole);bindNpc(m);}
+  applySpec(m,spec);
   return pushMission(m,quiet);
 }
+/* an authored mission's pinned spec (docs/PROLOGUE-HANDOFF.md §2.1): what this one deployment changes from its type,
+   such as four soldiers instead of the type's three. It never changes the type. */
+function applySpec(m,spec){
+  if(!m||!spec)return;
+  if(spec.req)m.req=Object.assign({},m.req||MTYPES[typeOf(m)].req(m),spec.req);
+}
 function maybeQueueEvent(src){
-  if(src.pendingEvent||src.signal)return;
+  if(src.pendingEvent||src.signal||proSrc(src))return;
   const pool=SRC_EVENTS[src.id];
   if(!pool||!pool.length)return;
   if(rng()<0.3)src.pendingEvent=pool[src.eventsSeen%pool.length];
@@ -1661,7 +1670,7 @@ function advanceDay(){
   for(const rm of G.rooms){
     if(rm.build){
       rm.build.days--;
-      if(rm.build.days<=0){delete rm.build;news(ROOMS[rm.key].name+' finished. Put it to work.','g');sBuild();}
+      if(rm.build.days<=0){delete rm.build;news(ROOMS[rm.key].name+' finished. Put it to work.','g');sBuild();Pro.emit('built',rm.key);}
     }
   }
   packTick();
@@ -1728,6 +1737,7 @@ function advanceDay(){
     if(p.ownKit.secondary)g.secondary=p.ownKit.secondary;
     G.people.push(p);
     news('<b>'+p.name+'</b> steps off the morning freighter, kit on their back. Fourteen days on the clock.','g');
+    Pro.emit('joined',p);
   }
   if(G.mercQ&&G.mercQ.length){G.mercQ=[];mood();autoEquip();sBuild();}
   // deliveries from Nyx: a bought ship or vehicle takes two days to reach the pad
@@ -1803,23 +1813,9 @@ function advanceDay(){
   }
   agentsTick();interrogationTick();bureauTick();
   // standby contacts wait on the Galaxy map (docs/ui/SCREENS-HANDOFF-2.md §2); the player reopens them there
-  // the network comes through: Cass finds the pilot the Dustfall job needs
-  if((G.onboard==='pilotwait'||G.onboard==='seraoffered')&&!G.people.some(p=>p.id==='sera')){
-    const cass=G.sources.find(s=>s.id==='cass'&&s.alive);
-    if(cass){
-      const first=G.onboard==='pilotwait';
-      G.onboard='seraoffered';
-      storySignal(cass);
-      if(first&&cass.signal){news('<b>Cass Wender</b> is on the wire — he has something for us. Raise him from the Galaxy.','a');sAlert();}
-    }
-  }
   if(hasRoom('comms')&&headOf('comms'))G.intel+=tilesOf('comms')*RU.comms_intel;
   else if(hasRoom('comms'))news('The Intelligence Center hums to nobody. Put an Intelligence Officer to work there or it’s just furniture.','d');
   {
-    const cass2=G.sources.find(x=>x.id==='cass'&&x.alive);
-    if(cass2&&G.postDepot&&!cass2.signal&&!hasStory('stealfuel')&&storySignal(cass2)){
-      news('<b>Cass Wender</b> is on the wire again: he has a fuel job.','a');sAlert();
-    }
     const tess2=G.sources.find(x=>x.id==='tess'&&x.alive);
     if(tess2&&!tess2.signal&&!G.missions.some(m=>m.id==='stealstrider')&&storySignal(tess2)){
       news('<b>Tessaly Brandt</b> is on the wire: the AutoCom Plant is moving something big.','a');sAlert();
@@ -1844,6 +1840,7 @@ function advanceDay(){
   if(rng()<0.5)news(FLAVOR[Math.floor(rng()*FLAVOR.length)],'d');
   showDayBanner();
   sDay();
+  Pro.emit('day',G.day);   // the prologue's beats that wait on a new day
   if(!HOLD)chainPrompt();
   saveSnap();syncUI();
   if(!HOLD&&!winMode)nextReport();
@@ -1867,21 +1864,14 @@ function launchMission(m){
   return true;
 }
 /* story consequences of finished jobs — fires however the mission was run */
-function missionAftermath(mid){
-  if(mid==='stealcross'&&!G.sources.some(s=>s.id==='venn')){
-    const venn=addStorySource('venn');
-    G.onboard='friend';
-    storySignal(venn);
-    news('Word crosses the drift ahead of us: <b>Maro Venn</b>, keeper of the Dry Comet cantina in Dustfall, is asking after the crew that humbled Reeve. A new source — and he’s already signalling.','g');
-    sGood();
-  }
-  if(mid==='depotrun'&&!G.postDepot){
-    G.postDepot=true;
+/* (Maro Venn's arrival after Steal the Cross is the prologue's venn_arrives beat; game/js/prologue.js) */
+function missionAftermath(m){
+  const mid=m.id;
+  if(mid==='depotrun'){
     news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
-    G.candQ.push('halt');
-    G.candQ.push('vokk');
     syncLocalOps('akkaro',true);
   }
+  Pro.emit('won',m.story||m.id);
 }
 /* ---------- specialties (Training Center) ----------
    At level 3 a soldier or pilot can train into a specialty. Only some have effects yet. */
@@ -2303,7 +2293,7 @@ function supportTick(){
   if(on('smuggler.insideline')&&G.market&&G.market.lots&&G.day%3===0&&G.day<G.market.next)marketSwap(2);
 }
 /* ---------- mission flow: arrive → reward screen → the source calls back ---------- */
-let RQ=[],HOLD=false;
+let RQ=[],HOLD=false,rqWin=false;
 /* what a mission brought home, for the report window (docs/ui/SCREENS-HANDOFF.md §1):
    res[k] = {pay, found, ...}: each resource by where it came from (one diamond row per non-zero source);
    loot = [{id|type, name, n, kind:'item'|'ship'|'vehicle'|'bot'|'unit', foe}]: everything else that came home */
@@ -2346,9 +2336,16 @@ function queueReport(rpt){
 }
 function nextReport(){
   if(!$('estSplash').hidden)return false;   // reports hold until the splash closes
+  // a prologue window never opens over the day banner: it waits for the banner to clear
+  if(RQ[0]&&RQ[0].t==='pro'&&ROOT.querySelector('.sr-stage>.sr-banner')){
+    setTimeout(()=>{if(started&&G&&!winMode&&!HOLD)nextReport();},300);
+    return false;
+  }
   const n=RQ.shift();
   if(!n)return false;
-  if(n.t==='arrive')openWin('arrive',n.rpt);
+  rqWin=true;
+  if(n.t==='pro'){if(!openPro(n.a))return nextReport();}
+  else if(n.t==='arrive')openWin('arrive',n.rpt);
   else if(n.t==='reward')openWin('reward',n.rpt);
   else if(n.t==='recruit'){
     const nm=n.m.npc;
@@ -2428,7 +2425,7 @@ function resolveMission(m){
     queueReport(buildReport(m,true,rew,pinfo,cr,false));
     news('<b>'+m.name+'</b> — SUCCESS. '+gotText(rew)+'. '+(m.ground?'Squad':'Flight')+' XP awarded.','g');
     sBuild();
-    missionAftermath(m.id);
+    missionAftermath(m);
   } else {
     const hurt=pilots[Math.floor(rng()*pilots.length)];
     Rebel.layUp(hurt,'downed',2);
@@ -2439,6 +2436,7 @@ function resolveMission(m){
     queueReport(buildReport(m,false,newGot(),pilots.map(p=>Object.assign(xpInfo(p,0),{xp:0,state:p===hurt?'injured':'ok'})),null,false));
     news('<b>'+m.name+'</b> — FAILED. '+(m.ground?'The deputies were ready.':'The escort was waiting.')+' '+hurt.name+' hurt; '+(f?f.name+' shot up.':''),'h');
     sWarn();
+    Pro.emit('lost',m.story||m.id);
   }
   m.progress=null;
 }
@@ -2449,6 +2447,7 @@ const cultOf=(src,c0,l0)=>({from:c0,to:src.level>l0?100:src.cult,lvl0:l0,lvl1:sr
 function srcVisit(src){
   if(src.visited)return;
   src.visited=true;src.met=1;   // a face-to-face source knows the way home (§3: what a capture gives up)
+  Pro.emit('contacted',src.id);
   const c0=src.cult,l0=src.level;
   src.cult=Math.min(100,src.cult+10);
   src.risk=Math.min(100,src.risk+6);
@@ -2468,6 +2467,7 @@ function srcContact(src){
   if(!src.contacted){
     src.contacted=true;
     src.cult=Math.min(100,src.cult+3);
+    Pro.emit('contacted',src.id);   // a beat waiting on this contact puts its signal up before the burst opens
     rollSignal(src);
   }
   const lvl=checkCultLevel(src);
@@ -2536,13 +2536,14 @@ function acceptCandidate(id){
   const cd=CANDS[id];
   if(!cd)return closeWin();
   if(G.sources.some(s=>s.id===cd.id)){closeWin();return;}
-  if(G.sources.filter(s=>s.alive).length>=sourceCap())return standbyCandidate(id);   // the window disables Take on when full
+  if(capUsed()>=sourceCap())return standbyCandidate(id);   // the window disables Take on when full
   G.standby=(G.standby||[]).filter(x=>x!==id);
   const nsrc=Object.assign({alive:true,visited:false,contacted:false,pendingEvent:null,eventsSeen:0,signal:null,sigIdx:0},
     JSON.parse(JSON.stringify(cd)));
   assignCell(nsrc);
   G.sources.push(nsrc);
   news('<b>'+cd.name+'</b> joins the network.','g');
+  Pro.emit('source',nsrc);
   G.risk=Math.min(100,G.risk+4);
   closeWin();syncUI();
 }
@@ -2567,9 +2568,11 @@ function openComm(src,payload){openWin('comm',{src,payload});}
 /* ---------- scouting ---------- */
 function pdef(id){return PLANETDEF.find(p=>p.id===id);}
 function pst(id){return G.planets.find(p=>p.id===id);}
+/* during the prologue only Haven Rock and Akkaro can be worked; the rest of the map is visible (galaxy.beyond) */
+const beyondOk=id=>id==='haven'||id==='akkaro'||Pro.gate('galaxy.beyond');
 function scoutPlanet(id){
   const d=pdef(id),st=pst(id);
-  if(!d||!st||st.access||G.intel<d.scout)return;
+  if(!d||!st||st.access||G.intel<d.scout||!beyondOk(id))return;
   G.intel-=d.scout;
   const wasKnown=st.known;
   st.known=true;st.access=true;st.scouted=true;st.acc=Math.max(1,st.acc||0);
@@ -2721,7 +2724,7 @@ const fmtFlags=n=>n===0.5?'\u00bd':n===1?'1':(Math.round(n*100)/100)+'';
 /* ---------- Access, Support, Liberation, and the road to Level 2 ---------- */
 function raiseAccess(id){
   const d=pdef(id),st=pst(id);
-  if(!d||!st||!st.access||(st.acc||0)>=5)return;
+  if(!d||!st||!st.access||(st.acc||0)>=5||!beyondOk(id))return;
   const cost=accessCost(d,st);
   if(G.intel<cost)return;
   G.intel-=cost;st.acc++;
@@ -2766,7 +2769,7 @@ function syncLocalOps(id,quiet){
   return;   // regional placeholder ops are retired: sources and intelligence offer real missions now
   const d=pdef(id),st=pst(id);
   if(!d||!d.regions||!st||!st.access)return;
-  if(d.gate&&!G[d.gate])return;
+  if(d.gate&&!Pro.past(d.gate))return;
   for(const r of d.regions){
     if(!r.op)continue;
     const mid='op_'+id+'_'+r.id;
@@ -3436,7 +3439,7 @@ function renderRoomBar(){
     const tr=G.people.filter(p=>p.assign==='train');
     info='Training: '+(tr.length?tr.map(p=>p.name).join(', '):'nobody. The mats are lonely.')+(drillOn()?' · an Instructor drills them (+'+pctOf(RU.drill_xp_mult-1)+'% XP)':'');
   } else if(rm.key==='comms'){
-    info='Source capacity '+G.sources.filter(s=>s.alive).length+'/'+sourceCap()+' · '+tilesOf('comms')+' room'+(tilesOf('comms')>1?'s':'')+(headOf('comms')?' · +'+tilesOf('comms')*RU.comms_intel+' Intel a day':' · <span class="bs-bad">no Intelligence Officer: no Intel</span>');
+    info='Source capacity '+capUsed()+'/'+sourceCap()+' · '+tilesOf('comms')+' room'+(tilesOf('comms')>1?'s':'')+(headOf('comms')?' · +'+tilesOf('comms')*RU.comms_intel+' Intel a day':' · <span class="bs-bad">no Intelligence Officer: no Intel</span>');
   } else if(rm.key==='diplo'){
     info='Teams out '+(G.dip||[]).length+'/'+dipCapacity();
   } else if(rm.key==='command'){
@@ -3675,8 +3678,8 @@ function setView(v){
   baseView=v;
   if(v!=='galaxy'){gxWorld=null;gxRegion=null;srcSel=null;}
   exitRoomView();closeTilePop();
-  if(v==='galaxy'&&G&&!G.srcTutSeen){G.srcTutSeen=1;saveSnap();openWin('srcTutIntro');}
   syncTabs();syncUI();
+  if(v==='galaxy'&&G)Pro.emit('tab','galaxy');
 }
 let gxDiveFrom=null;
 function enterWorld(id,fx,fy){gxWorld=id;gxRegion=null;srcSel=null;gxLoreOpen=false;gxDiveT=performance.now();gxDiveFrom=(fx!=null)?[fx,fy]:null;syncTabs();syncUI();}
@@ -4490,7 +4493,7 @@ function renderGxRail(){
       '<span class="sr-unit__side">'+wTag(left<=1?'Home tomorrow':left+' days','info')+'</span></div>');
   }
   $('railGx').innerHTML=
-    '<section><div class="sr-section__head sr-section__head--friend">'+IC('signal')+'Network<span class="sr-section__count">'+alive.length+' of '+sourceCap()+'</span></div>'+
+    '<section><div class="sr-section__head sr-section__head--friend">'+IC('signal')+'Network<span class="sr-section__count">'+capUsed()+' of '+sourceCap()+'</span></div>'+
     '<div class="sr-stack">'+(alive.map(srcRow).join('')||'<div class="sr-empty">No sources. We’re blind out there.</div>')+'</div></section>'+
     '<section><div class="sr-section__head sr-section__head--info">'+IC('galaxy')+'Worlds<span class="sr-section__count">'+accW.length+' with access</span></div>'+
     '<div class="sr-stack">'+worldRow(pdef('haven'))+accW.map(worldRow).join('')+
@@ -4542,7 +4545,7 @@ function gxOrdersFor(){
     orders.push(gxOrder({act:'cutloose',key:s.risk>=50?'4':'3',icon:'clear',danger:1,label:cutArm===srcSel.id?'Confirm: cut loose':'Cut loose',rule:'Burn the codes and walk away. Permanent.'}));
   } else if(srcSel.t==='p'){
     const d=pdef(srcSel.id),st=pst(srcSel.id);
-    if(d&&st&&!st.access){
+    if(d&&st&&!st.access&&beyondOk(d.id)){
       const can=G.intel>=d.scout;
       orders.push(gxOrder({act:'scout',key:'1',icon:'eye',family:'util',label:st.known?'Scout & gain access':'Scout the signal',cost:I(d.scout,!can),
         disabled:!can,why:'Need '+Math.ceil(d.scout-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Put pathfinders on the ground and open the way in.'}));
@@ -4574,7 +4577,7 @@ function gxWorldOrders(){
     orders.push('<span class="sr-orders__sep"></span>');
     orders.push(gxOrder({act:'back',key:'',icon:'back',label:'Back to '+d.name,rule:'Esc also steps back.'}));
   } else {
-    if((st.acc||0)<5){
+    if((st.acc||0)<5&&beyondOk(d.id)){
       const cost=accessCost(d,st),can=G.intel>=cost;
       orders.push(gxOrder({act:'raise',key:nk(),icon:'intel',family:'util',label:'Raise access',cost:I(cost,!can),
         disabled:!can,why:'Need '+Math.ceil(cost-G.intel)+' more Intel. Work the network, or wait a day.',rule:'Deepen the network’s reach here.'}));
@@ -4918,32 +4921,72 @@ function pointAt(rc,label){
   el.classList.toggle('below',below);
   el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(4,rc.top-58)+'px';
 }
+/* a guided step's callout: the coach card, beside its target */
+function coachAt(rc,html){
+  const el=$('tutCoach');
+  el.hidden=false;
+  if(el.__html!==html){el.querySelector('.pro-coach__txt').innerHTML=html;el.__html=html;}
+  const w=el.offsetWidth||300,h=el.offsetHeight||90;
+  // beside the target when there is room (it covers less), else above it, else below
+  const side=rc.left+rc.width+w+24<=innerWidth,above=!side&&rc.top-h-14>=8;
+  el.classList.toggle('sr-coach--tail-left',side);el.classList.toggle('sr-coach--tail-down',above);el.classList.toggle('sr-coach--tail-up',!side&&!above);
+  if(side){el.style.left=(rc.left+rc.width+16)+'px';el.style.top=Math.max(8,Math.min(innerHeight-h-8,rc.top+Math.min(rc.height/2,40)-22))+'px';}
+  else{el.style.left=Math.max(8,Math.min(innerWidth-w-8,rc.left+rc.width/2-40))+'px';el.style.top=(above?rc.top-h-14:rc.top+rc.height+14)+'px';}
+}
+/* a target inside a scrolled box counts only while it is in view */
+function inView(el){
+  const rc=el.getBoundingClientRect();
+  for(let a=el.parentElement;a&&a!==document.body;a=a.parentElement){
+    const cs=getComputedStyle(a);
+    if(!/(auto|scroll|hidden)/.test(cs.overflowY))continue;
+    const ar=a.getBoundingClientRect();
+    if(rc.bottom<ar.top+8||rc.top>ar.bottom-8)return null;
+  }
+  return rc;
+}
+/* what a guided step points at (docs/PROLOGUE-HANDOFF.md §4), or null while it is not on screen */
+const NAV_OF={galaxy:'navSources',missions:'navMissions',intel:'navIntel',arsenal:'navArsenal',market:'navMarket'};
+function guideTarget(at){
+  const [k,arg]=String(at).split(':');
+  const gxFree=baseView==='galaxy'&&!winMode&&!gxWorld;
+  if(k==='tab'){
+    if(winMode||viewRoom||arOpen||bmOpen||msOpen||inOpen||(arg==='galaxy'&&baseView==='galaxy'))return null;
+    const b=$(NAV_OF[arg]);return b&&!b.hidden?b.getBoundingClientRect():null;
+  }
+  if(k==='gx.src'){
+    const pos=gxFree&&gxSrcPos[arg];
+    if(!pos)return null;
+    const r=cv.getBoundingClientRect();
+    return {left:r.left+pos[0]-10,top:r.top+pos[1]-10,width:20,height:20};
+  }
+  if(k==='gx.order'){
+    const btn=gxFree&&ROOT.querySelector('#gxOrders [data-gxo="'+arg+'"]');
+    return btn?btn.getBoundingClientRect():null;
+  }
+  if(k==='plan.assetslot'){   // the empty fire support slot: an unfilled support ship, else Add asset
+    if(winMode!=='plan'||!PL||PL.pick)return null;
+    const el=$('winCardB').querySelector('.pl-asset__art--empty[data-pick^="as"]')||$('winCardB').querySelector('[data-slot="addasset"]');
+    if(!el)return null;
+    if(!PL.guided){PL.guided=1;el.scrollIntoView({block:'center',inline:'nearest',behavior:RM?'auto':'smooth'});}   // once per plan: bring it into view
+    return inView(el);
+  }
+  return null;
+}
 function updateGuide(){
-  const el=$('tutPtr');
+  const el=$('tutPtr'),co=$('tutCoach');
   if(!el)return;
-  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden||HUD.topWin(ROOT)){el.hidden=true;return;}   // nothing points over a kit dialog
-  // step 1: the sources tutorial — walk the player to Cass
-  if(G.onboard==='contact'){
-    if(baseView==='galaxy'&&!winMode&&!gxWorld){
-      const cass=G.sources.find(x=>x.id==='cass'&&x.alive);
-      if(cass){
-        if(!(srcSel&&srcSel.t==='s'&&srcSel.id==='cass')){
-          const pos=gxSrcPos.cass;
-          if(pos){
-            const r=cv.getBoundingClientRect();
-            pointAt({left:r.left+pos[0]-10,top:r.top+pos[1]-10,width:20,height:20},'Select Cass Wender');
-            return;
-          }
-        } else {
-          const btn=ROOT.querySelector('#gxOrders [data-gxo="contact"]');
-          if(btn){pointAt(btn.getBoundingClientRect(),'Contact');return;}
-        }
-      }
-      el.hidden=true;return;
-    }
-    if(!winMode&&!viewRoom&&baseView!=='galaxy'&&!arOpen&&!bmOpen&&!msOpen){pointAt($('navSources').getBoundingClientRect(),'Open the Galaxy');return;}
+  const hide=()=>{el.hidden=true;co.hidden=true;};
+  if(!started||!G||SR.active!=='base'||!$('estSplash').hidden||HUD.topWin(ROOT)){hide();return;}   // nothing points over a kit dialog
+  // a prologue tutorial's guided step (the Cass pointer chain, the Strafing Run callout...)
+  const st=Pro.step();
+  if(st){
+    const rc=guideTarget(st.at);
+    if(rc&&st.text){el.hidden=true;coachAt(rc,Pro.text(st.text));return;}
+    co.hidden=true;
+    if(rc){pointAt(rc,Pro.text(st.label));return;}
     el.hidden=true;return;
   }
+  co.hidden=true;
   // the hangar guide: the derelict hauler is a base mission of its own
   if(G.guideHangar&&G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&!winMode){
     if(viewRoom&&viewRoom.key==='hangar'){
@@ -4971,15 +5014,19 @@ function openWin(mode,arg){
   if(mode==='arrive')setTimeout(()=>{if(winMode==='arrive')closeWin();},RM?400:2800);
 }
 function closeWin(){
+  const was=winMode,wasRQ=rqWin;
+  rqWin=false;
   winMode=null;winArg=null;cutArm=null;rankOverlay=null;gearOverlay=null;$('winsB').hidden=true;syncTabs();markShort();
+  if(was&&started&&G)Pro.emit('closed',was);
   if(started&&G&&RQ.length&&nextReport())return;
+  if(wasRQ&&started&&G&&!RQ.length)Pro.emit('reportClosed');
   // a freshly discovered mission announces itself once the channel closes
   if(started&&G&&G.misPopQ&&G.misPopQ.length){
     const mid=G.misPopQ.shift();
     const m=G.missions.find(x=>x.id===mid);
     if(m&&m.state==='avail'){openWin('newmission',m);return;}
   }
-  if(started&&G&&G.candQ&&G.candQ.length){
+  if(started&&G&&G.candQ&&G.candQ.length&&Pro.gate('sources.new')){   // the candidate queue waits out the prologue
     openWin('candidate',G.candQ.shift());
     return;
   }
@@ -5020,6 +5067,14 @@ function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
 }
 /* ---------- sources field manual (the ? button) ---------- */
+/* the Agents version of Making Contact (docs/TUTORIALS.md, Sources field manual: Agents update) */
+const TUT_CONTACT_AGENTS={t:'Making Contact',h:
+  tutP('When you need to deal with a Source, you have two options:')+
+  tutS('Visit','Your Agent meets the Source in person. This builds trust faster and opens up more opportunities. But your Agent must be posted to the Source’s location, and every meeting is a chance to be seen.')+
+  tutS('Contact','Communicate remotely. This works from anywhere and is safer, but it may not stay that way as the Revolution grows and Hegemony surveillance increases.')+
+  tutP('Either way, speaking with a Source can lead to new opportunities, requests or Missions.')+
+  tutP('Keep an eye on your Sources. They may have something important to tell you.')};
+const tutPages=()=>Pro.tutSeen('sources')?TUT_PAGES.map(p=>p.t==='Making Contact'?TUT_CONTACT_AGENTS:p):TUT_PAGES;
 const TUT_PAGES=[
   {t:'Sources',h:
     tutP('You can\'t build a rebellion without knowing what\'s happening.')+
@@ -5234,10 +5289,20 @@ function renderWin(){
       wFoot(rbtn('data-srchelp','Field manual',false,'sr-btn--ghost')+rbtn('data-srctut-done','Got it',false,'sr-btn--primary'));
   }
   else if(winMode==='srcTut'){
-    const pg=Math.max(0,Math.min(TUT_PAGES.length-1,(winArg&&winArg.page)||0));
-    const P=TUT_PAGES[pg];
+    const PAGES=tutPages();
+    const pg=Math.max(0,Math.min(PAGES.length-1,(winArg&&winArg.page)||0));
+    const P=PAGES[pg];
     h=wHead(P.t,{x:'data-tut-close'})+wBody(P.h)+
-      wFoot('<div class="sr-btngroup">'+rbtn('data-tut-prev aria-label="Previous page"',IC('back'),pg===0,'sr-btn--icon')+rbtn('data-tut-next aria-label="Next page"',IC('chevron'),pg===TUT_PAGES.length-1,'sr-btn--icon')+'</div>','Page '+(pg+1)+' of '+TUT_PAGES.length);
+      wFoot('<div class="sr-btngroup">'+rbtn('data-tut-prev aria-label="Previous page"',IC('back'),pg===0,'sr-btn--icon')+rbtn('data-tut-next aria-label="Next page"',IC('chevron'),pg===PAGES.length-1,'sr-btn--icon')+'</div>','Page '+(pg+1)+' of '+PAGES.length);
+  }
+  else if(winMode==='proDbg'){   // debug builds: the prologue panel (docs/PROLOGUE-HANDOFF.md §2.7)
+    const b=Pro.beat();
+    h=wHead('Prologue · debug')+wBody(
+      '<p class="sr-p">Beat <b>'+esc(b||'none')+'</b> · '+(Pro.done()?'done: the normal game':Pro.live()?'running':'waiting to start')+'</p>'+
+      '<p class="sr-fine">Gates open: '+esc(Pro.GATES.filter(Pro.gate).join(', ')||'none')+'</p>'+
+      '<div class="sr-h3">Jump to beat</div><p class="sr-fine">A new game, every beat’s setup up to it, then the beat begins.</p>'+
+      '<div class="bs-chips">'+Pro.PROLOGUE.map(x=>rbtn('data-projump="'+x.id+'"',esc(x.id),false,'sr-btn--sm'+(x.id===b?' sr-btn--primary':''))).join('')+'</div>')+
+      wFoot(rbtn('data-progates','Open all gates',false,'sr-btn--ghost')+rbtn('data-protuts','Replay tutorials',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'));
   }
   else if(winMode==='comm'){
     h=commHTML(winArg.src,winArg.payload);
@@ -5311,7 +5376,7 @@ function renderWin(){
     let btns='',foot='';
     if(step.k==='alert')btns=choice(1,'data-chain="'+id+':yes"','<b>'+step.yes+'</b>')+choice(2,'data-chain="'+id+':no"',step.no);
     else if(step.k==='contact'){
-      const full=G.sources.filter(x=>x.alive).length>=sourceCap();
+      const full=capUsed()>=sourceCap();
       foot=rbtn('data-chain="'+id+':ok"',step.ok,full,'sr-btn--primary');
       if(full)btns='<p class="sr-fine bs-bad">The network is full. Build another Intelligence Center room or let a source go, then answer.</p>';
     } else if(step.k==='decode')btns=step.choices.map((ch,i)=>choice(i+1,'data-chain="'+id+':pick:'+i+'"','<b>'+ch[0]+'</b><br><span class="sr-faint">'+ch[2]+'</span>')).join('');
@@ -5471,6 +5536,7 @@ const msLocked=m=>m.state==='locked';
 function openMissions(id){
   closeTilePop();exitRoomView();closeArsenal();closeMarket();closeIntel();
   msOpen=true;
+  Pro.emit('tab','missions');
   if(id)msSel=id;
   $('msView').hidden=false;
   shell.classList.add('is-missions');
@@ -5720,6 +5786,7 @@ function assignCell(src){
 }
 /* a burned source is captured: the interrogation clock starts, and what they hold becomes expected Leads */
 function captureSource(src){
+  if(proSrc(src))return;   // the prologue's sources build up Risk as normal but are never Burned before the frontier
   src.alive=false;src.captured=1;
   G.risk=Math.min(100,G.risk+15);
   moraleAll(-6,'loss');
@@ -5786,10 +5853,11 @@ function bureauTick(){
 }
 function agentsTick(){
   for(const a of G.agents||[]){
-    if(a.lielow>0)a.lielow--;
+    if(a.lielow>0&&--a.lielow===0)Pro.emit('opDone',{kind:'lielow',agent:a.id});
     if(a.moving&&--a.moving.days<=0){
       a.postedTo=a.moving.to;a.moving=null;
       news('<b>'+a.name+'</b> has set up on '+agentWorld(a).name+'. The '+agentWorld(a).name+' Cell is open for business.','r');
+      Pro.emit('opDone',{kind:'repost',agent:a.id});
     }
   }
 }
@@ -5798,24 +5866,28 @@ function agentRecruit(a){
   if(G.recruit.days||G.recWait.length)return;
   G.recruit={days:RECRUIT_DAYS,agent:a.id};
   news('<b>'+a.name+'</b> works '+agentWorld(a).name+' for new blood — sources or rebels. <b>'+RECRUIT_DAYS+' days</b>.','a');
+  Pro.emit('op',{kind:'recruit',agent:a.id});
   sBuild();saveSnap();syncUI();
 }
 function agentLieLow(a){
   if(a.lielow>0)return;
   a.lielow=INTEL_N.lieLowDays;
   news('The '+agentWorld(a).name+' Cell goes quiet: <b>'+a.name+'</b> orders everyone to lie low for '+INTEL_N.lieLowDays+' days. Risk bleeds off; nothing comes in.','r');
+  Pro.emit('op',{kind:'lielow',agent:a.id});
   syncUI();
 }
 function agentSweep(a){
   const found=rng()<0.2;
   for(const s of cellLive(a))s.risk=Math.max(0,s.risk-INTEL_N.sweepCalm);
   news('<b>'+a.name+'</b> sweeps the '+agentWorld(a).name+' Cell for Bureau plants: '+(found?'a tail is spotted and shaken off — close one.':'clean, as far as anyone can tell.'),found?'h':'r');
+  Pro.emit('op',{kind:'sweep',agent:a.id});
   syncUI();
 }
 function agentRepost(a,world){
   if(a.moving)return;
   a.moving={to:world,days:INTEL_N.repostDays};
   news('<b>'+a.name+'</b> is in transit to '+pdef(world).name+' — Cover drops on the road. '+INTEL_N.repostDays+' days.','r');
+  Pro.emit('op',{kind:'repost',agent:a.id});
   inRepost=null;syncUI();
 }
 function agentDisinfo(a){
@@ -5824,6 +5896,7 @@ function agentDisinfo(a){
   G.intel-=INTEL_N.disinfoCost;
   G.bureauLeads=G.bureauLeads.filter(l=>l!==ld);
   news('<b>'+a.name+'</b> feeds the Bureau a better story. A Lead goes cold chasing a decoy. '+I(INTEL_N.disinfoCost)+' spent.','r');
+  Pro.emit('op',{kind:'disinfo',agent:a.id});
   syncUI();
 }
 function srcExfiltrate(src){
@@ -5838,6 +5911,7 @@ function openIntel(){
   closeWin();closeTilePop();exitRoomView();closeArsenal();closeMarket();closeMissions();
   if(baseView!=='base')setView('base');
   inOpen=true;
+  Pro.emit('tab','intel');
   if(!inSel&&(G.agents||[]).length)inSel={t:'agent',id:G.agents[0].id};
   $('inView').hidden=false;
   shell.classList.add('is-intel');
@@ -5964,11 +6038,11 @@ function inAgentRail(a){
       inOp('data-repostcancel','back','Stay put','Keep the '+esc(wd.name)+' Cell')+'</div>';
   } else {
     ops=inH('work','Operations')+'<div class="in-ops">'+
-      inOp('data-op="lielow:'+a.id+'"','sneak','Lie Low','The cell rests: Risk bleeds off, nothing comes in',{dis:!!busy||a.lielow>0})+
-      inOp('data-op="sweep:'+a.id+'"','eye','Counter-Intel Sweep','Check the cell for Bureau plants',{dis:!!busy})+
-      inOp('data-op="recruit:'+a.id+'"','people','Recruit','Search '+esc(wd.name)+' for new Sources or Rebels',{dis:!!busy||!!G.recruit.days||!!G.recWait.length})+
-      inOp('data-op="repost:'+a.id+'"','galaxy','Repost','Move to another world; Cover drops in transit',{dis:!!a.moving})+
-      inOp('data-op="disinfo:'+a.id+'"','comms','Disinformation','Clear a Lead, or send the Bureau after a decoy',{dis:!canDis||G.intel<INTEL_N.disinfoCost})+
+      (Pro.gate('op.lielow')?inOp('data-op="lielow:'+a.id+'"','sneak','Lie Low','The cell rests: Risk bleeds off, nothing comes in',{dis:!!busy||a.lielow>0}):'')+
+      (Pro.gate('op.other')?inOp('data-op="sweep:'+a.id+'"','eye','Counter-Intel Sweep','Check the cell for Bureau plants',{dis:!!busy}):'')+
+      (Pro.gate('op.recruit')?inOp('data-op="recruit:'+a.id+'"','people','Recruit','Search '+esc(wd.name)+' for new Sources or Rebels',{dis:!!busy||!!G.recruit.days||!!G.recWait.length}):'')+
+      (Pro.gate('op.other')?inOp('data-op="repost:'+a.id+'"','galaxy','Repost','Move to another world; Cover drops in transit',{dis:!!a.moving}):'')+
+      (Pro.gate('op.other')?inOp('data-op="disinfo:'+a.id+'"','comms','Disinformation','Clear a Lead, or send the Bureau after a decoy',{dis:!canDis||G.intel<INTEL_N.disinfoCost}):'')+
       '</div>';
   }
   return '<div class="in-railtitle">'+IC('intel')+'Agent</div>'+
@@ -6182,6 +6256,9 @@ function commHTML(src,payload){
     const said=String(payload.event.text).replace(/^<b>[^<]*<\/b>\s*/,'');   // the bubble names the speaker
     body+=cmSay(ini(src.name),src.name,said)+'<div class="cm-choices">'+payload.event.opts.map((o,i)=>choice(i+1,'data-ans="'+i+'"',o[0])).join('')+'</div>';
     foot='';
+  } else if(payload.say){
+    body+=cmSay(ini(src.name),src.name,payload.say);
+    foot=rbtn('data-close','Acknowledge',false,'sr-btn--primary');
   } else {
     body+=(payload.lines||[]).filter(Boolean).map(cmLog).join('');
     const sig=payload.signal;
@@ -6206,7 +6283,7 @@ function commHTML(src,payload){
 const CAND_RES={c:['credits','var(--sr-res-credits)'],s:['supplies','var(--sr-res-supplies)'],m:['materials','var(--sr-res-materials)'],
   f:['fuel','var(--sr-res-fuel)'],i:['Intel','var(--sr-res-intel)']};
 function candHTML(cd){
-  const alive=G.sources.filter(s=>s.alive).length,cap=sourceCap(),full=alive>=cap;
+  const alive=capUsed(),cap=sourceCap(),full=alive>=cap;
   const mini=(lbl,v,c)=>'<span class="cm-mini" style="--c:'+c+'"><span>'+lbl+'</span><i style="--v:'+Math.round(v)+'"></i><b>'+Math.round(v)+'</b></span>';
   const who='<div class="cm-who"><span class="cm-ava cm-ava--potential">'+esc(ini(cd.name))+'<i>'+IC('sneak')+'</i></span>'+
     '<div style="min-width:0"><div class="cm-kicker">Potential source</div><div class="cm-name">'+esc(cd.name)+'</div>'+
@@ -6654,9 +6731,10 @@ function syncUI(){
   }
   lastRenown=G.renown||0;
   const srcAttn=G.sources.filter(s=>s.alive&&(s.pendingEvent||s.signal||s.risk>70)).length
-    +(G.onboard==='contact'?1:0); // the first contact is waiting — point the new player at the network
+    +(Pro.at('cass_contact')?1:0); // the first contact is waiting — point the new player at the network
   $('srcBadge').hidden=!srcAttn;$('srcBadge').textContent=srcAttn;
   $('navSources').classList.toggle('is-calling',srcAttn>0);
+  syncGates();
   const misAvail=G.missions.filter(m=>m.state==='avail').length;
   $('misBadge').hidden=!misAvail;$('misBadge').textContent=misAvail;
   if(bmOpen&&G.market)G.market.unseen=0;   // looking at the stall counts as seen
@@ -6836,6 +6914,7 @@ function drawerLabel(){
 function openArsenal(){
   closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();closeIntel();
   arOpen=true;arOverlay=null;arGive=false;arRefit=null;
+  Pro.emit('tab','arsenal');
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
   setDrawer(false);
@@ -7443,6 +7522,7 @@ function openMarket(){
   ensureMarket();
   bmOpen=true;bmSel=null;bmLine=null;
   G.market.unseen=0;
+  Pro.emit('tab','market');
   $('bmView').hidden=false;
   shell.classList.add('is-market');
   setDrawer(false);
@@ -7481,6 +7561,7 @@ function buyLot(i,all){
     G.mercQ=G.mercQ||[];
     G.mercQ.push({rec:JSON.parse(JSON.stringify(l.merc)),fee:cost});   // the renew fee is what was actually paid
     news('<b>'+esc(l.merc.name)+'</b> signs a 14-day contract. Arrives tomorrow.','g');
+    Pro.emit('hired',l.merc);
   } else if(l.kind==='ship'){
     G.inbound=G.inbound||[];
     G.inbound.push({kind:'ship',cls:l.key,name:shipSerial(l.key),days:runsDays()});   // the pad stays held for it
@@ -7496,6 +7577,7 @@ function buyLot(i,all){
     news('<b>'+esc((SRDB.weapon(l.key)||{}).name||l.key)+'</b> bought. It’s on the hangar racks.','g');
   }
   bmLine={k:'bought',kind:l.kind};
+  if(l.kind!=='merc')Pro.emit('bought',{kind:l.kind,id:l.key,cls:l.key});
   saveSnap();syncUI();
   return true;
 }
@@ -7932,8 +8014,8 @@ $('winsB').addEventListener('click',ev=>{
     G.people.push(Rebel.migrate(p));mood();autoEquip();
     G.recWait=G.recWait.filter(x=>x!==p);
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
-    if(p.id==='sera')G.onboard='crossready';
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
+    Pro.emit('joined',p);
     winArg.cards.splice(i,1);
     if(!winArg.cards.length)closeWin();
     sBuild();saveSnap();syncUI();
@@ -7976,6 +8058,10 @@ $('winsB').addEventListener('click',ev=>{
   if(cand){if(cand==='no')declineCandidate(winArg);else if(cand==='standby')standbyCandidate(winArg);else acceptCandidate(cand);return;}
   const scout=t.getAttribute('data-scout');
   if(scout){scoutPlanet(scout);return;}
+  const pj=t.getAttribute('data-projump');
+  if(pj){proJumpTo(pj);return;}
+  if(t.hasAttribute('data-progates')){Pro.openAll();saveSnap();syncUI();renderWin();return;}
+  if(t.hasAttribute('data-protuts')){Pro.replayTuts();saveSnap();renderWin();return;}
   const raise=t.getAttribute('data-raise');
   if(raise){raiseAccess(raise);return;}
   if(t.hasAttribute('data-addasset')&&PL){plAddAsset();renderWin();return;}
@@ -8126,6 +8212,8 @@ SR.settings.bind(menu);   // screen shake and blood (art handoff: Juice)
 $('menuBtn').addEventListener('click',sClick);
 function closeMenu(){menu.hidden=true;$('menuBtn').setAttribute('aria-expanded','false');}
 $('menuNews').addEventListener('click',()=>{sClick();openWin('news');});
+$('menuPro').hidden=!DEBUG;
+$('menuPro').addEventListener('click',()=>{sClick();if(started)openWin('proDbg');});
 A.bindSound(ROOT,'soundBtn');   // the top-bar button and the menu's Sound row (shared wiring, persisted)
 addEventListener('keydown',ev=>{
   if(SR.active!=='base')return;
@@ -8209,14 +8297,128 @@ function closeEstSplash(){
   if(el.hidden)return;
   clearTimeout(estTO);
   el.classList.add('is-out');
-  setTimeout(()=>{el.classList.remove('is-out');el.hidden=true;openWin('cassIntro');},RM?0:400);
+  setTimeout(()=>{el.classList.remove('is-out');el.hidden=true;if(!winMode)nextReport();},RM?0:400);
 }
 $('estSplash').addEventListener('click',closeEstSplash);
-function discoverCass(){
-  if(G.sources.some(s=>s.id==='cass'))return;
-  addStorySource('cass');
-  if(G.onboard==='intro'||G.onboard===undefined)G.onboard='contact';
+/* ---------- the prologue's host (game/js/prologue.js) ----------
+   The runner keeps its place in G.prologue and calls these to act. A window a beat opens waits its turn in the report
+   queue (RQ, as {t:'pro'}): after the mission report and reward, never over the splash or the day banner, and one at a
+   time. The queued ones are kept in G.prologue.q too, so a reload does not lose them. */
+function proQueue(a){const p=G.prologue;p.q=p.q||[];p.q.push(a);RQ.push({t:'pro',a});}
+function proDrop(a){const q=G.prologue&&G.prologue.q;if(q){const i=q.indexOf(a);if(i>=0)q.splice(i,1);}}
+function openPro(a){
+  proDrop(a);
+  if(a.comm){
+    const src=G.sources.find(s=>s.id===a.comm.who)||srcInfo(a.comm.who);
+    if(!src)return false;
+    sComm();openComm(src,{say:Pro.text(a.comm.text)});return true;
+  }
+  if(a.recruit){openProRecruit(a.recruit);return true;}
+  if(a.win){openWin(a.win);return true;}
+  return false;
 }
+/* after a beat acts: show what changed, and open its first window if nothing else is up */
+function proKick(){
+  setTimeout(()=>{
+    if(!started||!G||SR.active!=='base')return;
+    syncUI();
+    if(!winMode&&!HOLD&&RQ.length)nextReport();
+  },0);
+}
+/* a gate that opens on a tab: it appears, pulses once and wears a New tag until it is opened */
+const GATE_NAV={'tab.galaxy':'navSources','tab.missions':'navMissions','tab.intel':'navIntel','tab.market':'navMarket','tab.arsenal':'navArsenal'};
+const newGates=new Set();
+Pro.onGate(k=>{if(GATE_NAV[k])newGates.add(k);});
+function syncGates(){
+  for(const k in GATE_NAV){
+    const b=$(GATE_NAV[k]),open=Pro.gate(k);
+    b.hidden=!open;
+    if(open&&newGates.has(k)&&b.getAttribute('aria-selected')==='true')newGates.delete(k);
+    const isNew=open&&newGates.has(k);
+    b.classList.toggle('pro-new',isNew);
+    let tg=b.querySelector('.pro-newtag');
+    if(isNew&&!tg){tg=document.createElement('span');tg.className='sr-tag sr-tag--info pro-newtag';tg.textContent=Pro.text('newTag');b.appendChild(tg);}
+    else if(!isNew&&tg)tg.remove();
+  }
+}
+/* debug: jump to a beat from the Prologue panel */
+function proJumpTo(id){
+  exitRoomView();closeTilePop();closeArsenal();closeMarket();closeMissions();closeIntel();
+  Pro.jump(id);
+  if(!G.introDone){saveSnap();launchIntro();return;}
+  setView('base');saveSnap();syncUI();
+}
+Pro.bind({
+  G:()=>G,debug:()=>DEBUG,kick:proKick,queue:proQueue,
+  news:(html,o)=>{news(html,o.cls||'a');if(o.alert)sAlert();if(o.good)sGood();},
+  toast:html=>flashMsg(html,'friend'),
+  view:()=>baseView,selected:()=>srcSel&&srcSel.t==='s'?srcSel.id:null,win:()=>winMode,
+  // the missions the beats so far put on the board that are still waiting to be run
+  proMissions:beats=>{
+    const out=[];
+    for(const b of beats)for(const a of b.does||[]){
+      const s=a.signal&&a.signal.mission?a.signal:a.mission?{mission:a.mission.id,who:a.mission.from}:null;
+      const m=s&&G.missions.find(x=>(x.id===s.mission||x.story===s.mission)&&x.state==='avail');
+      if(m)out.push({key:s.mission,src:s.who||m.src,m});
+    }
+    return out;
+  },
+  // the role a mission cannot be planned for because of deaths or injuries, or null (away on a job or weary is not short)
+  shortRole:e=>{
+    const r=reqOf(e.m),n=f=>G.people.filter(p=>f(p)&&!laidUp(p)).length;
+    if(r.transport)return n(isGround)<r.team?'Soldier':n(isFlyer)<transportSlots(r)+(r.prize||0)?'Pilot':null;
+    return n(isFlyer)<r.team?'Pilot':null;
+  },
+  act:{
+    source:v=>{
+      if(v.remove){const s=G.sources.find(x=>x.id===v.id);if(s){s.alive=false;s.retired=1;}return;}
+      const s=addStorySource(v.id);if(v.prologue)s.prologue=true;
+    },
+    // a story signal on a source; re-arming one that was let lie (re) is the same, if it is still wanted
+    signal:s=>{
+      const src=G.sources.find(x=>x.id===s.who&&x.alive);
+      if(!src||src.signal)return false;
+      if(s.mission&&G.missions.some(m=>m.id===s.mission||m.story===s.mission))return false;
+      if(s.kind==='recruitSera'&&G.people.some(p=>p.id==='sera'))return false;
+      src.signal=s.mission?{kind:'mission',mid:s.mission,text:Pro.text(s.text),spec:s.spec,follow:s.follow}:{kind:s.kind,text:Pro.text(s.text)};
+      return true;
+    },
+    mission:v=>{addMission(v.id,false,v.spec);},
+    comm:v=>proQueue({comm:v}),
+    win:v=>proQueue({win:v}),
+    recruitOffer:v=>proQueue({recruit:v}),
+    splash:()=>showEstSplash(),
+  },
+  // a new game for the debug Jump list
+  reset:()=>{
+    RQ.length=0;HOLD=false;rqWin=false;PL=null;srcSel=null;
+    winMode=null;winArg=null;$('winsB').hidden=true;
+    G=newGame();started=false;
+  },
+  afterJump:()=>{started=!!G.introDone;},
+  // what each beat's setup() builds from a new game
+  setup:{
+    wonRock:()=>{G.introDone=true;started=true;},
+    addSource:id=>{const s=addStorySource(id);s.prologue=true;},
+    openGate:k=>Pro.openGate(k,true),
+    addMission:(id,spec)=>addMission(id,true,spec),
+    join:who=>{
+      const p=who==='sera'?seraRebel():genRecruit(who);
+      if(who!=='sera')G.recruitN++;
+      p.joined=G.day;G.people.push(Rebel.migrate(p));mood();autoEquip();
+    },
+    restoreHauler:()=>{
+      if(G.wreck.restored)return;
+      G.wreck.restored=true;G.fighters.push(newFighter({id:'graf',name:'Marta',cls:'graf',hull:70}));
+      const j=G.people.find(p=>p.id==='joss');if(j)j.ship='graf';
+    },
+    winMission:id=>{
+      const m=G.missions.find(x=>x.id===id||x.story===id)||addMission(id,true);
+      if(m){m.state='done';m.meta='SUCCESS';}
+      if(id==='stealcross'&&!G.fighters.some(f=>f.cls==='cross'))G.fighters.push(newFighter({id:'cross_'+(G.fighters.length+1),name:'Dustfall',cls:'cross',hull:85}));
+    },
+  },
+});
 function seedNews(){
   news('Haven Rock is powered, pressurized, and off every chart. We’re well hidden from the Hegemony here.','g');
   news('Inventory logged: six Aklis, four Cowboys, four Med Packs, one derelict hauler in the cave.','d');
@@ -8329,6 +8531,7 @@ function plSet(key,rid){
   const id=rid.slice(2);
   for(const k in PL.v)if(PL.v[k]===id)delete PL.v[k];
   PL.v[key]=id;
+  if(/^as\d+s$/.test(key)){const f=G.fighters.find(x=>x.id===id);if(f)Pro.emit('asset',{cls:f.cls,id:f.id});}
   // a pilot brings their ship, a ship brings its pilot (when both are free)
   const pairs={rp:'rs',rs:'rp',tp:'tv',tv:'tp'};
   const pre=key.replace(/\d+$/,''),n=key.slice(pre.length),mate=pairs[pre];
@@ -8357,7 +8560,7 @@ function plSpecOk(){
   return PL.slots.some(sl=>sl.acc==='soldier'&&PL.v[sl.key]&&hasSpec(G.people.find(p=>p.id===PL.v[sl.key])||{},sp.key));
 }
 function plAddAsset(){
-  if(!PL.req.transport||PL.assets.length>=2)return -1;
+  if(!PL.req.transport||PL.assets.length>=2||!Pro.gate('plan.assets'))return -1;
   const i=PL.assets.length;
   PL.assets.push({});
   PL.slots.push({key:'as'+i+'s',acc:'assetship',label:'Support ship'},{key:'as'+i+'p',acc:'apilot',label:'Support pilot'});
@@ -8593,7 +8796,7 @@ function plAssetsHTML(){
     });
     PL.assets.forEach((a,i)=>{cards+=plAssetCard({kicker:'Support ship',sKey:'as'+i+'s',pKey:'as'+i+'p',rm:i});});
     cards+=PL.slots.filter(sl=>sl.acc==='gveh').map(plVehCard).join('');
-    const room=PL.assets.length<2||PL.slots.some(sl=>sl.acc==='gveh'&&!PL.v[sl.key]);
+    const room=Pro.gate('plan.assets')&&(PL.assets.length<2||PL.slots.some(sl=>sl.acc==='gveh'&&!PL.v[sl.key]));
     if(room)cards+='<div style="position:relative;display:flex" data-slot="addasset"><button type="button" class="pl-asset__add" data-pick="addasset"><span>+</span>+ Add asset</button>'+(PL.pick==='addasset'?plPickHTML('addasset'):'')+'</div>';
   } else {
     PL.slots.filter(sl=>sl.acc==='ship').forEach((sl,i)=>{
@@ -8830,9 +9033,8 @@ function applyDebrief(r){
       }
       news('<b>The abandoned base at Haven Rock is ours.</b> The squatters are gone; the signal is up. Day one of the rest of the war. The Revolution begins today!','g');
       news('In the hangar cave, under a decade of dust: a <b>derelict Graf Hauler</b>. Joss is already inspecting it. Restore it from the hangar.','a');
-      discoverCass();
       seedNews();
-      showEstSplash();
+      Pro.emit('won','haven');   // the prologue's next beat: BASE ESTABLISHED, then Cass
       sBuild();
       saveSnap();syncUI();
       return;
@@ -8967,6 +9169,7 @@ function applyDebrief(r){
     const A=AUTOS[g.type];if(!A)continue;
     if(G.people.some(p=>p.name===g.name))continue;
     G.people.push({id:'auto'+(G.people.length+1)+'_'+g.type,name:g.name,role:'Soldier',level:1,xp:0,assign:'standby',auto:g.type,bio:A.bio});
+    Pro.emit('joined',G.people[G.people.length-1]);
     gotLoot(got,{type:g.type,name:g.name,kind:'unit'});
     news('<b>'+g.name+'</b>, a hacked '+A.label+', joins the rebellion. It does not need a bunk.','g');
   }
@@ -8983,7 +9186,7 @@ function applyDebrief(r){
       const gt=gotText(got);
       news('<b>'+m.name+'</b> \u2014 SUCCESS, and you were there. '+(gt?gt+'.':''),'g');
       sBuild();
-      missionAftermath(m.id);
+      missionAftermath(m);
     } else {
       m.state='avail';m.progress=null;
       moraleAll(-3,'loss',(r.people||[]).map(x=>x.id),-8);
@@ -8991,6 +9194,7 @@ function applyDebrief(r){
       queueReport(rpt);
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
       sWarn();
+      Pro.emit('lost',m.story||m.id);
     }
   }
   heroCheck(r,m,runExperiences(r,m,{lostP,nearIds}));
@@ -9034,7 +9238,7 @@ const MIGRATIONS=[
   function(){
     if(G.introDone===undefined)G.introDone=true;
     if(G.wreck===undefined)G.wreck={restored:true,restoring:0};
-    if(G.onboard===undefined)G.onboard='done';
+    if(G.onboard===undefined)G.onboard='done';   // (11 -> 12 turns this into the prologue's place)
     G.misPopQ=G.misPopQ||[];
     G.recruit=G.recruit||{days:0};G.recWait=G.recWait||[];G.recSeq=G.recSeq||0;
     for(const p of G.people){Rebel.migrate(p);if(p.level>Rebel.LEVEL_CAP)p.level=Rebel.LEVEL_CAP;if(!p.auto&&p.joined===undefined)p.joined=G.day;}
@@ -9192,6 +9396,32 @@ const MIGRATIONS=[
     };
     walk(G);
   },
+  /* 11 -> 12: the prologue (docs/PROLOGUE-HANDOFF.md §2.5). The onboarding was a string (G.onboard) and a flag
+     (G.postDepot) checked all over the base; it is now a script of beats (game/js/prologue.js) with its place in
+     G.prologue. Each old value lands on the beat it was waiting in. Every gate is open on an old save, and a save
+     already past the depots stays as it was (Halt and Vokk, if queued, stay); past the last ported beat (Steal Fuel
+     accepted) it is done. Cass and Venn become Prologue sources; a Sources tutorial already seen stays seen. */
+  function(){
+    const o=G.onboard,on=id=>G.missions.some(m=>m.id===id||m.story===id);
+    let at=null,live=true;
+    if(G.postDepot)at=on('stealfuel')?null:'fuel_offer';
+    else if(o==='intro')at=G.introDone?'cass_contact':'rock';
+    else if(o==='contact')at='cass_contact';
+    else if(o==='revealed')at='cross_offer';
+    else if(o==='pilotwait'){at='sera';live=false;}   // the next day brings Cass's news
+    else if(o==='seraoffered')at='sera';
+    else if(o==='crossready')at='cross';
+    else if(o==='friend')at='venn_arrives';
+    else if(o==='done')at=on('depotrun')?'depots':null;   // saves from before versioning were 'done' too
+    const P=Pro.fresh(G.day);
+    P.gates['*']=1;P.live=live;
+    if(at)P.at=at;else{P.at='frontier';P.done=true;}
+    if(G.srcTutSeen)P.flags.tut.sources=1;
+    if(at==='cass_contact')P.tut={key:'raiseCass',i:0};   // the pointer to Cass carries on
+    for(const s of G.sources)if(s.id==='cass'||s.id==='venn')s.prologue=true;
+    delete G.onboard;delete G.postDepot;delete G.srcTutSeen;
+    G.prologue=P;
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9244,6 +9474,8 @@ function restoreCampaign(data){
       }
     }
     ensureMarket();   // old saves with no G.market roll the current week (next restock at the next 7k+1 day)
+    for(const a of (G.prologue&&G.prologue.q)||[])RQ.push({t:'pro',a});   // a beat's windows still to open
+    if(RQ.length)proKick();
     renderNews();
     return true;
   }
@@ -9257,8 +9489,9 @@ function enter(params){
     if(!restoreCampaign(SR.loadSave())){
       G=newGame();
       if(location.hash==='#deploy'||location.hash==='#test'){
-        started=true;G.introDone=true;
-        discoverCass();seedNews();
+        // the test harness starts at the first Cass contact with every mechanic open (as an old save is)
+        Pro.jump('cass_contact');Pro.openAll();
+        seedNews();
       }
     }
   }
@@ -9279,7 +9512,7 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
-      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,makeOffer,openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,

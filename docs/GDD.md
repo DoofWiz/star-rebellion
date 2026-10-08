@@ -504,7 +504,7 @@ Each location has four statistics:
   10%); they never finish one. Akkaro's repeatable local ops only open once the onboarding is
   finished.
 - **Regions are land only.** Space combat is auto-generated in orbit over a location and never
-  belongs to a region, so space missions (Cook the Depots, fuel-hauler skims, relay taps) carry
+  belongs to a region, so space missions (Torch the Depots, fuel-hauler skims, relay taps) carry
   a location but no region and add no liberation, though they still count for Revolution
   progress.
 - **Scale:** the other existing worlds keep Security, Access and Support but have no regions.
@@ -747,7 +747,7 @@ needed, and takes extra assets. Each of the transport's options is a toggle (Arr
   guard is drawn on the tower's deck.
 
 ### Space enemies (built, Phase 4)
-Cook the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
+Torch the Depots now uses **Drone Monitors** (weak; a Monitor that sees you **calls in a Pursuer**, once),
 **Drone Pursuers** (fast hunters) and, from round 5, a patrol answer: a manned **VC Mote** fighter and a
 **Drone Mag-Clamper**, whose clamp cuts a ship's top speed by 2 for two rounds.
 

@@ -62,6 +62,13 @@
 #sc-base .bs-feedlines:empty{display:none;}
 /* pointer: arrow flips up when the target sits low on the screen */
 #sc-base #tutPtr{z-index:var(--sr-z-toast);}
+/* the prologue's guided-step callout (game/js/prologue.js): the coach card beside its target, over windows */
+#sc-base #tutCoach{position:absolute;z-index:var(--sr-z-toast);pointer-events:none;width:300px;}
+/* a mechanic the prologue has just opened: its tab pulses once and wears a New tag until it is opened */
+#sc-base .sr-tab.pro-new{animation:pro-pulse 1.2s var(--sr-ease-out) 1;}
+#sc-base .sr-tab .pro-newtag{margin-left:6px;}
+@keyframes pro-pulse{0%{box-shadow:0 0 0 0 var(--sr-go);}100%{box-shadow:0 0 0 14px transparent;}}
+@media (prefers-reduced-motion:reduce){#sc-base .sr-tab.pro-new{animation:none;}}
 #sc-base #tutPtr.below{flex-direction:column-reverse;}
 #sc-base #tutPtr.below .sr-pointer__arrow{border-top-color:transparent;border-bottom:12px solid var(--sr-gold);margin-top:0;margin-bottom:4px;filter:drop-shadow(0 -2px 0 var(--sr-ink));}
 /* galaxy */

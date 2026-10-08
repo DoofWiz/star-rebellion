@@ -16,6 +16,7 @@ python3 tools/text/text.py import star-rebellion-text.xlsx             # writes 
 Or hand the downloaded workbook to Claude and ask it to import your text edits.
 
 One tab per part of the game: **Missions** (every reusable mission type's words, and the guards' names and lines),
+**Prologue** (the onboarding's comms, signals, guided-step lines and callouts: `PRO_TEXT` in `game/js/prologue.js`),
 **Base**, **Ground**, **Space**, **Rebels** (traits, experiences, injuries, ranks), **Title**, **Shared** (HUD and kit)
 and **Page** (the static labels in `game/index.html`). Each row is one line:
 

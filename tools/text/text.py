@@ -28,6 +28,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # Files scanned, in tab order. Generated files (sr-theme.js, db.js) are left out: edits there would be overwritten.
 SOURCES = [
     ("Missions", ["game/js/mission-text.js"]),
+    ("Prologue", ["game/js/prologue.js"]),
     ("Base", ["game/js/base.js"]),
     ("Ground", ["game/js/ground.js"]),
     ("Space", ["game/js/space.js"]),

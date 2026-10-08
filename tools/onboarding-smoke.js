@@ -21,8 +21,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  const E=f=>pg.evaluate(f);
  const click=sel=>pg.evaluate(s=>document.querySelector(s).click(),sel);
 
- // A1: new game goes straight into the cutscene — no briefing, no bubbles
- await E(()=>window.DBGbase.fn.launchIntro());
+ // A1: new game goes straight into the cutscene — no briefing, no bubbles. The test harness boots at Cass's contact,
+ // so the prologue jumps back to its first beat, Take the Rock (docs/PROLOGUE-HANDOFF.md §2.7)
+ await E(()=>{window.Pro.jump('rock');window.DBGbase.fn.launchIntro();});
  await pg.waitForTimeout(400);
  const cut=await E(()=>{const D=window.DBGground;return {phase:D.phase,brief:document.querySelector('#sc-ground #briefing').hidden,skip:document.querySelector('#sc-ground #csSkip').hidden,bub:D.bubbles.length};});
  ok(cut.phase==='CUTSCENE','prologue starts in the cutscene, got '+cut.phase);

@@ -9,17 +9,22 @@ tutorial is added, moved or reworded.
   row in the index.
 - The order of the onboarding beats comes from the Onboarding section of *Campaigns & Missions: Linear Flow of Star
   Rebellion* (Google Drive). This file covers only the tutorials inside those beats.
+- The beats are built as the prologue script in `game/js/prologue.js` (`docs/PROLOGUE-HANDOFF.md`). A built tutorial
+  is a `tutorial:` action there: guided steps and callouts live in `PRO_TUTS`, their words in `PRO_TEXT` (the
+  Prologue tab of the text spreadsheet). A tutorial fires once; the debug Prologue panel's *Replay tutorials* clears
+  that.
 
 ## Index
 
 | Tutorial | Trigger | Shape | Status | Where |
 |---|---|---|---|---|
 | Take the Rock combat cards (Move out, Sneak past, Start the fight, Plan the round, Take the shot, Fire Support, Cover and nerve, Raise the signal) | During the prologue mission | Cards | Built | `TUT` in `game/js/ground.js` |
-| Fire support: Strafing Run | Opening the Steal Fuel plan in onboarding | Callout in the plan window | Planned | Onboarding implementation brief, change 4 |
-| Build Your Network (Sources) | Today: first visit to the Galaxy view. Moving to after Steal Fuel is won | Intro window + field manual | Built; trigger moving | `srcTutIntro` and `TUT_PAGES` in `game/js/base.js`; onboarding brief, change 5 |
+| Raise Cass (Open the Galaxy, Select Cass Wender, Contact) | Cass's transmission closes (prologue beat `cass_contact`); ends when Cass is contacted | Guided steps (pointer) | Built | `PRO_TUTS.raiseCass` in `game/js/prologue.js` |
+| Fire support: Strafing Run | Opening Steal Fuel's plan (prologue beat `fuel_plan`); ends when the FT-4 Cross is assigned as an asset | Guided step (callout on the empty fire support slot) | Built | `PRO_TUTS.strafingRun` in `game/js/prologue.js` |
+| Build Your Network (Sources) | The player's first brand-new Source (not Cass or Venn): the farewell beat once it is written; until then the first new Source after the prologue's frontier. The **?** stays on the Sources panel and Cass's and Venn's windows throughout | Intro window + field manual | Built | `srcTutIntro` and `TUT_PAGES` in `game/js/base.js`; `PRO_TUTS.sources` |
 | [Run Your Network (Agents)](#run-your-network-agents) | Tachi Gard joins after Rescue Tachi | Intro window + guided steps + field manual | Planned | This file |
 | [Someone's Asking Questions](#someones-asking-questions) | The Bureau's first Lead, on Maro Venn | Guided steps | Planned | This file |
-| [Sources field manual: Agents update](#sources-field-manual-agents-update) | The player's first non-onboarding Source | Page swap | Planned | This file |
+| Sources field manual: Agents update | Lands with Build Your Network: from then on, Making Contact is the Agents version | Page swap | Built | `TUT_CONTACT_AGENTS` in `game/js/base.js` |
 
 ## Shapes
 
@@ -195,19 +200,3 @@ close in.
 
 *Click the **?** button to learn more about Leads.*
 
----
-
-## Sources field manual: Agents update
-
-**Trigger:** the player gains their first Source outside onboarding (Cass and Venn don't count). The page below
-replaces **Making Contact** in the Sources field manual (`TUT_PAGES` in `game/js/base.js`) from then on. It waits
-until then so the player isn't hit with both changes at once.
-
-**Making Contact**
-When you need to deal with a Source, you have two options:
-**Visit.** Your Agent meets the Source in person. This builds trust faster and opens up more opportunities. But
-your Agent must be posted to the Source's location, and every meeting is a chance to be seen.
-**Contact.** Communicate remotely. This works from anywhere and is safer, but it may not stay that way as the
-Revolution grows and Hegemony surveillance increases.
-Either way, speaking with a Source can lead to new opportunities, requests or Missions.
-Keep an eye on your Sources. They may have something important to tell you.
