@@ -9,7 +9,8 @@
    3  migration: a save at each old G.onboard value lands on its beat
    4  safety net: a soldier lost before Steal Fuel brings a replacement from Cass
    5  Recruit returns Rebels only during the prologue, even where a potential Source is waiting
-   (P1 to P3 of the handoff: beats 1 to 17. The three-pilot Recruit checks arrive with P4.) */
+   6  the Recruit after beat 19 returns exactly three Pilots, also when beat 14's Recruit is still running
+   (P1 to P4 of the handoff: beats 1 to 22.) */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -72,6 +73,11 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   tense:    T=>[!window.Pro.live(),T.G.agents.length===1,T.G.prologue.flags.tut.runNetwork===1,window.Pro.gate('op.recruit'),!window.Pro.gate('op.lielow')],
   first_lead:T=>[T.G.bureauLeads.some(l=>l.target.id==='venn'),T.G.exposure>0,T.G.prologue.tut&&T.G.prologue.tut.key==='askingQuestions',!window.Pro.gate('op.lielow')],
   lielow_wait:T=>[window.Pro.live(),window.Pro.gate('op.lielow'),T.G.agents[0].lielow>0,T.G.bureauLeads.length===1],
+  bunker_offer:T=>[window.Pro.live(),T.q().join()==='comm:cass,act:mission'||(T.win()==='comm'&&T.q().join()==='act:mission'),!T.mis('raidbunker')],
+  tachi_recruit:T=>[!window.Pro.live(),T.mis('raidbunker')&&T.mis('raidbunker').ships.length===3,!T.G.prologue.flags.recruitAs],
+  market:   T=>[T.G.people.filter(p=>p.role==='Pilot').length===5,!window.Pro.gate('tab.market')||T.q().includes('act:gate')||T.win()==='comm'],
+  sweet_tooth:T=>[window.Pro.gate('tab.market'),T.G.market.lots.some(l=>l.keep&&l.kind==='merc')],
+  hauler:   T=>[T.G.market.lots.some(l=>l.keep&&l.kind==='ship'&&l.key==='graf'),T.G.prologue.tut&&T.G.prologue.tut.key==='hauler'],
   frontier: T=>[window.Pro.done(),window.Pro.GATES.every(g=>window.Pro.gate(g)),T.G.agents.length===1],
  };
  const ids=await E(()=>window.Pro.PROLOGUE.map(b=>b.id));
@@ -85,7 +91,8 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  // the two beats that wait on a day begin on the next one
  for(const [id,chk] of [['sera',T=>T.src('cass').signal&&T.src('cass').signal.kind==='recruitSera'&&/on the wire/.test(T.G.news[T.G.news.length-1].html+T.G.news.map(n=>n.html).join())],
                         ['fuel_offer',T=>T.src('cass').signal&&T.src('cass').signal.mid==='stealfuel'&&T.src('cass').signal.spec.req.team===4],
-                        ['tense',T=>T.q().join()==='comm:tachi,comm:venn']]){
+                        ['tense',T=>T.q().join()==='comm:tachi,comm:venn'],
+                        ['tachi_recruit',T=>T.q().join()==='comm:tachi,act:tutorial'&&T.G.prologue.flags.recruitAs.n===3]]){
   const r=await E(([id,src])=>{window.Pro.jump(id);T.f.closeWin();T.f.advanceDay();T.f.closeWin();return {live:window.Pro.live(),c:eval('('+src+')')(window.T)};},[id,chk.toString()]);
   ok(r.live&&r.c,id+' begins the next day with its signal: '+[r.live,r.c]);
  }
@@ -291,8 +298,80 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  // Cass and Venn can't be Burned before the frontier, however hot they run
  r=await E(()=>{const v=T.src('venn');v.risk=99;T.f.setRng(()=>0.01);T.f.advanceDay();T.f.setRng(Math.random);return {alive:v.alive,at:window.Pro.beat(),ig:T.G.interrogations.length};});
  ok(r.alive&&!r.ig,'Venn runs hot but is never Burned during the prologue '+JSON.stringify(r));
- ok(r.at==='smoke_after','a day after Lie Low the next beat begins: here the runtime beat '+r.at);
+ ok(r.at==='bunker_offer','a day after Lie Low the next beat begins '+r.at);
+ // P4: Cass knows where the bunker is
+ await pg.waitForFunction(()=>T.win()==='comm',null,{timeout:5000}).catch(()=>{});
+ r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent,on:!!T.mis('raidbunker'),q:T.q()}));
+ ok(r.win==='comm'&&/Sheriff’s secure bunker/.test(r.txt)&&!r.on&&r.q.join()==='act:mission','Cass’s comm about the bunker; the job lands when it closes '+JSON.stringify({win:r.win,q:r.q}));
+ await E(()=>T.f.closeWin());
+ r=await E(()=>{const m=T.mis('raidbunker');return {at:window.Pro.beat(),live:window.Pro.live(),name:m&&m.name,ships:m&&m.ships.join(),
+   pre:m&&T.f.precondList(m).map(c=>(c.ok?'+':'-')+c.brief).join(' ')};});
+ ok(r.name==='Raid the Bunker'&&r.ships==='cross,talon,talon'&&r.at==='tachi_recruit'&&!r.live,'Raid the Bunker on the board: three ships pinned; Tachi waits for the next day '+JSON.stringify(r));
+ ok(/-5 Soldiers/.test(r.pre)&&/-5 Pilots/.test(r.pre)&&/-2 Transports/.test(r.pre)&&/-3 Pads/.test(r.pre),'its plan lists what is missing: soldiers, pilots, the second transport, pad space '+r.pre);
+ await closeUntilEmpty();
+ await E(()=>{T.f.advanceDay();});
+ await pg.waitForFunction(()=>T.win()==='comm'||T.win()==='recruit',null,{timeout:5000}).catch(()=>{});
+ for(let i=0;i<4;i++){const w=await E(()=>T.win()==='comm'&&/Venn told me about this job/.test(document.querySelector('#winCardB').textContent));if(w)break;await E(()=>T.f.closeWin());await wait(100);}
+ r=await E(()=>({win:T.win(),at:window.Pro.beat()}));
+ ok(r.win==='comm'&&r.at==='tachi_recruit','the next day, Tachi will find pilots '+JSON.stringify(r));
+ await closeUntilEmpty();
+ r=await E(()=>({flag:JSON.stringify(T.G.prologue.flags.recruitAs),ptr:document.querySelector('#tutPtr .sr-pointer__label').textContent,up:!document.querySelector('#tutPtr').hidden}));
+ ok(r.flag==='{"role":"Pilot","n":3}'&&r.up&&/TEXT NEEDED/.test(r.ptr),'the next Recruit is three pilots; a pointer (its label still to write) leads to Recruit '+JSON.stringify(r));
+ await E(()=>{T.G.recWait=[];});   // Run Your Network's recruits are decided first (Recruit waits while they do)
+ // the cell is still lying low for a day (operations wait), so a day goes by first
+ r=await E(()=>({low:T.G.agents[0].lielow,dis:true}));
+ ok(r.low===1,'Tachi’s cell has one day of Lie Low left when she offers the pilots '+r.low);
+ await E(()=>{T.f.closeWin();T.f.advanceDay();});await wait(1200);await closeUntilEmpty();await E(()=>{T.G.recWait=[];});
+ await E(()=>document.querySelector('#sc-base #navIntel').click());await wait(250);
+ await E(()=>document.querySelector('#inView [data-insel^="agent:"]').click());await wait(250);
+ await E(()=>document.querySelector('#railIntel [data-op^="recruit:"]').click());await wait(150);
+ for(let d=0;d<3;d++){await E(()=>{T.f.closeWin();T.f.advanceDay();});await wait(100);}
+ await pg.waitForFunction(()=>T.win()==='recruit',null,{timeout:5000}).catch(()=>{});
+ r=await E(()=>({win:T.win(),cards:document.querySelectorAll('#winCardB [data-rec-accept]').length,no:document.querySelectorAll('#winCardB [data-rec-no],#winCardB [data-rec-later]').length,
+   roles:T.G.recWait.map(p=>p.role).join()}));
+ ok(r.win==='recruit'&&r.cards===3&&r.no===0&&r.roles==='Pilot,Pilot,Pilot','the Recruit brings exactly three Pilots, to be taken on '+JSON.stringify(r));
+ for(let i=0;i<3;i++){await E(()=>{const b=document.querySelector('#winCardB [data-rec-accept]');if(b)b.click();});await wait(80);}
+ await wait(200);
+ // Cass: the Black Market
+ await pg.waitForFunction(()=>T.win()==='comm',null,{timeout:5000}).catch(()=>{});
+ r=await E(()=>({win:T.win(),at:window.Pro.beat(),pilots:T.G.people.filter(p=>p.role==='Pilot').length,txt:document.querySelector('#winCardB').textContent}));
+ ok(r.at==='market'&&r.pilots===5&&r.win==='comm'&&/Black Market/.test(r.txt),'three pilots join: Cass tells us about the Black Market '+JSON.stringify({at:r.at,pilots:r.pilots,win:r.win}));
+ await E(()=>T.f.closeWin());await wait(200);
+ r=await E(()=>({mkt:T.vis('navMarket'),isNew:!!document.querySelector('#navMarket .pro-newtag'),ptr:document.querySelector('#tutPtr .sr-pointer__label').textContent,up:!document.querySelector('#tutPtr').hidden}));
+ ok(r.mkt&&r.isNew&&r.up&&/Black Market tab/.test(r.ptr),'the Black Market tab appears, with a pointer to it '+JSON.stringify(r));
+ await E(()=>document.querySelector('#sc-base #navMarket').click());await wait(300);
+ r=await E(()=>({at:window.Pro.beat(),win:T.win(),txt:document.querySelector('#winCardB').textContent,keep:T.G.market.lots.filter(l=>l.keep).map(l=>l.kind+':'+(l.merc?l.merc.role:l.key)).join()}));
+ ok(r.at==='sweet_tooth'&&r.win==='comm'&&/fast friends, sugar/.test(r.txt)&&r.keep==='merc:Soldier','the first look at the stall: Sweet Tooth’s intro, and a mercenary who is always there '+JSON.stringify({at:r.at,win:r.win,keep:r.keep}));
+ await E(()=>T.f.closeWin());await wait(200);
+ r=await coach();
+ const mercTxt=await E(()=>document.querySelector('#tutCoach').textContent);
+ ok(r.up&&/hire-a-mercenary/.test(mercTxt),'the hire-a-mercenary tutorial (its words still to write) points at the lot '+r.up);
+ // the stall restocks: the guaranteed lot stays, outside the six
+ r=await E(()=>{T.G.credits+=8000;const before=T.G.market.lots.length;T.f.rollMarket();return {n:T.G.market.lots.length,six:T.G.market.lots.filter(l=>!l.keep).length,keep:T.G.market.lots.filter(l=>l.keep).length,before};});
+ ok(r.six===6&&r.keep===1,'a restock keeps the mercenary lot, outside the six '+JSON.stringify(r));
+ // nine aboard and six bunks: a mercenary needs a bunk, so the Barracks grows first
+ r=await E(()=>({free:T.f.freeBunks(),hired:T.f.buyLot(T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc'),false)}));
+ ok(r.free<=0&&r.hired===false,'with the bunks full the mercenary can’t be hired yet '+JSON.stringify(r));
+ await E(()=>{T.G.rooms.push({id:'rm_bx',key:'barracks',r:5,c:6,w:2,h:1,up:[]});});   // two more tiles: nine aboard, six bunks to start
+ await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc');T.f.buyLot(i,false);T.f.syncUI();});
+ await wait(200);
+ r=await E(()=>({at:window.Pro.beat(),keep:T.G.market.lots.filter(l=>l.keep&&l.stock>0).map(l=>l.kind+':'+l.key).join()}));
+ ok(r.at==='hauler'&&r.keep==='ship:graf','hired: a second Graf hauler is always on the stall now '+JSON.stringify(r));
+ r=await E(()=>({step:(window.Pro.step()||{}).text,buy:T.f.buyLot(T.G.market.lots.findIndex(l=>l.keep&&l.kind==='ship'),false)}));
+ ok(r.step==='haulerHangar'&&r.buy===false,'first, Hangar room: the hauler can’t land without a large pad '+JSON.stringify(r));
+ await E(()=>{T.f.closeMarket();T.f.syncUI();});await wait(200);
+ r=await E(()=>({up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
+ ok(r.up&&/build Hangar room/.test(r.txt),'the hauler tutorial (its words still to write) points at the Hangar '+r.up);
+ // a second Hangar section, built
+ await E(()=>{T.G.rooms.push({id:'rm_t6',key:'hangar',r:6,c:13,w:4,h:4,halves:['L','S'],up:[]});T.f.openMarket();});await wait(200);
+ r=await E(()=>({step:(window.Pro.step()||{}).text,up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
+ ok(r.step==='haulerBuy'&&r.up&&/buy a second Graf hauler/.test(r.txt),'room made: the tutorial moves to the hauler lot '+JSON.stringify({step:r.step,up:r.up}));
+ await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='ship');T.f.buyLot(i,false);T.f.syncUI();});
+ await wait(200);
+ r=await E(()=>({at:window.Pro.beat()}));
+ ok(r.at==='smoke_after','with the hauler and the Hangar room the next beat begins: here the runtime beat '+r.at);
  await pg.waitForFunction(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent),null,{timeout:5000}).catch(()=>{});
+ for(let i=0;i<4;i++){const w=await E(()=>T.win()==='comm'&&/fuel job/.test(document.querySelector('#winCardB').textContent));if(w)break;await E(()=>T.f.closeWin());await wait(100);}
  r=await E(()=>({win:T.win(),txt:document.querySelector('#winCardB').textContent}));
  ok(r.win==='comm'&&/fuel job/.test(r.txt),'the runtime beat fires next, in order '+r.win);
  await E(()=>T.f.closeWin());
@@ -369,6 +448,16 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   return {cand:T.G.candQ.length,rebels:T.G.recWait.length,roles:T.G.recWait.map(p=>p.role).join()};
  });
  ok(r.cand===0&&r.rebels>0,'during the prologue Recruit returns Rebels only '+JSON.stringify(r));
+
+ // ---------------- 6. Tachi's pilots, when beat 14's Recruit is still running ----------------
+ r=await E(()=>{
+  window.Pro.jump('tachi_recruit');T.f.closeWin();
+  const a=T.G.agents[0];T.G.recruit={days:3,agent:a.id};   // still out from Run Your Network
+  T.f.advanceDay();T.f.closeWin();const flag=JSON.stringify(T.G.prologue.flags.recruitAs),ptr=(window.Pro.step()||null);
+  T.f.advanceDay();T.f.closeWin();T.f.advanceDay();T.f.closeWin();
+  return {flag,ptr,roles:T.G.recWait.map(p=>p.role+(p.must?'!':'')).join(),days:T.G.recruit.days};
+ });
+ ok(r.flag==='{"role":"Pilot","n":3}'&&r.ptr===null&&r.roles==='Pilot!,Pilot!,Pilot!','a Recruit already running brings the three pilots, and no pointer shows '+JSON.stringify(r));
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'prologue-smoke: all checks passed');

@@ -1057,6 +1057,7 @@ MPOOL.stealstrider={name:'Steal the Strider',from:'Tessaly Brandt',src:'tess',ne
   rew:{c:450,m:200,xp:0.3},bonus:{c:300},
   after:['<b>BRANDT:</b> \u201cThe whole Crossing came out to watch a Hegemony walker stroll off with a rebel badge on it. The foreman is pretending he was asleep. You have a machine now, Commander. Try not to get it shot.\u201d']};
 const typeOf=m=>m.type||(m.ground?'ground':m.lead==='space'?'space':'abstract');
+const shipName=cls=>(SRDB.ship(cls)||{}).name||cls;   // a ship class's name (FT-4 Cross)
 const SEATS={};for(const r of SRDB.raw.ships)if(r.extra_people>0)for(const k of String(r.legacy_keys).split('|'))if(k)SEATS[k]=r.extra_people;     // troop seats per transport
 /* who carries the job: soldiers and marines (ground combat) or pilots (space combat). Colour and icon match the crew rail. */
 const opKind=m=>{let r=null;try{r=reqOf(m);}catch(e){}return (typeOf(m)==='ground'||(r&&r.teamRole==='Soldier'))?'ground':'space';};
@@ -1086,6 +1087,10 @@ const MTYPE_DEFS={
 MTYPE_DEFS.ambush={scenario:'ambush',days:2,riskTxt:'Moderate',lib:15,npcRole:'Support',
   req:{team:3,teamRole:'Soldier',transport:1,prize:0},
   rew:{c:400,xp:0.3}};
+/* Steal Ship (docs/PROLOGUE-HANDOFF.md P5): y ships, a pilot for each (prize pilots); the reward is the ships */
+MTYPE_DEFS.stealship={scenario:'stealship',days:2,riskTxt:'Moderate',lib:15,ships:['talon'],
+  req:{team:3,teamRole:'Soldier',transport:1,prize:1},
+  rew:{xp:0.3}};
 MTYPE_DEFS.towers={scenario:'towers',days:2,riskTxt:'Moderate',lib:15,
   req:{team:3,teamRole:'Soldier',transport:1,prize:0,items:[{ids:['charge','limpet'],n:1,label:'Explosive Charge or Data Limpet'}]},
   rew:{i:5,xp:0.3}};
@@ -1109,7 +1114,9 @@ function srcInfo(id){return G.sources.find(x=>x.id===id)||CANDS[id]||STORY_SRC[i
 function fillMission(m,str){
   const c=m.ctx||{},sn=(m.srcName||'').split(' ');
   // the transport is picked at planning, so on the board it is just "the transport"
+  const sh=m.ships||(m.tid&&MTYPE_DEFS[m.tid]&&MTYPE_DEFS[m.tid].ships)||[];
   return MT.fill(str,{npc:m.npc?m.npc.name:'',npc1:m.npc?m.npc.first:'',target:c.target||'target',place:c.place||'the target',
+    ship:sh.length>1?'each ship':sh.length?shipName(sh[0]):'the ship',shipPilot:sh.length>1?'a pilot':'the pilot',
     SRC:(sn[sn.length-1]||'CONTACT').toUpperCase(),transport:'transport'});
 }
 /* a mission's place names from its world and region ids (m.loc, m.region): names are display only, ids are kept */
@@ -1549,8 +1556,18 @@ const freeBunks=()=>Math.max(0,bunkCap()-bunksUsed());
 function recruitTick(){
   if(!G.recruit.days)return;
   if(--G.recruit.days>0)return;
-  // an Agent's search can turn up a potential source on their posted world instead of rebels (§3.5)
   const ag=G.recruit.agent&&agentOf(G.recruit.agent);
+  // a prologue beat can say what the next Recruit brings (Tachi's three pilots for the bunker)
+  const as=G.prologue&&G.prologue.flags&&G.prologue.flags.recruitAs;
+  if(as){
+    delete G.prologue.flags.recruitAs;
+    for(let i=0;i<(as.n||1);i++){const p=genRecruit(as.role,i);p.id='rcb'+(++G.recSeq);p.must=1;G.recWait.push(p);}
+    news('<b>'+G.recWait.length+' '+(G.recWait.length>1?'people have':'person has')+'</b> answered the call. They are waiting at the Command Center.','p');
+    sGood();RQ.push({t:'recruits'});
+    Pro.emit('opDone',{kind:'recruit',agent:ag?ag.id:null});
+    return;
+  }
+  // an Agent's search can turn up a potential source on their posted world instead of rebels (§3.5)
   if(ag){
     const world=ag.postedTo;
     const cand=Object.keys(CANDS).find(cid=>(CANDS[cid].locId||SRCPOS[cid])===world&&
@@ -1648,6 +1665,12 @@ function applySpec(m,spec){
   if(spec.npc){const c=Pro.cast(spec.npc);if(c){m.npc=Object.assign({role:m.npcRole||'Support'},c);bindNpc(m);}}
   if(spec.recruit===false)m.noRecruit=1;   // the freed prisoner does not join as a recruit (a beat decides what happens)
   if(spec.follow===false)m.noFollow=1;     // no source follow-up after the report (a beat speaks instead)
+  if(spec.scenario)m.scenario=spec.scenario;
+  if(spec.ships){   // the ships to steal, pinned: one prize pilot each
+    m.ships=spec.ships.slice();
+    m.req=Object.assign({},m.req||MTYPES[typeOf(m)].req(m),{prize:m.ships.length},spec.req||{});
+  }
+  bindNpc(m);   // the board's words, filled with the pinned names and ships
 }
 function maybeQueueEvent(src){
   if(src.pendingEvent||src.signal||proSrc(src))return;
@@ -2381,7 +2404,7 @@ function nextReport(){
   }
   else if(n.t==='recruits'){
     if(!G.recWait.length)return nextReport();
-    openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});
+    openWin('recruit',{cards:G.recWait.map(p=>({p,must:!!p.must})),batch:true});
   }
   else{
     const src=G.sources.find(x=>x.id===n.rpt.follow.src&&x.alive);
@@ -4967,7 +4990,8 @@ function guideTarget(at){
   const [k,arg]=String(at).split(':');
   const gxFree=baseView==='galaxy'&&!winMode&&!gxWorld;
   if(k==='tab'){
-    if(winMode||viewRoom||arOpen||bmOpen||msOpen||inOpen||(arg==='galaxy'&&baseView==='galaxy'))return null;
+    const here={galaxy:baseView==='galaxy'&&!arOpen&&!bmOpen&&!msOpen&&!inOpen,missions:msOpen,intel:inOpen,arsenal:arOpen,market:bmOpen}[arg];
+    if(winMode||viewRoom||here)return null;   // the tab bar shows on every screen; no pointer at the one already open
     const b=$(NAV_OF[arg]);return b&&!b.hidden?b.getBoundingClientRect():null;
   }
   if(k==='gx.src'){
@@ -4981,7 +5005,20 @@ function guideTarget(at){
     return btn?btn.getBoundingClientRect():null;
   }
   // the Intelligence tab: an Agent's node (by who they were), the stats on their rail, their cell, an operation
+  if(k==='bm.lot'){
+    if(!bmOpen||winMode||!G.market)return null;
+    const i=G.market.lots.findIndex(l=>l.keep&&l.pro===arg&&l.stock>0);
+    const el=i>=0&&$('bmStall').querySelector('[data-bmlot="'+i+'"]');
+    return el?el.getBoundingClientRect():null;
+  }
+  if(k==='base.hangar'){   // the Hangar on the base map (as the derelict-hauler guide finds it)
+    if(winMode||viewRoom||baseView!=='base'||arOpen||bmOpen||msOpen||inOpen)return null;
+    const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);if(!rm)return null;
+    const [x,y]=cellToCss(rm.r+(rm.h-1)/2,rm.c+(rm.w-1)/2),cvr=$('cv').getBoundingClientRect();
+    return {left:cvr.left+x-10,top:cvr.top+y-14,width:20,height:20};
+  }
   if(k.indexOf('in.')===0){
+    if(!inOpen&&!winMode)return guideTarget('tab:intel');   // not on the Intelligence tab yet: point at it first
     if(!inOpen||winMode)return null;
     const ag=(G.agents||[]).find(a=>a.from===arg)||(G.agents||[])[0];
     let els=[];
@@ -5529,11 +5566,11 @@ function renderWin(){
       const inner=(c.line?'<div class="sr-quote" style="margin:0 0 16px">'+c.line+'</div>':'')+dossierHead(p,'',true)+terms;
       if(!multi)return inner;
       return '<div class="sr-card sr-card--friend bs-reccard">'+inner+'<div class="sr-card__acts" style="margin-top:10px">'+
-        rbtn('data-rec-no="'+i+'"','Dismiss',false,'sr-btn--ghost sr-btn--sm')+rbtn('data-rec-accept="'+i+'"','Recruit',full&&!c.must,'sr-btn--primary sr-btn--sm')+'</div></div>';
+        (c.must?'':rbtn('data-rec-no="'+i+'"','Dismiss',false,'sr-btn--ghost sr-btn--sm'))+rbtn('data-rec-accept="'+i+'"','Recruit',full&&!c.must,'sr-btn--primary sr-btn--sm')+'</div></div>';
     };
     if(multi)size='lg';
     h=wHead(multi?'New Recruits!':'New Recruit!',{x:anyMust?false:'data-rec-later'})+wBody(multi?'<div class="bs-recgrid">'+cards.map(cardHTML).join('')+'</div>':cardHTML(cards[0],0))+
-      (multi?wFoot(batch?rbtn('data-rec-later','Decide later',false,'sr-btn--ghost'):'', batch?'Anyone you leave waits at the Command Center.':''):
+      (multi?wFoot(batch&&!anyMust?rbtn('data-rec-later','Decide later',false,'sr-btn--ghost'):'', batch&&!anyMust?'Anyone you leave waits at the Command Center.':''):
         wFoot((cards[0].must?'':rbtn('data-rec-no="0"','Dismiss',false,'sr-btn--ghost'))+rbtn('data-rec-accept="0"','Recruit',full&&!cards[0].must,'sr-btn--primary')));
   }
   else if(winMode==='candidate'){
@@ -7548,20 +7585,7 @@ function rollMarket(salt){
   };
   // mercenaries: generated like any recruit (Rebel.gen with the seeded rng), the record stored in the lot
   const takenNames=new Set(G.people.map(p=>p.name));
-  const addMerc=idx=>{
-    const role=r()<0.7?'Soldier':'Pilot';
-    const spec=Rebel.gen(role,takenNames,r);
-    takenNames.add(spec.name);
-    const level=2+Math.floor(r()*2);
-    const sPool=role==='Soldier'?['marksman','commando','gunner','demolitions']:['leader','flighteng'];
-    const specialty=r()<0.5?sPool[Math.floor(r()*sPool.length)]:null;
-    const fee=380+(level-2)*140+(specialty?80:0);   // 380-600, scaled by level and specialty
-    // their own kit: rolled from live, non-Hegemony weapons; it never enters the armory
-    const ownKit={primary:role==='Soldier'?['akli','scatter','longiron'][Math.floor(r()*3)]:null,secondary:'cowboy'};
-    const rec=Object.assign(spec,{id:'merc'+week+'x'+idx,level,xp:0,assign:'standby',injured:0,ownKit});
-    if(specialty)rec.spec=specialty;
-    lots.push({kind:'merc',key:rec.id,stock:1,price:fee,deal:'fair',merc:rec});
-  };
+  const addMerc=idx=>lots.push(mercLot(r,'merc'+week+'x'+idx,takenNames));
   // lots 1-3: always personal kit; the first is a weapon
   addKit(pickFrom(byCat('weapon')));
   addKit(pickFrom(pool));
@@ -7603,17 +7627,33 @@ function rollMarket(salt){
     addOf(cat,id,k);
   }
   if(salt)return {lots};
+  for(const l of (G.market&&G.market.lots)||[])if(l.keep&&l.stock>0)lots.push(l);   // a guaranteed lot waits until bought
   if(ord){G.sjobs=sjobs().filter(j=>j!==ord);news('<b>Sweet Tooth</b> came through on the Special Order: a '+BM_CAT[ord.tid].lab.toLowerCase()+' is on the stall.','g');}
   G.market={week,next:week*7+1,lots,unseen:lots.length};
   bmLine=null;
   return G.market;
 }
+/* a mercenary's lot: generated like any recruit, with their own kit and a fee by level and specialty */
+function mercLot(r,id,takenNames,role){
+  role=role||(r()<0.7?'Soldier':'Pilot');
+  const spec=Rebel.gen(role,takenNames,r);
+  takenNames.add(spec.name);
+  const level=2+Math.floor(r()*2);
+  const sPool=role==='Soldier'?['marksman','commando','gunner','demolitions']:['leader','flighteng'];
+  const specialty=r()<0.5?sPool[Math.floor(r()*sPool.length)]:null;
+  const fee=380+(level-2)*140+(specialty?80:0);   // 380-600, scaled by level and specialty
+  // their own kit: rolled from live, non-Hegemony weapons; it never enters the armory
+  const ownKit={primary:role==='Soldier'?['akli','scatter','longiron'][Math.floor(r()*3)]:null,secondary:'cowboy'};
+  const rec=Object.assign(spec,{id,level,xp:0,assign:'standby',injured:0,ownKit});
+  if(specialty)rec.spec=specialty;
+  return {kind:'merc',key:rec.id,stock:1,price:fee,deal:'fair',merc:rec};
+}
 /* Smuggling Runs (Smuggler): deliveries take half the time */
 const runsDays=()=>runnersOf('smuggler.runs').length?1:2;
 /* Inside Line (Smuggler): `n` of the lots change mid-week */
 function marketSwap(n){
-  const fresh=rollMarket(G.day).lots.slice(-n);
-  G.market.lots.splice(-n,n,...fresh);
+  const fresh=rollMarket(G.day).lots.slice(-n),kept=G.market.lots.filter(l=>l.keep).length;
+  G.market.lots.splice(G.market.lots.length-kept-n,n,...fresh);   // the guaranteed lots stay put
   G.market.unseen=(G.market.unseen||0)+n;bmLine=null;
   news('Inside Line: <b>Sweet Tooth</b> has swapped '+n+' lots at Nyx.','g');
 }
@@ -8119,6 +8159,7 @@ $('winsB').addEventListener('click',ev=>{
     G.people.push(Rebel.migrate(p));mood();autoEquip();
     G.recWait=G.recWait.filter(x=>x!==p);
     if(Rebel.has(p,'wealthy')){G.credits+=250;news('<b>'+p.name+'</b> arrives with family money: '+C(250)+' into the war chest.','g');}
+    delete p.must;
     news('<b>'+p.name+'</b> ('+p.role+') takes the oath. One more of us.','g');
     Pro.emit('joined',p);
     winArg.cards.splice(i,1);
@@ -8141,7 +8182,7 @@ $('winsB').addEventListener('click',ev=>{
     closeWin();syncUI();return;
   }
   if(t.hasAttribute('data-recruit-review')){
-    if(G.recWait.length){closeTilePop();openWin('recruit',{cards:G.recWait.map(p=>({p})),batch:true});}
+    if(G.recWait.length){closeTilePop();openWin('recruit',{cards:G.recWait.map(p=>({p,must:!!p.must})),batch:true});}
     return;
   }
   if(t.hasAttribute('data-gohangar')){
@@ -8470,6 +8511,10 @@ Pro.bind({
   news:(html,o)=>{news(html,o.cls||'a');if(o.alert)sAlert();if(o.good)sGood();},
   toast:html=>flashMsg(html,'friend'),
   view:()=>baseView,selected:()=>srcSel&&srcSel.t==='s'?srcSel.id:null,win:()=>winMode,
+  recruiting:()=>!!(G.recruit&&G.recruit.days),
+  transports:()=>G.fighters.filter(f=>SEATS[f.cls]).length+(G.inbound||[]).filter(x=>x.kind==='ship'&&SEATS[x.cls]).length,
+  // room at Haven Rock for 4 starfighters and 2 transports (the ships the bunker raid brings home, and a second hauler)
+  hangarFits:()=>fleetFits(['graf','graf','talon','talon','talon','talon'],padCounts()),
   // the missions the beats so far put on the board that are still waiting to be run
   proMissions:beats=>{
     const out=[];
@@ -8500,7 +8545,17 @@ Pro.bind({
       src.signal=s.mission?{kind:'mission',mid:s.mission,text:Pro.text(s.text),spec:s.spec,follow:s.follow}:{kind:s.kind,text:Pro.text(s.text)};
       return true;
     },
-    mission:v=>{addMission(v.id,false,v.spec);},
+    mission:v=>{if(addMission(v.id,false,v.spec))Pro.emit('accepted',v.id);},
+    // a guaranteed Black Market lot (docs/PROLOGUE-HANDOFF.md P4): kept through the restock until bought
+    marketLot:v=>{
+      ensureMarket();
+      const M=G.market,cat=v.cat;
+      if(M.lots.some(l=>l.keep&&l.pro===(v.id||cat)))return;
+      const l=cat==='merc'?mercLot(Math.random,'mercpro'+(G.recSeq+1)+'_'+G.day,new Set(G.people.map(p=>p.name)),v.role):
+        {kind:cat,key:v.id,stock:1,price:cat==='ship'?SHIP_PRICE[v.id]:(KIT[v.id]||{}).price||100,deal:'fair'};
+      l.keep=!!v.keep;l.pro=v.id||cat;
+      M.lots.push(l);M.unseen=(M.unseen||0)+1;
+    },
     agent:v=>{
       if(G.agents.some(a=>a.from===v.from))return;
       const ag=mkAgent(v.post,G,{name:(Pro.cast(v.from)||{}).name,from:v.from});
@@ -8586,7 +8641,7 @@ function precondList(m){
   if(r.transport){
     const T=transportSlots(r),np=T+(r.prize||0),sp=soldierPool().length,ap=ablePilots().length,tp=transportPool().length;
     out.push({ok:sp>=r.team,label:r.team+' rebel soldier'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Soldier'),detail:short(sp,r.team),why:needs(r.team,'soldier')});
-    out.push({ok:ap>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — one to fly the hauler, one for the prize':''),brief:pl(np,'Pilot'),detail:short(ap,np),why:needs(np,'pilot')});
+    out.push({ok:ap>=np,label:np+' pilot'+(np>1?'s':'')+' available'+(r.prize?' — '+(T>1?T+' to fly the haulers':'one to fly the hauler')+', '+(r.prize>1?r.prize+' for the prizes':'one for the prize'):''),brief:pl(np,'Pilot'),detail:short(ap,np),why:needs(np,'pilot')});
     out.push({ok:tp>=T,label:T+' hauler'+(T>1?'s':'')+' available',brief:pl(T,'Transport'),
       detail:G.wreck&&!G.wreck.restored&&!G.wreck.restoring?'Restore the hauler in the Hangar':short(tp,T),why:needs(T,'transport')});   // the onboarding hauler step
   } else {
@@ -8594,6 +8649,12 @@ function precondList(m){
     out.push({ok:ap>=r.team,label:r.team+' starfighter pilot'+(r.team>1?'s':'')+' available',brief:pl(r.team,'Pilot'),detail:short(ap,r.team),why:needs(r.team,'pilot')});
     out.push({ok:shp>=n,label:n+' '+(r.starfighter?'starfighter':'ship')+(n>1?'s':'')+' available'+(r.starfighter?' — a transport won’t do':''),brief:pl(n,w),
       detail:r.starfighter&&!shp&&G.fighters.length?'A transport won’t do':short(shp,n),why:needs(n,w.toLowerCase())});
+  }
+  const prizes=m.ships||[];
+  if(prizes.length){
+    const fits=fleetFits(fleetClasses().concat(prizes));
+    out.push({ok:fits,label:'Pad space at Haven Rock for '+prizes.length+' stolen ship'+(prizes.length>1?'s':''),brief:pl(prizes.length,'Pad'),
+      detail:'Build Hangar room',why:'Needs pad space for the ships'});
   }
   for(const it of r.items||[]){
     const have=(it.ids||[it.id]).reduce((n,id)=>n+((G.armory.find(a=>a.id===id)||{}).n||0),0);

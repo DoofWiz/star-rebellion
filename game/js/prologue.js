@@ -62,6 +62,19 @@ const PRO_TEXT={
   asqStep2T:'Exposure',
   asqStep2:'<b>Exposure</b> is how close the Bureau is to finding the rebellion. Every Lead pushes it higher.<br><i>Click the <b>?</b> button to learn more about Leads.</i>',
   lieLowStep:'[TEXT NEEDED: the step pointing at Lie Low on Tachi’s rail: order her cell to lie low until the heat dies down]',
+  // Cass: the Sheriff's bunker; the mission's name
+  bunkerOffer:'“Hey firebrand! I just tried landing on Akkaro and got denied. DENIED! The sheer cheek of it; treating me like I’m a criminal or something. Ahem… Seems like things are getting pretty hot here with all the craziness you’ve been pulling off. So tell me… are you a gambler? If so, I know where the Sheriff’s secure bunker is. It’s got the rest of his ships in there too. I’m sure he’d be thrilled to donate them to you.”',
+  raidBunker:'Raid the Bunker',
+  // Tachi will find pilots
+  tachiPilots:'“Venn told me about this job. He’s insane. And you are too if you’re actually going to try it… But you’re going to need more hands to do it so… I’ll do what I can.”',
+  recruitPointer:'[TEXT NEEDED: pointer label at Recruit on Tachi’s rail]',
+  // Cass: the Black Market; Sweet Tooth
+  marketOffer:'“Ever heard of the Black Market? All those credits and nowhere to spend them… I know somebody you’re gonna love who can hook you up with some extra help.”',
+  marketPointer:'[TEXT NEEDED: pointer label at the Black Market tab]',
+  sweetTooth:'“Well, well, what do we have here? Aren’t you a fiery one? Cass told me all about your little project. I think you and I could become very fast friends, sugar! Need an extra hand? Why not try hiring a Merc?”',
+  mercTut:'[TEXT NEEDED: the hire-a-mercenary tutorial: this mercenary will always be available here; hire them]',
+  haulerBuy:'[TEXT NEEDED: the hauler tutorial: buy a second Graf hauler from the Black Market]',
+  haulerHangar:'[TEXT NEEDED: the hauler tutorial: build Hangar room for 4 starfighters and 2 transports]',
   btnNext:'Next',
   btnGotIt:'Got it',
   // debug builds only
@@ -71,6 +84,7 @@ const PRO_TEXT={
 /* ---------- the people the beats speak for who are not Sources ---------- */
 const PRO_CAST={
   tachi:{name:'Tachi Gard',first:'Tachi',loc:'Akkaro'},
+  sweettooth:{name:'Sweet Tooth',first:'Sweet Tooth',loc:'Nyx'},
 };
 
 /* ---------- guided tutorials ----------
@@ -105,6 +119,24 @@ const PRO_TUTS={
     {at:'in.srclead:venn',title:'asqStep1T',text:'asqStep1',until:{inSel:'venn'}},
     {at:'in.exposure',title:'asqStep2T',text:'asqStep2',until:{inSel:{kind:'bureau'}}},
     {at:'in.op:lielow',text:'lieLowStep',opens:'op.lielow',until:{op:'lielow'}},
+  ]},
+  // beat 19: one pointer at Recruit on Tachi's rail (no tutorial: Recruit was taught in Run Your Network); skipped
+  // while a Recruit is already running
+  tachiRecruit:{steps:[
+    {at:'in.op:recruit',label:'recruitPointer',done:h=>h.recruiting(),until:{op:'recruit'}},
+  ]},
+  // beat 20: a pointer at the Black Market tab
+  marketTab:{steps:[
+    {at:'tab:market',label:'marketPointer',until:{tab:'market'}},
+  ]},
+  // beat 21: hire the mercenary who is always on the stall
+  hireMerc:{steps:[
+    {at:'bm.lot:merc',text:'mercTut',until:{hired:true}},
+  ]},
+  // beat 22: make room in the Hangar (a hauler needs a large pad to land on), then buy the second hauler
+  hauler:{steps:[
+    {at:'base.hangar',text:'haulerHangar',done:h=>h.hangarFits()},
+    {at:'bm.lot:graf',text:'haulerBuy',done:h=>h.transports()>=2},
   ]},
 };
 
@@ -191,7 +223,34 @@ const PROLOGUE=[
   {id:'lielow_wait',
    setup:h=>{h.lead('venn');h.openGate('op.lielow');h.tutDone('askingQuestions');h.lieLow('tachi');},
    until:{day:1}},
-  // P4 and P5 (docs/PROLOGUE-HANDOFF.md §6) go here, before the frontier.
+  // 18: Cass knows where the Sheriff's bunker is: Raid the Bunker goes on the board (its plan lists what is missing)
+  {id:'bunker_offer',
+   does:[{comm:{who:'cass',text:'bunkerOffer'}},
+     {mission:{id:'raidbunker',from:'cass',spec:{type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
+       name:'raidBunker',ships:['cross','talon','talon'],req:{team:5}}}}],
+   until:{accepted:'raidbunker'}},
+  // 19: the next day, Tachi will find pilots: the next Recruit to finish brings three
+  {id:'tachi_recruit',starts:{day:1},
+   setup:h=>h.addMission('raidbunker',{type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
+     name:'raidBunker',ships:['cross','talon','talon'],req:{team:5}}),
+   does:[{flag:{recruitAs:{role:'Pilot',n:3}}},{comm:{who:'tachi',text:'tachiPilots'}},{tutorial:'tachiRecruit'}],   // the flag holds from the start
+   until:{joined:{role:'Pilot',n:3}}},
+  // 20: Cass points the player at the Black Market
+  {id:'market',
+   setup:h=>{h.join('Pilot');h.join('Pilot');h.join('Pilot');},
+   does:[{comm:{who:'cass',text:'marketOffer'}},{gate:'tab.market'},{tutorial:'marketTab'}],
+   until:{tab:'market'}},
+  // 21: the first time the tab opens, Sweet Tooth's intro, then hiring a mercenary (one always waits on the stall)
+  {id:'sweet_tooth',
+   setup:h=>h.openGate('tab.market'),
+   does:[{marketLot:{cat:'merc',role:'Soldier',keep:true}},{comm:{who:'sweettooth',text:'sweetTooth'}},{tutorial:'hireMerc'}],
+   until:{hired:true}},
+  // 22: a second Graf hauler (always on the stall until bought) and Hangar room for 4 starfighters and 2 transports
+  {id:'hauler',
+   setup:h=>h.join('Soldier'),
+   does:[{marketLot:{cat:'ship',id:'graf',keep:true}},{tutorial:'hauler'}],
+   until:[h=>h.transports()>=2,h=>h.hangarFits()]},
+  // P5 (docs/PROLOGUE-HANDOFF.md §6) goes here, before the frontier.
   // DESIGN OPEN: security_arrives — security forces arrive at Akkaro. Waits on the regional Alert system.
   // {id:'security_arrives'},
   // DESIGN OPEN: campaign — Venn delivers the first Campaign, Liberate Akkaro. Waits on the Campaign design (CHAINS
@@ -318,7 +377,7 @@ function act(a,b){
   const k=Object.keys(a)[0],v=a[k];
   if(k==='gate')openGate(v);
   else if(k==='ungate'){const p=P();delete p.gates[v];}
-  else if(k==='flag'){const p=P();p.flags[v]=1;}
+  else if(k==='flag'){const p=P();if(v&&typeof v==='object')Object.assign(p.flags,v);else p.flags[v]=1;}
   else if(k==='tutorial')startTut(v);
   else if(k==='news')H.news(text(v.text),v);
   else if(H.act[k])H.act[k](v,b);

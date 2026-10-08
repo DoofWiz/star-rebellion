@@ -14,6 +14,7 @@
      {target}     what is being hit (fuel depot, AutoCom Plant)
      {place}      the region or world (Redrock Flats)
      {npc} {npc1} the person being rescued, full and first name
+     {ship}       a ship being stolen; {shipPilot} the pilot taking it (Steal Ship)
      {carrier}    who carries the charge or device; {device} which one
      {hacker}     the Field Technician on the job
      {fallen}     the rebels left behind, as a list
@@ -212,6 +213,43 @@ window.MT=(function(){
         loseVipDown:'{npc} went down short of the {transport}, and nobody had a Med Pack left to bring them round. The squad pulled out with nothing.',
         lose:'[TEXT NEEDED: end screen: the squad was overrun at the {target}]',
         lootDone:'Freed',
+      },
+    },
+
+    /* Steal Ship (the Campaigns & Missions doc): y ships to steal, a pilot for each. The description and objectives
+       are the doc's; each ship's objectives repeat for it. {ship} is the ship's name, {shipPilot} the pilot taking it.
+       Steal the Cross is an instance with one ship. Lines the doc has not written say [TEXT NEEDED] (C-48). */
+    stealship:{
+      scenario:'stealship',
+      name:'Steal Ship',
+      targets:['hangar'],
+      hook:'[TEXT NEEDED: a source tips us off about a ship we could steal at {place}]',
+      desc:'A ship they have would be very useful as part of our fleet. If we can steal it.',
+      after:['<b>{SRC}:</b> “[TEXT NEEDED: the source reacts to the ships we stole]”'],
+      banner:'[TEXT NEEDED: a short banner line under the mission name]',
+      foes:'Security',calm:'[TEXT NEEDED: they have not noticed us]',alert:'[TEXT NEEDED: they are alerted]',
+      obj:[
+        {k:'escort',t:'Escort {shipPilot} to {ship}'},
+        {k:'hotwire',t:'Hotwire the ship'},
+        {k:'lines',t:'Remove fuel line and clamps'},
+        {k:'board',t:'Board {ship} with {shipPilot}'},
+      ],
+      notes:[],
+      hint:'[TEXT NEEDED: the briefing hint: a pilot hotwires their ship (Work, or just stay near it out of combat), and the fuel line and clamps come off the same way]',
+      arrive:'[TEXT NEEDED: the transport pilot sets the squad down near {place}]',
+      work:{hotwire:{label:'HOTWIRE',verb:'hotwires {ship}'},clamp:{label:'DOCKING CLAMPS',verb:'releases the docking clamps'},fuel:{label:'FUEL LINE',verb:'pulls the fuel line'}},
+      float:{away:'[TEXT NEEDED: {ship} is in the air]'},
+      log:{
+        away:'[TEXT NEEDED: log line: {shipPilot} lifts {ship} off the pad]',
+        allAway:'[TEXT NEEDED: log line: every ship is ours; get the squad back to the {transport}]',
+      },
+      end:{
+        title:'[TEXT NEEDED: end screen title: the ships are ours]',
+        win:'[TEXT NEEDED: end screen: the ships are stolen and the squad is out]',
+        cost:' It cost us: {fallen} left at the {target}. We don’t forget that.',
+        losePilot:'[TEXT NEEDED: end screen: a pilot was lost before their ship was away]',
+        lose:'[TEXT NEEDED: end screen: the squad was overrun at the {target}]',
+        lootDone:'Stolen',
       },
     },
 

@@ -14,6 +14,7 @@ const SQUAD=[{id:'dax',name:'Dax Ferro',first:'Dax',aim:2,hp:100,wpns:['akli','c
              {id:'runa',name:'Runa Vel',first:'Runa',aim:2,hp:100,wpns:['akli','cowboy']},
              {id:'kel',name:'Kel Brasso',first:'Kel',aim:2,hp:100,wpns:['akli','cowboy']}];
 const TYPES=['stealfuel','intel','autofactory','rescue','ambush','towers'];
+const TEXTSETS=['stealfuel','intel','autofactory','rescue','ambush','stealship','towers'];   // Steal Ship's ground scene has a test of its own
 (async()=>{
  const b=await chromium.launch({executablePath:process.env.PW_CHROMIUM||'/opt/pw-browsers/chromium'});
  const pg=await b.newPage({viewport:{width:1280,height:800}});
@@ -25,7 +26,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','ambush','towers'];
  // ---- every line of every type fills, and none names the Marta
  const st=await pg.evaluate(()=>{
   const MT=window.MT,V={transport:'Hauler 2',pilot:'Joss',target:'widget yard',place:'Saltreach',npc:'Ada Quill',npc1:'Ada',
-    carrier:'Dax',device:'charge',hacker:'Runa',fallen:'Kel Brasso',n:1,total:5,SRC:'VENN'};
+    carrier:'Dax',device:'charge',hacker:'Runa',fallen:'Kel Brasso',n:1,total:5,SRC:'VENN',ship:'FT-4 Cross',shipPilot:'Sera'};
   const lines=[];
   const walk=(o,at)=>{if(typeof o==='string')lines.push([at,o]);else if(o&&typeof o==='object')for(const k in o)walk(o[k],at+'.'+k);};
   walk(MT.TYPES,'TYPES');walk(MT.COMMON,'COMMON');walk(MT.FOES.types,'FOES');
@@ -36,7 +37,7 @@ const TYPES=['stealfuel','intel','autofactory','rescue','ambush','towers'];
  ok(st.n>150,'the text sets hold the type text '+st.n);
  ok(!st.left.length,'every line fills with no {variable} left '+st.left.slice(0,5));
  ok(!st.marta.length,'no type line names the Marta or the Graf '+st.marta.slice(0,5));
- ok(st.keys===TYPES.join(),'one text set per reusable type '+st.keys);
+ ok(st.keys===TEXTSETS.join(),'one text set per reusable type '+st.keys);
 
  // ---- the board: a deployment's words come from its type; the transport is not picked yet
  const bd=await pg.evaluate(()=>{
