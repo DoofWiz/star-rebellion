@@ -2465,7 +2465,7 @@ function fsItems(){
    it's danger close, and a little footprint of how you aim it. Calls already on their way stay listed with their
    status; spent ones drop off. While sneaking, the loud calls show, locked. The full rule sits in the row's tip. */
 const FS_KIND={
-  drop:{ic:'supplies',c:'var(--sr-res-supplies)',fp:'drop',when:'Lands as the next round begins',
+  drop:{ic:'supplies',c:'var(--sr-res-supplies)',fp:'drop',when:'Drops at start of next round',
     rule:'Mark a spot the squad can see. A crate drops in as the next round begins: 5 stims, 2 BLAM and 2 rockets.'},
   strafe:{ic:'firesupport',c:'var(--sr-rebel)',fp:'line',when:'Hits at round end',danger:1,
     rule:'Two taps: where the run starts, then where it ends. The ship rakes everything along that line at the end of the round, our people included.'},
