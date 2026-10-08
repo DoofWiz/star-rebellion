@@ -49,6 +49,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-40 | ⚪ | Source approach: do standby contacts ever give up? Plus my choices — no auto re-knock, "+4 exposure" still moves `G.risk`, the gold courier strip | How a potential source is taken on, parked or burned |
 | C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
 | C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
+| C-46 | 🟡 | The Agents tutorial vs the build: a seeded Agent from day one (Tachi should be the first), Recruit returning Sources during onboarding; starting Cell capacity 2 decided | The Intelligence tab before Tachi joins; the Agents tutorial |
 | C-45 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2), what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-44 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | C-43 | ⚪ | Weapon voices: every weapon's own sound, reports per visible round — the character I gave each weapon | How combat sounds |
@@ -574,6 +575,18 @@ the Cruiser guns and even bare fists all played the Longhorn's crack, and burst 
 4. **Not touched:** missiles (lock, whoosh and warhead were already event-driven), the mining laser, arclight,
    Power Baton and Plasma SMG have voices waiting but stay live:FALSE (M-17).
 **Needs from you:** nothing — name any weapon that sounds wrong and I'll re-cut its voice.
+**Your call:** _open_
+
+### C-46 🟡 The Agents tutorial and onboarding vs the built Network
+`docs/TUTORIALS.md` (Run Your Network) has Tachi Gard join as the first Agent after *Rescue Tachi*, already posted
+to Akkaro, with Cass and Venn as her cell. The build disagrees in two places:
+1. **Every campaign opens with a seeded Agent** (`mkAgent('haven')` in the new-game setup), holding every Source.
+   Onboarding wants no Agent until Tachi joins, and Tachi as that Agent. Old saves keep their seeded Agent.
+2. **Recruit can return a Source.** During onboarding no new Sources should arrive until Akkaro is done (Tessaly
+   comes after; Halt and Vokk are parked), so Recruit should return Rebels only until then.
+3. **Decided: starting Cell capacity is 2** (the designer, 2026-10-08). `mkAgent` already sets `cap:2`;
+   `docs/ui/SCREENS-HANDOFF-2.md` §3.1 is updated to match.
+**Needs from you:** what the Intelligence tab shows before Tachi joins (hidden, or locked with a line of text).
 **Your call:** _open_
 
 ---
