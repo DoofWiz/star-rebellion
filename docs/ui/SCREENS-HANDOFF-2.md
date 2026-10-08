@@ -129,7 +129,7 @@ The same window family as the Comm burst (`sr-window cm-win`), titled "Approach"
 A new top-level tab, **after Missions**: Base · Galaxy · Missions · **Intelligence** · Arsenal · Black Market. Its icon is `eye`, and it's a full stage view (like the Missions tab in part 1). Top bar: "Intelligence", sub "Intelligence Centre · Haven Rock".
 
 ### 3.1 Data model (new). The rules are in the Network doc; the ⚑ items are review decisions
-- **Agents:** `G.agents = [{id, name, level, xp, tradecraft, cover, rapport, cap, postedTo, moving?, leads:[]}]`. This is a **dedicated recruit type**; other rebels never convert. Starting cell capacity is **1**, and it grows with the Intelligence Centre room's expansion and upgrades.
+- **Agents:** `G.agents = [{id, name, level, xp, tradecraft, cover, rapport, cap, postedTo, moving?, leads:[]}]`. This is a **dedicated recruit type**; other rebels never convert. Starting cell capacity is **2** (designer, 2026-10-08), and it grows with the Intelligence Centre room's expansion and upgrades.
 - **Sources:** each source gains `agent` (the handler's id); the existing `loc` stays.
 - **Leads:** `G.leads = [{target:{kind:'agent'|'source'|'location'|'base', id}, from, day}]`. A node with a Lead gains Risk passively and can be hunted.
 - **Exposure:** `G.exposure` (0–100), banded Low / Medium / High / Max.
