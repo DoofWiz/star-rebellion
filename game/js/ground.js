@@ -2441,7 +2441,7 @@ function checkBoss(){
 function fsItems(){
   if(!FS)return [];
   const it=[];
-  if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · once · danger close'});
+  if(FS.bombard===1)it.push({key:'bombard',name:'Heavy bombardment',sub:'Mission Control calls in everything it has on a spot the squad can see · hits at round end · once · indiscriminate'});
   if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))it.push({key:'evac',name:'Evac on call',sub:'tap a downed squad mate: a support pilot pulls them out · once'});
   if(FS.scan&&!FS.scanUsed)it.push({key:'scan',name:'Overwatch scan',sub:'Mission Control patches in every sensor they can reach: every enemy shows for this round · once'});
   if(FS.drop&&!FS.dropUsed)it.push({key:'drop',name:'Supply Drop',sub:'lands as the next round begins · 5 stims, 2 BLAM, 2 rockets'});
@@ -2449,8 +2449,8 @@ function fsItems(){
     if(a.state!=='ready')return;
     if(a.cassAir&&!tutFlags.fsCard)return;   // Cass stays off the menu until her tutorial card is up (A5)
     const nm=a.mode==='strafe'?'Strafing Run':a.mode==='doorgun'?'Door Gunner Cover':'Reinforcements';
-    const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · danger close':
-      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works up to 3 enemies inside it · 2 passes · enemy rockets can bring it down':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
+    const sub=a.mode==='strafe'?'two taps: where the run starts, then its heading · hits at round end · indiscriminate':
+      a.mode==='doorgun'?'pick a zone: the hauler holds a high, wide orbit and the gunner works every enemy inside it · 2 rounds · enemy rockets can bring it down':'lands '+a.soldiers.length+' soldier'+(a.soldiers.length===1?'':'s')+' at the start of the next planning';
     it.push({key:'s'+i,name:nm+' · '+a.name,sub});
   });
   (FS.vehicles||[]).forEach((a,i)=>{
@@ -2517,6 +2517,7 @@ function fsRows(){
   });
   const MC='Mission Control';
   if(FS.bombard===1)R(MC,'bombard','bombard','Heavy Bombardment');
+  else if(FS.bombard===2&&FS.orders.some(o=>o.kind==='bombard'&&!o.done))R(MC,'bombard','bombard','Heavy Bombardment',{status:'Inbound · round end'});
   if(FS.scan&&!FS.scanUsed)R(MC,'scan','scan','Overwatch Scan');
   else if(FS.scan&&scanRound===round)R(MC,'scan','scan','Overwatch Scan',{status:'Live this round'});
   if(FS.evac===1&&U.some(u=>u.side==='reb'&&u.down&&!u.dead&&!u.extracted&&!u.away&&!u.veh))R(MC,'evac','evac','Evac on Call');
@@ -2555,11 +2556,10 @@ function fsPlace(key,pt){
     return true;
   }
   if(!fsSeen(pt)){addFloater(pt.x,pt.y-20,'NO VISUAL',C.text3);return false;}
-  if(key==='bombard'){   // Heavy Bombardment (Combat Support)
-    FS.bombard=2;const t0=clock();
-    for(let k=0;k<6;k++){const a=k*1.05,r=k?60+rng()*70:0;exploQ.push({x:pt.x+Math.cos(a)*r,y:pt.y+Math.sin(a)*r,at:t0+500+k*260,opt:{r:150,d0:50,d1:80,fs:1}});}
-    log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> inbound. Heads down!');
-    sTakeoff();return true;
+  if(key==='bombard'){   // Heavy Bombardment (Combat Support): marked now, it hits at the end of the round like a strafing run
+    FS.bombard=2;FS.orders.push({kind:'bombard',x:pt.x,y:pt.y,done:false});
+    log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> marked. It hits at the end of the round.');
+    sTick();return true;
   }
   if(key==='drop'){
     if(FS.extra>0){FS.extra--;log('<span class="g">Fire Coordination:</span> Mission Control has another drop lined up after this one.');}
@@ -2628,7 +2628,7 @@ const dgTN=()=>SUP().precise?6:9;   // Precision Strikes (Combat Support): the d
 function dgTargets(mark){
   const seen=hostilesActive().filter(t=>unitSeen(t)&&U.some(r=>r.side==='reb'&&!r.down&&!r.away&&dist(r,t)<VIEW_R&&!losBlocked(r,t)));
   if(mark)return seen.filter(t=>Math.hypot(t.x-mark.x,t.y-mark.y)<dgZone())
-    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y))).slice(0,SUP().saturate?5:3);
+    .sort((a,b)=>(Math.hypot(a.x-mark.x,a.y-mark.y))-(Math.hypot(b.x-mark.x,b.y-mark.y)));   // every enemy in the zone (designer, Oct 2026)
   const pick=[];
   while(pick.length<3&&seen.length)pick.push(seen.splice(rint(0,seen.length-1),1)[0]);
   return pick;
@@ -2864,9 +2864,16 @@ function strafeRun(o){
   sTakeoff();
   camGoal={x:o.x1+Math.cos(o.ang)*400,y:o.y1+Math.sin(o.ang)*400,z:0.8};
 }
+function bombardRun(o){
+  o.done=true;const t0=clock();
+  for(let k=0;k<6;k++){const a=k*1.05,r=k?60+rng()*70:0;exploQ.push({x:o.x+Math.cos(a)*r,y:o.y+Math.sin(a)*r,at:t0+500+k*260,opt:{r:150,d0:50,d1:80,fs:1}});}
+  log('<span class="a">Mission Control:</span> <b>heavy bombardment</b> inbound. Heads down!');
+  sTakeoff();
+}
 function fsRoundEnd(){
   if(!FS)return;
   for(const o of FS.orders)if(o.kind==='strafe'&&!o.done)strafeRun(o);
+  for(const o of FS.orders)if(o.kind==='bombard'&&!o.done)bombardRun(o);
   for(const a of FS.ships){
     if(a.state!=='active')continue;
     if(HUD.reduced){dgAttack(a);dgSpend(a);continue;}  // reduced motion keeps the instant resolution
@@ -2944,6 +2951,10 @@ function drawFS(now){
       ctx.strokeStyle=T.rgba(C.hazard,0.75);ctx.lineWidth=3;ctx.setLineDash([16,10]);
       ctx.beginPath();ctx.moveTo(o.x1,o.y1);ctx.lineTo(o.x1+Math.cos(o.ang)*900,o.y1+Math.sin(o.ang)*900);ctx.stroke();ctx.setLineDash([]);
       plb('STRAFING RUN',o.x1,o.y1-18,C.hazard,12);
+    } else if(o.kind==='bombard'){   // the area the shells will cover, waiting for the end of the round
+      ctx.strokeStyle=T.rgba(C.hazard,0.55+0.25*Math.sin(now*0.006));ctx.lineWidth=3;ctx.setLineDash([14,10]);
+      ctx.beginPath();ctx.arc(o.x,o.y,150,0,7);ctx.stroke();ctx.setLineDash([]);
+      plb('BOMBARDMENT',o.x,o.y-166,C.hazard,12);
     } else {
       ctx.strokeStyle=T.rgba(C.shield,0.5+0.3*Math.sin(now*0.006));ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(o.x,o.y,26,0,7);ctx.stroke();

@@ -259,7 +259,7 @@
     X('combatsupport',7,'A','precision','Precision Strikes','job','The door gunner in a supported mission hits on 6+ instead of 9+. (Fire support never scatters in the game.)',{live:1}),
     X('combatsupport',7,'B','rapidresp','Rapid Response','job','Supply drops, reinforcements and vehicles called in a supported mission come down at once, not next round.',{live:1}),
     X('combatsupport',11,'','evac','Evac on Call','job','Once per supported mission, a support pilot flies out one downed rebel: they come home injured, not dead.',{live:1}),
-    X('combatsupport',15,'A','saturation','Saturation','rule','The door gunner’s zone is half again as wide and works up to 5 enemies; strafing blasts are wider.',{live:1}),
+    X('combatsupport',15,'A','saturation','Saturation','rule','The door gunner’s zone is half again as wide; strafing blasts are wider.',{live:1}),
     X('combatsupport',15,'B','dangerclose','Danger Close','rule','Rebels take no damage from their own fire support.',{live:1}),
     X('combatsupport',19,'','bombard','Heavy Bombardment','rule','Once per supported mission, call a heavy bombardment on any spot a squad member can see.',{live:1}),
   ];

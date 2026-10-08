@@ -7654,8 +7654,8 @@ function bmPopHTML(l){
     '<div class="bm-pop__head">'+IC(l.key==='medpack'?'patch':cm.ic)+'<b>'+esc(name)+'</b></div>'+
     '<div class="bm-pop__stats">'+lotStats(l)+'</div>'+
     '<div class="bm-pop__buy">'+
-      '<button type="button" class="sr-btn sr-btn--primary" data-bmbuy'+(whyBuy?' disabled':'')+'>'+(merc?'Hire':'Buy')+p(price)+(merc?'<small>/ 14 days</small>':'')+'</button>'+
-      (l.stock>1?'<button type="button" class="sr-btn sr-btn--ghost" data-bmbuyall'+(whyAll||whyBuy?' disabled':'')+'>Buy all '+l.stock+p(allCost)+'</button>':'')+
+      '<button type="button" class="sr-btn sr-btn--primary" data-bmbuy'+(whyBuy?' disabled title="'+esc(whyBuy)+'"':'')+'>'+(merc?'Hire':'Buy')+p(price)+(merc?'<small>/ 14 days</small>':'')+'</button>'+
+      (l.stock>1?'<button type="button" class="sr-btn sr-btn--ghost" data-bmbuyall'+(whyAll||whyBuy?' disabled title="'+esc(whyBuy||whyAll)+'"':'')+'>Buy all '+l.stock+p(allCost)+'</button>':'')+
     '</div>'+
     ((whyBuy||whyAll)?'<div class="bm-pop__why">'+IC('lock')+esc(whyBuy||whyAll)+'</div>':'')+
     '</div>';
@@ -7681,7 +7681,7 @@ $('bmView').addEventListener('click',ev=>{
   if(t.hasAttribute('data-bmbuy')){sClick();buyLot(bmSel,false);return;}
   if(t.hasAttribute('data-bmbuyall')){sClick();buyLot(bmSel,true);return;}
   const lot=t.getAttribute('data-bmlot');
-  if(lot!==null){sClick();bmSel=bmSel===+lot?null:+lot;bmLine=null;renderMarket();}
+  if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
 });
 /* phones re-pick their column counts when the viewport changes */
 addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();if(msOpen)msFit();});
