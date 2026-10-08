@@ -1037,8 +1037,8 @@ const MEXTRA={
   orehaul:{objectives:['Intercept the ore barge','Take the payroll and the ore']},
   foundry:{objectives:['Copy the Forge freight manifests']},
 };
-MEXTRA.stealcross.after=['<b>WENDER:</b> “You actually did it. A Cross, flying, and a sheriff who will never live it down. The cantinas are already talking. Keep your head down and your ears open. Somebody in Dustfall is going to want to thank you.”'];
-MEXTRA.depotrun.after=['<b>VENN:</b> “Half of Akkaro watched those depots burn from my roof. Nobody stopped cheering until the patrols came through. Come by the Comet. The first round is on the house, the second is on whoever the Hegemony sends next.”'];
+MEXTRA.stealcross.after=['<b>WENDER:</b> “Haha! You actually did it. Dustfall\'s sheriff will never live it down. The sight of that fighter being yoinked from under his nose is just too sweet. No doubt the bars in Dustfall are already talking about this. Somebody from town is going to want to thank you, no doubt.”'];
+MEXTRA.depotrun.after=['<b>VENN:</b> “By Space, I wish I could shake your hand right now. Our whole town watched those depots burn in the sky from my roof. We were all holldering our heads off, until the patrols came through anyway... Come by the Comet some time, if you ever feel like sticking your neck out. The first round is on the house.”'];
 MEXTRA.toi.after=['<b>HALT:</b> “The academy is in uproar. Vex is dead and nobody at the yards will say his name. Let me see what they do next.”'];
 MEXTRA.intercept.after=['<b>HALT:</b> “Supply transport missing, manifest clerk drinking at noon. You are a natural disaster, Commander.”'];
 MEXTRA.tanker.after=['<b>HALT:</b> “They are blaming the weather. The weather has an alibi. More soon.”'];
@@ -1213,7 +1213,7 @@ const STORY_SRC={
   cass:{id:'cass',name:'Cass Wender',type:'Smuggler · Freight',loc:'the Drift',level:1,cult:20,risk:20,inc:{s:16},
     bio:'Flew you in and didn’t ask questions. Knows every port, every price, and every sheriff’s bad habit between here and the core.'},
   venn:{id:'venn',name:'Maro Venn',type:'Cantina Keeper · The Dry Comet',loc:'Dustfall, Akkaro',level:1,cult:30,risk:15,inc:{c:48},
-    bio:'Poured drinks under Reeve’s boot for ten years. Watched the Cross lift off the pad and laughed until he cried.'},
+    bio:'Maro has been pouring drinks under Sherrif Reeve’s boot for ten years. He has no love for the Hegemony\'s laws, especially out on the frontier far from its attention.'},
 };
 function addStorySource(id){
   if(G.sources.some(s=>s.id===id))return G.sources.find(s=>s.id===id);
@@ -1906,7 +1906,7 @@ function launchMission(m){
 function missionAftermath(m){
   const mid=m.id;
   if(mid==='depotrun'){
-    news('The depot fires were visible from three worlds. Word spreads — and people who hate the Hegemony start looking for us. Carefully.','p');
+    news('The depot fires were visible from across much of Akkaro. Word is already spreading into neighbouring worlds and people who hate the Hegemony start looking for us as their answer. We might be getting a recruitment drive out of this.','p');
     syncLocalOps('akkaro',true);
   }
   Pro.emit('won',m.story||m.id);
@@ -6374,7 +6374,7 @@ $('navIntel').addEventListener('click',()=>{sClick();openIntel();});
 const cmChan=flavour=>'<div class="cm-chan"><div class="cm-chan__top"><b>Carrier locked</b><span>'+flavour+'</span></div><canvas id="commStatic" class="cm-wave" aria-hidden="true"></canvas></div>';
 const cmLog=t=>'<div class="cm-log"><span>'+t+'</span></div>';
 const cmSay=(ini2,name,text,tag)=>'<div class="cm-say"><span class="cm-say__ava" aria-hidden="true">'+esc(ini2)+'</span><div class="cm-bubble">'+
-  '<div class="cm-bubble__top">'+esc(name)+(tag?wTag(tag,'action'):'')+'</div><p>'+text+'</p></div></div>';
+  '<div class="cm-bubble__top">'+esc(name)+(tag?wTag(tag,'action'):'')+'</div><p>'+String(text).replace(/\n/g,'<br>')+'</p></div></div>';   // a line break in the text spreadsheet is a line break here
 /* the mission a signal would put on the board, read without putting it there */
 function signalLead(sig){
   let m=null;

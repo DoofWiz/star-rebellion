@@ -67,6 +67,8 @@ Rebel traits use `{name}` for the rebel and `{partner}` for the other one in a p
   already have, or a `{` or `}` of your own, is refused.
 - Some lines carry HTML: `<b>bold</b>`, `<br>`, `<span class="g">` (green), `"b"` (danger), `"d"` (quiet). Keep the
   tags around the words they wrap.
+- Because of that, a word in angle brackets, such as `<muffled shouting>`, would vanish in the game: write it
+  `&lt;muffled shouting&gt;`. In a comm or a Source's signal, a line break inside the cell is a line break on screen.
 - Spaces at either end of a line are kept as they were, because a line built from pieces often needs them
   (`'Day '+n`).
 - Straight and curly quotes and apostrophes are both in the game today; what you type is what you get.
