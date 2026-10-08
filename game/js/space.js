@@ -259,7 +259,7 @@ function deploy(withCutscene){
       const sh=mkShip('P'+(i+1),f.fighterName||('Wing '+(i+1)),CLS[f.cls]?f.cls:'viper','reb',
         P[i][0],P[i][1],-Math.PI/4,
         mkPilot({chatKey:f.pilotId,pname:f.name,first:(f.first||f.name).toUpperCase(),age:22+(f.level||1)*3,art:f.art,
-          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,tr:f.tr||[],who:f.pilotId,mans:(f.level||0)>=4?['loop']:[],
+          rankName:f.rankName,hero:f.hero||0,aim:f.aim||2,aimMod:f.aimMod||0,skills:f.skills,init:f.init,cool:f.cool||60,cun:f.cun||1,nv:f.nv||1,tr:f.tr||[],charTrait:f.charTrait,who:f.pilotId,mans:(f.level||0)>=4?['loop']:[],
           level:f.level||1,xp:0,bio:f.bio||'One of ours.'}),f.loadout);
       sh.fighterId=f.fighterId;
       // the base's work on the ship: Fighter Tuning, Heavy Frames, Pre-flight Checks (Aerogineer)
@@ -2125,12 +2125,6 @@ const $=byId;
 const {esc,ico}=HUD;
 const tag=HUD.tag;
 const CRIT_SHORT={engine:'Engine',targeting:'Targeting',controls:'Controls',emitter:'Emitter',feed:'Ammo feed',cockpit:'Cockpit'};
-/* cells for a durability bar: one per `per` points, lit while below the current value */
-function hpCells(val,max,per,guest){
-  const n=Math.ceil(max/per);let h='<span class="sr-hp__cells">';
-  for(let i=0;i<n;i++)h+='<i class="sr-hp__cell'+(i*per<val?' is-on':'')+(guest?' is-guest':'')+'"></i>';
-  return h+'</span>';
-}
 const winHead=t=>'<div class="sr-window__head"><span class="sr-window__title">'+t+'</span><button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-close aria-label="Close">'+ico('clear')+'</button></div>';
 function nerveHtml(s,tip){
   const nv=nerve(s);
@@ -2138,106 +2132,225 @@ function nerveHtml(s,tip){
 }
 /* a pair trait's partner by pilot id: their callsign if they fly in this fight */
 function partnerName(id){const m=id&&ships.find(x=>x.pilot&&x.pilot.who===id),f=m?String(m.pilot.first||m.pilot.pname||''):'';return f?f.charAt(0)+f.slice(1).toLowerCase():'someone';}
-function dossierHTML(s){
-  const p=s.pilot,nv=nerve(s);
-  const pctXP=Math.round(p.xp*100);
-  const state=s.alive?nerveHtml(s):s.fledOut?tag('Fled the sector',''):tag('KIA','bad');
-  const nc=nv[1]==='panic'?'var(--sr-c-bad)':nv[1]==='cool'?'var(--sr-shield)':'var(--sr-text-2)';
-  return winHead('Pilot dossier')+
-    '<div class="sr-window__body">'+
-    '<div class="sp-dz"><span class="sr-level" style="--p:'+pctXP+'" aria-label="Level '+p.level+'"><b>'+p.level+'</b></span>'+
-    '<div class="sp-dz__id"><div class="sp-dz__name">'+esc(p.pname)+'</div>'+
-    '<div class="sp-dz__tags">'+(p.rankName?tag(p.rankName,'progress','star'):'')+state+'</div>'+
-    '<div class="sp-dz__sub">'+esc(s.name)+' · age '+p.age+'</div></div></div>'+
-    '<div class="sr-meter sp-nerve" style="--c:'+nc+'"><span>Nerve</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.round(p.cool)+'%"></span></span><span class="sr-meter__val">'+Math.round(p.cool)+'</span></div>'+
-    '<p class="sr-p sp-bio">“'+esc(p.bio)+'”</p>'+
-    (p.tr.length?'<div class="sr-h3">Traits</div><div class="sr-stack">'+p.tr.map(t=>{const d=Rebel.def(t.k);if(!d)return '';const b=partnerName(t.with);
-      return '<div class="sr-card sr-card--progress sp-trait"><div class="sr-card__title">'+esc(d.n.replace('{partner}',b))+'</div><div class="sr-card__body">'+esc(d.e.replace(/\{partner\}/g,b))+'</div></div>';}).join('')+'</div>':'')+
-    (p.mans&&p.mans.length?'<div class="sr-h3">Pilot maneuvers</div><div class="sp-tags">'+p.mans.map(m=>tag(m==='loop'?'Loop ↺':'Barrel Roll ⇹','progress')).join('')+'</div>':'')+
-    '<p class="sr-fine">XP '+pctXP+'% to next grade · manual promotion arrives with the persistent campaign</p>'+
-    '</div>';
-}
-function segState(s,k){
-  const seg=s.segs[k];
-  if(seg.max===0)return null;
-  const home=k==='F'?'Fore':'Aft';
-  const at=seg.at===k?'':' → angled '+(seg.at==='F'?'forward':'aft');
-  return {label:home+' segment'+at,val:seg.val,max:seg.max,guest:seg.at!==k};
-}
-function durRow(label,cells,num,hp,note){
-  return '<div class="sp-dur"><div class="sr-hp"'+(hp?' style="--hp:'+hp+'"':'')+'><span class="sp-dur__l">'+label+'</span>'+cells+'<span class="sr-hp__num">'+num+'</span></div>'+
-    (note?'<div class="sp-dur__note">'+note+'</div>':'')+'</div>';
-}
 const WCOL={plasma:'var(--sr-shield)',ballistic:'var(--sr-gold)',missile:'var(--sr-psi)'};
-function shipHTML(s,title){
-  const c=CLS[s.cls];
-  let h=winHead(title||'Ship systems')+'<div class="sr-window__body">';
-  h+='<div class="sp-sw"><canvas id="shipIconCv" width="208" height="152"></canvas>'+
-    '<div><div class="sp-sw__cls">'+c.label+'</div><div class="sp-sw__role">'+c.role+'</div>'+
-    '<div class="sp-tags">'+tag('Max speed '+maxSpeedOf(s),'')+tag('Initiative '+effInit(s),'')+'</div></div></div>';
-  h+='<div class="sr-h3">Durability</div><div class="sp-durs">';
-  for(const k of ['F','R']){
-    const st=segState(s,k);
-    if(!st)continue;
-    h+=durRow('Shield',hpCells(st.val,st.max,5,st.guest),st.val+'/'+st.max,st.guest?'var(--sr-psi)':'var(--sr-shield)',st.label);
+/* ----- the Starfighter window: pilot and ship in one (docs/ui/SCREENS-HANDOFF-2.md §1) -----
+   It reuses the personnel file's plate, buttons, popovers and skill tiles (sr-personnel.css, pf-),
+   with the sf- layout from sr-shipfile.css. */
+const sfPop=(name,kind,body,fx)=>'<div class="pf-pop" role="tooltip"><div class="pf-pop__name">'+name+'</div><div class="pf-pop__kind">'+kind+'</div>'+
+  (body?'<p>'+body+'</p>':'')+(fx?'<div class="pf-fx">'+fx+'</div>':'')+'</div>';
+const sfTip=(btn,pop,wide)=>'<div class="pf-tip'+(wide?' is-wide':'')+'">'+btn+pop+'</div>';
+const sfBtn=o=>'<button class="pf-btn" type="button" data-pftip><span class="pf-btn__ico" style="--c:'+(o.c||'var(--sr-psi)')+'">'+ico(o.ico)+'</span>'+
+  '<span style="min-width:0"><span class="pf-btn__name">'+o.name+'</span><span class="pf-btn__kind">'+o.kind+'</span></span><span class="pf-btn__end">'+(o.dots||'')+ico('chevron')+'</span></button>';
+const sfDots=list=>list.length?'<span class="pf-dots">'+list.map(g=>'<i style="--c:'+(g?'var(--sr-go)':'var(--sr-c-bad)')+'"></i>').join('')+'</span>':'';
+const sfH=(icon,t,right)=>'<div class="pf-h">'+ico(icon)+t+(right?'<b>'+right+'</b>':'')+'</div>';
+const SF_EXP_ICO={Relationships:'people',Battlefield:'sword',Psychological:'panic',Successes:'star',Injuries:'patch',Rebellion:'revflame',Consequences:'skull',Positive:'heart'};
+/* the pilot's face, from their campaign look, the scripted cast, or a seeded stand-in */
+const faceCache=new Map();
+function pilotFaceURL(p){
+  const spec=p.art||(p.chatKey&&SA.CAST&&SA.CAST[p.chatKey])||p.pname||null;
+  if(!spec)return null;
+  const key=String(p.who||p.chatKey||p.pname||'');
+  const hit=faceCache.get(key);
+  if(hit)return hit;
+  try{
+    // framed for .sf-pilotface's zoom (scale 1.9 from 50% 22%): the head centred in the window that shows
+    const c=document.createElement('canvas');c.width=c.height=96;
+    const g=c.getContext('2d');
+    g.fillStyle='#2a1d14';g.fillRect(0,0,96,96);
+    SA.character(g,48,90,spec,{view:'front',t:0,s:1.66,weapon:null});
+    const u=c.toDataURL();faceCache.set(key,u);return u;
+  }catch(e){return null;}
+}
+/* rank chevrons, display only: one per rung of the pilot ladder, capped at four */
+function sfRank(p){
+  if(!p.rankName)return '';
+  const ladder=(Rebel.LADDER&&Rebel.LADDER.Pilot)||[];
+  const i=ladder.indexOf(p.rankName)>=0?ladder.indexOf(p.rankName):(Rebel.OFFICER||[]).indexOf(p.rankName);
+  const n=Math.max(1,Math.min(4,i+1));
+  let ch='';for(let k=0;k<n;k++)ch+='<path d="M'+(k*10+2)+' 12l5 -8 5 8" fill="none" stroke="var(--sr-gold)" stroke-width="2.6" stroke-linejoin="round"/>';
+  return '<div class="pf-rank" title="'+esc(p.rankName)+'" aria-label="Rank: '+esc(p.rankName)+'"><svg viewBox="0 0 '+(n*10+4)+' 14" style="width:'+(n*10+4)+'px;height:14px" aria-hidden="true">'+ch+'</svg><b>'+esc(p.rankName)+'</b></div>';
+}
+/* the header plate: portrait, level ring, name, "Pilot" and the nerve state (number in the title) */
+function sfPlate(s){
+  const p=s.pilot,nv=nerve(s),u=pilotFaceURL(p);
+  const state=s.alive?'<span class="sr-nerve sr-nerve--'+nv[1]+'" title="Nerve '+Math.round(p.cool)+' / 100">'+(nv[1]==='panic'?ico('panic'):nv[1]==='cool'?ico('cool'):'')+nv[0]+'</span>'
+    :s.fledOut?tag('Fled the sector',''):tag('KIA','bad');
+  return '<div class="pf-plate">'+
+    '<span class="sf-pilotface">'+(u?'<img src="'+u+'" alt="">':'')+'</span>'+
+    '<span class="pf-lvl" style="--xp:'+Math.round((p.xp||0)*100)+'" aria-label="Level '+p.level+', '+Math.round((p.xp||0)*100)+'% to the next"><b>'+p.level+'</b><small>LVL</small></span>'+
+    '<div style="min-width:0"><div class="pf-name">'+esc(p.pname)+'</div><div class="pf-role">'+ico('pilot')+'Pilot'+state+'</div></div>'+
+    sfRank(p)+'</div>';
+}
+/* one segmented shield arc per zone, fore up and aft down; a cell per 5 points, guests purple, exposed red-dashed */
+function sfZones(s){
+  if(maxShield(s)===0)return {svg:'',labels:''};
+  const spans={F:[-150,-30],R:[30,150]},R=172;
+  const arc=(r,a0,a1)=>{const P=a=>[(190+r*Math.cos(a*Math.PI/180)).toFixed(1),(190+r*Math.sin(a*Math.PI/180)).toFixed(1)];const [x0,y0]=P(a0),[x1,y1]=P(a1);
+    return 'M'+x0+' '+y0+' A'+r+' '+r+' 0 0 1 '+x1+' '+y1;};
+  let paths='',labels='';
+  for(const z of ['F','R']){
+    const at=['F','R'].filter(k=>s.segs[k].at===z&&s.segs[k].max>0);
+    const [d0,d1]=spans[z],home=z==='F'?'Fore':'Aft';
+    if(!at.length){
+      paths+='<path d="'+arc(R,d0,d1)+'" stroke="var(--sr-c-bad)" stroke-width="4" fill="none" stroke-dasharray="7 8"/>';
+      labels+='<span class="sf-zlbl" style="top:'+(z==='F'?34:412)+'px;--c:var(--sr-c-bad)">'+home+' zone exposed</span>';
+      continue;
+    }
+    const cells=[];let val=0,max=0;
+    for(const k of at){
+      const seg=s.segs[k];val+=seg.val;max+=seg.max;
+      for(let i=0;i<Math.ceil(seg.max/5);i++)cells.push({lit:i*5<seg.val,guest:k!==z});
+    }
+    const gap=2.5,w=(d1-d0-gap*(cells.length-1))/cells.length;
+    cells.forEach((c,i)=>{
+      const a0=d0+i*(w+gap);
+      paths+='<path d="'+arc(R,a0,a0+w)+'" stroke="'+(c.lit?(c.guest?'var(--sr-psi)':'var(--sr-shield)'):'#1f2550')+'" stroke-width="10" fill="none"/>';
+    });
+    const guestOnly=at.every(k=>k!==z);
+    labels+='<span class="sf-zlbl" style="top:'+(z==='F'?34:412)+'px;--c:'+(guestOnly?'var(--sr-psi)':'var(--sr-shield)')+'" title="'+home+' zone shield '+val+' of '+max+'">'+
+      home+' shield'+(at.some(k=>k!==z)?' · angled '+(z==='F'?'forward':'aft'):'')+' <b>'+val+'/'+max+'</b></span>';
   }
-  h+=durRow('Armour',hpCells(s.arm,s.maxArm,5),s.arm+'/'+s.maxArm,'var(--sr-steel)');
-  h+=durRow('Hull',hpCells(s.hull,s.maxHull,5),s.hull+'/'+s.maxHull,null);
-  h+='</div>';
-  if(maxShield(s)>0){
-    const ex=['F','R'].filter(z=>zoneShield(s,z)===0&&!['F','R'].some(k=>s.segs[k].at===z&&s.segs[k].max>0));
-    if(ex.length)h+='<div class="sp-tags sp-exp">'+ex.map(z=>tag((z==='F'?'Fore':'Aft')+' zone exposed','bad')).join('')+'</div>';
+  return {svg:'<svg class="sf-zones" viewBox="0 0 380 380" aria-hidden="true">'+paths+'</svg>',labels};
+}
+/* the move set: speed rows × maneuver columns, from dialAvail; the pilot's own maneuvers in purple */
+function sfDial(s){
+  const names={L:'Hard L',l:'Bank L',S:'Ahead',r:'Bank R',R:'Hard R',K:'Loop'};
+  const avail=dialAvail(s),shipD=CLS[s.cls].dial();
+  const has=(l,sp,tk)=>l.some(d=>d[0]===sp&&d[1]===tk);
+  const top=Math.max(CLS[s.cls].maxSpd+((s.tune&&s.tune.spd)||0),...avail.map(d=>d[0]));
+  let h='<div class="sf-dial"><span class="sf-dial__h"></span>'+DIAL_COLS.map(tk=>'<span class="sf-dial__h">'+names[tk]+'</span>').join('');
+  for(let sp=top;sp>=1;sp--){
+    h+='<span class="sf-dial__v">'+sp+'</span>';
+    for(const tk of DIAL_COLS){
+      const on=has(avail,sp,tk);
+      h+='<span class="sf-dial__c '+(on?(has(shipD,sp,tk)?'is-ship':'is-pilot'):'is-off')+'">'+(on?'•':'')+'</span>';
+    }
   }
-  h+='<div class="sr-h3">Weapons</div><div class="sr-stack">';
+  return h+'</div><div class="sf-mods" style="margin-top:8px">'+
+    '<div class="sf-mod" style="--c:var(--sr-shield)"><i></i>Ship</div>'+
+    '<div class="sf-mod" style="--c:var(--sr-psi)"><i></i>Pilot maneuver</div></div>';
+}
+const sfCells=(val,max,col)=>{let h='<span class="sr-hp__cells" style="--hp:'+col+'">';for(let i=0;i<Math.ceil(max/5);i++)h+='<i class="sr-hp__cell'+(i*5<val?' is-on':'')+'"></i>';return h+'</span>';};
+const sfDur=(label,val,max,col)=>'<div class="sf-dur"><span>'+label+'</span>'+sfCells(val,max,col)+'<b>'+val+'/'+max+'</b></div>';
+/* the stage: the ship top-down inside its shield arcs, the armour-and-hull plate across the bottom */
+function sfStage(s){
+  const c=CLS[s.cls],z=sfZones(s);
+  const spd=sfTip('<button class="sf-chip" type="button" data-pftip>'+ico('dial')+'Max speed<b>'+maxSpeedOf(s)+'</b></button>',
+    '<div class="pf-pop" role="tooltip"><div class="pf-pop__name">Move set</div><div class="pf-pop__kind">Speed × maneuver</div>'+sfDial(s)+'</div>');
+  return '<div class="sf-stage">'+
+    '<canvas class="sf-ship" width="1040" height="840"></canvas>'+z.svg+z.labels+
+    '<div class="sf-plate">'+
+    '<div class="sf-plate__top"><span class="sf-plate__name">'+esc(s.name)+'</span><span class="sf-plate__cls">'+esc(c.label+' · '+c.role)+'</span></div>'+
+    '<div class="sf-chiprow">'+spd+'<span class="sf-chip">'+ico('execute')+'Initiative<b>'+effInit(s)+'</b></span></div>'+
+    sfDur('Armour',s.arm,s.maxArm,'var(--sr-steel)')+sfDur('Hull',s.hull,s.maxHull,'var(--sr-go)')+
+    '</div></div>';
+}
+/* a weapon card: icon and name, the damage-type chip (traits in its popover), the slot, then the stat tiles */
+function sfWeapon(s,q,i,jam){
+  const wd=q.w,off=jam&&wd.kind!=='plasma';
+  const tc=critCount(s,'targeting'),hit=s.pilot.aim-tc*2+wd.atk;
+  const ammo=s.ammo[q.key];
+  const kindName=wd.kind.charAt(0).toUpperCase()+wd.kind.slice(1);
+  const traits=(wd.tags||'').split(/\.\s*/).filter(Boolean);
+  const type=sfTip('<span class="sf-type" style="--c:'+WCOL[wd.kind]+'" role="button" tabindex="0" data-pftip><span>'+ico(wd.icon)+'</span>'+kindName+'</span>',
+    sfPop(kindName,'Damage type',null,traits.map(t=>'<span style="--c:var(--sr-shield)">'+esc(t)+'</span>').join('')));
+  const modRow=(l,v,total)=>'<div class="sf-mod'+(total?' sf-mod--total':'')+'" style="--c:'+(v>=0?'var(--sr-go)':'var(--sr-hazard)')+'"><i></i>'+l+'<b>'+(v>=0?'+':'−')+Math.abs(v)+'</b></div>';
+  let mods=modRow('Pilot Aim'+(s.pilot.skills?' '+s.pilot.skills.aim:''),s.pilot.aim);
+  if(wd.atk)mods+=modRow('Weapon handling',wd.atk);
+  if(tc)mods+=modRow('Targeting Array Damage',-2*tc);
+  const tiles=[
+    sfTip('<span class="sf-tile" style="--c:'+(hit>=0?'var(--sr-go)':'var(--sr-hazard)')+'" role="button" tabindex="0" data-pftip><b>'+(hit>=0?'+':'−')+Math.abs(hit)+'</b><span>To hit</span></span>',
+      '<div class="pf-pop" role="tooltip"><div class="pf-pop__name">Modifiers</div><div class="pf-pop__kind">To hit</div><div class="sf-mods">'+mods+modRow('To hit',hit,true)+'</div></div>'),
+    '<span class="sf-tile"><b>'+wd.dmg[0]+'–'+wd.dmg[1]+'</b><span>Damage</span></span>'];
+  if(ammo!==undefined){
+    let pips='';for(let k=0;k<wd.ammo;k++)pips+='<i'+(k<ammo?'':' class="is-spent"')+'></i>';
+    tiles.push('<span class="sf-tile"'+(ammo===0?' style="--c:var(--sr-hazard)"':'')+'><b>'+ammo+'</b><span class="sf-pips">'+pips+'</span><span>Shots</span></span>');
+  }
+  return '<div class="sf-wpn'+(off?' is-off':'')+'" style="--c:'+WCOL[wd.kind]+'">'+
+    '<div class="sf-wpn__top"><span class="sf-wpn__art">'+ico(wd.icon)+'</span>'+
+    '<div style="min-width:0"><div class="sf-wpn__name">'+esc(wd.name)+'</div>'+
+    '<div class="sf-wpn__meta">'+type+'<span class="sf-slot">'+(i===0?'Primary':'Secondary')+'</span></div></div></div>'+
+    '<div class="sf-tiles" style="--n:'+tiles.length+'">'+tiles.join('')+'</div></div>';
+}
+function sfWeapons(s,bare){
   const jam=critCount(s,'feed');
-  if(!s.wpns.length)h+='<div class="sr-fine">No weapons fitted.</div>';
-  for(const q of s.wpns){
-    const wd=q.w,dmg=wd.dmg;
-    const hit=s.pilot.aim-critCount(s,'targeting')*2+wd.atk;
-    const off=jam&&wd.kind!=='plasma';
-    const ammo=s.ammo[q.key];
-    h+='<div class="sr-card sp-wcard'+(off?' is-off':'')+'" style="--c:'+WCOL[wd.kind]+'">'+
-      '<span class="sp-wicon">'+ico(wd.icon)+'</span>'+
-      '<div class="sp-winfo"><div class="sr-card__title">'+wd.name+(off?' '+tag('Jammed','bad'):'')+'</div>'+
-      '<div class="sp-wtags">'+wd.tags+'</div>'+
-      (ammo!==undefined?'<div class="sr-hp sp-ammo" style="--hp:var(--sr-gold-hi)">'+hpCells(ammo,wd.ammo,1)+'<span class="sr-hp__num">'+ammo+'/'+wd.ammo+'</span></div>':'')+
-      '</div>'+
-      '<div class="sp-wnums"><span class="sr-mod '+(hit>=0?'is-plus':'is-minus')+'"><b>'+(hit>=0?'+':'−')+Math.abs(hit)+'</b></span>'+
-      '<small>to hit · damage '+dmg[0]+'–'+dmg[1]+'</small></div>'+
-      '</div>';
+  let h=sfH('attack','Weapons');
+  h+=s.wpns.length?'<div class="sr-stack">'+s.wpns.map((q,i)=>sfWeapon(s,q,i,jam)).join('')+'</div>':'<div class="pf-none">No weapons fitted.</div>';
+  if(!bare&&s.crits.length){
+    h+=sfH('work','Critical damage')+'<div class="sr-stack">'+
+      s.crits.map(id=>'<div class="sf-crit"><span>'+ico('work')+'</span><div><b>'+CRITDEFS[id].name+'</b><em>'+CRITDEFS[id].desc+'</em></div></div>').join('')+'</div>';
   }
-  h+='</div>';
-  if(s.crits.length){
-    h+='<div class="sr-h3">Critical damage</div><div class="sr-stack">'+
-      s.crits.map(id=>'<div class="sp-crit">'+tag(CRITDEFS[id].name,'bad','work')+'<span>'+CRITDEFS[id].desc+'</span></div>').join('')+'</div>';
-  }
-  if(s.lock){
+  if(!bare&&s.lock){
     const t=ships.find(x=>x.id===s.lock.target);
-    h+='<div class="sr-h3">Sensors</div><div class="sp-tags">'+tag('Lock: '+esc(t?t.name:'?')+', level '+s.lock.level,s.faction==='reb'?'action':'foe','targetlock')+'</div>';
+    h+='<div class="sf-lock">'+ico('targetlock')+'<span>Locked on <b>'+esc(t?t.name:'?')+'</b></span><em>Lv '+s.lock.level+'</em></div>';
   }
-  h+='</div>';
   return h;
 }
-function paintShipIcon(icv,s){
-  if(!icv)return;
-  const c2=icv.getContext('2d');
-  c2.clearRect(0,0,icv.width,icv.height);
-  c2.save();
-  c2.translate(icv.width/2,icv.height/2);
-  c2.scale(2,2);
-  c2.rotate(-Math.PI/2);
-  paintShipBody(c2,s,1.9*s.size,s.faction==='heg');
-  c2.restore();
+/* the pilot column: nerve, character, experiences, maneuvers, skills — all detail in popovers */
+function sfPilotCol(s){
+  const p=s.pilot,st=coolState(s);
+  const col=st==='cool'?'var(--sr-shield)':st==='panic'?'var(--sr-c-bad)':'var(--sr-gold)';
+  let h='<div class="pf-morale" style="--c:'+col+'" title="Nerve '+Math.round(p.cool)+' / 100"><span class="pf-morale__lbl">Nerve</span>'+
+    '<div class="pf-bar" style="--v:'+Math.round(p.cool)+'"><i></i></div><span class="pf-morale__v">'+nerve(s)[0]+'</span></div>';
+  const ctKeys=[...new Set([p.charTrait,...(p.tr||[]).map(t=>t.k)])].filter(k=>Rebel.CTK&&Rebel.CTK[k]);
+  if(ctKeys.length)h+=sfH('d20','Character')+ctKeys.map(k=>{const ct=Rebel.CTK[k];
+    return sfTip(sfBtn({ico:'d20',name:esc(ct.n),kind:'Character trait'}),
+      sfPop(esc(ct.n),'Character trait','<em>'+esc(Rebel.traitText(ct,p))+'</em>'));}).join('');
+  const exps=(p.tr||[]).filter(t=>Rebel.RTK&&Rebel.RTK[t.k]);
+  h+=sfH('star','Experiences',exps.length+' / '+Rebel.EXP_MAX)+(exps.length?'<div class="pf-btngrid">'+exps.map(t=>{
+    const d=Rebel.RTK[t.k],name=esc(Rebel.expTitle(t,partnerName)),e=d.e.replace(/\{partner\}/g,partnerName(t.with));
+    return sfTip(sfBtn({ico:SF_EXP_ICO[d.cat]||'star',c:d.bad?'var(--sr-c-bad)':'var(--sr-psi)',name,kind:esc(d.cat)+(d.temp?' · for now':''),dots:sfDots([!d.bad])}),
+      sfPop(name,esc(d.cat)+(d.temp?' · temporary':''),'<em>'+esc(Rebel.expText(t,p,partnerName))+'</em>','<span style="--c:'+(d.bad?'var(--sr-c-bad)':'var(--sr-go)')+'">'+esc(e)+'</span>'));
+  }).join('')+'</div>':'<div class="pf-none">None yet. Missions write these.</div>');
+  if(p.mans&&p.mans.length)h+=sfH('roll','Pilot maneuvers')+'<div class="pf-btngrid">'+p.mans.map(m=>{
+    const n=m==='loop'?'Loop':'Barrel Roll';
+    return sfTip(sfBtn({ico:'roll',c:'var(--sr-psi)',name:n,kind:'Pilot maneuver'}),
+      sfPop(n,'Pilot maneuver',m==='loop'?'A speed-3 loop: finish the move facing back the way you came.':'Shift one ship-width sideways without turning.'));
+  }).join('')+'</div>';
+  const sk=p.skills||{},cun=p.cun||(1+((sk.cunning||0)-5)*0.01);
+  const rows=[['Aim',sk.aim,'+'+p.aim+' to hit'],
+    ['Cunning',sk.cunning,'+'+Math.max(0,Math.round((cun-1)*100))+'% repairs & shields'],
+    ['Focus',sk.focus,'+'+(p.focusBonus||0)+' harder to hit'],
+    ['Presence',sk.presence,Math.round(p.cool)+' Cool']];
+  h+=sfH('d20','Skills','max '+Rebel.SKILL_CAP)+'<div class="pf-skills">'+rows.map(([n,v,fx])=>
+    '<div class="pf-skill" title="'+n+' '+(v||0)+' of '+Rebel.SKILL_CAP+'."><div class="pf-skill__top">'+n+'<b>'+(v||0)+'</b></div>'+
+    '<div class="pf-bar" style="--v:'+Math.round((v||0)/Rebel.SKILL_CAP*100)+'"><i></i></div><div class="pf-skill__fx">'+fx+'</div></div>').join('')+'</div>';
+  return h;
 }
-/* the base layer shows the same ship-systems sheet for a hangar fighter (no mission running) */
+/* the whole window; bare (the hangar's ship sheet, or a crewless hull) drops the pilot column, nerve and lock */
+function starfighterHTML(s,o){
+  o=o||{};
+  const bare=o.bare||!!CLS[s.cls].mute;
+  let h=winHead(o.title||'Starfighter')+'<div class="sf-body"'+(bare?' style="grid-template-columns:420px minmax(0,1fr)"':'')+'>';
+  if(!bare)h+=sfPlate(s);
+  h+='<div class="sf-stagecol sf-col">'+sfStage(s)+'</div>';
+  h+='<div class="sf-mid sf-col"'+(bare?' style="grid-row:1/3"':'')+'>'+sfWeapons(s,bare)+'</div>';
+  if(!bare)h+='<div class="sf-side sf-col">'+sfPilotCol(s)+'</div>';
+  return h+'</div>';
+}
+function paintSfShip(cv2,s){
+  if(!cv2)return;
+  const g=cv2.getContext('2d');
+  g.clearRect(0,0,cv2.width,cv2.height);
+  g.save();g.scale(2,2);
+  const art=SA.SHIP_FOR_GAME[s.cls]||(SA.SHIPS&&SA.SHIPS[s.cls]?s.cls:'cross');
+  const lo=s.wpns&&s.wpns.some(q=>q.w.id==='door-mounted-gun')?{attach:['doorgun']}:undefined;
+  const k=6.2*Math.min(1,1.7/(s.size||1.7));   // the FT-4's scale; bigger hulls shrink to fit the rings
+  try{
+    SA.ship(g,art,260,210,-Math.PI/2,k,0,{livery:s.faction==='reb'?'rebel':(s.cls==='viper'?'law':'heg'),off:true,
+      damage:1-Math.max(0,s.hull)/s.maxHull,loadout:lo,pilotHit:critCount(s,'cockpit')?1:0});
+  }catch(e){}
+  g.restore();
+}
+/* the base layer shows the same window for a hangar fighter (no pilot, no combat state) */
 SR.shipSheet={
   make(cls,name,hullPct,aim){
     const s=mkShip('X',name,CLS[cls]?cls:'viper','reb',0,0,0,mkPilot({pname:'',first:'',age:0,aim:aim||2,cool:60,traits:[],mans:[],level:1,xp:0,bio:''}));
     s.hull=Math.max(1,Math.round(s.maxHull*Math.max(0,Math.min(100,hullPct))/100));
     return s;
   },
-  html(s,title){return shipHTML(s,title);},
-  paint(root,s){paintShipIcon(root.querySelector('#shipIconCv'),s);}
+  html(s,title){return starfighterHTML(s,{bare:true,title});},
+  paint(root,s){paintSfShip(root.querySelector('.sf-ship'),s);}
 };
 let infoBack=null;
 function openInfo(id){
@@ -2245,7 +2358,7 @@ function openInfo(id){
   const was=byId('infoWins').hidden;
   renderInfo();
   byId('infoWins').hidden=false;
-  if(was){infoBack=document.activeElement;const x=byId('shipWin').querySelector('[data-close]');if(x)x.focus({preventScroll:true});}
+  if(was){infoBack=document.activeElement;const x=byId('sfWin').querySelector('[data-close]');if(x)x.focus({preventScroll:true});}
 }
 function closeInfo(){
   infoShip=null;
@@ -2257,14 +2370,21 @@ function renderInfo(){
   const s=ships.find(x=>x.id===infoShip);
   if(!s){closeInfo();return;}
   const reb=s.faction==='reb';
-  for(const id of ['dossierWin','shipWin']){const w=byId(id);w.classList.toggle('sr-window--friend',reb);w.classList.toggle('sr-window--foe',!reb);}
-  HUD.render(byId('dossierWin'),dossierHTML(s));
-  if(HUD.render(byId('shipWin'),shipHTML(s))||!byId('shipWin').__painted){
-    byId('shipWin').__painted=1;
-    paintShipIcon(byId('shipIconCv'),s);
-  }
+  const w=byId('sfWin');
+  w.classList.toggle('sr-window--friend',reb);w.classList.toggle('sr-window--foe',!reb);
+  w.style.setProperty('--accent',reb?'var(--sr-rebel)':'var(--sr-heg)');   // .sf-win's own accent would outrank --foe
+  HUD.render(w,starfighterHTML(s));
+  paintSfShip(w.querySelector('.sf-ship'),s);
 }
 byId('infoWins').addEventListener('click',ev=>{
+  const tip=ev.target.closest('[data-pftip]');
+  if(tip){   // tap pins a popover open (hover and focus already show it)
+    const w=tip.closest('.pf-tip'),was=w.classList.contains('is-open');
+    byId('sfWin').querySelectorAll('.pf-tip.is-open').forEach(x=>x.classList.remove('is-open'));
+    if(!was)w.classList.add('is-open');
+    return;
+  }
+  if(!ev.target.closest('.pf-pop'))byId('sfWin').querySelectorAll('.pf-tip.is-open').forEach(x=>x.classList.remove('is-open'));
   if(ev.target.closest('[data-close]')||ev.target.id==='infoWins'||ev.target.classList.contains('sp-wins'))closeInfo();
 });
 
@@ -2789,8 +2909,8 @@ if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
     get exec(){return exec;},get attackQ(){return attackQ;},get awaitAction(){return awaitAction;},CLS,
-    fn:{deploy,gameOver,destroyShip,sVolley,SVOICE_:()=>SVOICE,luckySave,critChance,adjCool,dossierHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
-      dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,shipHTML,
+    fn:{deploy,gameOver,destroyShip,sVolley,SVOICE_:()=>SVOICE,luckySave,critChance,adjCool,starfighterHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+      dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,renderInfo,closeInfo,
       setRound(n){round=n;},
       clock,juiceTick,fireCtx,applyCtx,juice_:()=>({vols,pops,killFx,shFx,impFx,parts:PFX.list,trauma:SHK.trauma}),
       forceEnd(win){gameOver(win);}}};

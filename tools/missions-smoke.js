@@ -109,7 +109,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  });
  ok(ph.stack&&ph.drawer,'phone: the board and the table stack; a card opens the briefing drawer '+JSON.stringify(ph));
  // ---- an older save's board was seen in the old popup: nothing on it is flagged New
- const mig=await pg.evaluate(()=>{const D=window.DBGbase,f=D.fn,old=JSON.parse(JSON.stringify(D.G));old.v=f.saveVersion()-1;for(const m of old.missions)delete m.seen;
+ const mig=await pg.evaluate(()=>{const D=window.DBGbase,f=D.fn,old=JSON.parse(JSON.stringify(D.G));old.v=6;for(const m of old.missions)delete m.seen;   // version 6: from before the seen flag (MIGRATIONS[6] adds it)
    const keep=D.G;D.G=old;f.upgradeSave();const out=[old.v===f.saveVersion(),old.missions.length>0&&old.missions.every(m=>m.seen===1)];D.G=keep;return out;});
  ok(mig[0]&&mig[1],'the save migration marks an old board seen '+mig);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));

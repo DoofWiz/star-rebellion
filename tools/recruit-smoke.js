@@ -1,5 +1,5 @@
-/* Smoke test for the Command Center recruiting task and the multi-card New Recruit screen:
-   node tools/recruit-smoke.js (needs NODE_PATH=$(npm root -g)). */
+/* Smoke test for recruiting (an Agent's search since SCREENS-HANDOFF-2 §3.5) and the multi-card New Recruit
+   screen: node tools/recruit-smoke.js (needs NODE_PATH=$(npm root -g)). */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -13,12 +13,13 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const D=window.DBGbase,f=D.fn,G=()=>D.G,out={};
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const days=n=>{for(let i=0;i<n;i++)f.advanceDay();};
-  // the card, and starting the task
-  out.cardIdle=f.recruitCard().indexOf('data-recruit-start')>=0;
-  const c0=G().credits;f.startRecruit();
-  out.started=[c0-G().credits,G().recruit.days];
-  f.startRecruit();out.noDouble=c0-G().credits;
-  out.cardBusy=f.recruitCard().indexOf('3 day')>=0;
+  // the Command Center card points at the network; an Agent's Recruit operation starts the search
+  out.cardIdle=f.recruitCard().indexOf('data-gointel')>=0&&f.recruitCard().indexOf('data-recruit-start')<0;
+  const ag=G().agents[0];
+  f.agentRecruit(ag);
+  out.started=[G().recruit.agent===ag.id,G().recruit.days];
+  f.agentRecruit(ag);out.noDouble=G().recruit.days;
+  out.cardBusy=G().recruit.days===3;
   // nobody yet after two days, someone on the third
   days(2);out.before=[G().recWait.length,f.getWin()];
   // someone working the Command Center means at least two candidates
@@ -45,7 +46,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   }
   out.afterLater=[f.getWin(),G().recWait.length];
   out.cardWaiting=f.recruitCard().indexOf('data-recruit-review')>=0;
-  out.cantRestart=f.canRecruit();
+  f.agentRecruit(ag);out.cantRestart=G().recruit.days>0;
   // review brings them back; dismiss clears them
   if(G().recWait.length){
     $('[data-recruit-review]')||0;
@@ -61,13 +62,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.singleAccepted=[G().people.length-n1,f.getWin()];
   // full barracks: accept is disabled and the task will not start
   const cap=f.bunkCap();while(G().people.length<cap){G().people.push(window.Rebel.migrate({id:'fill'+G().people.length,name:'F'+G().people.length+' X',role:'Soldier',level:1,xp:0,assign:'rest',injured:0}));}
-  out.full=[f.canRecruit(),f.recruitCard().indexOf('No bunks')>=0||f.recruitCard().indexOf('disabled')>=0];
+  f.agentRecruit(ag);days(3);
+  out.full=[G().recWait.length,G().news.some(n=>/empty-handed/.test(n.html))];
   return out;
  });
- ok(r.cardIdle,'idle card has the start button');
- ok(r.started[0]===200&&r.started[1]===3,'cost and days '+r.started);
- ok(r.noDouble===200,'second start refused '+r.noDouble);
- ok(r.cardBusy,'busy card shows days left');
+ ok(r.cardIdle,'the Command Center card points at the Intelligence tab');
+ ok(r.started[0]===true&&r.started[1]===3,'the search is the agent\'s task, 3 days '+r.started);
+ ok(r.noDouble===3,'second start refused '+r.noDouble);
+ ok(r.cardBusy,'the task runs its days');
  ok(r.before[0]===0&&r.before[1]!=='recruit','nobody arrives early '+r.before);
  ok(r.win==='recruit','the New Recruit screen opens on arrival: '+r.win);
  ok(r.waiting>=2&&r.waiting<=3&&r.cards===r.waiting,'2-3 candidates as cards: '+r.waiting+' / '+r.cards);
@@ -79,7 +81,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.cleared[0]!=='recruit'&&r.cleared[1]===0,'dismissing clears them '+r.cleared);
  ok(r.single[0]===0&&r.single[1]&&r.single[2],'single offer keeps classic layout '+r.single);
  ok(r.singleAccepted[0]===1&&r.singleAccepted[1]!=='recruit','single accept '+r.singleAccepted);
- ok(r.full[0]===false,'no new call with a full barracks');
+ ok(r.full[0]===0&&r.full[1],'a full barracks sends the search home empty-handed '+r.full);
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'recruit-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);

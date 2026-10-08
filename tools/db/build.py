@@ -116,6 +116,7 @@ SCHEMA = {
             ("default_weapon_2", "id", 22, "Weapon id in slot 2 on a stock ship. Blank is none."),
             ("extra_people", "int", 8, "People who can ride along besides the pilot."),
             ("gunner_positions", "int", 9, "Gunner positions. A weapon that enables fire support (see Weapons) needs one to be useful."),
+            ("supply_drop", "bool", 10, "TRUE if, as the transport on a ground mission, it can fly a Supply Drop to the squad it carried."),
             ("fuel_per_sortie", "int", 9, "Fuel burned each mission. Blank for drones and structures."),
             ("special_rules", "text", 60, "Anything the numbers do not cover."),
             ("description", "text", 70, "Flavour text shown to the player."),
@@ -446,6 +447,10 @@ def validate(db):
             E("%s: every ship needs a straight speed" % n)
         for c in ("shield_front", "shield_rear", "armour", "weapon_slots", "hard_points", "extra_people", "gunner_positions"):
             rng("ships", s, c, 0, 9999)
+        if not isinstance(s["supply_drop"], bool):
+            E("%s: supply_drop must be TRUE or FALSE" % n)
+        elif s["supply_drop"] and not s["extra_people"]:
+            E("%s: supply_drop needs a ship that carries a squad (extra_people)" % n)
         rng("ships", s, "hull", 1, 9999)
         ref("ships", s, "default_weapon_1", "weapons")
         ref("ships", s, "default_weapon_2", "weapons")
@@ -904,6 +909,10 @@ def _parse(v, typ, where):
     return int(x) if x.is_integer() else x  # num
 
 
+# columns added after workbooks were already out with the designer: an import without them keeps db.json's values
+ADDED_COLS = {"ships": ("supply_drop",)}
+
+
 def import_xlsx(path):
     _need_openpyxl()
     from openpyxl import load_workbook
@@ -922,16 +931,27 @@ def import_xlsx(path):
             if c.value is not None:
                 headers[str(c.value).strip()] = c.column
         missing = [k for k, _, _, _ in spec["cols"] if k not in headers]
+        # a column added since the workbook was exported keeps the values already in db.json
+        keep = [k for k in missing if k in ADDED_COLS.get(t, ())]
+        missing = [k for k in missing if k not in keep]
         if missing:
             problems.append("%s: missing columns %s" % (spec["sheet"], ", ".join(missing)))
             continue
+        if keep:
+            print("%s: no %s column in the workbook (added since it was exported); keeping the values in db.json"
+                  % (spec["sheet"], ", ".join(keep)))
+        prev = {r.get(spec["key"]): r for r in old.get(t, [])}
         rows = []
         for r in range(2, ws.max_row + 1):
-            raw = {k: ws.cell(row=r, column=headers[k]).value for k, _, _, _ in spec["cols"]}
+            raw = {k: ws.cell(row=r, column=headers[k]).value for k, _, _, _ in spec["cols"] if k in headers}
             if all(v is None or (isinstance(v, str) and not v.strip()) for v in raw.values()):
                 continue
             row = {}
             for k, typ, _, _ in spec["cols"]:
+                if k in keep:
+                    kv = raw.get(spec["key"])
+                    row[k] = (prev.get(kv) or {}).get(k, False if typ == "bool" else None)
+                    continue
                 try:
                     row[k] = _parse(raw[k], typ, "%s row %d column %s" % (spec["sheet"], r, k))
                 except ValueError as e:

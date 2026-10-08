@@ -42,7 +42,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.crit=[F.critChance(w,{},vex),Math.round(F.critChance(w,{},cad)*100)/100].join();cad.pilot.tr=[];
   F.setRng(Math.random);
   // the dossier speaks the rebels' traits, with the partner's name
-  out.dz=[F.dossierHTML(petra).indexOf('Friends with Joss')>=0,F.dossierHTML(vex).indexOf('Commandant')>=0,F.dossierHTML(sera).indexOf('Lucky')>=0].join();
+  out.dz=[F.starfighterHTML(petra).indexOf('Friends with Joss')>=0,F.starfighterHTML(vex).indexOf('Commandant')>=0,F.starfighterHTML(sera).indexOf('Lucky')>=0].join();
   // Friends: Petra panics for good when Joss goes down; the lead's fall shakes the cadets
   petra.pilot.cool=70;F.destroyShip(joss,null);out.friend=[petra.pilot.friendLock,petra.pilot.cool<=20].join();
   const c0=cad.pilot.cool;F.destroyShip(vex,sera);out.lead=c0-cad.pilot.cool;

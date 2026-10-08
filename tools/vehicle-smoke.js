@@ -178,7 +178,8 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
   out.slot=[!!sl,sl&&sl.opt];
   f.plPlace('v:strider');
   out.placed=PL.v.gv0;
-  out.html=document.body.innerHTML.indexOf('Vehicles and Bots')>=0;
+  f.renderWin();
+  out.html=!!document.querySelector('#winCardB [data-slot="gv0"]')&&document.querySelector('#winCardB [data-slot="gv0"]').textContent.indexOf('Strider SK-1')>=0;
   f.closeWin();
   // the debrief brings it home damaged, or not at all
   f.applyDebrief({missionId:'vtest',kind:'ground',days:0,win:true,people:[],vehicles:[{id:'strider',lost:false,hp:40}]});
