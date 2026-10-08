@@ -4954,10 +4954,18 @@ function pointAt(rc,label){
   el.hidden=false;
   el.querySelector('.sr-pointer__label').textContent=label;
   el.style.left=(rc.left+rc.width/2)+'px';
-  // targets low on the screen get the pointer beneath them, arrow up
-  const below=rc.top>innerHeight*0.62;
+  // targets low on the screen get the pointer beneath them, arrow up, unless it would run off the bottom (a dock
+  // button near the edge, an iPad's home indicator): then it goes above
+  const h=el.offsetHeight||50,[top,bot]=guideBounds();
+  const fitsBelow=rc.top+rc.height+8+h+8<=bot,fitsAbove=rc.top-58>=top;
+  const below=rc.top>innerHeight*0.62?(fitsBelow||!fitsAbove):(!fitsAbove&&fitsBelow);
   el.classList.toggle('below',below);
-  el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(4,rc.top-58)+'px';
+  el.style.top=below?(rc.top+rc.height+8)+'px':Math.max(top,rc.top-58)+'px';
+}
+/* the part of the screen a pointer or callout may use: inside the safe area (the status bar, the home indicator) */
+function guideBounds(){
+  const cs=getComputedStyle(ROOT);
+  return [4+(parseFloat(cs.paddingTop)||0),innerHeight-4-(parseFloat(cs.paddingBottom)||0)];
 }
 /* a guided step's callout: the coach card, beside its target */
 function coachAt(rc,st){
@@ -4967,12 +4975,13 @@ function coachAt(rc,st){
     '<span class="pro-coach__txt">'+Pro.text(st.text)+'</span>'+
     (st.next?'<div class="sr-coach__foot"><button type="button" class="sr-btn pro-coach__btn" data-pronext>'+Pro.text(st.next)+'</button></div>':'');
   if(el.__html!==html){el.innerHTML=html;el.__html=html;}
-  const w=el.offsetWidth||300,h=el.offsetHeight||90;
-  // beside the target when there is room (it covers less), else above it, else below
-  const side=rc.left+rc.width+w+24<=innerWidth,above=!side&&rc.top-h-14>=8;
+  const w=el.offsetWidth||300,h=el.offsetHeight||90,[top,bot]=guideBounds();
+  // beside the target when there is room (it covers less), else above it, else below (kept on screen)
+  const side=rc.left+rc.width+w+24<=innerWidth,above=!side&&(rc.top-h-14>=top||rc.top+rc.height+14+h>bot);
   el.classList.toggle('sr-coach--tail-left',side);el.classList.toggle('sr-coach--tail-down',above);el.classList.toggle('sr-coach--tail-up',!side&&!above);
-  if(side){el.style.left=(rc.left+rc.width+16)+'px';el.style.top=Math.max(8,Math.min(innerHeight-h-8,rc.top+Math.min(rc.height/2,40)-22))+'px';}
-  else{el.style.left=Math.max(8,Math.min(innerWidth-w-8,rc.left+rc.width/2-40))+'px';el.style.top=(above?rc.top-h-14:rc.top+rc.height+14)+'px';}
+  if(side){el.style.left=(rc.left+rc.width+16)+'px';el.style.top=Math.max(top,Math.min(bot-h,rc.top+Math.min(rc.height/2,40)-22))+'px';}
+  else{el.style.left=Math.max(8,Math.min(innerWidth-w-8,rc.left+rc.width/2-40))+'px';
+    el.style.top=Math.max(top,Math.min(bot-h,above?rc.top-h-14:rc.top+rc.height+14))+'px';}
 }
 /* a target inside a scrolled box counts only while it is in view */
 function inView(el){
