@@ -919,7 +919,7 @@ function fireCtx(c,now){
     const first=1000*Math.min(...(hitAts.length?hitAts:ats)),last=1000*Math.max(...ats);
     c.vol={s,t,key,plan,lands,x0,y0,t0:now,dur:last+500,mode:plan.mode,res:c,cum:0,first:true,dir:Math.atan2(t.y-s.y,t.x-s.x)};
     vols.push(c.vol);
-    if(kind==='ballistic')sRattle();else sZap(s.faction==='heg');
+    sVolley(key,plan,s.faction==='heg');
     muzzleFlash(s,kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebelHi:C.hegHi));
     c.tApply=now+Math.max(40,first);c.tEnd=now+Math.max(first+(RM?280:650),last+350);
   } else {
@@ -941,7 +941,7 @@ function fireCtx(c,now){
         kind:kind==='ballistic'?'ballistic':'plasma',side:s.faction==='reb'?'reb':'heg',
         col:kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebel:C.heg),thin:kind==='ballistic'});
     }
-    if(kind==='ballistic')sRattle();else sZap(s.faction==='heg');
+    for(let i=0;i<n;i++)sBolt(kind,i*stag/1000,s.faction==='heg');
     muzzleFlash(s,kind==='ballistic'?C.goldHi:(s.faction==='reb'?C.rebelHi:C.hegHi));
     c.tApply=now+fly+n*stag*0.4;c.tEnd=c.tApply+(RM?280:650);
   }
@@ -1251,18 +1251,36 @@ function drawPops(now){
 
 /* ---------- audio: layered synth engine ---------- */
 const sTick=A.tick;
-function sZap(heg){
-  if(A.off())return;
-  osc('sawtooth',heg?950:1350,heg?110:170,0.14,0.18);
-  osc('square',heg?640:900,heg?90:130,0.07,0.16);
-  nz('highpass',3000,1,0.06,0.05);
+/* ---------- a voice for every ship weapon ----------
+   One SVOICE entry per weapon key (the art kit's PROJ names): it plays a single round's report
+   at `at` seconds. fireCtx hands sVolley the same volley plan the bolts draw from, so the burst
+   you hear is the burst you see. Hegemony plasma runs lower, as sZap always did; jt() wobbles
+   each report so long bursts don't sound stamped out. */
+const jt=f=>f*(0.95+rng()*0.1);
+const SVOICE={
+  repeaters(at,heg){   // BLS-T twin plasma: a double tap per round
+    const f=heg?0.72:1;
+    osc('sawtooth',jt(1350*f),170*f,0.11,0.16,at);
+    osc('square',jt(900*f),130*f,0.06,0.14,at+0.03);
+    nz('highpass',3000,1,0.04,0.05,at);
+  },
+  dronegun(at){osc('square',jt(1500),420,0.07,0.1,at);osc('sine',jt(2200),950,0.04,0.08,at);},   // Autocom pulse emitters: small and chirpy
+  cruiser(at){osc('sawtooth',jt(700),90,0.12,0.22,at);osc('sine',jt(175),58,0.09,0.2,at);},   // Pursuer pulse cannon: deep and heavy
+  doorgun(at){osc('sine',jt(105),34,0.2,0.12,at);nz('lowpass',700,0.9,0.15,0.15,at);nz('highpass',2000,1,0.06,0.04,at);},   // the Graf's gun: slow ballistic slugs
+};
+/* one report per round of the plan, on the plan's own clock; returns the report count */
+function sVolley(key,plan,heg){
+  const rounds=plan&&plan.rounds?plan.rounds:[{fire:0}];
+  if(A.off())return rounds.length;
+  const v=SVOICE[key]||SVOICE.repeaters;
+  for(const r of rounds)v(r.fire||0,heg);
+  return rounds.length;
 }
-function sRattle(){
+/* the simple burst path fires loose bolts, not a plan: one report per bolt, same stagger */
+function sBolt(kind,at,heg){
   if(A.off())return;
-  for(let i=0;i<8;i++){
-    nz('bandpass',1500+rng()*500,2,0.1,0.05,i*0.05);
-    osc('sine',95,55,0.11,0.07,i*0.05);
-  }
+  if(kind==='ballistic'){nz('highpass',2200,1,0.09,0.05,at);osc('square',jt(190),65,0.07,0.06,at);}
+  else SVOICE.repeaters(at,heg);
 }
 function sHit(){
   if(A.off())return;
@@ -2771,7 +2789,7 @@ if(location.hash==='#test'){
   window.DBGspace={get ships(){return ships;},get phase(){return phase;},get round(){return round;},
     get pendingResult(){return pendingResult;},get SCEN(){return SCEN;},
     get exec(){return exec;},get attackQ(){return attackQ;},get awaitAction(){return awaitAction;},CLS,
-    fn:{deploy,gameOver,destroyShip,luckySave,critChance,adjCool,dossierHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
+    fn:{deploy,gameOver,destroyShip,sVolley,SVOICE_:()=>SVOICE,luckySave,critChance,adjCool,dossierHTML,setRng:f=>{rng=f;},endRound,reinforceStep,doAction,aiAction,maxSpeedOf,summonShip,
       dialAvail,effInit,computeTN,computeATK,validShot,chooseAttack,executeRound,playerAction,confirmAttack,holdFire,totalShield,openInfo,shipHTML,
       setRound(n){round=n;},
       clock,juiceTick,fireCtx,applyCtx,juice_:()=>({vols,pops,killFx,shFx,impFx,parts:PFX.list,trauma:SHK.trauma}),

@@ -2460,7 +2460,7 @@ function dgAttack(a){
       if(hit){const dmg=rint(16,28);woundUnit(null,t,dmg,false);log('The door gunner hits '+nameSpan(t)+' — <b>'+dmg+'</b>.');}
       else log('The door gunner misses '+nameSpan(t)+'.');
     }
-    sShot('doorgun');
+    sShot('doorgun',{rounds:pick.map((t,i)=>({fire:i*0.07}))});
     for(const f of dgFlakers(a.mark||pick[0])){
       const hit=rint(1,20)>=DG_FLAK_TN;
       log(nameSpan(f)+' puts a rocket up at '+a.name+(hit?' — <span class="b">direct hit!</span>':' — it goes wide.'));
@@ -2538,7 +2538,7 @@ function dgBurst(R,u,now){
     decals.push({x:jx+(rng()-0.5)*10,y:jy+(rng()-0.5)*8,r:7+rng()*5});
     casings.push({x:S.x,y:S.y-S.alt,vx:(rng()-0.5)*60,vy:30+rng()*50,t0:ft});
   }
-  sShot('doorgun');
+  sShot('doorgun',{rounds:[0,1,2,3,4].map(i=>({fire:i*0.095}))});   // the five slugs above
   R.apply.push({at:now+520,u,hit});
 }
 function dgUpdate(now){
@@ -3911,8 +3911,7 @@ function fireFx(s,t,wkey,hit,dmg,res){
     juice('shot',s.x,y0+h0*0.4,{dir:ang,noStop:true,brass:WDAM[wkey]==='ballistic'});   // energy weapons throw no brass
   }
   if(wkey==='scatter'||wkey==='rocket')SHK.add(0.14);
-  sShot(wkey);
-  if(!hit&&rng()<0.4)sRico();
+  sShot(wkey,plan);
   return {first,last};
 }
 /* rounds land when their time comes (on the game clock, so hitstop holds them too) */
@@ -3928,9 +3927,11 @@ function landRound(v,L,now){
   if(v.key==='rocket'){   // the rocket bursts where it lands; the damage is the attack's
     const gx=L.hit?t.x:L.x,gy=L.hit?t.y:L.y+v.ht;
     boomFx.push({x:gx,y:gy,t0:now,dur:600,R:70});decals.push({x:gx,y:gy,r:26});
-    juice('rocket',gx,gy,{r:70,k:0.7});
+    juice('rocket',gx,gy,{r:70,k:0.7});sBoomBig();
   }
   if(!L.hit){
+    if(v.dtype==='plasma'){if(rng()<0.35)sSizzle();}
+    else if(v.dtype!=='explosive'&&rng()<(L.wall?0.5:0.2))sRico();   // the rocket's own burst covers it
     impFx.push({x:L.x,y:L.y,t0:now,dur:380,o:{dtype:v.dtype,surface:'cover',dir:v.dir,style,seed:(Math.random()*999)|0}});
     if(!v.plan.hit&&!v.missed){v.missed=1;addPop(t.x,t.y-58,'MISS','#c8d0dc');}
     if(!L.wall)for(const p of PROPS)if(!p.dead&&p.kind==='canister'&&Math.hypot(p.x-L.x,p.y-(L.y+v.ht))<30)detonate(p);   // stray rounds find fuel canisters
@@ -3997,26 +3998,53 @@ function drawPops(now){
 }
 /* ---------- audio ---------- */
 const sTick=A.tick;
-function sShot(wkey){
-  if(A.off())return;
-  if(wkey==='akli'){
-    for(let i=0;i<3;i++){nz('highpass',2400,1,0.16,0.06,i*0.09);osc('square',220,70,0.1,0.07,i*0.09);}
-  } else if(wkey==='cowboy'||wkey==='hg40'||wkey==='autohand'){
-    nz('highpass',1700,1,0.2,0.09);osc('triangle',170,55,0.16,0.13);nz('lowpass',500,1,0.12,0.2,0.02);
-  } else if(wkey==='carbine'){
-    for(let i=0;i<2;i++){nz('highpass',2600,1,0.15,0.06,i*0.11);osc('square',260,80,0.09,0.07,i*0.11);}
-  } else if(wkey==='scatter'){
-    osc('sine',120,30,0.42,0.5);nz('lowpass',800,0.8,0.4,0.55,0,60);nz('bandpass',320,1.2,0.16,0.3,0.03);
-  } else if(wkey==='razorrat'){ // a short LMG burst
-    for(let i=0;i<5;i++){nz('highpass',2200,1,0.14,0.05,i*0.07);osc('square',190,65,0.09,0.06,i*0.07);}
-  } else if(wkey==='doorgun'){ // the heavy door gun: five slow, deep reports
-    for(let i=0;i<5;i++){osc('sine',100,34,0.3,0.12,i*0.095);nz('lowpass',700,0.9,0.22,0.16,i*0.095);nz('highpass',2000,1,0.08,0.04,i*0.095);}
-  } else { // longiron
-    nz('highpass',3100,1,0.22,0.07);osc('square',300,60,0.13,0.1);
-    nz('bandpass',900,2,0.09,0.35,0.1,180); // canyon echo
-  }
+/* ---------- a voice for every weapon ----------
+   One VOICE entry per weapon: it plays a single round's report at `at` seconds. fireFx hands
+   sShot the same volley plan the tracers draw from, so the burst you hear is the burst you
+   see — eight tracers, eight reports, on the same clock. Ballistic reports are noise-led
+   cracks; plasma is oscillator-led, and each plasma weapon sweeps its own way. ONCE layers
+   play once per trigger pull, after the last round (the longiron's canyon echo). jt() wobbles
+   each report a little so long bursts don't sound stamped out. */
+const jt=f=>f*(0.95+rng()*0.1);
+const VOICE={
+  /* ballistic */
+  akli:at=>{nz('highpass',2400,1,0.13,0.055,at);osc('square',jt(225),70,0.08,0.065,at);},
+  razorrat:at=>{nz('highpass',2000,1,0.12,0.05,at);osc('square',jt(180),60,0.09,0.06,at);nz('lowpass',520,1,0.06,0.09,at);},
+  hg40:at=>{nz('highpass',2900,1,0.14,0.05,at);osc('triangle',jt(330),95,0.08,0.06,at);},
+  cowboy:at=>{nz('highpass',1700,1,0.17,0.08,at);osc('triangle',jt(170),55,0.13,0.11,at);nz('lowpass',520,1,0.09,0.15,at+0.02);},
+  longiron:at=>{nz('highpass',3100,1,0.22,0.07,at);osc('square',jt(300),60,0.13,0.1,at);},
+  scatter:at=>{osc('sine',jt(120),30,0.4,0.5,at);nz('lowpass',800,0.8,0.38,0.5,at,60);nz('bandpass',320,1.2,0.15,0.28,at+0.03);},
+  strider:at=>{osc('sine',jt(115),40,0.2,0.1,at);nz('lowpass',900,1,0.15,0.12,at);nz('highpass',2200,1,0.07,0.04,at);},
+  doorgun:at=>{osc('sine',jt(100),34,0.3,0.12,at);nz('lowpass',700,0.9,0.22,0.16,at);nz('highpass',2000,1,0.08,0.04,at);},
+  rocket:at=>{nz('bandpass',260,1.6,0.22,0.6,at,1400);osc('sawtooth',jt(70),160,0.12,0.55,at);},   // the launch; the burst sounds when it lands
+  /* plasma */
+  carbine:at=>{osc('sawtooth',jt(1250),140,0.13,0.2,at);osc('square',jt(830),110,0.07,0.18,at);nz('highpass',3200,1,0.05,0.05,at);},   // EG-55: the military two-tone zap
+  stiletto:at=>{osc('sawtooth',jt(1650),320,0.1,0.12,at);osc('sine',jt(2300),950,0.05,0.1,at);},   // sporting dart: cleaner, higher, shorter
+  autohand:at=>{osc('square',jt(640),240,0.09,0.16,at);osc('square',jt(676),215,0.07,0.17,at);},   // Policebot arm-gun: two detuned squares beat against each other
+  cruiser:at=>{osc('sawtooth',jt(700),90,0.12,0.22,at);osc('sine',jt(175),58,0.09,0.2,at);},   // Cruiser pulse cannon: deep and heavy
+  dispersal:at=>{osc('sawtooth',jt(950),260,0.08,0.14,at);nz('bandpass',1500,2,0.08,0.12,at,500);},   // Dispersal turret: an airy splatter
+  plasmasmg:at=>{osc('sawtooth',jt(1050),160,0.1,0.14,at);nz('bandpass',700,3,0.07,0.1,at+0.02);},   // unstable core: it crackles
+  /* melee: the swing and the weight behind it */
+  unarmed:at=>{nz('bandpass',500,2,0.08,0.13,at,1500);osc('sine',150,65,0.09,0.1,at+0.05);},
+  fists:at=>{nz('bandpass',380,2,0.1,0.16,at,1200);osc('sine',120,45,0.14,0.14,at+0.05);},   // Riot Fists: heavier
+  /* beams (mining laser, arclight): a sustained burn */
+  mininglaser:at=>{osc('sawtooth',jt(320),180,0.1,0.3,at);osc('sine',jt(640),360,0.06,0.3,at);nz('highpass',3000,2,0.04,0.25,at);},
+};
+VOICE.arclight=VOICE.mininglaser;
+const ONCE={
+  longiron:at=>nz('bandpass',900,2,0.09,0.35,at+0.1,180),   // canyon echo
+};
+/* one report per round of the plan, on the plan's own clock; returns the report count */
+function sShot(wkey,plan){
+  const rounds=plan&&plan.rounds?plan.rounds:[{fire:0}];
+  if(A.off())return rounds.length;
+  const v=VOICE[wkey]||(WDAM[wkey]==='plasma'?VOICE.carbine:VOICE.akli);
+  for(const r of rounds)v(r.fire||0);
+  const o=ONCE[wkey];if(o)o(rounds[rounds.length-1].fire||0);
+  return rounds.length;
 }
 function sRico(){if(A.off())return;osc('sine',1500+rng()*600,300,0.06,0.28,0.06);}
+function sSizzle(){if(A.off())return;nz('bandpass',2600,4,0.06,0.18,0,900);osc('sawtooth',900,2200,0.03,0.14);}
 function sThud(){if(A.off())return;osc('sine',110,40,0.25,0.3);nz('lowpass',300,1,0.18,0.25);}
 function sAlert(){
   if(A.off())return;
@@ -4032,12 +4060,6 @@ function sBoomBig(){
   nz('lowpass',900,0.8,0.5,1.2,0,55);
   nz('bandpass',300,1.2,0.2,0.5,0.05);
   for(let i=0;i<5;i++)nz('bandpass',700+rng()*900,2,0.09,0.08,0.15+i*0.09);
-}
-function sLaser(){
-  if(A.off())return;
-  osc('sawtooth',1250,140,0.16,0.22);
-  osc('square',830,110,0.08,0.2);
-  nz('highpass',3200,1,0.06,0.06);
 }
 function sTakeoff(){
   if(A.off())return;
@@ -6515,7 +6537,7 @@ if(location.hash==='#test'){
     get dgRun(){return dgRun;},get dgQueue(){return dgQueue;},
     get NADES(){return NADES;},set NADES(v){NADES=v;},get nades(){return nades;},
     get round(){return round;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
-    fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
+    fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,sShot,VOICE_:()=>VOICE,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,canRevive,checkDefeat,needed,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
