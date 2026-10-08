@@ -38,10 +38,10 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(/^Day 2,true$/.test(fx),'the day banner and the comms feed come from the kit '+fx);
  // tooltips: the galaxy orders' rules show on hover
  await pg.click('#navSources');await pg.waitForTimeout(400);await (await pg.$('[data-gxsrc]')).click();await pg.waitForTimeout(300);await close();
- const el=await pg.$('#sc-base .sr-order[data-tip]');const bx=await el.boundingBox();
+ const el=await pg.$('#sc-base #gxDock .gx-act[data-tip]');const bx=await el.boundingBox();
  await pg.mouse.move(bx.x+4,bx.y+4);await pg.mouse.move(bx.x+bx.width/2,bx.y+bx.height/2,{steps:3});await pg.waitForTimeout(150);
  const tip=await pg.evaluate(()=>{const t=document.querySelector('#sc-base .sr-tip');return t&&!t.hidden?t.textContent:'';});
- ok(/^Contact/.test(tip),'galaxy orders show the kit tooltip '+tip);
+ ok(/^Contact/.test(tip),'the galaxy panel’s buttons show the kit tooltip '+tip);
  // finally Restart for real
  await pg.mouse.move(5,5);await pg.click('#menuBtn');await pg.click('#restartBtn');await pg.waitForTimeout(150);
  await pg.click('#bsRestart [data-ok]');await pg.waitForTimeout(500);

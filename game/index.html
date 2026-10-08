@@ -104,14 +104,9 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       </div>
     </div>
     <div class="sr-slot-br">
-      <div class="sr-cmdbar" id="baseCmdbar">
-        <div class="sr-cmdbar__who" id="arWho" hidden></div>
-        <div class="sr-orders" id="arOrders" hidden></div>
-        <div class="sr-orders" id="gxOrders" hidden></div>
-        <div class="sr-cmdbar__go">
-          <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go" id="dayBtn">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
-          <div class="sr-cmdbar__count" id="dockNote" hidden></div>
-        </div>
+      <!-- out of combat there is no command bar: Advance day on its own (docs/ui/SCREENS-HANDOFF.md §0.1) -->
+      <div class="bf-go" id="baseGo">
+        <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go" id="dayBtn">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
       </div>
     </div>
     <div class="bs-estsplash" id="estSplash" hidden><div class="bs-est__big">BASE ESTABLISHED</div><div class="bs-est__sub">Haven Rock</div></div>

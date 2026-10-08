@@ -45,12 +45,12 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const lots=()=>G().market.lots;
   const wi=lots().findIndex(l=>l.kind==='kit'&&KIT[l.key].cat==='weapon');
   $$('#bmView .bm-card')[wi].click();
-  out.stats=[$$('#arWho .kit-cstats div').length,($('#arWho').textContent||'').indexOf('Damage')>=0];
+  out.stats=[$$('#bmStats div').length,($('#bmStats').textContent||'').indexOf('Damage')>=0];
   // --- a buy decrements stock and credits and adds to the armory (marked as bought)
   G().credits=100000;f.renderMarket();
   const key=lots()[wi].key,p=f.lotPrice(lots()[wi]);
   const have0=(G().armory.find(a=>a.id===key)||{n:0}).n,c0=G().credits,s0=lots()[wi].stock;
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   const a1=G().armory.find(a=>a.id===key)||{n:0};
   out.buy=[c0-G().credits===p,s0-lots()[wi].stock===1,a1.n-have0===1,a1.src==='bought',
     (($('#bmSay')||{}).textContent||'').indexOf('already in your Arsenal')>=0];
@@ -58,14 +58,14 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   G().credits=0;f.renderMarket();
   const pi=lots().findIndex(l=>l.kind==='kit'&&l.stock>0);
   $$('#bmView .bm-card')[pi].click();
-  const buyBtn=$('#arOrders [data-bmbuy]');
+  const buyBtn=$('#bmActs [data-bmbuy]');
   out.poor=[!!buyBtn&&buyBtn.disabled,(buyBtn&&buyBtn.title)||'',
     $$('#bmView .bm-card')[pi].innerHTML.indexOf('is-short')>=0,
     (($('#bmSay')||{}).textContent||'').indexOf('I don’t do credit')>=0];
   // --- Buy all is disabled with stock 1; enabled on a multi-unit lot and sells it out
   G().credits=100000;f.renderMarket();
   const oneI=lots().findIndex(l=>l.kind==='kit'&&l.stock===1);
-  if(oneI>=0){$$('#bmView .bm-card')[oneI].click();out.allOne=$('#arOrders [data-bmbuyall]').disabled;}
+  if(oneI>=0){$$('#bmView .bm-card')[oneI].click();out.allOne=$('#bmActs [data-bmbuyall]').disabled;}
   else out.allOne=true;
   // the weekly roll may hold no gadget lot; force a multi-unit kit lot so Buy all is always exercised
   let gi=lots().findIndex(l=>l.kind==='kit'&&l.stock>1);
@@ -73,7 +73,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   if(gi>=0){
     $$('#bmView .bm-card')[gi].click();
     const gl=lots()[gi],gk=gl.key,gn=gl.stock,gp=f.lotPrice(gl),cg=G().credits,g0=(G().armory.find(a=>a.id===gk)||{n:0}).n;
-    $('#arOrders [data-bmbuyall]').click();
+    $('#bmActs [data-bmbuyall]').click();
     out.buyAll=[cg-G().credits===gp*gn,lots()[gi].stock===0,
       ((G().armory.find(a=>a.id===gk)||{n:0}).n-g0)===gn,
       $$('#bmView .bm-card')[gi].className.indexOf('is-sold')>=0,
@@ -96,11 +96,11 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.disc=[f.lotPrice(dl)===disc,$$('#bmView .bm-card')[di].textContent.indexOf(String(disc))>=0];
   G().credits=100000;$$('#bmView .bm-card')[di].click();
   const cd=G().credits;
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   out.discBuy=cd-G().credits===disc;
   out.perk=$('#railMarket .bm-perk').className.indexOf('is-on')>=0;
-  // the restock countline rides the command bar's count slot
-  out.note=($('#dockNote').textContent||'').indexOf('Restock in')>=0;
+  // no command bar: the restock count is Sweet Tooth's, in the rail; Buy sits on the open lot
+  out.note=/Days to new stock/.test($('#railMarket').textContent)&&!$('#sc-base .sr-cmdbar')&&!!$('#bmView .bm-card.is-sel #bmActs');
   // ===== Phase 3: mercenaries =====
   f.closeMarket();
   let mseed=0;
@@ -115,20 +115,20 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   f.setBmSel(mi);
   const mcard=$$('#bmView .bm-card')[mi];
   out.mercCard=[mcard.textContent.indexOf('/ 14 days')>=0,mcard.textContent.indexOf('Brings own kit')>=0,mcard.textContent.indexOf('Level '+mrec.level)>=0];
-  out.hireLbl=(($('#arOrders [data-bmbuy]')||{}).textContent||'').indexOf('Hire')>=0;
-  out.mercStats=($('#arWho').textContent||'').indexOf('Brings own')>=0;
+  out.hireLbl=(($('#bmActs [data-bmbuy]')||{}).textContent||'').indexOf('Hire')>=0;
+  out.mercStats=($('#bmStats').textContent||'').indexOf('Brings own')>=0;
   // hiring needs a free bunk: the order is greyed with the reason, and her line says so
   const cap2=f.bunkCap();
   let fillI=0;
   while(G().people.filter(p=>!p.auto).length<cap2){G().people.push(window.Rebel.migrate({id:'fill'+(fillI++),name:'Filler '+fillI,role:'Support',level:1,xp:0,assign:'rest',injured:0,bio:'x',charTrait:'brave'}));}
   G().credits=100000;f.renderMarket();
-  const hbtn=$('#arOrders [data-bmbuy]');
+  const hbtn=$('#bmActs [data-bmbuy]');
   out.noBunk=[hbtn.disabled,hbtn.title,(($('#bmSay')||{}).textContent||'').indexOf('bunk')>=0];
   G().people=G().people.filter(p=>!String(p.id).startsWith('fill'));
   f.renderMarket();
   // hire: credits down by the fee, queued for tomorrow, the lot sells out
   const hc0=G().credits,hfee=f.lotPrice(ml());
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   out.hire=[hc0-G().credits===hfee,(G().mercQ||[]).length===1,ml().stock===0,
     G().news.some(n=>n.html.indexOf('14-day contract')>=0),(($('#bmSay')||{}).textContent||'').indexOf('at your door by morning')>=0];
   // arrival the next day with their own kit in their slots
@@ -214,18 +214,18 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
     $$('#bmView .bm-card')[si].className.indexOf('is-rare')>=0,
     $$('#bmView .bm-card')[si].innerHTML.indexOf('bm-ribbon')>=0];
   f.setBmSel(si);
-  out.shipStats=['Hull','Shields','Speed'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  out.shipStats=['Hull','Shields','Speed'].every(k2=>($('#bmStats').textContent||'').indexOf(k2)>=0);
   // pad check: with the pads full, Buy is greyed with the reason and her line says so
   const cap3=f.fighterCap();
   while(G().fighters.length<cap3)G().fighters.push(f.newFighter({id:'pf'+G().fighters.length,name:'Pad Filler '+G().fighters.length,cls:'talon',hull:100}));
   G().credits=100000;f.renderMarket();
-  const sb2=$('#arOrders [data-bmbuy]');
+  const sb2=$('#bmActs [data-bmbuy]');
   out.noPad=[sb2.disabled,sb2.title,(($('#bmSay')||{}).textContent||'').indexOf('pad')>=0];
   G().fighters=G().fighters.filter(x=>!String(x.id).startsWith('pf'));
   f.renderMarket();
   // buy: the fee leaves, the lot sells out, the ship is inbound for two days
   const sc2=G().credits,sp2=f.lotPrice(sl2());
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   out.shipBuy=[sc2-G().credits===sp2,(G().inbound||[]).filter(x=>x.kind==='ship').length===1,sl2().stock===0,
     G().news.some(n=>n.html.indexOf('on its way from Nyx')>=0)];
   const fl0=G().fighters.length;
@@ -242,17 +242,17 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const wi2=lots().findIndex(l=>l.kind==='shipwpn');
   const wkey=lots()[wi2].key;
   f.setBmSel(wi2);
-  out.wpnStats=['Damage','Ammo','Kind'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  out.wpnStats=['Damage','Ammo','Kind'].every(k2=>($('#bmStats').textContent||'').indexOf(k2)>=0);
   G().credits=100000;f.renderMarket();
   const wc0=G().credits,wp2=f.lotPrice(lots()[wi2]);
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   const rack=id2=>(G().shipKit||[]).find(x=>x.id===id2)||{n:0};
   out.wpnBuy=[wc0-G().credits===wp2,rack(wkey).n===1,lots()[wi2].stock===0,
     G().news.some(n=>n.html.indexOf('hangar racks')>=0)];
   f.closeMarket();
   // Refit: fit the bought weapon to an empty mount, then clear a mount back onto the racks
   f.openArsenal();f.setArCat('ships');f.setArSel('ship',bought.id);
-  $('#arOrders [data-arrefit]').click();
+  $('#arActs [data-arrefit]').click();
   out.refitOpen=$$('#arView [data-armount]').length>=2;
   const emptyMi=(bought.loadout||[]).length;
   $$('#arView [data-armount]')[emptyMi].click();
@@ -268,9 +268,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // vehicle delivery plumbing (nothing is sellable until GVEH.truck exists: M-17)
   G().market.lots[0]={kind:'vehicle',key:'strider',stock:1,price:500,deal:'fair'};
   f.openMarket();f.setBmSel(0);
-  out.vehStats=['Health','Seats','Role'].every(k2=>($('#arWho').textContent||'').indexOf(k2)>=0);
+  out.vehStats=['Health','Seats','Role'].every(k2=>($('#bmStats').textContent||'').indexOf(k2)>=0);
   const vn0=(G().vehicles||[]).length,vc2=G().credits,vp2=f.lotPrice(G().market.lots[0]);
-  $('#arOrders [data-bmbuy]').click();
+  $('#bmActs [data-bmbuy]').click();
   out.vehBuy=[vc2-G().credits===vp2,(G().inbound||[]).some(x=>x.kind==='vehicle')];
   f.closeMarket();
   f.advanceDay();drain();f.advanceDay();drain();
@@ -297,7 +297,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.disc[0]&&r.disc[1],'the Nyx Access discount shows on the card '+r.disc);
  ok(r.discBuy,'the Nyx Access discount applies at purchase');
  ok(r.perk,'the perk row goes solid with Access to Nyx');
- ok(r.note,'the command bar carries the restock count line');
+ ok(r.note,'no command bar: the restock count sits in Sweet Tooth’s rail, Buy on the open lot');
  // Phase 3: mercenaries
  ok(r.mercSeed,'a seed with a mercenary lot was found');
  ok(r.mercLot.every(Boolean),'merc lot: stock 1, fee 380-600, Soldier/Pilot level 2-3, own kit rolled '+r.mercLot);

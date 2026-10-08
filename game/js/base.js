@@ -3731,7 +3731,7 @@ function gxRect(){
   const tabs=ROOT.querySelector('.sr-tabs');
   if(tabs&&!gxWorld){const r=tabs.getBoundingClientRect();if(r.height)top=r.bottom-cvr.top+16;}
   let bottom=120;
-  const cb=$('baseCmdbar');
+  const cb=$('baseGo');
   if(cb){const r=cb.getBoundingClientRect();if(r.height)bottom=cssH-(r.top-cvr.top)+32;}
   const left=16+(((srcSel&&!gxWorld)||gxWorld)&&!gxPhone()?388:0);   // phones: the panel is a bottom sheet
   const right=88;
@@ -4402,6 +4402,7 @@ function renderGxDock(){
     else h='<button class="sr-btn sr-btn--sm sr-btn--ghost" data-gxsheetclose style="align-self:flex-end">'+IC('clear')+'Close</button>'+h;
   }
   el.innerHTML=h;el.hidden=!h;
+  renderGxBar();   // the panel's buttons
 }
 function gxCapMark(cap){
   return '<span class="gx-region__cap" style="left:'+Math.min(100,cap)+'%" data-tip="Current limit based on level of access and support." aria-label="Current limit based on level of access and support."></span>';
@@ -4560,11 +4561,12 @@ function renderGxTools(){
   }
   $('gxTools').innerHTML=h+'</div>';
 }
-/* order cards in the command bar; one cost line is allowed under the label */
+/* the selected thing's actions, as buttons in its panel (out of combat there is no command bar: SCREENS-HANDOFF §0.1);
+   a cost rides in the button, a reason it can't be used shows under the row */
 function gxOrder(o){
-  return '<button type="button" class="sr-order'+(o.family?' sr-order--'+o.family:'')+(o.danger?' gx-order--danger':'')+(o.attn?' gx-order--attn':'')+'" data-gxo="'+o.act+'"'+
-    (o.disabled?' disabled aria-disabled="true"':'')+HUD.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
-    (o.key?'<span class="sr-kbd sr-order__key">'+o.key+'</span>':'')+IC(o.icon)+'<span class="gx-order-label">'+o.label+'</span>'+(o.cost||'')+
+  return '<button type="button" class="sr-btn sr-btn--sm gx-act'+(o.family==='util'?' gx-act--main':'')+(o.danger?' gx-act--danger':'')+(o.attn?' gx-act--attn':'')+'" data-gxo="'+o.act+'"'+
+    (o.disabled?' disabled aria-disabled="true"':'')+(o.disabled&&o.why?' data-why="'+esc(o.why)+'"':'')+HUD.tip(o.label,o.rule||'',o.disabled?o.why||'':'',o.key)+' aria-label="'+esc(o.label)+(o.disabled&&o.why?'. '+esc(o.why):'')+'">'+
+    (o.key?'<span class="sr-kbd">'+o.key+'</span>':'')+IC(o.icon)+'<span class="gx-order-label">'+o.label+'</span>'+(o.cost||'')+
     (o.badge?'<span class="sr-badge">!</span>':'')+'</button>';
 }
 function gxOrdersFor(){
@@ -4631,10 +4633,17 @@ function gxWorldOrders(){
   return orders;
 }
 function renderGxBar(){
-  const host=$('gxOrders');
-  const orders=baseView==='galaxy'?gxOrdersFor():[];
-  host.innerHTML=orders.join('');
-  host.hidden=!orders.length;
+  const dock=$('gxDock'),old=dock.querySelector('.gx-acts');
+  if(old)old.remove();
+  const orders=baseView==='galaxy'&&!dock.hidden?gxOrdersFor().filter(o=>!/sr-orders__sep/.test(o)):[];
+  if(!orders.length)return;
+  // the actions sit at the foot of the panel they belong to: the last one open (a region card over its world)
+  // (on a phone, the compact sheet)
+  const wins=dock.querySelectorAll('.sr-window,.gx-sheet'),win=wins[wins.length-1];
+  if(!win)return;
+  const whys=[...new Set(orders.map(o=>(o.match(/data-why="([^"]*)"/)||[])[1]).filter(Boolean))];
+  win.insertAdjacentHTML('beforeend','<div class="'+(win.classList.contains('gx-sheet')?'kit-acts':'sr-window__foot')+' gx-acts" id="gxActs"><div class="kit-acts__row">'+orders.join('')+'</div>'+
+    whys.map(w=>'<p class="sr-fine kit-acts__why">'+w+'</p>').join('')+'</div>');
 }
 function syncGxDOM(){
   const gal=baseView==='galaxy';
@@ -4661,7 +4670,7 @@ function syncGxDOM(){
     $('drawerBtn').setAttribute('aria-label','Crew and flight');
   }
   if(gal){renderGxRail();renderGxTools();}
-  renderGxDock();renderGxBar();renderGxChips();
+  renderGxDock();renderGxChips();
 }
 function renderGxChips(){
   const el=$('gxChips');
@@ -4717,6 +4726,8 @@ $('gxTools').addEventListener('click',ev=>{
 });
 $('gxDock').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;sClick();
+  const go=b.getAttribute('data-gxo');
+  if(go){if(!b.disabled)gxOrderAct(go);return;}
   if(b.hasAttribute('data-gxclose')){srcSel=null;syncUI();return;}
   if(b.hasAttribute('data-gxregclose')){gxRegion=null;syncUI();return;}
   if(b.hasAttribute('data-gxback')){gxRegion=null;gxWorld=null;syncTabs();syncUI();return;}
@@ -4735,10 +4746,6 @@ $('gxDock').addEventListener('click',ev=>{
 $('gxChips').addEventListener('click',ev=>{
   const b=ev.target.closest('[data-gxchip]');
   if(!b)return;sClick();openRegion(b.getAttribute('data-gxchip'));
-});
-$('gxOrders').addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b||b.disabled)return;sClick();
-  gxOrderAct(b.getAttribute('data-gxo'));
 });
 $('railGx').addEventListener('click',ev=>{
   const sb=ev.target.closest('[data-gxsrc]');
@@ -5011,7 +5018,7 @@ function guideTarget(at){
     return {left:r.left+pos[0]-10,top:r.top+pos[1]-10,width:20,height:20};
   }
   if(k==='gx.order'){
-    const btn=gxFree&&ROOT.querySelector('#gxOrders [data-gxo="'+arg+'"]');
+    const btn=gxFree&&ROOT.querySelector('#gxDock [data-gxo="'+arg+'"]');
     return btn?btn.getBoundingClientRect():null;
   }
   // the Intelligence tab: an Agent's node (by who they were), the stats on their rail, their cell, an operation
@@ -5702,17 +5709,10 @@ function closeMissions(){
   shell.classList.remove('is-missions');
   $('railBase').classList.remove('bf-rail');
   $('railMissions').hidden=true;
-  msGo(false);
   setDrawer(false);
   setTopbar('Haven Rock','Hidden base');
   drawerLabel();syncTabs();
   if(started&&G)syncUI();   // the command bar gets its parts back
-}
-/* Advance day on its own: the command bar's wrapper becomes the bare .bf-go, everything else in it hidden */
-function msGo(on){
-  const cb=$('baseCmdbar');
-  cb.classList.toggle('sr-cmdbar',!on);cb.classList.toggle('bf-go',!!on);
-  for(const id of ['arWho','arOrders','gxOrders','dockNote'])if(on)$(id).hidden=true;
 }
 function renderMissions(){
   if(!msOpen||!G)return;
@@ -5724,7 +5724,6 @@ function renderMissions(){
   $('msHolo').innerHTML=m?msHoloHTML(m):'';
   $('railMissions').innerHTML=m?msBriefHTML(m):'<div class="bf-railtitle">'+IC('missions')+'Briefing</div><div class="sr-empty">No jobs on the board. Work your sources; follow their signals.</div>';
   $('railMissions').hidden=false;
-  msGo(true);
   msFit();
 }
 /* the briefing never scrolls: clamp the pitch (always), then the objectives to one line each, then drop their notes */
@@ -6070,7 +6069,6 @@ function openIntel(){
   setDrawer(false);
   setTopbar('Intelligence','Intelligence Centre · Haven Rock');
   drawerLabel();
-  msGo(true);
   renderIntel();syncTabs();syncGxDOM();
 }
 function closeIntel(){
@@ -6078,7 +6076,6 @@ function closeIntel(){
   inOpen=false;inRepost=null;
   $('inView').hidden=true;
   shell.classList.remove('is-intel');
-  msGo(false);
   setTopbar('Haven Rock','Hidden base');
   drawerLabel();syncTabs();
   if(started&&G)syncUI();
@@ -6897,11 +6894,6 @@ function syncUI(){
   if(bmOpen&&G.market)G.market.unseen=0;   // looking at the stall counts as seen
   const bmN=(G.market&&G.market.unseen)||0;
   $('bmBadge').hidden=!bmN;$('bmBadge').textContent=bmN;
-  const prog=G.missions.filter(m=>m.state==='prog').length;
-  const building=G.rooms.filter(r=>r.build).length;
-  let note=[prog?'<b>'+prog+'</b> mission'+(prog>1?'s':'')+' out':null,building?'<b>'+building+'</b> building':null].filter(Boolean).join(' · ');
-  if(bmOpen&&G.market){const d=G.market.next-G.day;note='Restock in <b>'+d+' day'+(d===1?'':'s')+'</b>';}
-  $('dockNote').innerHTML=note;$('dockNote').hidden=!note;
   /* crew rail */
   const crewRow=p=>{
     const pilot=p.role==='Pilot'||p.role==='Hero',marine=p.role==='Marine',sup=!pilot&&!marine&&p.role!=='Soldier';
@@ -7088,7 +7080,7 @@ function closeArsenal(){
   setDrawer(false);
   setTopbar('Haven Rock','Hidden base');
   drawerLabel();
-  arCmdbar();syncTabs();
+  syncTabs();
 }
 /* the items a kit chip shows: category order, then largest footprint first */
 function arKitItems(cat){
@@ -7131,7 +7123,6 @@ function renderArsenal(){
   $('arDossier').innerHTML=arDossierHTML();
   $('arMain').innerHTML=arMainHTML();
   renderArRail();
-  arCmdbar();
   const old=$('arView').querySelector('.bs-overlay');
   if(old)old.remove();
   let ov='';
@@ -7141,7 +7132,9 @@ function renderArsenal(){
   if(ov)$('arView').insertAdjacentHTML('beforeend',ov);
 }
 const statRow=(dt,dd)=>'<dt>'+dt+'</dt><dd>'+dd+'</dd>';
-function arDossierHTML(){
+/* the dossier, with its actions right under the name (the feed can cover the foot of a long dossier) */
+function arDossierHTML(){const h=arDossierBody(),acts=arActsHTML();return h.indexOf('<!--acts-->')>=0?h.replace('<!--acts-->',acts):h+acts;}
+function arDossierBody(){
   if(!arSel)return '<div class="sr-empty">Nothing here yet. Missions and Sweet Tooth fill these shelves.</div>';
   const well=inner=>'<div class="kit-well">'+inner+'</div>';
   if(arSel.t==='kit'){
@@ -7162,7 +7155,7 @@ function arDossierHTML(){
       '</dl>';
     const hold=holders(a.id,[]);
     return well(itArt(a.id))+
-      '<div><div class="ar-dossier__name">'+esc(kitName(a))+'</div><div class="ar-dossier__kind">'+mk+prov+'</div></div>'+
+      '<div><div class="ar-dossier__name">'+esc(kitName(a))+'</div><div class="ar-dossier__kind">'+mk+prov+'</div></div><!--acts-->'+
       (itemBlurb(a)?'<p class="ar-blurb">'+esc(itemBlurb(a))+'</p>':'')+traitIcons(a.id)+stats+
       '<div class="ar-count"><div><b>'+a.n+'</b><span>Owned</span></div><div><b>'+carried(a.id)+'</b><span>Carried</span></div><div><b>'+freeOf(a.id)+'</b><span>In store</span></div></div>'+
       (hold.length?'<div class="sr-h3" style="margin:0">Carried by</div><div class="ar-holders">'+hold.map(p=>'<span class="ar-holder">'+avat(p,24)+esc(p.name.split(' ')[0])+'</span>').join('')+'</div>':'');
@@ -7171,7 +7164,7 @@ function arDossierHTML(){
     const f=G.fighters.find(x=>x.id===arSel.id);if(!f)return '';
     const r=SRDB.ship(f.cls)||{},pilot=G.people.find(p=>p.ship===f.id);
     return well(shipArt(f.cls))+
-      '<div><div class="ar-dossier__name">'+esc(f.name)+'</div><div class="ar-dossier__kind">'+wTag(esc(r.name||f.cls),'info')+(f.out?wTag('Out','info'):'')+'</div></div>'+
+      '<div><div class="ar-dossier__name">'+esc(f.name)+'</div><div class="ar-dossier__kind">'+wTag(esc(r.name||f.cls),'info')+(f.out?wTag('Out','info'):'')+'</div></div><!--acts-->'+
       '<dl class="kit-stat">'+statRow('Class',esc((r.name||f.cls)+(r.role?' · '+r.role:'')))+statRow('Hull',Math.round(f.hull)+'%')+
       statRow('Shields',(r.shield_front||0)+'F / '+(r.shield_rear||0)+'A')+statRow('Weapons',(f.loadout||[]).map(wpnLabel).join(', ')||'None fitted')+
       statRow('Pilot',pilot?esc(pilot.name):'Unassigned')+'</dl>'+
@@ -7323,44 +7316,29 @@ function renderArRail(){
     '<div class="ar-slothead"><span>Primary</span><span>Side</span><span>Head</span><span>Body</span><span>Back</span><span>Gad</span><span>Gad</span></div>'+
     '<div class="ar-crew">'+rows+'</div>'+(carriers.length?'':'<div class="sr-empty">Nobody is carrying anything.</div>')+'</section>';
 }
-/* a command-bar order button on a number key (shared by the Arsenal and the Black Market) */
-const cmdOrder=(key,icon,label,attrs,dis,title)=>'<button class="sr-order sr-order--util" '+attrs+(dis?' disabled':'')+(title?' title="'+esc(title)+'"':'')+'><span class="sr-kbd sr-order__key">'+key+'</span>'+IC(icon)+label+'</button>';
-/* the command bar while the Arsenal is up: selected thing on the left, orders on keys 1-2 */
-function arCmdbar(){
-  if(bmOpen)return;
-  const who=$('arWho'),orders=$('arOrders');
-  if(!arOpen||!arSel){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';return;}
-  let lead='',name='',hint='',btns='';
-  const order=cmdOrder;
+/* Out of combat there is no command bar (docs/ui/SCREENS-HANDOFF.md §0.1): a screen's buttons sit with what they act
+   on. kitAct is one of them, on a number key; kitActs is the row, with the reason under it for any that can't be used. */
+const kitAct=(key,icon,label,attrs,dis,why)=>'<button type="button" class="sr-btn sr-btn--sm kit-act" '+attrs+(dis?' disabled':'')+(why?' title="'+esc(why)+'"':'')+
+  '><span class="sr-kbd">'+key+'</span>'+IC(icon)+label+'</button>';
+const kitActs=(id,btns,whys)=>'<div class="kit-acts" id="'+id+'"><div class="kit-acts__row">'+btns.join('')+'</div>'+
+  whys.filter(Boolean).map(w=>'<p class="sr-fine kit-acts__why">'+esc(w)+'</p>').join('')+'</div>';
+/* the Arsenal's actions, in the dossier of what is selected: Give to… / Sell for kit, Hangar / Refit for a ship */
+function arActsHTML(){
+  if(!arSel)return '';
   if(arSel.t==='kit'){
-    const a=G.armory.find(x=>x.id===arSel.id);
-    if(a){
-      const m=gearMeta(a),why=sellWhy(a.id);
-      lead=itArt(a.id,'kit-who-art');name=esc(kitName(a));
-      hint=freeOf(a.id)+' in store · '+carried(a.id)+' carried'+(m.heg?' · Sweet Tooth won’t buy it':'');
-      const giveable=!!m.slot&&crewOf().some(p=>p.assign!=='mission'&&gearSlots(p).some(s=>gearFits(a.id,s)));
-      btns=order(1,'people','Give to…','data-argive',!giveable,giveable?'':'Nobody has a slot for it')+
-        order(2,'credits',why?'Sell':'Sell +'+sellPrice(a.id),'data-arsell',!!why,why);
-    }
-  } else if(arSel.t==='ship'){
-    const f=G.fighters.find(x=>x.id===arSel.id);
-    if(f){
-      lead=shipArt(f.cls,'kit-who-art');name=esc(f.name);
-      hint='Hull '+Math.round(f.hull)+'% · '+((f.loadout||[]).length?(f.loadout||[]).map(wpnLabel).join(' · '):'no weapons fitted');
-      btns=order(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar')+
-        order(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Swap weapons with the hangar racks');
-    }
-  } else if(arSel.t==='veh'){
-    const v=(G.vehicles||[]).find(x=>x.id===arSel.id);
-    if(v){lead=vehArt(v.type,'kit-who-art');name=esc(v.name);hint='Health '+Math.round(v.hp)+'% · assigned on the mission plan';}
-  } else if(arSel.t==='shipwpn'){
-    const w=SRDB.weapon(arSel.id),row=arShipWpns()[arSel.id]||{n:0,fitted:0};
-    lead=swpnArt(arSel.id,'kit-who-art');name=esc(w?w.name:arSel.id);
-    hint=row.n+' on the racks · '+row.fitted+' fitted';
+    const a=G.armory.find(x=>x.id===arSel.id);if(!a)return '';
+    const m=gearMeta(a),why=sellWhy(a.id);
+    const giveable=!!m.slot&&crewOf().some(p=>p.assign!=='mission'&&gearSlots(p).some(s=>gearFits(a.id,s)));
+    return kitActs('arActs',[kitAct(1,'people','Give to…','data-argive',!giveable,giveable?'':'Nobody has a slot for it'),
+      kitAct(2,'credits',why?'Sell':'Sell +'+sellPrice(a.id),'data-arsell',!!why,why)],
+      [!giveable&&m.slot?'Nobody has a slot for it.':'',why?why+'.':'']);
   }
-  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+name+'</div><div class="sr-cmdbar__hint">'+hint+'</div></div>';
-  orders.innerHTML=btns;
-  who.hidden=!name;orders.hidden=!btns;
+  if(arSel.t==='ship'){
+    const f=G.fighters.find(x=>x.id===arSel.id);if(!f)return '';
+    return kitActs('arActs',[kitAct(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar'),
+      kitAct(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Swap weapons with the hangar racks')],[f.out?'Out on a mission.':'']);
+  }
+  return '';
 }
 /* Give to…: hand the selected item to a rebel with a fitting slot */
 function arGiveHTML(){
@@ -7475,22 +7453,15 @@ function arClick(ev){
   }
   const give=t.getAttribute('data-argiveto');
   if(give){arGiveTo(give);return;}
+  if(t.closest('#arActs'))arAct(t);
 }
 $('arView').addEventListener('click',arClick);
 $('msView').addEventListener('click',msClick);
 $('railMissions').addEventListener('click',msClick);
 $('railArsenal').addEventListener('click',arClick);   // the Loadouts slots live in the rail
-$('arOrders').addEventListener('click',ev=>{
-  const t=ev.target.closest('button');
-  if(!t||t.disabled)return;
-  if(bmOpen){
-    sClick();
-    if(t.hasAttribute('data-bmbuy'))buyLot(bmSel,false);
-    else if(t.hasAttribute('data-bmbuyall'))buyLot(bmSel,true);
-    return;
-  }
+/* the dossier's actions */
+function arAct(t){
   if(!arOpen||!arSel)return;
-  sClick();
   if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;arRefit=null;renderArsenal();return;}
   if(t.hasAttribute('data-arrefit')){arRefit={sid:arSel.id,mi:null};arOverlay=null;arGive=false;renderArsenal();return;}
   if(t.hasAttribute('data-arsell')){sellItem(arSel.id);return;}
@@ -7500,7 +7471,7 @@ $('arOrders').addEventListener('click',ev=>{
     if(rm)enterRoomView(rm);
     syncUI();return;
   }
-});
+}
 
 /* ---------- the Black Market (a full stage view; Sweet Tooth's stall at Nyx Shadowport) ----------
    Six lots, a full restock every 7 days, no Hegemony kit. Phase 2 sells personal kit only: the weighted
@@ -7700,7 +7671,7 @@ function closeMarket(){
   setDrawer(false);
   setTopbar('Haven Rock','Hidden base');
   drawerLabel();
-  bmCmdbar();syncTabs();
+  syncTabs();
 }
 const mercBunkFree=()=>freeBunks()-((G.mercQ||[]).length)>0;   // inbound hires hold their bunks
 function buyLot(i,all){
@@ -7804,14 +7775,16 @@ function bmCardHTML(l,i){
     sub=(m.sub||'')+(m.maker?(m.sub?' · ':'')+m.maker:'');
     well=itArt(l.key);
   }
-  return '<button class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" data-bmlot="'+i+'" aria-pressed="'+sel+'">'+
+  const tag=sel?'div':'button';   // the open lot holds its own Buy buttons
+  return '<'+tag+' class="bm-card'+(sel?' is-sel':'')+(sold?' is-sold':'')+(l.kind==='ship'?' is-rare':'')+'" data-bmlot="'+i+'"'+(sel?' aria-current="true"':' aria-pressed="false"')+'>'+
     (l.kind==='ship'?'<span class="bm-ribbon">Rare</span>':'')+
     '<div class="bm-card__top"><span class="bm-cat" style="--cc:'+cm.cc+'">'+IC(l.key==='medpack'?'patch':cm.ic)+cm.lab+'</span><span class="bm-stock">'+(sold?'Gone':'×'+l.stock)+'</span></div>'+
     '<div class="kit-well">'+well+'</div>'+
     '<div><div class="bm-name">'+esc(name)+'</div><div class="bm-sub">'+esc(sub)+'</div>'+(l.kind==='kit'?traitIcons(l.key):'')+'</div>'+
+    (sel?bmActsHTML(l):'')+
     '<div class="bm-foot"><span class="kit-price'+(short&&!sold?' is-short':'')+'">'+IC('credits')+price+(merc?'<small>/ 14 days</small>':'')+'</span><span class="kit-deal kit-deal--'+l.deal+'">'+(l.deal==='good'?'Good price':l.deal==='steep'?'Steep':'Fair')+'</span></div>'+
     (sold?'<span class="sr-stamp sr-stamp--bad bm-soldstamp">Sold</span>':'')+
-    '</button>';
+    '</'+tag+'>';
 }
 function renderMarket(){
   if(!bmOpen)return;
@@ -7822,7 +7795,6 @@ function renderMarket(){
   const strip='<div class="bm-strip">'+stHead()+'<p>'+line+'</p></div>';   // phones only (CSS)
   $('bmStall').innerHTML=header+strip+'<div class="bm-grid">'+M.lots.map(bmCardHTML).join('')+'</div>';
   renderBmRail(line);
-  bmCmdbar();
 }
 function renderBmRail(line){
   const host=$('railMarket');
@@ -7877,31 +7849,28 @@ function lotStats(l){
   }
   return st.map(x=>'<div><span>'+x[0]+'</span><b>'+esc(x[1])+'</b></div>').join('');
 }
-function bmCmdbar(){
-  if(arOpen)return;
-  const who=$('arWho'),orders=$('arOrders');
-  const l=bmOpen&&bmSel!==null&&G.market?G.market.lots[bmSel]:null;
-  if(!l){if(!arOpen){who.hidden=true;orders.hidden=true;who.innerHTML='';orders.innerHTML='';}return;}
+/* the selected lot's stats row and its Buy / Buy all (Hire for a mercenary), under its name on the card */
+function bmActsHTML(l){
   const merc=l.kind==='merc'?l.merc:null;
   const price=lotPrice(l),sold=l.stock<=0;
   const whyBuy=sold?'Sold out':merc&&!mercBunkFree()?'Needs a free bunk':l.kind==='ship'&&!padFree(l.key)?(isLargeShip(l.key)?'Needs a free large pad':'Needs a free landing pad'):G.credits<price?'Need '+Math.ceil(price-G.credits)+' more credits':'';
   const allCost=price*l.stock;
   const whyAll=sold?'Sold out':l.stock<2?'Only one in the lot':G.credits<allCost?'Need '+Math.ceil(allCost-G.credits)+' more credits':'';
-  const lead=merc?'<span class="kf kit-who" style="width:40px;height:40px"><span class="sr-avatar">'+faceHTML(merc)+'</span></span>'
-    :l.kind==='ship'?shipArt(l.key,'kit-who-art')
-    :l.kind==='vehicle'?vehArt(l.key,'kit-who-art')
-    :l.kind==='shipwpn'?swpnArt(l.key,'kit-who-art')
-    :itArt(l.key,'kit-who-art');
-  const bmName=merc?merc.name:l.kind==='ship'?((SRDB.ship(l.key)||{}).name||l.key):l.kind==='vehicle'?((GVEH[l.key]||{}).label||l.key):l.kind==='shipwpn'?((SRDB.weapon(l.key)||{}).name||l.key):kitNameId(l.key);
-  who.innerHTML=lead+'<div><div class="sr-cmdbar__name">'+esc(bmName)+'</div><div class="kit-cstats">'+lotStats(l)+'</div></div>';
-  orders.innerHTML=cmdOrder(1,'credits',merc?'Hire':'Buy','data-bmbuy',!!whyBuy,whyBuy)+cmdOrder(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll);
-  who.hidden=false;orders.hidden=false;
+  return '<div class="kit-cstats" id="bmStats">'+lotStats(l)+'</div>'+
+    kitActs('bmActs',[kitAct(1,'credits',merc?'Hire':'Buy','data-bmbuy',!!whyBuy,whyBuy),kitAct(2,'loot','Buy all','data-bmbuyall',!!whyAll,whyAll)],
+      [sold?'':whyBuy?whyBuy+'.':'']);
 }
 $('bmView').addEventListener('click',ev=>{
-  const t=ev.target.closest('button');
+  const b=ev.target.closest('button');
+  if(b&&(b.hasAttribute('data-bmbuy')||b.hasAttribute('data-bmbuyall'))){
+    if(b.disabled)return;
+    sClick();buyLot(bmSel,b.hasAttribute('data-bmbuyall'));return;
+  }
+  const t=ev.target.closest('[data-bmlot]');
   if(!t)return;
-  const lot=t.getAttribute('data-bmlot');
-  if(lot!==null){sClick();bmSel=+lot;bmLine=null;renderMarket();}
+  const lot=+t.getAttribute('data-bmlot');
+  if(lot===bmSel)return;   // the open lot: its own buttons act
+  sClick();bmSel=lot;bmLine=null;renderMarket();
 });
 /* phones re-pick their column counts when the viewport changes */
 addEventListener('resize',()=>{if(arOpen)renderArsenal();if(bmOpen)renderMarket();if(msOpen)msFit();});
@@ -8402,9 +8371,10 @@ addEventListener('keydown',ev=>{
     else closeTilePop();
     return;
   }
-  // Arsenal / Black Market: keys 1-2 press the command-bar orders
+  // Arsenal / Black Market: keys 1-2 press the selected thing's buttons (in the dossier, on the lot)
   if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&!arRefit&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
-    const btn=[...$('arOrders').querySelectorAll('.sr-order')][+ev.key-1];
+    const acts=$(arOpen?'arActs':'bmActs');
+    const btn=acts&&[...acts.querySelectorAll('.kit-act')][+ev.key-1];
     if(btn&&!btn.disabled){ev.preventDefault();btn.click();}
     return;
   }
@@ -8414,9 +8384,9 @@ addEventListener('keydown',ev=>{
     if(pb){ev.preventDefault();pb.click();}
     return;
   }
-  // 1-9 drive the galaxy command bar
+  // 1-9 press the selected panel's buttons on the galaxy
   if(!winMode&&baseView==='galaxy'&&/^[1-9]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
-    const b=[...$('gxOrders').querySelectorAll('.sr-order')].find(x=>{const k=x.querySelector('.sr-order__key');return k&&k.textContent===ev.key&&!x.disabled;});
+    const b=[...$('gxDock').querySelectorAll('.gx-act')].find(x=>{const k=x.querySelector('.sr-kbd');return k&&k.textContent===ev.key&&!x.disabled;});
     if(b){ev.preventDefault();b.click();}
     return;
   }
