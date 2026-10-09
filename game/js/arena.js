@@ -151,7 +151,7 @@ function drawArc(s){   // firing arc and lock envelope (space.js drawArcFor, wit
   ctx.strokeStyle=TH.rgba(C.hazard,0.4);ctx.beginPath();ctx.arc(0,0,S2.LOCK_RNG,-S2.LOCK_ARC,S2.LOCK_ARC);ctx.stroke();
   ctx.setLineDash([]);ctx.restore();
 }
-/* a path: solid while it is the plan, dashed once it is the straight-on coast; a ghost at the exec's end */
+/* a path: the planned moves solid with a dot at each move's end; the straight-on coast after them faint; a ghost at the exec's end */
 function drawPath(s,pts,o){
   if(!pts||pts.length<2)return;
   o=o||{};const k=1/A.cam.z,col=o.col||(s.faction==='reb'?C.gold:C.heg);
@@ -160,7 +160,7 @@ function drawPath(s,pts,o){
     ctx.setLineDash(dash);ctx.lineWidth=w;ctx.strokeStyle=c;ctx.stroke();};
   stroke(()=>true,[],6*k,TH.rgba(C.ink,o.strong?0.75:0.45));
   stroke(p=>!p.coast,[],(o.strong?3.4:2.4)*k,TH.rgba(col,o.strong?0.95:0.6));
-  stroke(p=>p.coast,[3*k,7*k],2.2*k,TH.rgba(col,0.45));
+  stroke(p=>p.coast,[],1.6*k,TH.rgba(col,0.3));
   ctx.setLineDash([]);
   // segment boundaries
   for(const p of pts)if(p.knot){ctx.beginPath();ctx.arc(p.x,p.y,4*k,0,7);ctx.fillStyle=TH.rgba(col,0.9);ctx.fill();}
@@ -170,10 +170,64 @@ function drawPath(s,pts,o){
   if(o.ghost)drawShip(s,o.strong?0.4:0.22,e);
   ctx.restore();
 }
-function previewPts(s,pts){
-  const p=S2.preview(s.id,pts);if(!p)return null;
-  const per=10;p.pts.forEach((q,i)=>{if(i>0&&i%(per+1)===0)q.knot=true;});
-  return p;
+/* ---------- the move envelope (C-57): where the next move can end, banded by type, shrunk to the round's distance left ---------- */
+const BAND={T:{name:'TURN',col:()=>C.hazard},B:{name:'BANK',col:()=>C.gold},S:{name:'STRAIGHT',col:()=>C.go}};
+const BAND_ANG={T:Math.PI/2,B:Math.PI/4};
+const bandCost=k=>k==='S'?T.AP_STRAIGHT:k==='B'?T.AP_BANK:T.AP_TURN;
+function bandPoly(p,lo,up,ang){
+  const N=18,pts=[],at=(len,t)=>S2.fn.arcFn(p.x,p.y,p.h,{len,turn:t})(1);
+  for(let i=0;i<=N;i++)pts.push(at(lo+(up-lo)*i/N,ang));
+  for(let j=1;j<=N;j++)pts.push(at(up,ang-2*ang*j/N));
+  for(let i=N-1;i>=0;i--)pts.push(at(lo+(up-lo)*i/N,-ang));
+  for(let j=N-1;j>=1;j--)pts.push(at(lo,-ang+2*ang*j/N));
+  return pts;
+}
+/* st: {x,y,h,left (distance), ap (what a move may spend)}; strong while dragging, faint while only selected */
+function drawEnvelope(s,st,strong){
+  const e=S2.fn.envOf(s),k=1/A.cam.z,tol=T.STRAIGHT_TOL*Math.PI/180;
+  let any=false;
+  ctx.save();ctx.lineJoin='round';
+  for(const key of ['T','B','S']){
+    const r=e[key];if(!r)continue;
+    const lo=r[0],up=Math.min(r[1],st.left);if(up<lo)continue;
+    any=true;
+    const ang=key==='S'?tol:BAND_ANG[key],ok=st.ap>=bandCost(key),col=ok?BAND[key].col():C.text3;
+    const pts=bandPoly(st,lo,up,ang);
+    ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.closePath();
+    ctx.fillStyle=TH.rgba(col,strong?(key==='S'?0.3:0.13):0.05);ctx.fill();
+    ctx.lineWidth=(strong?2:1.2)*k;ctx.strokeStyle=TH.rgba(col,strong?0.75:0.3);ctx.stroke();
+    if(key==='S'){const a=S2.fn.arcFn(st.x,st.y,st.h,{len:lo,turn:0})(1),b=S2.fn.arcFn(st.x,st.y,st.h,{len:up,turn:0})(1);
+      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineWidth=(strong?3:1.6)*k;ctx.strokeStyle=TH.rgba(col,strong?0.9:0.4);ctx.stroke();}
+    if(strong){   // the band's name and price
+      const q=key==='S'?S2.fn.arcFn(st.x,st.y,st.h,{len:up,turn:0})(1):S2.fn.arcFn(st.x,st.y,st.h,{len:(lo+up)/2,turn:ang*0.92})(1);
+      const off=key==='S'?18*k:0;
+      ctx.font='800 '+(12*k)+'px "Exo 2",sans-serif';ctx.textAlign=key==='S'?'left':'center';
+      const txt=BAND[key].name+' · '+bandCost(key)+' AP'+(ok?'':' (short)');
+      ctx.lineWidth=4*k;ctx.strokeStyle=C.ink;ctx.strokeText(txt,q.x+Math.cos(st.h)*off,q.y+Math.sin(st.h)*off);
+      ctx.fillStyle=col;ctx.fillText(txt,q.x+Math.cos(st.h)*off,q.y+Math.sin(st.h)*off);
+    }
+  }
+  if(!any&&strong){ctx.font='800 '+(13*k)+'px "Exo 2",sans-serif';ctx.textAlign='center';ctx.lineWidth=4*k;ctx.strokeStyle=C.ink;
+    ctx.strokeText('No distance left this round',st.x,st.y-40*k);ctx.fillStyle=C.text2;ctx.fillText('No distance left this round',st.x,st.y-40*k);}
+  ctx.restore();
+}
+/* the move being dragged: its arc in its band's colour and the ship's ghost at its end (red when the AP is short) */
+function drawGhostMove(s,st,arc,ok){
+  if(!arc)return;
+  const k=1/A.cam.z,col=ok?BAND[arc.type==='K'?'T':arc.type].col():C.hazard,fn=S2.fn.arcFn(st.x,st.y,st.h,arc);
+  ctx.save();ctx.lineCap='round';ctx.beginPath();
+  for(let i=0;i<=24;i++){const q=fn(i/24);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}
+  ctx.lineWidth=7*k;ctx.strokeStyle=TH.rgba(C.ink,0.7);ctx.stroke();ctx.lineWidth=3.6*k;ctx.strokeStyle=col;ctx.stroke();
+  ctx.restore();
+  drawShip(s,ok?0.6:0.35,arc.end);
+}
+/* where the next drag starts: the end of the moves set so far (a handle to grab) */
+function drawHandle(st,strong){
+  const k=1/A.cam.z;
+  ctx.save();ctx.beginPath();ctx.arc(st.x,st.y,(strong?11:8)*k,0,7);ctx.fillStyle=C.ink;ctx.fill();
+  ctx.beginPath();ctx.arc(st.x,st.y,(strong?8:5.5)*k,0,7);ctx.fillStyle=C.gold;ctx.fill();
+  ctx.lineWidth=2*k;ctx.strokeStyle=C.ink;ctx.beginPath();ctx.moveTo(st.x+Math.cos(st.h)*4*k,st.y+Math.sin(st.h)*4*k);ctx.lineTo(st.x+Math.cos(st.h)*16*k,st.y+Math.sin(st.h)*16*k);ctx.stroke();
+  ctx.restore();
 }
 function drawLocks(){   // space.js drawLockLines, plus the acquisition clock round the target
   for(const s of A.sim.ships){
@@ -249,19 +303,24 @@ function render(){
     if(D&&D.tell&&!S2.DOC_OFF[s.doctrine]){try{D.tell(s,TELL,S2.WAPI);}catch(e){console.error(e);}}
   }
   const sel=ship(A.sel);
-  if(sel&&sel.alive&&sim.phase!=='OVER')drawArc(sel);
+  if(sel&&sel.alive&&sim.phase!=='OVER'&&!A.drag)drawArc(sel);   // hidden while dragging, so the envelope reads alone
   // paths
   if(sim.phase==='PLAN'){
+    const dr=A.drag&&A.drag.mode==='move'?A.drag:null;
     for(const s of sim.ships){
       if(!s.alive||S2.fn.isStruct(s))continue;
-      const dragging=A.drag&&A.drag.id===s.id&&A.drag.mode==='path';
+      const dragging=dr&&dr.id===s.id;
       if(s.faction==='heg'&&!(s.plan2.drawn||dragging))continue;
       if(!dragging&&!pathVisible(s))continue;
-      const pv=dragging?A.drag.pv:previewPts(s);
-      if(dragging){   // the raw drag, faint, under the fitted path
-        const k=1/z;ctx.save();ctx.beginPath();A.drag.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.setLineDash([2*k,6*k]);ctx.lineWidth=1.6*k;ctx.strokeStyle=TH.rgba(C.text,0.35);ctx.stroke();ctx.restore();
-      }
-      if(pv)drawPath(s,pv.pts,{strong:s.id===A.sel||dragging,ghost:true,col:s.faction==='heg'?C.hegHi:(s.plan2.drawn||dragging?C.gold:C.steel)});
+      const pv=S2.preview(s.id);
+      if(pv)drawPath(s,pv.pts,{strong:s.id===A.sel||dragging,ghost:!dragging,col:s.faction==='heg'?C.hegHi:(s.plan2.drawn?C.gold:C.steel)});
+    }
+    const es=dr?ship(dr.id):(sel&&sel.alive&&(sel.faction==='reb'||A.possess)&&!S2.fn.isStruct(sel)?sel:null);
+    if(es){
+      const st=dr?dr.start:S2.planEnd(es.id);
+      drawEnvelope(es,st,!!dr);
+      if(dr&&dr.mv)drawGhostMove(es,st,dr.mv.arc,dr.mv.ok);
+      if(!dr)drawHandle(st,es.plan2.drawn);
     }
   } else if(sim.phase==='EXEC'){
     for(const s of sim.ships){   // what's left of your own paths
@@ -269,7 +328,7 @@ function render(){
       const pts=S2.fn.sampleRun(s.run,8).filter(p=>p.t>=sim.execT);
       if(pts.length>1)drawPath(s,pts,{strong:s.id===A.sel});
     }
-    if(A.drag&&A.drag.mode==='juke'&&A.drag.pv){const s=ship(A.drag.id);if(s)drawPath(s,A.drag.pv.pts,{strong:true,ghost:true,col:C.psi});}
+    if(A.drag&&A.drag.mode==='juke'){const s=ship(A.drag.id);if(s){drawEnvelope(s,A.drag.start,true);if(A.drag.mv&&A.drag.mv.arc)drawGhostMove(s,A.drag.start,A.drag.mv.arc,A.drag.mv.arc.ok);}}
   }
   drawLocks();
   // trails and ships
@@ -451,8 +510,8 @@ function showOver(r){
 
 /* ---------- picker (handoff §2.2) ---------- */
 function tuneSummary(){
-  return 'Exec '+T.EXEC_LEN+' s · speed '+T.SIM_SPEED+'× · clock '+(T.PLAN_CLOCK?T.PLAN_CLOCK+' s':'off')+' · cap '+(T.INT_CAP||'by level')+
-    ' · Snap '+T.COST_SNAP+' / Juke '+T.COST_JUKE+' / Shift '+T.COST_SHIFT+' · floor '+T.INT_FLOOR;
+  return 'Exec '+T.EXEC_LEN+' s · speed '+T.SIM_SPEED+'× · clock '+(T.PLAN_CLOCK?T.PLAN_CLOCK+' s':'off')+
+    ' · AP '+T.AP_BASE+' +1 per '+T.AP_LEVELS+' levels, +'+T.COOL_AP+' Cool · moves '+T.AP_STRAIGHT+'/'+T.AP_BANK+'/'+T.AP_TURN+' · Snap '+T.AP_SNAP+' · floor '+T.INT_FLOOR;
 }
 function openPicker(){
   const pk=byId('arPicker');
@@ -479,6 +538,15 @@ function nerveBar(s){
   const v=Math.round(s.pilot.cool),st=S2.fn.coolState(s);
   return '<div class="ar-meter"><span>Nerve</span><i style="--v:'+v+'%;--c:var(--sr-'+(st==='cool'?'go':st==='panic'?'hazard':'gold')+')"></i><b>'+v+'</b></div>';
 }
+/* the AP meter: one pip per point; spent pips dim, Cool bonus pips gold (spending them costs the pilot their Cool) */
+function apBar(s){
+  if(!s.ap)return '';
+  const spent=S2.apPlanned(s)+s.ap.used,tot=s.ap.max+s.ap.bonus;
+  let pips='';
+  for(let i=0;i<tot;i++)pips+='<i class="'+(i>=s.ap.max?'is-bonus ':'')+(i<spent?'is-spent':'')+'"></i>';
+  return '<div class="ar-ap"><span>AP</span><span class="ar-ap__pips">'+pips+'</span><b>'+Math.max(0,tot-spent)+' left</b>'+
+    (s.ap.bonus?'<em>'+(s.ap.bonusSpent?'Cool spent':'+'+s.ap.bonus+' Cool')+'</em>':'')+'</div>';
+}
 function shipCard(){
   const s=ship(A.sel),el=byId('arShip'),sim=A.sim;
   if(!s||!sim||!byId('arPicker').hidden){el.hidden=true;return;}
@@ -490,19 +558,23 @@ function shipCard(){
   if(!isS&&!S2.CLS[s.cls].mute)h+=nerveBar(s);
   h+='<div class="ar-ship__row">Hull '+Math.max(0,s.hull)+'/'+s.maxHull+' · Arm '+s.arm+' · Shd '+s.segs.F.val+'/'+s.segs.R.val+
     (s.crits.length?' · <span class="is-bad">'+s.crits.join(', ')+'</span>':'')+'</div>';
+  if(reb||(A.possess&&!isS))h+=apBar(s);
   if(reb){
     h+='<div class="ar-ship__row">Target <b>'+(t&&t.alive?HUD.esc(t.name):'none')+'</b>'+(s.lock?' · lock ×'+s.lock.level:'')+
-      ' · interrupts '+s.intUsed+'/'+S2.intCap(s.pilot)+'</div>';
-    const ord=s.order?s.order.kind:'none';
+      (s.intUsed?' · interrupts '+s.intUsed:'')+'</div>';
+    const ord=s.order?s.order.kind:'none',left=S2.apLeft(s);
+    const act=(k,label,cost,on,extra)=>'<button class="sr-btn sr-btn--sm'+(on?' is-on':'')+'" data-act="'+k+'"'+(plan&&(on||left>=cost)&&!extra?'':' disabled')+'>'+label+' <b class="ar-cost">'+cost+'</b></button>';
+    const st=S2.planEnd(s.id),e=S2.fn.envOf(s);
     h+='<div class="ar-ship__ctl">'+
-      '<button class="sr-btn sr-btn--sm'+(s.stance.evade?' is-on':'')+'" data-act="evade"'+(plan?'':' disabled')+'>Evade</button>'+
-      '<button class="sr-btn sr-btn--sm'+(s.stance.lockin?' is-on':'')+'" data-act="lockin"'+(plan?'':' disabled')+'>Lock in</button>'+
-      '<button class="sr-btn sr-btn--sm" data-act="shiftF"'+(plan?'':' disabled')+'>Angle fore '+(s.segs.F.at==='F'?'':'(aft)')+'</button>'+
-      '<button class="sr-btn sr-btn--sm" data-act="shiftR"'+(plan?'':' disabled')+'>Angle aft '+(s.segs.R.at==='R'?'':'(fore)')+'</button>'+
+      act('evade','Evade',T.AP_EVADE,s.stance.evade)+act('lockin','Lock in',T.AP_LOCKIN,s.stance.lockin)+act('boost','Boost shield',T.AP_BOOST,s.stance.boost)+
+      act('shiftF','Angle fore'+(s.segs.F.at==='F'?'':' (aft)'),T.AP_SHIFT,s.shieldAt0&&s.segs.F.at!==s.shieldAt0.F)+
+      act('shiftR','Angle aft'+(s.segs.R.at==='R'?'':' (fore)'),T.AP_SHIFT,s.shieldAt0&&s.segs.R.at!==s.shieldAt0.R)+
+      (e.K?act('kturn','K-turn',T.AP_KTURN,false,!(st&&st.left>=3*S2.SU&&st.ap>=T.AP_KTURN)):'')+
       '</div><div class="ar-ship__ctl"><label>Order <select data-act="order"'+(plan?'':' disabled')+'>'+
       S2.ORDERS.map(o=>'<option value="'+o+'"'+(o===ord?' selected':'')+'>'+o+'</option>').join('')+'</select></label>'+
-      (s.plan2.drawn?'<button class="sr-btn sr-btn--sm sr-btn--ghost" data-act="clear"'+(plan?'':' disabled')+'>Clear path</button>':'')+
-      '<span class="ar-ship__hint">'+(plan?(s.plan2.drawn?'Path drawn':'Flying: '+(s.order?s.order.kind:'hold'))+' · drag from the ship to draw':'Click the ship to interrupt')+'</span></div>';
+      (s.plan2.drawn?'<button class="sr-btn sr-btn--sm sr-btn--ghost" data-act="undo"'+(plan?'':' disabled')+'>Undo move <span class="sr-kbd">Z</span></button>'+
+        '<button class="sr-btn sr-btn--sm sr-btn--ghost" data-act="clear"'+(plan?'':' disabled')+'>Clear</button>':'')+
+      '<span class="ar-ship__hint">'+(plan?(s.plan2.drawn?s.plan2.arcs.length+' move'+(s.plan2.arcs.length>1?'s':'')+' set · drag from the gold handle for another':(s.order?'Flying: '+s.order.kind:'No moves: flies straight on')+' · drag from the ship to move'):'Click the ship to interrupt')+'</span></div>';
   }
   if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
 }
@@ -510,10 +582,13 @@ byId('arShip').addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b||b.tagName==='SELECT')return;
   const s=ship(A.sel);if(!s)return;
   const a=b.dataset.act;
-  if(a==='evade')S2.setStance(s.id,'evade',!s.stance.evade);
-  else if(a==='lockin')S2.setStance(s.id,'lockin',!s.stance.lockin);
-  else if(a==='shiftF'||a==='shiftR')S2.planShift(s.id,a==='shiftF'?'F':'R');
+  let ok=true;
+  if(a==='evade'||a==='lockin'||a==='boost')ok=S2.setStance(s.id,a,!s.stance[a]);
+  else if(a==='shiftF'||a==='shiftR')ok=S2.planShift(s.id,a==='shiftF'?'F':'R');
+  else if(a==='kturn')ok=!!S2.addKturn(s.id);
+  else if(a==='undo')S2.undoMove(s.id);
   else if(a==='clear')S2.clearPath(s.id);
+  if(!ok)toast('Not enough AP');
   syncHud(true);
 });
 byId('arShip').addEventListener('change',ev=>{
@@ -563,15 +638,17 @@ function syncInt(){
   const el=byId('arInt'),s=S2.pausedShip();
   if(!s){el.hidden=true;return;}
   el.hidden=false;
-  const h='<div class="ar-int__head">'+HUD.esc(s.name)+' · nerve '+Math.round(s.pilot.cool)+' · '+s.intUsed+'/'+S2.intCap(s.pilot)+' used</div>'+
-    (A.juke?'<div class="ar-int__hint">Drag a new path from the ship (one segment)</div>':
-    (S2.canSnap().ok?'<button class="sr-btn sr-btn--sm" data-int="snap">Snap Shot <b>−'+T.COST_SNAP+'</b></button>':
-      '<button class="sr-btn sr-btn--sm" disabled title="No firing solution">Snap Shot · no shot</button>')+
-    '<button class="sr-btn sr-btn--sm" data-int="juke">Juke <b>−'+T.COST_JUKE+'</b></button>'+
-    '<button class="sr-btn sr-btn--sm" data-int="shiftF">Shift fore <b>−'+T.COST_SHIFT+'</b></button>'+
-    '<button class="sr-btn sr-btn--sm" data-int="shiftR">Shift aft <b>−'+T.COST_SHIFT+'</b></button>')+
+  const left=S2.apLeft(s),sn=S2.canSnap();
+  const vb=(k,label,cost,why)=>'<button class="sr-btn sr-btn--sm" data-int="'+k+'"'+(why?' disabled title="'+why+'"':'')+'>'+label+(why&&why!=='not enough AP'?' · '+why:'')+' <b class="ar-cost">'+cost+'</b></button>';
+  const h='<div class="ar-int__head">'+HUD.esc(s.name)+' · '+left+' AP left · nerve '+Math.round(s.pilot.cool)+'</div>'+
+    (A.juke?'<div class="ar-int__hint">Drag one new move from the ship ('+T.AP_JUKE+' AP + the move)</div>':
+    vb('snap','Snap Shot',T.AP_SNAP,sn.ok?'':sn.why)+
+    vb('juke','Juke',T.AP_JUKE+'+',left<T.AP_JUKE+T.AP_STRAIGHT?'not enough AP':'')+
+    vb('shiftF','Shift fore',T.AP_SHIFT_INT,left<T.AP_SHIFT_INT?'not enough AP':'')+
+    vb('shiftR','Shift aft',T.AP_SHIFT_INT,left<T.AP_SHIFT_INT?'not enough AP':''))+
     '<button class="sr-btn sr-btn--sm sr-btn--ghost" data-int="cancel">Cancel <span class="sr-kbd">Esc</span></button>';
   if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
+  if(A.juke){el.style.left='16px';el.style.top='16px';return;}   // out of the way of the Juke's envelope
   const [x,y]=toCss(s.x,s.y);
   el.style.left=Math.max(8,Math.min(cssW-el.offsetWidth-8,x+40))+'px';
   el.style.top=Math.max(8,Math.min(cssH-el.offsetHeight-8,y-el.offsetHeight/2))+'px';
@@ -596,22 +673,37 @@ function shipAt(px,py){
   for(const s of (A.sim?A.sim.ships:[])){if(!s.alive)continue;const d=Math.hypot(s.x-w.x,s.y-w.y);if(d*A.cam.z<Math.max(30,24*s.size*iconBoost()*A.cam.z)&&d<bd){bd=d;best=s;}}
   return best;
 }
+/* the ship whose chain-end handle is under the pointer (the next drag starts there) */
+function handleAt(px,py){
+  if(!A.sim||A.sim.phase!=='PLAN')return null;
+  for(const s of A.sim.ships){
+    if(!s.alive||!s.plan2.drawn||!(s.faction==='reb'||A.possess))continue;
+    const st=S2.planEnd(s.id),[x,y]=toCss(st.x,st.y);
+    if(Math.hypot(x-px,y-py)<22)return s;
+  }
+  return null;
+}
+/* Moves (C-57): press on your ship (or the gold handle at the end of its moves), drag, release. The ghost follows
+   the pointer inside the envelope and slides along its edge outside it; release sets one move. */
 cv.addEventListener('pointerdown',ev=>{
   if(!A.sim)return;
   SR.audio.wake();
   cv.setPointerCapture(ev.pointerId);
-  const [px,py]=evCss(ev),s=shipAt(px,py),sim=A.sim;
-  const canDraw=s&&sim.phase==='PLAN'&&ev.button===0&&(s.faction==='reb'||(A.possess&&s.faction==='heg'))&&!S2.fn.isStruct(s);
+  const [px,py]=evCss(ev),sim=A.sim,hs=ev.button===0?handleAt(px,py):null,s=hs||shipAt(px,py);
+  const canMove=s&&sim.phase==='PLAN'&&ev.button===0&&(s.faction==='reb'||(A.possess&&s.faction==='heg'))&&!S2.fn.isStruct(s);
   const jk=s&&A.juke&&sim.paused&&sim.paused.id===s.id;
-  if(canDraw||jk){A.drag={id:s.id,mode:jk?'juke':'path',pts:[{x:s.x,y:s.y}],moved:false,pv:null};A.sel=s.id;return;}
+  if(canMove){A.drag={id:s.id,mode:'move',start:S2.planEnd(s.id),x0:px,y0:py,moved:false,mv:null};A.sel=s.id;return;}
+  if(jk){A.drag={id:s.id,mode:'juke',start:{x:s.x,y:s.y,h:s.h,left:s.vel*(T.EXEC_LEN-sim.execT),ap:S2.apLeft(s)-T.AP_JUKE},x0:px,y0:py,moved:false,mv:null};return;}
   A.pan={x:px,y:py,moved:false,ship:s};
 });
 cv.addEventListener('pointermove',ev=>{
   const [px,py]=evCss(ev);
   if(A.drag){
-    const w=toWorld(px,py),last=A.drag.pts[A.drag.pts.length-1];
-    if(Math.hypot(w.x-last.x,w.y-last.y)>12/A.cam.z){A.drag.pts.push(w);A.drag.moved=true;
-      A.drag.pv=A.drag.mode==='juke'?S2.previewJuke(A.drag.pts):previewPts(ship(A.drag.id),A.drag.pts);}
+    if(Math.hypot(px-A.drag.x0,py-A.drag.y0)>6)A.drag.moved=true;
+    if(A.drag.moved){
+      const w=toWorld(px,py);
+      A.drag.mv=A.drag.mode==='juke'?S2.previewJuke(w.x,w.y):S2.previewMove(A.drag.id,w.x,w.y);
+    }
     return;
   }
   if(A.pan){
@@ -620,7 +712,7 @@ cv.addEventListener('pointermove',ev=>{
     if(A.pan.moved){A.cam.x-=dx/A.cam.z;A.cam.y-=dy/A.cam.z;clampCam();A.pan.x=px;A.pan.y=py;}
     return;
   }
-  const h=shipAt(px,py);A.hover=h?h.id:null;cv.style.cursor=h?'pointer':'grab';
+  const h=handleAt(px,py)||shipAt(px,py);A.hover=h?h.id:null;cv.style.cursor=h?'pointer':'grab';
 });
 function endPointer(ev){
   const [px,py]=evCss(ev);
@@ -628,9 +720,9 @@ function endPointer(ev){
     const d=A.drag;A.drag=null;
     const s=ship(d.id);
     if(d.moved&&s){
-      if(d.mode==='juke'){const r=S2.intJuke(d.pts);if(!r.ok)toast(r.why);else closeInt();onEvents(S2.drain());}
-      else if(s.faction==='heg')S2.possess(s.id,d.pts);
-      else S2.setPath(s.id,d.pts);
+      const w=toWorld(px,py);
+      if(d.mode==='juke'){const r=S2.intJuke(w.x,w.y);if(!r.ok)toast(r.why);else closeInt();onEvents(S2.drain());}
+      else {const pv=S2.previewMove(s.id,w.x,w.y);if(pv&&pv.arc&&pv.ok)S2.addMove(s.id,w.x,w.y);else toast(pv?pv.why:'No move there');}
     } else click(s,px,py);
     syncHud(true);return;
   }
@@ -658,6 +750,8 @@ addEventListener('keydown',ev=>{
   if(ev.key==='Escape'){if(sim.paused){intVerb('cancel');ev.preventDefault();}return;}
   if((ev.key==='Enter'||ev.key===' ')&&sim.phase==='PLAN'&&byId('arPicker').hidden){ev.preventDefault();execute();return;}
   if(ev.key==='p'||ev.key==='P'){togglePause();return;}
+  if((ev.key==='z'||ev.key==='Z'||ev.key==='Backspace')&&sim.phase==='PLAN'&&A.sel){ev.preventDefault();S2.undoMove(A.sel);syncHud(true);return;}
+  if((ev.key==='k'||ev.key==='K')&&sim.phase==='PLAN'&&A.sel){if(!S2.addKturn(A.sel))toast('No K-turn: needs the loop, 3 AP and the distance');syncHud(true);return;}
   if(/^[1-8]$/.test(ev.key)){
     const s=sim.ships.filter(x=>x.faction==='reb'&&x.alive)[+ev.key-1];if(!s)return;
     if(sim.phase==='EXEC'&&!sim.paused)openInt(s.id);else{A.sel=s.id;syncHud(true);}
@@ -675,19 +769,27 @@ const SLIDERS=[
   ['EXEC_LEN','Exec length (s)',2,10,1],
   ['SIM_SPEED','Sim speed (×)',0.25,2,0.25],
   ['PLAN_CLOCK','Planning clock (s, 0 off)',0,60,30],
-  ['INT_CAP','Interrupt cap (0 by level)',0,3,1],
-  ['COST_SNAP','Snap Shot cost',0,60,5],
-  ['COST_JUKE','Juke cost',0,60,5],
-  ['COST_SHIFT','Shield Shift cost',0,60,5],
+  ['AP_BASE','AP per round',2,12,1],
+  ['AP_LEVELS','+1 AP per levels',1,10,1],
+  ['COOL_AP','Cool bonus AP',0,5,1],
+  ['AP_STRAIGHT','Straight move AP',0,5,1],
+  ['AP_BANK','Bank move AP',0,5,1],
+  ['AP_TURN','Turn move AP',0,6,1],
+  ['AP_SNAP','Snap Shot AP',0,6,1],
+  ['AP_JUKE','Juke AP (+ the move)',0,6,1],
+  ['AP_SHIFT_INT','Shield Shift AP (mid-exec)',0,6,1],
   ['INT_FLOOR','Interrupt floor (nerve)',0,70,5],
+  ['INT_CAP','Interrupt cap (0 none)',0,3,1],
   ['NERVE_GAIN','Nerve gain ×',0,3,0.25],
   ['NERVE_DRAIN','Nerve drain ×',0,3,0.25],
   ['ENEMY_N','Enemies per flight (0 scenario; on restart)',0,6,1],
   ['AI_NOISE','AI fitter noise',0,300,10],
 ];
 const MORE=[
-  ['SEG_TIME','Segment time (s)',1,4,0.5],['PATH_SEGS','Path segments',1,4,1],['SNAP_BONUS','Snap Shot ATK',0,6,1],
-  ['LOCK_TIME','Lock time (s)',0.5,4,0.25],['CALM_GAIN','Calm nerve gain',0,20,1],['FIT_W_HDG','Fitter heading weight',0,400,10],
+  ['AP_KTURN','K-turn AP',0,6,1],['AP_EVADE','Evade AP',0,5,1],['AP_LOCKIN','Lock in AP',0,5,1],['AP_BOOST','Boost shield AP',0,5,1],['AP_SHIFT','Angle shield AP (plan)',0,5,1],
+  ['COOL_SPENT_TO','Nerve after spending Cool',30,69,1],['STRAIGHT_TOL','Straight tolerance (°)',0,20,1],
+  ['SEG_TIME','Seconds per top-speed move',1,4,0.5],['PATH_SEGS','AI moves per round',1,4,1],['SNAP_BONUS','Snap Shot ATK',0,6,1],
+  ['LOCK_TIME','Lock time (s)',0.5,4,0.25],['CALM_GAIN','Calm nerve gain',0,20,1],
   ['GUN_SHOTS','Gun shots per 6 s',1,4,1],['MSL_SHOTS','Missile shots per 6 s',1,3,1],
   ['GUARD_R','Guard radius',400,1600,50],['WING_FLOUNDER','Wing flounder (s)',0,10,1],['PREF_RANGE','Pursuit range',150,700,10],['OPP_FIRE','Opportunity fire (0/1)',0,1,1],
 ];
@@ -757,14 +859,14 @@ function readouts(){
   const cur=sim.phase==='PLAN'?Math.round((performance.now()-A.planStart)/1000):null;
   let h='<div class="ar-ro">Planning this turn: <b>'+(cur==null?'—':cur+' s')+'</b></div>'+
     '<div class="ar-ro">Per turn: '+(A.planHist.length?A.planHist.map(ms=>(ms/1000).toFixed(1)+'s').join(', '):'—')+'</div>';
-  h+='<table class="ar-tbl"><tr><th></th><th>Shots</th><th>Hits</th><th>In arc</th><th>Int</th><th>Nerve</th></tr>';
+  h+='<table class="ar-tbl"><tr><th></th><th>Shots</th><th>Hits</th><th>In arc</th><th>AP</th><th>Nerve</th></tr>';
   for(const s of sim.ships){
     if(S2.fn.isStruct(s))continue;
     h+='<tr class="'+(s.faction==='reb'?'is-reb':'is-heg')+(s.alive?'':' is-dead')+'"><td>'+HUD.esc(s.name)+'</td><td>'+s.stats.shots+'</td><td>'+s.stats.hits+'</td><td>'+
-      (s.faction==='reb'?(s.stats.arcTicks*T.TICK/1000).toFixed(1)+'s':'')+'</td><td>'+(s.faction==='reb'?s.stats.ints+'/'+S2.intCap(s.pilot):'')+'</td><td>'+
+      (s.faction==='reb'?(s.stats.arcTicks*T.TICK/1000).toFixed(1)+'s':'')+'</td><td>'+(s.ap&&s.faction==='reb'?(S2.apPlanned(s)+s.ap.used)+'/'+(s.ap.max+s.ap.bonus):'')+'</td><td>'+
       (S2.CLS[s.cls].mute?'—':Math.round(s.pilot.cool))+'</td></tr>';
   }
-  h+='</table><div class="ar-ro ar-faint">Shots, hits and time in arc count this exec. '+A.metrics.length+' exec records this session.</div>';
+  h+='</table><div class="ar-ro ar-faint">Shots, hits and time in arc count this exec; AP is spent of the round’s total. '+A.metrics.length+' exec records this session.</div>';
   if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
 }
 function dumpMetrics(show){
@@ -805,7 +907,7 @@ if(TEST){
       runExec(){S2.runExec();onEvents(S2.drain());return A.sim.phase;},
       runUntil(t){S2.runUntil(t);onEvents(S2.drain());return A.sim.execT;},
       interrupt:openInt,verb:intVerb,
-      juke(pts){A.juke=true;const r=S2.intJuke(pts);onEvents(S2.drain());if(!S2.pausedShip())closeInt();return r;},
+      juke(x,y){A.juke=true;const r=S2.intJuke(x,y);onEvents(S2.drain());if(!S2.pausedShip())closeInt();return r;},
       addScenario(s){ARENA_SCENARIOS.push(s);if(!byId('arPicker').hidden)openPicker();return s;},
       pickerIds(){return [...byId('arPicker').querySelectorAll('[data-scn]')].map(e=>e.dataset.scn);},
       hash:S2.hash,setRng:S2.setRng,select(id){A.sel=id;syncHud(true);}}};

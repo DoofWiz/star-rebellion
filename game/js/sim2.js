@@ -3,8 +3,9 @@
    STAR REBELLION — space combat v2 sim (docs/ARENA-HANDOFF.md §3)
    The Arena's lab model: one PLAN step, then both sides fly and fight
    simultaneously and continuously for EXEC_LEN seconds of sim time.
-   Paths are drawn and fitted to each ship's own dial; player ships may
-   interrupt mid-exec for nerve; enemies fly doctrine and never interrupt.
+   Moves are dragged inside each ship's envelope (from its dial) and chained;
+   one action point meter per pilot per round pays for moves, actions and
+   mid-exec interrupts (C-57); enemies fly doctrine and never interrupt.
 
    No DOM here: the Arena scene (arena.js) draws and drives it. All state
    lives in one object (S, the Arena's A.sim), rebuilt per scenario.
@@ -26,20 +27,32 @@ const DEFAULTS={
   EXEC_LEN:6,        // placeholder: seconds of sim time per EXEC (panel 2–10)
   SIM_SPEED:1,       // placeholder: wall-clock multiplier (panel 0.25–2)
   SEG_TIME:2,        // placeholder: seconds of sim time one dial manoeuvre takes to fly
-  PATH_SEGS:3,       // placeholder: most manoeuvre segments in one drawn path
-  FIT_W_POS:1,       // placeholder: fitter cost per world unit between a segment's end and the drag
-  FIT_W_HDG:150,     // placeholder: fitter cost per radian between a segment's end heading and the drag's
+  PATH_SEGS:3,       // placeholder: most dial manoeuvres an order or a doctrine chains in one round
+  STRAIGHT_TOL:6,    // placeholder: degrees of heading change a move may have and still count (and fly) as straight
   GUN_SHOTS:2,       // placeholder: gun shots per default-length exec (WPN_CD = 6 / 2 = 3 s)
   MSL_SHOTS:1,       // placeholder: missile shots per default-length exec (WPN_CD = 6 s)
   LOCK_TIME:1.5,     // placeholder: seconds of target inside the lock zone per lock level
   CALM_GAIN:6,       // placeholder: nerve at the end of an exec for a ship not hit in it (space.js endRound's 6)
   LOCKIN_GAIN:35,    // nerve from the Lock in stance (space.js doAction 'lockin')
   SNAP_BONUS:2,      // placeholder: Snap Shot's ATK bonus
-  COST_SNAP:25,      // placeholder: nerve
-  COST_JUKE:20,      // placeholder: nerve
-  COST_SHIFT:10,     // placeholder: nerve
+  /* action points (C-57): one meter per pilot per round for moves, actions, specials and interrupts */
+  AP_BASE:6,         // placeholder: AP every pilot has each round
+  AP_LEVELS:3,       // placeholder: +1 AP per this many pilot levels
+  COOL_AP:2,         // placeholder: bonus AP while Cool; spending into it drops the pilot out of Cool
+  COOL_SPENT_TO:69,  // placeholder: the nerve a pilot falls to when the Cool bonus is spent (just under Cool at 70)
+  AP_STRAIGHT:1,     // placeholder: a straight move
+  AP_BANK:2,         // placeholder: a bank (up to 45°)
+  AP_TURN:3,         // placeholder: a turn (up to 90°)
+  AP_KTURN:3,        // placeholder: a K-turn (pilots with the loop)
+  AP_EVADE:2,        // placeholder: fly defensive this round (+3 to be hit, no lock acquisition)
+  AP_LOCKIN:2,       // placeholder: lock in (+35 nerve at the round's end, no lock acquisition)
+  AP_SHIFT:1,        // placeholder: angle a shield segment while planning
+  AP_BOOST:2,        // placeholder: boost the weaker shield segment as the round starts
+  AP_SNAP:3,         // placeholder: interrupt: Snap Shot
+  AP_JUKE:1,         // placeholder: interrupt: Juke, on top of the new move's own cost
+  AP_SHIFT_INT:2,    // placeholder: interrupt: Shield Shift
   INT_FLOOR:30,      // placeholder: at or below this nerve (panicking) a pilot cannot interrupt
-  INT_CAP:0,         // placeholder: 0 = intCap(pilot) formula; 1–3 forces that cap on every pilot
+  INT_CAP:0,         // placeholder: 0 = no cap (AP is the limit); 1–3 caps interrupts per exec
   NERVE_GAIN:1,      // placeholder: multiplier on every combat nerve gain
   NERVE_DRAIN:1,     // placeholder: multiplier on every combat nerve loss (not on interrupt costs)
   ENEMY_N:0,         // placeholder: 0 = each scenario's own count; otherwise ships per enemy flight
@@ -62,8 +75,6 @@ const PRESETS={
   veteran:{level:5,aim:35,cunning:35,focus:30,presence:36,initiative:4,mans:['loop']},
   ace:    {level:8,aim:50,cunning:50,focus:40,presence:42,initiative:5,mans:['loop']},
 };
-/* interrupts per exec by pilot quality (placeholder: 1 + floor(level/2), from 1 to 3) */
-function intCap(p){return T.INT_CAP>0?T.INT_CAP:Math.max(1,Math.min(3,1+Math.floor((p.level||1)/2)));}
 /* weapon cooldown (placeholder): the default exec length over shots per exec. Fixed against the DEFAULT
    EXEC_LEN, so an EXEC_LEN sweep (E2) changes the commitment window and not the rate of fire (C-56). */
 function WPN_CD(kind){return DEFAULTS.EXEC_LEN/(kind==='missile'?T.MSL_SHOTS:T.GUN_SHOTS);}
@@ -147,7 +158,7 @@ function mkShip(id,name,cls,faction,x,y,h,pilot,loadout){
     plan:{man:null},path:null,trail:[],alive:true,fledOut:false,
     visRoll:0,moveBoost:0,
     // v2
-    run:[],plan2:{mans:null,drawn:false},order:null,stance:{evade:false,lockin:false},target:null,goal:null,
+    run:[],plan2:{arcs:[],drawn:false},order:null,stance:{evade:false,lockin:false,boost:false},ap:null,shieldAt0:null,target:null,goal:null,
     cd:{},lockAcc:0,intUsed:0,doctrine:null,doc:{},hitThisExec:false,holdFire:false,vel:0,
     stats:{shots:0,hits:0,arcTicks:0,ints:0}};
 }
@@ -368,31 +379,104 @@ function destroyShip(t,killer){
 }
 
 /* =====================================================================
-   v2: movement — paths fitted to the dial (handoff §3.2)
-   A path is a chain of dial manoeuvres. Each takes SEG_TIME seconds; after the last one the ship flies
-   straight on at the nearest legal straight speed until the exec ends (C-56). Positions are sampled
-   per tick from the chained manPath arcs, each sample clamped to the map as space.js does.
+   v2: movement — moves dragged and released inside the ship's envelope (the designer, 9 October: C-57)
+   A move is one arc from the ship's pose, locked to one direction: straight, a bank (up to 45°) or a
+   turn (up to 90°), of any length inside the band the ship's dial gives that type. The dial's whole
+   speeds become continuous bands: a type flown at speeds lo..hi covers lengths (lo − 0.5)..hi × SU.
+   A round's moves chain end to end and are flown at one steady speed across the exec. Together they may
+   cover at most top speed × EXEC_LEN ÷ SEG_TIME; a ship never flies slower than its slowest straight,
+   so a shorter chain is followed by flying straight on (drawn dashed). Positions are sampled per tick,
+   each sample clamped to the map as space.js does.
    ===================================================================== */
-function endPose(s,pose,m){return clampEnd(manPath(pose.x,pose.y,pose.h,[Math.min(m[0],maxSpeedOf(s)),m[1]])(1));}
-function coastMan(s,last){
-  const st=dialAvail(s).filter(m=>m[1]==='S');
-  if(!st.length)return null;
-  const want=last?last[0]:st[0][0];
-  return st.reduce((a,b)=>Math.abs(b[0]-want)<Math.abs(a[0]-want)?b:a);
+const ANG={S:0,B:Math.PI/4,T:Math.PI/2};
+/* the envelope: length bands (world units) per move type, from the dial after crits (dialAvail) */
+function envOf(s){
+  const e={S:null,B:null,T:null,K:false};
+  for(const [sp,tk] of dialAvail(s)){
+    const k=tk==='S'?'S':(tk==='l'||tk==='r')?'B':(tk==='L'||tk==='R')?'T':'K';
+    if(k==='K'){e.K=true;continue;}
+    const r=e[k]||[sp,sp];e[k]=[Math.min(r[0],sp),Math.max(r[1],sp)];
+  }
+  const ks=['S','B','T'].filter(k=>e[k]);
+  for(const k of ks)e[k]=[Math.max(0.5,e[k][0]-0.5)*SU,e[k][1]*SU];
+  e.lo=ks.length?Math.min(...ks.map(k=>e[k][0])):0;
+  e.hi=ks.length?Math.max(...ks.map(k=>e[k][1])):0;
+  return e;
 }
-/* the run: segments with start times; `coast` marks the straight-on filler after the plan */
-function buildRun(s,mans,pose,t0,tEnd){
-  const run=[];
-  if(isStruct(s))return run;
-  let p={x:pose.x,y:pose.y,h:pose.h},t=t0,last=null;
-  const push=(m,coast)=>{
-    const man=[Math.min(m[0],maxSpeedOf(s)),m[1]];
-    const fn=manPath(p.x,p.y,p.h,man);
-    run.push({man,t0:t,dur:T.SEG_TIME,fn,x:p.x,y:p.y,h:p.h,coast:!!coast});
-    p=clampEnd(fn(1));t+=T.SEG_TIME;last=man;
+const inBand=(r,len)=>!!r&&len>=r[0]-1e-6&&len<=r[1]+1e-6;
+const tolRad=()=>T.STRAIGHT_TOL*Math.PI/180;
+/* the widest heading change any type allows at this length (-1: no type flies it) */
+function maxAng(e,len){let a=-1;if(inBand(e.S,len))a=tolRad();if(inBand(e.B,len))a=Math.max(a,ANG.B);if(inBand(e.T,len))a=Math.max(a,ANG.T);return a;}
+function classify(e,len,turn){
+  const a=Math.abs(turn);
+  if(a<=tolRad()+1e-9&&inBand(e.S,len))return 'S';
+  if(a<=ANG.B+1e-9&&inBand(e.B,len))return 'B';
+  if(a<=ANG.T+1e-9&&inBand(e.T,len))return 'T';
+  return null;
+}
+function moveCost(type){return type==='S'?T.AP_STRAIGHT:type==='B'?T.AP_BANK:type==='T'?T.AP_TURN:T.AP_KTURN;}
+/* one arc as a function of t (0..1): manPath's geometry with a continuous length and heading change */
+function arcFn(x0,y0,h0,a){
+  if(a.k)return manPath(x0,y0,h0,[a.len/SU,'K']);
+  if(Math.abs(a.turn)<1e-6)return t=>({x:x0+Math.cos(h0)*a.len*t,y:y0+Math.sin(h0)*a.len*t,h:h0});
+  const R=a.len/a.turn;
+  return t=>({x:x0+R*(Math.sin(h0+a.turn*t)-Math.sin(h0)),y:y0-R*(Math.cos(h0+a.turn*t)-Math.cos(h0)),h:h0+a.turn*t});
+}
+const arcEnd=(p,a)=>clampEnd(arcFn(p.x,p.y,p.h,a)(1));
+/* the one arc from a pose, tangent to its heading, that ends on a point */
+function arcToPoint(p,px,py){
+  const dx=px-p.x,dy=py-p.y,c=Math.cos(p.h),sn=Math.sin(p.h);
+  const fx=dx*c+dy*sn,fy=-dx*sn+dy*c;
+  if(Math.abs(fy)<1e-6)return fx>0?{len:fx,turn:0}:null;
+  const turn=2*Math.atan2(fy,fx),R=(fx*fx+fy*fy)/(2*fy);
+  return {len:R*turn,turn};
+}
+/* round distance: the most a chain may cover, and the least the ship flies whatever it is told */
+function roundMax(s){return maxSpeedOf(s)*SU*T.EXEC_LEN/T.SEG_TIME;}
+function roundMin(s){return CLS[s.cls].minSpd*SU*T.EXEC_LEN/T.SEG_TIME;}
+const chainLen=arcs=>(arcs||[]).reduce((n,a)=>n+a.len,0);
+function chainEnd(s,arcs,pose){let p=pose||{x:s.x,y:s.y,h:s.h};for(const a of arcs||[])p=arcEnd(p,a);return p;}
+/* The move under the pointer: the arc to it if the envelope allows, else the legal arc whose end is nearest
+   (so the ghost slides along the envelope's edge). A turn inside the straight tolerance snaps to straight. */
+function moveTo(s,pose,px,py,budget){
+  const e=envOf(s),hi=Math.min(e.hi,budget==null?e.hi:budget);
+  if(hi<e.lo-1e-6)return null;
+  const fin=(len,turn)=>{
+    let type=classify(e,len,turn);
+    if(type==='S')turn=0;
+    if(!type)return null;
+    const a={len,turn,k:false,type,cost:moveCost(type)};a.end=arcEnd(pose,a);return a;
   };
-  for(const m of mans||[]){if(t>=tEnd-1e-9)break;push(m,false);}
-  while(t<tEnd-1e-9){const m=coastMan(s,last);if(!m)break;push(m,true);}
+  const d=arcToPoint(pose,px,py);
+  if(d&&d.len>=e.lo-1e-6&&d.len<=hi+1e-6&&Math.abs(d.turn)<=Math.PI){const a=fin(d.len,d.turn);if(a)return a;}
+  let best=null,bd=1e18;
+  const NL=40,NA=24;
+  for(let i=0;i<=NL;i++){
+    const len=e.lo+(hi-e.lo)*i/NL,ma=maxAng(e,len);
+    if(ma<0)continue;
+    for(let j=0;j<=NA;j++){
+      const turn=-ma+2*ma*j/NA,q=arcFn(pose.x,pose.y,pose.h,{len,turn})(1),dd=Math.hypot(q.x-px,q.y-py);
+      if(dd<bd){bd=dd;best=[len,turn];}
+    }
+  }
+  return best?fin(best[0],best[1]):null;
+}
+function manToArc(s,m){
+  const sp=Math.min(m[0],maxSpeedOf(s)),tk=m[1],type=tk==='S'?'S':(tk==='l'||tk==='r')?'B':(tk==='L'||tk==='R')?'T':'K';
+  return {len:sp*SU,turn:TURNS[tk]||0,k:tk==='K',type,cost:moveCost(type)};
+}
+/* the run: arcs with start times, flown at one steady speed; `coast` marks the straight-on filler */
+function buildRun(s,arcs,pose,t0,tEnd,speed){
+  const run=[];
+  const span=tEnd-t0;
+  if(isStruct(s)||span<=1e-9)return run;
+  const u=speed!=null?speed:Math.max(chainLen(arcs),roundMin(s)*span/T.EXEC_LEN)/span;
+  if(u<=0)return run;
+  let p={x:pose.x,y:pose.y,h:pose.h},t=t0;
+  const push=(a,coast)=>{const fn=arcFn(p.x,p.y,p.h,a),dur=a.len/u;run.push({arc:a,t0:t,dur,fn,x:p.x,y:p.y,h:p.h,coast:!!coast});p=clampEnd(fn(1));t+=dur;};
+  for(const a of arcs||[]){if(t>=tEnd-1e-9)break;push(a,false);}
+  if(t<tEnd-1e-9)push({len:u*(tEnd-t),turn:0,k:false,type:'S'},true);
+  run.speed=u;
   return run;
 }
 function poseAt(s,tau){
@@ -400,55 +484,40 @@ function poseAt(s,tau){
   if(!run||!run.length)return {x:s.x,y:s.y,h:s.h};
   let seg=run[0];
   for(const r of run)if(r.t0<=tau+1e-9)seg=r;else break;
-  const k=Math.max(0,Math.min(1,(tau-seg.t0)/seg.dur));
+  const k=Math.max(0,Math.min(1,(tau-seg.t0)/(seg.dur||1)));
   return clampEnd(seg.fn(k));
 }
-/* sampled points of a run (or of a plan from a pose), for drawing and for the leash check */
+/* sampled points of a run, for drawing and for the leash check; `knot` marks the end of each planned move */
 function sampleRun(run,per){
   const pts=[];per=per||10;
-  for(const r of run)for(let i=0;i<=per;i++){const q=clampEnd(r.fn(i/per));pts.push({x:q.x,y:q.y,h:q.h,coast:r.coast,t:r.t0+r.dur*i/per});}
+  for(const r of run)for(let i=0;i<=per;i++){const q=clampEnd(r.fn(i/per));pts.push({x:q.x,y:q.y,h:q.h,coast:r.coast,knot:i===per&&!r.coast,t:r.t0+r.dur*i/per});}
   return pts;
 }
-/* the drag polyline: cumulative length, point and tangent at an arc length, forward projection */
-function poly(pts){
-  const P=[{x:pts[0].x,y:pts[0].y,u:0}];
-  for(let i=1;i<pts.length;i++){const a=P[P.length-1],b=pts[i],d=Math.hypot(b.x-a.x,b.y-a.y);if(d<1e-6)continue;P.push({x:b.x,y:b.y,u:a.u+d});}
-  const L=P[P.length-1].u;
-  function seg(u){let i=1;while(i<P.length-1&&P[i].u<u)i++;return i;}
-  return {L,P,
-    at(u){if(P.length<2)return {x:P[0].x,y:P[0].y};u=Math.max(0,Math.min(L,u));const i=seg(u),a=P[i-1],b=P[i],k=(u-a.u)/((b.u-a.u)||1);return {x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k};},
-    tan(u){if(P.length<2)return 0;u=Math.max(0,Math.min(L,u));const i=seg(u),a=P[i-1],b=P[i];return Math.atan2(b.y-a.y,b.x-a.x);},
-    project(q,from){let best=from,bd=1e18;
-      for(let i=1;i<P.length;i++){const a=P[i-1],b=P[i];if(b.u<from)continue;const dx=b.x-a.x,dy=b.y-a.y,L2=dx*dx+dy*dy||1;
-        const k=Math.max(0,Math.min(1,((q.x-a.x)*dx+(q.y-a.y)*dy)/L2));const u=Math.max(from,a.u+k*(b.u-a.u));const pt=this.at(u),d=Math.hypot(pt.x-q.x,pt.y-q.y);
-        if(d<bd){bd=d;best=u;}}
-      return best;}};
+
+/* ---------- action points (the designer, 9 October: C-57) ----------
+   One meter per pilot per round pays for everything: moves, stances, shield work, specials and interrupts.
+   AP left when the exec starts is the reserve for interrupts; it does not carry into the next round.
+   A Cool pilot gets COOL_AP bonus points; spending into them drops the pilot out of Cool, so the bonus is
+   gone until they earn Cool back. */
+function apMax(s){return T.AP_BASE+Math.floor((s.pilot.level||1)/T.AP_LEVELS);}
+function freshAp(s){return {max:apMax(s),bonus:(!CLS[s.cls].mute&&coolState(s)==='cool')?T.COOL_AP:0,used:0,bonusSpent:false};}
+function apPlanned(s){
+  let n=0;
+  for(const a of (s.plan2&&s.plan2.arcs)||[])n+=a.cost||0;
+  if(s.stance.evade)n+=T.AP_EVADE;
+  if(s.stance.lockin)n+=T.AP_LOCKIN;
+  if(s.stance.boost)n+=T.AP_BOOST;
+  if(s.shieldAt0)for(const k of ['F','R'])if(s.segs[k].at!==s.shieldAt0[k])n+=T.AP_SHIFT;
+  return n;
 }
-/* The fitter (handoff §3.2): the player drags, the fitter snaps. At each segment boundary it picks the dial
-   manoeuvre whose end pose best approaches the drag: the remaining drag is shared evenly over the segments
-   left, and each candidate is scored on its distance to that share's end point and its heading against the
-   drag's there. The drag's end is where the ship means to be when the exec ends; a drag too short or too
-   long for the ship's envelope is flown as near as the dial allows. Illegal paths are unrepresentable. */
-function fitDrag(s,pts,pose,nMax){
-  pose=pose||{x:s.x,y:s.y,h:s.h};
-  if(!pts||pts.length<2)return [];
-  const pl=poly(pts);
-  if(pl.L<20)return [];
-  const dial=dialAvail(s),n=nMax||segsPerExec(),minLen=Math.min(...dial.map(m=>Math.min(m[0],maxSpeedOf(s))))*SU;
-  const mans=[];let u=0,p=pose;
-  for(let i=0;i<n;i++){
-    const R=pl.L-u;
-    if(i>0&&R<minLen*0.5)break;
-    const tu=Math.min(pl.L,u+R/(n-i)),P=pl.at(tu),th=pl.tan(tu);
-    let best=null,bs=1e18,be=null;
-    for(const m of dial){
-      const e=endPose(s,p,m);
-      const sc=T.FIT_W_POS*Math.hypot(e.x-P.x,e.y-P.y)+T.FIT_W_HDG*Math.abs(angNorm(e.h-th))+(e.clamped?200:0);
-      if(sc<bs){bs=sc;best=m;be=e;}
-    }
-    mans.push(best);p=be;u=pl.project(p,u);
+function apLeft(s){if(!s.ap)return 0;return s.ap.max+s.ap.bonus-apPlanned(s)-s.ap.used;}
+/* spending past the base pool uses the Cool bonus: the pilot drops just out of Cool */
+function settleBonus(s){
+  if(!s.ap||s.ap.bonusSpent||!s.ap.bonus)return;
+  if(apPlanned(s)+s.ap.used>s.ap.max){
+    s.ap.bonusSpent=true;
+    if(s.pilot.cool>T.COOL_SPENT_TO){s.pilot.cool=T.COOL_SPENT_TO;addFloater(s.x,s.y-40,'COOL SPENT',C.gold);log(s.name+' spends their Cool');}
   }
-  return mans;
 }
 /* Goals: what a standing order or a doctrine asks of the same fitter (handoff §3.2, §3.5). A goal is
    {kind, ...}; the cost of a candidate end pose is lower the better. Enemies plan without seeing the
@@ -498,30 +567,36 @@ function holdCost(s,e,m,at){return Math.hypot(e.x-at.x,e.y-at.y)*0.6+m[0]*20+(e.
 /* the farthest a candidate segment strays from a leash centre (hold_asset's guard radius) */
 function leashCost(fn,lz){let c=0;for(const k of [0.25,0.5,0.75,1]){const q=clampEnd(fn(k));c=Math.max(c,Math.hypot(q.x-lz.x,q.y-lz.y)-lz.r);}return c>0?3000+c*20:0;}
 const BEAM=10;   // fitter beam width for goals (later segment ends weigh more)
-function fitGoal(s,g,pose,n,noise){
+/* Orders and doctrines plan in whole dial manoeuvres, within the same AP and round distance as the player. */
+function fitGoal(s,g,pose,n,noise,ap){
   pose=pose||{x:s.x,y:s.y,h:s.h};n=n||segsPerExec();
-  const dial=dialAvail(s);
-  let beam=[{mans:[],pose,cost:0}];
+  const dial=dialAvail(s),maxLen=roundMax(s)+1e-6;
+  ap=ap==null?Infinity:ap;
+  let beam=[{arcs:[],pose,cost:0,ap:0,len:0}];
   for(let i=0;i<n;i++){
     const next=[];
     for(const b of beam)for(const m of dial){
-      const man=[Math.min(m[0],maxSpeedOf(s)),m[1]],fn=manPath(b.pose.x,b.pose.y,b.pose.h,man),e=clampEnd(fn(1));
+      const a=manToArc(s,m);
+      if(b.ap+a.cost>ap||b.len+a.len>maxLen)continue;
+      const man=[a.len/SU,m[1]],fn=manPath(b.pose.x,b.pose.y,b.pose.h,man),e=clampEnd(fn(1));
       let c=goalCost(s,g,e,(i+1)*T.SEG_TIME,man);
       if(g.leash)c+=leashCost(fn,g.leash);
       if(noise)c+=noise*rng();
-      next.push({mans:b.mans.concat([m]),pose:e,cost:b.cost+c*(i+1)/n});
+      next.push({arcs:b.arcs.concat([a]),pose:e,cost:b.cost+c*(i+1)/n,ap:b.ap+a.cost,len:b.len+a.len});
     }
+    if(!next.length)break;   // out of AP or distance: the chain so far stands
     next.sort((a,b)=>a.cost-b.cost);
     beam=next.slice(0,BEAM);
   }
-  return beam[0].mans;
+  return beam[0].arcs;
 }
 
 /* ---------- standing orders (player ships; handoff §3.2) ---------- */
 const ORDERS=['none','pursue','escort','follow','hold'];
 function orderGoal(s){
   const o=s.order;
-  if(!o||o.kind==='none'||o.kind==='hold')return {kind:'hold',at:s.anchor};
+  if(!o||o.kind==='none')return null;   // no order and no moves: the ship flies straight on, for no AP
+  if(o.kind==='hold')return {kind:'hold',at:s.anchor};
   if(o.kind==='pursue')return {kind:'pursue',target:o.target,range:T.PREF_RANGE,fire:o.target};
   if(o.kind==='escort'){const a=byId(o.target);const th=a&&threatTo(a,s);return {kind:'follow',leader:o.target,dx:-200,dy:170,fire:th&&th.id};}
   if(o.kind==='follow')return {kind:'follow',leader:o.target,dx:o.dx==null?-220:o.dx,dy:o.dy==null?0:o.dy};
@@ -648,12 +723,15 @@ function planShip(s){
   if(s.plan2.drawn)return;
   const g=goalOf(s);
   s.goal=g;
-  s.plan2.mans=fitGoal(s,g,null,segsPerExec(),s.faction==='heg'?T.AI_NOISE:0);
+  if(!g){s.plan2={arcs:[],drawn:false};return;}
+  s.stance.evade=!!g.evade&&s.faction==='heg';
+  s.plan2={arcs:[],drawn:false};
+  const ap=s.ap?s.ap.max-apPlanned(s):Infinity;   // auto-planning never spends the Cool bonus
+  s.plan2={arcs:fitGoal(s,g,null,segsPerExec(),s.faction==='heg'?T.AI_NOISE:0,ap),drawn:false};
   if(s.faction==='heg'){
     if(g.fire!==undefined)s.target=g.fire||null;
     else if(!s.target||!byId(s.target)||!byId(s.target).alive){const t=nearestFoe(s);s.target=t?t.id:null;}
     s.holdFire=!!g.holdFire;
-    s.stance.evade=!!g.evade;
   } else if(g.fire)s.target=g.fire;
 }
 
@@ -667,7 +745,9 @@ function beginPlan(){
   S.phase='PLAN';
   for(const s of S.ships){
     if(!s.alive)continue;
-    s.plan2={mans:null,drawn:false};s.anchor={x:s.x,y:s.y};
+    s.plan2={arcs:[],drawn:false};s.anchor={x:s.x,y:s.y};
+    s.stance={evade:false,lockin:false,boost:false};s.tokens.evade=false;
+    s.ap=freshAp(s);s.shieldAt0={F:s.segs.F.at,R:s.segs.R.at};
     if(s.faction==='reb'){
       const t=s.target&&byId(s.target);
       if(!t||!t.alive){const n=nearestFoe(s);s.target=n?n.id:null;}
@@ -682,12 +762,14 @@ function go(planMs){
   if(!S||S.phase!=='PLAN')return false;
   S.planMs=planMs||0;
   for(const s of S.ships)if(s.alive&&s.faction==='heg')planShip(s);
-  for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.plan2.drawn&&!s.plan2.mans)planShip(s);
+  for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.plan2.drawn&&!s.plan2.arcs.length)planShip(s);
   for(const s of S.ships){
     if(!s.alive)continue;
-    s.run=buildRun(s,s.plan2.mans,s,0,T.EXEC_LEN);
+    s.run=buildRun(s,s.plan2.arcs,s,0,T.EXEC_LEN);
     s.tokens.evade=!!s.stance.evade;s.intUsed=0;s.hitThisExec=false;
-    if(s.run.length)s.vel=s.run[0].man[0]*SU/T.SEG_TIME;
+    if(s.run.length)s.vel=s.run.speed;
+    if(s.stance.boost)boostShield(s);
+    settleBonus(s);
   }
   resetExecStats();
   S.execT=0;S.acc=0;S.phase='EXEC';
@@ -710,8 +792,6 @@ function tick(dt){
   for(const s of S.ships){
     if(!s.alive||isStruct(s))continue;
     const q=poseAt(s,tau);
-    const seg=s.run.find(r=>r.t0<=tau+1e-9&&tau<r.t0+r.dur+1e-9);
-    if(seg)s.vel=seg.man[0]*SU/T.SEG_TIME;
     s.x=q.x;s.y=q.y;s.h=q.h;
   }
   // 2. cooldowns, doctrine ticks
@@ -872,7 +952,7 @@ function pushMetrics(){
   const rec={scenario:S.scen&&S.scen.id,variant:S.variantLabel||null,seed:S.seed,turn:S.turn,planningMs:Math.round(S.planMs),
     execLen:T.EXEC_LEN,planClock:T.PLAN_CLOCK,time:Math.round(S.time*100)/100,
     ships:S.ships.map(s=>({id:s.id,side:s.faction,shots:s.stats.shots,hits:s.stats.hits,arcTicks:s.stats.arcTicks,interrupts:s.stats.ints,
-      intCap:s.faction==='reb'?intCap(s.pilot):0,nerve:Math.round(s.pilot.cool),hull:Math.max(0,s.hull),alive:s.alive})),
+      apMax:s.ap?s.ap.max+s.ap.bonus:0,apSpent:s.ap?apPlanned(s)+s.ap.used:0,nerve:Math.round(s.pilot.cool),hull:Math.max(0,s.hull),alive:s.alive})),
     objective:objState()};
   S.metrics.push(rec);
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
@@ -880,15 +960,17 @@ function pushMetrics(){
 }
 
 /* =====================================================================
-   Interrupts (handoff §3.4): player-only, mid-exec, priced in nerve.
+   Interrupts (handoff §3.4; paid in AP since C-57): player-only, mid-exec.
    interrupt(id) pauses the sim on that ship; one verb (or cancel) resumes it.
    ===================================================================== */
+function verbCost(v){return v==='snap'?T.AP_SNAP:v==='shift'?T.AP_SHIFT_INT:T.AP_JUKE+T.AP_STRAIGHT;}
 function canInterrupt(s){
   if(!S||S.phase!=='EXEC')return {ok:false,why:'only during execution'};
   if(!s||!s.alive)return {ok:false,why:'no such ship'};
   if(s.faction!=='reb')return {ok:false,why:'the Hegemony commits'};
   if(s.pilot.cool<=T.INT_FLOOR)return {ok:false,why:'nerve too low (panicking)'};
-  if(s.intUsed>=intCap(s.pilot))return {ok:false,why:'interrupts used up this exec'};
+  if(T.INT_CAP>0&&s.intUsed>=T.INT_CAP)return {ok:false,why:'interrupts used up this exec'};
+  if(apLeft(s)<Math.min(verbCost('snap'),verbCost('shift'),verbCost('juke')))return {ok:false,why:'no action points left'};
   return {ok:true};
 }
 function interrupt(id){
@@ -898,8 +980,9 @@ function interrupt(id){
   return {ok:true};
 }
 function pausedShip(){return S&&S.paused&&byId(S.paused.id);}
+function afford(s,cost){return apLeft(s)>=cost;}
 function pay(s,cost,verb){
-  adjCool(s,-cost,'interrupt: '+verb,true);
+  s.ap.used+=cost;settleBonus(s);
   s.intUsed++;s.stats.ints++;
   ev('interrupt',{id:s.id,stage:'done',verb,cost});
   S.paused=null;
@@ -910,69 +993,129 @@ function snapShotTarget(s){
   let best=null,bd=1e18;for(const f of foes(s)){if(!bestWeaponFor(s,f))continue;const d=dist(s,f);if(d<bd){bd=d;best=f;}}
   return best;
 }
-function canSnap(){const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};return snapShotTarget(s)?{ok:true}:{ok:false,why:'no firing solution'};}
+function canSnap(){
+  const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};
+  if(!afford(s,T.AP_SNAP))return {ok:false,why:'not enough AP'};
+  return snapShotTarget(s)?{ok:true}:{ok:false,why:'no firing solution'};
+}
 function intSnap(){
   const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};
-  const t=snapShotTarget(s);
-  if(!t)return {ok:false,why:'no firing solution'};
-  const k=bestWeaponFor(s,t);
-  pay(s,T.COST_SNAP,'snap');
+  const c=canSnap();if(!c.ok)return c;
+  const t=snapShotTarget(s),k=bestWeaponFor(s,t);
+  pay(s,T.AP_SNAP,'snap');
   const rec=resolveAttack(s,t,k,{snap:true});
   checkObjective();
   return {ok:true,rec};
 }
-function intJuke(pts){
-  const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};
-  const mans=fitDrag(s,pts,{x:s.x,y:s.y,h:s.h},1);
-  if(!mans.length)return {ok:false,why:'drag a new path from the ship'};
-  s.run=buildRun(s,mans,{x:s.x,y:s.y,h:s.h},S.execT,T.EXEC_LEN);
-  pay(s,T.COST_JUKE,'juke');
-  return {ok:true,mans};
+/* Juke: the rest of this exec becomes one new move from where the ship is, flown at its current speed */
+function jukeMove(s,px,py){
+  const left=s.vel*(T.EXEC_LEN-S.execT);
+  return moveTo(s,{x:s.x,y:s.y,h:s.h},px,py,left);
 }
-function previewJuke(pts){
+function previewJuke(px,py){
   const s=pausedShip();if(!s)return null;
-  const mans=fitDrag(s,pts,{x:s.x,y:s.y,h:s.h},1);
-  return {mans,pts:sampleRun(buildRun(s,mans,{x:s.x,y:s.y,h:s.h},S.execT,T.EXEC_LEN))};
+  const a=jukeMove(s,px,py);if(!a)return null;
+  a.ok=afford(s,T.AP_JUKE+a.cost);
+  return {arc:a,pts:sampleRun(buildRun(s,[a],{x:s.x,y:s.y,h:s.h},S.execT,T.EXEC_LEN,s.vel))};
+}
+function intJuke(px,py){
+  const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};
+  const a=jukeMove(s,px,py);
+  if(!a)return {ok:false,why:'no room left to move'};
+  if(!afford(s,T.AP_JUKE+a.cost))return {ok:false,why:'not enough AP'};
+  s.run=buildRun(s,[a],{x:s.x,y:s.y,h:s.h},S.execT,T.EXEC_LEN,s.vel);
+  pay(s,T.AP_JUKE+a.cost,'juke');
+  return {ok:true,arc:a};
 }
 function intShift(which){
   const s=pausedShip();if(!s)return {ok:false,why:'nothing paused'};
+  if(!afford(s,T.AP_SHIFT_INT))return {ok:false,why:'not enough AP'};
   shiftShield(s,which);
-  pay(s,T.COST_SHIFT,'shift');
+  pay(s,T.AP_SHIFT_INT,'shift');
   return {ok:true};
 }
 function intCancel(){if(S&&S.paused){ev('interrupt',{id:S.paused.id,stage:'cancel'});S.paused=null;}}
 /* space.js doAction shiftF/shiftR: the segment swings to the other zone and back */
 function shiftShield(s,which){const seg=s.segs[which==='R'?'R':'F'];seg.at=seg.at==='F'?'R':'F';ev('shield',{id:s.id,seg:which,at:seg.at});}
+/* space.js doAction boostF/boostR, on the weaker segment */
+function boostShield(s){
+  if(critCount(s,'emitter')||maxShield(s)<=0)return;
+  const seg=s.segs.F.val/(s.segs.F.max||1)<=s.segs.R.val/(s.segs.R.max||1)?s.segs.F:s.segs.R;
+  const amt=Math.min(seg.max-seg.val,Math.ceil(0.15*maxShield(s)*(s.pilot.cun||1)));
+  if(amt>0){seg.val+=amt;addFloater(s.x,s.y-36,'SHIELD +'+amt,C.shield);}
+}
 
 /* ---------- PLAN orders (the Arena's input calls these) ---------- */
-function planShipOf(id){const s=byId(id);return s&&s.alive&&S.phase==='PLAN'?s:null;}
-function setPath(id,pts){
-  const s=planShipOf(id);if(!s)return null;
-  const mans=fitDrag(s,pts);
-  if(!mans.length)return null;
-  s.plan2={mans,drawn:true};s.goal=null;
-  return mans;
-}
-function setMans(id,mans){const s=planShipOf(id);if(!s)return null;s.plan2={mans:mans.slice(0,T.PATH_SEGS),drawn:true};return s.plan2.mans;}
-function clearPath(id){const s=planShipOf(id);if(!s)return;s.plan2={mans:null,drawn:false};if(s.faction==='reb')planShip(s);}
-function preview(id,pts){
+function planShipOf(id){const s=byId(id);return s&&s.alive&&S.phase==='PLAN'&&!isStruct(s)?s:null;}
+/* where the next move starts, and how much distance the round has left */
+function planEnd(id){
   const s=byId(id);if(!s)return null;
-  const mans=pts?fitDrag(s,pts):(s.plan2.mans||[]);
-  return {mans,pts:sampleRun(buildRun(s,mans,s,0,T.EXEC_LEN))};
+  const arcs=s.plan2.drawn?s.plan2.arcs:[];
+  return Object.assign(chainEnd(s,arcs),{left:roundMax(s)-chainLen(arcs),ap:apLeft(s)+(s.plan2.drawn?0:chainCost(s.plan2.arcs))});   // ap: what the next move may spend (an order's plan is replaced by it)
+}
+/* the move a drag to (px,py) would make: {arc, ok, why} (ok false when the AP is short) */
+function previewMove(id,px,py){
+  const s=byId(id);if(!s||S.phase!=='PLAN')return null;
+  const st=planEnd(id),a=moveTo(s,st,px,py,st.left);
+  if(!a)return {arc:null,ok:false,why:'no distance left this round'};
+  return {arc:a,ok:st.ap>=a.cost,why:st.ap>=a.cost?'':'not enough AP',start:st};
+}
+const chainCost=arcs=>(arcs||[]).reduce((n,a)=>n+(a.cost||0),0);
+/* release: the move is set and the next drag starts from its end. A first move replaces the order's plan. */
+function addMove(id,px,py){
+  const s=planShipOf(id);if(!s)return null;
+  const pv=previewMove(id,px,py);
+  if(!pv||!pv.arc||!pv.ok)return null;
+  if(!s.plan2.drawn)s.plan2={arcs:[],drawn:true};
+  s.plan2.arcs.push(pv.arc);s.goal=null;
+  return pv.arc;
+}
+function addKturn(id){
+  const s=planShipOf(id);if(!s)return null;
+  const e=envOf(s),st=planEnd(id),a={len:3*SU,turn:0,k:true,type:'K',cost:T.AP_KTURN};
+  if(!e.K||st.left<a.len-1e-6||st.ap<a.cost)return null;
+  if(!s.plan2.drawn)s.plan2={arcs:[],drawn:true};
+  s.plan2.arcs.push(a);s.goal=null;
+  return a;
+}
+function undoMove(id){const s=planShipOf(id);if(!s||!s.plan2.drawn)return;s.plan2.arcs.pop();if(!s.plan2.arcs.length)clearPath(id);}
+function clearPath(id){const s=planShipOf(id);if(!s)return;s.plan2={arcs:[],drawn:false};if(s.faction==='reb')planShip(s);}
+function preview(id){
+  const s=byId(id);if(!s)return null;
+  const arcs=s.plan2.arcs||[];
+  return {arcs,pts:sampleRun(buildRun(s,arcs,s,0,T.EXEC_LEN))};
 }
 function setOrder(id,order){
   const s=planShipOf(id);if(!s)return;
   s.order=order&&order.kind!=='none'?Object.assign({},order):null;
-  s.plan2={mans:null,drawn:false};planShip(s);
+  s.plan2={arcs:[],drawn:false};planShip(s);
 }
 function setTarget(id,tid){const s=byId(id),t=byId(tid);if(!s||!t||t.faction===s.faction)return false;s.target=tid;if(s.order&&s.order.kind==='pursue'&&S.phase==='PLAN'){s.order.target=tid;s.plan2.drawn||planShip(s);}return true;}
+/* stances cost AP for the round (evade, lock in, boost); turning one on is refused when the AP is short */
 function setStance(id,k,v){
-  const s=byId(id);if(!s||S.phase!=='PLAN')return;
-  if(k==='evade'){s.stance.evade=!!v;if(v)s.stance.lockin=false;}
-  if(k==='lockin'){s.stance.lockin=!!v;if(v)s.stance.evade=false;}
+  const s=planShipOf(id);if(!s)return false;
+  const cost={evade:T.AP_EVADE,lockin:T.AP_LOCKIN,boost:T.AP_BOOST}[k];
+  if(cost==null)return false;
+  if(v&&!s.stance[k]){
+    const free=(k==='evade'&&s.stance.lockin)?T.AP_LOCKIN:(k==='lockin'&&s.stance.evade)?T.AP_EVADE:0;   // the two exclude each other
+    if(apLeft(s)+free<cost)return false;
+  }
+  s.stance[k]=!!v;
+  if(v&&k==='evade')s.stance.lockin=false;
+  if(v&&k==='lockin')s.stance.evade=false;
   s.tokens.evade=s.stance.evade;
+  if(!s.plan2.drawn&&s.faction==='reb')planShip(s);   // an order's plan re-fits to the AP left
+  return true;
 }
-function planShift(id,which){const s=byId(id);if(s&&S.phase==='PLAN')shiftShield(s,which);}
+/* angling a shield in PLAN costs AP_SHIFT per segment away from where it started the round (swinging back refunds) */
+function planShift(id,which){
+  const s=planShipOf(id);if(!s)return false;
+  const seg=s.segs[which==='R'?'R':'F'],back=seg.at!==s.shieldAt0[which==='R'?'R':'F'];
+  if(!back&&apLeft(s)<T.AP_SHIFT)return false;
+  shiftShield(s,which);
+  if(!s.plan2.drawn&&s.faction==='reb')planShip(s);
+  return true;
+}
 
 /* ---------- scenarios ---------- */
 const ROCKS={
@@ -1071,7 +1214,7 @@ function spawn(spec){
     const nm=spec.name||('Fox X'+n);
     sh=mkShip('X'+n,nm,spec.cls||'talon','reb',spec.x||W/2,spec.y||H/2,spec.h||0,presetPilot({preset:spec.preset||'regular'},nm));
   }
-  sh.anchor={x:sh.x,y:sh.y};
+  sh.anchor={x:sh.x,y:sh.y};sh.ap=freshAp(sh);sh.shieldAt0={F:sh.segs.F.at,R:sh.segs.R.at};
   S.ships.push(sh);
   if(sh.doctrine&&DOCTRINES[sh.doctrine]&&DOCTRINES[sh.doctrine].init&&sh.doctrine!=='wingman')DOCTRINES[sh.doctrine].init([sh],WAPI);
   if(sh.doctrine==='wingman')sh.doc={role:'lead',mate:null};
@@ -1079,12 +1222,7 @@ function spawn(spec){
   return sh;
 }
 function despawn(id){if(!S)return;const i=S.ships.findIndex(s=>s.id===id);if(i>=0)S.ships.splice(i,1);}
-function possess(id,pts){   // stage an enemy's next turn with the player's own path tools
-  const s=planShipOf(id);if(!s||s.faction!=='heg')return null;
-  const mans=fitDrag(s,pts);if(!mans.length)return null;
-  s.plan2={mans,drawn:true};s.goal={kind:'possessed'};
-  return mans;
-}
+function possess(id,px,py){return addMove(id,px,py);}   // stage an enemy's next turn with the player's own move tools
 
 /* ---------- tuning access (the panel and the tests) ---------- */
 function setTune(k,v){if(!(k in DEFAULTS))return;T[k]=+v;globalPrefs.tune=Object.assign({},globalPrefs.tune||{},{[k]:+v});savePrefs();}
@@ -1101,18 +1239,18 @@ function drain(){if(!S)return [];const e=S.events;S.events=[];return e;}
 return {
   get S(){return S;},T,DEFAULTS,PRESETS,DOCTRINES,DOC_OFF,ORDERS,CLS,WDEF,CRITDEFS,W,H,MARGIN,RU,SU,ARCH,LOCK_RNG,LOCK_ARC,
   load,go,advance,tick,runExec,runUntil,drain,hash,spawn,despawn,possess,
-  setPath,setMans,clearPath,preview,setOrder,setTarget,setStance,planShift,
+  previewMove,addMove,addKturn,undoMove,planEnd,clearPath,preview,setOrder,setTarget,setStance,planShift,apLeft,apPlanned,apMax,
   interrupt,canInterrupt,canSnap,intSnap,intJuke,intShift,intCancel,previewJuke,pausedShip,
-  addDoctrine,setTune,setDoctrineOn,resetTune,intCap,segsPerExec,WPN_CD,WAPI,
+  addDoctrine,setTune,setDoctrineOn,resetTune,segsPerExec,WPN_CD,WAPI,verbCost,
   setRng:f=>{rng=f;},
   // the copied maths, for tests and the Arena's read-outs
-  fn:{dialAvail,maxSpeedOf,coolState,adjCool,computeTN,computeATK,validShot,bestWeaponFor,applyDamage,fitDrag,fitGoal,buildRun,poseAt,
-    sampleRun,manPath,clampEnd,endPose,inArc,inLockZone,bearing,dist,totalShield,maxShield,zoneShield,critCount,isStruct,isDrone,threatTo,objState,
+  fn:{dialAvail,maxSpeedOf,coolState,adjCool,computeTN,computeATK,validShot,bestWeaponFor,applyDamage,fitGoal,buildRun,poseAt,envOf,maxAng,classify,moveTo,arcToPoint,arcFn,roundMax,roundMin,chainEnd,
+    sampleRun,manPath,clampEnd,arcEnd,inArc,inLockZone,bearing,dist,totalShield,maxShield,zoneShield,critCount,isStruct,isDrone,threatTo,objState,
     resolveAttack,pickShot,kill:id=>{const t=byId(id);if(t&&t.alive)destroyShip(t,null);}},
   // getters for every tunable (the SALVAGE_PER_HP_ pattern)
   TICK_:()=>T.TICK,EXEC_LEN_:()=>T.EXEC_LEN,SIM_SPEED_:()=>T.SIM_SPEED,SEG_TIME_:()=>T.SEG_TIME,PATH_SEGS_:()=>T.PATH_SEGS,
-  FIT_W_POS_:()=>T.FIT_W_POS,FIT_W_HDG_:()=>T.FIT_W_HDG,LOCK_TIME_:()=>T.LOCK_TIME,CALM_GAIN_:()=>T.CALM_GAIN,
-  SNAP_BONUS_:()=>T.SNAP_BONUS,COST_SNAP_:()=>T.COST_SNAP,COST_JUKE_:()=>T.COST_JUKE,COST_SHIFT_:()=>T.COST_SHIFT,
+  STRAIGHT_TOL_:()=>T.STRAIGHT_TOL,AP_BASE_:()=>T.AP_BASE,COOL_AP_:()=>T.COOL_AP,AP_SNAP_:()=>T.AP_SNAP,AP_JUKE_:()=>T.AP_JUKE,AP_SHIFT_INT_:()=>T.AP_SHIFT_INT,LOCK_TIME_:()=>T.LOCK_TIME,CALM_GAIN_:()=>T.CALM_GAIN,
+  SNAP_BONUS_:()=>T.SNAP_BONUS,
   INT_FLOOR_:()=>T.INT_FLOOR,WING_FLOUNDER_:()=>T.WING_FLOUNDER,GUARD_R_:()=>T.GUARD_R,
 };
 })();
