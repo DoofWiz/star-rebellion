@@ -56,6 +56,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-51 | 🟡 | 0.2 playtest (`docs/FEEDBACK-0.2-HANDOFF.md`): decisions and readings (the prisoner in the truck, enemies in cover, the guards on the truck; the room tutorials as side beats, which side beat goes first, where they point, sleeping rough; salvage, the authored rewards, the affordability net, which also covers the Marta). Open: the second Hangar section needs 12 rubble tiles excavated and a large pad made, and nothing says so | Rescue Tachi; how every enemy fights; how the base is taught; whether a new player can reach Raid the Bunker |
 | C-52 | 🟡 | 0.2 playtest: placeholder numbers to tune (the AI's cover scoring, the cover metric, sleeping rough, salvage, the prologue's rewards and Graf price, the affordability net, the market card's floors), with the economy table | How every enemy fights; what a missing bunk costs; the prologue's economy; the market cards |
 | C-53 | ⚪ | Market art at small heights: on a phone the market's rows now grow past the screens handoff's fixed 230px to fit a weapon card | How the Black Market reads on a phone |
+| C-54 | 🟡 | CD playtest (8 Oct): the smaller items around the core-gameplay feedback — the two-classes-of-message UI rule, ground phase legibility, an overwatch tell, the briefing layout, the stealth rework, a narrow-win debrief line, ground impact effects, a flavour-text audit, and three live bugs (the revenge shot after the win, a refused lock-on, the Marta prompt) | Future triage; none of it blocks current work |
 | C-45 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2), what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-44 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | C-43 | ⚪ | Weapon voices: every weapon's own sound, reports per visible round — the character I gave each weapon | How combat sounds |
@@ -91,6 +92,53 @@ bar, fire-support art and ships parked in the iso hangar.
 ---
 
 ## 1. Conflicts
+### C-54 🟡 CD playtest (8 Oct): UI rules, feedback gaps and bugs for future triage
+From the creative director's first playthrough, 8 October 2026 (the transcript is on the project). Logged
+unactioned at the designer's request, to work through later. The core-gameplay feedback itself is handled
+elsewhere (the *Space Combat Core Redesign v0.1* doc and `docs/ARENA-HANDOFF.md`); these are the smaller items
+around it.
+
+**Decisions to make:**
+1. **Two classes of message, nothing in between.** The CD's rule, from the "Move out" tip he clicked past and
+   immediately forgot: *learning* content stays front and centre until the player has done the thing, so it can be
+   referred back to; a mere *tip* sits out of the way with a dismissible "Got it". The guided stepper already works
+   this way (steps persist until their `until`); the one-shot toasts in Take the Rock predate it. Decide: adopt as
+   a written UI rule and sweep the old toasts into one of the two classes.
+2. **The ground planning phase doesn't say what you can't do yet.** He selected a unit and tried to shoot; nothing
+   says attacks come in a later phase, and the round structure (orders → execution → attacks by initiative) is
+   never taught — his words: "is it like Warhammer…?". Needs a phase indicator and/or a line in the planning text.
+   (Space's phases dissolve in the v2 sim; ground keeps its phases for now, so this is a ground fix.)
+3. **Enemy overwatch needs a tell.** "They're shooting me, that's not fair": a holding enemy's overwatch hit him
+   before he knew the mechanic existed. A visible brace pose or cone on a unit in Hold — the doctrine-tell
+   principle applied to ground.
+4. **The mission briefing layout.** The designer's own note on the call: "the briefings on the right… that needs
+   to change layout a little bit." No direction chosen yet.
+5. **Stealth and the searchlights.** The guards are twitchy, and the designer is "very much considering changing
+   how this works because it's not a very important part of the game". The rework (or cut) is undesigned.
+
+**Feedback gaps (cheap wins once prioritised):**
+6. **Dramatic wins go unremarked.** After the all-or-nothing escape — the session's best moment — the end screen
+   said nothing: "no word on like, hey, well done." The debrief can detect a narrow win (hull remaining, a
+   final-round kill against the odds) and say so in one line. `[TEXT NEEDED: debrief flourish for a narrow win]`.
+   The Arena's per-exec metrics (`docs/ARENA-HANDOFF.md` §7) will make "dramatic" detectable for the v2 sim too.
+7. **Ground impact effects.** The CD noted the missing hit feedback while watching shots land.
+8. **A flavour-text audit.** Lines neither of us designed crept in (the "Unregistered freighter" footer on Cass's
+   first comm was the example on the call). One pass of comm/briefing/HUD text against `docs/TEXT.md` so every
+   player-facing line is designer-owned.
+
+**Bugs seen live (current campaign code; the Arena's v2 sim is unaffected):**
+9. **The revenge shot after the win.** When the mission-ending kill lands mid-ATTACK, the rest of the attack queue
+   still resolves and can kill the player after victory — it nearly did, and the designer said on the call it
+   "probably should be removed". Fix: once the win condition is met, drop the remaining hostile attacks.
+10. **Lock-on refused when it looked legal** (~33:00 in the transcript; the designer: "that's a bit strange").
+   Unreproduced; check `inLockZone`'s range and arc against what the UI implies at that moment.
+11. **Two onboarding hiccups on the CD's run:** the restore-the-Marta prompt didn't fire when expected, and the
+   plan-mission lockout caused by an injured rebel surfaced no reason — the lockout was correct, the *why* wasn't
+   shown.
+
+**Needs from you:** calls on 1–5; 6–11 need only a priority — each is buildable as written.
+**Your call:** _open_
+
 ### C-51 🟡 0.2 playtest: decisions and readings
 `docs/FEEDBACK-0.2-HANDOFF.md`, the designer's playtest of release 0.2. Each with the interim choice:
 1. **The ambush's prisoner rides in the truck** (`heldIn`, kept on the truck by `vehSync`): not drawn, not in the
