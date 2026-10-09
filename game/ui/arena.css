@@ -56,6 +56,7 @@
 #sc-arena .arn-pick{display:grid;gap:8px;margin:10px 0 0;}
 #sc-arena .arn-pick__item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--sr-r-lg);
   background:var(--sr-plate);border:2px solid var(--sr-ink);}
+#sc-arena .arn-pick__item.is-on{border-color:var(--sr-gold);}
 #sc-arena .arn-pick__txt{flex:1 1 auto;min-width:0;}
 #sc-arena .arn-pick__name{font-weight:800;font-size:var(--sr-fs-md);}
 #sc-arena .arn-pick__desc{color:var(--sr-text-2);font-size:var(--sr-fs-xs);margin-top:2px;}

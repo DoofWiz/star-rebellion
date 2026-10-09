@@ -8,7 +8,9 @@
      7. scenarios are data: one appended at runtime appears in the picker and loads
      8. metrics: each exec emits one well-formed ARENA_METRICS record
      and the title screen's "Enter Arena" button boots the Arena.
-   (§8's 3–5, continuous fire, interrupts and doctrine, arrive with phases A2–A4.) */
+   (§8's 3–5, continuous fire, interrupts and doctrine, arrive with phases A2–A4.)
+   SB section (docs/ARENA-SB-HANDOFF.md §9)
+     1. picker: both rulesets listed; e1_fox loads under each; after a v2 run and an SB run the campaign key is absent */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -112,6 +114,33 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  const dr=await pg.evaluate(()=>{const s=DBGarena.sim.S.ships[0];return {kind:s.order.kind,n:s.mans?s.mans.length:0,legal:!!s.mans&&s.mans.every(m=>DBGarena.sim.fn.dialAvail(s).some(d=>d[0]===m[0]&&d[1]===m[1]))};});
  ok(dr.kind==='path'&&dr.n>0&&dr.legal,'2: a mouse drag did not plan a legal path '+JSON.stringify(dr));
 
+ /* ---------- SB ---------- */
+ const sb=await pg.evaluate((SAVE_KEY)=>{
+  const D=window.DBGarena,f=D.fn,out={};
+  // 1. the picker: both rulesets first, then the scenarios under the chosen one
+  f.showPicker();
+  const names=[...document.querySelectorAll('#arRulesetList .arn-pick__name')].map(e=>e.textContent);
+  out.rulesets=names;
+  out.scenHidden=document.getElementById('arScenStep').hidden;
+  document.querySelector('#arRulesetList [data-ruleset="sb"]').click();
+  out.scenShown=!document.getElementById('arScenStep').hidden&&D.ruleset==='sb';
+  document.querySelector('#arScenList [data-load="e1_fox"]').click();
+  out.sbLoad=[D.phase,D.ruleset,D.mod&&D.mod.key,D.sim.S.ships.length];
+  f.runExecSync();f.runExecSync();
+  const recs=D.metrics.filter(r=>r.scenario==='e1_fox');
+  out.sbRec=recs[recs.length-1].ruleset;
+  f.load('e1_fox','v2',null,1);f.runExecSync();
+  out.v2Load=[D.ruleset,D.mod.key,D.metrics[D.metrics.length-1].ruleset];
+  out.noSave=localStorage.getItem(SAVE_KEY)===null;
+  return out;
+ },SAVE_KEY);
+ ok(JSON.stringify(sb.rulesets)==='["SR V2 Combat","SB Test"]','SB 1: rulesets listed '+JSON.stringify(sb.rulesets));
+ ok(sb.scenHidden&&sb.scenShown,'SB 1: the scenario step should follow the ruleset choice');
+ ok(sb.sbLoad[0]==='PLAN'&&sb.sbLoad[1]==='sb'&&sb.sbLoad[2]==='sb'&&sb.sbLoad[3]===3,'SB 1: e1_fox under SB '+JSON.stringify(sb.sbLoad));
+ ok(sb.sbRec==='sb','SB 1: SB metrics ruleset '+sb.sbRec);
+ ok(sb.v2Load.join()==='v2,v2,v2','SB 1: e1_fox under v2 '+JSON.stringify(sb.v2Load));
+ ok(sb.noSave,'SB 1: the campaign key appeared after a v2 run and an SB run');
+
  /* ---------- the title screen's button ---------- */
  const pg2=await ctx.newPage();
  pg2.on('pageerror',e=>errs.push('title: '+e.message));
@@ -128,7 +157,7 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  }
 
  ok(!errs.length,'errors: '+errs.join(' | '));
- console.log(JSON.stringify({v2,errors:errs}));
+ console.log(JSON.stringify({v2,sb,errors:errs}));
  if(fails.length){console.log('FAIL\n- '+fails.join('\n- '));await b.close();process.exit(1);}
  console.log('arena-smoke: all checks passed');
  await b.close();

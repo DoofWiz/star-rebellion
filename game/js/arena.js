@@ -5,7 +5,9 @@
    every ruleset shares: boot, the picker, the scenario loader, the
    PLAN→EXEC loop on a fixed tick, the seeded RNG, the camera, the
    designer panel, metrics and DBGarena. How ships move, shoot and
-   resolve belongs to the ruleset module (game/js/sim2.js).
+   resolve belongs to the ruleset module: "SR V2 Combat" (game/js/sim2.js)
+   or "SB Test" (game/js/sim-sb.js, docs/ARENA-SB-HANDOFF.md), picked
+   before the scenario so the same scenario runs under both.
 
    The no-save guarantee: nothing here calls newGame(), saveSnap(),
    persist() or SR.endMission(), and nothing reads or writes G. All state
@@ -108,8 +110,10 @@ const ARENA_SCENARIOS=[
 
 /* ---------- rulesets ---------- */
 const RULESETS={
-  v2:{key:'v2',name:'SR V2 Combat',mod:window.SIM2},   // docs/ARENA-HANDOFF.md §3 (game/js/sim2.js)
+  v2:{key:'v2',name:'SR V2 Combat',mod:window.SIM2, desc:'Drawn paths fitted to the dial, continuous WEGO, the d20 kept, interrupts priced in nerve (docs/ARENA-HANDOFF.md).'},
+  sb:{key:'sb',name:'SB Test',     mod:window.SIMSB,desc:'SteamBirds-informed: grab the craft and drag a smooth line, two AP segments, pilot movesets, simulated projectiles, lock as a dial (docs/ARENA-SB-HANDOFF.md).'},
 };
+// mod: {build(scenario,rng), planInput(ev), tick(dtSim), draw(ctx,now), panelGroup(), metricsRecord()} and the extras in the header
 
 /* ---------- state: one object, rebuilt per scenario ---------- */
 const A={phase:'PICK',ruleset:'v2',scen:null,variant:null,seed:1,turn:1,execT:0,simTotal:0,acc:0,lastReal:0,
@@ -337,24 +341,39 @@ function restart(sameSeed){
 
 /* ---------- the picker ---------- */
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* two steps (docs/ARENA-SB-HANDOFF.md §1): the ruleset first, then the scenario. Both live in one window; the
+   scenario list stays hidden until a ruleset is chosen. */
+let rulesetChosen=false;
 function showPicker(){
-  A.phase='PICK';A.mod=null;
+  A.phase='PICK';A.mod=null;rulesetChosen=false;
+  renderPicker();
+  syncAll();
+}
+function renderPicker(){
   const el=byId('arPicker');el.hidden=false;byId('arEnd').hidden=true;
   const list=ARENA_SCENARIOS.filter(s=>!s.rulesets||s.rulesets.includes(A.ruleset));
-  let h='<div class="arn-win"><h2>Arena</h2><p>'+esc(RULESETS[A.ruleset].name)+' · Exec '+EXEC_LEN+'s · Speed '+SIM_SPEED+'× · seed '+A.seed+'</p><div class="arn-pick" id="arScenList">';
+  let h='<div class="arn-win"><h2>Arena</h2><p>Pick a ruleset, then a scenario. Exec '+EXEC_LEN+'s · Speed '+SIM_SPEED+'× · seed '+A.seed+'</p>'+
+    '<div class="arn-pick" id="arRulesetList">';
+  for(const k in RULESETS){
+    const R=RULESETS[k],on=rulesetChosen&&A.ruleset===k;
+    h+='<div class="arn-pick__item'+(on?' is-on':'')+'" data-ruleset-item="'+k+'"><div class="arn-pick__txt"><div class="arn-pick__name">'+esc(R.name)+'</div><div class="arn-pick__desc">'+esc(R.desc)+'</div></div>'+
+      '<div class="arn-pick__go"><button type="button" class="sr-btn sr-btn--sm'+(on?' sr-btn--primary':'')+'" data-ruleset="'+k+'" aria-pressed="'+on+'">'+(on?'Chosen':'Choose')+'</button></div></div>';
+  }
+  h+='</div><div id="arScenStep"'+(rulesetChosen?'':' hidden')+'><p style="margin-top:14px">Scenarios under <b>'+esc(RULESETS[A.ruleset].name)+'</b></p><div class="arn-pick" id="arScenList">';
   for(const s of list){
     h+='<div class="arn-pick__item" data-scen="'+esc(s.id)+'"><div class="arn-pick__txt"><div class="arn-pick__name">'+esc(s.title)+'</div><div class="arn-pick__desc">'+esc(s.desc)+'</div></div><div class="arn-pick__go">';
     if(s.variants)s.variants.forEach((v,i)=>{h+='<button type="button" class="sr-btn sr-btn--sm" data-load="'+esc(s.id)+'" data-variant="'+i+'">'+esc(v.label)+'</button>';});
     else h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--primary" data-load="'+esc(s.id)+'">Fly</button>';
     h+='</div></div>';
   }
-  h+='</div><div class="arn-fine">Nothing here touches your campaign. <button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
+  h+='</div></div><div class="arn-fine">Nothing here touches your campaign. <button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
   el.innerHTML=h;
-  syncAll();
 }
+function chooseRuleset(k){if(!RULESETS[k])throw new Error('Unknown ruleset '+k);A.ruleset=k;rulesetChosen=true;renderPicker();syncAll();}
 byId('arPicker').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
-  if(b.dataset.load)load(b.dataset.load,A.ruleset,b.dataset.variant!=null?+b.dataset.variant:null);
+  if(b.dataset.ruleset)chooseRuleset(b.dataset.ruleset);
+  else if(b.dataset.load)load(b.dataset.load,A.ruleset,b.dataset.variant!=null?+b.dataset.variant:null);
   else if(b.dataset.act==='title')backToTitle();
 });
 function showEnd(){
@@ -534,7 +553,8 @@ window.DBGarena={A,RULESETS,ARENA_SCENARIOS,PRESETS,get phase(){return A.phase;}
   get metrics(){return A.metrics;},get ruleset(){return A.ruleset;},
   fn:{load,restart,beginExec,runExecSync,finishExec,stepTick,showPicker,dumpMetrics,stateHash,resolveCast,rockLayout,checkObjective,
     setSeed(n){A.seed=n>>>0;},
-    addScenario(s){ARENA_SCENARIOS.push(s);if(A.phase==='PICK')showPicker();return s;},
+    addScenario(s){ARENA_SCENARIOS.push(s);if(A.phase==='PICK')renderPicker();return s;},
+    chooseRuleset,
     setExecLen(v){EXEC_LEN=v;},setSimSpeed(v){SIM_SPEED=v;},
     TICK_:()=>TICK,EXEC_LEN_:()=>EXEC_LEN,SIM_SPEED_:()=>SIM_SPEED,
     toWorld,cam_:()=>cam,
