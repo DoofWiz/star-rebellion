@@ -53,6 +53,8 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   window.Pro.emit=function(type,arg){T.events.push(type+':'+(arg&&typeof arg==='object'?arg.id||arg.kind||arg.role:arg));return emit0.apply(this,arguments);};
   let last=null,closedSince=true;
   setInterval(()=>{
+   // the splash closes itself after a second (reduced motion): what was up the moment it showed
+   if(!T.splashAt&&!document.querySelector('#estSplash').hidden)T.splashAt={at:window.Pro.beat(),win:D.fn.getWin(),q:T.q().join(),gal:T.vis('navSources')};
    const w=D.fn.getWin();
    if(w!==last){
     if(last==='reward'&&w&&!T.events.slice(-30).includes('closed:reward'))T.over.push(w);
@@ -129,14 +131,14 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  };
  const closeUntilEmpty=async()=>{for(let i=0;i<8;i++){const w=await E(()=>T.win());if(!w)break;await E(()=>T.f.closeWin());await wait(80);}};
 
- await E(()=>{window.Pro.jump('rock');T.f.launchIntro();});
+ await E(()=>{window.Pro.jump('rock');T.splashAt=null;T.f.launchIntro();});
  await scene('ground');
  await E(()=>document.querySelector('#sc-ground #dbgSkip').click());
  await wait(300);
  await E(()=>document.querySelector('#sc-ground #endRestartBtn').click());
  await scene('base');
- let r=await E(()=>({at:window.Pro.beat(),splash:!document.querySelector('#estSplash').hidden,win:T.win(),q:T.q(),gal:T.vis('navSources')}));
- ok(r.at==='cass_intro'&&r.splash&&!r.win&&r.q.join()==='win:cassIntro'&&!r.gal,'Take the Rock won: the splash is up, Cass waits behind it, the Galaxy is hidden '+JSON.stringify(r));
+ let r=await E(()=>T.splashAt||{});
+ ok(r.at==='cass_intro'&&!r.win&&r.q==='win:cassIntro'&&!r.gal,'Take the Rock won: the splash is up, Cass waits behind it, the Galaxy is hidden '+JSON.stringify(r));
  await E(()=>document.querySelector('#estSplash').click());
  await wait(400);
  r=await E(()=>T.win());
@@ -168,7 +170,8 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  r=await E(()=>({at:window.Pro.beat(),live:window.Pro.live(),on:!!T.mis('stealcross'),txt:document.querySelector('#winCardB').textContent}));
  ok(r.at==='sera'&&!r.live&&r.on&&/advance a day to see what he has found/.test(r.txt),'Acknowledge: Steal the Cross on the board, Sera waits for the next day '+[r.at,r.live,r.on]);
  await closeUntilEmpty();
- await E(()=>{T.G.credits+=400;T.G.materials+=300;T.f.startRestore();T.f.advanceDay();});
+ r=await E(()=>{const ok=T.f.startRestore();T.f.advanceDay();return ok;});   // on the starting wallet
+ ok(r,'the Marta’s restoration is paid from the starting credits and materials');
  await closeUntilEmpty();
  r=await E(()=>({live:window.Pro.live(),sig:(T.src('cass').signal||{}).kind}));
  ok(r.live&&r.sig==='recruitSera','the next day Cass has found Sera '+JSON.stringify(r));
@@ -361,13 +364,23 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  const mercTxt=await E(()=>document.querySelector('#tutCoach').textContent);
  ok(r.up&&/hire-a-mercenary/.test(mercTxt),'the hire-a-mercenary tutorial (its words still to write) points at the lot '+r.up);
  // the stall restocks: the guaranteed lot stays, outside the six
- r=await E(()=>{T.G.credits+=8000;const before=T.G.market.lots.length;T.f.rollMarket();return {n:T.G.market.lots.length,six:T.G.market.lots.filter(l=>!l.keep).length,keep:T.G.market.lots.filter(l=>l.keep).length,before};});
+ r=await E(()=>{const before=T.G.market.lots.length;T.f.rollMarket();return {n:T.G.market.lots.length,six:T.G.market.lots.filter(l=>!l.keep).length,keep:T.G.market.lots.filter(l=>l.keep).length,before};});
  ok(r.six===6&&r.keep===1,'a restock keeps the mercenary lot, outside the six '+JSON.stringify(r));
  // nine aboard and six bunks: a mercenary needs a bunk, so the Barracks grows first
  r=await E(()=>({free:T.f.freeBunks(),hired:T.f.buyLot(T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc'),false)}));
  ok(r.free<=0&&r.hired===false,'with the bunks full the mercenary can’t be hired yet '+JSON.stringify(r));
- await E(()=>{T.G.rooms.push({id:'rm_bx',key:'barracks',r:5,c:6,w:2,h:1,up:[]});});   // two more tiles: nine aboard, six bunks to start
- await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc');T.f.buyLot(i,false);T.f.syncUI();});
+ // a Barracks tile (where its side beat points) and the Bunks upgrade, built and paid for like a player would
+ r=await E(()=>{
+  const t=T.f.roomTileFor('barracks'),built=t&&t.kind==='floor'&&T.f.buildAt(t.r,t.c,'barracks')!==false;
+  T.f.closeWin();T.f.advanceDay();T.f.closeWin();
+  const rm=T.G.rooms.find(x=>x.key==='barracks'&&!x.build),up=T.f.startUpgrade(rm,'bunks');
+  for(let d=0;d<2;d++){T.f.advanceDay();T.f.closeWin();}
+  return {built,up,cap:T.f.bunkCap(),free:T.f.freeBunks(),wallet:[T.G.credits,T.G.materials,T.G.supplies].map(Math.round).join('/')};
+ });
+ ok(r.built&&r.up&&r.free>0,'a Barracks tile and the Bunks upgrade, bought from the prologue’s own income, free a bunk '+JSON.stringify(r));
+ await closeUntilEmpty();
+ r=await E(()=>{T.f.openMarket();const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc');const h=T.f.buyLot(i,false);T.f.syncUI();return h;});
+ ok(r,'the mercenary is hired');
  await wait(200);
  r=await E(()=>({at:window.Pro.beat(),keep:T.G.market.lots.filter(l=>l.keep&&l.stock>0).map(l=>l.kind+':'+l.key).join()}));
  ok(r.at==='hauler'&&r.keep==='ship:graf','hired: a second Graf hauler is always on the stall now '+JSON.stringify(r));
@@ -377,7 +390,18 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  r=await E(()=>({up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
  ok(r.up&&/build Hangar room/.test(r.txt),'the hauler tutorial (its words still to write) points at the Hangar '+r.up);
  // a second Hangar section, built
- await E(()=>{T.G.rooms.push({id:'rm_t6',key:'hangar',r:6,c:13,w:4,h:4,halves:['L','S'],up:[]});T.f.openMarket();});await wait(200);
+ r=await E(()=>{   // the block the net costs: its rubble excavated, the section built, half of it made a large pad
+  const bl=T.f.hangarPlan(),G=T.G;let dug=0;
+  for(let i=bl.r;i<bl.r+4;i++)for(let j=bl.c;j<bl.c+4;j++)if(G.grid[i][j].t==='rubble'&&!G.grid[i][j].dig){T.f.digAt(i,j);dug++;}
+  T.f.closeWin();T.f.advanceDay();T.f.closeWin();
+  const built=T.f.buildAt(bl.r,bl.c,'hangar')!==false;
+  for(let d=0;d<4;d++){T.f.advanceDay();T.f.closeWin();}
+  const sec=G.rooms.filter(x=>x.key==='hangar'&&!x.build)[1],flip=!!sec&&T.f.flipHalf(sec,sec.halves.indexOf('S'));
+  return {dug,built,flip,wallet:[G.credits,G.materials,G.supplies].map(Math.round).join('/'),neg:G.credits<0||G.materials<0||G.supplies<0};
+ });
+ ok(r.built&&r.flip&&!r.neg,'a second Hangar section is excavated and built from the prologue’s own income '+JSON.stringify(r));
+ await closeUntilEmpty();
+ await E(()=>{T.f.openMarket();});await wait(200);
  r=await E(()=>({step:(window.Pro.step()||{}).text,up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
  ok(r.step==='haulerBuy'&&r.up&&/buy a second Graf hauler/.test(r.txt),'room made: the tutorial moves to the hauler lot '+JSON.stringify({step:r.step,up:r.up}));
  await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='ship');T.f.buyLot(i,false);T.f.syncUI();});
@@ -519,8 +543,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  },tile);
  ok(r.at==='base.build:barracks'&&r.hit,'8a: with the tile open, the pointer is at Build on the Barracks card '+JSON.stringify(r));
  r=await E(t=>{
-  const cost=T.f.buildCostAt('barracks',t.r,t.c),G=T.G;   // §3 makes the prologue pay for this; for now top up only what is missing
-  G.credits=Math.max(G.credits,cost.c);G.materials=Math.max(G.materials,cost.m||0);G.supplies=Math.max(G.supplies,cost.s||0);
+  const G=T.G;
   T.f.openTilePop(t.r,t.c);document.querySelector('#tilePop [data-build="barracks"]').click();T.f.syncUI();
   const st=window.Pro.step()||{};
   return {at:st.at,building:G.rooms.some(r=>r.key==='barracks'&&r.build&&r.r===t.r&&r.c===t.c),pop:!document.querySelector('#tilePop').hidden};
@@ -590,7 +613,6 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  ok(r.diff>=r.K*0.75,'8d: a night with someone sleeping rough costs the base morale ('+JSON.stringify(r)+')');
  r=await E(()=>{
   const G=T.G,t=T.f.roomTileFor('barracks');
-  const cost=T.f.buildCostAt('barracks',t.r,t.c);G.credits=Math.max(G.credits,cost.c);G.materials=Math.max(G.materials,cost.m||0);G.supplies=Math.max(G.supplies,cost.s||0);
   T.f.buildAt(t.r,t.c,'barracks');const during=T.f.roughIds().size;
   T.f.advanceDay();T.f.closeWin();T.f.syncUI();
   return {kind:t.kind,during,after:T.f.roughIds().size,tags:[...document.querySelectorAll('#sc-base .sr-unit .sr-tag')].filter(e=>/Sleeping rough/.test(e.textContent)).length};

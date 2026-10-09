@@ -97,6 +97,10 @@ const PRO_TEXT={
   sbWorkshopBuild:'[TEXT NEEDED: pointer label at Build on the Workshop card]',
   sbWorkshopT:'[TEXT NEEDED: card title, the Workshop]',
   sbWorkshop:'[TEXT NEEDED: card on the Workshop: ships repair there]',
+  // the affordability net (docs/FEEDBACK-0.2-HANDOFF.md §3.2): a beat's contact covers what the player can't afford
+  affordGrant:'[TEXT NEEDED: the contact sends what’s missing]',
+  // Sweet Tooth's line on the guaranteed Graf hauler lot before the frontier (PRO_GRAF_PRICE)
+  grafFriend:'[TEXT NEEDED: Sweet Tooth, a friend-of-Cass price on the hauler]',
   btnNext:'Next',
   btnGotIt:'Got it',
   // debug builds only
@@ -191,6 +195,18 @@ function roomSteps(key,pre,rest){
   ].concat(rest);
 }
 
+/* the prologue missions' authored rewards (docs/FEEDBACK-0.2-HANDOFF.md §3.2): each spec's rew is added to what its
+   mission type pays. The numbers are set by tools/economy-smoke.js, which plays New Game to the frontier on them */
+const PRO_REW={stealcross:{m:300},depotrun:{m:400},stealfuel:{m:300},rescuetachi:{m:650,c:600}};   // placeholder
+/* the guaranteed Graf hauler's price before the frontier (a friend-of-Cass price); SHIP_PRICE after it */
+const PRO_GRAF_PRICE=1000;   // placeholder
+/* the affordability net: days a beat that needs a spend can sit unaffordable before its contact sends the shortfall */
+const AFFORD_DAYS=2;   // placeholder
+const AFFORD_EXTRA=0.10;   // the shortfall is sent with this much on top
+/* Rescue Tachi's spec (beats 12 and 13) */
+const TACHI={type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},
+  name:'rescueTachi',npc:'tachi',recruit:false,follow:false,rew:PRO_REW.rescuetachi};
+
 /* Raid the Bunker (beats 18, 19 and 23): Steal Ship with three ships pinned, five soldiers, and the pilots coming in later
    with the second hauler (r.reinforce: the plan's first transport asset carries them) */
 const BUNKER={type:'stealship',scenario:'bunker',ctx:{src:'cass',loc:'akkaro',region:'flats',target:'secure bunker'},
@@ -214,34 +230,34 @@ const PROLOGUE=[
   // 4: Cass's Steal the Cross signal; the job needs a second pilot
   {id:'cross_offer',
    setup:h=>h.openGate('tab.galaxy'),
-   does:[{gate:'tab.missions'},{signal:{who:'cass',mission:'stealcross',text:'crossOffer',follow:'crossFollow'}}],
+   does:[{gate:'tab.missions'},{signal:{who:'cass',mission:'stealcross',spec:{rew:PRO_REW.stealcross},text:'crossOffer',follow:'crossFollow'}}],
    until:{accepted:'stealcross'}},
   // 5: the next day, Cass finds Sera Kest
   {id:'sera',starts:{day:1},
-   setup:h=>{h.openGate('tab.missions');h.addMission('stealcross');},
+   setup:h=>{h.openGate('tab.missions');h.addMission('stealcross',{rew:PRO_REW.stealcross});},
    does:[{signal:{who:'cass',kind:'recruitSera',text:'seraFound'}},{news:{text:'seraNews',cls:'a',alert:true}}],
    until:{joined:{id:'sera'}}},
   // 6: Steal the Cross
-  {id:'cross',
+  {id:'cross',needs:h=>h.cost(['marta']),from:'cass',
    setup:h=>{h.join('sera');h.restoreHauler();},
    until:{won:'stealcross'}},
   // 7: Maro Venn, a Prologue source, signals the depots job
   {id:'venn_arrives',
    setup:h=>h.winMission('stealcross'),
-   does:[{source:{id:'venn',add:true,prologue:true}},{signal:{who:'venn',mission:'depotrun',text:'depotsOffer'}},{news:{text:'vennNews',cls:'g',good:true}}],
+   does:[{source:{id:'venn',add:true,prologue:true}},{signal:{who:'venn',mission:'depotrun',spec:{rew:PRO_REW.depotrun},text:'depotsOffer'}},{news:{text:'vennNews',cls:'g',good:true}}],
    until:{accepted:'depotrun'}},
   // 8: Torch the Depots
   {id:'depots',
-   setup:h=>{h.addSource('venn');h.addMission('depotrun');},
+   setup:h=>{h.addSource('venn');h.addMission('depotrun',{rew:PRO_REW.depotrun});},
    until:{won:'depotrun'}},
   // 9: the next day, Cass's Steal Fuel signal; the onboarding job takes four soldiers
   {id:'fuel_offer',starts:{day:1},
    setup:h=>h.winMission('depotrun'),
-   does:[{signal:{who:'cass',mission:'stealfuel',spec:{req:{team:4}},text:'fuelOffer'}},{news:{text:'fuelNews',cls:'a',alert:true}}],
+   does:[{signal:{who:'cass',mission:'stealfuel',spec:{req:{team:4},rew:PRO_REW.stealfuel},text:'fuelOffer'}},{news:{text:'fuelNews',cls:'a',alert:true}}],
    until:{accepted:'stealfuel'}},
   // 10: Venn sends a recruit
   {id:'fuel_recruit',
-   setup:h=>h.addMission('stealfuel',{req:{team:4}}),
+   setup:h=>h.addMission('stealfuel',{req:{team:4},rew:PRO_REW.stealfuel}),
    does:[{comm:{who:'venn',text:'vennRecruit'}},{recruitOffer:{role:'Soldier',from:'venn',must:true}}],
    until:{joined:{role:'Soldier'}}},
   // 11: the plan's fire support slots open, and the Strafing Run callout
@@ -253,12 +269,11 @@ const PROLOGUE=[
   {id:'tachi_offer',
    setup:h=>{h.openGate('plan.assets');h.tutDone('strafingRun');h.winMission('stealfuel');},
    does:[{comm:{who:'venn',text:'tachiOffer'}},
-     {mission:{id:'rescuetachi',from:'venn',spec:{type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},
-       name:'rescueTachi',npc:'tachi',recruit:false,follow:false}}}],
+     {mission:{id:'rescuetachi',from:'venn',spec:TACHI}}],
    until:{won:'rescuetachi'}},
   // 13: Tachi thanks the player and offers to watch out for them: accept
   {id:'tachi_joins',
-   setup:h=>h.winMission('rescuetachi',{type:'ambush',ctx:{src:'venn',loc:'akkaro',region:'flats',target:'convoy'},name:'rescueTachi',npc:'tachi',recruit:false,follow:false}),
+   setup:h=>h.winMission('rescuetachi',TACHI),
    does:[{comm:{who:'tachi',text:'tachiThanks',accept:'tachi'}}],
    until:{accepted:'tachi'}},
   // 14: Tachi is the first Agent, posted to Akkaro with Cass and Venn as her cell; the Intelligence tab opens with
@@ -295,12 +310,12 @@ const PROLOGUE=[
    does:[{comm:{who:'cass',text:'marketOffer'}},{gate:'tab.market'},{tutorial:'marketTab'}],
    until:{tab:'market'}},
   // 21: the first time the tab opens, Sweet Tooth's intro, then hiring a mercenary (one always waits on the stall)
-  {id:'sweet_tooth',
+  {id:'sweet_tooth',needs:h=>h.cost(['merc']),from:'cass',
    setup:h=>h.openGate('tab.market'),
    does:[{marketLot:{cat:'merc',role:'Soldier',keep:true}},{comm:{who:'sweettooth',text:'sweetTooth'}},{tutorial:'hireMerc'}],
    until:{hired:true}},
   // 22: a second Graf hauler (always on the stall until bought) and Hangar room for 4 starfighters and 2 transports
-  {id:'hauler',
+  {id:'hauler',needs:h=>h.cost(['hangar','graf']),from:'cass',
    setup:h=>h.join('Soldier'),
    does:[{marketLot:{cat:'ship',id:'graf',keep:true}},{tutorial:'hauler'}],
    until:[h=>h.transports()>=2,h=>h.hangarFits()]},
@@ -331,7 +346,7 @@ const PROLOGUE=[
    cards. A main beat's tutorial goes first: one that starts while a side tutorial is up holds it until it ends.
    G.prologue.flags.side[id] is 'run' while it runs and 'done' after. Adding one means an entry here and its text. */
 const SIDE=[
-  {id:'room_barracks',when:h=>h.bunksFull(),does:[{tutorial:'buildBarracks'}],until:{built:'barracks'}},
+  {id:'room_barracks',when:h=>h.bunksFull(),does:[{tutorial:'buildBarracks'}],until:{built:'barracks'},needs:h=>h.cost(['room:barracks'])},
   {id:'room_infirmary',when:h=>h.anyInjured()&&!h.hasRoom('infirmary'),does:[{tutorial:'buildInfirmary'}],until:{built:'infirmary'}},
   {id:'room_workshop',when:h=>h.anyShipDamaged()&&!h.hasRoom('workshop'),does:[{tutorial:'buildWorkshop'}],until:{built:'workshop'}},
 ];
@@ -350,7 +365,7 @@ const ix=id=>PROLOGUE.findIndex(b=>b.id===id);
 const beat=()=>{const p=P();return p?PROLOGUE[ix(p.at)]||null:null;};
 const text=k=>Object.prototype.hasOwnProperty.call(PRO_TEXT,k)?PRO_TEXT[k]:k;
 
-function fresh(day){return {at:PROLOGUE[0].id,since:day||1,live:true,flags:{tut:{},side:{}},gates:{},done:false};}
+function fresh(day){return {at:PROLOGUE[0].id,since:day||1,live:true,flags:{tut:{},side:{},granted:{}},afford:{},gates:{},done:false};}
 const isDone=()=>{const p=P();return !p||!!p.done;};
 const at=id=>{const p=P();return !!p&&!p.done&&p.at===id;};
 /* past(id): the prologue has finished that beat (or is over) */
@@ -409,7 +424,7 @@ function hear(type,arg){
   stepHear(type,arg);
   if(type==='source'&&arg&&!arg.prologue&&p.done)firstSource();
   if(!p.done){
-    if(type==='day'){rearm();shortTick();}
+    if(type==='day'){rearm();shortTick();affordTick();}
     check(type,arg);
   }
   sideHear(type,arg);   // after the main beat, so its windows queue first
@@ -455,6 +470,7 @@ function act(a,b){
   else if(k==='flag'){const p=P();if(v&&typeof v==='object')Object.assign(p.flags,v);else p.flags[v]=1;}
   else if(k==='tutorial')startTut(v,isSide(b)?b.id:null);
   else if(k==='news')H.news(text(v.text),v);
+  else if(k==='grant')H.grant(v);
   else if(H.act[k])H.act[k](v,b);
   else console.warn('Prologue: no action '+k+' (beat '+b.id+')');
 }
@@ -485,6 +501,29 @@ function shortTick(){
     if(!role){p.short[m.key]=0;continue;}
     p.short[m.key]=(p.short[m.key]||0)+1;
     if(p.short[m.key]>=SHORT_DAYS){p.short[m.key]=0;H.act.recruitOffer({role,from:m.src,must:true,short:1},b);H.kick();}
+  }
+}
+
+/* §3.2 the affordability net: a beat (or a running side beat) that needs a spend (needs(h): what is still to pay,
+   {c,m,s}) and has sat AFFORD_DAYS days without the player able to cover it brings the shortfall, and AFFORD_EXTRA on
+   top, from its contact (from, else Venn): a comm, then the grant when it closes. Once per beat, before the frontier. */
+function affordTick(){
+  const p=P(),b=beat(),w=H.wallet();
+  p.afford=p.afford||{};p.flags.granted=p.flags.granted||{};
+  const due=[];
+  if(b&&p.live&&b.needs)due.push(b);
+  for(const s of running())if(s.needs)due.push(s);
+  for(const x of due){
+    if(p.flags.granted[x.id])continue;
+    const need=x.needs(H)||{},miss={};let any=false;
+    for(const k of ['c','m','s'])if(need[k]>w[k]){miss[k]=Math.ceil((need[k]-w[k])*(1+AFFORD_EXTRA)/10)*10;any=true;}
+    if(!any){p.afford[x.id]=0;continue;}
+    p.afford[x.id]=(p.afford[x.id]||0)+1;
+    if(p.afford[x.id]<AFFORD_DAYS)continue;
+    p.flags.granted[x.id]=1;
+    act({comm:{who:x.from||'venn',text:'affordGrant'}},x);
+    H.queue({act:{grant:miss},beat:x.id});
+    H.kick();
   }
 }
 
@@ -653,7 +692,7 @@ function run(a,beatId){
   H.kick();
 }
 
-window.Pro={PROLOGUE,SIDE,PRO_TEXT,PRO_TUTS,PRO_CAST,GATES,SHORT_DAYS,cast,run,hostAct:(k,v)=>H.act[k](v,{id:'setup'}),
+window.Pro={PROLOGUE,SIDE,PRO_TEXT,PRO_TUTS,PRO_CAST,GATES,SHORT_DAYS,PRO_REW,PRO_GRAF_PRICE,AFFORD_DAYS,cast,run,hostAct:(k,v)=>H.act[k](v,{id:'setup'}),
   bind:h=>{H=h;},onGate:f=>onGate.push(f),fresh,
   emit,check,at,past,done:isDone,gate,openGate,text,beat:()=>{const b=beat();return b&&b.id;},live:()=>{const p=P();return !!(p&&p.live);},
   step,tutSeen,startTut,rearm,

@@ -906,7 +906,8 @@ const WRECK_BLAST=130,WRECK_DMG=[12,26];   // a destroyed vehicle's blast: radiu
 function mkVeh(o){
   const d=VEHDEF[o.veh];
   const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,arm:d.arm,shdCap:d.shdCap,aim:0,cool:55},o,
-    {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null}))}));
+    {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null})),
+     heg:(o.owner||o.side)==='law'?1:0}));   // a Hegemony vehicle: destroyed or stalled, the debrief pays salvage
   delete v.crew;
   return v;
 }
@@ -4316,7 +4317,10 @@ function buildResult(win){
     const u=U.find(x=>x.id===va.uid);
     return {id:va.id,lost:!!(u&&u.down),hp:u?Math.max(0,Math.round(u.hp/u.maxhp*100)):va.hpPct};
   });
-  return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
+  // salvage (docs/FEEDBACK-0.2-HANDOFF.md §3.2): the max hp of every Hegemony vehicle destroyed or stalled (the
+  // ambush's prisoner truck is stopped by bringing it down); the base turns it into materials
+  const salvHp=U.filter(v=>v.veh&&v.heg&&v.down).reduce((n,v)=>n+(v.maxhp||0),0);
+  return {gained,salvHp,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
     dropUsed:!!(FS&&FS.dropUsed),
     win,cross:SCN.mode==='stealcross'&&!!win,prizes:win&&SCN.mode==='stealship'?PZ.filter(p=>p.away).map(p=>p.cls):[],nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,

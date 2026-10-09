@@ -71,10 +71,11 @@ function bundleHTML(b,have){return bundleList(b,have).join(' ');}
 const esc=HUD.esc;
 const WALLET=()=>({c:G.credits,s:G.supplies,m:G.materials,f:G.fuel,i:G.intel});
 /* "Need 8 more materials": the reason a Build button is greyed */
+const MAT_HINT='[TEXT NEEDED: short hint, where materials come from (salvage, patrols, Sources)]';
 function needWhy(b){
   const w=WALLET(),o=[];
   for(const k of ['c','s','m','f','i'])if(b[k]&&w[k]<b[k])o.push('Need '+Math.ceil(b[k]-w[k])+' more '+RES[k][1].toLowerCase());
-  return o.join(', ');
+  return o.join(', ')+(b.m&&w.m<b.m?'\n'+MAT_HINT:'');   // short of materials: where they come from
 }
 
 /* ---------- rooms & builds (copy in the commander's voice) ---------- */
@@ -1681,6 +1682,7 @@ function applySpec(m,spec){
   if(spec.recruit===false)m.noRecruit=1;   // the freed prisoner does not join as a recruit (a beat decides what happens)
   if(spec.follow===false)m.noFollow=1;     // no source follow-up after the report (a beat speaks instead)
   if(spec.scenario)m.scenario=spec.scenario;
+  if(spec.rew){m.rew=Object.assign({},m.rew);for(const k in spec.rew)m.rew[k]=(m.rew[k]||0)+spec.rew[k];}   // added to what the type pays
   if(spec.ships){   // the ships to steal, pinned: one prize pilot each
     m.ships=spec.ships.slice();
     m.req=Object.assign({},m.req||MTYPES[typeOf(m)].req(m),{prize:m.ships.length},spec.req||{});
@@ -2299,6 +2301,9 @@ function rehabDone(p){
   }
   if(!(p.cond||[]).length&&on('physio.peak'))p.peak=1;
 }
+/* salvage from the field (docs/FEEDBACK-0.2-HANDOFF.md §3.2): a Hegemony vehicle destroyed or stalled in a ground
+   mission the squad wins yields materials for its max hp, rounded to 10 */
+const SALVAGE_PER_HP=0.5;   // placeholder
 /* Salvage (Mechanic, Department Head): more Materials from a mission's reward */
 function salvaged(rw){
   if(!rw||!rw.m||!headOf('workshop'))return rw;
@@ -3515,9 +3520,9 @@ function renderRoomBar(){
   if(rm.key==='hangar'&&G.wreck&&!G.wreck.restored){
     if(G.wreck.restoring)cards+='<div class="sr-card sr-card--info"><div class="sr-card__title">Restoring the hauler</div><div class="sr-card__body" style="margin-bottom:0">'+G.wreck.restoring+'d left. Joss hasn’t slept.</div></div>';
     else{
-      const can=G.credits>=240&&G.materials>=160;
+      const can=G.credits>=RESTORE.c&&G.materials>=RESTORE.m;
       cards+='<div class="sr-card sr-card--info bs-build"><div class="sr-card__top"><span class="sr-card__title">Restore the derelict hauler</span><span class="sr-tag">2 days</span></div>'+
-        '<div class="bs-build__row" style="margin-top:8px"><span class="sr-card__meta">'+C(240,G.credits<240)+' '+M(160,G.materials<160)+'</span>'+rbtn('data-restore'+(can?'':' title="'+esc(needWhy({c:240,m:160}))+'"'),'Restore',!can,'sr-btn--primary sr-btn--sm')+'</div></div>';
+        '<div class="bs-build__row" style="margin-top:8px"><span class="sr-card__meta">'+C(RESTORE.c,G.credits<RESTORE.c)+' '+M(RESTORE.m,G.materials<RESTORE.m)+'</span>'+rbtn('data-restore'+(can?'':' title="'+esc(needWhy(RESTORE))+'"'),'Restore',!can,'sr-btn--primary sr-btn--sm')+'</div></div>';
     }
   }
   if(rm.key==='diplo')acts=rbtn('data-open="diplo"','Diplomatic Tasks');
@@ -4833,9 +4838,10 @@ function render(now){
 }
 
 /* ---------- tile popup ---------- */
+const RESTORE={c:240,m:160};   // restoring the derelict Graf hauler (the Marta)
 function startRestore(){
-  if(!(G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=240&&G.materials>=160))return false;
-  G.credits-=240;G.materials-=160;G.wreck.restoring=2;G.guideHangar=0;
+  if(!(G.wreck&&!G.wreck.restored&&!G.wreck.restoring&&G.credits>=RESTORE.c&&G.materials>=RESTORE.m))return false;
+  G.credits-=RESTORE.c;G.materials-=RESTORE.m;G.wreck.restoring=2;G.guideHangar=0;
   news('Joss has the hauler’s guts across the cave floor. Two days, he says. “She has a name. It’s Marta.”','a');
   return true;
 }
@@ -7603,6 +7609,8 @@ const BM_GSTATS={
 /* ships, vehicles and ship weapons Sweet Tooth sells: prices from the handoff §1; their data stays in the db.
    Varrondow and AutoCom craft, drones, structures and Hegemony-issue vehicles never reach her table. */
 const SHIP_PRICE={talon:2200,cross:2600,graf:3200};
+/* the prologue's Graf hauler is sold at a friend-of-Cass price until the frontier (docs/FEEDBACK-0.2-HANDOFF.md §3.2) */
+const shipPrice=k=>k==='graf'&&!Pro.done()?Pro.PRO_GRAF_PRICE:SHIP_PRICE[k];
 const SHIPWPN_PRICE={'bls-t-light-repeaters':380,'missiles':520,'door-mounted-gun':300};
 const VEH_PRICE={truck:1100};   // listed, but only sellable once GVEH.truck exists (stats are a blocker: M-17)
 const SHIP_SHORT={talon:'Talon',cross:'Cross',graf:'Hauler'};
@@ -7617,7 +7625,7 @@ const shipSerial=cls=>{
 const mulberry32=UT.mulberry32;
 const marketWeek=()=>Math.floor((G.day-1)/7)+1;   // week k covers days 7k-6 .. 7k
 const nyxAccess=()=>{const st=pst('nyx');return !!(st&&st.access);};
-const lotPrice=l=>Math.round(l.price*(nyxAccess()?0.9:1)*(on('smuggler.haggler')?1-RU.haggler:1));   // the Regulars' discount and Haggler (Smuggler), at display and purchase time
+const lotPrice=l=>Math.round((l.pro==='graf'&&l.kind==='ship'?shipPrice('graf'):l.price)*(nyxAccess()?0.9:1)*(on('smuggler.haggler')?1-RU.haggler:1));   // the Regulars' discount and Haggler (Smuggler), at display and purchase time
 /* salt: a fresh roll inside the week (Inside Line); it does not replace the market or use up a Special Order */
 function rollMarket(salt){
   if(!G.seed)G.seed=1+Math.floor(Math.random()*0x7fffffff);   // the campaign seed (added lazily to old saves)
@@ -7802,7 +7810,7 @@ function stLine(){
     pitch=MT.fill(ST_LINES.mercTpl,{first:m.first||m.name.split(' ')[0],them:'them',they:'they',their:'their',weapon:kitNameId(wk)});
     if(!mercBunkFree())return pitch+' '+ST_LINES.needBunk;   // the blocked reason lives in her line (no hint text)
   } else {
-    pitch=ST_LINES.pitch[l.key]||ST_LINES.pitchCat[l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind]||ST_LINES.greet;
+    pitch=(l.pro==='graf'&&l.kind==='ship'&&!Pro.done()?Pro.text('grafFriend'):null)||ST_LINES.pitch[l.key]||ST_LINES.pitchCat[l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind]||ST_LINES.greet;
     if(l.kind==='ship'&&!padFree(l.key))return pitch+' '+ST_LINES.needPad;
   }
   return lotPrice(l)>G.credits?pitch+' '+ST_LINES.broke:pitch;
@@ -8588,6 +8596,49 @@ function syncGates(){
     else if(!isNew&&tg)tg.remove();
   }
 }
+/* what a prologue need still costs (the affordability net, docs/FEEDBACK-0.2-HANDOFF.md §3.2), from the real prices:
+   'marta' restoring the derelict hauler (Steal the Cross needs her), 'room:K' a room tile where its tutorial points (with the excavation if it is rubble), 'merc' the guaranteed
+   mercenary (and the Bunks upgrade if no bunk is free), 'hangar' the cheapest Hangar section still to build (its
+   rubble excavated), 'graf' the guaranteed Graf hauler. Nothing once it is bought, built or under way. */
+function proCost(it){
+  const [k,arg]=it.split(':'),ex=EXCAVATE.m;
+  if(k==='marta')return G.wreck&&!G.wreck.restored&&!G.wreck.restoring?{c:RESTORE.c,m:RESTORE.m}:{};
+  if(k==='room'){
+    if(G.rooms.some(r=>r.key===arg&&r.build))return {};
+    const t=roomTileFor(arg);if(!t)return {};
+    const b=buildCostAt(arg,t.r,t.c);return {c:b.c,m:(b.m||0)+(t.kind==='dig'?ex:0),s:b.s||0};
+  }
+  if(k==='merc'){
+    const l=(G.market&&G.market.lots||[]).find(x=>x.keep&&x.kind==='merc'&&x.stock>0);if(!l)return {};
+    const out={c:lotPrice(l),m:0,s:0},rm=G.rooms.find(r=>r.key==='barracks'&&!r.build),d=UPGRADES.barracks.find(x=>x.k==='bunks');
+    if(!mercBunkFree()&&rm&&!upOf(rm,'bunks')&&!upQueued(rm,'bunks')){out.c+=d.c;out.m+=d.m||0;out.s+=d.s||0;}
+    return out;
+  }
+  if(k==='hangar'){
+    if(fleetFits(['graf','graf','talon','talon','talon','talon'],padCounts())||G.rooms.some(r=>r.key==='hangar'&&r.build))return {};
+    const bl=hangarPlan();if(!bl)return {};
+    const b=buildCostAt('hangar',bl.r,bl.c);return {c:b.c,m:(b.m||0)+bl.rub*ex,s:b.s||0};
+  }
+  if(k==='graf'){
+    if(G.fighters.filter(f=>SEATS[f.cls]).length+(G.inbound||[]).filter(x=>x.kind==='ship'&&SEATS[x.cls]).length>=2)return {};
+    const l=(G.market&&G.market.lots||[]).find(x=>x.keep&&x.kind==='ship'&&x.key==='graf'&&x.stock>0);
+    return {c:l?lotPrice(l):shipPrice('graf')};
+  }
+  return {};
+}
+/* the 4 × 4 block a new Hangar section costs least to clear (no rock, no room; fewest rubble tiles; beside a section first) */
+function hangarPlan(){
+  let best=null;
+  for(let r=0;r+HANGAR_N<=G.rows;r++)for(let c=0;c+HANGAR_N<=G.cols;c++){
+    let rub=0,okb=true;
+    for(let i=r;i<r+HANGAR_N&&okb;i++)for(let j=c;j<c+HANGAR_N;j++){const t=G.grid[i][j].t;if(t==='rubble')rub++;else if(t!=='floor'){okb=false;break;}}
+    if(!okb)continue;
+    const adj=G.rooms.some(o=>o.key==='hangar'&&!o.build&&roomsAdj({r,c,w:HANGAR_N,h:HANGAR_N},o));
+    const sc=rub-(adj?0.5:0);
+    if(!best||sc<best.sc)best={r,c,rub,sc};
+  }
+  return best;
+}
 /* debug: jump to a beat from the Prologue panel */
 function proJumpTo(id){
   exitRoomView();closeTilePop();closeArsenal();closeMarket();closeMissions();closeIntel();
@@ -8601,6 +8652,10 @@ Pro.bind({
   toast:html=>flashMsg(html,'friend'),
   view:()=>baseView,selected:()=>srcSel&&srcSel.t==='s'?srcSel.id:null,win:()=>winMode,
   recruiting:()=>!!(G.recruit&&G.recruit.days),
+  // the affordability net (docs/FEEDBACK-0.2-HANDOFF.md §3.2): what the player has, what a beat still has to pay
+  wallet:()=>({c:G.credits,m:G.materials,s:G.supplies}),
+  cost:items=>{const t={c:0,m:0,s:0};for(const it of items){const x=proCost(it);for(const k in t)t[k]+=x[k]||0;}return t;},
+  grant:v=>{G.credits+=v.c||0;G.materials+=v.m||0;G.supplies+=v.s||0;sGood();syncUI();},
   // the side beats (docs/FEEDBACK-0.2-HANDOFF.md §2): when a room becomes relevant, and where its tutorial points
   bunksFull:()=>bunksUsed()>=bunkCap(),
   anyInjured:()=>G.people.some(laidUp),
@@ -8650,7 +8705,7 @@ Pro.bind({
       const M=G.market,cat=v.cat;
       if(M.lots.some(l=>l.keep&&l.pro===(v.id||cat)))return;
       const l=cat==='merc'?mercLot(Math.random,'mercpro'+(G.recSeq+1)+'_'+G.day,new Set(G.people.map(p=>p.name)),v.role):
-        {kind:cat,key:v.id,stock:1,price:cat==='ship'?SHIP_PRICE[v.id]:(KIT[v.id]||{}).price||100,deal:'fair'};
+        {kind:cat,key:v.id,stock:1,price:cat==='ship'?shipPrice(v.id):(KIT[v.id]||{}).price||100,deal:'fair'};
       l.keep=!!v.keep;l.pro=v.id||cat;
       M.lots.push(l);M.unseen=(M.unseen||0)+1;
     },
@@ -9500,6 +9555,7 @@ function applyDebrief(r){
   }
   if(r.win&&m)applyRew(salvaged(m.rew),got);
   if(r.salvage&&on('aerogineer.scavenger')){G.materials+=r.salvage;gotRes(got,'m',r.salvage,'salvaged');}   // Scavenger's Eye
+  if(r.win&&r.salvHp){const n=Math.round(r.salvHp*SALVAGE_PER_HP/10)*10;if(n){G.materials+=n;gotRes(got,'m',n,'salvaged');}}   // Hegemony wrecks (§3.2)
   maintenance(r,got);
   for(const vr of r.vehicles||[]){
     const v=(G.vehicles||[]).find(x=>x.id===vr.id);
@@ -9796,14 +9852,15 @@ const MIGRATIONS=[
     for(const m of G.missions||[])if(m.story==='raidbunker'&&m.req&&m.state!=='done')m.req.reinforce=1;
   },
   /* 14 -> 15: the side beats (docs/FEEDBACK-0.2-HANDOFF.md §2.2) keep what they have fired in G.prologue.flags.side, and
-     a ship counts as damaged for the Workshop's only once it has flown (f.flown). A save past the frontier has every side
+     a ship counts as damaged for the Workshop's only once it has flown (f.flown); the affordability net (§3.2) keeps the
+     beats it has paid for in G.prologue.flags.granted and its day counts in G.prologue.afford. A save past the frontier has every side
      beat spent (no teaching a veteran); otherwise one is spent if its room is already there or being built (for the
      Barracks: more than the two tiles a new game starts with). A ship has flown unless it is the Marta before Steal
      the Cross. */
   function(){
     const P=G.prologue,some=k=>G.rooms.filter(r=>r.key===k).reduce((n,r)=>n+roomTiles(r),0);
     if(P){
-      P.flags=P.flags||{};P.flags.side=P.flags.side||{};
+      P.flags=P.flags||{};P.flags.side=P.flags.side||{};P.flags.granted=P.flags.granted||{};P.afford=P.afford||{};
       const has={room_barracks:some('barracks')>2,room_infirmary:some('infirmary')>0,room_workshop:some('workshop')>0};
       for(const sd of Pro.SIDE)if(P.done||has[sd.id])P.flags.side[sd.id]='done';
     }
@@ -9901,7 +9958,7 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
-      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,msRewards,makeOffer,bunksUsed,genRecruit,closeTilePop,roomTileFor,guideTarget,cellToCss,roughIds,sleepsRough,ROUGH_:()=>({ROUGH_MORALE,ROUGH_REST,ROUGH_CARD}),openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,msRewards,makeOffer,news,proCost,hangarPlan,shipPrice,SHIP_PRICE_:()=>SHIP_PRICE,SALVAGE_PER_HP_:()=>SALVAGE_PER_HP,MAT_HINT_:()=>MAT_HINT,agentLieLow,upOf,upQueued,hasRoom,bunksUsed,genRecruit,closeTilePop,roomTileFor,guideTarget,cellToCss,roughIds,sleepsRough,ROUGH_:()=>({ROUGH_MORALE,ROUGH_REST,ROUGH_CARD}),openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plReinf,plPax,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
@@ -9910,7 +9967,7 @@ if(location.hash==='#test'){
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
       padFree,inboundShips,shipSerial,arFit,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
-      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,canAttempt,precondList,
+      raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,getWinArg:()=>winArg,rqLen:()=>RQ.length,canAttempt,precondList,
       enterRoom:key=>{const rm=G.rooms.find(r=>r.key===key&&!r.build);if(rm)enterRoomView(rm);return !!rm;},exitRoomView}};
 }
 })();
