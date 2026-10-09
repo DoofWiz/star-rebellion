@@ -43,6 +43,10 @@
 #sc-arena .arn-row input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--sr-gold);}
 #sc-arena .arn-row--toggle{grid-template-columns:auto 1fr;}
 #sc-arena .arn-row--toggle input{accent-color:var(--sr-gold);width:16px;height:16px;margin:0;}
+#sc-arena .arn-row--multi{grid-template-columns:1fr;}
+#sc-arena .arn-multi{display:flex;flex-wrap:wrap;gap:4px 10px;}
+#sc-arena .arn-multi label{display:inline-flex;align-items:center;gap:4px;font-weight:600;color:var(--sr-text);}
+#sc-arena .arn-multi input{accent-color:var(--sr-gold);margin:0;}
 #sc-arena .arn-btns{display:flex;flex-wrap:wrap;gap:6px;}
 #sc-arena .arn-btns .sr-btn{min-height:30px;padding:0 10px;font-size:var(--sr-fs-xs);}
 #sc-arena .arn-readout{font:600 var(--sr-fs-xs)/1.45 var(--sr-font-ui);color:var(--sr-text-2);white-space:pre-wrap;font-variant-numeric:tabular-nums;}
@@ -66,7 +70,7 @@
 @media (max-width:760px){
   #sc-arena .arn-panel{position:absolute;right:0;top:0;bottom:0;z-index:4;flex-basis:auto;width:min(300px,86vw);}
   #sc-arena .arn-panel.is-collapsed{width:44px;}
-  #sc-arena .arn-orders{right:56px;}
+  #sc-arena .arn-orders{right:56px;max-height:34%;overflow:auto;}
   #sc-arena .arn-pick__item{flex-direction:column;align-items:stretch;}
 }
 /* the title screen's second button: a tool, not a player choice */

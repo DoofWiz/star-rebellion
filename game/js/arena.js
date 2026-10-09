@@ -106,6 +106,23 @@ const ARENA_SCENARIOS=[
   player:[{cls:'talon',pilot:{preset:'veteran'}},{cls:'viper',pilot:{preset:'regular'}}],
   enemies:[{type:'fuel-depot',doctrine:'asset',n:1,id:'D1',at:[2600,1200,0]},{type:'vc-mote-patrol',doctrine:'pursuit',n:2,at:[3600,700,2.6]}],
   objective:{kind:'destroy',targets:['D1'],then:{kind:'exit',edge:'E'}},tune:{}},
+ /* the SB Test experiments (docs/ARENA-SB-HANDOFF.md §7) */
+ {id:'sb1_fox',title:'SB1: The hunted fox, SB rules',desc:'E1 under the SB ruleset, head to head: which ruleset makes committing-and-flying feel like being a wily ace?',
+  rulesets:['sb'],rocks:'belt1',
+  player:[{cls:'talon',name:'Fox',pilot:{preset:'veteran'},at:[1450,2450,-0.25]}],
+  enemies:[{type:'vc-mote-patrol',doctrine:'pursuit',n:2,at:[600,2650,-0.25]}],
+  objective:{kind:'survive',secs:60},tune:{}},
+ {id:'sb2_drift',title:'SB2: Drift',desc:'1 ace (Drift in the moveset) v 2 pursuit. Does Drift deliver shooting at your pursuer while fleeing, the fantasy as a single verb?',
+  rulesets:['sb'],rocks:'scatter',
+  player:[{cls:'talon',name:'Ace',pilot:{preset:'ace'},at:[2000,1500,0]}],
+  enemies:[{type:'vc-mote-patrol',doctrine:'pursuit',n:2,at:[1250,1500,0]}],
+  objective:{kind:'survive',secs:60},tune:{}},
+ {id:'sb3_count',title:'SB3: The ship count, projectiles live',desc:'4, then 8 player ships against matched pursuit flights. Does the screen stay readable with simulated fire at the ship cap?',
+  rulesets:['sb'],rocks:'scatter',
+  player:[{cls:'talon',pilot:{preset:'veteran'}},{cls:'viper',pilot:{preset:'regular'}},{cls:'talon',pilot:{preset:'green'}},{cls:'scim',pilot:{preset:'ace'}}],
+  enemies:[{type:'vc-mote-patrol',doctrine:'pursuit',n:3},{type:'academy-cadet',doctrine:'pursuit',n:2},{type:'academy-commandant',doctrine:'pursuit',n:1}],
+  variants:[{label:'4 ships',count:4,enemies:6},{label:'8 ships',count:8,enemies:8}],
+  objective:{kind:'survive',secs:60},tune:{}},
 ];
 
 /* ---------- rulesets ---------- */
@@ -146,7 +163,12 @@ function resolveCast(scn,variant){
       x:at[0],y:at[1],h:at[2],pilot,lead:i===0,flees:false,doctrine:null});
   });
   let ei=0;
-  for(const e of scn.enemies){
+  let elist=scn.enemies;
+  if(variant&&variant.enemies){   // a variant's matched flight: the scenario's enemy entries repeated to that many ships
+    const flat=[];for(const e of scn.enemies)for(let i=0;i<(e.n||1);i++)flat.push(Object.assign({},e,{n:1,at:null}));
+    elist=[];for(let i=0;i<variant.enemies;i++)elist.push(flat[i%flat.length]);
+  }
+  for(const e of elist){
     const r=Enemies.space(e.type),row=shipRow(r.ship),pr=SRDB.pilots[r.pilot];
     for(let i=0;i<(e.n||1);i++){
       const at=e.at?[e.at[0]+60*i,e.at[1]-140*i,e.at[2]]:[E_FORM[ei%8][0],E_FORM[ei%8][1],Math.PI*0.75];
@@ -396,6 +418,11 @@ function backToTitle(){location.hash='';location.reload();}
 function rowHtml(g,i,item){
   const id='arP_'+g+'_'+i;
   if(item.type==='toggle')return '<div class="arn-row arn-row--toggle"><input type="checkbox" id="'+id+'" data-g="'+g+'" data-i="'+i+'"'+(item.get()?' checked':'')+'><label for="'+id+'">'+esc(item.label)+'</label></div>';
+  if(item.type==='multi'){   // a set: one checkbox per option
+    const on=item.get();
+    return '<div class="arn-row arn-row--multi"><label>'+esc(item.label)+'</label><span class="arn-multi">'+item.options.map((o,j)=>
+      '<label><input type="checkbox" data-g="'+g+'" data-i="'+i+'" data-opt="'+esc(o.key)+'"'+(on.includes(o.key)?' checked':'')+'>'+esc(o.label)+'</label>').join('')+'</span></div>';
+  }
   return '<div class="arn-row"><label for="'+id+'">'+esc(item.label)+'</label><output>'+fmt(item.get(),item.step)+'</output>'+
     '<input type="range" id="'+id+'" data-g="'+g+'" data-i="'+i+'" min="'+item.min+'" max="'+item.max+'" step="'+item.step+'" value="'+item.get()+'"></div>';
 }
@@ -423,6 +450,10 @@ function buildPanel(){
 byId('arPanelBody').addEventListener('input',ev=>{
   const el=ev.target,g=el.dataset.g;if(!g)return;
   const item=PANEL[g][+el.dataset.i];
+  if(item.type==='multi'){
+    const set=[...el.closest('.arn-multi').querySelectorAll('input')].filter(x=>x.checked).map(x=>x.dataset.opt);
+    item.set(set);syncAll();return;
+  }
   const v=item.type==='toggle'?el.checked:+el.value;
   item.set(v);
   const out=el.parentElement.querySelector('output');if(out)out.textContent=fmt(v,item.step);

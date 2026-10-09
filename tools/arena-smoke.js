@@ -22,7 +22,11 @@
      7. metrics: SB records carry ruleset 'sb' and burst / hit counts; a 1v2 chase has live fire
      and phase B4's acceptance test: Drift end to end with the mouse (path dragged, facing set with its handle, shots
      fired along the nose while fleeing along the path); a green pilot's plan offers no Drift, an ace's does; the
-     actions (Angle and Boost Shields, Fix Critical, Lock In, the stub ability slots) */
+     actions (Angle and Boost Shields, Fix Critical, Lock In, the stub ability slots)
+     and phase B5: the pursuit doctrine closes on its target; a panicking pilot flies defensively and a panicking
+     `flees` ship runs for the edge and jumps out; every SB constant is on the panel with a getter (a slider moves
+     it, the moveset checkboxes change what a preset offers); the SB experiment set runs, and its metrics answer
+     sb2_drift's question (shots fired back along the nose while fleeing) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -382,6 +386,85 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  ok(b4.lockin>=74&&b4.fix===0&&b4.boost>0&&b4.shift==='R'&&b4.fixGone&&b4.cleared==='none','B4: actions resolve '+JSON.stringify(b4));
  ok(b4.special[0]==='fieldrep'&&b4.special[1]===''&&b4.special[2],'B4: ability stubs '+JSON.stringify(b4.special));
 
+ /* ---------- SB B5: doctrine, the panel, the experiments ---------- */
+ const b5=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn,out={};
+  // pursuit closes on a target that glides straight on
+  f.load('sb1_fox','sb',null,4);
+  let S=D.sim.S;const fox=S.ships.find(q=>q.id==='P1'),e1=S.ships.find(q=>q.id==='E1');
+  const d=()=>Math.hypot(fox.x-e1.x,fox.y-e1.y);
+  const d0=d();f.runExecSync();f.runExecSync();out.pursuit=[Math.round(d0),Math.round(d())];
+  out.tellKey=D.sim.fn.doctrineOf(e1).key;
+  // panic: a Mote (no flees) flies defensively; a Cadet (flees) runs for the edge and jumps out
+  f.addScenario({id:'t_flee',title:'Test: panic',desc:'Smoke test.',rulesets:['sb'],rocks:'none',
+    player:[{cls:'talon',pilot:{preset:'regular'},at:[2000,1500,0]}],
+    enemies:[{type:'academy-cadet',doctrine:'pursuit',n:1,at:[400,1500,Math.PI]},{type:'vc-mote-patrol',doctrine:'pursuit',n:1,at:[1500,2200,0]}],
+    objective:{kind:'survive',secs:60},tune:{}});
+  f.load('t_flee','sb',null,1);
+  S=D.sim.S;const cad=S.ships.find(q=>q.type==='academy-cadet'),mote=S.ships.find(q=>q.type==='vc-mote-patrol');
+  cad.pilot.cool=10;mote.pilot.cool=10;
+  f.beginExec();out.moteKinds=mote.sched.map(g=>g.kind).join();
+  while(D.phase==='EXEC')f.stepTick();
+  for(let i=0;i<3&&cad.alive&&D.phase==='PLAN';i++){cad.pilot.cool=10;f.runExecSync();}
+  out.fled=[cad.alive,cad.fled,D.metrics[D.metrics.length-1].ships.find(x=>x.id===cad.id).fled];
+  out.unknownDoctrine=D.sim.fn.doctrineOf({doctrine:'wingman'}).key;
+  // the panel: every SB constant, a getter for each, and a slider that moves it
+  f.load('sb1_fox','sb',null,1);
+  const keys=D.mod.panelGroup().map(x=>x.key);
+  const need=['AP_PER_ROUND','FLYDEF_FACTOR','BOOST_MULT','BARREL_LAT','BURST_N','BURST_EVERY','PROJ_SPD','SPREAD_BASE','RANGE_SPREAD',
+    'MISSILE_LOCK','MISSILE_MINR','LOCK_GAIN','LOCK_DECAY','IMPACT_MIN','LOCK_DMG_MAX','CRIT_DIRECT','flydefImmunity','SPEED_FLAIR',
+    'moveset_green','moveset_regular','moveset_veteran','moveset_ace'];
+  out.missing=need.filter(k=>!keys.includes(k));
+  out.noGetter=need.filter(k=>!k.startsWith('moveset_')&&typeof D.sim[k+'_']!=='function');
+  const rows=document.querySelectorAll('#arPanelBody [data-g="rules"]').length;
+  out.rows=rows>=need.length;
+  const i=keys.indexOf('BURST_N'),sl=document.querySelector('#arPanelBody input[data-g="rules"][data-i="'+i+'"]');
+  sl.value='6';sl.dispatchEvent(new Event('input',{bubbles:true}));
+  out.slider=D.sim.BURST_N_();
+  sl.value='4';sl.dispatchEvent(new Event('input',{bubbles:true}));
+  // the moveset checkboxes: take Drift away from the veteran, and give it back
+  const mi=keys.indexOf('moveset_veteran');
+  const cb=document.querySelector('#arPanelBody input[data-g="rules"][data-i="'+mi+'"][data-opt="drift"]');
+  cb.checked=false;cb.dispatchEvent(new Event('input',{bubbles:true}));
+  const foxS=D.sim.S.ships.find(q=>q.id==='P1');
+  out.moveset=[D.sim.fn.kindsFor(foxS).includes('drift')];
+  cb.checked=true;cb.dispatchEvent(new Event('input',{bubbles:true}));
+  out.moveset.push(D.sim.fn.kindsFor(foxS).includes('drift'));
+  // the experiments run; SB3 at the ship cap
+  const runs=[];
+  for(const [id,v] of [['sb1_fox',null],['sb2_drift',null],['sb3_count',0],['sb3_count',1]]){
+    f.load(id,'sb',v,2);
+    const t0=performance.now();
+    for(let k=0;k<2&&D.phase==='PLAN';k++)f.runExecSync();
+    runs.push([id,v,D.sim.S.ships.filter(q=>q.faction==='reb').length,D.sim.S.ships.filter(q=>q.faction==='heg').length,Math.round(performance.now()-t0)]);
+  }
+  out.runs=runs;
+  let threw=false;try{f.load('sb2_drift','v2');}catch(e){threw=true;}
+  out.allowlist=threw;
+  // sb2_drift's question, measured: drift away with the guns facing back
+  f.load('sb2_drift','sb',null,6);
+  S=D.sim.S;S.rocks.length=0;
+  for(let k=0;k<2&&D.phase==='PLAN';k++){
+    const a=S.ships.find(q=>q.id==='P1');
+    const pts=[];for(let j=0;j<=8;j++)pts.push({x:a.x+Math.cos(a.h)*70*j,y:a.y+Math.sin(a.h)*70*j});
+    D.sim.fn.planSegs('P1',[{kind:'drift',pts,facing:a.h+Math.PI}]);f.runExecSync();
+  }
+  const rec=D.metrics[D.metrics.length-1];const ace=rec.ships.find(x=>x.id==='P1');
+  out.drift=[rec.ruleset,rec.scenario,ace.driftShots,ace.backShots,typeof ace.arcT,ace.kinds.join()];
+  return out;
+ });
+ ok(b5.pursuit[1]<b5.pursuit[0]&&b5.tellKey==='pursuit','B5: pursuit should close on its target '+JSON.stringify(b5.pursuit));
+ ok(b5.moteKinds==='flydef,flydef','B5: a panicking Mote should fly defensively '+b5.moteKinds);
+ ok(b5.fled[0]===false&&b5.fled[1]===true&&b5.fled[2]===true,'B5: a panicking Cadet should jump out at the edge '+JSON.stringify(b5.fled));
+ ok(b5.unknownDoctrine==='pursuit','B5: an unbuilt doctrine should fall back to pursuit');
+ ok(!b5.missing.length&&!b5.noGetter.length&&b5.rows,'B5: panel missing '+b5.missing.join()+' / no getter '+b5.noGetter.join()+' / rows '+b5.rows);
+ ok(b5.slider===6,'B5: the BURST_N slider did not move the constant '+b5.slider);
+ ok(b5.moveset[0]===false&&b5.moveset[1]===true,'B5: the moveset checkboxes '+JSON.stringify(b5.moveset));
+ ok(b5.runs.length===4&&b5.runs[2][2]===4&&b5.runs[3][2]===8&&b5.runs[3][3]===8,'B5: SB experiments '+JSON.stringify(b5.runs));
+ ok(b5.runs.every(r=>r[4]<8000),'B5: an SB exec is too slow at the ship cap '+JSON.stringify(b5.runs));
+ ok(b5.allowlist,'B5: sb2_drift should refuse the v2 ruleset');
+ ok(b5.drift[0]==='sb'&&b5.drift[1]==='sb2_drift'&&b5.drift[2]>0&&b5.drift[3]>0&&b5.drift[4]==='number'&&b5.drift[5].startsWith('drift'),'B5: sb2_drift metrics '+JSON.stringify(b5.drift));
+
  /* ---------- the title screen's button ---------- */
  const pg2=await ctx.newPage();
  pg2.on('pageerror',e=>errs.push('title: '+e.message));
@@ -398,7 +481,7 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  }
 
  ok(!errs.length,'errors: '+errs.join(' | '));
- console.log(JSON.stringify({v2,sb,sc,drift,b4,errors:errs}));
+ console.log(JSON.stringify({v2,sb,sc,drift,b4,b5,errors:errs}));
  if(fails.length){console.log('FAIL\n- '+fails.join('\n- '));await b.close();process.exit(1);}
  console.log('arena-smoke: all checks passed');
  await b.close();
