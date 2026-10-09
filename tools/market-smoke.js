@@ -1,4 +1,7 @@
-/* Smoke test for the Black Market (Phase 2: kit only): node tools/market-smoke.js (needs NODE_PATH=$(npm root -g)). */
+/* Smoke test for the Black Market (Phase 2: kit only): node tools/market-smoke.js (needs NODE_PATH=$(npm root -g)).
+   Last, the 0.2 playtest's §4 at 1440x900, 1280x800, 1280x720 and 390x844: the art is never clipped (its well keeps a
+   96px floor and the art lies inside it), the stall scrolls rather than squeezing, and no news covers a lot. The
+   handoff's screenshots are skipped: tools/out/ is not gitignored. */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -330,6 +333,43 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.fit.every(Boolean),'fitting takes the weapon off the racks and onto the mount '+r.fit);
  ok(r.unfit.every(Boolean),'clearing a mount returns the weapon to the racks '+r.unfit);
  ok(r.vehStats&&r.vehBuy.every(Boolean)&&r.vehLand.every(Boolean),'vehicle plumbing: stats, inbound, lands in G.vehicles in 2 days '+[r.vehStats,r.vehBuy,r.vehLand]);
+ // the 0.2 playtest's §4 (docs/FEEDBACK-0.2-HANDOFF.md): at four sizes, a stock with a weapon, a ship and a mercenary.
+ // Every art well keeps its floor, the art (or the mercenary's block) lies inside its well, the stall scrolls when two
+ // rows don't fit, and no news line covers a lot
+ const WELL_MIN=96;   // placeholder (game/ui/scenes.css)
+ for(const [w,h] of [[1440,900],[1280,800],[1280,720],[390,844]]){
+  await pg.setViewportSize({width:w,height:h});await pg.waitForTimeout(300);
+  const a=await pg.evaluate(()=>{
+   const D=window.DBGbase,f=D.fn,G=D.G,KIT=f.KIT_();
+   f.closeMarket();f.closeWin();
+   if(!G.market.lots.some(l=>l.kind==='kit'&&(KIT[l.key]||{}).cat==='weapon')){const k=Object.keys(KIT).find(id=>KIT[id].cat==='weapon'&&KIT[id].live&&!KIT[id].heg&&KIT[id].price);G.market.lots[0]={kind:'kit',key:k,stock:1,price:KIT[k].price,deal:'fair'};}
+   if(!G.market.lots.some(l=>l.kind==='ship'))window.Pro.hostAct('marketLot',{cat:'ship',id:'talon'});
+   if(!G.market.lots.some(l=>l.kind==='merc'))window.Pro.hostAct('marketLot',{cat:'merc',role:'Soldier'});
+   for(let i=0;i<4;i++)f.news('A long line of news from the drift, number '+i+', to fill the feed','a');
+   f.openMarket();f.syncUI();
+   const R=e=>e.getBoundingClientRect();
+   const cards=[...document.querySelectorAll('#bmStall .bm-card')];
+   const lots=cards.map(c=>{
+    const wl=c.querySelector('.kit-well'),art=wl.querySelector('.bm-merc')||wl.querySelector('.it-art'),W=R(wl),A=R(art),C=R(c),F=R(c.querySelector('.bm-foot'));
+    return {kind:(c.querySelector('.bm-cat')||{}).textContent,wh:Math.round(W.height),foot:F.height>0&&F.bottom<=C.bottom+1,
+     inside:A.width>=40&&A.height>=25&&A.left>=W.left-1&&A.right<=W.right+1&&A.top>=W.top-1&&A.bottom<=W.bottom+1,art:[Math.round(A.width),Math.round(A.height)]};
+   });
+   const grid=document.querySelector('#bmStall .bm-grid'),gr=R(grid);
+   const feed=[...document.querySelectorAll('#feed, #feedLines > *')].map(R).filter(r=>r.width&&r.height);
+   const shown=cards.map(R).filter(r=>r.bottom>gr.top&&r.top<gr.bottom);   // the cards in the stall's view
+   const over=feed.some(n=>shown.some(c=>n.left<c.right&&n.right>c.left&&n.top<c.bottom&&n.bottom>c.top));
+   const kinds=[...new Set(G.market.lots.map(l=>l.kind==='kit'?(KIT[l.key]||{}).cat:l.kind))];
+   const out={lots,over,kinds,scroll:grid.scrollHeight>grid.clientHeight+1,rows:getComputedStyle(grid).gridAutoRows};
+   f.closeMarket();
+   return out;
+  });
+  const bad=a.lots.filter(l=>l.wh<WELL_MIN||!l.inside||!l.foot);
+  ok(a.kinds.includes('weapon')&&a.kinds.includes('ship')&&a.kinds.includes('merc'),w+'x'+h+': the stock has a weapon, a ship and a mercenary '+a.kinds);
+  ok(!bad.length,w+'x'+h+': every art well is at least '+WELL_MIN+'px, its art (drawn, not collapsed) lies inside it, and the price row shows '+JSON.stringify(bad));
+  ok(!a.over,w+'x'+h+': no news line covers a lot');
+  if(w<900)ok(/minmax\(230px, auto\)/.test(a.rows),w+'x'+h+': phone rows start at 230px and grow to fit '+a.rows);
+  else if(a.lots.length>6)ok(a.scroll,w+'x'+h+': seven lots: the stall scrolls rather than squeezing');
+ }
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'market-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);

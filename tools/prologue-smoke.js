@@ -11,6 +11,11 @@
    5  Recruit returns Rebels only during the prologue, even where a potential Source is waiting
    6  the Recruit after beat 19 returns exactly three Pilots, also when beat 14's Recruit is still running
    7  Raid the Bunker: the plan's tutorial, the second hauler as Reinforcements, and the win reaching the frontier
+   8  side beats (docs/FEEDBACK-0.2-HANDOFF.md §2.5): the Barracks tutorial when Venn's Soldier fills the bunks (through
+      the queue, its pointer at a real free tile beside the Barracks, built with Build and a day, G.prologue.at never
+      moved); the Infirmary's once from an injury in a debrief, the Workshop's once from a ship come home damaged (not
+      the Marta before she has flown); sleeping rough; a save past the frontier has every side beat spent; a side beat
+      added at runtime fires
    (P1 to P5 of the handoff: beats 1 to 24.) */
 const {chromium}=require('playwright');
 const path=require('path');
@@ -41,10 +46,15 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
    // every window that opens, and every 'closed' the runner hears: a window opening over the reward is caught here
    seen:[],events:[],over:[],
   };
+  // every side beat action the queue runs, and what was open on screen at that moment
+  const run0=window.Pro.run;T.sideRuns=[];
+  window.Pro.run=function(a,beat){if(window.Pro.SIDE.some(x=>x.id===beat))T.sideRuns.push({beat,win:D.fn.getWin(),banner:!!document.querySelector('#sc-base .sr-stage>.sr-banner')});return run0.apply(this,arguments);};
   const emit0=window.Pro.emit;
   window.Pro.emit=function(type,arg){T.events.push(type+':'+(arg&&typeof arg==='object'?arg.id||arg.kind||arg.role:arg));return emit0.apply(this,arguments);};
   let last=null,closedSince=true;
   setInterval(()=>{
+   // the splash closes itself after a second (reduced motion): what was up the moment it showed
+   if(!T.splashAt&&!document.querySelector('#estSplash').hidden)T.splashAt={at:window.Pro.beat(),win:D.fn.getWin(),q:T.q().join(),gal:T.vis('navSources')};
    const w=D.fn.getWin();
    if(w!==last){
     if(last==='reward'&&w&&!T.events.slice(-30).includes('closed:reward'))T.over.push(w);
@@ -121,14 +131,14 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  };
  const closeUntilEmpty=async()=>{for(let i=0;i<8;i++){const w=await E(()=>T.win());if(!w)break;await E(()=>T.f.closeWin());await wait(80);}};
 
- await E(()=>{window.Pro.jump('rock');T.f.launchIntro();});
+ await E(()=>{window.Pro.jump('rock');T.splashAt=null;T.f.launchIntro();});
  await scene('ground');
  await E(()=>document.querySelector('#sc-ground #dbgSkip').click());
  await wait(300);
  await E(()=>document.querySelector('#sc-ground #endRestartBtn').click());
  await scene('base');
- let r=await E(()=>({at:window.Pro.beat(),splash:!document.querySelector('#estSplash').hidden,win:T.win(),q:T.q(),gal:T.vis('navSources')}));
- ok(r.at==='cass_intro'&&r.splash&&!r.win&&r.q.join()==='win:cassIntro'&&!r.gal,'Take the Rock won: the splash is up, Cass waits behind it, the Galaxy is hidden '+JSON.stringify(r));
+ let r=await E(()=>T.splashAt||{});
+ ok(r.at==='cass_intro'&&!r.win&&r.q==='win:cassIntro'&&!r.gal,'Take the Rock won: the splash is up, Cass waits behind it, the Galaxy is hidden '+JSON.stringify(r));
  await E(()=>document.querySelector('#estSplash').click());
  await wait(400);
  r=await E(()=>T.win());
@@ -160,7 +170,8 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  r=await E(()=>({at:window.Pro.beat(),live:window.Pro.live(),on:!!T.mis('stealcross'),txt:document.querySelector('#winCardB').textContent}));
  ok(r.at==='sera'&&!r.live&&r.on&&/advance a day to see what he has found/.test(r.txt),'Acknowledge: Steal the Cross on the board, Sera waits for the next day '+[r.at,r.live,r.on]);
  await closeUntilEmpty();
- await E(()=>{T.G.credits+=400;T.G.materials+=300;T.f.startRestore();T.f.advanceDay();});
+ r=await E(()=>{const ok=T.f.startRestore();T.f.advanceDay();return ok;});   // on the starting wallet
+ ok(r,'the Marta’s restoration is paid from the starting credits and materials');
  await closeUntilEmpty();
  r=await E(()=>({live:window.Pro.live(),sig:(T.src('cass').signal||{}).kind}));
  ok(r.live&&r.sig==='recruitSera','the next day Cass has found Sera '+JSON.stringify(r));
@@ -208,6 +219,10 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  await closeUntilEmpty();
  r=await E(()=>({at:window.Pro.beat(),gate:window.Pro.gate('plan.assets'),soldiers:T.G.people.filter(p=>p.role==='Soldier').length}));
  ok(r.at==='fuel_plan'&&r.gate&&r.soldiers===4,'the recruit joins: the plan’s fire support slots open '+JSON.stringify(r));
+ r=await E(()=>({side:window.Pro.side('room_barracks'),runs:T.sideRuns.filter(x=>x.beat==='room_barracks'),full:T.f.bunksUsed()>=T.f.bunkCap(),
+   main:(T.G.prologue.tut||{}).key,wait:(T.G.prologue.held||[]).map(t=>t.key).join(),all:JSON.stringify(T.G.prologue.flags.side)}));
+ ok(r.full&&r.side==='run'&&r.runs.length===1&&!r.runs[0].win&&r.main==='strafingRun'&&/buildBarracks/.test(r.wait),
+  'Venn’s Soldier fills the bunks: the Barracks side beat fires through the queue after the recruit pop-up, and waits for the Strafing Run callout '+JSON.stringify(r));
  // the Strafing Run callout: on the empty fire support slot when the plan opens, done when the Cross is assigned
  await E(()=>{T.f.openPlan(T.mis('stealfuel'));});
  await wait(150);
@@ -220,7 +235,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   const used=new Set(Object.values(T.f.getPL().v));
   const pilot=T.G.people.find(p=>p.role==='Pilot'&&!used.has(p.id));
   T.f.plSet('as0s','f:'+cross.id);T.f.plSet('as0p','p:'+pilot.id);
-  window.__strafe=[T.G.prologue.flags.tut.strafingRun,!T.G.prologue.tut,T.f.plAssetMode(0)];
+  window.__strafe=[T.G.prologue.flags.tut.strafingRun,!T.G.prologue.tut||!!T.G.prologue.tut.side,T.f.plAssetMode(0)];   // the Barracks side beat's tutorial may take the slot
  });
  r=await E(()=>window.__strafe);
  ok(r[0]===1&&r[1]&&r[2]==='strafe','assigning the Cross ends the callout and gives a Strafing Run '+r);
@@ -349,13 +364,23 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  const mercTxt=await E(()=>document.querySelector('#tutCoach').textContent);
  ok(r.up&&/hire-a-mercenary/.test(mercTxt),'the hire-a-mercenary tutorial (its words still to write) points at the lot '+r.up);
  // the stall restocks: the guaranteed lot stays, outside the six
- r=await E(()=>{T.G.credits+=8000;const before=T.G.market.lots.length;T.f.rollMarket();return {n:T.G.market.lots.length,six:T.G.market.lots.filter(l=>!l.keep).length,keep:T.G.market.lots.filter(l=>l.keep).length,before};});
+ r=await E(()=>{const before=T.G.market.lots.length;T.f.rollMarket();return {n:T.G.market.lots.length,six:T.G.market.lots.filter(l=>!l.keep).length,keep:T.G.market.lots.filter(l=>l.keep).length,before};});
  ok(r.six===6&&r.keep===1,'a restock keeps the mercenary lot, outside the six '+JSON.stringify(r));
  // nine aboard and six bunks: a mercenary needs a bunk, so the Barracks grows first
  r=await E(()=>({free:T.f.freeBunks(),hired:T.f.buyLot(T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc'),false)}));
  ok(r.free<=0&&r.hired===false,'with the bunks full the mercenary can’t be hired yet '+JSON.stringify(r));
- await E(()=>{T.G.rooms.push({id:'rm_bx',key:'barracks',r:5,c:6,w:2,h:1,up:[]});});   // two more tiles: nine aboard, six bunks to start
- await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc');T.f.buyLot(i,false);T.f.syncUI();});
+ // a Barracks tile (where its side beat points) and the Bunks upgrade, built and paid for like a player would
+ r=await E(()=>{
+  const t=T.f.roomTileFor('barracks'),built=t&&t.kind==='floor'&&T.f.buildAt(t.r,t.c,'barracks')!==false;
+  T.f.closeWin();T.f.advanceDay();T.f.closeWin();
+  const rm=T.G.rooms.find(x=>x.key==='barracks'&&!x.build),up=T.f.startUpgrade(rm,'bunks');
+  for(let d=0;d<2;d++){T.f.advanceDay();T.f.closeWin();}
+  return {built,up,cap:T.f.bunkCap(),free:T.f.freeBunks(),wallet:[T.G.credits,T.G.materials,T.G.supplies].map(Math.round).join('/')};
+ });
+ ok(r.built&&r.up&&r.free>0,'a Barracks tile and the Bunks upgrade, bought from the prologue’s own income, free a bunk '+JSON.stringify(r));
+ await closeUntilEmpty();
+ r=await E(()=>{T.f.openMarket();const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='merc');const h=T.f.buyLot(i,false);T.f.syncUI();return h;});
+ ok(r,'the mercenary is hired');
  await wait(200);
  r=await E(()=>({at:window.Pro.beat(),keep:T.G.market.lots.filter(l=>l.keep&&l.stock>0).map(l=>l.kind+':'+l.key).join()}));
  ok(r.at==='hauler'&&r.keep==='ship:graf','hired: a second Graf hauler is always on the stall now '+JSON.stringify(r));
@@ -365,7 +390,18 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  r=await E(()=>({up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
  ok(r.up&&/build Hangar room/.test(r.txt),'the hauler tutorial (its words still to write) points at the Hangar '+r.up);
  // a second Hangar section, built
- await E(()=>{T.G.rooms.push({id:'rm_t6',key:'hangar',r:6,c:13,w:4,h:4,halves:['L','S'],up:[]});T.f.openMarket();});await wait(200);
+ r=await E(()=>{   // the block the net costs: its rubble excavated, the section built, half of it made a large pad
+  const bl=T.f.hangarPlan(),G=T.G;let dug=0;
+  for(let i=bl.r;i<bl.r+4;i++)for(let j=bl.c;j<bl.c+4;j++)if(G.grid[i][j].t==='rubble'&&!G.grid[i][j].dig){T.f.digAt(i,j);dug++;}
+  T.f.closeWin();T.f.advanceDay();T.f.closeWin();
+  const built=T.f.buildAt(bl.r,bl.c,'hangar')!==false;
+  for(let d=0;d<4;d++){T.f.advanceDay();T.f.closeWin();}
+  const sec=G.rooms.filter(x=>x.key==='hangar'&&!x.build)[1],flip=!!sec&&T.f.flipHalf(sec,sec.halves.indexOf('S'));
+  return {dug,built,flip,wallet:[G.credits,G.materials,G.supplies].map(Math.round).join('/'),neg:G.credits<0||G.materials<0||G.supplies<0};
+ });
+ ok(r.built&&r.flip&&!r.neg,'a second Hangar section is excavated and built from the prologue’s own income '+JSON.stringify(r));
+ await closeUntilEmpty();
+ await E(()=>{T.f.openMarket();});await wait(200);
  r=await E(()=>({step:(window.Pro.step()||{}).text,up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
  ok(r.step==='haulerBuy'&&r.up&&/buy a second Graf hauler/.test(r.txt),'room made: the tutorial moves to the hauler lot '+JSON.stringify({step:r.step,up:r.up}));
  await E(()=>{const i=T.G.market.lots.findIndex(l=>l.keep&&l.kind==='ship');T.f.buyLot(i,false);T.f.syncUI();});
@@ -472,6 +508,147 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
  });
  ok(r.flag==='{"role":"Pilot","n":3}'&&r.ptr===null&&r.roles==='Pilot!,Pilot!,Pilot!','a Recruit already running brings the three pilots, and no pointer shows '+JSON.stringify(r));
 
+
+ // ---------------- 8. side beats ----------------
+ // close what opens until the queue is empty (a prologue window waits out the day banner)
+ const drain=async()=>{for(let i=0;i<50;i++){const st=await E(()=>({w:T.win(),q:(T.G.prologue.q||[]).length}));if(!st.w&&!st.q)return;if(st.w)await E(()=>T.f.closeWin());await wait(100);}};
+ const day=async()=>{await E(()=>{T.f.advanceDay();T.f.closeWin();});await drain();};
+ // 8a: the Barracks, when Venn's Soldier fills the bunks
+ await E(()=>{window.Pro.jump('fuel_recruit');T.sideRuns.length=0;});
+ for(let i=0;i<40;i++){const w=await E(()=>T.win());if(w==='recruit')break;if(w)await E(()=>T.f.closeWin());await wait(100);}   // the day banner left by 6 clears first
+ r=await E(()=>({win:T.win(),side:window.Pro.side('room_barracks')}));
+ ok(r.win==='recruit'&&!r.side,'8a: before Venn’s Soldier joins, the Barracks side beat has not fired '+JSON.stringify(r));
+ await E(()=>document.querySelector('#winCardB [data-rec-accept]').click());
+ await closeUntilEmpty();
+ const at8=await E(()=>T.G.prologue.at);
+ r=await E(()=>({side:window.Pro.side('room_barracks'),runs:T.sideRuns.slice(),key:(T.G.prologue.held||[]).map(t=>t.key).join()}));
+ ok(r.side==='run'&&r.runs.length===1&&!r.runs[0].win&&!r.runs[0].banner&&r.key==='buildBarracks','8a: it fired once, from the queue with nothing open '+JSON.stringify(r));
+ await E(()=>{window.Pro.emit('asset',{cls:'cross',id:'x'});T.f.syncUI();});   // the Strafing Run callout done: the Barracks tutorial comes up
+ await wait(200);
+ r=await E(()=>{
+  const st=window.Pro.step()||{},t=T.f.roomTileFor('barracks'),G=T.G,rc=T.f.guideTarget(st.at);
+  const adj=t&&G.rooms.some(o=>o.key==='barracks'&&!o.build&&T.f.roomsAdj({r:t.r,c:t.c,w:1,h:1},o));
+  const [x,y]=t?T.f.cellToCss(t.r,t.c):[0,0],cv=document.querySelector('#sc-base #cv').getBoundingClientRect();
+  const ptr=document.querySelector('#tutPtr');
+  return {at:st.at,label:st.label,kind:t&&t.kind,cell:t&&G.grid[t.r][t.c].t,adj,ptr:!ptr.hidden,
+    hit:!!rc&&Math.abs(rc.left+rc.width/2-(cv.left+x))<2&&Math.abs(rc.top+rc.height/2-(cv.top+y-4))<2,t};
+ });
+ ok(r.at==='base.tile:barracks'&&r.kind==='floor'&&r.cell==='floor'&&r.adj&&r.ptr&&r.hit,'8a: the pointer is at a real free floor tile beside the Barracks '+JSON.stringify(r));
+ // Build there, through the tile pop-up's own button (buildAt)
+ const tile=r.t;
+ r=await E(t=>{
+  T.f.openTilePop(t.r,t.c);T.f.syncUI();
+  const st=window.Pro.step()||{},b=document.querySelector('#tilePop [data-build="barracks"]'),rc=T.f.guideTarget(st.at),br=b&&b.getBoundingClientRect();
+  return {at:st.at,dis:b&&b.disabled,hit:!!rc&&!!br&&Math.abs(rc.left-br.left)<1&&Math.abs(rc.top-br.top)<1};
+ },tile);
+ ok(r.at==='base.build:barracks'&&r.hit,'8a: with the tile open, the pointer is at Build on the Barracks card '+JSON.stringify(r));
+ r=await E(t=>{
+  const G=T.G;
+  T.f.openTilePop(t.r,t.c);document.querySelector('#tilePop [data-build="barracks"]').click();T.f.syncUI();
+  const st=window.Pro.step()||{};
+  return {at:st.at,building:G.rooms.some(r=>r.key==='barracks'&&r.build&&r.r===t.r&&r.c===t.c),pop:!document.querySelector('#tilePop').hidden};
+ },tile);
+ ok(r.building&&r.at==='base.day','8a: Build starts the Barracks tile there and the pointer moves to Advance day '+JSON.stringify(r));
+ r=await E(()=>{const cap0=T.f.bunkCap();T.f.advanceDay();T.f.closeWin();T.f.syncUI();
+  const st=window.Pro.step()||{};return {cap0,cap:T.f.bunkCap(),at:st.at,text:st.text,side:window.Pro.side('room_barracks')};});
+ await wait(200);
+ const co=await E(()=>({up:!document.querySelector('#tutCoach').hidden,txt:document.querySelector('#tutCoach').textContent}));
+ ok(r.cap===r.cap0+3&&r.at==='base.room:barracks'&&r.text==='sbBunks'&&co.up&&/Bunks upgrade/.test(co.txt),'8a: a day later it is built, and a card tells of the Bunks upgrade '+JSON.stringify([r,co.up]));
+ r=await E(()=>{window.Pro.emit('next');return {side:window.Pro.side('room_barracks'),tut:T.G.prologue.tut,at:T.G.prologue.at,seen:window.Pro.tutSeen('buildBarracks')};});
+ ok(r.side==='done'&&!r.tut&&r.seen,'8a: Got it ends the side beat '+JSON.stringify(r));
+ ok(r.at===at8&&at8==='fuel_plan','8a: G.prologue.at never moved for the side beat ('+at8+' -> '+r.at+')');
+ // 8b: the Infirmary, from an injury through a mission debrief; once
+ r=await E(()=>{
+  window.Pro.jump('depots');T.f.closeWin();T.sideRuns.length=0;
+  const who=T.G.people.find(p=>p.role==='Soldier');
+  T.f.applyDebrief({kind:'ground',missionId:'depotrun',days:1,win:false,people:[{id:who.id,state:'injured',xp:0}]});
+  return {who:who.id,side:window.Pro.side('room_infirmary')};
+ });
+ await drain();
+ const once8b=await E(()=>T.sideRuns.filter(x=>x.beat==='room_infirmary').length);
+ await day();await day();
+ r=await E(()=>({side:window.Pro.side('room_infirmary'),runs:T.sideRuns.filter(x=>x.beat==='room_infirmary').length,key:(T.G.prologue.tut||{}).key,
+   hurt:T.G.people.some(p=>window.Rebel.laidUp(p)>0)}));r.once=once8b;
+ ok(r.side==='run'&&r.once===1&&r.runs===1&&r.key==='buildInfirmary','8b: an injury in a debrief fires the Infirmary side beat once '+JSON.stringify(r));
+ // 8c: the Workshop, from a ship come home damaged; the Marta's starting 70% counts only once she has flown
+ await E(()=>{window.Pro.jump('venn_arrives');T.f.closeWin();T.sideRuns.length=0;T.G.materials=0;});   // no materials: nothing repairs the Marta
+ await drain();await day();
+ const pre8c=await E(()=>{
+  const marta=T.G.fighters.find(f=>f.cls==='graf'),before=window.Pro.side('room_workshop');
+  const cross=T.G.fighters.find(f=>f.cls==='cross');cross.hull=100;
+  T.G.fuel+=100;const pil=T.G.people.find(p=>p.role==='Pilot'&&p.id!=='joss');if(pil)pil.ship=cross.id;
+  const went=T.f.startPatrol(cross.id);T.f.setRng(()=>0.1);
+  return {marta:marta&&marta.hull,before,went};
+ });
+ await day();await day();
+ const once8c=await E(()=>{T.f.setRng(Math.random);return T.sideRuns.filter(x=>x.beat==='room_workshop').length;});
+ await day();
+ r=await E(()=>({hull:T.G.fighters.find(f=>f.cls==='cross').hull,side:window.Pro.side('room_workshop'),runs:T.sideRuns.filter(x=>x.beat==='room_workshop').length}));
+ Object.assign(r,pre8c,{once:once8c});
+ ok(r.marta<100&&!r.before,'8c: the Marta at '+r.marta+'% before she has flown fires nothing '+JSON.stringify(r));
+ ok(r.went&&r.hull<100&&r.side&&r.once===1&&r.runs===1,'8c: a ship home damaged from a patrol fires the Workshop side beat once '+JSON.stringify(r));
+ // 8d: sleeping rough. A must recruit over the cap joins, sleeps rough, and costs morale; a Barracks tile clears it
+ r=await E(()=>{
+  window.Pro.jump('fuel_plan');T.f.closeWin();
+  const G=T.G,cap=T.f.bunkCap(),n=T.f.bunksUsed();
+  const p=T.f.genRecruit('Soldier');T.f.openWin('recruit',{cards:[{p,must:true}]});
+  const txt=document.querySelector('#winCardB').textContent,can=!document.querySelector('#winCardB [data-rec-accept]').disabled;
+  document.querySelector('#winCardB [data-rec-accept]').click();T.f.syncUI();
+  const id=p.id,rough=[...T.f.roughIds()];
+  const tag=[...document.querySelectorAll('#sc-base [data-person="'+id+'"] .sr-tag')].map(e=>e.textContent).join();
+  const bx=G.rooms.find(r=>r.key==='barracks');T.f.openTilePop(bx.r,bx.c);const panel=document.querySelector('#tilePop').textContent;T.f.closeTilePop();
+  return {cap,n,txt:/sleep rough until a bunk is free/.test(txt),can,joined:G.people.some(x=>x.id===id),rough,id,tag,panel:/Bunks 7\/6/.test(panel)};
+ });
+ ok(r.n===r.cap&&r.can&&r.txt&&r.joined,'8d: with the bunks full a must recruit’s card says they will sleep rough, and they join '+JSON.stringify(r));
+ ok(r.rough.length===1&&r.rough[0]===r.id&&/Sleeping rough/.test(r.tag)&&r.panel,'8d: the newest arrival is Sleeping rough in the crew list, and the Barracks shows Bunks 7/6 '+JSON.stringify(r));
+ r=await E(()=>{
+  // the same day twice, the same dice: once as it is, once with a bunk for everyone; the difference is the rough night
+  const G=T.G,snap=JSON.stringify(G),day=g=>{T.D.G=g;let k=0;T.f.setRng(()=>((k++*0.37)%1));T.f.advanceDay();T.f.closeWin();T.f.setRng(Math.random);return T.D.G;};
+  const a=day(JSON.parse(snap));const mA=a.morale,tiredA=a.people.map(p=>p.tired||0);
+  const g2=JSON.parse(snap);g2.rooms.push({id:'rm_ctl',key:'barracks',r:0,c:0,w:1,h:1,up:[]});
+  const bb=day(g2);
+  T.D.G=JSON.parse(snap);
+  return {rough:mA,ctl:bb.morale,diff:bb.morale-mA,K:T.f.ROUGH_().ROUGH_MORALE};
+ });
+ ok(r.diff>=r.K*0.75,'8d: a night with someone sleeping rough costs the base morale ('+JSON.stringify(r)+')');
+ r=await E(()=>{
+  const G=T.G,t=T.f.roomTileFor('barracks');
+  T.f.buildAt(t.r,t.c,'barracks');const during=T.f.roughIds().size;
+  T.f.advanceDay();T.f.closeWin();T.f.syncUI();
+  return {kind:t.kind,during,after:T.f.roughIds().size,tags:[...document.querySelectorAll('#sc-base .sr-unit .sr-tag')].filter(e=>/Sleeping rough/.test(e.textContent)).length};
+ });
+ ok(r.during===1&&r.after===0&&r.tags===0,'8d: once the Barracks tile is built, nobody sleeps rough '+JSON.stringify(r));
+ // 8e: migration: a save past the frontier has every side beat spent, and none fires
+ r=await E(()=>{
+  const g=T.f.newGame();g.v=14;g.prologue.done=true;g.prologue.at='frontier';g.prologue.gates={'*':1};delete g.prologue.flags.side;
+  T.D.G=g;T.f.upgradeSave();T.sideRuns.length=0;
+  const P=T.G.prologue,spent=window.Pro.SIDE.every(x=>P.flags.side[x.id]==='done');
+  for(let i=0;i<4;i++)T.G.people.push(Object.assign(T.f.genRecruit('Soldier',i),{joined:T.G.day}));
+  window.Rebel.layUp(T.G.people[0],'downed',3);
+  T.f.advanceDay();T.f.closeWin();
+  const g2=T.f.newGame();g2.v=14;delete g2.prologue.flags.side;g2.rooms.push({id:'rm_m',key:'infirmary',r:0,c:0,w:1,h:1,up:[]});
+  T.D.G=g2;T.f.upgradeSave();
+  return {spent,runs:T.sideRuns.length,sideAt:window.Pro.sideRunning().length,mid:JSON.stringify(T.G.prologue.flags.side)};
+ });
+ ok(r.spent&&!r.runs&&!r.sideAt,'8e: a save past the frontier has every side beat spent, and none fires '+JSON.stringify(r));
+ ok(r.mid==='{"room_infirmary":"done"}','8e: mid-prologue, a side beat whose room is already there is spent '+r.mid);
+ // 8f: a side beat added at runtime fires (adding one means an entry in SIDE, and its text)
+ r=await E(()=>{
+  window.Pro.jump('depots');T.f.closeWin();
+  window.Pro.PRO_TEXT.smokeSide='Smoke side beat';
+  window.Pro.addSide({id:'smoke_side',when:h=>h.G().credits>=987654,does:[{news:{text:'smokeSide',cls:'d'}}]});
+  return window.Pro.side('smoke_side');
+ });
+ await drain();await day();
+ const before8f=await E(()=>{const b=window.Pro.side('smoke_side');T.G.credits=987654;return b;});
+ await day();
+ r=await E(()=>{
+  const out={before:null,side:window.Pro.side('smoke_side'),news:T.G.news.some(n=>/Smoke side beat/.test(n.html))};
+  window.Pro.SIDE.splice(window.Pro.SIDE.findIndex(x=>x.id==='smoke_side'),1);
+  return out;
+ });
+ r.before=before8f;
+ ok(!r.before&&r.side==='done'&&r.news,'8f: a side beat added at runtime fires when its condition holds '+JSON.stringify(r));
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'prologue-smoke: all checks passed');
  await b.close();process.exit(fails.length?1:0);

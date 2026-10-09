@@ -34,17 +34,18 @@
     if(!p.weary&&p.tired>=WEARY_AT){p.weary=1;if(!sleeper)R.moraleBump(p,WEARY_MORALE,'misc');return 'weary';}
     return null;
   }
-  /* a day passes at the base. Returns 'rested' when a Weary or Conked rebel is fit again. */
-  function restDay(p){
+  /* a day passes at the base (mul: slower rest, someone sleeping rough). Returns 'rested' when a Weary or Conked
+     rebel is fit again. */
+  function restDay(p,mul){
     if(!p||!p.tired)return null;
-    p.tired=Math.max(0,p.tired-restRate(p));
+    p.tired=Math.max(0,p.tired-restRate(p)*(mul===undefined?1:mul));
     if(p.tired>0)return null;
     const was=p.weary||p.conked;
     p.weary=0;p.conked=0;
     return was?'rested':null;
   }
   /* days until they are fit again (0 if they are) */
-  const restDays=p=>p&&p.tired&&(p.weary||p.conked)?Math.ceil(p.tired/restRate(p)):0;
+  const restDays=(p,mul)=>p&&p.tired&&(p.weary||p.conked)?Math.ceil(p.tired/(restRate(p)*(mul===undefined?1:mul))):0;
   const wearyFx=p=>weary(p)?WEARY_FX:{aim:0,cool:0};
   Object.assign(R,{WEARY_AT,CONK_AT,restRate,tire,restDay,restDays,weary,conked,wearyFx});
 })();

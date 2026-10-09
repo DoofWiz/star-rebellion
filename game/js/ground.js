@@ -869,9 +869,12 @@ function initUnits(){
   const roster=[...squad];
   if((SCN.mode==='rescue'||SCN.mode==='strider'||SCN.mode==='ambush')&&spec.vip){
     const big=!!spec.vip.strider,cg=SCN.cage||{x:PAD.x,y:PAD.y,w:0,h:0};
+    // the Ambush's prisoner rides inside the holding vehicle (heldIn: vehSync keeps her with it) until its doors open
+    const held=SCN.mode==='ambush'?(SCN.foes().find(f=>f.hold)||{}).id:null;
     roster.push(mkU({id:'dissident',pid:'dissident',name:spec.vip.name,first:spec.vip.first,side:'reb',
       x:cg.x+cg.w/2,y:cg.y+cg.h/2,hp:spec.vip.hp||45,maxhp:spec.vip.hp||45,aim:big?2:1,def:spec.vip.def||11,cool:big?90:45,level:1,stims:0,
-      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,caged:1,away:1,lines:MT.type('rescue').vip.slice()}));
+      wpns:spec.vip.wpns||['cowboy'],frail:big?0:1,big:big?1:0,auto:big?1:0,bot:big?'strider':undefined,autoType:big?'strider':undefined,vip:1,
+      caged:held?0:1,heldIn:held||null,away:1,lines:MT.type('rescue').vip.slice()}));
   }
   const pls=spec.pilots||(spec.pilot?[spec.pilot]:[]);
   pls.forEach((pp,k)=>roster.push(mkPrizePilot(pp,spec.pilots?pp.id:'sera',k,LZ.x+16+k*36,LZ.y+34)));
@@ -903,7 +906,8 @@ const WRECK_BLAST=130,WRECK_DMG=[12,26];   // a destroyed vehicle's blast: radiu
 function mkVeh(o){
   const d=VEHDEF[o.veh];
   const v=mkU(Object.assign({name:d.name,first:d.first,hp:d.hp,maxhp:d.hp,def:d.def,arm:d.arm,shdCap:d.shdCap,aim:0,cool:55},o,
-    {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null}))}));
+    {side:'veh',owner:o.owner||o.side||null,vehicle:1,wpns:[],seats:d.seats.map(x=>Object.assign({},x,{occ:null})),
+     heg:(o.owner||o.side)==='law'?1:0}));   // a Hegemony vehicle: destroyed or stalled, the debrief pays salvage
   delete v.crew;
   return v;
 }
@@ -1022,9 +1026,11 @@ function switchTargets(u){
   for(const x of v.seats)if(!x.occ&&!names.has(x.n)){names.add(x.n);out.push(x);}
   return out;
 }
-/* the crew ride with the vehicle */
+/* the crew ride with the vehicle; so does a prisoner held in one (the Ambush): not a seat, so the alarm's deployment
+   and a destroyed vehicle never throw her out, and nothing aimed at the vehicle reaches her (she is away) */
 function vehSync(){
   for(const u of U){
+    if(u.heldIn){const v=U.find(x=>x.id===u.heldIn);if(v){u.x=v.x;u.y=v.y;}continue;}
     if(!u.mnt)continue;
     const v=vehOf(u);
     if(!v){u.mnt=null;continue;}
@@ -2216,17 +2222,19 @@ function aiPlan(){
     const inRng=dist(u,tgt)<=w.rng&&!losBlocked(u,tgt);
     const hurt=u.hp<u.maxhp*0.42;
     // guards fall back on the objective when the fight is elsewhere
-    const GP=SCN.guardPt||PAD;
+    const GP=guardPtNow();
     if(u.guard&&!inRng&&!crossAway&&dist(u,GP)>260){
       const d=pickCoverMove(u,{x:GP.x,y:GP.y+40},SPRINT_R,true);
       if(d){u.order={type:'sprint',tx:d.x,ty:d.y};u.sprinted=1;continue;}
     }
     if(u.guard&&!inRng&&!crossAway&&dist(u,GP)<=260){u.order={type:'hold'};u.braced=1;continue;}
     if(inRng&&(!hurt||rng()<0.5)){
-      if(rng()<(u.sheriff?0.35:0.5)){u.order={type:'hold'};u.braced=1;}
+      // in range: hold and fire only from cover (a riot shield is its own cover); otherwise get into cover first
+      const covered=u.shield||!!coverOf(tgt,u);
+      if(covered&&rng()<(u.sheriff?0.35:0.5)){u.order={type:'hold'};u.braced=1;}
       else {
         // sidestep toward nearer cover, still shooting afterwards
-        const d=pickCoverMove(u,tgt,MOVE_R,!hurt);
+        const d=pickCoverMove(u,tgt,MOVE_R,covered&&!hurt);
         u.order=d?{type:'move',tx:d.x,ty:d.y}:{type:'hold'};
         if(!d)u.braced=1;
       }
@@ -2269,7 +2277,7 @@ function aiCrew(u){
   const targets=U.filter(r=>r.side==='reb'&&!r.down&&!r.extracted&&!r.away);
   const gun=v.seats.find(x=>x.wkey&&x.occ);
   if(!targets.length||!gun)return hold();
-  const GP=SCN.guardPt||PAD;
+  const GP=guardPtNow();
   if(v.guard&&!crossAway&&dist(v,GP)>320){
     const d=moveDest(v,GP.x,GP.y+60,reach);
     if(d&&pathFor(v,d.x,d.y)){u.order={type:'move',tx:d.x,ty:d.y};return;}
@@ -2288,6 +2296,13 @@ function aiCrew(u){
    share a crate with the enemy) and spread out from their own (two of them do not claim the same spot). */
 let aiClaims=[];
 const AI_NOSE=140;   // closer than this to anyone on the other side scores badly
+const AI_ADVANCE_CAP=120;   // placeholder: the most a spot scores for the ground it closes (or opens) on the target
+const AI_EXPOSED=90;        // placeholder: a spot in the open, in the target's sight and range, scores this much less
+/* where the guards gather: the scenario's point, or in the Ambush the holding vehicle wherever it has got to */
+function guardPtNow(){
+  if(amb){const v=U.find(x=>x.hold&&x.veh);if(v)return {x:v.x,y:v.y};}
+  return SCN.guardPt||PAD;
+}
 function pickCoverMove(u,tgt,r,toward){
   let best=null,bs=-1e9;
   const foes=U.filter(o=>(u.side==='law'?o.side==='reb':o.side==='law')&&!o.veh&&!o.down&&!o.surr&&!o.extracted&&!o.away&&!o.office);
@@ -2303,15 +2318,16 @@ function pickCoverMove(u,tgt,r,toward){
     const a=rng()*Math.PI*2;
     cand.push({x:u.x+Math.cos(a)*r*0.8,y:u.y+Math.sin(a)*r*0.8});
   }
-  const wkey=wpnsOf(u)[0],w=WPN[wkey]||WPN[u.wpns[0]];
+  const wkey=wpnsOf(u)[0],w=WPN[wkey]||WPN[u.wpns[0]],tw=tgt.wpns?WPN[(wpnsOf(tgt)||[])[0]]:null;   // a point (a guard post) shoots nobody
   for(const c of cand){
     if(Math.hypot(c.x-u.x,c.y-u.y)>r)continue;
     if(c.x<20||c.x>W-20||c.y<20||c.y>H-20||ptBlocked(c.x,c.y,12))continue;
     if(!pathFor(u,c.x,c.y))continue;
     const dNow=dist(u,tgt),dNew=Math.hypot(c.x-tgt.x,c.y-tgt.y);
-    let s=toward?(dNow-dNew):(dNew-dNow);
+    let s=Math.max(-AI_ADVANCE_CAP,Math.min(AI_ADVANCE_CAP,toward?(dNow-dNew):(dNew-dNow)));   // closing in never outweighs cover
     const cv=coverOf(tgt,{x:c.x,y:c.y});
     if(cv)s+=60+cv.v*4;
+    else if(!u.shield&&tw&&dNew<=tw.rng&&!segBlocked(tgt.x,tgt.y,c.x,c.y))s-=AI_EXPOSED;   // in the open, in their sights
     for(const o of foes){
       if(o===tgt)continue;
       if(dist(o,c)<(w?w.rng:400)&&!segBlocked(o.x,o.y,c.x,c.y))s+=coverOf(o,{x:c.x,y:c.y})?12:-12;   // covered or flanked by the rest
@@ -2537,7 +2553,7 @@ function completeWork(wp,u){
   if(wp.id==='release'){
     const v=U.find(x=>x.vip);
     if(v){
-      v.caged=0;v.away=0;v.order=null;
+      v.caged=0;v.away=0;v.heldIn=null;v.order=null;
       if(SCN.cage){v.x=SCN.cage.dx;v.y=SCN.cage.dy+34;}else{v.x=wp.x;v.y=wp.y+30;unstick(v);}
       v.spawnX=v.x;v.spawnY=v.y;
       rs.released=true;
@@ -4301,7 +4317,10 @@ function buildResult(win){
     const u=U.find(x=>x.id===va.uid);
     return {id:va.id,lost:!!(u&&u.down),hp:u?Math.max(0,Math.round(u.hp/u.maxhp*100)):va.hpPct};
   });
-  return {gained,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
+  // salvage (docs/FEEDBACK-0.2-HANDOFF.md §3.2): the max hp of every Hegemony vehicle destroyed or stalled (the
+  // ambush's prisoner truck is stopped by bringing it down); the base turns it into materials
+  const salvHp=U.filter(v=>v.veh&&v.heg&&v.down).reduce((n,v)=>n+(v.maxhp||0),0);
+  return {gained,salvHp,kind:'ground',missionId:(CTX&&CTX.missionId)||'stealcross',
     days:(CTX&&CTX.days!==undefined)?CTX.days:2,
     dropUsed:!!(FS&&FS.dropUsed),
     win,cross:SCN.mode==='stealcross'&&!!win,prizes:win&&SCN.mode==='stealship'?PZ.filter(p=>p.away).map(p=>p.cls):[],nades:NADES,quiet:!!((fac&&fac.detonated&&fac.quiet)||(rs&&rs.released&&!rs.everAlerted)),vipOut:!!(U.find(u=>u.vip&&u.extracted)),chargeUsed:(fac&&fac.planted&&fac.method!=='limpet')?1:0,limpetUsed:(fac&&fac.planted&&fac.method==='limpet')?1:0,method:fac?fac.method:null,vehicles,loot:{c:tally.c,s:tally.s,items:tally.items.slice()},people,
@@ -5797,16 +5816,18 @@ function startCutscene(){
   cs={t0:clock(),fired:{}};
   if(SCN.hasGraf){grafPos.x=-500;grafPos.y=H+300;grafState='flying';}
   else {grafPos.x=-99999;grafPos.y=-99999;grafState='landed';}
-  for(const u of U)if(u.side==='reb'){u.csHide=true;}
+  for(const u of U)if(u.side==='reb'&&!csStays(u)){u.csHide=true;}
   cam={x:LZ.x,y:LZ.y,z:Math.max(fitZoom()*0.95,0.85)};clampCam();camGoal=null;
   syncUI();
 }
 function csEvent(key,t,el,fn){if(el>=t&&!cs.fired[key]){cs.fired[key]=1;fn();}}
+/* the cinematic walks the squad out; a prisoner (caged or held) and anyone away stay put and keep their visibility */
+const csStays=u=>!!(u.vip||u.caged||u.heldIn||u.away);
 function csUpdate(now){
   const el=(now-cs.t0)/1000;
   if(!SCN.hasGraf){
     // no ship yet: the squad walks in from the map edge on foot
-    const walkers=U.filter(u=>u.side==='reb');
+    const walkers=U.filter(u=>u.side==='reb'&&!csStays(u));
     for(let wi=0;wi<walkers.length;wi++){
       const u=walkers[wi];
       const st=0.5+wi*0.6;
@@ -5838,7 +5859,7 @@ function csUpdate(now){
     for(let i=0;i<26;i++)parts.push({x:LZ.x+(rng()-0.5)*200,y:LZ.y+(rng()-0.5)*150,vx:(rng()-0.5)*180,vy:-rng()*40,r:3+rng()*5,a:0.5,col:'#b09a78',t0:now,dur:900});
   });
   // squad walks out
-  const walkers=U.filter(u=>u.side==='reb');
+  const walkers=U.filter(u=>u.side==='reb'&&!csStays(u));
   for(let wi=0;wi<walkers.length;wi++){
     const u=walkers[wi];
     const st=3.6+wi*0.7;
@@ -5865,7 +5886,7 @@ function endCutscene(){
   byId('csBanner').classList.remove('show');
   byId('csSkip').hidden=true;
   grafPos.x=LZ.x;grafPos.y=LZ.y;grafState='landed';
-  for(const u of U)if(u.side==='reb'){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
+  for(const u of U)if(u.side==='reb'&&!csStays(u)){u.csHide=false;u.x=u.spawnX;u.y=u.spawnY;u.face=-Math.PI/6;}
   cs=null;
   camGoal={x:LZ.x+240,y:LZ.y-180,z:0.9};
   if(SCN.mode==='haven'&&SCN.tutorial&&phase==='CUTSCENE'){
@@ -6577,7 +6598,7 @@ function syncUI(){
     lastObjs=objs;
   }
   // rail
-  const reb=U.filter(u=>u.side==='reb');
+  const reb=U.filter(u=>u.side==='reb'&&!u.heldIn);   // a prisoner in the truck joins the rail once its doors open
   const rebV=U.filter(v=>v.veh&&v.owner==='reb'&&!v.extracted);
   $('squadCount').textContent=reb.filter(u=>!u.down).length+'/'+reb.length;
   HUD.render($('rosterR'),reb.map(unitRow).join('')+rebV.map(unitRow).join(''));
@@ -7117,7 +7138,7 @@ function enter(params){
   $('briefing').hidden=false;
   $('enterBtn').focus({preventScroll:true});
   phase='BRIEF';
-  for(const u of U)if(u.side==='reb')u.csHide=true;
+  for(const u of U)if(u.side==='reb'&&!csStays(u))u.csHide=true;
   cam={x:LZ.x+180,y:LZ.y-160,z:0.9};clampCam();camGoal=null;
   syncUI();
 }
@@ -7143,7 +7164,7 @@ if(location.hash==='#test'){
     get round(){return round;},get quietRounds(){return quietRounds;},get pickMode(){return pickMode;},get selId(){return selId;},set selId(v){selId=v;},get TURRET(){return TURRET;},get PROPS(){return PROPS;},get BLDGS(){return BLDGS;},set engageQ(v){engageQ=v;},get bubbles(){return bubbles;},get tutIdx(){return tutIdx;},get tutFlags(){return tutFlags;},get quipsQueued(){return quipsQueued;},
     fn:{SCENARIOS_:()=>SCENARIOS,trName,mvars,typeObjectives,syncUI,vitalsOf,modeOf,setMode,modesOf,afterShot,knockBack,pickFireMode,modeToggleHTML,doDeploy,canDeploy,turretOn,traitText,unitRow,pickTarget,retarget,manTurret,sandbagged,emptyVeh,WPN_:()=>WPN,lootMarks_:()=>lootMarks,artSpec,artPose,dropLoot,applyShot,fireFx,sShot,VOICE_:()=>VOICE,WDAM_:()=>WDAM,WICON_:()=>WICON,tutFrozen,tutTick,prologueQuips,fsPlace,fsItems,fsExecute,fsRoundEnd,fsPlanStart,supplyDrop,startFreeHack,hackFlip,canHack,hackResolve,deployUnits,validShot,facDetonate,callTransport,fuelReach,fuelPumpStep,execute,enterFree,tryLaunch,startExtract,squadMoveTo,playerAttack,playerHold,
       completeWork,gameOver,alertTown,unitSeen,startAmbush,throwNade,useStim,fsItems,spawnFoes,lawHolds,fogOn,hackNeed,hackResolve,fsPlace,fsExecute,killUnit,canDie,endCutscene,doCrossAway,hotwireStep,prizeFree,extractReady,grafUpdate,openFile,orderAct,execute,setPhase:v=>{phase=v;},grafState_:()=>grafState,scanRound_:()=>scanRound,updateVision,dgShotDown,canRevive,checkDefeat,needed,
-      vehDestroyed,holdStopped,aiCrew,stillFighting,
+      vehDestroyed,holdStopped,aiCrew,stillFighting,actorList,guardPtNow,
       mount,dismount,canEnter,enterTargets,switchSeat,switchTargets,vehSync,crewIn,vehOf,seatOf,reachOf,aiPlan,summonVehicle,moraleCheck,explode,startPlanning,expandUnits,
       computeATK,computeTN,rollDamage,woundUnit,soak,raiseShield,jamRoll,critRoll,initKey,speedMul,viewMul,adjCoolG,coolStateG,mkU,endRound,downUnit,relUp,buildResult,ordersFor,inflictInjury,doTreat,treatPick,treatTarget,injOf,wpnsOf,cantSprint,stunned,useStim,statusTag,
       coverOf,coverVs,coverHint,inCoverAt,pickCoverMove,attackUpdate,buildEngage,

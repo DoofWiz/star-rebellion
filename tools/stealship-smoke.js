@@ -186,7 +186,7 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   f.upgradeSave();
   return {v:B.G.v,rf:m.req.reinforce,ver:f.saveVersion()};
  });
- ok(r.v===r.ver&&r.ver===14&&r.rf===1,'a save from the phase 4 build gets Raid the Bunker’s Reinforcements '+JSON.stringify(r));
+ ok(r.v===r.ver&&r.ver>=14&&r.rf===1,'a save from the phase 4 build gets Raid the Bunker’s Reinforcements '+JSON.stringify(r));
 
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  console.log(fails.length?'FAIL\n'+fails.join('\n'):'stealship-smoke: all checks passed');

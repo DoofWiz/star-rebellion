@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-08, for release 0.2 (main gets the enemy-shot camera hold, guided pointers kept on screen, and no command bar out of combat: the Galaxy and the Arsenal keep their buttons in the panel and the dossier, the Black Market keeps the lot pop-up from the screens handoff part 3; C-50's Arsenal question is settled by C-33.7). Before that, 2026-10-08, after your call on the command bar (none out of combat: C-33 item 7, settled as C-33.7). Before that, 2026-10-08, after your note on enemy shots (the camera holds on each shot and its result: C-45 item 7). Before that, 2026-10-08, after merging the screens handoff part 3 into main (the Fire support menu, the Black Market's type-tinted cards and lot pop-up, Door Gunner Cover on every enemy in its zone, Heavy Bombardment at round end: its entry became C-50, as C-46 was already the prologue's). Before that, 2026-10-08, after iPad Pro 12.9" support (the tablet layout in portrait: C-49). Before that, 2026-10-08, after your phase 5 calls (a lost prize pilot grounds only their ship; Steal the Cross is a Steal Ship; C-47 items 30 to 37 settled as C-47.5; Steal Ship's lines stay placeholders). Before that, 2026-10-08, after the prologue's phase 5 (Raid the Bunker: the Steal Ship type on one engine with Steal the Cross, the indoor bunker map, the player's Reinforcements bringing the pilots; New Game now plays to the frontier: C-47 items 30 to 37, C-48's phase 5 rows, C-41 item 2 in part). Before that, 2026-10-08, after the prologue's phase 4 (Raid the Bunker on the board, Tachi's three pilots, the Black Market and Sweet Tooth, the second hauler and Hangar room: C-47 items 22 to 29, C-48's P4 rows and the Steal Ship type). Before that, 2026-10-08, after the prologue's phase 3 (the tense day, the Bureau's first Lead on Venn, Someone's Asking Questions and Lie Low: C-47 items 18 to 21, C-48's Lie Low row). Before that, 2026-10-08, after the prologue's phase 2 (Rescue Tachi as the new Ambush: Extract VIP mission type, Tachi Gard as the first Agent, Run Your Network built: C-46 resolved, C-47 items 11 to 17, C-48's mission-type rows). Before that, 2026-10-08, after the prologue's phase 1 (`docs/PROLOGUE-HANDOFF.md`: the onboarding as a script of beats, gates that hide mechanics until a beat opens them, today's chain ported with the doc's fixes, the Steal Fuel recruit and Strafing Run callout: C-46 partly built, C-47, C-48, M-34; the designer's prologue decisions in the Resolved log). Before that, 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-09, after the 0.2 playtest's §4 (the Black Market's art is never clipped: the wells keep a floor and the art scales inside them, the stall scrolls, the news feed stays off the Market's and the Arsenal's cards; phone rows grow to fit a weapon card: C-51 item 24, C-52, C-53). Before that, 2026-10-09, after the 0.2 playtest's §3 (the prologue's economy: a ledger test that plays New Game to the frontier on its own income, salvage from Hegemony wrecks, the prologue missions' authored rewards, the friend-of-Cass Graf price, the affordability net; the second Hangar section needs 12 rubble tiles excavated, which nothing teaches: C-51 items 16 to 23, C-52, C-48). Before that, 2026-10-09, after the 0.2 playtest's §2 (the base is taught by side beats: the Barracks when the bunks fill, the Infirmary at the first injury, the Workshop at the first ship home damaged; story recruits with no bunk sleep rough: C-51 items 7 to 15, C-52, C-48's room tutorial rows). Before that, 2026-10-09, after the 0.2 playtest's §1 (Rescue Tachi's prisoner rides in the truck; no cinematic moves a prisoner; enemies hold only from cover; ambush guards follow the truck: C-51, C-52). Before that, 2026-10-08, for release 0.2 (main gets the enemy-shot camera hold, guided pointers kept on screen, and no command bar out of combat: the Galaxy and the Arsenal keep their buttons in the panel and the dossier, the Black Market keeps the lot pop-up from the screens handoff part 3; C-50's Arsenal question is settled by C-33.7). Before that, 2026-10-08, after your call on the command bar (none out of combat: C-33 item 7, settled as C-33.7). Before that, 2026-10-08, after your note on enemy shots (the camera holds on each shot and its result: C-45 item 7). Before that, 2026-10-08, after merging the screens handoff part 3 into main (the Fire support menu, the Black Market's type-tinted cards and lot pop-up, Door Gunner Cover on every enemy in its zone, Heavy Bombardment at round end: its entry became C-50, as C-46 was already the prologue's). Before that, 2026-10-08, after iPad Pro 12.9" support (the tablet layout in portrait: C-49). Before that, 2026-10-08, after your phase 5 calls (a lost prize pilot grounds only their ship; Steal the Cross is a Steal Ship; C-47 items 30 to 37 settled as C-47.5; Steal Ship's lines stay placeholders). Before that, 2026-10-08, after the prologue's phase 5 (Raid the Bunker: the Steal Ship type on one engine with Steal the Cross, the indoor bunker map, the player's Reinforcements bringing the pilots; New Game now plays to the frontier: C-47 items 30 to 37, C-48's phase 5 rows, C-41 item 2 in part). Before that, 2026-10-08, after the prologue's phase 4 (Raid the Bunker on the board, Tachi's three pilots, the Black Market and Sweet Tooth, the second hauler and Hangar room: C-47 items 22 to 29, C-48's P4 rows and the Steal Ship type). Before that, 2026-10-08, after the prologue's phase 3 (the tense day, the Bureau's first Lead on Venn, Someone's Asking Questions and Lie Low: C-47 items 18 to 21, C-48's Lie Low row). Before that, 2026-10-08, after the prologue's phase 2 (Rescue Tachi as the new Ambush: Extract VIP mission type, Tachi Gard as the first Agent, Run Your Network built: C-46 resolved, C-47 items 11 to 17, C-48's mission-type rows). Before that, 2026-10-08, after the prologue's phase 1 (`docs/PROLOGUE-HANDOFF.md`: the onboarding as a script of beats, gates that hide mechanics until a beat opens them, today's chain ported with the doc's fixes, the Steal Fuel recruit and Strafing Run callout: C-46 partly built, C-47, C-48, M-34; the designer's prologue decisions in the Resolved log). Before that, 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -50,9 +50,12 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-41 | ⚪ | Mission planning: keep the 2-asset cap? What does a spare gunless transport grant now that Reinforce is retired? Plus the squad-seat cap, support-job chip placement, the space variant | How every sortie is put together |
 | C-42 | 🟡 | The Network: every number is a placeholder (interrogation clock, exposure gains and bands, agent stats and costs); how new Agents are recruited; the base raid | The whole Intelligence tab's tuning |
 | C-47 | 🟡 | Prologue: readings to confirm (other worlds, who gives Steal Fuel, the bunker's fifth soldier, Tachi's "[location name]") and what I chose building it (the roster safety net's 2 days, the test harness, the debug panel, the cap at the frontier; the ambush's truck, numbers and halted convoy; Tachi's Agent stats; the Steal Ship rules, the bunker map, the Reinforcements hauler) | How the onboarding plays; how every ambush and ship theft plays |
-| C-48 | 🟡 | Prologue text still to write: every `[TEXT NEEDED]` the game shows or will show | Ambush: Extract VIP's and Steal Ship's lines, the Lie Low step, beats 19 to 22's pointers and callouts, the bunker raid's plan tutorial and call-in card |
+| C-48 | 🟡 | Prologue text still to write: every `[TEXT NEEDED]` the game shows or will show | Ambush: Extract VIP's and Steal Ship's lines, the Lie Low step, beats 19 to 22's pointers and callouts, the bunker raid's plan tutorial and call-in card, the room tutorials and the sleeping-rough card line |
 | C-49 | ⚪ | iPad Pro 12.9": the tablet layout in portrait is my design (the rail slides in from the right); what it doesn't cover yet | How the game plays on a tablet |
 | C-50 | 🟡 | Fire support menu and Black Market cards: the type colours and Saturation's new wording (the Arsenal question is settled: C-33.7) | How a lot and a call read |
+| C-51 | 🟡 | 0.2 playtest (`docs/FEEDBACK-0.2-HANDOFF.md`): decisions and readings (the prisoner in the truck, enemies in cover, the guards on the truck; the room tutorials as side beats, which side beat goes first, where they point, sleeping rough; salvage, the authored rewards, the affordability net, which also covers the Marta). Open: the second Hangar section needs 12 rubble tiles excavated and a large pad made, and nothing says so | Rescue Tachi; how every enemy fights; how the base is taught; whether a new player can reach Raid the Bunker |
+| C-52 | 🟡 | 0.2 playtest: placeholder numbers to tune (the AI's cover scoring, the cover metric, sleeping rough, salvage, the prologue's rewards and Graf price, the affordability net, the market card's floors), with the economy table | How every enemy fights; what a missing bunk costs; the prologue's economy; the market cards |
+| C-53 | ⚪ | Market art at small heights: on a phone the market's rows now grow past the screens handoff's fixed 230px to fit a weapon card | How the Black Market reads on a phone |
 | C-45 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2), what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-44 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
 | C-43 | ⚪ | Weapon voices: every weapon's own sound, reports per visible round — the character I gave each weapon | How combat sounds |
@@ -88,6 +91,132 @@ bar, fire-support art and ships parked in the iso hangar.
 ---
 
 ## 1. Conflicts
+### C-51 🟡 0.2 playtest: decisions and readings
+`docs/FEEDBACK-0.2-HANDOFF.md`, the designer's playtest of release 0.2. Each with the interim choice:
+1. **The ambush's prisoner rides in the truck** (`heldIn`, kept on the truck by `vehSync`): not drawn, not in the
+   squad rail, not targetable, out of every blast, and not a seat (the alarm's deployment and a destroyed truck never
+   throw her out). Working the doors frees her there, and she joins the rail as the escort.
+2. **No cinematic moves a prisoner.** Rescue Tachi's stays in the truck, unseen. *Reading:* Rescue Dissident's
+   prisoner and Steal the Strider's Strider stay visible **in their cell or yard** during the cinematic (they are
+   held there, not walking out with the squad), rather than hidden.
+3. **Before release, the prisoner is in the objectives panel** through the type's own line, "Escort {npc} to the
+   extraction point", which already names her. No new line was needed.
+4. **The board:** a mission whose prisoner doesn't join (Rescue Tachi) shows no recruit chip for them; one whose
+   prisoner joins keeps it.
+5. **Enemies hold only from cover.** In range and in the open, a unit moves to cover first, then fires; a riot
+   shield counts as cover. Closing in is worth at most `AI_ADVANCE_CAP` to a spot, and a spot in the open and in the
+   target's sight and range loses `AI_EXPOSED` (C-52). The ambush map's props were left as they are.
+6. **Ambush guards escort the truck:** their guard point is the holding vehicle wherever it has got to.
+7. **Base tutorials are side beats** (`SIDE` in `game/js/prologue.js`) that fire when the room becomes relevant: the
+   Barracks when the bunks are full, the Infirmary at the first injured rebel, the Workshop at the first ship home
+   damaged. *Reading:* the Storeroom, Intelligence Center, Training Hall, Tech Lab and Diplomatic Quarter get none for
+   now. Side beats fire before and after the frontier, and as early as BASE ESTABLISHED (an injury on Take the Rock
+   fires the Infirmary's, which then waits behind Raise Cass).
+8. **Who goes first.** A main beat's tutorial always goes first: a side tutorial waits, or is held while one runs.
+   *Reading:* the handoff says one side beat at a time; I kept that, but one that comes due sets aside a later one in
+   `SIDE` order that is still running (its tutorial comes back once the earlier one ends). Without it, a Workshop the
+   player can't afford holds up the Barracks: on a normal run the Cross comes home damaged from Torch the Depots (beat
+   8), so the Workshop fires before the Barracks (beat 10).
+9. **Where the steps point.** The Base tab (or the room view's way out) if the base map isn't up; if there is no free
+   floor, a rubble tile and **Excavate**, then **Advance day** while it is dug; the free floor tile; **Build** on the
+   room's card (the pop-up scrolls to it once); then for the Barracks **Advance day** and a card on the Barracks
+   about the Bunks upgrade (on the upgrade itself if the player is inside the room), and for the Infirmary and the
+   Workshop the card right after Build, on the room being built. *Reading:* the Barracks' tile is the free floor beside
+   it nearest its middle; the Infirmary's and Workshop's is the free floor nearest the Command Center. A step is
+   skipped while the player is already past it (on the base map, the tile open, the room building).
+10. **A side beat's `until` met early** (the player built the room before the tutorial got there): the tutorial skips
+   to its closing card. If its tutorial had not started yet, the side beat ends without it.
+11. **A ship home damaged** is one below 100% hull that has flown (a mission, a patrol, or as a ground mission's
+   transport): `f.flown` on the ship. *Reading:* a ship that arrives damaged (the Cross at 85%, captured Talons, the
+   Marta at 70%) counts only once it has flown. The ground scene doesn't damage the transport, so the Marta counts the
+   first time she is home from a mission (Steal the Cross) still under 100%.
+12. **Sleeping rough.** A story (`must`) recruit still joins with no bunk; whoever is over the cap, newest arrival
+   first (by the day they joined, then roster order), is *Sleeping rough*: the status shows in the crew rail and the
+   personnel file, the Barracks shows *Bunks 7/6*, they rest off exhaustion at `ROUGH_REST` speed, and it is worked
+   out each time it's needed (no save field). *Reading:* "morale −`ROUGH_MORALE` a day while anyone is sleeping
+   rough" costs **everyone at the base** (each rebel, so the base's mood drops by the same), not only the rough
+   sleepers; anyone away on a mission is spared, as for every daily morale change.
+13. **A side beat's actions open nothing over the day banner**, but one that opens nothing (starting a tutorial) no
+   longer waits for the banner to clear, so a reward queued behind it isn't held up either.
+14. **Developer tools.** The Prologue panel lists the side beats with their state and *Fire now* (which sets aside one
+   already running). *Replay tutorials* resets them. *Reading:* a debug Jump spends any side beat whose condition
+   already holds once the setups have run (a jump to beat 20 has nine aboard and six bunks), as the setups mark the
+   tutorials they skip as seen; *Fire now* plays one.
+15. **Saves (version 15).** A save past the frontier has every side beat spent; otherwise one is spent if its room is
+   there or being built (the Barracks: more than the two tiles a new game has). A ship has flown unless it is the
+   Marta before Steal the Cross.
+16. **Salvage:** a Hegemony vehicle (one that started on the Hegemony side) destroyed or stalled in a ground mission
+   pays `SALVAGE_PER_HP` × its max hp in materials, rounded to 10, as a *Salvaged* row in the debrief. *Reading:* only
+   when the squad wins (they hold the field to strip the wreck); a loss pays none. In Rescue Tachi that is the
+   prisoner truck (stopping it brings it down) and the escort cruiser.
+17. **Authored rewards** sit in each prologue mission's spec (`PRO_REW` in `game/js/prologue.js`), never in its type.
+   *Reading:* a spec's `rew` is **added** to what the type pays (Steal the Cross still pays its 500c and 120s).
+18. **The prologue Graf** (the guaranteed lot in beat 22) costs `PRO_GRAF_PRICE`, with Sweet Tooth's line on it
+   (`grafFriend`, `[TEXT NEEDED]`); after the frontier a Graf is `SHIP_PRICE` again. Graf lots the weekly restock rolls
+   keep the full price.
+19. **The affordability net.** A beat whose `until` needs a spend declares `needs` (worked out from the real prices:
+   `proCost` in `base.js`): `room_barracks`, `sweet_tooth` (the mercenary, and the Bunks upgrade while no bunk is free),
+   `hauler` (the Hangar section with its excavation, and the Graf). After `AFFORD_DAYS` days unable to cover it, its
+   contact (Cass for the market beats, Venn otherwise) sends the shortfall plus 10% (rounded up to 10) in a comm
+   (`affordGrant`, `[TEXT NEEDED]`), paid when the comm closes. Once per beat, only before the frontier, through a new
+   `grant:{c,m,s}` action.
+20. **The net also covers the Marta** (beat 6, `cross`, from Cass). *Reading, beyond the handoff:* a player who spends
+   the starting 400 materials on rooms before restoring her can never fly Steal the Cross, and nothing before it pays
+   materials, so it was a hard lock. The spendthrift run found it.
+21. **Where materials come from:** a disabled build or buy short of materials adds a second line to its *Need X more*
+   reason (`MAT_HINT`, `[TEXT NEEDED]`).
+22. **Hangar repairs eat materials.** Damaged ships repair on the pads every day at the materials' cost (the Marta's
+   70%, the Cross's 85%), about 8 a day early on. The ledger counts it; nothing tells the player.
+23. **Open: the second Hangar section.** The map has no free 4 × 4 floor: the cheapest block (`hangarPlan`) has 12
+   rubble tiles to excavate first (480 materials, a day), on top of the section's 960c and 800m, and one of its halves
+   must be made a large pad (free, in the Hangar's room view) before the second Graf can land. The handoff's cost table
+   left the excavation out. The ledger and the net count it, and the rewards (C-52) cover it, but the hauler tutorial
+   (beat 22) has no step for excavating or for the large pad.
+24. **The news feed on the Black Market and the Arsenal** hides (both views sit over it, as the Galaxy's panels sit over
+   the feed; on a phone the market's feed was already hidden). Purchases still say so in Sweet Tooth's line and the
+   lot pop-up. *Reading:* hiding it, rather than lifting the stall's bottom clear of it, keeps the stall's height for
+   the cards.
+**Needs from you:** overrule any of the above. For item 23: should the block beside the Hangar start cleared, should
+the hauler tutorial gain steps for excavating and for the large pad, or both?
+**Your call:** _open_
+
+### C-52 🟡 0.2 playtest: placeholders
+Every number the 0.2 fixes added that is mine, each in one named constant marked `// placeholder`:
+| Constant | Value | Where | What it does |
+|---|---|---|---|
+| `AI_ADVANCE_CAP` | 120 | `ground.js`, `pickCoverMove` | The most a move scores for ground closed on (or opened from) the target |
+| `AI_EXPOSED` | 90 | `ground.js`, `pickCoverMove` | Taken off a spot in the open, in the target's sight and range (riot shields exempt) |
+| `AI_COVER_MIN` | 60% | `tools/cover-smoke.js` | The share of enemies on foot in cover the metric asks for. Measured on the ambush map: 57% before the change, 74% after |
+| `ROUGH_MORALE` | 2 | `base.js`, `moraleTick` | Morale everyone at the base loses each day anyone is sleeping rough (C-51 item 12) |
+| `ROUGH_REST` | 0.5 | `base.js`, the daily rest | How fast someone sleeping rough rests off exhaustion (half speed) |
+| `SALVAGE_PER_HP` | 0.5 | `base.js`, `applyDebrief` | Materials per point of a Hegemony wreck's max hp (C-51 item 16) |
+| `PRO_REW` | Steal the Cross 300m · Torch the Depots 400m · Steal Fuel 300m · Rescue Tachi 650m and 600c | `prologue.js` | Added to each prologue mission's reward. The handoff's starting values (150m, 200m, 100m, 300m and 400c) left the frugal run 750m and 200c short at the hauler beat, because of the excavation (C-51 item 23) |
+| `PRO_GRAF_PRICE` | 1,000 | `prologue.js` | The guaranteed Graf before the frontier (the handoff's 1,200 left too little to spare) |
+| `AFFORD_DAYS` | 2 | `prologue.js` | Days a beat can sit unaffordable before its contact sends the shortfall |
+| `AFFORD_EXTRA` | 10% | `prologue.js` | Sent on top of the shortfall (the handoff's number) |
+| `ECON_HEADROOM` | 10% | `tools/economy-smoke.js` | What the frugal run must have to spare at every spend |
+| `BM_CARD_MIN` | 250px | `game/ui/scenes.css`, `.bm-grid` | The least a market row is on a wider screen; past two rows the stall scrolls |
+| Art well floor | 96px | `game/ui/scenes.css`, `.bm-card .kit-well` (and `WELL_MIN` in `tools/market-smoke.js`) | The least a market card's art well is; the art scales inside it at 8:5, 192 × 120 at most |
+
+**The economy table** (`tools/economy-smoke.js`; the mercenary's fee is rolled, 380 to 600). Before the fixes (§3's
+first commit, measured with `ECON_MEASURE=1`, shortfalls topped up as they came): **2,436 credits and 1,580
+materials short**: the Bunks upgrade 140m, the Hangar block's excavation 640m (16 tiles, the block below the Hangar),
+the Hangar section 800m, the Graf 2,436c. After, the frugal run (only what the beats need) reaches the frontier on day
+30 with no grant:
+| Spend | Beat | Cost (c/m/s) | Had (c/m/s) |
+|---|---|---|---|
+| Restore the Marta | sera | 240/160/0 | 1,000/400/480 |
+| Barracks tile | fuel_plan | 380/160/80 | 1,404/868/712 |
+| Bunks upgrade | sweet_tooth | 260/140/0 | 2,708/1,642/760 |
+| Mercenary | hauler | 460/0/0 | 2,544/1,502/792 |
+| Hangar block (12 tiles excavated) | hauler | 0/480/0 | 2,084/1,502/792 |
+| Hangar section | hauler | 960/800/0 | 2,132/1,022/808 |
+| Second Graf | bunker | 1,000/0/0 | 1,364/222/872 |
+The spendthrift run (an Infirmary, a Workshop and a Storeroom on day 1 too) reaches the frontier on day 33 with three
+grants, one each for the Marta, the Barracks tile and the hauler beat.
+**Needs from you:** tune any of them.
+**Your call:** _open_
+
 ### C-50 🟡 Fire support menu and Black Market cards (screens handoff part 3): what I chose
 Built from the canvas you approved on 2026-10-08:
 1. **Fire support menu**: calls grouped by source (the transport, any other ship, Mission Control, vehicles); each
@@ -693,6 +822,14 @@ Phase 5 (Raid the Bunker): items 30 to 37 are settled; see "C-47.5" in the Resol
 **Needs from you:** confirm 1 to 4; answer 24 and 25; overrule any of the rest.
 **Your call:** _open_
 
+### C-53 ⚪ Market art at small heights
+`docs/FEEDBACK-0.2-HANDOFF.md` §4 keeps the phone rule (`grid-auto-rows:230px`), but a weapon card (its trait row and a
+96px well) needs about 265px, so at 230 its price row was cut off. On a phone the rows are now `minmax(230px, auto)`:
+230 stays the floor and a taller card makes its row taller (the whole view scrolls there already). The art is sized
+from the well's width on a phone (the width is what limits it there).
+**Needs from you:** overrule it, or say how a weapon card should fit 230px (a smaller well, the trait row moved).
+**Your call:** _open_
+
 ### C-48 🟡 Prologue text still to write
 The designer is replacing Claude-written tutorial text, so where the doc has no words yet the game shows
 `[TEXT NEEDED: what this must say]`.
@@ -747,6 +884,33 @@ Raid the Bunker shows these:
 | `bunkerPlan` | The callout on the plan's empty asset slot when Raid the Bunker's plan opens (beat 23) | Add the second hauler as an asset: it brings the pilots in later as Reinforcements |
 | `bunkerPass` | The callout on the Reinforcements hauler's passengers, once it is added | Load the three pilots (a Graf seats 4, so the fifth soldier rides with them) |
 | `bunkerCallT`, `bunkerCall` | The coaching card in the fight, in planning while the hauler is ready (its title, then its text) | Once it's safer, call the pilots in with Reinforcements from Fire Support, and they take the ships |
+
+**Shown now: the room tutorials** (the side beats, `PRO_TEXT`, the Prologue tab; C-51 items 7 to 10):
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `sbBaseTab` | The pointer at the Base tab (or the room view's Back to the base), any room tutorial | A short label: back to the base |
+| `sbDig` | The pointer at a rubble tile, then at Excavate, when there is no free floor | A short label: excavate here to make space |
+| `sbDayDig` | The pointer at Advance day while the excavation runs | A short label: the crew needs a day |
+| `sbBarracksTile` | The pointer at the free floor tile beside the Barracks | A short label: the bunks are full, build here to make the Barracks bigger |
+| `sbBarracksBuild` | The pointer at Build on the Barracks card in the tile pop-up | A short label: build the Barracks |
+| `sbBarracksDay` | The pointer at Advance day while the tile is built | A short label: it is built overnight |
+| `sbBunksT`, `sbBunks` | The card on the new Barracks (on the Bunks upgrade inside the room) | The Bunks upgrade adds beds to every Barracks tile |
+| `sbInfirmaryTile`, `sbInfirmaryBuild` | The pointers at a free floor tile and at Build on the Infirmary card | Someone came home hurt: build an Infirmary here |
+| `sbInfirmaryT`, `sbInfirmary` | The card on the Infirmary being built | The injured recover faster there |
+| `sbWorkshopTile`, `sbWorkshopBuild` | The pointers at a free floor tile and at Build on the Workshop card | A ship came home damaged: build a Workshop here |
+| `sbWorkshopT`, `sbWorkshop` | The card on the Workshop being built | Ships repair there |
+
+**Shown now: the economy** (§3 of the 0.2 playtest):
+| Line | Where it shows | What it must say |
+|---|---|---|
+| `affordGrant` (`PRO_TEXT`) | The comm from Cass or Venn when the affordability net sends what's missing | The contact sends what's missing (the amounts are added when it closes) |
+| `grafFriend` (`PRO_TEXT`) | Sweet Tooth's line on the guaranteed Graf lot before the frontier | A friend-of-Cass price on the hauler |
+| `MAT_HINT` (`game/js/base.js`) | The second line of a build's or buy's *Need X more* reason when it's short of materials | A short hint: where materials come from (salvage, patrols, Sources) |
+The `haulerHangar` callout (phase 4 above) may want to say the block must be excavated and half a section made a large
+pad (C-51 item 23).
+
+**Shown now: sleeping rough** (`ROUGH_CARD` in `game/js/base.js`): the line on a story recruit's card when no bunk
+is free, in place of *No bunks free*. It must say this one joins but will sleep rough until a bunk is free.
 **Needs from you:** the words for each row. You'll write them in due course; until then the marked placeholders stay.
 **Your call:** _open_
 

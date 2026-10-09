@@ -1,5 +1,6 @@
 /* Cover by the line of the shot, the AI's cover, quicker enemy shots and the deployed Razorrat (designer notes of
-   2026-10-07, round 2). node tools/cover-smoke.js (needs NODE_PATH=$(npm root -g)). */
+   2026-10-07, round 2), and the AI holding only from cover (FEEDBACK-0.2 §1.3: the cover metric on the ambush map).
+   node tools/cover-smoke.js (needs NODE_PATH=$(npm root -g)). */
 const {chromium}=require('playwright');
 const path=require('path');
 const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
@@ -98,6 +99,39 @@ const spec=(sc,extra)=>Object.assign({kind:'ground',missionId:sc,scenario:sc,day
  ok(r.fast==='true,true,fire,true,true,true','an enemy shot opens on its result card and fires as soon as the camera has the shooter and the target '+r.fast);
  ok(r.hold===true&&r.next===true,'its result stays up a second after the last round lands, then the next shooter goes '+[r.hold,r.next]);
  ok(r.mine==='true,true,reveal','on a rebel\'s turn they are selected and the card plays out '+r.mine);
+ // FEEDBACK-0.2 §1.3: the enemy holds only from cover. On the ambush map with the alarm up and the squad holding at
+ // fixed points, the share of enemies on foot (riot shields aside) in cover against their nearest rebel, at the end of
+ // each of 6 rounds, averaged over 3 runs, is at least AI_COVER_MIN. Ambush guards gather on the truck, wherever it is.
+ const AI_COVER_MIN=60;   // placeholder (%)
+ const shares=[];let guard=null;
+ for(let run=0;run<3;run++){
+  await pg.evaluate(m=>window.SR.go('ground',{test:true,mission:m}),spec('ambush',{missionId:'rescuetachi',vip:{name:'Tachi Gard',first:'Tachi'},
+   ctx:{title:'Rescue Tachi',place:'Redrock Flats',target:'convoy',sub:'Redrock Flats · Akkaro'},transport:{id:'graf',name:'Marta',cls:'graf'}}));
+  await pg.waitForTimeout(300);
+  const q=await pg.evaluate(()=>{
+   const D=window.DBGground,f=D.fn;
+   const P=[[620,960],[700,1010],[780,960]];D.U.filter(u=>u.side==='reb'&&!u.away).forEach((u,i)=>{u.x=P[i%3][0];u.y=P[i%3][1];});
+   f.alertTown('smoke');f.startPlanning();
+   const out=[];
+   for(let rd=0;rd<6;rd++){
+    f.aiPlan();
+    for(const u of D.U){if(u.side!=='law'||u.down||u.veh||u.mnt)continue;const o=u.order;if(o&&(o.type==='move'||o.type==='sprint')){u.x=o.tx;u.y=o.ty;}}
+    for(const u of D.U){if(!u.mnt)continue;const v=D.U.find(x=>x.id===u.mnt.v),o=u.order;if(v&&o&&o.type==='move'){v.x=o.tx;v.y=o.ty;}}
+    f.vehSync();
+    const reb=D.U.filter(u=>u.side==='reb'&&!u.down&&!u.away);
+    const foot=D.U.filter(u=>u.side==='law'&&!u.down&&!u.surr&&!u.veh&&!u.mnt&&!u.shield);
+    let n=0;for(const u of foot){const near=reb.reduce((a,b2)=>Math.hypot(b2.x-u.x,b2.y-u.y)<Math.hypot(a.x-u.x,a.y-u.y)?b2:a);if(f.coverOf(near,u))n++;}
+    out.push(foot.length?n/foot.length:1);
+   }
+   const v=D.U.find(u=>u.hold),gp=f.guardPtNow();
+   return {out,gp:Math.hypot(gp.x-v.x,gp.y-v.y)<1};
+  });
+  shares.push(...q.out);guard=q.gp;
+ }
+ const mean=Math.round(100*shares.reduce((a,c)=>a+c,0)/shares.length);
+ ok(mean>=AI_COVER_MIN,'enemies on foot hold from cover: '+mean+'% in cover on average (want '+AI_COVER_MIN+'%) '+shares.map(x=>Math.round(x*100)).join(','));
+ ok(guard===true,'the ambush guards gather on the holding vehicle, not where it started');
+ console.log('cover metric: '+mean+'% of enemies on foot in cover');
  if(errs.length)fails.push('PAGEERRORS '+errs.slice(0,3).join(' || '));
  await b.close();
  if(fails.length){console.log('cover-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
