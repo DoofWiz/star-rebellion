@@ -407,9 +407,29 @@
 @container sr-app (max-width:900px){
   #sc-base .bm-strip{display:flex;}
 }
-/* .bm-card .kit-well .it-art (192px) out-specifies .bm-merc__kit .it-art (72px): re-assert the merc's
-   small own-kit art so the "Brings own kit" caption keeps its room (C-13 again) */
-#sc-base .bm-card .bm-merc__kit .it-art{width:72px;height:45px;}
+/* the Black Market's art never clips (docs/FEEDBACK-0.2-HANDOFF.md §4). The stall scrolls instead of squeezing its two
+   rows (each at least 250px: BM_CARD_MIN, placeholder); the art well keeps a floor (96px, placeholder) and the art
+   scales down inside it at 8:5, 192 × 120 at most, sized from the well (a size container) so it never stretches.
+   The mercenary's block scales the same way, its own-kit art at 72 × 45 at most (the "Brings own kit" caption keeps
+   its room: this replaces the C-13 re-assert that sat here). */
+#sc-base .bm-grid{grid-template-rows:none;grid-auto-rows:minmax(250px,1fr);overflow-y:auto;overscroll-behavior:contain;}
+#sc-base .bm-card .kit-well{flex:1 1 auto;min-height:96px;container-type:size;}
+#sc-base .bm-card .kit-well .it-art{width:min(192px,100cqw,160cqh);height:min(120px,62.5cqw,100cqh);}
+#sc-base .bm-card .bm-merc{gap:min(14px,5cqw);max-width:100cqw;max-height:100cqh;}
+#sc-base .bm-card .bm-merc .kf{width:min(96px,50cqw,100cqh);height:min(96px,50cqw,100cqh);flex:none;}
+#sc-base .bm-card .bm-merc__kit .it-art{width:min(72px,38cqw,calc((100cqh - 22px)*1.6));height:min(45px,23.75cqw,calc(100cqh - 22px));}
+/* the news feed stays off the Black Market's and the Arsenal's cards: their views sit over it, as the Galaxy's panels
+   do (on a phone the market's feed was already hidden) */
+#sc-base .sr-shell:is(.is-market,.is-arsenal) .sr-comms{display:none;}
+@container sr-app (max-width:900px){   /* phones: the kit's 230px rows become a floor, so a weapon card (its trait row, a 96px
+  well) keeps its price row; the whole view scrolls there (DESIGN_BLOCKERS C-53) */
+  #sc-base .bm-grid{grid-auto-rows:minmax(230px,auto);overflow-y:visible;}
+  /* with rows sized by their content the well's height can't size the art (cqh reads 0 at the floor): the width
+     limits it here anyway, and 62.5% of a phone well's width sits inside its 96px floor */
+  #sc-base .bm-card .kit-well .it-art{width:min(192px,100cqw);height:min(120px,62.5cqw);}
+  #sc-base .bm-card .bm-merc__kit .it-art{width:min(72px,38cqw);height:min(45px,23.75cqw);}
+  #sc-base .bm-card .bm-merc{max-height:none;}
+}
 
 /* ---------- phone pass (390x844): five tabs, drawer views, overlays ---------- */
 #sc-base .nav-market-s{display:none;}
