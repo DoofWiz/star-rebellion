@@ -125,8 +125,10 @@ const E_FORM=[[2950,1150],[3150,1000],[3180,1300],[3400,1120],[3380,1420],[3600,
 function presetPilot(pr,o){
   const P=PRESETS[pr]||PRESETS.regular;
   const level=(o&&o.level)||P.level;
-  return {preset:pr||'regular',level,skills:{aim:P.aim,cunning:P.cunning,focus:P.focus,presence:P.presence},
+  const p={preset:pr||'regular',level,skills:{aim:P.aim,cunning:P.cunning,focus:P.focus,presence:P.presence},
     init:P.init,cool:P.presence*2,tr:[],mans:P.mans.slice()};
+  if(o&&o.moveset)p.moveset=o.moveset.slice();   // SB Test: a scenario's own pilot moveset, over the preset's
+  return p;
 }
 function shipRow(cls){return SRDB.ship(cls);}
 function resolveCast(scn,variant){

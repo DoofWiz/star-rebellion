@@ -19,7 +19,10 @@
      5. lock: lock % rises with the target centred and falls behind the firer; a missile is refused below
         MISSILE_LOCK and inside MISSILE_MINR, and ignores Fly Defensively (even the immune toggle)
      6. determinism: same seed + scripted orders → identical end-state hash
-     7. metrics: SB records carry ruleset 'sb' and burst / hit counts; a 1v2 chase has live fire */
+     7. metrics: SB records carry ruleset 'sb' and burst / hit counts; a 1v2 chase has live fire
+     and phase B4's acceptance test: Drift end to end with the mouse (path dragged, facing set with its handle, shots
+     fired along the nose while fleeing along the path); a green pilot's plan offers no Drift, an ace's does; the
+     actions (Angle and Boost Shields, Fix Critical, Lock In, the stub ability slots) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -294,6 +297,91 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  ok(sc.metrics.every(Boolean),'SB 7: metrics '+JSON.stringify(sc.metrics));
  ok(sc.fire[0]>0&&sc.fire[1]>0,'SB 7: a 1v2 chase should have live fire '+JSON.stringify(sc.fire));
 
+ /* ---------- SB B4: Drift with the mouse, movesets, actions ---------- */
+ const d0=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn;
+  f.load('e1_fox','sb',null,9);
+  const S=D.sim.S,fox=S.ships.find(q=>q.id==='P1'),e1=S.ships.find(q=>q.id==='E1'),e2=S.ships.find(q=>q.id==='E2');
+  S.rocks.length=0;e2.alive=false;
+  Object.assign(fox,{x:2000,y:1500,h:0});Object.assign(e1,{x:1550,y:1500,h:0});fox.target='E1';fox.pilot.cool=90;
+  const c=f.cam_();c.x=2050;c.y=1500;c.z=0.8;
+  S.sel='P1';D.mod&&window.SR_ARENA.refresh();
+  const btn=document.querySelector('#arOrders [data-act="kind"][data-slot="0"][data-kind="drift"]');
+  if(btn)btn.click();
+  return {btn:!!btn,kind:fox.kinds[0],a:f.toClient(2000,1500),b:f.toClient(2500,1500)};
+ });
+ ok(d0.btn&&d0.kind==='drift','B4: the veteran Fox has no Drift button '+JSON.stringify(d0));
+ await pg.mouse.move(d0.a.x,d0.a.y);await pg.mouse.down();
+ for(let i=1;i<=14;i++)await pg.mouse.move(d0.a.x+(d0.b.x-d0.a.x)*i/14,d0.a.y+(d0.b.y-d0.a.y)*i/14);
+ await pg.mouse.up();
+ const d1=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn,F=D.sim.fn,fox=D.sim.S.ships.find(q=>q.id==='P1');
+  const seg=F.curvesOf(fox)[0],e=seg.pts[seg.pts.length-1];
+  const fac=fox.plan[0]&&fox.plan[0].facing;
+  return {n:fox.plan.length,kind:fox.plan[0]&&fox.plan[0].kind,facing:fac,
+    handle:f.toClient(e.x+Math.cos(fac)*110,e.y+Math.sin(fac)*110),
+    aim:f.toClient(e.x+Math.cos(Math.PI+0.2)*160,e.y+Math.sin(Math.PI+0.2)*160)};
+ });
+ ok(d1.n===1&&d1.kind==='drift','B4: the drag did not plan a Drift segment '+JSON.stringify(d1));
+ await pg.mouse.move(d1.handle.x,d1.handle.y);await pg.mouse.down();
+ for(let i=1;i<=6;i++)await pg.mouse.move(d1.handle.x+(d1.aim.x-d1.handle.x)*i/6,d1.handle.y+(d1.aim.y-d1.handle.y)*i/6);
+ await pg.mouse.up();
+ const drift=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn,S=D.sim.S,fox=S.ships.find(q=>q.id==='P1');
+  const out={facing:+fox.plan[0].facing.toFixed(3)};
+  f.beginExec();
+  const segT=f.EXEC_LEN_()/D.sim.AP_PER_ROUND_();
+  let noseOff=0,velOk=true,back=0,samples=0;
+  const seen=new Set();
+  while(D.sim.S.execT<segT-0.06&&D.phase==='EXEC'){
+    f.stepTick();
+    if(D.sim.S.execT>segT*0.2&&D.sim.S.execT<segT*0.85){
+      samples++;
+      noseOff=Math.max(noseOff,Math.abs(Math.atan2(Math.sin(fox.h-fox.plan[0].facing),Math.cos(fox.h-fox.plan[0].facing))));
+      if(fox.vx<=0)velOk=false;
+    }
+    for(const p of S.proj)if(p.owner==='P1'&&!seen.has(p)){seen.add(p);if(p.vx<0)back++;}
+  }
+  out.drift=[samples,+noseOff.toFixed(3),velOk,back,fox.st.shots];
+  while(D.phase==='EXEC')f.stepTick();
+  return out;
+ });
+ ok(Math.abs(drift.facing-(Math.PI+0.2-2*Math.PI))<0.06||Math.abs(drift.facing-(Math.PI+0.2))<0.06,'B4: the facing handle did not set the facing '+drift.facing);
+ ok(drift.drift[0]>5&&drift.drift[1]<0.05&&drift.drift[2],'B4: Drift should hold the nose on the facing while flying the path '+JSON.stringify(drift.drift));
+ ok(drift.drift[3]>0&&drift.drift[4]>0,'B4: Drift should fire back along the nose at the pursuer '+JSON.stringify(drift.drift));
+ const b4=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn,out={};
+  // movesets: green has no Drift, the veteran has Boost and Drift, an ace has the lot
+  f.load('e3_count','sb',1,1);
+  const S=D.sim.S,F=D.sim.fn;
+  const green=S.ships.find(q=>q.pilot.preset==='green'),vet=S.ships.find(q=>q.pilot.preset==='veteran');
+  S.sel=green.id;window.SR_ARENA.refresh();
+  out.greenHud=!document.querySelector('#arOrders [data-kind="drift"]')&&!!document.querySelector('#arOrders [data-kind="flydef"]');
+  out.green=F.kindsFor(green).join();out.greenSet=F.setKind(green.id,0,'drift');
+  out.vet=F.kindsFor(vet).join();
+  const ace={faction:'reb',pilot:{preset:'ace'}};out.ace=F.kindsFor(ace).join();
+  out.custom=F.kindsFor({faction:'reb',pilot:{preset:'green',moveset:['loop']}}).join();
+  out.heg=F.kindsFor(S.ships.find(q=>q.faction==='heg')).join();
+  // actions resolve as the exec begins
+  const s=vet;s.pilot.cool=40;s.crits=['targeting'];s.segs.F.val=2;
+  out.acts=F.actionsFor(s).join();
+  F.setAction(s.id,'lockin');f.beginExec();out.lockin=Math.round(s.pilot.cool);while(D.phase==='EXEC')f.stepTick();
+  F.setAction(s.id,'fixcrit');f.beginExec();out.fix=s.crits.length;while(D.phase==='EXEC')f.stepTick();
+  const fv=s.segs.F.val;F.setAction(s.id,'boostF');f.beginExec();out.boost=s.segs.F.val-fv;while(D.phase==='EXEC')f.stepTick();
+  F.setAction(s.id,'shiftF');f.beginExec();out.shift=s.segs.F.at;while(D.phase==='EXEC')f.stepTick();
+  out.fixGone=!F.actionsFor(s).includes('fixcrit');
+  // the stub slots: only the lead has a special (its self-repair); no ship has a ship ability yet
+  const lead=S.ships.find(q=>q.faction==='reb'&&q.lead);
+  out.special=[F.specialAbilities(lead).join(),F.specialAbilities(green).join(),S.ships.every(q=>F.shipAbilities(q).length===0)];
+  out.cleared=s.action;
+  return out;
+ });
+ ok(b4.greenHud&&b4.green==='basic,flydef'&&b4.greenSet===false,'B4: a green pilot should offer no Drift '+JSON.stringify([b4.greenHud,b4.green,b4.greenSet]));
+ ok(b4.vet==='basic,flydef,boost,drift'&&b4.ace==='basic,flydef,boost,drift,kturn,barrel'&&b4.custom==='basic,flydef,loop'&&b4.heg==='basic,flydef','B4: movesets '+JSON.stringify([b4.vet,b4.ace,b4.custom,b4.heg]));
+ ok(b4.acts.includes('lockin')&&b4.acts.includes('fixcrit')&&b4.acts.includes('boostF'),'B4: actions offered '+b4.acts);
+ ok(b4.lockin>=74&&b4.fix===0&&b4.boost>0&&b4.shift==='R'&&b4.fixGone&&b4.cleared==='none','B4: actions resolve '+JSON.stringify(b4));
+ ok(b4.special[0]==='fieldrep'&&b4.special[1]===''&&b4.special[2],'B4: ability stubs '+JSON.stringify(b4.special));
+
  /* ---------- the title screen's button ---------- */
  const pg2=await ctx.newPage();
  pg2.on('pageerror',e=>errs.push('title: '+e.message));
@@ -310,7 +398,7 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  }
 
  ok(!errs.length,'errors: '+errs.join(' | '));
- console.log(JSON.stringify({v2,sb,sc,errors:errs}));
+ console.log(JSON.stringify({v2,sb,sc,drift,b4,errors:errs}));
  if(fails.length){console.log('FAIL\n- '+fails.join('\n- '));await b.close();process.exit(1);}
  console.log('arena-smoke: all checks passed');
  await b.close();

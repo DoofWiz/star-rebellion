@@ -11,9 +11,10 @@
    module needs from space.js or sim2.js is copied, each block naming
    its source.
 
-   Built so far: phases B1–B3 (the skeleton; continuous drag inside the
+   Built so far: phases B1–B4 (the skeleton; continuous drag inside the
    envelope, AP segments, Fly Defensively, acceleration flair; projectiles,
-   bursts, spread, continuous lock, glancing damage, missiles).
+   bursts, spread, continuous lock, glancing damage, missiles; one action a
+   craft and the pilot movesets, Drift's facing handle included).
    ===================================================================== */
 window.SIMSB=(function(){
 const K=()=>window.SR_ARENA;
@@ -61,6 +62,7 @@ const KINDS={
 };
 function movesetOf(s){
   if(s.faction!=='reb')return [];   // doctrine-bound Hegemony pilots fly the envelope, no movesets
+  if(s.pilot.moveset)return s.pilot.moveset.filter(k=>KINDS[k]&&KINDS[k].mod);   // a scenario's own pilot moveset
   return (ARENA_MOVESETS[s.pilot.preset]||[]).slice();
 }
 function kindsFor(s){return ['basic','flydef'].concat(movesetOf(s));}
@@ -473,6 +475,63 @@ function combatTick(dt){
 }
 function defaultTarget(s){const t=nearestFoe(s);return t?t.id:null;}
 
+/* =====================================================================
+   SB orders (§4): one movement and one action a craft, each PLAN.
+   ===================================================================== */
+const ACTIONS={
+  none:{name:'No action'},
+  shiftF:{name:'Angle fore shield',short:'Angle fore'},
+  shiftR:{name:'Angle aft shield',short:'Angle aft'},
+  boostF:{name:'Boost fore shield',short:'Boost fore'},
+  boostR:{name:'Boost aft shield',short:'Boost aft'},
+  fixcrit:{name:'Fix Critical',short:'Fix crit'},
+  lockin:{name:'Lock In',short:'Lock In'},
+  fieldrep:{name:'Field repair',short:'Field repair',special:1},
+};
+/* Special Ability (pilot, levelled and trained) and Ship Ability (a ship or attachment): DESIGN OPEN.
+   The slots render; the lists are empty bar the lead's self-repair (space.js fieldrep ~718). */
+function specialAbilities(s){return s.lead&&s.faction==='reb'?['fieldrep']:[];}   // DESIGN OPEN: pilot abilities, levelled and trained
+function shipAbilities(s){return [];}                                             // DESIGN OPEN: a specific ship's or attachment's ability
+function actionsFor(s){
+  const out=['none','shiftF','shiftR'];
+  if(maxShield(s)>0&&!critCount(s,'emitter'))out.push('boostF','boostR');
+  if(s.crits.length)out.push('fixcrit');
+  if(!mute(s))out.push('lockin');
+  return out.concat(specialAbilities(s),shipAbilities(s));
+}
+/* copied from space.js doAction ~686–734 (shiftF/shiftR, boostF/boostR, lockin, fieldrep, fixcrit); log lines become floaters */
+function doAction(s,a){
+  const kit=K();
+  if(a==='shiftF'||a==='shiftR'){
+    const seg=s.segs[a==='shiftF'?'F':'R'];
+    seg.at=seg.at==='F'?'R':'F';
+    kit.addFloater(s.x,s.y-36,'SHIELDS ANGLED',C.shield);
+  } else if(a==='boostF'||a==='boostR'){
+    if(critCount(s,'emitter'))return false;
+    const seg=s.segs[a==='boostF'?'F':'R'];
+    const amt=Math.min(seg.max-seg.val,Math.ceil(0.15*maxShield(s)*(s.pilot.cun||1)));
+    if(amt>0){seg.val+=amt;kit.addFloater(s.x,s.y-36,'SHIELD +'+amt,C.shield);}
+  } else if(a==='lockin'){adjCool(s,35);kit.addFloater(s.x,s.y-36,'LOCKED IN',C.go);}
+  else if(a==='fieldrep'){
+    const amt=Math.ceil(0.15*s.maxHull*(s.pilot.cun||1));
+    s.hull=Math.min(s.maxHull,s.hull+amt);kit.addFloater(s.x,s.y-36,'HULL +'+amt,C.go);
+  } else if(a==='fixcrit'){
+    if(!s.crits.length)return false;
+    const id=s.crits.shift();   // the oldest: every critical in CRITDEFS is repairable
+    kit.addFloater(s.x,s.y-36,'REPAIRED '+CRITDEFS[id].name.toUpperCase(),C.go);
+  } else return false;
+  return true;
+}
+/* the Hegemony's action: a copy of the useful half of space.js aiAction ~633 (locks are continuous here) */
+function aiActionOf(s){
+  if(s.struct||mute(s)&&!s.crits.length)return 'none';
+  if(coolState(s)==='panic')return 'none';
+  if(s.lead&&s.crits.length)return 'fixcrit';
+  if(maxShield(s)>0&&totalShield(s)<maxShield(s)*0.35&&!critCount(s,'emitter'))return s.segs.F.val<=s.segs.R.val?'boostF':'boostR';
+  if(!mute(s)&&s.pilot.cool<55)return 'lockin';
+  return 'none';
+}
+
 /* ---------- ships ---------- */
 function mkShip(d){
   const r=d.row;
@@ -481,7 +540,7 @@ function mkShip(d){
     segs:{F:{val:r.shield_front,max:r.shield_front,at:'F'},R:{val:r.shield_rear,max:r.shield_rear,at:'R'}},
     arm:r.armour,hull:r.hull,maxArm:r.armour,maxHull:r.hull,crits:[],
     alive:true,fled:false,trail:[],
-    wpns:loadout(r,d.loadout),target:null,locks:{},lockMax:0,
+    wpns:loadout(r,d.loadout),target:null,locks:{},lockMax:0,action:'none',
     st:{bursts:0,shots:0,hits:0,dmg:0,missiles:0,kills:0},
     plan:[],           // planned segments: {kind, local (the drag in the segment's frame), facing}
     kinds:['basic','basic'],   // the kind picked for each AP slot
@@ -634,6 +693,12 @@ function setKind(id,slot,kind){
 /* ---------- execution ---------- */
 function beginExec(){
   S.damaged=new Set();
+  for(const s of S.ships){   // the action resolves as the exec begins
+    if(!s.alive)continue;
+    const a=s.faction==='reb'?s.action:aiActionOf(s);
+    if(a&&a!=='none'&&actionsFor(s).includes(a)){doAction(s,a);s.st.actions=(s.st.actions||0)+1;}
+    s.lastAction=a;
+  }
   for(const s of S.ships){
     s.trail=[];s.sched=null;
     if(!s.alive||s.struct)continue;
@@ -675,7 +740,7 @@ function endExec(){
   for(const s of S.ships){
     if(s.sched&&s.alive){const e=segEnd(s.sched[s.sched.length-1]);s.x=e.x;s.y=e.y;s.h=e.h;s.vh=e.h;}
     s.sched=null;s.plan=[];s.flydef=false;s.visRoll=0;s.curKind=null;
-    s.kinds=['basic','basic'];
+    s.kinds=['basic','basic'];s.action='none';
   }
   S.slot=0;
 }
@@ -798,14 +863,23 @@ function hud(){
     for(const k of kindsFor(s))h+='<button type="button" class="sr-btn" data-act="kind" data-slot="'+i+'" data-kind="'+k+'" aria-pressed="'+(s.kinds[i]===k)+'">'+KINDS[k].short+'</button>';
     h+='</span>';
   }
+  const acts=actionsFor(s),basic=acts.filter(a=>!ACTIONS[a].special);
+  h+='<span class="arn-orders__grp"><span class="arn-orders__lbl">Action</span>';
+  for(const a of basic)if(a!=='none')h+='<button type="button" class="sr-btn" data-act="action" data-action="'+a+'" aria-pressed="'+(s.action===a)+'">'+ACTIONS[a].short+'</button>';
+  h+='</span><span class="arn-orders__grp"><span class="arn-orders__lbl">Special</span>';
+  const sp=specialAbilities(s);
+  h+=sp.length?sp.map(a=>'<button type="button" class="sr-btn" data-act="action" data-action="'+a+'" aria-pressed="'+(s.action===a)+'">'+ACTIONS[a].short+'</button>').join(''):'<span class="arn-orders__note">none yet</span>';
+  h+='<span class="arn-orders__lbl">Ship</span><span class="arn-orders__note">none yet</span></span>';
   h+='<span class="arn-orders__grp"><button type="button" class="sr-btn sr-btn--ghost" data-act="clear">Clear</button></span>';
   return h;
 }
 function hudAction(a,el){
   const s=byIdS(S.sel);if(!s)return;
   if(a==='kind')setKind(s.id,+el.dataset.slot,el.dataset.kind);
-  else if(a==='clear'){s.plan=[];s.kinds=['basic','basic'];}
+  else if(a==='action')setAction(s.id,s.action===el.dataset.action?'none':el.dataset.action);
+  else if(a==='clear'){s.plan=[];s.kinds=['basic','basic'];s.action='none';}
 }
+function setAction(id,a){const s=byIdS(id);if(!actionsFor(s).includes(a))return false;s.action=a;return true;}
 function key_(ev){
   const n=+ev.key;if(!(n>=1&&n<=9))return false;
   const own=S.ships.filter(s=>s.faction==='reb'&&s.alive);
@@ -857,7 +931,8 @@ function stateHash(){return S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s
 function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+s.hull+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
 
 return {key:'sb',name:'SB Test',build,planInput,beginExec,tick,endExec,draw,hud,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
-  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,fn:{envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
+  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,fn:{envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
+      actionsFor,setAction,doAction,specialAbilities,shipAbilities,aiActionOf,
       hullHit,hullAxes,impactOf,hitShip,spreadOf,aimAngle,canFire,missileRefusal,lockOf,lockTick,combatTick,projTick,missileTick,fireTick,emitBursts,applyDamage,adjCool,coolState,
       setRng(f){S.rng=f;},setLoadout(id,list){const s=byIdS(id);s.wpns=loadout(s.row,list);return s.wpns;},
       shoot(id,ang,wkey){const s=byIdS(id),q=s.wpns.find(x=>x.key===(wkey||'w0'))||s.wpns[0];S.proj.push({x:s.x,y:s.y,vx:Math.cos(ang)*PROJ_SPD,vy:Math.sin(ang)*PROJ_SPD,owner:s.id,faction:s.faction,w:q.w,burst:0,life:q.w.rng/PROJ_SPD*1.15,age:0});}},
