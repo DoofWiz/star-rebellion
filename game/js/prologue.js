@@ -80,6 +80,23 @@ const PRO_TEXT={
   bunkerPass:'[TEXT NEEDED: the plan tutorial: load the three pilots into the reinforcements hauler (a Graf seats 4, so the fifth soldier rides with them)]',
   bunkerCallT:'[TEXT NEEDED: card title]',
   bunkerCall:'[TEXT NEEDED: the combat card: once it is safer, call the pilots in with Reinforcements from Fire Support, and they take the ships]',
+  // the side beats (docs/FEEDBACK-0.2-HANDOFF.md §2): teaching a room when it becomes relevant
+  sbBaseTab:'[TEXT NEEDED: pointer label at the Base tab: back to the base]',
+  sbDig:'[TEXT NEEDED: pointer label at a rubble tile beside the room: excavate it to make space]',
+  sbDayDig:'[TEXT NEEDED: pointer label at Advance day: the excavation takes a day]',
+  sbBarracksTile:'[TEXT NEEDED: pointer label at a free floor tile beside the Barracks: bunks are full, build here to merge a bigger Barracks]',
+  sbBarracksBuild:'[TEXT NEEDED: pointer label at Build on the Barracks card]',
+  sbBarracksDay:'[TEXT NEEDED: pointer label at Advance day: the new Barracks tile is built overnight]',
+  sbBunksT:'[TEXT NEEDED: card title, the Bunks upgrade]',
+  sbBunks:'[TEXT NEEDED: card on the Barracks: the Bunks upgrade adds beds to every Barracks tile]',
+  sbInfirmaryTile:'[TEXT NEEDED: pointer label at a free floor tile: someone came home hurt, build an Infirmary]',
+  sbInfirmaryBuild:'[TEXT NEEDED: pointer label at Build on the Infirmary card]',
+  sbInfirmaryT:'[TEXT NEEDED: card title, the Infirmary]',
+  sbInfirmary:'[TEXT NEEDED: card on the Infirmary: the injured recover faster there]',
+  sbWorkshopTile:'[TEXT NEEDED: pointer label at a free floor tile: a ship came home damaged, build a Workshop]',
+  sbWorkshopBuild:'[TEXT NEEDED: pointer label at Build on the Workshop card]',
+  sbWorkshopT:'[TEXT NEEDED: card title, the Workshop]',
+  sbWorkshop:'[TEXT NEEDED: card on the Workshop: ships repair there]',
   btnNext:'Next',
   btnGotIt:'Got it',
   // debug builds only
@@ -148,7 +165,31 @@ const PRO_TUTS={
     {at:'base.hangar',text:'haulerHangar',done:h=>h.hangarFits()},
     {at:'bm.lot:graf',text:'haulerBuy',done:h=>h.transports()>=2},
   ]},
+  // the side beats' room tutorials (SIDE below). base.* steps point at the Base tab first while another screen is up.
+  buildBarracks:{steps:roomSteps('barracks','sbBarracks',[
+    {at:'base.day',label:'sbBarracksDay',until:{built:'barracks'}},
+    {at:'base.room:barracks',title:'sbBunksT',text:'sbBunks',next:'btnGotIt',until:{next:true}},
+  ])},
+  buildInfirmary:{steps:roomSteps('infirmary','sbInfirmary',[
+    {at:'base.room:infirmary',title:'sbInfirmaryT',text:'sbInfirmary',next:'btnGotIt',until:{next:true}},
+  ])},
+  buildWorkshop:{steps:roomSteps('workshop','sbWorkshop',[
+    {at:'base.room:workshop',title:'sbWorkshopT',text:'sbWorkshop',next:'btnGotIt',until:{next:true}},
+  ])},
 };
+/* the first steps of a room tutorial: back to the Base tab, excavate a space if there is no free floor (the rubble,
+   then a day for the crew to clear it), the floor tile the base picks (h.roomTile: 'floor', 'dig' or 'wait'), Build. A step is skipped while its
+   live check holds, so a player already doing it never waits on a pointer. */
+function roomSteps(key,pre,rest){
+  const building=h=>h.building(key);
+  return [
+    {at:'tab:base',label:'sbBaseTab',done:h=>h.onBase()||building(h)},
+    {at:'base.dig:'+key,label:'sbDig',done:h=>building(h)||h.roomTile(key)!=='dig'},
+    {at:'base.day',label:'sbDayDig',done:h=>building(h)||h.roomTile(key)!=='wait'},
+    {at:'base.tile:'+key,label:pre+'Tile',done:h=>building(h)||h.tilePop()==='floor'},
+    {at:'base.build:'+key,label:pre+'Build',done:building},
+  ].concat(rest);
+}
 
 /* Raid the Bunker (beats 18, 19 and 23): Steal Ship with three ships pinned, five soldiers, and the pilots coming in later
    with the second hauler (r.reinforce: the plan's first transport asset carries them) */
@@ -281,6 +322,20 @@ const PROLOGUE=[
   {id:'frontier'},
 ];
 
+/* ---------- side beats (docs/FEEDBACK-0.2-HANDOFF.md §2.2) ----------
+   A side beat fires once, the first time its condition holds (before or after the frontier), without moving
+   G.prologue.at or holding up a main beat. Its actions go through the pop-up queue, never over a reward, a splash or
+   the day banner. One runs at a time, the first in this list first: one that comes due sets aside a later one already
+   running (its tutorial comes back after), so a room the player can't build yet never holds up the Barracks. Its until
+   ends only its own tutorial: met early (the player built the room on their own), the tutorial skips to its closing
+   cards. A main beat's tutorial goes first: one that starts while a side tutorial is up holds it until it ends.
+   G.prologue.flags.side[id] is 'run' while it runs and 'done' after. Adding one means an entry here and its text. */
+const SIDE=[
+  {id:'room_barracks',when:h=>h.bunksFull(),does:[{tutorial:'buildBarracks'}],until:{built:'barracks'}},
+  {id:'room_infirmary',when:h=>h.anyInjured()&&!h.hasRoom('infirmary'),does:[{tutorial:'buildInfirmary'}],until:{built:'infirmary'}},
+  {id:'room_workshop',when:h=>h.anyShipDamaged()&&!h.hasRoom('workshop'),does:[{tutorial:'buildWorkshop'}],until:{built:'workshop'}},
+];
+
 /* the gates (§3): every one is closed during the prologue unless listed here, and all open at the frontier */
 const GATES=['tab.galaxy','tab.missions','tab.intel','tab.market','tab.arsenal','plan.assets','op.recruit','op.lielow','op.other','sources.new','galaxy.beyond'];
 const OPEN_FROM_START=['tab.arsenal'];
@@ -295,7 +350,7 @@ const ix=id=>PROLOGUE.findIndex(b=>b.id===id);
 const beat=()=>{const p=P();return p?PROLOGUE[ix(p.at)]||null:null;};
 const text=k=>Object.prototype.hasOwnProperty.call(PRO_TEXT,k)?PRO_TEXT[k]:k;
 
-function fresh(day){return {at:PROLOGUE[0].id,since:day||1,live:true,flags:{tut:{}},gates:{},done:false};}
+function fresh(day){return {at:PROLOGUE[0].id,since:day||1,live:true,flags:{tut:{},side:{}},gates:{},done:false};}
 const isDone=()=>{const p=P();return !p||!!p.done;};
 const at=id=>{const p=P();return !!p&&!p.done&&p.at===id;};
 /* past(id): the prologue has finished that beat (or is over) */
@@ -353,9 +408,11 @@ function hear(type,arg){
   const p=P();if(!p)return;
   stepHear(type,arg);
   if(type==='source'&&arg&&!arg.prologue&&p.done)firstSource();
-  if(p.done)return;
-  if(type==='day'){rearm();shortTick();}
-  check(type,arg);
+  if(!p.done){
+    if(type==='day'){rearm();shortTick();}
+    check(type,arg);
+  }
+  sideHear(type,arg);   // after the main beat, so its windows queue first
 }
 function check(type,arg){
   const p=P();
@@ -396,7 +453,7 @@ function act(a,b){
   if(k==='gate')openGate(v);
   else if(k==='ungate'){const p=P();delete p.gates[v];}
   else if(k==='flag'){const p=P();if(v&&typeof v==='object')Object.assign(p.flags,v);else p.flags[v]=1;}
-  else if(k==='tutorial')startTut(v);
+  else if(k==='tutorial')startTut(v,isSide(b)?b.id:null);
   else if(k==='news')H.news(text(v.text),v);
   else if(H.act[k])H.act[k](v,b);
   else console.warn('Prologue: no action '+k+' (beat '+b.id+')');
@@ -432,15 +489,39 @@ function shortTick(){
 }
 
 /* ---------- the stepper (guided tutorials) ---------- */
-function startTut(key){
+function startTut(key,side){
   const T=PRO_TUTS[key],p=P();
   if(!T||!p)return;
   p.flags.tut=p.flags.tut||{};
   if(p.flags.tut[key])return;
   if(T.win)H.queue({tut:key,win:T.win});
   if(!T.steps){p.flags.tut[key]=1;return;}   // an intro window on its own
-  p.tut={key,i:0,wait:!!T.win};              // guided steps (after the intro window, if there is one)
+  const t={key,i:0,wait:!!T.win};            // guided steps (after the intro window, if there is one)
+  // a main beat's tutorial goes first; between side beats, the first in SIDE. The one set aside is held (p.held).
+  if(side){
+    t.side=side;
+    if(p.tut&&!(p.tut.side&&sideRank(p.tut.side)>sideRank(side))){hold(t);return;}
+  }
+  if(p.tut&&p.tut.side)hold(p.tut);
+  p.tut=t;
   if(!T.win)enterStep();
+}
+/* a side tutorial set aside comes back, first in SIDE order first, when the slot is free */
+function hold(t){const p=P();p.held=(p.held||[]).filter(x=>x!==t);p.held.push(t);}
+function unhold(){
+  const p=P();if(p.tut||!(p.held||[]).length)return;
+  p.held.sort((a,b)=>sideRank(a.side)-sideRank(b.side));
+  p.tut=p.held.shift();enterStep();
+}
+/* a tutorial has ended: a side beat's ends its side beat; a held side tutorial comes back */
+function tutEnded(t){
+  const p=P();
+  p.flags.tut[t.key]=1;
+  if(p.tut===t)p.tut=null;
+  p.held=(p.held||[]).filter(x=>x!==t);
+  if(t.side)sideDone(t.side);
+  unhold();
+  emit('tutDone',t.key);H.kick();
 }
 /* a step that opens a mechanic opens it as it comes up (Run Your Network's Recruit) */
 function enterStep(){
@@ -463,7 +544,7 @@ function stepHear(type,arg){
     if(s.until&&meets(s.until,type,arg,{})){p.tut.i=i+1;break;}
     if(!s.done||!s.done(H))break;
   }
-  if(p.tut.i>=T.steps.length){const k=p.tut.key;p.flags.tut[k]=1;p.tut=null;emit('tutDone',k);H.kick();}
+  if(p.tut.i>=T.steps.length)tutEnded(p.tut);
   else if(p.tut.i!==i0)enterStep();
 }
 /* the step to show now: the first not yet met, skipping steps whose live check holds */
@@ -481,6 +562,68 @@ const tutSeen=key=>{const p=P();return !!(p&&p.flags&&p.flags.tut&&p.flags.tut[k
 /* the Sources tutorial waits for the first brand-new Source (not a Prologue source) */
 function firstSource(){if(!tutSeen('sources')){startTut('sources');H.kick();}}
 
+/* ---------- the side-beat runner ---------- */
+const isSide=b=>SIDE.includes(b);
+const sideOf=id=>SIDE.find(s=>s.id===id)||null;
+const sideRank=id=>{const i=SIDE.findIndex(s=>s.id===id);return i<0?SIDE.length:i;};
+const sideFlags=()=>{const p=P();p.flags.side=p.flags.side||{};return p.flags.side;};
+const running=()=>SIDE.filter(s=>sideFlags()[s.id]==='run');
+/* the tutorial a side beat has up, held, or none */
+const sideTut=id=>{const p=P();return [p.tut].concat(p.held||[]).find(t=>t&&t.side===id)||null;};
+/* one side beat at a time: one fires when none before it in SIDE is running (a later one running is set aside) */
+function sideHear(type,arg){
+  const p=P(),f=sideFlags();
+  p.sideW=p.sideW||{};
+  for(const s of running())if(s.until&&meets(s.until,type,arg,p.sideW[s.id]=p.sideW[s.id]||{}))sideMet(s);
+  for(const s of SIDE){
+    if(f[s.id]==='run')return;
+    if(!f[s.id]&&s.when(H)){fireSide(s);return;}
+  }
+}
+/* a side beat fires: its actions wait their turn in the pop-up queue */
+function fireSide(s){
+  const p=P();
+  sideFlags()[s.id]='run';
+  p.sideW=p.sideW||{};p.sideW[s.id]={};
+  p.sideN=p.sideN||{};p.sideN[s.id]=0;
+  for(const a of s.does||[]){   // a window queues itself; anything else waits its turn behind what is already queued
+    if(isWinAct(a))act(a,s);
+    else{p.sideN[s.id]++;H.queue({act:a,beat:s.id});}
+  }
+  if(!p.sideN[s.id])sideDone(s.id);
+  H.kick();
+}
+function sideDone(id){
+  const p=P();
+  sideFlags()[id]='done';
+  if(p.sideW)delete p.sideW[id];
+  if(p.sideN)delete p.sideN[id];
+}
+/* the side beat's until is met: its tutorial skips to its closing cards (steps a Got it ends), or ends */
+function sideMet(s){
+  const p=P(),t=sideTut(s.id);
+  if(!t){sideDone(s.id);return;}   // no tutorial up yet (still queued) or none: the side beat is over
+  const T=PRO_TUTS[t.key];
+  while(t.i<T.steps.length&&!(T.steps[t.i].until&&T.steps[t.i].until.next))t.i++;
+  if(t.i<T.steps.length){if(p.tut===t)enterStep();return;}
+  tutEnded(t);
+}
+/* debug: fire one now, whatever its condition (any other side beat running is set aside as done) */
+function fireNow(id){
+  const s=sideOf(id),p=P();if(!s||!p)return false;
+  for(const o of running()){const t=sideTut(o.id);if(t){if(p.tut===t)p.tut=null;p.held=(p.held||[]).filter(x=>x!==t);}sideDone(o.id);}
+  unhold();
+  delete sideFlags()[id];
+  for(const a of s.does||[])if(a.tutorial)delete p.flags.tut[a.tutorial];
+  fireSide(s);
+  return true;
+}
+/* a jump skips the moments it passes: side beats whose condition already holds are spent */
+function spendSide(){const f=sideFlags();for(const s of SIDE)if(!f[s.id]&&s.when(H))f[s.id]='done';}
+const sideState=id=>sideFlags()[id]||null;
+/* a side beat added at runtime (the smoke test proves adding one means editing SIDE only) */
+function addSide(s){SIDE.push(s);}
+
 /* ---------- developer tools (§2.7) ---------- */
 /* jump: a new game, every setup up to the beat, then the beat begins */
 function jump(id){
@@ -489,22 +632,31 @@ function jump(id){
   const p=P();
   for(let k=0;k<=i;k++){const b=PROLOGUE[k];if(b.setup)b.setup(H.setup);}
   p.at=id;p.since=H.G().day;p.live=false;p.w={};
+  spendSide();
   H.afterJump(id);
   check(null,null);
   return true;
 }
 function openAll(){const p=P();if(p)p.gates['*']=1;}
-function replayTuts(){const p=P();if(p){p.flags.tut={};p.tut=null;}}
+function replayTuts(){const p=P();if(p){p.flags.tut={};p.flags.side={};p.tut=null;p.held=[];p.sideW={};p.sideN={};}}
 /* a beat added at runtime (the smoke test proves adding a beat means editing PROLOGUE only) */
 function addBeat(b,beforeId){const i=ix(beforeId||'frontier');PROLOGUE.splice(i<0?PROLOGUE.length:i,0,b);}
 
 /* the cast (a person the beats speak for), and an action run later from the pop-up queue */
 const cast=id=>PRO_CAST[id]?Object.assign({id},PRO_CAST[id]):null;
-function run(a,beatId){const b=PROLOGUE[ix(beatId)]||{id:beatId};act(a,b);H.kick();}
+function run(a,beatId){
+  const sd=sideOf(beatId),p=P();
+  if(sd&&sideState(beatId)!=='run')return;   // a side beat that ended before its turn in the queue came
+  const b=PROLOGUE[ix(beatId)]||sd||{id:beatId};act(a,b);
+  // a side beat whose last action has run, with no tutorial of its own up, is over
+  if(sd){p.sideN=p.sideN||{};p.sideN[beatId]=(p.sideN[beatId]||1)-1;if(p.sideN[beatId]<=0&&sideState(beatId)==='run'&&!sideTut(beatId))sideDone(beatId);}
+  H.kick();
+}
 
-window.Pro={PROLOGUE,PRO_TEXT,PRO_TUTS,PRO_CAST,GATES,SHORT_DAYS,cast,run,hostAct:(k,v)=>H.act[k](v,{id:'setup'}),
+window.Pro={PROLOGUE,SIDE,PRO_TEXT,PRO_TUTS,PRO_CAST,GATES,SHORT_DAYS,cast,run,hostAct:(k,v)=>H.act[k](v,{id:'setup'}),
   bind:h=>{H=h;},onGate:f=>onGate.push(f),fresh,
   emit,check,at,past,done:isDone,gate,openGate,text,beat:()=>{const b=beat();return b&&b.id;},live:()=>{const p=P();return !!(p&&p.live);},
   step,tutSeen,startTut,rearm,
-  jump,openAll,replayTuts,addBeat,index:ix};
+  jump,openAll,replayTuts,addBeat,index:ix,
+  side:sideState,sideRunning:()=>P()?running().map(s=>s.id):[],fireSide:fireNow,addSide};
 })();
