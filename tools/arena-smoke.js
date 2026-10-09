@@ -10,7 +10,10 @@
      and the title screen's "Enter Arena" button boots the Arena.
    (§8's 3–5, continuous fire, interrupts and doctrine, arrive with phases A2–A4.)
    SB section (docs/ARENA-SB-HANDOFF.md §9)
-     1. picker: both rulesets listed; e1_fox loads under each; after a v2 run and an SB run the campaign key is absent */
+     1. picker: both rulesets listed; e1_fox loads under each; after a v2 run and an SB run the campaign key is absent
+     3. envelope: a drag whose heading rate exceeds the turn cap gives a curve clamped at the cap; arc lengths respect
+        the speed range (Talon and freighter); two AP segments a round; Boost and Fly Defensively; the flair keeps
+        the arc */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -132,8 +135,58 @@ const SAVE_KEY='star-rebellion-campaign-v1';
   f.load('e1_fox','v2',null,1);f.runExecSync();
   out.v2Load=[D.ruleset,D.mod.key,D.metrics[D.metrics.length-1].ruleset];
   out.noSave=localStorage.getItem(SAVE_KEY)===null;
+  // 3. the envelope
+  f.load('e1_fox','sb',null,1);
+  const F=D.sim.fn,fox=D.sim.S.ships.find(q=>q.id==='P1');
+  const line=(o,ang,len,n)=>{const p=[];for(let i=0;i<=n;i++)p.push({x:o.x+Math.cos(ang)*len*i/n,y:o.y+Math.sin(ang)*len*i/n});return p;};
+  const hp=line(fox,fox.h,320,8);const e=hp[hp.length-1];for(let i=1;i<=8;i++)hp.push({x:e.x-Math.sin(fox.h)*30*i,y:e.y+Math.cos(fox.h)*30*i});
+  const kap=F.kappaOf(fox),env=F.envelope(fox,'basic');
+  const c1=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');
+  const kmax=Math.max(...c1.pts.map(p=>Math.abs(p.k)));
+  out.cap=[kap>0,kmax<=kap+1e-9,kmax>=kap*0.999];
+  const long=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,3000,10),'basic');
+  const short=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,40,2),'basic');
+  const arc=c=>{let L=0;for(let i=1;i<c.pts.length;i++)L+=Math.hypot(c.pts[i].x-c.pts[i-1].x,c.pts[i].y-c.pts[i-1].y);return L;};
+  out.talonLen=[Math.round(arc(long)),Math.round(env.Lmax),Math.round(arc(short)),Math.round(env.Lmin)];
+  const graf={id:'G',row:SRDB.ship('graf'),faction:'reb',pilot:{preset:'green'},crits:[],x:2000,y:1500,h:0};
+  const genv=F.envelope(graf,'basic');
+  const gl=F.buildCurve(graf,{x:2000,y:1500,h:0},line(graf,0,3000,10),'basic');
+  out.grafLen=[Math.round(arc(gl)),Math.round(genv.Lmax),genv.Lmax<env.Lmax];
+  const boost=F.envelope(fox,'boost');
+  out.boost=[boost.Lmax===env.Lmax*D.sim.BOOST_MULT_(),Math.abs(boost.kap-env.kap*D.sim.BOOST_TURN_())<1e-12];
+  // two segments: the second from the first's end handle; Fly Defensively on the first
+  const segs=F.planSegs('P1',[{kind:'flydef',pts:line(fox,fox.h,450,6)}]);
+  const s1=F.segEnd(segs[0]);
+  const c2=F.planSegs('P1',[{kind:'flydef',pts:line(fox,fox.h,450,6)},{kind:'basic',pts:line(s1,s1.h-0.6,500,6)}]);
+  out.planned=c2.length;
+  const end2=F.segEnd(c2[1]);
+  out.sched=F.fullSchedule(fox,c2).length===D.sim.AP_PER_ROUND_();
+  f.beginExec();
+  for(let i=0;i<20;i++)f.stepTick();
+  out.flydefOn=fox.flydef;
+  while(D.phase==='EXEC')f.stepTick();
+  out.flydefOff=!fox.flydef;
+  out.ends=Math.hypot(fox.x-end2.x,fox.y-end2.y)<1;
+  // one planned segment: the second AP glides on (unspent AP buys nothing)
+  const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h+0.4,400,6)}]);
+  const full=F.fullSchedule(fox,one);
+  out.glide=[full.length,!!full[1].auto,full[1].kind];
+  // the flair changes the pacing, not the arc
+  const on=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');D.sim.set('SPEED_FLAIR',false);
+  const off=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');D.sim.set('SPEED_FLAIR',true);
+  const mid=k=>F.poseAt({sched:[k,k]},0.5*f.EXEC_LEN_()/D.sim.AP_PER_ROUND_());
+  out.flair=[Math.abs(on.L-off.L)<1e-6,Math.hypot(mid(on).x-mid(off).x,mid(on).y-mid(off).y)>1];
   return out;
  },SAVE_KEY);
+ ok(sb.cap.every(Boolean),'SB 3: curve not clamped at the turn cap '+JSON.stringify(sb.cap));
+ ok(Math.abs(sb.talonLen[0]-sb.talonLen[1])<=1&&Math.abs(sb.talonLen[2]-sb.talonLen[3])<=1,'SB 3: Talon arc lengths outside its speed range '+JSON.stringify(sb.talonLen));
+ ok(Math.abs(sb.grafLen[0]-sb.grafLen[1])<=1&&sb.grafLen[2],'SB 3: freighter arc length '+JSON.stringify(sb.grafLen));
+ ok(sb.boost.every(Boolean),'SB 3: Boost envelope '+JSON.stringify(sb.boost));
+ ok(sb.planned===2&&sb.sched,'SB 3: two AP segments a round');
+ ok(sb.flydefOn&&sb.flydefOff,'SB 3: Fly Defensively should hold for its segment only');
+ ok(sb.ends,'SB 3: the ship did not end where its second segment ends');
+ ok(sb.glide[0]===2&&sb.glide[1]&&sb.glide[2]==='basic','SB 3: an unplanned AP should glide on '+JSON.stringify(sb.glide));
+ ok(sb.flair.every(Boolean),'SB 3: flair should pace the curve without changing its arc '+JSON.stringify(sb.flair));
  ok(JSON.stringify(sb.rulesets)==='["SR V2 Combat","SB Test"]','SB 1: rulesets listed '+JSON.stringify(sb.rulesets));
  ok(sb.scenHidden&&sb.scenShown,'SB 1: the scenario step should follow the ruleset choice');
  ok(sb.sbLoad[0]==='PLAN'&&sb.sbLoad[1]==='sb'&&sb.sbLoad[2]==='sb'&&sb.sbLoad[3]===3,'SB 1: e1_fox under SB '+JSON.stringify(sb.sbLoad));
