@@ -188,6 +188,18 @@ window.SR=(function(){
     requestAnimationFrame(frame);
     go('base',{boot:true});
   }
+  /* the Arena (docs/ARENA-HANDOFF.md §2.1): the same scene setup, but straight to the lab. No base, no campaign
+     load or save: the Arena never touches the campaign key. */
+  function bootArena(){
+    if(window.SR_THEME)window.SR_THEME.sync();
+    applyPrefs();
+    for(const n in scenes){
+      const el=document.getElementById('sc-'+n);
+      if(el)containers[n]=el;
+    }
+    requestAnimationFrame(frame);
+    go('arena',{});
+  }
   /* ---------- shared briefing furniture ----------
      Every scene builds its mission-brief objectives and squad cards
      through these, so the player sees one consistent language. */
@@ -230,7 +242,7 @@ window.SR=(function(){
   };
   /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,bootArena,endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

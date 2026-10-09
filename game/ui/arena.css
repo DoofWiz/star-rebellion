@@ -1,0 +1,72 @@
+/* =====================================================================
+   STAR REBELLION — the Arena (docs/ARENA-HANDOFF.md, docs/ARENA-SB-HANDOFF.md)
+   A designer's lab, not a player screen: plain tool styling on the house
+   tokens. Every id lives inside #sc-arena and starts with "ar".
+   ===================================================================== */
+#sc-arena{position:fixed;inset:0;background:var(--sr-void);color:var(--sr-text);font-family:var(--sr-font-ui);}
+#sc-arena .arn-shell{position:absolute;inset:0;display:flex;flex-direction:column;}
+#sc-arena .arn-top{flex:0 0 auto;display:flex;align-items:center;gap:var(--sr-s3);min-height:52px;padding:6px var(--sr-gutter);
+  background:var(--sr-night);border-bottom:2px solid var(--sr-ink);flex-wrap:wrap;}
+#sc-arena .arn-top__title{font:400 var(--sr-fs-md)/1.1 var(--sr-font-display);letter-spacing:.03em;}
+#sc-arena .arn-top__sub{font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+#sc-arena .arn-top__mid{flex:1 1 auto;display:flex;align-items:center;gap:var(--sr-s2);min-width:0;}
+#sc-arena .arn-phase{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;
+  font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.06em;
+  background:var(--sr-hull);border:2px solid var(--sr-ink);color:var(--sr-phase-plan);}
+#sc-arena .arn-phase[data-phase="EXEC"]{color:var(--sr-phase-fight);}
+#sc-arena .arn-phase[data-phase="OVER"],#sc-arena .arn-phase[data-phase="PICK"]{color:var(--sr-text-2);}
+#sc-arena .arn-chip{font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);white-space:nowrap;}
+#sc-arena .arn-body{flex:1 1 auto;position:relative;display:flex;min-height:0;}
+#sc-arena .arn-stage{flex:1 1 auto;position:relative;min-width:0;overflow:hidden;}
+#sc-arena .arn-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+#sc-arena .arn-orders{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding:8px 10px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:2px solid var(--sr-ink);border-radius:var(--sr-r-lg);
+  box-shadow:var(--sr-lift);font-size:var(--sr-fs-sm);pointer-events:auto;}
+#sc-arena .arn-orders:empty{display:none;}
+#sc-arena .arn-orders__name{font-weight:800;margin-right:4px;}
+#sc-arena .arn-orders__note{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
+#sc-arena .arn-orders__grp{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;padding-left:6px;border-left:2px solid var(--sr-seam);}
+#sc-arena .arn-orders__lbl{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.06em;}
+#sc-arena .arn-orders .sr-btn{min-height:30px;padding:0 10px;font-size:var(--sr-fs-xs);}
+/* the designer panel: a collapsible dock on the right */
+#sc-arena .arn-panel{flex:0 0 300px;display:flex;flex-direction:column;min-height:0;background:var(--sr-night);border-left:2px solid var(--sr-ink);}
+#sc-arena .arn-panel.is-collapsed{flex-basis:44px;}
+#sc-arena .arn-panel.is-collapsed .arn-panel__scroll{display:none;}
+#sc-arena .arn-panel__head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid var(--sr-ink);font-weight:800;font-size:var(--sr-fs-sm);}
+#sc-arena .arn-panel.is-collapsed .arn-panel__title{display:none;}
+#sc-arena .arn-panel__scroll{flex:1 1 auto;overflow:auto;padding:8px 10px 24px;}
+#sc-arena .arn-grp{margin:0 0 14px;}
+#sc-arena .arn-grp__head{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-psi);text-transform:uppercase;letter-spacing:.08em;margin:6px 0 8px;}
+#sc-arena .arn-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:0 0 8px;font-size:var(--sr-fs-xs);}
+#sc-arena .arn-row label{color:var(--sr-text-2);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-arena .arn-row output{font-weight:800;font-variant-numeric:tabular-nums;}
+#sc-arena .arn-row input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--sr-gold);}
+#sc-arena .arn-row--toggle{grid-template-columns:auto 1fr;}
+#sc-arena .arn-row--toggle input{accent-color:var(--sr-gold);width:16px;height:16px;margin:0;}
+#sc-arena .arn-btns{display:flex;flex-wrap:wrap;gap:6px;}
+#sc-arena .arn-btns .sr-btn{min-height:30px;padding:0 10px;font-size:var(--sr-fs-xs);}
+#sc-arena .arn-readout{font:600 var(--sr-fs-xs)/1.45 var(--sr-font-ui);color:var(--sr-text-2);white-space:pre-wrap;font-variant-numeric:tabular-nums;}
+/* the picker and the end card */
+#sc-arena .arn-scrim{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:rgba(4,6,13,.72);}
+#sc-arena .arn-win{width:min(720px,100%);max-height:100%;overflow:auto;background:var(--sr-hull);border:2px solid var(--sr-ink);
+  border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);padding:18px 20px;}
+#sc-arena .arn-win h2{margin:0 0 4px;font:400 var(--sr-fs-xl)/1.1 var(--sr-font-display);letter-spacing:.02em;}
+#sc-arena .arn-win p{margin:0 0 12px;color:var(--sr-text-2);font-size:var(--sr-fs-sm);}
+#sc-arena .arn-pick{display:grid;gap:8px;margin:10px 0 0;}
+#sc-arena .arn-pick__item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--sr-r-lg);
+  background:var(--sr-plate);border:2px solid var(--sr-ink);}
+#sc-arena .arn-pick__txt{flex:1 1 auto;min-width:0;}
+#sc-arena .arn-pick__name{font-weight:800;font-size:var(--sr-fs-md);}
+#sc-arena .arn-pick__desc{color:var(--sr-text-2);font-size:var(--sr-fs-xs);margin-top:2px;}
+#sc-arena .arn-pick__go{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;}
+#sc-arena .arn-pick__go .sr-btn{min-height:32px;font-size:var(--sr-fs-xs);}
+#sc-arena .arn-fine{color:var(--sr-text-3);font-size:var(--sr-fs-xs);margin-top:12px;}
+@media (max-width:760px){
+  #sc-arena .arn-panel{position:absolute;right:0;top:0;bottom:0;z-index:4;flex-basis:auto;width:min(300px,86vw);}
+  #sc-arena .arn-panel.is-collapsed{width:44px;}
+  #sc-arena .arn-orders{right:56px;}
+  #sc-arena .arn-pick__item{flex-direction:column;align-items:stretch;}
+}
+/* the title screen's second button: a tool, not a player choice */
+#splash .splash__arena{color:var(--sr-psi);border:1.5px dashed color-mix(in srgb,var(--sr-psi) 60%,transparent);--c:transparent;box-shadow:none;}

@@ -287,7 +287,7 @@ window.SR_INTRO=(function(){
     el.dataset.stage=t<STAMP_AT?'dev':'title';
     if(t>READY_AT&&!ready){ready=true;el.classList.add('is-ready');const btn=el.querySelector('#splashStart');if(btn)btn.focus({preventScroll:true});}
   }
-  function start(){
+  function start(ev,cb){
     if(leaving)return;
     leaving=true;
     try{
@@ -296,21 +296,23 @@ window.SR_INTRO=(function(){
       SR.audio.osc('sine',110,70,0.16,0.4,0.05);
     }catch(e){}
     el.classList.add('is-leaving');
-    const done=()=>{cancelAnimationFrame(raf);if(el){el.remove();el=null;}if(onStartCb)onStartCb();};
+    const go=cb||onStartCb,done=()=>{cancelAnimationFrame(raf);if(el){el.remove();el=null;}if(go)go();};
     if(RM)done();else setTimeout(done,460);
   }
-  function show(onStart){
+  function show(onStart,onArena){
     onStartCb=onStart;
     el=document.createElement('div');
     el.id='splash';
     el.innerHTML='<canvas></canvas><div class="splash__ui">'+
-      '<button type="button" class="sr-btn sr-btn--primary sr-btn--lg" id="splashStart">Start game</button></div>';
+      '<button type="button" class="sr-btn sr-btn--primary sr-btn--lg" id="splashStart">Start game</button>'+
+      (onArena?'<button type="button" class="sr-btn sr-btn--sm splash__arena" id="splashArena">Enter Arena</button>':'')+'</div>';   // the Arena lab (docs/ARENA-HANDOFF.md §2.1)
     document.body.appendChild(el);
     cv=el.querySelector('canvas');c2=cv.getContext('2d');
     try{const sv=SR.loadSave();if(sv&&sv.started)el.querySelector('#splashStart').textContent='Continue';}catch(e){}
     el.querySelector('#splashStart').addEventListener('click',start);
+    if(onArena)el.querySelector('#splashArena').addEventListener('click',ev=>start(ev,onArena));
     el.addEventListener('pointerdown',ev=>{   // a tap skips the developer's mark; a second slams the badge home early
-      if(ready||ev.target.id==='splashStart')return;
+      if(ready||ev.target.id==='splashStart'||ev.target.id==='splashArena')return;
       const t=performance.now()-t0;
       skipTo=(dev&&t<STAMP_AT&&skipTo<STAMP_AT)?STAMP_AT:STAMP_AT+STAMP_MS+SETTLE_MS+20;
     });
