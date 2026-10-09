@@ -13,7 +13,13 @@
      1. picker: both rulesets listed; e1_fox loads under each; after a v2 run and an SB run the campaign key is absent
      3. envelope: a drag whose heading rate exceeds the turn cap gives a curve clamped at the cap; arc lengths respect
         the speed range (Talon and freighter); two AP segments a round; Boost and Fly Defensively; the flair keeps
-        the arc */
+        the arc
+     4. projectiles: a shot only damages on geometric intersection (an offset target is untouched); a skim deals less
+        than a direct hit from the same weapon; a panicking pilot's burst spread is wider than the same pilot calm
+     5. lock: lock % rises with the target centred and falls behind the firer; a missile is refused below
+        MISSILE_LOCK and inside MISSILE_MINR, and ignores Fly Defensively (even the immune toggle)
+     6. determinism: same seed + scripted orders → identical end-state hash
+     7. metrics: SB records carry ruleset 'sb' and burst / hit counts; a 1v2 chase has live fire */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -194,6 +200,100 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  ok(sb.v2Load.join()==='v2,v2,v2','SB 1: e1_fox under v2 '+JSON.stringify(sb.v2Load));
  ok(sb.noSave,'SB 1: the campaign key appeared after a v2 run and an SB run');
 
+ /* ---------- SB combat ---------- */
+ const sc=await pg.evaluate(()=>{
+  const D=window.DBGarena,f=D.fn,out={};
+  const setup=()=>{
+    f.load('e1_fox','sb',null,5);
+    const S=D.sim.S,F=D.sim.fn;
+    F.setRng(()=>0.5);
+    const fox=S.ships.find(q=>q.id==='P1'),e1=S.ships.find(q=>q.id==='E1'),e2=S.ships.find(q=>q.id==='E2');
+    e2.alive=false;S.rocks.length=0;   // an open field: the belt would block some of these lines
+    Object.assign(fox,{x:1500,y:1500,h:0,vx:0,vy:0});Object.assign(e1,{x:1900,y:1500,h:Math.PI/2,vx:0,vy:0});
+    fox.target='E1';e1.target='P1';
+    return {S,F,fox,e1};
+  };
+  const hp=t=>t.segs.F.val+t.segs.R.val+t.arm+t.hull;
+  const fly=(F,S)=>{for(let i=0;i<120&&S.proj.length+S.missiles.length;i++){F.projTick(0.05);F.missileTick(0.05);}};
+  // 4. intersection
+  let {S,F,fox,e1}=setup();
+  let h0=hp(e1);F.shoot('P1',0);fly(F,S);out.direct=h0-hp(e1);
+  ({S,F,fox,e1}=setup());e1.y=1500+120;h0=hp(e1);F.shoot('P1',0);fly(F,S);out.offset=h0-hp(e1);
+  // skim vs direct: the same weapon, the same roll, no lock. Direct: into the broadside. Skim: along the hull's
+  // length, grazing its edge.
+  ({S,F,fox,e1}=setup());
+  const ax=F.hullAxes(e1,false);
+  e1.h=Math.PI/2;fox.x=1900-400;fox.y=1500;h0=hp(e1);F.shoot('P1',0);fly(F,S);const dDirect=h0-hp(e1);
+  ({S,F,fox,e1}=setup());
+  e1.h=0;fox.x=1900-400;fox.y=1500+ax.b*0.97;h0=hp(e1);F.shoot('P1',0);fly(F,S);const dSkim=h0-hp(e1);
+  const hitD=F.hullHit(Object.assign({},e1,{h:Math.PI/2}),{x:1500,y:1500},{x:2000,y:1500},false);
+  const hitS=F.hullHit(Object.assign({},e1,{h:0}),{x:1500,y:1500+ax.b*0.97},{x:2000,y:1500+ax.b*0.97},false);
+  out.skim=[dDirect,dSkim,+F.impactOf(1,0,hitD).toFixed(2),+F.impactOf(1,0,hitS).toFixed(2)];
+  // spread: the same pilot calm and panicking
+  ({S,F,fox,e1}=setup());
+  const w=fox.wpns[0].w;
+  fox.pilot.cool=85;const calm=F.spreadOf(fox,w,500);
+  fox.pilot.cool=15;const panic=F.spreadOf(fox,w,500);
+  fox.pilot.cool=85;const far=F.spreadOf(fox,w,800);
+  out.spread=[+(calm*180/Math.PI).toFixed(2),+(panic*180/Math.PI).toFixed(2),+(far*180/Math.PI).toFixed(2)];
+  // 5. lock: centred, it climbs; behind the firer, it falls
+  ({S,F,fox,e1}=setup());
+  for(let i=0;i<20;i++)F.lockTick(fox,0.05);
+  const up=F.lockOf(fox,'E1');
+  fox.h=Math.PI;for(let i=0;i<10;i++)F.lockTick(fox,0.05);
+  const down=F.lockOf(fox,'E1');
+  // off-centre (near the arc's edge) gains slower than dead centre
+  ({S,F,fox,e1}=setup());fox.h=0.45;for(let i=0;i<20;i++)F.lockTick(fox,0.05);const edge=F.lockOf(fox,'E1');
+  out.lock=[+up.toFixed(3),+down.toFixed(3),+edge.toFixed(3)];
+  // missiles: refused below the lock threshold and inside the minimum range
+  ({S,F,fox,e1}=setup());
+  F.setLoadout('P1',['missiles']);const q=fox.wpns[0];
+  e1.x=1500+700;fox.locks.E1=0.3;const r1=F.missileRefusal(fox,q,e1);
+  fox.locks.E1=1;e1.x=1500+300;const r2=F.missileRefusal(fox,q,e1);
+  e1.x=1500+700;const r3=F.missileRefusal(fox,q,e1);
+  // and a launched missile hits a target flying defensively, even with the immune toggle on
+  D.sim.set('flydefImmunity',true);
+  e1.flydef=true;h0=hp(e1);
+  F.fireTick(fox,0.05);const launched=S.missiles.length;fly(F,S);
+  const mDmg=h0-hp(e1);
+  // while a plain shot passes straight through it
+  h0=hp(e1);F.setLoadout('P1',['bls-t-light-repeaters']);F.shoot('P1',0);fly(F,S);const pDmg=h0-hp(e1);
+  D.sim.set('flydefImmunity',false);
+  // the default profile: a hit is still possible, on a smaller hull
+  const axFd=F.hullAxes(e1,false),axHome=F.hullAxes(e1,true);
+  e1.flydef=false;
+  out.missile=[r1,r2,r3,launched,mDmg>0,pDmg,+(axFd.a*axFd.b/(axHome.a*axHome.b)).toFixed(2)];
+  // 6. determinism: the same seed and scripted orders, twice
+  const script=()=>{
+    f.load('e1_fox','sb',null,77);
+    for(let t=0;t<4&&D.phase==='PLAN';t++){
+      const s=D.sim.S.ships.find(x=>x.id==='P1');
+      const pts=[];for(let i=0;i<=8;i++)pts.push({x:s.x+Math.cos(s.h+i*0.08)*60*i,y:s.y+Math.sin(s.h+i*0.08)*60*i});
+      D.sim.fn.planSegs('P1',[{kind:t%2?'flydef':'basic',pts}]);f.runExecSync();
+    }
+    return f.stateHash();
+  };
+  const a=script(),b=script();
+  out.det=[a===b,a.length>0];
+  // 7. metrics, and a chase with live fire
+  f.load('e1_fox','sb',null,3);
+  for(let i=0;i<3&&D.phase==='PLAN';i++)f.runExecSync();
+  const recs=D.metrics.filter(r=>r.ruleset==='sb'&&r.seed===3);
+  const last=recs[recs.length-1];
+  out.metrics=[recs.length>=1,recs.every(r=>r.ships.every(x=>['bursts','shots','hits','dmg','lockMax'].every(k=>typeof x[k]==='number')))];
+  out.fire=[last.ships.reduce((n,x)=>n+x.shots,0),last.ships.reduce((n,x)=>n+x.hits,0)];
+  return out;
+ });
+ ok(sc.direct>0&&sc.offset===0,'SB 4: intersection: direct '+sc.direct+', offset '+sc.offset);
+ ok(sc.skim[0]>sc.skim[1]&&sc.skim[1]>0&&sc.skim[2]>0.95&&sc.skim[3]<0.5,'SB 4: skim vs direct '+JSON.stringify(sc.skim));
+ ok(sc.spread[1]>sc.spread[0]&&sc.spread[2]>sc.spread[0],'SB 4: spread calm/panic/far '+JSON.stringify(sc.spread));
+ ok(sc.lock[0]>0.3&&sc.lock[1]<sc.lock[0]&&sc.lock[2]<sc.lock[0],'SB 5: lock centred/behind/edge '+JSON.stringify(sc.lock));
+ ok(sc.missile[0]==='lock'&&sc.missile[1]==='too close'&&sc.missile[2]===null&&sc.missile[3]===1&&sc.missile[4],'SB 5: missile rules '+JSON.stringify(sc.missile));
+ ok(sc.missile[5]===0&&Math.abs(sc.missile[6]-0.25)<0.01,'SB 5: Fly Defensively: immune toggle and profile '+JSON.stringify(sc.missile));
+ ok(sc.det.every(Boolean),'SB 6: determinism '+JSON.stringify(sc.det));
+ ok(sc.metrics.every(Boolean),'SB 7: metrics '+JSON.stringify(sc.metrics));
+ ok(sc.fire[0]>0&&sc.fire[1]>0,'SB 7: a 1v2 chase should have live fire '+JSON.stringify(sc.fire));
+
  /* ---------- the title screen's button ---------- */
  const pg2=await ctx.newPage();
  pg2.on('pageerror',e=>errs.push('title: '+e.message));
@@ -210,7 +310,7 @@ const SAVE_KEY='star-rebellion-campaign-v1';
  }
 
  ok(!errs.length,'errors: '+errs.join(' | '));
- console.log(JSON.stringify({v2,sb,errors:errs}));
+ console.log(JSON.stringify({v2,sb,sc,errors:errs}));
  if(fails.length){console.log('FAIL\n- '+fails.join('\n- '));await b.close();process.exit(1);}
  console.log('arena-smoke: all checks passed');
  await b.close();
