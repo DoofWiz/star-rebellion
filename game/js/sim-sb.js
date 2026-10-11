@@ -33,11 +33,11 @@ let BOOST_MULT=2.0;       // Boost: segment speed multiplier. placeholder
 let BOOST_TURN=0.25;      // Boost: turn-rate cap multiplier (the handoff's ×0.25). placeholder
 let KTURN_MAX=3;          // K-Turn: speed cap, as the dial's K (space.js dialAvail ~140). placeholder
 let BARREL_LAT=1;         // Barrel Roll: lateral displacement, in speed units. placeholder
-let FLAIR_DIP=0.55;       // acceleration flair: how much a minimum-radius turn brakes at its apex. placeholder
+let FLAIR_DIP=0.35;       // acceleration flair: how much a minimum-radius turn brakes at its apex. placeholder
 let SPEED_SCALE=1.25;     // every craft's speed range × this; turn radius unchanged. placeholder
 let SLIP_OUT=32;          // how far a ship slides wide of its arc through a minimum-radius turn, world units. placeholder
 let SLIP_NOSE=0.42;       // how far the nose leads into a minimum-radius turn, radians (the guns come round first). placeholder
-let ACCEL=0.022;          // how fast speed can rise per 8 units flown (fraction of cruise). placeholder
+let ACCEL=0.03;           // how fast speed can rise per 8 units flown (fraction of cruise). placeholder
 let BRAKE=0.05;           // how fast it can fall. placeholder
 let SHIP_SCALE=1.35;      // drawn size and hull ellipse together, so what you see is what gets hit. placeholder
 let BANK_ROLL=0.75;       // how far a ship rolls into a turn at its minimum radius (visual). placeholder
@@ -992,8 +992,8 @@ function poseAt(s,t){
   const u=Math.max(0,Math.min(1,(t-t0)/((t1-t0)||1))),p=segPose(seg,u);
   let nose=p.vh;
   if(seg.flip&&u>0.82)nose=p.vh+Math.PI*Math.min(1,(u-0.82)/0.18);   // space.js manPath's K: the flip in the last 18%
-  else if(seg.kind==='drift'&&seg.facing!=null){   // the nose swings to the facing (0.45 s), holds, and swings back (0.3 s)
-    const inK=Math.min(1,(t-t0)/0.45),outK=Math.max(0,1-(t1-t)/0.3),f=seg.facing;
+  else if(seg.kind==='drift'&&seg.facing!=null){   // the nose swings to the facing (0.25 s), holds, and swings back (0.2 s)
+    const inK=Math.min(1,(t-t0)/0.25),outK=Math.max(0,1-(t1-t)/0.2),f=seg.facing;
     nose=p.vh+angNorm(f-p.vh)*inK*(1-outK);
   } else if(seg.kapBase>0&&seg.kind!=='barrel'){   // the slip: in a hard turn the nose leads the line of flight
     const r=Math.min(1,Math.abs(seg.k)/seg.kapBase);
@@ -1332,7 +1332,7 @@ function stateHash(){return S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s
 function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+s.hull+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
 
 return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,draw,hud,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
-  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{planEnemy,planSearch,predictor,aiPickTarget,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,renderPose,focus,dialOf,distanceLeft,feasible,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
+  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{reachOutline,planEnemy,planSearch,predictor,aiPickTarget,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,renderPose,focus,dialOf,distanceLeft,feasible,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
       actionsFor,setAction,doAction,specialAbilities,shipAbilities,aiActionOf,
       hullHit,hullAxes,impactOf,hitShip,spreadOf,aimAngle,canFire,missileRefusal,lockOf,lockTick,combatTick,projTick,missileTick,fireTick,emitBursts,applyDamage,adjCool,coolState,
       setRng(f){S.rng=f;},setLoadout(id,list){const s=byIdS(id);s.wpns=loadout(s.row,list);return s.wpns;},

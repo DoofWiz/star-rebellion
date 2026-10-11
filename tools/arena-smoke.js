@@ -556,7 +556,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
     const m=D.metrics[D.metrics.length-1].ships.filter(x=>x.faction==='heg');
     arc+=m.reduce((a,x)=>a+x.arcT,0);hits+=m.reduce((a,x)=>a+x.hits,0);
   }
-  out.threat=[+(arc/rounds).toFixed(2),hits,rounds];
+  out.threat=[+(arc/(rounds*f.EXEC_LEN_()*2)).toFixed(2),hits,rounds];   // share of the time two pursuers could have their guns on it
   // in the asteroid belt, no enemy flies into a rock
   f.load('sb1_fox','sb',null,5);
   const S=D.sim.S;let inRock=0;
@@ -567,7 +567,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.rocks=inRock;
   return out;
  });
- ok(ai.threat[0]>=3&&ai.threat[1]>=10,'SB AI: pursuers should keep their guns on a weaving fox (seconds a round, hits, rounds) '+JSON.stringify(ai.threat));
+ ok(ai.threat[0]>=0.25&&ai.threat[1]>=10,'SB AI: pursuers should keep their guns on a weaving fox (share of the round, hits, rounds) '+JSON.stringify(ai.threat));
  ok(ai.rocks===0,'SB AI: an enemy flew into a rock ('+ai.rocks+' ticks)');
 
  /* ---------- SB B5: doctrine, the panel, the experiments ---------- */

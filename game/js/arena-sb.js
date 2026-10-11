@@ -40,9 +40,9 @@ const SA=window.SR_ART;
 /* ---------- world: copied from space.js ~20 (W, H, MARGIN, RU, SU) ---------- */
 const W=4200,H=3000,MARGIN=120,RU=300,SU=150;
 const TICK=50;                 // ms of sim time per tick. placeholder
-let EXEC_LEN=6;                // seconds of sim time per exec. placeholder (panel 2–10)
+let EXEC_LEN=3;                // seconds of sim time per exec: SB's own (v2 keeps 6), so a round's move flies quickly. placeholder (panel 1.5–10)
 let SIM_SPEED=1;               // wall-clock multiplier (panel 0.25–2)
-const EXEC_LEN_MIN=2,EXEC_LEN_MAX=10,SIM_SPEED_MIN=0.25,SIM_SPEED_MAX=2;
+const EXEC_LEN_MIN=1.5,EXEC_LEN_MAX=10,SIM_SPEED_MIN=0.25,SIM_SPEED_MAX=2;
 const PREFS_KEY='sr-arena-sb-prefs';   // SB Test's own key (v2 keeps sr-arena-prefs); never the campaign's
 
 /* ---------- seeded RNG (the DBGspace setRng idea, but always on) ---------- */
@@ -289,7 +289,7 @@ function frame(now){
 /* the chase camera (panel toggle): while the sim runs it frames your selected ship, a little ahead of it, and its
    target, easing there so the view never jumps. Pan or zoom by hand and it lets go until the next exec. */
 let FOLLOW=true;
-const CHASE_ZMIN=0.45,CHASE_ZMAX=1.0,CHASE_PAD=240,CHASE_EASE=2.6;   // zoom limits, framing margin (world units), easing rate (per s)
+const CHASE_ZMIN=0.45,CHASE_ZMAX=1.0,CHASE_PAD=240,CHASE_EASE=5;   // zoom limits, framing margin (world units), easing rate (per s)
 function chase(dtMs){
   if(!FOLLOW||A.camHeld||!A.mod.focus)return;
   const pts=A.mod.focus();if(!pts||!pts.length)return;
@@ -423,7 +423,7 @@ function fmt(v,step){return step&&step<1?(+v).toFixed(step<0.1?2:step<1?1:0).rep
 let PANEL={};
 function globalGroup(){
   return [
-    {key:'EXEC_LEN',label:'Exec length (s)',min:EXEC_LEN_MIN,max:EXEC_LEN_MAX,step:1,get:()=>EXEC_LEN,set:v=>{EXEC_LEN=v;}},
+    {key:'EXEC_LEN',label:'Exec length (s)',min:EXEC_LEN_MIN,max:EXEC_LEN_MAX,step:0.5,get:()=>EXEC_LEN,set:v=>{EXEC_LEN=v;}},
     {key:'SIM_SPEED',label:'Sim speed (×)',min:SIM_SPEED_MIN,max:SIM_SPEED_MAX,step:0.25,get:()=>SIM_SPEED,set:v=>{SIM_SPEED=v;savePrefs();}},
     {key:'FOLLOW',label:'Chase camera while it runs',type:'toggle',get:()=>FOLLOW,set:v=>{FOLLOW=v;}},
   ];
