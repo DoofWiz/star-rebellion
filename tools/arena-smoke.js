@@ -253,11 +253,22 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.load('e1_fox','sb',null,1);
   const F=D.sim.fn,fox=D.sim.S.ships.find(q=>q.id==='P1');
   const line=(o,ang,len,n)=>{const p=[];for(let i=0;i<=n;i++)p.push({x:o.x+Math.cos(ang)*len*i/n,y:o.y+Math.sin(ang)*len*i/n});return p;};
-  const hp=line(fox,fox.h,320,8);const e=hp[hp.length-1];for(let i=1;i<=8;i++)hp.push({x:e.x-Math.sin(fox.h)*30*i,y:e.y+Math.cos(fox.h)*30*i});
-  const kap=F.kappaOf(fox),env=F.envelope(fox,'basic');
-  const c1=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');
-  const kmax=Math.max(...c1.pts.map(p=>Math.abs(p.k)));
-  out.cap=[kap>0,kmax<=kap+1e-9,kmax>=kap*0.999];
+  // the drag is a destination (the designer, 11 Oct): ahead and a little to one side, the ship banks to it exactly
+  const kap=F.kappaOf(fox),env=F.envelope(fox,'basic'),P0={x:fox.x,y:fox.y,h:fox.h};
+  const rel=(o,ahead,side)=>({x:o.x+Math.cos(o.h)*ahead-Math.sin(o.h)*side,y:o.y+Math.sin(o.h)*ahead+Math.cos(o.h)*side});
+  const near=rel(P0,600,140),cb=F.buildCurve(fox,P0,[near],'basic'),eb=cb.pts[cb.pts.length-1];
+  out.bank=[cb.reached,Math.round(Math.hypot(eb.x-near.x,eb.y-near.y)),cb.k!==0,cb.pts.every(q=>q.k===cb.k),Math.abs(cb.k)<kap];
+  // too tight a corner (just beside the nose): the arc turns at the cap, toward the pointer's side, and stops where
+  // that hardest turn passes nearest the pointer within one lap (checked by sweeping the turn's length)
+  const tight=rel(P0,30,-130),ct=F.buildCurve(fox,P0,[tight],'basic'),et=ct.pts[ct.pts.length-1];
+  const lap=Math.min(env.Lmax,2*Math.PI/kap);
+  let best=1e9;for(let j=0;j<=200;j++){const ll=env.Lmin+(lap-env.Lmin)*j/200,a=F.arcLocal(ct.k,ll);
+    const q={x:P0.x+a.x*Math.cos(P0.h)-a.y*Math.sin(P0.h),y:P0.y+a.x*Math.sin(P0.h)+a.y*Math.cos(P0.h)};best=Math.min(best,Math.hypot(q.x-tight.x,q.y-tight.y));}
+  // a destination past the speed range: the same arc, cut short at the top speed
+  const far=rel(P0,200,1100),cf=F.buildCurve(fox,P0,[far],'basic'),exact=F.solveArc(P0,far,{Lmin:0,Lmax:1e9,kap});
+  out.far=[!cf.reached,Math.round(cf.L)===Math.round(env.Lmax),Math.abs(cf.k-exact.k)<1e-12];
+  const missT=Math.hypot(et.x-tight.x,et.y-tight.y);
+  out.cap=[kap>0,!ct.reached,ct.k===-kap,missT<=best+0.5,ct.L<=lap+1e-6,Math.round(missT)];
   const long=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,3000,10),'basic');
   const short=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,40,2),'basic');
   const arc=c=>{let L=0;for(let i=1;i<c.pts.length;i++)L+=Math.hypot(c.pts[i].x-c.pts[i-1].x,c.pts[i].y-c.pts[i-1].y);return L;};
@@ -285,14 +296,17 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h+0.4,400,6)}]);
   const full=F.fullSchedule(fox,one);
   out.glide=[full.length,!!full[1].auto,full[1].kind];
-  // the flair changes the pacing, not the arc
-  const on=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');D.sim.set('SPEED_FLAIR',false);
-  const off=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},hp,'basic');D.sim.set('SPEED_FLAIR',true);
-  const mid=k=>F.poseAt({sched:[k,k]},0.5*f.EXEC_LEN_()/D.sim.AP_PER_ROUND_());
-  out.flair=[Math.abs(on.L-off.L)<1e-6,Math.hypot(mid(on).x-mid(off).x,mid(on).y-mid(off).y)>1];
+  // the flair changes the pacing, not the path: a tight turn then a straight, slower in the turn and quicker out
+  const pace=on=>{D.sim.set('SPEED_FLAIR',on);const sc=F.paceSchedule(F.fullSchedule(fox,[F.buildCurve(fox,P0,[tight],'basic')]));D.sim.set('SPEED_FLAIR',true);return sc;};
+  const fOn=pace(true),fOff=pace(false),segT=f.EXEC_LEN_()/D.sim.AP_PER_ROUND_();
+  const endOf=sc=>F.segEnd(sc[sc.length-1]);
+  out.flair=[Math.abs(fOff[0].t1-segT)<1e-6,fOn[0].t1>segT+0.1,Math.abs(fOn[1].t1-f.EXEC_LEN_())<1e-6,
+    Math.hypot(endOf(fOn).x-endOf(fOff).x,endOf(fOn).y-endOf(fOff).y)<1e-6];
   return out;
  },CAMPAIGN_KEY);
- ok(sb.cap.every(Boolean),'SB 3: curve not clamped at the turn cap '+JSON.stringify(sb.cap));
+ ok(sb.bank[0]&&sb.bank[1]<=1&&sb.bank[2]&&sb.bank[3]&&sb.bank[4],'SB 3: a reachable destination should be one banked arc ending on it '+JSON.stringify(sb.bank));
+ ok(sb.cap.slice(0,5).every(Boolean),'SB 3: too tight a corner should turn at the cap, toward the pointer, and stop nearest it '+JSON.stringify(sb.cap));
+ ok(sb.far.every(Boolean),'SB 3: a destination past top speed should cut the same arc short '+JSON.stringify(sb.far));
  ok(Math.abs(sb.talonLen[0]-sb.talonLen[1])<=1&&Math.abs(sb.talonLen[2]-sb.talonLen[3])<=1,'SB 3: Talon arc lengths outside its speed range '+JSON.stringify(sb.talonLen));
  ok(Math.abs(sb.grafLen[0]-sb.grafLen[1])<=1&&sb.grafLen[2],'SB 3: freighter arc length '+JSON.stringify(sb.grafLen));
  ok(sb.boost.every(Boolean),'SB 3: Boost envelope '+JSON.stringify(sb.boost));
