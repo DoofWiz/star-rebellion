@@ -91,6 +91,9 @@ parametric movement; the turn structure is the only thing that is discrete.
 - `arena.js` registers with `SR.register('arena',{enter,exit,frame})`, exactly as the other scenes do.
 - Entering the Arena shows the **scenario picker**: the scenario list (§6), each with a one-line description, plus
   the global sliders' current values. Picking one builds the sim (§3) and starts at the first PLAN.
+- **Amendment (9 Oct, evening):** a **ruleset choice comes before the scenario picker** — "SR V2 Combat" (this
+  file's §3 sim) or "SB Test" (`docs/ARENA-SB-HANDOFF.md`), so the two models are compared on the same scenarios.
+  That file owns the picker's spec (its §1); nothing else in this file changes.
 
 ### 2.3 Scenario loader
 

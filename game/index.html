@@ -405,10 +405,32 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 </div>
 <div class="sr-scrim" id="arPicker" hidden>
   <div class="sr-window sr-window--lg">
-    <div class="sr-window__head"><div class="sr-window__title">Arena: pick a scenario</div></div>
-    <div class="sr-window__body"><div id="arScnList"></div></div>
+    <div class="sr-window__head"><div class="sr-window__title" id="arRulesetTitle">Arena: pick a ruleset</div></div>
+    <div class="sr-window__body"><div id="arRulesets"></div><div id="arScnStep" hidden><div id="arScnList"></div></div></div>
     <div class="sr-window__foot"><span class="sr-window__note" id="arTuneNow"></span></div>
   </div>
+</div>
+<div class="arn-root" id="arSb" hidden>
+<div class="arn-shell">
+  <header class="arn-top">
+    <div><div class="arn-top__title" id="sbTitle">SB Test</div><div class="arn-top__sub" id="sbSub"></div></div>
+    <div class="arn-top__mid"><span class="arn-phase" id="sbPhase" data-phase="PICK">Pick</span><span class="arn-chip" id="sbTurn"></span><span class="arn-chip" id="sbObj"></span></div>
+    <button type="button" class="sr-btn sr-btn--sm" id="sbFit">Fit map</button>
+    <button type="button" class="sr-btn sr-btn--sm sr-btn--primary" id="sbExecTop" hidden>Execute</button>
+  </header>
+  <div class="arn-body">
+    <div class="arn-stage">
+      <canvas id="sbCv"></canvas>
+      <div class="arn-orders" id="sbOrders"></div>
+      <div class="arn-scrim" id="sbPicker" hidden></div>
+      <div class="arn-scrim" id="sbEnd" hidden></div>
+    </div>
+    <aside class="arn-panel" id="sbPanel">
+      <div class="arn-panel__head"><button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" id="sbPanelToggle" aria-label="Designer panel" aria-expanded="true">&#9776;</button><span class="arn-panel__title">Designer panel</span></div>
+      <div class="arn-panel__scroll" id="sbPanelBody"></div>
+    </aside>
+  </div>
+</div>
 </div>
 <div class="sr-scrim" id="arOver" hidden>
   <div class="sr-window sr-window--sm">
@@ -446,7 +468,9 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 <script src="js/base.js"></script>
 <script src="js/space.js"></script>
 <script src="js/sim2.js"></script>
+<script src="js/sim-sb.js"></script>
 <script src="js/arena.js"></script>
+<script src="js/arena-sb.js"></script>
 <script src="js/ground.js"></script>
 <script src="js/intro.js"></script>
 <script>

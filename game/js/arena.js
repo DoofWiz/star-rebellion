@@ -6,6 +6,10 @@
    It never enters the base, never touches G and never writes the campaign
    save; a finished scenario returns to the picker.
 
+   Two rival rulesets sit behind one picker (docs/ARENA-SB-HANDOFF.md §1):
+   "SR V2 Combat" is this file driving sim2.js, unchanged; "SB Test" is
+   game/js/arena-sb.js driving game/js/sim-sb.js on the same scenarios.
+
    UI text here is a designer tool's and is written plainly (handoff §0):
    none of it ships to players, and none of it is registered with
    tools/text/text.py.
@@ -58,7 +62,24 @@ const ARENA_SCENARIOS=[
     rocks:'scatter',player:[FOX,{cls:'cross',name:'Fox 2',pilot:{preset:'regular'}}],
     enemies:[{type:'fuel-depot',id:'D1',at:[2700,1500,0]},{type:'vc-mote-patrol',doctrine:'pursuit',n:2,at:[2600,450,Math.PI*0.6]}],
     objective:{kind:'chain',steps:[{kind:'destroy',targets:['D1']},{kind:'exit',edge:'E'}]}},
+  /* the SB Test experiments (docs/ARENA-SB-HANDOFF.md §7); rulesets is an allowlist (absent = both) */
+  {id:'sb1_fox',title:'SB1: The hunted fox, SB rules',desc:'E1 under the SB ruleset, head to head: which ruleset makes committing-and-flying feel like being a wily ace?',
+    rulesets:['sb'],rocks:'belt1',player:[FOX],enemies:HUNTERS,objective:{kind:'survive',secs:60},tune:{}},
+  {id:'sb2_drift',title:'SB2: Drift',desc:'1 ace (Drift in the moveset) v 2 pursuit. Does Drift deliver shooting at your pursuer while fleeing, the fantasy as a single verb?',
+    rulesets:['sb'],rocks:'open',player:[{cls:'talon',name:'Ace',pilot:{preset:'ace'},at:[2000,1500,0]}],
+    enemies:[{type:'vc-mote-patrol',doctrine:'pursuit',n:2,at:[1250,1500,0]}],objective:{kind:'survive',secs:60},tune:{}},
+  {id:'sb3_count',title:'SB3: Ship count, projectiles live',desc:'4, then 8 of yours v matched flights. Does the screen stay readable with simulated fire at the ship cap?',
+    rulesets:['sb'],rocks:'scatter',playerAt:[650,1500,0],enemies:[],objective:{kind:'destroy',targets:'all'},variants:[countVariant(4),countVariant(8)]},
 ];
+window.SR_ARENA_SCENARIOS=ARENA_SCENARIOS;   // the SB Test driver (arena-sb.js) loads the same entries
+
+/* ---------- rulesets (docs/ARENA-SB-HANDOFF.md §1): the picker asks for one before the scenario ---------- */
+const RULESETS={
+  v2:{key:'v2',name:'SR V2 Combat',desc:'Moves dragged inside each ship\'s envelope, one AP meter a round, the d20 kept, interrupts mid-flight, doctrine AI (docs/ARENA-HANDOFF.md).'},
+  sb:{key:'sb',name:'SB Test',desc:'SteamBirds-informed: grab the craft and drag a smooth line, two AP segments, pilot movesets, simulated projectiles, lock as a dial (docs/ARENA-SB-HANDOFF.md).'},
+};
+let RULESET='v2',rulesetChosen=false;
+const forRuleset=(s,k)=>!s.rulesets||s.rulesets.includes(k);
 
 /* ---------- Arena state: one object, rebuilt per scenario ---------- */
 const A={
@@ -457,6 +478,7 @@ function sfx(k){
 
 /* ---------- the loop ---------- */
 function frame(now){
+  if(RULESET==='sb'&&window.SR_ARENA_SB&&window.SR_ARENA_SB.active){window.SR_ARENA_SB.frame(now);return;}
   const dt=Math.min(100,Math.max(0,now-(lastNow||now)));lastNow=now;
   const sim=A.sim;
   if(sim){
@@ -515,8 +537,20 @@ function tuneSummary(){
 }
 function openPicker(){
   const pk=byId('arPicker');
+  if(window.SR_ARENA_SB)window.SR_ARENA_SB.close();
+  rulesetChosen=false;
+  let r='';
+  for(const k in RULESETS){
+    const R=RULESETS[k];
+    r+='<div class="ar-scn" data-ruleset-item="'+k+'"><div class="ar-scn__head"><b>'+HUD.esc(R.name)+'</b><span class="ar-scn__id">'+k+'</span></div>'+
+      '<p class="ar-scn__desc">'+HUD.esc(R.desc)+'</p><div class="ar-scn__go"><button class="sr-btn sr-btn--sm sr-btn--primary" data-ruleset="'+k+'">Choose</button></div></div>';
+  }
+  pk.querySelector('#arRulesets').innerHTML=r;
+  pk.querySelector('#arScnStep').hidden=true;
+  pk.querySelector('#arRulesetTitle').textContent='Arena: pick a ruleset';
   let h='';
   for(const s of ARENA_SCENARIOS){
+    if(!forRuleset(s,'v2'))continue;   // SB-only experiments live under SB Test
     h+='<div class="ar-scn" data-scn="'+HUD.esc(s.id)+'"><div class="ar-scn__head"><b>'+HUD.esc(s.title)+'</b><span class="ar-scn__id">'+HUD.esc(s.id)+'</span></div>'+
       '<p class="ar-scn__desc">'+HUD.esc(s.desc||'')+'</p><div class="ar-scn__go">';
     if(s.variants&&s.variants.length)s.variants.forEach((v,i)=>{h+='<button class="sr-btn sr-btn--sm" data-start="'+HUD.esc(s.id)+'" data-variant="'+i+'">'+HUD.esc(v.label)+'</button>';});
@@ -529,9 +563,20 @@ function openPicker(){
   syncHud(true);
 }
 byId('arPicker').addEventListener('click',ev=>{
+  const rb=ev.target.closest('[data-ruleset]');
+  if(rb){chooseRuleset(rb.dataset.ruleset);return;}
   const b=ev.target.closest('[data-start]');
   if(b)startScenario(b.dataset.start,+b.dataset.variant||0);
 });
+/* v2 reveals this window's scenario list; SB hands the scene to arena-sb.js until it comes back here */
+function chooseRuleset(k){
+  if(!RULESETS[k])throw new Error('Unknown ruleset '+k);
+  RULESET=k;rulesetChosen=true;
+  const pk=byId('arPicker');
+  if(k==='sb'){pk.hidden=true;window.SR_ARENA_SB.open();return;}
+  pk.querySelector('#arScnStep').hidden=false;
+  pk.querySelector('#arRulesetTitle').textContent='Arena: '+RULESETS[k].name+', pick a scenario';
+}
 
 /* ---------- the selected ship (bottom left) and the top bar ---------- */
 function nerveBar(s){
@@ -744,7 +789,7 @@ function click(s){
   A.sel=s.id;syncHud(true);
 }
 addEventListener('keydown',ev=>{
-  if(SR.active!=='arena'||!A.sim)return;
+  if(SR.active!=='arena'||!A.sim||RULESET!=='v2')return;
   if(ev.target&&/INPUT|SELECT|TEXTAREA/.test(ev.target.tagName))return;
   const sim=A.sim;
   if(ev.key==='Escape'){if(sim.paused){intVerb('cancel');ev.preventDefault();}return;}
@@ -888,6 +933,7 @@ const menuEl=byId('arMenu');
 menuEl.innerHTML=HUD.menuHtml([{id:'arMPick',icon:'missions',label:'Back to picker'},{id:'arMTitle',icon:'back',label:'Back to title'}]);
 HUD.menuBind(menuEl,byId('arMenuBtn'));
 byId('arMPick').addEventListener('click',openPicker);
+window.SR_ARENA_PICKER=openPicker;   // SB Test's "Change ruleset" comes back here
 byId('arMTitle').addEventListener('click',backToTitle);
 function backToTitle(){try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}location.reload();}
 
@@ -901,7 +947,8 @@ SR.register('arena',{enter,exit,frame});
 
 if(TEST){
   window.DBGarena={get A(){return A;},get sim(){return S2.S;},SIM2:S2,scenarios:ARENA_SCENARIOS,
-    fn:{start:startScenario,restart,execute,openPicker,dumpMetrics,backToTitle:()=>{},
+    get ruleset(){return RULESET;},RULESETS,get sb(){return window.SR_ARENA_SB&&window.SR_ARENA_SB.dbg;},
+    fn:{start:startScenario,restart,execute,openPicker,dumpMetrics,backToTitle:()=>{},chooseRuleset,
       go(){execute();return A.sim.phase;},
       manual(on){A.manual=!!on;},
       runExec(){S2.runExec();onEvents(S2.drain());return A.sim.phase;},

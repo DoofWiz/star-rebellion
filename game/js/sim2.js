@@ -949,7 +949,7 @@ function finish(win,why){
 function pushMetrics(){
   if(S.metricsTurn===S.turn)return;
   S.metricsTurn=S.turn;
-  const rec={scenario:S.scen&&S.scen.id,variant:S.variantLabel||null,seed:S.seed,turn:S.turn,planningMs:Math.round(S.planMs),
+  const rec={ruleset:'v2',scenario:S.scen&&S.scen.id,variant:S.variantLabel||null,seed:S.seed,turn:S.turn,planningMs:Math.round(S.planMs),
     execLen:T.EXEC_LEN,planClock:T.PLAN_CLOCK,time:Math.round(S.time*100)/100,
     ships:S.ships.map(s=>({id:s.id,side:s.faction,shots:s.stats.shots,hits:s.stats.hits,arcTicks:s.stats.arcTicks,interrupts:s.stats.ints,
       apMax:s.ap?s.ap.max+s.ap.bonus:0,apSpent:s.ap?apPlanned(s)+s.ap.used:0,nerve:Math.round(s.pilot.cool),hull:Math.max(0,s.hull),alive:s.alive})),
