@@ -254,67 +254,77 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const F=D.sim.fn,fox=D.sim.S.ships.find(q=>q.id==='P1');
   const line=(o,ang,len,n)=>{const p=[];for(let i=0;i<=n;i++)p.push({x:o.x+Math.cos(ang)*len*i/n,y:o.y+Math.sin(ang)*len*i/n});return p;};
   // the drag is a destination (the designer, 11 Oct): ahead and a little to one side, the ship banks to it exactly
-  const kap=F.kappaOf(fox),env=F.envelope(fox,'basic'),P0={x:fox.x,y:fox.y,h:fox.h};
+  const kap=F.kappaOf(fox),env=F.envelope(fox,'basic'),P0={x:fox.x,y:fox.y,h:fox.h},dl=F.dialOf(fox),SU=150,SC=D.sim.SPEED_SCALE_();
   const rel=(o,ahead,side)=>({x:o.x+Math.cos(o.h)*ahead-Math.sin(o.h)*side,y:o.y+Math.sin(o.h)*ahead+Math.cos(o.h)*side});
   const near=rel(P0,600,140),cb=F.buildCurve(fox,P0,[near],'basic'),eb=cb.pts[cb.pts.length-1];
-  out.bank=[cb.reached,Math.round(Math.hypot(eb.x-near.x,eb.y-near.y)),cb.k!==0,cb.pts.every(q=>q.k===cb.k),Math.abs(cb.k)<kap];
-  // too tight a corner (just beside the nose): the arc turns at the cap, toward the pointer's side, and stops where
-  // that hardest turn passes nearest the pointer within one lap (checked by sweeping the turn's length)
-  const tight=rel(P0,30,-130),ct=F.buildCurve(fox,P0,[tight],'basic'),et=ct.pts[ct.pts.length-1];
-  const lap=Math.min(env.Lmax,2*Math.PI/kap);
-  let best=1e9;for(let j=0;j<=200;j++){const ll=env.Lmin+(lap-env.Lmin)*j/200,a=F.arcLocal(ct.k,ll);
-    const q={x:P0.x+a.x*Math.cos(P0.h)-a.y*Math.sin(P0.h),y:P0.y+a.x*Math.sin(P0.h)+a.y*Math.cos(P0.h)};best=Math.min(best,Math.hypot(q.x-tight.x,q.y-tight.y));}
-  // a destination past the speed range: the same arc, cut short at the top speed
-  const far=rel(P0,200,1100),cf=F.buildCurve(fox,P0,[far],'basic'),exact=F.solveArc(P0,far,{Lmin:0,Lmax:1e9,kap});
-  out.far=[!cf.reached,Math.round(cf.L)===Math.round(env.Lmax),Math.abs(cf.k-exact.k)<1e-12];
-  const missT=Math.hypot(et.x-tight.x,et.y-tight.y);
-  out.cap=[kap>0,!ct.reached,ct.k===-kap,missT<=best+0.5,ct.L<=lap+1e-6,Math.round(missT)];
-  const long=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,3000,10),'basic');
-  const short=F.buildCurve(fox,{x:fox.x,y:fox.y,h:fox.h},line(fox,fox.h,40,2),'basic');
-  const arc=c=>{let L=0;for(let i=1;i<c.pts.length;i++)L+=Math.hypot(c.pts[i].x-c.pts[i-1].x,c.pts[i].y-c.pts[i-1].y);return L;};
-  out.talonLen=[Math.round(arc(long)),Math.round(env.Lmax),Math.round(arc(short)),Math.round(env.Lmin)];
+  out.bank=[cb.reached,Math.round(Math.hypot(eb.x-near.x,eb.y-near.y)),cb.k!==0,cb.pts.every(q=>q.k===cb.k),Math.abs(cb.k)<=kap];
+  // the reach (the designer, 11 Oct: a spearpoint): the top straight ahead, the top bank at 45°, the top hard turn
+  // at 90°, from the dial; nothing turns past 90° or tighter than the minimum radius
+  const Q=Math.PI/4,r=fox.row;
+  out.reach=[Math.round(env.hi(0)),Math.round(r.straight_max*SU*SC),Math.round(env.hi(Q)),Math.round(r.bank_max*SU*SC),
+    Math.round(env.hi(2*Q)),Math.round(r.turn_max*SU*SC),env.thMax===2*Q,Math.round(env.lo(2*Q))===Math.round(2*Q/kap)];
+  // outside the reach (beside the nose, behind the shoulder): the nearest point of the reach, checked by brute force
+  const tight=rel(P0,30,-150),ct=F.buildCurve(fox,P0,[tight],'basic'),et=ct.pts[ct.pts.length-1],missT=Math.hypot(et.x-tight.x,et.y-tight.y);
+  let best=1e9;for(let i=0;i<=120;i++){const th=-env.thMax+2*env.thMax*i/120,a=env.lo(th),b=env.hi(th);if(b<a)continue;
+    for(let j=0;j<=60;j++){const L=a+(b-a)*j/60,k=Math.abs(th)<1e-9?0:th/L,e=F.arcLocal(k,L);
+      best=Math.min(best,Math.hypot(P0.x+e.x*Math.cos(P0.h)-e.y*Math.sin(P0.h)-tight.x,P0.y+e.x*Math.sin(P0.h)+e.y*Math.cos(P0.h)-tight.y));}}
+  out.cap=[!ct.reached,Math.abs(ct.th)<=env.thMax+1e-9,missT<=best+1,F.feasible(env,ct.th,ct.L),Math.round(missT)];
+  const long=F.buildCurve(fox,P0,line(fox,fox.h,3000,10),'basic');
+  const short=F.buildCurve(fox,P0,line(fox,fox.h,40,2),'basic');
+  out.talonLen=[Math.round(long.L),Math.round(env.Lmax),Math.round(short.L),Math.round(env.Lmin)];
   const graf={id:'G',row:SRDB.ship('graf'),faction:'reb',pilot:{preset:'green'},crits:[],x:2000,y:1500,h:0};
   const genv=F.envelope(graf,'basic');
   const gl=F.buildCurve(graf,{x:2000,y:1500,h:0},line(graf,0,3000,10),'basic');
-  out.grafLen=[Math.round(arc(gl)),Math.round(genv.Lmax),genv.Lmax<env.Lmax];
+  out.grafLen=[Math.round(gl.L),Math.round(genv.Lmax),genv.Lmax<env.Lmax];
   const boost=F.envelope(fox,'boost');
   out.boost=[boost.Lmax===env.Lmax*D.sim.BOOST_MULT_(),Math.abs(boost.kap-env.kap*D.sim.BOOST_TURN_())<1e-12];
-  // two segments: the second from the first's end handle; Fly Defensively on the first
+  // a round is one dial move's distance, shared: the second segment's reach is what the first left
   const segs=F.planSegs('P1',[{kind:'flydef',pts:line(fox,fox.h,450,6)}]);
   const s1=F.segEnd(segs[0]);
-  const c2=F.planSegs('P1',[{kind:'flydef',pts:line(fox,fox.h,450,6)},{kind:'basic',pts:line(s1,s1.h-0.6,500,6)}]);
+  const c2=F.planSegs('P1',[{kind:'flydef',pts:line(fox,fox.h,450,6)},{kind:'basic',pts:line(s1,s1.h,3000,6)}]);
   out.planned=c2.length;
+  out.budget=[Math.round(c2[0].L),Math.round(c2[1].L),Math.round(dl.smax-450),Math.round(F.distanceLeft(fox))];
   const end2=F.segEnd(c2[1]);
-  out.sched=F.fullSchedule(fox,c2).length===D.sim.AP_PER_ROUND_();
+  out.sched=F.fullSchedule(fox,c2).length===2;   // no glide past a line that already covers the slowest straight
   f.beginExec();
   for(let i=0;i<20;i++)f.stepTick();
   out.flydefOn=fox.flydef;
   while(D.phase==='EXEC')f.stepTick();
   out.flydefOff=!fox.flydef;
   out.ends=Math.hypot(fox.x-end2.x,fox.y-end2.y)<1;
-  // one planned segment: the second AP glides on (unspent AP buys nothing)
-  const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h+0.4,400,6)}]);
+  // a short plan is topped up to the slowest straight with a glide; a long one flies exactly the line
+  const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h,150,3)}]);
   const full=F.fullSchedule(fox,one);
-  out.glide=[full.length,!!full[1].auto,full[1].kind];
-  // the flair changes the pacing, not the path: a tight turn then a straight, slower in the turn and quicker out
-  const pace=on=>{D.sim.set('SPEED_FLAIR',on);const sc=F.paceSchedule(F.fullSchedule(fox,[F.buildCurve(fox,P0,[tight],'basic')]));D.sim.set('SPEED_FLAIR',true);return sc;};
-  const fOn=pace(true),fOff=pace(false),segT=f.EXEC_LEN_()/D.sim.AP_PER_ROUND_();
+  const two=F.fullSchedule(fox,F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h,700,3)}]));
+  out.glide=[full.length,!!full[1].auto,Math.round(full[0].L+full[1].L),Math.round(dl.smin),two.length];
+  // speed within a manoeuvre: a hard turn brakes into its apex and powers out; flair off, it is flat; the path is the same
+  const hard=rel(P0,200,330);
+  const pace=on=>{D.sim.set('SPEED_FLAIR',on);const sc=F.paceSchedule(F.fullSchedule(fox,[F.buildCurve(fox,P0,[hard],'basic')]));D.sim.set('SPEED_FLAIR',true);return sc;};
+  const fOn=pace(true),fOff=pace(false),sp=fOn[0].speed,mid=sp[Math.floor(sp.length/2)];
   const endOf=sc=>F.segEnd(sc[sc.length-1]);
-  out.flair=[Math.abs(fOff[0].t1-segT)<1e-6,fOn[0].t1>segT+0.1,Math.abs(fOn[1].t1-f.EXEC_LEN_())<1e-6,
-    Math.hypot(endOf(fOn).x-endOf(fOff).x,endOf(fOn).y-endOf(fOff).y)<1e-6];
+  out.flair=[mid<sp[1]-0.1,mid<sp[sp.length-1]-0.1,fOff[0].speed.every(v=>v===1),
+    Math.hypot(endOf(fOn).x-endOf(fOff).x,endOf(fOn).y-endOf(fOff).y)<1e-6,Math.abs(fOn[fOn.length-1].t1-f.EXEC_LEN_())<1e-6];
+  // the slip: in a hard turn the nose leads the line of flight and the ship slides a little wide, back on line by the end
+  const g=fOn[0],sc2={sched:fOn};const pm=F.poseAt(sc2,(g.t0+g.t1)/2);
+  const ex=F.arcLocal(g.k,g.L/2),onArc={x:P0.x+ex.x*Math.cos(P0.h)-ex.y*Math.sin(P0.h),y:P0.y+ex.x*Math.sin(P0.h)+ex.y*Math.cos(P0.h)};
+  const ge=g.pts[g.pts.length-1],ga=F.arcLocal(g.k,g.L),gend={x:P0.x+ga.x*Math.cos(P0.h)-ga.y*Math.sin(P0.h),y:P0.y+ga.x*Math.sin(P0.h)+ga.y*Math.cos(P0.h)};
+  out.slip=[Math.sign(pm.h-pm.vh)===Math.sign(g.k)&&Math.abs(pm.h-pm.vh)>0.05,Math.hypot(g.pts[Math.floor(g.pts.length/2)].x-onArc.x,g.pts[Math.floor(g.pts.length/2)].y-onArc.y)>3,
+    Math.hypot(ge.x-gend.x,ge.y-gend.y)<1e-6];
   return out;
  },CAMPAIGN_KEY);
  ok(sb.bank[0]&&sb.bank[1]<=1&&sb.bank[2]&&sb.bank[3]&&sb.bank[4],'SB 3: a reachable destination should be one banked arc ending on it '+JSON.stringify(sb.bank));
- ok(sb.cap.slice(0,5).every(Boolean),'SB 3: too tight a corner should turn at the cap, toward the pointer, and stop nearest it '+JSON.stringify(sb.cap));
- ok(sb.far.every(Boolean),'SB 3: a destination past top speed should cut the same arc short '+JSON.stringify(sb.far));
- ok(Math.abs(sb.talonLen[0]-sb.talonLen[1])<=1&&Math.abs(sb.talonLen[2]-sb.talonLen[3])<=1,'SB 3: Talon arc lengths outside its speed range '+JSON.stringify(sb.talonLen));
- ok(Math.abs(sb.grafLen[0]-sb.grafLen[1])<=1&&sb.grafLen[2],'SB 3: freighter arc length '+JSON.stringify(sb.grafLen));
+ ok(sb.reach[0]===sb.reach[1]&&sb.reach[2]===sb.reach[3]&&sb.reach[4]===sb.reach[5]&&sb.reach[6]&&sb.reach[7],'SB 3: the reach should follow the dial (straight, bank, hard turn) '+JSON.stringify(sb.reach));
+ ok(sb.cap.slice(0,4).every(Boolean),'SB 3: outside the reach the ship should stop at its nearest point '+JSON.stringify(sb.cap));
+ ok(Math.abs(sb.talonLen[0]-sb.talonLen[1])<=1&&Math.abs(sb.talonLen[2]-sb.talonLen[3])<=1,'SB 3: Talon segment lengths outside its reach '+JSON.stringify(sb.talonLen));
+ ok(Math.abs(sb.grafLen[0]-sb.grafLen[1])<=1&&sb.grafLen[2],'SB 3: freighter reach '+JSON.stringify(sb.grafLen));
  ok(sb.boost.every(Boolean),'SB 3: Boost envelope '+JSON.stringify(sb.boost));
- ok(sb.planned===2&&sb.sched,'SB 3: two AP segments a round');
+ ok(sb.planned===2&&sb.sched,'SB 3: two AP segments a round, and no glide past a full line');
+ ok(sb.budget[0]===450&&Math.abs(sb.budget[1]-sb.budget[2])<=1&&sb.budget[3]===0,'SB 3: the second segment should get only the distance the first left '+JSON.stringify(sb.budget));
  ok(sb.flydefOn&&sb.flydefOff,'SB 3: Fly Defensively should hold for its segment only');
  ok(sb.ends,'SB 3: the ship did not end where its second segment ends');
- ok(sb.glide[0]===2&&sb.glide[1]&&sb.glide[2]==='basic','SB 3: an unplanned AP should glide on '+JSON.stringify(sb.glide));
- ok(sb.flair.every(Boolean),'SB 3: flair should pace the curve without changing its arc '+JSON.stringify(sb.flair));
+ ok(sb.glide[0]===2&&sb.glide[1]&&Math.abs(sb.glide[2]-sb.glide[3])<=1&&sb.glide[4]===1,'SB 3: a short round tops up to the slowest straight, a long one flies the line '+JSON.stringify(sb.glide));
+ ok(sb.flair.every(Boolean),'SB 3: a hard turn should brake into its apex and power out, path unchanged '+JSON.stringify(sb.flair));
+ ok(sb.slip.every(Boolean),'SB 3: a hard turn should slip (nose leads, slides wide, back on line) '+JSON.stringify(sb.slip));
  ok(JSON.stringify(sb.rulesets)==='["SR V2 Combat","SB Test"]','SB 1: rulesets listed '+JSON.stringify(sb.rulesets));
  ok(sb.scenHidden&&sb.scenShown,'SB 1: the scenario step should follow the ruleset choice');
  ok(!sb.lists[0].includes('sb1_fox')&&sb.lists[1].includes('e1_fox')&&sb.lists[1].includes('sb2_drift'),'SB 1: the lists honour the rulesets allowlist '+JSON.stringify(sb.lists));
@@ -400,8 +410,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const a=script(),b=script();
   out.det=[a===b,a.length>0];
   // 7. metrics, and a chase with live fire
-  f.load('e1_fox','sb',null,3);
-  for(let i=0;i<3&&D.phase==='PLAN';i++)f.runExecSync();
+  f.load('e1_fox','sb',null,3);   // a head-on start: the pursuers swing wide rather than joust, then come round
+  for(let i=0;i<5&&D.phase==='PLAN';i++)f.runExecSync();
   const recs=D.metrics.filter(r=>r.ruleset==='sb'&&r.seed===3);
   const last=recs[recs.length-1];
   out.metrics=[recs.length>=1,recs.every(r=>r.ships.every(x=>['bursts','shots','hits','dmg','lockMax'].every(k=>typeof x[k]==='number')))];
@@ -531,6 +541,35 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(feel.chase[0]<40&&feel.chase[2],'SB feel: the chase camera should settle on the action '+JSON.stringify(feel.chase));
  ok(feel.scale[1]===feel.scale[2],'SB feel: the hull ellipse should follow the ship size '+JSON.stringify(feel.scale));
 
+ /* ---------- SB AI (the designer, 11 Oct: "the AI needs major work in order to pose a threat") ---------- */
+ const ai=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,out={};
+  // against a fox that weaves, the pursuers keep their guns on it, and it does not last long
+  let arc=0,rounds=0,hits=0;
+  for(const seed of [1,2,3]){
+    f.load('sb1_fox','sb',null,seed);D.sim.S.rocks.length=0;
+    for(let t=0;t<6&&D.phase==='PLAN';t++){
+      const s=D.sim.S.ships[0],side=(t%2?1:-1)*260;
+      D.sim.fn.planSegs('P1',[{pts:[{x:s.x+Math.cos(s.h)*520-Math.sin(s.h)*side,y:s.y+Math.sin(s.h)*520+Math.cos(s.h)*side}]}]);
+      f.runExecSync();rounds++;
+    }
+    const m=D.metrics[D.metrics.length-1].ships.filter(x=>x.faction==='heg');
+    arc+=m.reduce((a,x)=>a+x.arcT,0);hits+=m.reduce((a,x)=>a+x.hits,0);
+  }
+  out.threat=[+(arc/rounds).toFixed(2),hits,rounds];
+  // in the asteroid belt, no enemy flies into a rock
+  f.load('sb1_fox','sb',null,5);
+  const S=D.sim.S;let inRock=0;
+  for(let t=0;t<4&&D.phase==='PLAN';t++){
+    f.beginExec();
+    while(D.phase==='EXEC'){f.stepTick();for(const e of S.ships)if(e.alive&&e.faction==='heg')for(const r of S.rocks)if(Math.hypot(e.x-r.x,e.y-r.y)<r.r*0.85)inRock++;}
+  }
+  out.rocks=inRock;
+  return out;
+ });
+ ok(ai.threat[0]>=3&&ai.threat[1]>=10,'SB AI: pursuers should keep their guns on a weaving fox (seconds a round, hits, rounds) '+JSON.stringify(ai.threat));
+ ok(ai.rocks===0,'SB AI: an enemy flew into a rock ('+ai.rocks+' ticks)');
+
  /* ---------- SB B5: doctrine, the panel, the experiments ---------- */
  const b5=await pg.evaluate(()=>{
   const D=window.DBGarena.sb,f=D.fn,out={};
@@ -625,7 +664,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await ctx2.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,ai,b5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
