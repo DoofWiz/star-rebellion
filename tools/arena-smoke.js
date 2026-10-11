@@ -487,10 +487,9 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const s=vet;s.pilot.cool=40;s.crits=['targeting'];s.segs.F.val=2;
   out.acts=F.actionsFor(s).join();
   F.setAction(s.id,'lockin');f.beginExec();out.lockin=Math.round(s.pilot.cool);while(D.phase==='EXEC')f.stepTick();
-  F.setAction(s.id,'fixcrit');f.beginExec();out.fix=s.crits.length;while(D.phase==='EXEC')f.stepTick();
+  F.setAction(s.id,'fixcrit');f.beginExec();out.fix=s.crits.length;out.fixGone=!F.actionsFor(s).includes('fixcrit');while(D.phase==='EXEC')f.stepTick();
   const fv=s.segs.F.val;F.setAction(s.id,'boostF');f.beginExec();out.boost=s.segs.F.val-fv;while(D.phase==='EXEC')f.stepTick();
   F.setAction(s.id,'shiftF');f.beginExec();out.shift=s.segs.F.at;while(D.phase==='EXEC')f.stepTick();
-  out.fixGone=!F.actionsFor(s).includes('fixcrit');
   // the stub slots: only the lead has a special (its self-repair); no ship has a ship ability yet
   const lead=S.ships.find(q=>q.faction==='reb'&&q.lead);
   out.special=[F.specialAbilities(lead).join(),F.specialAbilities(green).join(),S.ships.every(q=>F.shipAbilities(q).length===0)];
@@ -502,6 +501,35 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(b4.acts.includes('lockin')&&b4.acts.includes('fixcrit')&&b4.acts.includes('boostF'),'B4: actions offered '+b4.acts);
  ok(b4.lockin>=74&&b4.fix===0&&b4.boost>0&&b4.shift==='R'&&b4.fixGone&&b4.cleared==='none','B4: actions resolve '+JSON.stringify(b4));
  ok(b4.special[0]==='fieldrep'&&b4.special[1]===''&&b4.special[2],'B4: ability stubs '+JSON.stringify(b4.special));
+
+ /* ---------- SB feel (the designer, 11 Oct: speed, visible shots, no choppy motion) ---------- */
+ const feel=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,out={};
+  f.load('sb1_fox','sb',null,8);
+  const S=D.sim.S,F=D.sim.fn,fox=S.ships.find(q=>q.id==='P1');
+  // speed: the envelope is the dial × SPEED_SCALE; the turn radius is not scaled
+  const env=F.envelope(fox,'basic');
+  out.speed=[Math.abs(env.Lmax-fox.row.straight_max*150*D.sim.SPEED_SCALE_())<1e-9,D.sim.SPEED_SCALE_()>1,Math.abs(env.kap-F.kappaOf(fox))<1e-12];
+  // smooth motion: between two ticks a ship is drawn part-way along its path, not held at the last tick
+  f.setFollow(true);
+  f.beginExec();for(let i=0;i<10;i++)f.stepTick();
+  const p0={x:fox.x,y:fox.y},mid=F.renderPose(fox,0.5);f.stepTick();const p1={x:fox.x,y:fox.y};
+  const d01=Math.hypot(p1.x-p0.x,p1.y-p0.y),d0m=Math.hypot(mid.x-p0.x,mid.y-p0.y),dm1=Math.hypot(p1.x-mid.x,p1.y-mid.y);
+  out.smooth=[d01>1,d0m>d01*0.3,dm1>d01*0.3,Math.abs(d0m+dm1-d01)<0.5];
+  // the chase camera eases toward the selected ship and its target, zoomed in from the opening frame
+  const cam=f.cam_(),z0=cam.z;cam.x=200;cam.y=200;
+  for(let i=0;i<120;i++)f.chase(16);
+  const pts=F.focus();let cx=0,cy=0;const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);cx=(Math.min(...xs)+Math.max(...xs))/2;cy=(Math.min(...ys)+Math.max(...ys))/2;
+  out.chase=[Math.round(Math.hypot(cam.x-cx,cam.y-cy)),+cam.z.toFixed(2),cam.z>=0.45];
+  while(D.phase==='EXEC')f.stepTick();
+  // ship scale: the hull ellipse grows with the drawn ship
+  out.scale=[D.sim.SHIP_SCALE_(),+F.hullAxes(fox,false).a.toFixed(2),+(D.sim.HULL_LEN_()*SRDB.visualSize(fox.row.size)*D.sim.SHIP_SCALE_()).toFixed(2)];
+  return out;
+ });
+ ok(feel.speed.every(Boolean),'SB feel: SPEED_SCALE should scale the speed range, not the turn radius '+JSON.stringify(feel.speed));
+ ok(feel.smooth.every(Boolean),'SB feel: between ticks a ship should be drawn part-way along its path '+JSON.stringify(feel.smooth));
+ ok(feel.chase[0]<40&&feel.chase[2],'SB feel: the chase camera should settle on the action '+JSON.stringify(feel.chase));
+ ok(feel.scale[1]===feel.scale[2],'SB feel: the hull ellipse should follow the ship size '+JSON.stringify(feel.scale));
 
  /* ---------- SB B5: doctrine, the panel, the experiments ---------- */
  const b5=await pg.evaluate(()=>{
@@ -597,7 +625,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await ctx2.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,b5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

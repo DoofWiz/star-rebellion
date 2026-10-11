@@ -143,10 +143,16 @@ function camFit(){cam.z=fitZoom();cam.x=W/2;cam.y=H/2;}
 function clampCam(){const z0=fitZoom();cam.z=Math.max(z0*0.8,Math.min(2.2,cam.z));cam.x=Math.max(0,Math.min(W,cam.x));cam.y=Math.max(0,Math.min(H,cam.y));}
 const toWorld=(px,py)=>({x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y});
 const iconBoost=()=>Math.max(1,Math.min(2.8,0.55/cam.z));
-const stars=[];(function(){const r=mulberry(99);for(let i=0;i<420;i++)stars.push({x:r()*W,y:r()*H,r:0.8+r()*1.3,a:0.25+r()*0.45});})();
+const stars=[];(function(){const r=mulberry(99);for(let i=0;i<420;i++)stars.push({x:r()*W,y:r()*H,r:0.7+r()*1.1,band:Math.floor(r()*4)});})();
 function drawBackdrop(c){
   c.fillStyle=C.void||'#0a0c22';c.fillRect(0,0,W,H);
-  for(const s of stars){c.globalAlpha=s.a;c.fillStyle='#dfe6ff';c.beginPath();c.arc(s.x,s.y,s.r/Math.max(cam.z,0.35),0,6.283);c.fill();}
+  // stars in four brightness bands, one fill each (one arc per star was most of the frame's cost)
+  c.fillStyle='#dfe6ff';
+  for(let b=0;b<4;b++){
+    c.globalAlpha=0.3+0.13*b;c.beginPath();
+    for(const st of stars){if(st.band!==b)continue;const r=st.r/Math.max(cam.z,0.35);c.rect(st.x-r,st.y-r,2*r,2*r);}
+    c.fill();
+  }
   c.globalAlpha=1;
   c.strokeStyle=T.rgba(C.seam||'#3a4488',0.9);c.lineWidth=3/cam.z;c.setLineDash([16/cam.z,12/cam.z]);
   c.strokeRect(MARGIN,MARGIN,W-2*MARGIN,H-2*MARGIN);c.setLineDash([]);
@@ -162,6 +168,25 @@ function drawRock(c,r){
   c.restore();
 }
 /* a ship's body: the art kit's hull when it has one, a plain dart when not (the depot) */
+/* the art kit lights each hull for its angle, which costs about half a millisecond a ship. Each look (art, livery,
+   size on screen, angle, roll, damage, boost) is drawn once into a sprite and stamped after; buckets are fine enough
+   that the stamp is rotated and scaled by at most half a bucket. */
+const sprites=new Map();
+const ANG_B=72,ROLL_B=4,DMG_B=4,SCALE_B=Math.log(1.08),ART_R=52;   // buckets; ART_R: the art's reach in its own units
+function shipSprite(art,livery,px,angI,rollI,dmgI,boost){
+  const pb=Math.exp(Math.round(Math.log(px)/SCALE_B)*SCALE_B);
+  const key=art+'|'+livery+'|'+pb.toFixed(3)+'|'+angI+'|'+rollI+'|'+dmgI+'|'+(boost?1:0);
+  let sp=sprites.get(key);
+  if(!sp){
+    const half=Math.ceil(pb*ART_R)+2,cv2=document.createElement('canvas');
+    cv2.width=cv2.height=half*2;
+    SA.ship(cv2.getContext('2d'),art,half,half,angI*2*Math.PI/ANG_B,pb,0,{livery,damage:dmgI/DMG_B,roll:rollI/ROLL_B,boost});
+    sp={cv:cv2,half,pb};
+    if(sprites.size>900)sprites.delete(sprites.keys().next().value);   // oldest first
+    sprites.set(key,sp);
+  }
+  return sp;
+}
 function drawShipBody(c,s,o){
   o=o||{};
   const x=o.x!=null?o.x:s.x,y=o.y!=null?o.y:s.y,h=o.h!=null?o.h:s.h,alpha=o.alpha==null?1:o.alpha;
@@ -169,10 +194,17 @@ function drawShipBody(c,s,o){
   const size=SRDB.visualSize(s.row.size);
   c.save();c.globalAlpha=alpha;
   if(art){
-    try{SA.ship(c,art,x,y,h,size*1.6*iconBoost()*0.85,0,{livery:s.faction==='reb'?'rebel':'heg',
-      damage:s.maxHull?1-Math.max(0,s.hull)/s.maxHull:0,roll:o.roll||0,boost:!!o.boost});}
-    catch(e){c.restore();c.save();c.globalAlpha=alpha;plainDart(c,s,x,y,h,size);}
-  } else plainDart(c,s,x,y,h,size);
+    try{
+      const scale=size*1.6*iconBoost()*0.85*(o.scale||1),px=scale*cam.z*dpr;   // o.scale: the ruleset's ship size
+      const angI=((Math.round(h/(2*Math.PI)*ANG_B)%ANG_B)+ANG_B)%ANG_B;
+      const rollI=Math.round(Math.max(-1,Math.min(1,o.roll||0))*ROLL_B);
+      const dmgI=Math.round((s.maxHull?1-Math.max(0,s.hull)/s.maxHull:0)*DMG_B);
+      const sp=shipSprite(art,s.faction==='reb'?'rebel':'heg',px,angI,rollI,dmgI,!!o.boost);
+      const k=(px/sp.pb)/(cam.z*dpr);
+      c.translate(x,y);c.rotate(h-angI*2*Math.PI/ANG_B);c.scale(k,k);
+      c.drawImage(sp.cv,-sp.half,-sp.half);
+    }catch(e){c.restore();c.save();c.globalAlpha=alpha;plainDart(c,s,x,y,h,size*(o.scale||1));}
+  } else plainDart(c,s,x,y,h,size*(o.scale||1));
   c.restore();
 }
 function plainDart(c,s,x,y,h,size){
@@ -214,7 +246,7 @@ function beginExec(){
   if(A.phase!=='PLAN')return false;
   A.planMs=Math.round(performance.now()-A.planStart);
   A.mod.beginExec();
-  A.execT=0;A.acc=0;A.lastReal=0;A.phase='EXEC';
+  A.execT=0;A.acc=0;A.lastReal=0;A.phase='EXEC';A.camHeld=false;
   syncAll();
   return true;
 }
@@ -243,15 +275,38 @@ function runExecSync(){   // tests: one whole exec at once
 }
 function frame(now){
   if(!A.mod){drawEmpty();return;}
+  const realDt=A.lastFrame?Math.min(100,now-A.lastFrame):16;A.lastFrame=now;
   if(A.phase==='EXEC'){
     if(!A.lastReal)A.lastReal=now;
     const dt=Math.min(250,now-A.lastReal);A.lastReal=now;
     A.acc+=dt*SIM_SPEED;
     let n=0;
     while(A.acc>=TICK&&A.phase==='EXEC'&&n++<40){A.acc-=TICK;stepTick();}
-    if(A.phase==='EXEC')syncTop();
+    if(A.phase==='EXEC'){syncTop();chase(realDt);}
   }
   render(now);
+}
+/* the chase camera (panel toggle): while the sim runs it frames your selected ship, a little ahead of it, and its
+   target, easing there so the view never jumps. Pan or zoom by hand and it lets go until the next exec. */
+let FOLLOW=true;
+const CHASE_ZMIN=0.45,CHASE_ZMAX=1.0,CHASE_PAD=240,CHASE_EASE=2.6;   // zoom limits, framing margin (world units), easing rate (per s)
+function chase(dtMs){
+  if(!FOLLOW||A.camHeld||!A.mod.focus)return;
+  const pts=A.mod.focus();if(!pts||!pts.length)return;
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+  const gz=Math.max(CHASE_ZMIN,Math.min(CHASE_ZMAX,Math.min(cssW/(x1-x0+2*CHASE_PAD),cssH/(y1-y0+2*CHASE_PAD))));
+  const k=1-Math.exp(-CHASE_EASE*dtMs/1000);
+  cam.x+=((x0+x1)/2-cam.x)*k;cam.y+=((y0+y1)/2-cam.y)*k;cam.z+=(gz-cam.z)*k;
+  clampCam();
+}
+/* the opening view: every ship, framed, rather than the whole map */
+function camFrame(){
+  const ships=A.mod.ships().filter(s=>s.alive);
+  if(!ships.length){camFit();return;}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of ships){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+  cam.x=(x0+x1)/2;cam.y=(y0+y1)/2;
+  cam.z=Math.max(fitZoom(),Math.min(CHASE_ZMAX,Math.min(cssW/(x1-x0+2*CHASE_PAD),cssH/(y1-y0+2*CHASE_PAD))));
+  clampCam();
 }
 
 /* ---------- objectives: v2's format (survive, destroy a list or 'all', exit an edge, chain) ---------- */
@@ -299,7 +354,7 @@ function load(id,ruleset,variantIdx,seed){
   A.world=world;A.mod=R.mod;
   A.mod.build(world,mulberry(A.seed),kit);
   byId('sbPicker').hidden=true;byId('sbEnd').hidden=true;
-  fitCanvas();camFit();
+  fitCanvas();camFrame();
   buildPanel();
   startPlan();
 }
@@ -370,6 +425,7 @@ function globalGroup(){
   return [
     {key:'EXEC_LEN',label:'Exec length (s)',min:EXEC_LEN_MIN,max:EXEC_LEN_MAX,step:1,get:()=>EXEC_LEN,set:v=>{EXEC_LEN=v;}},
     {key:'SIM_SPEED',label:'Sim speed (×)',min:SIM_SPEED_MIN,max:SIM_SPEED_MAX,step:0.25,get:()=>SIM_SPEED,set:v=>{SIM_SPEED=v;savePrefs();}},
+    {key:'FOLLOW',label:'Chase camera while it runs',type:'toggle',get:()=>FOLLOW,set:v=>{FOLLOW=v;}},
   ];
 }
 function buildPanel(){
@@ -459,7 +515,7 @@ function render(now){
   ctx.setTransform(dpr*cam.z,0,0,dpr*cam.z,dpr*(cssW/2-cam.x*cam.z),dpr*(cssH/2-cam.y*cam.z));
   drawBackdrop(ctx);
   for(const r of A.world.rocks)drawRock(ctx,r);
-  try{A.mod.draw(ctx,now);}catch(e){console.error(e);}
+  try{A.mod.draw(ctx,now,A.phase==='EXEC'?A.acc/TICK:0);}catch(e){console.error(e);}
   drawFloaters(ctx,now);
 }
 
@@ -479,6 +535,7 @@ cv.addEventListener('pointermove',ev=>{
     const p=evWorld(ev);
     if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
     cam.x=pan.cx-(p.px-pan.px)/cam.z;cam.y=pan.cy-(p.py-pan.py)/cam.z;clampCam();
+    if(pan.moved)A.camHeld=true;
     return;
   }
   A.mod.planInput(modEv('move',ev));
@@ -494,7 +551,7 @@ cv.addEventListener('contextmenu',ev=>ev.preventDefault());
 cv.addEventListener('wheel',ev=>{
   ev.preventDefault();
   const p=evWorld(ev),before=toWorld(p.px,p.py);
-  cam.z*=Math.exp(-ev.deltaY*0.0015);clampCam();
+  cam.z*=Math.exp(-ev.deltaY*0.0015);clampCam();A.camHeld=true;
   const after=toWorld(p.px,p.py);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam();
 },{passive:false});
 addEventListener('keydown',ev=>{
@@ -504,7 +561,7 @@ addEventListener('keydown',ev=>{
   else if(A.mod.key_&&A.mod.key_(ev)){ev.preventDefault();syncHud();}
 });
 byId('sbExecTop').addEventListener('click',()=>beginExec());
-byId('sbFit').addEventListener('click',()=>camFit());
+byId('sbFit').addEventListener('click',()=>{camFit();A.camHeld=true;});
 
 /* ---------- inside arena.js's scene: open and close (arena.js calls these from its picker) ---------- */
 function openUi(){
@@ -531,8 +588,9 @@ const dbg={A,RULESETS,get scenarios(){return scenarios();},get phase(){return A.
     setSeed(n){A.seed=n>>>0;},
     addScenario(s){scenarios().push(s);if(A.phase==='PICK'&&A.active)renderPicker();return s;},
     setExecLen(v){EXEC_LEN=v;},setSimSpeed(v){SIM_SPEED=v;},
-    TICK_:()=>TICK,EXEC_LEN_:()=>EXEC_LEN,SIM_SPEED_:()=>SIM_SPEED,
+    TICK_:()=>TICK,EXEC_LEN_:()=>EXEC_LEN,SIM_SPEED_:()=>SIM_SPEED,FOLLOW_:()=>FOLLOW,setFollow(v){FOLLOW=!!v;},chase,camFrame,
     toWorld,cam_:()=>cam,
+    spriteCount:()=>sprites.size,
     toClient(x,y){const r=cv.getBoundingClientRect();return {x:r.left+(x-cam.x)*cam.z+cssW/2,y:r.top+(y-cam.y)*cam.z+cssH/2};}}};
 window.SR_ARENA_SB={open,close:closeUi,frame,get active(){return A.active;},dbg};
 })();

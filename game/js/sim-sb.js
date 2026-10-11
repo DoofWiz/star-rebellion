@@ -34,6 +34,9 @@ let BOOST_TURN=0.25;      // Boost: turn-rate cap multiplier (the handoff's ×0.
 let KTURN_MAX=3;          // K-Turn: speed cap, as the dial's K (space.js dialAvail ~140). placeholder
 let BARREL_LAT=1;         // Barrel Roll: lateral displacement, in speed units. placeholder
 let FLAIR_DIP=0.45;       // acceleration flair: how much slower a minimum-radius turn is flown. placeholder
+let SPEED_SCALE=1.6;      // every craft's speed range × this; turn radius unchanged, so speed makes the turns matter. placeholder
+let SHIP_SCALE=1.35;      // drawn size and hull ellipse together, so what you see is what gets hit. placeholder
+let BANK_ROLL=0.75;       // how far a ship rolls into a turn at its minimum radius (visual). placeholder
 let SPEED_FLAIR=true;     // toggle: speed eases along the curve (visual pacing only)
 let flydefImmunity=false; // toggle: the designer's literal Fly Defensively (cannot be hit except by homing)
 const STEP=8;             // sample spacing along an arc, world units
@@ -79,9 +82,9 @@ function kappaOf(s){
 }
 function envelope(s,kind){
   const SU=K().SU;
-  let Lmin=s.row.straight_min*SU,Lmax=maxSpeedOf(s)*SU,kap=kappaOf(s);
+  let Lmin=s.row.straight_min*SU*SPEED_SCALE,Lmax=maxSpeedOf(s)*SU*SPEED_SCALE,kap=kappaOf(s);
   if(kind==='boost'){Lmin*=BOOST_MULT;Lmax*=BOOST_MULT;kap*=BOOST_TURN;}
-  else if(kind==='kturn'){Lmax=Math.max(Lmin,Math.min(Lmax,KTURN_MAX*SU));}
+  else if(kind==='kturn'){Lmax=Math.max(Lmin,Math.min(Lmax,KTURN_MAX*SU*SPEED_SCALE));}
   else if(kind==='loop'){Lmax=Lmin;}   // the flip with minimal displacement: the shortest run the ship can fly
   return {Lmin,Lmax,kap};
 }
@@ -199,7 +202,7 @@ const toWorld=(pts,o)=>pts.map(p=>{const c=Math.cos(o.h),sn=Math.sin(o.h);return
    ===================================================================== */
 let BURST_N=4;            // projectiles in a burst. placeholder
 let BURST_EVERY=2.0;      // seconds between a gun's bursts (and a missile rack's launches). placeholder
-let PROJ_SPD=1400;        // projectile speed, world units a second. placeholder
+let PROJ_SPD=850;         // projectile speed, world units a second: slow enough to watch a burst cross the gap. placeholder
 let SPREAD_BASE=6;        // burst spread, degrees (the cone's full width) before Aim, nerve and range. placeholder
 let RANGE_SPREAD=3;       // ballistic and plasma spread added per range unit beyond band 1, degrees. placeholder
 let SPREAD_AIM_K=0.1;     // Aim narrows spread: × 1 / (1 + this × the Aim bonus). placeholder
@@ -207,7 +210,7 @@ let SPREAD_NERVE_K=1.5;   // falling nerve widens it: × 1 + this × (1 − nerv
 let SPREAD_CRIT=3;        // degrees added per Targeting Array Damage critical. placeholder
 let MISSILE_LOCK=0.6;     // missiles need at least this lock. placeholder
 let MISSILE_MINR=1.5;     // ...and at least this range, in range units. placeholder
-let MISSILE_SPD=650;      // missile speed. placeholder
+let MISSILE_SPD=800;      // missile speed (faster than the fastest craft at the default SPEED_SCALE). placeholder
 let MISSILE_TURN=2.4;     // missile turn rate, radians a second. placeholder
 let LOCK_GAIN=0.4;        // lock gained a second with the target dead centre (zero at the arc's edge). placeholder
 let LOCK_DECAY=0.5;       // lock lost a second once the target is behind the firer. placeholder
@@ -217,6 +220,17 @@ let PROJ_DMG=0.25;        // each projectile's share of a weapon roll: 1 / BURST
 let CRIT_DIRECT=0.10;     // critical chance on a direct hit (impact ≥ 0.8), plus the weapon's own. placeholder
 let HULL_LEN=22,HULL_WID=10;   // the hull ellipse's semi-axes before the ship's visual size. placeholder
 const BURST_GAP=0.08;     // seconds between a burst's projectiles
+/* sound: arena.js's v2 voices (no state, so the sim stays deterministic); bursts are throttled so a furball stays legible */
+let sfxAt={};
+function sfx(k){
+  try{
+    if(SR.audio.off())return;
+    const now=performance.now();if(now-(sfxAt[k]||0)<(k==='shot'?70:k==='hit'?50:0))return;sfxAt[k]=now;
+    if(k==='shot')SR.audio.osc('square',900,500,0.015,0.05);
+    else if(k==='hit')SR.audio.nz('bandpass',1800,2,0.05,0.08);
+    else if(k==='boom')SR.audio.nz('lowpass',600,1,0.12,0.5,0,90);
+  }catch(e){}
+}
 const LOCK_RNG=900;       // copied from space.js ~23
 const CALM_GAIN=6;        // copied from space.js endRound ~1082 ('breathing room')
 
@@ -301,7 +315,7 @@ const losBlocked=(a,b)=>rockHit(a,b);
 
 /* ---------- the hull: an ellipse from ship size (v1) ---------- */
 function hullAxes(s,homing){
-  const v=SRDB.visualSize(s.row.size);
+  const v=SRDB.visualSize(s.row.size)*SHIP_SCALE;
   let a=HULL_LEN*v,b=s.struct?HULL_LEN*v:HULL_WID*v;
   if(s.flydef&&!homing){const k=Math.sqrt(FLYDEF_FACTOR);a*=k;b*=k;}   // the profile is an area: each axis × √factor
   return {a,b};
@@ -410,6 +424,8 @@ function emitBursts(dt){
       const h=ang+off;
       S.proj.push({x:s.x+Math.cos(s.h)*14,y:s.y+Math.sin(s.h)*14,vx:Math.cos(h)*PROJ_SPD,vy:Math.sin(h)*PROJ_SPD,
         owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:B.w.rng/PROJ_SPD*1.15,age:0});
+      S.fx.push({x:s.x+Math.cos(s.h)*18,y:s.y+Math.sin(s.h)*18,h,t0:S.clockT,kind:'muzzle',reb:s.faction==='reb'});
+      if(B.fired===0)sfx('shot');
       B.left--;B.fired++;B.live++;s.st.shots++;B.next+=BURST_GAP;
       if(s.curKind==='drift'){s.st.driftShots++;if(Math.cos(h-s.vh)<0)s.st.backShots++;}   // sb2_drift's question: shots at the pursuer while fleeing
     }
@@ -429,13 +445,15 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   if(s){s.st.hits++;s.st.dmg+=dmg;}
   const kit=K();
   if(CARDS)kit.addFloater(hit.x,hit.y-18,(imp<0.4?'skim ':imp>=0.8?'direct ':'')+'-'+dmg,imp>=0.8?C.hazard:imp<0.4?C.text3:C.text);
-  S.fx.push({x:hit.x,y:hit.y,t0:S.clockT,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull'});
+  S.fx.push({x:hit.x,y:hit.y,t0:S.clockT,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx)});
+  sfx('hit');
   if(t.hull<=0&&t.alive)destroyShip(t,s);
   return {dmg,imp,lock:lk,r,crit};
 }
 function destroyShip(t,killer){
   t.alive=false;t.hull=Math.min(t.hull,0);
   S.fx.push({x:t.x,y:t.y,t0:S.clockT,kind:'boom',size:SRDB.visualSize(t.row.size)});
+  sfx('boom');
   K().addFloater(t.x,t.y-30,t.struct?'DESTROYED':'SPLASH',C.gold);
   if(killer&&killer.alive){killer.st.kills++;adjCool(killer,12);}   // the space.js destroyShip gains and losses (~1026–1037)
   for(const m of S.ships){
@@ -780,7 +798,7 @@ function beginExec(){
     s.lastAction=a;
   }
   for(const s of S.ships){
-    s.trail=[];s.sched=null;
+    s.sched=null;   // the contrail carries over from last round
     if(!s.alive||s.struct)continue;
     let segs;
     if(s.faction==='reb')segs=fullSchedule(s,curvesOf(s));
@@ -789,6 +807,14 @@ function beginExec(){
   }
   S.execT=0;
 }
+/* the visual roll: weaving when flying defensively, the barrel roll, otherwise banked into the turn */
+function rollOf(p,t){
+  const g=p.seg;
+  if(g.kind==='flydef')return Math.sin(t*9)*0.9;
+  if(g.kind==='barrel')return Math.sin(Math.PI*p.u)*(g.side||1);
+  return g.kapBase>0?Math.max(-1,Math.min(1,g.k/g.kapBase))*BANK_ROLL:0;
+}
+const TRAIL_N=26;   // ticks of contrail kept (1.3 s)
 function poseAt(s,t){
   const n=s.sched.length,segT=K().EXEC_LEN/n;
   let i=0;
@@ -811,8 +837,8 @@ function tick(dt){
     const p=poseAt(s,t),ox=s.x,oy=s.y;
     s.x=p.x;s.y=p.y;s.h=p.h;s.vh=p.vh;s.vx=(s.x-ox)/dt;s.vy=(s.y-oy)/dt;
     s.flydef=p.seg.kind==='flydef';s.curKind=p.seg.kind;s.boosting=p.seg.kind==='boost';
-    s.visRoll=s.flydef?Math.sin(S.execT*9)*0.9:p.seg.kind==='barrel'?Math.sin(Math.PI*p.u)*(p.seg.side||1):0;
-    s.trail.push({x:s.x,y:s.y});if(s.trail.length>90)s.trail.shift();
+    s.visRoll=rollOf(p,S.execT);
+    s.trail.push({x:s.x,y:s.y});if(s.trail.length>TRAIL_N)s.trail.shift();
   }
   S.clockT+=dt;
   combatTick(dt);
@@ -847,7 +873,7 @@ function drawPlan(c,s,z,kit){
     strokePts(c,seg.pts,col,z,sel?3.6:2.6,seg.auto?[3,9]:null);
     const e=segEnd(seg),m=seg.pts[Math.floor(seg.pts.length/2)];
     if(sel&&!seg.auto)label(c,m.x,m.y-16/z,(i+1)+' · '+KINDS[seg.kind].short,col,z);
-    kit.drawShipBody(c,s,{x:e.x,y:e.y,h:e.h,alpha:sel?0.38:0.22});
+    kit.drawShipBody(c,s,{x:e.x,y:e.y,h:e.h,alpha:sel?0.38:0.22,scale:SHIP_SCALE});
     if(sel&&!seg.auto){   // the handle where the next segment starts
       c.save();c.beginPath();c.arc(e.x,e.y,9/z,0,6.283);c.fillStyle=C.ink;c.fill();
       c.beginPath();c.arc(e.x,e.y,6/z,0,6.283);c.fillStyle=col;c.fill();c.restore();
@@ -887,55 +913,109 @@ function drawLocks(c,z){
     if(!reb&&lk<0.05)continue;
     const col=reb?C.gold:C.heg;
     c.save();c.lineCap='round';
-    c.beginPath();c.moveTo(s.x,s.y);c.lineTo(t.x,t.y);
-    c.setLineDash([6/z,8/z]);c.lineWidth=(1.2+2.4*lk)/z;c.strokeStyle=T.rgba(col,0.25+0.6*lk);c.stroke();c.setLineDash([]);
-    const r=30*SRDB.visualSize(t.row.size)*K().iconBoost();   // the lock dial: a ring that fills with lock %
+    if(K().phase==='PLAN'){   // the line while planning; in the fight the ring alone, so it never hides the tracers
+      c.beginPath();c.moveTo(s.x,s.y);c.lineTo(t.x,t.y);
+      c.setLineDash([6/z,8/z]);c.lineWidth=(1.2+2.4*lk)/z;c.strokeStyle=T.rgba(col,0.25+0.6*lk);c.stroke();c.setLineDash([]);
+    }
+    const r=30*SHIP_SCALE*SRDB.visualSize(t.row.size)*K().iconBoost();   // the lock dial: a ring that fills with lock %
     c.beginPath();c.arc(t.x,t.y,r,-Math.PI/2,-Math.PI/2+Math.PI*2*lk);c.lineWidth=4/z;c.strokeStyle=col;c.stroke();
     if(reb)label(c,t.x,t.y-r-8/z,'LOCK '+Math.round(lk*100)+'%',col,z);
     c.restore();
   }
 }
-function drawShots(c,z){
+const TRACER_S=0.12;   // a tracer's streak: the last 0.12 s of the shot's flight
+function drawShots(c,z,a,dtT){
+  const now=S.clockT+a*dtT;
   c.save();c.lineCap='round';
-  for(const p of S.proj){
-    const k=0.022;
-    c.beginPath();c.moveTo(p.x-p.vx*k,p.y-p.vy*k);c.lineTo(p.x,p.y);
-    c.lineWidth=4/z;c.strokeStyle=T.rgba(C.ink,0.5);c.stroke();
-    c.lineWidth=2.2/z;c.strokeStyle=p.faction==='reb'?C.goldHi:C.shield;c.stroke();
+  for(const p of S.proj){   // tracers: a glowing streak with a bright head, drawn where the shot is this frame
+    const x=p.x+p.vx*a*dtT,y=p.y+p.vy*a*dtT,k=Math.min(TRACER_S,p.age+a*dtT),col=p.faction==='reb'?C.goldHi:C.shield;
+    const tx=x-p.vx*k,ty=y-p.vy*k;
+    c.beginPath();c.moveTo(tx,ty);c.lineTo(x,y);
+    c.globalAlpha=0.3;c.lineWidth=12/z;c.strokeStyle=col;c.stroke();
+    c.globalAlpha=1;c.lineWidth=3.6/z;c.strokeStyle=col;c.stroke();
+    c.beginPath();c.arc(x,y,3.2/z,0,6.283);c.fillStyle='#fff';c.fill();
   }
   for(const m of S.missiles){
-    if(m.trail.length>1){c.beginPath();m.trail.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.lineWidth=2/z;c.strokeStyle=T.rgba(C.steel,0.5);c.stroke();}
-    c.beginPath();c.arc(m.x,m.y,5/z,0,6.283);c.fillStyle=C.psi;c.fill();
+    const x=m.x+Math.cos(m.h)*MISSILE_SPD*a*dtT,y=m.y+Math.sin(m.h)*MISSILE_SPD*a*dtT;
+    if(m.trail.length>1){c.beginPath();m.trail.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.lineTo(x,y);c.globalAlpha=0.6;c.lineWidth=3/z;c.strokeStyle=C.steel;c.stroke();c.globalAlpha=1;}
+    c.beginPath();c.arc(x,y,6/z,0,6.283);c.fillStyle=C.psi;c.fill();c.lineWidth=2/z;c.strokeStyle='#fff';c.stroke();
   }
-  const now=S.clockT;
-  S.fx=S.fx.filter(f=>now-f.t0<0.9);
+  S.fx=S.fx.filter(f=>now-f.t0<1);
   for(const f of S.fx){
-    const k=(now-f.t0)/(f.kind==='boom'?0.9:0.35);if(k>1)continue;
+    const life=f.kind==='boom'?0.9:f.kind==='muzzle'?0.09:f.kind==='fizz'?0.25:0.32,k=(now-f.t0)/life;
+    if(k<0||k>1)continue;
     c.globalAlpha=1-k;
-    const r=(f.kind==='boom'?60*(f.size||1):f.kind==='fizz'?6:14)*(0.3+k)/Math.max(0.6,z*1.4);
-    c.beginPath();c.arc(f.x,f.y,r,0,6.283);
-    c.strokeStyle=f.kind==='shield'?C.shield:f.kind==='fizz'?C.text3:C.hazard;c.lineWidth=(f.kind==='boom'?4:2)/z;c.stroke();
+    if(f.kind==='muzzle'){   // a short flash cone at the guns
+      const L=26/Math.max(z,0.35);c.save();c.translate(f.x,f.y);c.rotate(f.h);
+      c.beginPath();c.moveTo(0,-5/z);c.lineTo(L,0);c.lineTo(0,5/z);c.closePath();c.fillStyle=f.reb?C.goldHi:'#bff8ff';c.fill();c.restore();
+    } else if(f.kind==='hull'||f.kind==='shield'){   // sparks thrown back along the shot, a fixed fan (no randomness in the visuals)
+      const col=f.kind==='shield'?C.shield:C.hazard,R=(10+34*k)/Math.max(z,0.35);
+      c.lineWidth=2.4/z;c.strokeStyle=col;c.beginPath();
+      for(let i=0;i<6;i++){const ang=f.h+Math.PI+(i-2.5)*0.42;c.moveTo(f.x+Math.cos(ang)*R*0.35,f.y+Math.sin(ang)*R*0.35);c.lineTo(f.x+Math.cos(ang)*R,f.y+Math.sin(ang)*R);}
+      c.stroke();c.beginPath();c.arc(f.x,f.y,(5+8*(1-k))/z,0,6.283);c.fillStyle=col;c.fill();
+    } else if(f.kind==='boom'){
+      const r=70*(f.size||1)*(0.25+k)/Math.max(0.6,z*1.4);
+      c.beginPath();c.arc(f.x,f.y,r*0.7,0,6.283);c.fillStyle=T.rgba(C.hazard,0.35*(1-k));c.fill();
+      c.beginPath();c.arc(f.x,f.y,r,0,6.283);c.strokeStyle=C.hazard;c.lineWidth=5/z;c.stroke();
+    } else {
+      c.beginPath();c.arc(f.x,f.y,(4+6*k)/z,0,6.283);c.strokeStyle=C.text3;c.lineWidth=1.6/z;c.stroke();
+    }
   }
   c.restore();
 }
-function draw(c){
-  const kit=K(),z=kit.cam.z,phase=kit.phase;
-  const sel=byIdS(S.sel);
-  if(sel&&sel.alive&&!sel.struct)drawArc(c,sel,z);
-  for(const s of S.ships){
-    if(!s.alive||s.trail.length<2)continue;
-    c.save();c.globalAlpha=0.35;strokePts(c,s.trail,s.faction==='reb'?C.rebelHi:C.hegHi,z,2.6);c.restore();
+/* contrails: the last 1.3 s of flight, fading and thinning toward the tail */
+function drawTrail(c,s,z){
+  const pts=s.trail.concat([{x:s.x,y:s.y}]),n=pts.length,col=s.faction==='reb'?C.rebelHi:C.hegHi;
+  if(n<2)return;
+  c.save();c.lineCap='round';c.lineJoin='round';c.strokeStyle=col;
+  const B=5;   // five bands, one stroke each
+  for(let b=0;b<B;b++){
+    const i0=Math.floor((n-1)*b/B),i1=Math.floor((n-1)*(b+1)/B);if(i1<=i0)continue;
+    const u=(b+1)/B;c.globalAlpha=0.55*u;c.lineWidth=(1+4*u)/z;
+    c.beginPath();c.moveTo(pts[i0].x,pts[i0].y);for(let i=i0+1;i<=i1;i++)c.lineTo(pts[i].x,pts[i].y);c.stroke();
   }
-  if(phase==='PLAN')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct)drawPlan(c,s,z,kit);
-  for(const s of S.ships){
-    if(!s.alive)continue;
-    if(s.id===S.sel){c.save();c.strokeStyle=C.gold;c.lineWidth=2.4/z;c.beginPath();c.arc(s.x,s.y,34*kit.iconBoost(),0,6.283);c.stroke();c.restore();}
-    if(s.flydef){c.save();c.strokeStyle=T.rgba(C.shield,0.7);c.lineWidth=2/z;c.setLineDash([4/z,6/z]);c.beginPath();c.arc(s.x,s.y,28*kit.iconBoost(),0,6.283);c.stroke();c.restore();}
-    kit.drawShipBody(c,s,{roll:s.visRoll,boost:s.boosting});
+  c.restore();
+}
+function renderPose(s,a){const kit=K();return poseAt(s,Math.min(S.execT+a*kit.TICK/1000,kit.EXEC_LEN-1e-6));}
+/* a: how far this frame sits between two sim ticks (0–1). Ships and shots are drawn where they are at that moment,
+   so motion runs at the screen's frame rate, not the sim's 20 ticks a second; nothing in the sim changes. */
+function draw(c,now,a){
+  const kit=K(),z=kit.cam.z,phase=kit.phase,dtT=kit.TICK/1000;
+  a=phase==='EXEC'?Math.max(0,Math.min(1,a||0)):0;
+  const saved=[];
+  if(a>0)for(const s of S.ships){
+    if(!s.alive||!s.sched)continue;
+    const p=renderPose(s,a);
+    saved.push([s,s.x,s.y,s.h,s.visRoll]);
+    s.x=p.x;s.y=p.y;s.h=p.h;s.visRoll=rollOf(p,S.execT+a*dtT);
   }
-  if(TELLS)for(const s of S.ships)if(s.alive&&s.faction!=='reb'&&!s.struct&&doctrineOf(s).tell)doctrineOf(s).tell(c,s,z);
-  drawLocks(c,z);
-  drawShots(c,z);
+  try{
+    const sel=byIdS(S.sel);
+    if(sel&&sel.alive&&!sel.struct&&phase==='PLAN')drawArc(c,sel,z);   // a planning aid: off while the fight runs
+    for(const s of S.ships)if(s.alive)drawTrail(c,s,z);
+    if(phase==='PLAN')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct)drawPlan(c,s,z,kit);
+    for(const s of S.ships){
+      if(!s.alive)continue;
+      if(s.id===S.sel){c.save();c.strokeStyle=C.gold;c.lineWidth=2.4/z;c.beginPath();c.arc(s.x,s.y,34*SHIP_SCALE*kit.iconBoost(),0,6.283);c.stroke();c.restore();}
+      if(s.flydef){c.save();c.strokeStyle=T.rgba(C.shield,0.7);c.lineWidth=2/z;c.setLineDash([4/z,6/z]);c.beginPath();c.arc(s.x,s.y,28*SHIP_SCALE*kit.iconBoost(),0,6.283);c.stroke();c.restore();}
+      kit.drawShipBody(c,s,{roll:s.visRoll,boost:s.boosting,scale:SHIP_SCALE});
+    }
+    if(TELLS)for(const s of S.ships)if(s.alive&&s.faction!=='reb'&&!s.struct&&doctrineOf(s).tell)doctrineOf(s).tell(c,s,z);
+    drawLocks(c,z);
+    drawShots(c,z,a,dtT);
+  } finally {
+    for(const [s,x,y,h,r] of saved){s.x=x;s.y=y;s.h=h;s.visRoll=r;}
+  }
+}
+/* where the action is, for the chase camera: the selected ship (else the first of yours) and its target */
+function focus(){
+  const me=byIdS(S.sel)&&byIdS(S.sel).alive&&byIdS(S.sel).faction==='reb'?byIdS(S.sel):S.ships.find(s=>s.alive&&s.faction==='reb');
+  if(!me)return null;
+  const t=byIdS(me.target),pts=[{x:me.x,y:me.y}];
+  if(t&&t.alive&&dist(me,t)<1500)pts.push({x:t.x,y:t.y});
+  const lead=me.vx||me.vy?{x:me.x+me.vx*0.8,y:me.y+me.vy*0.8}:null;   // look a little ahead of where it's going
+  if(lead)pts.push(lead);
+  return pts;
 }
 
 /* ---------- the orders strip ---------- */
@@ -989,6 +1069,9 @@ function panelGroup(){
     {key:'BOOST_TURN',label:'Boost: turn cap ×',min:0,max:1,step:0.05,get:()=>BOOST_TURN,set:v=>{BOOST_TURN=v;}},
     {key:'KTURN_MAX',label:'K-Turn: speed cap',min:1,max:5,step:1,get:()=>KTURN_MAX,set:v=>{KTURN_MAX=v;}},
     {key:'BARREL_LAT',label:'Barrel Roll: lateral (SU)',min:0,max:3,step:0.25,get:()=>BARREL_LAT,set:v=>{BARREL_LAT=v;}},
+    {key:'SPEED_SCALE',label:'Craft speed ×',min:0.5,max:3,step:0.1,get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;}},
+    {key:'SHIP_SCALE',label:'Ship size (drawn and hit) ×',min:0.6,max:2.5,step:0.05,get:()=>SHIP_SCALE,set:v=>{SHIP_SCALE=v;}},
+    {key:'BANK_ROLL',label:'Bank roll into turns (visual)',min:0,max:1,step:0.05,get:()=>BANK_ROLL,set:v=>{BANK_ROLL=v;}},
     {key:'SPEED_FLAIR',label:'Acceleration flair',type:'toggle',get:()=>SPEED_FLAIR,set:v=>{SPEED_FLAIR=v;}},
     {key:'FLAIR_DIP',label:'Flair: turn slowdown',min:0,max:0.8,step:0.05,get:()=>FLAIR_DIP,set:v=>{FLAIR_DIP=v;}},
     {key:'BURST_N',label:'Burst: projectiles',min:1,max:10,step:1,get:()=>BURST_N,set:v=>{BURST_N=v;}},
@@ -1030,8 +1113,8 @@ function ships(){return S.ships;}
 function stateHash(){return S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s.h.toFixed(3),s.hull,s.arm,totalShield(s),Math.round(s.pilot.cool),s.alive?1:0,s.st.shots,s.st.hits].join(',')).join('|')+'#'+S.proj.length+'/'+S.missiles.length;}
 function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+s.hull+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
 
-return {key:'sb',name:'SB Test',build,planInput,beginExec,tick,endExec,draw,hud,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
-  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{planEnemy,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
+return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,draw,hud,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
+  get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{planEnemy,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,renderPose,focus,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
       actionsFor,setAction,doAction,specialAbilities,shipAbilities,aiActionOf,
       hullHit,hullAxes,impactOf,hitShip,spreadOf,aimAngle,canFire,missileRefusal,lockOf,lockTick,combatTick,projTick,missileTick,fireTick,emitBursts,applyDamage,adjCool,coolState,
       setRng(f){S.rng=f;},setLoadout(id,list){const s=byIdS(id);s.wpns=loadout(s.row,list);return s.wpns;},
@@ -1041,7 +1124,7 @@ return {key:'sb',name:'SB Test',build,planInput,beginExec,tick,endExec,draw,hud,
     BURST_N_:()=>BURST_N,BURST_EVERY_:()=>BURST_EVERY,PROJ_SPD_:()=>PROJ_SPD,SPREAD_BASE_:()=>SPREAD_BASE,RANGE_SPREAD_:()=>RANGE_SPREAD,
     SPREAD_AIM_K_:()=>SPREAD_AIM_K,SPREAD_NERVE_K_:()=>SPREAD_NERVE_K,SPREAD_CRIT_:()=>SPREAD_CRIT,MISSILE_LOCK_:()=>MISSILE_LOCK,MISSILE_MINR_:()=>MISSILE_MINR,
     MISSILE_SPD_:()=>MISSILE_SPD,MISSILE_TURN_:()=>MISSILE_TURN,LOCK_GAIN_:()=>LOCK_GAIN,LOCK_DECAY_:()=>LOCK_DECAY,IMPACT_MIN_:()=>IMPACT_MIN,
-    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
+    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
     set(k,v){const m={AP_PER_ROUND:()=>AP_PER_ROUND=v,FLYDEF_FACTOR:()=>FLYDEF_FACTOR=v,BOOST_MULT:()=>BOOST_MULT=v,SPEED_FLAIR:()=>SPEED_FLAIR=v,
-      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v};m[k]();}};}};
+      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v};m[k]();}};}};
 })();
