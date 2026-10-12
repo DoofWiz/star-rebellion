@@ -41,6 +41,7 @@ const ARCH=0.55;
 const TURNS={L:-Math.PI/2,l:-Math.PI/4,S:0,r:Math.PI/4,R:Math.PI/2};
 const LOCK_RNG=900;       // copied from space.js ~23
 const CALM_GAIN=6;        // copied from space.js endRound ~1082 ('breathing room')
+let NERVE_K=0.6;          // every nerve loss × this (High Command only). placeholder
 let CALM_SECS=3;          // ...given each this many seconds a ship goes unhurt (a round's length under SB). placeholder
 
 let S=null;
@@ -157,6 +158,7 @@ function applyCritical(s){
 function adjCool(s,d){
   if(mute(s))return;
   const p=s.pilot;
+  if(d<0)d*=NERVE_K;   // High Command: real time keeps a pilot under fire for longer than a round
   if(d<0&&p.nv)d=Math.round(d*p.nv);
   d=Rebel.nerveScale(d,k=>hasTr(s,k));
   p.cool=Math.max(0,Math.min(100,p.cool+d));
@@ -348,7 +350,7 @@ function destroyShip(t,killer){   // sim-sb.js destroyShip (space.js ~1026–103
   t.alive=false;t.hull=Math.min(t.hull,0);t.deadT=S.t;
   S.fx.push({x:t.x,y:t.y,t0:S.t,kind:'boom',size:SRDB.visualSize(t.row.size)});
   floater(t,t.struct?'DESTROYED':'SPLASH',C.gold);
-  if(killer&&killer.alive){killer.st.kills++;adjCool(killer,12);}
+  if(killer&&killer.alive){killer.st.kills++;killer.killT=S.t;adjCool(killer,12);}
   for(const m of S.ships){
     if(!m.alive||m.faction!==t.faction||m===t)continue;
     adjCool(m,-18);
@@ -404,7 +406,7 @@ const ORDERS={
   board:    {name:'Board',    targeted:true, line:'Marine-carrying ships dock with a station or platform and board it.'},
 };
 const ORDER_KEYS=Object.keys(ORDERS);
-const T1_ORDERS=['attack','escort','withdraw'];
+const T1_ORDERS=ORDER_KEYS;   // every order is live from T2
 /* the wing tactics: each a weight set on the same scoring (placeholders, every number on the panel) */
 const HC_TACTICS={
   tight:    {name:'Tight Formation',line:'Close formation; every gun on one target.',form:1.0,space:1.0,engage:1.0,focus:1,flank:0,screen:0,hitrun:0,disengage:0.25,leash:1},
@@ -446,6 +448,7 @@ function mkShip(d){
   if(d.stats){for(const k of ['hull','arm']){if(d.stats[k]!=null){s[k]=d.stats[k];s['max'+(k==='hull'?'Hull':'Arm')]=d.stats[k];}}}
   if(!s.struct){const c=capsOf(s);s.vx=Math.cos(s.h)*c.vMax*CRUISE;s.vy=Math.sin(s.h)*c.vMax*CRUISE;}
   s.persona=personalityOf(s.pilot);
+  s.pilot.rest=s.pilot.cool;   // the nerve a pilot settles back to
   return s;
 }
 const byId=id=>S&&id!=null?S.ships.find(s=>s.id===id)||null:null;
@@ -493,7 +496,8 @@ function build(scn,opt){
   for(const e of R.enemies||[])spawnEnemies(e,()=>++eN);
   S.eN=eN;
   for(const o of R.objectives||[])S.objectives.push(Object.assign({state:'live',prog:0},o));
-  for(const r of R.rules||[])S.rules.push({rule:r.rule,scope:r.scope||'all',on:true});
+  S.ruleN=0;
+  for(const r of R.rules||[])S.rules.push({id:++S.ruleN,rule:r.rule,scope:r.scope||'all',param:r.param||null,on:true,t:0});
   for(const s of S.ships)s.thinkT=THINK_SECS;   // everyone decides on the first step
   return S;
 }
@@ -561,10 +565,16 @@ function think(s){
   const T=tacticOf(w),P=PERSONALITY[s.persona],o=w.order;
   let beh=null;
   const stamp=b=>{if(b)b.orderT=o.t||0;return b;};
-  // 1. standing interrupts (mission rules, emergencies, commands) slot in here from T2 on
+  // the ladder: an emergency (a panicking pilot) outranks a mission rule, which outranks the wing order; a command
+  // (Recall, Override: T3) outranks everything
+  beh=commandBehaviour(s,w);
+  if(!beh)beh=panicBehaviour(s);
+  if(!beh)beh=ruleBehaviour(s,w,T,P);
   if(!beh)beh=stamp(orderBehaviour(s,w,o,T,P));
   setBeh(s,beh);
+  s.assess=assessOf(s);
 }
+function commandBehaviour(s,w){return null;}   // T3
 /* commitment: a ship that has just turned onto a target stays on it for COMMIT_SECS unless it dies, the order
    changes, or something outranks the order (a rule, an emergency, a command), so wings don't thrash between targets */
 let COMMIT_SECS=2.5;      // placeholder
@@ -585,6 +595,10 @@ function orderBehaviour(s,w,o,T,P){
   // the "better local target": a hostile close by with its guns on this ship (or the one that just hit it)
   const threat=bestTarget(s,combat.filter(t=>dist(s,t)<gunRange(s)*THREAT_R&&(inArc(t,s)||(s.lastHitBy===t.id&&S.t-s.hitT<1.5))));
   if(o.kind==='withdraw')return {kind:'withdraw',why:'order',dest:extractPoint()};
+  // the tactic's disengage: a ship hurt past its threshold falls back on the wing (a shaken pilot sooner)
+  const hf=Math.max(0,s.hull)/s.maxHull,mor=moraleOf(s);
+  if(hf<T.disengage*P.disengage*(mor==='SHAKEN'?SHAKEN_DISENGAGE:1)&&(o.kind==='attack'||o.kind==='intercept'||o.kind==='defend'||o.kind==='hold')&&threat)
+    return {kind:'fallback',from:threat.id,why:'tactic: falling back hurt'};
   if(o.kind==='attack'){
     const pool=foes.filter(t=>matches(o.target,t));
     if(pool.length){
@@ -596,6 +610,7 @@ function orderBehaviour(s,w,o,T,P){
       // a ship under close attack turns on its attacker first, unless that is the target anyway (Patriot Override
       // holds it to the designation)
       if(threat&&threat!==t&&!s.override&&(t.struct||dist(s,t)>gunRange(s)*1.2))return {kind:'engage',target:threat.id,why:'self-defence'};
+      if(mor==='SHAKEN'&&!s.override&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
       return {kind:'engage',target:t.id,why:'order'};
     }
     if(local)return {kind:'engage',target:local.id,why:'order: no targets left'};
@@ -608,8 +623,259 @@ function orderBehaviour(s,w,o,T,P){
     if(threat)return {kind:'engage',target:threat.id,why:'escort: threat to '+ch.name,guard:ch.id};
     return {kind:'escort',charge:ch.id,why:'order'};
   }
+  if(o.kind==='intercept'){
+    const t=byId(o.target&&o.target.id);
+    if(!t||!t.alive)return local?{kind:'engage',target:local.id,why:'order: target gone'}:{kind:'form',why:'order: target gone'};
+    if(mor==='SHAKEN'&&!s.override&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
+    return {kind:'engage',target:t.id,why:'order',hard:true};   // an intercept never trades its target for a closer one
+  }
+  if(o.kind==='defend'){
+    const a=anchorOf(o.target);
+    if(!a)return {kind:'form',why:'order: nothing to defend'};
+    const t=bestTarget(s,nearPoint(combat,a,DEFEND_R*(T.leash||1)),{distW:0.5});
+    if(t)return {kind:'engage',target:t.id,why:'defend'};
+    return {kind:'defend',anchor:a,why:'order'};
+  }
+  if(o.kind==='hold'){
+    if(!w.hold)w.hold=wingCentre(w);
+    const t=bestTarget(s,nearPoint(combat,w.hold,HOLD_R*(T.leash||1)),{distW:0.5});
+    if(t)return {kind:'engage',target:t.id,why:'hold'};
+    return {kind:'hold',anchor:w.hold,why:'order'};
+  }
+  if(o.kind==='regroup'){
+    if(threat&&inArc(s,threat))return {kind:'engage',target:threat.id,why:'self-defence'};
+    return {kind:'form',why:'regroup'};
+  }
+  if(o.kind==='capture'){
+    const k=o.target&&o.target.id,p=S.points[k];
+    if(!p||p.owner==='reb')return local?{kind:'engage',target:local.id,why:'order: captured'}:{kind:'form',why:'order: captured'};
+    if(threat&&dist(threat,p)<CAPTURE_R*2)return {kind:'engage',target:threat.id,why:'capture: clearing the point'};
+    return {kind:'capture',point:k,anchor:p,why:'order'};
+  }
+  if(o.kind==='board'){
+    const st=byId(o.target&&o.target.id);
+    if(!st||!st.alive)return local?{kind:'engage',target:local.id,why:'order: boarded'}:{kind:'form',why:'order: boarded'};
+    if(s.marines)return {kind:'board',station:st.id,anchor:st,why:'order'};
+    const t=bestTarget(s,nearPoint(combat,st,ESCORT_R),{distW:0.5});   // the rest of the wing covers the boarders
+    if(t)return {kind:'engage',target:t.id,why:'board: covering'};
+    return {kind:'defend',anchor:st,why:'board: covering'};
+  }
   return {kind:'form',why:'order'};
 }
+/* outnumbered: the target has company (SHAKEN_ODDS or more hostiles near it): a marginal fight */
+function outnumbered(s,t){return foesOf(s).filter(x=>!x.struct&&dist(x,t)<gunRange(s)*1.5).length>=SHAKEN_ODDS;}
+function wingCentre(w){const l=wingShips(w);if(!l.length)return {x:W/2,y:H/2};let x=0,y=0;for(const q of l){x+=q.x;y+=q.y;}return {x:x/l.length,y:y/l.length};}
+/* what a Defend designation guards: a ship (its live position), a named point, or a place */
+function anchorOf(tg){
+  if(!tg)return null;
+  if(tg.type==='point')return S.points[tg.id]||null;
+  if(tg.type==='pos')return {x:tg.x,y:tg.y};
+  const s=byId(tg.id);return s&&s.alive?s:null;
+}
+let DEFEND_R=1300;        // a defending wing engages what comes this close to what it guards. placeholder
+let HOLD_R=1200;          // a holding wing engages what comes this close to its point. placeholder
+let CAPTURE_R=320;        // a capturing ship must be this close to the point. placeholder
+let CAPTURE_SECS=10;      // seconds of uncontested presence to take a point. placeholder
+let BOARD_R=320;          // a marine ship must be this close to the station (plus its size). placeholder
+let BOARD_SECS=12;        // marine-ship seconds to board a station (two boarders take half as long). placeholder
+let SHAKEN_ODDS=2;        // a SHAKEN pilot hangs back from a target with this many hostiles round it. placeholder
+let SHAKEN_DISENGAGE=1.6; // ...and falls back hurt at the tactic's threshold × this. placeholder
+
+/* =====================================================================
+   Morale (§2.4): nerve, read as a ladder. STEADY is the middle; EAGER above, SHAKEN and PANICKED below
+   ===================================================================== */
+let MORALE_EAGER=80,MORALE_SHAKEN=45,MORALE_PANIC=25;   // nerve thresholds. placeholders
+let PANIC_FLEE=0.6;       // a panicking pilot flees (else freezes) with this chance. placeholder
+let STEADY_AT=35;         // a panicking pilot steadies once nerve is back above this. placeholder
+function moraleOf(s){
+  if(mute(s))return 'STEADY';   // drones and stations have no nerve
+  const c=s.pilot.cool;
+  return c>=MORALE_EAGER?'EAGER':c>=MORALE_SHAKEN?'STEADY':c>=MORALE_PANIC?'SHAKEN':'PANICKED';
+}
+/* a pilot who panics may flee (run from the nearest threat, guns silent) or freeze (fly straight on, slow, guns
+   silent): a pilot emergency, pushed to the feed */
+function moraleTick(){
+  for(const s of S.ships){
+    if(!s.alive||s.struct||mute(s))continue;
+    const m=moraleOf(s);
+    if(!s.panic&&m==='PANICKED'){
+      s.panic={mode:S.rng()<PANIC_FLEE?'flee':'freeze',t0:S.t};
+      if(s.faction==='reb'&&!s.quiet)raiseEmergency(s,'panic');
+    } else if(s.panic&&s.pilot.cool>STEADY_AT){
+      s.panic=null;
+      if(s.faction==='reb'&&!s.quiet){pushEvent('steady',s.name+' steadies',{ship:s.id,x:s.x,y:s.y,tone:'good'});clearEmergency(s,'steadied');}
+    }
+  }
+}
+function panicBehaviour(s){
+  if(!s.panic||s.override)return null;
+  const th=nearestThreat(s);
+  return s.panic.mode==='flee'?{kind:'flee',from:th?th.id:null,why:'panic',hard:true}:{kind:'freeze',why:'panic',hard:true};
+}
+function nearestThreat(s){let b=null,bd=1e18;for(const t of foesOf(s)){if(t.struct)continue;const d=dist(s,t);if(d<bd){bd=d;b=t;}}return b;}
+/* the emergency record: the feed entry carries the response options (T3 fills them in) */
+function raiseEmergency(s,kind){
+  if(s.emerg&&s.emerg.kind===kind)return;
+  s.emerg={kind,t0:S.t,resp:null};
+  const quote=assessOf(s);
+  const e=pushEvent('emergency',s.name+(kind==='panic'?(s.panic&&s.panic.mode==='flee'?' is panicking: fleeing':' is panicking: frozen'):' is pinned')+' · "'+quote+'"',
+    {ship:s.id,x:s.x,y:s.y,tone:'hazard',opts:emergencyOpts(s)});
+  s.emerg.ev=e.id;
+  S.m.emergencies.push({ship:s.id,kind,t:+S.t.toFixed(2),resp:null});
+  S.m.alerts.push({t:S.t,ship:s.id,answered:null});
+}
+function clearEmergency(s,how){if(s.emerg){const r=S.m.emergencies.slice().reverse().find(x=>x.ship===s.id&&x.resp==null);if(r&&how&&how!=='steadied')r.resp=how;s.emerg=null;}}
+function emergencyOpts(s){return null;}   // T3
+
+/* =====================================================================
+   Mission rules (§4.3): standing interrupts, scoped ALL or one wing; each outranks the wing order
+   ===================================================================== */
+const RULES={
+  preservation:{name:'Preservation Order',short:'PRESERVATION',line:()=>'Any ship under '+Math.round(PRES_HULL*100)+'% hull withdraws to the extraction point and jumps.'},
+  guardian:{name:'Guardian Directive',short:'GUARDIAN',line:()=>'When a friendly objective (a convoy, a station you hold) is attacked, intercept the attacker.'},
+  formation:{name:'Formation Discipline',short:'FORMATION',line:()=>'When a target escapes past '+ESCAPE_K+'× gun range, break off and return to formation.'},
+  bringdown:{name:'Bring It Down Tasking',short:'BRING IT DOWN',line:()=>'Once the enemy flagship is disabled (under '+Math.round(BRING_HULL*100)+'% hull or crippled), every ship focuses fire on it.'},
+  saviour:{name:'Saviour Protocol',short:'SAVIOUR',needs:'ship',line:()=>'When the named friendly falls under '+Math.round(SAVIOUR_HULL*100)+'% hull, go to its rescue: intercept its attacker.'},
+};
+const RULE_KEYS=Object.keys(RULES);
+let PRES_HULL=0.3;        // Preservation Order's hull threshold. placeholder
+let GUARDIAN_SECS=2;      // an objective hit this recently counts as attacked. placeholder
+let GUARDIAN_R=3200;      // ...and its attacker is intercepted if this close. placeholder
+let ESCAPE_K=2.2;         // Formation Discipline: a target this far (× gun range) has escaped. placeholder
+let FORM_SECS=5;          // ...and the ship stays in formation this long. placeholder
+let BRING_HULL=0.5;       // Bring It Down: a flagship under this hull (or crippled) is disabled. placeholder
+let SAVIOUR_HULL=0.3;     // Saviour Protocol: the named friendly is critical under this hull. placeholder
+function ruleLabel(r){
+  const R=RULES[r.rule];
+  let t=R.short;
+  if(r.rule==='preservation')t+=' '+Math.round(PRES_HULL*100)+'%';
+  if(r.rule==='saviour'){const x=byId(r.param);t+=' '+(x?x.name.toUpperCase():'?');}
+  const w=wingOf(r.scope);
+  return t+' · '+(w?w.name.toUpperCase():'ALL');
+}
+function addRule(rule,scope,param){
+  if(!RULES[rule])return {ok:false,why:'no such rule'};
+  if(RULES[rule].needs==='ship'&&!byId(param))return {ok:false,why:'name a friendly ship'};
+  scope=scope&&wingOf(scope)?scope:'all';
+  const r={id:++S.ruleN,rule,scope,param:param||null,on:true,t:S.t};
+  S.rules.push(r);S.m.rulesSet=(S.m.rulesSet||0)+1;
+  return {ok:true,id:r.id};
+}
+function removeRule(id){const i=S.rules.findIndex(r=>r.id===id);if(i<0)return {ok:false};S.rules.splice(i,1);return {ok:true};}
+const rulesFor=w=>S.rules.filter(r=>r.on&&(r.scope==='all'||r.scope===w.id));
+function hullRuleDue(s){
+  const w=wingOf(s.wing);if(!w)return false;
+  for(const r of rulesFor(w)){
+    if(r.rule==='preservation'&&s.hull/s.maxHull<PRES_HULL&&!(s.beh&&s.beh.rule==='preservation'))return true;
+    if(r.rule==='saviour'){const x=byId(r.param);if(x&&x.alive&&x!==s&&x.hull/x.maxHull<SAVIOUR_HULL&&!(s.beh&&s.beh.rule))return true;}
+  }
+  return false;
+}
+function flagshipDisabled(){
+  for(const t of S.ships)if(t.flagship&&t.alive&&t.faction==='heg'&&(t.hull/t.maxHull<BRING_HULL||critCount(t,'engine')||critCount(t,'controls')))return t;
+  return null;
+}
+function friendlyObjectives(){return S.ships.filter(x=>x.alive&&x.faction==='reb'&&(x.quiet||x.struct||S.objectives.some(o=>o.kind==='protect'&&o.ship===x.id)));}
+function ruleBehaviour(s,w,T,P){
+  let hit=null;
+  for(const k of ['preservation','saviour','guardian','bringdown','formation']){   // the order they outrank each other in
+    for(const r of rulesFor(w)){
+      if(r.rule!==k)continue;
+      const b=ruleTry(s,r,T);
+      if(b){hit={b,r};break;}
+    }
+    if(hit)break;
+  }
+  if(!hit){s.ruleOn=null;return null;}
+  if(s.ruleOn!==hit.r.id){   // edge-triggered: a rule takes a ship once, then holds it
+    s.ruleOn=hit.r.id;
+    S.m.ruleTriggers++;S.m.byRule[hit.r.rule]=(S.m.byRule[hit.r.rule]||0)+1;
+    pushEvent('rule',RULES[hit.r.rule].name+': '+s.name+' '+hit.b.say,{ship:s.id,x:s.x,y:s.y,tone:'info'});
+  }
+  hit.b.hard=true;hit.b.rule=hit.r.rule;
+  return hit.b;
+}
+function ruleTry(s,r,T){
+  if(r.rule==='preservation'){
+    if(s.preserved||s.hull/s.maxHull<PRES_HULL){s.preserved=true;return {kind:'withdraw',dest:extractPoint(),why:'rule: preservation',say:'pulls out ('+Math.round(Math.max(0,s.hull)/s.maxHull*100)+'% hull)'};}
+    return null;
+  }
+  if(r.rule==='saviour'){
+    const x=byId(r.param);
+    if(!x||!x.alive||x===s||x.hull/x.maxHull>=SAVIOUR_HULL)return null;
+    const a=byId(x.lastHitBy);
+    if(a&&a.alive&&S.t-x.hitT<4)return {kind:'engage',target:a.id,why:'rule: saviour',say:'goes to '+x.name+"'s rescue"};
+    return {kind:'escort',charge:x.id,why:'rule: saviour',say:'covers '+x.name};
+  }
+  if(r.rule==='guardian'){
+    for(const x of friendlyObjectives()){
+      const a=byId(x.lastHitBy);
+      if(a&&a.alive&&S.t-x.hitT<=GUARDIAN_SECS&&dist(s,a)<GUARDIAN_R)return {kind:'engage',target:a.id,why:'rule: guardian',say:'goes for '+a.name+', on '+x.name};
+    }
+    return null;
+  }
+  if(r.rule==='bringdown'){
+    const f=flagshipDisabled();
+    if(f)return {kind:'engage',target:f.id,why:'rule: bring it down',say:'focuses fire on '+f.name};
+    return null;
+  }
+  if(r.rule==='formation'){
+    if(s.formUntil&&S.t<s.formUntil)return {kind:'form',why:'rule: formation',say:'returns to formation'};
+    const b=s.beh,t=b&&b.kind==='engage'?byId(b.target):null;
+    if(t&&!t.struct&&dist(s,t)>gunRange(s)*ESCAPE_K&&!(b.rule)){s.formUntil=S.t+FORM_SECS;return {kind:'form',why:'rule: formation',say:'lets '+t.name+' go and returns to formation'};}
+    return null;
+  }
+  return null;
+}
+
+/* =====================================================================
+   The pilot's voice (§2.3): a one-line assessment per state, in the pilot panel and the feed.
+   [TEXT NEEDED]: placeholder lines (C-67), designer-facing until the text flow takes them.
+   ===================================================================== */
+const ASSESS={
+  pinned:['Two on me, I can\'t shake them!','I\'m pinned, need help here!'],
+  flee:['I can\'t, I\'m getting out of here!','Too much, too much, breaking off!'],
+  freeze:['I can\'t move, I can\'t think...','Hands won\'t work, lead...'],
+  preserve:['Hull\'s bad. Pulling out, per orders.','Bleeding air. Heading home.'],
+  withdraw:['Heading for the jump.','Pulling out.'],
+  winning:['Got them on the run.','That\'s one more. Who\'s next?'],
+  hurt:['Taking hits, still in it.','Shields are gone, still flying.'],
+  engage:['On {t}, going in.','Engaging {t}.'],
+  station:['Making a run on {t}.','Lining up on {t}.'],
+  escort:['Sticking with {t}.','Eyes on {t}.'],
+  defend:['Watching over {t}.','Nothing gets near {t}.'],
+  hold:['Holding here.','Station kept.'],
+  capture:['Working on the {t}.','Almost have the {t}.'],
+  board:['Marines away!','Docking now.'],
+  shaken:['Not that one, lead, there\'s too many.','I\'ll stay on your wing for this one.'],
+  fallback:['Hurt, falling back on you.','Need a breather, lead.'],
+  form:['On your wing.','Forming up.'],
+};
+function pickLine(s,key,t){
+  const bank=ASSESS[key]||ASSESS.form;let h=0;for(const ch of s.id+key)h=(h*31+ch.charCodeAt(0))>>>0;
+  return bank[h%bank.length].replace('{t}',t||'it');
+}
+function pinnedBy(s){return foesOf(s).filter(t=>!t.struct&&inArc(t,s)&&dist(t,s)<=gunRange(t)*1.05);}
+function assessOf(s){
+  const b=s.beh||{},t=byId(b.target||b.charge||b.station),nm=t?(t.label||t.name):(b.anchor&&b.anchor.label)||(b.point&&S.points[b.point]&&S.points[b.point].label);
+  if(s.panic)return pickLine(s,s.panic.mode);
+  if(pinnedBy(s).length>=PIN_N)return pickLine(s,'pinned');
+  if(b.rule==='preservation')return pickLine(s,'preserve');
+  if(b.kind==='withdraw')return pickLine(s,'withdraw');
+  if(b.kind==='fallback')return pickLine(s,'fallback');
+  if(b.why==='shaken: hangs back')return pickLine(s,'shaken');
+  if(b.kind==='engage'&&t&&t.struct)return pickLine(s,'station',nm);
+  if(b.kind==='engage'&&s.st.kills&&S.t-(s.killT||-99)<8)return pickLine(s,'winning');
+  if(b.kind==='engage'&&s.hull<s.maxHull*0.6)return pickLine(s,'hurt');
+  if(b.kind==='engage')return pickLine(s,'engage',nm);
+  if(b.kind==='escort')return pickLine(s,'escort',nm);
+  if(b.kind==='defend')return pickLine(s,'defend',nm||'the point');
+  if(b.kind==='hold')return pickLine(s,'hold');
+  if(b.kind==='capture')return pickLine(s,'capture',nm);
+  if(b.kind==='board')return pickLine(s,'board');
+  return pickLine(s,'form');
+}
+let PIN_N=2;              // this many hostiles with their guns on a ship pin it. placeholder
 /* Convoy Lark: flies for its destination at convoy speed; waits at the jump point while it is jammed */
 function thinkConvoy(s){
   const p=S.points[s.to];if(!p){s.beh={kind:'idle'};return;}
@@ -622,6 +888,7 @@ let GUARD_R=900;          // a guard engages what comes this close to its asset 
 let LEASH_R=2600;         // a patrol or guard gives up a chase this far from home. placeholder
 function thinkEnemy(s){
   const foes=foesOf(s).filter(t=>!t.struct);
+  if(s.panic){const th=nearestThreat(s);setBeh(s,{kind:'flee',from:th?th.id:null,why:'panic',hard:true});return;}
   const home=s.asset&&byId(s.asset)?byId(s.asset):s.home||s;
   let pool=foes;
   if(s.doctrine==='guard')pool=foes.filter(t=>dist(t,home)<=GUARD_R+400||dist(t,s)<=gunRange(s)*0.9);
@@ -648,7 +915,7 @@ function orbitGoal(s,p,R){   // a ship can't stop: holding on a point is orbitin
 }
 function goalOf(s){
   const b=s.beh||{kind:'idle'},w=wingOf(s.wing),T=w?tacticOf(w):HC_TACTICS.tight,P=PERSONALITY[s.persona]||PERSONALITY.even,c=capsOf(s);
-  s.fireAt=null;s.intent=null;
+  s.fireAt=null;s.intent=null;s.holdFire=false;
   let g=null;
   if(b.kind==='engage'){
     const t=byId(b.target);
@@ -687,6 +954,26 @@ function goalOf(s){
     const sl=w?slotOf(s,w,T):null;
     if(sl)g={x:sl.x,y:sl.y,spd:catchSpd(s,sl,sl.lead)};
     else if(s.faction==='reb'){const hold=w&&w.hold||{x:s.x+Math.cos(s.vh)*400,y:s.y+Math.sin(s.vh)*400};if(w&&!w.hold)w.hold=hold;g=Object.assign(orbitGoal(s,hold,340),{spd:CRUISE});}
+  } else if(b.kind==='defend'||b.kind==='hold'){
+    const a=b.anchor,i=w?Math.max(0,wingShips(w).indexOf(s)):0,R=(b.kind==='hold'?300:380)*(0.8+0.25*(T.space||1))+i*70;
+    g=Object.assign(orbitGoal(s,a,R),{spd:CRUISE});
+  } else if(b.kind==='capture'){
+    const a=b.anchor,d=dist(s,a);
+    g=d>CAPTURE_R*1.5?{x:a.x,y:a.y,spd:1}:Object.assign(orbitGoal(s,a,CAPTURE_R*0.55),{spd:0});
+  } else if(b.kind==='board'){
+    const st=byId(b.station),d=st?dist(s,st):0;
+    if(st)g=d>boardR(st)*1.4?{x:st.x,y:st.y,spd:1}:Object.assign(orbitGoal(s,st,boardR(st)*0.6),{spd:0});
+  } else if(b.kind==='fallback'){   // away from the threat, toward the wing
+    const th=byId(b.from),lead=w?byId(w.leader):null;
+    let ax=0,ay=0;if(th){const d=dist(s,th)||1;ax=(s.x-th.x)/d;ay=(s.y-th.y)/d;}
+    const home=lead&&lead!==s?lead:(w?wingCentre(w):s);
+    g={x:s.x+ax*900+(home.x-s.x)*0.4,y:s.y+ay*900+(home.y-s.y)*0.4,spd:1};
+  } else if(b.kind==='flee'){   // panic: run from the nearest threat, guns silent
+    const th=byId(b.from);let ax=Math.cos(s.vh),ay=Math.sin(s.vh);
+    if(th){const d=dist(s,th)||1;ax=(s.x-th.x)/d;ay=(s.y-th.y)/d;}
+    g={x:s.x+ax*1200,y:s.y+ay*1200,spd:1};s.holdFire=true;
+  } else if(b.kind==='freeze'){   // panic: straight on, slow, guns silent
+    g={x:s.x+Math.cos(s.vh)*600,y:s.y+Math.sin(s.vh)*600,spd:0};s.holdFire=true;
   } else if(b.kind==='convoy'){
     g={x:b.dest.x,y:b.dest.y,spd:CONVOY_SPD};
   } else if(b.kind==='wait'){
@@ -695,7 +982,7 @@ function goalOf(s){
     g=Object.assign(orbitGoal(s,b.dest,420),{spd:CRUISE*0.8});
   }
   // opportunity fire: with nothing designated in its guns, a ship shoots at whatever hostile crosses them
-  if(!s.fireAt||!byId(s.fireAt)||!inArc(s,byId(s.fireAt))){
+  if(!s.holdFire&&(!s.fireAt||!byId(s.fireAt)||!inArc(s,byId(s.fireAt)))){
     const opp=foesOf(s).filter(t=>inArc(s,t)&&dist(s,t)<=gunRange(s)&&(!t.struct||(b.kind==='engage'&&b.target===t.id)));
     const o=bestTarget(s,opp);if(o&&!s.fireAt)s.fireAt=o.id;
     else if(o&&s.fireAt&&!inArc(s,byId(s.fireAt)))s.fireOpp=o.id;
@@ -807,6 +1094,7 @@ function objTick(){
     if(o.kind==='destroy')done=o.targets.every(id=>{const t=byId(id);return !t||!t.alive;});
     else if(o.kind==='escort'){const s=byId(o.ship);if(s&&s.jumped)done=true;else if(!s||!s.alive)fail=true;}
     else if(o.kind==='protect'){const s=byId(o.ship);if(!s||!s.alive)fail=true;else if(S.getOut)done=true;}
+    else if(o.kind==='board'){const s=byId(o.station);if(s&&s.boarded)done=true;else if(!s||!s.alive)fail=true;}
     if(done){o.state='done';o.doneT=S.t;
       if(o.cpReward){S.cp=Math.min(S.cpMax,S.cp+o.cpReward);}
       pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{tone:'good',x:o.at?o.at.x:null,y:o.at?o.at.y:null});}
@@ -836,6 +1124,38 @@ function endMission(how){
   pushEvent('over',S.over.why+' · '+lost+' lost',{tone:won?'good':'hazard'});
 }
 
+/* ---------- capture and boarding: progress while the ships are there and the point isn't contested ---------- */
+const boardR=st=>BOARD_R+shieldRStruct(st);
+const shieldRStruct=st=>44*SHIP_SCALE*SRDB.visualSize(st.row.size);
+function captureTick(dt){
+  for(const k in S.points){
+    const p=S.points[k];if(!p.capture||p.owner==='reb')continue;
+    const mine=S.ships.filter(x=>x.alive&&x.faction==='reb'&&x.beh&&x.beh.kind==='capture'&&x.beh.point===k&&dist(x,p)<=CAPTURE_R);
+    const foes=S.ships.filter(x=>x.alive&&x.faction==='heg'&&!x.struct&&dist(x,p)<=CAPTURE_R*1.5);
+    p.contested=mine.length>0&&foes.length>0;
+    if(!mine.length||foes.length)continue;
+    p.prog=Math.min(1,(p.prog||0)+dt/CAPTURE_SECS);
+    const o=S.objectives.find(x=>x.kind==='capture'&&x.point===k);if(o)o.prog=p.prog;
+    if(p.prog>=1){
+      p.owner='reb';
+      pushEvent('capture',(wingOf(mine[0].wing)||{name:mine[0].name}).name+' takes the '+(p.label||k).toLowerCase(),{x:p.x,y:p.y,tone:'good'});
+      if(o&&o.state==='live'){o.state='done';o.doneT=S.t;if(o.cpReward)S.cp=Math.min(S.cpMax,S.cp+o.cpReward);pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{x:p.x,y:p.y,tone:'good'});}
+    }
+  }
+}
+function boardTick(dt){
+  for(const st of S.ships){
+    if(!st.alive||!st.struct||st.faction!=='heg')continue;
+    const mine=S.ships.filter(x=>x.alive&&x.marines&&x.beh&&x.beh.kind==='board'&&x.beh.station===st.id&&dist(x,st)<=boardR(st));
+    if(!mine.length)continue;
+    st.boardProg=Math.min(1,(st.boardProg||0)+dt*mine.length/BOARD_SECS);
+    if(st.boardProg>=1){
+      st.alive=false;st.boarded=true;st.deadT=S.t;
+      pushEvent('board',(wingOf(mine[0].wing)||{name:mine[0].name}).name+' boards '+(st.label||st.name),{x:st.x,y:st.y,ship:st.id,tone:'good'});
+    }
+  }
+}
+
 /* =====================================================================
    The step (fixed TICK): think, fly, fight, the clock, the objectives
    ===================================================================== */
@@ -854,11 +1174,16 @@ function step(){
   for(const s of S.ships){
     if(!s.alive)continue;
     s.trail.push({x:s.x,y:s.y});if(s.trail.length>26)s.trail.shift();
-    if(S.t-s.hitT>=CALM_SECS&&S.t-s.calmT>=CALM_SECS){s.calmT=S.t;adjCool(s,CALM_GAIN);}
+    // breathing room: an unhurt pilot recovers toward their resting nerve (kills, not quiet, make them EAGER)
+    if(S.t-s.hitT>=CALM_SECS&&S.t-s.calmT>=CALM_SECS){s.calmT=S.t;if(s.pilot.cool<s.pilot.rest)adjCool(s,Math.min(CALM_GAIN,s.pilot.rest-s.pilot.cool));}
+    // a hull-threshold rule fires the step it is crossed, not at the next think
+    if(s.faction==='reb'&&s.wing&&!s.preserved&&hullRuleDue(s))s.thinkT=THINK_SECS;
   }
   for(const s of S.ships)if(s.alive&&!s.struct){lockTick(s,dt);fireTick(s,dt);}
   emitBursts(dt);projTick(dt);missileTick(dt);
   S.fx=S.fx.filter(f=>S.t-f.t0<1);
+  moraleTick();
+  captureTick(dt);boardTick(dt);
   jumpCheck();
   reinforceTick();
   objTick();
@@ -881,7 +1206,7 @@ function setOrder(wid,kind,target){
   if(ORDERS[kind].targeted&&!target)target=defaultTarget(w,kind);
   if(ORDERS[kind].targeted&&!target)return {ok:false,why:'no target'};
   w.order={kind,target:target||null,t:S.t};
-  if(kind==='hold')w.hold=null;
+  if(kind==='hold')w.hold=target&&target.type==='pos'?{x:target.x,y:target.y}:wingCentre(w);
   S.m.orders++;S.m.byOrder[kind]=(S.m.byOrder[kind]||0)+1;
   if(S.m.alerts.length){const a=S.m.alerts.find(x=>x.answered==null);if(a)a.answered=+(S.t-a.t).toFixed(2);}
   for(const sid of w.ships){const s=byId(sid);if(s)s.thinkT=THINK_SECS;}   // re-decide on the next step
@@ -901,6 +1226,24 @@ function targetChips(w,kind){
     for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct&&s.wing!==w.id)out.push({label:s.name,kind:'ally',target:{type:'ship',id:s.id}});
     return out;
   }
+  if(kind==='defend'){
+    for(const s of S.ships)if(s.alive&&s.faction==='reb'&&s.wing!==w.id&&(s.quiet||s.struct||s.wing))out.push({label:s.name,kind:'ally',target:{type:'ship',id:s.id}});
+    for(const k in S.points)out.push({label:S.points[k].label||k,kind:'point',target:{type:'point',id:k}});
+    const c=wingCentre(w);out.push({label:'Here',kind:'point',target:{type:'pos',x:Math.round(c.x),y:Math.round(c.y)}});
+    return out;
+  }
+  if(kind==='intercept'){
+    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&!t.struct)out.push({label:t.name,kind:t.flagship?'objective':'class',target:{type:'ship',id:t.id}});
+    return out;
+  }
+  if(kind==='capture'){
+    for(const k in S.points)if(S.points[k].capture&&S.points[k].owner!=='reb')out.push({label:S.points[k].label||k,kind:'objective',target:{type:'point',id:k}});
+    return out;
+  }
+  if(kind==='board'){
+    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&t.struct)out.push({label:t.label||t.name,kind:'station',target:{type:'station',id:t.id}});
+    return out;
+  }
   if(kind==='attack'){
     for(const o of S.objectives)if(o.state==='live'&&o.kind==='destroy')for(const id of o.targets){const t=byId(id);if(t&&t.alive)out.push({label:t.label||t.name,kind:'objective',target:{type:'obj',id}});}
     const seen={};
@@ -914,6 +1257,7 @@ function targetLabel(o){
   const t=o.target;
   if(t.type==='class'){const r=SRDB.ship(t.cls);return r?r.name.split(' ').pop()+'s':t.cls;}
   if(t.type==='point'){const p=S.points[t.id];return p?p.label:'here';}
+  if(t.type==='pos')return 'here';
   const s=byId(t.id);return s?(s.label||s.name):t.id;
 }
 
@@ -948,16 +1292,39 @@ const TUNE={
   LEAD_LOSS:{get:()=>LEAD_LOSS,set:v=>{LEAD_LOSS=v;},min:0,max:1,step:0.05,label:'Leaderless cohesion ×'},
   PROMOTE_SECS:{get:()=>PROMOTE_SECS,set:v=>{PROMOTE_SECS=v;},min:0,max:30,step:1,label:'Promote after (s)'},
   HC_CP:{get:()=>HC_CP,set:v=>{HC_CP=v;},min:0,max:10,step:1,label:'Command points (no scenario value)'},
+  NERVE_K:{get:()=>NERVE_K,set:v=>{NERVE_K=v;},min:0,max:2,step:0.05,label:'Nerve losses ×'},
   CALM_SECS:{get:()=>CALM_SECS,set:v=>{CALM_SECS=v;},min:1,max:10,step:0.5,label:'Calm nerve every (s)'},
   COMMIT_SECS:{get:()=>COMMIT_SECS,set:v=>{COMMIT_SECS=v;},min:0,max:8,step:0.5,label:'Stay on a target at least (s)'},
+  DEFEND_R:{get:()=>DEFEND_R,set:v=>{DEFEND_R=v;},min:400,max:3000,step:50,label:'Defend reach'},
+  HOLD_R:{get:()=>HOLD_R,set:v=>{HOLD_R=v;},min:400,max:3000,step:50,label:'Hold reach'},
+  CAPTURE_R:{get:()=>CAPTURE_R,set:v=>{CAPTURE_R=v;},min:100,max:800,step:20,label:'Capture radius'},
+  CAPTURE_SECS:{get:()=>CAPTURE_SECS,set:v=>{CAPTURE_SECS=v;},min:2,max:40,step:1,label:'Capture takes (s)'},
+  BOARD_R:{get:()=>BOARD_R,set:v=>{BOARD_R=v;},min:100,max:800,step:20,label:'Boarding radius'},
+  BOARD_SECS:{get:()=>BOARD_SECS,set:v=>{BOARD_SECS=v;},min:2,max:60,step:1,label:'Boarding takes (ship-s)'},
+  MORALE_EAGER:{get:()=>MORALE_EAGER,set:v=>{MORALE_EAGER=v;},min:50,max:100,step:1,label:'EAGER at nerve'},
+  MORALE_SHAKEN:{get:()=>MORALE_SHAKEN,set:v=>{MORALE_SHAKEN=v;},min:10,max:80,step:1,label:'SHAKEN under nerve'},
+  MORALE_PANIC:{get:()=>MORALE_PANIC,set:v=>{MORALE_PANIC=v;},min:0,max:60,step:1,label:'PANICKED under nerve'},
+  STEADY_AT:{get:()=>STEADY_AT,set:v=>{STEADY_AT=v;},min:0,max:80,step:1,label:'Panic ends over nerve'},
+  PANIC_FLEE:{get:()=>PANIC_FLEE,set:v=>{PANIC_FLEE=v;},min:0,max:1,step:0.05,label:'Panic: chance to flee (else freeze)'},
+  SHAKEN_ODDS:{get:()=>SHAKEN_ODDS,set:v=>{SHAKEN_ODDS=v;},min:1,max:6,step:1,label:'SHAKEN hangs back at odds'},
+  SHAKEN_DISENGAGE:{get:()=>SHAKEN_DISENGAGE,set:v=>{SHAKEN_DISENGAGE=v;},min:1,max:3,step:0.1,label:'SHAKEN falls back sooner ×'},
+  PIN_N:{get:()=>PIN_N,set:v=>{PIN_N=v;},min:1,max:5,step:1,label:'Pinned by (guns on it)'},
+  PRES_HULL:{get:()=>PRES_HULL,set:v=>{PRES_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Preservation: hull under'},
+  GUARDIAN_SECS:{get:()=>GUARDIAN_SECS,set:v=>{GUARDIAN_SECS=v;},min:0.5,max:10,step:0.5,label:'Guardian: hit within (s)'},
+  GUARDIAN_R:{get:()=>GUARDIAN_R,set:v=>{GUARDIAN_R=v;},min:500,max:6000,step:100,label:'Guardian: reach'},
+  ESCAPE_K:{get:()=>ESCAPE_K,set:v=>{ESCAPE_K=v;},min:1,max:5,step:0.1,label:'Formation: escaped at (× gun range)'},
+  FORM_SECS:{get:()=>FORM_SECS,set:v=>{FORM_SECS=v;},min:1,max:20,step:1,label:'Formation: re-form for (s)'},
+  BRING_HULL:{get:()=>BRING_HULL,set:v=>{BRING_HULL=v;},min:0.1,max:1,step:0.05,label:'Bring It Down: flagship under'},
+  SAVIOUR_HULL:{get:()=>SAVIOUR_HULL,set:v=>{SAVIOUR_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Saviour: friendly under'},
   GUN_DPS:{get:()=>GUN_DPS,set:v=>{GUN_DPS=v;},min:0.1,max:2,step:0.05,label:'Gun damage a second (× roll)'},
 };
 
 return {key:'hc',name:'Type 3: High Command',
   get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
-  ORDERS,ORDER_KEYS,T1_ORDERS,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,
-  build,step,runFor,setOrder,setTactic,targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,
-  fn:{byId,wingOf,wingShips,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  ORDERS,ORDER_KEYS,T1_ORDERS,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,RULES,RULE_KEYS,ASSESS,
+  build,step,runFor,setOrder,setTactic,targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
+  fn:{byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
-    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R}};
+    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
+    PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
 })();

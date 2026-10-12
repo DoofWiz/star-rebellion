@@ -14,7 +14,9 @@
      mounts, shield arcs that flare
    High Command section (docs/ARENA-HC-HANDOFF.md §8; game/js/arena-hc.js and sim-hc.js, through DBGarena.hc), in its
    own browser context: 1 ruleset isolation   6 determinism with pauses   7 the reinforcement clock
-     T1: Attack, Escort and Withdraw fly themselves; the HUD's top band, roster, tray, time controls */
+     T1: Attack, Escort and Withdraw fly themselves; the HUD's top band, roster, tray, time controls
+     2 order persistence   3 tactic effect   4 Preservation within one think tick
+     T2: the other six orders, the rules panel, morale and panic, assessments, the feed and VIEW, live camera tiles */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1035,7 +1037,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
  ok(hc.loaded[0]==='LIVE'&&hc.loaded[1]==='hc1_nightfall'&&hc.loaded[2]==='dagger:3,amber:2'&&hc.loaded[3]&&hc.loaded[4],'HC 1: hc1_nightfall loads with its wings '+JSON.stringify(hc.loaded));
  ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]===1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, one gold primary, paused on load '+JSON.stringify(hc.hud));
- ok(hc.tray[0]&&hc.tray[1]===9&&hc.tray[2]==='attack,escort,withdraw'&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
+ ok(hc.tray[0]&&hc.tray[1]===9&&['attack','escort','withdraw'].every(k=>hc.tray[2].split(',').includes(k))&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
  ok(hc.attack[1]<hc.attack[0]*0.5,'HC T1: Attack closes on the relay '+JSON.stringify(hc.attack));
  ok(hc.escort<1200,'HC T1: Escort stays with the lark '+hc.escort);
  ok(hc.withdraw.every(Boolean)&&hc.jammed[0]===0&&hc.jammed[1]===true,'HC T1: nothing jumps while the relay jams the point '+JSON.stringify([hc.withdraw,hc.jammed]));
@@ -1043,10 +1045,128 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc.clock[0]===false&&hc.clock[3]===true&&hc.clock[4]>=5&&/GET OUT/.test(hc.clock[5])&&!/GET OUT/.test(hc.clock[2])&&hc.clock[6]&&hc.clock[7]&&hc.clock[8]==='REINFORCEMENTS','HC 7: the reinforcement clock '+JSON.stringify(hc.clock));
  ok(hc.det[0]===hc.det[1]&&Array.isArray(hc.det[2])&&hc.det[2][0]===hc.det[0]&&hc.det[2][1]===3&&hc.det[2][2]&&hc.det[2][3]&&hc.det[3]!==hc.det[0],'HC 6: determinism with pauses '+JSON.stringify(hc.det));
  ok(hc.noSave,'HC: the campaign key appeared');
+ /* ---------- High Command T2: orders, tactics, rules, morale, the feed, the tiles ---------- */
+ const hc2=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),q=s=>document.querySelector('#arHc '+s);
+  const quiet=()=>{for(const s of S().ships)if(s.faction==='heg'&&!s.struct)s.alive=false;};
+  const spreadOf=w=>{const l=SIM.fn.wingShips(w),c=SIM.fn.wingCentre(w);return l.reduce((a,s)=>a+Math.hypot(s.x-c.x,s.y-c.y),0)/l.length;};
+  // 2. order persistence: Attack on a ship class, 30 s at speed 3 through the driver, no input: still prosecuting
+  f.load('hc1_nightfall',0,21);
+  f.issue('dagger','attack',{type:'class',cls:'mote'});
+  f.setSpeed(3);let now=1000,samples=0,on=0;f.frame(now);
+  const t0=S().t;
+  while(S().t-t0<30&&!S().over){
+    now+=16;f.frame(now);
+    if(S().tick%20===0)for(const id of S().wings[0].ships){const s=by(id);if(!s.alive||s.beh.kind==='withdraw')continue;samples++;const t=by(s.beh.target);if(s.beh.kind==='engage'&&t&&t.cls==='mote')on++;}
+  }
+  const motesLeft=S().ships.filter(s=>s.alive&&s.cls==='mote').length;
+  out.persist=[S().wings[0].order.kind,S().wings[0].order.target.cls,samples>0?on/samples:1,motesLeft,Math.round(S().t-t0)];
+  // 3. tactic effect: the same seed and orders, Tight then Spread: measurably different dispersion
+  const disp=tac=>{f.load('hc1_nightfall',0,5);quiet();S().rocks.length=0;f.issue('dagger','regroup');SIM.setTactic('dagger',tac);SIM.runFor(15);let a=0;for(let i=0;i<20;i++){SIM.runFor(0.5);a+=spreadOf(S().wings[0]);}return Math.round(a/20);};
+  out.tactic=[disp('tight'),disp('spread')];
+  // 4. Preservation Order: a mauled ship flips to Withdraw within one think tick
+  f.load('hc1_nightfall',0,9);
+  const r=SIM.addRule('preservation','all');
+  SIM.runFor(1);
+  const wren=by('P2');wren.hull=wren.maxHull*0.28;
+  const tk=S().tick;let flipped=null;
+  for(let i=0;i<20&&flipped==null;i++){SIM.step();if(wren.beh.kind==='withdraw'&&wren.beh.rule==='preservation')flipped=S().tick-tk;}
+  out.pres=[r.ok,flipped,Math.round(SIM.fn.THINK_SECS_()*1000/SIM.TICK),S().m.ruleTriggers,S().m.byRule.preservation,S().events.some(e=>e.kind==='rule'&&/Preservation Order: Wren/.test(e.text))];
+  // the rules panel: + RULE, pick a rule, a scope (and a ship for Saviour); chips with × rescind
+  f.syncHud();
+  q('[data-act="addrule"]').click();
+  out.rulesUi=[document.querySelectorAll('#hcRules [data-pickrule]').length];
+  q('[data-pickrule="guardian"]').click();q('[data-pickscope="amber"]').click();
+  q('[data-act="addrule"]').click();q('[data-pickrule="saviour"]').click();q('[data-pickscope="all"]').click();q('[data-pickship="lark"]').click();
+  f.syncHud();
+  out.rulesUi.push([...document.querySelectorAll('#hcRules .hc-rchip')].map(e=>e.textContent).join('|'));
+  q('#hcRules [data-unrule]').click();f.syncHud();
+  out.rulesUi.push(document.querySelectorAll('#hcRules .hc-rchip').length,S().rules.map(x=>x.rule).join());
+  // the other orders
+  f.load('hc1_nightfall',0,4);S().rocks.length=0;
+  const amber=S().wings[1],dag=S().wings[0];
+  // Intercept: one ship, hard; Defend: guard the lark; Hold: orbit a point; Regroup: formation
+  const g1=by('E2');
+  out.intercept=[f.issue('dagger','intercept',{type:'ship',id:g1.id}).ok];
+  out.defend=[f.issue('amber','defend',{type:'ship',id:'lark'}).ok];
+  SIM.runFor(6);
+  out.intercept.push(dag.ships.map(by).filter(s=>s.alive).every(s=>s.beh.kind==='engage'&&s.beh.target===g1.id||s.beh.why==='order: target gone'));
+  out.defend.push(amber.ships.map(by).every(s=>s.beh.kind==='defend'||s.beh.kind==='engage'),Math.round(Math.max(...amber.ships.map(by).map(s=>Math.hypot(s.x-by('lark').x,s.y-by('lark').y)))));
+  quiet();
+  f.issue('amber','hold');const hp=Object.assign({},amber.hold);
+  f.issue('dagger','regroup');
+  SIM.runFor(12);
+  out.hold=[Math.round(Math.max(...amber.ships.map(by).map(s=>Math.hypot(s.x-hp.x,s.y-hp.y)))),amber.ships.map(by).every(s=>s.beh.kind==='hold')];
+  out.regroup=dag.ships.map(by).filter(s=>s.alive).every(s=>s.beh.kind==='form');
+  // Capture: the satellite, after CAPTURE_SECS of presence; +1 CP from the objective
+  S().cp=3;
+  f.issue('dagger','capture',{type:'point',id:'sat'});
+  SIM.runFor(40);
+  const sat=S().objectives.find(o=>o.id==='sat');
+  out.capture=[S().points.sat.owner,sat.state,S().cp,S().events.some(e=>e.kind==='capture')];
+  // Board: refused without marines; with marines (a wing added at runtime) it boards the relay
+  out.board=[f.issue('amber','board',{type:'station',id:'relay'}).ok];
+  window.DBGarena.fn.addScenario({id:'t_board',title:'Test: board',desc:'Smoke test.',rulesets:['hc'],rocks:[],
+    wings:[{id:'hammer',name:'Hammer',at:[3000,3000,0],order:{kind:'regroup'},tactic:'tight',ships:[{cls:'graf',name:'Anvil',marines:true},{cls:'talon',name:'Nail'}]}],
+    enemies:[{type:'fuel-depot',id:'rx',name:'Reactor',label:'Reactor',at:[3900,3000,0]}],points:{jump:{x:400,y:3000,label:'Jump point'}},extract:'jump',
+    objectives:[{id:'b',kind:'board',station:'rx',text:'Board the reactor',primary:true}],reinforce:{secs:600,edge:'E',force:[]},cp:2});
+  f.load('t_board',0,1);
+  out.board.push(SIM.targetChips(S().wings[0],'board').map(c=>c.label).join(),f.issue('hammer','board',{type:'station',id:'rx'}).ok);
+  SIM.runFor(30);
+  out.board.push(by('rx').boarded===true,S().objectives[0].state);
+  // morale: the ladder from nerve; a pilot dropped to panic flees or freezes, raises an emergency with their words
+  f.load('hc1_nightfall',0,12);
+  const M=SIM.fn.MORALE_();
+  const pil=by('P3');
+  const ladder=v=>{pil.pilot.cool=v;return SIM.moraleOf(pil);};
+  out.morale=[ladder(M.EAGER+1),ladder(M.SHAKEN+1),ladder(M.SHAKEN-1),ladder(M.PANIC-1)];
+  SIM.step();SIM.runFor(0.6);
+  out.panic=[!!pil.panic,pil.beh.kind,!!pil.holdFire,S().m.emergencies.length,S().events.filter(e=>e.kind==='emergency').map(e=>e.text).join('|')];
+  // assessments: every ship has one, in its own words
+  out.assess=S().ships.filter(s=>s.alive&&s.faction==='reb'&&!s.quiet).every(s=>typeof s.assess==='string'&&s.assess.length>3);
+  // the feed narrates; VIEW jumps the camera; Tab steps to the next unviewed event
+  f.setSpeed(3);now=5000;for(let k=0;k<1500&&!S().over;k++){now+=16;f.frame(now);}
+  f.syncHud();
+  const evEls=[...document.querySelectorAll('#hcFeed .hc-ev')];
+  const views=[...document.querySelectorAll('#hcFeed [data-view]')];
+  const kinds=[...new Set(S().events.map(e=>e.kind))].sort().join();
+  const v=views[views.length-1],ev=S().events.find(e=>e.id===+v.dataset.view),c0=Object.assign({},f.cam_());
+  v.click();
+  const c1=f.cam_(),tgt=ev.ship&&by(ev.ship)&&by(ev.ship).alive?by(ev.ship):{x:ev.x,y:ev.y};
+  out.feed=[evEls.length,views.length,kinds,Math.round(Math.hypot(c1.x-tgt.x,c1.y-tgt.y)),ev.viewed];
+  const unv=S().events.filter(e=>!e.viewed&&(e.x!=null||e.ship)).length;
+  window.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab'}));
+  out.feed.push(unv,S().events.filter(e=>!e.viewed&&(e.x!=null||e.ship)).length);
+  // live camera tiles: drawn from the sim (pixels other than the void), under budget
+  for(let k=0;k<20;k++)f.tileTick();
+  const cv=document.querySelector('#hcRoster .hc-tile canvas'),px=cv.getContext('2d').getImageData(0,0,cv.width,cv.height).data;
+  let lit=0;for(let i=0;i<px.length;i+=4)if(px[i]+px[i+1]+px[i+2]>120)lit++;
+  out.tiles=[f.tiles_().live,lit>20,f.tiles_().ms<f.tiles_().TILE_BUDGET];
+  // the tray: all nine orders live but Board (no marines), the tactic row live; hover cards read live numbers
+  f.selectWing('dagger',true);f.syncHud();
+  out.tray=[[...document.querySelectorAll('#hcTray [data-order]:not([aria-disabled="true"])')].length,[...document.querySelectorAll('#hcTray [data-tactic]:not([aria-disabled="true"])')].length,
+    q('#hcTray [data-order="board"]').getAttribute('aria-disabled'),f.tipFor('order:attack').line,/Spacing ×3\.4,/.test(f.tipFor('tactic:spread').line)];
+  return out;
+ });
+ ok(hc2.persist[0]==='attack'&&hc2.persist[1]==='mote'&&hc2.persist[2]>=0.7&&hc2.persist[4]>=30,'HC 2: Attack persists 30 s at speed 3 '+JSON.stringify(hc2.persist));
+ ok(hc2.tactic[1]>hc2.tactic[0]*1.5,'HC 3: Spread disperses more than Tight '+JSON.stringify(hc2.tactic));
+ ok(hc2.pres[0]&&hc2.pres[1]!=null&&hc2.pres[1]<=hc2.pres[2]&&hc2.pres[3]>=1&&hc2.pres[4]===1&&hc2.pres[5],'HC 4: Preservation flips within one think tick '+JSON.stringify(hc2.pres));
+ ok(hc2.rulesUi[0]===5&&hc2.rulesUi[1]==='PRESERVATION 30% · ALL|GUARDIAN · AMBER|SAVIOUR CONVOY LARK · ALL'&&hc2.rulesUi[2]===2&&hc2.rulesUi[3]==='guardian,saviour','HC T2: the rules panel '+JSON.stringify(hc2.rulesUi));
+ ok(hc2.intercept.every(Boolean)&&hc2.defend[0]&&hc2.defend[1]&&hc2.defend[2]<1800,'HC T2: Intercept and Defend '+JSON.stringify([hc2.intercept,hc2.defend]));
+ ok(hc2.hold[0]<900&&hc2.hold[1]&&hc2.regroup,'HC T2: Hold and Regroup '+JSON.stringify([hc2.hold,hc2.regroup]));
+ ok(hc2.capture[0]==='reb'&&hc2.capture[1]==='done'&&hc2.capture[2]===4&&hc2.capture[3],'HC T2: Capture takes the satellite for +1 CP '+JSON.stringify(hc2.capture));
+ ok(hc2.board[0]===false&&hc2.board[1]==='Reactor'&&hc2.board[2]&&hc2.board[3]&&hc2.board[4]==='done','HC T2: Board needs marines, then boards '+JSON.stringify(hc2.board));
+ ok(hc2.morale.join()==='EAGER,STEADY,SHAKEN,PANICKED','HC T2: the morale ladder '+hc2.morale);
+ ok(hc2.panic[0]&&/flee|freeze/.test(hc2.panic[1])&&hc2.panic[2]&&hc2.panic[3]===1&&/Petra is panicking/.test(hc2.panic[4]),'HC T2: panic is an emergency '+JSON.stringify(hc2.panic));
+ ok(hc2.assess,'HC T2: every pilot has an assessment');
+ ok(hc2.feed[0]>=3&&hc2.feed[1]>=1&&/kill|loss/.test(hc2.feed[2])&&hc2.feed[3]<5&&hc2.feed[4]&&(hc2.feed[5]===0||hc2.feed[6]===hc2.feed[5]-1),'HC T2: the feed, VIEW and Tab '+JSON.stringify(hc2.feed));
+ ok(hc2.tiles.every(Boolean),'HC T2: live camera tiles '+JSON.stringify(hc2.tiles));
+ ok(hc2.tray[0]===8&&hc2.tray[1]===6&&hc2.tray[2]==='true'&&/Engage a designated target: click the objective, a ship class, or a station/.test(hc2.tray[3])&&hc2.tray[4],'HC T2: the tray '+JSON.stringify(hc2.tray));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

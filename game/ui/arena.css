@@ -222,6 +222,7 @@
 #arHc .hc-stage>canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
 #arHc .hc-glyph{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;}
 #arHc .hc-glyph--sm{width:14px;height:14px;}
+#arHc .hc-glyph--xs{width:10px;height:10px;stroke-width:3;}
 #arHc .hc-card{background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 /* the top band: objectives (left), the clock (centre), command points and COMMANDS (right) */
 #arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,320px) 1fr auto;align-items:start;gap:12px;pointer-events:none;}
@@ -237,6 +238,22 @@
 #arHc .hc-obj__getout{margin-top:6px;font:400 var(--sr-fs-xs)/1.2 var(--sr-font-display);color:var(--sr-hazard);}
 #arHc .hc-rules{margin-top:8px;padding-top:6px;border-top:1.5px solid var(--sr-seam);}
 #arHc .hc-rules:empty{display:none;}
+#arHc .hc-rules__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+#arHc .hc-rules__none{color:var(--sr-text-3);font-weight:600;}
+#arHc .hc-rchip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 3px 0 8px;border-radius:999px;border:1.5px solid var(--sr-shield);color:var(--sr-shield);
+  font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.05em;white-space:nowrap;}
+#arHc .hc-rchip__x{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;padding:0;border-radius:50%;border:0;background:transparent;color:var(--sr-shield);cursor:pointer;}
+#arHc .hc-rchip__x:hover,#arHc .hc-rchip__x:focus-visible{background:color-mix(in srgb,var(--sr-shield) 22%,transparent);outline:none;}
+#arHc .hc-addrule{height:22px;padding:0 8px;border-radius:999px;border:1.5px dashed var(--sr-shield);background:transparent;color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
+#arHc .hc-addrule:hover,#arHc .hc-addrule:focus-visible{background:color-mix(in srgb,var(--sr-shield) 16%,transparent);outline:none;}
+#arHc .hc-rulepick{margin-top:6px;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:var(--sr-r);background:var(--sr-night);border:1.5px solid var(--sr-seam);}
+#arHc .hc-rulepick__row{display:flex;flex-direction:column;gap:2px;padding:5px 7px;border-radius:var(--sr-r-sm);border:1.5px solid transparent;background:transparent;color:var(--sr-text);text-align:left;cursor:pointer;font:600 var(--sr-fs-xs)/1.25 var(--sr-font-ui);}
+#arHc .hc-rulepick__row b{color:var(--sr-shield);font-weight:800;}
+#arHc .hc-rulepick__row span{color:var(--sr-text-2);}
+#arHc .hc-rulepick__row:hover,#arHc .hc-rulepick__row:focus-visible{border-color:var(--sr-shield);outline:none;}
+#arHc .hc-rulepick__q{font-weight:800;color:var(--sr-text-2);}
+#arHc .hc-rulepick__chips{display:flex;flex-wrap:wrap;gap:5px;}
+#arHc .hc-rulepick .sr-btn{align-self:flex-start;min-height:26px;font-size:var(--sr-fs-xs);}
 #arHc .hc-clockbox{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:4px;}
 #arHc .hc-clock{font:400 var(--sr-fs-2xl)/1 var(--sr-font-display);color:var(--sr-hazard);letter-spacing:.04em;padding:6px 16px;
   background:color-mix(in srgb,var(--sr-night) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);text-shadow:0 3px 0 var(--sr-ink);}
@@ -273,20 +290,23 @@
 #arHc .hc-chip--order{border:1.5px solid var(--sr-gold);color:var(--sr-gold);}
 #arHc .hc-chip--tactic{border:1.5px solid var(--sr-shield);color:var(--sr-shield);}
 #arHc .hc-wing__tiles{display:flex;gap:6px;}
-#arHc .hc-tile{position:relative;display:flex;flex-direction:column;gap:3px;width:108px;padding:5px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-night);color:var(--sr-text);cursor:pointer;text-align:left;font:700 var(--sr-fs-micro)/1.1 var(--sr-font-ui);}
+#arHc .hc-tile{position:relative;display:flex;flex-direction:column;gap:3px;width:116px;padding:5px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-night);color:var(--sr-text);cursor:pointer;text-align:left;font:700 var(--sr-fs-micro)/1.1 var(--sr-font-ui);}
 #arHc .hc-tile:hover,#arHc .hc-tile:focus-visible{border-color:var(--sr-plate-hi);outline:none;}
 #arHc .hc-tile.is-sel{border-color:var(--sr-gold);}
 #arHc .hc-tile.is-crit{box-shadow:0 0 0 2px var(--sr-hazard);}
 #arHc .hc-tile.is-down{opacity:.4;}
-#arHc .hc-tile__cam{width:96px;height:56px;border-radius:4px;background:var(--sr-void);display:block;}
+#arHc .hc-tile__cam{width:102px;height:56px;border-radius:4px;background:var(--sr-void);display:block;}
 #arHc .hc-tile__name{font-size:var(--sr-fs-xs);color:var(--sr-rebel-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #arHc .hc-tile__bars{display:flex;flex-direction:column;gap:2px;}
 #arHc .hc-bar{display:block;height:4px;border-radius:2px;background:var(--sr-void);overflow:hidden;}
 #arHc .hc-bar b{display:block;height:100%;}
 #arHc .hc-bar--hull b{background:var(--sr-go);} #arHc .hc-tile.is-crit .hc-bar--hull b{background:var(--sr-hazard);}
 #arHc .hc-bar--shd b{background:var(--sr-shield);}
-#arHc .hc-tile__foot{display:flex;justify-content:space-between;gap:4px;color:var(--sr-text-3);letter-spacing:.04em;}
-#arHc .hc-tile__ord{position:absolute;top:8px;left:8px;padding:1px 4px;border-radius:3px;background:color-mix(in srgb,var(--sr-ink) 80%,transparent);color:var(--sr-text-2);}
+#arHc .hc-tile__foot{display:flex;justify-content:space-between;gap:4px;color:var(--sr-text-3);}
+#arHc .hc-tile__ord{position:absolute;top:8px;left:8px;display:inline-flex;padding:2px;border-radius:4px;background:color-mix(in srgb,var(--sr-ink) 80%,transparent);color:var(--sr-text-2);}
+#arHc .hc-tile__ord:empty{display:none;}
+#arHc .hc-tile__ord[data-tone="rule"]{color:var(--sr-shield);} #arHc .hc-tile__ord[data-tone="hazard"]{color:var(--sr-hazard);}
+#arHc .hc-tile__word{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #arHc .hc-tile__mor[data-m="EAGER"]{color:var(--sr-go);} #arHc .hc-tile__mor[data-m="SHAKEN"]{color:var(--sr-gold);} #arHc .hc-tile__mor[data-m="PANICKED"]{color:var(--sr-hazard);}
 /* the bottom right: time controls */
 #arHc .hc-time{position:absolute;right:12px;bottom:12px;z-index:3;display:flex;align-items:center;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}

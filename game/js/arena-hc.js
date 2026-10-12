@@ -304,6 +304,7 @@ function frame(now){
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
   render(now);
+  if(A.phase==='LIVE'&&now-(A.tileAt||0)>=100/Math.max(1,byId('hcRoster').querySelectorAll('.hc-tile').length)){A.tileAt=now;tileTick();}
   if(now-A.hudAt>120){A.hudAt=now;syncHud();}
 }
 /* follow: ease the camera onto the selected ship (or the selected wing's middle) */
@@ -425,11 +426,42 @@ function objHtml(){
   if(S.getOut)h+='<div class="hc-obj__getout">GET OUT: withdraw every wing to the jump point</div>';
   return h;
 }
+/* the mission rules, nested under the objectives: cyan scope chips (rescind with ×) and + RULE */
+function rulesHtml(){
+  const S=SIM.S;
+  let h='<div class="hc-rules__head">Mission rules</div><div class="hc-rules__chips">';
+  if(!S.rules.length)h+='<span class="hc-rules__none">No rules</span>';
+  for(const r of S.rules)h+='<span class="hc-rchip" data-tip="rule:'+r.rule+'">'+esc(SIM.ruleLabel(r))+'<button type="button" class="hc-rchip__x" data-unrule="'+r.id+'" aria-label="Rescind">'+glyph('close','hc-glyph--xs')+'</button></span>';
+  h+='<button type="button" class="hc-addrule" data-act="addrule" aria-expanded="'+!!A.rulePick+'">+ RULE</button></div>';
+  const P=A.rulePick;
+  if(P){
+    h+='<div class="hc-rulepick">';
+    if(P.step==='rule'){for(const k of SIM.RULE_KEYS)h+='<button type="button" class="hc-rulepick__row" data-pickrule="'+k+'"><b>'+esc(SIM.RULES[k].name)+'</b><span>'+esc(SIM.RULES[k].line())+'</span></button>';}
+    else if(P.step==='scope'){h+='<div class="hc-rulepick__q">'+esc(SIM.RULES[P.rule].name)+': for which wings?</div><div class="hc-rulepick__chips"><button type="button" class="hc-tchip is-point" data-pickscope="all">All wings</button>';
+      for(const w of S.wings)h+='<button type="button" class="hc-tchip is-ally" data-pickscope="'+w.id+'">'+esc(w.name)+'</button>';h+='</div>';}
+    else if(P.step==='ship'){h+='<div class="hc-rulepick__q">Saviour Protocol: which friendly?</div><div class="hc-rulepick__chips">';
+      for(const x of S.ships)if(x.alive&&x.faction==='reb'&&!x.struct)h+='<button type="button" class="hc-tchip is-ally" data-pickship="'+x.id+'">'+esc(x.name)+'</button>';h+='</div>';}
+    h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelrule">Cancel</button></div>';
+  }
+  return h;
+}
+byId('hcRules').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b||!SIM.S)return;
+  if(b.dataset.unrule){SIM.removeRule(+b.dataset.unrule);syncHud(true);return;}
+  if(b.dataset.act==='addrule'){A.rulePick=A.rulePick?null:{step:'rule'};syncHud(true);return;}
+  if(b.dataset.act==='cancelrule'){A.rulePick=null;syncHud(true);return;}
+  const P=A.rulePick;if(!P)return;
+  if(b.dataset.pickrule){P.rule=b.dataset.pickrule;P.step='scope';}
+  else if(b.dataset.pickscope){P.scope=b.dataset.pickscope;if(SIM.RULES[P.rule].needs==='ship')P.step='ship';else{const r=SIM.addRule(P.rule,P.scope);if(!r.ok)flash(r.why);A.rulePick=null;}}
+  else if(b.dataset.pickship){const r=SIM.addRule(P.rule,P.scope,b.dataset.pickship);if(!r.ok)flash(r.why);A.rulePick=null;}
+  syncHud(true);
+});
 function syncTop(){
   const S=SIM.S,on=A.phase!=='PICK'&&S;
   byId('hcTop').hidden=!on;
   if(!on)return;
   const o=byId('hcObj'),oh=objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
+  const ru=byId('hcRules'),rh=rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
   const left=SIM.clockLeft(),ck=byId('hcClock');
   ck.textContent=S.reinforce.spawned?'REINFORCEMENTS':fmtClock(left);
   ck.classList.toggle('is-out',S.reinforce.spawned);
@@ -466,11 +498,11 @@ byId('hcFeed').addEventListener('click',ev=>{const b=ev.target.closest('[data-vi
 
 /* bottom: the wing roster. A header per wing (name, order chip, tactic chip) and a tile per ship */
 let rosterBuilt='';
-function moraleWord(s){const c=s.pilot.cool;return c>=75?'EAGER':c>=45?'STEADY':c>=25?'SHAKEN':'PANICKED';}
+const moraleWord=s=>SIM.moraleOf(s);
 function tileHtml(s){
-  return '<button type="button" class="hc-tile" data-ship="'+s.id+'"><canvas class="hc-tile__cam" width="96" height="56"></canvas>'+
+  return '<button type="button" class="hc-tile" data-ship="'+s.id+'"><canvas class="hc-tile__cam" width="204" height="112"></canvas>'+
     '<span class="hc-tile__name"></span><span class="hc-tile__bars"><i class="hc-bar hc-bar--hull"><b></b></i><i class="hc-bar hc-bar--shd"><b></b></i></span>'+
-    '<span class="hc-tile__foot"><span class="hc-tile__ord"></span><span class="hc-tile__mor"></span></span></button>';
+    '<span class="hc-tile__foot"><span class="hc-tile__word"></span><span class="hc-tile__mor"></span></span><span class="hc-tile__ord"></span></button>';
 }
 function buildRoster(){
   const S=SIM.S,el=byId('hcRoster');
@@ -484,11 +516,46 @@ function buildRoster(){
   el.innerHTML=h;rosterBuilt=S.seed+'|'+S.scn.id;
   for(const t of el.querySelectorAll('.hc-tile')){const s=SIM.fn.byId(t.dataset.ship);drawTileGlyph(t.querySelector('canvas'),s);}
 }
-/* a static tile camera (T1): the ship's glyph in its livery; live cameras come with T2 */
+/* the camera tiles (§3.1): each a small live view tracking its ship, drawn from the main sim at about 10 fps,
+   round-robin one tile a frame. If drawing them costs more than TILE_BUDGET ms a frame on average with 8 or more
+   ships, they fall back to static glyphs (C-67) */
+let TILES_LIVE=true;      // panel toggle
+let TILE_Z=0.34;          // a tile's zoom (tile pixels per world unit, before its 2× backing). placeholder
+let TILE_BUDGET=3;        // ms a frame the tiles may cost before they fall back. placeholder
+let tileIdx=0,tileMs=0,tileAuto=false;
+function tileTick(){
+  if(!TILES_LIVE||A.phase==='PICK'||!SIM.S)return;
+  const tiles=byId('hcRoster').querySelectorAll('.hc-tile');if(!tiles.length)return;
+  tileIdx=(tileIdx+1)%tiles.length;
+  const t=tiles[tileIdx],s=SIM.fn.byId(t.dataset.ship);if(!s)return;
+  const t0=performance.now();
+  drawTileCam(t.querySelector('canvas'),s);
+  tileMs=tileMs*0.9+(performance.now()-t0)*0.1;
+  if(tileMs>TILE_BUDGET&&tiles.length>=8){TILES_LIVE=false;tileAuto=true;flash('Camera tiles fell back to static glyphs ('+tileMs.toFixed(1)+' ms a tile)');for(const x of tiles)drawTileGlyph(x.querySelector('canvas'),SIM.fn.byId(x.dataset.ship));}
+}
+function drawTileCam(cvs,s){
+  const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=TILE_Z*W2/96;
+  c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,W2,H2);
+  if(!s.alive){c.fillStyle=C.text3;c.font='800 '+Math.round(H2*0.22)+'px "Exo 2",sans-serif';c.textAlign='center';c.fillText(s.jumped?'JUMPED':'SIGNAL LOST',W2/2,H2*0.58);return;}
+  const cx=s.x,cy=s.y,hw=W2/2/z,hh=H2/2/z;
+  c.setTransform(z,0,0,z,W2/2-cx*z,H2/2-cy*z);
+  c.fillStyle='#dfe6ff';c.globalAlpha=0.5;c.beginPath();
+  for(const st of stars){if(Math.abs(st.x-cx)>hw||Math.abs(st.y-cy)>hh)continue;c.rect(st.x-1/z,st.y-1/z,2/z,2/z);}c.fill();c.globalAlpha=1;
+  for(const r of S.rocks)if(Math.abs(r.x-cx)<hw+r.r&&Math.abs(r.y-cy)<hh+r.r)drawRock(c,r);
+  const saveDpr=dpr;dpr=1;
+  try{
+    for(const o of S.ships){if(!o.alive||Math.abs(o.x-cx)>hw+80||Math.abs(o.y-cy)>hh+80)continue;drawShipBody(c,o,o.x,o.y,o.h,z,1);}
+  }finally{dpr=saveDpr;}
+  c.lineCap='round';
+  for(const p of S.proj){if(Math.abs(p.x-cx)>hw||Math.abs(p.y-cy)>hh)continue;const sp=Math.hypot(p.vx,p.vy)||1;c.beginPath();c.moveTo(p.x-p.vx/sp*22,p.y-p.vy/sp*22);c.lineTo(p.x,p.y);c.lineWidth=2.4/z;c.strokeStyle=boltCols(p)[1];c.stroke();}
+  c.setTransform(1,0,0,1,0,0);
+  if(s.emerg){c.strokeStyle=C.hazard;c.lineWidth=4;c.strokeRect(2,2,W2-4,H2-4);}
+}
+/* a static tile camera: the ship's glyph in its livery (before the first live frame, and the perf fallback) */
 function drawTileGlyph(cvs,s){
   const c=cvs.getContext('2d');c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,cvs.width,cvs.height);
   const saveDpr=dpr;dpr=1;
-  try{drawShipBody(c,s,cvs.width/2,cvs.height/2,-Math.PI/2,1,0.75);}finally{dpr=saveDpr;}
+  try{drawShipBody(c,s,cvs.width/2,cvs.height/2,-Math.PI/2,cvs.width/96,0.75);}finally{dpr=saveDpr;}
 }
 function syncRoster(){
   const S=SIM.S,el=byId('hcRoster');
@@ -510,7 +577,10 @@ function syncRoster(){
       t.querySelector('.hc-bar--hull b').style.width=Math.round(Math.max(0,s.hull)/s.maxHull*100)+'%';
       const ms=SIM.fn.maxShield(s);t.querySelector('.hc-bar--shd b').style.width=(ms?Math.round(SIM.fn.totalShield(s)/ms*100):0)+'%';
       const ord=s.jumped?'JUMPED':!s.alive?'DOWN':behWord(s);
-      const oEl=t.querySelector('.hc-tile__ord');if(oEl.textContent!==ord)oEl.textContent=ord;
+      const wEl=t.querySelector('.hc-tile__word');if(wEl.textContent!==ord)wEl.textContent=ord;
+      const gk=s.alive?behGlyph(s)+'|'+behTone(s):'';const oEl=t.querySelector('.hc-tile__ord');
+      if(oEl.dataset.g!==gk){oEl.dataset.g=gk;oEl.innerHTML=s.alive?glyph(behGlyph(s),'hc-glyph--sm'):'';oEl.dataset.tone=behTone(s);}
+      t.title=s.alive?s.name+': '+ord+(s.assess?' · "'+s.assess+'"':''):s.name;
       const mo=s.alive?moraleWord(s):'';const mEl=t.querySelector('.hc-tile__mor');if(mEl.textContent!==mo){mEl.textContent=mo;mEl.dataset.m=mo;}
       t.classList.toggle('is-crit',s.alive&&(s.hull/s.maxHull<0.35||moraleWord(s)==='PANICKED'));
       t.classList.toggle('is-down',!s.alive);
@@ -518,11 +588,12 @@ function syncRoster(){
     }
   }
 }
-/* the ship's current order as a word in its tile's corner */
-function behWord(s){
-  const b=s.beh||{};
-  return ({engage:'ENGAGE',withdraw:'WITHDRAW',escort:'ESCORT',form:'FORM UP',idle:'IDLE'})[b.kind]||String(b.kind||'').toUpperCase();
-}
+/* the ship's current order as a corner glyph (and a word on hover): gold-less, cyan when a rule set it, hazard in an emergency */
+const BEH={engage:['attack','ENGAGE'],withdraw:['withdraw','WITHDRAW'],escort:['escort','ESCORT'],form:['regroup','FORM UP'],defend:['defend','DEFEND'],
+  hold:['hold','HOLD'],capture:['capture','CAPTURE'],board:['board','BOARD'],fallback:['withdraw','FALL BACK'],flee:['withdraw','FLEEING'],freeze:['hold','FROZEN'],idle:['hold','IDLE']};
+function behWord(s){const b=s.beh||{};return (BEH[b.kind]||['hold',String(b.kind||'').toUpperCase()])[1];}
+function behGlyph(s){const b=s.beh||{};return (BEH[b.kind]||['hold'])[0];}
+const behTone=s=>s.panic||s.emerg?'hazard':s.beh&&s.beh.rule?'rule':'';
 byId('hcRoster').addEventListener('click',ev=>{
   const h=ev.target.closest('[data-wing-head]');
   if(h){selectWing(h.dataset.wingHead,true);return;}
@@ -555,7 +626,7 @@ byId('hcTime').addEventListener('click',ev=>{
   else if(b.dataset.act==='follow'){A.follow=!A.follow;A.camHeld=false;syncHud(true);}
 });
 /* event focus: the newest unviewed event with a place, else the newest with a place */
-function nextEvent(){
+function nextEvent(){   // the newest unviewed event with a place, then the next newest, then the latest again
   const S=SIM.S;if(!S)return false;
   const evs=S.events.filter(e=>e.x!=null||e.ship);
   const e=evs.slice().reverse().find(x=>!x.viewed)||evs[evs.length-1];
@@ -590,7 +661,7 @@ function trayHtml(){
   h+='</div>';
   return h;
 }
-let TACTICS_LIVE=false;   // T2 switches the tactic row on
+let TACTICS_LIVE=true;    // the tactic row (live from T2)
 function syncTray(){
   const el=byId('hcTray'),h=A.tray&&A.phase!=='PICK'?trayHtml():'';
   if(el.dataset.h!==h){hideTip();el.innerHTML=h;el.dataset.h=h;}
@@ -622,6 +693,7 @@ function tipFor(key){
   if(k==='order'){const o=SIM.ORDERS[a];return {name:o.name,line:o.line+(a==='escort'?' Engages inside '+Math.round(SIM.TUNE.ESCORT_R.get())+' of its charge.':'')+(a==='withdraw'?' Jumps inside '+Math.round(SIM.fn.JUMP_R_())+' of the point.':'')};}
   if(k==='tactic'){const T=SIM.HC_TACTICS[a];return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
+  if(k==='rule'){const R=SIM.RULES[a];return {name:R.name,line:R.line()};}
   if(k==='focus')return {name:'Event focus',line:'Jump the camera to the newest event you have not viewed.',key:'Tab'};
   if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
   return {name:key,line:''};
@@ -644,10 +716,17 @@ byId('hcStage').addEventListener('pointerout',ev=>{const el=ev.target.closest&&e
 let flashT=0;
 function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
 
-function closeAll(){A.tray=null;A.panel=null;A.drawer=false;A.arm=null;hideTip();}
+function closeAll(){A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;hideTip();}
 function syncHud(){
   if(!A.active)return;
   syncTop();syncFeed();syncRoster();syncTime();syncTray();syncReadout();
+  placeRail();
+}
+/* the left rail (the feed, the tray, the pilot panel) starts under the objectives panel, however tall it grows */
+function placeRail(){
+  const st=byId('hcStage').getBoundingClientRect(),ob=byId('hcObjBox').getBoundingClientRect();
+  const top=Math.round(Math.max(80,(byId('hcTop').hidden?60:ob.bottom-st.top)+10));
+  for(const id of ['hcFeed','hcTray','hcPilot'])byId(id).style.top=top+'px';
 }
 
 /* =====================================================================
@@ -696,15 +775,26 @@ function mapClick(p,ev){
 }
 /* what a map click means for an armed order: a ship (or its class), a station, an ally, or a point */
 function mapTarget(w,kind,s,p){
+  const S=SIM.S;
+  const pointAt=()=>{for(const k in S.points){const q=S.points[k];if(Math.hypot(q.x-p.x,q.y-p.y)<Math.max(60/cam.z,SIM.fn.CAPTURE_R_()))return k;}return null;};
   if(kind==='attack'&&s&&s.faction==='heg')return s.struct?{type:'station',id:s.id}:{type:'ship',id:s.id};
+  if(kind==='intercept'&&s&&s.faction==='heg'&&!s.struct)return {type:'ship',id:s.id};
   if(kind==='escort'&&s&&s.faction==='reb'&&s.wing!==w.id&&!s.struct)return {type:'ship',id:s.id};
+  if(kind==='board'&&s&&s.faction==='heg'&&s.struct)return {type:'station',id:s.id};
+  if(kind==='capture'){const k=pointAt();return k&&S.points[k].capture?{type:'point',id:k}:null;}
+  if(kind==='defend'){
+    if(s&&s.faction==='reb'&&s.wing!==w.id)return {type:'ship',id:s.id};
+    const k=pointAt();if(k)return {type:'point',id:k};
+    if(!s)return {type:'pos',x:Math.round(p.x),y:Math.round(p.y)};
+  }
   return null;
 }
 addEventListener('keydown',ev=>{
   if(SR.active!=='arena'||!A.active||A.phase==='PICK')return;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return;
   if(ev.key===' '){ev.preventDefault();togglePause();return;}
-  if(ev.key==='Escape'){if(A.arm)A.arm=null;else closeAll();syncHud(true);ev.preventDefault();return;}
+  if(ev.key==='Escape'){if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);ev.preventDefault();return;}
+  if(ev.key==='Tab'){ev.preventDefault();nextEvent();return;}
 });
 
 /* =====================================================================
@@ -720,12 +810,15 @@ function buildPanel(){
   for(const k in SIM.TUNE){const t=SIM.TUNE[k];
     h+='<div class="hc-row"><label for="hcP_'+k+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
       '<input type="range" id="hcP_'+k+'" data-tune="'+k+'" min="'+t.min+'" max="'+t.max+'" step="'+t.step+'" value="'+t.get()+'"></div>';}
+  h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
   h+='</div><div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
   byId('hcPanelBody').innerHTML=h;
   syncReadout();
 }
 byId('hcPanelBody').addEventListener('input',ev=>{
-  const el=ev.target,k=el.dataset.tune;if(!k)return;
+  const el=ev.target;
+  if(el.dataset.toggle==='tiles'){TILES_LIVE=el.checked;tileAuto=false;return;}
+  const k=el.dataset.tune;if(!k)return;
   const t=SIM.TUNE[k];t.set(+el.value);
   const out=byId('hcPanelBody').querySelector('[data-out="'+k+'"]');if(out)out.textContent=fmt(t.get(),t.step);
   savePrefs();
@@ -750,6 +843,7 @@ function syncReadout(){
   if(!S||A.phase==='PICK'){el.textContent='';return;}
   let t='Sim '+S.t.toFixed(1)+' s · tick '+S.tick+' · speed '+SIM.TIMESCALES[A.speed]+'×\nReal '+A.realSecs.toFixed(1)+' s, paused '+A.pausedSecs.toFixed(1)+' s ('+A.pauses+' pauses)\nOrders '+S.m.orders+' · tactics '+S.m.tactics+' · CP spent '+S.m.cpSpent;
   for(const w of S.wings)t+='\n'+w.name+': '+w.order.kind+' · '+w.tactic+' · cohesion '+w.cohesion;
+  t+='\nRule triggers '+S.m.ruleTriggers+' · emergencies '+S.m.emergencies.length+'\nTiles '+(TILES_LIVE?'live':'static'+(tileAuto?' (fell back)':''))+' · '+tileMs.toFixed(2)+' ms a tile';
   if(el.textContent!==t)el.textContent=t;
 }
 function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_METRICS_DUMP '+s);}catch(e){}flash('Metrics dumped to the console');return s;}
@@ -770,7 +864,8 @@ function open(){openUi();showPicker();}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,
+  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+    tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
     frame,toScreen,toWorld,cam_:()=>cam,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};}}};
