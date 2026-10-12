@@ -236,6 +236,7 @@ function drawFloaters(c,now){
 }
 /* what every ruleset gets from the chassis */
 const kit={W,H,MARGIN,RU,SU,cam,iconBoost,drawShipBody,addFloater,
+  toScreen:(x,y)=>({x:(x-cam.x)*cam.z+cssW/2,y:(y-cam.y)*cam.z+cssH/2}),get dpr(){return dpr;},
   get EXEC_LEN(){return EXEC_LEN;},get TICK(){return TICK;},get phase(){return A.phase;},
   refresh(){syncHud();},
   hudChanged(){syncHud();}};

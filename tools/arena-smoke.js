@@ -9,7 +9,9 @@
      3 the envelope   4 projectiles   5 lock and missiles   6 determinism   7 metrics and live fire
      B4: Drift with the real mouse, movesets by preset, the actions   B5: doctrine, the panel, the experiments
      HUD (docs/SB-HUD-HANDOFF.md §7): the tray's anchor, step order, arming, Drift's facing step, the action at the
-     segment boundary, invalidation, Execute, hover cards, keyboard parity, planning ms per step */
+     segment boundary, invalidation, Execute, hover cards, keyboard parity, planning ms per step
+     Flight, guns, status: ships flown along the plan (close, not exact; rails with PHYSICS off), bolts from the gun
+     mounts, shield arcs that flare */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -293,7 +295,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.flydefOn=fox.flydef;
   while(D.phase==='EXEC')f.stepTick();
   out.flydefOff=!fox.flydef;
-  out.ends=Math.hypot(fox.x-end2.x,fox.y-end2.y)<1;
+  out.ends=Math.round(Math.hypot(fox.x-end2.x,fox.y-end2.y));   // flown, not on rails: close to the plan's end, never exactly on it
   // a short plan is topped up to the slowest straight with a glide; a long one flies exactly the line
   fox.mom=null;   // back to cruise: the exec above left it carrying that round's speed
   const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h,150,3)}]);
@@ -324,7 +326,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(sb.planned===2&&sb.sched,'SB 3: two AP segments a round, and no glide past a full line');
  ok(sb.budget[0]===450&&Math.abs(sb.budget[1]-sb.budget[2])<=1&&sb.budget[3]===0,'SB 3: the second segment should get only the distance the first left '+JSON.stringify(sb.budget));
  ok(sb.flydefOn&&sb.flydefOff,'SB 3: Fly Defensively should hold for its segment only');
- ok(sb.ends,'SB 3: the ship did not end where its second segment ends');
+ ok(sb.ends<40,'SB 3: the ship should end near where its second segment ends '+sb.ends);
  ok(sb.glide[0]===2&&sb.glide[1]&&Math.abs(sb.glide[2]-sb.glide[3])<=1&&sb.glide[4]===1,'SB 3: a short round tops up to the slowest straight, a long one flies the line '+JSON.stringify(sb.glide));
  ok(sb.flair.every(Boolean),'SB 3: a hard turn should brake into its apex and power out, path unchanged '+JSON.stringify(sb.flair));
  ok(sb.slip.every(Boolean),'SB 3: a hard turn should slip (nose leads, slides wide, back on line) '+JSON.stringify(sb.slip));
@@ -472,19 +474,20 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const seen=new Set();
   while(D.sim.S.execT<segT-0.06&&D.phase==='EXEC'){
     f.stepTick();
-    if(D.sim.S.execT>segT*0.2&&D.sim.S.execT<segT*0.85){
+    const g=fox.sched[0];
+    if(D.sim.S.execT>g.t0+0.45&&D.sim.S.execT<g.t1-0.25){   // the hold: after the nose has swung round (a flown nose takes a moment longer than the plan's 0.25 s), before it swings back
       samples++;
       noseOff=Math.max(noseOff,Math.abs(Math.atan2(Math.sin(fox.h-fox.plan[0].facing),Math.cos(fox.h-fox.plan[0].facing))));
       if(fox.vx<=0)velOk=false;
     }
     for(const p of S.proj)if(p.owner==='P1'&&!seen.has(p)){seen.add(p);if(p.vx<0)back++;}
   }
-  out.drift=[samples,+noseOff.toFixed(3),velOk,back,fox.st.shots];
+  out.drift=[samples,+noseOff.toFixed(3),velOk,back,fox.st.shots,+fox.sched[0].t1.toFixed(2)];
   while(D.phase==='EXEC')f.stepTick();
   return out;
  });
  ok(Math.abs(drift.facing-(Math.PI+0.2-2*Math.PI))<0.06||Math.abs(drift.facing-(Math.PI+0.2))<0.06,'B4: the facing handle did not set the facing '+drift.facing);
- ok(drift.drift[0]>5&&drift.drift[1]<0.05&&drift.drift[2],'B4: Drift should hold the nose on the facing while flying the path '+JSON.stringify(drift.drift));
+ ok(drift.drift[0]>5&&drift.drift[1]<0.1&&drift.drift[2],'B4: Drift should hold the nose on the facing while flying the path '+JSON.stringify(drift.drift));
  ok(drift.drift[3]>0&&drift.drift[4]>0,'B4: Drift should fire back along the nose at the pursuer '+JSON.stringify(drift.drift));
  ok(drift.sub[0]==='action'&&drift.sub[1]&&drift.sub[2],'HUD 4: committing the facing handle should store a nose off the path and move on '+JSON.stringify(drift.sub));
  const b4=await pg.evaluate(()=>{
@@ -594,7 +597,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   document.getElementById('sbGo').click();
   out.go=[D.phase,b2.sched&&b2.sched.length===1&&b2.sched[0].auto];
   while(D.phase==='EXEC')f.stepTick();
-  out.go.push(Math.hypot(b2.x-b0.x,b2.y-b0.y)>100,Math.abs(b2.h-b0.h)<1e-6);
+  out.go.push(Math.hypot(b2.x-b0.x,b2.y-b0.y)>100,Math.abs(b2.h-b0.h)<0.15);   // straight on (a flown ship wanders a hair)
   // 8. the hover cards read live constants
   f.load('e1_fox','sb',null,8);F=D.sim.fn;
   const k0=F.tipFor('kind:boost'),bm=D.sim.BOOST_MULT_();D.sim.set('BOOST_MULT',2.5);const k1=F.tipFor('kind:boost');D.sim.set('BOOST_MULT',bm);
@@ -678,6 +681,51 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  const kbExec=await pg.evaluate(()=>{const D=window.DBGarena.sb;const p=D.phase;while(D.phase==='EXEC')D.fn.stepTick();return p;});
  ok(kb1==='boost'&&byKeys===byMouse&&JSON.parse(byKeys).step==='done','HUD 9: the keys should make the mouse\'s plan '+JSON.stringify([kb1,byMouse,byKeys]));
  ok(kbBack==='action'&&selTab!==selBefore&&selBack===selBefore&&kbExec==='EXEC','HUD 9: Esc, Tab, Shift-Tab and Enter '+JSON.stringify([kbBack,selBefore,selTab,selBack,kbExec]));
+
+ /* ---------- SB flight, guns and status (the designer, 12 Oct: flown ships, quick bolts from the guns, shields and hull on the ships) ---------- */
+ const fly=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,out={};
+  const setup=()=>{f.load('e1_fox','sb',null,12);const S=D.sim.S,F=D.sim.fn,fox=S.ships.find(q=>q.id==='P1');S.rocks.length=0;
+    for(const e of S.ships)if(e.faction==='heg'){e.x=3900;e.y=300;}
+    Object.assign(fox,{x:1200,y:1500,h:0});return {S,F,fox};};
+  const order=(F,fox,turn)=>F.planSegs('P1',[{pts:[{x:fox.x+Math.cos(fox.h)*420,y:fox.y+Math.sin(fox.h)*420}]},
+    {pts:[{x:fox.x+Math.cos(fox.h+turn)*800,y:fox.y+Math.sin(fox.h+turn)*800}]}]);
+  // flown: off the line a little on the way, close to the end, never on it exactly; on rails exactly
+  let {S,F,fox}=setup();order(F,fox,0.9);f.beginExec();
+  let dev=0;const end=fox.planEnd;
+  while(D.phase==='EXEC'){f.stepTick();if(fox.body.P)dev=Math.max(dev,Math.hypot(fox.x-fox.body.P.x,fox.y-fox.body.P.y));}
+  const flownEnd=Math.hypot(fox.x-end.x,fox.y-end.y);
+  // it carries its velocity into the next round
+  const vCarry=Math.hypot(fox.vx,fox.vy);order(F,fox,-0.4);f.beginExec();const vStart=Math.hypot(fox.body.vx,fox.body.vy);
+  while(D.phase==='EXEC')f.stepTick();
+  D.sim.set('PHYSICS',false);({S,F,fox}=setup());order(F,fox,0.9);f.beginExec();const end2=fox.planEnd;while(D.phase==='EXEC')f.stepTick();
+  const railEnd=Math.hypot(fox.x-end2.x,fox.y-end2.y);D.sim.set('PHYSICS',true);
+  out.flight=[+dev.toFixed(1),Math.round(flownEnd),Math.round(vCarry),Math.round(vStart),+railEnd.toFixed(2)];
+  // a K-Turn's flip turns the line of flight round: the next round flies off the new way without fighting it
+  ({S,F,fox}=setup());F.planSegs('P1',[{kind:'kturn',pts:[{x:1500,y:1500}]}]);f.beginExec();while(D.phase==='EXEC')f.stepTick();
+  const hK=fox.h;order(F,fox,0);f.beginExec();let devK=0;while(D.phase==='EXEC'){f.stepTick();if(fox.body.P)devK=Math.max(devK,Math.hypot(fox.x-fox.body.P.x,fox.y-fox.body.P.y));}
+  out.kturn=[Math.abs(Math.cos(hK))>0.9&&Math.cos(hK)<0,Math.round(devK)];
+  // guns: bolts at PROJ_SPD from the art's two gun mounts, alternately, flying straight
+  ({S,F,fox}=setup());const q=fox.wpns[0],V=D.sim.PROJ_SPD_();
+  const M=F.mountsOf(fox,q),m0=F.muzzleAt(fox,q,0),m1=F.muzzleAt(fox,q,1);
+  const e1=S.ships.find(x=>x.id==='E1');Object.assign(e1,{x:1900,y:1500,h:0});fox.target='E1';fox.locks.E1=1;fox.pilot.cool=90;
+  F.fireTick(fox,0.05);for(let i=0;i<4;i++)F.emitBursts(0.05);
+  const P=S.proj.filter(p=>p.owner==='P1');
+  const sides=P.map(p=>Math.sign(Math.round(p.y0-1500))).join(',');
+  const p0=P[0],h0=Math.atan2(p0.vy,p0.vx);F.projTick(0.05);
+  out.guns=[M.length,Math.round(Math.hypot(p0.vx,p0.vy))===V,sides,Math.round(m0.x-1200)>10,Math.round(Math.abs(m0.y-m1.y)),Math.abs(Math.atan2(p0.vy,p0.vx)-h0)<1e-9,V>=2000,D.sim.BOLT_LEN_()<=30];
+  // shields: a shield hit flares its arc; the status layer draws without error
+  ({S,F,fox}=setup());const e=S.ships.find(x=>x.id==='E1');Object.assign(e,{x:1500,y:1500,h:0});e.segs.F.val=e.segs.F.max;   // a shot travelling west meets its fore arc
+  F.hitShip(e,'P1',fox.wpns[0].w,-1000,0,{x:e.x+20,y:e.y,nx:1,ny:0},false,0);
+  out.shield=[!!e.shFx&&e.shFx.zone==='F',typeof F.drawShields,typeof F.drawStatus,D.sim.STATUS_(),F.shieldR(e)>0];
+  return out;
+ });
+ ok(fly.flight[0]>1&&fly.flight[0]<80&&fly.flight[1]>0.5&&fly.flight[1]<40,'Flight: flown close to the line, not on it '+JSON.stringify(fly.flight));
+ ok(Math.abs(fly.flight[2]-fly.flight[3])<=1,'Flight: velocity carries into the next round '+JSON.stringify(fly.flight));
+ ok(fly.flight[4]<1,'Flight: with PHYSICS off the ship is back on the rails '+JSON.stringify(fly.flight));
+ ok(fly.kturn[0]&&fly.kturn[1]<80,'Flight: after a K-Turn the next round flies off the new way '+JSON.stringify(fly.kturn));
+ ok(fly.guns[0]===2&&fly.guns[1]&&fly.guns[2].includes('-1')&&fly.guns[2].includes('1')&&fly.guns[3]&&fly.guns[4]>15&&fly.guns[5]&&fly.guns[6]&&fly.guns[7],'Guns: quick bolts from both gun mounts, flying straight '+JSON.stringify(fly.guns));
+ ok(fly.shield.every(x=>x===true||x==='function'),'Status: shield arcs flare on a hit '+JSON.stringify(fly.shield));
 
  /* ---------- SB feel (the designer, 11 Oct: speed, visible shots, no choppy motion) ---------- */
  const feel=await pg.evaluate(()=>{
@@ -874,7 +922,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await ctx2.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,feel,mom,ai,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
