@@ -110,15 +110,61 @@
 #arSb .arn-body{flex:1 1 auto;position:relative;display:flex;min-height:0;}
 #arSb .arn-stage{flex:1 1 auto;position:relative;min-width:0;overflow:hidden;}
 #arSb .arn-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
-#arSb .arn-orders{position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;
-  padding:8px 10px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:2px solid var(--sr-ink);border-radius:var(--sr-r-lg);
-  box-shadow:var(--sr-lift);font-size:var(--sr-fs-sm);pointer-events:auto;}
-#arSb .arn-orders:empty{display:none;}
-#arSb .arn-orders__name{font-weight:800;margin-right:4px;}
-#arSb .arn-orders__note{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
-#arSb .arn-orders__grp{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:center;padding-left:6px;border-left:2px solid var(--sr-seam);}
-#arSb .arn-orders__lbl{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.06em;}
-#arSb .arn-orders .sr-btn{min-height:30px;padding:0 10px;font-size:var(--sr-fs-xs);}
+/* the planning tray (docs/SB-HUD-HANDOFF.md §3): one, under the selected ship; the driver sets left/top each frame */
+#arSb .arn-tray{position:absolute;left:0;top:0;z-index:3;pointer-events:auto;max-width:calc(100% - 16px);transition-property:none;}   /* placed every frame: never eased (the reduced-motion rule gives everything a 1 ms transition) */
+#arSb .arn-tray__in{display:flex;flex-direction:column;gap:6px;padding:8px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);
+  border:2px solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font-size:var(--sr-fs-xs);}
+#arSb .arn-tray__in.is-done{padding:5px 8px;}
+#arSb .arn-tray__row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#arSb .arn-tray__name{font-weight:800;font-size:var(--sr-fs-sm);}
+#arSb .arn-tray__pilot{color:var(--sr-text-3);font-weight:700;}
+#arSb .arn-tray__nerve{display:inline-block;width:44px;height:6px;border-radius:3px;background:var(--sr-night);border:1px solid var(--sr-ink);overflow:hidden;}
+#arSb .arn-tray__nerve i{display:block;height:100%;background:var(--sr-go);}
+#arSb .arn-tray__tgt{display:inline-flex;align-items:center;gap:4px;color:var(--sr-gold);font-weight:700;margin-left:auto;}
+#arSb .arn-tray__tgt.is-empty{color:var(--sr-text-3);font-weight:600;}
+#arSb .arn-tray__clear{min-height:26px;padding:0 8px;font-size:var(--sr-fs-xs);}
+#arSb .arn-tray__icons{display:flex;gap:6px;flex-wrap:wrap;}
+#arSb .arn-tray__hint{color:var(--sr-text-2);font-weight:600;}
+#arSb .arn-glyph{width:60%;height:60%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#arSb .arn-glyph--sm{width:14px;height:14px;flex:0 0 auto;}
+#arSb .arn-ico{position:relative;display:inline-flex;align-items:center;justify-content:center;width:var(--tray-icon,36px);height:var(--tray-icon,36px);
+  padding:0;border-radius:var(--sr-r-md,8px);border:2px solid var(--sr-ink);background:var(--sr-night);color:var(--sr-text);cursor:pointer;}
+#arSb .arn-ico:hover,#arSb .arn-ico:focus-visible{border-color:var(--sr-gold);outline:none;}
+#arSb .arn-ico[aria-pressed="true"]{background:var(--sr-gold);color:var(--sr-gold-ink);}
+#arSb .arn-ico.is-default[aria-pressed="false"]{border-color:var(--sr-gold);}
+#arSb .arn-ico[aria-disabled="true"]{opacity:.38;cursor:not-allowed;}
+#arSb .arn-ico[aria-disabled="true"]:hover{border-color:var(--sr-ink);}
+#arSb .arn-ico__lock{position:absolute;right:-4px;bottom:-4px;width:14px;height:14px;padding:1px;border-radius:4px;background:var(--sr-hull);stroke-width:2.4;}
+/* the breadcrumb: S1 · ACT · S2, filled as each step commits; the active one pulses */
+#arSb .arn-crumbs{display:flex;align-items:center;gap:4px;}
+#arSb .arn-crumbs__sep{width:10px;height:2px;background:var(--sr-seam);}
+#arSb .arn-pip{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 7px;border-radius:999px;border:2px solid var(--sr-seam);
+  background:transparent;color:var(--sr-text-3);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
+#arSb .arn-pip.is-filled{background:var(--sr-gold);border-color:var(--sr-gold);color:var(--sr-gold-ink);}
+#arSb .arn-pip.is-active{border-color:var(--sr-gold);color:var(--sr-gold);animation:arn-pulse 1.1s ease-in-out infinite;}
+#arSb .arn-pip.is-active.is-filled{color:var(--sr-gold-ink);}
+#arSb .arn-pip[aria-disabled="true"]{cursor:default;opacity:.6;}
+@keyframes arn-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--sr-gold) 60%,transparent);}50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--sr-gold) 0%,transparent);}}
+@media (prefers-reduced-motion:reduce){#arSb .arn-pip.is-active{animation:none;}}
+/* the hover card */
+#arSb .arn-tip{position:absolute;z-index:6;max-width:260px;padding:7px 9px;background:var(--sr-night);border:2px solid var(--sr-ink);border-radius:var(--sr-r-md,8px);
+  box-shadow:var(--sr-lift);font-size:var(--sr-fs-xs);pointer-events:none;transition-property:none;}
+#arSb .arn-tip__name{font-weight:800;margin-bottom:2px;}
+#arSb .arn-tip__line{color:var(--sr-text-2);}
+#arSb .arn-tip__warn{color:var(--sr-hazard);font-weight:800;margin-bottom:2px;}
+/* the turn chrome (§4): ship chips bottom centre, Execute bottom right */
+#arSb .arn-shipchips{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:2;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;
+  max-width:calc(100% - 280px);pointer-events:auto;}
+#arSb .arn-shipchips:empty{display:none;}
+#arSb .arn-shipchip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:999px;border:2px solid var(--sr-ink);
+  background:color-mix(in srgb,var(--sr-hull) 92%,transparent);color:var(--sr-text);font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);cursor:pointer;}
+#arSb .arn-shipchip.is-on{border-color:var(--sr-gold);}
+#arSb .arn-shipchip.is-done{color:var(--sr-go);}
+#arSb .arn-shipchip__name{color:var(--sr-text);}
+#arSb .arn-shipchip__pips{display:inline-flex;gap:3px;}
+#arSb .arn-shipchip__pips i{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--sr-seam);}
+#arSb .arn-shipchip__pips i.is-on{background:var(--sr-gold);border-color:var(--sr-gold);}
+#arSb .arn-go{position:absolute;right:12px;bottom:12px;z-index:2;min-height:48px;padding:0 20px;font-size:var(--sr-fs-md);}
 /* the designer panel: a collapsible dock on the right */
 #arSb .arn-panel{flex:0 0 300px;display:flex;flex-direction:column;min-height:0;background:var(--sr-night);border-left:2px solid var(--sr-ink);}
 #arSb .arn-panel.is-collapsed{flex-basis:44px;}
@@ -161,6 +207,7 @@
 @media (max-width:760px){
   #arSb .arn-panel{position:absolute;right:0;top:0;bottom:0;z-index:4;flex-basis:auto;width:min(300px,86vw);}
   #arSb .arn-panel.is-collapsed{width:44px;}
-  #arSb .arn-orders{right:56px;max-height:34%;overflow:auto;}
+  #arSb .arn-shipchips{left:12px;transform:none;justify-content:flex-start;max-width:calc(100% - 240px);}
+  #arSb .arn-go{right:56px;}
   #arSb .arn-pick__item{flex-direction:column;align-items:stretch;}
 }

@@ -47,7 +47,13 @@ let SHIP_SCALE=1.35;      // drawn size and hull ellipse together, so what you s
 let BANK_ROLL=0.75;       // how far a ship rolls into a turn at its minimum radius (visual). placeholder
 let SPEED_FLAIR=true;     // toggle: speed eases along the curve (visual pacing only)
 let flydefImmunity=false; // toggle: the designer's literal Fly Defensively (cannot be hit except by homing)
-const STEP=8;             // sample spacing along an arc, world units
+/* the planning HUD (docs/SB-HUD-HANDOFF.md, "SB planning HUD: placeholders") */
+let TRAY_GAP=18;          // px from the ship's edge to its tray. placeholder
+let TRAY_ICON=36;         // px, a tray icon's side. placeholder
+let TRAY_FLIP_ZONE=140;   // px from the stage's bottom edge: a ship inside it gets its tray above. placeholder
+let TIP_DELAY=250;        // ms of hover or focus before an icon's card opens. placeholder
+let showLockedMods=true;  // toggle: mods the pilot lacks show greyed with a lock, naming the preset that grants them
+const STEP=8;            // sample spacing along an arc, world units
 
 let S=null;
 
@@ -665,13 +671,15 @@ function mkShip(d){
     wpns:loadout(r,d.loadout),target:null,locks:{},lockMax:0,action:'none',mom:null,
     st:{bursts:0,shots:0,hits:0,dmg:0,missiles:0,kills:0,arcT:0,driftShots:0,backShots:0,actions:0},
     plan:[],           // planned segments: {kind, local (the drag in the segment's frame), facing}
-    kinds:['basic','basic'],   // the kind picked for each AP slot
+    kinds:['basic','basic'],   // the mode armed for each AP slot (Basic each turn)
+    step:null,actDone:false,endHere:false,   // the planning stepper (docs/SB-HUD-HANDOFF.md §2): where its tray is
     sched:null,visRoll:0,flydef:false};
 }
 function build(world,rng,api){
   S={ships:world.cast.map(mkShip),rocks:world.rocks,rng,api,sel:null,slot:0,edit:null,execT:0,world,
-    proj:[],bursts:[],missiles:[],fx:[],burstN:0,clockT:0,damaged:new Set()};
-  const p=S.ships.find(s=>s.faction==='reb');S.sel=p?p.id:null;
+    proj:[],bursts:[],missiles:[],fx:[],burstN:0,clockT:0,damaged:new Set(),clk:null,planT:{},execFocus:false};
+  const p=S.ships.find(s=>s.faction==='reb'&&!s.struct);S.sel=p?p.id:null;
+  clockReset();
   for(const s of S.ships)if(!s.struct)s.target=defaultTarget(s);
 }
 const byIdS=id=>S.ships.find(s=>s.id===id);
@@ -888,13 +896,108 @@ function fleeCheck(){   // a panicking ship that flees and reaches the edge jump
   }
 }
 
+/* ---------- the planning stepper (docs/SB-HUD-HANDOFF.md §2) ----------
+   Each of your ships is planned in order: SEG 1 (arm a mode, drag the path; a Drift then sets its facing), the
+   action that fires between the moves, then SEG 2 (or End here). s.step is the step its tray shows; nextStep is
+   the first one not yet committed, so re-selecting a ship opens it there, and going back to an earlier step and
+   committing it again carries on from the first gap. */
+const segStep=st=>st==='seg1'||st==='seg2';
+const faceStep=st=>st==='seg1_facing'||st==='seg2_facing';
+const slotOf=st=>st&&st.startsWith('seg2')?1:0;
+const groupOf=st=>!st?'s1':st.startsWith('seg1')?'s1':st==='action'?'act':st.startsWith('seg2')?'s2':'done';
+const twoSegs=()=>AP_PER_ROUND>1;
+function nextStep(s){
+  const p0=s.plan[0],p1=s.plan[1];
+  if(!p0)return 'seg1';
+  if(p0.kind==='drift'&&!p0.faceSet)return 'seg1_facing';
+  if(!s.actDone)return 'action';
+  if(!twoSegs()||s.endHere)return 'done';
+  if(!p1)return 'seg2';
+  if(p1.kind==='drift'&&!p1.faceSet)return 'seg2_facing';
+  return 'done';
+}
+const stepOf=s=>s.step||nextStep(s);
+const planned=s=>nextStep(s)==='done';
+const ownShips=()=>S.ships.filter(s=>s.faction==='reb'&&s.alive&&!s.struct);
+/* the planning clock (§6 H3): time the tray spends on each step, per ship, for the exec's metrics record */
+function clockReset(){S.clk={t:performance.now()};S.planT={};}
+function mark(){
+  const now=performance.now(),s=byIdS(S.sel);
+  if(S.clk&&s&&s.faction==='reb'&&K().phase==='PLAN'){
+    const g=groupOf(stepOf(s));
+    if(g!=='done'){const b=S.planT[s.id]=S.planT[s.id]||{s1:0,act:0,s2:0};b[g]+=now-S.clk.t;}
+  }
+  S.clk={t:now};
+}
+function select(id){
+  const s=byIdS(id);if(!s)return false;
+  mark();S.sel=id;
+  if(s.faction==='reb'&&!s.struct)s.step=nextStep(s);
+  return true;
+}
+/* a step committed: on to the first gap; a ship that has just become fully planned hands over to the next one */
+function advance(s,wasDone){
+  s.step=nextStep(s);
+  if(s.step==='done'&&!wasDone&&s.id===S.sel){
+    const own=ownShips(),i=own.indexOf(s);
+    const nxt=own.slice(i+1).concat(own.slice(0,i)).find(q=>!planned(q));
+    if(nxt)select(nxt.id);else S.execFocus=true;   // the last one: Execute takes the focus
+  }
+}
+function arm(id,kind){   // pick the mode the next drag of this step flies (a mode you lack is refused)
+  const s=byIdS(id),st=stepOf(s);
+  if(!segStep(st)||!kindsFor(s).includes(kind))return false;
+  mark();s.kinds[slotOf(st)]=kind;return true;
+}
+function pickAction(id,a){
+  const s=byIdS(id),slot=actionSlots(s).find(x=>x.key===a);
+  if(stepOf(s)!=='action'||!slot||slot.off)return false;
+  mark();const was=planned(s);s.action=a;s.actDone=true;advance(s,was);return true;
+}
+function endHere(id){   // SEG 2's other choice: the second AP goes unspent
+  const s=byIdS(id);if(stepOf(s)!=='seg2')return false;
+  mark();const was=planned(s);s.plan.length=1;s.endHere=true;advance(s,was);return true;
+}
+function keepFacing(id){   // commit a Drift's facing as it stands
+  const s=byIdS(id),st=stepOf(s);if(!faceStep(st))return false;
+  mark();const was=planned(s);s.plan[slotOf(st)].faceSet=true;advance(s,was);return true;
+}
+/* the breadcrumb: go back to a committed step, or the first open one; never past it */
+const PIPS=['s1','act','s2'];
+function pipStep(s,pip){
+  if(pip==='s1')return 'seg1';
+  if(pip==='act')return s.plan[0]?'action':null;
+  if(pip==='s2')return twoSegs()&&s.plan[0]&&s.actDone?'seg2':null;
+  return null;
+}
+function goPip(id,pip){
+  const s=byIdS(id),st=pipStep(s,pip);if(!st)return false;
+  const order=['s1','act','s2','done'];
+  if(order.indexOf(pip)>order.indexOf(groupOf(nextStep(s))))return false;
+  mark();s.step=st;return true;
+}
+function back(id){   // Esc: one step back
+  const s=byIdS(id),st=stepOf(s);
+  const p0=s.plan[0],p1=s.plan[1];
+  const prev={seg1_facing:'seg1',action:p0&&p0.kind==='drift'?'seg1_facing':'seg1',seg2:'action',seg2_facing:'seg2',
+    done:!twoSegs()?'action':s.endHere?'seg2':p1&&p1.kind==='drift'?'seg2_facing':'seg2'}[st];
+  if(!prev||(prev==='seg1_facing'&&!p0))return false;
+  mark();s.step=prev;return true;
+}
+function clearPlan(id){
+  const s=byIdS(id);mark();
+  s.plan=[];s.kinds=['basic','basic'];s.action='none';s.actDone=false;s.endHere=false;s.step='seg1';
+  return true;
+}
+
 /* ---------- planning input: grab the craft, drag the line ---------- */
 function shipAt(x,y,z){
   let best=null,bd=1e18;
   for(const s of S.ships){if(!s.alive)continue;const d=Math.hypot(s.x-x,s.y-y);const r=Math.max(40,26/z);if(d<r&&d<bd){bd=d;best=s;}}
   return best;
 }
-function handleAt(x,y,z){   // a selected ship's segment-end handles (start the next segment there) and Drift facing handles
+/* the selected ship's handles: a Drift's facing handle (always live), and at SEG 2 the end of SEG 1, where the drag starts */
+function handleAt(x,y,z){
   const s=byIdS(S.sel);if(!s||s.faction!=='reb'||!s.alive)return null;
   const cs=curvesOf(s),r=Math.max(34,22/z);
   for(let i=cs.length-1;i>=0;i--){
@@ -902,29 +1005,29 @@ function handleAt(x,y,z){   // a selected ship's segment-end handles (start the 
     if(seg.kind==='drift'){const e=seg.pts[seg.pts.length-1],f=seg.facing!=null?seg.facing:e.h+Math.PI,R=110;
       if(Math.hypot(x-(e.x+Math.cos(f)*R),y-(e.y+Math.sin(f)*R))<r)return {kind:'facing',ship:s,slot:i};}
   }
-  if(cs.length&&cs.length<AP_PER_ROUND&&distanceLeft(s,cs)>=SEG_MIN*K().SU){const e=segEnd(cs[cs.length-1]);if(Math.hypot(x-e.x,y-e.y)<r)return {kind:'seg',ship:s,slot:cs.length,from:e};}
-  for(let i=cs.length-1;i>=1;i--){const e=segEnd(cs[i-1]);if(Math.hypot(x-e.x,y-e.y)<r)return {kind:'seg',ship:s,slot:i,from:e};}
+  if(stepOf(s)==='seg2'&&cs.length&&distanceLeft(s,[cs[0]])>=SEG_MIN*K().SU){
+    const e=segEnd(cs[0]);if(Math.hypot(x-e.x,y-e.y)<Math.max(r,40))return {kind:'seg',ship:s,slot:1,from:e};
+  }
   return null;
+}
+function startDrag(s,slot,from){
+  S.edit={mode:'drag',id:s.id,slot,from,pts:[{x:from.x,y:from.y}],prevPlan:s.plan.slice(),prevStep:s.step,wasDone:planned(s)};
+  s.step=slot?'seg2':'seg1';s.plan.length=slot;   // re-flying SEG 1 moves SEG 2's start: SEG 2 goes
 }
 function planInput(ev){
   if(K().phase!=='PLAN')return false;
   if(ev.type==='down'){
     const hd=handleAt(ev.x,ev.y,ev.z);
-    if(hd&&hd.kind==='facing'){S.edit={mode:'facing',id:hd.ship.id,slot:hd.slot};return true;}
-    if(hd&&hd.kind==='seg'){
-      S.slot=hd.slot;hd.ship.plan.length=hd.slot;
-      S.edit={mode:'drag',id:hd.ship.id,slot:hd.slot,from:hd.from,pts:[{x:hd.from.x,y:hd.from.y}]};
-      return true;
-    }
+    if(hd&&hd.kind==='facing'){mark();S.edit={mode:'facing',id:hd.ship.id,slot:hd.slot};return true;}
+    if(hd&&hd.kind==='seg'){mark();startDrag(hd.ship,1,hd.from);return true;}
     const s=shipAt(ev.x,ev.y,ev.z);
     if(s&&s.faction==='reb'&&!s.struct){
-      S.sel=s.id;S.slot=0;s.plan.length=0;
-      S.edit={mode:'drag',id:s.id,slot:0,from:startPose(s),pts:[{x:s.x,y:s.y}]};
+      if(s.id!==S.sel){select(s.id);if(stepOf(s)!=='seg1')return true;}   // a new selection opens its tray; at SEG 1 the press is also the drag
+      mark();startDrag(s,0,startPose(s));
       return true;
     }
     const me=byIdS(S.sel);
-    if(s&&me&&me.faction==='reb'&&me.alive&&s.faction!==me.faction){me.target=s.id;return true;}   // your ship selected: a hostile becomes its target
-    if(s){S.sel=s.id;return true;}
+    if(s&&me&&me.faction==='reb'&&me.alive&&s.faction!==me.faction){mark();me.target=s.id;return true;}   // any step: a hostile becomes its target
     return false;
   }
   if(ev.type==='move'&&S.edit){
@@ -934,54 +1037,68 @@ function planInput(ev){
       s.plan[S.edit.slot].facing=Math.atan2(ev.y-e.y,ev.x-e.x);
       return true;
     }
-    const d=S.edit;d.pts=[d.pts[0],{x:ev.x,y:ev.y}];   // the pointer is the destination
+    const d=S.edit;d.pts=[d.pts[0],{x:ev.x,y:ev.y}];d.ptr={x:ev.x,y:ev.y};   // the pointer is the destination
     if(Math.hypot(ev.x-d.from.x,ev.y-d.from.y)>DRAG_MIN)setSeg(s,d.slot,d.from,d.pts);
+    else s.plan.length=d.slot;
     return true;
   }
   if(ev.type==='up'&&S.edit){
-    const d=S.edit,s=byIdS(d.id);
-    if(d.mode==='drag'){
-      const tip=d.pts[d.pts.length-1];
-      if(Math.hypot(tip.x-d.from.x,tip.y-d.from.y)<=DRAG_MIN)s.plan.length=d.slot;   // a click, not a drag: nothing planned
-      else{setSeg(s,d.slot,d.from,d.pts);S.slot=Math.min(AP_PER_ROUND-1,d.slot+1);}
+    const d=S.edit,s=byIdS(d.id);S.edit=null;
+    if(d.mode==='facing'){   // committing the handle finishes the facing step; on a later step it is an edit in place
+      const st=slotOf(stepOf(s))===d.slot&&faceStep(stepOf(s));
+      if(s.plan[d.slot])s.plan[d.slot].faceSet=true;
+      if(st)advance(s,false);
+      return true;
     }
-    S.edit=null;return true;
+    const tip=d.pts[d.pts.length-1];
+    if(Math.hypot(tip.x-d.from.x,tip.y-d.from.y)<=DRAG_MIN){s.plan=d.prevPlan;s.step=d.prevStep;return true;}   // a click, not a drag: nothing changes
+    setSeg(s,d.slot,d.from,d.pts);
+    s.endHere=false;
+    s.plan[d.slot].faceSet=s.plan[d.slot].kind!=='drift';   // a Drift goes on to its facing step
+    advance(s,d.wasDone);
+    return true;
   }
   return false;
 }
 const DRAG_MIN=20;   // world units the pointer must move from the ship before a drag plans a move
 function setSeg(s,slot,from,pts){
   const kind=s.kinds[slot]||'basic';
-  const prev=s.plan[slot];
-  s.plan[slot]={kind,local:toLocal([pts[pts.length-1]],from),facing:prev&&prev.kind==='drift'?prev.facing:(kind==='drift'?from.h+Math.PI:null)};
+  const prev=s.plan[slot]||(S.edit&&S.edit.prevPlan&&S.edit.prevPlan[slot]);   // a re-drawn Drift keeps its facing
+  s.plan[slot]={kind,local:toLocal([pts[pts.length-1]],from),noFire:kind==='flydef',
+    facing:prev&&prev.kind==='drift'&&prev.facing!=null?prev.facing:(kind==='drift'?from.h+Math.PI:null)};
+  s.plan.length=slot+1;
 }
-/* scripted planning (tests, the panel): pts in world space from the segment's start pose; the last is the destination */
+/* scripted planning (tests, the panel): pts in world space from the segment's start pose; the last is the destination.
+   Scripted segments count as committed (a Drift's facing included). */
 function planSegs(id,list){
   const s=byIdS(id);s.plan=[];
   let pose=startPose(s);
   list.forEach((o,i)=>{
     s.kinds[i]=o.kind||'basic';
-    s.plan.push({kind:s.kinds[i],local:toLocal([o.pts[o.pts.length-1]],pose),facing:o.facing!=null?o.facing:(s.kinds[i]==='drift'?pose.h+Math.PI:null)});
+    s.plan.push({kind:s.kinds[i],local:toLocal([o.pts[o.pts.length-1]],pose),noFire:s.kinds[i]==='flydef',faceSet:true,
+      facing:o.facing!=null?o.facing:(s.kinds[i]==='drift'?pose.h+Math.PI:null)});
     pose=segEnd(curvesOf(s)[i]);
   });
+  s.step=nextStep(s);
   return curvesOf(s);
 }
 function setKind(id,slot,kind){
   const s=byIdS(id);
   if(!kindsFor(s).includes(kind))return false;
   s.kinds[slot]=kind;
-  if(s.plan[slot]){s.plan[slot].kind=kind;if(kind==='drift'&&s.plan[slot].facing==null){const c=curvesOf(s)[slot];s.plan[slot].facing=c.start.h+Math.PI;}}
+  if(s.plan[slot]){s.plan[slot].kind=kind;s.plan[slot].noFire=kind==='flydef';if(kind==='drift'&&s.plan[slot].facing==null){const c=curvesOf(s)[slot];s.plan[slot].facing=c.start.h+Math.PI;}}
   return true;
 }
 
 /* ---------- execution ---------- */
 function beginExec(){
+  mark();S.planLast=S.planT;S.planT={};   // this turn's planning time, for the exec's metrics record
   S.damaged=new Set();
-  for(const s of S.ships){   // the action resolves as the exec begins
+  for(const s of S.ships){   // the action is chosen now and resolves between the segments (fireActions)
+    s.actPlan=null;s.actAt=0;s.actT=null;
     if(!s.alive)continue;
-    const a=s.faction==='reb'?s.action:aiActionOf(s);
-    if(a&&a!=='none'&&actionsFor(s).includes(a)){doAction(s,a);s.st.actions=(s.st.actions||0)+1;}
-    s.lastAction=a;
+    s.actPlan=s.faction==='reb'?s.action:aiActionOf(s);
+    s.lastAction=s.actPlan;
   }
   const mates={};
   for(const s of S.ships){
@@ -996,8 +1113,21 @@ function beginExec(){
       const last=segs.length?segEnd(segs[segs.length-1]):startPose(s);m.push(last);
     }
     s.sched=paceSchedule(segs);s.lastKinds=segs.map(g=>g.auto?'glide':g.kind);
+    s.actAt=s.sched.length?Math.min(K().EXEC_LEN,s.sched[0].t1):0;   // SEG 1's arc completes (the only segment's end, with End here)
   }
   S.execT=0;
+  fireActions();   // a ship with no move (a structure) acts at once
+}
+/* the action resolves at the segment boundary (docs/SB-HUD-HANDOFF.md §3.4): a shield angled between the moves
+   covers the second one only */
+function fireActions(all){
+  for(const s of S.ships){
+    if(s.actPlan==null||s.actT!=null)continue;
+    if(!all&&S.execT<s.actAt-1e-9)continue;
+    s.actT=+S.execT.toFixed(3);
+    const a=s.actPlan;
+    if(s.alive&&a&&a!=='none'&&actionsFor(s).includes(a)&&doAction(s,a))s.st.actions=(s.st.actions||0)+1;
+  }
 }
 /* the visual roll: weaving when flying defensively, the barrel roll, otherwise banked into the turn */
 function rollOf(p,t){
@@ -1037,10 +1167,12 @@ function tick(dt){
     s.visRoll=rollOf(p,S.execT);
     s.trail.push({x:s.x,y:s.y});if(s.trail.length>TRAIL_N)s.trail.shift();
   }
+  fireActions();
   S.clockT+=dt;
   combatTick(dt);
 }
 function endExec(){
+  fireActions(true);
   for(const s of S.ships)if(s.alive&&!S.damaged.has(s.id))adjCool(s,CALM_GAIN);   // breathing room (space.js endRound ~1082)
   fleeCheck();
   for(const s of S.ships){
@@ -1050,9 +1182,12 @@ function endExec(){
       s.mom=Math.min(maxSpeedOf(s)*BOOST_MULT,D/(K().SU*SPEED_SCALE));
     }
     s.sched=null;s.plan=[];s.flydef=false;s.visRoll=0;s.curKind=null;
-    s.kinds=['basic','basic'];s.action='none';
+    s.kinds=['basic','basic'];s.action='none';s.actDone=false;s.endHere=false;s.step=null;s.actPlan=null;
   }
-  S.slot=0;
+  S.slot=0;S.execFocus=false;
+  const me=byIdS(S.sel);
+  if(!me||!me.alive||me.faction!=='reb'){const p=ownShips()[0];if(p)S.sel=p.id;}
+  clockReset();
 }
 
 /* ---------- drawing ---------- */
@@ -1099,18 +1234,29 @@ function drawReach(c,s,start,kind,left,z,strong){
   }
   c.restore();
 }
-function drawPlan(c,s,z,kit){
-  const sel=s.id===S.sel,cs=curvesOf(s),all=fullSchedule(s,cs);
-  if(sel){   // while dragging: the reach of the segment being drawn; otherwise, faintly, the next one's
-    const ed=S.edit&&S.edit.mode==='drag'&&S.edit.id===s.id?S.edit:null;
-    if(ed){let left=dialOf(s).roundMax;for(let i=0;i<ed.slot&&i<cs.length;i++)left-=cs[i].used;drawReach(c,s,ed.from,s.kinds[ed.slot]||'basic',left,z,true);}
-    else if(cs.length<AP_PER_ROUND){const left=distanceLeft(s,cs);if(left>=SEG_MIN*K().SU)drawReach(c,s,cs.length?segEnd(cs[cs.length-1]):startPose(s),s.kinds[cs.length]||'basic',left,z,false);}
+function drawPlan(c,s,z,kit,now){
+  const sel=s.id===S.sel,cs=curvesOf(s),all=fullSchedule(s,cs),st=sel?stepOf(s):null;
+  const ed=sel&&S.edit&&S.edit.mode==='drag'&&S.edit.id===s.id?S.edit:null;
+  if(ed){let left=dialOf(s).roundMax;for(let i=0;i<ed.slot&&i<cs.length;i++)left-=cs[i].used;drawReach(c,s,ed.from,s.kinds[ed.slot]||'basic',left,z,true);}
+  else if(sel&&segStep(st)){   // the step's reach, faintly, for the armed mode, and a pulse where its drag starts
+    const slot=slotOf(st),from=slot?(cs[0]?segEnd(cs[0]):null):startPose(s);
+    const left=slot?distanceLeft(s,cs.slice(0,1)):dialOf(s).roundMax;
+    if(from&&left>=SEG_MIN*K().SU){
+      drawReach(c,s,from,s.kinds[slot]||'basic',left,z,false);
+      const k=((now||0)/900)%1,r0=slot?10/z:34*SHIP_SCALE*kit.iconBoost();
+      c.save();c.strokeStyle=T.rgba(C.gold,0.85*(1-k));c.lineWidth=2.4/z;c.beginPath();c.arc(from.x,from.y,r0+(4+22*k)/z,0,6.283);c.stroke();c.restore();
+    }
   }
   all.forEach((seg,i)=>{
     const col=seg.auto?T.rgba(C.steel,0.55):seg.kind==='flydef'?C.shield:seg.kind==='basic'?(sel?C.gold:T.rgba(C.gold,0.7)):C.psi;
     strokePts(c,seg.pts,col,z,sel?3.6:2.6,seg.auto?[3,9]:null);
     const e=segEnd(seg),m=seg.pts[Math.floor(seg.pts.length/2)];
-    if(sel&&!seg.auto)label(c,m.x,m.y-16/z,(i+1)+' · '+KINDS[seg.kind].short,col,z);
+    if(seg.kind==='flydef'&&!seg.auto){   // Fly def: a weaving ghost along the line, and it holds its fire
+      const P=seg.pts,n=P.length,wv=[];
+      for(let j=0;j<n;j++){const o=Math.sin(j/(n-1)*Math.PI*6)*12;wv.push({x:P[j].x-Math.sin(P[j].h)*o,y:P[j].y+Math.cos(P[j].h)*o});}
+      c.save();c.globalAlpha=0.5;strokePts(c,wv,C.shield,z,1.4,null);c.restore();
+    }
+    if(sel&&!seg.auto)label(c,m.x,m.y-16/z,(i+1)+' · '+KINDS[seg.kind].short+(seg.kind==='flydef'?' · no fire':''),col,z);
     kit.drawShipBody(c,s,{x:e.x,y:e.y,h:e.h,alpha:sel?0.38:0.22,scale:SHIP_SCALE});
     if(sel&&!seg.auto){   // the handle where the next segment starts
       c.save();c.beginPath();c.arc(e.x,e.y,9/z,0,6.283);c.fillStyle=C.ink;c.fill();
@@ -1123,8 +1269,22 @@ function drawPlan(c,s,z,kit){
       c.translate(pe.x+Math.cos(f)*R,pe.y+Math.sin(f)*R);c.rotate(Math.PI/4);
       c.fillStyle=C.ink;c.fillRect(-9/z,-9/z,18/z,18/z);c.fillStyle=C.psi;c.fillRect(-6/z,-6/z,12/z,12/z);c.restore();
       if(sel)label(c,pe.x+Math.cos(f)*R,pe.y+Math.sin(f)*R-16/z,'facing',C.psi,z);
+      const live=sel&&(faceStep(st)&&slotOf(st)===seg.slot||S.edit&&S.edit.mode==='facing'&&S.edit.id===s.id&&S.edit.slot===seg.slot);
+      if(live){   // the facing step: the guns' arc swings with the handle, and the handle pulses
+        drawArcAt(c,s,{x:pe.x,y:pe.y,h:f},z);
+        const k=((now||0)/900)%1,hx=pe.x+Math.cos(f)*R,hy=pe.y+Math.sin(f)*R;
+        c.save();c.strokeStyle=T.rgba(C.psi,0.85*(1-k));c.lineWidth=2.4/z;c.beginPath();c.arc(hx,hy,(12+20*k)/z,0,6.283);c.stroke();c.restore();
+      }
     }
   });
+  if(ed&&ed.ptr){   // the drag readout rides the cursor: length vs reach at this turn, and the momentum it leaves
+    const seg=cs[ed.slot],SU=K().SU;
+    if(seg){
+      let D=0;for(const g of all)D+=g.L;
+      const mom=Math.min(maxSpeedOf(s)*BOOST_MULT,D/(SU*SPEED_SCALE));
+      label(c,ed.ptr.x,ed.ptr.y-30/z,(seg.L/SU).toFixed(1)+' / '+(seg.env.hi(seg.th)/SU).toFixed(1)+' SU · momentum '+mom.toFixed(1),C.text,z);
+    }
+  }
   if(sel)cs.forEach(seg=>{   // where you asked it to go; a dashed line to it when the ship can't get there
     const d=seg.dest,e=seg.pts[seg.pts.length-1],live=S.edit&&S.edit.mode==='drag'&&S.edit.id===s.id&&S.edit.slot===seg.slot;
     if(!seg.reached){c.save();c.globalAlpha=0.6;strokePts(c,[e,d],C.hazard,z,1.6,[4,6]);c.restore();}
@@ -1134,6 +1294,12 @@ function drawPlan(c,s,z,kit){
       c.beginPath();c.arc(d.x,d.y,r*0.7,0,6.283);c.stroke();c.restore();
     }
   });
+}
+function drawArcAt(c,s,pose,z){   // a planned pose's guns: where a Drift will be pointing
+  const R=Math.max(300,...s.wpns.map(q=>q.w.rng));
+  c.save();c.translate(pose.x,pose.y);c.rotate(pose.h);
+  c.fillStyle=T.rgba(C.psi,0.08);c.strokeStyle=T.rgba(C.psi,0.55);c.lineWidth=1.4/z;c.setLineDash([6/z,6/z]);
+  c.beginPath();c.moveTo(0,0);c.arc(0,0,R,-ARCH,ARCH);c.closePath();c.fill();c.stroke();c.restore();
 }
 function drawArc(c,s,z){   // the firing band: the arc out to the longest gun, range bands dashed
   const reb=s.faction==='reb',col=reb?C.gold:C.heg,R=Math.max(300,...s.wpns.map(q=>q.w.rng));
@@ -1229,9 +1395,10 @@ function draw(c,now,a){
   }
   try{
     const sel=byIdS(S.sel);
-    if(sel&&sel.alive&&!sel.struct&&phase==='PLAN')drawArc(c,sel,z);   // a planning aid: off while the fight runs
+    const k0=sel&&(sel.plan[0]?sel.plan[0].kind:sel.kinds[0]);
+    if(sel&&sel.alive&&!sel.struct&&phase==='PLAN'&&k0!=='flydef')drawArc(c,sel,z);   // a planning aid: off while the fight runs, and for a Fly def start (it won't shoot)
     for(const s of S.ships)if(s.alive)drawTrail(c,s,z);
-    if(phase==='PLAN')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct)drawPlan(c,s,z,kit);
+    if(phase==='PLAN')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct)drawPlan(c,s,z,kit,now);
     for(const s of S.ships){
       if(!s.alive)continue;
       if(s.id===S.sel){c.save();c.strokeStyle=C.gold;c.lineWidth=2.4/z;c.beginPath();c.arc(s.x,s.y,34*SHIP_SCALE*kit.iconBoost(),0,6.283);c.stroke();c.restore();}
@@ -1256,53 +1423,206 @@ function focus(){
   return pts;
 }
 
-/* ---------- the orders strip ---------- */
+/* ---------- the planning tray (docs/SB-HUD-HANDOFF.md §3–§5) ----------
+   HTML, not canvas, so hover cards, disabled states and focus come free. One tray, under the selected ship, showing
+   only the current step's controls; the driver places it every frame (trayAnchor), opens the hover cards (tipFor)
+   and presses the icons for the number keys. */
 const esc=s=>String(s).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
-function hud(){
-  const s=byIdS(S.sel);
-  if(!s)return '<span class="arn-orders__note">Select a ship.</span>';
-  let h='<span class="arn-orders__name">'+esc(s.name)+'</span><span class="arn-orders__note">'+esc(s.row.name)+' · '+(s.pilot.preset||'roster')+' L'+s.pilot.level+' · nerve '+Math.round(s.pilot.cool)+'</span>';
-  if(s.faction!=='reb'||s.struct)return h+(s.doctrine?'<span class="arn-orders__note">Doctrine: '+esc(s.doctrine)+'</span>':'');
-  const t=byIdS(s.target);
-  h+='<span class="arn-orders__note">Target '+(t&&t.alive?esc(t.name)+' · lock '+Math.round(lockOf(s,t.id)*100)+'%':'none')+' · '+
-    s.wpns.map(q=>esc(q.w.name)+(q.ammo!==undefined?' ×'+q.ammo:'')).join(', ')+' · click a hostile to target it</span>';
-  if(K().phase!=='PLAN')return h;
-  const left=distanceLeft(s),dd=dialOf(s),full=dd.roundMax,spd=v=>(v/(K().SU*SPEED_SCALE)).toFixed(1);
-  h+='<span class="arn-orders__note">AP '+s.plan.length+'/'+AP_PER_ROUND+' · distance left '+Math.round(100*left/full)+'%'+
-    (MOMENTUM?' · momentum '+dd.mom.toFixed(1)+' (this round '+spd(dd.roundMin)+' to '+spd(dd.roundMax)+')':'')+' · drag from the ship to where it should end up, inside its reach</span>';
-  for(let i=0;i<AP_PER_ROUND;i++){
-    h+='<span class="arn-orders__grp"><span class="arn-orders__lbl">Seg '+(i+1)+'</span>';
-    for(const k of kindsFor(s))h+='<button type="button" class="sr-btn" data-act="kind" data-slot="'+i+'" data-kind="'+k+'" aria-pressed="'+(s.kinds[i]===k)+'">'+KINDS[k].short+'</button>';
-    h+='</span>';
+const nf=v=>String(+(+v).toFixed(2));
+/* single-colour glyphs, one path each (currentColor), so armed / greyed / locked are CSS */
+const GLYPHS={
+  basic:'M4 12h15M13 6l6 6-6 6',
+  flydef:'M3 12c2-5 4-5 5.5 0s3.5 5 5.5 0 3.5-5 5 0M17 8.5l3 3.5-3.5 2',
+  boost:'M3 6l5 6-5 6M9.5 6l5 6-5 6M16 6l5 6-5 6',
+  drift:'M4 19C7 10 12 6.5 19 6.5M15.5 3.5l3.5 3-3 3.5M14 17l-4-1.5',
+  kturn:'M6 21V9a5 5 0 0 1 10 0v7M12.5 13l3.5 3.5 3.5-3.5',
+  loop:'M3 17h8a5 5 0 1 0-5-5v1M3 10l3 3 3-3',
+  barrel:'M3 7h7M7 4l3 3-3 3M14 17h7M18 14l3 3-3 3M10 7l4 10',
+  end_here:'M6 6h12v12H6z',
+  angle_f:'M4.5 10a7.5 7.5 0 0 1 15 0M12 11l3 8h-6z',
+  angle_a:'M4.5 15a7.5 7.5 0 0 0 15 0M12 5l3 8h-6z',
+  boost_f:'M4 9a8 8 0 0 1 16 0M12 12v8M8 16h8',
+  boost_a:'M4 15a8 8 0 0 0 16 0M12 4v8M8 8h8',
+  fixcrit:'M15 3.5a5 5 0 0 0-4.6 6.9L3.5 17.3l3.2 3.2 6.9-6.9A5 5 0 0 0 20.5 9l-3 3-3.2-.8-.8-3.2z',
+  lockin:'M12 2.5v6M12 15.5v6M2.5 12h6M15.5 12h6M12 9.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5',
+  special:'M12 3l2.6 5.6 6.1.7-4.5 4.1 1.2 6L12 16.4l-5.4 3 1.2-6-4.5-4.1 6.1-.7z',
+  ship:'M12 3l5.5 15L12 15l-5.5 3z',
+  none:'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16M6.3 6.3l11.4 11.4',
+  lock:'M8 11V8a4 4 0 0 1 8 0v3M6 11h12v9H6z',
+  check:'M5 12.5l4.5 4.5L19 7',
+};
+const glyph=(k,cls)=>'<svg class="'+(cls||'arn-glyph')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+GLYPHS[k]+'"/></svg>';
+const ACT_GLYPH={none:'none',shiftF:'angle_f',shiftR:'angle_a',boostF:'boost_f',boostR:'boost_a',fixcrit:'fixcrit',lockin:'lockin',fieldrep:'special'};
+const actGlyph=a=>ACT_GLYPH[a]||(ACTIONS[a]&&ACTIONS[a].special?'special':'ship');
+/* the movement icons: Basic and Fly def, then the moveset mods in ARENA_MOVESETS order; a mod this pilot lacks is
+   shown locked (naming the first preset that grants it) while showLockedMods is on, and left out when it is off */
+function grantedBy(kind){for(const pr of Object.keys(ARENA_MOVESETS))if(ARENA_MOVESETS[pr].includes(kind))return pr;return null;}
+function trayKinds(s){
+  const own=kindsFor(s),order=['basic','flydef'];
+  for(const pr of Object.keys(ARENA_MOVESETS))for(const k of ARENA_MOVESETS[pr])if(!order.includes(k))order.push(k);
+  for(const k of own)if(!order.includes(k))order.push(k);
+  const out=[];
+  for(const k of order){
+    if(own.includes(k))out.push({kind:k});
+    else if(showLockedMods&&grantedBy(k))out.push({kind:k,locked:grantedBy(k)});
   }
-  const acts=actionsFor(s),basic=acts.filter(a=>!ACTIONS[a].special);
-  h+='<span class="arn-orders__grp"><span class="arn-orders__lbl">Action</span>';
-  for(const a of basic)if(a!=='none')h+='<button type="button" class="sr-btn" data-act="action" data-action="'+a+'" aria-pressed="'+(s.action===a)+'">'+ACTIONS[a].short+'</button>';
-  h+='</span><span class="arn-orders__grp"><span class="arn-orders__lbl">Special</span>';
-  const sp=specialAbilities(s);
-  h+=sp.length?sp.map(a=>'<button type="button" class="sr-btn" data-act="action" data-action="'+a+'" aria-pressed="'+(s.action===a)+'">'+ACTIONS[a].short+'</button>').join(''):'<span class="arn-orders__note">none yet</span>';
-  h+='<span class="arn-orders__lbl">Ship</span><span class="arn-orders__note">none yet</span></span>';
-  h+='<span class="arn-orders__grp"><button type="button" class="sr-btn sr-btn--ghost" data-act="clear">Clear</button></span>';
-  return h;
+  return out;
 }
+/* the action icons (§3.3), each with the reason it is off, if it is */
+const ACTION_ORDER=['shiftF','shiftR','boostF','boostR','fixcrit','lockin'];
+function nerveCap(s){let c=100;if(s.pilot.coolCap)c=Math.min(c,s.pilot.coolCap);if(critCount(s,'cockpit'))c=Math.min(c,60);return c;}
+function actionSlots(s){
+  const out=[];
+  for(const a of ACTION_ORDER){
+    let off=null;
+    if(a==='boostF'||a==='boostR'){if(maxShield(s)<=0)off='No shields to boost';else if(critCount(s,'emitter'))off='Shield emitter damaged';}
+    else if(a==='fixcrit'&&!s.crits.length)off='No repairable critical';
+    else if(a==='lockin'){if(mute(s))off='No pilot nerve to steady';else if(s.pilot.cool>=nerveCap(s))off='Nerve already full';}
+    out.push({key:a,off});
+  }
+  for(const a of specialAbilities(s))out.push({key:a,special:1});   // Special and Ship show only when the ship has one
+  for(const a of shipAbilities(s))out.push({key:a,ship:1});
+  out.push({key:'none'});
+  return out;
+}
+const noRoom=s=>distanceLeft(s,curvesOf(s).slice(0,1))<SEG_MIN*K().SU;   // SEG 1 used the whole round
+/* the hover cards read the constants live, so a card never lies when a slider moves (designer-facing copy, §3.5) */
+function kindLine(k){
+  return {basic:'Fly the drawn line.',
+    flydef:flydefImmunity?'No firing this segment. Cannot be hit, except by homing weapons.':'No firing this segment. Incoming fire ×'+nf(FLYDEF_FACTOR)+'; homing weapons ignore it.',
+    boost:'×'+nf(BOOST_MULT)+' speed, nearly straight.',
+    drift:'Nose comes off the path: drag the line, then set the facing. Guns fire along the nose.',
+    kturn:'Run forward, flip 180 at the end. Speed capped at '+nf(KTURN_MAX)+'.',
+    loop:'Flip 180 in the tightest space: speed capped at the slowest straight.',
+    barrel:'Slide '+nf(BARREL_LAT)+' SU sideways, heading kept.'}[k]||'';
+}
+function actionLine(s,a){
+  const cun=s.pilot.cun||1;
+  if(a==='shiftF'||a==='shiftR'){const F=a==='shiftF',seg=s.segs[F?'F':'R'];return 'Swing the '+(F?'fore':'aft')+' shield ('+seg.val+') round to cover the '+(seg.at==='F'?'aft':'fore')+'.';}
+  if(a==='boostF'||a==='boostR')return 'Recharge the '+(a==='boostF'?'fore':'aft')+' shield: up to +'+Math.ceil(0.15*maxShield(s)*cun)+'.';
+  if(a==='fixcrit')return 'Clear one critical'+(s.crits.length?': '+CRITDEFS[s.crits[0]].name:'')+'.';
+  if(a==='lockin')return 'Steady the pilot: +35 nerve (now '+Math.round(s.pilot.cool)+').';
+  if(a==='fieldrep')return 'Patch the hull: +'+Math.ceil(0.15*s.maxHull*cun)+'.';
+  if(a==='none')return 'No action this round.';
+  return 'None yet.';   // DESIGN OPEN: ship abilities
+}
+function tipFor(key,id){
+  const s=byIdS(id||S.sel);if(!s)return '';
+  const i=key.indexOf(':'),type=i<0?key:key.slice(0,i),k=i<0?'':key.slice(i+1);
+  let name='',line='',warn=null;
+  if(type==='kind'){
+    name=KINDS[k].name;line=kindLine(k);
+    const tk=trayKinds(s).find(x=>x.kind===k);
+    if(tk&&tk.locked)warn='Needs: '+tk.locked;
+    else if(slotOf(stepOf(s))===1&&noRoom(s))warn='No distance left this round';
+  } else if(type==='action'){
+    name=ACTIONS[k]?ACTIONS[k].name:k;line=actionLine(s,k)+(k!=='none'?' Fires between the moves.':'');
+    const sl=actionSlots(s).find(x=>x.key===k);if(sl&&sl.off)warn=sl.off;
+  } else if(type==='end'){name='End here';line='The move ends with SEG 1. The second AP goes unspent (it buys nothing yet).';}
+  else if(type==='keepface'){name='Keep facing';line='Fix the nose where the handle points. The handle stays live: drag it again any time.';}
+  else if(type==='pip'){name={s1:'Segment 1',act:'Action',s2:'Segment 2'}[k];line=pipStep(s,k)?'Go back to this step.':'Not yet.';}
+  return (warn?'<div class="arn-tip__warn">'+esc(warn)+'</div>':'')+'<div class="arn-tip__name">'+esc(name)+'</div><div class="arn-tip__line">'+esc(line)+'</div>';
+}
+/* what each pip shows: the committed choice's glyph */
+function pipState(s){
+  const p0=s.plan[0],p1=s.plan[1];
+  return {s1:p0&&(p0.kind!=='drift'||p0.faceSet)?p0.kind:null,act:s.actDone?actGlyph(s.action):null,
+    s2:s.endHere?'end_here':p1&&(p1.kind!=='drift'||p1.faceSet)?p1.kind:null};
+}
+const PIP_LBL={s1:'S1',act:'ACT',s2:'S2'};
+const pipList=()=>twoSegs()?PIPS:['s1','act'];
+function pipOpen(s,k){const order=['s1','act','s2','done'];return !!pipStep(s,k)&&order.indexOf(k)<=order.indexOf(groupOf(nextStep(s)));}
+function pipsHtml(s,st,keyed){
+  const ps=pipState(s),cur=groupOf(st);
+  return '<div class="arn-crumbs">'+pipList().map(k=>'<button type="button" class="arn-pip'+(ps[k]?' is-filled':'')+(cur===k?' is-active':'')+'" data-act="pip" data-pip="'+k+'" data-tip="pip:'+k+'"'+
+    (keyed?' data-key':'')+(pipOpen(s,k)?'':' aria-disabled="true"')+' aria-label="'+PIP_LBL[k]+'">'+(ps[k]?glyph(ps[k],'arn-glyph arn-glyph--sm'):'')+'<span>'+PIP_LBL[k]+'</span></button>').join('<i class="arn-crumbs__sep"></i>')+'</div>';
+}
+function icoBtn(o){
+  return '<button type="button" class="arn-ico'+(o.locked?' is-locked':'')+(o.dflt?' is-default':'')+'" data-act="'+o.act+'"'+(o.kind?' data-kind="'+o.kind+'"':'')+(o.action?' data-action="'+o.action+'"':'')+
+    ' data-tip="'+o.tip+'" data-key aria-label="'+esc(o.label)+'" aria-pressed="'+!!o.pressed+'"'+(o.off?' aria-disabled="true"':'')+'>'+glyph(o.glyph)+(o.locked?glyph('lock','arn-glyph arn-ico__lock'):'')+'</button>';
+}
+function tray(){
+  if(K().phase!=='PLAN')return '';
+  const s=byIdS(S.sel);if(!s||!s.alive||s.faction!=='reb'||s.struct)return '';
+  const st=stepOf(s),t=byIdS(s.target),nerve=Math.round(s.pilot.cool);
+  const tgt='<span class="arn-tray__tgt'+(t&&t.alive?'':' is-empty')+'">'+(t&&t.alive?glyph('lockin','arn-glyph arn-glyph--sm')+esc(t.name)+' · '+Math.round(lockOf(s,t.id)*100)+'%':'no target — click a hostile')+'</span>';
+  const name='<span class="arn-tray__name">'+esc(s.name)+'</span>';
+  if(st==='done')   // the review strip: the committed glyphs (each reopens its step) and Clear
+    return '<div class="arn-tray__in is-done" data-step="done" style="--tray-icon:'+TRAY_ICON+'px"><div class="arn-tray__row">'+name+pipsHtml(s,st,true)+tgt+
+      '<button type="button" class="sr-btn sr-btn--ghost sr-btn--sm arn-tray__clear" data-act="clear" data-key>Clear</button></div></div>';
+  const head='<div class="arn-tray__row">'+name+'<span class="arn-tray__pilot">'+esc(s.pilot.preset||'roster')+' L'+s.pilot.level+'</span>'+
+    (mute(s)?'':'<span class="arn-tray__nerve" role="img" aria-label="nerve '+nerve+'"><i style="width:'+Math.max(0,Math.min(100,nerve))+'%"></i></span>')+tgt+'</div>';
+  let icons=[],hint='';
+  if(segStep(st)){
+    const slot=slotOf(st),armed=s.kinds[slot]||'basic',full=slot===1&&noRoom(s);
+    icons=trayKinds(s).map(x=>icoBtn({act:'arm',kind:x.kind,tip:'kind:'+x.kind,glyph:x.kind,label:KINDS[x.kind].short,pressed:armed===x.kind&&!x.locked&&!full,off:!!x.locked||full,locked:!!x.locked}));
+    if(slot===1)icons.push(icoBtn({act:'end',tip:'end',glyph:'end_here',label:'End here',dflt:full}));
+    hint=full?'No distance left this round: End here':slot?'Drag from the end of the first move to where it should end up':'Drag from the ship to where it should end up';
+  } else if(faceStep(st)){
+    icons=[icoBtn({act:'keepface',tip:'keepface',glyph:'check',label:'Keep facing'})];
+    hint='Drag the handle to set the nose';
+  } else if(st==='action'){
+    icons=actionSlots(s).map(a=>icoBtn({act:'action',action:a.key,tip:'action:'+a.key,glyph:actGlyph(a.key),label:ACTIONS[a.key]?(ACTIONS[a.key].short||ACTIONS[a.key].name):a.key,
+      pressed:s.actDone?s.action===a.key:a.key==='none',dflt:!s.actDone&&a.key==='none',off:!!a.off}));
+    hint='Pick what happens between moves';
+  }
+  return '<div class="arn-tray__in" data-step="'+st+'" style="--tray-icon:'+TRAY_ICON+'px">'+head+pipsHtml(s,st,false)+
+    '<div class="arn-tray__icons">'+icons.join('')+'</div><div class="arn-tray__hint">'+esc(hint)+'</div></div>';
+}
+/* where the tray hangs: under the selected ship (world units; the driver turns it into pixels) */
+function trayAnchor(){
+  if(K().phase!=='PLAN')return null;
+  const s=byIdS(S.sel);if(!s||!s.alive||s.faction!=='reb'||s.struct)return null;
+  return {x:s.x,y:s.y,r:34*SHIP_SCALE*K().iconBoost()};
+}
+function trayCfg(){return {gap:TRAY_GAP,icon:TRAY_ICON,flip:TRAY_FLIP_ZONE,tipDelay:TIP_DELAY};}
+/* the turn chrome (§4): one chip a ship, mirroring its pips */
+function chips(){
+  if(K().phase!=='PLAN')return '';
+  return ownShips().map(s=>{
+    const ps=pipState(s),done=planned(s);
+    return '<button type="button" class="arn-shipchip'+(s.id===S.sel?' is-on':'')+(done?' is-done':'')+'" data-act="sel" data-id="'+esc(s.id)+'" aria-pressed="'+(s.id===S.sel)+'">'+
+      (done?glyph('check','arn-glyph arn-glyph--sm'):'')+'<span class="arn-shipchip__name">'+esc(s.name)+'</span><span class="arn-shipchip__pips">'+
+      pipList().map(k=>'<i'+(ps[k]?' class="is-on"':'')+'></i>').join('')+'</span></button>';
+  }).join('');
+}
+function planCount(){const own=ownShips();return {n:own.filter(planned).length,m:own.length};}
+function takeExecFocus(){const f=S.execFocus;S.execFocus=false;return f;}
 function hudAction(a,el){
-  const s=byIdS(S.sel);if(!s)return;
-  if(a==='kind')setKind(s.id,+el.dataset.slot,el.dataset.kind);
-  else if(a==='action')setAction(s.id,s.action===el.dataset.action?'none':el.dataset.action);
-  else if(a==='clear'){s.plan=[];s.kinds=['basic','basic'];s.action='none';}
+  if(el&&el.getAttribute&&el.getAttribute('aria-disabled')==='true')return false;
+  if(K().phase!=='PLAN')return false;
+  if(a==='sel')return select(el.dataset.id);
+  const s=byIdS(S.sel);if(!s||s.faction!=='reb'||!s.alive)return false;
+  if(a==='arm')return arm(s.id,el.dataset.kind);
+  if(a==='action')return pickAction(s.id,el.dataset.action);
+  if(a==='end')return endHere(s.id);
+  if(a==='keepface')return keepFacing(s.id);
+  if(a==='pip')return goPip(s.id,el.dataset.pip);
+  if(a==='clear')return clearPlan(s.id);
+  return false;
 }
-function setAction(id,a){const s=byIdS(id);if(!actionsFor(s).includes(a))return false;s.action=a;return true;}
+function setAction(id,a){const s=byIdS(id);if(!actionsFor(s).includes(a))return false;s.action=a;s.actDone=true;return true;}
+/* keys (§3.6): Esc one step back, Tab / Shift-Tab the next / previous ship (the driver presses the icons for 1–9) */
 function key_(ev){
-  const n=+ev.key;if(!(n>=1&&n<=9))return false;
-  const own=S.ships.filter(s=>s.faction==='reb'&&s.alive);
-  if(own[n-1]){S.sel=own[n-1].id;return true;}
+  if(K().phase!=='PLAN')return false;
+  if(ev.key==='Escape'){const s=byIdS(S.sel);return !!(s&&s.faction==='reb'&&back(s.id));}
+  if(ev.key==='Tab'){
+    const own=ownShips();if(!own.length)return false;
+    const i=own.findIndex(q=>q.id===S.sel),n=own.length;
+    return select(own[((i<0?0:i+(ev.shiftKey?-1:1))%n+n)%n].id);
+  }
   return false;
 }
 
 /* ---------- panel, metrics, determinism ---------- */
 function panelGroup(){
   return [
-    {key:'AP_PER_ROUND',label:'AP (segments) per round',min:1,max:3,step:1,get:()=>AP_PER_ROUND,set:v=>{AP_PER_ROUND=v;}},
+    {key:'AP_PER_ROUND',label:'AP (segments) per round',min:1,max:2,step:1,get:()=>AP_PER_ROUND,set:v=>{AP_PER_ROUND=v;}},
+    {key:'showLockedMods',label:'Tray: show locked mods (greyed)',type:'toggle',get:()=>showLockedMods,set:v=>{showLockedMods=v;}},
+    {key:'TRAY_GAP',label:'Tray: gap below the ship (px)',min:0,max:60,step:2,get:()=>TRAY_GAP,set:v=>{TRAY_GAP=v;}},
+    {key:'TRAY_ICON',label:'Tray: icon size (px)',min:24,max:56,step:2,get:()=>TRAY_ICON,set:v=>{TRAY_ICON=v;}},
+    {key:'TRAY_FLIP_ZONE',label:'Tray: flips above within (px of the bottom)',min:0,max:400,step:10,get:()=>TRAY_FLIP_ZONE,set:v=>{TRAY_FLIP_ZONE=v;}},
+    {key:'TIP_DELAY',label:'Tray: hover card delay (ms)',min:0,max:1000,step:50,get:()=>TIP_DELAY,set:v=>{TIP_DELAY=v;}},
     {key:'FLYDEF_FACTOR',label:'Fly Defensively: hit profile ×',min:0,max:1,step:0.05,get:()=>FLYDEF_FACTOR,set:v=>{FLYDEF_FACTOR=v;}},
     {key:'flydefImmunity',label:'Fly Defensively: immune except homing (your wording)',type:'toggle',get:()=>flydefImmunity,set:v=>{flydefImmunity=v;}},
     {key:'BOOST_MULT',label:'Boost: speed ×',min:1,max:3,step:0.1,get:()=>BOOST_MULT,set:v=>{BOOST_MULT=v;}},
@@ -1363,15 +1683,20 @@ function metricsRecord(){
   return S.ships.map(s=>({id:s.id,faction:s.faction,alive:s.alive,x:Math.round(s.x),y:Math.round(s.y),hull:s.hull,shields:totalShield(s),
     nerve:Math.round(s.pilot.cool),bursts:s.st.bursts,shots:s.st.shots,hits:s.st.hits,dmg:s.st.dmg,missiles:s.st.missiles,kills:s.st.kills,
     lockMax:Math.round((s.lockMax||0)*100),arcT:+s.st.arcT.toFixed(2),driftShots:s.st.driftShots,backShots:s.st.backShots,
-    fled:!!s.fled,action:s.lastAction||'none',kinds:s.lastKinds||[]}));
+    fled:!!s.fled,action:s.lastAction||'none',actT:s.actT,kinds:s.lastKinds||[],
+    plan:s.faction==='reb'?planMsOf(s.id):undefined}));
 }
+/* planning ms per step for the exec just run (§6 H3), per ship and summed, keyed s1/act/s2 */
+function planMsOf(id){const b=(S.planLast||{})[id]||{s1:0,act:0,s2:0};return {s1:Math.round(b.s1),act:Math.round(b.act),s2:Math.round(b.s2)};}
+function planSteps(){const t={s1:0,act:0,s2:0};for(const id in (S.planLast||{})){const b=planMsOf(id);t.s1+=b.s1;t.act+=b.act;t.s2+=b.s2;}return t;}
 function ships(){return S.ships;}
 function stateHash(){return S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s.h.toFixed(3),s.hull,s.arm,totalShield(s),Math.round(s.pilot.cool),s.alive?1:0,s.st.shots,s.st.hits].join(',')).join('|')+'#'+S.proj.length+'/'+S.missiles.length;}
 function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+s.hull+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
 
-return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,draw,hud,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
+return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,draw,tray,trayAnchor,trayCfg,chips,tipFor,planCount,takeExecFocus,planSteps,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
   get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{reachOutline,planEnemy,planSearch,predictor,aiPickTarget,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,renderPose,focus,dialOf,distanceLeft,feasible,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
       actionsFor,setAction,doAction,specialAbilities,shipAbilities,aiActionOf,
+      nextStep,stepOf,select,arm,pickAction,endHere,keepFacing,goPip,back,clearPlan,trayKinds,actionSlots,tipFor,planCount,fireActions,planned,
       hullHit,hullAxes,impactOf,hitShip,spreadOf,aimAngle,canFire,missileRefusal,lockOf,lockTick,combatTick,projTick,missileTick,fireTick,emitBursts,applyDamage,adjCool,coolState,
       setRng(f){S.rng=f;},setLoadout(id,list){const s=byIdS(id);s.wpns=loadout(s.row,list);return s.wpns;},
       shoot(id,ang,wkey){const s=byIdS(id),q=s.wpns.find(x=>x.key===(wkey||'w0'))||s.wpns[0];S.proj.push({x:s.x,y:s.y,vx:Math.cos(ang)*PROJ_SPD,vy:Math.sin(ang)*PROJ_SPD,owner:s.id,faction:s.faction,w:q.w,burst:0,life:q.w.rng/PROJ_SPD*1.15,age:0});}},
@@ -1381,7 +1706,8 @@ return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,dra
     SPREAD_AIM_K_:()=>SPREAD_AIM_K,SPREAD_NERVE_K_:()=>SPREAD_NERVE_K,SPREAD_CRIT_:()=>SPREAD_CRIT,MISSILE_LOCK_:()=>MISSILE_LOCK,MISSILE_MINR_:()=>MISSILE_MINR,
     MISSILE_SPD_:()=>MISSILE_SPD,MISSILE_TURN_:()=>MISSILE_TURN,LOCK_GAIN_:()=>LOCK_GAIN,LOCK_DECAY_:()=>LOCK_DECAY,IMPACT_MIN_:()=>IMPACT_MIN,
     LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,MOMENTUM_:()=>MOMENTUM,MOM_UP_:()=>MOM_UP,MOM_DOWN_:()=>MOM_DOWN,MOM_TURN_:()=>MOM_TURN,SLIP_OUT_:()=>SLIP_OUT,SLIP_NOSE_:()=>SLIP_NOSE,ACCEL_:()=>ACCEL,BRAKE_:()=>BRAKE,
-    AI_LOOK_:()=>AI_LOOK,AI_W_ARC_:()=>AI_W_ARC,AI_W_THREAT_:()=>AI_W_THREAT,AI_W_RANGE_:()=>AI_W_RANGE,AI_W_SIX_:()=>AI_W_SIX,AI_SWING_:()=>AI_SWING,AI_OVERSHOOT_:()=>AI_OVERSHOOT,AI_JITTER_:()=>AI_JITTER,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
+    AI_LOOK_:()=>AI_LOOK,AI_W_ARC_:()=>AI_W_ARC,AI_W_THREAT_:()=>AI_W_THREAT,AI_W_RANGE_:()=>AI_W_RANGE,AI_W_SIX_:()=>AI_W_SIX,AI_SWING_:()=>AI_SWING,AI_OVERSHOOT_:()=>AI_OVERSHOOT,AI_JITTER_:()=>AI_JITTER,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,TRAY_GAP_:()=>TRAY_GAP,TRAY_ICON_:()=>TRAY_ICON,TRAY_FLIP_ZONE_:()=>TRAY_FLIP_ZONE,TIP_DELAY_:()=>TIP_DELAY,showLockedMods_:()=>showLockedMods,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
     set(k,v){const m={AP_PER_ROUND:()=>AP_PER_ROUND=v,FLYDEF_FACTOR:()=>FLYDEF_FACTOR=v,BOOST_MULT:()=>BOOST_MULT=v,SPEED_FLAIR:()=>SPEED_FLAIR=v,
-      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,MOMENTUM:()=>MOMENTUM=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v};m[k]();}};}};
+      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,MOMENTUM:()=>MOMENTUM=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v,
+      showLockedMods:()=>showLockedMods=v,TRAY_GAP:()=>TRAY_GAP=v,TRAY_ICON:()=>TRAY_ICON=v,TRAY_FLIP_ZONE:()=>TRAY_FLIP_ZONE=v,TIP_DELAY:()=>TIP_DELAY=v,KTURN_MAX:()=>KTURN_MAX=v,BARREL_LAT:()=>BARREL_LAT=v};m[k]();}};}};
 })();

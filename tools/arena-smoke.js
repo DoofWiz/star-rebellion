@@ -7,7 +7,9 @@
    SB Test section (docs/ARENA-SB-HANDOFF.md §9; game/js/arena-sb.js and sim-sb.js, through DBGarena.sb)
      1 picker: both rulesets first, the allowlist, e1_fox under each with the same cast, no campaign save
      3 the envelope   4 projectiles   5 lock and missiles   6 determinism   7 metrics and live fire
-     B4: Drift with the real mouse, movesets by preset, the actions   B5: doctrine, the panel, the experiments */
+     B4: Drift with the real mouse, movesets by preset, the actions   B5: doctrine, the panel, the experiments
+     HUD (docs/SB-HUD-HANDOFF.md §7): the tray's anchor, step order, arming, Drift's facing step, the action at the
+     segment boundary, invalidation, Execute, hover cards, keyboard parity, planning ms per step */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -439,7 +441,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   Object.assign(fox,{x:2000,y:1500,h:0});Object.assign(e1,{x:1550,y:1500,h:0});fox.target='E1';fox.pilot.cool=90;
   const c=f.cam_();c.x=2050;c.y=1500;c.z=0.8;
   S.sel='P1';D.mod&&window.SR_ARENA.refresh();
-  const btn=document.querySelector('#sbOrders [data-act="kind"][data-slot="0"][data-kind="drift"]');
+  const btn=document.querySelector('#sbTray [data-act="arm"][data-kind="drift"]');
   if(btn)btn.click();
   return {btn:!!btn,kind:fox.kinds[0],a:f.toClient(2000,1500),b:f.toClient(2500,1500)};
  });
@@ -451,17 +453,19 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const D=window.DBGarena.sb,f=D.fn,F=D.sim.fn,fox=D.sim.S.ships.find(q=>q.id==='P1');
   const seg=F.curvesOf(fox)[0],e=seg.pts[seg.pts.length-1];
   const fac=fox.plan[0]&&fox.plan[0].facing;
-  return {n:fox.plan.length,kind:fox.plan[0]&&fox.plan[0].kind,facing:fac,
+  return {n:fox.plan.length,kind:fox.plan[0]&&fox.plan[0].kind,facing:fac,step:F.stepOf(fox),handleUi:!!document.querySelector('#sbTray [data-act="keepface"]'),
     handle:f.toClient(e.x+Math.cos(fac)*110,e.y+Math.sin(fac)*110),
     aim:f.toClient(e.x+Math.cos(Math.PI+0.2)*160,e.y+Math.sin(Math.PI+0.2)*160)};
  });
  ok(d1.n===1&&d1.kind==='drift','B4: the drag did not plan a Drift segment '+JSON.stringify(d1));
+ ok(d1.step==='seg1_facing'&&d1.handleUi,'HUD 4: a Drift drag should open the facing step '+JSON.stringify(d1));
  await pg.mouse.move(d1.handle.x,d1.handle.y);await pg.mouse.down();
  for(let i=1;i<=6;i++)await pg.mouse.move(d1.handle.x+(d1.aim.x-d1.handle.x)*i/6,d1.handle.y+(d1.aim.y-d1.handle.y)*i/6);
  await pg.mouse.up();
  const drift=await pg.evaluate(()=>{
   const D=window.DBGarena.sb,f=D.fn,S=D.sim.S,fox=S.ships.find(q=>q.id==='P1');
-  const out={facing:+fox.plan[0].facing.toFixed(3)};
+  const F=D.sim.fn,tan=F.segEnd(F.curvesOf(fox)[0]).h;
+  const out={facing:+fox.plan[0].facing.toFixed(3),sub:[F.stepOf(fox),!!fox.plan[0].faceSet,Math.abs(Math.atan2(Math.sin(fox.plan[0].facing-tan),Math.cos(fox.plan[0].facing-tan)))>0.3]};
   f.beginExec();
   const segT=f.EXEC_LEN_()/D.sim.AP_PER_ROUND_();
   let noseOff=0,velOk=true,back=0,samples=0;
@@ -482,6 +486,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(Math.abs(drift.facing-(Math.PI+0.2-2*Math.PI))<0.06||Math.abs(drift.facing-(Math.PI+0.2))<0.06,'B4: the facing handle did not set the facing '+drift.facing);
  ok(drift.drift[0]>5&&drift.drift[1]<0.05&&drift.drift[2],'B4: Drift should hold the nose on the facing while flying the path '+JSON.stringify(drift.drift));
  ok(drift.drift[3]>0&&drift.drift[4]>0,'B4: Drift should fire back along the nose at the pursuer '+JSON.stringify(drift.drift));
+ ok(drift.sub[0]==='action'&&drift.sub[1]&&drift.sub[2],'HUD 4: committing the facing handle should store a nose off the path and move on '+JSON.stringify(drift.sub));
  const b4=await pg.evaluate(()=>{
   const D=window.DBGarena.sb,f=D.fn,out={};
   // movesets: green has no Drift, the veteran has Boost and Drift, an ace has the lot
@@ -489,19 +494,21 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const S=D.sim.S,F=D.sim.fn;
   const green=S.ships.find(q=>q.pilot.preset==='green'),vet=S.ships.find(q=>q.pilot.preset==='veteran');
   S.sel=green.id;window.SR_ARENA.refresh();
-  out.greenHud=!document.querySelector('#sbOrders [data-kind="drift"]')&&!!document.querySelector('#sbOrders [data-kind="flydef"]');
+  out.greenHud=!document.querySelector('#sbTray [data-kind="drift"]:not([aria-disabled="true"])')&&!!document.querySelector('#sbTray [data-kind="flydef"]');
   out.green=F.kindsFor(green).join();out.greenSet=F.setKind(green.id,0,'drift');
   out.vet=F.kindsFor(vet).join();
   const ace={faction:'reb',pilot:{preset:'ace'}};out.ace=F.kindsFor(ace).join();
   out.custom=F.kindsFor({faction:'reb',pilot:{preset:'green',moveset:['loop']}}).join();
   out.heg=F.kindsFor(S.ships.find(q=>q.faction==='heg')).join();
-  // actions resolve as the exec begins
+  // actions resolve (at the segment boundary: read each one as it fires)
   const s=vet;s.pilot.cool=40;s.crits=['targeting'];s.segs.F.val=2;
   out.acts=F.actionsFor(s).join();
-  F.setAction(s.id,'lockin');f.beginExec();out.lockin=Math.round(s.pilot.cool);while(D.phase==='EXEC')f.stepTick();
-  F.setAction(s.id,'fixcrit');f.beginExec();out.fix=s.crits.length;out.fixGone=!F.actionsFor(s).includes('fixcrit');while(D.phase==='EXEC')f.stepTick();
-  const fv=s.segs.F.val;F.setAction(s.id,'boostF');f.beginExec();out.boost=s.segs.F.val-fv;while(D.phase==='EXEC')f.stepTick();
-  F.setAction(s.id,'shiftF');f.beginExec();out.shift=s.segs.F.at;while(D.phase==='EXEC')f.stepTick();
+  const fire=a=>{F.setAction(s.id,a);f.beginExec();while(D.phase==='EXEC'&&s.actT==null)f.stepTick();};
+  const done=()=>{while(D.phase==='EXEC')f.stepTick();};
+  fire('lockin');out.lockin=Math.round(s.pilot.cool);done();
+  fire('fixcrit');out.fix=s.crits.length;out.fixGone=!F.actionsFor(s).includes('fixcrit');done();
+  const fv=s.segs.F.val;fire('boostF');out.boost=s.segs.F.val-fv;done();
+  fire('shiftF');out.shift=s.segs.F.at;done();
   // the stub slots: only the lead has a special (its self-repair); no ship has a ship ability yet
   const lead=S.ships.find(q=>q.faction==='reb'&&q.lead);
   out.special=[F.specialAbilities(lead).join(),F.specialAbilities(green).join(),S.ships.every(q=>F.shipAbilities(q).length===0)];
@@ -513,6 +520,164 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(b4.acts.includes('lockin')&&b4.acts.includes('fixcrit')&&b4.acts.includes('boostF'),'B4: actions offered '+b4.acts);
  ok(b4.lockin>=74&&b4.fix===0&&b4.boost>0&&b4.shift==='R'&&b4.fixGone&&b4.cleared==='none','B4: actions resolve '+JSON.stringify(b4));
  ok(b4.special[0]==='fieldrep'&&b4.special[1]===''&&b4.special[2],'B4: ability stubs '+JSON.stringify(b4.special));
+
+ /* ---------- SB planning HUD (docs/SB-HUD-HANDOFF.md §7): the per-ship stepper tray ---------- */
+ const hud=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,out={};
+  f.load('e1_fox','sb',null,4);
+  let S=D.sim.S,F=D.sim.fn,fox=S.ships.find(q=>q.id==='P1');S.rocks.length=0;
+  const c=f.cam_(),q=sel=>document.querySelectorAll('#sbTray '+sel).length;
+  const inside=bx=>bx.left>=7.5&&bx.top>=7.5&&bx.left+bx.w<=bx.stage.w-7.5&&bx.top+bx.h<=bx.stage.h-7.5;
+  // a scripted drag (the real mouse is B4's): from the start of the step's move to a point ahead/aside of it
+  const drag=(s,from,ahead,side)=>{const z=c.z,x=from.x+Math.cos(from.h)*ahead-Math.sin(from.h)*side,y=from.y+Math.sin(from.h)*ahead+Math.cos(from.h)*side;
+    D.mod.planInput({type:'down',x:from.x,y:from.y,z});D.mod.planInput({type:'move',x:(from.x+x)/2,y:(from.y+y)/2,z});D.mod.planInput({type:'move',x,y,z});D.mod.planInput({type:'up',x,y,z});f.syncHud();};
+  const pose=s=>({x:s.x,y:s.y,h:s.h});
+  const s1End=s=>F.segEnd(F.curvesOf(s)[0]);
+  // 1. anchoring: under the ship, TRAY_GAP below its ring; flipped above in the bottom zone; never out of the stage
+  Object.assign(fox,{x:2000,y:1500,h:0});c.x=2000;c.y=1400;c.z=0.6;f.syncHud();
+  let bx=f.placeTray();
+  out.anchor=[!bx.flip,Math.abs(bx.top-(bx.ship.y+bx.ship.r+D.sim.TRAY_GAP_()))<1.5,Math.abs(bx.left+bx.w/2-bx.ship.x)<1.5,inside(bx)];
+  fox.y=c.y+(bx.stage.h/2-D.sim.TRAY_FLIP_ZONE_()/2)/c.z;f.syncHud();bx=f.placeTray();
+  out.flip=[bx.flip,bx.top+bx.h<=bx.ship.y-bx.ship.r+1,inside(bx)];
+  const corners=[];for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){fox.x=c.x+dx*(bx.stage.w/2-4)/c.z;fox.y=c.y+dy*(bx.stage.h/2-4)/c.z;corners.push(inside(f.placeTray()));}
+  out.corners=corners;
+  // 2. order is enforced: at SEG 1 no action icon exists, at the action no mode icon does; no action before SEG 1
+  Object.assign(fox,{x:2000,y:1500,h:0});c.x=2000;c.y=1500;F.clearPlan('P1');f.syncHud();
+  out.order=[F.stepOf(fox),q('[data-act="action"]'),q('[data-act="arm"]')>0,F.pickAction('P1','none'),F.goPip('P1','act'),F.nextStep(fox)];
+  drag(fox,pose(fox),400,0);
+  out.order.push(F.stepOf(fox),q('[data-act="action"]')>0,q('[data-act="arm"]'));
+  // 3. arming styles the fit: one gesture, Boost longer and straighter than Basic; Fly def carries the no-fire flag
+  const gesture=kind=>{F.clearPlan('P1');f.syncHud();F.arm('P1',kind);drag(fox,pose(fox),900,700);const g=F.curvesOf(fox)[0];return {L:Math.round(g.L),th:+Math.abs(g.th).toFixed(3),kind:g.kind,noFire:!!fox.plan[0].noFire,step:F.stepOf(fox)};};
+  const gb=gesture('basic'),gB=gesture('boost'),gf=gesture('flydef');
+  out.arm=[gB.L>gb.L,gB.th<gb.th,gb.kind==='basic'&&gB.kind==='boost'&&gf.kind==='flydef',gf.noFire,!gb.noFire,gb.step==='action'];
+  out.armRaw=[gb,gB];
+  // the moveset in the tray: green two, the locked ones greyed with a lock, or absent with showLockedMods off; an ace six
+  f.load('e3_count','sb',1,1);S=D.sim.S;
+  const green=S.ships.find(x=>x.pilot.preset==='green');F.select(green.id);f.syncHud();
+  const live=()=>[...document.querySelectorAll('#sbTray [data-act="arm"]:not([aria-disabled="true"])')].map(e=>e.dataset.kind).join();
+  out.trayGreen=[live(),q('[data-act="arm"].is-locked'),F.arm(green.id,'drift')];
+  green.pilot.preset='ace';f.syncHud();out.trayAce=live();green.pilot.preset='green';
+  D.sim.set('showLockedMods',false);f.syncHud();out.trayOff=[live(),q('[data-act="arm"].is-locked'),q('[data-act="arm"]')];D.sim.set('showLockedMods',true);
+  // 5. boundary timing: an aft-heavy Fox angles its fore shield as SEG 1 completes, not as the exec starts
+  const timing=endHere=>{
+    f.load('e1_fox','sb',null,5);S=D.sim.S;fox=S.ships.find(x=>x.id==='P1');S.rocks.length=0;
+    for(const e of S.ships)if(e.faction==='heg'){e.x=3900;e.y=300;}
+    Object.assign(fox,{x:1500,y:1500,h:0});fox.segs.F.val=1;
+    F.planSegs('P1',endHere?[{pts:[{x:1700,y:1500}]}]:[{pts:[{x:1850,y:1520}]},{pts:[{x:2300,y:1560}]}]);
+    F.pickAction('P1','shiftF');if(endHere)F.endHere('P1');
+    const at0=fox.segs.F.at,st=F.stepOf(fox);f.beginExec();
+    const t1=fox.sched[0].t1,n=fox.sched.length,atStart=fox.segs.F.at;let changed=null;
+    while(D.phase==='EXEC'){f.stepTick();if(changed==null&&fox.segs.F.at!==at0)changed=+D.sim.S.execT.toFixed(3);}
+    return {st,atStart:atStart===at0,t1:+t1.toFixed(3),changed,n,ok:changed!=null&&changed>=t1-1e-6&&changed<t1+f.TICK_()/1000+1e-6&&changed>0.1};
+  };
+  out.boundary=timing(false);out.boundaryEnd=timing(true);
+  // 6. invalidation: redo S1 and S2 goes (its pip empties), the action stays; Clear empties all three
+  f.load('e1_fox','sb',null,6);S=D.sim.S;fox=S.ships.find(x=>x.id==='P1');S.rocks.length=0;
+  Object.assign(fox,{x:2000,y:1500,h:0});c.x=2000;c.y=1500;c.z=0.6;f.syncHud();
+  drag(fox,pose(fox),350,60);F.pickAction('P1','shiftR');f.syncHud();
+  out.s2step=F.stepOf(fox);drag(fox,s1End(fox),300,-40);
+  const filled=()=>[...document.querySelectorAll('#sbTray .arn-pip')].map(e=>e.classList.contains('is-filled')?1:0).join('');
+  out.inv0=[F.stepOf(fox),fox.plan.length,filled(),q('.is-done')];
+  document.querySelector('#sbTray [data-pip="s1"]').click();
+  out.inv1=[F.stepOf(fox),fox.plan.length];
+  drag(fox,pose(fox),300,-80);
+  out.inv=[F.stepOf(fox),fox.plan.length,fox.action,fox.actDone,filled()];
+  F.endHere('P1');f.syncHud();
+  document.querySelector('#sbTray [data-act="clear"]').click();
+  out.clear=[fox.plan.length,fox.actDone,fox.action,fox.endHere,F.stepOf(fox),filled()];
+  // 7. Execute never blocks: one of two ships unplanned flies its standing order
+  f.load('e5_job','sb',null,7);S=D.sim.S;
+  const [a,b2]=S.ships.filter(x=>x.faction==='reb');S.rocks.length=0;
+  F.select(a.id);drag(a,pose(a),400,0);F.pickAction(a.id,'none');f.syncHud();F.endHere(a.id);f.syncHud();
+  out.go0=[document.getElementById('sbGo').textContent,D.sim.S.sel===b2.id];
+  const b0={x:b2.x,y:b2.y,h:b2.h};
+  document.getElementById('sbGo').click();
+  out.go=[D.phase,b2.sched&&b2.sched.length===1&&b2.sched[0].auto];
+  while(D.phase==='EXEC')f.stepTick();
+  out.go.push(Math.hypot(b2.x-b0.x,b2.y-b0.y)>100,Math.abs(b2.h-b0.h)<1e-6);
+  // 8. the hover cards read live constants
+  f.load('e1_fox','sb',null,8);F=D.sim.fn;
+  const k0=F.tipFor('kind:boost'),bm=D.sim.BOOST_MULT_();D.sim.set('BOOST_MULT',2.5);const k1=F.tipFor('kind:boost');D.sim.set('BOOST_MULT',bm);
+  out.tip=[k0.includes('×'+bm+' speed'),k1.includes('×2.5 speed'),F.tipFor('kind:kturn').includes('Needs: ace'),F.tipFor('action:fixcrit').includes('No repairable critical')];
+  // 10 (and H3's flow): sb3_count at 8 ships, ship to ship with no chip clicks; the planning ms land in the record
+  f.load('sb3_count','sb',1,9);S=D.sim.S;S.rocks.length=0;
+  const seen=[];
+  for(let i=0;i<8;i++){
+    const s=S.ships.find(x=>x.id===S.sel);seen.push(s.id);
+    const t=performance.now();while(performance.now()-t<4);
+    drag(s,pose(s),380,0);F.pickAction(s.id,'none');F.endHere(s.id);f.syncHud();
+  }
+  out.flow=[new Set(seen).size,S.ships.filter(x=>x.faction==='reb'&&F.planned(x)).length,document.activeElement&&document.activeElement.id,document.getElementById('sbGo').textContent];
+  f.runExecSync();
+  const rec=D.metrics[D.metrics.length-1],p1=rec.ships.find(x=>x.faction==='reb');
+  out.metrics=[rec.planSteps&&['s1','act','s2'].every(k=>typeof rec.planSteps[k]==='number'),rec.planSteps&&rec.planSteps.s1>=8*3,!!p1.plan&&typeof p1.plan.act==='number'];
+  return out;
+ });
+ ok(hud.anchor.every(Boolean),'HUD 1: the tray should hang TRAY_GAP under the ship, centred '+JSON.stringify(hud.anchor));
+ ok(hud.flip.every(Boolean),'HUD 1: in the bottom flip zone the tray should sit above the ship '+JSON.stringify(hud.flip));
+ ok(hud.corners.every(Boolean),'HUD 1: the tray left the stage '+JSON.stringify(hud.corners));
+ ok(JSON.stringify(hud.order)==='["seg1",0,true,false,false,"seg1","action",true,0]','HUD 2: the step order '+JSON.stringify(hud.order));
+ ok(hud.arm.every(Boolean),'HUD 3: arming should style the fit '+JSON.stringify(hud.arm)+' '+JSON.stringify(hud.armRaw));
+ ok(hud.trayGreen[0]==='basic,flydef'&&hud.trayGreen[1]===4&&hud.trayGreen[2]===false&&hud.trayAce==='basic,flydef,boost,drift,kturn,barrel','HUD 3: the tray movesets '+JSON.stringify([hud.trayGreen,hud.trayAce]));
+ ok(hud.trayOff[0]==='basic,flydef'&&hud.trayOff[1]===0&&hud.trayOff[2]===2,'HUD 3: with showLockedMods off the locked mods should be absent '+JSON.stringify(hud.trayOff));
+ ok(hud.boundary.st==='done'&&hud.boundary.atStart&&hud.boundary.ok&&hud.boundary.n===2,'HUD 5: the action should fire as SEG 1 completes '+JSON.stringify(hud.boundary));
+ ok(hud.boundaryEnd.st==='done'&&hud.boundaryEnd.atStart&&hud.boundaryEnd.ok&&hud.boundaryEnd.t1<2.9,'HUD 5: with End here, at that segment\'s end '+JSON.stringify(hud.boundaryEnd));
+ ok(hud.s2step==='seg2'&&hud.inv0[0]==='done'&&hud.inv0[1]===2&&hud.inv0[2]==='111'&&hud.inv0[3]===1,'HUD 6: a full plan '+JSON.stringify([hud.s2step,hud.inv0]));
+ ok(hud.inv1[0]==='seg1'&&hud.inv1[1]===2&&hud.inv[0]==='seg2'&&hud.inv[1]===1&&hud.inv[2]==='shiftR'&&hud.inv[3]&&hud.inv[4]==='110','HUD 6: redoing S1 should drop S2 and keep the action '+JSON.stringify([hud.inv1,hud.inv]));
+ ok(JSON.stringify(hud.clear)==='[0,false,"none",false,"seg1","000"]','HUD 6: Clear '+JSON.stringify(hud.clear));
+ ok(hud.go0[0]==='Execute (1/2 planned)'&&hud.go0[1]&&hud.go.every(Boolean),'HUD 7: Execute with a ship unplanned '+JSON.stringify([hud.go0,hud.go]));
+ ok(hud.tip.every(Boolean),'HUD 8: hover cards read live constants '+JSON.stringify(hud.tip));
+ ok(hud.flow[0]===8&&hud.flow[1]===8&&hud.flow[2]==='sbGo'&&hud.flow[3]==='Execute (8/8 planned)','HUD H3: eight ships should flow with no chip clicks '+JSON.stringify(hud.flow));
+ ok(hud.metrics.every(Boolean),'HUD 10: planning ms per step in the record '+JSON.stringify(hud.metrics));
+ // 8 (the real hover) and 9 (keyboard parity): Boost's card opens after TIP_DELAY; the keys make the mouse's plan
+ const plan0=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn;
+  f.load('e5_job','sb',null,10);
+  const S=D.sim.S,a=S.ships.find(x=>x.faction==='reb');S.rocks.length=0;
+  const c=f.cam_();Object.assign(a,{x:2000,y:1500,h:0});c.x=2000;c.y=1500;c.z=0.6;f.syncHud();
+  const el=document.querySelector('#sbTray [data-kind="boost"]').getBoundingClientRect();
+  return {x:el.left+el.width/2,y:el.top+el.height/2};
+ });
+ await pg.mouse.move(plan0.x,plan0.y);await pg.waitForTimeout(80);
+ const tipEarly=await pg.evaluate(()=>document.getElementById('sbTip').hidden);
+ await pg.waitForTimeout(400);
+ const tipCard=await pg.evaluate(()=>({shown:!document.getElementById('sbTip').hidden,txt:document.getElementById('sbTip').textContent}));
+ ok(tipEarly&&tipCard.shown&&/Boost/.test(tipCard.txt)&&/speed, nearly straight/.test(tipCard.txt),'HUD 8: the Boost card on hover '+JSON.stringify([tipEarly,tipCard]));
+ await pg.mouse.move(5,5);
+ const byMouse=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,F=D.sim.fn,S=D.sim.S,a=S.ships.find(x=>x.faction==='reb');
+  const z=f.cam_().z,go=(x,y)=>{D.mod.planInput({type:'down',x:a.x,y:a.y,z});D.mod.planInput({type:'move',x,y,z});D.mod.planInput({type:'up',x,y,z});f.syncHud();};
+  document.querySelector('#sbTray [data-kind="boost"]').click();go(2700,1650);
+  document.querySelector('#sbTray [data-action="shiftF"]').click();
+  document.querySelector('#sbTray [data-act="end"]').click();
+  return JSON.stringify({plan:a.plan.map(p=>[p.kind,Math.round(p.local[0].x),Math.round(p.local[0].y)]),action:a.action,end:a.endHere,step:F.stepOf(a)});
+ });
+ await pg.evaluate(()=>{const D=window.DBGarena.sb,f=D.fn;f.load('e5_job','sb',null,10);const S=D.sim.S,a=S.ships.find(x=>x.faction==='reb');S.rocks.length=0;
+  const c=f.cam_();Object.assign(a,{x:2000,y:1500,h:0});c.x=2000;c.y=1500;c.z=0.6;f.syncHud();document.activeElement&&document.activeElement.blur&&document.activeElement.blur();});
+ await pg.keyboard.press('3');   // the third mode icon: Boost
+ const kb1=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,S=D.sim.S,a=S.ships.find(x=>x.faction==='reb'),z=f.cam_().z;
+  const armed=a.kinds[0];
+  D.mod.planInput({type:'down',x:a.x,y:a.y,z});D.mod.planInput({type:'move',x:2700,y:1650,z});D.mod.planInput({type:'up',x:2700,y:1650,z});f.syncHud();
+  return armed;
+ });
+ await pg.keyboard.press('1');   // the action step's first icon: Angle fore
+ await pg.keyboard.press('Escape');           // back to the action
+ const kbBack=await pg.evaluate(()=>{const D=window.DBGarena.sb,S=D.sim.S,a=S.ships.find(x=>x.faction==='reb');return D.sim.fn.stepOf(a);});
+ await pg.keyboard.press('1');
+ const seg2Keys=await pg.evaluate(()=>[...document.querySelectorAll('#sbTray [data-key]')].findIndex(e=>e.dataset.act==='end')+1);
+ await pg.keyboard.press(String(seg2Keys));   // End here (and the selection moves on to the next ship)
+ const byKeys=await pg.evaluate(()=>{const D=window.DBGarena.sb,F=D.sim.fn,S=D.sim.S,a=S.ships.find(x=>x.faction==='reb');
+  return JSON.stringify({plan:a.plan.map(p=>[p.kind,Math.round(p.local[0].x),Math.round(p.local[0].y)]),action:a.action,end:a.endHere,step:F.stepOf(a)});});
+ const selBefore=await pg.evaluate(()=>window.DBGarena.sb.sim.S.sel);
+ await pg.keyboard.press('Tab');
+ const selTab=await pg.evaluate(()=>window.DBGarena.sb.sim.S.sel);
+ await pg.keyboard.down('Shift');await pg.keyboard.press('Tab');await pg.keyboard.up('Shift');
+ const selBack=await pg.evaluate(()=>window.DBGarena.sb.sim.S.sel);
+ await pg.keyboard.press('Enter');
+ const kbExec=await pg.evaluate(()=>{const D=window.DBGarena.sb;const p=D.phase;while(D.phase==='EXEC')D.fn.stepTick();return p;});
+ ok(kb1==='boost'&&byKeys===byMouse&&JSON.parse(byKeys).step==='done','HUD 9: the keys should make the mouse\'s plan '+JSON.stringify([kb1,byMouse,byKeys]));
+ ok(kbBack==='action'&&selTab!==selBefore&&selBack===selBefore&&kbExec==='EXEC','HUD 9: Esc, Tab, Shift-Tab and Enter '+JSON.stringify([kbBack,selBefore,selTab,selBack,kbExec]));
 
  /* ---------- SB feel (the designer, 11 Oct: speed, visible shots, no choppy motion) ---------- */
  const feel=await pg.evaluate(()=>{
@@ -709,7 +874,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await ctx2.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,mom,ai,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,feel,mom,ai,b5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

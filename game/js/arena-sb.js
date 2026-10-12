@@ -22,10 +22,14 @@
      build(world, rng, api)   world = the resolved scenario (cast, rocks, objective, tune)
      planInput(ev)            a pointer event in world space; true when it used it
      beginExec(), tick(dtSim), endExec()
-     draw(ctx, now)           world space (the camera is already applied)
-     hud(), hudAction(act, el) the orders strip for the selected ship
+     draw(ctx, now, a)        world space (the camera is already applied); a = the frame's place between ticks
+     tray(), trayAnchor(), trayCfg()   the planning tray (docs/SB-HUD-HANDOFF.md): its HTML, the ship it hangs
+                              under (world units) and its placement constants; the driver places it every frame
+     chips(), planCount(), takeExecFocus()   the turn chrome: ship chips, "n/m planned", focus Execute after the last
+     tipFor(key)              an icon's hover card, read live
+     hudAction(act, el), key_(ev)   a tray or chip button pressed; Esc and Tab
      panelGroup()             its own designer-panel sliders and toggles
-     metricsRecord()          its part of the per-exec ARENA_METRICS record
+     metricsRecord(), planSteps()   its part of the per-exec ARENA_METRICS record; planning ms per step
      ships(), stateHash(), dbg}
    ===================================================================== */
 (function(){
@@ -74,7 +78,7 @@ function rockLayout(key){
 }
 
 /* ---------- state: one object, rebuilt per scenario ---------- */
-const A={phase:'PICK',ruleset:'sb',active:false,scen:null,variant:null,seed:1,turn:1,execT:0,simTotal:0,acc:0,lastReal:0,
+const A={phase:'PICK',ruleset:'sb',active:false,scen:null,variant:null,seed:1,turn:1,execT:0,simTotal:0,acc:0,lastReal:0,paused:false,
   planStart:0,planMs:0,metrics:[],floaters:[],result:null,objStep:0,world:null,mod:null};
 
 /* ---------- the cast: v2's scenario format → plain descriptors (copied from sim2.js load: resolveScenario,
@@ -246,7 +250,7 @@ function beginExec(){
   if(A.phase!=='PLAN')return false;
   A.planMs=Math.round(performance.now()-A.planStart);
   A.mod.beginExec();
-  A.execT=0;A.acc=0;A.lastReal=0;A.phase='EXEC';A.camHeld=false;
+  A.execT=0;A.acc=0;A.lastReal=0;A.phase='EXEC';A.camHeld=false;A.paused=false;hideTip();
   syncAll();
   return true;
 }
@@ -259,7 +263,7 @@ function finishExec(){
   A.mod.endExec();
   const obj=checkObjective();
   const rec={ruleset:A.ruleset,scenario:A.scen.id,variant:A.world.variantLabel||null,seed:A.seed,turn:A.turn,
-    planMs:A.planMs,execLen:EXEC_LEN,ships:A.mod.metricsRecord(),objective:obj};
+    planMs:A.planMs,planSteps:A.mod.planSteps?A.mod.planSteps():null,execLen:EXEC_LEN,ships:A.mod.metricsRecord(),objective:obj};
   A.metrics.push(rec);
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   A.turn++;
@@ -279,7 +283,7 @@ function frame(now){
   if(A.phase==='EXEC'){
     if(!A.lastReal)A.lastReal=now;
     const dt=Math.min(250,now-A.lastReal);A.lastReal=now;
-    A.acc+=dt*SIM_SPEED;
+    if(!A.paused)A.acc+=dt*SIM_SPEED;
     let n=0;
     while(A.acc>=TICK&&A.phase==='EXEC'&&n++<40){A.acc-=TICK;stepTick();}
     if(A.phase==='EXEC'){syncTop();chase(realDt);}
@@ -472,7 +476,7 @@ function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_
 function savePrefs(){try{localStorage.setItem(PREFS_KEY,JSON.stringify({SIM_SPEED}));}catch(e){}}
 function loadPrefs(){try{const p=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(p&&p.SIM_SPEED)SIM_SPEED=Math.max(SIM_SPEED_MIN,Math.min(SIM_SPEED_MAX,+p.SIM_SPEED));}catch(e){}}
 
-/* ---------- top bar, orders strip, read-outs ---------- */
+/* ---------- top bar, the planning tray, Execute, read-outs ---------- */
 function syncTop(){
   byId('sbTitle').textContent=A.scen?A.scen.title:'Arena';
   byId('sbSub').textContent=(RULESETS[A.ruleset]?RULESETS[A.ruleset].name:'')+(A.scen?' · seed '+A.seed:'');
@@ -481,18 +485,77 @@ function syncTop(){
   byId('sbTurn').textContent=A.scen?'Turn '+A.turn+(A.phase==='EXEC'?' · '+A.execT.toFixed(1)+'s / '+EXEC_LEN+'s':''):'';
   byId('sbObj').textContent=objText();
   const ex=byId('sbExec');if(ex)ex.disabled=A.phase!=='PLAN';
-  byId('sbExecTop').hidden=!A.scen;byId('sbExecTop').disabled=A.phase!=='PLAN';
+  syncGo();
 }
+/* Execute (docs/SB-HUD-HANDOFF.md §4): bottom right, never blocked by an unplanned ship (it flies its standing
+   order); while the exec runs it is pause / resume */
+function syncGo(){
+  const go=byId('sbGo');
+  go.hidden=!A.mod||A.phase==='PICK';
+  if(A.phase==='EXEC'){go.textContent=A.paused?'Resume':'Pause';go.disabled=false;}
+  else if(A.phase==='PLAN'&&A.mod){const c=A.mod.planCount?A.mod.planCount():null;go.textContent='Execute'+(c?' ('+c.n+'/'+c.m+' planned)':'');go.disabled=false;}
+  else{go.textContent='Execute';go.disabled=true;}
+}
+byId('sbGo').addEventListener('click',()=>{
+  if(A.phase==='PLAN')beginExec();
+  else if(A.phase==='EXEC'){A.paused=!A.paused;A.lastReal=0;syncGo();}
+});
+/* the planning tray: HTML under the selected ship, re-rendered on every change and placed every frame */
 function syncHud(){
-  const el=byId('sbOrders');
-  el.innerHTML=(A.mod&&A.phase!=='PICK'&&A.mod.hud)?A.mod.hud():'';
+  const tr=byId('sbTray'),on=A.mod&&A.phase==='PLAN'&&A.mod.tray;
+  const html=on?A.mod.tray():'';
+  if(tr.innerHTML!==html||tr.hidden!==!html){hideTip();tr.innerHTML=html;tr.hidden=!html;}
+  byId('sbChips').innerHTML=on&&A.mod.chips?A.mod.chips():'';
+  syncGo();placeTray();
+  if(on&&A.mod.takeExecFocus&&A.mod.takeExecFocus())byId('sbGo').focus();
   syncReadout();
 }
-byId('sbOrders').addEventListener('click',ev=>{
+function hudClick(ev){
   const b=ev.target.closest('[data-act]');if(!b||!A.mod||!A.mod.hudAction)return;
   A.mod.hudAction(b.dataset.act,b);
   syncHud();
-});
+}
+byId('sbTray').addEventListener('click',hudClick);
+byId('sbChips').addEventListener('click',hudClick);
+/* the tray's anchor (§3.1): centred under the ship, TRAY_GAP below its ring; inside the bottom TRAY_FLIP_ZONE (or
+   with no room below) it flips above; never out of the stage (8 px margin) */
+const TRAY_MARGIN=8;
+function placeTray(){
+  const tr=byId('sbTray');if(tr.hidden||!A.mod||!A.mod.trayAnchor)return null;
+  const an=A.mod.trayAnchor();if(!an){tr.hidden=true;return null;}
+  const cfg=A.mod.trayCfg(),sx=(an.x-cam.x)*cam.z+cssW/2,sy=(an.y-cam.y)*cam.z+cssH/2,rs=an.r*cam.z;
+  const w=tr.offsetWidth,h=tr.offsetHeight;
+  let top=sy+rs+cfg.gap,flip=false;
+  if(sy>cssH-cfg.flip||top+h>cssH-TRAY_MARGIN){top=sy-rs-cfg.gap-h;flip=true;}
+  const left=Math.max(TRAY_MARGIN,Math.min(cssW-TRAY_MARGIN-w,sx-w/2));
+  top=Math.max(TRAY_MARGIN,Math.min(cssH-TRAY_MARGIN-h,top));
+  tr.style.left=Math.round(left)+'px';tr.style.top=Math.round(top)+'px';tr.classList.toggle('is-flipped',flip);
+  return {left,top,w,h,flip,ship:{x:sx,y:sy,r:rs},stage:{w:cssW,h:cssH}};
+}
+/* hover cards (§3.5): after TIP_DELAY on hover or focus, above the icon, read live from the ruleset */
+let tipT=0,tipEl=null,tipArm=null;
+function showTip(el){
+  if(!A.mod||!A.mod.tipFor)return;
+  const tip=byId('sbTip');tip.innerHTML=A.mod.tipFor(el.dataset.tip);tip.hidden=false;tipEl=el;
+  const st=byId('sbTray').parentElement.getBoundingClientRect(),r=el.getBoundingClientRect();
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=r.left-st.left+r.width/2-w/2,y=r.top-st.top-h-8;
+  if(y<TRAY_MARGIN)y=r.bottom-st.top+8;
+  x=Math.max(TRAY_MARGIN,Math.min(st.width-TRAY_MARGIN-w,x));
+  tip.style.left=Math.round(x)+'px';tip.style.top=Math.round(y)+'px';
+}
+function hideTip(){clearTimeout(tipT);tipEl=tipArm=null;const t=byId('sbTip');if(t)t.hidden=true;}
+function armTip(ev){
+  const el=ev.target.closest&&ev.target.closest('[data-tip]');
+  if(!el||el===tipEl||el===tipArm)return;   // moving onto the icon's own glyph doesn't restart the delay
+  hideTip();tipArm=el;
+  const d=A.mod&&A.mod.trayCfg?A.mod.trayCfg().tipDelay:250;
+  tipT=setTimeout(()=>{if(el.isConnected)showTip(el);},d);
+}
+byId('sbTray').addEventListener('pointerover',armTip);
+byId('sbTray').addEventListener('focusin',armTip);
+byId('sbTray').addEventListener('pointerleave',hideTip);
+byId('sbTray').addEventListener('focusout',ev=>{if(!byId('sbTray').contains(ev.relatedTarget))hideTip();});
 function syncReadout(){
   const el=byId('sbReadout');if(!el)return;
   const last=A.metrics.filter(m=>A.scen&&m.scenario===A.scen.id).slice(-6);
@@ -517,6 +580,7 @@ function render(now){
   for(const r of A.world.rocks)drawRock(ctx,r);
   try{A.mod.draw(ctx,now,A.phase==='EXEC'?A.acc/TICK:0);}catch(e){console.error(e);}
   drawFloaters(ctx,now);
+  placeTray();
 }
 
 /* ---------- input: rulesets get first refusal, the rest pans and zooms ---------- */
@@ -557,10 +621,15 @@ cv.addEventListener('wheel',ev=>{
 addEventListener('keydown',ev=>{
   if(SR.active!=='arena'||!A.active||!A.mod)return;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return;
-  if(ev.key===' '||ev.key==='Enter'){ev.preventDefault();beginExec();}
-  else if(A.mod.key_&&A.mod.key_(ev)){ev.preventDefault();syncHud();}
+  if(ev.key===' '||ev.key==='Enter'){ev.preventDefault();if(A.phase==='PLAN')beginExec();return;}
+  if(/^[1-9]$/.test(ev.key)&&A.phase==='PLAN'){   // §3.6: the number keys press the tray's visible icons in order
+    const b=byId('sbTray').querySelectorAll('[data-key]')[+ev.key-1];
+    if(b){ev.preventDefault();if(b.getAttribute('aria-disabled')!=='true')b.click();}
+    return;
+  }
+  if(ev.key==='Tab'&&A.phase==='PLAN')ev.preventDefault();   // Tab moves between your ships, not the page's focus
+  if(A.mod.key_&&A.mod.key_(ev)){ev.preventDefault();syncHud();}
 });
-byId('sbExecTop').addEventListener('click',()=>beginExec());
 byId('sbFit').addEventListener('click',()=>{camFit();A.camHeld=true;});
 
 /* ---------- inside arena.js's scene: open and close (arena.js calls these from its picker) ---------- */
@@ -589,7 +658,7 @@ const dbg={A,RULESETS,get scenarios(){return scenarios();},get phase(){return A.
     addScenario(s){scenarios().push(s);if(A.phase==='PICK'&&A.active)renderPicker();return s;},
     setExecLen(v){EXEC_LEN=v;},setSimSpeed(v){SIM_SPEED=v;},
     TICK_:()=>TICK,EXEC_LEN_:()=>EXEC_LEN,SIM_SPEED_:()=>SIM_SPEED,FOLLOW_:()=>FOLLOW,setFollow(v){FOLLOW=!!v;},chase,camFrame,
-    toWorld,cam_:()=>cam,
+    toWorld,cam_:()=>cam,placeTray,showTip,hideTip,syncHud,
     spriteCount:()=>sprites.size,
     toClient(x,y){const r=cv.getBoundingClientRect();return {x:r.left+(x-cam.x)*cam.z+cssW/2,y:r.top+(y-cam.y)*cam.z+cssH/2};}}};
 window.SR_ARENA_SB={open,close:closeUi,frame,get active(){return A.active;},dbg};

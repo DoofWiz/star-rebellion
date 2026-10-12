@@ -416,12 +416,14 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <div><div class="arn-top__title" id="sbTitle">SB Test</div><div class="arn-top__sub" id="sbSub"></div></div>
     <div class="arn-top__mid"><span class="arn-phase" id="sbPhase" data-phase="PICK">Pick</span><span class="arn-chip" id="sbTurn"></span><span class="arn-chip" id="sbObj"></span></div>
     <button type="button" class="sr-btn sr-btn--sm" id="sbFit">Fit map</button>
-    <button type="button" class="sr-btn sr-btn--sm sr-btn--primary" id="sbExecTop" hidden>Execute</button>
   </header>
   <div class="arn-body">
     <div class="arn-stage">
       <canvas id="sbCv"></canvas>
-      <div class="arn-orders" id="sbOrders"></div>
+      <div class="arn-tray" id="sbTray" hidden></div>
+      <div class="arn-tip" id="sbTip" role="tooltip" hidden></div>
+      <div class="arn-shipchips" id="sbChips"></div>
+      <button type="button" class="sr-btn sr-btn--primary arn-go" id="sbGo" hidden>Execute</button>
       <div class="arn-scrim" id="sbPicker" hidden></div>
       <div class="arn-scrim" id="sbEnd" hidden></div>
     </div>
