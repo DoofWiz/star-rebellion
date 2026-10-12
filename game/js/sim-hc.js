@@ -24,7 +24,7 @@ const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
 let HC_MAP=2;             // the map's size × space.js's. placeholder (each scenario may set its own)
 let W=W0*HC_MAP,H=H0*HC_MAP;
 const TICK=50;            // ms of sim time per step (copied from sim-sb.js). placeholder
-const TIMESCALES=[0,0.3,1,3];   // pause / slow / play / fast. placeholder
+const TIMESCALES=[0,0.3,1,3];   // pause / slow / play / fast (slow and fast on the panel). placeholder
 let THINK_SECS=0.5;       // how often each ship re-decides what to do. placeholder
 let ROUND_SECS=3;         // a ship's top speed covers its top dial move (straight_max SU) in this long (sim-sb.js's EXEC_LEN). placeholder
 let SPEED_SCALE=1.25;     // every craft's speed range × this (copied from sim-sb.js). placeholder
@@ -406,7 +406,7 @@ const ORDERS={
   board:    {name:'Board',    targeted:true, line:'Marine-carrying ships dock with a station or platform and board it.'},
 };
 const ORDER_KEYS=Object.keys(ORDERS);
-const T1_ORDERS=ORDER_KEYS;   // every order is live from T2
+const ORDERS_LIVE=ORDER_KEYS;   // every order is live (T1 built three; T2 the rest)
 /* the wing tactics: each a weight set on the same scoring (placeholders, every number on the panel) */
 const HC_TACTICS={
   tight:    {name:'Tight Formation',line:'Close formation; every gun on one target.',form:1.0,space:1.0,engage:1.0,focus:1,flank:0,screen:0,hitrun:0,disengage:0.25,leash:1},
@@ -454,7 +454,6 @@ function mkShip(d){
 }
 const byId=id=>S&&id!=null?S.ships.find(s=>s.id===id)||null:null;
 const foesOf=s=>S.ships.filter(t=>t.alive&&t.faction!==s.faction);
-const isCombat=s=>s.alive&&!s.struct&&s.wpns.length>0;
 
 /* ---------- the cast from an HC scenario entry (the v2 entry shape, grouped into wings) ---------- */
 function formation(at,i,n){const [x,y,h]=at,px=-Math.sin(h),py=Math.cos(h),o=(i-(n-1)/2)*170,back=Math.abs(i-(n-1)/2)*60;return [x+px*o-Math.cos(h)*back,y+py*o-Math.sin(h)*back,h];}   // copied from arena-sb.js
@@ -471,15 +470,16 @@ function build(scn,opt){
   S={scn,R,seed:opt.seed>>>0,rng:mulberry(opt.seed>>>0),t:0,tick:0,ships:[],wings:[],rocks:(R.rocks||[]).map(r=>Object.assign({},r)),
     points:JSON.parse(JSON.stringify(R.points||{})),objectives:[],events:[],evN:0,proj:[],bursts:[],missiles:[],fx:[],floaters:[],burstN:0,
     reinforce:Object.assign({secs:240,edge:'E',force:[]},R.reinforce||{},{spawned:false}),getOut:false,
+    waves:(R.waves||[]).map(w=>Object.assign({},w,{spawned:false})),
     cp:R.cp!=null?R.cp:HC_CP,cpMax:R.cp!=null?R.cp:HC_CP,rules:[],over:null,
     m:{orders:0,byOrder:{},tactics:0,byTactic:{},cpSpent:0,byCommand:{},ruleTriggers:0,byRule:{},emergencies:[],alerts:[]},
     variantLabel:R.variantLabel};
   for(const r of S.rocks)if(!r.verts){const rr=mulberry(Math.round(r.x*7+r.y*13));r.verts=[];const n=8+Math.floor(rr()*4);for(let k=0;k<n;k++)r.verts.push(0.72+rr()*0.4);r.rot=rr()*Math.PI*2;}
   S.pn=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
   for(const wd of R.wings||[])addWing(wd);
-  for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark)
-    const row=SRDB.ship(a.cls||'graf');
-    S.ships.push(mkShip({id:a.id,name:a.name,faction:'reb',row,x:a.at[0],y:a.at[1],h:a.at[2],pilot:presetPilot(a.pilot,a.name),role:a.role||'convoy',quiet:true,to:a.to,stats:a.stats,loadout:a.loadout||[]}));
+  for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark); an installation (a station row) is yours to defend
+    const row=SRDB.ship(a.cls||'graf'),inst=row.kind==='structure';
+    S.ships.push(mkShip({id:a.id,name:a.name,faction:'reb',row,x:a.at[0],y:a.at[1],h:a.at[2],pilot:presetPilot(a.pilot,a.name),role:a.role||(inst?'station':'convoy'),quiet:!inst,to:a.to,stats:a.stats,label:a.label,loadout:a.loadout||[]}));
   }
   let eN=0;
   for(const e of R.enemies||[])spawnEnemies(e,()=>++eN);
@@ -497,7 +497,7 @@ function addWing(wd){
     S.pn++;
     const at=sd.at||formation(wd.at||[900,H*0.5,0],i,wd.ships.length);
     const row=SRDB.ship(sd.cls||'talon')||SRDB.ship('talon'),nm=sd.name||(wd.name+' '+(i+1));
-    const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout});
+    const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout,stats:sd.stats});
     s.thinkT=THINK_SECS;
     S.ships.push(s);w.ships.push(s.id);
   });
@@ -851,7 +851,8 @@ function command(k,tg){
   } else if(k==='recon'){
     S.reconUntil=S.t+RECON_SECS;
     const RF=S.reinforce,f=RF.force.map(e=>(e.n||1)+' '+(e.name||e.type)).join(', ');
-    pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info'});
+    const ex=RF.edge==='E'?W-400:RF.edge==='W'?400:W/2,ey=RF.edge==='N'?400:RF.edge==='S'?H-400:H/2;
+    pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info',x:ex,y:ey});
   } else if(k==='decoy'){
     S.decoys.push({x:tg.x,y:tg.y,until:S.t+DECOY_SECS,id:++S.decoyN});
     pushEvent('command','Decoy Signal planted',{x:tg.x,y:tg.y,tone:'info'});
@@ -1022,11 +1023,16 @@ function ruleBehaviour(s,w,T,P){
   if(s.ruleOn!==hit.r.id){   // edge-triggered: a rule takes a ship once, then holds it
     s.ruleOn=hit.r.id;
     S.m.ruleTriggers++;S.m.byRule[hit.r.rule]=(S.m.byRule[hit.r.rule]||0)+1;
-    pushEvent('rule',RULES[hit.r.rule].name+': '+s.name+' '+hit.b.say,{ship:s.id,x:s.x,y:s.y,tone:'info'});
+    // one line per wing and rule a moment: "Guardian Directive: Rook, Vale and Jory go for Raider 3"
+    const key=hit.r.rule+'|'+s.wing+'|'+hit.b.say,L=S.lastRuleEv;
+    if(L&&L.key===key&&S.t-L.t<1&&S.events.includes(L.ev)){L.names.push(s.name);L.ev.text=RULES[hit.r.rule].name+': '+listNames(L.names)+' '+plural(hit.b.say);}
+    else{const ev=pushEvent('rule',RULES[hit.r.rule].name+': '+s.name+' '+hit.b.say,{ship:s.id,x:s.x,y:s.y,tone:'info'});S.lastRuleEv={key,t:S.t,ev,names:[s.name]};}
   }
   hit.b.hard=true;hit.b.rule=hit.r.rule;
   return hit.b;
 }
+const plural=say=>say.replace(/^(\w+)/,v=>v==='goes'?'go':v==='focuses'?'focus':v.replace(/s$/,''));
+const listNames=n=>n.length<2?n[0]:n.slice(0,-1).join(', ')+' and '+n[n.length-1];
 function ruleTry(s,r,T){
   if(r.rule==='preservation'){
     if(s.preserved||s.hull/s.maxHull<PRES_HULL){s.preserved=true;return {kind:'withdraw',dest:withdrawPoint(s),why:'rule: preservation',say:'pulls out ('+Math.round(Math.max(0,s.hull)/s.maxHull*100)+'% hull)'};}
@@ -1117,7 +1123,8 @@ function thinkConvoy(s){
 /* ---------- the Hegemony: patrol, guard, hunt (sim2.js's doctrine idea: a goal per role) ---------- */
 let DETECT_R=1500;        // a patrol engages what comes this close. placeholder
 let GUARD_R=900;          // a guard engages what comes this close to its asset (copied from sim2.js GUARD_R). placeholder
-let LEASH_R=2600;         // a patrol or guard gives up a chase this far from home. placeholder
+let LEASH_R=2600;
+let RAID_TURN_R=700;      // a raider turns from the station onto a fighter this close with its guns on it. placeholder         // a patrol or guard gives up a chase this far from home. placeholder
 function thinkEnemy(s){
   const foes=foesOf(s).filter(t=>!t.struct);
   abilityTick(s);
@@ -1126,7 +1133,12 @@ function thinkEnemy(s){
   if(s.panic){const th=nearestThreat(s);setBeh(s,{kind:'flee',from:th?th.id:null,why:'panic',hard:true});return;}
   const home=s.asset&&byId(s.asset)?byId(s.asset):s.home||s;
   let pool=foes;
-  if(s.doctrine==='guard')pool=foes.filter(t=>dist(t,home)<=GUARD_R+400||dist(t,s)<=gunRange(s)*0.9);
+  if(s.doctrine==='raid'){   // raiders go for your installations, turning only on a fighter that has its guns on them
+    const st=foesOf(s).filter(t=>t.struct);
+    const th=foes.filter(t=>dist(t,s)<RAID_TURN_R&&inArc(t,s));
+    pool=th.length||!st.length?(th.length?th:foes):st;
+  }
+  else if(s.doctrine==='guard')pool=foes.filter(t=>dist(t,home)<=GUARD_R+400||dist(t,s)<=gunRange(s)*0.9);
   else if(s.doctrine==='patrol')pool=foes.filter(t=>dist(t,s)<=DETECT_R&&dist(t,home)<=LEASH_R);
   const t=bestTarget(s,pool,{prefer:x=>x.id===s.fireAt});
   if(t){setBeh(s,{kind:'engage',target:t.id,why:s.doctrine});return;}
@@ -1222,8 +1234,7 @@ function goalOf(s){
   if(s.driftT&&S.t<s.driftT){const six=onSix(s);if(six)s.fireAt=six.id;}
   if(!s.holdFire&&(!s.fireAt||!byId(s.fireAt)||!inArc(s,byId(s.fireAt)))){
     const opp=foesOf(s).filter(t=>inArc(s,t)&&dist(s,t)<=gunRange(s)&&(!t.struct||(b.kind==='engage'&&b.target===t.id)));
-    const o=bestTarget(s,opp);if(o&&!s.fireAt)s.fireAt=o.id;
-    else if(o&&s.fireAt&&!inArc(s,byId(s.fireAt)))s.fireOpp=o.id;
+    const o=bestTarget(s,opp);if(o)s.fireAt=o.id;   // the designated target isn't in the guns: shoot what is
   }
   if(g)s.intent={x:g.x,y:g.y};
   s.goal=g;
@@ -1317,19 +1328,28 @@ function jumpCheck(){
    The reinforcement clock (§2.1): always on. At zero a dangerous Hegemony force arrives and it is time to get out
    ===================================================================== */
 function clockLeft(){return Math.max(0,S.reinforce.secs-S.t);}
+/* waves (hc2): forces that arrive on their own clock before the reinforcements, without flipping the objective */
+function waveTick(){
+  for(const wv of S.waves){
+    if(wv.spawned||S.t<wv.at-1e-9)continue;
+    wv.spawned=true;spawnAtEdge(wv.edge||'E',wv.force,wv.role||'hunt');
+    pushEvent('wave',wv.text||'Hegemony wave inbound',{x:wv.edge==='W'?400:wv.edge==='E'?W-400:W/2,y:wv.edge==='N'?400:wv.edge==='S'?H-400:H/2,tone:'hazard'});
+  }
+}
+function spawnAtEdge(e,force,role){
+  const n=force.reduce((a,f)=>a+(f.n||1),0);let i=0;
+  for(const f of force)for(let k=0;k<(f.n||1);k++){
+    const u=(i+0.5)/n;i++;
+    const at=e==='E'?[W-MARGIN-60,H*(0.25+0.5*u),Math.PI]:e==='W'?[MARGIN+60,H*(0.25+0.5*u),0]:e==='N'?[W*(0.25+0.5*u),MARGIN+60,Math.PI/2]:[W*(0.25+0.5*u),H-MARGIN-60,-Math.PI/2];
+    spawnEnemies(Object.assign({},f,{n:1,at,role:f.role||role}),()=>++S.eN);
+  }
+}
 function reinforceTick(){
   const RF=S.reinforce;
   if(RF.spawned||S.t<RF.secs-1e-9)return;
   RF.spawned=true;S.getOut=true;
-  const e=RF.edge||'E',n=RF.force.reduce((a,f)=>a+(f.n||1),0);
-  let i=0;
-  for(const f of RF.force){
-    for(let k=0;k<(f.n||1);k++){
-      const u=(i+0.5)/n;i++;
-      const at=e==='E'?[W-MARGIN-60,H*(0.25+0.5*u),Math.PI]:e==='W'?[MARGIN+60,H*(0.25+0.5*u),0]:e==='N'?[W*(0.25+0.5*u),MARGIN+60,Math.PI/2]:[W*(0.25+0.5*u),H-MARGIN-60,-Math.PI/2];
-      spawnEnemies(Object.assign({},f,{n:1,at,role:f.role||'hunt'}),()=>++S.eN);
-    }
-  }
+  const e=RF.edge||'E';
+  spawnAtEdge(e,RF.force,'hunt');
   pushEvent('reinforce','Hegemony reinforcements: get out',{x:e==='E'?W-400:e==='W'?400:W/2,y:e==='N'?400:e==='S'?H-400:H/2,tone:'hazard'});
 }
 
@@ -1344,11 +1364,18 @@ function objTick(){
     else if(o.kind==='escort'){const s=byId(o.ship);if(s&&s.jumped)done=true;else if(!s||!s.alive)fail=true;}
     else if(o.kind==='protect'){const s=byId(o.ship);if(!s||!s.alive)fail=true;else if(S.getOut)done=true;}
     else if(o.kind==='board'){const s=byId(o.station);if(s&&s.boarded)done=true;else if(!s||!s.alive)fail=true;}
+    const at=objPlace(o);
     if(done){o.state='done';o.doneT=S.t;
       if(o.cpReward){S.cp=Math.min(S.cpMax,S.cp+o.cpReward);}
-      pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{tone:'good',x:o.at?o.at.x:null,y:o.at?o.at.y:null});}
-    if(fail){o.state='failed';pushEvent('objective','Failed: '+o.text,{tone:'hazard'});}
+      pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{tone:'good',x:at.x,y:at.y});}
+    if(fail){o.state='failed';pushEvent('objective','Failed: '+o.text,{tone:'hazard',x:at.x,y:at.y});}
   }
+}
+/* where an objective's feed entries point the camera: its own place, else its ship, station, target or point */
+function objPlace(o){
+  if(o.at)return o.at;
+  const sh=byId(o.ship||o.station||(o.targets&&o.targets[0]));if(sh)return {x:sh.x,y:sh.y};
+  const p=S.points[o.point||o.to||'jump'];return p?{x:p.x,y:p.y}:{x:W/2,y:H/2};
 }
 function objText(){
   if(S.over)return S.over.why;
@@ -1435,6 +1462,7 @@ function step(){
   captureTick(dt);boardTick(dt);
   S.decoys=S.decoys.filter(d=>d.until>S.t);
   jumpCheck();
+  waveTick();
   reinforceTick();
   objTick();
   overCheck();
@@ -1582,15 +1610,36 @@ const TUNE={
   HELP_SECS:{get:()=>HELP_SECS,set:v=>{HELP_SECS=v;},min:3,max:40,step:1,label:'A sent wingmate helps (s)'},
   RECALL_HULL:{get:()=>RECALL_HULL,set:v=>{RECALL_HULL=v;},min:0,max:1,step:0.05,label:'Recall recommended under hull'},
   PIN_CLEAR:{get:()=>PIN_CLEAR,set:v=>{PIN_CLEAR=v;},min:0.5,max:10,step:0.5,label:'Pin clears after (s)'},
+  TS_SLOW:{get:()=>TIMESCALES[1],set:v=>{TIMESCALES[1]=v;},min:0.1,max:1,step:0.05,label:'Slow speed (×)'},
+  TS_FAST:{get:()=>TIMESCALES[3],set:v=>{TIMESCALES[3]=v;},min:1.5,max:6,step:0.5,label:'Fast speed (×)'},
+  RAID_TURN_R:{get:()=>RAID_TURN_R,set:v=>{RAID_TURN_R=v;},min:0,max:2000,step:50,label:'Raiders turn on fighters within'},
   GUN_DPS:{get:()=>GUN_DPS,set:v=>{GUN_DPS=v;},min:0.1,max:2,step:0.05,label:'Gun damage a second (× roll)'},
 };
 
+/* the tactic weight table, every weight on the panel too */
+const TACTIC_W={form:[0,2,0.05,'formation'],space:[0.5,6,0.1,'spacing ×'],engage:[0.4,1.6,0.05,'fighting range ×'],focus:[0,1,1,'focus fire (0/1)'],
+  flank:[0,1.5,0.05,'flank'],disengage:[0,0.9,0.05,'falls back under hull'],leash:[0.3,2,0.05,'reach ×']};
+for(const tk of TACTIC_KEYS)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
+  TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
+/* the panel's groups (§5 T4: one HC group, sectioned) */
+const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
+  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CRUISE','CONVOY_SPD','FORM_GAP','DISENGAGE_R'],
+  Fighting:['ENGAGE_FRAC','THREAT_R','COMMIT_SECS','GUN_DPS','HR_IN','HR_OUT'],
+  Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
+  Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
+  Leaders:['LEAD_LOSS','PROMOTE_SECS'],
+  Rules:['PRES_HULL','GUARDIAN_SECS','GUARDIAN_R','ESCAPE_K','FORM_SECS','BRING_HULL','SAVIOUR_HULL'],
+  Morale:['MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
+  Commands:['CP_OVERRIDE','CP_RECALL','CP_REINFORCE','CP_SUPPORT','CP_RECON','CP_DECOY','OVERRIDE_SECS','OVERRIDE_COOL','RECON_SECS','DECOY_SECS','DECOY_R','RECALL_BOOST','HELP_SECS','RECALL_HULL','PIN_CLEAR']};
+for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
+for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
+
 return {key:'hc',name:'Type 3: High Command',
   get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
-  ORDERS,ORDER_KEYS,T1_ORDERS,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,RULES,RULE_KEYS,ASSESS,
+  ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   build,step,runFor,setOrder,setTactic,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
-  fn:{withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};

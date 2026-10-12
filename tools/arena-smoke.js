@@ -17,7 +17,8 @@
      T1: Attack, Escort and Withdraw fly themselves; the HUD's top band, roster, tray, time controls
      2 order persistence   3 tactic effect   4 Preservation within one think tick
      T2: the other six orders, the rules panel, morale and panic, assessments, the feed and VIEW, live camera tiles
-     5 commands   8 doctrine   T3: Wren's pin answered three ways, the pilot panel, the drawer, target-first */
+     5 commands   8 doctrine   T3: Wren's pin answered three ways, the pilot panel, the drawer, target-first
+     9 leader loss   10 metrics   T4: the keys, hc2 and hc3 (and its CP variants), the grouped panel, an hc3 brawl at speed 3 */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1035,7 +1036,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  },CAMPAIGN_KEY);
  ok(JSON.stringify(hc.rulesets)==='["SR V2 Combat","SB Test","Type 3: High Command"]','HC 1: three rulesets '+JSON.stringify(hc.rulesets));
  ok(!hc.v2List.some(id=>id.startsWith('hc'))&&!hc.sbList.some(id=>id.startsWith('hc')),'HC 1: HC scenarios stay off the v2 and SB lists '+JSON.stringify([hc.v2List,hc.sbList]));
- ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
+ ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall,hc2_lastlight,hc3_meltdown','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
  ok(hc.loaded[0]==='LIVE'&&hc.loaded[1]==='hc1_nightfall'&&hc.loaded[2]==='dagger:3,amber:2'&&hc.loaded[3]&&hc.loaded[4],'HC 1: hc1_nightfall loads with its wings '+JSON.stringify(hc.loaded));
  ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]===1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, one gold primary, paused on load '+JSON.stringify(hc.hud));
  ok(hc.tray[0]&&hc.tray[1]===9&&['attack','escort','withdraw'].every(k=>hc.tray[2].split(',').includes(k))&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
@@ -1275,10 +1276,90 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(B.bo.hash!==B.br.hash&&B.br.hash!==B.bw.hash&&B.bo.hash!==B.bw.hash,'HC T3: three answers, three outcomes '+JSON.stringify(B));
  ok(B.br.kind==='withdraw'&&B.br.cp===3&&B.bo.cp===4&&B.bw.cp===5&&B.bw.helper&&/engage|escort/.test(B.bw.helper)&&B.bo.why==='command: override'||B.bo.alive===false,'HC T3: Recall withdraws (2 CP), Override holds (1 CP), a wingmate goes free '+JSON.stringify(B));
  ok(B.bo.resp==='override'&&B.br.resp==='recall'&&B.bw.resp==='wingmate'&&typeof B.bw.answered==='number','HC T3: each answer is recorded with its time '+JSON.stringify([B.bo.resp,B.br.resp,B.bw.resp,B.bw.answered]));
+ /* ---------- High Command T4: leaders, metrics, the keys, the scenarios, the panel ---------- */
+ const hcLines=[];pg3.on('console',m=>{if(m.text().startsWith('ARENA_METRICS '))hcLines.push(m.text().slice(14));});
+ const hc4=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),q=s=>document.querySelector('#arHc '+s);
+  const key=(k,o)=>{const ev=new KeyboardEvent('keydown',Object.assign({key:k,code:/^[1-9]$/.test(k)?'Digit'+k:'',bubbles:true,cancelable:true},o||{}));window.dispatchEvent(ev);};
+  // 9. leader loss: the wing's cohesion drops to LEAD_LOSS, and the next highest level takes the lead after PROMOTE_SECS
+  f.load('hc1_nightfall',0,41);
+  const dag=S().wings[0],lead0=dag.leader,T0=Object.assign({},SIM.fn.tacticOf(dag));
+  const killer=S().ships.find(s=>s.faction==='heg'&&!s.struct),tgt=by(lead0);
+  tgt.hull=-1;SIM.fn.kill(tgt,killer);   // the sim's own path: destroyShip, and the wing loses its leader
+  const T1=SIM.fn.tacticOf(dag);
+  out.lead=[lead0,dag.leader,dag.cohesion,SIM.fn.LEAD_LOSS_(),T1.space!==T0.space||T1.form!==T0.form];
+  SIM.runFor(SIM.fn.PROMOTE_SECS_()-0.5);
+  out.lead.push(dag.leader);
+  SIM.runFor(1);
+  const nl=by(dag.leader),live=SIM.fn.wingShips(dag);
+  out.lead.push(dag.leader,dag.cohesion,nl&&live.every(s=>s.pilot.level<=nl.pilot.level),S().events.some(e=>e.kind==='leader'),nl&&nl.lead===true);
+  // the keys: Space pauses and plays; 1–4 set the speed; Q / E cycle wings and open the tray; with the tray open,
+  // a digit presses an order icon and Shift+digit a tactic; F follows; Tab steps the feed; Esc closes
+  f.load('hc1_nightfall',0,42);
+  out.keys=[H.A.speed];
+  key(' ');out.keys.push(H.A.speed);key(' ');out.keys.push(H.A.speed);
+  key('4');out.keys.push(H.A.speed);key('1');out.keys.push(H.A.speed);
+  key('e');out.keys.push(H.A.sel,H.A.tray);key('e');out.keys.push(H.A.sel);key('q');out.keys.push(H.A.sel);
+  key('7');out.keys.push(S().wings.find(w=>w.id===H.A.sel).order.kind);   // 7: Hold (no target)
+  key('2',{shiftKey:true});out.keys.push(S().wings.find(w=>w.id===H.A.sel).tactic);   // Shift+2: Spread
+  key('1');out.keys.push(H.A.arm);   // 1: Attack, armed for its target
+  key('Escape');out.keys.push(H.A.arm,H.A.tray);key('Escape');out.keys.push(H.A.tray);
+  key('f');out.keys.push(H.A.follow);
+  key('3');out.keys.push(H.A.speed);
+  // the scenarios: hc2 and hc3 load and run; hc3's variants set the command points
+  f.showPicker();
+  out.picker=[...document.querySelectorAll('#hcPicker [data-load="hc3_meltdown"]')].map(b=>b.textContent).join();
+  q('#hcPicker [data-load="hc3_meltdown"][data-variant="2"]').click();
+  out.hc3=[S().scn.id,S().variantLabel,S().cp,S().wings.map(w=>w.id+':'+w.ships.length).join(),S().ships.filter(s=>s.marines).length,!!by('vex')&&by('vex').flagship,S().rules.map(r=>r.rule).join()];
+  f.load('hc3_meltdown',1,1);out.hc3.push(S().cp);
+  f.load('hc2_lastlight',0,1);
+  out.hc2=[S().scn.id,by('lastlight').faction,by('lastlight').struct,S().waves.length,S().rules.map(r=>r.rule).join()];
+  SIM.runFor(25);
+  out.hc2.push(S().waves[0].spawned,S().ships.filter(s=>s.faction==='heg'&&s.doctrine==='raid').length,S().ships.filter(s=>s.doctrine==='raid'&&s.beh&&s.beh.target==='lastlight').length>0);
+  // a full hc3 brawl, hands on the keyboard at speed 3: orders and tactics by keys, a command, through the driver
+  f.load('hc3_meltdown',0,9);
+  let now=1000;const fr=()=>{now+=16;f.frame(now);};
+  const t0b=performance.now();let frames=0;
+  key('4');
+  key('e');key('9');(q('#hcTray [data-tchip]')||{click(){}}).click();   // Hammer: Board, the reactor
+  key('e');key('1');(q('#hcTray [data-tchip="0"]')||{click(){}}).click();   // Lance: Attack, the first chip
+  key('3',{shiftKey:true});   // Lance: Screen
+  for(let i=0;i<1200&&!S().over;i++){fr();frames++;
+    if(i===300){key(' ');f.openDrawer(null);q('#hcCmds [data-cmd="recon"]').click();key(' ');}
+    if(i===600){key('Tab');}}
+  out.brawl=[S().t>=55,frames,+((performance.now()-t0b)/frames).toFixed(2),S().m.orders,S().m.tactics,S().m.cpSpent,H.A.pauses>=1,S().wings.map(w=>w.order.kind).join()];
+  // 10. metrics: the engagement record carries every §7 field; abort to close it out
+  S().cp=Math.max(S().cp,0);
+  f.openDrawer(null);q('#hcCmds [data-cmd="abort"]').click();q('#hcCmds [data-cmd="abort"]').click();
+  const rec=H.A.metrics[H.A.metrics.length-1];
+  out.rec=rec;
+  // the panel: every number a slider in a group, a slider moves its constant, the tactic weights are on it
+  f.showPicker();f.load('hc1_nightfall',0,1);
+  const keys=Object.keys(SIM.TUNE),sl=[...document.querySelectorAll('#hcPanelBody [data-tune]')].map(e=>e.dataset.tune);
+  const sp=q('#hcPanelBody [data-tune="T_spread_space"]');
+  sp.value='5';sp.dispatchEvent(new Event('input',{bubbles:true}));
+  out.panel=[keys.length,keys.every(k=>sl.includes(k)),[...document.querySelectorAll('#hcPanelBody details.hc-sec summary')].map(e=>e.textContent).join(),SIM.HC_TACTICS.spread.space,
+    keys.filter(k=>k.startsWith('T_')).length,document.querySelectorAll('#hcPanelBody .hc-keys .sr-kbd').length];
+  q('#hcPanelBody [data-act="defaults"]').click();out.panel.push(SIM.HC_TACTICS.spread.space);
+  return out;
+ });
+ ok(hc4.lead[1]===null&&hc4.lead[2]===hc4.lead[3]&&hc4.lead[4],'HC 9: losing the leader drops cohesion to LEAD_LOSS '+JSON.stringify(hc4.lead));
+ ok(hc4.lead[5]===null&&hc4.lead[6]&&hc4.lead[6]!==hc4.lead[0]&&hc4.lead[7]===1&&hc4.lead[8]&&hc4.lead[9]&&hc4.lead[10],'HC 9: promotion after PROMOTE_SECS, to the highest level '+JSON.stringify(hc4.lead));
+ ok(JSON.stringify(hc4.keys)===JSON.stringify([0,2,0,3,0,'dagger','dagger','amber','dagger','hold','spread','attack',null,'dagger',null,true,2]),'HC T4: the keys '+JSON.stringify(hc4.keys));
+ ok(hc4.picker==='CP 5,CP 3,CP 7'&&hc4.hc3[0]==='hc3_meltdown'&&hc4.hc3[1]==='CP 7'&&hc4.hc3[2]===7&&hc4.hc3[3]==='hammer:4,lance:4'&&hc4.hc3[4]===2&&hc4.hc3[5]&&hc4.hc3[6]==='bringdown'&&hc4.hc3[7]===3,'HC T4: hc3 and its CP variants '+JSON.stringify([hc4.picker,hc4.hc3]));
+ ok(hc4.hc2[0]==='hc2_lastlight'&&hc4.hc2[1]==='reb'&&hc4.hc2[2]&&hc4.hc2[3]===3&&hc4.hc2[4]==='guardian'&&hc4.hc2[5]&&hc4.hc2[6]===3&&hc4.hc2[7],'HC T4: hc2 (waves of raiders on the station) '+JSON.stringify(hc4.hc2));
+ ok(hc4.brawl[0]&&hc4.brawl[2]<60&&hc4.brawl[3]>=2&&hc4.brawl[4]>=1&&hc4.brawl[5]===1&&hc4.brawl[6]&&hc4.brawl[7]==='board,attack','HC T4: an hc3 brawl on the keys at speed 3 '+JSON.stringify(hc4.brawl));
+ const R=hc4.rec||{};
+ const need=['ruleset','scenario','variant','seed','orders','tactics','cp','pauses','rules','emergencies','outcome','shipsLost','firstOrderAfterAlert','orderRate','pauseRate'];
+ ok(need.every(k=>k in R)&&R.ruleset==='hc'&&R.outcome==='aborted'&&typeof R.orders.count==='number'&&R.orders.byType&&R.cp.byCommand&&R.cp.byCommand.recon===1&&typeof R.pauses.pausedSecs==='number'&&typeof R.pauses.realSecs==='number'&&
+   typeof R.rules.triggers==='number'&&Array.isArray(R.emergencies.list)&&R.emergencies.responses&&Array.isArray(R.firstOrderAfterAlert.each)&&typeof R.orderRate==='number'&&typeof R.pauseRate.perMin==='number','HC 10: the metrics record '+JSON.stringify(R).slice(0,400));
+ ok(hcLines.some(l=>{try{const x=JSON.parse(l);return x.ruleset==='hc'&&x.outcome==='aborted';}catch(e){return false;}}),'HC 10: the record reaches the console as ARENA_METRICS');
+ ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===42&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

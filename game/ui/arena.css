@@ -281,7 +281,7 @@
   color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
 #arHc .hc-view:hover,#arHc .hc-view:focus-visible{background:color-mix(in srgb,var(--sr-shield) 18%,transparent);outline:none;}
 /* the bottom: the wing roster */
-#arHc .hc-roster{position:absolute;left:12px;right:250px;bottom:12px;z-index:2;display:flex;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
+#arHc .hc-roster{position:absolute;left:12px;right:316px;bottom:12px;z-index:2;display:flex;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
 #arHc .hc-wing{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-wing.is-sel{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
 #arHc .hc-wing__head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 4px;background:transparent;border:0;color:var(--sr-text);cursor:pointer;text-align:left;}
@@ -439,3 +439,13 @@
 #arHc .hc-cmd[aria-disabled="true"] .hc-cmd__cost i{background:var(--sr-seam);}
 #arHc .hc-cmd--abort{margin-top:8px;background:transparent;border-color:var(--sr-hazard);color:var(--sr-hazard);}
 #arHc .hc-cmd--abort.is-armed{background:var(--sr-hazard);color:var(--sr-ink);box-shadow:none;}
+#arHc .hc-sec{margin:0 0 6px;}
+#arHc .hc-sec summary{cursor:pointer;font:800 var(--sr-fs-xs)/1.8 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .hc-sec[open] summary{color:var(--sr-text);margin-bottom:4px;}
+#arHc .hc-keys{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .hc-keys .sr-kbd{justify-self:start;}
+/* eight or more ships: smaller tiles, so a full roster fits beside the time controls */
+#arHc .hc-roster.is-many .hc-tile{width:88px;padding:4px;}
+#arHc .hc-roster.is-many .hc-tile__cam{width:78px;height:43px;}
+#arHc .hc-roster.is-many .hc-tile__foot{font-size:10px;}
+#arHc .hc-roster.is-many .hc-wing__name{font-size:var(--sr-fs-sm);}

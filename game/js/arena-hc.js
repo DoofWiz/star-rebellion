@@ -65,6 +65,45 @@ const HC_SCENARIOS=[
       {id:'sat',kind:'capture',point:'sat',text:'Capture the satellite (optional)',cpReward:1,at:{x:3400,y:1000}}],
     reinforce:{secs:240,edge:'E',force:[{type:'academy-commandant',n:1,name:'Vex'},{type:'vc-mote-patrol',n:3,name:'Strike'},{type:'drone-pursuer',n:2,name:'Pursuer'}]},
     rules:[],cp:5},
+  {id:'hc2_lastlight',title:'HC2: Last Light',rulesets:['hc'],
+    desc:'Defend: Ember (3) and Ash (2) keep Lastlight station standing through three raiding waves until the evacuation clock runs out, then get out west. Starts with Guardian Directive. Tests Defend, Hold and the rules.',
+    rocks:[{x:3300,y:2100,r:110},{x:5200,y:3900,r:120},{x:4900,y:1900,r:90},{x:3000,y:4100,r:100}],
+    wings:[
+      {id:'ember',name:'Ember',at:[3500,2500,0],order:{kind:'defend',target:{type:'ship',id:'lastlight'}},tactic:'screen',
+        ships:[{cls:'talon',name:'Rook',pilot:{preset:'veteran'}},{cls:'talon',name:'Vale',pilot:{preset:'regular'}},{cls:'talon',name:'Jory',pilot:{preset:'regular'}}]},
+      {id:'ash',name:'Ash',at:[3500,3500,0],order:{kind:'hold'},tactic:'defensive',
+        ships:[{cls:'cross',name:'Mara',pilot:{preset:'regular'}},{cls:'cross',name:'Tamsin',pilot:{preset:'green'}}]}],
+    allies:[{id:'lastlight',name:'Lastlight',label:'Lastlight Station',cls:'fuel-depot',at:[4200,3000,0],stats:{hull:300,arm:40}}],
+    enemies:[],
+    waves:[
+      {at:20,edge:'E',force:[{type:'vc-mote-patrol',n:3,name:'Raider',role:'raid'}],text:'Wave one: raiders from the east'},
+      {at:75,edge:'N',force:[{type:'vc-mote-patrol',n:2,name:'Raider',role:'raid'},{type:'drone-pursuer',n:2,name:'Pursuer'}],text:'Wave two: raiders and drones from the north'},
+      {at:130,edge:'S',force:[{type:'vc-mote-patrol',n:3,name:'Raider',role:'raid'},{type:'drone-pursuer',n:1,name:'Pursuer'}],text:'Wave three: from the south'}],
+    points:{jump:{x:800,y:3000,label:'Jump point'}},extract:'jump',
+    objectives:[{id:'hold',kind:'protect',ship:'lastlight',text:'Keep Lastlight standing until the evacuation clock runs out',primary:true}],
+    reinforce:{secs:180,edge:'E',force:[{type:'academy-commandant',n:1,name:'Vex'},{type:'vc-mote-patrol',n:4,name:'Strike'},{type:'drone-pursuer',n:2,name:'Pursuer'}]},
+    rules:[{rule:'guardian',scope:'all'}],cp:4},
+  {id:'hc3_meltdown',title:'HC3: Meltdown',rulesets:['hc'],
+    desc:'Two wings of four against Commandant Vex\'s group. Board the reactor platform with Hammer\'s marines, bring Vex down (Bring It Down is standing), or Abort: the honourable out. Variants: 3 or 7 command points. Does the command economy carry the drama?',
+    rocks:[{x:3600,y:2300,r:130},{x:4300,y:3900,r:110},{x:5200,y:2700,r:95},{x:2800,y:3300,r:90},{x:5600,y:4300,r:120}],
+    wings:[
+      {id:'hammer',name:'Hammer',at:[1300,2300,0],order:{kind:'regroup'},tactic:'tight',
+        ships:[{cls:'graf',name:'Anvil',marines:true,pilot:{preset:'regular'},stats:{hull:70,arm:20}},{cls:'graf',name:'Forge',marines:true,pilot:{preset:'green'},stats:{hull:70,arm:20}},
+          {cls:'talon',name:'Pike',pilot:{preset:'veteran'}},{cls:'talon',name:'Brand',pilot:{preset:'regular'}}]},
+      {id:'lance',name:'Lance',at:[1300,3700,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'pincer',
+        ships:[{cls:'talon',name:'Sable',pilot:{preset:'ace'}},{cls:'cross',name:'Corin',pilot:{preset:'veteran'}},{cls:'cross',name:'Wick',pilot:{preset:'regular'}},{cls:'talon',name:'Isla',pilot:{preset:'green'}}]}],
+    enemies:[
+      {type:'fuel-depot',id:'reactor',name:'Reactor Platform',label:'Reactor Platform',at:[6600,3000,0],stats:{hull:260,arm:40}},
+      {type:'academy-commandant',id:'vex',name:'Vex',label:'Commandant Vex',at:[6000,3000,Math.PI],role:'guard',asset:'reactor',flagship:true,stats:{hull:120,arm:20}},
+      {type:'vc-mote-patrol',n:4,name:'Escort',role:'guard',asset:'reactor',at:[5800,2600,Math.PI]},
+      {type:'drone-pursuer',n:2,name:'Pursuer',role:'patrol',at:[4600,3300,Math.PI]}],
+    points:{jump:{x:700,y:3000,label:'Jump point'}},extract:'jump',
+    objectives:[
+      {id:'board',kind:'board',station:'reactor',text:'Board the reactor platform (Hammer\'s marines)',primary:true,at:{x:6600,y:3000}},
+      {id:'vex',kind:'destroy',targets:['vex'],text:'Bring down Commandant Vex',primary:true,cpReward:1,at:{x:6000,y:3000}}],
+    reinforce:{secs:210,edge:'E',force:[{type:'vc-mote-patrol',n:4,name:'Strike'},{type:'drone-pursuer',n:3,name:'Pursuer'}]},
+    rules:[{rule:'bringdown',scope:'all'}],cp:5,
+    variants:[{label:'CP 5'},{label:'CP 3',cp:3},{label:'CP 7',cp:7}]},
 ];
 const REG=window.SR_ARENA_SCENARIOS||[];
 for(const s of HC_SCENARIOS)if(!REG.some(x=>x.id===s.id))REG.push(s);
@@ -73,7 +112,7 @@ const scenarios=()=>REG.filter(s=>s.rulesets&&s.rulesets.includes('hc'));
 /* ---------- state: one object, rebuilt per scenario ---------- */
 const A={active:false,phase:'PICK',scen:null,variant:0,seed:1,speed:2,lastSpeed:2,acc:0,lastFrame:0,
   sel:null,selShip:null,tray:null,panel:null,drawer:false,arm:null,follow:false,camHeld:false,
-  realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0,lastEv:0};
+  realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0};
 
 /* ---------- canvas and camera (arena-sb.js's kit, copied) ---------- */
 const cv=byId('hcCv'),ctx=cv.getContext('2d');
@@ -111,16 +150,19 @@ function drawRock(c,r){
 }
 const sprites=new Map();
 const ANG_B=72,ROLL_B=4,DMG_B=4,SCALE_B=Math.log(1.08),ART_R=52;
+/* the camera tiles keep their own cache, coarser in angle, so they never evict the map's sprites (C-67 item 36) */
+const tileSprites=new Map();
+let spriteCache=sprites,angB=ANG_B,spriteCap=900;
 function shipSprite(art,livery,px,angI,dmgI){
   const pb=Math.exp(Math.round(Math.log(px)/SCALE_B)*SCALE_B);
   const key=art+'|'+livery+'|'+pb.toFixed(3)+'|'+angI+'|'+dmgI;
-  let sp=sprites.get(key);
+  let sp=spriteCache.get(key);
   if(!sp){
     const half=Math.ceil(pb*ART_R)+2,cv2=document.createElement('canvas');cv2.width=cv2.height=half*2;
-    SA.ship(cv2.getContext('2d'),art,half,half,angI*2*Math.PI/ANG_B,pb,0,{livery,damage:dmgI/DMG_B,roll:0,boost:false});
+    SA.ship(cv2.getContext('2d'),art,half,half,angI*2*Math.PI/angB,pb,0,{livery,damage:dmgI/DMG_B,roll:0,boost:false});
     sp={cv:cv2,half,pb};
-    if(sprites.size>900)sprites.delete(sprites.keys().next().value);
-    sprites.set(key,sp);
+    if(spriteCache.size>spriteCap)spriteCache.delete(spriteCache.keys().next().value);
+    spriteCache.set(key,sp);
   }
   return sp;
 }
@@ -132,9 +174,9 @@ function drawShipBody(c,s,x,y,h,z,boost,alpha){
   if(art){
     try{
       const scale=size*1.6*boost*0.85*SHIP_SCALE,px=scale*z*dpr;
-      const angI=((Math.round(h/(2*Math.PI)*ANG_B)%ANG_B)+ANG_B)%ANG_B,dmgI=Math.round((1-Math.max(0,s.hull)/s.maxHull)*DMG_B);
+      const angI=((Math.round(h/(2*Math.PI)*angB)%angB)+angB)%angB,dmgI=Math.round((1-Math.max(0,s.hull)/s.maxHull)*DMG_B);
       const sp=shipSprite(art,s.faction==='reb'?'rebel':'heg',px,angI,dmgI),k=(px/sp.pb)/(z*dpr);
-      c.translate(x,y);c.rotate(h-angI*2*Math.PI/ANG_B);c.scale(k,k);c.drawImage(sp.cv,-sp.half,-sp.half);
+      c.translate(x,y);c.rotate(h-angI*2*Math.PI/angB);c.scale(k,k);c.drawImage(sp.cv,-sp.half,-sp.half);
     }catch(e){c.restore();c.save();plainDart(c,s,x,y,h,size*boost);}
   } else plainDart(c,s,x,y,h,size*boost);
   c.restore();
@@ -284,7 +326,7 @@ function render(now){
     drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
     drawShields(ctx,s,p.x,p.y,p.h,z,boost);
     if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
-    else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),C.hegHi,z,11);
+    else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
   }
   drawShots(ctx,z,a,S);
   // screen space: hull pips and names, floaters
@@ -349,11 +391,12 @@ function load(id,variant,seed){
   if(!scn)throw new Error('Unknown arena scenario '+id);
   if(!scn.rulesets||!scn.rulesets.includes('hc'))throw new Error(id+' does not run under High Command');
   if(!A.active)openUi();
+  if(A.phase==='LIVE')record();   // the one being left counts as abandoned
   A.scen=scn;A.variant=variant||0;if(seed!=null)A.seed=seed>>>0;
   SIM.build(scn,{seed:A.seed,variant:A.variant});
   makeStars();
   A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
-  A.sel=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;A.lastEv=0;
+  A.sel=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
   byId('hcPicker').hidden=true;byId('hcEnd').hidden=true;
   fitCanvas();camFit();buildPanel();rosterBuilt='';syncHud(true);
@@ -362,6 +405,7 @@ function load(id,variant,seed){
 function restart(same){if(!A.scen)return;load(A.scen.id,A.variant,same?A.seed:((A.seed*2654435761+12345)>>>0)%1000000);}
 function showPicker(){
   if(!A.active)openUi();
+  if(A.phase==='LIVE')record();
   A.phase='PICK';closeAll();
   let h='<div class="hc-win"><h2 class="sr-display">Type 3: High Command</h2><p>Mission Control: your wings fly themselves. Order them, set their tactics and standing rules, spend command points. Pause is free. Seed '+A.seed+'.</p><div class="hc-pick">';
   for(const s of scenarios()){
@@ -381,7 +425,7 @@ byId('hcPicker').addEventListener('click',ev=>{
   else if(b.dataset.act==='title')backToTitle();
 });
 function onOver(){
-  A.phase='OVER';
+  A.phase='OVER';record();
   const o=SIM.S.over;
   const el=byId('hcEnd');
   el.innerHTML='<div class="hc-win"><h2 class="sr-display">'+esc(o.why)+'</h2><p>'+esc(A.scen.title)+' · '+fmtClock(SIM.S.t)+' flown · '+o.lost+' lost, '+o.jumped+' jumped out · seed '+A.seed+'</p>'+
@@ -541,7 +585,8 @@ function buildRoster(){
     for(const id of w.ships)h+=tileHtml(SIM.fn.byId(id));
     h+='</div></div>';
   }
-  el.innerHTML=h;rosterBuilt=S.seed+'|'+S.scn.id;
+  el.innerHTML=h;rosterBuilt=S.seed+'|'+S.scn.id;tileN=0;tileMs=0;
+  el.classList.toggle('is-many',S.wings.reduce((n,w)=>n+w.ships.length,0)>6);
   for(const t of el.querySelectorAll('.hc-tile')){const s=SIM.fn.byId(t.dataset.ship);drawTileGlyph(t.querySelector('canvas'),s);}
 }
 /* the camera tiles (§3.1): each a small live view tracking its ship, drawn from the main sim at about 10 fps,
@@ -550,7 +595,8 @@ function buildRoster(){
 let TILES_LIVE=true;      // panel toggle
 let TILE_Z=0.34;          // a tile's zoom (tile pixels per world unit, before its 2× backing). placeholder
 let TILE_BUDGET=3;        // ms a frame the tiles may cost before they fall back. placeholder
-let tileIdx=0,tileMs=0,tileAuto=false;
+let TILE_WARM=4;          // rounds of tiles drawn before their cost counts. placeholder
+let tileIdx=0,tileMs=0,tileAuto=false,tileN=0;
 function tileTick(){
   if(!TILES_LIVE||A.phase==='PICK'||!SIM.S)return;
   const tiles=byId('hcRoster').querySelectorAll('.hc-tile');if(!tiles.length)return;
@@ -558,8 +604,12 @@ function tileTick(){
   const t=tiles[tileIdx],s=SIM.fn.byId(t.dataset.ship);if(!s)return;
   const t0=performance.now();
   drawTileCam(t.querySelector('canvas'),s);
+  tileN++;
+  if(tileN<=tiles.length*TILE_WARM)return;   // the first rounds build the sprite caches: not counted
   tileMs=tileMs*0.9+(performance.now()-t0)*0.1;
-  if(tileMs>TILE_BUDGET&&tiles.length>=8){TILES_LIVE=false;tileAuto=true;flash('Camera tiles fell back to static glyphs ('+tileMs.toFixed(1)+' ms a tile)');for(const x of tiles)drawTileGlyph(x.querySelector('canvas'),SIM.fn.byId(x.dataset.ship));}
+  if(tileMs>TILE_BUDGET&&tiles.length>=8){TILES_LIVE=false;tileAuto=true;flash('Camera tiles fell back to static glyphs ('+tileMs.toFixed(1)+' ms a tile)');
+    for(const x of tiles)drawTileGlyph(x.querySelector('canvas'),SIM.fn.byId(x.dataset.ship));
+    const cb=byId('hcPanelBody').querySelector('[data-toggle="tiles"]');if(cb)cb.checked=false;}
 }
 function drawTileCam(cvs,s,zoom){
   const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=zoom?zoom*W2/340:TILE_Z*W2/96;
@@ -570,10 +620,10 @@ function drawTileCam(cvs,s,zoom){
   c.fillStyle='#dfe6ff';c.globalAlpha=0.5;c.beginPath();
   for(const st of stars){if(Math.abs(st.x-cx)>hw||Math.abs(st.y-cy)>hh)continue;c.rect(st.x-1/z,st.y-1/z,2/z,2/z);}c.fill();c.globalAlpha=1;
   for(const r of S.rocks)if(Math.abs(r.x-cx)<hw+r.r&&Math.abs(r.y-cy)<hh+r.r)drawRock(c,r);
-  const saveDpr=dpr;dpr=1;
+  const saveDpr=dpr;dpr=1;spriteCache=tileSprites;angB=36;spriteCap=500;
   try{
     for(const o of S.ships){if(!o.alive||Math.abs(o.x-cx)>hw+80||Math.abs(o.y-cy)>hh+80)continue;drawShipBody(c,o,o.x,o.y,o.h,z,1);}
-  }finally{dpr=saveDpr;}
+  }finally{dpr=saveDpr;spriteCache=sprites;angB=ANG_B;spriteCap=900;}
   c.lineCap='round';
   for(const p of S.proj){if(Math.abs(p.x-cx)>hw||Math.abs(p.y-cy)>hh)continue;const sp=Math.hypot(p.vx,p.vy)||1;c.beginPath();c.moveTo(p.x-p.vx/sp*22,p.y-p.vy/sp*22);c.lineTo(p.x,p.y);c.lineWidth=2.4/z;c.strokeStyle=boltCols(p)[1];c.stroke();}
   c.setTransform(1,0,0,1,0,0);
@@ -682,7 +732,7 @@ function trayHtml(){
   h+='<div class="hc-tray__lbl">Order</div><div class="hc-tray__row">';
   let n=0;
   for(const k of SIM.ORDER_KEYS){
-    const built=SIM.T1_ORDERS.includes(k),why=!built?'Arrives in a later build phase':(k==='board'&&!SIM.fn.wingShips(w).some(s=>s.marines))?'No marines in this wing':null;
+    const built=SIM.ORDERS_LIVE.includes(k),why=!built?'Arrives in a later build phase':(k==='board'&&!SIM.fn.wingShips(w).some(s=>s.marines))?'No marines in this wing':null;
     n++;
     const cls=(w.order.kind===k?' is-set':'')+(A.arm===k?' is-armed':'');
     h+='<button type="button" class="hc-ico hc-ico--order'+cls+'" data-order="'+k+'" data-tip="order:'+k+'" data-key="'+n+'" aria-label="'+esc(SIM.ORDERS[k].name)+'"'+(why?' aria-disabled="true" data-why="'+esc(why)+'"':'')+'>'+glyph(k)+'<span class="hc-ico__n">'+n+'</span></button>';
@@ -696,11 +746,10 @@ function trayHtml(){
     h+='</div>';
   }
   h+='<div class="hc-tray__lbl">Wing tactic</div><div class="hc-tray__row">';
-  for(const k of SIM.TACTIC_KEYS)h+='<button type="button" class="hc-ico hc-ico--tactic'+(w.tactic===k?' is-set':'')+'" data-tactic="'+k+'" data-tip="tactic:'+k+'" aria-label="'+esc(SIM.HC_TACTICS[k].name)+'"'+(TACTICS_LIVE?'':' aria-disabled="true" data-why="Arrives in a later build phase"')+'>'+glyph(k)+'</button>';
+  for(const k of SIM.TACTIC_KEYS)h+='<button type="button" class="hc-ico hc-ico--tactic'+(w.tactic===k?' is-set':'')+'" data-tactic="'+k+'" data-tip="tactic:'+k+'" aria-label="'+esc(SIM.HC_TACTICS[k].name)+'">'+glyph(k)+'</button>';
   h+='</div>';
   return h;
 }
-let TACTICS_LIVE=true;    // the tactic row (live from T2)
 function syncTray(){
   const el=byId('hcTray'),h=A.tray&&A.phase!=='PICK'?trayHtml():'';
   if(el.dataset.h!==h){hideTip();el.innerHTML=h;el.dataset.h=h;}
@@ -960,13 +1009,33 @@ function mapTarget(w,kind,s,p){
   }
   return null;
 }
-addEventListener('keydown',ev=>{
-  if(SR.active!=='arena'||!A.active||A.phase==='PICK')return;
-  if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return;
-  if(ev.key===' '){ev.preventDefault();togglePause();return;}
-  if(ev.key==='Escape'){if(A.cmdArm)A.cmdArm=null;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);ev.preventDefault();return;}
-  if(ev.key==='Tab'){ev.preventDefault();nextEvent();return;}
-});
+/* the keys (§3.5): Space pause · 1–4 speeds · Tab next event · F follow · Q / E cycle wings · with the tray
+   open, 1–9 press its order icons and Shift+1–6 its tactics · Esc steps back (an armed choice, then the windows) */
+const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray closed)'],['Tab','next unviewed event'],['F','follow the selection'],
+  ['Q / E','previous / next wing'],['1–9','the tray\'s order icons'],['Shift+1–6','the tray\'s tactic icons'],['Esc','step back, close']];
+function onKey(ev){
+  if(SR.active!=='arena'||!A.active||A.phase==='PICK')return false;
+  if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
+  const k=ev.key;
+  if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}
+  if(k==='Escape'){ev.preventDefault();if(A.cmdArm)A.cmdArm=null;else if(A.abortArm)A.abortArm=false;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);return true;}
+  if(k==='Tab'){ev.preventDefault();nextEvent();return true;}
+  if(A.phase!=='LIVE')return false;
+  if(k==='f'||k==='F'){A.follow=!A.follow;A.camHeld=false;syncHud(true);return true;}
+  if(k==='q'||k==='Q'||k==='e'||k==='E'){const ws=SIM.S.wings.filter(w=>SIM.fn.wingShips(w).length);if(!ws.length)return true;
+    const i=ws.findIndex(w=>w.id===A.sel),n=ws.length,j=i<0?0:(i+((k==='e'||k==='E')?1:n-1))%n;selectWing(ws[j].id,true);const c=focusPoint();if(c)camTo(c.x,c.y);return true;}
+  const dig=ev.code&&/^Digit[1-9]$/.test(ev.code)?+ev.code.slice(5):/^[1-9]$/.test(k)?+k:0;
+  if(!dig)return false;
+  ev.preventDefault();
+  if(A.tray){
+    const sel=ev.shiftKey?'#hcTray [data-tactic]':'#hcTray [data-order]';
+    const b=ROOT.querySelectorAll(sel)[dig-1];if(b)b.click();
+    return true;
+  }
+  if(dig<=4)setSpeed(dig-1);
+  return true;
+}
+addEventListener('keydown',onKey);
 
 /* =====================================================================
    The designer panel: Run, the High Command numbers (every one a SIMHC getter), read-outs
@@ -978,11 +1047,19 @@ function buildPanel(){
     '<button type="button" class="sr-btn sr-btn--sm" data-act="picker">HC scenarios</button><button type="button" class="sr-btn sr-btn--sm" data-act="rulesets">Change ruleset</button>'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">HC</div>';
-  for(const k in SIM.TUNE){const t=SIM.TUNE[k];
-    h+='<div class="hc-row"><label for="hcP_'+k+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
-      '<input type="range" id="hcP_'+k+'" data-tune="'+k+'" min="'+t.min+'" max="'+t.max+'" step="'+t.step+'" value="'+t.get()+'"></div>';}
+  const groups={};for(const k in SIM.TUNE)(groups[SIM.TUNE[k].group]=groups[SIM.TUNE[k].group]||[]).push(k);
+  const order=Object.keys(SIM.GROUPS).concat(['Tactics','Other']).filter(g=>groups[g]);
+  for(const g of order){
+    h+='<details class="hc-sec"'+(g==='Run'?' open':'')+'><summary>'+esc(g)+'</summary>';
+    for(const k of groups[g]){const t=SIM.TUNE[k];
+      h+='<div class="hc-row"><label for="hcP_'+k+'" title="'+esc(k)+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
+        '<input type="range" id="hcP_'+k+'" data-tune="'+k+'" min="'+t.min+'" max="'+t.max+'" step="'+t.step+'" value="'+t.get()+'"></div>';}
+    h+='</details>';
+  }
+  h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="defaults">Reset numbers to defaults</button>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
-  h+='</div><div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
+  h+='</div><div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
+  h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
   byId('hcPanelBody').innerHTML=h;
   syncReadout();
 }
@@ -1007,7 +1084,10 @@ function panelAct(a){
   else if(a==='rulesets')toRulesets();
   else if(a==='dump')dumpMetrics();
   else if(a==='title')backToTitle();
+  else if(a==='defaults'){for(const k in DEFAULTS)if(SIM.TUNE[k])SIM.TUNE[k].set(DEFAULTS[k]);savePrefs();buildPanel();}
 }
+const DEFAULTS={};for(const k in SIM.TUNE)DEFAULTS[k]=SIM.TUNE[k].get();
+function loadPrefs(){try{const o=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(o)for(const k in o)if(SIM.TUNE[k]&&typeof o[k]==='number')SIM.TUNE[k].set(o[k]);}catch(e){}}
 function syncReadout(){
   const el=byId('hcReadout');if(!el)return;
   const S=SIM.S;
@@ -1017,17 +1097,43 @@ function syncReadout(){
   t+='\nRule triggers '+S.m.ruleTriggers+' · emergencies '+S.m.emergencies.length+'\nTiles '+(TILES_LIVE?'live':'static'+(tileAuto?' (fell back)':''))+' · '+tileMs.toFixed(2)+' ms a tile';
   if(el.textContent!==t)el.textContent=t;
 }
+/* the engagement record (§7): one per mission, when it ends (or is left unfinished), into ARENA_METRICS */
+function metricsRecord(){
+  const S=SIM.S,m=S.m,resp={};
+  for(const e of m.emergencies)if(e.resp)resp[e.resp]=(resp[e.resp]||0)+1;
+  const ans=m.alerts.filter(a=>a.answered!=null).map(a=>a.answered),realMin=Math.max(A.realSecs,1e-6)/60;
+  const mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.quiet);
+  return {ruleset:'hc',scenario:A.scen.id,variant:S.variantLabel||null,seed:A.seed,
+    orders:{count:m.orders,byType:Object.assign({},m.byOrder)},tactics:{count:m.tactics,byType:Object.assign({},m.byTactic)},
+    cp:{start:S.cpMax,left:S.cp,spent:m.cpSpent,byCommand:Object.assign({},m.byCommand)},
+    pauses:{count:A.pauses,pausedSecs:+A.pausedSecs.toFixed(2),realSecs:+A.realSecs.toFixed(2),simSecs:+S.t.toFixed(2)},
+    rules:{set:m.rulesSet||0,triggers:m.ruleTriggers,byRule:Object.assign({},m.byRule)},
+    emergencies:{count:m.emergencies.length,list:m.emergencies.map(e=>Object.assign({},e)),responses:resp},
+    outcome:S.over?S.over.outcome:'abandoned',shipsLost:mine.filter(s=>!s.alive&&!s.jumped).length,shipsJumped:mine.filter(s=>s.jumped).length,shipsTotal:mine.length,
+    objectives:S.objectives.map(o=>({id:o.id,state:o.state})),
+    firstOrderAfterAlert:{each:ans,mean:ans.length?+(ans.reduce((a,b)=>a+b,0)/ans.length).toFixed(2):null,unanswered:m.alerts.length-ans.length},
+    orderRate:+(m.orders/realMin).toFixed(2),pauseRate:{perMin:+(A.pauses/realMin).toFixed(2),pausedShare:+(A.pausedSecs/Math.max(A.realSecs,1e-6)).toFixed(3)}};
+}
+function record(){
+  if(A.recorded||!SIM.S||!A.scen||(SIM.S.t<=0&&!SIM.S.m.orders))return null;
+  A.recorded=true;
+  const rec=metricsRecord();A.metrics.push(rec);
+  try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
+  return rec;
+}
 function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_METRICS_DUMP '+s);}catch(e){}flash('Metrics dumped to the console');return s;}
 function savePrefs(){try{const o={};for(const k in SIM.TUNE)o[k]=SIM.TUNE[k].get();localStorage.setItem(PREFS_KEY,JSON.stringify(o));}catch(e){}}
 
 /* ---------- inside arena.js's scene: open and close (arena.js calls these from its picker) ---------- */
 function openUi(){
+  if(!A.prefsLoaded){A.prefsLoaded=true;loadPrefs();}
   A.active=true;ROOT.hidden=false;
   const v2=SCENE.querySelector('.ar-shell');if(v2)v2.hidden=true;
   for(const id of ['arPicker','arOver']){const e=SCENE.querySelector('#'+id);if(e)e.hidden=true;}
   fitCanvas();
 }
 function closeUi(){
+  if(A.phase==='LIVE')record();
   A.active=false;A.phase='PICK';ROOT.hidden=true;closeAll();
   const v2=SCENE.querySelector('.ar-shell');if(v2)v2.hidden=false;
 }
@@ -1035,7 +1141,7 @@ function open(){openUi();showPicker();}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
     frame,toScreen,toWorld,cam_:()=>cam,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
