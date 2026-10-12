@@ -39,6 +39,10 @@ let SLIP_OUT=32;          // how far a ship slides wide of its arc through a min
 let SLIP_NOSE=0.42;       // how far the nose leads into a minimum-radius turn, radians (the guns come round first). placeholder
 let ACCEL=0.03;           // how fast speed can rise per 8 units flown (fraction of cruise). placeholder
 let BRAKE=0.05;           // how fast it can fall. placeholder
+let MOMENTUM=true;        // toggle: the reach depends on the speed the ship carries into the round
+let MOM_UP=1.5;           // momentum: dial speeds a ship can gain in one round. placeholder
+let MOM_DOWN=2;           // ...and shed (braking is quicker). placeholder
+let MOM_TURN=1.5;         // momentum: tightest turn × (slowest straight / speed carried in) ^ this. placeholder
 let SHIP_SCALE=1.35;      // drawn size and hull ellipse together, so what you see is what gets hit. placeholder
 let BANK_ROLL=0.75;       // how far a ship rolls into a turn at its minimum radius (visual). placeholder
 let SPEED_FLAIR=true;     // toggle: speed eases along the curve (visual pacing only)
@@ -92,12 +96,24 @@ function kappaOf(s){
   if(r.bank_min!=null)k=Math.max(k,Math.abs(TURNS.r)/(r.bank_min*SU));
   return k;
 }
+/* momentum (the designer, 12 October): a ship carries the speed it flew last round (s.mom, in dial speeds). This
+   round's distance must sit within MOM_UP faster and MOM_DOWN slower than that, and the faster it comes in, the
+   wider its tightest turn, so out of a fast straight the hard-turn shoulders of the reach vanish and only banks are
+   left; out of a slow round they are back but top speed is a round away. */
+const cruiseOf=s=>(s.row.straight_min+maxSpeedOf(s))/2;
 function dialOf(s){
   const r=s.row,sc=K().SU*SPEED_SCALE,ms=maxSpeedOf(s),ctl=critCount(s,'controls')>0;
   const smax=ms*sc,smin=r.straight_min*sc;
   const bmax=r.bank_max!=null?Math.min(r.bank_max,ms)*sc:null;
   const tmax=r.turn_max!=null&&!ctl?Math.min(r.turn_max,ms)*sc:null;
-  return {smin,smax,bmax,tmax,thMax:tmax!=null?Math.PI/2:bmax!=null?Math.PI/4:0,kap:kappaOf(s)};
+  const kap=kappaOf(s),mom=s.mom!=null?s.mom:cruiseOf(s);
+  let roundMin=smin,roundMax=smax,kapM=kap;
+  if(MOMENTUM&&!s.struct){
+    roundMax=Math.max(smin,Math.min(smax,(mom+MOM_UP)*sc));
+    roundMin=Math.max(smin,Math.min(smax,(mom-MOM_DOWN)*sc));
+    kapM=kap*Math.min(1,Math.pow(r.straight_min/Math.max(r.straight_min,mom),MOM_TURN));
+  }
+  return {smin,smax,bmax,tmax,thMax:tmax!=null?Math.PI/2:bmax!=null?Math.PI/4:0,kap:kapM,kapBase:kap,mom,roundMin,roundMax};
 }
 /* budget: the round's distance left before this segment (unboosted units); null = a whole round */
 function envelope(s,kind,budget){
@@ -112,10 +128,10 @@ function envelope(s,kind,budget){
   if(kind==='boost'){mult=BOOST_MULT;thMax*=BOOST_TURN;kap*=BOOST_TURN;}
   else if(kind==='kturn')cap=KTURN_MAX*SU*SPEED_SCALE;
   else if(kind==='loop')cap=d.smin;   // the flip with minimal displacement
-  const left=budget==null?d.smax:Math.max(0,budget);
+  const left=budget==null?d.roundMax:Math.max(0,budget);
   const lo=a=>Math.max(SEG_MIN*SU,kap>0?Math.abs(a)/kap:0);
   const hi=a=>Math.min(lmaxAt(a)*mult,cap,left*mult);
-  return {thMax,kap,mult,left,lo,hi,smin:d.smin,smax:d.smax,Lmin:lo(0),Lmax:hi(0)};
+  return {thMax,kap,mult,left,lo,hi,smin:d.smin,smax:d.smax,roundMin:d.roundMin,roundMax:d.roundMax,mom:d.mom,Lmin:lo(0),Lmax:hi(0)};
 }
 /* ---------- a move: drag to where the ship should end up; it banks there like a plane ----------
    A segment leaves along the ship's heading and runs to the destination as one steady banked arc. Inside the reach
@@ -646,7 +662,7 @@ function mkShip(d){
     segs:{F:{val:r.shield_front,max:r.shield_front,at:'F'},R:{val:r.shield_rear,max:r.shield_rear,at:'R'}},
     arm:r.armour,hull:r.hull,maxArm:r.armour,maxHull:r.hull,crits:[],
     alive:true,fled:false,trail:[],
-    wpns:loadout(r,d.loadout),target:null,locks:{},lockMax:0,action:'none',
+    wpns:loadout(r,d.loadout),target:null,locks:{},lockMax:0,action:'none',mom:null,
     st:{bursts:0,shots:0,hits:0,dmg:0,missiles:0,kills:0,arcT:0,driftShots:0,backShots:0,actions:0},
     plan:[],           // planned segments: {kind, local (the drag in the segment's frame), facing}
     kinds:['basic','basic'],   // the kind picked for each AP slot
@@ -664,7 +680,7 @@ const startPose=s=>({x:s.x,y:s.y,h:s.h});
 /* the planned segments as curves, from the ship's pose at the start of the round; each one's reach is the round's
    distance the earlier ones left */
 function curvesOf(s){
-  const out=[];let pose=startPose(s),left=dialOf(s).smax;
+  const out=[];let pose=startPose(s),left=dialOf(s).roundMax;
   for(let i=0;i<s.plan.length;i++){
     const p=s.plan[i];
     const seg=buildCurve(s,pose,toWorld(p.local,pose),p.kind,left);
@@ -673,13 +689,13 @@ function curvesOf(s){
   }
   return out;
 }
-function distanceLeft(s,cs){let left=dialOf(s).smax;for(const g of cs||curvesOf(s))left-=g.used;return Math.max(0,left);}
+function distanceLeft(s,cs){let left=dialOf(s).roundMax;for(const g of cs||curvesOf(s))left-=g.used;return Math.max(0,left);}
 /* a round flown short of the slowest straight is topped up with a straight glide (a ship can't stop); otherwise the
    ship flies exactly what was drawn. Unspent AP buys nothing in v1. */
 function fullSchedule(s,planned){
   const segs=planned.filter(g=>!g.none&&g.L>0);
   let used=0;for(const g of segs)used+=g.used;
-  const need=dialOf(s).smin-used;
+  const need=dialOf(s).roundMin-used;   // momentum: it can't come in slower than this
   if(need>1){
     const pose=segs.length?segEnd(segs[segs.length-1]):startPose(s);
     const g=makeSeg(s,pose,{k:0,len:need,th:0},'basic',null,null);
@@ -788,7 +804,7 @@ function planSearch(s,kind,weights,mates){
   const rng=Math.max(300,...s.wpns.map(q=>q.w.rng),0),trng=t?Math.max(300,...t.wpns.map(q=>q.w.rng),0):0;
   const pred=t&&t.alive?predictor(t):null;
   const jit=AI_JITTER*Math.max(0.1,1-aimBonus(s)/8)+AI_NOISE/100;
-  const env1=envelope(s,kind,d.smax);
+  const env1=envelope(s,kind,d.roundMax);
   const firsts=legsThrough(env1,9,[0,0.35,0.7,1]);
   // the doctrine's goal, as a seed
   const g=doctrineOf(s).goal(s)(start,0),seed=solveArc(start,g,env1);if(!seed.none)firsts.push({k:seed.k,L:seed.len});
@@ -796,15 +812,22 @@ function planSearch(s,kind,weights,mates){
   for(const a of firsts){
     const e1=arcLocal(a.k,a.L),c=Math.cos(start.h),sn=Math.sin(start.h);
     const p1={x:start.x+e1.x*c-e1.y*sn,y:start.y+e1.x*sn+e1.y*c,h:start.h+a.k*a.L};
-    const used=a.L/env1.mult,env2=envelope(s,kind,d.smax-used);
+    const used=a.L/env1.mult,env2=envelope(s,kind,d.roundMax-used);
     const seconds=AP_PER_ROUND>1&&env2.left>=SEG_MIN*K().SU?legsThrough(env2,7,[0.5,1]):[];
     seconds.push(null);
     for(const b of seconds){
-      const legs=b?[a,b]:[a],track=planTrack(start,legs,d.smin);
+      const legs=b?[a,b]:[a],track=planTrack(start,legs,d.roundMin);
       let sc=0;
       // the rocks, densely along the whole flight (every ~30 units), with a little clearance
-      const fine=planTrack(start,legs,d.smin,Math.max(12,Math.ceil(track.length&&(legs.reduce((q,l)=>q+l.L,0)/30))));
-      for(const P of fine){let hit=false;for(const r of S.rocks)if(Math.hypot(P.x-r.x,P.y-r.y)<r.r*0.9+30){hit=true;break;}if(hit){sc-=AI_ROCK;break;}}
+      const fine=planTrack(start,legs,d.roundMin,Math.max(12,Math.ceil(track.length&&(legs.reduce((q,l)=>q+l.L,0)/30))));
+      let inRock=0;   // graded: a pilot boxed in by its momentum at least spends as little of the round over rock as it can
+      for(const P of fine){for(const r of S.rocks)if(Math.hypot(P.x-r.x,P.y-r.y)<r.r*0.9+30){inRock++;break;}}
+      if(inRock)sc-=AI_ROCK*(1+4*inRock/fine.length);
+      // a round ahead: momentum commits it to at least its slowest straight next round, so a plan that ends pointed
+      // at a rock is scored down too (lighter, since it can still bank)
+      {const Ef=fine[fine.length-1],run=Math.max(d.smin,legs.reduce((q,l)=>q+l.L,0)-MOM_DOWN*K().SU*SPEED_SCALE);let ahead=0;
+        for(let j=1;j<=6;j++){const qx=Ef.x+Math.cos(Ef.h)*run*j/6,qy=Ef.y+Math.sin(Ef.h)*run*j/6;for(const r of S.rocks)if(Math.hypot(qx-r.x,qy-r.y)<r.r*0.9+30){ahead++;break;}}
+        if(ahead)sc-=AI_ROCK*0.5*ahead/6;}
       track.forEach((P,j)=>{
         const time=EX*(j+1)/AI_SAMPLES;
         if(pred){
@@ -830,7 +853,7 @@ function planSearch(s,kind,weights,mates){
       if(sc>bs){bs=sc;best=legs;}
     }
   }
-  const segs=[];let pose=start,left=d.smax;
+  const segs=[];let pose=start,left=d.roundMax;
   for(const l of best||[]){
     const env=envelope(s,kind,left);
     const seg=makeSeg(s,pose,{k:l.k,len:l.L,th:l.k*l.L},kind,env,null);
@@ -840,7 +863,7 @@ function planSearch(s,kind,weights,mates){
   return segs;
 }
 function planToward(s,goalFn,kind){   // a straight run at a goal (a fleeing pilot), on the same reach
-  const segs=[];let pose=startPose(s),left=dialOf(s).smax;
+  const segs=[];let pose=startPose(s),left=dialOf(s).roundMax;
   for(let i=0;i<AP_PER_ROUND;i++){
     if(left<SEG_MIN*K().SU)break;
     const seg=buildCurve(s,pose,[goalFn(pose,i)],kind||'basic',left);
@@ -1021,7 +1044,11 @@ function endExec(){
   for(const s of S.ships)if(s.alive&&!S.damaged.has(s.id))adjCool(s,CALM_GAIN);   // breathing room (space.js endRound ~1082)
   fleeCheck();
   for(const s of S.ships){
-    if(s.sched&&s.alive){const e=segEnd(s.sched[s.sched.length-1]);s.x=e.x;s.y=e.y;s.h=e.h;s.vh=e.h;}
+    if(s.sched&&s.alive){
+      const e=segEnd(s.sched[s.sched.length-1]);s.x=e.x;s.y=e.y;s.h=e.h;s.vh=e.h;
+      let D=0;for(const g of s.sched)D+=g.L;   // momentum: the speed it flew this round, in dial speeds (a Boost carries more)
+      s.mom=Math.min(maxSpeedOf(s)*BOOST_MULT,D/(K().SU*SPEED_SCALE));
+    }
     s.sched=null;s.plan=[];s.flydef=false;s.visRoll=0;s.curKind=null;
     s.kinds=['basic','basic'];s.action='none';
   }
@@ -1063,6 +1090,12 @@ function drawReach(c,s,start,kind,left,z,strong){
   if(strong){   // the straight corridor's spine
     const L=R.env.hi(0),e={x:start.x+Math.cos(start.h)*L,y:start.y+Math.sin(start.h)*L};
     c.beginPath();c.moveTo(start.x,start.y);c.lineTo(e.x,e.y);c.lineWidth=1/z;c.strokeStyle=T.rgba(col,0.35);c.setLineDash([2/z,6/z]);c.stroke();
+    // momentum: the slowest it can fly this round (a shorter line is topped up with a glide)
+    const minLeft=R.env.roundMin-(R.env.roundMax-R.env.left);
+    if(MOMENTUM&&minLeft>SEG_MIN*K().SU){
+      c.setLineDash([7/z,6/z]);c.lineWidth=1.6/z;c.strokeStyle=C.hazard;c.beginPath();c.arc(start.x,start.y,minLeft,start.h-0.55,start.h+0.55);c.stroke();
+      c.setLineDash([]);label(c,start.x+Math.cos(start.h)*minLeft,start.y+Math.sin(start.h)*minLeft-10/z,'slowest this round',C.hazard,z);
+    }
   }
   c.restore();
 }
@@ -1070,7 +1103,7 @@ function drawPlan(c,s,z,kit){
   const sel=s.id===S.sel,cs=curvesOf(s),all=fullSchedule(s,cs);
   if(sel){   // while dragging: the reach of the segment being drawn; otherwise, faintly, the next one's
     const ed=S.edit&&S.edit.mode==='drag'&&S.edit.id===s.id?S.edit:null;
-    if(ed){let left=dialOf(s).smax;for(let i=0;i<ed.slot&&i<cs.length;i++)left-=cs[i].used;drawReach(c,s,ed.from,s.kinds[ed.slot]||'basic',left,z,true);}
+    if(ed){let left=dialOf(s).roundMax;for(let i=0;i<ed.slot&&i<cs.length;i++)left-=cs[i].used;drawReach(c,s,ed.from,s.kinds[ed.slot]||'basic',left,z,true);}
     else if(cs.length<AP_PER_ROUND){const left=distanceLeft(s,cs);if(left>=SEG_MIN*K().SU)drawReach(c,s,cs.length?segEnd(cs[cs.length-1]):startPose(s),s.kinds[cs.length]||'basic',left,z,false);}
   }
   all.forEach((seg,i)=>{
@@ -1234,8 +1267,9 @@ function hud(){
   h+='<span class="arn-orders__note">Target '+(t&&t.alive?esc(t.name)+' · lock '+Math.round(lockOf(s,t.id)*100)+'%':'none')+' · '+
     s.wpns.map(q=>esc(q.w.name)+(q.ammo!==undefined?' ×'+q.ammo:'')).join(', ')+' · click a hostile to target it</span>';
   if(K().phase!=='PLAN')return h;
-  const left=distanceLeft(s),full=dialOf(s).smax;
-  h+='<span class="arn-orders__note">AP '+s.plan.length+'/'+AP_PER_ROUND+' · distance left '+Math.round(100*left/full)+'% · drag from the ship to where it should end up, inside its reach</span>';
+  const left=distanceLeft(s),dd=dialOf(s),full=dd.roundMax,spd=v=>(v/(K().SU*SPEED_SCALE)).toFixed(1);
+  h+='<span class="arn-orders__note">AP '+s.plan.length+'/'+AP_PER_ROUND+' · distance left '+Math.round(100*left/full)+'%'+
+    (MOMENTUM?' · momentum '+dd.mom.toFixed(1)+' (this round '+spd(dd.roundMin)+' to '+spd(dd.roundMax)+')':'')+' · drag from the ship to where it should end up, inside its reach</span>';
   for(let i=0;i<AP_PER_ROUND;i++){
     h+='<span class="arn-orders__grp"><span class="arn-orders__lbl">Seg '+(i+1)+'</span>';
     for(const k of kindsFor(s))h+='<button type="button" class="sr-btn" data-act="kind" data-slot="'+i+'" data-kind="'+k+'" aria-pressed="'+(s.kinds[i]===k)+'">'+KINDS[k].short+'</button>';
@@ -1281,6 +1315,10 @@ function panelGroup(){
     {key:'SPEED_FLAIR',label:'Acceleration flair',type:'toggle',get:()=>SPEED_FLAIR,set:v=>{SPEED_FLAIR=v;}},
     {key:'ACCEL',label:'Flair: acceleration rate',min:0.005,max:0.1,step:0.005,get:()=>ACCEL,set:v=>{ACCEL=v;}},
     {key:'BRAKE',label:'Flair: braking rate',min:0.005,max:0.2,step:0.005,get:()=>BRAKE,set:v=>{BRAKE=v;}},
+    {key:'MOMENTUM',label:'Momentum shapes the reach',type:'toggle',get:()=>MOMENTUM,set:v=>{MOMENTUM=v;}},
+    {key:'MOM_UP',label:'Momentum: speed gained a round',min:0,max:5,step:0.25,get:()=>MOM_UP,set:v=>{MOM_UP=v;}},
+    {key:'MOM_DOWN',label:'Momentum: speed shed a round',min:0,max:5,step:0.25,get:()=>MOM_DOWN,set:v=>{MOM_DOWN=v;}},
+    {key:'MOM_TURN',label:'Momentum: speed widens turns ^',min:0,max:3,step:0.1,get:()=>MOM_TURN,set:v=>{MOM_TURN=v;}},
     {key:'SLIP_OUT',label:'Slip: slide wide in a hard turn',min:0,max:80,step:2,get:()=>SLIP_OUT,set:v=>{SLIP_OUT=v;}},
     {key:'SLIP_NOSE',label:'Slip: nose leads a hard turn (rad)',min:0,max:0.8,step:0.02,get:()=>SLIP_NOSE,set:v=>{SLIP_NOSE=v;}},
     {key:'FLAIR_DIP',label:'Flair: turn slowdown',min:0,max:0.8,step:0.05,get:()=>FLAIR_DIP,set:v=>{FLAIR_DIP=v;}},
@@ -1342,8 +1380,8 @@ return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,dra
     BURST_N_:()=>BURST_N,BURST_EVERY_:()=>BURST_EVERY,PROJ_SPD_:()=>PROJ_SPD,SPREAD_BASE_:()=>SPREAD_BASE,RANGE_SPREAD_:()=>RANGE_SPREAD,
     SPREAD_AIM_K_:()=>SPREAD_AIM_K,SPREAD_NERVE_K_:()=>SPREAD_NERVE_K,SPREAD_CRIT_:()=>SPREAD_CRIT,MISSILE_LOCK_:()=>MISSILE_LOCK,MISSILE_MINR_:()=>MISSILE_MINR,
     MISSILE_SPD_:()=>MISSILE_SPD,MISSILE_TURN_:()=>MISSILE_TURN,LOCK_GAIN_:()=>LOCK_GAIN,LOCK_DECAY_:()=>LOCK_DECAY,IMPACT_MIN_:()=>IMPACT_MIN,
-    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,SLIP_OUT_:()=>SLIP_OUT,SLIP_NOSE_:()=>SLIP_NOSE,ACCEL_:()=>ACCEL,BRAKE_:()=>BRAKE,
+    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,MOMENTUM_:()=>MOMENTUM,MOM_UP_:()=>MOM_UP,MOM_DOWN_:()=>MOM_DOWN,MOM_TURN_:()=>MOM_TURN,SLIP_OUT_:()=>SLIP_OUT,SLIP_NOSE_:()=>SLIP_NOSE,ACCEL_:()=>ACCEL,BRAKE_:()=>BRAKE,
     AI_LOOK_:()=>AI_LOOK,AI_W_ARC_:()=>AI_W_ARC,AI_W_THREAT_:()=>AI_W_THREAT,AI_W_RANGE_:()=>AI_W_RANGE,AI_W_SIX_:()=>AI_W_SIX,AI_SWING_:()=>AI_SWING,AI_OVERSHOOT_:()=>AI_OVERSHOOT,AI_JITTER_:()=>AI_JITTER,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
     set(k,v){const m={AP_PER_ROUND:()=>AP_PER_ROUND=v,FLYDEF_FACTOR:()=>FLYDEF_FACTOR=v,BOOST_MULT:()=>BOOST_MULT=v,SPEED_FLAIR:()=>SPEED_FLAIR=v,
-      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v};m[k]();}};}};
+      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,MOMENTUM:()=>MOMENTUM=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v};m[k]();}};}};
 })();

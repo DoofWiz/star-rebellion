@@ -262,7 +262,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   // at 90°, from the dial; nothing turns past 90° or tighter than the minimum radius
   const Q=Math.PI/4,r=fox.row;
   out.reach=[Math.round(env.hi(0)),Math.round(r.straight_max*SU*SC),Math.round(env.hi(Q)),Math.round(r.bank_max*SU*SC),
-    Math.round(env.hi(2*Q)),Math.round(r.turn_max*SU*SC),env.thMax===2*Q,Math.round(env.lo(2*Q))===Math.round(2*Q/kap)];
+    Math.round(env.hi(2*Q)),Math.round(r.turn_max*SU*SC),env.thMax===2*Q,Math.round(env.lo(2*Q))===Math.round(2*Q/env.kap)];
   // outside the reach (beside the nose, behind the shoulder): the nearest point of the reach, checked by brute force
   const tight=rel(P0,30,-150),ct=F.buildCurve(fox,P0,[tight],'basic'),et=ct.pts[ct.pts.length-1],missT=Math.hypot(et.x-tight.x,et.y-tight.y);
   let best=1e9;for(let i=0;i<=120;i++){const th=-env.thMax+2*env.thMax*i/120,a=env.lo(th),b=env.hi(th);if(b<a)continue;
@@ -293,6 +293,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.flydefOff=!fox.flydef;
   out.ends=Math.hypot(fox.x-end2.x,fox.y-end2.y)<1;
   // a short plan is topped up to the slowest straight with a glide; a long one flies exactly the line
+  fox.mom=null;   // back to cruise: the exec above left it carrying that round's speed
   const one=F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h,150,3)}]);
   const full=F.fullSchedule(fox,one);
   const two=F.fullSchedule(fox,F.planSegs('P1',[{kind:'basic',pts:line(fox,fox.h,700,3)}]));
@@ -411,7 +412,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.det=[a===b,a.length>0];
   // 7. metrics, and a chase with live fire
   f.load('e1_fox','sb',null,3);   // a head-on start: the pursuers swing wide rather than joust, then come round
-  for(let i=0;i<5&&D.phase==='PLAN';i++)f.runExecSync();
+  const hitsSoFar=()=>{const m=D.metrics.filter(r=>r.ruleset==='sb'&&r.seed===3);return m.length?m[m.length-1].ships.reduce((n,x)=>n+x.hits,0):0;};
+  for(let i=0;i<12&&D.phase==='PLAN'&&!hitsSoFar();i++)f.runExecSync();   // 3 s rounds: until the first hit, 36 s at most
   const recs=D.metrics.filter(r=>r.ruleset==='sb'&&r.seed===3);
   const last=recs[recs.length-1];
   out.metrics=[recs.length>=1,recs.every(r=>r.ships.every(x=>['bursts','shots','hits','dmg','lockMax'].every(k=>typeof x[k]==='number')))];
@@ -519,7 +521,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const S=D.sim.S,F=D.sim.fn,fox=S.ships.find(q=>q.id==='P1');
   // speed: the envelope is the dial × SPEED_SCALE; the turn radius is not scaled
   const env=F.envelope(fox,'basic');
-  out.speed=[Math.abs(env.Lmax-fox.row.straight_max*150*D.sim.SPEED_SCALE_())<1e-9,D.sim.SPEED_SCALE_()>1,Math.abs(env.kap-F.kappaOf(fox))<1e-12];
+  out.speed=[Math.abs(env.Lmax-fox.row.straight_max*150*D.sim.SPEED_SCALE_())<1e-9,D.sim.SPEED_SCALE_()>1,Math.abs(env.kap-F.dialOf(fox).kap)<1e-12];
   // smooth motion: between two ticks a ship is drawn part-way along its path, not held at the last tick
   f.setFollow(true);
   f.beginExec();for(let i=0;i<10;i++)f.stepTick();
@@ -540,6 +542,49 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(feel.smooth.every(Boolean),'SB feel: between ticks a ship should be drawn part-way along its path '+JSON.stringify(feel.smooth));
  ok(feel.chase[0]<40&&feel.chase[2],'SB feel: the chase camera should settle on the action '+JSON.stringify(feel.chase));
  ok(feel.scale[1]===feel.scale[2],'SB feel: the hull ellipse should follow the ship size '+JSON.stringify(feel.scale));
+
+ /* ---------- SB momentum (the designer, 12 Oct: momentum in the reach, SB only) ---------- */
+ const mom=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn,out={};
+  f.load('sb2_drift','sb',null,1);
+  const S=D.sim.S,F=D.sim.fn,s=S.ships[0],Q=Math.PI/4,SC=D.sim.SPEED_SCALE_(),u=150*SC;
+  const maxTurn=e=>{let a=0;for(let i=0;i<=90;i++){const t=i*Math.PI/180;if(e.hi(t)>=e.lo(t))a=i;}return a;};
+  // a fresh ship carries cruise speed
+  out.fresh=[F.dialOf(s).mom,(s.row.straight_min+s.row.straight_max)/2];
+  // out of a full-speed straight: it can't slow far, and the hard turns are gone
+  s.mom=s.row.straight_max;let d=F.dialOf(s),e=F.envelope(s,'basic');
+  out.fast=[d.roundMin>d.smin,e.hi(2*Q)<e.lo(2*Q),maxTurn(e)<90,Math.round(d.roundMax)===Math.round(d.smax)];
+  // out of a slow round: hard turns are back, but top speed is a round away
+  s.mom=s.row.straight_min;d=F.dialOf(s);e=F.envelope(s,'basic');
+  out.slow=[e.hi(2*Q)>=e.lo(2*Q),maxTurn(e)===90,d.roundMax<d.smax,Math.round(d.roundMin)===Math.round(d.smin)];
+  // the round's distance becomes next round's momentum
+  s.mom=null;S.ships.forEach(q=>{if(q!==s)q.alive=false;});
+  F.planSegs('P1',[{pts:[{x:s.x+Math.cos(s.h)*5000,y:s.y+Math.sin(s.h)*5000}]}]);
+  const flown=F.curvesOf(s).reduce((a,g)=>a+g.L,0);
+  f.runExecSync();
+  out.carry=[+s.mom.toFixed(3),+(flown/u).toFixed(3)];
+  // with momentum off, the reach is the plain dial
+  D.sim.set('MOMENTUM',false);d=F.dialOf(s);
+  out.off=[d.roundMin===d.smin,d.roundMax===d.smax,d.kap===d.kapBase];
+  D.sim.set('MOMENTUM',true);
+  // the Hegemony flies by the same rule: each enemy's round sits inside its own window
+  f.load('sb1_fox','sb',null,2);
+  const ok=[];
+  for(let t=0;t<3&&D.phase==='PLAN';t++){
+    const win=D.sim.S.ships.filter(q=>q.faction==='heg'&&q.alive).map(q=>[q,F.dialOf(q)]);
+    f.beginExec();
+    for(const [q,dd] of win){const L=q.sched.reduce((a,g)=>a+g.L,0);ok.push(L>=dd.roundMin-1&&L<=dd.roundMax+1);}
+    while(D.phase==='EXEC')f.stepTick();
+  }
+  out.heg=[ok.length,ok.every(Boolean)];
+  return out;
+ });
+ ok(mom.fresh[0]===mom.fresh[1],'SB momentum: a fresh ship should carry cruise speed '+JSON.stringify(mom.fresh));
+ ok(mom.fast.every(Boolean),'SB momentum: out of a full-speed run it cannot slow far or turn hard '+JSON.stringify(mom.fast));
+ ok(mom.slow.every(Boolean),'SB momentum: out of a slow round it turns hard but cannot reach top speed '+JSON.stringify(mom.slow));
+ ok(Math.abs(mom.carry[0]-mom.carry[1])<0.01,'SB momentum: the round flown should become the next momentum '+JSON.stringify(mom.carry));
+ ok(mom.off.every(Boolean),'SB momentum: the toggle off should give the plain dial '+JSON.stringify(mom.off));
+ ok(mom.heg[0]>0&&mom.heg[1],'SB momentum: enemies should fly inside their own momentum window '+JSON.stringify(mom.heg));
 
  /* ---------- SB AI (the designer, 11 Oct: "the AI needs major work in order to pose a threat") ---------- */
  const ai=await pg.evaluate(()=>{
@@ -664,7 +709,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await ctx2.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,ai,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,feel,mom,ai,b5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
