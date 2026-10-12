@@ -231,6 +231,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  /* ---------- SB ---------- */
  const sb=await pg.evaluate((SAVE_KEY)=>{
   const top=window.DBGarena,D=top.sb,f=D.fn,out={};
+  out.mapDefault=f.MAP_SCALE_();f.setMapScale(1);   // these tests' geometry is the original 4200 × 3000 map (Map below checks the bigger default)
   // 1. the picker: both rulesets first, then the scenarios under the chosen one
   top.fn.openPicker();
   out.rulesets=[...document.querySelectorAll('#arRulesets [data-ruleset-item] b')].map(e=>e.textContent);
@@ -717,6 +718,16 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   // shields: a shield hit flares its arc; the status layer draws without error
   ({S,F,fox}=setup());const e=S.ships.find(x=>x.id==='E1');Object.assign(e,{x:1500,y:1500,h:0});e.segs.F.val=e.segs.F.max;   // a shot travelling west meets its fore arc
   F.hitShip(e,'P1',fox.wpns[0].w,-1000,0,{x:e.x+20,y:e.y,nx:1,ny:0},false,0);
+  // streams: many small bolts, the same damage a second as the old four quarter-rolls every 2 s
+  const share=D.sim.PROJ_DMG_();
+  out.stream=[D.sim.BURST_N_()>=8,D.sim.BURST_N_()/D.sim.BURST_EVERY_()>=8,Math.abs(share*D.sim.BURST_N_()/D.sim.BURST_EVERY_()-D.sim.GUN_DPS_())<1e-9,Math.abs(D.sim.GUN_DPS_()-4*0.25/2)<1e-9];
+  ({S,F,fox}=setup());const tg=S.ships.find(x=>x.id==='E1');Object.assign(tg,{x:1500,y:1500,h:0});tg.segs.F.val=0;tg.segs.R.val=0;const a0=tg.arm+tg.hull;
+  const hr=F.hitShip(tg,'P1',fox.wpns[0].w,-1000,0,{x:tg.x+20,y:tg.y,nx:1,ny:0},false,0);
+  out.stream.push(hr.dmg>0&&hr.dmg<1,Math.abs((a0-tg.arm-tg.hull)-hr.dmg)<1e-9);
+  // weapon range ×: a target at 1.5 × the gun's range is in band at RANGE_MULT 2
+  ({S,F,fox}=setup());const far=S.ships.find(x=>x.id==='E1');Object.assign(far,{x:1200+fox.wpns[0].w.rng*1.5,y:1500});
+  const before=F.canFire(fox,fox.wpns[0],far);D.sim.set('RANGE_MULT',2);const after=F.canFire(fox,fox.wpns[0],far);D.sim.set('RANGE_MULT',1);
+  out.range=[before,after];
   out.shield=[!!e.shFx&&e.shFx.zone==='F',typeof F.drawShields,typeof F.drawStatus,D.sim.STATUS_(),F.shieldR(e)>0];
   return out;
  });
@@ -725,6 +736,20 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(fly.flight[4]<1,'Flight: with PHYSICS off the ship is back on the rails '+JSON.stringify(fly.flight));
  ok(fly.kturn[0]&&fly.kturn[1]<80,'Flight: after a K-Turn the next round flies off the new way '+JSON.stringify(fly.kturn));
  ok(fly.guns[0]===2&&fly.guns[1]&&fly.guns[2].includes('-1')&&fly.guns[2].includes('1')&&fly.guns[3]&&fly.guns[4]>15&&fly.guns[5]&&fly.guns[6]&&fly.guns[7],'Guns: quick bolts from both gun mounts, flying straight '+JSON.stringify(fly.guns));
+ ok(fly.stream.every(Boolean),'Guns: streams of small bolts, the same damage a second '+JSON.stringify(fly.stream));
+ ok(fly.range[0]===false&&fly.range[1]===true,'Guns: RANGE_MULT stretches the guns '+JSON.stringify(fly.range));
+ // the map: the bigger default, with the scenario set in its middle
+ const map=await pg.evaluate(()=>{
+  const D=window.DBGarena.sb,f=D.fn;
+  f.load('e1_fox','sb',null,5);const small=D.sim.S.ships.map(s=>[s.x,s.y]),m1=f.map_();
+  f.setMapScale(2.5);f.load('e1_fox','sb',null,5);const big=D.sim.S.ships.map(s=>[s.x,s.y]),m2=f.map_();
+  const ox=(m2.W-m1.W)/2,oy=(m2.H-m1.H)/2;
+  const ok=big.every((p,i)=>Math.abs(p[0]-small[i][0]-ox)<1e-6&&Math.abs(p[1]-small[i][1]-oy)<1e-6);
+  const rocks=D.sim.S.rocks.length;f.runExecSync();
+  f.setMapScale(1);
+  return {m1,m2,ok,rocks,phase:D.phase};
+ });
+ ok(sb.mapDefault===2.5&&map.m2.W===10500&&map.m2.H===7500&&map.m1.W===4200&&map.ok&&map.rocks>0&&map.phase==='PLAN','Map: 2.5 × by default, the scenario in the middle '+JSON.stringify([sb.mapDefault,map]));
  ok(fly.shield.every(x=>x===true||x==='function'),'Status: shield arcs flare on a hit '+JSON.stringify(fly.shield));
 
  /* ---------- SB feel (the designer, 11 Oct: speed, visible shots, no choppy motion) ---------- */

@@ -271,8 +271,21 @@ const toWorld=(pts,o)=>pts.map(p=>{const c=Math.cos(o.h),sn=Math.sin(o.h);return
    SB shooting (§3): projectiles, lock as a dial, glancing geometry.
    Misses are things that visibly fly past.
    ===================================================================== */
-let BURST_N=4;            // projectiles in a burst. placeholder
-let BURST_EVERY=2.0;      // seconds between a gun's bursts (and a missile rack's launches). placeholder
+/* the designer, 12 October: "I'd prefer more shots that do less damage… more going on visually to the player even if
+   the maths works out the same". A gun fires streams: BURST_N bolts BURST_GAP apart, a stream every BURST_EVERY, so
+   about 10 bolts a second while it has a shot. GUN_DPS fixes the damage a gun deals per second of fire (as a share of
+   its weapon roll), so each bolt's share is GUN_DPS × BURST_EVERY / BURST_N: more bolts, smaller hits, the same
+   damage over a fight. Bolts deal fractions (shields, armour and hull keep the remainder), criticals scale with each
+   bolt's share, and a stream's nerve hit with how often streams come. */
+let BURST_N=8;            // bolts in a stream (was 4). placeholder
+let BURST_EVERY=0.75;     // seconds between a gun's streams (was 2). placeholder
+let BURST_GAP=0.06;       // seconds between a stream's bolts (was 0.08). placeholder
+let GUN_DPS=0.5;          // a gun's damage per second of fire, as a share of its weapon roll (the old 4 × 0.25 every 2 s). placeholder
+let MISSILE_EVERY=2.0;    // seconds between a missile rack's launches (was BURST_EVERY). placeholder
+let RANGE_MULT=1;         // every weapon's range (and the lock range, and pursuit's preferred distance) × this. placeholder
+const CRIT_REF=0.25;      // the bolt share the critical chance was set for (the old quarter roll)
+const shotShare=()=>GUN_DPS*BURST_EVERY/Math.max(1,BURST_N);
+const rngOf=w=>w.rng*RANGE_MULT;
 let PROJ_SPD=2000;        // gun bolt speed, world units a second (was 850 until the designer's 12 Oct note: "they all move too slowly"). placeholder
 const KIND_SPD={plasma:1,laser:1,ballistic:1.25};   // a weapon kind's speed × PROJ_SPD. placeholder
 let BOLT_LEN=22;          // a bolt's drawn length, world units (was a 0.12 s streak). placeholder
@@ -308,16 +321,14 @@ let LOCK_GAIN=0.4;        // lock gained a second with the target dead centre (z
 let LOCK_DECAY=0.5;       // lock lost a second once the target is behind the firer. placeholder
 let IMPACT_MIN=0.2;       // damage scale for the shallowest skim (1.0 dead-on). placeholder
 let LOCK_DMG_MAX=1.0;     // damage × (1 + lock × this): a full lock doubles it. placeholder
-let PROJ_DMG=0.25;        // each projectile's share of a weapon roll: 1 / BURST_N makes a burst one roll, as one attack today. placeholder
 let CRIT_DIRECT=0.10;     // critical chance on a direct hit (impact ≥ 0.8), plus the weapon's own. placeholder
 let HULL_LEN=22,HULL_WID=10;   // the hull ellipse's semi-axes before the ship's visual size. placeholder
-const BURST_GAP=0.08;     // seconds between a burst's projectiles
 /* sound: arena.js's v2 voices (no state, so the sim stays deterministic); bursts are throttled so a furball stays legible */
 let sfxAt={};
 function sfx(k){
   try{
     if(SR.audio.off())return;
-    const now=performance.now();if(now-(sfxAt[k]||0)<(k==='shot'?70:k==='hit'?50:0))return;sfxAt[k]=now;
+    const now=performance.now();if(now-(sfxAt[k]||0)<(k==='shot'?90:k==='hit'?50:0))return;sfxAt[k]=now;
     if(k==='shot')SR.audio.osc('square',900,500,0.015,0.05);
     else if(k==='hit')SR.audio.nz('bandpass',1800,2,0.05,0.08);
     else if(k==='boom')SR.audio.nz('lowpass',600,1,0.12,0.5,0,90);
@@ -440,7 +451,7 @@ function impactOf(vx,vy,hit){
 function lockOf(s,id){return (s.locks&&s.locks[id])||0;}
 function lockTick(s,dt){
   const t=byIdS(s.target);
-  if(t&&t.alive&&inArc(s,t)&&dist(s,t)<=LOCK_RNG&&!losBlocked(s,t)){
+  if(t&&t.alive&&inArc(s,t)&&dist(s,t)<=LOCK_RNG*RANGE_MULT&&!losBlocked(s,t)){
     const c=Math.max(0,1-bearing(s,t)/ARCH);   // full rate dead centre, zero at the arc's edge
     s.locks[t.id]=Math.min(1,lockOf(s,t.id)+LOCK_GAIN*c*dt);
   }
@@ -476,7 +487,7 @@ function canFire(s,q,t){
   if(q.w.kind!=='plasma'&&critCount(s,'feed'))return false;
   if(q.ammo!==undefined&&q.ammo<=0)return false;
   const d=dist(s,t);
-  if(!inArc(s,t)||d>q.w.rng)return false;
+  if(!inArc(s,t)||d>rngOf(q.w))return false;
   if(q.w.needsLock)return lockOf(s,t.id)>=MISSILE_LOCK&&d>=MISSILE_MINR*K().RU;   // enabled at distance, not in a knife fight
   return true;
 }
@@ -484,7 +495,7 @@ function missileRefusal(s,q,t){   // why a missile won't launch (tests, the HUD)
   if(!t||!t.alive)return 'no target';
   if(lockOf(s,t.id)<MISSILE_LOCK)return 'lock';
   if(dist(s,t)<MISSILE_MINR*K().RU)return 'too close';
-  if(!inArc(s,t)||dist(s,t)>q.w.rng)return 'out of band';
+  if(!inArc(s,t)||dist(s,t)>rngOf(q.w))return 'out of band';
   if(q.ammo!==undefined&&q.ammo<=0)return 'ammo';
   return null;
 }
@@ -493,10 +504,10 @@ function fireTick(s,dt){
   const t=byIdS(s.target);
   for(const q of s.wpns){
     if(q.cd>0||!canFire(s,q,t))continue;
-    q.cd=BURST_EVERY;
+    q.cd=q.w.kind==='missile'?MISSILE_EVERY:BURST_EVERY;
     if(q.w.kind==='missile'){
       q.ammo--;s.st.missiles++;
-      S.missiles.push({x:s.x,y:s.y,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:q.w.rng/MISSILE_SPD*1.8,trail:[]});
+      S.missiles.push({x:s.x,y:s.y,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:rngOf(q.w)/MISSILE_SPD*1.8,trail:[]});
     } else {
       s.st.bursts++;
       S.bursts.push({owner:s.id,faction:s.faction,w:q.w,left:BURST_N,next:0,target:t.id,fired:0,hits:0,dmg:0,live:0,hitT:{},id:++S.burstN});
@@ -511,13 +522,13 @@ function emitBursts(dt){
     B.next-=dt;
     while(B.left>0&&B.next<=0){
       const tt=t&&t.alive?t:null;
-      const ang=tt?aimAngle(s,tt,B.w):s.h,d=tt?dist(s,tt):B.w.rng;
+      const ang=tt?aimAngle(s,tt,B.w):s.h,d=tt?dist(s,tt):rngOf(B.w);
       const sp=spreadOf(s,B.w,d),off=(S.rng()-0.5)*sp;
       const h=ang+off,V=projSpd(B.w),q=s.wpns.find(x=>x.w===B.w)||{key:'w0',w:B.w},m=muzzleAt(s,q,B.fired);
       S.proj.push({x:m.x,y:m.y,x0:m.x,y0:m.y,vx:Math.cos(h)*V,vy:Math.sin(h)*V,
-        owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:B.w.rng/V*1.15,age:0,style:PROJ_OF[B.w.id]});
+        owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:rngOf(B.w)/V*1.15,age:0,style:PROJ_OF[B.w.id]});
       S.fx.push({x:m.x,y:m.y,h,t0:S.clockT,kind:'muzzle',reb:s.faction==='reb',own:s.id,key:PROJ_OF[B.w.id]});
-      if(B.fired===0)sfx('shot');
+      sfx('shot');   // throttled: a stream sounds as a stream
       B.left--;B.fired++;B.live++;s.st.shots++;B.next+=BURST_GAP;
       if(s.curKind==='drift'){s.st.driftShots++;if(Math.cos(h-s.vh)<0)s.st.backShots++;}   // sb2_drift's question: shots at the pursuer while fleeing
     }
@@ -528,15 +539,17 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const imp=impactOf(vx,vy,hit);
   const lk=lockAt!=null?lockAt:(s?lockOf(s,t.id):0);
   const roll=w.dmg[0]+Math.floor(S.rng()*(w.dmg[1]-w.dmg[0]+1));
-  const dmg=Math.max(1,Math.round(roll*(homing?1:PROJ_DMG)*imp*(1+lk*LOCK_DMG_MAX)));   // a missile is one warhead: its whole roll
+  const share=homing?1:shotShare(),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
+  const dmg=homing?Math.max(1,Math.round(raw)):raw;   // a missile is one warhead (its whole roll); a bolt its share, fractions kept
   const fromFront=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0;
   const r=applyDamage(t,dmg,w.skipShield,fromFront);
   let crit=null;
-  if(imp>=0.8&&S.rng()<CRIT_DIRECT+(w.crit||0))crit=applyCritical(t);
+  if(imp>=0.8&&S.rng()<(CRIT_DIRECT+(w.crit||0))*(homing?1:share/CRIT_REF))crit=applyCritical(t);   // the same criticals per point of damage
   S.damaged.add(t.id);
   if(s){s.st.hits++;s.st.dmg+=dmg;}
   const kit=K();
-  if(CARDS)kit.addFloater(hit.x,hit.y-18,(imp<0.4?'skim ':imp>=0.8?'direct ':'')+'-'+dmg,imp>=0.8?C.hazard:imp<0.4?C.text3:C.text);
+  if(homing){if(CARDS)kit.addFloater(hit.x,hit.y-18,(imp>=0.8?'direct ':'')+'-'+dmg,C.hazard);}
+  else{t.dmgAcc=(t.dmgAcc||0)+dmg;if(t.dmgT==null)t.dmgT=S.clockT;}   // a stream's hits add up into one number (projTick)
   S.fx.push({x:hit.x,y:hit.y,t0:S.clockT,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx)});
   if(r.sd>0)t.shFx={zone:r.zone,t:S.clockT};   // the shield arc that took it flares
   sfx('hit');
@@ -573,19 +586,24 @@ function projTick(dt){
     if(best){
       const r=hitShip(best.t,p.owner,p.w,p.vx,p.vy,best.h,false,null);
       if(B){B.hits++;B.dmg+=r.dmg;B.live--;
-        if(!B.hitT[best.t.id]){B.hitT[best.t.id]=1;adjCool(best.t,(r.r.ad>0||r.r.hd>0)?-12:-5);}}   // nerve: once a burst, space.js ~979
+        if(!B.hitT[best.t.id]){B.hitT[best.t.id]=1;adjCool(best.t,((r.r.ad>0||r.r.hd>0)?-12:-5)*BURST_EVERY/2);}}   // nerve: once a stream, space.js ~979, scaled to the old 2 s burst so it adds up the same
       continue;
     }
     if(rockHit(p0,p1)||p.age>=p.life){if(B)B.live--;S.fx.push({x:p1.x,y:p1.y,t0:S.clockT,kind:'fizz'});continue;}
     p.x=p1.x;p.y=p1.y;kept.push(p);
   }
   S.proj=kept;
-  // a finished burst leaves its resolution card at the gun
+  // a stream's hits on one ship add up into one damage number every DMG_TICK seconds
+  for(const t of S.ships)if(t.dmgAcc>0&&S.clockT-t.dmgT>=DMG_TICK){
+    if(CARDS&&t.alive)K().addFloater(t.x+(t.dmgN=(t.dmgN||0)+1)%3*14-14,t.y-40,'-'+fmtDmg(t.dmgAcc),C.hazard);
+    t.dmgAcc=0;t.dmgT=null;
+  }
+  // a finished stream leaves its resolution card at the gun (now and then: streams are frequent)
   S.bursts=S.bursts.filter(B=>{
     if(B.left>0||B.live>0)return true;
     const s=byIdS(B.owner);
     if(s&&s.alive&&CARDS){
-      if(S.clockT-(s.lastCard||-9)>0.6){s.lastCard=S.clockT;K().addFloater(s.x,s.y-34,B.hits+'/'+B.fired+' hit'+(B.dmg?' · '+B.dmg+' dmg':''),s.faction==='reb'?C.gold:C.hegHi);}
+      if(S.clockT-(s.lastCard||-9)>CARD_EVERY){s.lastCard=S.clockT;K().addFloater(s.x,s.y-34,B.hits+'/'+B.fired+' hit',s.faction==='reb'?C.gold:C.hegHi);}
     }
     return false;
   });
@@ -743,7 +761,10 @@ let PREF_RANGE=340;   // copied from space.js aiManeuver ~620 (prefD)
 let FLANK=0.55;       // radians each further pursuer of one target sits off the line behind it, alternating sides. placeholder
 let AI_NOISE=0;       // extra score noise on every enemy's choice, in hundredths (0 = each pilot's own). placeholder
 let TELLS=true;       // toggle: draw each doctrine's tell
-let CARDS=true;       // toggle: burst resolution cards and damage numbers (off quiets the screen at the ship cap)
+let CARDS=true;       // toggle: stream resolution cards and damage numbers (off quiets the screen at the ship cap)
+const DMG_TICK=0.35;  // seconds a ship's hits are added up before its damage number pops
+const CARD_EVERY=1.5; // at most one hits/fired card a gun this often
+const fmtDmg=v=>v>=10?String(Math.round(v)):String(+v.toFixed(1));
 function nearestFoe(s){let best=null,bd=1e18;for(const t of S.ships)if(t.alive&&t.faction!==s.faction&&!t.struct){const d=dist(s,t);if(d<bd){bd=d;best=t;}}return best;}
 const SB_DOCTRINES={
   pursuit:{key:'pursuit',weights:{},   // the search's default weights: guns on the target, out of its guns, on its six
@@ -756,7 +777,7 @@ const SB_DOCTRINES={
       return (pose,i)=>{
         const lead=segT*(i+1),px=t.x+t.vx*lead,py=t.y+t.vy*lead;
         const a=Math.atan2(pose.y-py,pose.x-px)+off;
-        return {x:px+Math.cos(a)*PREF_RANGE,y:py+Math.sin(a)*PREF_RANGE};
+        return {x:px+Math.cos(a)*PREF_RANGE*RANGE_MULT,y:py+Math.sin(a)*PREF_RANGE*RANGE_MULT};
       };
     },
     tell(c,s,z){   // a chevron over the pursuer, pointing at its quarry (the lock line is the other half)
@@ -831,7 +852,7 @@ function aiPickTarget(s){   // the nearest hostile, favouring one already in its
 function planSearch(s,kind,weights,mates){
   const EX=K().EXEC_LEN,{W,H,MARGIN,RU}=K(),w=Object.assign({arc:AI_W_ARC,threat:AI_W_THREAT,range:AI_W_RANGE,six:AI_W_SIX},weights||{});
   const t=byIdS(s.target),start=startPose(s),d=dialOf(s);
-  const rng=Math.max(300,...s.wpns.map(q=>q.w.rng),0),trng=t?Math.max(300,...t.wpns.map(q=>q.w.rng),0):0;
+  const rng=Math.max(300,...s.wpns.map(q=>rngOf(q.w)),0),trng=t?Math.max(300,...t.wpns.map(q=>rngOf(q.w)),0):0;
   const pred=t&&t.alive?predictor(t):null;
   const jit=AI_JITTER*Math.max(0.1,1-aimBonus(s)/8)+AI_NOISE/100;
   const env1=envelope(s,kind,d.roundMax);
@@ -873,7 +894,7 @@ function planSearch(s,kind,weights,mates){
       const E=track[track.length-1];
       if(pred){
         const Q=pred(EX),de=Math.hypot(Q.x-E.x,Q.y-E.y);
-        sc-=w.range*Math.abs(de-PREF_RANGE)/PREF_RANGE;
+        sc-=w.range*Math.abs(de-PREF_RANGE*RANGE_MULT)/(PREF_RANGE*RANGE_MULT);
         const bT=Math.abs(angNorm(Math.atan2(E.y-Q.y,E.x-Q.x)-Q.h));
         if(bT>Math.PI/2)sc+=w.six*(bT-Math.PI/2)/(Math.PI/2);                // on its six
         else if(de<AI_OVERSHOOT)sc-=w.six*2*(1-bT/(Math.PI/2))*(1-de/AI_OVERSHOOT);   // overshot, in front of it and close
@@ -1420,13 +1441,13 @@ function drawPlan(c,s,z,kit,now){
   });
 }
 function drawArcAt(c,s,pose,z){   // a planned pose's guns: where a Drift will be pointing
-  const R=Math.max(300,...s.wpns.map(q=>q.w.rng));
+  const R=Math.max(300,...s.wpns.map(q=>rngOf(q.w)));
   c.save();c.translate(pose.x,pose.y);c.rotate(pose.h);
   c.fillStyle=T.rgba(C.psi,0.08);c.strokeStyle=T.rgba(C.psi,0.55);c.lineWidth=1.4/z;c.setLineDash([6/z,6/z]);
   c.beginPath();c.moveTo(0,0);c.arc(0,0,R,-ARCH,ARCH);c.closePath();c.fill();c.stroke();c.restore();
 }
 function drawArc(c,s,z){   // the firing band: the arc out to the longest gun, range bands dashed
-  const reb=s.faction==='reb',col=reb?C.gold:C.heg,R=Math.max(300,...s.wpns.map(q=>q.w.rng));
+  const reb=s.faction==='reb',col=reb?C.gold:C.heg,R=Math.max(300,...s.wpns.map(q=>rngOf(q.w)));
   c.save();c.translate(s.x,s.y);c.rotate(s.h);
   c.fillStyle=T.rgba(col,reb?0.10:0.06);c.strokeStyle=T.rgba(col,0.4);c.lineWidth=1.4/z;
   c.beginPath();c.moveTo(0,0);c.arc(0,0,R,-ARCH,ARCH);c.closePath();c.fill();c.stroke();
@@ -1595,7 +1616,7 @@ function focus(){
   const me=byIdS(S.sel)&&byIdS(S.sel).alive&&byIdS(S.sel).faction==='reb'?byIdS(S.sel):S.ships.find(s=>s.alive&&s.faction==='reb');
   if(!me)return null;
   const t=byIdS(me.target),pts=[{x:me.x,y:me.y}];
-  if(t&&t.alive&&dist(me,t)<1500)pts.push({x:t.x,y:t.y});
+  if(t&&t.alive&&dist(me,t)<1500*Math.max(1,RANGE_MULT))pts.push({x:t.x,y:t.y});
   const lead=me.vx||me.vy?{x:me.x+me.vx*0.8,y:me.y+me.vy*0.8}:null;   // look a little ahead of where it's going
   if(lead)pts.push(lead);
   return pts;
@@ -1676,7 +1697,7 @@ function kindLine(k){
 }
 function actionLine(s,a){
   const cun=s.pilot.cun||1;
-  if(a==='shiftF'||a==='shiftR'){const F=a==='shiftF',seg=s.segs[F?'F':'R'];return 'Swing the '+(F?'fore':'aft')+' shield ('+seg.val+') round to cover the '+(seg.at==='F'?'aft':'fore')+'.';}
+  if(a==='shiftF'||a==='shiftR'){const F=a==='shiftF',seg=s.segs[F?'F':'R'];return 'Swing the '+(F?'fore':'aft')+' shield ('+Math.round(seg.val)+') round to cover the '+(seg.at==='F'?'aft':'fore')+'.';}
   if(a==='boostF'||a==='boostR')return 'Recharge the '+(a==='boostF'?'fore':'aft')+' shield: up to +'+Math.ceil(0.15*maxShield(s)*cun)+'.';
   if(a==='fixcrit')return 'Clear one critical'+(s.crits.length?': '+CRITDEFS[s.crits[0]].name:'')+'.';
   if(a==='lockin')return 'Steady the pilot: +35 nerve (now '+Math.round(s.pilot.cool)+').';
@@ -1817,7 +1838,7 @@ function panelGroup(){
     {key:'NOSE_K',label:'Flight: nose tracking (rad/s)',min:2,max:20,step:0.5,get:()=>NOSE_K,set:v=>{NOSE_K=v;}},
     {key:'NOSE_RATE',label:'Flight: nose top turn rate (rad/s)',min:2,max:20,step:0.5,get:()=>NOSE_RATE,set:v=>{NOSE_RATE=v;}},
     {key:'NOSE_ACC',label:'Flight: nose turn acceleration (rad/s²)',min:10,max:200,step:5,get:()=>NOSE_ACC,set:v=>{NOSE_ACC=v;}},
-    {key:'SPEED_SCALE',label:'Craft speed ×',min:0.5,max:3,step:0.1,get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;}},
+    {key:'SPEED_SCALE',label:'Craft speed ×',min:0.5,max:6,step:0.1,get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;}},
     {key:'SHIP_SCALE',label:'Ship size (drawn and hit) ×',min:0.6,max:2.5,step:0.05,get:()=>SHIP_SCALE,set:v=>{SHIP_SCALE=v;}},
     {key:'BANK_ROLL',label:'Bank roll into turns (visual)',min:0,max:1,step:0.05,get:()=>BANK_ROLL,set:v=>{BANK_ROLL=v;}},
     {key:'SPEED_FLAIR',label:'Acceleration flair',type:'toggle',get:()=>SPEED_FLAIR,set:v=>{SPEED_FLAIR=v;}},
@@ -1830,8 +1851,12 @@ function panelGroup(){
     {key:'SLIP_OUT',label:'Slip: slide wide in a hard turn',min:0,max:80,step:2,get:()=>SLIP_OUT,set:v=>{SLIP_OUT=v;}},
     {key:'SLIP_NOSE',label:'Slip: nose leads a hard turn (rad)',min:0,max:0.8,step:0.02,get:()=>SLIP_NOSE,set:v=>{SLIP_NOSE=v;}},
     {key:'FLAIR_DIP',label:'Flair: turn slowdown',min:0,max:0.8,step:0.05,get:()=>FLAIR_DIP,set:v=>{FLAIR_DIP=v;}},
-    {key:'BURST_N',label:'Burst: projectiles',min:1,max:10,step:1,get:()=>BURST_N,set:v=>{BURST_N=v;}},
-    {key:'BURST_EVERY',label:'Burst: every (s)',min:0.25,max:4,step:0.25,get:()=>BURST_EVERY,set:v=>{BURST_EVERY=v;}},
+    {key:'BURST_N',label:'Guns: bolts a stream',min:1,max:24,step:1,get:()=>BURST_N,set:v=>{BURST_N=v;}},
+    {key:'BURST_EVERY',label:'Guns: a stream every (s)',min:0.25,max:4,step:0.05,get:()=>BURST_EVERY,set:v=>{BURST_EVERY=v;}},
+    {key:'BURST_GAP',label:'Guns: between bolts (s)',min:0.02,max:0.3,step:0.01,get:()=>BURST_GAP,set:v=>{BURST_GAP=v;}},
+    {key:'GUN_DPS',label:'Guns: damage a second × weapon roll',min:0.1,max:3,step:0.05,get:()=>GUN_DPS,set:v=>{GUN_DPS=v;}},
+    {key:'RANGE_MULT',label:'Weapon range ×',min:0.5,max:5,step:0.1,get:()=>RANGE_MULT,set:v=>{RANGE_MULT=v;}},
+    {key:'MISSILE_EVERY',label:'Missile: launch every (s)',min:0.5,max:6,step:0.25,get:()=>MISSILE_EVERY,set:v=>{MISSILE_EVERY=v;}},
     {key:'PROJ_SPD',label:'Gun bolt speed (ballistic ×1.25)',min:400,max:5000,step:100,get:()=>PROJ_SPD,set:v=>{PROJ_SPD=v;}},
     {key:'BOLT_LEN',label:'Gun bolt length (drawn)',min:6,max:80,step:2,get:()=>BOLT_LEN,set:v=>{BOLT_LEN=v;}},
     {key:'SPREAD_BASE',label:'Spread: base (°)',min:0,max:20,step:0.5,get:()=>SPREAD_BASE,set:v=>{SPREAD_BASE=v;}},
@@ -1847,7 +1872,6 @@ function panelGroup(){
     {key:'LOCK_DECAY',label:'Lock: decay per s (behind)',min:0.05,max:2,step:0.05,get:()=>LOCK_DECAY,set:v=>{LOCK_DECAY=v;}},
     {key:'IMPACT_MIN',label:'Impact: skim damage ×',min:0,max:1,step:0.05,get:()=>IMPACT_MIN,set:v=>{IMPACT_MIN=v;}},
     {key:'LOCK_DMG_MAX',label:'Lock: damage bonus at 100%',min:0,max:3,step:0.1,get:()=>LOCK_DMG_MAX,set:v=>{LOCK_DMG_MAX=v;}},
-    {key:'PROJ_DMG',label:'Projectile damage × weapon roll',min:0.05,max:1,step:0.05,get:()=>PROJ_DMG,set:v=>{PROJ_DMG=v;}},
     {key:'CRIT_DIRECT',label:'Crit chance on a direct hit',min:0,max:0.5,step:0.01,get:()=>CRIT_DIRECT,set:v=>{CRIT_DIRECT=v;}},
     {key:'HULL_LEN',label:'Hull ellipse: half-length',min:8,max:40,step:1,get:()=>HULL_LEN,set:v=>{HULL_LEN=v;}},
     {key:'HULL_WID',label:'Hull ellipse: half-width',min:4,max:30,step:1,get:()=>HULL_WID,set:v=>{HULL_WID=v;}},
@@ -1871,8 +1895,8 @@ function panelGroup(){
     get:()=>ARENA_MOVESETS[pr].slice(),set:v=>{ARENA_MOVESETS[pr]=v.slice();}})));
 }
 function metricsRecord(){
-  return S.ships.map(s=>({id:s.id,faction:s.faction,alive:s.alive,x:Math.round(s.x),y:Math.round(s.y),hull:s.hull,shields:totalShield(s),
-    nerve:Math.round(s.pilot.cool),bursts:s.st.bursts,shots:s.st.shots,hits:s.st.hits,dmg:s.st.dmg,missiles:s.st.missiles,kills:s.st.kills,
+  return S.ships.map(s=>({id:s.id,faction:s.faction,alive:s.alive,x:Math.round(s.x),y:Math.round(s.y),hull:+s.hull.toFixed(2),shields:+totalShield(s).toFixed(2),
+    nerve:Math.round(s.pilot.cool),bursts:s.st.bursts,shots:s.st.shots,hits:s.st.hits,dmg:+s.st.dmg.toFixed(2),missiles:s.st.missiles,kills:s.st.kills,
     lockMax:Math.round((s.lockMax||0)*100),arcT:+s.st.arcT.toFixed(2),driftShots:s.st.driftShots,backShots:s.st.backShots,
     fled:!!s.fled,action:s.lastAction||'none',actT:s.actT,kinds:s.lastKinds||[],
     plan:s.faction==='reb'?planMsOf(s.id):undefined}));
@@ -1882,7 +1906,7 @@ function planMsOf(id){const b=(S.planLast||{})[id]||{s1:0,act:0,s2:0};return {s1
 function planSteps(){const t={s1:0,act:0,s2:0};for(const id in (S.planLast||{})){const b=planMsOf(id);t.s1+=b.s1;t.act+=b.act;t.s2+=b.s2;}return t;}
 function ships(){return S.ships;}
 function stateHash(){return S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s.h.toFixed(3),s.hull,s.arm,totalShield(s),Math.round(s.pilot.cool),s.alive?1:0,s.st.shots,s.st.hits].join(',')).join('|')+'#'+S.proj.length+'/'+S.missiles.length;}
-function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+s.hull+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
+function readout(){return S.ships.filter(s=>s.faction==='reb').map(s=>s.id+' nerve '+Math.round(s.pilot.cool)+' · hull '+Math.round(s.hull)+'/'+s.maxHull+' · shots '+s.st.shots+' / hits '+s.st.hits+' · lock max '+Math.round((s.lockMax||0)*100)+'%').join('\n');}
 
 return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,draw,tray,trayAnchor,trayCfg,chips,tipFor,planCount,takeExecFocus,planSteps,hudAction,key_,panelGroup,metricsRecord,ships,stateHash,readout,
   get dbg(){return {S,ARENA_MOVESETS,KINDS,CRITDEFS,ACTIONS,SB_DOCTRINES,fn:{reachOutline,planEnemy,planSearch,predictor,aiPickTarget,fleeCheck,exitGoal,doctrineOf,solveArc,arcLocal,paceSchedule,renderPose,focus,dialOf,distanceLeft,feasible,envelope,kappaOf,buildCurve,curvesOf,fullSchedule,planSegs,setKind,kindsFor,movesetOf,segEnd,poseAt,maxSpeedOf,inArc,bearing,inFrontHemi,
@@ -1891,17 +1915,17 @@ return {key:'sb',name:'SB Test',focus,build,planInput,beginExec,tick,endExec,dra
       nextStep,stepOf,select,arm,pickAction,endHere,keepFacing,goPip,back,clearPlan,trayKinds,actionSlots,tipFor,planCount,fireActions,planned,
       hullHit,hullAxes,impactOf,hitShip,spreadOf,aimAngle,canFire,missileRefusal,lockOf,lockTick,combatTick,projTick,missileTick,fireTick,emitBursts,applyDamage,adjCool,coolState,
       setRng(f){S.rng=f;},setLoadout(id,list){const s=byIdS(id);s.wpns=loadout(s.row,list);return s.wpns;},
-      shoot(id,ang,wkey){const s=byIdS(id),q=s.wpns.find(x=>x.key===(wkey||'w0'))||s.wpns[0],V=projSpd(q.w);S.proj.push({x:s.x,y:s.y,x0:s.x,y0:s.y,vx:Math.cos(ang)*V,vy:Math.sin(ang)*V,owner:s.id,faction:s.faction,w:q.w,burst:0,life:q.w.rng/V*1.15,age:0,style:PROJ_OF[q.w.id]});},
+      shoot(id,ang,wkey){const s=byIdS(id),q=s.wpns.find(x=>x.key===(wkey||'w0'))||s.wpns[0],V=projSpd(q.w);S.proj.push({x:s.x,y:s.y,x0:s.x,y0:s.y,vx:Math.cos(ang)*V,vy:Math.sin(ang)*V,owner:s.id,faction:s.faction,w:q.w,burst:0,life:rngOf(q.w)/V*1.15,age:0,style:PROJ_OF[q.w.id]});},
       mountsOf,muzzleAt,projSpd},
     AP_PER_ROUND_:()=>AP_PER_ROUND,FLYDEF_FACTOR_:()=>FLYDEF_FACTOR,BOOST_MULT_:()=>BOOST_MULT,BOOST_TURN_:()=>BOOST_TURN,KTURN_MAX_:()=>KTURN_MAX,
     BARREL_LAT_:()=>BARREL_LAT,FLAIR_DIP_:()=>FLAIR_DIP,SPEED_FLAIR_:()=>SPEED_FLAIR,flydefImmunity_:()=>flydefImmunity,
     BURST_N_:()=>BURST_N,BURST_EVERY_:()=>BURST_EVERY,PROJ_SPD_:()=>PROJ_SPD,BOLT_LEN_:()=>BOLT_LEN,SPREAD_BASE_:()=>SPREAD_BASE,RANGE_SPREAD_:()=>RANGE_SPREAD,
     SPREAD_AIM_K_:()=>SPREAD_AIM_K,SPREAD_NERVE_K_:()=>SPREAD_NERVE_K,SPREAD_CRIT_:()=>SPREAD_CRIT,MISSILE_LOCK_:()=>MISSILE_LOCK,MISSILE_MINR_:()=>MISSILE_MINR,
     MISSILE_SPD_:()=>MISSILE_SPD,MISSILE_TURN_:()=>MISSILE_TURN,LOCK_GAIN_:()=>LOCK_GAIN,LOCK_DECAY_:()=>LOCK_DECAY,IMPACT_MIN_:()=>IMPACT_MIN,
-    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>PROJ_DMG,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,MOMENTUM_:()=>MOMENTUM,MOM_UP_:()=>MOM_UP,MOM_DOWN_:()=>MOM_DOWN,MOM_TURN_:()=>MOM_TURN,SLIP_OUT_:()=>SLIP_OUT,SLIP_NOSE_:()=>SLIP_NOSE,ACCEL_:()=>ACCEL,BRAKE_:()=>BRAKE,
+    LOCK_DMG_MAX_:()=>LOCK_DMG_MAX,PROJ_DMG_:()=>shotShare(),GUN_DPS_:()=>GUN_DPS,BURST_GAP_:()=>BURST_GAP,RANGE_MULT_:()=>RANGE_MULT,MISSILE_EVERY_:()=>MISSILE_EVERY,SPEED_SCALE_:()=>SPEED_SCALE,BANK_ROLL_:()=>BANK_ROLL,SHIP_SCALE_:()=>SHIP_SCALE,MOMENTUM_:()=>MOMENTUM,MOM_UP_:()=>MOM_UP,MOM_DOWN_:()=>MOM_DOWN,MOM_TURN_:()=>MOM_TURN,SLIP_OUT_:()=>SLIP_OUT,SLIP_NOSE_:()=>SLIP_NOSE,ACCEL_:()=>ACCEL,BRAKE_:()=>BRAKE,
     AI_LOOK_:()=>AI_LOOK,AI_W_ARC_:()=>AI_W_ARC,AI_W_THREAT_:()=>AI_W_THREAT,AI_W_RANGE_:()=>AI_W_RANGE,AI_W_SIX_:()=>AI_W_SIX,AI_SWING_:()=>AI_SWING,AI_OVERSHOOT_:()=>AI_OVERSHOOT,AI_JITTER_:()=>AI_JITTER,PREF_RANGE_:()=>PREF_RANGE,FLANK_:()=>FLANK,AI_NOISE_:()=>AI_NOISE,TELLS_:()=>TELLS,PHYSICS_:()=>PHYSICS,SHOW_FLIGHT_:()=>SHOW_FLIGHT,TRACK_:()=>TRACK,GRIP_:()=>GRIP,THRUST_K_:()=>THRUST_K,LAT_FLOOR_:()=>LAT_FLOOR,WANDER_:()=>WANDER,NOSE_K_:()=>NOSE_K,NOSE_RATE_:()=>NOSE_RATE,NOSE_ACC_:()=>NOSE_ACC,STATUS_:()=>STATUS,SHIELD_W_:()=>SHIELD_W,TRAY_GAP_:()=>TRAY_GAP,TRAY_ICON_:()=>TRAY_ICON,TRAY_FLIP_ZONE_:()=>TRAY_FLIP_ZONE,TIP_DELAY_:()=>TIP_DELAY,showLockedMods_:()=>showLockedMods,CARDS_:()=>CARDS,CRIT_DIRECT_:()=>CRIT_DIRECT,HULL_LEN_:()=>HULL_LEN,HULL_WID_:()=>HULL_WID,
     set(k,v){const m={AP_PER_ROUND:()=>AP_PER_ROUND=v,FLYDEF_FACTOR:()=>FLYDEF_FACTOR=v,BOOST_MULT:()=>BOOST_MULT=v,SPEED_FLAIR:()=>SPEED_FLAIR=v,
-      flydefImmunity:()=>flydefImmunity=v,PROJ_DMG:()=>PROJ_DMG=v,MOMENTUM:()=>MOMENTUM=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v,
+      flydefImmunity:()=>flydefImmunity=v,GUN_DPS:()=>GUN_DPS=v,BURST_EVERY:()=>BURST_EVERY=v,BURST_GAP:()=>BURST_GAP=v,RANGE_MULT:()=>RANGE_MULT=v,MOMENTUM:()=>MOMENTUM=v,SPEED_SCALE:()=>SPEED_SCALE=v,MISSILE_LOCK:()=>MISSILE_LOCK=v,LOCK_GAIN:()=>LOCK_GAIN=v,BURST_N:()=>BURST_N=v,
       PHYSICS:()=>PHYSICS=v,SHOW_FLIGHT:()=>SHOW_FLIGHT=v,TRACK:()=>TRACK=v,GRIP:()=>GRIP=v,WANDER:()=>WANDER=v,NOSE_RATE:()=>NOSE_RATE=v,
       showLockedMods:()=>showLockedMods=v,TRAY_GAP:()=>TRAY_GAP=v,TRAY_ICON:()=>TRAY_ICON=v,TRAY_FLIP_ZONE:()=>TRAY_FLIP_ZONE=v,TIP_DELAY:()=>TIP_DELAY=v,KTURN_MAX:()=>KTURN_MAX=v,BARREL_LAT:()=>BARREL_LAT=v};m[k]();}};}};
 })();

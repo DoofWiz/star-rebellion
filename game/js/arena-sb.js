@@ -42,12 +42,17 @@ const T=SR.theme,C=T.C;
 const SA=window.SR_ART;
 
 /* ---------- world: copied from space.js ~20 (W, H, MARGIN, RU, SU) ---------- */
-const W=4200,H=3000,MARGIN=120,RU=300,SU=150;
+const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
+/* the map (the designer, 12 October: "we also need to make the map a lot bigger"): W0 × H0 × MAP_SCALE. The scenario
+   is laid out as before (casts, rocks) and set in the middle, so starts are as close as they were with room all round. */
+let MAP_SCALE=2.5;             // placeholder (panel 1–4, on the next load or restart)
+const MAP_SCALE_MIN=1,MAP_SCALE_MAX=4;
+let W=W0,H=H0;
 const TICK=50;                 // ms of sim time per tick. placeholder
 let EXEC_LEN=3;                // seconds of sim time per exec: SB's own (v2 keeps 6), so a round's move flies quickly. placeholder (panel 1.5–10)
 let SIM_SPEED=1;               // wall-clock multiplier (panel 0.25–2)
 const EXEC_LEN_MIN=1.5,EXEC_LEN_MAX=10,SIM_SPEED_MIN=0.25,SIM_SPEED_MAX=2;
-const PREFS_KEY='sr-arena-sb-prefs';   // SB Test's own key (v2 keeps sr-arena-prefs); never the campaign's
+const PREFS_KEY='sr-arena-sb-prefs';   // SIM_SPEED and MAP_SCALE   // SB Test's own key (v2 keeps sr-arena-prefs); never the campaign's
 
 /* ---------- seeded RNG (the DBGspace setRng idea, but always on) ---------- */
 function mulberry(seed){let a=seed>>>0;return ()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -70,7 +75,7 @@ const ROCKS={
 function rockLayout(key){
   const L=ROCKS[key]||ROCKS.open,r0=UT.mulberry32(L.seed),out=[];
   const add=(cx,cy)=>{const r=55+r0()*95;const verts=[];const vn=8+Math.floor(r0()*4);for(let k=0;k<vn;k++)verts.push(0.72+r0()*0.4);
-    out.push({x:UT.clamp(cx,MARGIN+r,W-MARGIN-r),y:UT.clamp(cy,MARGIN+r,H-MARGIN-r),r,verts,rot:r0()*Math.PI*2});};
+    out.push({x:UT.clamp(cx,MARGIN+r,W0-MARGIN-r),y:UT.clamp(cy,MARGIN+r,H0-MARGIN-r),r,verts,rot:r0()*Math.PI*2});};
   for(const [cx,cy] of L.clusters||[]){const n=3+Math.floor(r0()*4);for(let i=0;i<n;i++){const a=r0()*Math.PI*2,d=r0()*260;add(cx+Math.cos(a)*d,cy+Math.sin(a)*d);}}
   if(L.belt){const [[x0,y0],[x1,y1]]=L.belt;for(let i=0;i<L.n;i++){const k=(i+r0()*0.6)/L.n,a=r0()*Math.PI*2,d=r0()*L.spread;add(x0+(x1-x0)*k+Math.cos(a)*d,y0+(y1-y0)*k+Math.sin(a)*d);}}
   if(L.box){const [bx0,by0,bx1,by1]=L.box;for(let i=0;i<L.n;i++)add(bx0+r0()*(bx1-bx0),by0+r0()*(by1-by0));}
@@ -111,7 +116,7 @@ function resolveCast(R){
   const out=[];
   const pl=R.player||[];
   pl.forEach((p,i)=>{
-    const at=p.at||formation(R.playerAt||[700,H*0.62,-0.35],i,pl.length);
+    const at=p.at||formation(R.playerAt||[700,H0*0.62,-0.35],i,pl.length);
     const row=SRDB.ship(p.cls||'talon')||SRDB.ship('talon'),nm=p.name||('Fox '+(i+1));
     out.push({id:'P'+(i+1),name:nm,faction:'reb',row,cls:keyOf(row),x:at[0],y:at[1],h:at[2],pilot:presetPilot(p.pilot,nm),
       lead:i===0,flees:false,doctrine:null,loadout:p.loadout});
@@ -121,7 +126,7 @@ function resolveCast(R){
     const n=e.id?1:(e.n||1),r=Enemies.space(e.type),row=SRDB.ship(r.ship);
     for(let i=0;i<n;i++){
       eN++;
-      const at=e.at&&n===1?e.at:formation(e.at||[W-800,H*0.38,Math.PI-0.35],i,n);
+      const at=e.at&&n===1?e.at:formation(e.at||[W0-800,H0*0.38,Math.PI-0.35],i,n);
       const label=row.name.split(' ').pop(),nm=e.name||(label+' '+eN);
       const pilot=e.preset?presetPilot({preset:e.preset},nm):dbPilotOf(e.pilot||r.pilot,nm);
       if(r.nerve_cap!=null)pilot.coolCap=r.nerve_cap;
@@ -147,7 +152,9 @@ function camFit(){cam.z=fitZoom();cam.x=W/2;cam.y=H/2;}
 function clampCam(){const z0=fitZoom();cam.z=Math.max(z0*0.8,Math.min(2.2,cam.z));cam.x=Math.max(0,Math.min(W,cam.x));cam.y=Math.max(0,Math.min(H,cam.y));}
 const toWorld=(px,py)=>({x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y});
 const iconBoost=()=>Math.max(1,Math.min(2.8,0.55/cam.z));
-const stars=[];(function(){const r=mulberry(99);for(let i=0;i<420;i++)stars.push({x:r()*W,y:r()*H,r:0.7+r()*1.1,band:Math.floor(r()*4)});})();
+const stars=[];
+function makeStars(){stars.length=0;const r=mulberry(99),n=Math.min(3000,Math.round(420*W*H/(W0*H0)));for(let i=0;i<n;i++)stars.push({x:r()*W,y:r()*H,r:0.7+r()*1.1,band:Math.floor(r()*4)});}
+makeStars();
 function drawBackdrop(c){
   c.fillStyle=C.void||'#0a0c22';c.fillRect(0,0,W,H);
   // stars in four brightness bands, one fill each (one arc per star was most of the frame's cost)
@@ -235,7 +242,7 @@ function drawFloaters(c,now){
   c.restore();
 }
 /* what every ruleset gets from the chassis */
-const kit={W,H,MARGIN,RU,SU,cam,iconBoost,drawShipBody,addFloater,
+const kit={get W(){return W;},get H(){return H;},MARGIN,RU,SU,cam,iconBoost,drawShipBody,addFloater,
   toScreen:(x,y)=>({x:(x-cam.x)*cam.z+cssW/2,y:(y-cam.y)*cam.z+cssH/2}),get dpr(){return dpr;},
   get EXEC_LEN(){return EXEC_LEN;},get TICK(){return TICK;},get phase(){return A.phase;},
   refresh(){syncHud();},
@@ -355,7 +362,9 @@ function load(id,ruleset,variantIdx,seed){
   A.turn=1;A.execT=0;A.simTotal=0;A.acc=0;A.objStep=0;A.result=null;A.floaters=[];
   const Rs=resolveScenario(scn,A.variant||0);
   if(Rs.tune&&Rs.tune.EXEC_LEN)EXEC_LEN=Rs.tune.EXEC_LEN;
-  const world={scenario:scn,variantLabel:Rs.variantLabel,cast:resolveCast(Rs),rocks:rockLayout(Rs.rocks||'open'),objective:Rs.objective,tune:Rs.tune||{}};
+  W=Math.round(W0*MAP_SCALE);H=Math.round(H0*MAP_SCALE);makeStars();
+  const ox=(W-W0)/2,oy=(H-H0)/2,shift=o=>{o.x+=ox;o.y+=oy;return o;};   // the scenario's layout, set in the middle
+  const world={scenario:scn,variantLabel:Rs.variantLabel,cast:resolveCast(Rs).map(shift),rocks:rockLayout(Rs.rocks||'open').map(shift),objective:Rs.objective,tune:Rs.tune||{},offset:{x:ox,y:oy}};
   A.world=world;A.mod=R.mod;
   A.mod.build(world,mulberry(A.seed),kit);
   byId('sbPicker').hidden=true;byId('sbEnd').hidden=true;
@@ -430,6 +439,7 @@ function globalGroup(){
   return [
     {key:'EXEC_LEN',label:'Exec length (s)',min:EXEC_LEN_MIN,max:EXEC_LEN_MAX,step:0.5,get:()=>EXEC_LEN,set:v=>{EXEC_LEN=v;}},
     {key:'SIM_SPEED',label:'Sim speed (×)',min:SIM_SPEED_MIN,max:SIM_SPEED_MAX,step:0.25,get:()=>SIM_SPEED,set:v=>{SIM_SPEED=v;savePrefs();}},
+    {key:'MAP_SCALE',label:'Map size × (on restart)',min:MAP_SCALE_MIN,max:MAP_SCALE_MAX,step:0.25,get:()=>MAP_SCALE,set:v=>{MAP_SCALE=v;savePrefs();}},
     {key:'FOLLOW',label:'Chase camera while it runs',type:'toggle',get:()=>FOLLOW,set:v=>{FOLLOW=v;}},
   ];
 }
@@ -474,8 +484,8 @@ function panelAct(a){
   else if(a==='title')backToTitle();
 }
 function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_METRICS_DUMP '+s);}catch(e){}addFloater(cam.x,cam.y,'METRICS DUMPED TO CONSOLE',C.psi);return s;}
-function savePrefs(){try{localStorage.setItem(PREFS_KEY,JSON.stringify({SIM_SPEED}));}catch(e){}}
-function loadPrefs(){try{const p=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(p&&p.SIM_SPEED)SIM_SPEED=Math.max(SIM_SPEED_MIN,Math.min(SIM_SPEED_MAX,+p.SIM_SPEED));}catch(e){}}
+function savePrefs(){try{localStorage.setItem(PREFS_KEY,JSON.stringify({SIM_SPEED,MAP_SCALE}));}catch(e){}}
+function loadPrefs(){try{const p=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(p&&p.SIM_SPEED)SIM_SPEED=Math.max(SIM_SPEED_MIN,Math.min(SIM_SPEED_MAX,+p.SIM_SPEED));if(p&&p.MAP_SCALE)MAP_SCALE=Math.max(MAP_SCALE_MIN,Math.min(MAP_SCALE_MAX,+p.MAP_SCALE));}catch(e){}}
 
 /* ---------- top bar, the planning tray, Execute, read-outs ---------- */
 function syncTop(){
@@ -657,7 +667,7 @@ const dbg={A,RULESETS,get scenarios(){return scenarios();},get phase(){return A.
   fn:{load,restart,beginExec,runExecSync,finishExec,stepTick,showPicker,toRulesets,dumpMetrics,stateHash,resolveCast,resolveScenario,rockLayout,checkObjective,
     setSeed(n){A.seed=n>>>0;},
     addScenario(s){scenarios().push(s);if(A.phase==='PICK'&&A.active)renderPicker();return s;},
-    setExecLen(v){EXEC_LEN=v;},setSimSpeed(v){SIM_SPEED=v;},
+    setExecLen(v){EXEC_LEN=v;},setSimSpeed(v){SIM_SPEED=v;},setMapScale(v){MAP_SCALE=v;savePrefs();},MAP_SCALE_:()=>MAP_SCALE,map_:()=>({W,H,W0,H0}),
     TICK_:()=>TICK,EXEC_LEN_:()=>EXEC_LEN,SIM_SPEED_:()=>SIM_SPEED,FOLLOW_:()=>FOLLOW,setFollow(v){FOLLOW=!!v;},chase,camFrame,
     toWorld,cam_:()=>cam,placeTray,showTip,hideTip,syncHud,
     spriteCount:()=>sprites.size,
