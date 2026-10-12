@@ -16,7 +16,8 @@
    own browser context: 1 ruleset isolation   6 determinism with pauses   7 the reinforcement clock
      T1: Attack, Escort and Withdraw fly themselves; the HUD's top band, roster, tray, time controls
      2 order persistence   3 tactic effect   4 Preservation within one think tick
-     T2: the other six orders, the rules panel, morale and panic, assessments, the feed and VIEW, live camera tiles */
+     T2: the other six orders, the rules panel, morale and panic, assessments, the feed and VIEW, live camera tiles
+     5 commands   8 doctrine   T3: Wren's pin answered three ways, the pilot panel, the drawer, target-first */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1119,6 +1120,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.load('hc1_nightfall',0,12);
   const M=SIM.fn.MORALE_();
   const pil=by('P3');
+  SIM.setDoctrine('P3','lockin','MANUAL');   // else Lock In (AUTO) catches the panic before it lands (HC 8)
   const ladder=v=>{pil.pilot.cool=v;return SIM.moraleOf(pil);};
   out.morale=[ladder(M.EAGER+1),ladder(M.SHAKEN+1),ladder(M.SHAKEN-1),ladder(M.PANIC-1)];
   SIM.step();SIM.runFor(0.6);
@@ -1163,10 +1165,120 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc2.feed[0]>=3&&hc2.feed[1]>=1&&/kill|loss/.test(hc2.feed[2])&&hc2.feed[3]<5&&hc2.feed[4]&&(hc2.feed[5]===0||hc2.feed[6]===hc2.feed[5]-1),'HC T2: the feed, VIEW and Tab '+JSON.stringify(hc2.feed));
  ok(hc2.tiles.every(Boolean),'HC T2: live camera tiles '+JSON.stringify(hc2.tiles));
  ok(hc2.tray[0]===8&&hc2.tray[1]===6&&hc2.tray[2]==='true'&&/Engage a designated target: click the objective, a ship class, or a station/.test(hc2.tray[3])&&hc2.tray[4],'HC T2: the tray '+JSON.stringify(hc2.tray));
+ /* ---------- High Command T3: commands, CP, doctrine, emergencies and their answers ---------- */
+ const hc3=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),q=s=>document.querySelector('#arHc '+s);
+  // 5. Override: a better local target (a guard on Joss's tail) is ignored for the designation; CP decrements
+  const setup=()=>{f.load('hc1_nightfall',0,31);S().rocks.length=0;
+    const joss=by('P1'),g=by('E2'),relay=by('relay');
+    for(const s of S().ships)if(s.faction==='heg'&&!s.struct&&s!==g)s.alive=false;
+    joss.x=relay.x-1400;joss.y=relay.y;joss.vh=joss.h=0;joss.vx=200;joss.vy=0;
+    g.x=joss.x-300;g.y=joss.y;g.h=g.vh=0;g.vx=200;g.vy=0;g.doctrine='hunt';
+    for(const id of ['P2','P3'])by(id).x=500;
+    SIM.runFor(1.2);return {joss,g};};
+  let {joss,g}=setup();
+  out.local=[joss.beh.kind,joss.beh.target,joss.beh.why];
+  ({joss,g}=setup());
+  const cp0=S().cp,r1=SIM.command('override',{id:'P1'});
+  SIM.runFor(1.2);
+  out.override=[r1.ok,cp0-S().cp,joss.beh.kind,joss.beh.target,joss.beh.why,S().m.byCommand.override];
+  // Recall disengages: withdraw at a burn, toward the extraction point
+  const r2=SIM.command('recall',{id:'P1'}),ex=SIM.fn.withdrawPoint(joss),d0=Math.hypot(joss.x-ex.x,joss.y-ex.y);   // the rally point: the jump is jammed
+  SIM.runFor(3);
+  out.recall=[r2.ok,joss.beh.kind,joss.beh.why,Math.round(d0-Math.hypot(joss.x-ex.x,joss.y-ex.y))>300,S().cp];
+  // CP runs out: a command it can't pay for is refused, and nothing is spent
+  S().cp=0;out.broke=[SIM.command('support',{id:'P2'}).ok,SIM.commandRefusal('support',{id:'P2'}),S().cp];
+  // Reinforcement Request stays disabled without reserves (in the drawer too); the DESIGN OPEN rows too
+  S().cp=5;
+  f.openDrawer(null);f.syncHud();
+  const row=k=>q('#hcCmds [data-cmd="'+k+'"]');
+  out.drawer=[document.querySelectorAll('#hcCmds [data-cmd]').length,row('reinforce').getAttribute('aria-disabled'),row('scramble').getAttribute('aria-disabled'),row('hack').getAttribute('aria-disabled'),
+    SIM.command('reinforce',null).ok,S().cp,q('#hcCmds .hc-cmd--abort')!==null,!!document.querySelector('#hcCmds .hc-cmd:last-child.hc-cmd--abort')];
+  // command-first: pick Emergency Support, then click a ship on the map
+  by('P2').segs.F.val=0;
+  row('support').click();
+  out.cmdFirst=[H.A.cmdArm];
+  f.mapClick({x:by('P2').x,y:by('P2').y});
+  out.cmdFirst.push(by('P2').segs.F.val===by('P2').segs.F.max,S().cp,H.A.drawer);
+  // target-first: right-click a ship: only the ship commands; a place: only Decoy
+  f.openDrawer({id:'P3'});f.syncHud();
+  out.tgtFirst=[[...document.querySelectorAll('#hcCmds .hc-cmds__list [data-cmd]')].map(e=>e.dataset.cmd).join()];
+  f.openDrawer({x:3000,y:3000});f.syncHud();
+  out.tgtFirst.push([...document.querySelectorAll('#hcCmds .hc-cmds__list [data-cmd]')].map(e=>e.dataset.cmd).join());
+  q('#hcCmds [data-cmd="decoy"]').click();
+  out.tgtFirst.push(S().decoys.length,S().cp);
+  // Decoy and Recon do something: a Hegemony pilot near the decoy chases it; recon times out
+  g.alive=true;g.x=3500;g.y=3000;SIM.runFor(1);
+  out.decoy=[g.beh.kind];
+  out.recon=[SIM.command('recon',null).ok,S().reconUntil>S().t];
+  // Abort ends the mission, free, and only after the confirm click
+  S().cp=0;f.openDrawer(null);f.syncHud();
+  q('#hcCmds [data-cmd="abort"]').click();const armed=!S().over;
+  q('#hcCmds [data-cmd="abort"]').click();
+  out.abort=[armed,S().over&&S().over.outcome,H.phase,!document.getElementById('hcEnd').hidden];
+  // 8. doctrine: MANUAL never fires by itself; EMERG fires only under its trigger; AUTO under either
+  f.load('hc1_nightfall',0,32);
+  for(const s of S().ships)if(s.faction==='heg'&&!s.struct)s.alive=false;
+  const p=by('P2');   // Wren: regular, Boost Shields / Lock In / Boost
+  out.abil=SIM.abilitiesOf('P2').join();
+  SIM.setDoctrine('P2','lockin','MANUAL');SIM.setDoctrine('P2','shields','EMERG');
+  p.pilot.cool=30;   // SHAKEN: Lock In's AUTO trigger
+  p.segs.F.val=2;p.segs.R.val=2;p.hitT=S().t;   // shields low and under fire: Boost Shields' AUTO trigger, not its emergency one
+  SIM.runFor(1);
+  const fired=()=>(p.abLog||[]).filter(e=>e.k!=='boost').map(e=>e.k+':'+e.how).join();
+  out.doc=[fired()];
+  p.segs.F.val=0;p.segs.R.val=0;p.hitT=S().t+0.5;   // shields gone and still hit: the emergency trigger
+  SIM.step();
+  out.doc.push(fired());
+  const m=SIM.useAbility('P2','lockin');out.doc.push(m.ok,fired(),Math.round(p.pilot.cool));
+  SIM.setDoctrine('P2','lockin','AUTO');p.pilot.cool=30;p.abCd.lockin=0;SIM.runFor(0.6);out.doc.push(fired());
+  // T3 proof: Wren's pin, answered three ways from the same moment, plays out three ways
+  const toPin=()=>{f.load('hc1_nightfall',0,7);let n=0;while(!by('P2').emerg&&n++<4000)SIM.step();return S().tick;};
+  const tk=toPin();
+  out.pin=[tk<4000,by('P2').emerg&&by('P2').emerg.kind,S().events.filter(e=>e.kind==='emergency').length];
+  // the alert in the feed, with its answers; the pilot panel from VIEW, hazard-tinted, the recommended answer gold
+  f.syncHud();
+  const ev=S().events.find(e=>e.kind==='emergency');
+  out.alert=[[...document.querySelectorAll('#hcFeed .hc-ev.is-live [data-resp]')].map(b=>b.dataset.resp).join()];
+  f.viewEvent(ev.id);f.syncHud();
+  out.alert.push(H.A.panel,q('#hcPilot').classList.contains('is-emerg'),(q('#hcPilot .sr-btn--primary')||{}).dataset&&q('#hcPilot .sr-btn--primary').dataset.resp,
+    document.querySelectorAll('#hcPilot .hc-abil').length,document.querySelectorAll('#hcPilot .hc-seg__b.is-on').length);
+  const branch=(how)=>{
+    toPin();const w=by('P2');
+    if(how==='override')q('#hcPilot')&&(f.openPilot('P2'),f.syncHud(),q('#hcPilot [data-resp="override"]').click());
+    else f.respond('P2',how);
+    const cp=S().cp;SIM.runFor(1);
+    const helper=S().ships.find(s=>s.helping&&s.helping.id==='P2');
+    SIM.runFor(7);
+    return {hash:SIM.stateHash(),cp,kind:w.beh&&w.beh.kind,why:w.beh&&w.beh.why,alive:w.alive,away:Math.round(Math.hypot(w.x-SIM.fn.extractPoint().x,w.y-SIM.fn.extractPoint().y)),
+      helper:helper?helper.id+':'+helper.beh.kind+':'+helper.beh.why:null,resp:(S().m.emergencies.find(e=>e.ship==='P2')||{}).resp,answered:S().m.alerts[0]&&S().m.alerts[0].answered};
+  };
+  const bo=branch('override'),br=branch('recall'),bw=branch('wingmate');
+  out.branches={bo,br,bw};
+  return out;
+ });
+ ok(hc3.local[0]==='engage'&&hc3.local[1]==='E2'&&hc3.local[2]==='self-defence','HC 5: without Override the guard on Joss\'s tail is the better local target '+JSON.stringify(hc3.local));
+ ok(hc3.override[0]&&hc3.override[1]===1&&hc3.override[2]==='engage'&&hc3.override[3]==='relay'&&hc3.override[5]===1,'HC 5: Override redirects to the designation and costs 1 CP '+JSON.stringify(hc3.override));
+ ok(hc3.recall[0]&&hc3.recall[1]==='withdraw'&&hc3.recall[2]==='command: recall'&&hc3.recall[3],'HC 5: Recall disengages '+JSON.stringify(hc3.recall));
+ ok(hc3.broke[0]===false&&/command points/.test(hc3.broke[1])&&hc3.broke[2]===0,'HC 5: no CP, no command '+JSON.stringify(hc3.broke));
+ ok(hc3.drawer[0]===9&&hc3.drawer[1]==='true'&&hc3.drawer[2]==='true'&&hc3.drawer[3]==='true'&&hc3.drawer[4]===false&&hc3.drawer[5]===5&&hc3.drawer[6]&&hc3.drawer[7],'HC 5: the drawer, Reinforcement Request disabled without reserves, Abort last '+JSON.stringify(hc3.drawer));
+ ok(hc3.cmdFirst[0]==='support'&&hc3.cmdFirst[1]&&hc3.cmdFirst[2]===4&&hc3.cmdFirst[3]===false,'HC T3: command first, then the target '+JSON.stringify(hc3.cmdFirst));
+ ok(hc3.tgtFirst[0]==='override,recall,support'&&hc3.tgtFirst[1]==='decoy'&&hc3.tgtFirst[2]===1&&hc3.tgtFirst[3]===3,'HC T3: target first (right-click) '+JSON.stringify(hc3.tgtFirst));
+ ok(hc3.decoy[0]==='decoyed'&&hc3.recon.every(Boolean),'HC T3: Decoy draws a pilot; Recon runs '+JSON.stringify([hc3.decoy,hc3.recon]));
+ ok(hc3.abort[0]&&hc3.abort[1]==='aborted'&&hc3.abort[2]==='OVER'&&hc3.abort[3],'HC 5: Abort (free, confirmed) ends the mission '+JSON.stringify(hc3.abort));
+ ok(hc3.abil==='shields,lockin,boost','HC 8: Wren\'s abilities '+hc3.abil);
+ ok(hc3.doc[0]===''&&hc3.doc[1]==='shields:emerg'&&hc3.doc[2]===true&&hc3.doc[3]==='shields:emerg,lockin:manual'&&hc3.doc[4]>=60&&/lockin:want$/.test(hc3.doc[5]),'HC 8: MANUAL never auto-fires; EMERG only under its trigger '+JSON.stringify(hc3.doc));
+ ok(hc3.pin[0]&&hc3.pin[1]==='pinned'&&hc3.pin[2]===1,'HC T3: Wren is pinned in hc1 '+JSON.stringify(hc3.pin));
+ ok(/override/.test(hc3.alert[0])&&/wingmate/.test(hc3.alert[0])&&hc3.alert[1]==='P2'&&hc3.alert[2]&&hc3.alert[3]&&hc3.alert[4]===3&&hc3.alert[5]===3,'HC T3: the alert, the pilot panel '+JSON.stringify(hc3.alert));
+ const B=hc3.branches;
+ ok(B.bo.hash!==B.br.hash&&B.br.hash!==B.bw.hash&&B.bo.hash!==B.bw.hash,'HC T3: three answers, three outcomes '+JSON.stringify(B));
+ ok(B.br.kind==='withdraw'&&B.br.cp===3&&B.bo.cp===4&&B.bw.cp===5&&B.bw.helper&&/engage|escort/.test(B.bw.helper)&&B.bo.why==='command: override'||B.bo.alive===false,'HC T3: Recall withdraws (2 CP), Override holds (1 CP), a wingmate goes free '+JSON.stringify(B));
+ ok(B.bo.resp==='override'&&B.br.resp==='recall'&&B.bw.resp==='wingmate'&&typeof B.bw.answered==='number','HC T3: each answer is recorded with its time '+JSON.stringify([B.bo.resp,B.br.resp,B.bw.resp,B.bw.answered]));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

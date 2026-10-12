@@ -378,3 +378,64 @@
   #arHc .hc-stage{margin-right:44px;}
   #arHc .hc-feed{width:240px;}
 }
+/* High Command T3: the emergency responses in the feed, the pilot panel, the commands drawer */
+#arHc .hc-ev.is-live{border-color:var(--sr-hazard);box-shadow:0 0 0 1px var(--sr-hazard);}
+#arHc .hc-ev__resp{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:4px;}
+#arHc .hc-resp{height:24px;padding:0 7px;border-radius:var(--sr-r-sm);border:1.5px solid var(--sr-seam);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+#arHc .hc-resp:hover,#arHc .hc-resp:focus-visible{border-color:var(--sr-gold);outline:none;}
+#arHc .hc-resp.is-rec{border-color:var(--sr-gold);color:var(--sr-gold);}
+#arHc .hc-resp[aria-disabled="true"],#arHc .sr-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;}
+#arHc .hc-cpc{display:inline-grid;place-items:center;min-width:15px;height:15px;padding:0 3px;border-radius:3px;background:var(--sr-gold);color:var(--sr-gold-ink);font:800 10px/1 var(--sr-font-ui);}
+#arHc .sr-btn--primary .hc-cpc{background:var(--sr-gold-ink);color:var(--sr-gold);}
+#arHc .hc-free{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-go);text-transform:uppercase;letter-spacing:.05em;}
+#arHc .hc-pilot{padding:0;overflow:auto;}
+#arHc .hc-pilot.is-emerg{border-color:var(--sr-hazard);box-shadow:0 0 0 2px var(--sr-hazard),var(--sr-float);}
+#arHc .hc-pilot__cam{display:block;width:100%;height:auto;aspect-ratio:680/150;border-radius:var(--sr-r-lg) var(--sr-r-lg) 0 0;background:var(--sr-void);border-bottom:2px solid var(--sr-ink);}
+#hcPilotBody{padding:8px 12px 12px;}
+#arHc .hc-pilot__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#arHc .hc-pilot__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);color:var(--sr-rebel);}
+#arHc .hc-pilot__sub{color:var(--sr-text-3);font-weight:700;}
+#arHc .hc-mor{height:20px;padding:0 7px;display:inline-flex;align-items:center;border-radius:999px;border:1.5px solid var(--sr-text-2);color:var(--sr-text-2);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;}
+#arHc .hc-mor[data-m="EAGER"]{border-color:var(--sr-go);color:var(--sr-go);}
+#arHc .hc-mor[data-m="SHAKEN"]{border-color:var(--sr-gold);color:var(--sr-gold);}
+#arHc .hc-mor[data-m="PANICKED"]{border-color:var(--sr-hazard);color:var(--sr-hazard);background:color-mix(in srgb,var(--sr-hazard) 15%,transparent);}
+#arHc .hc-pilot__bars{display:flex;flex-direction:column;gap:3px;margin:8px 0;}
+#arHc .hc-pbar{display:grid;grid-template-columns:56px 1fr 44px;align-items:center;gap:6px;color:var(--sr-text-3);font-weight:700;}
+#arHc .hc-pbar i{display:block;height:7px;border-radius:4px;background:var(--sr-void);box-shadow:inset 0 0 0 1px var(--sr-ink);overflow:hidden;}
+#arHc .hc-pbar b{display:block;height:100%;}
+#arHc .hc-pbar.is-hull b{background:var(--sr-go);} #arHc .hc-pbar.is-arm b{background:var(--sr-steel);} #arHc .hc-pbar.is-shd b{background:var(--sr-shield);}
+#arHc .hc-pbar em{font-style:normal;color:var(--sr-text);text-align:right;font-variant-numeric:tabular-nums;}
+#arHc .hc-pilot__line{color:var(--sr-text-2);font-weight:600;line-height:1.4;}
+#arHc .hc-pilot__line b{color:var(--sr-text);}
+#arHc .hc-pilot__line q{color:var(--sr-text);font-style:italic;}
+#arHc .hc-pilot__line .is-rule{color:var(--sr-shield);font-weight:800;}
+#arHc .hc-abil{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;margin:0 0 4px;}
+#arHc .hc-abil__name{font-weight:800;}
+#arHc .hc-seg{display:inline-flex;border:1.5px solid var(--sr-seam);border-radius:var(--sr-r-sm);overflow:hidden;}
+#arHc .hc-seg__b{height:22px;padding:0 6px;border:0;background:var(--sr-night);color:var(--sr-text-3);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.04em;cursor:pointer;}
+#arHc .hc-seg__b+.hc-seg__b{border-left:1.5px solid var(--sr-seam);}
+#arHc .hc-seg__b.is-on{background:var(--sr-shield);color:var(--sr-ink);}
+#arHc .hc-seg__b:focus-visible{outline:2px solid var(--sr-gold);outline-offset:-2px;}
+#arHc .hc-use{min-width:44px;height:22px;padding:0 6px;border-radius:var(--sr-r-sm);border:1.5px solid var(--sr-seam);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);cursor:pointer;}
+#arHc .hc-use[aria-disabled="true"]{opacity:.5;cursor:default;}
+#arHc .hc-pilot__resp{display:flex;flex-wrap:wrap;gap:6px;}
+#arHc .hc-pilot__resp .sr-btn{min-height:32px;padding:0 10px;font-size:var(--sr-fs-xs);}
+#arHc .hc-cmds{position:absolute;right:12px;top:70px;z-index:5;width:min(330px,calc(100% - 24px));max-height:calc(100% - 170px);overflow:auto;padding:10px 12px;
+  background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);font-size:var(--sr-fs-xs);}
+#arHc .hc-cmds__head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+#arHc .hc-cmds__title{font:400 var(--sr-fs-md)/1 var(--sr-font-display);}
+#arHc .hc-cmds__cp{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-gold);}
+#arHc .hc-cmds__for,#arHc .hc-cmds__arm{margin:0 0 6px;color:var(--sr-text-2);font-weight:700;}
+#arHc .hc-cmds__arm{color:var(--sr-gold);}
+#arHc .hc-cmds__arm .sr-btn{min-height:24px;margin-left:6px;}
+#arHc .hc-cmds__list{display:flex;flex-direction:column;gap:4px;}
+#arHc .hc-cmd{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:0 10px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+#arHc .hc-cmd:hover,#arHc .hc-cmd:focus-visible{border-color:var(--sr-gold);outline:none;}
+#arHc .hc-cmd.is-armed{border-color:var(--sr-gold);box-shadow:0 0 0 2px var(--sr-gold);}
+#arHc .hc-cmd[aria-disabled="true"]{background:var(--sr-night);color:var(--sr-text-3);cursor:not-allowed;}
+#arHc .hc-cmd__name{flex:1 1 auto;}
+#arHc .hc-cmd__cost{display:inline-flex;gap:4px;}
+#arHc .hc-cmd__cost i{width:9px;height:9px;transform:rotate(45deg);background:var(--sr-gold);border-radius:1px;}
+#arHc .hc-cmd[aria-disabled="true"] .hc-cmd__cost i{background:var(--sr-seam);}
+#arHc .hc-cmd--abort{margin-top:8px;background:transparent;border-color:var(--sr-hazard);color:var(--sr-hazard);}
+#arHc .hc-cmd--abort.is-armed{background:var(--sr-hazard);color:var(--sr-ink);box-shadow:none;}

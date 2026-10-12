@@ -261,6 +261,21 @@ function render(now){
     const p=pos(s),reb=s.faction==='reb';
     dashLine(ctx,p,s.intent,reb?(s.quiet?C.steel:C.rebel):C.heg,z,reb?1.8:1.2,[7,7],reb?0.85:0.32);
   }
+  const recon=S.reconUntil>S.t;
+  if(recon)for(const s of S.ships){   // Recon Sweep: every Hegemony intent at full strength, with its target named
+    if(!s.alive||s.faction!=='heg'||s.struct||!s.beh)continue;
+    const t=SIM.fn.byId(s.beh.target);if(!t)continue;
+    const p=pos(s);dashLine(ctx,p,t,C.heg,z,1.8,[3,6],0.9);
+    label(ctx,(p.x+t.x)/2,(p.y+t.y)/2-8/z,s.name+' → '+t.name,C.hegHi,z,10);
+  }
+  if(recon&&!S.reinforce.spawned){const e=S.reinforce.edge,g=260;ctx.save();ctx.fillStyle=TH.rgba(C.hazard,0.12);
+    const M=SIM.MARGIN;if(e==='E')ctx.fillRect(SIM.W-M-g,M,g,SIM.H-2*M);if(e==='W')ctx.fillRect(M,M,g,SIM.H-2*M);if(e==='N')ctx.fillRect(M,M,SIM.W-2*M,g);if(e==='S')ctx.fillRect(M,SIM.H-M-g,SIM.W-2*M,g);ctx.restore();
+    label(ctx,e==='E'?SIM.W-SIM.MARGIN-g/2:e==='W'?SIM.MARGIN+g/2:SIM.W/2,e==='N'?SIM.MARGIN+g/2:e==='S'?SIM.H-SIM.MARGIN-g/2:SIM.H/2,'REINFORCEMENTS IN '+fmtClock(SIM.clockLeft()),C.hazard,z,13,'Bungee');}
+  for(const d of S.decoys){   // a Decoy Signal: a false contact, in information cyan
+    const k=(now/600)%1;ring(ctx,d.x,d.y,(30+60*k)/z*0.6+20,TH.rgba(C.shield,1-k),z,2.4);
+    ctx.save();ctx.translate(d.x,d.y);ctx.rotate(Math.PI/4);ctx.strokeStyle=C.shield;ctx.lineWidth=2.4/z;ctx.strokeRect(-12/z,-12/z,24/z,24/z);ctx.restore();
+    label(ctx,d.x,d.y-34/z,'DECOY · '+Math.ceil(d.until-S.t)+' s',C.shield,z,11);
+  }
   for(const s of S.ships)if(s.alive)drawTrail(ctx,s,z);
   for(const s of S.ships){
     if(!s.alive)continue;
@@ -304,6 +319,7 @@ function frame(now){
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
   render(now);
+  if(A.panel){const pc=byId('hcPilotCam'),ps=SIM.fn.byId(A.panel);if(pc&&ps)drawTileCam(pc,ps,0.5);}
   if(A.phase==='LIVE'&&now-(A.tileAt||0)>=100/Math.max(1,byId('hcRoster').querySelectorAll('.hc-tile').length)){A.tileAt=now;tileTick();}
   if(now-A.hudAt>120){A.hudAt=now;syncHud();}
 }
@@ -479,8 +495,10 @@ function syncFeed(){
   let h='';
   for(const e of evs){
     const where=e.x!=null||e.ship;
-    h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
-      (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+'</div>';
+    const sh=e.kind==='emergency'?SIM.fn.byId(e.ship):null,live=sh&&sh.alive&&sh.emerg&&sh.emerg.ev===e.id&&!sh.emerg.resp;
+    h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+(live?' is-live':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
+      (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+
+      (live?'<span class="hc-ev__resp">'+SIM.emergencyOpts(sh).map(o=>'<button type="button" class="hc-resp'+(o.rec?' is-rec':'')+'" data-resp="'+o.key+'" data-ship="'+sh.id+'"'+(o.ok?'':' aria-disabled="true"')+' data-tip="resp:'+o.key+'">'+esc(o.key==='wingmate'?'Wingmate':o.key==='ride'?'Ride it out':o.name.replace('Emergency ','').replace('Patriot ',''))+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':'')+'</button>').join('')+'</span>':'')+'</div>';
   }
   if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
 }
@@ -490,11 +508,21 @@ function viewEvent(id){
   const s=SIM.fn.byId(e.ship);
   const p=s&&s.alive?s:(e.x!=null?{x:e.x,y:e.y}:s);
   if(p)camTo(p.x,p.y,Math.max(cam.z,0.45));
-  if(s&&s.alive&&s.faction==='reb'&&!s.quiet){A.selShip=s.id;A.sel=s.wing;}
+  if(s&&s.faction==='reb'&&!s.quiet&&s.wing){A.selShip=s.id;A.sel=s.wing;openPilot(s.id);}
   syncHud(true);
   return true;
 }
-byId('hcFeed').addEventListener('click',ev=>{const b=ev.target.closest('[data-view]');if(b)viewEvent(+b.dataset.view);});
+byId('hcFeed').addEventListener('click',ev=>{
+  const r=ev.target.closest('[data-resp]');
+  if(r){respond(r.dataset.ship,r.dataset.resp,r);return;}
+  const b=ev.target.closest('[data-view]');if(b)viewEvent(+b.dataset.view);
+});
+function respond(id,key,el){
+  if(el&&el.getAttribute('aria-disabled')==='true'){flash(key==='wingmate'?'No wingmate free':'Not enough command points');return {ok:false};}
+  const r=SIM.respond(id,key);
+  if(!r.ok)flash(r.why);
+  syncHud(true);return r;
+}
 
 /* bottom: the wing roster. A header per wing (name, order chip, tactic chip) and a tile per ship */
 let rosterBuilt='';
@@ -533,8 +561,8 @@ function tileTick(){
   tileMs=tileMs*0.9+(performance.now()-t0)*0.1;
   if(tileMs>TILE_BUDGET&&tiles.length>=8){TILES_LIVE=false;tileAuto=true;flash('Camera tiles fell back to static glyphs ('+tileMs.toFixed(1)+' ms a tile)');for(const x of tiles)drawTileGlyph(x.querySelector('canvas'),SIM.fn.byId(x.dataset.ship));}
 }
-function drawTileCam(cvs,s){
-  const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=TILE_Z*W2/96;
+function drawTileCam(cvs,s,zoom){
+  const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=zoom?zoom*W2/340:TILE_Z*W2/96;
   c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,W2,H2);
   if(!s.alive){c.fillStyle=C.text3;c.font='800 '+Math.round(H2*0.22)+'px "Exo 2",sans-serif';c.textAlign='center';c.fillText(s.jumped?'JUMPED':'SIGNAL LOST',W2/2,H2*0.58);return;}
   const cx=s.x,cy=s.y,hw=W2/2/z,hh=H2/2/z;
@@ -598,11 +626,22 @@ byId('hcRoster').addEventListener('click',ev=>{
   const h=ev.target.closest('[data-wing-head]');
   if(h){selectWing(h.dataset.wingHead,true);return;}
   const t=ev.target.closest('[data-ship]');
-  if(t){const s=SIM.fn.byId(t.dataset.ship);if(s){A.selShip=s.id;A.sel=s.wing;if(s.alive)camTo(s.x,s.y);syncHud(true);}}
+  if(t){
+    const s=SIM.fn.byId(t.dataset.ship);if(!s)return;
+    if(A.cmdArm){cmdApply(A.cmdArm,{id:s.id});return;}
+    A.selShip=s.id;A.sel=s.wing;openPilot(s.id);if(s.alive)camTo(s.x,s.y);syncHud(true);
+  }
+});
+/* target-first: right-click a tile or a wing header for the commands that apply to it */
+byId('hcRoster').addEventListener('contextmenu',ev=>{
+  ev.preventDefault();
+  const h=ev.target.closest('[data-wing-head]'),t=ev.target.closest('[data-ship]');
+  if(h)openDrawer({wing:h.dataset.wingHead});else if(t)openDrawer({id:t.dataset.ship});
 });
 function selectWing(id,open){
+  if(A.cmdArm==='recall'){cmdApply('recall',{wing:id});return;}
   A.sel=id;A.selShip=null;A.arm=null;
-  if(open){A.tray=id;A.panel=null;A.drawer=false;}
+  if(open){A.tray=id;A.panel=null;}
   syncHud(true);
 }
 
@@ -694,6 +733,12 @@ function tipFor(key){
   if(k==='tactic'){const T=SIM.HC_TACTICS[a];return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
   if(k==='rule'){const R=SIM.RULES[a];return {name:R.name,line:R.line()};}
+  if(k==='cmd'){const C2=SIM.COMMANDS[a];return {name:C2.name+' · '+(C2.cost()?C2.cost()+' CP':'free'),line:C2.line()};}
+  if(k==='abil'){const B=SIM.ABILITIES[a];return {name:B.name+' · '+B.cd+' s recharge',line:B.line};}
+  if(k==='doc')return {name:a,line:{AUTO:'The pilot uses it whenever it helps.',EMERG:'Only under its emergency trigger.',MANUAL:'Never by itself: press Use.'}[a]};
+  if(k==='resp'){if(a==='wingmate')return {name:'Send a wingmate',line:'Free: the nearest wingmate not in trouble breaks off to go for whoever has this pilot pinned.'};
+    if(a==='ride')return {name:'Ride it out',line:'Free: do nothing, and let the pilot handle it.'};
+    const C2=SIM.COMMANDS[a];return {name:C2.name+' · '+C2.cost()+' CP',line:C2.line()};}
   if(k==='focus')return {name:'Event focus',line:'Jump the camera to the newest event you have not viewed.',key:'Tab'};
   if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
   return {name:key,line:''};
@@ -716,10 +761,125 @@ byId('hcStage').addEventListener('pointerout',ev=>{const el=ev.target.closest&&e
 let flashT=0;
 function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
 
-function closeAll(){A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;hideTip();}
+function closeAll(){A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;hideTip();}
+
+/* =====================================================================
+   The pilot panel (§3.2): over the left rail, from a tile or VIEW
+   ===================================================================== */
+function openPilot(id){A.panel=id;A.tray=null;A.arm=null;pilotBuilt=null;syncHud(true);}
+let pilotBuilt=null;
+function bar(lbl,v,max,cls){const k=max>0?Math.max(0,Math.min(1,v/max)):0;return '<div class="hc-pbar'+(cls?' '+cls:'')+'"><span>'+lbl+'</span><i><b style="width:'+Math.round(k*100)+'%"></b></i><em>'+(max>0?Math.max(0,Math.round(v))+'/'+max:'—')+'</em></div>';}
+function pilotBody(s){
+  const S=SIM.S,w=SIM.fn.wingOf(s.wing),b=s.beh||{},t=SIM.fn.byId(b.target||b.charge||b.station),mor=SIM.moraleOf(s);
+  const P=s.pilot;
+  let h='<div class="hc-pilot__head"><span class="hc-pilot__name">'+esc(s.name)+'</span><span class="hc-pilot__sub">'+esc((P.preset||'')+(P.preset?' · ':'')+'L'+P.level+' · '+(w?w.name:'')+(w&&w.leader===s.id?' lead':'')+' · '+SIM.PERSONALITY[s.persona].label)+'</span>'+
+    '<span class="hc-mor" data-m="'+mor+'">'+mor+'</span><button type="button" class="hc-x" data-act="close" aria-label="Close">'+glyph('close','hc-glyph--sm')+'</button></div>';
+  if(!s.alive)return h+'<div class="hc-pilot__line">'+(s.jumped?'Jumped out.':'Down.')+'</div>';
+  h+='<div class="hc-pilot__bars">'+bar('Hull',s.hull,s.maxHull,'is-hull')+bar('Armour',s.arm,s.maxArm,'is-arm')+bar('Shields',SIM.fn.totalShield(s),SIM.fn.maxShield(s),'is-shd')+'</div>';
+  h+='<div class="hc-pilot__line"><b>'+esc(behWord(s))+'</b>'+(t?' · '+esc(t.label||t.name):'')+(b.rule?' · <span class="is-rule">'+esc(SIM.RULES[b.rule].name)+'</span>':'')+'<br><q>'+esc(s.assess||'')+'</q></div>';
+  const abil=SIM.abilitiesOf(s.id);
+  if(abil.length){
+    h+='<div class="hc-tray__lbl">Abilities · doctrine</div>';
+    for(const k of abil){
+      const doc=(s.doct&&s.doct[k])||'AUTO',cd=Math.max(0,((s.abCd&&s.abCd[k])||0)-S.t);
+      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+'</span><span class="hc-seg" role="group">'+
+        SIM.DOCTRINES.map(d=>'<button type="button" class="hc-seg__b'+(d===doc?' is-on':'')+'" data-doc="'+d+'" data-abil="'+k+'" aria-pressed="'+(d===doc)+'" data-tip="doc:'+d+'">'+d+'</button>').join('')+
+        '</span><button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button></div>';
+    }
+  }
+  // the response row: in an emergency, the interventions that fit (gold: the recommended one) and the free ones
+  const opts=s.emerg?SIM.emergencyOpts(s):null;
+  h+='<div class="hc-tray__lbl">'+(opts?(s.emerg.resp?'Answered: '+esc(s.emerg.resp):'Emergency · respond'):'Interventions')+'</div><div class="hc-pilot__resp">';
+  const list=opts||['override','recall','support'].filter(k=>k!=='support'||SIM.fn.maxShield(s)>0).map(k=>({key:k,name:SIM.COMMANDS[k].name,cost:SIM.COMMANDS[k].cost(),ok:S.cp>=SIM.COMMANDS[k].cost()})).concat([{key:'wingmate',name:'Send a wingmate',free:true,ok:false,why:'only in an emergency'}]);
+  for(const o of list){
+    const prim=o.rec&&!s.emerg.resp;
+    h+='<button type="button" class="sr-btn sr-btn--sm'+(prim?' sr-btn--primary':'')+'" data-resp="'+o.key+'" data-tip="resp:'+o.key+'"'+(o.ok?'':' aria-disabled="true"')+'>'+esc(o.name)+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':o.free?' <span class="hc-free">free</span>':'')+'</button>';
+  }
+  return h+'</div>';
+}
+function syncPilot(){
+  const el=byId('hcPilot'),s=A.panel&&A.phase!=='PICK'?SIM.fn.byId(A.panel):null;
+  if(!s){el.hidden=true;pilotBuilt=null;return;}
+  el.hidden=false;
+  if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
+  el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
+  const body=byId('hcPilotBody'),h=pilotBody(s);
+  if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
+}
+byId('hcPilot').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  const s=SIM.fn.byId(A.panel);if(!s)return;
+  if(b.dataset.act==='close'){A.panel=null;syncHud(true);return;}
+  if(b.dataset.doc){SIM.setDoctrine(s.id,b.dataset.abil,b.dataset.doc);syncHud(true);return;}
+  if(b.dataset.use){if(b.getAttribute('aria-disabled')==='true')return;const r=SIM.useAbility(s.id,b.dataset.use);if(!r.ok)flash(r.why);syncHud(true);return;}
+  if(b.dataset.resp){respond(s.id,b.dataset.resp,b);}
+});
+
+/* =====================================================================
+   The commands drawer (§3.3): from COMMANDS, or target-first from a right-click
+   ===================================================================== */
+const CMD_GLYPH={override:'attack',recall:'withdraw',reinforce:'escort',support:'defend',recon:'view',scramble:'pincer',hack:'hitrun',decoy:'capture',abort:'close'};
+function openDrawer(tg){A.drawer=true;A.cmdFor=tg||null;A.cmdArm=null;A.abortArm=false;A.tray=null;A.arm=null;syncHud(true);}
+function cmdFits(k,tg){
+  const C2=SIM.COMMANDS[k];
+  if(!tg)return true;
+  if(tg.wing)return k==='recall';
+  if(tg.id)return C2.target==='ship';
+  if(tg.x!=null)return C2.target==='point';
+  return true;
+}
+function drawerHtml(){
+  const S=SIM.S;
+  let h='<div class="hc-cmds__head"><span class="hc-cmds__title">Commands</span><span class="hc-cmds__cp">'+S.cp+' / '+S.cpMax+' CP</span>'+
+    '<button type="button" class="hc-x" data-act="close" aria-label="Close">'+glyph('close','hc-glyph--sm')+'</button></div>';
+  if(A.cmdFor){const x=A.cmdFor.id?SIM.fn.byId(A.cmdFor.id):null,w=A.cmdFor.wing?SIM.fn.wingOf(A.cmdFor.wing):null;
+    h+='<div class="hc-cmds__for">For '+esc(x?x.name:w?w.name+' (whole wing)':'this place')+'</div>';}
+  if(A.cmdArm)h+='<div class="hc-cmds__arm">'+esc(SIM.COMMANDS[A.cmdArm].name)+': '+(SIM.COMMANDS[A.cmdArm].target==='point'?'click a place on the map':A.cmdArm==='recall'?'click one of your ships, or a wing in the roster':'click one of your ships')+
+    ' <button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelcmd">Cancel</button></div>';
+  h+='<div class="hc-cmds__list">';
+  for(const k of SIM.COMMAND_KEYS){
+    if(k==='abort')continue;
+    if(!cmdFits(k,A.cmdFor))continue;
+    const C2=SIM.COMMANDS[k],tgFree=C2.target==='none',why=SIM.commandRefusal(k,A.cmdFor||(tgFree?null:undefined))||null;
+    const block=why&&(C2.open||/reserves|command points|over/.test(why)||(A.cmdFor&&why));
+    const pips=C2.cost()?'<span class="hc-cmd__cost">'+'<i></i>'.repeat(C2.cost())+'</span>':'<span class="hc-free">free</span>';
+    h+='<button type="button" class="hc-cmd'+(A.cmdArm===k?' is-armed':'')+'" data-cmd="'+k+'" data-tip="cmd:'+k+'"'+(block?' aria-disabled="true" data-why="'+esc(why)+'"':'')+'>'+
+      glyph(CMD_GLYPH[k],'hc-glyph--sm')+'<span class="hc-cmd__name">'+esc(C2.name)+'</span>'+pips+'</button>';
+  }
+  h+='</div>';
+  if(!A.cmdFor||cmdFits('abort',A.cmdFor)&&!A.cmdFor.id&&!A.cmdFor.wing)
+    h+='<button type="button" class="hc-cmd hc-cmd--abort'+(A.abortArm?' is-armed':'')+'" data-cmd="abort" data-tip="cmd:abort">'+glyph('close','hc-glyph--sm')+'<span class="hc-cmd__name">'+(A.abortArm?'Abort: click again to confirm':'Abort Mission')+'</span><span class="hc-free">free</span></button>';
+  return h;
+}
+function syncDrawer(){
+  const el=byId('hcCmds'),h=A.drawer&&A.phase==='LIVE'?drawerHtml():'';
+  if(el.dataset.h!==h){hideTip();el.innerHTML=h;el.dataset.h=h;}
+  el.hidden=!h;
+  byId('hcCmdBtn').setAttribute('aria-expanded',String(!!A.drawer));
+}
+byId('hcCmdBtn').addEventListener('click',()=>{if(A.drawer&&!A.cmdFor)A.drawer=false;else openDrawer(null);syncHud(true);});
+byId('hcCmds').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.act==='close'){A.drawer=false;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;syncHud(true);return;}
+  if(b.dataset.act==='cancelcmd'){A.cmdArm=null;syncHud(true);return;}
+  const k=b.dataset.cmd;if(!k)return;
+  if(b.getAttribute('aria-disabled')==='true'){flash(b.dataset.why||'Not available');return;}
+  if(k==='abort'){if(!A.abortArm){A.abortArm=true;syncHud(true);return;}cmdApply('abort',null);return;}
+  const C2=SIM.COMMANDS[k];
+  if(C2.target==='none'){cmdApply(k,null);return;}
+  if(A.cmdFor){cmdApply(k,A.cmdFor);return;}
+  A.cmdArm=A.cmdArm===k?null:k;syncHud(true);
+});
+function cmdApply(k,tg){
+  const r=SIM.command(k,tg);
+  if(!r.ok){flash(r.why);return r;}
+  A.cmdArm=null;A.cmdFor=null;A.abortArm=false;A.drawer=false;
+  if(SIM.S.over&&A.phase==='LIVE')onOver();
+  syncHud(true);return r;
+}
 function syncHud(){
   if(!A.active)return;
-  syncTop();syncFeed();syncRoster();syncTime();syncTray();syncReadout();
+  syncTop();syncFeed();syncRoster();syncTime();syncTray();syncPilot();syncDrawer();syncReadout();
   placeRail();
 }
 /* the left rail (the feed, the tray, the pilot panel) starts under the objectives panel, however tall it grows */
@@ -756,7 +916,12 @@ cv.addEventListener('pointerup',ev=>{
   mapClick(evPt(ev),ev);
 });
 cv.addEventListener('pointercancel',()=>{pan=null;});
-cv.addEventListener('contextmenu',ev=>ev.preventDefault());
+cv.addEventListener('contextmenu',ev=>{   // target-first: right-click one of your ships, or a place, for the commands that apply
+  ev.preventDefault();if(A.phase!=='LIVE')return;
+  const p=evPt(ev),s=shipAt(p.x,p.y);
+  if(s&&s.faction==='reb'&&!s.quiet)openDrawer({id:s.id});
+  else if(!s)openDrawer({x:Math.round(p.x),y:Math.round(p.y)});
+});
 cv.addEventListener('wheel',ev=>{
   ev.preventDefault();
   const p=evPt(ev),before=toWorld(p.px,p.py);
@@ -765,6 +930,12 @@ cv.addEventListener('wheel',ev=>{
 },{passive:false});
 function mapClick(p,ev){
   const S=SIM.S,s=shipAt(p.x,p.y);
+  if(A.cmdArm){   // a command armed: the click names its target
+    const C2=SIM.COMMANDS[A.cmdArm];
+    if(C2.target==='point'){cmdApply(A.cmdArm,{x:Math.round(p.x),y:Math.round(p.y)});return;}
+    if(s&&s.faction==='reb'&&!s.quiet){cmdApply(A.cmdArm,{id:s.id});return;}
+    flash('Pick one of your ships for '+C2.name);return;
+  }
   if(A.arm&&A.tray){   // a targeted order armed: the click names its target
     const w=SIM.fn.wingOf(A.tray),tgt=mapTarget(w,A.arm,s,p);
     if(tgt){issue(w.id,A.arm,tgt);return;}
@@ -793,7 +964,7 @@ addEventListener('keydown',ev=>{
   if(SR.active!=='arena'||!A.active||A.phase==='PICK')return;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return;
   if(ev.key===' '){ev.preventDefault();togglePause();return;}
-  if(ev.key==='Escape'){if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);ev.preventDefault();return;}
+  if(ev.key==='Escape'){if(A.cmdArm)A.cmdArm=null;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);ev.preventDefault();return;}
   if(ev.key==='Tab'){ev.preventDefault();nextEvent();return;}
 });
 
@@ -864,7 +1035,7 @@ function open(){openUi();showPicker();}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
     frame,toScreen,toWorld,cam_:()=>cam,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
