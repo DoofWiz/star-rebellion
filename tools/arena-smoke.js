@@ -11,7 +11,10 @@
      HUD (docs/SB-HUD-HANDOFF.md §7): the tray's anchor, step order, arming, Drift's facing step, the action at the
      segment boundary, invalidation, Execute, hover cards, keyboard parity, planning ms per step
      Flight, guns, status: ships flown along the plan (close, not exact; rails with PHYSICS off), bolts from the gun
-     mounts, shield arcs that flare */
+     mounts, shield arcs that flare
+   High Command section (docs/ARENA-HC-HANDOFF.md §8; game/js/arena-hc.js and sim-hc.js, through DBGarena.hc), in its
+   own browser context: 1 ruleset isolation   6 determinism with pauses   7 the reinforcement clock
+     T1: Attack, Escort and Withdraw fly themselves; the HUD's top band, roster, tray, time controls */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -331,7 +334,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(sb.glide[0]===2&&sb.glide[1]&&Math.abs(sb.glide[2]-sb.glide[3])<=1&&sb.glide[4]===1,'SB 3: a short round tops up to the slowest straight, a long one flies the line '+JSON.stringify(sb.glide));
  ok(sb.flair.every(Boolean),'SB 3: a hard turn should brake into its apex and power out, path unchanged '+JSON.stringify(sb.flair));
  ok(sb.slip.every(Boolean),'SB 3: a hard turn should slip (nose leads, slides wide, back on line) '+JSON.stringify(sb.slip));
- ok(JSON.stringify(sb.rulesets)==='["SR V2 Combat","SB Test"]','SB 1: rulesets listed '+JSON.stringify(sb.rulesets));
+ ok(JSON.stringify(sb.rulesets.slice(0,2))==='["SR V2 Combat","SB Test"]','SB 1: rulesets listed '+JSON.stringify(sb.rulesets));   // High Command is third (HC 1)
  ok(sb.scenHidden&&sb.scenShown,'SB 1: the scenario step should follow the ruleset choice');
  ok(!sb.lists[0].includes('sb1_fox')&&sb.lists[1].includes('e1_fox')&&sb.lists[1].includes('sb2_drift'),'SB 1: the lists honour the rulesets allowlist '+JSON.stringify(sb.lists));
  ok(sb.back.every(Boolean),'SB 1: Change ruleset should return to the picker '+JSON.stringify(sb.back));
@@ -945,9 +948,105 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   ok(t.active==='arena'&&t.picker&&!t.base&&t.save===null,'Enter Arena reaches the picker without the campaign '+JSON.stringify(t));
  }
  await ctx2.close();
+ /* ---------- High Command (docs/ARENA-HC-HANDOFF.md §8), driven through DBGarena.hc ---------- */
+ const ctx3=await b.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
+ const pg3=await ctx3.newPage();
+ pg3.on('pageerror',e=>errs.push('hc pageerror: '+e.message));
+ pg3.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))errs.push('hc console: '+m.text());});
+ await pg3.addInitScript(()=>{try{localStorage.clear();}catch(e){}});
+ await pg3.goto(base+'#arena');await pg3.waitForTimeout(700);
+ const hc=await pg3.evaluate((SAVE_KEY)=>{
+  const top=window.DBGarena,out={};
+  // 1. ruleset isolation: three rulesets; High Command's scenarios on its own list only; picking it runs it
+  top.fn.openPicker();
+  out.rulesets=[...document.querySelectorAll('#arRulesets [data-ruleset-item] b')].map(e=>e.textContent);
+  top.fn.chooseRuleset('v2');out.v2List=top.fn.pickerIds();
+  top.fn.openPicker();
+  document.querySelector('#arRulesets [data-ruleset="hc"]').click();
+  const H=top.hc,f=H.fn,SIM=H.SIM;
+  out.hcActive=[top.ruleset,H.active,!document.getElementById('hcPicker').hidden,document.querySelector('#sc-arena .ar-shell').hidden];
+  out.hcList=[...document.querySelectorAll('#hcPicker [data-scen]')].map(e=>e.dataset.scen);
+  out.sbList=top.sb.scenarios.filter(s=>!s.rulesets||s.rulesets.includes('sb')).map(s=>s.id);
+  document.querySelector('#hcPicker [data-load="hc1_nightfall"]').click();
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id);
+  out.loaded=[H.phase,S().scn.id,S().wings.map(w=>w.id+':'+w.ships.length).join(),!!by('lark'),!!by('relay'),f.cam_().z>0];
+  // the HUD: the clock, the objectives, the roster (a header per wing, a tile per ship), the time controls, one gold primary
+  f.syncHud();
+  const q=s=>document.querySelector('#arHc '+s);
+  out.hud=[q('#hcClock').textContent,document.querySelectorAll('#hcObj .hc-obj__item').length,document.querySelectorAll('#hcRoster .hc-wing').length,
+    document.querySelectorAll('#hcRoster .hc-tile').length,document.querySelectorAll('#hcTime [data-speed]').length,
+    [...document.querySelectorAll('#arHc .sr-btn--primary')].filter(e=>e.offsetParent).length,!q('#hcBanner').hidden];
+  // the tray: click a wing header; Attack, Escort and Withdraw are live, the rest wait for T2
+  q('[data-wing-head="dagger"]').click();
+  const tray=q('#hcTray');
+  out.tray=[!tray.hidden,tray.querySelectorAll('[data-order]').length,[...tray.querySelectorAll('[data-order]:not([aria-disabled="true"])')].map(b=>b.dataset.order).join(),
+    tray.querySelector('[data-order="attack"]').classList.contains('is-set')];
+  // 2 (T1). orders fly themselves: Attack prosecutes the relay; Escort stays with the lark; Withdraw jumps (once unjammed)
+  S().rocks.length=0;
+  f.setSpeed(2);
+  const d0=Math.hypot(by('P1').x-by('relay').x,by('P1').y-by('relay').y);
+  f.run(12);
+  const dagger=S().wings.find(w=>w.id==='dagger');
+  out.attack=[d0,Math.round(Math.min(...dagger.ships.map(id=>Math.hypot(by(id).x-by('relay').x,by(id).y-by('relay').y))))];
+  out.escort=Math.round(Math.max(...S().wings.find(w=>w.id==='amber').ships.map(id=>Math.hypot(by(id).x-by('lark').x,by(id).y-by('lark').y))));
+  // withdraw while jammed: they gather at the jump point but cannot leave; kill the relay and they jump
+  for(const s of S().ships)if(s.faction==='heg'&&!s.struct){s.alive=false;}
+  out.withdraw=[f.issue('dagger','withdraw').ok,f.issue('amber','withdraw').ok];
+  f.run(40);
+  out.jammed=[S().ships.filter(s=>s.jumped).length,SIM.fn.jammed('jump')];
+  by('relay').hull=0;by('relay').alive=false;
+  f.run(30);
+  out.jumped=S().ships.filter(s=>s.jumped).map(s=>s.id).sort().join();
+  // 7. the reinforcement clock: nothing before zero, the force at zero, the objective text flips
+  f.load('hc1_nightfall',0,3);
+  const RF=S().reinforce;
+  for(const s of S().ships)if(s.faction==='heg'&&!s.struct)s.alive=false;   // a quiet sky, so the clock is all that happens
+  SIM.runFor(RF.secs-1);
+  out.clock=[RF.spawned,S().ships.filter(s=>s.faction==='heg'&&s.alive).length,SIM.objText()];
+  SIM.runFor(1.5);
+  out.clock.push(RF.spawned,S().ships.filter(s=>s.faction==='heg'&&s.alive&&s.doctrine==='hunt').length,SIM.objText(),S().getOut,
+    S().events.some(e=>e.kind==='reinforce'),f.syncHud()===undefined&&q('#hcClock').textContent);
+  // 6. determinism: the same seed and the same orders at the same ticks, once straight through and once through the
+  // real-time driver with pauses and speed changes in between, end in the same state
+  const script=[[60,'dagger','escort',{type:'ship',id:'lark'}],[200,'amber','attack',{type:'class',cls:'mote'}],[420,'dagger','withdraw',null]];
+  const straight=()=>{f.load('hc1_nightfall',0,77);let i=0;while(S().tick<900){while(i<script.length&&script[i][0]===S().tick){SIM.setOrder(script[i][1],script[i][2],script[i][3]);i++;}SIM.step();}return SIM.stateHash();};
+  const driven=()=>{
+    f.load('hc1_nightfall',0,77);let i=0,now=1000,pauses=0;f.frame(now);
+    while(S().tick<900){
+      while(i<script.length&&script[i][0]===S().tick){
+        f.setSpeed(0);for(let k=0;k<20;k++){now+=16;f.frame(now);}pauses++;   // pause, think, order, resume
+        SIM.setOrder(script[i][1],script[i][2],script[i][3]);i++;
+        f.setSpeed(i%2?3:1);
+      }
+      if(S().tick%97===0){f.setSpeed(0);now+=16;f.frame(now);now+=400;f.frame(now);f.setSpeed(2);}
+      const t0=S().tick;now+=16;f.frame(now);
+      if(S().tick>t0+1)return 'skipped '+t0;
+    }
+    return [SIM.stateHash(),pauses,H.A.pauses>0,H.A.pausedSecs>0];
+  };
+  const h1=straight(),h2=driven(),h3=straight();
+  out.det=[h1,h3,h2];
+  f.load('hc1_nightfall',0,78);while(S().tick<900)SIM.step();out.det.push(SIM.stateHash());
+  out.noSave=localStorage.getItem(SAVE_KEY)===null;
+  return out;
+ },CAMPAIGN_KEY);
+ ok(JSON.stringify(hc.rulesets)==='["SR V2 Combat","SB Test","Type 3: High Command"]','HC 1: three rulesets '+JSON.stringify(hc.rulesets));
+ ok(!hc.v2List.some(id=>id.startsWith('hc'))&&!hc.sbList.some(id=>id.startsWith('hc')),'HC 1: HC scenarios stay off the v2 and SB lists '+JSON.stringify([hc.v2List,hc.sbList]));
+ ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
+ ok(hc.loaded[0]==='LIVE'&&hc.loaded[1]==='hc1_nightfall'&&hc.loaded[2]==='dagger:3,amber:2'&&hc.loaded[3]&&hc.loaded[4],'HC 1: hc1_nightfall loads with its wings '+JSON.stringify(hc.loaded));
+ ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]===1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, one gold primary, paused on load '+JSON.stringify(hc.hud));
+ ok(hc.tray[0]&&hc.tray[1]===9&&hc.tray[2]==='attack,escort,withdraw'&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
+ ok(hc.attack[1]<hc.attack[0]*0.5,'HC T1: Attack closes on the relay '+JSON.stringify(hc.attack));
+ ok(hc.escort<1200,'HC T1: Escort stays with the lark '+hc.escort);
+ ok(hc.withdraw.every(Boolean)&&hc.jammed[0]===0&&hc.jammed[1]===true,'HC T1: nothing jumps while the relay jams the point '+JSON.stringify([hc.withdraw,hc.jammed]));
+ ok(hc.jumped==='P1,P2,P3,P4,P5,lark','HC T1: Withdraw jumps every ship (and the convoy) once unjammed '+hc.jumped);
+ ok(hc.clock[0]===false&&hc.clock[3]===true&&hc.clock[4]>=5&&/GET OUT/.test(hc.clock[5])&&!/GET OUT/.test(hc.clock[2])&&hc.clock[6]&&hc.clock[7]&&hc.clock[8]==='REINFORCEMENTS','HC 7: the reinforcement clock '+JSON.stringify(hc.clock));
+ ok(hc.det[0]===hc.det[1]&&Array.isArray(hc.det[2])&&hc.det[2][0]===hc.det[0]&&hc.det[2][1]===3&&hc.det[2][2]&&hc.det[2][3]&&hc.det[3]!==hc.det[0],'HC 6: determinism with pauses '+JSON.stringify(hc.det));
+ ok(hc.noSave,'HC: the campaign key appeared');
+ await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

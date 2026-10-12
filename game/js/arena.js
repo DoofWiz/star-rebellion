@@ -9,6 +9,9 @@
    Two rival rulesets sit behind one picker (docs/ARENA-SB-HANDOFF.md §1):
    "SR V2 Combat" is this file driving sim2.js, unchanged; "SB Test" is
    game/js/arena-sb.js driving game/js/sim-sb.js on the same scenarios.
+   A third, "Type 3: High Command" (docs/ARENA-HC-HANDOFF.md), is
+   game/js/arena-hc.js driving game/js/sim-hc.js on its own scenarios
+   (allowlisted rulesets:['hc'], so they stay off the other two lists).
 
    UI text here is a designer tool's and is written plainly (handoff §0):
    none of it ships to players, and none of it is registered with
@@ -77,6 +80,9 @@ window.SR_ARENA_SCENARIOS=ARENA_SCENARIOS;   // the SB Test driver (arena-sb.js)
 const RULESETS={
   v2:{key:'v2',name:'SR V2 Combat',desc:'Moves dragged inside each ship\'s envelope, one AP meter a round, the d20 kept, interrupts mid-flight, doctrine AI (docs/ARENA-HANDOFF.md).'},
   sb:{key:'sb',name:'SB Test',desc:'SteamBirds-informed: grab the craft and drag a smooth line, two AP segments, pilot movesets, simulated projectiles, lock as a dial (docs/ARENA-SB-HANDOFF.md).'},
+  hc:{key:'hc',name:'Type 3: High Command',desc:'Mission Control: autonomous wings fly themselves in real '+
+    'time; you issue orders, set tactics and standing rules, and spend command points. Pause is free '+
+    '(docs/ARENA-HC-HANDOFF.md).'},
 };
 let RULESET='v2',rulesetChosen=false;
 const forRuleset=(s,k)=>!s.rulesets||s.rulesets.includes(k);
@@ -479,6 +485,7 @@ function sfx(k){
 /* ---------- the loop ---------- */
 function frame(now){
   if(RULESET==='sb'&&window.SR_ARENA_SB&&window.SR_ARENA_SB.active){window.SR_ARENA_SB.frame(now);return;}
+  if(RULESET==='hc'&&window.SR_ARENA_HC&&window.SR_ARENA_HC.active){window.SR_ARENA_HC.frame(now);return;}
   const dt=Math.min(100,Math.max(0,now-(lastNow||now)));lastNow=now;
   const sim=A.sim;
   if(sim){
@@ -538,6 +545,7 @@ function tuneSummary(){
 function openPicker(){
   const pk=byId('arPicker');
   if(window.SR_ARENA_SB)window.SR_ARENA_SB.close();
+  if(window.SR_ARENA_HC)window.SR_ARENA_HC.close();
   rulesetChosen=false;
   let r='';
   for(const k in RULESETS){
@@ -574,6 +582,7 @@ function chooseRuleset(k){
   RULESET=k;rulesetChosen=true;
   const pk=byId('arPicker');
   if(k==='sb'){pk.hidden=true;window.SR_ARENA_SB.open();return;}
+  if(k==='hc'){pk.hidden=true;window.SR_ARENA_HC.open();return;}
   pk.querySelector('#arScnStep').hidden=false;
   pk.querySelector('#arRulesetTitle').textContent='Arena: '+RULESETS[k].name+', pick a scenario';
 }
@@ -947,7 +956,7 @@ SR.register('arena',{enter,exit,frame});
 
 if(TEST){
   window.DBGarena={get A(){return A;},get sim(){return S2.S;},SIM2:S2,scenarios:ARENA_SCENARIOS,
-    get ruleset(){return RULESET;},RULESETS,get sb(){return window.SR_ARENA_SB&&window.SR_ARENA_SB.dbg;},
+    get ruleset(){return RULESET;},RULESETS,get sb(){return window.SR_ARENA_SB&&window.SR_ARENA_SB.dbg;},get hc(){return window.SR_ARENA_HC&&window.SR_ARENA_HC.dbg;},
     fn:{start:startScenario,restart,execute,openPicker,dumpMetrics,backToTitle:()=>{},chooseRuleset,
       go(){execute();return A.sim.phase;},
       manual(on){A.manual=!!on;},
