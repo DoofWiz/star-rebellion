@@ -1,8 +1,7 @@
 # High Command, playtest 1: your feedback and my proposal
 
-**Status: proposal, waiting for your approval.** Nothing below is built yet. `docs/DESIGN_BLOCKERS.md` C-69 points
-here. Once you approve (or amend), I build it in the phases in §4, log what I chose in the blockers, and move C-69 to
-the Resolved log.
+**Status: approved 13 October**, with the answers in §6. Built in the phases in §4; `docs/DESIGN_BLOCKERS.md` C-69
+records the decision and what I chose building it.
 
 ---
 
@@ -201,3 +200,16 @@ be updated to the new numbers, and noted in the blockers.
   rail?
 - **Q5 (stragglers).** If some ships can't reach the jump point (pinned, far away), should Jump Out wait for them, or
   should there be a "leave now" that ends the mission and counts them lost?
+
+---
+
+## 6. Your answers (13 October)
+
+1. **Gun range**: "I set fighting range (x gun range) to max." So ships fight at the full weapon reach (`ENGAGE_FRAC`
+   1.0). The weapon range × slider (`RANGE_MULT`) is added to the panel at 1 ×, not raised, since that's not what you
+   moved.
+2. **Formations**: option A: AUTO by default, with the reworked tactics as overrides you can lock.
+3. **Commands**: beside the time controls (bottom right), opening upward.
+4. **Pilot panel**: pops up above its tile, like the order tray.
+5. **Stragglers**: Jump Out, plus a **Leave now** button that ends the mission at once and counts anyone not yet
+   jumped as lost.

@@ -21,20 +21,23 @@ const TH=SR.theme,C=TH.C;
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
-let HC_MAP=2;             // the map's size × space.js's. placeholder (each scenario may set its own)
+let HC_MAP=4;             // the map's size × space.js's (was 2 until playtest 1, C-69). placeholder (each scenario may set its own)
 let W=W0*HC_MAP,H=H0*HC_MAP;
 const TICK=50;            // ms of sim time per step (copied from sim-sb.js). placeholder
 const TIMESCALES=[0,0.3,1,3];   // pause / slow / play / fast (slow and fast on the panel). placeholder
 let THINK_SECS=0.5;       // how often each ship re-decides what to do. placeholder
 let ROUND_SECS=3;         // a ship's top speed covers its top dial move (straight_max SU) in this long (sim-sb.js's EXEC_LEN). placeholder
-let SPEED_SCALE=1.25;     // every craft's speed range × this (copied from sim-sb.js). placeholder
+let SPEED_SCALE=2.5;      // every craft's speed range × this (was SB's 1.25 until playtest 1, C-69). placeholder
 let CRUISE=0.7;           // the speed a ship flies when nothing presses it, × its top speed. placeholder
 let CONVOY_SPD=0.55;      // a convoy's speed, × its top speed. placeholder
 let THRUST_K=1.6;         // top speed reached from rest in 1/this seconds. placeholder
 let BOOST_MULT=1.6;       // a boosting ship's top speed ×. placeholder
-let ENGAGE_FRAC=0.55;     // the range a ship tries to fight at, × its longest gun. placeholder
-let JUMP_R=260;           // within this of the jump point (extraction) a ship jumps out. placeholder
-let FORM_GAP=120;         // world units between formation slots at a tactic's spacing 1. placeholder
+let ENGAGE_FRAC=1;        // the range a ship tries to fight at, × its longest gun (the designer maxed it, C-69). placeholder
+let RANGE_MULT=1;         // every weapon's range (and the lock range) × this, on the next load (SB's RANGE_MULT). placeholder
+let JUMP_R=350;           // within this of the jump point (extraction) a ship jumps out. placeholder
+let FORM_GAP=320;         // world units between formation slots at a tactic's spacing 1 (was 120, C-69). placeholder
+let SPAWN_GAP=340;        // spacing of the ships a scenario places in a group. placeholder
+const LAYOUT_MAP=2;       // the map size the scenarios are written for; they are scaled to HC_MAP
 
 /* ---------- copied from space.js ~20–30 (via sim-sb.js) ---------- */
 const ARCH=0.55;
@@ -110,7 +113,7 @@ function wdefOf(r){
 }
 function loadout(row,list){
   const ids=(list||[row.default_weapon_1,row.default_weapon_2]).filter(id=>id&&SRDB.weapons[id]).slice(0,row.weapon_slots||2);
-  return ids.map((id,i)=>{const w=wdefOf(SRDB.weapons[id]);return {key:'w'+i,w,ammo:w.ammo,cd:0};});
+  return ids.map((id,i)=>{const w=wdefOf(SRDB.weapons[id]);w.rng*=RANGE_MULT;return {key:'w'+i,w,ammo:w.ammo,cd:0};});
 }
 const CRITDEFS={
   engine:{name:'Secondary Engine Failure',stack:2},
@@ -209,7 +212,7 @@ const gunRange=s=>Math.max(300,...s.wpns.map(q=>q.w.rng));
 function lockOf(s,id){return (s.locks&&s.locks[id])||0;}
 function lockTick(s,dt){
   const t=byId(s.fireAt);
-  if(t&&t.alive&&inArc(s,t)&&dist(s,t)<=LOCK_RNG&&!rockHit(s,t)){
+  if(t&&t.alive&&inArc(s,t)&&dist(s,t)<=LOCK_RNG*RANGE_MULT&&!rockHit(s,t)){
     const c=Math.max(0,1-bearing(s,t)/ARCH);
     s.locks[t.id]=Math.min(1,lockOf(s,t.id)+LOCK_GAIN*c*dt);
   }
@@ -419,7 +422,7 @@ const HC_TACTICS={
 const TACTIC_KEYS=Object.keys(HC_TACTICS);
 let HR_IN=3,HR_OUT=3;
 let THREAT_R=1.1;         // a hostile this close (× gun range) with its guns on a ship is a threat it turns on. placeholder     // Hit and Run: seconds on a pass, seconds extending. placeholder
-let ESCORT_R=1500;        // an escort engages what comes this close to its charge (at least a patrol's detection, so it moves first). placeholder
+let ESCORT_R=2200;        // an escort engages what comes this close to its charge (at least a patrol's detection, so it moves first). placeholder
 
 /* a tactic as this wing flies it: the leaderless wing's cohesion pulls every weight back toward a loose neutral */
 function tacticOf(w){
@@ -456,17 +459,33 @@ const byId=id=>S&&id!=null?S.ships.find(s=>s.id===id)||null:null;
 const foesOf=s=>S.ships.filter(t=>t.alive&&t.faction!==s.faction);
 
 /* ---------- the cast from an HC scenario entry (the v2 entry shape, grouped into wings) ---------- */
-function formation(at,i,n){const [x,y,h]=at,px=-Math.sin(h),py=Math.cos(h),o=(i-(n-1)/2)*170,back=Math.abs(i-(n-1)/2)*60;return [x+px*o-Math.cos(h)*back,y+py*o-Math.sin(h)*back,h];}   // copied from arena-sb.js
+function formation(at,i,n){const [x,y,h]=at,px=-Math.sin(h),py=Math.cos(h),o=(i-(n-1)/2)*SPAWN_GAP,back=Math.abs(i-(n-1)/2)*SPAWN_GAP*0.35;return [x+px*o-Math.cos(h)*back,y+py*o-Math.sin(h)*back,h];}   // copied from arena-sb.js (170 apart there)
 function resolveScenario(scn,vi){   // copied from arena-sb.js
   const v=(scn.variants&&scn.variants[vi])||null;
   const out=Object.assign({},scn,v||{});
   out.variantLabel=v?v.label:null;
   return out;
 }
+/* the scenarios are written for a LAYOUT_MAP map; every place in one is scaled to the map it loads on, so a bigger
+   map (with faster ships) keeps the same shape and the same travel times (C-69) */
+function scaleLayout(R,k){
+  if(k===1)return R;
+  const P=a=>a?[a[0]*k,a[1]*k,a[2]]:a,X=o=>o?Object.assign({},o,{x:o.x*k,y:o.y*k}):o;
+  const out=Object.assign({},R);
+  out.wings=(R.wings||[]).map(w=>Object.assign({},w,{at:P(w.at),ships:w.ships.map(sd=>Object.assign({},sd,{at:P(sd.at)}))}));
+  out.allies=(R.allies||[]).map(a=>Object.assign({},a,{at:P(a.at)}));
+  out.enemies=(R.enemies||[]).map(e=>Object.assign({},e,{at:P(e.at)}));
+  out.rocks=(R.rocks||[]).map(r=>Object.assign({},r,{x:r.x*k,y:r.y*k,r:r.r*(1+(k-1)*0.5)}));
+  out.points={};for(const key in R.points||{})out.points[key]=X(R.points[key]);
+  out.objectives=(R.objectives||[]).map(o=>o.at?Object.assign({},o,{at:X(o.at)}):o);
+  if(R.reserves)out.reserves=Object.assign({},R.reserves,{at:P(R.reserves.at),ships:(R.reserves.ships||[]).map(sd=>Object.assign({},sd,{at:P(sd.at)}))});
+  return out;
+}
 function build(scn,opt){
   opt=opt||{};
-  const R=resolveScenario(scn,opt.variant||0);
-  const ms=R.map||HC_MAP;W=Math.round(W0*ms);H=Math.round(H0*ms);
+  const R0=resolveScenario(scn,opt.variant||0);
+  const ms=R0.map||HC_MAP;W=Math.round(W0*ms);H=Math.round(H0*ms);
+  const R=scaleLayout(R0,ms/(R0.layoutMap||LAYOUT_MAP));
   S={scn,R,seed:opt.seed>>>0,rng:mulberry(opt.seed>>>0),t:0,tick:0,ships:[],wings:[],rocks:(R.rocks||[]).map(r=>Object.assign({},r)),
     points:JSON.parse(JSON.stringify(R.points||{})),objectives:[],events:[],evN:0,proj:[],bursts:[],missiles:[],fx:[],floaters:[],burstN:0,
     reinforce:Object.assign({secs:240,edge:'E',force:[]},R.reinforce||{},{spawned:false}),getOut:false,
@@ -700,11 +719,11 @@ function anchorOf(tg){
   if(tg.type==='pos')return {x:tg.x,y:tg.y};
   const s=byId(tg.id);return s&&s.alive?s:null;
 }
-let DEFEND_R=1300;        // a defending wing engages what comes this close to what it guards. placeholder
-let HOLD_R=1200;          // a holding wing engages what comes this close to its point. placeholder
-let CAPTURE_R=320;        // a capturing ship must be this close to the point. placeholder
+let DEFEND_R=2000;        // a defending wing engages what comes this close to what it guards. placeholder
+let HOLD_R=1800;          // a holding wing engages what comes this close to its point. placeholder
+let CAPTURE_R=400;        // a capturing ship must be this close to the point. placeholder
 let CAPTURE_SECS=10;      // seconds of uncontested presence to take a point. placeholder
-let BOARD_R=320;          // a marine ship must be this close to the station (plus its size). placeholder
+let BOARD_R=400;          // a marine ship must be this close to the station (plus its size). placeholder
 let BOARD_SECS=12;        // marine-ship seconds to board a station (two boarders take half as long). placeholder
 let SHAKEN_ODDS=2;        // a SHAKEN pilot hangs back from a target with this many hostiles round it. placeholder
 let SHAKEN_DISENGAGE=1.6; // ...and falls back hurt at the tactic's threshold × this. placeholder
@@ -795,7 +814,7 @@ let CMD_COST={override:1,recall:2,reinforce:3,support:1,recon:1,scramble:2,hack:
 let OVERRIDE_SECS=12;     // Patriot Override holds a pilot to the designation (and steady) this long. placeholder
 let OVERRIDE_COOL=55;     // ...and lifts their nerve to at least this. placeholder
 let RECON_SECS=25;        // Recon Sweep shows every Hegemony intent and the reinforcements' edge this long. placeholder
-let DECOY_SECS=12,DECOY_R=1600;   // Decoy Signal: how long it draws, and from how far. placeholders
+let DECOY_SECS=12,DECOY_R=2500;   // Decoy Signal: how long it draws, and from how far. placeholders
 let HELP_SECS=15;         // a wingmate sent to help stays on it this long at most. placeholder
 const COMMANDS={
   override:{name:'Patriot Override',target:'ship',cost:()=>CMD_COST.override,line:()=>'One of your pilots steadies (nerve to '+OVERRIDE_COOL+') and holds to the wing\'s designation for '+OVERRIDE_SECS+' s, ignoring closer targets and fear.'},
@@ -973,7 +992,7 @@ const RULES={
 const RULE_KEYS=Object.keys(RULES);
 let PRES_HULL=0.3;        // Preservation Order's hull threshold. placeholder
 let GUARDIAN_SECS=2;      // an objective hit this recently counts as attacked. placeholder
-let GUARDIAN_R=3200;      // ...and its attacker is intercepted if this close. placeholder
+let GUARDIAN_R=6000;      // ...and its attacker is intercepted if this close. placeholder
 let ESCAPE_K=2.2;         // Formation Discipline: a target this far (× gun range) has escaped. placeholder
 let FORM_SECS=5;          // ...and the ship stays in formation this long. placeholder
 let BRING_HULL=0.5;       // Bring It Down: a flagship under this hull (or crippled) is disabled. placeholder
@@ -1121,9 +1140,9 @@ function thinkConvoy(s){
 }
 
 /* ---------- the Hegemony: patrol, guard, hunt (sim2.js's doctrine idea: a goal per role) ---------- */
-let DETECT_R=1500;        // a patrol engages what comes this close. placeholder
-let GUARD_R=900;          // a guard engages what comes this close to its asset (copied from sim2.js GUARD_R). placeholder
-let LEASH_R=2600;
+let DETECT_R=2500;        // a patrol engages what comes this close. placeholder
+let GUARD_R=1200;          // a guard engages what comes this close to its asset (copied from sim2.js GUARD_R). placeholder
+let LEASH_R=5000;
 let RAID_TURN_R=700;      // a raider turns from the station onto a fighter this close with its guns on it. placeholder         // a patrol or guard gives up a chase this far from home. placeholder
 function thinkEnemy(s){
   const foes=foesOf(s).filter(t=>!t.struct);
@@ -1253,8 +1272,9 @@ function catchSpd(s,sl,lead){   // a moving mark (a slot, an escort station): be
 let TURN_K=3;             // how hard the autopilot turns onto its goal, per radian of error a second. placeholder
 let SLIP_NOSE=0.42;       // how far the nose may lead the line of flight toward its target, radians (copied from sim-sb.js). placeholder
 let NOSE_K=9,NOSE_RATE=12,NOSE_ACC=120;   // the nose (copied from sim-sb.js). placeholders
-let AVOID_R=260;
-let DISENGAGE_R=1100;     // a withdrawing or falling-back ship steers wide of hostiles inside this. placeholder          // rocks and the map edge push a ship's heading away inside this. placeholder
+let AVOID_R=260;          // rocks and the map edge push a ship's heading away inside this. placeholder
+let DISENGAGE_R=1600;     // a withdrawing or falling-back ship steers wide of hostiles inside this. placeholder
+let SEP_R=220;            // ships of one side keep at least this far apart (personal space). placeholder
 function avoidHeading(s,want){
   let ax=Math.cos(want),ay=Math.sin(want);
   for(const r of S.rocks){
@@ -1278,7 +1298,7 @@ function avoidHeading(s,want){
   for(const o of S.ships){   // wingmates keep a little room
     if(o===s||!o.alive||o.faction!==s.faction||o.struct)continue;
     const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy);
-    if(d<90&&d>1){ax+=dx/d*(90-d)/90;ay+=dy/d*(90-d)/90;}
+    if(d<SEP_R&&d>1){const k=(SEP_R-d)/SEP_R*1.5;ax+=dx/d*k;ay+=dy/d*k;}
   }
   return Math.atan2(ay,ax);
 }
@@ -1392,12 +1412,37 @@ function overCheck(){
   endMission(null);
 }
 function endMission(how){
+  let left=0;
+  if(how==='leave')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct){s.alive=false;s.leftBehind=true;left++;}   // Leave now: whoever hasn't jumped is lost
   const prim=S.objectives.filter(o=>o.primary);
   const won=how!=='abort'&&prim.every(o=>o.state==='done');
   const lost=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.alive&&!s.jumped).length;
   const outcome=how==='abort'?'aborted':won?'won':'lost';
-  S.over={outcome,win:won,why:outcome==='aborted'?'Mission aborted':won?'Mission complete':'Mission failed',lost,jumped:S.ships.filter(s=>s.jumped).length,t:+S.t.toFixed(2)};
-  pushEvent('over',S.over.why+' · '+lost+' lost',{tone:won?'good':'hazard'});
+  S.over={outcome,win:won,how:how||'done',why:outcome==='aborted'?'Mission aborted':won?'Mission complete':'Mission failed',lost,leftBehind:left,jumped:S.ships.filter(s=>s.jumped).length,t:+S.t.toFixed(2)};
+  pushEvent('over',S.over.why+' · '+lost+' lost'+(left?' ('+left+' left behind)':''),{tone:won?'good':'hazard'});
+}
+/* Jump Out (C-69): once the primaries are done or the clock has run out, every wing withdraws to the jump point; the
+   mission completes as the last ship jumps. Leave now ends it at once, counting anyone not yet out as lost */
+const objectivesDone=()=>S.objectives.filter(o=>o.primary).every(o=>o.state==='done');
+function jumpOutState(){
+  if(!S||S.over)return null;
+  if(!objectivesDone()&&!S.getOut)return null;
+  const key=S.R.extract||'jump',mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.quiet);
+  return {why:objectivesDone()?'complete':'getout',jammed:jammed(key),started:S.jumpOutT!=null,away:mine.filter(s=>s.jumped).length,left:mine.filter(s=>s.alive).length,of:mine.length};
+}
+function jumpOut(){
+  const st=jumpOutState();
+  if(!st)return {ok:false,why:'the objectives aren\'t done yet'};
+  if(st.jammed)return {ok:false,why:'the jump point is jammed'};
+  for(const w of S.wings)if(wingShips(w).length){setOrder(w.id,'withdraw');for(const s of wingShips(w))s.recall=false;}
+  S.jumpOutT=S.t;S.m.byCommand.jumpout=(S.m.byCommand.jumpout||0)+1;
+  pushEvent('command','All wings: jump out',{x:extractPoint().x,y:extractPoint().y,tone:'good'});
+  return {ok:true};
+}
+function leaveNow(){
+  if(!S||S.over)return {ok:false,why:'the mission is over'};
+  S.m.byCommand.leave=(S.m.byCommand.leave||0)+1;
+  endMission('leave');return {ok:true};
 }
 
 /* ---------- capture and boarding: progress while the ships are there and the point isn't contested ---------- */
@@ -1551,21 +1596,24 @@ let HC_CP=5;              // the command point pool when a scenario sets none. p
 
 /* the panel's numbers: every one a named constant with a getter (the SALVAGE_PER_HP_ pattern) */
 const TUNE={
-  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:4,step:0.25,label:'Map size × (on restart)'},
+  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:8,step:0.25,label:'Map size × (on restart)'},
+  RANGE_MULT:{get:()=>RANGE_MULT,set:v=>{RANGE_MULT=v;},min:0.5,max:4,step:0.1,label:'Weapon range × (on restart)'},
+  SEP_R:{get:()=>SEP_R,set:v=>{SEP_R=v;},min:60,max:600,step:10,label:'Personal space'},
+  SPAWN_GAP:{get:()=>SPAWN_GAP,set:v=>{SPAWN_GAP=v;},min:150,max:800,step:10,label:'Starting spacing (on restart)'},
   THINK_SECS:{get:()=>THINK_SECS,set:v=>{THINK_SECS=v;},min:0.1,max:2,step:0.1,label:'Think every (s)'},
   ROUND_SECS:{get:()=>ROUND_SECS,set:v=>{ROUND_SECS=v;},min:1,max:6,step:0.25,label:'Top dial move takes (s)'},
-  SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:3,step:0.05,label:'Speed ×'},
+  SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:5,step:0.05,label:'Speed ×'},
   CRUISE:{get:()=>CRUISE,set:v=>{CRUISE=v;},min:0.3,max:1,step:0.05,label:'Cruise (× top speed)'},
   CONVOY_SPD:{get:()=>CONVOY_SPD,set:v=>{CONVOY_SPD=v;},min:0.2,max:1,step:0.05,label:'Convoy speed (× top)'},
   ENGAGE_FRAC:{get:()=>ENGAGE_FRAC,set:v=>{ENGAGE_FRAC=v;},min:0.2,max:1,step:0.05,label:'Fighting range (× gun range)'},
-  FORM_GAP:{get:()=>FORM_GAP,set:v=>{FORM_GAP=v;},min:60,max:300,step:10,label:'Formation gap'},
-  DISENGAGE_R:{get:()=>DISENGAGE_R,set:v=>{DISENGAGE_R=v;},min:0,max:3000,step:50,label:'Withdrawing ships steer wide by'},
+  FORM_GAP:{get:()=>FORM_GAP,set:v=>{FORM_GAP=v;},min:60,max:1000,step:10,label:'Formation gap'},
+  DISENGAGE_R:{get:()=>DISENGAGE_R,set:v=>{DISENGAGE_R=v;},min:0,max:5000,step:50,label:'Withdrawing ships steer wide by'},
   THREAT_R:{get:()=>THREAT_R,set:v=>{THREAT_R=v;},min:0,max:2,step:0.05,label:'Turn on attackers within (× gun range)'},
-  ESCORT_R:{get:()=>ESCORT_R,set:v=>{ESCORT_R=v;},min:400,max:2500,step:50,label:'Escort reach'},
+  ESCORT_R:{get:()=>ESCORT_R,set:v=>{ESCORT_R=v;},min:400,max:5000,step:50,label:'Escort reach'},
   JUMP_R:{get:()=>JUMP_R,set:v=>{JUMP_R=v;},min:100,max:600,step:20,label:'Jump point radius'},
-  DETECT_R:{get:()=>DETECT_R,set:v=>{DETECT_R=v;},min:500,max:3000,step:50,label:'Patrol detection'},
-  GUARD_R:{get:()=>GUARD_R,set:v=>{GUARD_R=v;},min:400,max:2000,step:50,label:'Guard radius'},
-  LEASH_R:{get:()=>LEASH_R,set:v=>{LEASH_R=v;},min:800,max:5000,step:100,label:'Patrol leash'},
+  DETECT_R:{get:()=>DETECT_R,set:v=>{DETECT_R=v;},min:500,max:6000,step:50,label:'Patrol detection'},
+  GUARD_R:{get:()=>GUARD_R,set:v=>{GUARD_R=v;},min:400,max:3000,step:50,label:'Guard radius'},
+  LEASH_R:{get:()=>LEASH_R,set:v=>{LEASH_R=v;},min:800,max:10000,step:100,label:'Patrol leash'},
   HR_IN:{get:()=>HR_IN,set:v=>{HR_IN=v;},min:1,max:8,step:0.5,label:'Hit & Run: pass (s)'},
   HR_OUT:{get:()=>HR_OUT,set:v=>{HR_OUT=v;},min:1,max:8,step:0.5,label:'Hit & Run: extend (s)'},
   LEAD_LOSS:{get:()=>LEAD_LOSS,set:v=>{LEAD_LOSS=v;},min:0,max:1,step:0.05,label:'Leaderless cohesion ×'},
@@ -1574,8 +1622,8 @@ const TUNE={
   NERVE_K:{get:()=>NERVE_K,set:v=>{NERVE_K=v;},min:0,max:2,step:0.05,label:'Nerve losses ×'},
   CALM_SECS:{get:()=>CALM_SECS,set:v=>{CALM_SECS=v;},min:1,max:10,step:0.5,label:'Calm nerve every (s)'},
   COMMIT_SECS:{get:()=>COMMIT_SECS,set:v=>{COMMIT_SECS=v;},min:0,max:8,step:0.5,label:'Stay on a target at least (s)'},
-  DEFEND_R:{get:()=>DEFEND_R,set:v=>{DEFEND_R=v;},min:400,max:3000,step:50,label:'Defend reach'},
-  HOLD_R:{get:()=>HOLD_R,set:v=>{HOLD_R=v;},min:400,max:3000,step:50,label:'Hold reach'},
+  DEFEND_R:{get:()=>DEFEND_R,set:v=>{DEFEND_R=v;},min:400,max:5000,step:50,label:'Defend reach'},
+  HOLD_R:{get:()=>HOLD_R,set:v=>{HOLD_R=v;},min:400,max:5000,step:50,label:'Hold reach'},
   CAPTURE_R:{get:()=>CAPTURE_R,set:v=>{CAPTURE_R=v;},min:100,max:800,step:20,label:'Capture radius'},
   CAPTURE_SECS:{get:()=>CAPTURE_SECS,set:v=>{CAPTURE_SECS=v;},min:2,max:40,step:1,label:'Capture takes (s)'},
   BOARD_R:{get:()=>BOARD_R,set:v=>{BOARD_R=v;},min:100,max:800,step:20,label:'Boarding radius'},
@@ -1590,7 +1638,7 @@ const TUNE={
   PIN_N:{get:()=>PIN_N,set:v=>{PIN_N=v;},min:1,max:5,step:1,label:'Pinned by (guns on it)'},
   PRES_HULL:{get:()=>PRES_HULL,set:v=>{PRES_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Preservation: hull under'},
   GUARDIAN_SECS:{get:()=>GUARDIAN_SECS,set:v=>{GUARDIAN_SECS=v;},min:0.5,max:10,step:0.5,label:'Guardian: hit within (s)'},
-  GUARDIAN_R:{get:()=>GUARDIAN_R,set:v=>{GUARDIAN_R=v;},min:500,max:6000,step:100,label:'Guardian: reach'},
+  GUARDIAN_R:{get:()=>GUARDIAN_R,set:v=>{GUARDIAN_R=v;},min:500,max:12000,step:100,label:'Guardian: reach'},
   ESCAPE_K:{get:()=>ESCAPE_K,set:v=>{ESCAPE_K=v;},min:1,max:5,step:0.1,label:'Formation: escaped at (× gun range)'},
   FORM_SECS:{get:()=>FORM_SECS,set:v=>{FORM_SECS=v;},min:1,max:20,step:1,label:'Formation: re-form for (s)'},
   BRING_HULL:{get:()=>BRING_HULL,set:v=>{BRING_HULL=v;},min:0.1,max:1,step:0.05,label:'Bring It Down: flagship under'},
@@ -1605,7 +1653,7 @@ const TUNE={
   OVERRIDE_COOL:{get:()=>OVERRIDE_COOL,set:v=>{OVERRIDE_COOL=v;},min:25,max:100,step:1,label:'Override lifts nerve to'},
   RECON_SECS:{get:()=>RECON_SECS,set:v=>{RECON_SECS=v;},min:5,max:90,step:5,label:'Recon lasts (s)'},
   DECOY_SECS:{get:()=>DECOY_SECS,set:v=>{DECOY_SECS=v;},min:2,max:40,step:1,label:'Decoy lasts (s)'},
-  DECOY_R:{get:()=>DECOY_R,set:v=>{DECOY_R=v;},min:300,max:4000,step:100,label:'Decoy draws from'},
+  DECOY_R:{get:()=>DECOY_R,set:v=>{DECOY_R=v;},min:300,max:6000,step:100,label:'Decoy draws from'},
   RECALL_BOOST:{get:()=>RECALL_BOOST,set:v=>{RECALL_BOOST=v;},min:0,max:20,step:1,label:'Recall burns at boost (s)'},
   HELP_SECS:{get:()=>HELP_SECS,set:v=>{HELP_SECS=v;},min:3,max:40,step:1,label:'A sent wingmate helps (s)'},
   RECALL_HULL:{get:()=>RECALL_HULL,set:v=>{RECALL_HULL=v;},min:0,max:1,step:0.05,label:'Recall recommended under hull'},
@@ -1623,8 +1671,8 @@ for(const tk of TACTIC_KEYS)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
-  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CRUISE','CONVOY_SPD','FORM_GAP','DISENGAGE_R'],
-  Fighting:['ENGAGE_FRAC','THREAT_R','COMMIT_SECS','GUN_DPS','HR_IN','HR_OUT'],
+  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R'],
+  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','HR_IN','HR_OUT'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
@@ -1638,7 +1686,7 @@ return {key:'hc',name:'Type 3: High Command',
   get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
-  build,step,runFor,setOrder,setTactic,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
+  build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,

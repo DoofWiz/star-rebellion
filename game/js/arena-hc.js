@@ -122,6 +122,15 @@ function fitCanvas(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRa
 function fitCanvasIfNeeded(){const r=cv.getBoundingClientRect();if(Math.abs(r.width-cssW)>0.5||Math.abs(r.height-cssH)>0.5)fitCanvas();}
 const fitZoom=()=>Math.min(cssW/SIM.W,cssH/SIM.H)*0.98;
 function camFit(){cam.z=fitZoom();cam.x=SIM.W/2;cam.y=SIM.H/2;}
+/* the opening view: your wings (and the convoy), framed with room round them, rather than the whole map */
+const FRAME_PAD=1400;   // world units of room round your ships in the opening view. placeholder
+function camFrame(){
+  const mine=SIM.S.ships.filter(s=>s.alive&&s.faction==='reb');
+  if(!mine.length){camFit();return;}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of mine){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+  cam.x=(x0+x1)/2;cam.y=(y0+y1)/2;cam.z=Math.min(0.6,cssW/(x1-x0+2*FRAME_PAD),cssH/(y1-y0+2*FRAME_PAD));
+  clampCam();
+}
 function clampCam(){cam.z=Math.max(fitZoom()*0.8,Math.min(1.6,cam.z));cam.x=Math.max(0,Math.min(SIM.W,cam.x));cam.y=Math.max(0,Math.min(SIM.H,cam.y));}
 const toWorld=(px,py)=>({x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y});
 const toScreen=(x,y)=>({x:(x-cam.x)*cam.z+cssW/2,y:(y-cam.y)*cam.z+cssH/2});
@@ -399,7 +408,7 @@ function load(id,variant,seed){
   A.sel=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
   byId('hcPicker').hidden=true;byId('hcEnd').hidden=true;
-  fitCanvas();camFit();buildPanel();rosterBuilt='';syncHud(true);
+  fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
   return SIM.S;
 }
 function restart(same){if(!A.scen)return;load(A.scen.id,A.variant,same?A.seed:((A.seed*2654435761+12345)>>>0)%1000000);}
@@ -434,7 +443,7 @@ function onOver(){
   el.hidden=false;
   syncHud(true);
 }
-byId('hcEnd').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(b)panelAct(b.dataset.act);});
+byId('hcEnd').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(b.dataset.act==='closewin'){byId('hcEnd').hidden=true;return;}panelAct(b.dataset.act);});
 function toRulesets(){closeUi();if(window.SR_ARENA_PICKER)window.SR_ARENA_PICKER();}
 function backToTitle(){try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}location.reload();}
 const fmtClock=t=>{t=Math.max(0,Math.ceil(t-1e-9));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
@@ -483,9 +492,24 @@ function objHtml(){
   let h='<div class="hc-obj__head">Objectives</div><ul class="hc-obj__list">';
   for(const o of S.objectives)h+='<li class="hc-obj__item is-'+o.state+(o.primary?' is-primary':'')+'"><i></i><span>'+esc(o.text)+'</span></li>';
   h+='</ul>';
-  if(S.getOut)h+='<div class="hc-obj__getout">GET OUT: withdraw every wing to the jump point</div>';
+  const J=SIM.jumpOutState();
+  if(J){
+    h+='<div class="hc-jump"><div class="hc-jump__head">'+(J.why==='complete'?'OBJECTIVES COMPLETE':'GET OUT')+'</div>';
+    if(J.started)h+='<div class="hc-jump__prog">Jumping out: '+J.away+' of '+J.of+' away</div>';
+    else h+='<button type="button" class="sr-btn sr-btn--primary hc-jump__go" data-act="jumpout"'+(J.jammed?' aria-disabled="true" data-why="The jump point is jammed"':'')+'>ALL WINGS: JUMP OUT</button>'+
+      (J.jammed?'<div class="hc-jump__prog is-bad">The jump point is jammed</div>':'');
+    h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost hc-jump__leave" data-act="leavenow" data-tip="leave">Leave now'+(J.left?' ('+J.left+' left behind)':'')+'</button></div>';
+  } else if(S.getOut)h+='<div class="hc-obj__getout">GET OUT: withdraw every wing to the jump point</div>';
   return h;
 }
+byId('hcObj').addEventListener('click',ev=>{
+  const b=ev.target.closest('button[data-act]');if(!b||!SIM.S)return;
+  if(b.getAttribute('aria-disabled')==='true'){flash(b.dataset.why||'Not now');return;}
+  const r=b.dataset.act==='jumpout'?SIM.jumpOut():b.dataset.act==='leavenow'?SIM.leaveNow():null;
+  if(r&&!r.ok)flash(r.why);
+  if(SIM.S.over&&A.phase==='LIVE')onOver();
+  syncHud(true);
+});
 /* the mission rules, nested under the objectives: cyan scope chips (rescind with ×) and + RULE */
 function rulesHtml(){
   const S=SIM.S;
@@ -527,6 +551,7 @@ function syncTop(){
   ck.classList.toggle('is-out',S.reinforce.spawned);
   ck.title='Hegemony reinforcements arrive when this reaches zero';
   byId('hcBanner').hidden=!(SIM.TIMESCALES[A.speed]===0&&A.phase==='LIVE');
+  byId('hcCmdBtn').classList.toggle('sr-btn--primary',!(SIM.jumpOutState()&&!SIM.jumpOutState().started));   // Jump Out takes the one gold button while it shows
   const cp=byId('hcCp');let ph='';for(let i=0;i<S.cpMax;i++)ph+='<i class="'+(i<S.cp?'is-on':'')+'"></i>';
   const ch='<span class="hc-cp__lbl">CP</span><span class="hc-cp__pips">'+ph+'</span><b>'+S.cp+' / '+S.cpMax+'</b>';
   if(cp.dataset.h!==ch){cp.innerHTML=ch;cp.dataset.h=ch;}
@@ -705,7 +730,7 @@ function timeHtml(){
   return h;
 }
 function syncTime(){
-  const el=byId('hcTime');el.hidden=A.phase==='PICK';
+  const el=byId('hcTime');byId('hcBr').hidden=A.phase==='PICK'||!SIM.S;
   const h=timeHtml();if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
 }
 byId('hcTime').addEventListener('click',ev=>{
@@ -782,6 +807,7 @@ function tipFor(key){
   if(k==='tactic'){const T=SIM.HC_TACTICS[a];return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
   if(k==='rule'){const R=SIM.RULES[a];return {name:R.name,line:R.line()};}
+  if(k==='leave')return {name:'Leave now',line:'End the mission at once. Ships that haven\'t jumped yet are lost.'};
   if(k==='cmd'){const C2=SIM.COMMANDS[a];return {name:C2.name+' · '+(C2.cost()?C2.cost()+' CP':'free'),line:C2.line()};}
   if(k==='abil'){const B=SIM.ABILITIES[a];return {name:B.name+' · '+B.cd+' s recharge',line:B.line};}
   if(k==='doc')return {name:a,line:{AUTO:'The pilot uses it whenever it helps.',EMERG:'Only under its emergency trigger.',MANUAL:'Never by itself: press Use.'}[a]};
@@ -935,7 +961,21 @@ function syncHud(){
 function placeRail(){
   const st=byId('hcStage').getBoundingClientRect(),ob=byId('hcObjBox').getBoundingClientRect();
   const top=Math.round(Math.max(80,(byId('hcTop').hidden?60:ob.bottom-st.top)+10));
-  for(const id of ['hcFeed','hcTray','hcPilot'])byId(id).style.top=top+'px';
+  byId('hcFeed').style.top=top+'px';
+  // the order tray pops up above its wing's card, the pilot panel above its tile (C-69); both kept on the stage
+  const above=(el,anchor)=>{
+    if(el.hidden||!anchor)return;
+    const a=anchor.getBoundingClientRect(),w=el.offsetWidth,gap=10;
+    el.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,a.left-st.left+a.width/2-w/2)))+'px';
+    el.style.bottom=Math.round(st.bottom-a.top+gap)+'px';
+    el.style.maxHeight=Math.round(Math.max(160,a.top-st.top-gap-top+40))+'px';
+  };
+  above(byId('hcTray'),A.tray&&byId('hcRoster').querySelector('[data-wing="'+A.tray+'"]'));
+  above(byId('hcPilot'),A.panel&&byId('hcRoster').querySelector('[data-ship="'+A.panel+'"]'));
+  // the commands drawer opens upward from COMMANDS
+  const cm=byId('hcCmds');
+  if(!cm.hidden){const b=byId('hcCmdBtn').getBoundingClientRect();cm.style.bottom=Math.round(st.bottom-b.top+10)+'px';cm.style.right=Math.round(st.right-b.right)+'px';
+    cm.style.maxHeight=Math.round(Math.max(200,b.top-st.top-80))+'px';}
 }
 
 /* =====================================================================
@@ -1045,7 +1085,8 @@ function buildPanel(){
   let h='<div class="hc-grp"><div class="hc-grp__head">Run</div><div class="hc-btns">'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="same">Restart (same seed)</button><button type="button" class="sr-btn sr-btn--sm" data-act="new">Restart (new seed)</button>'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="picker">HC scenarios</button><button type="button" class="sr-btn sr-btn--sm" data-act="rulesets">Change ruleset</button>'+
-    '<button type="button" class="sr-btn sr-btn--sm" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--sm" data-act="copyset">Copy settings</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">HC</div>';
   const groups={};for(const k in SIM.TUNE)(groups[SIM.TUNE[k].group]=groups[SIM.TUNE[k].group]||[]).push(k);
   const order=Object.keys(SIM.GROUPS).concat(['Tactics','Other']).filter(g=>groups[g]);
@@ -1084,9 +1125,21 @@ function panelAct(a){
   else if(a==='rulesets')toRulesets();
   else if(a==='dump')dumpMetrics();
   else if(a==='title')backToTitle();
+  else if(a==='copyset')copySettings();
   else if(a==='defaults'){for(const k in DEFAULTS)if(SIM.TUNE[k])SIM.TUNE[k].set(DEFAULTS[k]);savePrefs();buildPanel();}
 }
 const DEFAULTS={};for(const k in SIM.TUNE)DEFAULTS[k]=SIM.TUNE[k].get();
+/* Copy settings (C-69): every panel number as one JSON line, onto the clipboard and into a window to copy by hand */
+function settingsJson(){const o={};for(const k in SIM.TUNE)o[k]=+(+SIM.TUNE[k].get()).toFixed(4);return JSON.stringify(o);}
+function copySettings(){
+  const txt=settingsJson();
+  try{navigator.clipboard&&navigator.clipboard.writeText(txt).catch(()=>{});}catch(e){}
+  const el=byId('hcEnd');
+  el.innerHTML='<div class="hc-win"><h2 class="sr-display">Settings</h2><p>Every panel number, as one line. It is on your clipboard if the browser allowed it; otherwise copy it from here.</p>'+
+    '<textarea class="hc-dump" readonly>'+esc(txt)+'</textarea><div class="hc-btns"><button type="button" class="sr-btn" data-act="closewin">Close</button></div></div>';
+  el.hidden=false;const ta=el.querySelector('textarea');try{ta.focus();ta.select();}catch(e){}
+  return txt;
+}
 function loadPrefs(){try{const o=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(o)for(const k in o)if(SIM.TUNE[k]&&typeof o[k]==='number')SIM.TUNE[k].set(o[k]);}catch(e){}}
 function syncReadout(){
   const el=byId('hcReadout');if(!el)return;
@@ -1141,7 +1194,7 @@ function open(){openUi();showPicker();}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+  fn:{camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
     frame,toScreen,toWorld,cam_:()=>cam,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},

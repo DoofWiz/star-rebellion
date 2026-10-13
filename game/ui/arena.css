@@ -225,7 +225,7 @@
 #arHc .hc-glyph--xs{width:10px;height:10px;stroke-width:3;}
 #arHc .hc-card{background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 /* the top band: objectives (left), the clock (centre), command points and COMMANDS (right) */
-#arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,320px) 1fr auto;align-items:start;gap:12px;pointer-events:none;}
+#arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,320px) 1fr minmax(0,320px);align-items:start;gap:12px;pointer-events:none;}
 #arHc .hc-top>*{pointer-events:auto;}
 #arHc .hc-obj{padding:8px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font-size:var(--sr-fs-xs);}
 #arHc .hc-obj__head,#arHc .hc-rules__head{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-text-3);margin:0 0 6px;}
@@ -261,14 +261,18 @@
 #arHc .hc-banner{font:400 var(--sr-fs-sm)/1 var(--sr-font-display);color:var(--sr-gold);letter-spacing:.06em;padding:5px 10px;border-radius:999px;
   background:color-mix(in srgb,var(--sr-night) 92%,transparent);border:2px solid var(--sr-gold);}
 @keyframes hc-throb{0%,100%{opacity:1;}50%{opacity:.55;}}
-#arHc .hc-cmdbox{display:flex;align-items:center;gap:10px;}
-#arHc .hc-cp{display:flex;align-items:center;gap:8px;padding:6px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);}
+/* the bottom right (C-69): command points and COMMANDS, bigger, over the time controls; the drawer opens upward */
+#arHc .hc-br{position:absolute;right:12px;bottom:12px;z-index:3;display:flex;flex-direction:column;align-items:stretch;gap:8px;}
+#arHc .hc-cmdbox{display:flex;align-items:stretch;gap:8px;}
+#arHc .hc-cp{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);}
 #arHc .hc-cp__lbl{color:var(--sr-text-3);letter-spacing:.08em;}
 #arHc .hc-cp__pips{display:flex;gap:5px;}
-#arHc .hc-cp__pips i{width:11px;height:11px;transform:rotate(45deg);border:2px solid var(--sr-gold);border-radius:2px;}
+#arHc .hc-cp__pips{gap:7px;}
+#arHc .hc-cp__pips i{width:15px;height:15px;transform:rotate(45deg);border:2px solid var(--sr-gold);border-radius:2px;}
+#arHc .hc-cp b{font-size:var(--sr-fs-sm);}
 #arHc .hc-cp__pips i.is-on{background:var(--sr-gold);}
 #arHc .hc-cp b{color:var(--sr-text);}
-#arHc .hc-cmdbtn{min-height:44px;padding:0 18px;}
+#arHc .hc-cmdbtn{min-height:54px;padding:0 22px;font-size:var(--sr-fs-lg);}
 /* the left rail: the event feed */
 #arHc .hc-feed{position:absolute;left:12px;top:190px;bottom:178px;width:300px;z-index:2;display:flex;flex-direction:column;gap:5px;overflow:hidden;pointer-events:auto;}
 #arHc .hc-ev{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;padding:5px 6px 5px 8px;font:600 var(--sr-fs-xs)/1.25 var(--sr-font-ui);
@@ -281,7 +285,7 @@
   color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
 #arHc .hc-view:hover,#arHc .hc-view:focus-visible{background:color-mix(in srgb,var(--sr-shield) 18%,transparent);outline:none;}
 /* the bottom: the wing roster */
-#arHc .hc-roster{position:absolute;left:12px;right:316px;bottom:12px;z-index:2;display:flex;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
+#arHc .hc-roster{position:absolute;left:12px;right:340px;bottom:12px;z-index:2;display:flex;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
 #arHc .hc-wing{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-wing.is-sel{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
 #arHc .hc-wing__head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 4px;background:transparent;border:0;color:var(--sr-text);cursor:pointer;text-align:left;}
@@ -309,13 +313,13 @@
 #arHc .hc-tile__word{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #arHc .hc-tile__mor[data-m="EAGER"]{color:var(--sr-go);} #arHc .hc-tile__mor[data-m="SHAKEN"]{color:var(--sr-gold);} #arHc .hc-tile__mor[data-m="PANICKED"]{color:var(--sr-hazard);}
 /* the bottom right: time controls */
-#arHc .hc-time{position:absolute;right:12px;bottom:12px;z-index:3;display:flex;align-items:center;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc .hc-time{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-tbtn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-plate);color:var(--sr-text);cursor:pointer;}
 #arHc .hc-tbtn:hover,#arHc .hc-tbtn:focus-visible{border-color:var(--sr-gold);outline:none;}
 #arHc .hc-tbtn.is-on{background:var(--sr-gold);color:var(--sr-gold-ink);}
 #arHc .hc-time__div{width:2px;height:28px;background:var(--sr-seam);margin:0 2px;}
 /* the wing command tray: anchored panel-left, over the feed */
-#arHc .hc-tray,#arHc .hc-pilot{position:absolute;left:12px;top:190px;z-index:4;width:min(372px,calc(100% - 24px));max-height:calc(100% - 380px);overflow:auto;padding:10px 12px;
+#arHc .hc-tray,#arHc .hc-pilot{position:absolute;left:12px;bottom:200px;z-index:4;width:min(372px,calc(100% - 24px));overflow:auto;padding:10px 12px;
   background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);font-size:var(--sr-fs-xs);}
 #arHc .hc-tray__head{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;}
 #arHc .hc-tray__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);color:var(--sr-rebel);}
@@ -420,7 +424,7 @@
 #arHc .hc-use[aria-disabled="true"]{opacity:.5;cursor:default;}
 #arHc .hc-pilot__resp{display:flex;flex-wrap:wrap;gap:6px;}
 #arHc .hc-pilot__resp .sr-btn{min-height:32px;padding:0 10px;font-size:var(--sr-fs-xs);}
-#arHc .hc-cmds{position:absolute;right:12px;top:70px;z-index:5;width:min(330px,calc(100% - 24px));max-height:calc(100% - 170px);overflow:auto;padding:10px 12px;
+#arHc .hc-cmds{position:absolute;right:12px;bottom:150px;z-index:5;width:min(340px,calc(100% - 24px));overflow:auto;padding:10px 12px;
   background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);font-size:var(--sr-fs-xs);}
 #arHc .hc-cmds__head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
 #arHc .hc-cmds__title{font:400 var(--sr-fs-md)/1 var(--sr-font-display);}
@@ -445,7 +449,16 @@
 #arHc .hc-keys{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
 #arHc .hc-keys .sr-kbd{justify-self:start;}
 /* eight or more ships: smaller tiles, so a full roster fits beside the time controls */
-#arHc .hc-roster.is-many .hc-tile{width:88px;padding:4px;}
-#arHc .hc-roster.is-many .hc-tile__cam{width:78px;height:43px;}
+#arHc .hc-roster.is-many .hc-tile{width:84px;padding:4px;}
+#arHc .hc-roster.is-many .hc-tile__cam{width:74px;height:41px;}
 #arHc .hc-roster.is-many .hc-tile__foot{font-size:10px;}
 #arHc .hc-roster.is-many .hc-wing__name{font-size:var(--sr-fs-sm);}
+/* Jump Out (C-69): in the objectives panel once the job is done; the screen's one gold button while it shows */
+#arHc .hc-jump{margin-top:8px;padding-top:8px;border-top:1.5px solid var(--sr-seam);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
+#arHc .hc-jump__head{font:400 var(--sr-fs-sm)/1.1 var(--sr-font-display);color:var(--sr-go);letter-spacing:.04em;}
+#arHc .hc-jump__go{min-height:44px;}
+#arHc .hc-jump__go[aria-disabled="true"]{--c:var(--sr-night);--ct:var(--sr-text-3);box-shadow:inset 0 0 0 1px var(--sr-seam);cursor:not-allowed;}
+#arHc .hc-jump__prog{font-weight:700;color:var(--sr-text-2);} #arHc .hc-jump__prog.is-bad{color:var(--sr-hazard);}
+#arHc .hc-jump__leave{align-self:flex-start;border-color:var(--sr-hazard);color:var(--sr-hazard);min-height:28px;}
+#arHc .hc-dump{width:100%;min-height:140px;margin:0 0 10px;font:12px/1.35 ui-monospace,monospace;color:var(--sr-text);background:var(--sr-void);border:1.5px solid var(--sr-seam);border-radius:var(--sr-r-sm);}
+#arHc .hc-tray,#arHc .hc-pilot,#arHc .hc-cmds{transition-property:none;}   /* placed by script: never eased (the reduced-motion rule gives everything a 1 ms transition) */

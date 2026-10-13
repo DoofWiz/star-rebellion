@@ -18,7 +18,10 @@
      2 order persistence   3 tactic effect   4 Preservation within one think tick
      T2: the other six orders, the rules panel, morale and panic, assessments, the feed and VIEW, live camera tiles
      5 commands   8 doctrine   T3: Wren's pin answered three ways, the pilot panel, the drawer, target-first
-     9 leader loss   10 metrics   T4: the keys, hc2 and hc3 (and its CP variants), the grouped panel, an hc3 brawl at speed 3 */
+     9 leader loss   10 metrics   T4: the keys, hc2 and hc3 (and its CP variants), the grouped panel, an hc3 brawl at speed 3
+   High Command playtest 1 (docs/ARENA-HC-FEEDBACK-1.md, DESIGN_BLOCKERS C-69):
+     F1: the scale (speed, fighting range, weapon range, the 4 × map with the layout scaled, spacing), Jump Out and
+         Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1355,11 +1358,67 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(need.every(k=>k in R)&&R.ruleset==='hc'&&R.outcome==='aborted'&&typeof R.orders.count==='number'&&R.orders.byType&&R.cp.byCommand&&R.cp.byCommand.recon===1&&typeof R.pauses.pausedSecs==='number'&&typeof R.pauses.realSecs==='number'&&
    typeof R.rules.triggers==='number'&&Array.isArray(R.emergencies.list)&&R.emergencies.responses&&Array.isArray(R.firstOrderAfterAlert.each)&&typeof R.orderRate==='number'&&typeof R.pauseRate.perMin==='number','HC 10: the metrics record '+JSON.stringify(R).slice(0,400));
  ok(hcLines.some(l=>{try{const x=JSON.parse(l);return x.ruleset==='hc'&&x.outcome==='aborted';}catch(e){return false;}}),'HC 10: the record reaches the console as ARENA_METRICS');
+ /* ---------- High Command playtest 1, F1 ---------- */
+ const f1=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),q=s=>document.querySelector('#arHc '+s),R=el=>el.getBoundingClientRect();
+  f.load('hc1_nightfall',0,51);
+  const T=SIM.TUNE,c=SIM.fn.wingCentre(S().wings[0]);
+  out.scale=[T.SPEED_SCALE.get(),T.ENGAGE_FRAC.get(),T.HC_MAP.get(),SIM.W,SIM.H,Math.round(c.x),Math.round(c.y),Math.round(SIM.fn.capsOf(by('P1')).vMax),by('relay').x];
+  T.RANGE_MULT.set(1.5);f.load('hc1_nightfall',0,51);out.range=[SIM.fn.gunRange(by('P1'))];T.RANGE_MULT.set(1);f.load('hc1_nightfall',0,51);out.range.push(SIM.fn.gunRange(by('P1')));
+  // spacing: a wing re-forming keeps its personal space
+  for(const s of S().ships)if(s.faction==='heg'&&!s.struct)s.alive=false;
+  f.issue('dagger','regroup');SIM.runFor(12);
+  let mind=1e9;const dg=SIM.fn.wingShips(S().wings[0]);for(const a of dg)for(const b of dg)if(a!==b)mind=Math.min(mind,Math.hypot(a.x-b.x,a.y-b.y));
+  out.space=[Math.round(mind),T.SEP_R.get(),T.FORM_GAP.get()];
+  // the HUD: the tray above its wing's card, the pilot panel above its tile, Commands bottom right opening upward
+  f.selectWing('amber',true);f.syncHud();
+  const tr=R(q('#hcTray')),card=R(q('#hcRoster [data-wing="amber"]'));
+  out.tray=[!q('#hcTray').hidden,tr.bottom<=card.top+1,tr.right>card.left&&tr.left<card.right];
+  f.openPilot('P4');f.syncHud();
+  const pp=R(q('#hcPilot')),tile=R(q('#hcRoster [data-ship="P4"]'));
+  out.pilot=[!q('#hcPilot').hidden,pp.bottom<=tile.top+1,pp.right>tile.left&&pp.left<tile.right,q('#hcTray').hidden];
+  q('#hcCmdBtn').click();f.syncHud();
+  const btn=R(q('#hcCmdBtn')),dr=R(q('#hcCmds')),tm=R(q('#hcTime')),stg=R(q('#hcStage'));
+  out.cmds=[!q('#hcCmds').hidden,dr.bottom<=btn.top+1,Math.abs(dr.right-btn.right)<2,btn.bottom<=tm.top+1,stg.right-btn.right<40,stg.bottom-tm.bottom<40,btn.height>=50];
+  q('#hcCmds [data-act="close"]').click();
+  // Jump Out: once the primaries are done, a gold button (COMMANDS steps back); every wing withdraws; complete when the last ship jumps
+  out.jump=[SIM.jumpOutState()===null,!q('#hcObj [data-act="jumpout"]')];
+  by('relay').alive=false;by('relay').hull=0;for(const o of S().objectives)if(o.primary)o.state='done';
+  f.syncHud();
+  const go=q('#hcObj [data-act="jumpout"]');
+  out.jump.push(!!go,go&&go.classList.contains('sr-btn--primary'),!q('#hcCmdBtn').classList.contains('sr-btn--primary'),[...document.querySelectorAll('#arHc .sr-btn--primary')].filter(e=>e.offsetParent).length);
+  go.click();
+  out.jump.push(S().wings.map(w=>w.order.kind).join(),!!q('#hcObj .hc-jump__prog'));
+  SIM.runFor(150);
+  out.jump.push(S().over&&S().over.outcome,S().over&&S().over.how,S().over&&S().over.lost,S().ships.filter(s=>s.jumped).length);
+  // Leave now: ends at once; whoever hasn't jumped is lost
+  f.load('hc1_nightfall',0,52);
+  by('relay').alive=false;by('relay').hull=0;for(const o of S().objectives)if(o.primary)o.state='done';f.syncHud();
+  const alive=S().ships.filter(s=>s.alive&&s.faction==='reb'&&!s.struct).length;
+  q('#hcObj [data-act="leavenow"]').click();
+  out.leave=[S().over&&S().over.outcome,S().over&&S().over.leftBehind,alive,S().over&&S().over.lost,H.phase];
+  // Copy settings: every panel number in one line
+  f.load('hc1_nightfall',0,1);
+  const j=JSON.parse(f.copySettings());
+  out.copy=[Object.keys(j).length===Object.keys(SIM.TUNE).length,j.SPEED_SCALE,!q('#hcEnd').hidden,!!q('#hcEnd textarea')];
+  q('#hcEnd [data-act="closewin"]').click();
+  return out;
+ });
+ ok(f1.scale[0]===2.5&&f1.scale[1]===1&&f1.scale[2]===4&&f1.scale[3]===16800&&f1.scale[4]===12000&&Math.abs(f1.scale[5]-2200)<500&&Math.abs(f1.scale[6]-4700)<600&&f1.scale[7]===625&&f1.scale[8]===11600,'F1: the scale '+JSON.stringify(f1.scale));
+ ok(f1.range[0]===1350&&f1.range[1]===900,'F1: weapon range × on restart '+JSON.stringify(f1.range));
+ ok(f1.space[0]>=f1.space[1]*0.6,'F1: ships keep their personal space '+JSON.stringify(f1.space));
+ ok(f1.tray.every(Boolean),'F1: the order tray pops up above its wing '+JSON.stringify(f1.tray));
+ ok(f1.pilot.every(Boolean),'F1: the pilot panel pops up above its tile '+JSON.stringify(f1.pilot));
+ ok(f1.cmds.every(Boolean),'F1: Commands bigger, bottom right, opening upward '+JSON.stringify(f1.cmds));
+ ok(f1.jump[0]&&f1.jump[1]&&f1.jump[2]&&f1.jump[3]&&f1.jump[4]&&f1.jump[5]===1&&f1.jump[6]==='withdraw,withdraw'&&f1.jump[7]&&f1.jump[8]==='won'&&f1.jump[9]==='done'&&f1.jump[10]===0&&f1.jump[11]===6,'F1: Jump Out completes the mission '+JSON.stringify(f1.jump));
+ ok(f1.leave[0]==='won'&&f1.leave[1]===f1.leave[2]&&f1.leave[3]===f1.leave[2]&&f1.leave[4]==='OVER','F1: Leave now ends it, stragglers lost '+JSON.stringify(f1.leave));
+ ok(f1.copy.every(Boolean)||f1.copy[1]===2.5&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===42&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

@@ -441,14 +441,16 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
     <div class="hc-top" id="hcTop" hidden>
       <div class="hc-obj" id="hcObjBox"><div id="hcObj"></div><div class="hc-rules" id="hcRules"></div></div>
       <div class="hc-clockbox"><div class="hc-clock" id="hcClock">4:00</div><div class="hc-banner" id="hcBanner" hidden>PAUSED &#8212; ISSUING ORDERS</div></div>
-      <div class="hc-cmdbox"><div class="hc-cp" id="hcCp"></div><button type="button" class="sr-btn sr-btn--primary hc-cmdbtn" id="hcCmdBtn">COMMANDS</button></div>
     </div>
     <div class="hc-feed" id="hcFeed" aria-live="polite"></div>
     <div class="hc-tray" id="hcTray" hidden></div>
     <div class="hc-pilot" id="hcPilot" hidden></div>
     <div class="hc-cmds" id="hcCmds" hidden></div>
     <div class="hc-roster" id="hcRoster" hidden></div>
-    <div class="hc-time" id="hcTime" hidden></div>
+    <div class="hc-br" id="hcBr" hidden>
+      <div class="hc-cmdbox"><div class="hc-cp" id="hcCp"></div><button type="button" class="sr-btn sr-btn--primary hc-cmdbtn" id="hcCmdBtn" aria-expanded="false">COMMANDS</button></div>
+      <div class="hc-time" id="hcTime"></div>
+    </div>
     <div class="hc-tip" id="hcTip" role="tooltip" hidden></div>
     <div class="hc-toast" id="hcToast" hidden></div>
     <div class="hc-scrim" id="hcPicker" hidden></div>
