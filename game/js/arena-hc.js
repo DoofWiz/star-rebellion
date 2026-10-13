@@ -138,12 +138,13 @@ const iconBoost=()=>Math.max(1,Math.min(3.2,0.5/cam.z));
 function camTo(x,y,z){cam.x=x;cam.y=y;if(z)cam.z=z;clampCam();A.camHeld=true;}
 
 /* ---------- the backdrop and the ships' bodies: copied from arena-sb.js (stars, rocks, the sprite cache) ---------- */
-const stars=[];
-function makeStars(){stars.length=0;const r=SIM.fn.mulberry(99),n=Math.min(3000,Math.round(420*SIM.W*SIM.H/(4200*3000)));for(let i=0;i<n;i++)stars.push({x:r()*SIM.W,y:r()*SIM.H,r:0.7+r()*1.1,band:Math.floor(r()*4)});}
+const stars=[],starBands=[[],[],[],[]];
+function makeStars(){stars.length=0;for(const b of starBands)b.length=0;const r=SIM.fn.mulberry(99),n=Math.min(20000,Math.round(420*SIM.W*SIM.H/(4200*3000)));for(let i=0;i<n;i++){const st={x:r()*SIM.W,y:r()*SIM.H,r:0.7+r()*1.1,band:Math.floor(r()*4)};stars.push(st);starBands[st.band].push(st);}}
 function drawBackdrop(c){
   c.fillStyle=C.void;c.fillRect(0,0,SIM.W,SIM.H);
   c.fillStyle='#dfe6ff';
-  for(let b=0;b<4;b++){c.globalAlpha=0.3+0.13*b;c.beginPath();for(const st of stars){if(st.band!==b)continue;const r=st.r/Math.max(cam.z,0.35);c.rect(st.x-r,st.y-r,2*r,2*r);}c.fill();}
+  const hw=cssW/2/cam.z+8,hh=cssH/2/cam.z+8,x0=cam.x-hw,x1=cam.x+hw,y0=cam.y-hh,y1=cam.y+hh,k=1/Math.max(cam.z,0.35);   // only the stars in view (C-70)
+  for(let b=0;b<4;b++){c.globalAlpha=0.3+0.13*b;c.beginPath();for(const st of starBands[b]){if(st.x<x0||st.x>x1||st.y<y0||st.y>y1)continue;const r=st.r*k;c.rect(st.x-r,st.y-r,2*r,2*r);}c.fill();}
   c.globalAlpha=1;
   c.strokeStyle=TH.rgba(C.seam,0.9);c.lineWidth=3/cam.z;c.setLineDash([16/cam.z,12/cam.z]);
   c.strokeRect(SIM.MARGIN,SIM.MARGIN,SIM.W-2*SIM.MARGIN,SIM.H-2*SIM.MARGIN);c.setLineDash([]);
@@ -252,14 +253,15 @@ function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashe
   const dt=SIM.TICK/1000;
   c.save();c.lineCap='round';
   for(const p of S.proj){
-    const x=p.x+p.vx*a*dt,y=p.y+p.vy*a*dt,sp=Math.hypot(p.vx,p.vy)||1,[core,glow]=boltCols(p);
-    const L=Math.min(22,Math.hypot(x-p.x0,y-p.y0)),tx=x-p.vx/sp*L,ty=y-p.vy/sp*L;
+    const x=p.x-p.vx*(1-a)*dt,y=p.y-p.vy*(1-a)*dt,sp=Math.hypot(p.vx,p.vy)||1,[core,glow]=boltCols(p);
+    const L=Math.min(22,Math.max(0,(x-p.x0)*(p.vx/(Math.hypot(p.vx,p.vy)||1))+(y-p.y0)*(p.vy/(Math.hypot(p.vx,p.vy)||1)))),tx=x-p.vx/sp*L,ty=y-p.vy/sp*L;
     c.beginPath();c.moveTo(tx,ty);c.lineTo(x,y);c.globalAlpha=0.4;c.lineWidth=Math.max(5,3/z)/1;c.strokeStyle=glow;c.stroke();
     c.globalAlpha=1;c.lineWidth=Math.max(2,1.2/z);c.strokeStyle=core;c.stroke();
   }
   for(const m of S.missiles){
-    if(m.trail.length>1){c.beginPath();m.trail.forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.globalAlpha=0.6;c.lineWidth=3/z;c.strokeStyle=C.steel;c.stroke();c.globalAlpha=1;}
-    c.beginPath();c.arc(m.x,m.y,6/z,0,6.283);c.fillStyle=C.psi;c.fill();
+    const mp=ipos(m);
+    if(m.trail.length>1){c.beginPath();m.trail.slice(0,-1).forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.lineTo(mp.x,mp.y);c.globalAlpha=0.6;c.lineWidth=3/z;c.strokeStyle=C.steel;c.stroke();c.globalAlpha=1;}
+    c.beginPath();c.arc(mp.x,mp.y,6/z,0,6.283);c.fillStyle=C.psi;c.fill();
   }
   for(const f of S.fx){
     const life=f.kind==='boom'?0.9:0.32,k=(S.t-f.t0)/life;if(k<0||k>1)continue;
@@ -272,18 +274,27 @@ function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashe
 function drawTrail(c,s,z){
   if(s.trail.length<2)return;
   c.save();c.lineCap='round';c.strokeStyle=shipColHi(s);c.globalAlpha=0.35;c.lineWidth=2.5/z;c.beginPath();
-  s.trail.forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.lineTo(s.x,s.y);c.stroke();c.restore();
+  const e=ipos(s);s.trail.slice(0,-1).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.lineTo(e.x,e.y);c.stroke();c.restore();
+}
+/* smooth motion (C-70): the sim steps at 20 Hz; the map draws each body between where it was at the last step and
+   where it is now, RA of the way (the time banked toward the next step), so motion is smooth at any frame rate and
+   any speed, one step (50 ms of game time) behind the sim */
+let RA=1;
+const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*k;};
+function ipos(s){
+  if(s.px==null)return {x:s.x,y:s.y,h:s.h};
+  return {x:s.px+(s.x-s.px)*RA,y:s.py+(s.y-s.py)*RA,h:angLerp(s.ph==null?s.h:s.ph,s.h,RA)};
 }
 function render(now){
   fitCanvasIfNeeded();
   ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#04060d';ctx.fillRect(0,0,cssW,cssH);
   const S=SIM.S;if(!S||A.phase==='PICK')return;
-  const z=cam.z,a=A.speed>0&&A.phase==='LIVE'?Math.max(0,Math.min(1,A.acc/SIM.TICK)):0,dt=SIM.TICK/1000,boost=iconBoost();
+  const z=cam.z,a=A.phase==='LIVE'?Math.max(0,Math.min(1,A.acc/SIM.TICK)):1,dt=SIM.TICK/1000,boost=iconBoost();RA=a;
   ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(cssW/2-cam.x*z),dpr*(cssH/2-cam.y*z));
   drawBackdrop(ctx);
   for(const r of S.rocks)drawRock(ctx,r);
   drawPoints(ctx,z,S);
-  const pos=s=>s.struct?{x:s.x,y:s.y,h:s.h}:{x:s.x+s.vx*a*dt,y:s.y+s.vy*a*dt,h:s.h+s.w*a*dt};
+  const pos=ipos;
   // the selected wing's engagement ring, and its attack designation in gold
   const w=SIM.fn.wingOf(A.sel);
   if(w){
@@ -319,9 +330,9 @@ function render(now){
     const p=pos(s);dashLine(ctx,p,t,C.heg,z,1.8,[3,6],0.9);
     label(ctx,(p.x+t.x)/2,(p.y+t.y)/2-8/z,s.name+' → '+t.name,C.hegHi,z,10);
   }
-  if(recon&&!S.reinforce.spawned){const e=S.reinforce.edge,g=260;ctx.save();ctx.fillStyle=TH.rgba(C.hazard,0.12);
-    const M=SIM.MARGIN;if(e==='E')ctx.fillRect(SIM.W-M-g,M,g,SIM.H-2*M);if(e==='W')ctx.fillRect(M,M,g,SIM.H-2*M);if(e==='N')ctx.fillRect(M,M,SIM.W-2*M,g);if(e==='S')ctx.fillRect(M,SIM.H-M-g,SIM.W-2*M,g);ctx.restore();
-    label(ctx,e==='E'?SIM.W-SIM.MARGIN-g/2:e==='W'?SIM.MARGIN+g/2:SIM.W/2,e==='N'?SIM.MARGIN+g/2:e==='S'?SIM.H-SIM.MARGIN-g/2:SIM.H/2,'REINFORCEMENTS IN '+fmtClock(SIM.clockLeft()),C.hazard,z,13,'Bungee');}
+  if(recon&&!S.reinforce.spawned){const e=S.reinforce.edge||'E',g=260,Zn=SIM.zone;ctx.save();ctx.fillStyle=TH.rgba(C.hazard,0.12);   // the play area's edge they come from (C-70)
+    const zw=Zn.x1-Zn.x0,zh=Zn.y1-Zn.y0;if(e==='E')ctx.fillRect(Zn.x1-g,Zn.y0,g,zh);if(e==='W')ctx.fillRect(Zn.x0,Zn.y0,g,zh);if(e==='N')ctx.fillRect(Zn.x0,Zn.y0,zw,g);if(e==='S')ctx.fillRect(Zn.x0,Zn.y1-g,zw,g);ctx.restore();
+    label(ctx,e==='E'?Zn.x1-g/2:e==='W'?Zn.x0+g/2:(Zn.x0+Zn.x1)/2,e==='N'?Zn.y0+g/2:e==='S'?Zn.y1-g/2:(Zn.y0+Zn.y1)/2,'REINFORCEMENTS IN '+fmtClock(SIM.clockLeft()),C.hazard,z,13,'Bungee');}
   for(const d of S.decoys){   // a Decoy Signal: a false contact, in information cyan
     const k=(now/600)%1;ring(ctx,d.x,d.y,(30+60*k)/z*0.6+20,TH.rgba(C.shield,1-k),z,2.4);
     ctx.save();ctx.translate(d.x,d.y);ctx.rotate(Math.PI/4);ctx.strokeStyle=C.shield;ctx.lineWidth=2.4/z;ctx.strokeRect(-12/z,-12/z,24/z,24/z);ctx.restore();
@@ -412,6 +423,7 @@ function frame(now){
     A.acc+=realDt*ts;
     let n=0;
     while(A.acc>=SIM.TICK&&n++<200&&A.phase==='LIVE'){A.acc-=SIM.TICK;SIM.step();if(SIM.S.over){onOver();break;}}
+    RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
   bubbleTick(performance.now());
@@ -426,10 +438,10 @@ function followCam(dtMs){
   const k=1-Math.exp(-4*dtMs/1000);cam.x+=(p.x-cam.x)*k;cam.y+=(p.y-cam.y)*k;clampCam();
 }
 function focusPoint(){
-  const s=SIM.fn.byId(A.selShip);if(s&&s.alive)return s;
+  const s=SIM.fn.byId(A.selShip);if(s&&s.alive)return ipos(s);
   const w=SIM.fn.wingOf(A.sel);if(!w)return null;
   const live=SIM.fn.wingShips(w);if(!live.length)return null;
-  let x=0,y=0;for(const q of live){x+=q.x;y+=q.y;}return {x:x/live.length,y:y/live.length};
+  let x=0,y=0;for(const q of live){const p=ipos(q);x+=p.x;y+=p.y;}return {x:x/live.length,y:y/live.length};
 }
 function setSpeed(i){
   if(i<0||i>=SIM.TIMESCALES.length)return;
@@ -688,14 +700,14 @@ function drawTileCam(cvs,s,zoom){
   const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=zoom?zoom*W2/340:TILE_Z*W2/96;
   c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,W2,H2);
   if(!s.alive){c.fillStyle=C.text3;c.font='800 '+Math.round(H2*0.22)+'px "Exo 2",sans-serif';c.textAlign='center';c.fillText(s.jumped?'JUMPED':'SIGNAL LOST',W2/2,H2*0.58);return;}
-  const cx=s.x,cy=s.y,hw=W2/2/z,hh=H2/2/z;
+  const sp0=ipos(s),cx=sp0.x,cy=sp0.y,hw=W2/2/z,hh=H2/2/z;
   c.setTransform(z,0,0,z,W2/2-cx*z,H2/2-cy*z);
   c.fillStyle='#dfe6ff';c.globalAlpha=0.5;c.beginPath();
   for(const st of stars){if(Math.abs(st.x-cx)>hw||Math.abs(st.y-cy)>hh)continue;c.rect(st.x-1/z,st.y-1/z,2/z,2/z);}c.fill();c.globalAlpha=1;
   for(const r of S.rocks)if(Math.abs(r.x-cx)<hw+r.r&&Math.abs(r.y-cy)<hh+r.r)drawRock(c,r);
   const saveDpr=dpr;dpr=1;spriteCache=tileSprites;angB=36;spriteCap=500;
   try{
-    for(const o of S.ships){if(!o.alive||Math.abs(o.x-cx)>hw+80||Math.abs(o.y-cy)>hh+80)continue;drawShipBody(c,o,o.x,o.y,o.h,z,1);}
+    for(const o of S.ships){if(!o.alive||Math.abs(o.x-cx)>hw+80||Math.abs(o.y-cy)>hh+80)continue;const op=ipos(o);drawShipBody(c,o,op.x,op.y,op.h,z,1);}
   }finally{dpr=saveDpr;spriteCache=sprites;angB=ANG_B;spriteCap=900;}
   c.lineCap='round';
   for(const p of S.proj){if(Math.abs(p.x-cx)>hw||Math.abs(p.y-cy)>hh)continue;const sp=Math.hypot(p.vx,p.vy)||1;c.beginPath();c.moveTo(p.x-p.vx/sp*22,p.y-p.vy/sp*22);c.lineTo(p.x,p.y);c.lineWidth=2.4/z;c.strokeStyle=boltCols(p)[1];c.stroke();}
@@ -1246,7 +1258,7 @@ function open(){openUi();showPicker();}
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
   fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
-    frame,toScreen,toWorld,cam_:()=>cam,
+    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};}}};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg};

@@ -1408,7 +1408,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   q('#hcEnd [data-act="closewin"]').click();
   return out;
  });
- ok(f1.scale[0]===2.5&&f1.scale[1]===1&&f1.scale[2]===4&&f1.scale[3]===16800&&f1.scale[4]===12000&&Math.abs(f1.scale[5]-2200)<500&&Math.abs(f1.scale[6]-4700)<600&&f1.scale[7]===625&&f1.scale[8]===11600,'F1: the scale '+JSON.stringify(f1.scale));
+ ok(f1.scale[0]===4&&f1.scale[1]===1&&f1.scale[2]===8&&f1.scale[3]===33600&&f1.scale[4]===24000&&Math.abs(f1.scale[5]-10600)<500&&Math.abs(f1.scale[6]-10700)<600&&f1.scale[7]===1000&&f1.scale[8]===20000,'F1: the scale '+JSON.stringify(f1.scale));
  ok(f1.range[0]===1350&&f1.range[1]===900,'F1: weapon range × on restart '+JSON.stringify(f1.range));
  ok(f1.space[0]>=f1.space[1]*0.6,'F1: ships keep their personal space '+JSON.stringify(f1.space));
  ok(f1.tray.every(Boolean),'F1: the order tray pops up above its wing '+JSON.stringify(f1.tray));
@@ -1416,7 +1416,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f1.cmds.every(Boolean),'F1: Commands bigger, bottom right, opening upward '+JSON.stringify(f1.cmds));
  ok(f1.jump[0]&&f1.jump[1]&&f1.jump[2]&&f1.jump[3]&&f1.jump[4]&&f1.jump[5]===1&&f1.jump[6]==='withdraw,withdraw'&&f1.jump[7]&&f1.jump[8]==='won'&&f1.jump[9]==='done'&&f1.jump[10]===0&&f1.jump[11]===6,'F1: Jump Out completes the mission '+JSON.stringify(f1.jump));
  ok(f1.leave[0]==='won'&&f1.leave[1]===f1.leave[2]&&f1.leave[3]===f1.leave[2]&&f1.leave[4]==='OVER','F1: Leave now ends it, stragglers lost '+JSON.stringify(f1.leave));
- ok(f1.copy.every(Boolean)||f1.copy[1]===2.5&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
+ ok(f1.copy.every(Boolean)||f1.copy[1]===4&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
  /* ---------- High Command playtest 1, F2: turning ---------- */
  const f2=await pg3.evaluate(()=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
@@ -1547,11 +1547,36 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f4.limit[0]===false&&f4.limit[1]===false&&f4.limit[2]===4,'F4: rate-limited, your pilots only '+JSON.stringify(f4.limit));
  ok(f4.emerg.every(Boolean),'F4: an emergency is said aloud and kept in the feed '+JSON.stringify(f4.emerg));
  ok(f4.talk[0]>=5,'F4: a fight talks '+JSON.stringify(f4.talk));
+ // ---------- G1 (C-70, playtest 2): smooth motion, the convoy at the jump point, the map round the play area ----------
+ const g1=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id);
+  f.load('hc1_nightfall',0,7);SIM.runFor(20);
+  // the map draws each ship between its last two steps: at RA 0 where it was, at 1 where it is
+  const s=by('P1');H.A.acc=0;f.frame(performance.now());const a0=f.ipos(s);H.A.acc=SIM.TICK*0.5;
+  const RA=Math.max(0,Math.min(1,H.A.acc/SIM.TICK));
+  out.lerp=[Math.hypot(s.x-s.px,s.y-s.py)>1,Math.abs(a0.x-s.px)<1e-6||Math.abs(a0.x-s.x)<1e-6,RA];
+  // Convoy Lark waits at the jammed jump point; once Relay K-7 falls it lines up and jumps (it orbited for ever)
+  SIM.TUNE.SPEED_SCALE.set(4);f.load('hc1_nightfall',0,7);SIM.runFor(60);
+  const L=by('lark'),jp=S().points.jump;out.lark=[L.beh.kind,Math.round(Math.hypot(L.x-jp.x,L.y-jp.y))];
+  SIM.fn.kill(by('relay'),null);let n=0;while(L.alive&&n++<1200)SIM.step();
+  out.lark.push(L.jumped,+(n*SIM.TICK/1000).toFixed(1));
+  // the map is 8 ×, the scenario's places spread 4 × in its middle; reinforcements come in at the play area's edge
+  const Z=SIM.zone;out.map=[SIM.fn.HC_MAP_(),SIM.fn.HC_SPREAD_(),SIM.W,SIM.H,Z.x0,Z.y0,Z.x1,Z.y1,SIM.TUNE.SPEED_SCALE.get()];
+  f.load('hc1_nightfall',0,7);const RF=S().reinforce,before=new Set(S().ships.map(x=>x.id));SIM.runFor(RF.secs+0.2);
+  const reh=S().ships.filter(x=>!before.has(x.id)&&x.faction==='heg');
+  out.reinf=[reh.length>0,reh.every(x=>x.x>Z.x1&&x.x<SIM.W-100&&x.y>Z.y0&&x.y<Z.y1)];
+  return out;
+ });
+ ok(g1.lerp[0]&&g1.lerp[1]&&g1.lerp[2]===0.5,'G1: ships drawn between their last two steps '+JSON.stringify(g1.lerp));
+ ok(g1.lark[0]==='wait'&&g1.lark[1]<900&&g1.lark[2]===true&&g1.lark[3]<45,'G1: Convoy Lark jumps once the relay falls '+JSON.stringify(g1.lark));
+ ok(g1.map[0]===8&&g1.map[1]===4&&g1.map[2]===33600&&g1.map[3]===24000&&g1.map[4]===8400&&g1.map[5]===6000&&g1.map[6]===25200&&g1.map[7]===18000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
+ ok(g1.reinf.every(Boolean),'G1: reinforcements come in off the play area\'s edge '+JSON.stringify(g1.reinf));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

@@ -21,13 +21,14 @@ const TH=SR.theme,C=TH.C;
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
-let HC_MAP=4;             // the map's size × space.js's (was 2 until playtest 1, C-69). placeholder (each scenario may set its own)
+let HC_MAP=8;             // the map's size × space.js's (was 2 until playtest 1, C-69; 4 until playtest 2, C-70). placeholder (each scenario may set its own)
+let HC_SPREAD=4;          // how far apart a scenario's places are, × space.js's map: the layout fills this much of the middle of the map, with open space round it (C-70). placeholder
 let W=W0*HC_MAP,H=H0*HC_MAP;
 const TICK=50;            // ms of sim time per step (copied from sim-sb.js). placeholder
 const TIMESCALES=[0,0.3,1,3];   // pause / slow / play / fast (slow and fast on the panel). placeholder
 let THINK_SECS=0.5;       // how often each ship re-decides what to do. placeholder
 let ROUND_SECS=3;         // a ship's top speed covers its top dial move (straight_max SU) in this long (sim-sb.js's EXEC_LEN). placeholder
-let SPEED_SCALE=2.5;      // every craft's speed range × this (was SB's 1.25 until playtest 1, C-69). placeholder
+let SPEED_SCALE=4;        // every craft's speed range × this (was SB's 1.25 until playtest 1, C-69; 2.5 until playtest 2, C-70). placeholder
 let CRUISE=0.7;           // the speed a ship flies when nothing presses it, × its top speed. placeholder
 let CONVOY_SPD=0.55;      // a convoy's speed, × its top speed. placeholder
 let THRUST_K=0.7;         // thrust, × top speed a second (was 1.6 until the turn model, C-69). placeholder
@@ -263,7 +264,7 @@ function fireTick(s,dt){
     q.cd=q.w.kind==='missile'?MISSILE_EVERY:BURST_EVERY;
     if(q.w.kind==='missile'){
       q.ammo--;s.st.missiles++;
-      S.missiles.push({x:s.x,y:s.y,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:q.w.rng/MISSILE_SPD*1.8,trail:[]});
+      S.missiles.push({x:s.x,y:s.y,px:s.px,py:s.py,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:q.w.rng/MISSILE_SPD*1.8,trail:[]});
     } else S.bursts.push({owner:s.id,faction:s.faction,w:q.w,left:BURST_N,next:0,target:t.id,fired:0,hits:0,live:0,hitT:{},id:++S.burstN,q});
   }
 }
@@ -351,7 +352,7 @@ function missileTick(dt){
       }
     }
     if(rockHit(p0,p1)||m.life<=0){S.fx.push({x:p1.x,y:p1.y,t0:S.t,kind:'boom',size:0.5});continue;}
-    m.x=p1.x;m.y=p1.y;m.trail.push({x:m.x,y:m.y});if(m.trail.length>14)m.trail.shift();
+    m.px=m.x;m.py=m.y;m.x=p1.x;m.y=p1.y;m.trail.push({x:m.x,y:m.y});if(m.trail.length>14)m.trail.shift();
     kept.push(m);
   }
   S.missiles=kept;
@@ -490,7 +491,7 @@ function autoTick(){
 const keyOf=row=>String(row.legacy_keys).split('|')[0]||row.id;
 function mkShip(d){
   const r=d.row;
-  const s={id:d.id,name:d.name,faction:d.faction,row:r,cls:keyOf(r),struct:r.kind==='structure',x:d.x,y:d.y,h:d.h,vh:d.h,vx:0,vy:0,w:0,
+  const s={id:d.id,name:d.name,faction:d.faction,row:r,cls:keyOf(r),struct:r.kind==='structure',x:d.x,y:d.y,h:d.h,px:d.x,py:d.y,ph:d.h,vh:d.h,vx:0,vy:0,w:0,
     pilot:d.pilot,lead:false,wing:d.wing||null,role:d.role||null,quiet:!!d.quiet,marines:!!d.marines,
     segs:{F:{val:r.shield_front,max:r.shield_front,at:'F'},R:{val:r.shield_rear,max:r.shield_rear,at:'R'}},
     arm:r.armour,hull:r.hull,maxArm:r.armour,maxHull:r.hull,crits:[],
@@ -518,14 +519,21 @@ function resolveScenario(scn,vi){   // copied from arena-sb.js
 }
 /* the scenarios are written for a LAYOUT_MAP map; every place in one is scaled to the map it loads on, so a bigger
    map (with faster ships) keeps the same shape and the same travel times (C-69) */
-function scaleLayout(R,k){
-  if(k===1)return R;
-  const P=a=>a?[a[0]*k,a[1]*k,a[2]]:a,X=o=>o?Object.assign({},o,{x:o.x*k,y:o.y*k}):o;
+/* the play area: where the scenario's layout sits (edges for waves and reinforcements are its edges, not the map's) */
+let Z={x0:0,y0:0,x1:W,y1:H};
+function zoneEdge(e,off){   // a point off one edge of the play area (off: outward), kept on the map
+  const cx=(Z.x0+Z.x1)/2,cy=(Z.y0+Z.y1)/2,m=MARGIN+60;
+  return e==='E'?{x:Math.min(W-m,Z.x1+off),y:cy}:e==='W'?{x:Math.max(m,Z.x0-off),y:cy}:e==='N'?{x:cx,y:Math.max(m,Z.y0-off)}:{x:cx,y:Math.min(H-m,Z.y1+off)};
+}
+function scaleLayout(R,k,ox,oy){
+  ox=ox||0;oy=oy||0;
+  if(k===1&&!ox&&!oy)return R;
+  const P=a=>a?[a[0]*k+ox,a[1]*k+oy,a[2]]:a,X=o=>o?Object.assign({},o,{x:o.x*k+ox,y:o.y*k+oy}):o;
   const out=Object.assign({},R);
   out.wings=(R.wings||[]).map(w=>Object.assign({},w,{at:P(w.at),ships:w.ships.map(sd=>Object.assign({},sd,{at:P(sd.at)}))}));
   out.allies=(R.allies||[]).map(a=>Object.assign({},a,{at:P(a.at)}));
   out.enemies=(R.enemies||[]).map(e=>Object.assign({},e,{at:P(e.at)}));
-  out.rocks=(R.rocks||[]).map(r=>Object.assign({},r,{x:r.x*k,y:r.y*k,r:r.r*(1+(k-1)*0.5)}));
+  out.rocks=(R.rocks||[]).map(r=>Object.assign({},r,{x:r.x*k+ox,y:r.y*k+oy,r:r.r*(1+(k-1)*0.5)}));
   out.points={};for(const key in R.points||{})out.points[key]=X(R.points[key]);
   out.objectives=(R.objectives||[]).map(o=>o.at?Object.assign({},o,{at:X(o.at)}):o);
   if(R.reserves)out.reserves=Object.assign({},R.reserves,{at:P(R.reserves.at),ships:(R.reserves.ships||[]).map(sd=>Object.assign({},sd,{at:P(sd.at)}))});
@@ -534,8 +542,11 @@ function scaleLayout(R,k){
 function build(scn,opt){
   opt=opt||{};
   const R0=resolveScenario(scn,opt.variant||0);
-  const ms=R0.map||HC_MAP;W=Math.round(W0*ms);H=Math.round(H0*ms);
-  const R=scaleLayout(R0,ms/(R0.layoutMap||LAYOUT_MAP));
+  // the map (HC_MAP) and the layout's spread (HC_SPREAD) are separate since C-70: the layout sits in the middle
+  const sp=R0.spread||Math.min(HC_SPREAD,R0.map||HC_MAP),ms=Math.max(R0.map||HC_MAP,sp);W=Math.round(W0*ms);H=Math.round(H0*ms);
+  const ox=Math.round((ms-sp)/2*W0),oy=Math.round((ms-sp)/2*H0);
+  Z={x0:ox,y0:oy,x1:ox+Math.round(sp*W0),y1:oy+Math.round(sp*H0)};
+  const R=scaleLayout(R0,sp/(R0.layoutMap||LAYOUT_MAP),ox,oy);
   S={scn,R,seed:opt.seed>>>0,rng:mulberry(opt.seed>>>0),t:0,tick:0,ships:[],wings:[],rocks:(R.rocks||[]).map(r=>Object.assign({},r)),
     points:JSON.parse(JSON.stringify(R.points||{})),objectives:[],events:[],evN:0,proj:[],bursts:[],missiles:[],fx:[],floaters:[],burstN:0,
     reinforce:Object.assign({secs:240,edge:'E',force:[]},R.reinforce||{},{spawned:false}),getOut:false,
@@ -581,7 +592,7 @@ function spawnEnemies(e,nextN){
   const out=[];
   for(let i=0;i<n;i++){
     const k=nextN();
-    const at=e.at&&n===1?e.at:formation(e.at||[W-900,H*0.4,Math.PI],i,n);
+    const at=e.at&&n===1?e.at:formation(e.at||[Z.x1-900,Z.y0+(Z.y1-Z.y0)*0.4,Math.PI],i,n);
     const label=row.name.split(' ').pop(),nm=e.name&&n===1?e.name:(e.name||label)+' '+k;
     const pilot=e.preset?presetPilot({preset:e.preset},nm):dbPilotOf(e.pilot||r.pilot,nm);
     if(r.nerve_cap!=null)pilot.coolCap=r.nerve_cap;
@@ -639,7 +650,7 @@ function matches(spec,t){
   return t.id===spec.id;
 }
 const nearPoint=(pool,p,R)=>pool.filter(t=>Math.hypot(t.x-p.x,t.y-p.y)<=R);
-function extractPoint(){const p=S.points[S.R.extract||'jump'];return p||{x:80,y:H/2};}
+function extractPoint(){const p=S.points[S.R.extract||'jump'];return p||zoneEdge('W',600);}
 /* where a withdrawing ship goes: the extraction point, or (while it is jammed) its wing's rally point, where it
    arrived, to wait out of the fight until the way is open (C-67 item 23) */
 function withdrawPoint(s){
@@ -786,9 +797,9 @@ function anchorOf(tg){
 }
 let DEFEND_R=2000;        // a defending wing engages what comes this close to what it guards. placeholder
 let HOLD_R=1800;          // a holding wing engages what comes this close to its point. placeholder
-let CAPTURE_R=400;        // a capturing ship must be this close to the point. placeholder
+let CAPTURE_R=550;        // a capturing ship must be this close to the point. placeholder
 let CAPTURE_SECS=10;      // seconds of uncontested presence to take a point. placeholder
-let BOARD_R=400;          // a marine ship must be this close to the station (plus its size). placeholder
+let BOARD_R=550;          // a marine ship must be this close to the station (plus its size). placeholder
 let BOARD_SECS=12;        // marine-ship seconds to board a station (two boarders take half as long). placeholder
 let SHAKEN_ODDS=2;        // a SHAKEN pilot hangs back from a target with this many hostiles round it. placeholder
 let SHAKEN_DISENGAGE=1.6; // ...and falls back hurt at the tactic's threshold × this. placeholder
@@ -936,7 +947,7 @@ function command(k,tg){
   } else if(k==='recon'){
     S.reconUntil=S.t+RECON_SECS;
     const RF=S.reinforce,f=RF.force.map(e=>(e.n||1)+' '+(e.name||e.type)).join(', ');
-    const ex=RF.edge==='E'?W-400:RF.edge==='W'?400:W/2,ey=RF.edge==='N'?400:RF.edge==='S'?H-400:H/2;
+    const {x:ex,y:ey}=zoneEdge(RF.edge||'E',-400);
     pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info',x:ex,y:ey});
   } else if(k==='decoy'){
     S.decoys.push({x:tg.x,y:tg.y,until:S.t+DECOY_SECS,id:++S.decoyN});
@@ -1247,6 +1258,22 @@ function orbitGoal(s,p,R){   // a ship can't stop: holding on a point is orbitin
   const a=Math.atan2(s.y-p.y,s.x-p.x)+0.7;
   return {x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R};
 }
+/* holding close on a point (capturing, boarding, waiting at the jump point): at corner speed, where it turns tightest,
+   on a circle no tighter than it can fly (C-70: slowing down widened the circle past the boarding range) */
+function holdOrbit(s,p,R){const c=capsOf(s);return Object.assign(orbitGoal(s,p,Math.max(R,c.vc/c.wc*1.05)),{spd:CORNER});}
+/* arriving (C-70, playtest 2): a point a ship must fly into (the jump point) can sit inside its turning circle, where
+   steering straight at it orbits for ever (Convoy Lark did). Then it flies straight out until it has room, and comes
+   back in on a line. Inside the circle: d < 2r·sin(bearing off the nose); out far enough: d > ARRIVE_OUT × r */
+let ARRIVE_OUT=2.6;       // placeholder
+function arriveGoal(s,p,spd){
+  const c=capsOf(s),v=Math.max(c.vMin,Math.hypot(s.vx,s.vy)),r=Math.max(v/turnCap(c,v),c.vc/c.wc),d=dist(s,p);
+  const off=Math.abs(angNorm(Math.atan2(p.y-s.y,p.x-s.x)-s.vh));
+  if(s.arrP!==p){s.arrP=p;s.arrOut=false;}
+  if(s.arrOut&&d>r*ARRIVE_OUT)s.arrOut=false;
+  else if(!s.arrOut&&d>JUMP_R*0.5&&d<2.2*r*Math.sin(Math.min(off,Math.PI/2))&&off>0.35)s.arrOut=true;
+  if(s.arrOut)return {x:s.x+Math.cos(s.vh)*1500,y:s.y+Math.sin(s.vh)*1500,spd,noCorner:true};
+  return {x:p.x,y:p.y,spd};
+}
 function goalOf(s){
   const b=s.beh||{kind:'idle'},w=wingOf(s.wing),T=w?tacticOf(w):HC_TACTICS.spread,P=PERSONALITY[s.persona]||PERSONALITY.even,c=capsOf(s);
   s.fireAt=null;s.intent=null;s.holdFire=false;
@@ -1258,7 +1285,7 @@ function goalOf(s){
       g=runGoal(s,t,T,P,w,c);
     }
   } else if(b.kind==='withdraw'){
-    g=dist(s,b.dest)<500&&b.dest!==extractPoint()?Object.assign(orbitGoal(s,b.dest,320),{spd:CRUISE}):{x:b.dest.x,y:b.dest.y,spd:1};
+    g=dist(s,b.dest)<500&&b.dest!==extractPoint()?Object.assign(orbitGoal(s,b.dest,320),{spd:CRUISE}):arriveGoal(s,b.dest,1);
   } else if(b.kind==='escort'){
     const ch=byId(b.charge),sl=w?slotOf(s,w,T):null;
     if(ch){
@@ -1280,10 +1307,10 @@ function goalOf(s){
     g=Object.assign(orbitGoal(s,a,R),{spd:CRUISE});
   } else if(b.kind==='capture'){
     const a=b.anchor,d=dist(s,a);
-    g=d>CAPTURE_R*1.5?{x:a.x,y:a.y,spd:1}:Object.assign(orbitGoal(s,a,CAPTURE_R*0.55),{spd:0});
+    g=d>CAPTURE_R*1.5?{x:a.x,y:a.y,spd:1}:holdOrbit(s,a,CAPTURE_R*0.55);
   } else if(b.kind==='board'){
     const st=byId(b.station),d=st?dist(s,st):0;
-    if(st)g=d>boardR(st)*1.4?{x:st.x,y:st.y,spd:1}:Object.assign(orbitGoal(s,st,boardR(st)*0.6),{spd:0});
+    if(st)g=d>boardR(st)*1.4?{x:st.x,y:st.y,spd:1}:holdOrbit(s,st,boardR(st)*0.6);
   } else if(b.kind==='fallback'){   // away from the threat, toward the wing
     const th=byId(b.from),lead=w?byId(w.leader):null;
     let ax=0,ay=0;if(th){const d=dist(s,th)||1;ax=(s.x-th.x)/d;ay=(s.y-th.y)/d;}
@@ -1298,9 +1325,9 @@ function goalOf(s){
   } else if(b.kind==='decoyed'){
     g=Object.assign(dist(s,b.dest)>300?{x:b.dest.x,y:b.dest.y}:orbitGoal(s,b.dest,240),{spd:1,face:b.dest});
   } else if(b.kind==='convoy'){
-    g={x:b.dest.x,y:b.dest.y,spd:CONVOY_SPD};
+    g=arriveGoal(s,b.dest,CONVOY_SPD);
   } else if(b.kind==='wait'){
-    g=Object.assign(orbitGoal(s,b.dest,JUMP_R*1.4),{spd:CONVOY_SPD*0.7});
+    g=holdOrbit(s,b.dest,JUMP_R*1.4);
   } else if(b.kind==='patrol'){
     g=Object.assign(orbitGoal(s,b.dest,420),{spd:CRUISE*0.8});
   }
@@ -1472,14 +1499,15 @@ function waveTick(){
   for(const wv of S.waves){
     if(wv.spawned||S.t<wv.at-1e-9)continue;
     wv.spawned=true;spawnAtEdge(wv.edge||'E',wv.force,wv.role||'hunt');
-    pushEvent('wave',wv.text||'Hegemony wave inbound',{x:wv.edge==='W'?400:wv.edge==='E'?W-400:W/2,y:wv.edge==='N'?400:wv.edge==='S'?H-400:H/2,tone:'hazard'});
+    pushEvent('wave',wv.text||'Hegemony wave inbound',Object.assign(zoneEdge(wv.edge||'E',-400),{tone:'hazard'}));
   }
 }
 function spawnAtEdge(e,force,role){
   const n=force.reduce((a,f)=>a+(f.n||1),0);let i=0;
   for(const f of force)for(let k=0;k<(f.n||1);k++){
     const u=(i+0.5)/n;i++;
-    const at=e==='E'?[W-MARGIN-60,H*(0.25+0.5*u),Math.PI]:e==='W'?[MARGIN+60,H*(0.25+0.5*u),0]:e==='N'?[W*(0.25+0.5*u),MARGIN+60,Math.PI/2]:[W*(0.25+0.5*u),H-MARGIN-60,-Math.PI/2];
+    const p=zoneEdge(e,1200),zw=Z.x1-Z.x0,zh=Z.y1-Z.y0;   // from out beyond the play area's edge, spread along it
+    const at=e==='E'||e==='W'?[p.x,Z.y0+zh*(0.25+0.5*u),e==='E'?Math.PI:0]:[Z.x0+zw*(0.25+0.5*u),p.y,e==='N'?Math.PI/2:-Math.PI/2];
     spawnEnemies(Object.assign({},f,{n:1,at,role:f.role||role}),()=>++S.eN);
   }
 }
@@ -1489,7 +1517,7 @@ function reinforceTick(){
   RF.spawned=true;S.getOut=true;
   const e=RF.edge||'E';
   spawnAtEdge(e,RF.force,'hunt');
-  pushEvent('reinforce','Hegemony reinforcements: get out',{x:e==='E'?W-400:e==='W'?400:W/2,y:e==='N'?400:e==='S'?H-400:H/2,tone:'hazard'});
+  pushEvent('reinforce','Hegemony reinforcements: get out',Object.assign(zoneEdge(e,-400),{tone:'hazard'}));
 }
 
 /* =====================================================================
@@ -1603,6 +1631,7 @@ function step(){
   if(!S||S.over)return false;
   const dt=TICK/1000;
   S.t+=dt;S.tick++;
+  for(const s of S.ships){s.px=s.x;s.py=s.y;s.ph=s.h;}   // where each ship was: the HUD draws between this and now (smooth at any frame rate)
   wingTick();
   for(const s of S.ships){
     if(!s.alive)continue;
@@ -1715,13 +1744,14 @@ let HC_CP=5;              // the command point pool when a scenario sets none. p
 
 /* the panel's numbers: every one a named constant with a getter (the SALVAGE_PER_HP_ pattern) */
 const TUNE={
-  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:8,step:0.25,label:'Map size × (on restart)'},
+  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:12,step:0.25,label:'Map size × (on restart)'},
+  HC_SPREAD:{get:()=>HC_SPREAD,set:v=>{HC_SPREAD=v;},min:1,max:12,step:0.25,label:'Scenario spread × (on restart)'},
   RANGE_MULT:{get:()=>RANGE_MULT,set:v=>{RANGE_MULT=v;},min:0.5,max:4,step:0.1,label:'Weapon range × (on restart)'},
   SEP_R:{get:()=>SEP_R,set:v=>{SEP_R=v;},min:60,max:600,step:10,label:'Personal space'},
   SPAWN_GAP:{get:()=>SPAWN_GAP,set:v=>{SPAWN_GAP=v;},min:150,max:800,step:10,label:'Starting spacing (on restart)'},
   THINK_SECS:{get:()=>THINK_SECS,set:v=>{THINK_SECS=v;},min:0.1,max:2,step:0.1,label:'Think every (s)'},
   ROUND_SECS:{get:()=>ROUND_SECS,set:v=>{ROUND_SECS=v;},min:1,max:6,step:0.25,label:'Top dial move takes (s)'},
-  SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:5,step:0.05,label:'Speed ×'},
+  SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:8,step:0.05,label:'Speed ×'},
   CORNER:{get:()=>CORNER,set:v=>{CORNER=v;},min:0.3,max:1,step:0.05,label:'Corner speed (× top)'},
   TURN_SCALE:{get:()=>TURN_SCALE,set:v=>{TURN_SCALE=v;},min:1,max:10,step:0.25,label:'Tightest turn (× the dial\'s radius)'},
   TURN_BLEED:{get:()=>TURN_BLEED,set:v=>{TURN_BLEED=v;},min:0,max:3,step:0.05,label:'Turning bleeds (× top speed a s)'},
@@ -1803,7 +1833,7 @@ const TACTIC_W={form:[0,2,0.05,'formation'],space:[0.5,6,0.1,'spacing ×'],engag
 for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the panel's groups (§5 T4: one HC group, sectioned) */
-const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
+const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R'],
   Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
@@ -1816,13 +1846,13 @@ for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
 return {key:'hc',name:'Type 3: High Command',
-  get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
+  get S(){return S;},get W(){return W;},get H(){return H;},get zone(){return Z;},MARGIN,RU,SU,TICK,TIMESCALES,
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
-    THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
+    THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
 })();
