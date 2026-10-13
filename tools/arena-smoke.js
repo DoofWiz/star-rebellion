@@ -1044,7 +1044,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(!hc.v2List.some(id=>id.startsWith('hc'))&&!hc.sbList.some(id=>id.startsWith('hc')),'HC 1: HC scenarios stay off the v2 and SB lists '+JSON.stringify([hc.v2List,hc.sbList]));
  ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall,hc2_lastlight,hc3_meltdown','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
  ok(hc.loaded[0]==='LIVE'&&hc.loaded[1]==='hc1_nightfall'&&hc.loaded[2]==='dagger:3,amber:2'&&hc.loaded[3]&&hc.loaded[4],'HC 1: hc1_nightfall loads with its wings '+JSON.stringify(hc.loaded));
- ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]===1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, one gold primary, paused on load '+JSON.stringify(hc.hud));
+ ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]<=1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, at most one gold primary (C-70: none until Jump Out), paused on load '+JSON.stringify(hc.hud));
  ok(hc.tray[0]&&hc.tray[1]===9&&['attack','escort','withdraw'].every(k=>hc.tray[2].split(',').includes(k))&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
  ok(hc.attack[1]<hc.attack[0]*0.5,'HC T1: Attack closes on the relay '+JSON.stringify(hc.attack));
  ok(hc.escort<2400,'HC T1: Escort stays with the lark '+hc.escort);   // the 4 × map (C-69)
@@ -1381,16 +1381,16 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.openPilot('P4');f.syncHud();
   const pp=R(q('#hcPilot')),tile=R(q('#hcRoster [data-ship="P4"]'));
   out.pilot=[!q('#hcPilot').hidden,pp.bottom<=tile.top+1,pp.right>tile.left&&pp.left<tile.right,q('#hcTray').hidden];
-  q('#hcCmdBtn').click();f.syncHud();
-  const btn=R(q('#hcCmdBtn')),dr=R(q('#hcCmds')),tm=R(q('#hcTime')),stg=R(q('#hcStage'));
-  out.cmds=[!q('#hcCmds').hidden,dr.bottom<=btn.top+1,Math.abs(dr.right-btn.right)<2,btn.bottom<=tm.top+1,stg.right-btn.right<40,stg.bottom-tm.bottom<40,btn.height>=50];
-  q('#hcCmds [data-act="close"]').click();
+  // the commands bar (C-70: C-69's COMMANDS button bottom right gave way to it): fixed, bottom centre between the
+  // wings, with the command points; the time controls under the clock
+  const dr=R(q('#hcCmds')),tm=R(q('#hcTime')),ck=R(q('#hcClock')),stg=R(q('#hcStage')),wDg=R(q('#hcRoster [data-wing="dagger"]')),wAm=R(q('#hcRoster [data-wing="amber"]'));
+  out.cmds=[!q('#hcCmds').hidden,dr.left>=wDg.right-1&&dr.right<=wAm.left+1,stg.bottom-dr.bottom<40,!!q('#hcCmds #hcCp'),tm.top>=ck.bottom-1,Math.abs((tm.left+tm.right)/2-(ck.left+ck.right)/2)<4,!q('#hcCmdBtn')];
   // Jump Out: once the primaries are done, a gold button (COMMANDS steps back); every wing withdraws; complete when the last ship jumps
   out.jump=[SIM.jumpOutState()===null,!q('#hcObj [data-act="jumpout"]')];
   by('relay').alive=false;by('relay').hull=0;for(const o of S().objectives)if(o.primary)o.state='done';
   f.syncHud();
   const go=q('#hcObj [data-act="jumpout"]');
-  out.jump.push(!!go,go&&go.classList.contains('sr-btn--primary'),!q('#hcCmdBtn').classList.contains('sr-btn--primary'),[...document.querySelectorAll('#arHc .sr-btn--primary')].filter(e=>e.offsetParent).length);
+  out.jump.push(!!go,go&&go.classList.contains('sr-btn--primary'),!q('#hcCmds .sr-btn--primary'),[...document.querySelectorAll('#arHc .sr-btn--primary')].filter(e=>e.offsetParent).length);
   go.click();
   out.jump.push(S().wings.map(w=>w.order.kind).join(),!!q('#hcObj .hc-jump__prog'));
   SIM.runFor(150);
@@ -1413,7 +1413,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f1.space[0]>=f1.space[1]*0.6,'F1: ships keep their personal space '+JSON.stringify(f1.space));
  ok(f1.tray.every(Boolean),'F1: the order tray pops up above its wing '+JSON.stringify(f1.tray));
  ok(f1.pilot.every(Boolean),'F1: the pilot panel pops up above its tile '+JSON.stringify(f1.pilot));
- ok(f1.cmds.every(Boolean),'F1: Commands bigger, bottom right, opening upward '+JSON.stringify(f1.cmds));
+ ok(f1.cmds.every(Boolean),'F1, C-70: Commands fixed bottom centre between the wings, the time controls under the clock '+JSON.stringify(f1.cmds));
  ok(f1.jump[0]&&f1.jump[1]&&f1.jump[2]&&f1.jump[3]&&f1.jump[4]&&f1.jump[5]===1&&f1.jump[6]==='withdraw,withdraw'&&f1.jump[7]&&f1.jump[8]==='won'&&f1.jump[9]==='done'&&f1.jump[10]===0&&f1.jump[11]===6,'F1: Jump Out completes the mission '+JSON.stringify(f1.jump));
  ok(f1.leave[0]==='won'&&f1.leave[1]===f1.leave[2]&&f1.leave[3]===f1.leave[2]&&f1.leave[4]==='OVER','F1: Leave now ends it, stragglers lost '+JSON.stringify(f1.leave));
  ok(f1.copy.every(Boolean)||f1.copy[1]===4&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
@@ -1682,11 +1682,42 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(g4.pick[0]&&g4.pick[1]===4&&g4.pick[2]==='attack:relay'&&g4.pick[3],'G4: a wheel pick orders the wing '+JSON.stringify(g4.pick));
  ok(g4.none.every(Boolean),'G4: with nothing selected a right-click opens the commands '+JSON.stringify(g4.none));
  ok(g4.mouse[0][1]==='dagger+amber'&&g4.mouse[1][2]!==g4.mouse[0][2]&&g4.mouse[1][1]==='dagger+amber'&&g4.mouse[2][3]===true&&g4.mouse[3]==='hold,hold','G4: the mouse: box, right-drag, right-click, a key '+JSON.stringify(g4.mouse));
+ // ---------- G5 (C-70): the HUD ----------
+ const g5=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={},A=H.A,q=s=>document.querySelector(s);
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id);
+  f.load('hc1_nightfall',0,5);f.syncHud(true);
+  // the commands bar is always there; a right-click narrows it to what fits ("For …"), × shows them all again
+  const all=document.querySelectorAll('#hcCmds [data-cmd]').length;
+  f.openDrawer({id:'P3'});f.syncHud(true);
+  out.bar=[!q('#hcCmds').hidden,all,q('#hcCmds').classList.contains('is-for'),document.querySelectorAll('#hcCmds [data-cmd]').length<all];
+  q('#hcCmds [data-act="close"]').click();out.bar.push(document.querySelectorAll('#hcCmds [data-cmd]').length===all,!q('#hcCmds').hidden);
+  // the feed shows five entries and scrolls
+  for(let i=0;i<9;i++)SIM.pushEvent('test','Test event '+i,{tone:'info'});f.syncHud(true);
+  const fd=q('#hcFeed'),fr=fd.getBoundingClientRect(),evs=[...fd.querySelectorAll('.hc-ev')];
+  out.feed=[evs.length,evs.filter(e=>e.getBoundingClientRect().bottom<=fr.bottom+1).length,fd.scrollHeight>fd.clientHeight+10];
+  // bigger objectives
+  out.obj=[parseFloat(getComputedStyle(q('#hcObj .hc-obj__item')).fontSize),q('#hcObjBox').getBoundingClientRect().width];
+  // quiet lines: on for hc1 (only the selected or hovered wing's), off elsewhere; the panel's toggle overrides
+  out.quiet=[f.linesQuiet()];f.load('hc2_lastlight',0,5);out.quiet.push(f.linesQuiet());
+  const cb=q('#hcPanelBody [data-toggle="quiet"]');cb.checked=true;cb.dispatchEvent(new Event('input',{bubbles:true}));out.quiet.push(f.linesQuiet());
+  cb.checked=false;cb.dispatchEvent(new Event('input',{bubbles:true}));H.A.quietPref=null;
+  // status symbols: an ability, a missile break, a dodge; real seconds, then gone
+  f.load('hc1_nightfall',0,5);const t0=5e9;f.badgeTick(t0);
+  SIM.useAbility('P1','lockin');by('P2').misBreakT=S().t+0.01;by('P3').dodgeT=S().t+0.01;f.badgeTick(t0+10);
+  out.badge=[f.badges_().sort().join(),f.BADGE_().MS];f.badgeTick(t0+10+f.BADGE_().MS+1);out.badge.push(f.badges_().length);
+  return out;
+ });
+ ok(g5.bar[0]&&g5.bar[1]>=8&&g5.bar[2]&&g5.bar[3]&&g5.bar[4]&&g5.bar[5],'G5: the commands bar, narrowed by a right-click '+JSON.stringify(g5.bar));
+ ok(g5.feed[0]>5&&g5.feed[1]===5&&g5.feed[2],'G5: the feed shows five entries and scrolls '+JSON.stringify(g5.feed));
+ ok(g5.obj[0]>=15&&g5.obj[1]>330,'G5: bigger objectives '+JSON.stringify(g5.obj));
+ ok(g5.quiet[0]===true&&g5.quiet[1]===false&&g5.quiet[2]===true,'G5: quiet lines in hc1 '+JSON.stringify(g5.quiet));
+ ok(g5.badge[0]==='P1:lockin,P2:evade,P3:dodge'&&g5.badge[1]===2500&&g5.badge[2]===0,'G5: status symbols by the ships '+JSON.stringify(g5.badge));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

@@ -1,8 +1,8 @@
 # High Command, playtest 2: your feedback and how I'm building it
 
-**Status: building, 13 October.** You asked for these changes directly (no proposal this time), so I'm building
-them in the five phases in §3, a commit each. Where your notes left a choice open I picked one and recorded it in
-`docs/DESIGN_BLOCKERS.md` C-70, so you can overturn any of them.
+**Status: built, 13 October.** You asked for these changes directly (no proposal this time), so I built them in
+the five phases in §3. Where your notes left a choice open I picked one and recorded it in `docs/DESIGN_BLOCKERS.md`
+C-70, so you can overturn any of them; C-70.1 in the Resolved log records your calls.
 
 ---
 

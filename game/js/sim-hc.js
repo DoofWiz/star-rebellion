@@ -1567,7 +1567,7 @@ function evadeVec(s){
   for(const o of S.ships){if(o===s||!o.alive)continue;test(o.x,o.y,o.struct?0:o.vx,o.struct?0:o.vy,rs+bodyR(o)+pad,o);}
   for(const r of S.rocks)test(r.x,r.y,0,0,rs+rockR(r)+pad,null);
   if(!worst)return null;
-  s.evadeAt=S.t;
+  s.evadeAt=S.t;if(worst>0.6&&who)s.dodgeT=S.t;   // a real dodge (the HUD shows a symbol)
   for(const k in s.evSide)if(S.t-s.evSide[k].t>2)delete s.evSide[k];
   if(worst>0.6&&who&&!who.struct&&s.faction==='reb'&&!s.quiet&&S.t-(s.evadeSaid==null?-99:s.evadeSaid)>8){s.evadeSaid=S.t;say(s,pickLine(s,'evade'),'info',false);}
   return {x:ex,y:ey,urg:worst};

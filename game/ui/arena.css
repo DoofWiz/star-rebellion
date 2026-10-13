@@ -225,17 +225,17 @@
 #arHc .hc-glyph--xs{width:10px;height:10px;stroke-width:3;}
 #arHc .hc-card{background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 /* the top band: objectives (left), the clock (centre), command points and COMMANDS (right) */
-#arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,320px) 1fr minmax(0,320px);align-items:start;gap:12px;pointer-events:none;}
+#arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,400px) 1fr minmax(0,400px);align-items:start;gap:12px;pointer-events:none;}
 #arHc .hc-top>*{pointer-events:auto;}
-#arHc .hc-obj{padding:8px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font-size:var(--sr-fs-xs);}
-#arHc .hc-obj__head,#arHc .hc-rules__head{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-text-3);margin:0 0 6px;}
-#arHc .hc-obj__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;}
+#arHc .hc-obj{padding:12px 14px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font-size:var(--sr-fs-md);}   /* bigger (C-70) */
+#arHc .hc-obj__head,#arHc .hc-rules__head{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-text-3);margin:0 0 6px;}
+#arHc .hc-obj__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;}
 #arHc .hc-obj__item{display:flex;gap:6px;align-items:flex-start;color:var(--sr-text-2);font-weight:600;}
-#arHc .hc-obj__item i{flex:0 0 auto;width:10px;height:10px;margin-top:3px;border-radius:2px;border:2px solid var(--sr-seam);transform:rotate(45deg);}
+#arHc .hc-obj__item i{flex:0 0 auto;width:13px;height:13px;margin-top:5px;border-radius:2px;border:2px solid var(--sr-seam);transform:rotate(45deg);}
 #arHc .hc-obj__item.is-primary{color:var(--sr-text);}
 #arHc .hc-obj__item.is-done{color:var(--sr-go);} #arHc .hc-obj__item.is-done i{background:var(--sr-go);border-color:var(--sr-go);}
 #arHc .hc-obj__item.is-failed{color:var(--sr-hazard);text-decoration:line-through;} #arHc .hc-obj__item.is-failed i{border-color:var(--sr-hazard);}
-#arHc .hc-obj__getout{margin-top:6px;font:400 var(--sr-fs-xs)/1.2 var(--sr-font-display);color:var(--sr-hazard);}
+#arHc .hc-obj__getout{margin-top:8px;font:400 var(--sr-fs-md)/1.2 var(--sr-font-display);color:var(--sr-hazard);}
 #arHc .hc-rules{margin-top:8px;padding-top:6px;border-top:1.5px solid var(--sr-seam);}
 #arHc .hc-rules:empty{display:none;}
 #arHc .hc-rules__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
@@ -261,20 +261,19 @@
 #arHc .hc-banner{font:400 var(--sr-fs-sm)/1 var(--sr-font-display);color:var(--sr-gold);letter-spacing:.06em;padding:5px 10px;border-radius:999px;
   background:color-mix(in srgb,var(--sr-night) 92%,transparent);border:2px solid var(--sr-gold);}
 @keyframes hc-throb{0%,100%{opacity:1;}50%{opacity:.55;}}
-/* the bottom right (C-69): command points and COMMANDS, bigger, over the time controls; the drawer opens upward */
-#arHc .hc-br{position:absolute;right:12px;bottom:12px;z-index:3;display:flex;flex-direction:column;align-items:stretch;gap:8px;}
-#arHc .hc-cmdbox{display:flex;align-items:stretch;gap:8px;}
-#arHc .hc-cp{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 12px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);}
+/* the time controls sit under the clock (C-70) */
+#arHc .hc-clockbox .hc-time{padding:4px;}
+#arHc .hc-clockbox .hc-time .hc-tbtn{width:38px;height:34px;}
+/* the commands bar (C-70): fixed, bottom centre in the roster's middle gap, with the command points */
+#arHc .hc-cp{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);}
 #arHc .hc-cp__lbl{color:var(--sr-text-3);letter-spacing:.08em;}
-#arHc .hc-cp__pips{display:flex;gap:5px;}
-#arHc .hc-cp__pips{gap:7px;}
-#arHc .hc-cp__pips i{width:15px;height:15px;transform:rotate(45deg);border:2px solid var(--sr-gold);border-radius:2px;}
-#arHc .hc-cp b{font-size:var(--sr-fs-sm);}
+#arHc .hc-cp__pips{display:flex;gap:7px;}
+#arHc .hc-cp__pips i{width:13px;height:13px;transform:rotate(45deg);border:2px solid var(--sr-gold);border-radius:2px;}
 #arHc .hc-cp__pips i.is-on{background:var(--sr-gold);}
-#arHc .hc-cp b{color:var(--sr-text);}
-#arHc .hc-cmdbtn{min-height:54px;padding:0 22px;font-size:var(--sr-fs-lg);}
+#arHc .hc-cp b{font-size:var(--sr-fs-sm);color:var(--sr-text);}
 /* the left rail: the event feed */
-#arHc .hc-feed{position:absolute;left:12px;top:190px;bottom:178px;width:300px;z-index:2;display:flex;flex-direction:column;gap:5px;overflow:hidden;pointer-events:auto;}
+#arHc .hc-feed{position:absolute;left:12px;top:190px;width:320px;z-index:2;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;pointer-events:auto;}   /* five entries, then a scroll (C-70) */
+#arHc .hc-feed>.hc-ev{flex:0 0 auto;}
 #arHc .hc-ev{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;padding:5px 6px 5px 8px;font:600 var(--sr-fs-xs)/1.25 var(--sr-font-ui);
   background:color-mix(in srgb,var(--sr-hull) 88%,transparent);border:2px solid var(--sr-ink);border-left:4px solid var(--sr-shield);border-radius:var(--sr-r);}
 #arHc .hc-ev.is-hazard{border-left-color:var(--sr-hazard);} #arHc .hc-ev.is-hazard .hc-ev__txt{color:var(--sr-hazard);font-weight:800;}
@@ -285,7 +284,8 @@
   color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
 #arHc .hc-view:hover,#arHc .hc-view:focus-visible{background:color-mix(in srgb,var(--sr-shield) 18%,transparent);outline:none;}
 /* the bottom: the wing roster */
-#arHc .hc-roster{position:absolute;left:12px;right:340px;bottom:12px;z-index:2;display:flex;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
+#arHc .hc-roster{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;justify-content:safe center;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
+#arHc .hc-dockgap{flex:0 0 auto;width:var(--hc-cmdw);align-self:stretch;}
 #arHc .hc-wing{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-wing.is-sel{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
 #arHc .hc-wing__head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 4px;background:transparent;border:0;color:var(--sr-text);cursor:pointer;text-align:left;}
@@ -426,11 +426,22 @@
 #arHc .hc-use.is-armed{border-color:var(--sr-gold,#ffc83d);color:var(--sr-gold,#ffc83d);}
 #arHc .hc-pilot__resp{display:flex;flex-wrap:wrap;gap:6px;}
 #arHc .hc-pilot__resp .sr-btn{min-height:32px;padding:0 10px;font-size:var(--sr-fs-xs);}
-#arHc .hc-cmds{position:absolute;right:12px;bottom:150px;z-index:5;width:min(340px,calc(100% - 24px));overflow:auto;padding:10px 12px;
-  background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);font-size:var(--sr-fs-xs);}
-#arHc .hc-cmds__head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-#arHc .hc-cmds__title{font:400 var(--sr-fs-md)/1 var(--sr-font-display);}
-#arHc .hc-cmds__cp{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-gold);}
+#arHc{--hc-cmdw:372px;}
+#arHc .hc-cmds{position:absolute;left:0;bottom:12px;z-index:4;width:var(--hc-cmdw);box-sizing:border-box;padding:7px 8px 8px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc .hc-cmds.is-for,#arHc .hc-cmds.is-armed{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
+#arHc .hc-cmds__top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 6px;}
+#arHc .hc-cmds__title{font:400 var(--sr-fs-sm)/1 var(--sr-font-display);letter-spacing:.04em;}
+#arHc #hcCmdsBody{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+#arHc #hcCmdsBody .hc-cmds__list{display:contents;}
+#arHc #hcCmdsBody .hc-cmds__for,#arHc #hcCmdsBody .hc-cmds__arm{grid-column:1/-1;display:flex;align-items:center;gap:6px;margin:0;}
+#arHc #hcCmdsBody .hc-cmd{min-height:38px;padding:0 6px;gap:5px;font-size:var(--sr-fs-micro);line-height:1.1;}
+#arHc #hcCmdsBody .hc-cmd__name{flex:1 1 auto;text-align:left;}
+#arHc #hcCmdsBody .hc-cmd--abort{margin-top:0;}
+#arHc #hcCmdsBody .hc-cmd__name{min-width:0;}
+#arHc #hcCmdsBody .hc-cmd__cost{gap:2px;flex:0 0 auto;}
+#arHc #hcCmdsBody .hc-cmd__cost{align-items:center;gap:4px;}
+#arHc #hcCmdsBody .hc-cmd__cost b{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-gold);}
+#arHc #hcCmdsBody .hc-cmd[aria-disabled="true"] .hc-cmd__cost b{color:var(--sr-text-3);}
 #arHc .hc-cmds__for,#arHc .hc-cmds__arm{margin:0 0 6px;color:var(--sr-text-2);font-weight:700;}
 #arHc .hc-cmds__arm{color:var(--sr-gold);}
 #arHc .hc-cmds__arm .sr-btn{min-height:24px;margin-left:6px;}
@@ -455,6 +466,7 @@
 #arHc .hc-roster.is-many .hc-tile__cam{width:74px;height:41px;}
 #arHc .hc-roster.is-many .hc-tile__foot{font-size:10px;}
 #arHc .hc-roster.is-many .hc-wing__name{font-size:var(--sr-fs-sm);}
+#arHc .hc-roster.is-many .hc-wing{width:min-content;}   /* the header's chips wrap under the name rather than widen the card (C-70) */
 /* Jump Out (C-69): in the objectives panel once the job is done; the screen's one gold button while it shows */
 #arHc .hc-jump{margin-top:8px;padding-top:8px;border-top:1.5px solid var(--sr-seam);display:flex;flex-direction:column;gap:6px;align-items:stretch;}
 #arHc .hc-jump__head{font:400 var(--sr-fs-sm)/1.1 var(--sr-font-display);color:var(--sr-go);letter-spacing:.04em;}
