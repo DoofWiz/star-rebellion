@@ -22,7 +22,8 @@
    High Command playtest 1 (docs/ARENA-HC-FEEDBACK-1.md, DESIGN_BLOCKERS C-69):
      F1: the scale (speed, fighting range, weapon range, the 4 × map with the layout scaled, spacing), Jump Out and
          Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings
-     F2: the corner-speed turn model (weak slow turns, turning bleeds speed, wider turns), a duel without a knife fight */
+     F2: the corner-speed turn model (weak slow turns, turning bleeds speed, wider turns), a duel without a knife fight
+     F3: attack runs (run, extend, turn back), stalemate and six break-offs, the reworked tactics, AUTO and its choices */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1045,7 +1046,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc.hud[0]==='4:00'&&hc.hud[1]===3&&hc.hud[2]===2&&hc.hud[3]===5&&hc.hud[4]===4&&hc.hud[5]===1&&hc.hud[6],'HC HUD: clock, objectives, roster, time controls, one gold primary, paused on load '+JSON.stringify(hc.hud));
  ok(hc.tray[0]&&hc.tray[1]===9&&['attack','escort','withdraw'].every(k=>hc.tray[2].split(',').includes(k))&&hc.tray[3],'HC T1: the wing tray '+JSON.stringify(hc.tray));
  ok(hc.attack[1]<hc.attack[0]*0.5,'HC T1: Attack closes on the relay '+JSON.stringify(hc.attack));
- ok(hc.escort<1200,'HC T1: Escort stays with the lark '+hc.escort);
+ ok(hc.escort<2400,'HC T1: Escort stays with the lark '+hc.escort);   // the 4 × map (C-69)
  ok(hc.withdraw.every(Boolean)&&hc.jammed[0]===0&&hc.jammed[1]===true,'HC T1: nothing jumps while the relay jams the point '+JSON.stringify([hc.withdraw,hc.jammed]));
  ok(hc.jumped==='P1,P2,P3,P4,P5,lark','HC T1: Withdraw jumps every ship (and the convoy) once unjammed '+hc.jumped);
  ok(hc.clock[0]===false&&hc.clock[3]===true&&hc.clock[4]>=5&&/GET OUT/.test(hc.clock[5])&&!/GET OUT/.test(hc.clock[2])&&hc.clock[6]&&hc.clock[7]&&hc.clock[8]==='REINFORCEMENTS','HC 7: the reinforcement clock '+JSON.stringify(hc.clock));
@@ -1152,7 +1153,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.tiles=[f.tiles_().live,lit>20,f.tiles_().ms<f.tiles_().TILE_BUDGET];
   // the tray: all nine orders live but Board (no marines), the tactic row live; hover cards read live numbers
   f.selectWing('dagger',true);f.syncHud();
-  out.tray=[[...document.querySelectorAll('#hcTray [data-order]:not([aria-disabled="true"])')].length,[...document.querySelectorAll('#hcTray [data-tactic]:not([aria-disabled="true"])')].length,
+  out.tray=[[...document.querySelectorAll('#hcTray [data-order]:not([aria-disabled="true"])')].length,[...document.querySelectorAll('#hcTray [data-tactic]:not([aria-disabled="true"])')].length-1,
     q('#hcTray [data-order="board"]').getAttribute('aria-disabled'),f.tipFor('order:attack').line,/Spacing ×3\.4,/.test(f.tipFor('tactic:spread').line)];
   return out;
  });
@@ -1306,7 +1307,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   key('4');out.keys.push(H.A.speed);key('1');out.keys.push(H.A.speed);
   key('e');out.keys.push(H.A.sel,H.A.tray);key('e');out.keys.push(H.A.sel);key('q');out.keys.push(H.A.sel);
   key('7');out.keys.push(S().wings.find(w=>w.id===H.A.sel).order.kind);   // 7: Hold (no target)
-  key('2',{shiftKey:true});out.keys.push(S().wings.find(w=>w.id===H.A.sel).tactic);   // Shift+2: Spread
+  key('3',{shiftKey:true});out.keys.push(S().wings.find(w=>w.id===H.A.sel).tactic);   // Shift+3: Spread (AUTO is first, C-69)
   key('1');out.keys.push(H.A.arm);   // 1: Attack, armed for its target
   key('Escape');out.keys.push(H.A.arm,H.A.tray);key('Escape');out.keys.push(H.A.tray);
   key('f');out.keys.push(H.A.follow);
@@ -1328,7 +1329,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   key('4');
   key('e');key('9');(q('#hcTray [data-tchip]')||{click(){}}).click();   // Hammer: Board, the reactor
   key('e');key('1');(q('#hcTray [data-tchip="0"]')||{click(){}}).click();   // Lance: Attack, the first chip
-  key('3',{shiftKey:true});   // Lance: Screen
+  key('4',{shiftKey:true});   // Lance: Screen
   for(let i=0;i<1200&&!S().over;i++){fr();frames++;
     if(i===300){key(' ');f.openDrawer(null);q('#hcCmds [data-cmd="recon"]').click();key(' ');}
     if(i===600){key('Tab');}}
@@ -1448,11 +1449,75 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f2.bleed[0]<f2.bleed[1]*0.85&&f2.bleed[2],'F2: a sustained hard turn bleeds speed, inside the cap '+JSON.stringify(f2.bleed));
  ok(f2.corner[0],'F2: no braking below corner speed into a turn '+JSON.stringify(f2.corner));
  ok(f2.duel[0]>100&&f2.duel[1]<0.25&&f2.duel[2]>1200,'F2: a duel passes and comes round rather than circling '+JSON.stringify(f2.duel));
- ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===42&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
+ /* ---------- High Command playtest 1, F3: attack runs, break-offs, tactics, AUTO ---------- */
+ const f3=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),q=s=>document.querySelector('#arHc '+s);
+  let dn=0;
+  const duel=(cls,tac,foes,at)=>{const id='t_run'+(++dn);window.DBGarena.fn.addScenario({id,title:'Test: runs',desc:'Smoke test.',rulesets:['hc'],rocks:[],
+    wings:[{id:'a',name:'A',at:[3000,3000,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:tac,ships:[{cls,name:'One',pilot:{preset:'regular'}},{cls,name:'Two',pilot:{preset:'regular'}}]}],
+    enemies:[{type:'vc-mote-patrol',n:foes,name:'Mote',role:'hunt',at:at||[5200,3000,Math.PI]}],points:{jump:{x:400,y:3000,label:'Jump point'}},extract:'jump',objectives:[],reinforce:{secs:999,edge:'E',force:[]},cp:0});
+    f.load(id,0,3);};
+  // the default tactic is AUTO, in every scenario wing
+  f.load('hc1_nightfall',0,71);
+  out.auto=[S().wings.map(w=>w.tactic).join()];
+  SIM.runFor(1.2);
+  out.auto.push(S().wings[0].autoPick);   // Dagger on Relay K-7, a station: Tight runs
+  f.syncHud();out.auto.push(q('[data-wing="dagger"] [data-chip="tactic"]').textContent);
+  // AUTO's other choices: a lone target → Pincer; hurt → Defensive; a threatened charge → Screen; otherwise Spread
+  duel('talon','auto',1);SIM.runFor(1.2);out.auto.push(S().wings[0].autoPick);
+  for(const s of SIM.fn.wingShips(S().wings[0]))s.hull=s.maxHull*0.3;S().wings[0].autoSince=-99;SIM.runFor(1.2);out.auto.push(S().wings[0].autoPick);
+  duel('talon','auto',3);SIM.runFor(1.2);out.auto.push(S().wings[0].autoPick);
+  f.load('hc1_nightfall',0,72);const am=S().wings[1];
+  const p5=by('E5');p5.x=by('lark').x+800;p5.y=by('lark').y;am.autoSince=-99;SIM.runFor(1.2);out.auto.push(am.autoPick);
+  // the run: a pair of Talons against two Motes cycle run → extend → turn → run, passing through rather than circling
+  duel('talon','spread',2);
+  const a=by('P1'),seen={},cyc=[];let last=null;
+  for(let k=0;k<45*20;k++){SIM.step();if(!a.alive)break;seen[a.mv]=1;if(a.mv!==last){cyc.push(a.mv);last=a.mv;}}
+  const passes=cyc.filter((m,i)=>m==='extend'&&cyc[i-1]==='run').length;
+  out.run=[Object.keys(seen).sort().join(),passes,cyc.slice(0,8).join('>')];
+  // a stalemate: a target kept just off the nose, close, never in the guns → break off within STALE_SECS (+ a think)
+  duel('talon','spread',1);
+  const me=by('P1'),mo=S().ships.find(s=>s.faction==='heg');by('P2').alive=false;
+  me.mv='run';me.mvTarget=mo.id;me.arcT=S().t;me.breakT=null;let broke=null;const t0=S().t;
+  for(let k=0;k<200&&broke==null;k++){mo.x=me.x+Math.cos(me.vh+1.3)*600;mo.y=me.y+Math.sin(me.vh+1.3)*600;mo.vx=me.vx;mo.vy=me.vy;mo.h=mo.vh=me.vh+Math.PI;SIM.step();if(me.breakT!=null)broke=+(me.breakT-t0).toFixed(2);}
+  out.stale=[broke!=null,broke!=null&&broke<=SIM.TUNE.STALE_SECS.get()+1.5,me.mv];
+  // something close on its six: break off at once
+  duel('talon','spread',1);
+  const me2=by('P1'),mo2=S().ships.find(s=>s.faction==='heg');by('P2').alive=false;
+  SIM.runFor(0.1);me2.mv='run';me2.mvTarget=mo2.id;me2.breakT=-99;
+  mo2.x=me2.x-Math.cos(me2.vh)*400;mo2.y=me2.y-Math.sin(me2.vh)*400;mo2.h=mo2.vh=me2.vh;
+  SIM.step();SIM.step();
+  out.six=[me2.breakT>0,me2.mv];
+  // Hit and Run harasses: one ship running at a time, and longer extensions than Spread
+  const ext=tac=>{duel('talon',tac,1);let both=0,n=0,maxD=0;const [x,y]=[by('P1'),by('P2')],m=S().ships.find(s=>s.faction==='heg');m.doctrine='patrol';
+    for(let k=0;k<40*20;k++){SIM.step();if(!x.alive||!y.alive||!m.alive)break;n++;if(x.mv==='run'&&y.mv==='run'&&SIM.fn.dist(x,m)<SIM.fn.gunRange(x)*1.2&&SIM.fn.dist(y,m)<SIM.fn.gunRange(y)*1.2)both++;if(x.mv==='extend')maxD=Math.max(maxD,SIM.fn.dist(x,m));}
+    return [+(both/Math.max(1,n)).toFixed(3),Math.round(maxD)];};
+  const hr=ext('hitrun'),sp=ext('spread');
+  out.harass=[hr[0],hr[1],sp[1]];
+  // Pincer: the two halves come in from well apart
+  duel('talon','pincer',1);
+  const p1=by('P1'),p2=by('P2'),tg=S().ships.find(s=>s.faction==='heg');let sep=null;
+  for(let k=0;k<20*20&&sep==null;k++){SIM.step();const r=SIM.fn.gunRange(p1);if(SIM.fn.dist(p1,tg)<r*1.1&&SIM.fn.dist(p2,tg)<r*1.3){const a1=Math.atan2(p1.y-tg.y,p1.x-tg.x),a2=Math.atan2(p2.y-tg.y,p2.x-tg.x);sep=Math.round(Math.abs(Math.atan2(Math.sin(a1-a2),Math.cos(a1-a2)))*180/Math.PI);}}
+  out.pincer=[sep];
+  // the tray: AUTO first, then the six; the one AUTO picked is marked
+  f.load('hc1_nightfall',0,73);SIM.runFor(1.2);f.selectWing('dagger',true);f.syncHud();
+  out.tray=[[...document.querySelectorAll('#hcTray [data-tactic]')].map(b=>b.dataset.tactic).join(),q('#hcTray [data-tactic="auto"]').classList.contains('is-set'),q('#hcTray [data-tactic="'+S().wings[0].autoPick+'"]').classList.contains('is-auto')];
+  return out;
+ });
+ ok(f3.auto[0]==='auto,auto'&&f3.auto[1]==='tight'&&f3.auto[2].toUpperCase()==='AUTO · TIGHT','F3: AUTO is the default, and picks Tight on a station '+JSON.stringify(f3.auto));
+ ok(f3.auto[3]==='pincer'&&f3.auto[4]==='defensive'&&f3.auto[5]==='spread'&&f3.auto[6]==='screen','F3: AUTO picks Pincer, Defensive, Spread, Screen by the situation '+JSON.stringify(f3.auto));
+ ok(f3.run[0]==='extend,run,turn'&&f3.run[1]>=2,'F3: attack runs cycle run, extend, turn '+JSON.stringify(f3.run));
+ ok(f3.stale[0]&&f3.stale[1]&&f3.stale[2]==='extend','F3: a stalemate breaks off '+JSON.stringify(f3.stale));
+ ok(f3.six[0]&&f3.six[1]==='extend','F3: something close on its six breaks it off '+JSON.stringify(f3.six));
+ ok(f3.harass[0]<0.02&&f3.harass[1]>f3.harass[2],'F3: Hit and Run harasses, one at a time, extending further '+JSON.stringify(f3.harass));
+ ok(f3.pincer[0]!=null&&f3.pincer[0]>=45,'F3: a pincer comes in from well apart '+JSON.stringify(f3.pincer));
+ ok(f3.tray[0]==='auto,tight,spread,screen,pincer,hitrun,defensive'&&f3.tray[1]&&f3.tray[2],'F3: the tray\'s tactics '+JSON.stringify(f3.tray));
+ ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

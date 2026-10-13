@@ -48,9 +48,9 @@ const HC_SCENARIOS=[
     desc:'The canvas mission. Dagger (3) and Amber (2) see Convoy Lark to the jump point; Relay K-7 jams it until it falls. Optional: capture the satellite. Hegemony reinforcements in 4:00. Does mission command feel like gameplay?',
     rocks:ROCKS_NIGHTFALL,
     wings:[
-      {id:'dagger',name:'Dagger',at:[1100,2350,0],order:{kind:'attack',target:{type:'obj',id:'relay'}},tactic:'tight',
+      {id:'dagger',name:'Dagger',at:[1100,2350,0],order:{kind:'attack',target:{type:'obj',id:'relay'}},tactic:'auto',
         ships:[{cls:'talon',name:'Joss',pilot:{id:'joss-marrek'}},{cls:'talon',name:'Wren',pilot:{preset:'regular'}},{cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
-      {id:'amber',name:'Amber',at:[950,3750,0],order:{kind:'escort',target:{type:'ship',id:'lark'}},tactic:'tight',
+      {id:'amber',name:'Amber',at:[950,3750,0],order:{kind:'escort',target:{type:'ship',id:'lark'}},tactic:'auto',
         ships:[{cls:'cross',name:'Sera',pilot:{id:'sera-kest'}},{cls:'cross',name:'Kit',pilot:{preset:'green'}}]}],
     allies:[{id:'lark',name:'Convoy Lark',cls:'graf',at:[700,3450,0],role:'convoy',to:'jump',stats:{hull:80,arm:20}}],
     enemies:[
@@ -69,9 +69,9 @@ const HC_SCENARIOS=[
     desc:'Defend: Ember (3) and Ash (2) keep Lastlight station standing through three raiding waves until the evacuation clock runs out, then get out west. Starts with Guardian Directive. Tests Defend, Hold and the rules.',
     rocks:[{x:3300,y:2100,r:110},{x:5200,y:3900,r:120},{x:4900,y:1900,r:90},{x:3000,y:4100,r:100}],
     wings:[
-      {id:'ember',name:'Ember',at:[3500,2500,0],order:{kind:'defend',target:{type:'ship',id:'lastlight'}},tactic:'screen',
+      {id:'ember',name:'Ember',at:[3500,2500,0],order:{kind:'defend',target:{type:'ship',id:'lastlight'}},tactic:'auto',
         ships:[{cls:'talon',name:'Rook',pilot:{preset:'veteran'}},{cls:'talon',name:'Vale',pilot:{preset:'regular'}},{cls:'talon',name:'Jory',pilot:{preset:'regular'}}]},
-      {id:'ash',name:'Ash',at:[3500,3500,0],order:{kind:'hold'},tactic:'defensive',
+      {id:'ash',name:'Ash',at:[3500,3500,0],order:{kind:'hold'},tactic:'auto',
         ships:[{cls:'cross',name:'Mara',pilot:{preset:'regular'}},{cls:'cross',name:'Tamsin',pilot:{preset:'green'}}]}],
     allies:[{id:'lastlight',name:'Lastlight',label:'Lastlight Station',cls:'fuel-depot',at:[4200,3000,0],stats:{hull:300,arm:40}}],
     enemies:[],
@@ -87,10 +87,10 @@ const HC_SCENARIOS=[
     desc:'Two wings of four against Commandant Vex\'s group. Board the reactor platform with Hammer\'s marines, bring Vex down (Bring It Down is standing), or Abort: the honourable out. Variants: 3 or 7 command points. Does the command economy carry the drama?',
     rocks:[{x:3600,y:2300,r:130},{x:4300,y:3900,r:110},{x:5200,y:2700,r:95},{x:2800,y:3300,r:90},{x:5600,y:4300,r:120}],
     wings:[
-      {id:'hammer',name:'Hammer',at:[1300,2300,0],order:{kind:'regroup'},tactic:'tight',
+      {id:'hammer',name:'Hammer',at:[1300,2300,0],order:{kind:'regroup'},tactic:'auto',
         ships:[{cls:'graf',name:'Anvil',marines:true,pilot:{preset:'regular'},stats:{hull:70,arm:20}},{cls:'graf',name:'Forge',marines:true,pilot:{preset:'green'},stats:{hull:70,arm:20}},
           {cls:'talon',name:'Pike',pilot:{preset:'veteran'}},{cls:'talon',name:'Brand',pilot:{preset:'regular'}}]},
-      {id:'lance',name:'Lance',at:[1300,3700,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'pincer',
+      {id:'lance',name:'Lance',at:[1300,3700,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'auto',
         ships:[{cls:'talon',name:'Sable',pilot:{preset:'ace'}},{cls:'cross',name:'Corin',pilot:{preset:'veteran'}},{cls:'cross',name:'Wick',pilot:{preset:'regular'}},{cls:'talon',name:'Isla',pilot:{preset:'green'}}]}],
     enemies:[
       {type:'fuel-depot',id:'reactor',name:'Reactor Platform',label:'Reactor Platform',at:[6600,3000,0],stats:{hull:260,arm:40}},
@@ -462,6 +462,7 @@ const GLYPH={
   hold:circ(12,12,7)+circ(12,12,1.5),
   capture:'M6 21V4M6 4h11l-3 4 3 4H6',
   board:'M12 3v10M7 8l5 5 5-5M5 21h14M8 17h8',
+  auto:circ(12,12,9)+'M8.5 16l3.5-8 3.5 8M9.8 13.2h4.4',
   tight:circ(12,7,2)+circ(8,14,2)+circ(16,14,2),
   spread:circ(4,12,2)+circ(12,12,2)+circ(20,12,2),
   screen:'M3 17h18M7 12l5-5 5 5',
@@ -671,7 +672,7 @@ function syncRoster(){
     const oc=box.querySelector('[data-chip="order"]'),tc=box.querySelector('[data-chip="tactic"]');
     const ot=SIM.ORDERS[w.order.kind].name+(w.order.target?' · '+SIM.targetLabel(w.order):'');
     if(oc.textContent!==ot)oc.textContent=ot;
-    const tt=SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
+    const tt=w.tactic==='auto'?'AUTO · '+(SIM.HC_TACTICS[w.autoPick||'spread'].name.split(' ')[0]):SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
     for(const sid of w.ships){
       const s=SIM.fn.byId(sid),t=box.querySelector('[data-ship="'+sid+'"]');if(!s||!t)continue;
       const lead=w.leader===sid;
@@ -771,7 +772,7 @@ function trayHtml(){
     h+='</div>';
   }
   h+='<div class="hc-tray__lbl">Wing tactic</div><div class="hc-tray__row">';
-  for(const k of SIM.TACTIC_KEYS)h+='<button type="button" class="hc-ico hc-ico--tactic'+(w.tactic===k?' is-set':'')+'" data-tactic="'+k+'" data-tip="tactic:'+k+'" aria-label="'+esc(SIM.HC_TACTICS[k].name)+'">'+glyph(k)+'</button>';
+  for(const k of SIM.TACTIC_KEYS)h+='<button type="button" class="hc-ico hc-ico--tactic'+(w.tactic===k?' is-set':'')+(w.tactic==='auto'&&w.autoPick===k?' is-auto':'')+'" data-tactic="'+k+'" data-tip="tactic:'+k+'" aria-label="'+esc(SIM.HC_TACTICS[k].name)+'">'+glyph(k)+'</button>';
   h+='</div>';
   return h;
 }
@@ -804,7 +805,9 @@ function issue(wid,kind,target){
 function tipFor(key){
   const [k,a]=String(key).split(':');
   if(k==='order'){const o=SIM.ORDERS[a];return {name:o.name,line:o.line+(a==='escort'?' Engages inside '+Math.round(SIM.TUNE.ESCORT_R.get())+' of its charge.':'')+(a==='withdraw'?' Jumps inside '+Math.round(SIM.fn.JUMP_R_())+' of the point.':'')};}
-  if(k==='tactic'){const T=SIM.HC_TACTICS[a];return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
+  if(k==='tactic'){const T=SIM.HC_TACTICS[a];
+    if(a==='auto'){const w=SIM.fn.wingOf(A.tray);return {name:T.name,line:T.line+(w&&w.tactic==='auto'?' Now: '+SIM.HC_TACTICS[w.autoPick||'spread'].name+'.':'')};}
+    return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, extends ×'+T.extend+', breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
   if(k==='rule'){const R=SIM.RULES[a];return {name:R.name,line:R.line()};}
   if(k==='leave')return {name:'Leave now',line:'End the mission at once. Ships that haven\'t jumped yet are lost.'};
@@ -1157,7 +1160,7 @@ function metricsRecord(){
   const ans=m.alerts.filter(a=>a.answered!=null).map(a=>a.answered),realMin=Math.max(A.realSecs,1e-6)/60;
   const mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.quiet);
   return {ruleset:'hc',scenario:A.scen.id,variant:S.variantLabel||null,seed:A.seed,
-    orders:{count:m.orders,byType:Object.assign({},m.byOrder)},tactics:{count:m.tactics,byType:Object.assign({},m.byTactic)},
+    orders:{count:m.orders,byType:Object.assign({},m.byOrder)},tactics:{count:m.tactics,byType:Object.assign({},m.byTactic),autoSwitches:m.autoSwitches||0},breakoffs:m.breakoffs||0,
     cp:{start:S.cpMax,left:S.cp,spent:m.cpSpent,byCommand:Object.assign({},m.byCommand)},
     pauses:{count:A.pauses,pausedSecs:+A.pausedSecs.toFixed(2),realSecs:+A.realSecs.toFixed(2),simSecs:+S.t.toFixed(2)},
     rules:{set:m.rulesSet||0,triggers:m.ruleTriggers,byRule:Object.assign({},m.byRule)},

@@ -102,9 +102,9 @@ const hasTr=(s,k)=>!!(s.pilot.tr&&s.pilot.tr.some(t=>t.k===k));
    from their traits (reckless / brave → eager, steady / cautious / veteran → steady) and is a weight set on the
    same scoring. Placeholder table. */
 const PERSONALITY={
-  eager: {engage:1.25,form:0.6,disengage:0.6,label:'eager'},    // over-commits: fights closer, holds formation loosely, stays in hurt
-  steady:{engage:1.0,form:1.4,disengage:1.0,label:'steady'},    // holds formation
-  even:  {engage:1.0,form:1.0,disengage:1.0,label:'even'},
+  eager: {engage:1.25,form:0.6,disengage:0.6,stale:1.5,label:'eager'},    // over-commits: fights closer, holds formation loosely, stays in hurt, hangs on in a turning fight
+  steady:{engage:1.0,form:1.4,disengage:1.0,stale:0.7,label:'steady'},    // holds formation, breaks off a bad fight sooner
+  even:  {engage:1.0,form:1.0,disengage:1.0,stale:1,label:'even'},
 };
 function personalityOf(p){
   const has=k=>p.tr&&p.tr.some(t=>t.k===k);
@@ -392,6 +392,7 @@ function onWingLoss(t){
 let LEAD_LOSS=0.5;        // a wing's tactic works at this × while it has no leader. placeholder
 let PROMOTE_SECS=8;       // seconds before the next pilot takes the lead. placeholder
 function wingTick(){
+  autoTick();
   for(const w of S.wings){
     if(w.leader==null&&w.leadLostT!=null&&S.t-w.leadLostT>=PROMOTE_SECS-1e-9){
       const id=pickLeader(w,null);
@@ -418,27 +419,69 @@ const ORDERS={
 const ORDER_KEYS=Object.keys(ORDERS);
 const ORDERS_LIVE=ORDER_KEYS;   // every order is live (T1 built three; T2 the rest)
 /* the wing tactics: each a weight set on the same scoring (placeholders, every number on the panel) */
+/* (C-69, playtest 1) Every ship fights in attack runs now; a tactic shapes the runs and the formation the wing travels
+   in, never a turning fight. Weights: form/space (travel formation), engage (fighting range), focus (one target for
+   the wing), flank (pincer approach), screen, extend (how far a run carries past the target), pass (how close it goes
+   before breaking), pursue (may sit on a slower target's tail), sync (passes together, re-forms between them),
+   harass (one ship in the target's guns at a time), disengage (falls back under this hull), leash (reach) */
 const HC_TACTICS={
-  tight:    {name:'Tight Formation',line:'Close formation; every gun on one target.',form:1.0,space:1.0,engage:1.0,focus:1,flank:0,screen:0,hitrun:0,disengage:0.25,leash:1},
-  spread:   {name:'Spread Out',     line:'Loose line abreast; each pilot picks their own target.',form:0.5,space:3.4,engage:1.1,focus:0,flank:0,screen:0,hitrun:0,disengage:0.25,leash:1.4},
-  screen:   {name:'Screen',         line:'Hang between the protected and the threat; intercept what comes through.',form:0.8,space:2.0,engage:0.9,focus:0,flank:0,screen:1,hitrun:0,disengage:0.3,leash:0.8},
-  pincer:   {name:'Pincer',         line:'Split and come at the target from both sides.',form:0.4,space:2.4,engage:1.0,focus:1,flank:1,screen:0,hitrun:0,disengage:0.25,leash:1.2},
-  hitrun:   {name:'Hit and Run',    line:'Make a firing pass, extend away, come round again.',form:0.6,space:1.6,engage:1.0,focus:1,flank:0,screen:0,hitrun:1,disengage:0.3,leash:1.2},
-  defensive:{name:'Defensive',      line:'Hold back, fight at range, and fall back when hurt.',form:1.2,space:1.4,engage:0.8,focus:1,flank:0,screen:0,hitrun:0,disengage:0.5,leash:0.7},
+  auto:     {name:'AUTO',           line:'The wing picks its own tactic, moment to moment: Pincer on a lone target, Tight on a station or a big ship, Screen when its charge is threatened, Defensive when hurt or outnumbered, Spread otherwise.',form:0.5,space:2,engage:1,focus:0,flank:0,screen:0,extend:1,pass:1,pursue:1,sync:0,harass:0,disengage:0.3,leash:1},
+  tight:    {name:'Tight Formation',line:'Runs together: the wing makes its passes on one target in a close trail, extends together and re-forms between passes.',form:1.0,space:1.0,engage:1.0,focus:1,flank:0,screen:0,extend:1,pass:1,pursue:0,sync:1,harass:0,disengage:0.25,leash:1},
+  spread:   {name:'Spread Out',     line:'Each pilot picks their own target and makes their own runs; wide spacing while travelling.',form:0.5,space:3.4,engage:1.1,focus:0,flank:0,screen:0,extend:1,pass:1,pursue:1,sync:0,harass:0,disengage:0.25,leash:1.4},
+  screen:   {name:'Screen',         line:'Hang between the protected and the threat; intercept what comes through.',form:0.8,space:2.0,engage:0.9,focus:0,flank:0,screen:1,extend:0.7,pass:1,pursue:1,sync:0,harass:0,disengage:0.3,leash:0.8},
+  pincer:   {name:'Pincer',         line:'Split in two and run in on the target from about 90° apart, then both extend.',form:0.4,space:2.4,engage:1.0,focus:1,flank:1,screen:0,extend:1,pass:1,pursue:0,sync:0,harass:0,disengage:0.25,leash:1.2},
+  hitrun:   {name:'Hit and Run',    line:'Harass: break off early, extend long, and only one ship in the target\'s guns at a time. Low risk, low damage.',form:0.6,space:1.6,engage:1.0,focus:1,flank:0,screen:0,extend:1.8,pass:1.8,pursue:0,sync:0,harass:1,disengage:0.3,leash:1.2},
+  defensive:{name:'Defensive',      line:'Stay close to the charge or the leader, take only short safe passes, and break off early when hurt.',form:1.2,space:1.4,engage:0.8,focus:1,flank:0,screen:0,extend:0.7,pass:1.3,pursue:0,sync:0,harass:0,disengage:0.5,leash:0.7},
 };
 const TACTIC_KEYS=Object.keys(HC_TACTICS);
-let HR_IN=3,HR_OUT=3;
+const PICKABLE=TACTIC_KEYS.filter(k=>k!=='auto');
+/* the attack run (C-69): RUN in at speed with the guns on it → PASS through → EXTEND out past EXTEND_K × gun reach →
+   TURN back at corner speed → RUN again. A pilot who spends STALE_SECS turning without the target in its guns, or
+   finds something on its six, breaks off (extends) and comes back with a fresh run */
+let EXTEND_K=1.4;         // a run carries this × gun reach past the target before turning back. placeholder
+let PASS_K=0.3;           // ...and breaks into its extension this × gun reach from the target. placeholder
+let EXT_MAX=9;            // an extension ends after this long, whatever the distance (s). placeholder
+let STALE_SECS=4;         // turning this long without the target in the guns is a stalemate: break off. placeholder
+let AUTO_SECS=1,AUTO_HOLD=4;   // AUTO re-thinks the wing's tactic this often, and holds a choice at least this long (s). placeholders
 let THREAT_R=1.1;         // a hostile this close (× gun range) with its guns on a ship is a threat it turns on. placeholder     // Hit and Run: seconds on a pass, seconds extending. placeholder
 let ESCORT_R=2200;        // an escort engages what comes this close to its charge (at least a patrol's detection, so it moves first). placeholder
 
 /* a tactic as this wing flies it: the leaderless wing's cohesion pulls every weight back toward a loose neutral */
 function tacticOf(w){
-  const T=HC_TACTICS[w.tactic]||HC_TACTICS.tight,k=w.cohesion==null?1:w.cohesion;
+  const key=w.tactic==='auto'?(w.autoPick||'spread'):w.tactic;
+  const T=HC_TACTICS[key]||HC_TACTICS.spread,k=w.cohesion==null?1:w.cohesion;
   if(k>=1)return T;
-  const N={form:0.3,space:2.5,engage:1.0,focus:0,flank:0,screen:0,hitrun:0,disengage:T.disengage,leash:T.leash};
+  const N={form:0.3,space:2.5,engage:1.0,focus:0,flank:0,screen:0,sync:0,harass:0,disengage:T.disengage,leash:T.leash};
   const out=Object.assign({},T);
-  for(const key of ['form','space','engage','focus','flank','screen','hitrun'])out[key]=N[key]+(T[key]-N[key])*k;
+  for(const kk of ['form','space','engage','focus','flank','screen','sync','harass'])out[kk]=N[kk]+(T[kk]-N[kk])*k;
   return out;
+}
+/* AUTO (C-69): the leader picks the wing's tactic from the situation, and holds a choice AUTO_HOLD s at least */
+function autoPick(w){
+  const ships=wingShips(w);if(!ships.length)return 'spread';
+  const lead=byId(w.leader)||ships[0],c=wingCentre(w),reach=gunRange(lead);
+  const foes=S.ships.filter(t=>t.alive&&t.faction==='heg'&&!t.struct);
+  const near=foes.filter(t=>dist(t,c)<reach*4);
+  const hurt=ships.reduce((a,s)=>a+Math.max(0,s.hull)/s.maxHull,0)/ships.length<AUTO_HURT;
+  if(hurt||near.length>=ships.length*AUTO_ODDS)return 'defensive';
+  const o=w.order;
+  if(o.kind==='escort'||o.kind==='defend'){const a=o.kind==='escort'?byId(o.target&&o.target.id):anchorOf(o.target);if(a&&foes.some(t=>dist(t,a)<ESCORT_R))return 'screen';}
+  let t=null;
+  if(o.kind==='attack'||o.kind==='intercept'||o.kind==='board'){const pool=S.ships.filter(x=>x.alive&&x.faction==='heg'&&(o.kind==='attack'?matches(o.target,x):x.id===(o.target&&o.target.id)));t=bestTarget(lead,pool,{distW:0.6});}
+  if(!t)t=bestTarget(lead,near);
+  if(t&&(t.struct||t.row.size>=7))return 'tight';
+  if(t&&ships.length>=2&&!foes.some(x=>x!==t&&dist(x,t)<reach*1.6))return 'pincer';
+  return 'spread';
+}
+let AUTO_HURT=0.5,AUTO_ODDS=1.5;   // AUTO goes Defensive under this average hull, or at these odds. placeholders
+function autoTick(){
+  for(const w of S.wings){
+    if(w.tactic!=='auto')continue;
+    if(w.autoT!=null&&S.t-w.autoT<AUTO_SECS-1e-9)continue;
+    const want=autoPick(w);
+    if(!w.autoPick||(want!==w.autoPick&&S.t-(w.autoSince||0)>=AUTO_HOLD)){if(w.autoPick&&want!==w.autoPick)S.m.autoSwitches=(S.m.autoSwitches||0)+1;w.autoPick=want;w.autoSince=S.t;}
+    w.autoT=S.t;
+  }
 }
 
 /* =====================================================================
@@ -452,7 +495,7 @@ function mkShip(d){
     segs:{F:{val:r.shield_front,max:r.shield_front,at:'F'},R:{val:r.shield_rear,max:r.shield_rear,at:'R'}},
     arm:r.armour,hull:r.hull,maxArm:r.armour,maxHull:r.hull,crits:[],
     alive:true,jumped:false,trail:[],wpns:loadout(r,d.loadout),fireAt:null,locks:{},
-    goal:null,beh:{kind:'idle'},intent:null,thinkT:0,calmT:0,hitT:-99,run:'in',runT:0,
+    goal:null,beh:{kind:'idle'},intent:null,thinkT:0,calmT:0,hitT:-99,mv:null,mvT:0,
     st:{shots:0,hits:0,dmg:0,missiles:0,kills:0},
     doctrine:d.doctrine||null,asset:d.asset||null,home:d.home||null,to:d.to||null,flees:!!d.flees,label:d.label||null};
   if(d.stats){for(const k of ['hull','arm']){if(d.stats[k]!=null){s[k]=d.stats[k];s['max'+(k==='hull'?'Hull':'Arm')]=d.stats[k];}}}
@@ -518,7 +561,7 @@ function build(scn,opt){
 }
 function addWing(wd){
   const w={id:wd.id,name:wd.name,ships:[],leader:null,leadLostT:null,cohesion:1,
-    order:Object.assign({kind:'regroup',target:null},wd.order||{}),tactic:wd.tactic||'tight',hold:null};
+    order:Object.assign({kind:'regroup',target:null},wd.order||{}),tactic:wd.tactic||'auto',hold:null};
   wd.ships.forEach((sd,i)=>{
     S.pn++;
     const at=sd.at||formation(wd.at||[900,H*0.5,0],i,wd.ships.length);
@@ -947,7 +990,7 @@ function abilityTriggers(s,k){
   switch(k){
     case 'shields':return {want:sf<0.5&&S.t-s.hitT<2,emerg:sf<=0.01&&hitNow};
     case 'lockin':return {want:mor==='SHAKEN',emerg:mor==='PANICKED'};
-    case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw',emerg:pinned&&hf<0.5};
+    case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw'||(s.mv==='extend'&&!!onSix(s)),emerg:pinned&&hf<0.5};
     case 'drift':{const six=onSix(s);return {want:b.kind==='withdraw'&&!!six,emerg:b.kind==='withdraw'&&hitNow};}
     case 'kturn':{const six=onSix(s);return {want:!!six,emerg:!!six&&hf<0.5};}
     case 'barrel':return {want:pinned,emerg:pinned&&hf<0.4};
@@ -1187,27 +1230,14 @@ function orbitGoal(s,p,R){   // a ship can't stop: holding on a point is orbitin
   return {x:p.x+Math.cos(a)*R,y:p.y+Math.sin(a)*R};
 }
 function goalOf(s){
-  const b=s.beh||{kind:'idle'},w=wingOf(s.wing),T=w?tacticOf(w):HC_TACTICS.tight,P=PERSONALITY[s.persona]||PERSONALITY.even,c=capsOf(s);
+  const b=s.beh||{kind:'idle'},w=wingOf(s.wing),T=w?tacticOf(w):HC_TACTICS.spread,P=PERSONALITY[s.persona]||PERSONALITY.even,c=capsOf(s);
   s.fireAt=null;s.intent=null;s.holdFire=false;
   let g=null;
   if(b.kind==='engage'){
     const t=byId(b.target);
     if(t&&t.alive){
       s.fireAt=t.id;
-      const R=gunRange(s)*ENGAGE_FRAC*(T.engage||1)*(s.faction==='reb'?P.engage:1),d=dist(s,t);
-      if(t.struct||T.hitrun>=0.5){   // strafing runs: in at the target, extend past, come round
-        if(s.run==='in'&&(d<R*0.45||(T.hitrun>=0.5&&S.t-s.runT>HR_IN))){s.run='out';s.runT=S.t;s.runPt={x:s.x+Math.cos(s.vh)*R*1.3-Math.sin(s.vh)*R*0.3,y:s.y+Math.sin(s.vh)*R*1.3+Math.cos(s.vh)*R*0.3};}
-        if(s.run==='out'&&(dist(s,s.runPt)<120||d>R*1.4||(T.hitrun>=0.5&&S.t-s.runT>HR_OUT))){s.run='in';s.runT=S.t;}
-        g=s.run==='in'?{x:t.x+(t.vx||0)*0.5,y:t.y+(t.vy||0)*0.5,spd:1,face:t}:{x:s.runPt.x,y:s.runPt.y,spd:1};
-      } else {
-        // pursuit: lead the target, and close to the fighting range behind it; a pincer comes in from its side
-        const lt=Math.min(1.5,d/Math.max(1,c.vMax)),px=t.x+(t.vx||0)*lt,py=t.y+(t.vy||0)*lt;
-        let gx=px,gy=py;
-        if(d<R*1.2){const th=t.vh!=null?t.vh:t.h;gx=px-Math.cos(th)*R*0.5;gy=py-Math.sin(th)*R*0.5;}
-        if(T.flank>0&&w){const i=wingShips(w).indexOf(s),side=i%2?1:-1,th=Math.atan2(t.y-s.y,t.x-s.x);gx+=-Math.sin(th)*side*R*T.flank*0.8;gy+=Math.cos(th)*side*R*T.flank*0.8;}
-        const tv=Math.hypot(t.vx||0,t.vy||0);
-        g={x:gx,y:gy,spd:d>R*1.3?1:clamp(tv/c.vMax+0.12,CRUISE*0.6,1),face:t};
-      }
+      g=runGoal(s,t,T,P,w,c);
     }
   } else if(b.kind==='withdraw'){
     g=dist(s,b.dest)<500&&b.dest!==extractPoint()?Object.assign(orbitGoal(s,b.dest,320),{spd:CRUISE}):{x:b.dest.x,y:b.dest.y,spd:1};
@@ -1264,6 +1294,60 @@ function goalOf(s){
   }
   if(g)s.intent={x:g.x,y:g.y};
   s.goal=g;
+}
+/* the attack run's state machine (C-69). s.mv: run → extend → turn → run; pursue while a faster ship holds a
+   slower target's tail. The tactic shapes it: how far it extends, how close it passes, a pincer's approach, a tight
+   wing's synchronised passes, harassment's one-at-a-time */
+function runGoal(s,t,T,P,w,c){
+  const reach=gunRange(s),d=dist(s,t),tvh=t.vh!=null?t.vh:t.h,mine=s.faction==='reb';
+  const ext=reach*EXTEND_K*(T.extend||1),pass=reach*PASS_K*(T.pass||1);
+  const toT=Math.atan2(t.y-s.y,t.x-s.x),off=Math.abs(angNorm(toT-s.vh));
+  const onTail=!t.struct&&Math.abs(angNorm(Math.atan2(s.y-t.y,s.x-t.x)-tvh))>2.3;   // we sit in its rear quarter
+  const faster=Math.hypot(s.vx,s.vy)>=Math.hypot(t.vx||0,t.vy||0)*0.95;
+  if(s.mvTarget!==t.id){s.mvTarget=t.id;s.mv='run';s.mvT=S.t;s.arcT=S.t;}
+  const set=m=>{
+    s.mv=m;s.mvT=S.t;
+    if(m==='extend'){   // out along the line of flight, veering away from the target's nose if it faces us
+      const away=inArc(t,s)?Math.sign(angNorm(Math.atan2(s.y-t.y,s.x-t.x)-tvh))||1:0;
+      const h=s.vh+away*0.35;s.extPt={x:s.x+Math.cos(h)*ext*1.3,y:s.y+Math.sin(h)*ext*1.3};
+    }
+  };
+  // a stalemate is a close fight (inside 1.5 × reach) turning without a shot; the clock only runs while it is one
+  if((inArc(s,t)&&d<=reach)||d>reach*1.5||s.mv==='extend')s.arcT=S.t;
+  // a stalemate, or something close on its six: break off, then come back with a fresh run
+  const stale=STALE_SECS*(mine?(P.stale||1):1),six=onSix(s);
+  const sixBreak=six&&dist(s,six)<reach*0.8&&s.mv!=='pursue'&&s.mv!=='extend'&&S.t-(s.breakT||-99)>3;
+  if(s.mv!=='extend'&&(S.t-(s.arcT==null?S.t:s.arcT)>stale||sixBreak)){set('extend');s.arcT=S.t;S.m.breakoffs=(S.m.breakoffs||0)+1;s.breakT=S.t;}
+  const lead=w&&byId(w.leader),sync=T.sync>=0.5&&lead&&lead!==s&&lead.mvTarget===t.id;
+  switch(s.mv){
+    case 'run':
+      if(T.pursue>=0.5&&onTail&&faster&&d<reach*0.9)set('pursue');
+      else if(d<pass||(off>1.5&&d<reach*1.2)||(sync&&lead.mv==='extend'&&d<reach))set('extend');
+      break;
+    case 'pursue':
+      if(!onTail||d<reach*0.2||off>1.2)set('extend');
+      break;
+    case 'extend':
+      if(d>ext||S.t-s.mvT>EXT_MAX||(sync&&lead.mv==='turn'&&S.t-s.mvT>1))set('turn');
+      break;
+    case 'turn':
+      if(off<0.5)set('run');
+      break;
+  }
+  // harassment: only one of the wing in the target's guns at a time; the rest wait their turn out of reach
+  if(T.harass>=0.5&&w&&(s.mv==='run'||s.mv==='turn')&&wingShips(w).some(m=>m!==s&&m.mvTarget===t.id&&m.mv==='run'&&dist(m,t)<reach*1.2)){
+    s.mv='turn';return Object.assign(orbitGoal(s,t,ext),{spd:CRUISE});
+  }
+  if(s.mv==='extend'){
+    if(sync&&lead.mv==='extend'){const sl=slotOf(s,w,T);if(sl)return stationGoal(s,sl,lead);}   // a tight wing re-forms between passes
+    return {x:s.extPt.x,y:s.extPt.y,spd:1};
+  }
+  if(s.mv==='turn')return {x:t.x,y:t.y,spd:CORNER,face:t};
+  if(s.mv==='pursue'){const R=reach*ENGAGE_FRAC*0.5;return {x:t.x-Math.cos(tvh)*R,y:t.y-Math.sin(tvh)*R,spd:clamp(Math.hypot(t.vx||0,t.vy||0)/c.vMax+0.1,0.3,1),face:t};}
+  // run: at the target's lead point; a pincer's halves come in from either side until they are inside the reach
+  const lt=Math.min(1.5,d/Math.max(1,c.vMax));let gx=t.x+(t.vx||0)*lt,gy=t.y+(t.vy||0)*lt;
+  if(T.flank>0&&w&&d>reach*0.9){const i=wingShips(w).indexOf(s),side=i%2?1:-1;gx+=-Math.sin(toT)*side*reach*T.flank;gy+=Math.cos(toT)*side*reach*T.flank;}
+  return {x:gx,y:gy,spd:1,face:t};
 }
 /* station keeping (C-69): with wide turns a ship can't sit on a point, so it flies a line through its station: it aims
    SLOT_LOOK ahead of the station along the leader's heading, and sets its speed from how far ahead or behind it is */
@@ -1637,8 +1721,14 @@ const TUNE={
   DETECT_R:{get:()=>DETECT_R,set:v=>{DETECT_R=v;},min:500,max:6000,step:50,label:'Patrol detection'},
   GUARD_R:{get:()=>GUARD_R,set:v=>{GUARD_R=v;},min:400,max:3000,step:50,label:'Guard radius'},
   LEASH_R:{get:()=>LEASH_R,set:v=>{LEASH_R=v;},min:800,max:10000,step:100,label:'Patrol leash'},
-  HR_IN:{get:()=>HR_IN,set:v=>{HR_IN=v;},min:1,max:8,step:0.5,label:'Hit & Run: pass (s)'},
-  HR_OUT:{get:()=>HR_OUT,set:v=>{HR_OUT=v;},min:1,max:8,step:0.5,label:'Hit & Run: extend (s)'},
+  EXTEND_K:{get:()=>EXTEND_K,set:v=>{EXTEND_K=v;},min:0.3,max:4,step:0.1,label:'Runs extend past (× gun reach)'},
+  PASS_K:{get:()=>PASS_K,set:v=>{PASS_K=v;},min:0.05,max:1,step:0.05,label:'Runs break off at (× gun reach)'},
+  EXT_MAX:{get:()=>EXT_MAX,set:v=>{EXT_MAX=v;},min:2,max:30,step:1,label:'An extension lasts at most (s)'},
+  STALE_SECS:{get:()=>STALE_SECS,set:v=>{STALE_SECS=v;},min:1,max:15,step:0.5,label:'Break off a fight without a shot after (s)'},
+  AUTO_SECS:{get:()=>AUTO_SECS,set:v=>{AUTO_SECS=v;},min:0.5,max:5,step:0.5,label:'AUTO re-thinks every (s)'},
+  AUTO_HOLD:{get:()=>AUTO_HOLD,set:v=>{AUTO_HOLD=v;},min:0,max:20,step:1,label:'AUTO holds a choice (s)'},
+  AUTO_HURT:{get:()=>AUTO_HURT,set:v=>{AUTO_HURT=v;},min:0,max:1,step:0.05,label:'AUTO goes Defensive under hull'},
+  AUTO_ODDS:{get:()=>AUTO_ODDS,set:v=>{AUTO_ODDS=v;},min:1,max:4,step:0.1,label:'AUTO goes Defensive at odds'},
   LEAD_LOSS:{get:()=>LEAD_LOSS,set:v=>{LEAD_LOSS=v;},min:0,max:1,step:0.05,label:'Leaderless cohesion ×'},
   PROMOTE_SECS:{get:()=>PROMOTE_SECS,set:v=>{PROMOTE_SECS=v;},min:0,max:30,step:1,label:'Promote after (s)'},
   HC_CP:{get:()=>HC_CP,set:v=>{HC_CP=v;},min:0,max:10,step:1,label:'Command points (no scenario value)'},
@@ -1689,13 +1779,14 @@ const TUNE={
 
 /* the tactic weight table, every weight on the panel too */
 const TACTIC_W={form:[0,2,0.05,'formation'],space:[0.5,6,0.1,'spacing ×'],engage:[0.4,1.6,0.05,'fighting range ×'],focus:[0,1,1,'focus fire (0/1)'],
-  flank:[0,1.5,0.05,'flank'],disengage:[0,0.9,0.05,'falls back under hull'],leash:[0.3,2,0.05,'reach ×']};
-for(const tk of TACTIC_KEYS)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
+  flank:[0,1.5,0.05,'flank'],extend:[0.3,3,0.1,'extends ×'],pass:[0.3,3,0.1,'breaks off ×'],pursue:[0,1,1,'tail chases (0/1)'],
+  disengage:[0,0.9,0.05,'falls back under hull'],leash:[0.3,2,0.05,'reach ×']};
+for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R'],
-  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','HR_IN','HR_OUT'],
+  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
@@ -1707,10 +1798,10 @@ for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
 return {key:'hc',name:'Type 3: High Command',
   get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
-  ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
+  ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
-  fn:{turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
