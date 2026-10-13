@@ -422,6 +422,8 @@
 #arHc .hc-seg__b:focus-visible{outline:2px solid var(--sr-gold);outline-offset:-2px;}
 #arHc .hc-use{min-width:44px;height:22px;padding:0 6px;border-radius:var(--sr-r-sm);border:1.5px solid var(--sr-seam);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);cursor:pointer;}
 #arHc .hc-use[aria-disabled="true"]{opacity:.5;cursor:default;}
+#arHc .hc-use.is-hot{border-color:var(--sr-hazard,#ff5a4e);color:var(--sr-hazard,#ff5a4e);}
+#arHc .hc-use.is-armed{border-color:var(--sr-gold,#ffc83d);color:var(--sr-gold,#ffc83d);}
 #arHc .hc-pilot__resp{display:flex;flex-wrap:wrap;gap:6px;}
 #arHc .hc-pilot__resp .sr-btn{min-height:32px;padding:0 10px;font-size:var(--sr-fs-xs);}
 #arHc .hc-cmds{position:absolute;right:12px;bottom:150px;z-index:5;width:min(340px,calc(100% - 24px));overflow:auto;padding:10px 12px;

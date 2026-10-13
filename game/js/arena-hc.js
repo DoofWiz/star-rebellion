@@ -261,7 +261,10 @@ function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashe
   for(const m of S.missiles){
     const mp=ipos(m);
     if(m.trail.length>1){c.beginPath();m.trail.slice(0,-1).forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.lineTo(mp.x,mp.y);c.globalAlpha=0.6;c.lineWidth=3/z;c.strokeStyle=C.steel;c.stroke();c.globalAlpha=1;}
-    c.beginPath();c.arc(mp.x,mp.y,6/z,0,6.283);c.fillStyle=C.psi;c.fill();
+    const mz=Math.max(1,0.6/z);c.save();c.translate(mp.x,mp.y);c.rotate(m.h);c.scale(mz,mz);
+    c.beginPath();c.arc(-9,0,7,0,6.283);c.fillStyle=TH.rgba(C.goldHi,0.45);c.fill();   // the motor
+    c.beginPath();c.moveTo(10,0);c.lineTo(-6,-4);c.lineTo(-6,4);c.closePath();c.fillStyle=m.faction==='reb'?C.psi:C.hazard;c.fill();c.lineWidth=1.5;c.strokeStyle=C.ink;c.stroke();
+    c.restore();
   }
   for(const f of S.fx){
     const life=f.kind==='boom'?0.9:0.32,k=(S.t-f.t0)/life;if(k<0||k>1)continue;
@@ -270,6 +273,27 @@ function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashe
     else{const col=f.kind==='shield'?C.shield:C.hazard;c.beginPath();c.arc(f.x,f.y,(5+8*(1-k))/z,0,6.283);c.fillStyle=col;c.fill();}
   }
   c.restore();
+}
+/* locks (C-70, playtest 2): your pilots' locks as four brackets closing on the target (amber while building, red with
+   LOCK once a missile can go); a Hegemony lock on one of your ships as a red LOCKED tag over it */
+function drawLocks(c,z,S,boost,now){
+  const need=SIM.fn.MISSILE_LOCK_();
+  for(const s of S.ships){
+    if(!s.alive||s.struct||s.quiet||!s.locks)continue;
+    let best=null,lk=0;for(const id in s.locks)if(s.locks[id]>lk){lk=s.locks[id];best=id;}
+    const t=best&&SIM.fn.byId(best);if(!t||!t.alive||lk<0.05)continue;
+    const p=ipos(t),R0=shieldR(t,boost)+6/z,k=Math.min(1,lk/need),R=R0*(1+1.6*(1-k)),ok=lk>=need;
+    if(s.faction==='reb'){
+      const sel=A.sel&&s.wing===A.sel,al=sel?1:0.7,col=ok?C.hazard:C.gold,L=R*0.45;
+      c.save();c.translate(p.x,p.y);c.rotate(ok?0:(now/900)%(Math.PI/2));c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=(ok?3:2.2)/z;c.lineCap='square';
+      for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(R,R-L);c.lineTo(R,R);c.lineTo(R-L,R);c.stroke();}
+      c.restore();
+      if(ok)label(c,p.x,p.y+R+16/z,'LOCK',C.hazard,z,11);   // under the brackets: the hull pips sit over the target
+    } else if(lk>=0.25&&t.faction==='reb'){
+      const blink=ok?(Math.floor(now/180)%2?1:0.35):0.8;
+      c.save();c.globalAlpha=blink;label(c,p.x,p.y-shieldR(t,boost)-26/z,ok?'⚠ LOCKED':'⚠ LOCK',C.hazard,z,12);c.restore();
+    }
+  }
 }
 function drawTrail(c,s,z){
   if(s.trail.length<2)return;
@@ -349,6 +373,7 @@ function render(now){
     else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
   }
   drawShots(ctx,z,a,S);
+  drawLocks(ctx,z,S,boost,now);
   // screen space: hull pips and names, floaters
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.font='700 11px "Exo 2",sans-serif';ctx.textAlign='center';
@@ -919,9 +944,9 @@ function pilotBody(s){
     h+='<div class="hc-tray__lbl">Abilities · doctrine</div>';
     for(const k of abil){
       const doc=(s.doct&&s.doct[k])||'AUTO',cd=Math.max(0,((s.abCd&&s.abCd[k])||0)-S.t);
-      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+'</span><span class="hc-seg" role="group">'+
+      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+(k==='missile'?' ×'+misLeft(s):'')+'</span><span class="hc-seg" role="group">'+
         SIM.DOCTRINES.map(d=>'<button type="button" class="hc-seg__b'+(d===doc?' is-on':'')+'" data-doc="'+d+'" data-abil="'+k+'" aria-pressed="'+(d===doc)+'" data-tip="doc:'+d+'">'+d+'</button>').join('')+
-        '</span><button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button></div>';
+        '</span>'+(k==='missile'?misBtn(s):'<button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button>')+'</div>';
     }
   }
   // the response row: in an emergency, the interventions that fit (gold: the recommended one) and the free ones
@@ -933,6 +958,13 @@ function pilotBody(s){
     h+='<button type="button" class="sr-btn sr-btn--sm'+(prim?' sr-btn--primary':'')+'" data-resp="'+o.key+'" data-tip="resp:'+o.key+'"'+(o.ok?'':' aria-disabled="true"')+'>'+esc(o.name)+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':o.free?' <span class="hc-free">free</span>':'')+'</button>';
   }
   return h+'</div>';
+}
+/* the Missile row's button: Fire when locked, Armed while armed, else Arm (it fires at the next lock); Empty with none left */
+const misLeft=s=>s.wpns.filter(q=>q.w.needsLock).reduce((n,q)=>n+(q.ammo||0),0);
+function misBtn(s){
+  const S=SIM.S,left=misLeft(s),shot=SIM.fn.missileShot(s),armed=(s.misArm||0)>S.t;
+  const lbl=!left?'Empty':shot?'Fire':armed?'Armed':'Arm';
+  return '<button type="button" class="hc-use'+(shot?' is-hot':armed?' is-armed':'')+'" data-use="missile"'+(left?'':' aria-disabled="true"')+'>'+lbl+'</button>';
 }
 function syncPilot(){
   const el=byId('hcPilot'),s=A.panel&&A.phase!=='PICK'?SIM.fn.byId(A.panel):null;

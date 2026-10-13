@@ -1508,7 +1508,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(f3.auto[0]==='auto,auto'&&f3.auto[1]==='tight'&&f3.auto[2].toUpperCase()==='AUTO · TIGHT','F3: AUTO is the default, and picks Tight on a station '+JSON.stringify(f3.auto));
  ok(f3.auto[3]==='pincer'&&f3.auto[4]==='defensive'&&f3.auto[5]==='spread'&&f3.auto[6]==='screen','F3: AUTO picks Pincer, Defensive, Spread, Screen by the situation '+JSON.stringify(f3.auto));
- ok(f3.run[0]==='extend,run,turn'&&f3.run[1]>=2,'F3: attack runs cycle run, extend, turn '+JSON.stringify(f3.run));
+ ok(/^extend,(pursue,)?run,turn$/.test(f3.run[0])&&f3.run[1]>=2,'F3: attack runs cycle run, extend, turn '+JSON.stringify(f3.run));
  ok(f3.stale[0]&&f3.stale[1]&&f3.stale[2]==='extend','F3: a stalemate breaks off '+JSON.stringify(f3.stale));
  ok(f3.six[0]&&f3.six[1]==='extend','F3: something close on its six breaks it off '+JSON.stringify(f3.six));
  ok(f3.harass[0]<0.02&&f3.harass[1]>f3.harass[2],'F3: Hit and Run harasses, one at a time, extending further '+JSON.stringify(f3.harass));
@@ -1557,8 +1557,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const RA=Math.max(0,Math.min(1,H.A.acc/SIM.TICK));
   out.lerp=[Math.hypot(s.x-s.px,s.y-s.py)>1,Math.abs(a0.x-s.px)<1e-6||Math.abs(a0.x-s.x)<1e-6,RA];
   // Convoy Lark waits at the jammed jump point; once Relay K-7 falls it lines up and jumps (it orbited for ever)
-  SIM.TUNE.SPEED_SCALE.set(4);f.load('hc1_nightfall',0,7);SIM.runFor(60);
-  const L=by('lark'),jp=S().points.jump;out.lark=[L.beh.kind,Math.round(Math.hypot(L.x-jp.x,L.y-jp.y))];
+  SIM.TUNE.SPEED_SCALE.set(4);f.load('hc1_nightfall',0,7);
+  const L=by('lark'),jp=S().points.jump;{let k=0;while(L.alive&&L.beh.kind!=='wait'&&k++<2400)SIM.step();SIM.runFor(10);}out.lark=[L.beh.kind,Math.round(Math.hypot(L.x-jp.x,L.y-jp.y))];
   SIM.fn.kill(by('relay'),null);let n=0;while(L.alive&&n++<1200)SIM.step();
   out.lark.push(L.jumped,+(n*SIM.TICK/1000).toFixed(1));
   // the map is 8 ×, the scenario's places spread 4 × in its middle; reinforcements come in at the play area's edge
@@ -1572,11 +1572,81 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(g1.lark[0]==='wait'&&g1.lark[1]<900&&g1.lark[2]===true&&g1.lark[3]<45,'G1: Convoy Lark jumps once the relay falls '+JSON.stringify(g1.lark));
  ok(g1.map[0]===8&&g1.map[1]===4&&g1.map[2]===33600&&g1.map[3]===24000&&g1.map[4]===8400&&g1.map[5]===6000&&g1.map[6]===25200&&g1.map[7]===18000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
  ok(g1.reinf.every(Boolean),'G1: reinforcements come in off the play area\'s edge '+JSON.stringify(g1.reinf));
+ // ---------- G2 (C-70): collisions and not crashing ----------
+ const g2=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,T=SIM.TUNE,F=SIM.fn,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),pool=s=>s.hull+s.arm+F.totalShield(s);
+  const place=(s,x,y,h,v)=>{s.x=x;s.y=y;s.h=s.vh=h;s.vx=Math.cos(h)*v;s.vy=Math.sin(h)*v;s.px=x-s.vx*0.05;s.py=y-s.vy*0.05;};
+  // head-on: two fighters closing at 1,600 a second, passing through each other within one step
+  f.load('hc1_nightfall',0,5);
+  const a=by('P1'),e=S().ships.find(x=>x.faction==='heg'&&!x.struct),pa=pool(a),pe=pool(e);
+  place(a,9000,9000,0,800);place(e,9010,9002,Math.PI,800);
+  F.collideTick();
+  out.head=[S().m.collisions,pa-pool(a)>20,pe-pool(e)>20,Math.hypot(a.x-e.x,a.y-e.y)>=F.bodyR(a)+F.bodyR(e)-0.5,a.vx<0||!a.alive,S().events.some(x=>x.kind==='collide')];
+  // a rock: bounced out, not through, and hurt
+  f.load('hc1_nightfall',0,5);const k=S().rocks[0],b=by('P2'),pb=pool(b),R=F.bodyR(b)+F.rockR(k);
+  place(b,k.x-R+30,k.y,0,1000);F.collideTick();
+  out.rock=[Math.hypot(b.x-k.x,b.y-k.y)>=R,pb-pool(b)>10,b.vx<0];
+  // a pilot flying at a rock 900 ahead steers off it
+  f.load('hc1_nightfall',0,5);const c=by('P3');place(c,k.x-F.rockR(k)-900,k.y+20,0,700);
+  const ev=F.evadeVec(c);out.evade=[!!ev,ev&&Math.abs(ev.y)>Math.abs(ev.x),ev&&ev.y*(c.y-k.y)>0];   // away from the rock's side
+  // hc1 for 120 s: with avoidance hardly anyone crashes; without, many do
+  const runs=w=>{const w0=T.AVOID_W.get();T.AVOID_W.set(w);const n=[];for(const sd of [3,11]){f.load('hc1_nightfall',0,sd);SIM.runFor(120);n.push(S().m.collisions||0);}T.AVOID_W.set(w0);return n;};
+  out.on=runs(T.AVOID_W.get());out.off=runs(0);
+  return out;
+ });
+ ok(g2.head.every(Boolean),'G2: a head-on collision hurts both and bounces them apart '+JSON.stringify(g2.head));
+ ok(g2.rock.every(Boolean),'G2: a ship bounces off a rock, hurt '+JSON.stringify(g2.rock));
+ ok(g2.evade.every(Boolean),'G2: a pilot steers off a rock ahead '+JSON.stringify(g2.evade));
+ ok(Math.max(...g2.on)<=4&&Math.min(...g2.off)>=10,'G2: pilots avoid crashing '+JSON.stringify([g2.on,g2.off]));
+ // ---------- G3 (C-70): the Cross's missiles and the lock ----------
+ const g3=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,T=SIM.TUNE,F=SIM.fn,out={};
+  const S=()=>H.S,byName=n=>S().ships.find(s=>s.name===n),by=id=>S().ships.find(s=>s.id===id);
+  const left=s=>s.wpns.filter(q=>q.w.needsLock).reduce((n,q)=>n+(q.ammo||0),0);
+  // the Cross carries missiles here; the database's stock Cross doesn't
+  f.load('hc1_nightfall',0,5);const sera=byName('Sera');
+  out.load=[sera.wpns.map(q=>q.w.id).join('+'),left(sera),SRDB.ship('ft-4-cross').default_weapon_2,SIM.abilitiesOf(sera.id).includes('missile')];
+  // a lock fills on a target ahead and AUTO fires at MISSILE_LOCK
+  const setup=doc=>{f.load('hc1_nightfall',0,5);const c=byName('Sera'),r=by('relay');
+    for(const x of S().ships)if(x.faction==='heg'&&x!==r)x.alive=false;   // just the relay
+    f.issue('amber','attack',{type:'ship',id:'relay'});
+    c.x=r.x-1350;c.y=r.y;c.h=c.vh=0;c.vx=300;c.vy=0;c.px=c.x;c.py=c.y;if(doc)SIM.setDoctrine(c.id,'missile',doc);return {c,r};};
+  let {c,r}=setup();let n=0,lk0=0;while(!S().missiles.length&&n++<60){SIM.step();lk0=Math.max(lk0,F.lockOf?0:0);}
+  out.auto=[S().missiles.length===1,+(n*0.05).toFixed(2),left(c),S().missiles[0]&&S().missiles[0].lock>=T.MISSILE_LOCK.get(),S().events.some(e=>e.kind==='missile')];
+  // MANUAL holds fire on a lock; pressed, it fires; pressed before a lock, it arms and fires at the next
+  ({c,r}=setup('MANUAL'));for(let i=0;i<30;i++)SIM.step();
+  out.manual=[S().missiles.length,!!F.missileShot(c)];
+  const u=SIM.useAbility(c.id,'missile');out.manual.push(u.ok&&u.fired===true,S().missiles.length);
+  ({c,r}=setup('MANUAL'));const u2=SIM.useAbility(c.id,'missile');out.manual.push(u2.armed===true);
+  for(let i=0;i<30&&!S().missiles.length;i++)SIM.step();out.manual.push(S().missiles.length===1);
+  // EMERG: a healthy, unpinned pilot holds its missile
+  ({c,r}=setup('EMERG'));for(let i=0;i<30;i++)SIM.step();out.emerg=[S().missiles.length===0,!!F.missileShot(c)];
+  // a target breaks when a missile is MIS_BREAK_T out
+  ({c,r}=setup());n=0;while(!S().missiles.length&&n++<60)SIM.step();
+  const kit=byName('Kit'),m=S().missiles[0];m.target=kit.id;m.x=kit.x-F.misSpd()*0.8;m.y=kit.y;m.h=0;SIM.step();
+  out.brk=[F.incomingMissile(kit)!=null,kit.misBreakT===S().t];
+  // in hc1 the Crosses fire missiles and some land
+  let fired=0,hits=0;for(const sd of [3,11]){f.load('hc1_nightfall',0,sd);SIM.runFor(150);fired+=S().ships.reduce((a,x)=>a+x.st.missiles,0);hits+=S().m.misHit||0;}
+  out.fight=[fired,hits];
+  // the pilot panel's Missile row
+  f.load('hc1_nightfall',0,5);f.openPilot(byName('Sera').id);f.syncHud(true);
+  const row=[...document.querySelectorAll('#hcPilot .hc-abil')].find(x=>/Missile/.test(x.textContent));
+  out.panel=[row&&row.querySelector('.hc-abil__name').textContent,row&&row.querySelector('[data-use="missile"]').textContent];
+  return out;
+ });
+ ok(g3.load[0]==='bls-t-light-repeaters+missiles'&&g3.load[1]===2&&g3.load[2]===null&&g3.load[3],'G3: the Cross carries two missiles in High Command only '+JSON.stringify(g3.load));
+ ok(g3.auto[0]&&g3.auto[1]<=1.2&&g3.auto[2]===1&&g3.auto[3]&&g3.auto[4],'G3: a lock fills and AUTO fires '+JSON.stringify(g3.auto));
+ ok(g3.manual[0]===0&&g3.manual[1]&&g3.manual[2]&&g3.manual[3]===1&&g3.manual[4]&&g3.manual[5],'G3: MANUAL holds, fires when pressed, arms for the next lock '+JSON.stringify(g3.manual));
+ ok(g3.emerg.every(Boolean),'G3: EMERG holds a healthy pilot\'s missile '+JSON.stringify(g3.emerg));
+ ok(g3.brk.every(Boolean),'G3: a target breaks from a missile '+JSON.stringify(g3.brk));
+ ok(g3.fight[0]>=2&&g3.fight[1]>=1,'G3: missiles in a fight '+JSON.stringify(g3.fight));
+ ok(g3.panel[0]==='Missile ×2'&&g3.panel[1]==='Arm','G3: the pilot panel\'s Missile row '+JSON.stringify(g3.panel));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
