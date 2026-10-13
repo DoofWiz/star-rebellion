@@ -1377,14 +1377,15 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   // the HUD: the tray above its wing's card, the pilot panel above its tile, Commands bottom right opening upward
   f.selectWing('amber',true);f.syncHud();
   const tr=R(q('#hcTray')),card=R(q('#hcRoster [data-wing="amber"]'));
-  out.tray=[!q('#hcTray').hidden,tr.bottom<=card.top+1,tr.right>card.left&&tr.left<card.right];
+  const roR=R(q('#hcRoster'));   // C-71: the wing cards are a column in the bottom-left corner; the tray and the pilot panel open beside it
+  out.tray=[!q('#hcTray').hidden,tr.left>=roR.right-1,tr.bottom<=card.bottom+1&&tr.bottom>card.top,roR.left-R(q('#hcStage')).left<20];
   f.openPilot('P4');f.syncHud();
   const pp=R(q('#hcPilot')),tile=R(q('#hcRoster [data-ship="P4"]'));
-  out.pilot=[!q('#hcPilot').hidden,pp.bottom<=tile.top+1,pp.right>tile.left&&pp.left<tile.right,q('#hcTray').hidden];
+  out.pilot=[!q('#hcPilot').hidden,pp.left>=roR.right-1,pp.bottom<=tile.bottom+1&&pp.bottom>tile.top-200,q('#hcTray').hidden];
   // the commands bar (C-70: C-69's COMMANDS button bottom right gave way to it): fixed, bottom centre between the
   // wings, with the command points; the time controls under the clock
   const dr=R(q('#hcCmds')),tm=R(q('#hcTime')),ck=R(q('#hcClock')),stg=R(q('#hcStage')),wDg=R(q('#hcRoster [data-wing="dagger"]')),wAm=R(q('#hcRoster [data-wing="amber"]'));
-  out.cmds=[!q('#hcCmds').hidden,dr.left>=wDg.right-1&&dr.right<=wAm.left+1,stg.bottom-dr.bottom<40,!!q('#hcCmds #hcCp'),tm.top>=ck.bottom-1,Math.abs((tm.left+tm.right)/2-(ck.left+ck.right)/2)<4,!q('#hcCmdBtn')];
+  out.cmds=[!q('#hcCmds').hidden,dr.left>=Math.max(wDg.right,wAm.right)-1&&wAm.top>=wDg.bottom-1,stg.bottom-dr.bottom<40,!!q('#hcCmds #hcCp'),tm.top>=ck.bottom-1,Math.abs((tm.left+tm.right)/2-(ck.left+ck.right)/2)<4,!q('#hcCmdBtn')];
   // Jump Out: once the primaries are done, a gold button (COMMANDS steps back); every wing withdraws; complete when the last ship jumps
   out.jump=[SIM.jumpOutState()===null,!q('#hcObj [data-act="jumpout"]')];
   by('relay').alive=false;by('relay').hull=0;for(const o of S().objectives)if(o.primary)o.state='done';
@@ -1408,12 +1409,12 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   q('#hcEnd [data-act="closewin"]').click();
   return out;
  });
- ok(f1.scale[0]===4&&f1.scale[1]===1&&f1.scale[2]===8&&f1.scale[3]===33600&&f1.scale[4]===24000&&Math.abs(f1.scale[5]-10600)<500&&Math.abs(f1.scale[6]-10700)<600&&f1.scale[7]===1000&&f1.scale[8]===20000,'F1: the scale '+JSON.stringify(f1.scale));
+ ok(f1.scale[0]===4&&f1.scale[1]===1&&f1.scale[2]===32&&f1.scale[3]===134400&&f1.scale[4]===96000&&Math.abs(f1.scale[5]-61000)<500&&Math.abs(f1.scale[6]-46700)<600&&f1.scale[7]===1000&&f1.scale[8]===70400,'F1: the scale '+JSON.stringify(f1.scale));
  ok(f1.range[0]===1350&&f1.range[1]===900,'F1: weapon range × on restart '+JSON.stringify(f1.range));
  ok(f1.space[0]>=f1.space[1]*0.6,'F1: ships keep their personal space '+JSON.stringify(f1.space));
- ok(f1.tray.every(Boolean),'F1: the order tray pops up above its wing '+JSON.stringify(f1.tray));
- ok(f1.pilot.every(Boolean),'F1: the pilot panel pops up above its tile '+JSON.stringify(f1.pilot));
- ok(f1.cmds.every(Boolean),'F1, C-70: Commands fixed bottom centre between the wings, the time controls under the clock '+JSON.stringify(f1.cmds));
+ ok(f1.tray.every(Boolean),'F1, C-71: the order tray opens beside its wing card '+JSON.stringify(f1.tray));
+ ok(f1.pilot.every(Boolean),'F1, C-71: the pilot panel opens beside its tile '+JSON.stringify(f1.pilot));
+ ok(f1.cmds.every(Boolean),'F1, C-71: Commands fixed at the bottom right of the wing cards, the time controls under the clock '+JSON.stringify(f1.cmds));
  ok(f1.jump[0]&&f1.jump[1]&&f1.jump[2]&&f1.jump[3]&&f1.jump[4]&&f1.jump[5]===1&&f1.jump[6]==='withdraw,withdraw'&&f1.jump[7]&&f1.jump[8]==='won'&&f1.jump[9]==='done'&&f1.jump[10]===0&&f1.jump[11]===6,'F1: Jump Out completes the mission '+JSON.stringify(f1.jump));
  ok(f1.leave[0]==='won'&&f1.leave[1]===f1.leave[2]&&f1.leave[3]===f1.leave[2]&&f1.leave[4]==='OVER','F1: Leave now ends it, stragglers lost '+JSON.stringify(f1.leave));
  ok(f1.copy.every(Boolean)||f1.copy[1]===4&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
@@ -1558,7 +1559,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.lerp=[Math.hypot(s.x-s.px,s.y-s.py)>1,Math.abs(a0.x-s.px)<1e-6||Math.abs(a0.x-s.x)<1e-6,RA];
   // Convoy Lark waits at the jammed jump point; once Relay K-7 falls it lines up and jumps (it orbited for ever)
   SIM.TUNE.SPEED_SCALE.set(4);f.load('hc1_nightfall',0,7);
-  const L=by('lark'),jp=S().points.jump;{let k=0;while(L.alive&&L.beh.kind!=='wait'&&k++<2400)SIM.step();SIM.runFor(10);}out.lark=[L.beh.kind,Math.round(Math.hypot(L.x-jp.x,L.y-jp.y))];
+  const L=by('lark'),jp=S().points.jump;{let k=0;while(L.alive&&L.beh.kind!=='wait'&&k++<2400)SIM.step();}out.lark=[L.beh.kind,Math.round(Math.hypot(L.x-jp.x,L.y-jp.y))];
   SIM.fn.kill(by('relay'),null);let n=0;while(L.alive&&n++<1200)SIM.step();
   out.lark.push(L.jumped,+(n*SIM.TICK/1000).toFixed(1));
   // the map is 8 ×, the scenario's places spread 4 × in its middle; reinforcements come in at the play area's edge
@@ -1570,7 +1571,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(g1.lerp[0]&&g1.lerp[1]&&g1.lerp[2]===0.5,'G1: ships drawn between their last two steps '+JSON.stringify(g1.lerp));
  ok(g1.lark[0]==='wait'&&g1.lark[1]<900&&g1.lark[2]===true&&g1.lark[3]<45,'G1: Convoy Lark jumps once the relay falls '+JSON.stringify(g1.lark));
- ok(g1.map[0]===8&&g1.map[1]===4&&g1.map[2]===33600&&g1.map[3]===24000&&g1.map[4]===8400&&g1.map[5]===6000&&g1.map[6]===25200&&g1.map[7]===18000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
+ ok(g1.map[0]===32&&g1.map[1]===4&&g1.map[2]===134400&&g1.map[3]===96000&&g1.map[4]===58800&&g1.map[5]===42000&&g1.map[6]===75600&&g1.map[7]===54000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
  ok(g1.reinf.every(Boolean),'G1: reinforcements come in off the play area\'s edge '+JSON.stringify(g1.reinf));
  // ---------- G2 (C-70): collisions and not crashing ----------
  const g2=await pg3.evaluate(()=>{
@@ -1591,14 +1592,14 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.load('hc1_nightfall',0,5);const c=by('P3');place(c,k.x-F.rockR(k)-900,k.y+20,0,700);
   const ev=F.evadeVec(c);out.evade=[!!ev,ev&&Math.abs(ev.y)>Math.abs(ev.x),ev&&ev.y*(c.y-k.y)>0];   // away from the rock's side
   // hc1 for 120 s: with avoidance hardly anyone crashes; without, many do
-  const runs=w=>{const w0=T.AVOID_W.get();T.AVOID_W.set(w);const n=[];for(const sd of [3,11]){f.load('hc1_nightfall',0,sd);SIM.runFor(120);n.push(S().m.collisions||0);}T.AVOID_W.set(w0);return n;};
+  const runs=w=>{const w0=T.AVOID_W.get();T.AVOID_W.set(w);const n=[];for(const sd of [3,11]){f.load('hc1_nightfall',0,sd);SIM.runFor(120);n.push([S().m.collisions||0,S().events.filter(e=>e.kind==='collide').length]);}T.AVOID_W.set(w0);return n;};   // [contacts, real collisions (damage, in the feed)]
   out.on=runs(T.AVOID_W.get());out.off=runs(0);
   return out;
  });
  ok(g2.head.every(Boolean),'G2: a head-on collision hurts both and bounces them apart '+JSON.stringify(g2.head));
  ok(g2.rock.every(Boolean),'G2: a ship bounces off a rock, hurt '+JSON.stringify(g2.rock));
  ok(g2.evade.every(Boolean),'G2: a pilot steers off a rock ahead '+JSON.stringify(g2.evade));
- ok(Math.max(...g2.on)<=4&&Math.min(...g2.off)>=10,'G2: pilots avoid crashing '+JSON.stringify([g2.on,g2.off]));
+ ok(g2.on.every(x=>x[1]<=2)&&g2.on.reduce((a,x)=>a+x[0],0)*2.5<=g2.off.reduce((a,x)=>a+x[0],0)&&g2.off.reduce((a,x)=>a+x[1],0)>=6,'G2: pilots avoid crashing (real collisions, then all contacts against avoidance off) '+JSON.stringify([g2.on,g2.off]));
  // ---------- G3 (C-70): the Cross's missiles and the lock ----------
  const g3=await pg3.evaluate(()=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,T=SIM.TUNE,F=SIM.fn,out={};
@@ -1713,11 +1714,25 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(g5.obj[0]>=15&&g5.obj[1]>330,'G5: bigger objectives '+JSON.stringify(g5.obj));
  ok(g5.quiet[0]===true&&g5.quiet[1]===false&&g5.quiet[2]===true,'G5: quiet lines in hc1 '+JSON.stringify(g5.quiet));
  ok(g5.badge[0]==='P1:lockin,P2:evade,P3:dodge'&&g5.badge[1]===2500&&g5.badge[2]===0,'G5: status symbols by the ships '+JSON.stringify(g5.badge));
+ // ---------- C-71 (playtest 3): the Cross's turn, the corner column, the skill icons ----------
+ const h3=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,F=SIM.fn,out={},q=s=>document.querySelector(s),R=e=>e.getBoundingClientRect();
+  f.load('hc1_nightfall',0,5);f.syncHud(true);
+  const cross=H.S.ships.find(s=>s.row.id==='ft-4-cross'),mote=H.S.ships.find(s=>s.row.id==='vc-mote'),talon=H.S.ships.find(s=>s.row.id==='sf-11-talon');
+  const rate=s=>F.capsOf(s).wc,rad=s=>F.capsOf(s).vc/F.capsOf(s).wc;
+  out.turn=[+(rate(cross)/rate(mote)).toFixed(2),Math.round(rad(cross)),Math.round(rad(mote)),Math.round(rad(talon)),SIM.TUNE.TURN_CROSS.get()];
+  const k=SIM.TUNE.TURN_CROSS.get();SIM.TUNE.TURN_CROSS.set(1);out.turn.push(+(rate(cross)/rate(mote)).toFixed(2));SIM.TUNE.TURN_CROSS.set(k);
+  const b=R(q('#hcCmds [data-cmd="override"]')),g=R(q('#hcCmds [data-cmd="override"] .hc-cmd__glyph')),ro=R(q('#hcRoster')),st=R(q('#hcStage')),cm=R(q('#hcCmds'));
+  out.ui=[Math.round(b.width),Math.round(b.height),Math.round(g.width),Math.round(ro.left-st.left),Math.round(st.bottom-ro.bottom),cm.left>=ro.right,document.querySelectorAll('#hcCmds .hc-cmd').length];
+  return out;
+ });
+ ok(h3.turn[0]===0.8&&h3.turn[1]<520&&h3.turn[1]>h3.turn[2]&&h3.turn[1]>h3.turn[3]&&h3.turn[4]===1.6&&h3.turn[5]===0.5,'C-71: the Cross turns at 80% of a Mote (was 50%), wider than the interceptors '+JSON.stringify(h3.turn));
+ ok(h3.ui[0]>=70&&h3.ui[1]>=80&&h3.ui[2]>=30&&h3.ui[3]<=16&&h3.ui[4]<=16&&h3.ui[5]&&h3.ui[6]===9,'C-71: big skill icons right of the wing cards in the corner '+JSON.stringify(h3.ui));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

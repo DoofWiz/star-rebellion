@@ -138,13 +138,24 @@ const iconBoost=()=>Math.max(1,Math.min(3.2,0.5/cam.z));
 function camTo(x,y,z){cam.x=x;cam.y=y;if(z)cam.z=z;clampCam();A.camHeld=true;}
 
 /* ---------- the backdrop and the ships' bodies: copied from arena-sb.js (stars, rocks, the sprite cache) ---------- */
-const stars=[],starBands=[[],[],[],[]];
-function makeStars(){stars.length=0;for(const b of starBands)b.length=0;const r=SIM.fn.mulberry(99),n=Math.min(20000,Math.round(420*SIM.W*SIM.H/(4200*3000)));for(let i=0;i<n;i++){const st={x:r()*SIM.W,y:r()*SIM.H,r:0.7+r()*1.1,band:Math.floor(r()*4)};stars.push(st);starBands[st.band].push(st);}}
+/* the starfield is one tile repeated over the map (C-71: at 32 × a field of single stars ran thin); the stars in view
+   only, every m-th one when a zoomed-out view would cover more than STAR_BUDGET */
+const STAR_TW=8400,STAR_TH=6000,STAR_N=1680,STAR_BUDGET=6000;   // placeholders
+const starBands=[[],[],[],[]];
+function makeStars(){for(const b of starBands)b.length=0;const r=SIM.fn.mulberry(99);for(let i=0;i<STAR_N;i++){const st={x:r()*STAR_TW,y:r()*STAR_TH,r:0.7+r()*1.1,band:Math.floor(r()*4)};starBands[st.band].push(st);}}
+function eachStar(x0,y0,x1,y1,band,fn){
+  x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(SIM.W,x1);y1=Math.min(SIM.H,y1);if(x1<=x0||y1<=y0)return;
+  const i0=Math.floor(x0/STAR_TW),i1=Math.floor(x1/STAR_TW),j0=Math.floor(y0/STAR_TH),j1=Math.floor(y1/STAR_TH);
+  const m=Math.max(1,Math.ceil((i1-i0+1)*(j1-j0+1)*STAR_N/STAR_BUDGET));
+  const list=band==null?starBands.flat():starBands[band];
+  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const ox=i*STAR_TW,oy=j*STAR_TH;
+    for(let n=0;n<list.length;n+=m){const st=list[n],x=st.x+ox,y=st.y+oy;if(x<x0||x>x1||y<y0||y>y1)continue;fn(x,y,st);}}
+}
 function drawBackdrop(c){
   c.fillStyle=C.void;c.fillRect(0,0,SIM.W,SIM.H);
   c.fillStyle='#dfe6ff';
   const hw=cssW/2/cam.z+8,hh=cssH/2/cam.z+8,x0=cam.x-hw,x1=cam.x+hw,y0=cam.y-hh,y1=cam.y+hh,k=1/Math.max(cam.z,0.35);   // only the stars in view (C-70)
-  for(let b=0;b<4;b++){c.globalAlpha=0.3+0.13*b;c.beginPath();for(const st of starBands[b]){if(st.x<x0||st.x>x1||st.y<y0||st.y>y1)continue;const r=st.r*k;c.rect(st.x-r,st.y-r,2*r,2*r);}c.fill();}
+  for(let b=0;b<4;b++){c.globalAlpha=0.3+0.13*b;c.beginPath();eachStar(x0,y0,x1,y1,b,(x,y,st)=>{const r=st.r*k;c.rect(x-r,y-r,2*r,2*r);});c.fill();}
   c.globalAlpha=1;
   c.strokeStyle=TH.rgba(C.seam,0.9);c.lineWidth=3/cam.z;c.setLineDash([16/cam.z,12/cam.z]);
   c.strokeRect(SIM.MARGIN,SIM.MARGIN,SIM.W-2*SIM.MARGIN,SIM.H-2*SIM.MARGIN);c.setLineDash([]);
@@ -729,7 +740,7 @@ function viewEvent(id){
   syncHud(true);
   return true;
 }
-byId('hcRoster').addEventListener('scroll',()=>placeRail(),{passive:true});   // the commands bar rides the roster's gap
+byId('hcRoster').addEventListener('scroll',()=>placeRail(),{passive:true});   // the tray and pilot panel follow their card
 byId('hcFeed').addEventListener('click',ev=>{
   const r=ev.target.closest('[data-resp]');
   if(r){respond(r.dataset.ship,r.dataset.resp,r);return;}
@@ -753,15 +764,12 @@ function tileHtml(s){
 function buildRoster(){
   const S=SIM.S,el=byId('hcRoster');
   let h='';
-  const half=Math.ceil(S.wings.length/2);
-  for(const [i,w] of S.wings.entries()){
-    if(i===half)h+='<div class="hc-dockgap" aria-hidden="true"></div>';
+  for(const w of S.wings){
     h+='<div class="hc-wing" data-wing="'+w.id+'"><button type="button" class="hc-wing__head" data-wing-head="'+w.id+'"><span class="hc-wing__name">'+esc(w.name)+'</span>'+
       '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span></button><div class="hc-wing__tiles">';
     for(const id of w.ships)h+=tileHtml(SIM.fn.byId(id));
     h+='</div></div>';
   }
-  if(S.wings.length<2)h+='<div class="hc-dockgap" aria-hidden="true"></div>';
   el.innerHTML=h;rosterBuilt=S.seed+'|'+S.scn.id;tileN=0;tileMs=0;
   el.classList.toggle('is-many',S.wings.reduce((n,w)=>n+w.ships.length,0)>6);
   for(const t of el.querySelectorAll('.hc-tile')){const s=SIM.fn.byId(t.dataset.ship);drawTileGlyph(t.querySelector('canvas'),s);}
@@ -795,7 +803,7 @@ function drawTileCam(cvs,s,zoom){
   const sp0=ipos(s),cx=sp0.x,cy=sp0.y,hw=W2/2/z,hh=H2/2/z;
   c.setTransform(z,0,0,z,W2/2-cx*z,H2/2-cy*z);
   c.fillStyle='#dfe6ff';c.globalAlpha=0.5;c.beginPath();
-  for(const st of stars){if(Math.abs(st.x-cx)>hw||Math.abs(st.y-cy)>hh)continue;c.rect(st.x-1/z,st.y-1/z,2/z,2/z);}c.fill();c.globalAlpha=1;
+  eachStar(cx-hw,cy-hh,cx+hw,cy+hh,null,(x,y)=>c.rect(x-1/z,y-1/z,2/z,2/z));c.fill();c.globalAlpha=1;
   for(const r of S.rocks)if(Math.abs(r.x-cx)<hw+r.r&&Math.abs(r.y-cy)<hh+r.r)drawRock(c,r);
   const saveDpr=dpr;dpr=1;spriteCache=tileSprites;angB=36;spriteCap=500;
   try{
@@ -1101,17 +1109,18 @@ function drawerHtml(){
     if(!cmdFits(k,A.cmdFor))continue;
     const C2=SIM.COMMANDS[k],tgFree=C2.target==='none',why=SIM.commandRefusal(k,A.cmdFor||(tgFree?null:undefined))||null;
     const block=why&&(C2.open||/reserves|command points|over/.test(why)||(A.cmdFor&&why));
-    const pips=C2.cost()?'<span class="hc-cmd__cost" aria-label="'+C2.cost()+' CP"><i></i><b>'+C2.cost()+'</b></span>':'<span class="hc-free">free</span>';   // one diamond and the number: the bar is narrow
-    h+='<button type="button" class="hc-cmd'+(A.cmdArm===k?' is-armed':'')+'" data-cmd="'+k+'" data-tip="cmd:'+k+'"'+(block?' aria-disabled="true" data-why="'+esc(why)+'"':'')+'>'+
-      glyph(CMD_GLYPH[k],'hc-glyph--sm')+'<span class="hc-cmd__name">'+esc(C2.name)+'</span>'+pips+'</button>';
+    h+=skillBtn(k,C2.name,CMD_GLYPH[k],C2.cost()?'<span class="hc-cmd__cost" aria-label="'+C2.cost()+' CP"><i></i><b>'+C2.cost()+'</b></span>':'<span class="hc-free">free</span>',
+      (A.cmdArm===k?' is-armed':''),block?' aria-disabled="true" data-why="'+esc(why)+'"':'');
   }
   h+='</div>';
-  if(!A.cmdFor||cmdFits('abort',A.cmdFor)&&!A.cmdFor.id&&!A.cmdFor.wing)
-    h+='<button type="button" class="hc-cmd hc-cmd--abort'+(A.abortArm?' is-armed':'')+'" data-cmd="abort" data-tip="cmd:abort">'+glyph('close','hc-glyph--sm')+'<span class="hc-cmd__name">'+(A.abortArm?'Abort: click again to confirm':'Abort Mission')+'</span><span class="hc-free">free</span></button>';
+  if(!A.cmdFor)h+=skillBtn('abort',A.abortArm?'Confirm abort':'Abort Mission','close','<span class="hc-free">free</span>',' hc-cmd--abort'+(A.abortArm?' is-armed':''),'');
   return h;
 }
-/* the commands bar (C-70, playtest 2): a fixed part of the HUD, bottom centre between the wings, with the command
-   points; a right-click narrows it to what fits that ship or place ("For …", × to show them all again) */
+/* a command as a skill icon (C-71): a big glyph, the cost in the corner, the name under it; the full card on hover */
+function skillBtn(k,name,g,cost,cls,attrs){
+  return '<button type="button" class="hc-cmd'+cls+'" data-cmd="'+k+'" data-tip="cmd:'+k+'"'+attrs+' aria-label="'+esc(name)+'">'+
+    glyph(g,'hc-cmd__glyph')+cost+'<span class="hc-cmd__name">'+esc(name)+'</span></button>';
+}
 function syncDrawer(){
   const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?drawerHtml():'';
   if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
@@ -1144,30 +1153,40 @@ function syncHud(){
 const FEED_ROWS=5;   // the feed's height, in entries (C-70). placeholder
 /* the left rail (the feed, the tray, the pilot panel) starts under the objectives panel, however tall it grows */
 function placeRail(){
-  // the dock (wings either side of the commands bar) compacts its tiles when it doesn't fit (C-70)
-  const ro=byId('hcRoster');
-  if(!ro.hidden&&SIM.S){ro.classList.toggle('is-many',SIM.S.wings.reduce((n,w)=>n+w.ships.length,0)>6);if(ro.scrollWidth>ro.clientWidth+2)ro.classList.add('is-many');}
   const st=byId('hcStage').getBoundingClientRect(),ob=byId('hcObjBox').getBoundingClientRect();
   const top=Math.round(Math.max(80,(byId('hcTop').hidden?60:ob.bottom-st.top)+10));
-  byId('hcFeed').style.top=top+'px';
-  // the order tray pops up above its wing's card, the pilot panel above its tile (C-69); both kept on the stage
-  const above=(el,anchor)=>{
-    if(el.hidden||!anchor)return;
-    const a=anchor.getBoundingClientRect(),w=el.offsetWidth,gap=10;
-    el.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,a.left-st.left+a.width/2-w/2)))+'px';
-    el.style.bottom=Math.round(st.bottom-a.top+gap)+'px';
-    el.style.maxHeight=Math.round(Math.max(160,a.top-st.top-gap-top+40))+'px';
-  };
-  above(byId('hcTray'),A.tray&&byId('hcRoster').querySelector('[data-wing="'+A.tray+'"]'));
-  above(byId('hcPilot'),A.panel&&byId('hcRoster').querySelector('[data-ship="'+A.panel+'"]'));
-  // the commands bar sits in the roster's middle gap (C-70)
-  const cm=byId('hcCmds'),gp=byId('hcRoster').querySelector('.hc-dockgap');
-  if(!cm.hidden&&gp){const g=gp.getBoundingClientRect();cm.style.left=Math.round(g.left-st.left)+'px';cm.style.bottom=Math.round(st.bottom-g.bottom)+'px';}
-  // the feed shows five entries; more scroll
-  const fd=byId('hcFeed'),evs=fd.querySelectorAll('.hc-ev');let fh=0;
+  const fd=byId('hcFeed');fd.style.top=top+'px';
+  // the wing cards: a column in the bottom-left corner (C-71), compacted when they don't fit under the feed's first row
+  const ro=byId('hcRoster'),roMax=Math.max(160,Math.round(st.height-12-top-RAIL_FEED_MIN));
+  if(!ro.hidden&&SIM.S){ro.style.maxHeight=roMax+'px';ro.classList.toggle('is-many',SIM.S.wings.reduce((n,w)=>n+w.ships.length,0)>6);if(ro.scrollHeight>ro.clientHeight+2)ro.classList.add('is-many');}
+  const rr=ro.hidden?{top:st.bottom,right:st.left}:ro.getBoundingClientRect();
+  // the feed shows five entries (fewer when the cards need the room); more scroll
+  const evs=fd.querySelectorAll('.hc-ev');let fh=0;
   for(let i=0;i<Math.min(FEED_ROWS,evs.length);i++)fh+=evs[i].offsetHeight+(i?5:0);
-  fd.style.maxHeight=evs.length>FEED_ROWS?Math.round(fh+2)+'px':'';
+  const room=Math.round(rr.top-st.top-top-10);
+  fd.style.maxHeight=evs.length>FEED_ROWS||fh+2>room?Math.max(40,Math.min(Math.round(fh+2),room))+'px':'';
+  // the commands bar: centred in the room right of the cards, at the bottom (C-71)
+  const cm=byId('hcCmds');let bar=null;
+  if(!cm.hidden){
+    const x0=Math.round(rr.right-st.left+12),avail=Math.max(200,Math.round(st.width-x0-12));
+    cm.style.maxWidth=avail+'px';cm.style.bottom='12px';
+    cm.style.left=Math.round(x0+Math.max(0,(avail-cm.offsetWidth)/2))+'px';
+    bar=cm.getBoundingClientRect();
+  }
+  // the order tray and the pilot panel open beside the cards, level with their wing card or tile, above the bar
+  const beside=(el,anchor)=>{
+    if(el.hidden||!anchor)return;
+    const a=anchor.getBoundingClientRect(),gap=10,w=el.offsetWidth;
+    const left=Math.round(Math.min(st.width-8-w,rr.right-st.left+gap));
+    let bottom=Math.round(st.bottom-a.bottom);
+    if(bar&&left<bar.right-st.left&&left+w>bar.left-st.left)bottom=Math.max(bottom,Math.round(st.bottom-bar.top+gap));
+    el.style.left=left+'px';el.style.bottom=bottom+'px';
+    el.style.maxHeight=Math.round(Math.max(160,st.height-bottom-top))+'px';
+  };
+  beside(byId('hcTray'),A.tray&&ro.querySelector('[data-wing="'+A.tray+'"]'));
+  beside(byId('hcPilot'),A.panel&&ro.querySelector('[data-ship="'+A.panel+'"]'));
 }
+const RAIL_FEED_MIN=60;   // the feed keeps at least this much height over the wing cards. placeholder
 
 /* =====================================================================
    Input on the map: select a wing by its ship; with a targeted order armed, a click names the target

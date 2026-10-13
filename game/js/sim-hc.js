@@ -21,7 +21,7 @@ const TH=SR.theme,C=TH.C;
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
-let HC_MAP=8;             // the map's size × space.js's (was 2 until playtest 1, C-69; 4 until playtest 2, C-70). placeholder (each scenario may set its own)
+let HC_MAP=32;            // the map's size × space.js's (was 2 until playtest 1, C-69; 4 until playtest 2, C-70; 8 until playtest 3, C-71). placeholder (each scenario may set its own)
 let HC_SPREAD=4;          // how far apart a scenario's places are, × space.js's map: the layout fills this much of the middle of the map, with open space round it (C-70). placeholder
 let W=W0*HC_MAP,H=H0*HC_MAP;
 const TICK=50;            // ms of sim time per step (copied from sim-sb.js). placeholder
@@ -73,7 +73,7 @@ function kappaOf(s){
   return k;
 }
 function capsOf(s){
-  const sc=SU*SPEED_SCALE/ROUND_SECS,vMax=maxSpeedOf(s)*sc,kap=kappaOf(s)||0.004,vc=CORNER*vMax;
+  const sc=SU*SPEED_SCALE/ROUND_SECS,vMax=maxSpeedOf(s)*sc,kap=(kappaOf(s)||0.004)*(HC_TURN[s.row.id]||1),vc=CORNER*vMax;
   return {vMax,vMin:s.row.straight_min*sc,kap,vc,wc:vc*kap/TURN_SCALE};
 }
 /* turning (C-69, playtest 1): the corner-speed model. A ship turns best at its corner speed (CORNER × top speed), on
@@ -81,6 +81,9 @@ function capsOf(s){
    duck); faster, it widens (turn rate falls with speed). The dial still ranks who is nimble. */
 let CORNER=0.7;           // corner speed, × top speed. placeholder
 let TURN_SCALE=4;         // the tightest turn, at corner speed, is the dial's radius × this. placeholder
+/* a class's turn × here (C-71, playtest 3): the dial gives the Cross half a Mote's or a Talon's tightest turn, which
+   under the corner-speed model left it far too slow to be useful. × 1.6 makes it turn at 80% of their rate */
+const HC_TURN={'ft-4-cross':1.6};   // placeholder (the panel's "Cross turn ×")
 let TURN_BLEED=1.2;       // a turn at the full corner rate costs this × top speed a second. placeholder
 function turnCap(c,v){const r=v/c.vc;return v<c.vc?c.wc*r*r:c.wc/r;}
 
@@ -637,7 +640,7 @@ function addWing(wd){
     order:Object.assign({kind:'regroup',target:null},wd.order||{}),tactic:wd.tactic||'auto',hold:null};
   wd.ships.forEach((sd,i)=>{
     S.pn++;
-    const at=sd.at||formation(wd.at||[900,H*0.5,0],i,wd.ships.length);
+    const at=sd.at||formation(wd.at||[Z.x0+900,(Z.y0+Z.y1)/2,0],i,wd.ships.length);
     const row=SRDB.ship(sd.cls||'talon')||SRDB.ship('talon'),nm=sd.name||(wd.name+' '+(i+1));
     const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout,stats:sd.stats});
     s.thinkT=THINK_SECS;
@@ -1442,7 +1445,11 @@ function runGoal(s,t,T,P,w,c){
     s.mv=m;s.mvT=S.t;
     if(m==='extend'){   // out along the line of flight, veering away from the target's nose if it faces us
       const away=inArc(t,s)?Math.sign(angNorm(Math.atan2(s.y-t.y,s.x-t.x)-tvh))||1:0;
-      const h=s.vh+away*0.35;s.extPt={x:s.x+Math.cos(h)*ext*1.3,y:s.y+Math.sin(h)*ext*1.3};
+      let h=s.vh+away*0.35;
+      // and clear of a station (C-71: an extension begun short of one flew through it)
+      const dd=Math.max(1,dist(s,t)),clr=bodyR(s)+bodyR(t)+AVOID_PAD*1.5,bt=Math.atan2(t.y-s.y,t.x-s.x),dev=angNorm(h-bt),need=Math.asin(Math.min(1,clr/Math.max(dd,clr)));
+      if(t.struct&&Math.abs(dev)<need)h=bt+(Math.sign(dev)||1)*need*1.1;   // a fighter's pass distance already clears it
+      s.extPt={x:s.x+Math.cos(h)*ext*1.3,y:s.y+Math.sin(h)*ext*1.3};
     }
   };
   // a stalemate is a close fight (inside 1.5 × reach) turning without a shot; the clock only runs while it is one
@@ -1558,7 +1565,12 @@ function evadeVec(s){
     // or station by where it is; the side is held while the danger lasts, so the dodge never flips mid-turn
     const hx=Math.cos(s.vh),hy=Math.sin(s.vh),key=o?o.id:'r'+Math.round(ox)+','+Math.round(oy);
     s.evSide=s.evSide||{};
-    let side=s.evSide[key]&&S.t-s.evSide[key].t<1?s.evSide[key].side:(o&&!o.struct?hx*cy-hy*cx:hx*ry-hy*rx);   // > 0: on our left
+    // a ship: away from where it will pass. But a ship flying our way and drifting into us dead-on (headings within
+    // 60°, passing within a third of the room), a rock or a station: away from where it is now (C-71: there the
+    // passing point's side is noise, and two Crosses in formation turned into each other)
+    const along=o&&!o.struct&&Math.abs(angNorm((o.vh!=null?o.vh:o.h)-s.vh))<1.05&&d<=R*0.35;
+    const near=o&&!o.struct&&!along;
+    let side=s.evSide[key]&&S.t-s.evSide[key].t<1?s.evSide[key].side:(near?hx*cy-hy*cx:hx*ry-hy*rx);   // > 0: on our left
     if(Math.abs(side)<1e-3)side=(s.id<(o&&o.id||'~'))?1:-1;
     side=side>0?1:-1;s.evSide[key]={side,t:S.t};
     const k=urg*AVOID_W,sx=side>0?hy:-hy,sy=side>0?-hx:hx;
@@ -1567,7 +1579,7 @@ function evadeVec(s){
   for(const o of S.ships){if(o===s||!o.alive)continue;test(o.x,o.y,o.struct?0:o.vx,o.struct?0:o.vy,rs+bodyR(o)+pad,o);}
   for(const r of S.rocks)test(r.x,r.y,0,0,rs+rockR(r)+pad,null);
   if(!worst)return null;
-  s.evadeAt=S.t;if(worst>0.6&&who)s.dodgeT=S.t;   // a real dodge (the HUD shows a symbol)
+  s.evadeAt=S.t;s.evUrg=worst;if(worst>0.6&&who)s.dodgeT=S.t;   // a real dodge (the HUD shows a symbol)
   for(const k in s.evSide)if(S.t-s.evSide[k].t>2)delete s.evSide[k];
   if(worst>0.6&&who&&!who.struct&&s.faction==='reb'&&!s.quiet&&S.t-(s.evadeSaid==null?-99:s.evadeSaid)>8){s.evadeSaid=S.t;say(s,pickLine(s,'evade'),'info',false);}
   return {x:ex,y:ey,urg:worst};
@@ -1941,7 +1953,7 @@ let HC_CP=5;              // the command point pool when a scenario sets none. p
 
 /* the panel's numbers: every one a named constant with a getter (the SALVAGE_PER_HP_ pattern) */
 const TUNE={
-  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:12,step:0.25,label:'Map size × (on restart)'},
+  HC_MAP:{get:()=>HC_MAP,set:v=>{HC_MAP=v;},min:1,max:48,step:0.5,label:'Map size × (on restart)'},
   HC_SPREAD:{get:()=>HC_SPREAD,set:v=>{HC_SPREAD=v;},min:1,max:12,step:0.25,label:'Scenario spread × (on restart)'},
   RANGE_MULT:{get:()=>RANGE_MULT,set:v=>{RANGE_MULT=v;},min:0.5,max:4,step:0.1,label:'Weapon range × (on restart)'},
   SEP_R:{get:()=>SEP_R,set:v=>{SEP_R=v;},min:60,max:600,step:10,label:'Personal space'},
@@ -1966,6 +1978,7 @@ const TUNE={
   SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:8,step:0.05,label:'Speed ×'},
   CORNER:{get:()=>CORNER,set:v=>{CORNER=v;},min:0.3,max:1,step:0.05,label:'Corner speed (× top)'},
   TURN_SCALE:{get:()=>TURN_SCALE,set:v=>{TURN_SCALE=v;},min:1,max:10,step:0.25,label:'Tightest turn (× the dial\'s radius)'},
+  TURN_CROSS:{get:()=>HC_TURN['ft-4-cross'],set:v=>{HC_TURN['ft-4-cross']=v;},min:0.5,max:3,step:0.05,label:'Cross turn ×'},
   TURN_BLEED:{get:()=>TURN_BLEED,set:v=>{TURN_BLEED=v;},min:0,max:3,step:0.05,label:'Turning bleeds (× top speed a s)'},
   THRUST_K:{get:()=>THRUST_K,set:v=>{THRUST_K=v;},min:0.1,max:3,step:0.05,label:'Thrust (× top speed a s)'},
   TURN_K:{get:()=>TURN_K,set:v=>{TURN_K=v;},min:0.5,max:8,step:0.25,label:'Autopilot turn gain'},
@@ -2046,7 +2059,7 @@ for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
-  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
+  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
   Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],

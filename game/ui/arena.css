@@ -284,8 +284,7 @@
   color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
 #arHc .hc-view:hover,#arHc .hc-view:focus-visible{background:color-mix(in srgb,var(--sr-shield) 18%,transparent);outline:none;}
 /* the bottom: the wing roster */
-#arHc .hc-roster{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;justify-content:safe center;gap:10px;align-items:flex-end;overflow-x:auto;pointer-events:auto;padding-bottom:2px;}
-#arHc .hc-dockgap{flex:0 0 auto;width:var(--hc-cmdw);align-self:stretch;}
+#arHc .hc-roster{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;align-items:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;pointer-events:auto;padding:2px 4px 2px 2px;}   /* a column in the bottom-left corner (C-71) */
 #arHc .hc-wing{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-wing.is-sel{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
 #arHc .hc-wing__head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 4px;background:transparent;border:0;color:var(--sr-text);cursor:pointer;text-align:left;}
@@ -426,22 +425,26 @@
 #arHc .hc-use.is-armed{border-color:var(--sr-gold,#ffc83d);color:var(--sr-gold,#ffc83d);}
 #arHc .hc-pilot__resp{display:flex;flex-wrap:wrap;gap:6px;}
 #arHc .hc-pilot__resp .sr-btn{min-height:32px;padding:0 10px;font-size:var(--sr-fs-xs);}
-#arHc{--hc-cmdw:372px;}
-#arHc .hc-cmds{position:absolute;left:0;bottom:12px;z-index:4;width:var(--hc-cmdw);box-sizing:border-box;padding:7px 8px 8px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+/* the commands bar (C-71): skill icons, bottom, centred right of the wing cards (script places it) */
+#arHc .hc-cmds{position:absolute;left:0;bottom:12px;z-index:4;box-sizing:border-box;padding:8px 10px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
 #arHc .hc-cmds.is-for,#arHc .hc-cmds.is-armed{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
-#arHc .hc-cmds__top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 6px;}
-#arHc .hc-cmds__title{font:400 var(--sr-fs-sm)/1 var(--sr-font-display);letter-spacing:.04em;}
-#arHc #hcCmdsBody{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+#arHc .hc-cmds__top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:26px;margin:0 2px 8px;}
+#arHc .hc-cmds__title{font:400 var(--sr-fs-md)/1 var(--sr-font-display);letter-spacing:.04em;}
+#arHc #hcCmdsBody{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;}
 #arHc #hcCmdsBody .hc-cmds__list{display:contents;}
-#arHc #hcCmdsBody .hc-cmds__for,#arHc #hcCmdsBody .hc-cmds__arm{grid-column:1/-1;display:flex;align-items:center;gap:6px;margin:0;}
-#arHc #hcCmdsBody .hc-cmd{min-height:38px;padding:0 6px;gap:5px;font-size:var(--sr-fs-micro);line-height:1.1;}
-#arHc #hcCmdsBody .hc-cmd__name{flex:1 1 auto;text-align:left;}
-#arHc #hcCmdsBody .hc-cmd--abort{margin-top:0;}
-#arHc #hcCmdsBody .hc-cmd__name{min-width:0;}
-#arHc #hcCmdsBody .hc-cmd__cost{gap:2px;flex:0 0 auto;}
-#arHc #hcCmdsBody .hc-cmd__cost{align-items:center;gap:4px;}
+#arHc #hcCmdsBody .hc-cmds__for,#arHc #hcCmdsBody .hc-cmds__arm{flex:1 0 100%;display:flex;align-items:center;justify-content:center;gap:6px;margin:0;}
+#arHc #hcCmdsBody .hc-cmd{position:relative;flex-direction:column;justify-content:flex-start;gap:5px;width:76px;min-height:84px;padding:12px 3px 5px;font-size:var(--sr-fs-micro);line-height:1.1;}
+#arHc #hcCmdsBody .hc-cmd__glyph{width:34px;height:34px;stroke-width:1.8;}
+#arHc #hcCmdsBody .hc-cmd__name{text-align:center;min-width:0;}
+#arHc #hcCmdsBody .hc-cmd__cost,#arHc #hcCmdsBody .hc-free{position:absolute;top:3px;right:4px;}
+#arHc #hcCmdsBody .hc-cmd__cost{display:inline-flex;align-items:center;gap:3px;}
+#arHc #hcCmdsBody .hc-cmd__cost i{width:7px;height:7px;}
 #arHc #hcCmdsBody .hc-cmd__cost b{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-gold);}
 #arHc #hcCmdsBody .hc-cmd[aria-disabled="true"] .hc-cmd__cost b{color:var(--sr-text-3);}
+#arHc #hcCmdsBody .hc-cmd--abort{position:absolute;top:6px;left:132px;margin:0;width:auto;min-height:24px;flex-direction:row;gap:6px;padding:0 10px;font-size:var(--sr-fs-micro);}   /* small, in the title row: the one command not to hit by accident */
+#arHc #hcCmdsBody .hc-cmd--abort .hc-cmd__glyph{width:14px;height:14px;}
+#arHc #hcCmdsBody .hc-cmd--abort .hc-free{position:static;order:3;}
+#arHc #hcCmdsBody .hc-cmd:not([aria-disabled="true"]):hover{border-color:var(--sr-gold);}
 #arHc .hc-cmds__for,#arHc .hc-cmds__arm{margin:0 0 6px;color:var(--sr-text-2);font-weight:700;}
 #arHc .hc-cmds__arm{color:var(--sr-gold);}
 #arHc .hc-cmds__arm .sr-btn{min-height:24px;margin-left:6px;}
