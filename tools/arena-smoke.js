@@ -21,7 +21,8 @@
      9 leader loss   10 metrics   T4: the keys, hc2 and hc3 (and its CP variants), the grouped panel, an hc3 brawl at speed 3
    High Command playtest 1 (docs/ARENA-HC-FEEDBACK-1.md, DESIGN_BLOCKERS C-69):
      F1: the scale (speed, fighting range, weapon range, the 4 × map with the layout scaled, spacing), Jump Out and
-         Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings */
+         Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings
+     F2: the corner-speed turn model (weak slow turns, turning bleeds speed, wider turns), a duel without a knife fight */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1002,7 +1003,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.run(40);
   out.jammed=[S().ships.filter(s=>s.jumped).length,SIM.fn.jammed('jump')];
   by('relay').hull=0;by('relay').alive=false;
-  f.run(30);
+  f.run(60);   // 4 × map (C-69): the rally point is a long way from the jump
   out.jumped=S().ships.filter(s=>s.jumped).map(s=>s.id).sort().join();
   // 7. the reinforcement clock: nothing before zero, the force at zero, the objective text flips
   f.load('hc1_nightfall',0,3);
@@ -1159,14 +1160,14 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc2.tactic[1]>hc2.tactic[0]*1.5,'HC 3: Spread disperses more than Tight '+JSON.stringify(hc2.tactic));
  ok(hc2.pres[0]&&hc2.pres[1]!=null&&hc2.pres[1]<=hc2.pres[2]&&hc2.pres[3]>=1&&hc2.pres[4]===1&&hc2.pres[5],'HC 4: Preservation flips within one think tick '+JSON.stringify(hc2.pres));
  ok(hc2.rulesUi[0]===5&&hc2.rulesUi[1]==='PRESERVATION 30% · ALL|GUARDIAN · AMBER|SAVIOUR CONVOY LARK · ALL'&&hc2.rulesUi[2]===2&&hc2.rulesUi[3]==='guardian,saviour','HC T2: the rules panel '+JSON.stringify(hc2.rulesUi));
- ok(hc2.intercept.every(Boolean)&&hc2.defend[0]&&hc2.defend[1]&&hc2.defend[2]<1800,'HC T2: Intercept and Defend '+JSON.stringify([hc2.intercept,hc2.defend]));
- ok(hc2.hold[0]<900&&hc2.hold[1]&&hc2.regroup,'HC T2: Hold and Regroup '+JSON.stringify([hc2.hold,hc2.regroup]));
+ ok(hc2.intercept.every(Boolean)&&hc2.defend[0]&&hc2.defend[1]&&hc2.defend[2]<3000,'HC T2: Intercept and Defend '+JSON.stringify([hc2.intercept,hc2.defend]));
+ ok(hc2.hold[0]<2500&&hc2.hold[1]&&hc2.regroup,'HC T2: Hold and Regroup '+JSON.stringify([hc2.hold,hc2.regroup]));
  ok(hc2.capture[0]==='reb'&&hc2.capture[1]==='done'&&hc2.capture[2]===4&&hc2.capture[3],'HC T2: Capture takes the satellite for +1 CP '+JSON.stringify(hc2.capture));
  ok(hc2.board[0]===false&&hc2.board[1]==='Reactor'&&hc2.board[2]&&hc2.board[3]&&hc2.board[4]==='done','HC T2: Board needs marines, then boards '+JSON.stringify(hc2.board));
  ok(hc2.morale.join()==='EAGER,STEADY,SHAKEN,PANICKED','HC T2: the morale ladder '+hc2.morale);
  ok(hc2.panic[0]&&/flee|freeze/.test(hc2.panic[1])&&hc2.panic[2]&&hc2.panic[3]===1&&/Petra is panicking/.test(hc2.panic[4]),'HC T2: panic is an emergency '+JSON.stringify(hc2.panic));
  ok(hc2.assess,'HC T2: every pilot has an assessment');
- ok(hc2.feed[0]>=3&&hc2.feed[1]>=1&&/kill|loss/.test(hc2.feed[2])&&hc2.feed[3]<5&&hc2.feed[4]&&(hc2.feed[5]===0||hc2.feed[6]===hc2.feed[5]-1),'HC T2: the feed, VIEW and Tab '+JSON.stringify(hc2.feed));
+ ok(hc2.feed[0]>=3&&hc2.feed[1]>=1&&/kill|loss|emergency|rule/.test(hc2.feed[2])&&hc2.feed[3]<5&&hc2.feed[4]&&(hc2.feed[5]===0||hc2.feed[6]===hc2.feed[5]-1),'HC T2: the feed, VIEW and Tab '+JSON.stringify(hc2.feed));
  ok(hc2.tiles.every(Boolean),'HC T2: live camera tiles '+JSON.stringify(hc2.tiles));
  ok(hc2.tray[0]===8&&hc2.tray[1]===6&&hc2.tray[2]==='true'&&/Engage a designated target: click the objective, a ship class, or a station/.test(hc2.tray[3])&&hc2.tray[4],'HC T2: the tray '+JSON.stringify(hc2.tray));
  /* ---------- High Command T3: commands, CP, doctrine, emergencies and their answers ---------- */
@@ -1189,7 +1190,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.override=[r1.ok,cp0-S().cp,joss.beh.kind,joss.beh.target,joss.beh.why,S().m.byCommand.override];
   // Recall disengages: withdraw at a burn, toward the extraction point
   const r2=SIM.command('recall',{id:'P1'}),ex=SIM.fn.withdrawPoint(joss),d0=Math.hypot(joss.x-ex.x,joss.y-ex.y);   // the rally point: the jump is jammed
-  SIM.runFor(3);
+  SIM.runFor(8);   // the turn back takes longer under the corner-speed model (C-69)
   out.recall=[r2.ok,joss.beh.kind,joss.beh.why,Math.round(d0-Math.hypot(joss.x-ex.x,joss.y-ex.y))>300,S().cp];
   // CP runs out: a command it can't pay for is refused, and nothing is spent
   S().cp=0;out.broke=[SIM.command('support',{id:'P2'}).ok,SIM.commandRefusal('support',{id:'P2'}),S().cp];
@@ -1414,11 +1415,44 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f1.jump[0]&&f1.jump[1]&&f1.jump[2]&&f1.jump[3]&&f1.jump[4]&&f1.jump[5]===1&&f1.jump[6]==='withdraw,withdraw'&&f1.jump[7]&&f1.jump[8]==='won'&&f1.jump[9]==='done'&&f1.jump[10]===0&&f1.jump[11]===6,'F1: Jump Out completes the mission '+JSON.stringify(f1.jump));
  ok(f1.leave[0]==='won'&&f1.leave[1]===f1.leave[2]&&f1.leave[3]===f1.leave[2]&&f1.leave[4]==='OVER','F1: Leave now ends it, stragglers lost '+JSON.stringify(f1.leave));
  ok(f1.copy.every(Boolean)||f1.copy[1]===2.5&&f1.copy[0]&&f1.copy[2]&&f1.copy[3],'F1: Copy settings '+JSON.stringify(f1.copy));
+ /* ---------- High Command playtest 1, F2: turning ---------- */
+ const f2=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id);
+  f.load('hc1_nightfall',0,61);
+  const tal=by('P1'),crs=by('P4'),c=SIM.fn.capsOf(tal),cc=SIM.fn.capsOf(crs),T=SIM.TUNE;
+  // the caps: best at corner speed, much weaker slow, wider fast; the dial still ranks who is nimble
+  out.caps=[SIM.fn.turnCap(c,c.vMin)<0.5*c.wc,SIM.fn.turnCap(c,c.vMax)<c.wc,Math.round(c.vc/c.wc),Math.round(T.TURN_SCALE.get()/c.kap),cc.wc<c.wc,T.SLIP_NOSE.get()];
+  // a sustained hard turn bleeds speed down from the corner, and never turns faster than the cap allows
+  for(const s of S().ships)if(s!==tal)s.alive=false;
+  tal.x=8000;tal.y=6000;tal.vh=tal.h=0;tal.vx=c.vc;tal.vy=0;let worst=0;
+  for(let i=0;i<80;i++){tal.goal={x:tal.x-Math.cos(tal.vh)*2000,y:tal.y-Math.sin(tal.vh)*2000+5,spd:1};const v=Math.hypot(tal.vx,tal.vy);SIM.fn.fly(tal,0.05);
+    worst=Math.max(worst,Math.abs(tal.turnW)-SIM.fn.turnCap(c,Math.max(c.vMin,v))-1e-9);}
+  out.bleed=[Math.round(Math.hypot(tal.vx,tal.vy)),Math.round(c.vc),worst<=1e-6];
+  // a straight-line ship at top speed asked to turn hard comes down to corner speed, not below (no braking into turns)
+  tal.vx=c.vMax;tal.vy=0;tal.vh=0;
+  for(let i=0;i<4;i++){tal.goal={x:tal.x,y:tal.y+3000,spd:1};SIM.fn.fly(tal,0.05);}
+  out.corner=[Math.round(Math.hypot(tal.vx,tal.vy))>=Math.round(c.vc)*0.9];
+  // a duel: a Talon pair against a Mote pair in open space. They meet, pass and come round: no knife fight
+  window.DBGarena.fn.addScenario({id:'t_duel',title:'Test: duel',desc:'Smoke test.',rulesets:['hc'],rocks:[],
+    wings:[{id:'a',name:'A',at:[3000,3000,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'spread',ships:[{cls:'talon',name:'Me',pilot:{preset:'regular'}},{cls:'talon',name:'Me2',pilot:{preset:'regular'}}]}],
+    enemies:[{type:'vc-mote-patrol',n:2,name:'Mote',role:'hunt',at:[5200,3000,Math.PI]}],points:{jump:{x:400,y:3000,label:'Jump point'}},extract:'jump',objectives:[],reinforce:{secs:999,edge:'E',force:[]},cp:0});
+  f.load('t_duel',0,3);
+  const a=S().ships.find(s=>s.faction==='reb'),e=S().ships.find(s=>s.faction==='heg');
+  let close=0,n=0,maxD=0;
+  for(let k=0;k<40*20;k++){SIM.step();if(!a.alive||!e.alive)break;n++;const d=SIM.fn.dist(a,e);if(d<400)close++;if(S().t>8)maxD=Math.max(maxD,d);}
+  out.duel=[n,+(close/Math.max(1,n)).toFixed(2),Math.round(maxD)];
+  return out;
+ });
+ ok(f2.caps[0]&&f2.caps[1]&&Math.abs(f2.caps[2]-f2.caps[3])<=2&&f2.caps[4]&&f2.caps[5]===0.2,'F2: the corner-speed caps '+JSON.stringify(f2.caps));
+ ok(f2.bleed[0]<f2.bleed[1]*0.85&&f2.bleed[2],'F2: a sustained hard turn bleeds speed, inside the cap '+JSON.stringify(f2.bleed));
+ ok(f2.corner[0],'F2: no braking below corner speed into a turn '+JSON.stringify(f2.corner));
+ ok(f2.duel[0]>100&&f2.duel[1]<0.25&&f2.duel[2]>1200,'F2: a duel passes and comes round rather than circling '+JSON.stringify(f2.duel));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===42&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

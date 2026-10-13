@@ -30,7 +30,7 @@ let ROUND_SECS=3;         // a ship's top speed covers its top dial move (straig
 let SPEED_SCALE=2.5;      // every craft's speed range × this (was SB's 1.25 until playtest 1, C-69). placeholder
 let CRUISE=0.7;           // the speed a ship flies when nothing presses it, × its top speed. placeholder
 let CONVOY_SPD=0.55;      // a convoy's speed, × its top speed. placeholder
-let THRUST_K=1.6;         // top speed reached from rest in 1/this seconds. placeholder
+let THRUST_K=0.7;         // thrust, × top speed a second (was 1.6 until the turn model, C-69). placeholder
 let BOOST_MULT=1.6;       // a boosting ship's top speed ×. placeholder
 let ENGAGE_FRAC=1;        // the range a ship tries to fight at, × its longest gun (the designer maxed it, C-69). placeholder
 let RANGE_MULT=1;         // every weapon's range (and the lock range) × this, on the next load (SB's RANGE_MULT). placeholder
@@ -72,9 +72,16 @@ function kappaOf(s){
   return k;
 }
 function capsOf(s){
-  const sc=SU*SPEED_SCALE/ROUND_SECS;
-  return {vMax:maxSpeedOf(s)*sc,vMin:s.row.straight_min*sc,kap:kappaOf(s)||0.004};
+  const sc=SU*SPEED_SCALE/ROUND_SECS,vMax=maxSpeedOf(s)*sc,kap=kappaOf(s)||0.004,vc=CORNER*vMax;
+  return {vMax,vMin:s.row.straight_min*sc,kap,vc,wc:vc*kap/TURN_SCALE};
 }
+/* turning (C-69, playtest 1): the corner-speed model. A ship turns best at its corner speed (CORNER × top speed), on
+   the dial's tightest radius × TURN_SCALE. Slower, the turn weakens with the square of speed (a slow ship is a sitting
+   duck); faster, it widens (turn rate falls with speed). The dial still ranks who is nimble. */
+let CORNER=0.7;           // corner speed, × top speed. placeholder
+let TURN_SCALE=4;         // the tightest turn, at corner speed, is the dial's radius × this. placeholder
+let TURN_BLEED=1.2;       // a turn at the full corner rate costs this × top speed a second. placeholder
+function turnCap(c,v){const r=v/c.vc;return v<c.vc?c.wc*r*r:c.wc/r;}
 
 /* ---------- pilots: copied from arena-sb.js presetPilot / dbPilotOf (v2's presets) ---------- */
 function presetPilot(spec,name){
@@ -1165,7 +1172,7 @@ function thinkEnemy(s){
 }
 
 /* ---------- from a behaviour to a goal for the flight model, and who the guns are on ---------- */
-let SLOT_LEAD=0.6;        // seconds of the leader's velocity a slot looks ahead. placeholder
+let LEAD_ORBIT=1400;      // a leader holding or re-forming its wing circles this wide, so the wing can keep station (C-69). placeholder
 function slotOf(s,w,T){   // this ship's place in its wing's formation: a V behind the leader, spacing by the tactic
   const lead=byId(w.leader)||wingShips(w)[0];
   if(!lead||lead===s)return null;
@@ -1173,7 +1180,7 @@ function slotOf(s,w,T){   // this ship's place in its wing's formation: a V behi
   const rank=Math.floor(i/2)+1,side=i%2?1:-1,g=FORM_GAP*(T.space||1);
   const bx=-g*rank*(T.space>2?0.25:0.85),by=side*g*rank;   // spread: nearly line abreast; tight: a V
   const c=Math.cos(lead.vh),sn=Math.sin(lead.vh);
-  return {x:lead.x+bx*c-by*sn+lead.vx*SLOT_LEAD,y:lead.y+bx*sn+by*c+lead.vy*SLOT_LEAD,lead};
+  return {x:lead.x+bx*c-by*sn,y:lead.y+bx*sn+by*c,lead};
 }
 function orbitGoal(s,p,R){   // a ship can't stop: holding on a point is orbiting it
   const a=Math.atan2(s.y-p.y,s.x-p.x)+0.7;
@@ -1209,8 +1216,8 @@ function goalOf(s){
     if(ch){
       // the wing flies a box round its charge: the leader off its beam, the rest in the leader's slots
       const off=FORM_GAP*1.6*(T.space||1),th=ch.vh!=null?ch.vh:ch.h;
-      if(s.id===w.leader||!sl){const gp={x:ch.x-Math.sin(th)*off+ch.vx*1.0,y:ch.y+Math.cos(th)*off+ch.vy*1.0};g={x:gp.x,y:gp.y,spd:catchSpd(s,gp,ch)};}
-      else g={x:sl.x,y:sl.y,spd:catchSpd(s,sl,sl.lead)};
+      if(s.id===w.leader||!sl)g=stationGoal(s,{x:ch.x-Math.sin(th)*off,y:ch.y+Math.cos(th)*off},ch);
+      else g=stationGoal(s,sl,sl.lead);
       if(T.screen>0.5){   // screen: between the charge and the nearest threat
         const th2=bestTarget(s,foesOf(s).filter(x=>!x.struct&&dist(x,ch)<ESCORT_R*2.2));
         if(th2){const a=Math.atan2(th2.y-ch.y,th2.x-ch.x),sp=(wingShips(w).indexOf(s)-1)*0.35;g={x:ch.x+Math.cos(a+sp)*off*1.4,y:ch.y+Math.sin(a+sp)*off*1.4,spd:1};}
@@ -1218,10 +1225,10 @@ function goalOf(s){
     }
   } else if(b.kind==='form'){
     const sl=w?slotOf(s,w,T):null;
-    if(sl)g={x:sl.x,y:sl.y,spd:catchSpd(s,sl,sl.lead)};
-    else if(s.faction==='reb'){const hold=w&&w.hold||{x:s.x+Math.cos(s.vh)*400,y:s.y+Math.sin(s.vh)*400};if(w&&!w.hold)w.hold=hold;g=Object.assign(orbitGoal(s,hold,340),{spd:CRUISE});}
+    if(sl)g=stationGoal(s,sl,sl.lead);
+    else if(s.faction==='reb'){const hold=w&&w.hold||{x:s.x+Math.cos(s.vh)*400,y:s.y+Math.sin(s.vh)*400};if(w&&!w.hold)w.hold=hold;g=Object.assign(orbitGoal(s,hold,LEAD_ORBIT),{spd:CRUISE*0.8});}
   } else if(b.kind==='defend'||b.kind==='hold'){
-    const a=b.anchor,i=w?Math.max(0,wingShips(w).indexOf(s)):0,R=(b.kind==='hold'?300:380)*(0.8+0.25*(T.space||1))+i*70;
+    const a=b.anchor,i=w?Math.max(0,wingShips(w).indexOf(s)):0,R=(b.kind==='hold'?700:800)*(0.8+0.25*(T.space||1))+i*140;   // wide enough to fly at cruise (C-69)
     g=Object.assign(orbitGoal(s,a,R),{spd:CRUISE});
   } else if(b.kind==='capture'){
     const a=b.anchor,d=dist(s,a);
@@ -1258,6 +1265,14 @@ function goalOf(s){
   if(g)s.intent={x:g.x,y:g.y};
   s.goal=g;
 }
+/* station keeping (C-69): with wide turns a ship can't sit on a point, so it flies a line through its station: it aims
+   SLOT_LOOK ahead of the station along the leader's heading, and sets its speed from how far ahead or behind it is */
+let SLOT_LOOK=700;        // placeholder
+function stationGoal(s,sl,lead){
+  const th=lead.vh!=null?lead.vh:lead.h,lx=Math.cos(th),ly=Math.sin(th),c=capsOf(s);
+  const along=(sl.x-s.x)*lx+(sl.y-s.y)*ly,lv=Math.hypot(lead.vx||0,lead.vy||0);
+  return {x:sl.x+lx*SLOT_LOOK,y:sl.y+ly*SLOT_LOOK,spd:clamp((lv+along*0.6)/c.vMax,0,1),noCorner:true};
+}
 function catchSpd(s,sl,lead){   // a moving mark (a slot, an escort station): behind it, speed up; past it, ease off
   const c=capsOf(s),lv=lead?Math.hypot(lead.vx,lead.vy):c.vMax*CRUISE;
   const dx=sl.x-s.x,dy=sl.y-s.y,ahead=dx*Math.cos(s.vh)+dy*Math.sin(s.vh);
@@ -1270,7 +1285,7 @@ function catchSpd(s,sl,lead){   // a moving mark (a slot, an escort station): be
    is the dial's: a speed band (a ship can't stop) and a turn-rate cap of speed × the tightest-turn curvature.
    ===================================================================== */
 let TURN_K=3;             // how hard the autopilot turns onto its goal, per radian of error a second. placeholder
-let SLIP_NOSE=0.42;       // how far the nose may lead the line of flight toward its target, radians (copied from sim-sb.js). placeholder
+let SLIP_NOSE=0.2;        // how far the nose may lead the line of flight toward its target, radians (SB's 0.42 until C-69). placeholder
 let NOSE_K=9,NOSE_RATE=12,NOSE_ACC=120;   // the nose (copied from sim-sb.js). placeholders
 let AVOID_R=260;          // rocks and the map edge push a ship's heading away inside this. placeholder
 let DISENGAGE_R=1600;     // a withdrawing or falling-back ship steers wide of hostiles inside this. placeholder
@@ -1308,13 +1323,15 @@ function fly(s,dt){
   let want=g?Math.atan2(g.y-s.y,g.x-s.x):s.vh;
   want=avoidHeading(s,want);
   const v=Math.max(c.vMin,Math.hypot(s.vx,s.vy));
-  const e=angNorm(want-s.vh),wCap=Math.max(0.5,v*c.kap);
-  s.vh=angNorm(s.vh+clamp(e*TURN_K,-wCap,wCap)*dt);
+  const e=angNorm(want-s.vh),wCap=turnCap(c,v),w=clamp(e*TURN_K,-wCap,wCap);
+  s.vh=angNorm(s.vh+w*dt);s.turnW=w;
   const boost=s.boostT>0?BOOST_MULT:1;
   let tv=(g&&g.spd!=null?g.spd:CRUISE)*c.vMax*boost;
-  if(Math.abs(e)>0.7)tv=Math.min(tv,c.vMin+(c.vMax-c.vMin)*0.45);   // a hard turn bleeds speed, so it tightens
+  if(Math.abs(e)>0.6&&!(g&&g.noCorner))tv=Math.max(Math.min(tv,c.vc),Math.min(c.vc,tv*1.4));   // a hard turn wants corner speed: no faster, and never braking below it
   tv=clamp(tv,c.vMin,c.vMax*boost);
-  const acc=THRUST_K*c.vMax*dt,nv=v+clamp(tv-v,-acc*1.4,acc);
+  // turning bleeds speed; the engines fight back (a sustained hard turn loses the fight)
+  const acc=THRUST_K*c.vMax*boost*dt,bleed=TURN_BLEED*c.vMax*Math.abs(w)/c.wc*dt;
+  const nv=clamp(v+clamp(tv-v,-acc*1.4,acc)-bleed,c.vMin,c.vMax*boost);
   s.vx=Math.cos(s.vh)*nv;s.vy=Math.sin(s.vh)*nv;
   s.x+=s.vx*dt;s.y+=s.vy*dt;
   s.x=clamp(s.x,10,W-10);s.y=clamp(s.y,10,H-10);
@@ -1603,6 +1620,12 @@ const TUNE={
   THINK_SECS:{get:()=>THINK_SECS,set:v=>{THINK_SECS=v;},min:0.1,max:2,step:0.1,label:'Think every (s)'},
   ROUND_SECS:{get:()=>ROUND_SECS,set:v=>{ROUND_SECS=v;},min:1,max:6,step:0.25,label:'Top dial move takes (s)'},
   SPEED_SCALE:{get:()=>SPEED_SCALE,set:v=>{SPEED_SCALE=v;},min:0.5,max:5,step:0.05,label:'Speed ×'},
+  CORNER:{get:()=>CORNER,set:v=>{CORNER=v;},min:0.3,max:1,step:0.05,label:'Corner speed (× top)'},
+  TURN_SCALE:{get:()=>TURN_SCALE,set:v=>{TURN_SCALE=v;},min:1,max:10,step:0.25,label:'Tightest turn (× the dial\'s radius)'},
+  TURN_BLEED:{get:()=>TURN_BLEED,set:v=>{TURN_BLEED=v;},min:0,max:3,step:0.05,label:'Turning bleeds (× top speed a s)'},
+  THRUST_K:{get:()=>THRUST_K,set:v=>{THRUST_K=v;},min:0.1,max:3,step:0.05,label:'Thrust (× top speed a s)'},
+  TURN_K:{get:()=>TURN_K,set:v=>{TURN_K=v;},min:0.5,max:8,step:0.25,label:'Autopilot turn gain'},
+  SLIP_NOSE:{get:()=>SLIP_NOSE,set:v=>{SLIP_NOSE=v;},min:0,max:0.8,step:0.02,label:'Nose leads by (rad)'},
   CRUISE:{get:()=>CRUISE,set:v=>{CRUISE=v;},min:0.3,max:1,step:0.05,label:'Cruise (× top speed)'},
   CONVOY_SPD:{get:()=>CONVOY_SPD,set:v=>{CONVOY_SPD=v;},min:0.2,max:1,step:0.05,label:'Convoy speed (× top)'},
   ENGAGE_FRAC:{get:()=>ENGAGE_FRAC,set:v=>{ENGAGE_FRAC=v;},min:0.2,max:1,step:0.05,label:'Fighting range (× gun range)'},
@@ -1671,7 +1694,7 @@ for(const tk of TACTIC_KEYS)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
-  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R'],
+  Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R'],
   Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','HR_IN','HR_OUT'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
@@ -1687,7 +1710,7 @@ return {key:'hc',name:'Type 3: High Command',
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
-  fn:{kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
