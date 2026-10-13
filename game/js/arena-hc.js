@@ -284,7 +284,7 @@ function drawLocks(c,z,S,boost,now){
     const t=best&&SIM.fn.byId(best);if(!t||!t.alive||lk<0.05)continue;
     const p=ipos(t),R0=shieldR(t,boost)+6/z,k=Math.min(1,lk/need),R=R0*(1+1.6*(1-k)),ok=lk>=need;
     if(s.faction==='reb'){
-      const sel=A.sel&&s.wing===A.sel,al=sel?1:0.7,col=ok?C.hazard:C.gold,L=R*0.45;
+      const sel=selWings().includes(s.wing),al=sel?1:0.7,col=ok?C.hazard:C.gold,L=R*0.45;
       c.save();c.translate(p.x,p.y);c.rotate(ok?0:(now/900)%(Math.PI/2));c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=(ok?3:2.2)/z;c.lineCap='square';
       for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(R,R-L);c.lineTo(R,R);c.lineTo(R-L,R);c.stroke();}
       c.restore();
@@ -320,18 +320,18 @@ function render(now){
   drawPoints(ctx,z,S);
   const pos=ipos;
   // the selected wing's engagement ring, and its attack designation in gold
-  const w=SIM.fn.wingOf(A.sel);
-  if(w){
-    const live=SIM.fn.wingShips(w);
+  const sw=selWings(),w=SIM.fn.wingOf(A.sel);
+  for(const wid of sw){
+    const wg=SIM.fn.wingOf(wid),live=wg?SIM.fn.wingShips(wg).map(ipos):[];
     if(live.length){
       let cx=0,cy=0;for(const s of live){cx+=s.x;cy+=s.y;}cx/=live.length;cy/=live.length;
-      const R=Math.max(...live.map(s=>SIM.fn.gunRange(s)))*SIM.fn.ENGAGE_FRAC_()*SIM.fn.tacticOf(w).engage+Math.max(...live.map(s=>Math.hypot(s.x-cx,s.y-cy)));
+      const R=Math.max(...SIM.fn.wingShips(wg).map(s=>SIM.fn.gunRange(s)))*SIM.fn.ENGAGE_FRAC_()*SIM.fn.tacticOf(wg).engage+Math.max(...live.map(s=>Math.hypot(s.x-cx,s.y-cy)));
       ring(ctx,cx,cy,R,TH.rgba(C.rebel,0.55),z,2,[10,8]);
     }
   }
   for(const wg of S.wings){   // every wing's attack designation; the selected wing's loudest
     const o=wg.order;if(!o||o.kind!=='attack'||!o.target)continue;
-    const sel=wg.id===A.sel;
+    const sel=sw.includes(wg.id);
     for(const t of S.ships){
       if(!t.alive||t.faction!=='heg')continue;
       if(o.target.type==='class'?t.cls!==o.target.cls||t.struct:t.id!==o.target.id)continue;
@@ -366,7 +366,7 @@ function render(now){
   for(const s of S.ships){
     if(!s.alive)continue;
     const p=pos(s);
-    if(A.selShip===s.id||(w&&s.wing===w.id))ring(ctx,p.x,p.y,shieldR(s,boost)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
+    if(A.selShip===s.id||sw.includes(s.wing))ring(ctx,p.x,p.y,shieldR(s,boost)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
     drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
     drawShields(ctx,s,p.x,p.y,p.h,z,boost);
     if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
@@ -390,6 +390,7 @@ function render(now){
   }
   ctx.globalAlpha=1;
   drawBubbles(now,pos,boost,z);
+  drawBox();
 }
 
 /* =====================================================================
@@ -489,7 +490,7 @@ function load(id,variant,seed){
   makeStars();
   bubbles=[];barkSeen=0;
   A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
-  A.sel=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;
+  A.sel=null;A.group=null;A.box=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;closeWheel();
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
   byId('hcPicker').hidden=true;byId('hcEnd').hidden=true;
   fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
@@ -752,7 +753,7 @@ function syncRoster(){
   if(rosterBuilt!==S.seed+'|'+S.scn.id)buildRoster();
   for(const w of S.wings){
     const box=el.querySelector('[data-wing="'+w.id+'"]');if(!box)continue;
-    box.classList.toggle('is-sel',A.sel===w.id);
+    box.classList.toggle('is-sel',selWings().includes(w.id));
     const oc=box.querySelector('[data-chip="order"]'),tc=box.querySelector('[data-chip="tactic"]');
     const ot=SIM.ORDERS[w.order.kind].name+(w.order.target?' · '+SIM.targetLabel(w.order):'');
     if(oc.textContent!==ot)oc.textContent=ot;
@@ -789,9 +790,26 @@ byId('hcRoster').addEventListener('click',ev=>{
   if(t){
     const s=SIM.fn.byId(t.dataset.ship);if(!s)return;
     if(A.cmdArm){cmdApply(A.cmdArm,{id:s.id});return;}
-    A.selShip=s.id;A.sel=s.wing;openPilot(s.id);if(s.alive)camTo(s.x,s.y);syncHud(true);
+    clickShip(s);if(s.alive)camTo(s.x,s.y);
   }
 });
+/* selecting (C-70, playtest 2): a click on one of your ships (map or roster) selects its wing; a second click on a ship
+   of the selected wing selects that ship (its pilot panel). A box selection may hold several wings (A.group): the
+   tray's orders and tactics then go to all of them */
+function selWings(){return A.group&&A.group.length?A.group.slice():A.sel?[A.sel]:[];}
+function trayWings(){return A.group&&A.group.includes(A.tray)?A.group.slice():A.tray?[A.tray]:[];}
+function clickShip(s){
+  if(!s.wing){syncHud(true);return;}
+  const single=!(A.group&&A.group.length>1);
+  if(!single||A.sel!==s.wing){selectWing(s.wing,true);return;}
+  if(A.selShip!==s.id){A.selShip=s.id;openPilot(s.id);}
+}
+function selectGroup(ids){
+  ids=[...new Set(ids)].filter(id=>SIM.fn.wingOf(id));
+  if(!ids.length){A.sel=null;A.group=null;A.selShip=null;A.tray=null;A.arm=null;syncHud(true);return;}
+  if(ids.length===1){selectWing(ids[0],true);return;}
+  A.group=ids;A.sel=ids[0];A.selShip=null;A.arm=null;A.tray=ids[0];A.panel=null;syncHud(true);
+}
 /* target-first: right-click a tile or a wing header for the commands that apply to it */
 byId('hcRoster').addEventListener('contextmenu',ev=>{
   ev.preventDefault();
@@ -800,7 +818,7 @@ byId('hcRoster').addEventListener('contextmenu',ev=>{
 });
 function selectWing(id,open){
   if(A.cmdArm==='recall'){cmdApply('recall',{wing:id});return;}
-  A.sel=id;A.selShip=null;A.arm=null;
+  A.sel=id;A.group=null;A.selShip=null;A.arm=null;
   if(open){A.tray=id;A.panel=null;}
   syncHud(true);
 }
@@ -835,14 +853,14 @@ function nextEvent(){   // the newest unviewed event with a place, then the next
 /* the wing command tray (§3.4): anchored panel-left */
 function trayHtml(){
   const w=SIM.fn.wingOf(A.tray);if(!w)return '';
-  const lead=SIM.fn.byId(w.leader);
-  let h='<div class="hc-tray__head"><span class="hc-tray__name">'+esc(w.name)+'</span><span class="hc-tray__lead">'+
-    (lead?'Led by '+esc(lead.name)+' · L'+lead.pilot.level:'No leader: '+(w.leadLostT!=null?'promoting':'—'))+'</span>'+
+  const lead=SIM.fn.byId(w.leader),tw=trayWings().map(id=>SIM.fn.wingOf(id)).filter(Boolean),many=tw.length>1;
+  let h='<div class="hc-tray__head"><span class="hc-tray__name">'+esc(many?tw.map(x=>x.name).join(' + '):w.name)+'</span><span class="hc-tray__lead">'+
+    (many?tw.length+' wings: orders and tactics go to all':lead?'Led by '+esc(lead.name)+' · L'+lead.pilot.level:'No leader: '+(w.leadLostT!=null?'promoting':'—'))+'</span>'+
     '<button type="button" class="hc-x" data-act="close" aria-label="Close">'+glyph('close','hc-glyph--sm')+'</button></div>';
   h+='<div class="hc-tray__lbl">Order</div><div class="hc-tray__row">';
   let n=0;
   for(const k of SIM.ORDER_KEYS){
-    const built=SIM.ORDERS_LIVE.includes(k),why=!built?'Arrives in a later build phase':(k==='board'&&!SIM.fn.wingShips(w).some(s=>s.marines))?'No marines in this wing':null;
+    const built=SIM.ORDERS_LIVE.includes(k),why=!built?'Arrives in a later build phase':(k==='board'&&!tw.some(x=>SIM.fn.wingShips(x).some(s=>s.marines)))?'No marines in this wing':null;
     n++;
     const cls=(w.order.kind===k?' is-set':'')+(A.arm===k?' is-armed':'');
     h+='<button type="button" class="hc-ico hc-ico--order'+cls+'" data-order="'+k+'" data-tip="order:'+k+'" data-key="'+n+'" aria-label="'+esc(SIM.ORDERS[k].name)+'"'+(why?' aria-disabled="true" data-why="'+esc(why)+'"':'')+'>'+glyph(k)+'<span class="hc-ico__n">'+n+'</span></button>';
@@ -873,11 +891,19 @@ byId('hcTray').addEventListener('click',ev=>{
   if(b.dataset.order){
     const k=b.dataset.order;
     if(SIM.ORDERS[k].targeted){A.arm=A.arm===k?null:k;syncHud(true);return;}
-    issue(w.id,k,null);return;
+    issueSel(k,null);return;
   }
-  if(b.dataset.tchip!=null){const c=SIM.targetChips(w,A.arm)[+b.dataset.tchip];if(c)issue(w.id,A.arm,c.target);return;}
-  if(b.dataset.tactic){const r=SIM.setTactic(w.id,b.dataset.tactic);if(!r.ok)flash(r.why);syncHud(true);}
+  if(b.dataset.tchip!=null){const c=SIM.targetChips(w,A.arm)[+b.dataset.tchip];if(c)issueSel(A.arm,c.target);return;}
+  if(b.dataset.tactic){for(const id of trayWings()){const r=SIM.setTactic(id,b.dataset.tactic);if(!r.ok)flash(r.why);}syncHud(true);}
 });
+/* an order to every wing in the tray's selection (one wing, or a box's several); a wing it doesn't fit is named */
+function issueSel(kind,target,ids){
+  ids=ids||trayWings();let first=null;const bad=[];
+  for(const id of ids){const r=SIM.setOrder(id,kind,target);if(r.ok){if(!first)first=r;}else bad.push((SIM.fn.wingOf(id)||{name:id}).name+': '+r.why);}
+  if(bad.length)flash(bad.join(' · '));
+  A.arm=null;syncHud(true);
+  return first||{ok:false,why:bad.join(' · ')};
+}
 function issue(wid,kind,target){
   const r=SIM.setOrder(wid,kind,target);
   if(!r.ok){flash(r.why);return r;}
@@ -923,7 +949,7 @@ byId('hcStage').addEventListener('pointerout',ev=>{const el=ev.target.closest&&e
 let flashT=0;
 function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
 
-function closeAll(){A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;hideTip();}
+function closeAll(){if(A.wheel)closeWheel();A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;hideTip();}
 
 /* =====================================================================
    The pilot panel (§3.2): over the left rail, from a tile or VIEW
@@ -1082,29 +1108,97 @@ function shipAt(x,y){
   for(const s of SIM.S.ships){if(!s.alive)continue;const d=Math.hypot(s.x-x,s.y-y),r=Math.max(30/cam.z,shieldR(s,iconBoost())*1.1);if(d<r&&d<bd){bd=d;best=s;}}
   return best;
 }
+/* the mouse (C-70, playtest 2): left-drag draws a selection box, right-drag (or middle-drag) pans, a right-click with
+   wings selected opens the order wheel (with none, the commands that fit). A finger still pans. */
 cv.addEventListener('pointerdown',ev=>{
   if(A.phase==='PICK'||!SIM.S)return;
+  if(A.wheel)closeWheel();
   cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);
-  const p=evPt(ev);pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button};
+  const p=evPt(ev),panning=ev.button===2||ev.button===1||ev.pointerType==='touch';
+  pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button,mode:panning?'pan':'box'};
 });
 cv.addEventListener('pointermove',ev=>{
   if(!pan)return;
   const p=evPt(ev);
   if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
-  if(pan.moved){cam.x=pan.cx-(p.px-pan.px)/cam.z;cam.y=pan.cy-(p.py-pan.py)/cam.z;clampCam();A.camHeld=true;}
+  if(!pan.moved)return;
+  if(pan.mode==='pan'){cam.x=pan.cx-(p.px-pan.px)/cam.z;cam.y=pan.cy-(p.py-pan.py)/cam.z;clampCam();A.camHeld=true;}
+  else A.box={x0:pan.px,y0:pan.py,x1:p.px,y1:p.py};
 });
 cv.addEventListener('pointerup',ev=>{
   if(!pan)return;const was=pan;pan=null;
+  const p=evPt(ev);
+  if(was.mode==='box'&&was.moved){boxSelect(A.box);A.box=null;return;}
+  A.box=null;
   if(was.moved)return;
-  mapClick(evPt(ev),ev);
+  if(was.button===2){mapRight(p);return;}
+  if(was.button===0||was.button==null)mapClick(p,ev);
 });
-cv.addEventListener('pointercancel',()=>{pan=null;});
-cv.addEventListener('contextmenu',ev=>{   // target-first: right-click one of your ships, or a place, for the commands that apply
-  ev.preventDefault();if(A.phase!=='LIVE')return;
-  const p=evPt(ev),s=shipAt(p.x,p.y);
+cv.addEventListener('pointercancel',()=>{pan=null;A.box=null;});
+cv.addEventListener('contextmenu',ev=>ev.preventDefault());   // the right button is ours: pointerup handles a right-click
+/* a box: every wing with one of your ships inside it (as drawn); none clears the selection */
+function boxSelect(b){
+  if(!b)return;
+  const x0=Math.min(b.x0,b.x1),x1=Math.max(b.x0,b.x1),y0=Math.min(b.y0,b.y1),y1=Math.max(b.y0,b.y1),ids=[];
+  for(const s of SIM.S.ships){
+    if(!s.alive||s.faction!=='reb'||s.quiet||!s.wing)continue;
+    const q=ipos(s),sc=toScreen(q.x,q.y);
+    if(sc.x>=x0&&sc.x<=x1&&sc.y>=y0&&sc.y<=y1&&!ids.includes(s.wing))ids.push(s.wing);
+  }
+  selectGroup(ids);
+}
+function drawBox(){
+  const b=A.box;if(!b)return;
+  const x=Math.min(b.x0,b.x1),y=Math.min(b.y0,b.y1),w=Math.abs(b.x1-b.x0),h=Math.abs(b.y1-b.y0);
+  ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=TH.rgba(C.gold,0.08);ctx.fillRect(x,y,w,h);
+  ctx.setLineDash([6,4]);ctx.lineWidth=1.5;ctx.strokeStyle=C.gold;ctx.strokeRect(x+0.5,y+0.5,w,h);ctx.restore();
+}
+/* a right-click: with wings selected, the order wheel for what is under the cursor; with none, the commands (target-first) */
+function mapRight(p){
+  if(A.phase!=='LIVE')return;
+  const s=shipAt(p.x,p.y);
+  if(selWings().length){openWheel(p,s);return;}
   if(s&&s.faction==='reb'&&!s.quiet)openDrawer({id:s.id});
   else if(!s)openDrawer({x:Math.round(p.x),y:Math.round(p.y)});
-});
+}
+/* the order wheel: the orders that fit the thing clicked, for every selected wing, plus Commands (target-first) */
+function wheelItems(p,s){
+  const S=SIM.S,ws=selWings().map(id=>SIM.fn.wingOf(id)).filter(Boolean),items=[];
+  const marines=ws.some(w=>SIM.fn.wingShips(w).some(x=>x.marines));
+  const add=(k,target,label)=>items.push({k,glyph:k,label:label||SIM.ORDERS[k].name,target});
+  const nm=x=>x.label||x.name;
+  let what;
+  if(s&&s.faction==='heg'&&s.struct){what=nm(s);add('attack',{type:'station',id:s.id});if(marines)add('board',{type:'station',id:s.id});}
+  else if(s&&s.faction==='heg'){what=nm(s);add('attack',{type:'ship',id:s.id});add('intercept',{type:'ship',id:s.id});}
+  else if(s&&s.faction==='reb'&&!ws.some(w=>w.id===s.wing)){what=nm(s);if(!s.struct)add('escort',{type:'ship',id:s.id});add('defend',{type:'ship',id:s.id});}
+  else{
+    let pt=null;for(const k in S.points){const q=S.points[k];if(Math.hypot(q.x-p.x,q.y-p.y)<Math.max(60/cam.z,SIM.fn.CAPTURE_R_())){pt=k;break;}}
+    if(pt){what=S.points[pt].label||pt;if(S.points[pt].capture)add('capture',{type:'point',id:pt});add('defend',{type:'point',id:pt},'Defend here');}
+    else{what='Here';add('hold',{type:'pos',x:Math.round(p.x),y:Math.round(p.y)},'Hold here');add('defend',{type:'pos',x:Math.round(p.x),y:Math.round(p.y)},'Defend here');}
+  }
+  add('regroup',null);add('withdraw',null);
+  items.push({k:'cmds',glyph:'view',label:'Commands…',cmd:s&&s.faction==='reb'&&!s.quiet?{id:s.id}:!s?{x:Math.round(p.x),y:Math.round(p.y)}:null});
+  return {what,items:items.filter(it=>it.k==='cmds'||SIM.ORDERS_LIVE.includes(it.k))};
+}
+function openWheel(p,s){
+  const W=wheelItems(p,s);A.wheel={p,ship:s?s.id:null,items:W.items,what:W.what};
+  const el=byId('hcWheel'),n=W.items.length,R=74;
+  let h='<div class="hc-wheel__hub">'+esc(W.what)+'</div>';
+  W.items.forEach((it,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,x=Math.cos(a)*R,y=Math.sin(a)*R;
+    h+='<button type="button" class="hc-wheel__b'+(it.k==='cmds'?' is-cmds':'')+'" data-wi="'+i+'" style="left:'+x.toFixed(0)+'px;top:'+y.toFixed(0)+'px" aria-label="'+esc(it.label)+'">'+glyph(it.glyph)+'<span>'+esc(it.label)+'</span><i>'+(i+1)+'</i></button>';});
+  el.innerHTML=h;el.hidden=false;
+  const st=byId('hcStage').getBoundingClientRect(),r=cv.getBoundingClientRect();
+  el.style.left=Math.round(Math.max(110,Math.min(st.width-110,p.px+r.left-st.left)))+'px';el.style.top=Math.round(Math.max(110,Math.min(st.height-110,p.py+r.top-st.top)))+'px';
+}
+function closeWheel(){A.wheel=null;const el=byId('hcWheel');el.hidden=true;el.innerHTML='';}
+function wheelPick(i){
+  const W=A.wheel;if(!W)return false;const it=W.items[i];if(!it)return false;
+  closeWheel();
+  if(it.k==='cmds'){openDrawer(it.cmd);return true;}
+  const ids=selWings();A.tray=A.tray&&ids.includes(A.tray)?A.tray:ids[0];
+  issueSel(it.k,it.target,ids);return true;
+}
+byId('hcWheel').addEventListener('click',ev=>{const b=ev.target.closest('[data-wi]');if(b)wheelPick(+b.dataset.wi);});
 cv.addEventListener('wheel',ev=>{
   ev.preventDefault();
   const p=evPt(ev),before=toWorld(p.px,p.py);
@@ -1121,10 +1215,10 @@ function mapClick(p,ev){
   }
   if(A.arm&&A.tray){   // a targeted order armed: the click names its target
     const w=SIM.fn.wingOf(A.tray),tgt=mapTarget(w,A.arm,s,p);
-    if(tgt){issue(w.id,A.arm,tgt);return;}
+    if(tgt){issueSel(A.arm,tgt);return;}
     flash('Not a target for '+SIM.ORDERS[A.arm].name);return;
   }
-  if(s&&s.faction==='reb'&&s.wing){A.selShip=s.id;selectWing(s.wing,true);A.selShip=s.id;syncHud(true);return;}
+  if(s&&s.faction==='reb'&&s.wing){clickShip(s);return;}
   if(!s){A.selShip=null;syncHud(true);}
 }
 /* what a map click means for an armed order: a ship (or its class), a station, an ally, or a point */
@@ -1146,13 +1240,15 @@ function mapTarget(w,kind,s,p){
 /* the keys (§3.5): Space pause · 1–4 speeds · Tab next event · F follow · Q / E cycle wings · with the tray
    open, 1–9 press its order icons and Shift+1–6 its tactics · Esc steps back (an armed choice, then the windows) */
 const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray closed)'],['Tab','next unviewed event'],['F','follow the selection'],
-  ['Q / E','previous / next wing'],['1–9','the tray\'s order icons'],['Shift+1–6','the tray\'s tactic icons'],['Esc','step back, close']];
+  ['Q / E','previous / next wing'],['1–9','the tray\'s order icons (the wheel\'s, when open)'],['Shift+1–6','the tray\'s tactic icons'],['Esc','step back, close'],
+  ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map'],['Right-click','the order wheel (no wing selected: the commands)']];
 function onKey(ev){
   if(SR.active!=='arena'||!A.active||A.phase==='PICK')return false;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
   const k=ev.key;
   if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}
-  if(k==='Escape'){ev.preventDefault();if(A.cmdArm)A.cmdArm=null;else if(A.abortArm)A.abortArm=false;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);return true;}
+  if(A.wheel&&/^[1-9]$/.test(k)){ev.preventDefault();wheelPick(+k-1);return true;}
+  if(k==='Escape'){ev.preventDefault();if(A.wheel)closeWheel();else if(A.cmdArm)A.cmdArm=null;else if(A.abortArm)A.abortArm=false;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);return true;}
   if(k==='Tab'){ev.preventDefault();nextEvent();return true;}
   if(A.phase!=='LIVE')return false;
   if(k==='f'||k==='F'){A.follow=!A.follow;A.camHeld=false;syncHud(true);return true;}
@@ -1290,7 +1386,7 @@ function open(){openUi();showPicker();}
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
   fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
-    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,
+    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,clickShip,selectGroup,boxSelect,mapRight,wheelItems,openWheel,closeWheel,wheelPick,selWings,issueSel,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};}}};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg};

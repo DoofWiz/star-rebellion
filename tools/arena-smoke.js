@@ -1642,11 +1642,51 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(g3.brk.every(Boolean),'G3: a target breaks from a missile '+JSON.stringify(g3.brk));
  ok(g3.fight[0]>=2&&g3.fight[1]>=1,'G3: missiles in a fight '+JSON.stringify(g3.fight));
  ok(g3.panel[0]==='Missile ×2'&&g3.panel[1]==='Arm','G3: the pilot panel\'s Missile row '+JSON.stringify(g3.panel));
- ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
+ // ---------- G4 (C-70): selecting and ordering on the map ----------
+ const g4=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={},A=H.A;
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id||s.name===id),st=()=>[A.sel,A.selShip,A.tray,A.panel,(A.group||[]).join('+')].join('|');
+  f.load('hc1_nightfall',0,5);
+  // a click selects the wing; a second, on a ship of that wing, the ship; a ship of another wing selects that wing
+  f.clickShip(by('P1'));out.click=[st()];f.clickShip(by('P2'));out.click.push(st());f.clickShip(by('Sera'));out.click.push(st());
+  // a box's wings share the tray: one order goes to both
+  f.selectGroup(['dagger','amber']);out.group=[st()];f.issueSel('regroup',null);out.group.push(S().wings.map(w=>w.order.kind).join());
+  // the wheel offers what fits the thing under the cursor
+  const keys=t=>f.wheelItems(t?{x:t.x,y:t.y}:{x:3000,y:3000},t).items.map(i=>i.k).join();
+  const fighter=S().ships.find(x=>x.faction==='heg'&&!x.struct&&x.alive);
+  out.wheel=[keys(by('relay')),keys(fighter),keys(by('lark')),keys(null)];
+  f.selectWing('dagger',true);f.openWheel({x:by('relay').x,y:by('relay').y,px:400,py:300},by('relay'));
+  out.pick=[!document.getElementById('hcWheel').hidden,document.querySelectorAll('#hcWheel [data-wi]').length];f.wheelPick(0);
+  out.pick.push(S().wings.find(w=>w.id==='dagger').order.kind+':'+S().wings.find(w=>w.id==='dagger').order.target.id,document.getElementById('hcWheel').hidden);
+  // nothing selected: a right-click opens the commands (target-first), as before
+  f.selectGroup([]);f.mapRight({x:3000,y:3000,px:10,py:10});out.none=[!!A.drawer,!A.wheel];f.closeWheel();
+  // the camera for the mouse test: the five ships in the clear middle of the map
+  f.load('hc1_nightfall',0,5);
+  return out;
+ });
+ await pg3.waitForTimeout(300);
+ await pg3.evaluate(()=>{const H=window.DBGarena.hc,f=H.fn,mine=H.S.ships.filter(s=>s.faction==='reb'&&s.wing);
+  f.cam_().z=0.15;f.cam_().x=mine.reduce((a,s)=>a+s.x,0)/mine.length-200;f.cam_().y=mine.reduce((a,s)=>a+s.y,0)/mine.length+300;H.A.camHeld=true;H.A.follow=false;});
+ await pg3.waitForTimeout(200);
+ {const pt=n=>pg3.evaluate(n=>{const H=window.DBGarena.hc,f=H.fn,s=H.S.ships.find(s=>s.name===n),q=f.ipos(s);return f.toClient(q.x,q.y);},n);
+  const sel=()=>pg3.evaluate(()=>{const A=window.DBGarena.hc.A;return [A.sel,(A.group||[]).join('+'),Math.round(window.DBGarena.hc.fn.cam_().x),!!A.wheel];});
+  const a=await pt('Joss'),c=await pt('Sera');
+  await pg3.mouse.move(Math.min(a.x,c.x)-60,Math.min(a.y,c.y)-40);await pg3.mouse.down();await pg3.mouse.move(Math.max(a.x,c.x)+60,Math.max(a.y,c.y)+40,{steps:8});await pg3.mouse.up();
+  g4.mouse=[await sel()];
+  await pg3.mouse.move(700,300);await pg3.mouse.down({button:'right'});await pg3.mouse.move(600,300,{steps:5});await pg3.mouse.up({button:'right'});g4.mouse.push(await sel());
+  const j=await pt('Joss');await pg3.mouse.click(j.x+150,j.y+40,{button:'right'});g4.mouse.push(await sel());
+  await pg3.keyboard.press('1');g4.mouse.push(await pg3.evaluate(()=>window.DBGarena.hc.S.wings.map(w=>w.order.kind).join()));}
+ ok(g4.click[0]==='dagger||dagger||'&&g4.click[1]==='dagger|P2||P2|'&&g4.click[2]==='amber||amber||','G4: a click selects the wing, a second the ship '+JSON.stringify(g4.click));
+ ok(g4.group[0]==='dagger||dagger||dagger+amber'&&g4.group[1]==='regroup,regroup','G4: a box\'s wings share one order '+JSON.stringify(g4.group));
+ ok(g4.wheel[0]==='attack,regroup,withdraw,cmds'&&g4.wheel[1]==='attack,intercept,regroup,withdraw,cmds'&&g4.wheel[2]==='escort,defend,regroup,withdraw,cmds'&&g4.wheel[3]==='hold,defend,regroup,withdraw,cmds','G4: the wheel fits what was clicked '+JSON.stringify(g4.wheel));
+ ok(g4.pick[0]&&g4.pick[1]===4&&g4.pick[2]==='attack:relay'&&g4.pick[3],'G4: a wheel pick orders the wing '+JSON.stringify(g4.pick));
+ ok(g4.none.every(Boolean),'G4: with nothing selected a right-click opens the commands '+JSON.stringify(g4.none));
+ ok(g4.mouse[0][1]==='dagger+amber'&&g4.mouse[1][2]!==g4.mouse[0][2]&&g4.mouse[1][1]==='dagger+amber'&&g4.mouse[2][3]===true&&g4.mouse[3]==='hold,hold','G4: the mouse: box, right-drag, right-click, a key '+JSON.stringify(g4.mouse));
+ ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
