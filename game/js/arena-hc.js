@@ -353,6 +353,51 @@ function render(now){
     const q=toScreen(f.x,f.y);ctx.globalAlpha=1-k*k;ctx.lineWidth=4;ctx.strokeStyle=C.ink;ctx.strokeText(f.text,q.x,q.y-k*26);ctx.fillStyle=f.col;ctx.fillText(f.text,q.x,q.y-k*26);
   }
   ctx.globalAlpha=1;
+  drawBubbles(now,pos,boost,z);
+}
+
+/* =====================================================================
+   Speech bubbles (C-69, playtest 1): a pilot's line pops up by their ship for 2 s, then pops down. One a ship, at
+   most BUBBLE_MAX on screen (the newest); real seconds, so they read the same at any speed
+   ===================================================================== */
+const BUBBLE_MS=2000,BUBBLE_MAX=4,BUBBLE_W=210,BUBBLE_POP=140;   // placeholders
+let bubbles=[],barkSeen=0;
+const RMQ=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
+function bubbleTick(now){
+  const S=SIM.S;if(!S||!S.barks)return;
+  for(const b of S.barks){
+    if(b.id<=barkSeen)continue;
+    barkSeen=b.id;
+    bubbles=bubbles.filter(x=>x.ship!==b.ship);
+    bubbles.push({ship:b.ship,text:b.text,tone:b.tone,born:now,id:b.id});
+  }
+  bubbles=bubbles.filter(x=>now-x.born<BUBBLE_MS);
+  if(bubbles.length>BUBBLE_MAX)bubbles=bubbles.slice(-BUBBLE_MAX);
+}
+function wrap(c,text,w){const out=[];let line='';for(const word of String(text).split(' ')){const t=line?line+' '+word:word;if(c.measureText(t).width>w&&line){out.push(line);line=word;}else line=t;}if(line)out.push(line);return out;}
+function drawBubbles(now,pos,boost,z){
+  ctx.save();ctx.font='700 13px "Exo 2",sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  const laid=[];
+  for(const b of bubbles){
+    const s=SIM.fn.byId(b.ship);if(!s||!s.alive)continue;
+    const age=now-b.born,pop=RMQ&&RMQ.matches?1:Math.min(1,age/BUBBLE_POP,(BUBBLE_MS-age)/BUBBLE_POP);   // no pop with reduced motion
+    if(pop<=0)continue;
+    const p=pos(s),q=toScreen(p.x,p.y),r=shieldR(s,boost)*z;
+    const lines=wrap(ctx,b.text,BUBBLE_W-22),w=Math.min(BUBBLE_W,Math.max(...lines.map(l=>ctx.measureText(l).width))+22),h=lines.length*16+12;
+    let bx=Math.max(8,Math.min(cssW-w-8,q.x+r*0.6+10)),by=Math.max(8,q.y-r-h-24);
+    for(let pass=0;pass<4;pass++)for(const o of laid)if(bx<o.x+o.w&&bx+w>o.x&&by<o.y+o.h+4&&by+h+4>o.y)by=Math.max(8,o.y-h-6);   // never on top of another
+    laid.push({x:bx,y:by,w,h});
+    ctx.save();ctx.translate(bx+14,by+h);ctx.scale(pop,pop);ctx.translate(-(bx+14),-(by+h));
+    const edge=b.tone==='hazard'?C.hazard:b.tone==='good'?C.go:C.rebelHi;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,8):ctx.rect(bx,by,w,h);
+    ctx.moveTo(bx+10,by+h);ctx.lineTo(q.x,q.y-r*0.6);ctx.lineTo(bx+24,by+h);   // the tail points at the ship
+    ctx.fillStyle=C.hull;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+1.5,by+1.5,w-3,h-3,7):ctx.rect(bx+1.5,by+1.5,w-3,h-3);ctx.lineWidth=1.6;ctx.strokeStyle=edge;ctx.stroke();
+    ctx.fillStyle=C.text;lines.forEach((l,i)=>ctx.fillText(l,bx+11,by+6+i*16));
+    ctx.restore();
+  }
+  ctx.restore();
+  return laid;
 }
 
 /* =====================================================================
@@ -369,7 +414,8 @@ function frame(now){
     while(A.acc>=SIM.TICK&&n++<200&&A.phase==='LIVE'){A.acc-=SIM.TICK;SIM.step();if(SIM.S.over){onOver();break;}}
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
-  render(now);
+  bubbleTick(performance.now());
+  render(performance.now());
   if(A.panel){const pc=byId('hcPilotCam'),ps=SIM.fn.byId(A.panel);if(pc&&ps)drawTileCam(pc,ps,0.5);}
   if(A.phase==='LIVE'&&now-(A.tileAt||0)>=100/Math.max(1,byId('hcRoster').querySelectorAll('.hc-tile').length)){A.tileAt=now;tileTick();}
   if(now-A.hudAt>120){A.hudAt=now;syncHud();}
@@ -404,6 +450,7 @@ function load(id,variant,seed){
   A.scen=scn;A.variant=variant||0;if(seed!=null)A.seed=seed>>>0;
   SIM.build(scn,{seed:A.seed,variant:A.variant});
   makeStars();
+  bubbles=[];barkSeen=0;
   A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
   A.sel=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
@@ -1197,7 +1244,7 @@ function open(){openUi();showPicker();}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+  fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
     frame,toScreen,toWorld,cam_:()=>cam,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},

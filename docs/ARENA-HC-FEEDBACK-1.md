@@ -1,7 +1,7 @@
 # High Command, playtest 1: your feedback and my proposal
 
-**Status: approved 13 October**, with the answers in §6. Built in the phases in §4; `docs/DESIGN_BLOCKERS.md` C-69
-records the decision and what I chose building it.
+**Status: approved 13 October**, with the answers in §6. Built in the phases in §4; all four are built. `docs/DESIGN_BLOCKERS.md` C-69.1
+(the Resolved log) records the decision, C-69 what I chose building it.
 
 ---
 

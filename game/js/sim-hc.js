@@ -360,7 +360,7 @@ function destroyShip(t,killer){   // sim-sb.js destroyShip (space.js ~1026–103
   t.alive=false;t.hull=Math.min(t.hull,0);t.deadT=S.t;
   S.fx.push({x:t.x,y:t.y,t0:S.t,kind:'boom',size:SRDB.visualSize(t.row.size)});
   floater(t,t.struct?'DESTROYED':'SPLASH',C.gold);
-  if(killer&&killer.alive){killer.st.kills++;killer.killT=S.t;adjCool(killer,12);}
+  if(killer&&killer.alive){killer.st.kills++;killer.killT=S.t;adjCool(killer,12);say(killer,pickLine(killer,'winning'),'good',true);}
   for(const m of S.ships){
     if(!m.alive||m.faction!==t.faction||m===t)continue;
     adjCool(m,-18);
@@ -544,6 +544,7 @@ function build(scn,opt){
     m:{orders:0,byOrder:{},tactics:0,byTactic:{},cpSpent:0,byCommand:{},ruleTriggers:0,byRule:{},emergencies:[],alerts:[]},
     variantLabel:R.variantLabel};
   for(const r of S.rocks)if(!r.verts){const rr=mulberry(Math.round(r.x*7+r.y*13));r.verts=[];const n=8+Math.floor(rr()*4);for(let k=0;k<n;k++)r.verts.push(0.72+rr()*0.4);r.rot=rr()*Math.PI*2;}
+  S.barks=[];S.barkN=0;
   S.pn=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
   for(const wd of R.wings||[])addWing(wd);
   for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark); an installation (a station row) is yours to defend
@@ -602,6 +603,17 @@ function pushEvent(kind,text,o){
   S.events.push(e);if(S.events.length>200)S.events.shift();
   return e;
 }
+/* the pilots' voices (C-69, playtest 1): a line becomes a speech bubble by the ship for 2 s (the HUD draws it). Only
+   your pilots speak; each speaks at most every BARK_GAP s unless it matters (an emergency, a kill, a rule, steadying) */
+let BARK_GAP=4;           // placeholder
+function say(s,text,tone,urgent){
+  if(!s||!s.alive||s.faction!=='reb'||s.quiet||!text)return false;
+  if(!urgent&&S.t-(s.barkT==null?-99:s.barkT)<BARK_GAP)return false;
+  s.barkT=S.t;
+  S.barks.push({id:++S.barkN,ship:s.id,text,tone:tone||'info',t:+S.t.toFixed(2)});
+  if(S.barks.length>60)S.barks.shift();
+  return true;
+}
 function floater(s,text,col){S.floaters.push({x:s.x,y:s.y-40,text,col,t:S.t});if(S.floaters.length>60)S.floaters.shift();}
 
 /* =====================================================================
@@ -652,8 +664,11 @@ function think(s){
   if(!beh)beh=panicBehaviour(s);
   if(!beh)beh=ruleBehaviour(s,w,T,P);
   if(!beh)beh=stamp(orderBehaviour(s,w,o,T,P));
+  const was=s.beh;
   setBeh(s,beh);
   s.assess=assessOf(s);
+  // a new job is worth a word: a new target, or a change of what it is doing (rate-limited, so a furball stays quiet)
+  if(s.beh!==was&&(!was||was.kind!==s.beh.kind||was.target!==s.beh.target)&&s.beh.kind!=='form'&&!s.beh.rule)say(s,s.assess,'info',false);
   abilityTick(s);
 }
 /* a command or a free response holds a ship until it runs out: Recall flies it out, Override holds it to its
@@ -800,7 +815,7 @@ function moraleTick(){
       if(s.faction==='reb'&&!s.quiet)raiseEmergency(s,'panic');
     } else if(s.panic&&s.pilot.cool>STEADY_AT){
       s.panic=null;
-      if(s.faction==='reb'&&!s.quiet){pushEvent('steady',s.name+' steadies',{ship:s.id,x:s.x,y:s.y,tone:'good'});clearEmergency(s,'steadied');}
+      if(s.faction==='reb'&&!s.quiet){pushEvent('steady',s.name+' steadies',{ship:s.id,x:s.x,y:s.y,tone:'good'});clearEmergency(s,'steadied');say(s,pickLine(s,'steady'),'good',true);}
     }
   }
 }
@@ -818,6 +833,7 @@ function raiseEmergency(s,kind){
   const e=pushEvent('emergency',s.name+(kind==='panic'?(s.panic&&s.panic.mode==='flee'?' is panicking: fleeing':' is panicking: frozen'):' is pinned')+' · "'+quote+'"',
     {ship:s.id,x:s.x,y:s.y,tone:'hazard',opts:emergencyOpts(s)});
   s.emerg.ev=e.id;
+  say(s,quote,'hazard',true);
   S.m.emergencies.push({ship:s.id,kind,t:+S.t.toFixed(2),resp:null});
   S.m.alerts.push({t:S.t,ship:s.id,answered:null});
 }
@@ -1096,6 +1112,7 @@ function ruleBehaviour(s,w,T,P){
     const key=hit.r.rule+'|'+s.wing+'|'+hit.b.say,L=S.lastRuleEv;
     if(L&&L.key===key&&S.t-L.t<1&&S.events.includes(L.ev)){L.names.push(s.name);L.ev.text=RULES[hit.r.rule].name+': '+listNames(L.names)+' '+plural(hit.b.say);}
     else{const ev=pushEvent('rule',RULES[hit.r.rule].name+': '+s.name+' '+hit.b.say,{ship:s.id,x:s.x,y:s.y,tone:'info'});S.lastRuleEv={key,t:S.t,ev,names:[s.name]};}
+    hit.b.rule=hit.r.rule;const keep=s.beh;s.beh=hit.b;say(s,assessOf(s),'info',true);s.beh=keep;   // the pilot says it in their words
   }
   hit.b.hard=true;hit.b.rule=hit.r.rule;
   return hit.b;
@@ -1156,6 +1173,7 @@ const ASSESS={
   board:['Marines away!','Docking now.'],
   shaken:['Not that one, lead, there\'s too many.','I\'ll stay on your wing for this one.'],
   fallback:['Hurt, falling back on you.','Need a breather, lead.'],
+  steady:['Okay. Okay, I\'m back.','Got my head back, lead.'],
   form:['On your wing.','Forming up.'],
 };
 function pickLine(s,key,t){
@@ -1748,6 +1766,7 @@ const TUNE={
   PANIC_FLEE:{get:()=>PANIC_FLEE,set:v=>{PANIC_FLEE=v;},min:0,max:1,step:0.05,label:'Panic: chance to flee (else freeze)'},
   SHAKEN_ODDS:{get:()=>SHAKEN_ODDS,set:v=>{SHAKEN_ODDS=v;},min:1,max:6,step:1,label:'SHAKEN hangs back at odds'},
   SHAKEN_DISENGAGE:{get:()=>SHAKEN_DISENGAGE,set:v=>{SHAKEN_DISENGAGE=v;},min:1,max:3,step:0.1,label:'SHAKEN falls back sooner ×'},
+  BARK_GAP:{get:()=>BARK_GAP,set:v=>{BARK_GAP=v;},min:0,max:20,step:0.5,label:'A pilot speaks at most every (s)'},
   PIN_N:{get:()=>PIN_N,set:v=>{PIN_N=v;},min:1,max:5,step:1,label:'Pinned by (guns on it)'},
   PRES_HULL:{get:()=>PRES_HULL,set:v=>{PRES_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Preservation: hull under'},
   GUARDIAN_SECS:{get:()=>GUARDIAN_SECS,set:v=>{GUARDIAN_SECS=v;},min:0.5,max:10,step:0.5,label:'Guardian: hit within (s)'},
@@ -1791,7 +1810,7 @@ const GROUPS={Run:['HC_MAP','TS_SLOW','TS_FAST','HC_CP'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
   Rules:['PRES_HULL','GUARDIAN_SECS','GUARDIAN_R','ESCAPE_K','FORM_SECS','BRING_HULL','SAVIOUR_HULL'],
-  Morale:['MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
+  Morale:['BARK_GAP','MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
   Commands:['CP_OVERRIDE','CP_RECALL','CP_REINFORCE','CP_SUPPORT','CP_RECON','CP_DECOY','OVERRIDE_SECS','OVERRIDE_COOL','RECON_SECS','DECOY_SECS','DECOY_R','RECALL_BOOST','HELP_SECS','RECALL_HULL','PIN_CLEAR']};
 for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
@@ -1800,6 +1819,7 @@ return {key:'hc',name:'Type 3: High Command',
   get S(){return S;},get W(){return W;},get H(){return H;},MARGIN,RU,SU,TICK,TIMESCALES,
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
+  say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,

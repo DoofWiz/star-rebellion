@@ -23,7 +23,8 @@
      F1: the scale (speed, fighting range, weapon range, the 4 × map with the layout scaled, spacing), Jump Out and
          Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings
      F2: the corner-speed turn model (weak slow turns, turning bleeds speed, wider turns), a duel without a knife fight
-     F3: attack runs (run, extend, turn back), stalemate and six break-offs, the reworked tactics, AUTO and its choices */
+     F3: attack runs (run, extend, turn back), stalemate and six break-offs, the reworked tactics, AUTO and its choices
+     F4: speech bubbles (2 s, one a ship, four on screen, rate-limited, your pilots only, the feed kept) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1513,11 +1514,44 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(f3.harass[0]<0.02&&f3.harass[1]>f3.harass[2],'F3: Hit and Run harasses, one at a time, extending further '+JSON.stringify(f3.harass));
  ok(f3.pincer[0]!=null&&f3.pincer[0]>=45,'F3: a pincer comes in from well apart '+JSON.stringify(f3.pincer));
  ok(f3.tray[0]==='auto,tight,spread,screen,pincer,hitrun,defensive'&&f3.tray[1]&&f3.tray[2],'F3: the tray\'s tactics '+JSON.stringify(f3.tray));
+ /* ---------- High Command playtest 1, F4: speech bubbles ---------- */
+ const f4=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id),B=f.BUBBLE_();
+  f.load('hc1_nightfall',0,81);SIM.runFor(0.2);f.bubbleTick(1e9);   // the opening callouts, cleared
+  const t0=2e9;
+  out.say=[SIM.say('P1','Lining up on Relay K-7.','info',true)];
+  f.bubbleTick(t0);out.say.push(f.bubbles_().map(b=>b.ship+':'+b.text).join());
+  f.bubbleTick(t0+B.MS-1);out.say.push(f.bubbles_().length);
+  f.bubbleTick(t0+B.MS+1);out.say.push(f.bubbles_().length,B.MS);
+  // one a ship (the newer line), at most four on screen
+  SIM.say('P1','First.','info',true);SIM.say('P1','Second.','info',true);f.bubbleTick(t0+3000);
+  out.one=f.bubbles_().filter(b=>b.ship==='P1').map(b=>b.text).join();
+  for(const id of ['P2','P3','P4','P5'])SIM.say(id,'Here.','info',true);f.bubbleTick(t0+3001);
+  out.cap=[f.bubbles_().length,B.MAX];
+  // rate-limited unless it matters; only your pilots speak
+  SIM.runFor(0.1);
+  out.limit=[SIM.say('P2','Again.','info',false),SIM.say('E2','Hegemony chatter.','info',true),SIM.TUNE.BARK_GAP.get()];
+  // an emergency is said aloud and still goes in the feed
+  f.load('hc1_nightfall',0,82);let n=0;while(!by('P2').emerg&&n++<4000)SIM.step();
+  const bk=S().barks.filter(b=>b.ship==='P2'&&b.tone==='hazard');
+  f.bubbleTick(t0+10000);
+  out.emerg=[bk.length>=1,S().events.some(e=>e.kind==='emergency'&&e.ship==='P2'),f.bubbles_().some(b=>b.ship==='P2'&&b.tone==='hazard')];
+  // a fight talks: new targets and kills as it plays
+  f.load('hc1_nightfall',0,83);SIM.runFor(40);
+  out.talk=[S().barks.length,[...new Set(S().barks.map(b=>b.tone))].sort().join()];
+  return out;
+ });
+ ok(f4.say[0]&&f4.say[1]==='P1:Lining up on Relay K-7.'&&f4.say[2]===1&&f4.say[3]===0&&f4.say[4]===2000,'F4: a line pops up for 2 s '+JSON.stringify(f4.say));
+ ok(f4.one==='Second.'&&f4.cap[0]===f4.cap[1]&&f4.cap[1]===4,'F4: one bubble a ship, four on screen '+JSON.stringify([f4.one,f4.cap]));
+ ok(f4.limit[0]===false&&f4.limit[1]===false&&f4.limit[2]===4,'F4: rate-limited, your pilots only '+JSON.stringify(f4.limit));
+ ok(f4.emerg.every(Boolean),'F4: an emergency is said aloud and kept in the feed '+JSON.stringify(f4.emerg));
+ ok(f4.talk[0]>=5,'F4: a fight talks '+JSON.stringify(f4.talk));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===8&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
