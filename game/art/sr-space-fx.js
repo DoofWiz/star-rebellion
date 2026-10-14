@@ -58,8 +58,15 @@ window.SR_SPACE_FX=(function(){
     boltCore:2,             // the bolt's hot core width
     missileSmoke:0.028,     // seconds of game time between missile smoke puffs
     missileWobble:2.2,      // visual wobble (world units) in hard turns
-    smokeStage2:3,          // damage-smoke puffs a second at stage 2
-    smokeStage3:7,          //  … and at stage 3 (plus fire)
+    trailSmokeAt:0.25,      // hull fraction at or under which a ship streams a smoke trail
+    trailFireAt:0.10,       //  … and burns: fire licks the hull and the smoke turns black
+    trailSmokeRate:9,       // smoke-trail puffs a second (the fire adds its own on top)
+    smokeStage2:3,          // stage fallback when hullFrac isn't on the view object
+    smokeStage3:7,
+    spiralChance:0.5,       // the chance a killed fighter careens off in a death spiral first
+    spiralSecs:2,           //  … for this long, then the explosion fires where it ends
+    spiralSpin:7,           // the corpse's tumble rate, rad/s
+    laserLen:70,            // a laser dart's beam length (world units)
     muzzleDur:0.085,        // seconds a muzzle flash lives
     sparkN:6,               // sparks per armour/hull bolt hit
     shardN:5,               // hex shards per shield hit
@@ -186,6 +193,21 @@ window.SR_SPACE_FX=(function(){
       const rk=ease.outCubic(Math.min(1,k*1.4));
       drawSpr(c,inkRing(C.hazard),e.x,e.y,e.size*(0.6+4.5*rk),(1-k)*0.9,0);
       if(k<0.2)drawSpr(c,glowDot('#fffbe6'),e.x,e.y,e.size*3*(1-k/0.2),1,1);
+    }},
+    spiral:{layer:'over',dur:2,draw(c,e,k,v){
+      const p=spiralPos(e,k);
+      // the corpse: the stage-3 hull tumbling, trailing its own light
+      c.save();c.translate(p.x,p.y);c.rotate(e.h0+k*e.dur*e.spin*(1+k*1.5));c.globalAlpha=1;
+      c.drawImage(e.cv,-e.whalf,-e.whalf,2*e.whalf,2*e.whalf);c.restore();
+      const fl=0.7+0.3*Math.sin(v.now/41);
+      drawSpr(c,puff(FIRE[1],0),p.x,p.y,e.sc*8*fl,0.9,1);
+      drawSpr(c,puff('#fff3b0',0),p.x,p.y,e.sc*4*fl,0.95,1);
+      // fire and smoke dropped along the path (game-time gated, so pause freezes the stream)
+      const step=0.045;
+      while(GT-e.t0>e.emitN*step&&e.emitN*step<e.dur){const q=spiralPos(e,(e.emitN*step)/e.dur);e.emitN++;
+        emit(puff('#3a3a42',1),q.x+rs(-4,4),q.y+rs(-4,4),rs(-10,10),rs(-10,10),rs(1,1.7),e.sc*4,e.sc*12,{drag:0.4,pr:1,al:0.85});
+        if(e.emitN%2)emit(puff(FIRE[1+(e.emitN%4?0:1)],1),q.x,q.y,rs(-16,16),rs(-16,16),rs(0.3,0.5),e.sc*4,e.sc*1.5,{pr:1});
+        if(e.emitN%3===0)emit(glowDot('#ffb347'),q.x,q.y,rs(-60,60),rs(-60,60),rs(0.4,0.8),3.5,1,{add:1,pr:0});}
     }},
     wreck:{layer:'under',dur:7,draw(c,e,k){if(!e.cv)return;c.save();c.translate(e.x,e.y);c.rotate(e.h||0);c.globalAlpha=0.85*(1-ease.outCubic(k));c.drawImage(e.cv,-e.whalf,-e.whalf,2*e.whalf,2*e.whalf);c.restore();c.globalAlpha=1;}},
     warpout:{layer:'over',dur:TUNE.warpOutDur,draw(c,e,k){
@@ -327,14 +349,24 @@ window.SR_SPACE_FX=(function(){
     if(s.lead&&lod>0){c.save();c.translate(s.x,s.y);c.font='800 '+(11/z)+'px "Exo 2",sans-serif';c.textAlign='center';c.lineWidth=3/z;c.strokeStyle=C.ink;c.strokeText('★',0,-sc*30);c.fillStyle='#f4f0e6';c.fillText('★',0,-sc*30);c.restore();}
     // pinned: a pulsing hazard ring (steady under reduced motion)
     if(s.pinned){const pr=sc*36*(view.reduced?1:1+0.1*Math.sin(view.now/140));drawSpr(c,inkRing(C.hazard),s.x,s.y,pr,view.reduced?0.8:0.6+0.35*Math.sin(view.now/140),0);}
-    // --- damage smoke and fire (game time: freezes on pause) ---
-    const stg=s.damageStage|0;
-    if(stg>=2&&GT>a.smokeT){
-      a.smokeT=GT+1/((stg>=3?TUNE.smokeStage3:TUNE.smokeStage2)*(lod===0?0.4:1));
-      const bx=s.x-Math.cos(vh)*sc*14+rs(-6,6),by=s.y-Math.sin(vh)*sc*14+rs(-6,6);
-      emit(puff('#7a7a82',1),bx,by,-Math.cos(vh)*30+rs(-14,14),-Math.sin(vh)*30+rs(-14,14),rs(0.9,1.5),sc*4,sc*11,{drag:1.2,pr:0,al:0.8});
-      if(stg>=3){emit(puff(FIRE[1+(R()<0.5?0:1)],1),bx,by,rs(-16,16),rs(-16,16),rs(0.25,0.45),sc*3.5,sc*1.5,{pr:1});
-        if(R()<0.5)emit(glowDot('#ffb347'),bx,by,rs(-50,50),rs(-50,50),rs(0.4,0.8),3,1,{add:1,pr:0});}
+    // --- the hurt read (game time: freezes on pause). hullFrac is the truth when the view carries it:
+    //     ≤ trailSmokeAt (25%) the ship STREAMS a smoke trail — puffs dropped in its wake that hang and grow,
+    //     a ribbon you read at any zoom; ≤ trailFireAt (10%) it BURNS: fire licks the hull, embers, black smoke.
+    //     Stage 2/3 is the fallback for callers without hullFrac (the old subtle puffs were weakness-level read).
+    const stg=s.damageStage|0,hf=s.hullFrac;
+    const smoking=hf!=null?hf<=TUNE.trailSmokeAt:stg>=2,burning=hf!=null?hf<=TUNE.trailFireAt:stg>=3;
+    if(burning){   // fire on the hull itself, every frame: one flickering additive lobe amidships (cheap, loud)
+      const fl=0.75+0.25*Math.sin(view.now/47+a.seed*9);
+      drawSpr(c,puff(FIRE[1],0),s.x-Math.cos(vh)*sc*6,s.y-Math.sin(vh)*sc*6,sc*7*fl,0.85,1);
+      drawSpr(c,puff('#fff3b0',0),s.x-Math.cos(vh)*sc*4,s.y-Math.sin(vh)*sc*4,sc*3.6*fl,0.9,1);
+    }
+    if(smoking&&GT>a.smokeT){
+      a.smokeT=GT+1/(TUNE.trailSmokeRate*(lod===0?0.5:1));
+      const bx=s.x-Math.cos(vh)*sc*16+rs(-4,4),by=s.y-Math.sin(vh)*sc*16+rs(-4,4);
+      // trail smoke: dropped in the wake with almost no velocity, so it hangs as a ribbon behind the flight path
+      emit(puff(burning?'#3a3a42':'#7a7a82',1),bx,by,rs(-8,8),rs(-8,8),rs(1.3,2),sc*4,sc*13,{drag:0.4,pr:1,al:burning?0.9:0.75});
+      if(burning){emit(puff(FIRE[1+(R()<0.5?0:1)],1),bx,by,rs(-14,14),rs(-14,14),rs(0.3,0.5),sc*4,sc*1.6,{pr:1});
+        emit(glowDot('#ffb347'),bx,by,-Math.cos(vh)*rs(20,70)+rs(-30,30),-Math.sin(vh)*rs(20,70)+rs(-30,30),rs(0.4,0.9),3.5,1,{add:1,pr:0});}
     }
     if(s.crits&&s.crits.indexOf('feed')>=0&&GT>a.feedT){a.feedT=GT+rs(0.5,1.3);const m=(D.mounts&&D.mounts.primary&&D.mounts.primary[0])||[8,0];
       const mx=s.x+(Math.cos(h)*m[0]-Math.sin(h)*m[1])*sc,my=s.y+(Math.sin(h)*m[0]+Math.cos(h)*m[1])*sc;
@@ -364,8 +396,18 @@ window.SR_SPACE_FX=(function(){
     const ra=view.ra==null?1:view.ra,dt=view.tick==null?0.05:view.tick;
     const x=p.x-p.vx*(1-ra)*dt,y=p.y-p.vy*(1-ra)*dt,sp=Math.hypot(p.vx,p.vy)||1;
     const born=Math.max(0,(x-p.x0)*(p.vx/sp)+(y-p.y0)*(p.vy/sp));
-    const L=Math.min(26,born),tx=x-p.vx/sp*L,ty=y-p.vy/sp*L;
     const fade=p.life?clamp((p.life-p.age)/0.12,0,1):1;
+    if(P&&P.type==='slaser'){   // a laser: a coherent beam-dart — hard edges, a white filament, no tracer taper
+      const BL=Math.min(P.len||TUNE.laserLen,born),hx=x-p.vx/sp*BL,hy=y-p.vy/sp*BL;
+      c.lineCap='butt';
+      c.globalAlpha=0.3*fade;c.strokeStyle=glow;c.lineWidth=Math.max(7,4.5/view.z);
+      c.beginPath();c.moveTo(hx,hy);c.lineTo(x,y);c.stroke();
+      c.globalAlpha=0.85*fade;c.lineWidth=Math.max(2.6,1.6/view.z);c.stroke();
+      c.globalAlpha=fade;c.strokeStyle='#ffffff';c.lineWidth=Math.max(1,0.7/view.z);c.stroke();
+      if(view.lod>1)drawSpr(c,flare(glow),x,y,Math.max(7,5/view.z),0.9*fade,1,Math.atan2(p.vy,p.vx)+Math.PI/4);
+      c.globalAlpha=1;return;
+    }
+    const L=Math.min(26,born),tx=x-p.vx/sp*L,ty=y-p.vy/sp*L;
     c.globalAlpha=0.4*fade;c.lineCap='round';c.strokeStyle=glow;c.lineWidth=Math.max(TUNE.boltGlow,3/view.z);
     c.beginPath();c.moveTo(tx,ty);c.lineTo(x,y);c.stroke();
     c.globalAlpha=fade;c.strokeStyle=core;c.lineWidth=Math.max(TUNE.boltCore,1.2/view.z);c.stroke();
@@ -584,6 +626,38 @@ window.SR_SPACE_FX=(function(){
   }
 
   /* =================================================================
+     LOCK MARKS — the one read that must be instant with a dozen ships
+     locking at once, so the design is binary at a glance:
+       acquiring  two THIN ARCS, slowly rotating, closing onto the ring
+                  — rotating = not yet, always
+       locked     they SNAP to four short corner ticks and a solid
+                  diamond, dead still and brighter — still = locked
+     plus one small pop ring at the instant of the flip. Gold for the
+     player's locks (command colour), hazard for a lock on the player.
+     lockMark(ctx, x, y, r, k, {locked, hostile, flipAge, alpha}, view)
+       r the ring radius (world units), k the 0..1 progress while
+       acquiring, flipAge seconds since the lock completed (the pop).
+     ================================================================= */
+  function lockMark(c,x,y,r,k,o,view){
+    o=o||{};const col=o.hostile?C.hazard:C.gold,z=view.z,al=o.alpha==null?1:o.alpha;
+    c.save();c.translate(x,y);
+    if(!o.locked){
+      const R2=r*(1+0.55*(1-clamp(k,0,1))),rot=view.reduced?0:(view.now/1400)%TAU;
+      c.rotate(rot);c.globalAlpha=0.55*al;c.strokeStyle=col;c.lineWidth=1.6/z;c.lineCap='butt';
+      for(const a0 of[0,Math.PI]){c.beginPath();c.arc(0,0,R2,a0-0.6,a0+0.6);c.stroke();}
+    } else {
+      c.globalAlpha=0.95*al;c.strokeStyle=col;c.lineWidth=2.2/z;c.lineCap='square';
+      const L=r*0.3;
+      for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(r,r-L);c.lineTo(r,r);c.lineTo(r-L,r);c.stroke();}
+      c.beginPath();c.moveTo(0,-r-7/z);c.lineTo(4.5/z,-r-14/z);c.lineTo(0,-r-21/z);c.lineTo(-4.5/z,-r-14/z);c.closePath();
+      c.fillStyle=col;c.fill();c.lineWidth=1.4/z;c.strokeStyle=C.ink;c.stroke();
+      if(o.flipAge!=null&&o.flipAge<0.3){const kk=o.flipAge/0.3;
+        c.globalAlpha=(1-kk)*0.8*al;c.lineWidth=2/z;c.strokeStyle=col;c.beginPath();c.arc(0,0,r*(1+0.5*kk),0,TAU);c.stroke();}
+    }
+    c.restore();c.globalAlpha=1;
+  }
+
+  /* =================================================================
      EVENTS — one-shots the renderer sends (the §9 list). Everything
      spends from the pool and the one-shot list; nothing reads the sim.
      ================================================================= */
@@ -597,6 +671,39 @@ window.SR_SPACE_FX=(function(){
       out.push({cv,half,a:(cuts[i][0]+cuts[i][1])/2+rs(-0.4,0.4),r0:rs(0,TAU),spin:rs(-5,5)});}
     return out;
   }
+  function fighterBoom(x,y,d,size,livery){
+    const ib=d.iconBoost||1;   // the renderer's icon boost, so the debris matches the hulls it draws (arena-hc C-73)
+    const chunks=d.art?cutChunks(d.art,livery,d.size,d.stage||1):null;
+    const e=oneshot('boom',x,y,{size,seed:(R()*1e6)|0});
+    if(chunks){e.chunks=chunks;e.chunkW=ART_R*artScale({size:d.size||4,iconBoost:ib})*0.6;}
+    for(let i=0;i<TUNE.boomDebris;i++){const a=rs(0,TAU),v=rs(60,220);
+      emit(puff('#5a5a62',1),x,y,Math.cos(a)*v,Math.sin(a)*v,rs(0.6,1.2),4,3,{spin:rs(-9,9),rot:a,drag:0.6,pr:0});}
+    for(let i=0;i<10;i++)emit(glowDot('#ffb347'),x,y,rs(-240,240),rs(-240,240),rs(0.4,0.9),5,2,{add:1,drag:0.8,pr:1});
+    emit(puff('#7a7a82',1),x,y,rs(-14,14),rs(-14,14),1.6,size*0.4,size*0.95,{pr:1,al:0.7});
+    addShake(TUNE.shakeBoom,x,y);flashAt(x,y,0.5);
+  }
+  /* the death spiral: the corpse careens off on a wild, tightening curl (a path baked once at the kill, so pause
+     and timescale replay it exactly), tumbling and streaming fire, then the real explosion fires where it ends.
+     Visual only — the sim's kill, the SPLASH floater and the scoring all happened at the moment of death. */
+  function deathSpiral(x,y,d,size,livery){
+    const sc=artScale({size:d.size||4,iconBoost:d.iconBoost||1});
+    let cv=null;try{   // the corpse's own bake: stage-3 scorch, powered down (a dead ship goes dark)
+      const px=2.5,half=Math.ceil(px*ART_R)+2;cv=document.createElement('canvas');cv.width=cv.height=half*2;
+      SA.ship(cv.getContext('2d'),d.art,half,half,0,px,0,{livery,damage:0.85,still:true,off:true});
+    }catch(e){cv=null;}
+    if(!cv){fighterBoom(x,y,d,size,livery);return;}
+    const dur=Math.max(0.4,TUNE.spiralSecs),vh0=d.vh!=null?d.vh:d.h!=null?d.h:R()*TAU;
+    const v0=Math.max(120,(d.speed||0)*0.7+140),curl=(R()<0.5?-1:1)*rs(1.2,2.6),N=32,path=new Array(N+1);
+    let px2=x,py2=y,hd=vh0+rs(-0.3,0.3);
+    for(let i=0;i<=N;i++){path[i]={x:px2,y:py2};const t=i/N*dur,st=dur/N,v=v0*(1-0.55*(i/N));
+      hd+=curl*t*st*2.2;px2+=Math.cos(hd)*v*st;py2+=Math.sin(hd)*v*st;}
+    const e=oneshot('spiral',x,y,{dur,path,cv,whalf:sc*ART_R,h0:d.h||vh0,spin:(curl<0?-1:1)*TUNE.spiralSpin,
+      sc,size,emitN:0,boomD:{art:d.art,size:d.size,stage:d.stage},livery});
+    for(let i=0;i<5;i++)emit(sparkBit('#ffd866'),x,y,rs(-160,160),rs(-160,160),rs(0.2,0.4),5,2,{add:1,rot:R()*TAU,drag:1.5,pr:1});
+    addShake(TUNE.shakeBoom*0.5,x,y);
+  }
+  const spiralPos=(e,k)=>{const u=clamp(k,0,1)*(e.path.length-1),i=u|0,f=u-i,a=e.path[i],b=e.path[Math.min(i+1,e.path.length-1)];
+    return {x:lerp(a.x,b.x,f),y:lerp(a.y,b.y,f)};};
   function event(kind,d){
     d=d||{};const x=d.x||0,y=d.y||0,ib=d.iconBoost||1;   // ib: the renderer's icon boost, so booms match the hulls it draws (arena-hc C-73)
     switch(kind){
@@ -636,14 +743,11 @@ window.SR_SPACE_FX=(function(){
           for(let i=0;i<26;i++)emit(puff(i%3?'#8a8a92':'#5a5a62',1),x+rs(-size,size)*0.5,y+rs(-size,size)*0.4,rs(-70,70),rs(-90,-10),rs(1.5,3),8,26,{drag:0.5,pr:1,al:0.8});
           for(let i=0;i<22;i++)emit(glowDot('#ffb347'),x,y,rs(-260,260),rs(-260,260),rs(0.5,1.2),6,2,{add:1,drag:0.8,pr:1});
           addShake(TUNE.shakeStation,x,y);flashAt(x,y,1);}
-        else{const chunks=d.art?cutChunks(d.art,d.livery||(d.faction==='reb'?'rebel':'heg'),d.size,d.stage||1):null;
-          const e=oneshot('boom',x,y,{size,seed:(R()*1e6)|0});
-          if(chunks){e.chunks=chunks;e.chunkW=ART_R*artScale({size:d.size||4,iconBoost:ib})*0.6;}
-          for(let i=0;i<TUNE.boomDebris;i++){const a=rs(0,TAU),v=rs(60,220);
-            emit(puff('#5a5a62',1),x,y,Math.cos(a)*v,Math.sin(a)*v,rs(0.6,1.2),4,3,{spin:rs(-9,9),rot:a,drag:0.6,pr:0});}
-          for(let i=0;i<10;i++)emit(glowDot('#ffb347'),x,y,rs(-240,240),rs(-240,240),rs(0.4,0.9),5,2,{add:1,drag:0.8,pr:1});
-          emit(puff('#7a7a82',1),x,y,rs(-14,14),rs(-14,14),1.6,size*0.4,size*0.95,{pr:1,al:0.7});
-          addShake(TUNE.shakeBoom,x,y);flashAt(x,y,0.5);}
+        else{
+          const livery=d.livery||(d.faction==='reb'?'rebel':'heg');
+          const wantSpiral=d.spiral!=null?!!d.spiral:R()<TUNE.spiralChance;   // size above already carries ib
+          if(wantSpiral&&d.art){deathSpiral(x,y,d,size,livery);}
+          else fighterBoom(x,y,d,size,livery);}
         break;}
       case 'collide':{oneshot('crunch',x,y,{size:26*ib});
         for(let i=0;i<8;i++)emit(sparkBit('#ffd866'),x,y,rs(-200,200),rs(-200,200),rs(0.2,0.4),5,2,{add:1,rot:R()*TAU,drag:1.5,pr:1});
@@ -707,7 +811,8 @@ window.SR_SPACE_FX=(function(){
     GT+=dtGame||0;NOW+=dtReal||0;LASTRDT=dtReal||16;
     SHK.update((dtReal||16)/1000);
     poolUpdate(dtGame||0);
-    for(let i=OS.length-1;i>=0;i--)if(GT-OS[i].t0>OS[i].dur)OS.splice(i,1);
+    for(let i=OS.length-1;i>=0;i--){const e=OS[i];if(GT-e.t0>e.dur){OS.splice(i,1);
+      if(e.kind==='spiral'){const p=spiralPos(e,1);fighterBoom(p.x,p.y,e.boomD,e.size,e.livery);}}}
     msUpd=msUpd*0.9+(performance.now()-t0)*0.1;
   }
   function drawLayer(c,layer,view){
@@ -732,7 +837,7 @@ window.SR_SPACE_FX=(function(){
     drawBolt:(c,p,v)=>drawBolt(c,p,normView(v)),drawMissile:(c,m,v)=>drawMissile(c,m,normView(v)),
     drawTrail:(c,s,v)=>drawTrail(c,s,normView(v)),drawChaffCloud:(c,f,v)=>drawChaffCloud(c,f,normView(v)),
     drawBoardLink:(c,a,b,k,v)=>drawBoardLink(c,a,b,k,normView(v)),
-    badge,camShake:v=>camShake(normView(v)),
+    badge,lockMark:(c,x,y,r,k,o,v)=>lockMark(c,x,y,r,k,o,normView(v)),camShake:v=>camShake(normView(v)),
     setShake(v){shakeOn=!!v;},stats,
     TUNE,   // live tunables: a panel slider on any field works
     fn:{emit,oneshot,fireball,hullSprite,cutChunks,addShake,pool_:()=>POOL,os_:()=>OS},   // for the guide and tests

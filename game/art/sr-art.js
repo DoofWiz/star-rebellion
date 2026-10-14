@@ -1564,7 +1564,10 @@ window.SR_ART=(function(){
     mininglaser:{type:'beam',style:'praxon',speed:1e9,len:0,w:6},arclight:{type:'beam',style:'lmc',speed:1e9,len:0,w:3.4},
     /* ship and vehicle weapons */
     repeaters:{type:'bolt',style:'bhord',speed:900,len:20,w:4,twin:3.4,space:1},missiles:{type:'missile',style:'varrondow',speed:380,len:10,w:4,space:1},doorgun:{type:'tracer',style:'bhord',speed:1500,len:24,w:2.6},
-    dronegun:{type:'bolt',style:'autocom',speed:950,len:14,w:3.4,space:1},cruiser:{type:'bolt',style:'patriot',speed:900,len:18,w:5},dispersal:{type:'pellets',style:'patriot',speed:900,len:8,w:3,pellets:5,spread:.2},strider:{type:'tracer',style:'autocom',speed:1500,len:24,w:3.4,heavy:1},
+    dronegun:{type:'bolt',style:'autocom',speed:950,len:14,w:3.4,space:1},cruiser:{type:'bolt',style:'patriot',speed:900,len:18,w:5},
+    /* ship lasers (HC visual pass): slaser draws as a coherent beam-dart, not a tracer. Colours stay the maker's
+       (rebel warm, Hegemony cold); the shape carries the difference. Assign per weapon in the sim when ready. */
+    shiplaser:{type:'slaser',style:'devlin',speed:2500,len:70,w:2,space:1},heglaser:{type:'slaser',style:'varrondow',speed:2500,len:70,w:2,space:1},dispersal:{type:'pellets',style:'patriot',speed:900,len:8,w:3,pellets:5,spread:.2},strider:{type:'tracer',style:'autocom',speed:1500,len:24,w:3.4,heavy:1},
   };
   const MODE_ROUNDS={single:[0],semi:[0],auto:[0,.09,.18,.27],fan:[0,.07,.14]};
   /* An attack is an attempt, not a bullet. volley() turns one mechanical result (hit or miss, and

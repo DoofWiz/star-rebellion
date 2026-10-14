@@ -48,12 +48,12 @@ label.chk{display:inline-flex;gap:6px;align-items:center;font:700 13px var(--ui)
 
 <section id="ships">
   <h2>Ships: states at three zooms</h2>
-  <p>One ship flying a lazy circuit, drawn through the cached-hull-plus-live-layers path (<code>shipBody</code>) with the new trail. The same state at the commander's zoom (0.12), mid (0.4) and close (1.2): engines breathe, lights blink, banks squash, damage smokes, abilities and criticals tell.</p>
+  <p>One ship flying a lazy circuit, drawn through the cached-hull-plus-live-layers path (<code>shipBody</code>) with the new trail, at the commander's zoom (0.12), mid (0.4) and close (1.2). The hull slider is the hurt read: at <b>25%</b> the ship streams a smoke trail, at <b>10%</b> it burns — fire on the hull and a black ribbon you can read at any zoom.</p>
   <div class="row">
     <span class="ctl">Ship <select id="s-art"></select></span>
     <span class="ctl">Speed <input type="range" id="s-spd" min="0" max="1" step="0.05" value="0.8"></span>
     <span class="ctl">Turn <input type="range" id="s-turn" min="-1" max="1" step="0.05" value="0"></span>
-    <span class="ctl">Damage <select id="s-dmg"><option value="0" selected>0 · clean</option><option value="1">1 · scuffed</option><option value="2">2 · smoking</option><option value="3">3 · burning</option></select></span>
+    <span class="ctl">Hull <input type="range" id="s-hull" min="0" max="100" step="1" value="100"> <b id="s-hull-v">100%</b></span>
   </div>
   <div class="row" id="s-flags"></div>
   <div class="grid3">
@@ -80,6 +80,8 @@ label.chk{display:inline-flex;gap:6px;align-items:center;font:700 13px var(--ui)
   <p>Every event from the brief's §9 list, fired on a loop at a target Mote. Pause freezes them mid-frame (game-time effects obey the clock); the speed control shows how they cap at 3×.</p>
   <div class="row">
     <span class="ctl">Event <select id="fx-kind"></select></span>
+    <span class="ctl">Death spiral chance <input type="range" id="fx-spchance" min="0" max="1" step="0.05" value="0.5"> <b id="fx-spchance-v">50%</b></span>
+    <span class="ctl">Spiral secs <input type="range" id="fx-spsecs" min="0.5" max="4" step="0.25" value="2"> <b id="fx-spsecs-v">2s</b></span>
     <button class="btn" id="fx-once" type="button">Fire once</button>
     <button class="btn q" id="fx-loop" aria-pressed="true" type="button">Loop: on</button>
   </div>
@@ -90,6 +92,12 @@ label.chk{display:inline-flex;gap:6px;align-items:center;font:700 13px var(--ui)
   <h2>Status badges</h2>
   <p>The twelve ability and action glyphs, redrawn as filled chunky art for <code>SR_SPACE_FX.badge</code>. The pop runs <code>ease.outBack</code>; under reduced motion it lands instantly.</p>
   <div class="frame"><canvas id="cv-badge" data-h="120"></canvas></div>
+</section>
+
+<section id="locks">
+  <h2>Lock-on marks</h2>
+  <p>The binary read for a busy sky: <b>rotating thin arcs = acquiring</b>; the instant a lock completes they snap to <b>four still corner ticks and a solid diamond</b>, with one pop ring at the flip. Gold is the player's lock; hazard orange is a lock on the player. No glow, no fill — it sits over the fight without covering it.</p>
+  <div class="frame"><canvas id="cv-lock" data-h="190"></canvas></div>
 </section>
 
 <section id="back">
@@ -162,7 +170,9 @@ $('s-art').onchange=benchSync;benchSync();
 let barrelT=-9;
 function benchTick(dt){
   const f=k=>document.querySelector('[data-f="'+k+'"]').checked;
-  bench.speedFrac=+$('s-spd').value;bench.turnFrac=+$('s-turn').value;bench.damageStage=+$('s-dmg').value;
+  bench.speedFrac=+$('s-spd').value;bench.turnFrac=+$('s-turn').value;
+  const hf=+$('s-hull').value/100;$('s-hull-v').textContent=Math.round(hf*100)+'%';
+  bench.hullFrac=hf;bench.damageStage=hf>0.7?0:hf>0.45?1:hf>0.2?2:3;
   bench.boost=f('boost');bench.driftT=f('drift')?1:0;bench.pinned=f('pinned');bench.lead=f('lead');
   bench.panic=f('fleePanic')?'flee':f('freezePanic')?'freeze':null;
   bench.crits=['engine','targeting','controls','emitter','feed','cockpit'].filter(k=>f('c-'+k));
@@ -222,21 +232,28 @@ function stDraw(dt){
 const fxCv=$('cv-fx'),fxC=fxCv.getContext('2d');let fxDpr=0;
 const tgt=mkShip('tgt','mote','heg','heg',4,160,0);tgt.speedFrac=0.4;
 const shooter=mkShip('sh','cross','rebel','reb',5,-220,0);shooter.h=shooter.vh=0;shooter.speedFrac=0.5;
-const KINDS=['muzzle','boltHit shield','boltHit armour','boltHit hull','missileLaunch','missileHit','missileMiss','missileShaken','chaff','explode fighter','explode station','collide','jumpOut','warpIn','ability boost','ability kturn','ability barrel','ability shields','ability fieldrep','ability lockin','command support','command override','command recall','command recon','command decoy','capture','objective done','objective failed','steady'];
+const KINDS=['muzzle','laser burst','boltHit shield','boltHit armour','boltHit hull','missileLaunch','missileHit','missileMiss','missileShaken','chaff','explode fighter','explode fighter (spiral)','explode station','collide','jumpOut','warpIn','ability boost','ability kturn','ability barrel','ability shields','ability fieldrep','ability lockin','command support','command override','command recall','command recon','command decoy','capture','objective done','objective failed','steady'];
 $('fx-kind').innerHTML=KINDS.map(k=>'<option>'+k+'</option>').join('');
-let fxLoop=true,fxLast=-9;
+let fxLoop=true,fxLast=-9,fxLasers=[];
+$('fx-spchance').oninput=e=>{FX.TUNE.spiralChance=+e.target.value;$('fx-spchance-v').textContent=Math.round(e.target.value*100)+'%';};
+$('fx-spsecs').oninput=e=>{FX.TUNE.spiralSecs=+e.target.value;$('fx-spsecs-v').textContent=e.target.value+'s';};
 $('fx-loop').onclick=e=>{fxLoop=!fxLoop;e.target.setAttribute('aria-pressed',fxLoop);e.target.textContent='Loop: '+(fxLoop?'on':'off');};
 $('fx-once').onclick=()=>fireFx();
 function fireFx(){
   const k=$('fx-kind').value,x=tgt.x,y=tgt.y;
   if(k==='muzzle')FX.event('muzzle',{x:shooter.x+40,y:shooter.y,h:0,style:'repeaters',r:16});
+  else if(k==='laser burst'){for(const[sy,st]of[[-14,'shiplaser'],[14,'heglaser']]){
+    const dir=st==='shiplaser'?1:-1,fx0=dir>0?shooter.x+30:tgt.x-30,y0=shooter.y+sy;
+    for(let i=0;i<3;i++)fxLasers.push({x:fx0,y:y0,x0:fx0,y0:y0,vx:dir*2500,vy:0,style:st,age:-i*0.09,life:0.5,faction:dir>0?'reb':'heg'});
+    FX.event('muzzle',{x:fx0,y:y0,h:dir>0?0:Math.PI,style:st,r:13});}}
   else if(k.startsWith('boltHit'))FX.event('boltHit',{x,y,surface:k.split(' ')[1],dir:Math.PI,style:'repeaters',r:30});
   else if(k==='missileLaunch')FX.event('missileLaunch',{x:shooter.x+20,y:shooter.y,faction:'reb'});
   else if(k==='missileHit')FX.event('missileHit',{x,y,size:0.8});
   else if(k==='missileMiss')FX.event('missileMiss',{x:x+60,y:y-40});
   else if(k==='missileShaken')FX.event('missileShaken',{x:x-60,y:y+30});
   else if(k==='chaff')FX.event('chaff',{x:tgt.x-50,y:tgt.y});
-  else if(k==='explode fighter')FX.event('explode',{x,y,size:4,art:'mote',livery:'heg',faction:'heg'});
+  else if(k==='explode fighter')FX.event('explode',{x,y,size:4,art:'mote',livery:'heg',faction:'heg',spiral:false,vh:tgt.vh,speed:300});
+  else if(k==='explode fighter (spiral)')FX.event('explode',{x,y,size:4,art:'mote',livery:'heg',faction:'heg',spiral:true,vh:-0.6,speed:320,h:tgt.h});
   else if(k==='explode station')FX.event('explode',{x,y,size:12,struct:true,art:'relay',faction:'heg'});
   else if(k==='collide')FX.event('collide',{x:(x+shooter.x)/2,y,speed:600});
   else if(k==='jumpOut')FX.event('jumpOut',{ship:shooter});
@@ -257,6 +274,10 @@ function fxDraw(dt){
   FX.drawLayer(fxC,'under',v);
   shooter.trail.length=0;tgt.trail.length=0;
   FX.shipBody(fxC,shooter,v);FX.shipBody(fxC,tgt,v);
+  for(let i=fxLasers.length-1;i>=0;i--){const p=fxLasers[i];p.age+=dt;if(p.age<0)continue;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;
+    if(p.age>=p.life){fxLasers.splice(i,1);continue;}
+    FX.drawBolt(fxC,p,v);}
   FX.drawLayer(fxC,'over',v);
   fxC.setTransform(fxDpr,0,0,fxDpr,0,0);
   FX.drawLayer(fxC,'screen',v);
@@ -275,6 +296,29 @@ function badgeDraw(){
     const pop=reduced?1:Math.min(1,((performance.now()/1000+i*0.23)%2.4)/0.25);
     FX.badge(bC,k,x,46,16,pop);
     bC.font='700 11px "Exo 2",sans-serif';bC.textAlign='center';bC.fillStyle='#b3bbe3';bC.fillText(k,x,92);});
+}
+
+/* =================================================================
+   4b · LOCK MARKS
+   ================================================================= */
+const lkCv=$('cv-lock'),lkC=lkCv.getContext('2d');let lkDpr=0;
+const lkShips=[mkShip('lk0','mote','heg','heg',4,0,0),mkShip('lk1','mote','heg','heg',4,0,0),
+  mkShip('lk2','talon','rebel','reb',4,0,0),mkShip('lk3','talon','rebel','reb',4,0,0)];
+function lockDraw(){
+  if(!lkDpr)lkDpr=fit(lkCv);
+  const v=view(lkCv,0.9,0,0,lkDpr);
+  lkC.setTransform(lkDpr,0,0,lkDpr,0,0);lkC.fillStyle='#0a0c22';lkC.fillRect(0,0,v.W,v.H);
+  const cols=[[-3,'acquiring',false,false],[-1,'locked',true,false],[1,'acquiring you',false,true],[3,'locked on you',true,true]];
+  const cyc=gt%3;
+  world(lkC,v);
+  cols.forEach(([ux,label,locked,hostile],i)=>{
+    const s=lkShips[i];s.x=ux*150;s.y=8;s.h=s.vh=-Math.PI/2;s.trail.length=0;s.speedFrac=0.4;
+    FX.shipBody(lkC,s,v);
+    FX.lockMark(lkC,s.x,s.y,46,locked?1:Math.min(1,cyc/2.2),{locked:locked||cyc>2.4,hostile,flipAge:locked?9:Math.max(0,cyc-2.4)},v);
+  });
+  lkC.setTransform(lkDpr,0,0,lkDpr,0,0);
+  lkC.font='700 11px "Exo 2",sans-serif';lkC.textAlign='center';lkC.fillStyle='#8790c4';
+  cols.forEach(([ux,label])=>lkC.fillText(label.toUpperCase(),v.W/2+ux*150*0.9,v.H-12));
 }
 
 /* =================================================================
@@ -302,7 +346,7 @@ function stressBuild(){
   const put=(id,art,lv,fa,sz,a,r,w,o)=>{const s=mkShip(id,art,lv,fa,sz,0,0);s._a=a;s._r=r;s._w=w;Object.assign(s,o||{});X.ships.push(s);return s;};
   put('anvil','graf','rebel','reb',7,0,860,0.22,{speedFrac:0.4});put('forge','graf','rebel','reb',7,2.6,860,0.22,{speedFrac:0.4});
   for(let i=0;i<3;i++)put('t'+i,'talon','rebel','reb',4,i*2.1,560,0.5,{lead:i===0});
-  for(let i=0;i<3;i++)put('c'+i,'cross','rebel','reb',5,1+i*2.1,700,0.42,{damageStage:i===2?2:0});
+  for(let i=0;i<3;i++)put('c'+i,'cross','rebel','reb',5,1+i*2.1,700,0.42,{damageStage:i===2?2:0,hullFrac:i===2?0.2:i===1?0.08:1});
   const vex=put('vex','scim','heg','heg',5,0.5,420,-0.46,{flagship:true,boost:true});
   for(let i=0;i<4;i++)put('m'+i,'mote','heg','heg',4,i*1.57,520,-0.55,{panic:i===3?'flee':null,damageStage:i===1?3:0});
   for(let i=0;i<2;i++)put('p'+i,'pursuer','heg','heg',3,i*3.1,640,-0.62,{});
@@ -319,7 +363,8 @@ function stressTick(dt){
     const foes=X.ships.filter(q=>q.faction!==a.faction);const b=foes[(Math.random()*foes.length)|0];if(!b)break;
     const h=Math.atan2(b.y-a.y,b.x-a.x),sp=2000;
     const mx=a.x+Math.cos(h)*26,my=a.y+Math.sin(h)*26;
-    X.bolts.push({x:mx,y:my,x0:mx,y0:my,vx:Math.cos(h)*sp,vy:Math.sin(h)*sp,faction:a.faction,style:a.faction==='reb'?'repeaters':(a.drone?'dronegun':'cruiser'),age:0,life:0.55,tgt:b});
+    const st=a.id==='vex'?'heglaser':a.id==='t0'?'shiplaser':a.faction==='reb'?'repeaters':(a.drone?'dronegun':'cruiser');
+    X.bolts.push({x:mx,y:my,x0:mx,y0:my,vx:Math.cos(h)*sp,vy:Math.sin(h)*sp,faction:a.faction,style:st,age:0,life:0.55,tgt:b});
     a.firing=true;
     if(Math.random()<0.25)FX.event('muzzle',{x:mx,y:my,h,style:a.faction==='reb'?'repeaters':'cruiser',r:14});
   }
@@ -345,7 +390,7 @@ function stressTick(dt){
   // a kill every few seconds, respawned by warp-in
   X.killT-=dt;if(X.killT<=0){X.killT=2.6;
     const pool=X.ships.filter(s=>s.size<7&&!s.flagship);const s=pool[(Math.random()*pool.length)|0];
-    FX.event('explode',{x:s.x,y:s.y,size:s.size,art:s.art,livery:s.livery,faction:s.faction});
+    FX.event('explode',{x:s.x,y:s.y,size:s.size,art:s.art,livery:s.livery,faction:s.faction,vh:s.vh,h:s.h,speed:300});
     s._a+=Math.PI;orbit(s,0,4200,3000);s.trail.length=0;
     FX.event('warpIn',{ship:s});}
 }
@@ -364,6 +409,8 @@ function stressDraw(){
   mk('ships',()=>{for(const s of X.ships)FX.shipBody(xC,s,v);});
   mk('bolts',()=>{for(const p of X.bolts)FX.drawBolt(xC,p,v);});
   mk('missiles',()=>{for(const m of X.missiles)FX.drawMissile(xC,m,v);});
+  mk('locks',()=>{FX.lockMark(xC,X.ships[4].x,X.ships[4].y,52,(X.t*0.4)%1,{locked:false,hostile:false},v);
+    FX.lockMark(xC,X.ships[2].x,X.ships[2].y,52,1,{locked:true,hostile:true,flipAge:X.t%4},v);});
   mk('chaff',()=>{for(const f of X.chaff)FX.drawChaffCloud(xC,Object.assign({},f,{t0:f.t0,until:f.until}),Object.assign({},v,{t:X.t}));});
   mk('over',()=>FX.drawLayer(xC,'over',v));
   xC.setTransform(xDpr,0,0,xDpr,0,0);
@@ -392,6 +439,7 @@ function frame(now){
     stDraw(dt);
     fxDraw(dt);
     badgeDraw();
+    lockDraw();
     backDraw();
   } else {stressTick(dt);stressDraw();}
   requestAnimationFrame(frame);
