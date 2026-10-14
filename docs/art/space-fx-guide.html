@@ -116,6 +116,11 @@ label.chk{display:inline-flex;gap:6px;align-items:center;font:700 13px var(--ui)
 <script src="../../game/art/sr-space-fx.js"></script>
 <script>'use strict';
 (function(){
+if(!window.SR_ART||!window.SR_SPACE_FX){
+  document.body.insertAdjacentHTML('afterbegin','<div style="background:#ff4a3d;color:#fff;font:800 15px/1.5 \'Exo 2\',sans-serif;padding:14px 20px;border-bottom:3px solid #070818">'+
+    'The art modules did not load, so nothing will draw. Open this page from <code>docs/art/</code> inside the repo (it loads <code>game/ui/sr-theme.js</code>, <code>game/art/sr-art.js</code> and <code>game/art/sr-space-fx.js</code> by relative path), or use the self-contained build.</div>');
+  return;
+}
 const SA=window.SR_ART,FX=window.SR_SPACE_FX,C=SA.C,TAU=Math.PI*2;
 const $=id=>document.getElementById(id);
 FX.reset();
