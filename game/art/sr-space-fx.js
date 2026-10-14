@@ -160,7 +160,7 @@ window.SR_SPACE_FX=(function(){
      ================================================================= */
   let OS=[];
   function oneshot(kind,x,y,o){
-    if(OS.length>=TUNE.oneshotCap)OS.shift();
+    if(OS.length>=TUNE.oneshotCap){const i=OS.findIndex(q=>q.kind!=='spiral');OS.splice(i<0?0:i,1);}   // a spiral owes an explosion: drop it last (arena-hc C-74)
     const e=Object.assign({kind,x,y,t0:GT,dur:(FXDEF[kind]&&FXDEF[kind].dur)||0.5},o||{});
     OS.push(e);return e;
   }
@@ -698,7 +698,7 @@ window.SR_SPACE_FX=(function(){
     for(let i=0;i<=N;i++){path[i]={x:px2,y:py2};const t=i/N*dur,st=dur/N,v=v0*(1-0.55*(i/N));
       hd+=curl*t*st*2.2;px2+=Math.cos(hd)*v*st;py2+=Math.sin(hd)*v*st;}
     const e=oneshot('spiral',x,y,{dur,path,cv,whalf:sc*ART_R,h0:d.h||vh0,spin:(curl<0?-1:1)*TUNE.spiralSpin,
-      sc,size,emitN:0,boomD:{art:d.art,size:d.size,stage:d.stage},livery});
+      sc,size,emitN:0,boomD:{art:d.art,size:d.size,stage:d.stage,iconBoost:d.iconBoost},livery});   // iconBoost: the end boom's debris (arena-hc C-74)
     for(let i=0;i<5;i++)emit(sparkBit('#ffd866'),x,y,rs(-160,160),rs(-160,160),rs(0.2,0.4),5,2,{add:1,rot:R()*TAU,drag:1.5,pr:1});
     addShake(TUNE.shakeBoom*0.5,x,y);
   }

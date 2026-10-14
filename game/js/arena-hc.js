@@ -289,8 +289,11 @@ function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashe
 }
 /* locks (C-70, playtest 2): your pilots' locks as four brackets closing on the target (amber while building, red with
    LOCK once a missile can go); a Hegemony lock on one of your ships as a red LOCKED tag over it */
-function drawLocks(c,z,S,boost,now){
-  const need=SIM.fn.MISSILE_LOCK_();
+/* with the visual pass (C-74) the brackets are its lock marks: thin arcs turning while the lock builds, still corner
+   ticks and a diamond once it holds, a pop ring at the flip (lockAt: when each shooter→target lock completed) */
+const lockAt=new Map();
+function drawLocks(c,z,S,boost,now,view){
+  const need=SIM.fn.MISSILE_LOCK_(),held=new Set();
   for(const s of S.ships){
     if(!s.alive||s.struct||s.quiet||!s.locks)continue;
     // every ship locks since C-72: brackets for the selected wing and for ships with missiles; warnings from those only
@@ -298,6 +301,12 @@ function drawLocks(c,z,S,boost,now){
     let best=null,lk=0;for(const id in s.locks)if(s.locks[id]>lk){lk=s.locks[id];best=id;}
     const t=best&&SIM.fn.byId(best);if(!t||!t.alive||lk<0.05)continue;
     const p=ipos(t),R0=shieldR(t,boost)+6/z,k=Math.min(1,lk/need),R=R0*(1+1.6*(1-k)),ok=lk>=need;
+    const key=s.id+'>'+t.id;if(ok){held.add(key);if(!lockAt.has(key))lockAt.set(key,S.t);}
+    if(view&&(s.faction==='reb'||(lk>=0.25&&t.faction==='reb'))){
+      const reb=s.faction==='reb';
+      FX.lockMark(c,p.x,p.y,R0,k,{locked:ok,hostile:!reb,flipAge:ok?S.t-lockAt.get(key):null,alpha:reb&&!selWings().includes(s.wing)?0.7:1},view);
+      if(reb){if(ok)label(c,p.x,p.y+R0+16/z,'LOCK',C.hazard,z,11);continue;}
+    }
     if(s.faction==='reb'){
       const sel=selWings().includes(s.wing),al=sel?1:0.7,col=ok?C.hazard:C.gold,L=R*0.45;
       c.save();c.translate(p.x,p.y);c.rotate(ok?0:(now/900)%(Math.PI/2));c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=(ok?3:2.2)/z;c.lineCap='square';
@@ -309,6 +318,7 @@ function drawLocks(c,z,S,boost,now){
       c.save();c.globalAlpha=blink;label(c,p.x,p.y-shieldR(t,boost)-26/z,ok?'⚠ LOCKED':'⚠ LOCK',C.hazard,z,12);c.restore();
     }
   }
+  for(const k of lockAt.keys())if(!held.has(k))lockAt.delete(k);   // a lost lock pops again when it comes back
 }
 /* chaff (C-72): a glittering cloud that spreads and fades */
 function drawChaff(c,z,S){
@@ -372,7 +382,7 @@ function shipView(s,p,boost){
   return {id:s.id,art,livery:s.faction==='reb'?'rebel':'heg',faction:s.faction,drone:!!(SA.SHIPS&&SA.SHIPS[art]&&SA.SHIPS[art].drone),
     size:s.row.size,x:p.x,y:p.y,h:p.h,vh:s.vh,speedFrac:Math.min(1,v/(c.vMax||1)),turnFrac:Math.max(-1,Math.min(1,(s.turnW||0)/cap)),boost:s.boostT>0,
     rollT:s.evadeT>S.t?Math.max(0,Math.min(1,1-(s.evadeT-S.t)/BARREL_SECS)):null,driftT:s.driftT&&S.t<s.driftT?s.driftT-S.t:0,
-    crits:s.crits,damageStage:dmgStage(s),panic:s.panic?s.panic.mode:null,pinned:!!(s.emerg&&s.emerg.kind==='pinned'),lead:!!s.lead&&!s.quiet,
+    crits:s.crits,damageStage:dmgStage(s),hullFrac:Math.max(0,s.hull)/(s.maxHull||1),panic:s.panic?s.panic.mode:null,pinned:!!(s.emerg&&s.emerg.kind==='pinned'),lead:!!s.lead&&!s.quiet,
     trail:s.trail.length>1?s.trail.slice(0,-1):null,iconBoost:boost};   // the trail's last point is the sim's, ahead of p
 }
 function stationView(s,p,boost){
@@ -392,7 +402,7 @@ function padNear(st,p,from,boost){
 /* what the sim did since the last frame, as the module's events. Everything is seen once (WeakSets on the sim's own
    objects); stale entries (a debug run, a reload) are marked without effects */
 let fxSeen=new WeakSet(),fxLost=new WeakSet(),fxShips=new Map(),fxEvN=0,fxPrimed=false;
-function fxReset(){fxFrames=0;fxSeen=new WeakSet();fxLost=new WeakSet();fxShips=new Map();fxEvN=0;fxPrimed=false;stArtSeen.clear();if(FX)FX.reset();}
+function fxReset(){fxFrames=0;lockAt.clear();fxSeen=new WeakSet();fxLost=new WeakSet();fxShips=new Map();fxEvN=0;fxPrimed=false;stArtSeen.clear();if(FX)FX.reset();}
 function fxSense(){
   const S=SIM.S;if(!S||!FX)return;
   const on=fxOn()&&fxPrimed,boost=iconBoost(),hw=cssW/2/cam.z+400,hh=cssH/2/cam.z+400;
@@ -419,7 +429,7 @@ function fxSense(){
     if(s.jumped){if(S.t-(s.jumpT||0)<1)FX.event('jumpOut',{ship:shipView(s,p,boost)});}
     else if(!s.boarded&&!s.leftBehind&&S.t-(s.deadT==null?S.t:s.deadT)<1)
       FX.event('explode',{x:s.x,y:s.y,size:s.row.size,art:s.struct?stationArt(s):SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],livery:s.faction==='reb'?'rebel':'heg',
-        faction:s.faction,struct:s.struct,h:s.h,stage:dmgStage(s),iconBoost:boost});
+        faction:s.faction,struct:s.struct,h:s.h,vh:s.vh,speed:Math.hypot(s.vx||0,s.vy||0),stage:dmgStage(s),iconBoost:boost});   // vh, speed: a death spiral carries on its flight (C-74)
   }
   for(const e of S.events){
     if(e.id<=fxEvN)continue;fxEvN=e.id;
@@ -549,7 +559,7 @@ function render(now){
     }
     FX.drawLayer(ctx,'over',view);
   } else{drawShots(ctx,z,a,S);drawChaff(ctx,z,S);}
-  drawLocks(ctx,z,S,boost,now);
+  drawLocks(ctx,z,S,boost,now,fx?view:null);
   // screen space: hull pips and names, floaters
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if(fx)FX.drawLayer(ctx,'screen',view);
@@ -1530,9 +1540,11 @@ addEventListener('keydown',onKey);
    The designer panel: Run, the High Command numbers (every one a SIMHC getter), read-outs
    ===================================================================== */
 /* the FX group (C-73): the visual pass's switches and its TUNE numbers (sr-space-fx.js reads them live) */
-const FX_UI=[['flameLen','Engine flame length',0,6,0.1],['flameBoost','Flame × when boosting',1,4,0.1],['boltGlow','Bolt glow width',1,12,0.5],['boltCore','Bolt core width',0.5,6,0.25],
+const FX_UI=[['trailSmokeAt','Smoke trail at hull ≤',0,1,0.05],['trailFireAt','Burning at hull ≤',0,1,0.05],['trailSmokeRate','Smoke trail puffs /s',1,30,1],
+  ['spiralChance','Death spiral chance',0,1,0.05],['spiralSecs','Death spiral (s)',0.4,5,0.1],['spiralSpin','Spiral tumble (rad/s)',0,20,0.5],['laserLen','Laser dart length',10,200,5],
+  ['flameLen','Engine flame length',0,6,0.1],['flameBoost','Flame × when boosting',1,4,0.1],['boltGlow','Bolt glow width',1,12,0.5],['boltCore','Bolt core width',0.5,6,0.25],
   ['trailSecs','Trail life (s)',0.2,3,0.1],['sparkN','Sparks a hit',0,16,1],['shardN','Shards a shield hit',0,12,1],['boomDur','Kill boom (s)',0.3,2,0.05],['boomDebris','Debris a kill',0,20,1],
-  ['stationBoomDur','Station boom (s)',1,5,0.1],['missileSmoke','Missile smoke gap (s)',0.01,0.2,0.005],['smokeStage2','Damage smoke /s (hurt)',0,12,0.5],['smokeStage3','Damage smoke /s (critical)',0,20,0.5],
+  ['stationBoomDur','Station boom (s)',1,5,0.1],['missileSmoke','Missile smoke gap (s)',0.01,0.2,0.005],
   ['chaffFlares','Chaff flares',0,16,1],['chaffGlints','Chaff glints',0,30,1],['shakeBoom','Shake: a kill',0,1,0.02],['shakeMissile','Shake: a missile hit',0,1,0.02],['shakeCollide','Shake: a crash',0,1,0.02],
   ['shakeStation','Shake: a station',0,1.5,0.05],['shakeNear','Shake: full within',200,6000,100],['screenFlash','Big-kill screen flash',0,0.5,0.01],['nebulaAlpha','Nebula strength',0,1,0.05],
   ['starFar','Far stars parallax',0,1,0.05],['poolCap','Particle cap',64,1024,32],['oneshotCap','One-shot cap',8,160,4],['lodOut','Detail off below zoom',0.05,1,0.01],['lodIn','Extra detail from zoom',0.3,2,0.05]];

@@ -26,7 +26,8 @@
      F3: attack runs (run, extend, turn back), stalemate and six break-offs, the reworked tactics, AUTO and its choices
      F4: speech bubbles (2 s, one a ship, four on screen, rate-limited, your pilots only, the feed kept)
    The visual pass (DESIGN_BLOCKERS C-73; game/art/sr-space-fx.js): V1 the station art, the panel's FX group, drawing at
-     three zooms on and off, the sim's moments as effects, nothing stale, boarding links, reduced motion, determinism */
+     three zooms on and off, the sim's moments as effects, nothing stale, boarding links, round 2 (C-74: the hurt read,
+     the death spiral, the lock marks), reduced motion, determinism */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1801,7 +1802,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  const v1=await pg3.evaluate(()=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,F=SIM.fn,FX=f.FX,out={};
   const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id||s.name===id),q=s=>document.querySelector(s);
-  const seen=[],ev0=FX.event;FX.event=(k,d)=>{seen.push(k);return ev0(k,d);};
+  const seen=[],ev0=FX.event,evd={};FX.event=(k,d)=>{seen.push(k);evd[k]=d;return ev0(k,d);};
+  const lm0=FX.lockMark;let marks=[];FX.lockMark=(c,x,y,r,k,o,v)=>{marks.push(o);return lm0(c,x,y,r,k,o,v);};
   const tick=n=>{for(let i=0;i<n;i++){SIM.step();f.fxSense();FX.update(SIM.TICK/1000,16);}};
   try{
    // loaded and on; the station art keys; the panel's FX group
@@ -1847,6 +1849,18 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
    const bd=f.boarders(st),pad=bd.length?f.padNear(st,st,bd[0],1):null;
    out.board=[bd.length>=1,bd.every(x=>x.marines),!!pad&&Math.hypot(pad.x-st.x,pad.y-st.y)>10];
    c.x=st.x;c.y=st.y;c.z=0.5;f.render(performance.now());
+   // round 2 (C-74): the hurt read from the hull fraction, the spiral carries on the ship's flight and ends in the
+   // explosion, the lock marks: turning while building, held once locked
+   f.load('hc1_nightfall',0,5);f.fxSense();seen.length=0;
+   const jh=by('Joss');jh.hull=jh.maxHull*0.2;const sv=f.shipView(jh,f.ipos(jh),1);
+   FX.TUNE.spiralChance=1;const g3=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);F.kill(g3,null);tick(1);
+   const ex=evd.explode||{},sp1=FX.fn.os_().some(e=>e.kind==='spiral');
+   for(let i=0;i<Math.ceil(FX.TUNE.spiralSecs/0.05)+2;i++)FX.update(0.05,16);FX.TUNE.spiralChance=0.5;
+   out.r2=[+sv.hullFrac.toFixed(2)===0.2,ex.vh===g3.vh&&ex.speed>0,sp1,FX.fn.os_().some(e=>e.kind==='boom')];
+   const se=by('Sera'),lt=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);f.selectWing('amber');
+   c.x=lt.x;c.y=lt.y;c.z=0.5;se.locks={[lt.id]:0.3};marks=[];f.render(performance.now());const m1=marks.find(o=>!o.hostile);
+   se.locks={[lt.id]:1};marks=[];f.render(performance.now());const m2=marks.find(o=>!o.hostile);
+   out.r2.push(!!m1&&!m1.locked,!!m2&&m2.locked&&m2.flipAge===0);
    // reduced motion: no shake after a kill (this context prefers reduced motion)
    f.load('hc1_nightfall',0,5);f.fxSense();const g2=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);c.x=g2.x;c.y=g2.y;F.kill(g2,null);tick(1);
    const sh=FX.camShake({z:1,cx:g2.x,cy:g2.y,W:800,H:600,dpr:1,reduced:true});out.calm=[sh.x===0&&sh.y===0];
@@ -1854,7 +1868,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
    const hashes=[];
    for(const on of [true,false]){f.setFx({on});f.load('hc3_meltdown',0,9);for(let i=0;i<600;i++){SIM.step();f.fxSense();FX.update(SIM.TICK/1000,16);if(i%10===0)f.render(performance.now());}hashes.push(SIM.stateHash());}
    f.setFx({on:true});out.det=hashes;
-  }finally{FX.event=ev0;}
+  }finally{FX.event=ev0;FX.lockMark=lm0;}
   return out;
  });
  ok(v1.on.join()==='true,true,relay,,lastlight,reactor','C-73: the visual pass is on; the stations have their art '+JSON.stringify(v1.on));
@@ -1863,6 +1877,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(v1.ev.every(e=>/:true$/.test(e)),'C-73: the sim\'s moments become effects '+JSON.stringify(v1.ev));
  ok(v1.stale===0,'C-73: a reload raises nothing stale '+v1.stale);
  ok(v1.board.every(Boolean),'C-73: boarding links each docked Graf to a clamp pad '+JSON.stringify(v1.board));
+ ok(v1.r2.every(Boolean),'C-74: the hurt read, the death spiral, the lock marks '+JSON.stringify(v1.r2));
  ok(v1.calm.every(Boolean),'C-73: reduced motion: no camera shake '+JSON.stringify(v1.calm));
  ok(v1.det[0]===v1.det[1],'C-73: the visual pass never changes the fight '+JSON.stringify(v1.det));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
