@@ -362,7 +362,8 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   t.hitT=S.t;t.lastHitBy=shooterId;
   if(s){s.st.hits++;s.st.dmg+=dmg;}
   t.dmgAcc=(t.dmgAcc||0)+dmg;
-  S.fx.push({x:hit.x,y:hit.y,t0:S.t,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx)});
+  S.fx.push({x:hit.x,y:hit.y,t0:S.t,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx),   // surface, style, homing: for the
+    surface:r.sd>0&&r.ad+r.hd===0?'shield':r.hd>0?'hull':'armour',style:PROJ_OF[w.id]||null,homing:!!homing});   // visual pass (C-73)
   if(r.sd>0)t.shFx={zone:r.zone,t:S.t};
   if(t.hull<=0&&t.alive)destroyShip(t,s);
   return {dmg,imp,r};
@@ -415,7 +416,7 @@ function missileTick(dt){
     if(m.decoy!=null){
       const cf=S.chaff.find(c=>c.id===m.decoy);
       if(cf){const dh=angNorm(Math.atan2(cf.y-m.y,cf.x-m.x)-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));
-        if(Math.hypot(cf.x-m.x,cf.y-m.y)<misSpd()*dt*1.5){S.fx.push({x:cf.x,y:cf.y,t0:S.t,kind:'boom',size:0.5});S.m.misChaff=(S.m.misChaff||0)+1;S.m.misMiss=(S.m.misMiss||0)+1;continue;}}
+        if(Math.hypot(cf.x-m.x,cf.y-m.y)<misSpd()*dt*1.5){S.fx.push({x:cf.x,y:cf.y,t0:S.t,kind:'boom',size:0.5,src:'mmiss'});S.m.misChaff=(S.m.misChaff||0)+1;S.m.misMiss=(S.m.misMiss||0)+1;continue;}}
     }
     else if(t&&t.alive){const V=misSpd(),tau=Math.min(1.5,dist(m,t)/V),want=Math.atan2(t.y+(t.vy||0)*tau*0.5-m.y,t.x+(t.vx||0)*tau*0.5-m.x),dh=angNorm(want-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));}   // leads its target a little
     const p0={x:m.x,y:m.y},p1={x:m.x+Math.cos(m.h)*misSpd()*dt,y:m.y+Math.sin(m.h)*misSpd()*dt};
@@ -424,12 +425,12 @@ function missileTick(dt){
       if(h&&!rockHit(p0,{x:h.x,y:h.y})){
         const r=hitShip(t,m.owner,m.w,p1.x-p0.x,p1.y-p0.y,h,true,m.lock);
         adjCool(t,(r.r.ad>0||r.r.hd>0)?-12:-5);
-        S.fx.push({x:h.x,y:h.y,t0:S.t,kind:'boom',size:0.7});
+        S.fx.push({x:h.x,y:h.y,t0:S.t,kind:'boom',size:0.7,src:'mhit'});
         S.m.misHit=(S.m.misHit||0)+1;if(t.alive)floater(t,'MISSILE HIT -'+Math.round(r.dmg),C.hazard);
         continue;
       }
     }
-    if(rockHit(p0,p1)||m.life<=0||(t&&!t.alive&&m.life>0.4&&(m.life=0.4),false)){S.fx.push({x:p1.x,y:p1.y,t0:S.t,kind:'boom',size:0.5});S.m.misMiss=(S.m.misMiss||0)+1;continue;}
+    if(rockHit(p0,p1)||m.life<=0||(t&&!t.alive&&m.life>0.4&&(m.life=0.4),false)){S.fx.push({x:p1.x,y:p1.y,t0:S.t,kind:'boom',size:0.5,src:'mmiss'});S.m.misMiss=(S.m.misMiss||0)+1;continue;}
     m.px=m.x;m.py=m.y;m.x=p1.x;m.y=p1.y;m.trail.push({x:m.x,y:m.y});if(m.trail.length>14)m.trail.shift();
     kept.push(m);
   }
@@ -452,7 +453,7 @@ function chaffTick(dt){
 }
 function destroyShip(t,killer){   // sim-sb.js destroyShip (space.js ~1026–1037), plus the feed and the wing
   t.alive=false;t.hull=Math.min(t.hull,0);t.deadT=S.t;
-  S.fx.push({x:t.x,y:t.y,t0:S.t,kind:'boom',size:SRDB.visualSize(t.row.size)});
+  S.fx.push({x:t.x,y:t.y,t0:S.t,kind:'boom',size:SRDB.visualSize(t.row.size),src:'kill'});
   floater(t,t.struct?'DESTROYED':'SPLASH',C.gold);
   if(killer&&killer.alive){killer.st.kills++;killer.killT=S.t;adjCool(killer,12);say(killer,pickLine(killer,'winning'),'good',true);}
   for(const m of S.ships){
@@ -705,7 +706,7 @@ function spawnEnemies(e,nextN){
    ===================================================================== */
 function pushEvent(kind,text,o){
   o=o||{};
-  const e={id:++S.evN,t:+S.t.toFixed(2),kind,text,x:o.x!=null?o.x:null,y:o.y!=null?o.y:null,ship:o.ship||null,tone:o.tone||'info',viewed:false,opts:o.opts||null};
+  const e={id:++S.evN,t:+S.t.toFixed(2),kind,text,x:o.x!=null?o.x:null,y:o.y!=null?o.y:null,ship:o.ship||null,tone:o.tone||'info',viewed:false,opts:o.opts||null,key:o.key||null};
   S.events.push(e);if(S.events.length>200)S.events.shift();
   return e;
 }
@@ -1062,26 +1063,26 @@ function command(k,tg){
     if(!des&&o&&(o.kind==='attack'||o.kind==='intercept')){const pool=foesOf(x).filter(f=>o.kind==='intercept'?f.id===o.target.id:matches(o.target,f));const b=bestTarget(x,pool,{distW:0.6});if(b)des=b.id;}
     x.override={until:S.t+OVERRIDE_SECS,target:des};x.thinkT=THINK_SECS;
     respondLog(x,'override');
-    pushEvent('command','Patriot Override: '+x.name+' holds'+(des?' on '+byId(des).name:''),{ship:x.id,x:x.x,y:x.y,tone:'info'});
+    pushEvent('command','Patriot Override: '+x.name+' holds'+(des?' on '+byId(des).name:''),{ship:x.id,x:x.x,y:x.y,tone:'info',key:k});
   } else if(k==='recall'){
     const list=tg.wing?wingShips(wingOf(tg.wing)):[x];
     for(const y of list){y.recall=true;y.boostT=Math.max(y.boostT||0,RECALL_BOOST);y.thinkT=THINK_SECS;respondLog(y,'recall');}
-    pushEvent('command','Emergency Recall: '+(tg.wing?wingOf(tg.wing).name:x.name)+' pulls out',{ship:list[0].id,x:list[0].x,y:list[0].y,tone:'info'});
+    pushEvent('command','Emergency Recall: '+(tg.wing?wingOf(tg.wing).name:x.name)+' pulls out',{ship:list[0].id,x:list[0].x,y:list[0].y,tone:'info',key:k});
   } else if(k==='support'){
     x.segs.F.val=x.segs.F.max;x.segs.R.val=x.segs.R.max;x.shFx={zone:'F',t:S.t};
     respondLog(x,'support');
-    pushEvent('command','Emergency Support: '+x.name+'\'s shields recharged',{ship:x.id,x:x.x,y:x.y,tone:'info'});
+    pushEvent('command','Emergency Support: '+x.name+'\'s shields recharged',{ship:x.id,x:x.x,y:x.y,tone:'info',key:k});
   } else if(k==='recon'){
     S.reconUntil=S.t+RECON_SECS;
     const RF=S.reinforce,f=RF.force.map(e=>(e.n||1)+' '+(e.name||e.type)).join(', ');
     const {x:ex,y:ey}=zoneEdge(RF.edge||'E',-400);
-    pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info',x:ex,y:ey});
+    pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info',x:ex,y:ey,key:k});
   } else if(k==='decoy'){
     S.decoys.push({x:tg.x,y:tg.y,until:S.t+DECOY_SECS,id:++S.decoyN});
-    pushEvent('command','Decoy Signal planted',{x:tg.x,y:tg.y,tone:'info'});
+    pushEvent('command','Decoy Signal planted',{x:tg.x,y:tg.y,tone:'info',key:k});
   } else if(k==='reinforce'){
     S.reservesUsed=true;addWing(S.R.reserves);
-    pushEvent('command','Reinforcements: '+S.R.reserves.name+' arrives',{x:S.R.reserves.at[0],y:S.R.reserves.at[1],tone:'good'});
+    pushEvent('command','Reinforcements: '+S.R.reserves.name+' arrives',{x:S.R.reserves.at[0],y:S.R.reserves.at[1],tone:'good',key:k});
   } else if(k==='abort'){
     endMission('abort');
   }
@@ -1798,7 +1799,7 @@ function collideTick(){
       const vx=a.vx+(1+COLLIDE_BOUNCE)*vn*nx,vy=a.vy+(1+COLLIDE_BOUNCE)*vn*ny;a.vx=vx;a.vy=vy;a.vh=Math.atan2(vy,vx);
       const dmg=COLLIDE_DMG*(vn/1000)*(vn/1000);
       S.m.collisions=(S.m.collisions||0)+1;
-      S.fx.push({x:a.x-nx*ra,y:a.y-ny*ra,t0:S.t,kind:'hull'});floater(a,'IMPACT',C.hazard);
+      S.fx.push({x:a.x-nx*ra,y:a.y-ny*ra,t0:S.t,kind:'hull',src:'crash',speed:vn});floater(a,'IMPACT',C.hazard);
       if(dmg>=1)pushEvent('collide',a.name+' hits a rock',{ship:a.id,x:a.x,y:a.y,tone:'hazard'});
       bump(a,null,nx,ny,vn,dmg,'rock');
       if(a.alive&&dmg>=1)say(a,pickLine(a,'bump'),'hazard',true);
@@ -1821,7 +1822,7 @@ function collideTick(){
       if(!b.struct){b.vx-=(1+COLLIDE_BOUNCE)*vn*kb*nx;b.vy-=(1+COLLIDE_BOUNCE)*vn*kb*ny;b.vh=Math.atan2(b.vy,b.vx);}
       const base=COLLIDE_DMG*(vn/1000)*(vn/1000)*2;
       S.m.collisions=(S.m.collisions||0)+1;
-      S.fx.push({x:(ax+bx)/2,y:(ay+by2)/2,t0:S.t,kind:'hull'});floater(a,'COLLISION',C.hazard);
+      S.fx.push({x:(ax+bx)/2,y:(ay+by2)/2,t0:S.t,kind:'hull',src:'crash',speed:vn});floater(a,'COLLISION',C.hazard);
       if(base>=1)pushEvent('collide',a.name+' and '+b.name+' collide',{ship:a.faction==='reb'?a.id:b.id,x:a.x,y:a.y,tone:'hazard'});
       bump(a,b,nx,ny,vn,base*ka,'ship');bump(b,a,-nx,-ny,vn,base*kb,'ship');
       for(const q of [a,b])if(q.alive&&base>=1)say(q,pickLine(q,'bump'),'hazard',true);

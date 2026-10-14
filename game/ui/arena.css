@@ -459,9 +459,9 @@
 #arHc .hc-cmd[aria-disabled="true"] .hc-cmd__cost i{background:var(--sr-seam);}
 #arHc .hc-cmd--abort{margin-top:8px;background:transparent;border-color:var(--sr-hazard);color:var(--sr-hazard);}
 #arHc .hc-cmd--abort.is-armed{background:var(--sr-hazard);color:var(--sr-ink);box-shadow:none;}
-#arHc .hc-sec{margin:0 0 6px;}
-#arHc .hc-sec summary{cursor:pointer;font:800 var(--sr-fs-xs)/1.8 var(--sr-font-ui);color:var(--sr-text-2);}
-#arHc .hc-sec[open] summary{color:var(--sr-text);margin-bottom:4px;}
+#arHc .hc-sec,#arHc .hc-fx{margin:0 0 6px;}
+#arHc .hc-sec summary,#arHc .hc-fx summary{cursor:pointer;font:800 var(--sr-fs-xs)/1.8 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .hc-sec[open] summary,#arHc .hc-fx[open] summary{color:var(--sr-text);margin-bottom:4px;}
 #arHc .hc-keys{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
 #arHc .hc-keys .sr-kbd{justify-self:start;}
 /* eight or more ships: smaller tiles, so a full roster fits beside the time controls */

@@ -598,7 +598,7 @@ window.SR_SPACE_FX=(function(){
     return out;
   }
   function event(kind,d){
-    d=d||{};const x=d.x||0,y=d.y||0;
+    d=d||{};const x=d.x||0,y=d.y||0,ib=d.iconBoost||1;   // ib: the renderer's icon boost, so booms match the hulls it draws (arena-hc C-73)
     switch(kind){
       case 'muzzle':{const st=SA.STYLE[d.style]||SA.STYLE.bhord;
         oneshot('muzzle',x,y,{col:st[1],r:d.r||15,rot:d.h||0});
@@ -617,20 +617,20 @@ window.SR_SPACE_FX=(function(){
         oneshot('ignite',x,y,{size:22,col});
         for(let i=0;i<4;i++)emit(puff('#9aa0b4',0),x,y,rs(-40,40),rs(-40,40),rs(0.5,0.9),6,14,{drag:1.5,pr:0,al:0.7});
         break;}
-      case 'missileHit':{oneshot('boomS',x,y,{size:(d.size||0.7)*60,seed:(R()*1e6)|0});
+      case 'missileHit':{oneshot('boomS',x,y,{size:(d.size||0.7)*60*ib,seed:(R()*1e6)|0});
         for(let i=0;i<6;i++)emit(glowDot('#ffb347'),x,y,rs(-180,180),rs(-180,180),rs(0.3,0.7),5,2,{add:1,drag:1,pr:1});
         emit(puff('#7a7a82',1),x,y,rs(-20,20),rs(-20,20),1.2,16,34,{pr:1,al:0.7});
         addShake(TUNE.shakeMissile,x,y);break;}
-      case 'missileMiss':oneshot('boomS',x,y,{size:28,seed:(R()*1e6)|0});break;
+      case 'missileMiss':oneshot('boomS',x,y,{size:28*ib,seed:(R()*1e6)|0});break;
       case 'missileShaken':oneshot('shaken',x,y,{});break;
       case 'chaff':{for(let i=0;i<10;i++)emit(glowDot(i%3?C.hazard:'#fffbe6'),x,y,rs(-120,120),rs(-120,120),rs(0.3,0.6),7,3,{add:1,drag:1.4,pr:1});break;}
-      case 'explode':{const size=(0.7+0.09*(d.size||4))*34*(d.struct?2.6:1);
+      case 'explode':{const size=(0.7+0.09*(d.size||4))*34*(d.struct?2.6:1)*ib;
         if(d.struct){oneshot('boomStation',x,y,{size,seed:(R()*1e6)|0});
           const art=d.art&&SA.STATIONS[d.art]?d.art:null;
           if(art){const px2=2.2,half=Math.ceil(px2*44)+2,cv=document.createElement('canvas');cv.width=cv.height=half*2;
             const g=cv.getContext('2d');SA.station(g,art,half,half,d.h||0,px2,0,{damage:1,dark:true,still:true});
             g.globalCompositeOperation='source-atop';g.fillStyle='rgba(10,8,8,0.72)';g.fillRect(0,0,half*2,half*2);
-            const sc2=artScale({size:d.size||12,iconBoost:1});
+            const sc2=artScale({size:d.size||12,iconBoost:ib});
             oneshot('wreck',x,y,{cv,whalf:sc2*44,h:d.h||0});
           }
           for(let i=0;i<26;i++)emit(puff(i%3?'#8a8a92':'#5a5a62',1),x+rs(-size,size)*0.5,y+rs(-size,size)*0.4,rs(-70,70),rs(-90,-10),rs(1.5,3),8,26,{drag:0.5,pr:1,al:0.8});
@@ -638,14 +638,14 @@ window.SR_SPACE_FX=(function(){
           addShake(TUNE.shakeStation,x,y);flashAt(x,y,1);}
         else{const chunks=d.art?cutChunks(d.art,d.livery||(d.faction==='reb'?'rebel':'heg'),d.size,d.stage||1):null;
           const e=oneshot('boom',x,y,{size,seed:(R()*1e6)|0});
-          if(chunks){e.chunks=chunks;e.chunkW=ART_R*artScale({size:d.size||4,iconBoost:1})*0.6;}
+          if(chunks){e.chunks=chunks;e.chunkW=ART_R*artScale({size:d.size||4,iconBoost:ib})*0.6;}
           for(let i=0;i<TUNE.boomDebris;i++){const a=rs(0,TAU),v=rs(60,220);
             emit(puff('#5a5a62',1),x,y,Math.cos(a)*v,Math.sin(a)*v,rs(0.6,1.2),4,3,{spin:rs(-9,9),rot:a,drag:0.6,pr:0});}
           for(let i=0;i<10;i++)emit(glowDot('#ffb347'),x,y,rs(-240,240),rs(-240,240),rs(0.4,0.9),5,2,{add:1,drag:0.8,pr:1});
           emit(puff('#7a7a82',1),x,y,rs(-14,14),rs(-14,14),1.6,size*0.4,size*0.95,{pr:1,al:0.7});
           addShake(TUNE.shakeBoom,x,y);flashAt(x,y,0.5);}
         break;}
-      case 'collide':{oneshot('crunch',x,y,{size:26});
+      case 'collide':{oneshot('crunch',x,y,{size:26*ib});
         for(let i=0;i<8;i++)emit(sparkBit('#ffd866'),x,y,rs(-200,200),rs(-200,200),rs(0.2,0.4),5,2,{add:1,rot:R()*TAU,drag:1.5,pr:1});
         for(let i=0;i<4;i++)emit(puff('#8a8a92',1),x,y,rs(-60,60),rs(-60,60),rs(0.5,0.9),5,11,{pr:0,al:0.7});
         addShake(TUNE.shakeCollide,x,y);break;}

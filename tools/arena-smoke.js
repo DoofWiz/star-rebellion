@@ -24,7 +24,9 @@
          Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward, Copy settings
      F2: the corner-speed turn model (weak slow turns, turning bleeds speed, wider turns), a duel without a knife fight
      F3: attack runs (run, extend, turn back), stalemate and six break-offs, the reworked tactics, AUTO and its choices
-     F4: speech bubbles (2 s, one a ship, four on screen, rate-limited, your pilots only, the feed kept) */
+     F4: speech bubbles (2 s, one a ship, four on screen, rate-limited, your pilots only, the feed kept)
+   The visual pass (DESIGN_BLOCKERS C-73; game/art/sr-space-fx.js): V1 the station art, the panel's FX group, drawing at
+     three zooms on and off, the sim's moments as effects, nothing stale, boarding links, reduced motion, determinism */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1795,11 +1797,79 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(i2.threat.every(Boolean),'C-72: a defender gets between an inbound raider and Lastlight, then engages it out from the station '+JSON.stringify(i2.threat));
  ok(i2.plan[0]>=1&&i2.plan[1]>=1&&i2.plan.slice(2).every(Boolean),'C-72: the raiders split into a lure and a strike '+JSON.stringify(i2.plan));
  ok(i2.pres.every(Boolean),'C-72: a hurt Hegemony pilot pulls back; one shot at fights back '+JSON.stringify(i2.pres));
+ // ---------- C-73, V1: the visual pass (game/art/sr-space-fx.js) wired into the map ----------
+ const v1=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,F=SIM.fn,FX=f.FX,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id||s.name===id),q=s=>document.querySelector(s);
+  const seen=[],ev0=FX.event;FX.event=(k,d)=>{seen.push(k);return ev0(k,d);};
+  const tick=n=>{for(let i=0;i<n;i++){SIM.step();f.fxSense();FX.update(SIM.TICK/1000,16);}};
+  try{
+   // loaded and on; the station art keys; the panel's FX group
+   f.load('hc1_nightfall',0,5);f.setFx({on:true,shake:true,calm:false});
+   out.on=[!!FX,f.fxOn(),f.stationArt(by('relay')),f.stationArt(by('lark'))];
+   f.load('hc2_lastlight',0,5);out.on.push(f.stationArt(by('lastlight')));f.load('hc3_meltdown',0,5);out.on.push(f.stationArt(by('reactor')));
+   const fxs=[...document.querySelectorAll('#hcPanelBody [data-fx]')];
+   out.panel=[fxs.length===f.FX_UI.filter(r=>r[0] in FX.TUNE).length,!!q('#hcPanelBody [data-toggle="fx"]'),!!q('#hcPanelBody [data-toggle="shake"]'),!!q('#hcPanelBody [data-toggle="calm"]')];
+   const fl=q('#hcPanelBody [data-fx="flameLen"]'),fl0=FX.TUNE.flameLen;fl.value='3.5';fl.dispatchEvent(new Event('input',{bubbles:true}));
+   out.panel.push(FX.TUNE.flameLen===3.5,JSON.parse(f.settingsJson())['fx.flameLen']===3.5);
+   q('#hcPanelBody [data-act="defaults"]').click();out.panel.push(FX.TUNE.flameLen===fl0,!('fx.flameLen' in JSON.parse(f.settingsJson())));
+   // draws at the three zooms the brief names, on and off, without a throw
+   f.load('hc1_nightfall',0,5);tick(400);
+   const c=f.cam_(),j=by('Joss');let draws=0;
+   for(const on of [true,false]){f.setFx({on});for(const z of [0.12,0.4,1.2]){c.x=j.x;c.y=j.y;c.z=z;f.render(performance.now());draws++;}}
+   f.setFx({on:true});
+   out.draw=[draws===6,FX.stats().spritesCached>0];
+   // the sim's tags: every bolt hit names its surface; crashes and missile ends are marked
+   out.tags=[S().fx.filter(x=>x.kind!=='boom'&&!x.src).every(x=>['shield','armour','hull'].includes(x.surface))];
+   // events from what the sim did: muzzle and bolt hits in view, a kill, a jump, a missile, chaff, a crash, a command
+   f.load('hc1_nightfall',0,5);f.fxSense();seen.length=0;
+   const rl=by('relay'),jo=by('Joss');c.x=rl.x;c.y=rl.y;c.z=0.6;
+   jo.x=rl.x-700;jo.y=rl.y;jo.h=jo.vh=0;jo.px=jo.x;jo.py=jo.y;f.issue('dagger','attack',{type:'ship',id:'relay'});
+   let n=0;while(n++<200&&!(seen.includes('muzzle')&&seen.includes('boltHit')))tick(1);
+   const g=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);F.kill(g,null);tick(1);
+   const lark=by('lark');lark.alive=false;lark.jumped=true;lark.jumpT=S().t;tick(1);
+   const kit=by('Kit');F.throwChaff(kit);tick(1);
+   SIM.command('decoy',{x:rl.x,y:rl.y});tick(1);
+   const ss=by('Sera'),t=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);
+   if(t){ss.x=t.x-900;ss.y=t.y;ss.px=ss.x;ss.py=ss.y;ss.h=ss.vh=0;t.chaffLeft=0;let m=0;while(m++<80&&!seen.includes('missileLaunch')){ss.locks={[t.id]:1};tick(1);}}
+   const a=by('Petra'),b2=by('Wren');a.px=a.x-200;a.py=a.y;a.vx=4000;a.vy=0;b2.x=a.x+20;b2.y=a.y;b2.px=b2.x;b2.py=b2.y;b2.vx=b2.vy=0;F.collideTick();f.fxSense();
+   out.ev=['muzzle','boltHit','explode','jumpOut','chaff','command','missileLaunch','collide'].map(k=>k+':'+seen.includes(k));
+   // a station's death is the big one; a wave arriving warps in
+   seen.length=0;rl.hull=0;F.kill(rl,null);tick(1);out.ev.push('station:'+seen.includes('explode'));
+   f.load('hc2_lastlight',0,5);f.fxSense();seen.length=0;let w=0;while(w++<600&&!S().ships.some(x=>x.faction==='heg'&&x.alive))tick(1);
+   out.ev.push('warpIn:'+seen.includes('warpIn'));
+   // nothing stale: a reload marks what is already there without effects
+   f.load('hc1_nightfall',0,5);SIM.runFor(30);seen.length=0;f.fxSense();out.stale=seen.filter(k=>k==='warpIn'||k==='explode').length;
+   // boarding: the docked Grafs, each linked to a clamp pad on the reactor
+   f.load('hc3_meltdown',0,5);const st=by('reactor'),gs=[by('Anvil'),by('Forge')];for(const x of S().ships)if(x.faction==='heg'&&!x.struct)x.alive=false;
+   gs.forEach((x,i)=>{const a2=Math.PI*(1-0.25*i);x.x=st.x+Math.cos(a2)*F.boardR(st)*0.7;x.y=st.y+Math.sin(a2)*F.boardR(st)*0.7;x.px=x.x;x.py=x.y;x.thinkT=0;});
+   f.issue('hammer','board',{type:'station',id:'reactor'});let bn=0;while(bn++<600&&!(f.boarders(st).length&&st.boardProg>0))tick(1);
+   const bd=f.boarders(st),pad=bd.length?f.padNear(st,st,bd[0],1):null;
+   out.board=[bd.length>=1,bd.every(x=>x.marines),!!pad&&Math.hypot(pad.x-st.x,pad.y-st.y)>10];
+   c.x=st.x;c.y=st.y;c.z=0.5;f.render(performance.now());
+   // reduced motion: no shake after a kill (this context prefers reduced motion)
+   f.load('hc1_nightfall',0,5);f.fxSense();const g2=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);c.x=g2.x;c.y=g2.y;F.kill(g2,null);tick(1);
+   const sh=FX.camShake({z:1,cx:g2.x,cy:g2.y,W:800,H:600,dpr:1,reduced:true});out.calm=[sh.x===0&&sh.y===0];
+   // the visual pass never moves the fight: the same seed, drawn with it and without, ends the same
+   const hashes=[];
+   for(const on of [true,false]){f.setFx({on});f.load('hc3_meltdown',0,9);for(let i=0;i<600;i++){SIM.step();f.fxSense();FX.update(SIM.TICK/1000,16);if(i%10===0)f.render(performance.now());}hashes.push(SIM.stateHash());}
+   f.setFx({on:true});out.det=hashes;
+  }finally{FX.event=ev0;}
+  return out;
+ });
+ ok(v1.on.join()==='true,true,relay,,lastlight,reactor','C-73: the visual pass is on; the stations have their art '+JSON.stringify(v1.on));
+ ok(v1.panel.every(Boolean),'C-73: the panel\'s FX group: switches, numbers, Copy settings, defaults '+JSON.stringify(v1.panel));
+ ok(v1.draw.every(Boolean)&&v1.tags.every(Boolean),'C-73: draws at 0.12, 0.4, 1.2 on and off; bolt hits name their surface '+JSON.stringify([v1.draw,v1.tags]));
+ ok(v1.ev.every(e=>/:true$/.test(e)),'C-73: the sim\'s moments become effects '+JSON.stringify(v1.ev));
+ ok(v1.stale===0,'C-73: a reload raises nothing stale '+v1.stale);
+ ok(v1.board.every(Boolean),'C-73: boarding links each docked Graf to a clamp pad '+JSON.stringify(v1.board));
+ ok(v1.calm.every(Boolean),'C-73: reduced motion: no camera shake '+JSON.stringify(v1.calm));
+ ok(v1.det[0]===v1.det[1],'C-73: the visual pass never changes the fight '+JSON.stringify(v1.det));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
