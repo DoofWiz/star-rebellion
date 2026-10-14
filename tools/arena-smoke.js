@@ -1274,10 +1274,10 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc3.tgtFirst[0]==='override,recall,support'&&hc3.tgtFirst[1]==='decoy'&&hc3.tgtFirst[2]===1&&hc3.tgtFirst[3]===3,'HC T3: target first (right-click) '+JSON.stringify(hc3.tgtFirst));
  ok(hc3.decoy[0]==='decoyed'&&hc3.recon.every(Boolean),'HC T3: Decoy draws a pilot; Recon runs '+JSON.stringify([hc3.decoy,hc3.recon]));
  ok(hc3.abort[0]&&hc3.abort[1]==='aborted'&&hc3.abort[2]==='OVER'&&hc3.abort[3],'HC 5: Abort (free, confirmed) ends the mission '+JSON.stringify(hc3.abort));
- ok(hc3.abil==='shields,lockin,boost','HC 8: Wren\'s abilities '+hc3.abil);
+ ok(hc3.abil==='shields,lockin,chaff,boost','HC 8: Wren\'s abilities (chaff for everyone since C-72) '+hc3.abil);
  ok(hc3.doc[0]===''&&hc3.doc[1]==='shields:emerg'&&hc3.doc[2]===true&&hc3.doc[3]==='shields:emerg,lockin:manual'&&hc3.doc[4]>=60&&/lockin:want$/.test(hc3.doc[5]),'HC 8: MANUAL never auto-fires; EMERG only under its trigger '+JSON.stringify(hc3.doc));
  ok(hc3.pin[0]&&hc3.pin[1]==='pinned'&&hc3.pin[2]===1,'HC T3: Wren is pinned in hc1 '+JSON.stringify(hc3.pin));
- ok(/override/.test(hc3.alert[0])&&/wingmate/.test(hc3.alert[0])&&hc3.alert[1]==='P2'&&hc3.alert[2]&&hc3.alert[3]&&hc3.alert[4]===3&&hc3.alert[5]===3,'HC T3: the alert, the pilot panel '+JSON.stringify(hc3.alert));
+ ok(/override/.test(hc3.alert[0])&&/wingmate/.test(hc3.alert[0])&&hc3.alert[1]==='P2'&&hc3.alert[2]&&hc3.alert[3]&&hc3.alert[4]===4&&hc3.alert[5]===4,'HC T3: the alert, the pilot panel (with Chaff, C-72) '+JSON.stringify(hc3.alert));
  const B=hc3.branches;
  ok(B.bo.hash!==B.br.hash&&B.br.hash!==B.bw.hash&&B.bo.hash!==B.bw.hash,'HC T3: three answers, three outcomes '+JSON.stringify(B));
  ok(B.br.kind==='withdraw'&&B.br.cp===3&&B.bo.cp===4&&B.bw.cp===5&&B.bw.helper&&/engage|escort/.test(B.bw.helper)&&B.bo.why==='command: override'||B.bo.alive===false,'HC T3: Recall withdraws (2 CP), Override holds (1 CP), a wingmate goes free '+JSON.stringify(B));
@@ -1409,7 +1409,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   q('#hcEnd [data-act="closewin"]').click();
   return out;
  });
- ok(f1.scale[0]===4&&f1.scale[1]===1&&f1.scale[2]===32&&f1.scale[3]===134400&&f1.scale[4]===96000&&Math.abs(f1.scale[5]-61000)<500&&Math.abs(f1.scale[6]-46700)<600&&f1.scale[7]===1000&&f1.scale[8]===70400,'F1: the scale '+JSON.stringify(f1.scale));
+ ok(f1.scale[0]===4&&f1.scale[1]===1&&f1.scale[2]===16&&f1.scale[3]===67200&&f1.scale[4]===48000&&Math.abs(f1.scale[5]-27400)<500&&Math.abs(f1.scale[6]-22700)<600&&f1.scale[7]===1000&&f1.scale[8]===36800,'F1: the scale '+JSON.stringify(f1.scale));
  ok(f1.range[0]===1350&&f1.range[1]===900,'F1: weapon range × on restart '+JSON.stringify(f1.range));
  ok(f1.space[0]>=f1.space[1]*0.6,'F1: ships keep their personal space '+JSON.stringify(f1.space));
  ok(f1.tray.every(Boolean),'F1, C-71: the order tray opens beside its wing card '+JSON.stringify(f1.tray));
@@ -1571,7 +1571,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(g1.lerp[0]&&g1.lerp[1]&&g1.lerp[2]===0.5,'G1: ships drawn between their last two steps '+JSON.stringify(g1.lerp));
  ok(g1.lark[0]==='wait'&&g1.lark[1]<900&&g1.lark[2]===true&&g1.lark[3]<45,'G1: Convoy Lark jumps once the relay falls '+JSON.stringify(g1.lark));
- ok(g1.map[0]===32&&g1.map[1]===4&&g1.map[2]===134400&&g1.map[3]===96000&&g1.map[4]===58800&&g1.map[5]===42000&&g1.map[6]===75600&&g1.map[7]===54000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
+ ok(g1.map[0]===16&&g1.map[1]===4&&g1.map[2]===67200&&g1.map[3]===48000&&g1.map[4]===25200&&g1.map[5]===18000&&g1.map[6]===42000&&g1.map[7]===30000&&g1.map[8]===4,'G1: the map round the play area '+JSON.stringify(g1.map));
  ok(g1.reinf.every(Boolean),'G1: reinforcements come in off the play area\'s edge '+JSON.stringify(g1.reinf));
  // ---------- G2 (C-70): collisions and not crashing ----------
  const g2=await pg3.evaluate(()=>{
@@ -1625,7 +1625,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   ({c,r}=setup('EMERG'));for(let i=0;i<30;i++)SIM.step();out.emerg=[S().missiles.length===0,!!F.missileShot(c)];
   // a target breaks when a missile is MIS_BREAK_T out
   ({c,r}=setup());n=0;while(!S().missiles.length&&n++<60)SIM.step();
-  const kit=byName('Kit'),m=S().missiles[0];m.target=kit.id;m.x=kit.x-F.misSpd()*0.8;m.y=kit.y;m.h=0;SIM.step();
+  const kit=byName('Kit'),m=S().missiles[0];kit.chaffLeft=0;m.target=kit.id;m.x=kit.x-F.misSpd()*0.8;m.y=kit.y;m.h=0;SIM.step();
   out.brk=[F.incomingMissile(kit)!=null,kit.misBreakT===S().t];
   // in hc1 the Crosses fire missiles and some land
   let fired=0,hits=0;for(const sd of [3,11]){f.load('hc1_nightfall',0,sd);SIM.runFor(150);fired+=S().ships.reduce((a,x)=>a+x.st.missiles,0);hits+=S().m.misHit||0;}
@@ -1712,7 +1712,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(g5.bar[0]&&g5.bar[1]>=8&&g5.bar[2]&&g5.bar[3]&&g5.bar[4]&&g5.bar[5],'G5: the commands bar, narrowed by a right-click '+JSON.stringify(g5.bar));
  ok(g5.feed[0]>5&&g5.feed[1]===5&&g5.feed[2],'G5: the feed shows five entries and scrolls '+JSON.stringify(g5.feed));
  ok(g5.obj[0]>=15&&g5.obj[1]>330,'G5: bigger objectives '+JSON.stringify(g5.obj));
- ok(g5.quiet[0]===true&&g5.quiet[1]===false&&g5.quiet[2]===true,'G5: quiet lines in hc1 '+JSON.stringify(g5.quiet));
+ ok(g5.quiet[0]===true&&g5.quiet[1]===true&&g5.quiet[2]===true,'G5, C-72: quiet lines in every scenario '+JSON.stringify(g5.quiet));
  ok(g5.badge[0]==='P1:lockin,P2:evade,P3:dodge'&&g5.badge[1]===2500&&g5.badge[2]===0,'G5: status symbols by the ships '+JSON.stringify(g5.badge));
  // ---------- C-71 (playtest 3): the Cross's turn, the corner column, the skill icons ----------
  const h3=await pg3.evaluate(()=>{
@@ -1728,11 +1728,47 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(h3.turn[0]===0.8&&h3.turn[1]<520&&h3.turn[1]>h3.turn[2]&&h3.turn[1]>h3.turn[3]&&h3.turn[4]===1.6&&h3.turn[5]===0.5,'C-71: the Cross turns at 80% of a Mote (was 50%), wider than the interceptors '+JSON.stringify(h3.turn));
  ok(h3.ui[0]>=70&&h3.ui[1]>=80&&h3.ui[2]>=30&&h3.ui[3]<=16&&h3.ui[4]<=16&&h3.ui[5]&&h3.ui[6]===9,'C-71: big skill icons right of the wing cards in the corner '+JSON.stringify(h3.ui));
+ // ---------- C-72 (playtest 4), I1: locks for all, the missile's fuse, evading, chaff, status on the map ----------
+ const i1=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,F=SIM.fn,out={};
+  const S=()=>H.S,byName=n=>S().ships.find(s=>s.name===n),by=id=>S().ships.find(s=>s.id===id);
+  // a gunship locks too, out to LOCK_GUN_K × its reach, and a lock tightens its spread
+  f.load('hc1_nightfall',0,5);const joss=byName('Joss'),r=by('relay');
+  for(const x of S().ships)if(x.faction==='heg'&&x!==r)x.alive=false;
+  f.issue('dagger','attack',{type:'ship',id:'relay'});joss.x=r.x-900;joss.y=r.y;joss.h=joss.vh=0;joss.px=joss.x;joss.py=joss.y;
+  for(let i=0;i<20;i++)SIM.step();
+  const q=joss.wpns[0];
+  out.lock=[!F.misWpn(joss),Math.round(F.lockRange(joss)),Math.round(F.gunRange(joss)*SIM.TUNE.LOCK_GUN_K.get()),F.lockOf(joss,'relay')>0.5,+(F.spreadOf(joss,q.w,600,1)/F.spreadOf(joss,q.w,600,0)).toFixed(2)];
+  // a missile explodes MIS_LIFE after launch
+  const setup=()=>{f.load('hc1_nightfall',0,5);const c=byName('Sera'),rl=by('relay');for(const x of S().ships)if(x.faction==='heg'&&x!==rl)x.alive=false;
+    f.issue('amber','attack',{type:'ship',id:'relay'});c.x=rl.x-1350;c.y=rl.y;c.h=c.vh=0;c.vx=300;c.vy=0;c.px=c.x;c.py=c.y;let n=0;while(!S().missiles.length&&n++<60)SIM.step();return S().missiles[0];};
+  let m=setup();out.life=[m&&m.life<=SIM.TUNE.MIS_LIFE.get()&&m.life>SIM.TUNE.MIS_LIFE.get()-0.2];
+  m.target=null;const miss0=S().m.misMiss||0;SIM.runFor(SIM.TUNE.MIS_LIFE.get()+0.1);out.life.push(S().missiles.length===0,(S().m.misMiss||0)===miss0+1);
+  // fired on: far off, the target runs straight away from the missile and boosts (Wren flies Boost)
+  m=setup();const wren=byName('Wren');wren.chaffLeft=0;m.target=wren.id;m.x=wren.x-F.misSpd()*2.5;m.y=wren.y;m.h=0;SIM.step();
+  const away=Math.atan2(wren.y-m.y,wren.x-m.x),gg=Math.atan2(wren.goal.y-wren.y,wren.goal.x-wren.x);
+  out.run=[Math.abs(Math.atan2(Math.sin(gg-away),Math.cos(gg-away)))<0.2,(wren.abLog||[]).some(a=>a.k==='boost'),wren.boostT>0];
+  // chaff: a missile closing on a ship with chaff is drawn off into the cloud and bursts there
+  m=setup();const kit=byName('Kit'),hull=kit.hull+kit.arm;m.target=kit.id;m.x=kit.x-F.misSpd()*1.0;m.y=kit.y;m.h=0;SIM.step();
+  out.chaff=[S().chaff.length===1,kit.chaffLeft===SIM.TUNE.CHAFF_N.get()-1,m.target===null&&m.decoy!=null];
+  SIM.runFor(2);out.chaff.push(S().m.misChaff===1,kit.hull+kit.arm===hull,S().events.some(e=>e.kind==='chaff'));
+  // status on the map: only the selection, what it fights, stations and the convoy
+  f.load('hc1_nightfall',0,5);SIM.runFor(20);f.selectGroup([]);
+  const none=f.selWings(),sf0=f.selFoes(none);out.status=[f.statusShown(byName('Joss'),none,sf0),f.statusShown(by('relay'),none,sf0),f.statusShown(by('lark'),none,sf0)];
+  f.selectWing('dagger',true);const sw=f.selWings(),sf=f.selFoes(sw),tgt=byName('Joss').beh.target;
+  out.status.push(f.statusShown(byName('Joss'),sw,sf),f.statusShown(byName('Sera'),sw,sf),!tgt||f.statusShown(by(tgt),sw,sf));
+  return out;
+ });
+ ok(i1.lock[0]&&i1.lock[1]===i1.lock[2]&&i1.lock[3]&&i1.lock[4]===0.4,'C-72: every ship locks; a full lock takes 60% off the spread '+JSON.stringify(i1.lock));
+ ok(i1.life.every(Boolean),'C-72: a missile explodes after its life '+JSON.stringify(i1.life));
+ ok(i1.run.every(Boolean),'C-72: fired on, a pilot runs from the missile and boosts '+JSON.stringify(i1.run));
+ ok(i1.chaff.every(Boolean),'C-72: chaff draws a missile off '+JSON.stringify(i1.chaff));
+ ok(i1.status[0]===false&&i1.status[1]&&i1.status[2]&&i1.status[3]&&i1.status[4]===false&&i1.status[5],'C-72: status on the map only for the selection '+JSON.stringify(i1.status));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

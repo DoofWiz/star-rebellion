@@ -21,7 +21,7 @@ const TH=SR.theme,C=TH.C;
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
-let HC_MAP=32;            // the map's size × space.js's (was 2 until playtest 1, C-69; 4 until playtest 2, C-70; 8 until playtest 3, C-71). placeholder (each scenario may set its own)
+let HC_MAP=16;            // the map's size × space.js's (was 2 until playtest 1, C-69; 4 until playtest 2, C-70; 8 until playtest 3, C-71; 32 until playtest 4, C-72). placeholder (each scenario may set its own)
 let HC_SPREAD=4;          // how far apart a scenario's places are, × space.js's map: the layout fills this much of the middle of the map, with open space round it (C-70). placeholder
 let W=W0*HC_MAP,H=H0*HC_MAP;
 const TICK=50;            // ms of sim time per step (copied from sim-sb.js). placeholder
@@ -236,31 +236,34 @@ let MIS_SPD_K=13;         // a missile's speed, in dial units a round (a Talon's
 let MIS_TURN=6;           // a missile's turn, radians a second. placeholder
 let MIS_BREAK_T=1.1;      // a target breaks hard when a missile is this many seconds out. placeholder
 let MIS_SHAKE=1;          // the chance a break shakes a missile, × the lock it was fired without (40% at a 60% lock). placeholder
+let MIS_LIFE=6;           // a missile explodes this long after launch, hit or not (C-72). placeholder
 let MIS_ARM_SECS=10;      // MANUAL: a missile you arm fires at the next lock within this. placeholder
 const misWpn=s=>s.wpns.find(q=>q.w.needsLock&&(q.ammo===undefined||q.ammo>0))||null;
 const misRange=q=>q.w.rng*MIS_RANGE_K;
 const misSpd=()=>MIS_SPD_K*SU*SPEED_SCALE/ROUND_SECS;
-function lockTarget(s,q){   // its target if it has one, else the hostile nearest its nose in the cone
+/* every ship locks since C-72 (playtest 4): a ship with missiles out to missile reach, any other out to LOCK_GUN_K ×
+   its gun reach. A lock tightens the guns' spread (LOCK_AIM at a full lock); the damage bonus is the missiles' alone */
+let LOCK_GUN_K=1.3;       // a lock's reach without missiles, × gun reach. placeholder
+let LOCK_AIM=0.6;         // a full lock takes this share off the guns' spread. placeholder
+function lockRange(s){const q=misWpn(s);return q?misRange(q):gunRange(s)*LOCK_GUN_K;}
+function lockTarget(s,R){   // its target if it has one, else the hostile nearest its nose in the cone
   const t=byId(s.fireAt);
   if(t&&t.alive)return t;
   let best=null,bb=LOCK_CONE;
-  for(const o of foesOf(s)){const b=bearing(s,o);if(b<bb&&dist(s,o)<=misRange(q)){bb=b;best=o;}}
+  for(const o of foesOf(s)){const b=bearing(s,o);if(b<bb&&dist(s,o)<=R){bb=b;best=o;}}
   return best;
 }
 function lockTick(s,dt){
-  const q=misWpn(s);
-  if(q){
-    const t=lockTarget(s,q);
-    if(t&&t.alive&&bearing(s,t)<=LOCK_CONE&&dist(s,t)<=misRange(q)&&!rockHit(s,t)){
-      const ace=1+0.04*aimBonus(s),c=1-0.4*bearing(s,t)/LOCK_CONE;
-      s.locks[t.id]=Math.min(1,lockOf(s,t.id)+LOCK_RATE*ace*c*dt);s.lockOn=t.id;
-      for(const id in s.locks)if(id!==t.id)s.locks[id]=Math.max(0,s.locks[id]-LOCK_LOSS*dt);
-    } else s.lockOn=null;
-  }
+  const R=lockRange(s),t=lockTarget(s,R);
+  if(t&&t.alive&&bearing(s,t)<=LOCK_CONE&&dist(s,t)<=R&&!rockHit(s,t)){
+    const ace=1+0.04*aimBonus(s),c=1-0.4*bearing(s,t)/LOCK_CONE;
+    s.locks[t.id]=Math.min(1,lockOf(s,t.id)+LOCK_RATE*ace*c*dt);s.lockOn=t.id;
+    for(const id in s.locks)if(id!==t.id)s.locks[id]=Math.max(0,s.locks[id]-LOCK_LOSS*dt);
+  } else s.lockOn=null;
   for(const id in s.locks){
     const x=byId(id);
-    if(!x||!x.alive||!q){delete s.locks[id];continue;}
-    if(s.lockOn!==id&&(bearing(s,x)>LOCK_CONE||dist(s,x)>misRange(q)))s.locks[id]=Math.max(0,s.locks[id]-LOCK_LOSS*dt);
+    if(!x||!x.alive){delete s.locks[id];continue;}
+    if(s.lockOn!==id&&(bearing(s,x)>LOCK_CONE||dist(s,x)>R))s.locks[id]=Math.max(0,s.locks[id]-LOCK_LOSS*dt);
     if(s.locks[id]<=0)delete s.locks[id];
   }
 }
@@ -273,7 +276,7 @@ function missileShot(s){
 }
 function fireMissile(s,q,t){
   q.ammo--;q.cd=MISSILE_EVERY;s.st.missiles++;
-  S.missiles.push({x:s.x,y:s.y,px:s.px,py:s.py,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:misRange(q)/misSpd()*2.5,trail:[],id:++S.misN});
+  S.missiles.push({x:s.x,y:s.y,px:s.px,py:s.py,h:s.h,owner:s.id,faction:s.faction,target:t.id,w:q.w,lock:lockOf(s,t.id),life:MIS_LIFE,trail:[],id:++S.misN});
   pushEvent('missile',s.name+' fires a missile at '+(t.label||t.name),{ship:s.faction==='reb'?s.id:t.id,x:s.x,y:s.y,tone:s.faction==='reb'?'info':'hazard'});
   floater(s,'FOX',C.psi);
   if(s.faction==='reb')say(s,pickLine(s,'fox'),'info',true);
@@ -291,12 +294,13 @@ function missileDoctrine(s){
   (s.abLog=s.abLog||[]).push({k:'missile',t:+S.t.toFixed(2),how:doc==='MANUAL'?'manual':tr.emerg?'emerg':'want'});
 }
 function aimBonus(s){return SRDB.skillBonus(s.pilot.skills?s.pilot.skills.aim:0,s.pilot.level);}
-function spreadOf(s,w,d){
+function spreadOf(s,w,d,lk){
   let deg=SPREAD_BASE;
   if(w.kind!=='missile'){const ru=d/RU;if(ru>1)deg+=RANGE_SPREAD*(ru-1);}
   deg*=1/(1+SPREAD_AIM_K*aimBonus(s));
   if(!mute(s))deg*=1+SPREAD_NERVE_K*(1-s.pilot.cool/100);
   deg+=SPREAD_CRIT*critCount(s,'targeting');
+  deg*=1-LOCK_AIM*Math.min(1,lk||0);   // a lock steadies the guns (C-72)
   return deg*Math.PI/180;
 }
 function aimAngle(s,t,w){
@@ -339,7 +343,7 @@ function emitBursts(dt){
     while(B.left>0&&B.next<=0){
       const tt=t&&t.alive?t:null;
       const ang=tt?aimAngle(s,tt,B.w):s.h,d=tt?dist(s,tt):B.w.rng;
-      const h=ang+(S.rng()-0.5)*spreadOf(s,B.w,d),V=projSpd(B.w),m=muzzleAt(s,B.fired);
+      const h=ang+(S.rng()-0.5)*spreadOf(s,B.w,d,tt?lockOf(s,tt.id):0),V=projSpd(B.w),m=muzzleAt(s,B.fired);
       S.proj.push({x:m.x,y:m.y,x0:m.x,y0:m.y,vx:Math.cos(h)*V,vy:Math.sin(h)*V,owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:B.w.rng/V*1.15,age:0,style:PROJ_OF[B.w.id]});
       B.left--;B.fired++;B.live++;s.st.shots++;B.next+=BURST_GAP;
     }
@@ -348,7 +352,7 @@ function emitBursts(dt){
 function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const s=byId(shooterId);
   const imp=impactOf(vx,vy,hit);
-  const lk=lockAt!=null?lockAt:(s?lockOf(s,t.id):0);
+  const lk=homing?(lockAt!=null?lockAt:(s?lockOf(s,t.id):0)):0;   // the lock's damage bonus is the missiles' alone (C-72: every ship locks now)
   const roll=w.dmg[0]+Math.floor(S.rng()*(w.dmg[1]-w.dmg[0]+1));
   const share=homing?1:shotShare(),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
   const dmg=homing?Math.max(1,Math.round(raw)):raw;
@@ -398,12 +402,22 @@ function missileTick(dt){
   for(const m of S.missiles){
     let t=byId(m.target);
     m.life-=dt;
-    // the target breaks once it is MIS_BREAK_T out: a weak lock can be shaken (MIS_SHAKE × the lock it lacks)
-    if(t&&t.alive&&!m.rolled&&dist(m,t)/misSpd()<MIS_BREAK_T&&!(t.beh&&t.beh.kind==='freeze')){
-      m.rolled=true;
-      if(S.rng()<MIS_SHAKE*(1-m.lock)){floater(t,'SHOOK IT',C.steel);m.target=null;t=null;m.lost=true;}
+    // the target breaks once it is MIS_BREAK_T out: a weak lock can be shaken (MIS_SHAKE × the lock it lacks); a
+    // missile that overshoots and comes round again gets another roll (C-72: missiles fly MIS_LIFE now)
+    if(t&&t.alive){
+      const tt=dist(m,t)/misSpd();
+      if(!m.rolled&&tt<MIS_BREAK_T&&!(t.beh&&t.beh.kind==='freeze')){
+        m.rolled=true;
+        if(S.rng()<MIS_SHAKE*(1-m.lock)){floater(t,'SHOOK IT',C.steel);m.target=null;t=null;m.lost=true;}
+      } else if(m.rolled&&tt>MIS_BREAK_T*2)m.rolled=false;
     }
-    if(t&&t.alive){const V=misSpd(),tau=Math.min(1.5,dist(m,t)/V),want=Math.atan2(t.y+(t.vy||0)*tau*0.5-m.y,t.x+(t.vx||0)*tau*0.5-m.x),dh=angNorm(want-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));}   // leads its target a little
+    // chaff (C-72): a missile drawn off flies into the cloud and bursts there
+    if(m.decoy!=null){
+      const cf=S.chaff.find(c=>c.id===m.decoy);
+      if(cf){const dh=angNorm(Math.atan2(cf.y-m.y,cf.x-m.x)-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));
+        if(Math.hypot(cf.x-m.x,cf.y-m.y)<misSpd()*dt*1.5){S.fx.push({x:cf.x,y:cf.y,t0:S.t,kind:'boom',size:0.5});S.m.misChaff=(S.m.misChaff||0)+1;S.m.misMiss=(S.m.misMiss||0)+1;continue;}}
+    }
+    else if(t&&t.alive){const V=misSpd(),tau=Math.min(1.5,dist(m,t)/V),want=Math.atan2(t.y+(t.vy||0)*tau*0.5-m.y,t.x+(t.vx||0)*tau*0.5-m.x),dh=angNorm(want-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));}   // leads its target a little
     const p0={x:m.x,y:m.y},p1={x:m.x+Math.cos(m.h)*misSpd()*dt,y:m.y+Math.sin(m.h)*misSpd()*dt};
     if(t&&t.alive){
       const h=hullHit(t,p0,p1);
@@ -420,6 +434,21 @@ function missileTick(dt){
     kept.push(m);
   }
   S.missiles=kept;
+}
+/* chaff (C-72, playtest 4): a cloud a ship throws out behind it; every missile on its way to that ship within CHAFF_R
+   takes the cloud for it (CHAFF_P of the time) and bursts in it. CHAFF_N to a sortie, CHAFF_SECS a cloud */
+let CHAFF_N=2,CHAFF_R=3000,CHAFF_P=1,CHAFF_SECS=3,CHAFF_T=1.2;   // placeholders (CHAFF_T: AUTO throws it a missile this many s out)
+function throwChaff(s){
+  const c={id:++S.chaffN,x:s.x-Math.cos(s.vh)*60,y:s.y-Math.sin(s.vh)*60,vx:s.vx*0.25,vy:s.vy*0.25,t0:S.t,until:S.t+CHAFF_SECS,owner:s.id};
+  S.chaff.push(c);s.chaffLeft=(s.chaffLeft==null?CHAFF_N:s.chaffLeft)-1;
+  let n=0;
+  for(const m of S.missiles)if(m.target===s.id&&dist(m,s)<=CHAFF_R&&S.rng()<CHAFF_P){m.target=null;m.decoy=c.id;n++;}
+  pushEvent('chaff',s.name+' throws chaff'+(n?': '+n+' missile'+(n>1?'s':'')+' drawn off':''),{ship:s.faction==='reb'?s.id:null,x:s.x,y:s.y,tone:s.faction==='reb'?'good':'info'});
+  return n;
+}
+function chaffTick(dt){
+  for(const c of S.chaff){c.x+=c.vx*dt;c.y+=c.vy*dt;c.vx*=0.98;c.vy*=0.98;}
+  S.chaff=S.chaff.filter(c=>c.until>S.t);
 }
 function destroyShip(t,killer){   // sim-sb.js destroyShip (space.js ~1026–1037), plus the feed and the wing
   t.alive=false;t.hull=Math.min(t.hull,0);t.deadT=S.t;
@@ -620,7 +649,7 @@ function build(scn,opt){
     variantLabel:R.variantLabel};
   for(const r of S.rocks)if(!r.verts){const rr=mulberry(Math.round(r.x*7+r.y*13));r.verts=[];const n=8+Math.floor(rr()*4);for(let k=0;k<n;k++)r.verts.push(0.72+rr()*0.4);r.rot=rr()*Math.PI*2;}
   S.barks=[];S.barkN=0;
-  S.pn=0;S.misN=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
+  S.pn=0;S.misN=0;S.chaff=[];S.chaffN=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
   for(const wd of R.wings||[])addWing(wd);
   for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark); an installation (a station row) is yours to defend
     const row=SRDB.ship(a.cls||'graf'),inst=row.kind==='structure';
@@ -1060,6 +1089,7 @@ const ABILITIES={
   kturn:{name:'K-Turn',cd:12,line:'Flip end for end. Auto: something on its six. Emergency: on its six and hurt.'},
   barrel:{name:'Barrel Roll',cd:9,line:'Jink hard: half the hit profile for 1.5 s. Auto: pinned. Emergency: pinned under 40% hull.'},
   fieldrep:{name:'Field Repair',cd:25,line:'The leader patches the hull (+15%). Auto: under 60% hull. Emergency: under 30%.'},
+  chaff:{name:'Chaff',cd:6,line:'Throw a chaff cloud: every missile on its way in takes the cloud for this ship. Two a sortie. Auto: a missile closing. Emergency: a missile about to hit.'},
   missile:{name:'Missile',cd:2,line:'A guided missile at a locked target (60% lock, past 450). Auto: fires on a lock. Emergency: only pinned or under half hull. Manual: press to arm it; it fires at the next lock.'},
 };
 const DOCTRINES=['AUTO','EMERG','MANUAL'];
@@ -1069,6 +1099,7 @@ function abilitiesOf(s){
   if(maxShield(s)>0)out.push('shields');
   out.push('lockin');
   if(s.wpns.some(q=>q.w.needsLock))out.push('missile');
+  out.push('chaff');
   if(s.faction==='reb'&&!s.quiet){
     for(const k of (ARENA_MOVESETS[s.pilot.preset]||(s.pilot.level>=8?ARENA_MOVESETS.ace:s.pilot.level>=5?ARENA_MOVESETS.veteran:ARENA_MOVESETS.regular)))out.push(k);
     if(s.lead)out.push('fieldrep');
@@ -1080,20 +1111,23 @@ function onSix(s){return foesOf(s).find(t=>!t.struct&&inArc(t,s)&&!inFrontHemi(s
 function abilityTriggers(s,k){
   const hf=s.hull/s.maxHull,sf=maxShield(s)?totalShield(s)/maxShield(s):1,hitNow=S.t-s.hitT<1,pinned=pinnedBy(s).length>=PIN_N,mor=moraleOf(s);
   const b=s.beh||{},t=byId(b.target);
+  const mis=incomingMissile(s),misT=mis?dist(mis,s)/misSpd():1e9,misFar=!!mis&&misT>=MIS_BREAK_T,misClose=!!mis&&misT<MIS_BREAK_T;
   switch(k){
     case 'shields':return {want:sf<0.5&&S.t-s.hitT<2,emerg:sf<=0.01&&hitNow};
     case 'lockin':return {want:mor==='SHAKEN',emerg:mor==='PANICKED'};
-    case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw'||(s.mv==='extend'&&!!onSix(s)),emerg:pinned&&hf<0.5};
+    case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw'||(s.mv==='extend'&&!!onSix(s))||misFar,emerg:(pinned&&hf<0.5)||misFar};   // C-72: boost away from a missile
     case 'drift':{const six=onSix(s);return {want:b.kind==='withdraw'&&!!six,emerg:b.kind==='withdraw'&&hitNow};}
     case 'kturn':{const six=onSix(s);return {want:!!six,emerg:!!six&&hf<0.5};}
-    case 'barrel':return {want:pinned,emerg:pinned&&hf<0.4};
+    case 'barrel':return {want:pinned||misClose,emerg:(pinned&&hf<0.4)||misClose};   // C-72: jink as a missile closes
     case 'fieldrep':return {want:hf<0.6,emerg:hf<0.3};
     case 'missile':return {want:!!missileShot(s),emerg:!!missileShot(s)&&(pinned||hf<0.5)};
+    case 'chaff':return {want:misT<CHAFF_T,emerg:misT<MIS_BREAK_T*0.7};
   }
   return {want:false,emerg:false};
 }
 function useAbility(s,k,manual){
   if(!s.alive||!abilitiesOf(s).includes(k))return {ok:false,why:'not this pilot\'s'};
+  if(k==='chaff'&&(s.chaffLeft!=null?s.chaffLeft:CHAFF_N)<=0)return {ok:false,why:'no chaff left'};
   if(k==='missile'){   // pressed: fire now if locked, else arm it for the next lock
     const q=misWpn(s);if(!q)return {ok:false,why:'no missiles left'};
     const shot=missileShot(s);
@@ -1110,6 +1144,7 @@ function useAbility(s,k,manual){
   else if(k==='kturn'){const sp=Math.hypot(s.vx,s.vy)*0.5;s.vh=angNorm(s.vh+Math.PI);s.vx=Math.cos(s.vh)*sp;s.vy=Math.sin(s.vh)*sp;}
   else if(k==='barrel')s.evadeT=S.t+1.5;
   else if(k==='fieldrep')s.hull=Math.min(s.maxHull,s.hull+Math.ceil(0.15*s.maxHull));
+  else if(k==='chaff')throwChaff(s);
   (s.abLog=s.abLog||[]).push({k,t:+S.t.toFixed(2),how:manual?'manual':s.abWhy||'auto'});
   floater(s,ABILITIES[k].name.toUpperCase(),C.shield);
   return {ok:true};
@@ -1416,18 +1451,22 @@ function goalOf(s){
     const o=bestTarget(s,opp);if(o)s.fireAt=o.id;   // the designated target isn't in the guns: shoot what is
   }
   // a missile about to hit (C-70): break hard across its path, at corner speed, whatever the job (a frozen pilot can't)
+  // C-72: from the launch, not just the last second. Far off: run straight away from it at full speed (boosting:
+  // abilityTick runs every step while one is coming), to make it chase; close (MIS_BREAK_T): break across its path
   const mis=incomingMissile(s);
   if(mis&&b.kind!=='freeze'){
-    const mh=Math.atan2(s.y-mis.y,s.x-mis.x),side=angNorm(s.vh-mh)>=0?1:-1,bh=mh+side*Math.PI/2;
-    g={x:s.x+Math.cos(bh)*900,y:s.y+Math.sin(bh)*900,spd:CORNER};s.misBreakT=S.t;
+    const mh=Math.atan2(s.y-mis.y,s.x-mis.x),close=dist(mis,s)/misSpd()<MIS_BREAK_T;
+    if(close){const side=angNorm(s.vh-mh)>=0?1:-1,bh=mh+side*Math.PI/2;g={x:s.x+Math.cos(bh)*900,y:s.y+Math.sin(bh)*900,spd:CORNER};}
+    else g={x:s.x+Math.cos(mh)*1500,y:s.y+Math.sin(mh)*1500,spd:1};
+    s.misBreakT=S.t;
     if(s.warnedMis!==mis.id){s.warnedMis=mis.id;if(s.faction==='reb'&&!s.quiet)say(s,pickLine(s,'missile'),'hazard',true);}
   }
   if(g)s.intent={x:g.x,y:g.y};
   s.goal=g;
 }
-function incomingMissile(s){   // the nearest missile on its way to this ship, inside MIS_BREAK_T
+function incomingMissile(s){   // the nearest missile on its way to this ship (C-72: from launch, not only at the end)
   if(s.struct)return null;
-  let best=null,bt=MIS_BREAK_T;
+  let best=null,bt=1e9;
   for(const m of S.missiles){if(m.target!==s.id)continue;const t=dist(m,s)/misSpd();if(t<bt){bt=t;best=m;}}
   return best;
 }
@@ -1557,9 +1596,13 @@ function evadeVec(s){
   let ex=0,ey=0,worst=0,who=null;
   const test=(ox,oy,ovx,ovy,R,o)=>{
     const rx=ox-s.x,ry=oy-s.y;if(Math.abs(rx)>reach+R||Math.abs(ry)>reach+R)return;
-    const ux=ovx-s.vx,uy=ovy-s.vy,uu=ux*ux+uy*uy;if(uu<1)return;
-    const t=-(rx*ux+ry*uy)/uu;if(t<=0||t>AVOID_T)return;
-    const cx=rx+ux*t,cy=ry+uy*t,d=Math.hypot(cx,cy);if(d>=R)return;
+    const ux=ovx-s.vx,uy=ovy-s.vy,uu=ux*ux+uy*uy,d0=Math.hypot(rx,ry);
+    let t=uu<1?0:-(rx*ux+ry*uy)/uu;
+    // already inside the room with no closing to speak of (flying side by side, touching): push apart now (C-72: two
+    // ships at matched speed ground along each other, as nothing closing was ever seen)
+    if(t<=0||uu<1){if(d0>=R)return;t=0;}
+    else if(t>AVOID_T)return;
+    const cx=t?rx+ux*t:rx,cy=t?ry+uy*t:ry,d=t?Math.hypot(cx,cy):d0;if(d>=R)return;
     const urg=Math.min(1,(1-t/AVOID_T)*0.7+(1-d/R)*0.5);
     // sideways, across our line of flight, away from the side it is on: a moving ship by where it will pass, a rock
     // or station by where it is; the side is held while the danger lasts, so the dodge never flips mid-turn
@@ -1570,9 +1613,10 @@ function evadeVec(s){
     // passing point's side is noise, and two Crosses in formation turned into each other)
     const along=o&&!o.struct&&Math.abs(angNorm((o.vh!=null?o.vh:o.h)-s.vh))<1.05&&d<=R*0.35;
     const near=o&&!o.struct&&!along;
-    let side=s.evSide[key]&&S.t-s.evSide[key].t<1?s.evSide[key].side:(near?hx*cy-hy*cx:hx*ry-hy*rx);   // > 0: on our left
+    const held=s.evSide[key]&&S.t-s.evSide[key].t<1&&S.t-s.evSide[key].t0<1;   // held at most 1 s from the choice (C-72: renewed every step, a stale side ground two ships together)
+    let side=held?s.evSide[key].side:(near?hx*cy-hy*cx:hx*ry-hy*rx);   // > 0: on our left
     if(Math.abs(side)<1e-3)side=(s.id<(o&&o.id||'~'))?1:-1;
-    side=side>0?1:-1;s.evSide[key]={side,t:S.t};
+    side=side>0?1:-1;s.evSide[key]={side,t:S.t,t0:held?s.evSide[key].t0:S.t};
     const k=urg*AVOID_W,sx=side>0?hy:-hy,sy=side>0?-hx:hx;
     ex+=sx*k;ey+=sy*k;if(urg>worst){worst=urg;who=o;}
   };
@@ -1857,8 +1901,8 @@ function step(){
     // a hull-threshold rule fires the step it is crossed, not at the next think
     if(s.faction==='reb'&&s.wing&&!s.preserved&&hullRuleDue(s))s.thinkT=THINK_SECS;
   }
-  for(const s of S.ships)if(s.alive&&!s.struct){lockTick(s,dt);fireTick(s,dt);missileDoctrine(s);}
-  emitBursts(dt);projTick(dt);missileTick(dt);
+  for(const s of S.ships)if(s.alive&&!s.struct){lockTick(s,dt);fireTick(s,dt);missileDoctrine(s);if(incomingMissile(s)&&!mute(s))abilityTick(s);}   // a missile coming: the abilities answer it at once, not at the next think (C-72)
+  emitBursts(dt);projTick(dt);missileTick(dt);chaffTick(dt);
   S.fx=S.fx.filter(f=>S.t-f.t0<1);
   moraleTick();pinTick();
   captureTick(dt);boardTick(dt);
@@ -1969,6 +2013,12 @@ const TUNE={
   MIS_RANGE_K:{get:()=>MIS_RANGE_K,set:v=>{MIS_RANGE_K=v;},min:0.5,max:4,step:0.1,label:'Missile reach × its range'},
   MIS_SPD_K:{get:()=>MIS_SPD_K,set:v=>{MIS_SPD_K=v;},min:4,max:30,step:0.5,label:'Missile speed (dial units)'},
   MIS_TURN:{get:()=>MIS_TURN,set:v=>{MIS_TURN=v;},min:1,max:15,step:0.25,label:'Missile turn (rad/s)'},
+  MIS_LIFE:{get:()=>MIS_LIFE,set:v=>{MIS_LIFE=v;},min:1,max:20,step:0.5,label:'Missile life (s), then it explodes'},
+  LOCK_AIM:{get:()=>LOCK_AIM,set:v=>{LOCK_AIM=v;},min:0,max:0.95,step:0.05,label:'A full lock takes this off gun spread'},
+  LOCK_GUN_K:{get:()=>LOCK_GUN_K,set:v=>{LOCK_GUN_K=v;},min:0.5,max:3,step:0.1,label:'Lock reach without missiles × gun reach'},
+  CHAFF_N:{get:()=>CHAFF_N,set:v=>{CHAFF_N=v;},min:0,max:6,step:1,label:'Chaff a sortie'},
+  CHAFF_P:{get:()=>CHAFF_P,set:v=>{CHAFF_P=v;},min:0,max:1,step:0.05,label:'Chaff draws a missile off (chance)'},
+  CHAFF_T:{get:()=>CHAFF_T,set:v=>{CHAFF_T=v;},min:0.2,max:4,step:0.1,label:'Auto chaff: a missile this many s out'},
   MIS_SHAKE:{get:()=>MIS_SHAKE,set:v=>{MIS_SHAKE=v;},min:0,max:2.5,step:0.1,label:'A break shakes a missile × its missing lock'},
   MIS_BREAK_T:{get:()=>MIS_BREAK_T,set:v=>{MIS_BREAK_T=v;},min:0,max:3,step:0.1,label:'Break from a missile at (s out)'},
   COLLIDE_BOUNCE:{get:()=>COLLIDE_BOUNCE,set:v=>{COLLIDE_BOUNCE=v;},min:0,max:1,step:0.05,label:'Collision bounce'},
@@ -2060,7 +2110,7 @@ for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
-  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
+  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
@@ -2077,7 +2127,7 @@ return {key:'hc',name:'Type 3: High Command',
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
-    THINK_SECS_:()=>THINK_SECS,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
+    THINK_SECS_:()=>THINK_SECS,spreadOf,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
 })();

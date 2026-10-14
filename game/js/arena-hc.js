@@ -44,7 +44,7 @@ const PREFS_KEY='sr-arena-hc-prefs';   // High Command's own key; never the camp
    ===================================================================== */
 const ROCKS_NIGHTFALL=[{x:3000,y:2900,r:120},{x:3220,y:3120,r:85},{x:4800,y:2350,r:140},{x:6400,y:3050,r:110},{x:2500,y:1500,r:100},{x:6900,y:4700,r:130},{x:4100,y:4700,r:95}];
 const HC_SCENARIOS=[
-  {id:'hc1_nightfall',title:'HC1: Nightfall',rulesets:['hc'],quietLines:true,   // C-70: lines only for the hovered or selected wing
+  {id:'hc1_nightfall',title:'HC1: Nightfall',rulesets:['hc'],
     desc:'The canvas mission. Dagger (3) and Amber (2) see Convoy Lark to the jump point; Relay K-7 jams it until it falls. Optional: capture the satellite. Hegemony reinforcements in 4:00. Does mission command feel like gameplay?',
     rocks:ROCKS_NIGHTFALL,
     wings:[
@@ -291,6 +291,8 @@ function drawLocks(c,z,S,boost,now){
   const need=SIM.fn.MISSILE_LOCK_();
   for(const s of S.ships){
     if(!s.alive||s.struct||s.quiet||!s.locks)continue;
+    // every ship locks since C-72: brackets for the selected wing and for ships with missiles; warnings from those only
+    const mis=!!SIM.fn.misWpn(s);if(s.faction==='reb'?!(mis||selWings().includes(s.wing)):!mis)continue;
     let best=null,lk=0;for(const id in s.locks)if(s.locks[id]>lk){lk=s.locks[id];best=id;}
     const t=best&&SIM.fn.byId(best);if(!t||!t.alive||lk<0.05)continue;
     const p=ipos(t),R0=shieldR(t,boost)+6/z,k=Math.min(1,lk/need),R=R0*(1+1.6*(1-k)),ok=lk>=need;
@@ -306,6 +308,15 @@ function drawLocks(c,z,S,boost,now){
     }
   }
 }
+/* chaff (C-72): a glittering cloud that spreads and fades */
+function drawChaff(c,z,S){
+  for(const f of S.chaff||[]){
+    const k=(S.t-f.t0)/Math.max(0.1,f.until-f.t0),r=(40+160*k),rr=SIM.fn.mulberry(f.id*97);
+    c.save();c.globalAlpha=Math.max(0,1-k)*0.9;c.fillStyle=C.goldHi;
+    for(let i=0;i<26;i++){const a=rr()*6.283,d=r*Math.sqrt(rr()),sz=(1.5+rr()*2.5)/Math.max(z,0.15);c.fillRect(f.x+Math.cos(a)*d-sz/2,f.y+Math.sin(a)*d-sz/2,sz,sz);}
+    c.restore();
+  }
+}
 function drawTrail(c,s,z){
   if(s.trail.length<2)return;
   c.save();c.lineCap='round';c.strokeStyle=shipColHi(s);c.globalAlpha=0.35;c.lineWidth=2.5/z;c.beginPath();
@@ -318,7 +329,12 @@ let RA=1;
 /* quiet lines (C-70, playtest 2): the intent lines and attack designations only for the selected or hovered wing,
    fainter. On for scenarios that ask (hc1); the panel's toggle overrides it */
 const QUIET_ALPHA=0.4;   // placeholder
-const linesQuiet=()=>A.quietPref!=null?A.quietPref:!!(A.scen&&A.scen.quietLines);
+const linesQuiet=()=>A.quietPref!=null?A.quietPref:true;   // every scenario since C-72 (was hc1's own setting)
+/* what the selected wing(s) are fighting: the enemies their ships have as a target (C-72: their lines and status show) */
+function selFoes(sw){const out=new Set();if(!sw.length)return out;for(const s of SIM.S.ships){if(!s.alive||!sw.includes(s.wing))continue;const b=s.beh||{};if(b.target)out.add(b.target);if(s.fireAt)out.add(s.fireAt);}return out;}
+/* a ship's shields and pips show on the map only when it is selected, in a selected wing or fighting one; a station's
+   and the convoy's always (C-72, playtest 4); the roster's tiles keep every ship's */
+function statusShown(s,sw,sf){return s.struct||s.quiet||A.selShip===s.id||sw.includes(s.wing)||sf.has(s.id);}
 const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*k;};
 function ipos(s){
   if(s.px==null)return {x:s.x,y:s.y,h:s.h};
@@ -335,7 +351,7 @@ function render(now){
   drawPoints(ctx,z,S);
   const pos=ipos;
   // the selected wing's engagement ring, and its attack designation in gold
-  const sw=selWings(),w=SIM.fn.wingOf(A.sel),quiet=linesQuiet();
+  const sw=selWings(),w=SIM.fn.wingOf(A.sel),quiet=linesQuiet(),sf=selFoes(sw);
   for(const wid of sw){
     const wg=SIM.fn.wingOf(wid),live=wg?SIM.fn.wingShips(wg).map(ipos):[];
     if(live.length){
@@ -347,7 +363,7 @@ function render(now){
   for(const wg of S.wings){   // every wing's attack designation; the selected wing's loudest
     const o=wg.order;if(!o||o.kind!=='attack'||!o.target)continue;
     const sel=sw.includes(wg.id);
-    if(quiet&&!sel&&wg.id!==A.hoverWing)continue;   // quiet: only the selected or hovered wing's (C-70)
+    if(quiet&&!sel)continue;   // quiet: only the selected wing's (C-70; hover no longer counts, C-72)
     for(const t of S.ships){
       if(!t.alive||t.faction!=='heg')continue;
       if(o.target.type==='class'?t.cls!==o.target.cls||t.struct:t.id!==o.target.id)continue;
@@ -362,7 +378,9 @@ function render(now){
   for(const s of S.ships){
     if(!s.alive||s.struct||!s.intent)continue;
     const p=pos(s),reb=s.faction==='reb';
-    if(quiet){if(!reb||!s.wing||!(sw.includes(s.wing)||s.wing===A.hoverWing))continue;dashLine(ctx,p,s.intent,C.rebel,z,1.3,[5,8],QUIET_ALPHA);continue;}
+    if(quiet){   // quiet (C-72): the selected wing's lines, and the lines of the enemies going for it
+      const go=reb?!!s.wing&&sw.includes(s.wing):!!(s.beh&&s.beh.target&&SIM.fn.byId(s.beh.target)&&sw.includes(SIM.fn.byId(s.beh.target).wing));
+      if(go)dashLine(ctx,p,s.intent,reb?C.rebel:C.heg,z,1.3,[5,8],reb?QUIET_ALPHA:QUIET_ALPHA*0.8);continue;}
     dashLine(ctx,p,s.intent,reb?(s.quiet?C.steel:C.rebel):C.heg,z,reb?1.8:1.2,[7,7],reb?0.85:0.32);
   }
   const recon=S.reconUntil>S.t;
@@ -386,11 +404,12 @@ function render(now){
     const p=pos(s);
     if(A.selShip===s.id||sw.includes(s.wing))ring(ctx,p.x,p.y,shieldR(s,boost)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
     drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
-    drawShields(ctx,s,p.x,p.y,p.h,z,boost);
+    if(statusShown(s,sw,sf))drawShields(ctx,s,p.x,p.y,p.h,z,boost);
     if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
     else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
   }
   drawShots(ctx,z,a,S);
+  drawChaff(ctx,z,S);
   drawLocks(ctx,z,S,boost,now);
   // screen space: hull pips and names, floaters
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -398,7 +417,7 @@ function render(now){
   for(const s of S.ships){
     if(!s.alive)continue;
     const p=pos(s),q=toScreen(p.x,p.y),r=shieldR(s,boost)*z;
-    TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4});
+    if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4});
     if(!s.struct&&!s.quiet){ctx.lineWidth=3;ctx.strokeStyle=C.ink;ctx.strokeText(s.name,q.x,q.y+r+14);ctx.fillStyle=shipColHi(s);ctx.fillText(s.name,q.x,q.y+r+14);}
   }
   ctx.font='800 13px "Exo 2",sans-serif';
@@ -424,7 +443,7 @@ let bubbles=[],barkSeen=0;
 const BADGE_MS=2500,BADGE_MAX=3,BADGE_R=11;   // placeholders
 const BADGE={shields:['a_shields','shield','Boost Shields'],lockin:['a_lockin','psi','Lock In'],boost:['a_boost','gold','Boost'],drift:['a_drift','gold','Drift'],
   kturn:['a_kturn','gold','K-Turn'],barrel:['a_barrel','gold','Barrel Roll'],fieldrep:['a_fieldrep','go','Field Repair'],missile:['a_missile','psi','Missile away'],
-  evade:['a_evade','hazard','Breaking from a missile'],dodge:['a_dodge','hazard','Dodging a crash'],breakoff:['a_break','text','Breaking off']};
+  evade:['a_evade','hazard','Evading a missile'],chaff:['a_chaff','goldHi','Chaff'],dodge:['a_dodge','hazard','Dodging a crash'],breakoff:['a_break','text','Breaking off']};
 let badges=[];const badgeSeen=new Map();
 function badgeTick(now){
   const S=SIM.S;if(!S)return;
@@ -553,7 +572,7 @@ function load(id,variant,seed){
   bubbles=[];barkSeen=0;badges=[];badgeSeen.clear();
   A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
   A.sel=null;A.group=null;A.box=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;closeWheel();
-  A.cmdFor=null;A.cmdArm=null;A.abortArm=false;A.hoverWing=null;
+  A.cmdFor=null;A.cmdArm=null;A.abortArm=false;
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
   byId('hcPicker').hidden=true;byId('hcEnd').hidden=true;
   fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
@@ -610,6 +629,7 @@ const GLYPH={
   a_fieldrep:'M12 4v16M4 12h16',
   a_missile:'M4 20l5-5M9 15l7-7 4-1-1 4-7 7zM7 11l6 6',
   a_evade:'M12 4v10M12 18v2',
+  a_chaff:'M5 6h2M11 4h2M17 7h2M7 12h2M14 11h2M4 17h2M10 18h2M17 16h2',
   a_dodge:'M5 19L19 5M5 5l5 5M14 14l5 5',
   a_break:'M4 17l6-6 4 4 6-8M15 7h5v5',
   attack:circ(12,12,6)+'M12 2v6M12 16v6M2 12h6M16 12h6',
@@ -1044,9 +1064,9 @@ function pilotBody(s){
     h+='<div class="hc-tray__lbl">Abilities · doctrine</div>';
     for(const k of abil){
       const doc=(s.doct&&s.doct[k])||'AUTO',cd=Math.max(0,((s.abCd&&s.abCd[k])||0)-S.t);
-      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+(k==='missile'?' ×'+misLeft(s):'')+'</span><span class="hc-seg" role="group">'+
+      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+(k==='missile'?' ×'+misLeft(s):k==='chaff'?' ×'+chaffLeft(s):'')+'</span><span class="hc-seg" role="group">'+
         SIM.DOCTRINES.map(d=>'<button type="button" class="hc-seg__b'+(d===doc?' is-on':'')+'" data-doc="'+d+'" data-abil="'+k+'" aria-pressed="'+(d===doc)+'" data-tip="doc:'+d+'">'+d+'</button>').join('')+
-        '</span>'+(k==='missile'?misBtn(s):'<button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button>')+'</div>';
+        '</span>'+(k==='missile'?misBtn(s):k==='chaff'&&!chaffLeft(s)?'<button type="button" class="hc-use" data-use="chaff" aria-disabled="true">Empty</button>':'<button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button>')+'</div>';
     }
   }
   // the response row: in an emergency, the interventions that fit (gold: the recommended one) and the free ones
@@ -1060,6 +1080,7 @@ function pilotBody(s){
   return h+'</div>';
 }
 /* the Missile row's button: Fire when locked, Armed while armed, else Arm (it fires at the next lock); Empty with none left */
+const chaffLeft=s=>s.chaffLeft!=null?s.chaffLeft:SIM.TUNE.CHAFF_N.get();
 const misLeft=s=>s.wpns.filter(q=>q.w.needsLock).reduce((n,q)=>n+(q.ammo||0),0);
 function misBtn(s){
   const S=SIM.S,left=misLeft(s),shot=SIM.fn.missileShot(s),armed=(s.misArm||0)>S.t;
@@ -1208,7 +1229,7 @@ cv.addEventListener('pointerdown',ev=>{
   pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button,mode:panning?'pan':'box'};
 });
 cv.addEventListener('pointermove',ev=>{
-  if(!pan){if(A.phase==='LIVE'&&SIM.S){const p=evPt(ev),s=shipAt(p.x,p.y);A.hoverWing=s&&s.faction==='reb'&&s.wing?s.wing:null;}return;}
+  if(!pan)return;
   const p=evPt(ev);
   if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
   if(!pan.moved)return;
@@ -1225,9 +1246,6 @@ cv.addEventListener('pointerup',ev=>{
   if(was.button===0||was.button==null)mapClick(p,ev);
 });
 cv.addEventListener('pointercancel',()=>{pan=null;A.box=null;});
-cv.addEventListener('pointerleave',()=>{if(!pan)A.hoverWing=null;});
-byId('hcRoster').addEventListener('pointerover',ev=>{const w=ev.target.closest&&ev.target.closest('[data-wing]');A.hoverWing=w?w.dataset.wing:null;});
-byId('hcRoster').addEventListener('pointerleave',()=>{A.hoverWing=null;});
 cv.addEventListener('contextmenu',ev=>ev.preventDefault());   // the right button is ours: pointerup handles a right-click
 /* a box: every wing with one of your ships inside it (as drawn); none clears the selection */
 function boxSelect(b){
@@ -1382,7 +1400,7 @@ function buildPanel(){
   }
   h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="defaults">Reset numbers to defaults</button>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
-  h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected or hovered wing</label></div>';
+  h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected wing</label></div>';
   h+='</div><div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
   byId('hcPanelBody').innerHTML=h;
@@ -1481,7 +1499,7 @@ function open(){openUi();showPicker();}
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
   fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
-    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,linesQuiet,badgeTick,badges_:()=>badges.map(b=>b.ship+':'+b.k),BADGE_:()=>({MS:BADGE_MS,MAX:BADGE_MAX}),clickShip,selectGroup,boxSelect,mapRight,wheelItems,openWheel,closeWheel,wheelPick,selWings,issueSel,
+    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,linesQuiet,statusShown,selFoes,badgeTick,badges_:()=>badges.map(b=>b.ship+':'+b.k),BADGE_:()=>({MS:BADGE_MS,MAX:BADGE_MAX}),clickShip,selectGroup,boxSelect,mapRight,wheelItems,openWheel,closeWheel,wheelPick,selWings,issueSel,
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};}}};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg};
