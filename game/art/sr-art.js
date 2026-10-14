@@ -876,11 +876,14 @@ window.SR_ART=(function(){
     const col=f=>f==='hull'?lv.hull:f==='hull2'?lv.hull2:f==='dark'?lv.dark:f==='acc'?lv.acc:f;
     const dmg=o.damage||0,lw=LW.char/s;
     const off=!!o.off;                      // powered down: a landed ship that is scenery, not a participant (repo addition)
+    const still=!!o.still;                  // a sprite bake: no per-frame animation (flames, drifting smoke, blinking,
+                                            // the scanner sweep). Lights draw steady-on; the live layers come from
+                                            // sr-space-fx.js. Default false, so every existing call is unchanged.
     const L0=-1.4,L1=-1.4,lx=L0*Math.cos(-ang)-L1*Math.sin(-ang),ly=L0*Math.sin(-ang)+L1*Math.cos(-ang);
     const engCol=lv.acc===C.heg?C.hegHi:'#ffb347';
     const ISO=o.isoK||0,IZ=o.isoZ||0;const xf=()=>{if(ISO){c.translate(x,y-IZ*ISO);c.transform(.7071*ISO,.3536*ISO,-.7071*ISO,.3536*ISO,0,0);}else c.translate(x,y);c.rotate(ang);c.scale(s,s);};
     c.save();xf();if(o.roll&&!ISO)c.scale(1,1-.38*Math.abs(o.roll));c.lineJoin='round';c.lineCap='round';
-    if(!o.parked&&!off)for(const[ex,ey,er]of D.engines){const sputter=dmg>.6&&Math.sin(t*23+ey)>.6?.3:1;const f=er*(2.6+Math.sin(t*30+ey)*.6)*(o.boost?1.8:1)*sputter;const g=c.createLinearGradient(ex,0,ex-f*2,0);g.addColorStop(0,'#fffbe6');g.addColorStop(.4,engCol);g.addColorStop(1,rgba(engCol,0));
+    if(!o.parked&&!off&&!still)for(const[ex,ey,er]of D.engines){const sputter=dmg>.6&&Math.sin(t*23+ey)>.6?.3:1;const f=er*(2.6+Math.sin(t*30+ey)*.6)*(o.boost?1.8:1)*sputter;const g=c.createLinearGradient(ex,0,ex-f*2,0);g.addColorStop(0,'#fffbe6');g.addColorStop(.4,engCol);g.addColorStop(1,rgba(engCol,0));
       c.beginPath();c.moveTo(ex,ey-er*.9);c.quadraticCurveTo(ex-f*1.2,ey-er*.5,ex-f*2,ey);c.quadraticCurveTo(ex-f*1.2,ey+er*.5,ex,ey+er*.9);c.closePath();c.fillStyle=g;c.fill();}
     const each=(p,fn)=>{fn(1);if(p.m)fn(-1);};
     const shp=(p,sy)=>{if(p.pts)poly(c,p.pts.map(([a,b])=>[a,b*sy]));else{const[a,b,w,h,r]=p.box;rr(c,a,sy>0?b:-b-h,w,h,r);}};
@@ -922,10 +925,10 @@ window.SR_ART=(function(){
     if(lv.trim)glow(lv.trim);if(lv.trim2)glow(lv.trim2,.6);
     if(lv.mark){const[txt,mx,my,mc]=lv.mark;c.save();c.translate(mx,my);c.font='900 2.4px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=mc;c.fillText(txt,0,0);c.restore();}
     if(lv.nose){const[nx,ny,txt]=lv.nose;c.save();c.translate(nx,ny);circ(c,0,0,1.8);ink(c,'#f4e6c8',lw*.5);c.fillStyle=C.rebel;c.font='900 1.5px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,0,.1);c.restore();}
-    for(const[nx,ny,nc]of D.lights){const on=!off&&Math.sin(t*3+(ny>0?1.6:0))>-.2&&!(dmg>.6&&Math.sin(t*17)>0);circ(c,nx,ny,.9);c.fillStyle=off?rgba(nc,.25):nc;if(on){c.shadowColor=nc;c.shadowBlur=8;}c.fill();c.shadowBlur=0;}
+    for(const[nx,ny,nc]of D.lights){const on=!off&&(still||Math.sin(t*3+(ny>0?1.6:0))>-.2&&!(dmg>.6&&Math.sin(t*17)>0));circ(c,nx,ny,.9);c.fillStyle=off?rgba(nc,.25):nc;if(on){c.shadowColor=nc;c.shadowBlur=8;}c.fill();c.shadowBlur=0;}
     for(const[ex,ey,er]of D.engines){rr(c,ex-1.2,ey-er,2.4,er*2,.8);ink(c,lv.dark,lw*.8);}
     if(D.searchlight&&!o.dark&&!off){const[sx2,sy2]=D.searchlight;circ(c,sx2,sy2,1.1);c.fillStyle='#fff3c8';c.shadowColor='#fff3c8';c.shadowBlur=6;c.fill();c.shadowBlur=0;}
-    if(D.scanner){const[sx2,sy2,sr]=D.scanner;if(!off){const g=c.createRadialGradient(sx2,sy2,0,sx2+16,sy2,18);g.addColorStop(0,rgba(C.heg,.18));g.addColorStop(1,rgba(C.heg,0));const sw=Math.sin(t*1.8)*.35;c.save();c.rotate(0);c.beginPath();c.moveTo(sx2,sy2);c.arc(sx2,sy2,10,sw-.3,sw+.3);c.closePath();c.fillStyle=g;c.fill();c.restore();}
+    if(D.scanner){const[sx2,sy2,sr]=D.scanner;if(!off&&!still){const g=c.createRadialGradient(sx2,sy2,0,sx2+16,sy2,18);g.addColorStop(0,rgba(C.heg,.18));g.addColorStop(1,rgba(C.heg,0));const sw=Math.sin(t*1.8)*.35;c.save();c.rotate(0);c.beginPath();c.moveTo(sx2,sy2);c.arc(sx2,sy2,10,sw-.3,sw+.3);c.closePath();c.fillStyle=g;c.fill();c.restore();}
       circ(c,sx2,sy2,sr);ink(c,'#0c1024',lw*.8);circ(c,sx2,sy2,sr*.55);c.fillStyle=off?'#39405a':C.hegHi;if(!off){c.shadowColor=C.heg;c.shadowBlur=8;}c.fill();c.shadowBlur=0;}
     if(D.eye){const[ex,ey,er]=D.eye;circ(c,ex,ey,er);ink(c,'#0c1024',lw*.8);circ(c,ex,ey,er*.6);c.fillStyle=off?'#2a4a52':C.shield;if(!off){c.shadowColor=C.shield;c.shadowBlur=8;}c.fill();c.shadowBlur=0;if(!off){circ(c,ex-er*.25,ey-er*.25,er*.18);c.fillStyle='#fff';c.fill();}}
     if(D.magnets){for(const[mx,my]of D.magnets){const k=off?.18:(o.clamp?1:.45+.25*Math.sin(t*4));rr(c,mx-1.2,my-3.4,2.4,6.8,.8);c.fillStyle=rgba(C.hegHi,k);if(!off){c.shadowColor=C.heg;c.shadowBlur=o.clamp?12:5;}c.fill();c.shadowBlur=0;}}
@@ -944,10 +947,10 @@ window.SR_ART=(function(){
       local(()=>{ell(c,cx0-rx*.25,cy0-ry*.3,rx*.45,ry*.22);c.fillStyle='rgba(255,255,255,.5)';c.fill();});
       if(o.pilotHit){c.save();glass();c.clip();c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=1.2;c.beginPath();c.moveTo(P[0]-rx*s*.6,P[1]-ry*s*.2);c.lineTo(P[0],P[1]);c.lineTo(P[0]+rx*s*.5,P[1]-ry*s*.5);c.moveTo(P[0],P[1]);c.lineTo(P[0]+rx*s*.2,P[1]+ry*s*.6);c.stroke();if(GORE&&!faceless){bloodSplat(c,P[0]+rx*s*.15,P[1]-ry*s*.1,rx*s*.35,9,.85);}c.restore();}
       glass();c.lineWidth=LW.char;c.strokeStyle=C.ink;c.stroke();}
-    if(dmg>.3&&!ISO){for(let i=0;i<4;i++){const kk=(t*1.6+i/4)%1;const bx=x+Math.cos(ang+2.2)*4*s,by=y+Math.sin(ang+2.2)*4*s;c.save();c.globalAlpha=(1-kk)*.6;circ(c,bx+Math.cos(ang+2.6)*kk*16*s,by+Math.sin(ang+2.6)*kk*16*s,(1+kk*3)*s);c.fillStyle='#e8eef6';c.fill();c.restore();}}
+    if(dmg>.3&&!ISO&&!still){for(let i=0;i<4;i++){const kk=(t*1.6+i/4)%1;const bx=x+Math.cos(ang+2.2)*4*s,by=y+Math.sin(ang+2.2)*4*s;c.save();c.globalAlpha=(1-kk)*.6;circ(c,bx+Math.cos(ang+2.6)*kk*16*s,by+Math.sin(ang+2.6)*kk*16*s,(1+kk*3)*s);c.fillStyle='#e8eef6';c.fill();c.restore();}}
     if(o.calling){for(let i=0;i<3;i++){const k=(t*.8+i/3)%1;c.save();c.globalAlpha=1-k;c.beginPath();c.arc(x,y,(6+k*30)*s/2,0,TAU);c.lineWidth=2;c.strokeStyle=C.hegHi;c.setLineDash([4,4]);c.stroke();c.restore();}}
     if(o.clamp&&D.magnets){const[tx,ty]=o.clamp;for(const[mx,my]of D.magnets){const sx=x+(mx*Math.cos(ang)-my*Math.sin(ang))*s,sy=y+(mx*Math.sin(ang)+my*Math.cos(ang))*s;clampBeam(c,sx,sy,tx,ty,t);}}
-    if(dmg>.6){c.save();c.scale(1,1);for(let i=0;i<5;i++){const k=(t*1.1+i*.2)%1;const d=(4+k*26)*s;const bx=x-Math.cos(ang)*d+Math.sin(t*3+i)*3,by=y-Math.sin(ang)*d;c.globalAlpha=(1-k)*.85;circ(c,bx,by-k*6,(3+k*8)*s/2.2);ink(c,'#7a7a82',1.6);}c.restore();
+    if(dmg>.6&&!still){c.save();c.scale(1,1);for(let i=0;i<5;i++){const k=(t*1.1+i*.2)%1;const d=(4+k*26)*s;const bx=x-Math.cos(ang)*d+Math.sin(t*3+i)*3,by=y-Math.sin(ang)*d;c.globalAlpha=(1-k)*.85;circ(c,bx,by-k*6,(3+k*8)*s/2.2);ink(c,'#7a7a82',1.6);}c.restore();
       if(Math.sin(t*13)>.5){const sx3=x+Math.cos(ang+1.2)*5*s,sy3=y+Math.sin(ang+1.2)*5*s;star(c,sx3,sy3,2.6*s/2.2,'#fff3b0');}}
   }
 
@@ -1926,7 +1929,132 @@ window.SR_ART=(function(){
     if(o.home){c.lineWidth=3;c.strokeStyle=C.ink;c.beginPath();c.moveTo(x,y-r+2);c.lineTo(x,y-r-20);c.stroke();poly(c,[[x,y-r-20],[x+16,y-r-15],[x,y-r-10]]);ink(c,C.rebel,2.4);}}
   function route(c,x0,y0,x1,y1,o){o=o||{};const n=Math.max(2,Math.round(Math.hypot(x1-x0,y1-y0)/16));for(let i=1;i<n;i++){const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n;circ(c,x,y,3);ink(c,o.col||'#f1e6ff',1.6);}}
 
-  return {C,W,BIOME,SKIN,HAIRC,LW,CAST,ARCH,WEAPONS,GEAR,POSES,PROPS,SHIPS,SHIP_FOR_GAME,WALL_H,
+  /* =================================================================
+     STATIONS — the places space combat happens around (High Command's
+     relay, habitat and reactor; docs/art/HC-VFX-HANDOFF.md). Built from
+     a small kit of pieces, like the ships: a station is data, never a
+     one-off drawing. Same cel light from the screen's top left whatever
+     the heading, same ink. Stations are radial, so there is no nose;
+     ang only turns the structure.
+     piece kinds (local units, drawn in order):
+       ngon [n, r, rot]            a faceted drum
+       ring [r0, r1]               an annulus (habitat ring, trim band)
+       box  [x, y, w, h, r] m:1    a block (arms, pods); m mirrors in y
+       pts  [[x,y]…]        m:1    a polygon
+       strut[x0,y0,x1,y1,w]        a beam
+       dish [x, y, r, ang]         a comms dish on a short mast
+       dome [x, y, r]              a glass/energy dome (glow = its colour;
+                                   goes dark with o.dark)
+       win  [x0,y0,x1,y1,n]        a strip of n lit windows (warm for
+                                   rebels, cold for the Hegemony; dark
+                                   when o.dark)
+       chev [x, y, w, h]           hazard chevrons on a pad
+       vane [x, y, len, ang]       a solar/cooling vane
+     plus, per station: lights (nav blinkers), trim (glow segments),
+     mark/stripes/patches/scorch (the livery language the ships use),
+     pads [[ang, r]…] (docking-clamp points, used by boarding FX).
+     station(ctx, id, x, y, ang, s, t, {damage 0..1, dark, ours, still})
+     `still` bakes: steady windows and lights, no pulse (sr-space-fx.js
+     draws the live layers).
+     ================================================================= */
+  const STATIONS={
+    relay:{name:'Relay K-7',side:'heg',size:12,
+      hull:'#7a8294',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,
+      parts:[
+        {strut:[0,-30,0,30,5],f:'hull2'},
+        {box:[-7,-34,14,8,2],f:'dark'},{box:[-7,26,14,8,2],f:'dark'},
+        {vane:[-4,-33,14,-2.4]},{vane:[4,-33,14,-0.7]},{vane:[-4,33,14,2.4]},{vane:[4,33,14,0.7]},
+        {ngon:[8,16,0.3927],f:'hull'},
+        {ring:[10,12.5],f:'hull2'},
+        {ngon:[6,8,0],f:'dark'},
+        {win:[-13,-5,-13,5,4]},{win:[13,-5,13,5,4]},
+        {dish:[8,-15,6.5,-0.9]},
+        {box:[14,-3,9,6,2],f:'hull2',emit:1},   // the jam emitter block, nose toward the jump point
+      ],
+      trim:[[[-11,-11],[11,-11]],[[-11,11],[11,11]]],
+      emblem:[0,-10],mark:['K-7',0,12.5,C.hegHi],
+      lights:[[0,-36,C.hegHi],[0,36,C.hegHi],[21,0,C.hazard]],
+      emitter:[20,0],   // where the jam pulse is born (sr-space-fx.js draws the link)
+      pads:[[Math.PI,16]]},
+    lastlight:{name:'Lastlight Station',side:'reb',size:12,
+      hull:'#d9c9a2',hull2:'#8a8468',dark:'#4a4a56',acc:C.rebel,
+      parts:[
+        {ring:[18,22],f:'hull2'},
+        {strut:[-18,0,18,0,4.5],f:'hull2'},{strut:[0,-18,0,18,4.5],f:'hull2'},
+        {ngon:[10,13,0.31],f:'hull'},
+        {box:[-4,-27,8,6,2],f:'hull',m:0},{box:[-4,21,8,6,2],f:'#a8b0b8'},   // docking collar; one replacement pod
+        {vane:[24,-6,13,-0.5]},{vane:[24,6,13,0.5]},
+        {ngon:[6,6.5,0.52],f:'hull2'},
+        {win:[-10,-7,10,-7,6]},{win:[-10,7,10,7,6]},{win:[-20,-2,-20,2,2]},{win:[20,-2,20,2,2]},
+        {dome:[0,0,4],glow:'#ffe8a8'},
+      ],
+      stripes:[{pts:[[-13,-3],[-9.5,-3],[-9.5,3],[-13,3]],drips:1}],
+      patches:[[4,-13,6,5,'#a89870'],[-14,10,5,4,'#8a8a6a']],tape:[[11,-11,0.5]],
+      scorch:[[15,14,3]],mark:['LASTLIGHT',0,16,'#2a1a10'],flag:[0,-13],
+      lights:[[-22,-14,'#ff5a5a'],[22,14,'#5aff7a']],
+      pads:[[0,27],[Math.PI,27]]},
+    reactor:{name:'Reactor Platform',side:'heg',size:12,
+      hull:'#4a5268',hull2:'#2c3a5e',dark:'#141826',acc:C.heg,
+      parts:[
+        {pts:[[26,-9],[30,0],[26,9],[9,26],[-9,26],[-26,9],[-30,0],[-26,-9],[-9,-26],[9,-26]],f:'hull'},
+        {box:[16,-26,12,9,2],m:1,f:'hull2'},{box:[-28,-26,12,9,2],m:1,f:'hull2'},   // the four clamp arms
+        {chev:[19,-24.5,8,2.5]},{chev:[-27,-24.5,8,2.5]},{chev:[19,22,8,2.5]},{chev:[-27,22,8,2.5]},
+        {ring:[12,15],f:'dark'},
+        {vane:[0,-20,10,-1.5708]},{vane:[0,20,10,1.5708]},
+        {win:[-18,-13,-13,-18,3]},{win:[13,18,18,13,3]},
+        {dome:[0,0,9],glow:C.hegHi,core:1},
+      ],
+      trim:[[[-23,0],[-15,0]],[[15,0],[23,0]]],
+      emblem:[0,-18],mark:['RP-9',0,19,C.hegHi],
+      lights:[[27,-10,C.hegHi],[-27,10,C.hegHi],[10,27,C.hazard],[-10,-27,C.hazard]],
+      pads:[[0.6,30],[2.54,30],[-2.54,30],[-0.6,30]]},
+  };
+  function station(c,id,x,y,ang,s,t,o){
+    o=o||{};const D=STATIONS[id];if(!D)return;
+    const dmg=o.damage||0,dark=!!o.dark,still=!!o.still,lw=LW.char/s;
+    const col=f=>f==='hull'?D.hull:f==='hull2'?D.hull2:f==='dark'?D.dark:f==='acc'?D.acc:f;
+    const warm=D.side==='reb';
+    const L0=-1.4,L1=-1.4,lx=L0*Math.cos(-ang)-L1*Math.sin(-ang),ly=L0*Math.sin(-ang)+L1*Math.cos(-ang);
+    c.save();c.translate(x,y);c.rotate(ang);c.scale(s,s);c.lineJoin='round';c.lineCap='round';
+    const cel=path=>{path();c.fillStyle=null;};
+    const fill2=(path,fc)=>{path();c.fillStyle=shade(fc,-.25);c.fill();c.save();path();c.clip();c.translate(lx,ly);path();c.fillStyle=fc;c.fill();c.restore();path();c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();};
+    const npath=(n,r,rot)=>()=>{c.beginPath();for(let i=0;i<n;i++){const a=rot+i/n*TAU;c.lineTo(Math.cos(a)*r,Math.sin(a)*r);}c.closePath();};
+    for(const p of D.parts){
+      if(p.ngon){fill2(npath(p.ngon[0],p.ngon[1],p.ngon[2]||0),col(p.f));}
+      else if(p.ring){const[r0,r1]=p.ring;const ann=()=>{c.beginPath();c.arc(0,0,r1,0,TAU);c.arc(0,0,r0,0,TAU,true);};
+        ann();c.fillStyle=shade(col(p.f),-.25);c.fill('evenodd');
+        c.save();ann();c.clip('evenodd');circ(c,lx,ly,r1);c.fillStyle=col(p.f);c.fill();c.restore();
+        circ(c,0,0,r1);c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();circ(c,0,0,r0);c.stroke();}
+      else if(p.box){const[a,b,w,h,r]=p.box;const path=sy=>()=>rr(c,a,sy>0?b:-b-h,w,h,r);fill2(path(1),col(p.f));if(p.m)fill2(path(-1),col(p.f));}
+      else if(p.pts){fill2(()=>poly(c,p.pts),col(p.f));}
+      else if(p.strut){const[x0,y0,x1,y1,w]=p.strut;c.beginPath();c.moveTo(x0,y0);c.lineTo(x1,y1);c.lineWidth=w+lw*2;c.strokeStyle=C.ink;c.stroke();c.lineWidth=w;c.strokeStyle=col(p.f);c.stroke();}
+      else if(p.vane){const[vx,vy,len,va]=p.vane;c.save();c.translate(vx,vy);c.rotate(va);c.beginPath();c.moveTo(0,0);c.lineTo(len,0);c.lineWidth=1.6;c.strokeStyle=C.ink;c.stroke();rr(c,2,-2.2,len-2,4.4,1);ink(c,warm?'#b8a67e':'#39405a',lw);c.strokeStyle=rgba(C.ink,.4);c.lineWidth=.6;for(let i=4;i<len;i+=3){c.beginPath();c.moveTo(i,-2.2);c.lineTo(i,2.2);c.stroke();}c.restore();}
+      else if(p.dish){const[dx,dy,dr,da]=p.dish;c.save();c.translate(dx,dy);c.rotate(da);c.beginPath();c.moveTo(0,0);c.lineTo(dr*.55,0);c.lineWidth=2.2;c.strokeStyle=C.ink;c.stroke();c.save();c.translate(dr*.55,0);c.scale(.45,1);circ(c,0,0,dr);ink(c,'#e8e0cc',lw);circ(c,0,0,dr*.32);c.fillStyle='#8a8a92';c.fill();c.restore();c.restore();}
+      else if(p.dome){const[gx,gy,gr]=p.dome;circ(c,gx,gy,gr);c.fillStyle=dark?'#1a1f2e':shade(p.glow,-.55);c.fill();c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();
+        if(!dark){const k=still?1:.75+.25*Math.sin(t*(p.core?2.2:3.1));circ(c,gx,gy,gr*.62*k);c.fillStyle=p.glow;c.save();c.shadowColor=p.glow;c.shadowBlur=still?0:8;c.fill();c.restore();circ(c,gx-gr*.3,gy-gr*.3,gr*.2);c.fillStyle='rgba(255,255,255,.6)';c.fill();}
+        else if(o.ours){circ(c,gx,gy,gr*.3);c.fillStyle=C.rebel;c.fill();}}
+      else if(p.win){const[x0,y0,x1,y1,n]=p.win;for(let i=0;i<n;i++){const u=n===1?.5:i/(n-1),wx=x0+(x1-x0)*u,wy=y0+(y1-y0)*u;
+        const lit=!dark&&(still||Math.sin(t*.7+wx*3.1+wy*1.7)>-.82);   // one window in twelve rests dark
+        rr(c,wx-1.1,wy-1.1,2.2,2.2,.6);c.fillStyle=lit?(warm?'#ffe8a8':C.hegHi):'#141826';c.fill();c.lineWidth=.5;c.strokeStyle=rgba(C.ink,.7);c.stroke();}}
+      else if(p.chev){const[a,b,w,h]=p.chev;c.save();c.beginPath();c.rect(a,b,w,h);c.clip();for(let i=-1;i<w/3+1;i++){c.fillStyle=i%2?C.ink:C.gold;c.beginPath();c.moveTo(a+i*3,b+h);c.lineTo(a+i*3+2,b);c.lineTo(a+i*3+4,b);c.lineTo(a+i*3+2,b+h);c.closePath();c.fill();}c.restore();c.lineWidth=.8;c.strokeStyle=C.ink;c.strokeRect(a,b,w,h);}
+    }
+    // livery language, shared with the ships
+    for(const st of D.stripes||[]){poly(c,st.pts);c.fillStyle=D.acc;c.fill();
+      if(st.drips){for(let i=0;i<3;i++){const dx=st.pts[0][0]+.6+i*1.1;rr(c,dx,st.pts[2][1]-.2,.7,1.2+i%2*1.2,.35);c.fillStyle=D.acc;c.fill();}}}
+    for(const[a,b,w,h,pc]of D.patches||[]){rr(c,a,b,w,h,.6);ink(c,pc,lw*.6);c.fillStyle=rgba(C.ink,.55);for(const[px,py]of[[a+.7,b+.7],[a+w-.7,b+.7],[a+.7,b+h-.7],[a+w-.7,b+h-.7]]){circ(c,px,py,.3);c.fill();}}
+    for(const[tx,ty,ta]of D.tape||[]){c.save();c.translate(tx,ty);c.rotate(ta);c.fillStyle='rgba(220,220,210,.9)';c.fillRect(-2.4,-.6,4.8,1.2);c.restore();}
+    for(const[sx2,sy2,sr2]of(D.scorch||[]).concat(dmg>.2?[[8,-6,4+dmg*5],[-10,8,3+dmg*5],[0,14,dmg*6]]:[])){const g=c.createRadialGradient(sx2,sy2,0,sx2,sy2,sr2);g.addColorStop(0,'rgba(20,14,10,.6)');g.addColorStop(1,'rgba(20,14,10,0)');c.fillStyle=g;c.fillRect(sx2-sr2,sy2-sr2,sr2*2,sr2*2);}
+    if(dmg>.45){rr(c,-8,-4,6,4,.6);ink(c,'#1a1210',lw*.6);c.strokeStyle='#ff8a1f';c.lineWidth=.5;c.beginPath();c.moveTo(-7,-2);c.lineTo(-5,-1);c.lineTo(-4,-3);c.stroke();}
+    const glow=(seg,w)=>{c.save();if(!dark&&!still){c.shadowColor=C.heg;c.shadowBlur=6;}c.strokeStyle=dark?rgba(C.hegHi,.2):C.hegHi;c.lineWidth=w||.8;c.beginPath();c.moveTo(seg[0][0],seg[0][1]);c.lineTo(seg[1][0],seg[1][1]);c.stroke();c.restore();};
+    for(const sgm of D.trim||[])glow(sgm);
+    if(D.emblem){const[ex,ey]=D.emblem;c.save();c.translate(ex,ey);c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3;c.lineTo(Math.cos(a)*2.2,Math.sin(a)*2.2);}c.closePath();c.fillStyle=C.hegDeep;c.fill();c.lineWidth=.45;c.strokeStyle=C.hegHi;c.stroke();circ(c,0,0,.7);c.fillStyle=dark?'#39405a':C.hegHi;c.fill();c.restore();}
+    if(D.flag){const[fx,fy]=D.flag;c.beginPath();c.moveTo(fx,fy);c.lineTo(fx,fy-6);c.lineWidth=1;c.strokeStyle=C.ink;c.stroke();poly(c,[[fx,fy-6],[fx+4.5,fy-4.6],[fx,fy-3.2]]);ink(c,C.rebel,.8);}
+    if(D.mark){const[txt,mx,my,mc]=D.mark;c.save();c.translate(mx,my);c.font='900 2.6px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=mc;c.fillText(txt,0,0);c.restore();}
+    for(const[nx,ny,nc]of D.lights||[]){const on=!dark&&(still||Math.sin(t*3+nx+ny)>-.2);circ(c,nx,ny,1);c.fillStyle=on?nc:rgba(nc,.25);if(on&&!still){c.shadowColor=nc;c.shadowBlur=8;}c.fill();c.shadowBlur=0;}
+    c.restore();
+  }
+
+  return {C,W,BIOME,SKIN,HAIRC,LW,CAST,ARCH,WEAPONS,GEAR,POSES,PROPS,SHIPS,SHIP_FOR_GAME,WALL_H,STATIONS,station,
     character,portrait,spec,recruit,viewFor,lookOf,VEHICLES,vehicle,strider,clampBeam,shipIso,hangarShip,HM,shapeOf,baseBackdrop,baseTile,baseRoom,roomInterior,RCOL,STYLE,PROJ,shot,shotTimes,volley,volleyImpacts,impact,bloodSplat,muzzleFor,shipShield,setGore:v=>{GORE=!!v;},ease,Shake,JUICE,Particles,ring,shieldBreak,popText,pickup,shipExplode,transition,TRAITS,DTYPES,WEAPON_INFO,icon,fireModeToggle,vitals,armourHit,shieldHit,sunder,pierce,misfire,deployable,flyover,strafe,doorGunner,supplyDrop,landing,makerBadge,ITEMS,item,MAKERS,SHIP_WEAPONS,GEAR_ALIAS,TRAIT_LOOK,RTRAIT_LOOK,SPEC_LOOK,COND_LOOK,ROLE_COATS,muzzle,prop,floor,trail,wall,lampLight,scorch,block,bolt,hit,explosion,smoke,ship,
     isoP,isoBox,emote,planet,route,star,
     util:{rgba,shade,mkRng,hashStr,rr,ell,circ,poly,ink,headShade}};

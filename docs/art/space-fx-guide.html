@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Star Rebellion: space FX guide (High Command)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Exo+2:wght@500;600;700;800&display=swap">
+<style>
+:root{--ink:#070818;--void:#0a0c22;--hull:#1a1f47;--plate:#252c62;--seam:#3a4488;--gold:#ffc83a;--rebel:#ff4a3d;--heg:#4f8cff;--go:#78ec5c;--hazard:#ff8a1f;--shield:#36e3f2;
+  --text:#f1f3ff;--text2:#b3bbe3;--text3:#8790c4;--ui:"Exo 2",system-ui,sans-serif;}
+body{margin:0;background:var(--void);color:var(--text);font:500 15px/1.55 var(--ui);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px;}
+h1{font-family:Bungee,var(--ui);font-weight:400;font-size:clamp(28px,4.6vw,46px);line-height:1.05;margin:34px 0 8px;}
+h2{font-family:Bungee,var(--ui);font-weight:400;font-size:clamp(20px,3vw,28px);margin:0 0 8px;}
+p{color:var(--text2);max-width:76ch;margin:0 0 12px;}
+code{font:600 .88em ui-monospace,Menlo,monospace;background:rgba(127,140,200,.16);padding:2px 5px;border-radius:5px;color:var(--text);}
+section{padding:34px 0;border-top:2px solid var(--seam);}
+.frame{border:2px solid var(--ink);border-radius:14px;box-shadow:0 5px 0 var(--ink);overflow:hidden;background:#04060d;margin:12px 0 8px;}
+canvas{display:block;width:100%;height:auto;}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0;}
+.ctl{background:var(--hull);border:2px solid var(--ink);border-radius:10px;padding:8px 12px;box-shadow:0 3px 0 var(--ink);font:700 13px var(--ui);display:flex;gap:8px;align-items:center;}
+.ctl select,.ctl input[type=range]{font:600 13px var(--ui);background:var(--plate);color:var(--text);border:1.5px solid var(--ink);border-radius:7px;padding:4px 6px;}
+.btn{font:800 13px var(--ui);background:var(--gold);color:#2a1a00;border:2px solid var(--ink);border-radius:9px;padding:8px 12px;box-shadow:0 3px 0 var(--ink);cursor:pointer;}
+.btn[aria-pressed="true"]{background:var(--go);}
+.btn.q{background:var(--plate);color:var(--text);}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink);}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.statline{font:700 13px ui-monospace,Menlo,monospace;color:var(--text2);padding:6px 2px;}
+.statline b{color:var(--gold);} .statline .ok{color:var(--go)} .statline .bad{color:var(--hazard)}
+.lede{font-size:17px;}
+label.chk{display:inline-flex;gap:6px;align-items:center;font:700 13px var(--ui);color:var(--text2);}
+@media(max-width:880px){.grid3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Space FX guide</h1>
+  <p class="lede">The living guide for High Command's visual pass (<code>game/art/sr-space-fx.js</code>). Every picture is drawn by the real modules — <code>sr-art.js</code> plus the new FX kit — so if the game and this page disagree, this page is right. Pairs with <code>docs/art/HC-VFX-HANDOFF.md</code>.</p>
+  <div class="row">
+    <button class="btn" id="g-reduced" aria-pressed="false" type="button">Reduced motion: off</button>
+    <button class="btn" id="g-shake" aria-pressed="true" type="button">Screen shake: on</button>
+    <button class="btn q" id="g-pause" aria-pressed="false" type="button">Pause game time</button>
+    <button class="btn q" id="g-step" type="button" title="Advance one 60th of a second of game time while paused">Step</button>
+    <span class="ctl">Speed <select id="g-speed"><option value="0.3">0.3×</option><option value="1" selected>1×</option><option value="3">3×</option></select></span>
+  </div>
+</header>
+
+<section id="ships">
+  <h2>Ships: states at three zooms</h2>
+  <p>One ship flying a lazy circuit, drawn through the cached-hull-plus-live-layers path (<code>shipBody</code>) with the new trail. The same state at the commander's zoom (0.12), mid (0.4) and close (1.2): engines breathe, lights blink, banks squash, damage smokes, abilities and criticals tell.</p>
+  <div class="row">
+    <span class="ctl">Ship <select id="s-art"></select></span>
+    <span class="ctl">Speed <input type="range" id="s-spd" min="0" max="1" step="0.05" value="0.8"></span>
+    <span class="ctl">Turn <input type="range" id="s-turn" min="-1" max="1" step="0.05" value="0"></span>
+    <span class="ctl">Damage <select id="s-dmg"><option value="0" selected>0 · clean</option><option value="1">1 · scuffed</option><option value="2">2 · smoking</option><option value="3">3 · burning</option></select></span>
+  </div>
+  <div class="row" id="s-flags"></div>
+  <div class="grid3">
+    <div class="frame"><canvas id="cv-z0" data-z="0.12"></canvas></div>
+    <div class="frame"><canvas id="cv-z1" data-z="0.4"></canvas></div>
+    <div class="frame"><canvas id="cv-z2" data-z="1.2"></canvas></div>
+  </div>
+</section>
+
+<section id="stations">
+  <h2>Stations</h2>
+  <p>Relay K-7 (its jam link pulsing to the jump point), Lastlight Station (lit windows, patched rebel skin) and the Reactor Platform (boarding clamps, then dark and ours). Damage stages scorch, smoke and burn; destruction is multi-stage and leaves a wreck.</p>
+  <div class="row">
+    <span class="ctl">Damage <input type="range" id="st-dmg" min="0" max="3" step="1" value="0"></span>
+    <label class="chk"><input type="checkbox" id="st-dark"> Reactor dark (boarded)</label>
+    <span class="ctl">Boarding <input type="range" id="st-board" min="0" max="1" step="0.05" value="0.45"></span>
+    <button class="btn" id="st-kill" type="button">Destroy the relay</button>
+  </div>
+  <div class="frame"><canvas id="cv-st" data-h="340"></canvas></div>
+</section>
+
+<section id="fx">
+  <h2>Effects on a loop</h2>
+  <p>Every event from the brief's §9 list, fired on a loop at a target Mote. Pause freezes them mid-frame (game-time effects obey the clock); the speed control shows how they cap at 3×.</p>
+  <div class="row">
+    <span class="ctl">Event <select id="fx-kind"></select></span>
+    <button class="btn" id="fx-once" type="button">Fire once</button>
+    <button class="btn q" id="fx-loop" aria-pressed="true" type="button">Loop: on</button>
+  </div>
+  <div class="frame"><canvas id="cv-fx" data-h="300"></canvas></div>
+</section>
+
+<section id="badges">
+  <h2>Status badges</h2>
+  <p>The twelve ability and action glyphs, redrawn as filled chunky art for <code>SR_SPACE_FX.badge</code>. The pop runs <code>ease.outBack</code>; under reduced motion it lands instantly.</p>
+  <div class="frame"><canvas id="cv-badge" data-h="120"></canvas></div>
+</section>
+
+<section id="back">
+  <h2>Backdrop and rocks</h2>
+  <p>The quiet world: void, a whisper of nebula and a far star layer on parallax (the camera pans to show the depth), cel asteroids baked once each. Low contrast on purpose — the fight carries the colour.</p>
+  <div class="frame"><canvas id="cv-back" data-h="300"></canvas></div>
+</section>
+
+<section id="stress">
+  <h2>The stress scene: the hc3 brawl</h2>
+  <p>16 ships (two marine Grafs, fighters, Commandant Vex, motes and drones, the reactor), ~150 live bolts, 6 missiles with tracking smoke, chaff, a kill every few seconds, boarding running — the §8 budget case. The counter is the whole FX draw per frame (update + every layer and body), p50 / p95 over the last 240 frames. Budget: <b>≤ 8 ms at p95, DPR 2</b>.</p>
+  <div class="row">
+    <button class="btn" id="x-run" aria-pressed="false" type="button">Run stress scene</button>
+    <span class="ctl">DPR <select id="x-dpr"><option>1</option><option selected>2</option></select></span>
+    <span class="ctl">Zoom <select id="x-z"><option value="0.12">0.12</option><option value="0.4" selected>0.4</option><option value="1.2">1.2</option></select></span>
+  </div>
+  <div class="statline" id="x-stats">—</div>
+  <div class="frame"><canvas id="cv-x" data-h="620"></canvas></div>
+</section>
+</div>
+
+<script src="../../game/ui/sr-theme.js"></script>
+<script src="../../game/art/sr-art.js"></script>
+<script src="../../game/art/sr-space-fx.js"></script>
+<script>'use strict';
+(function(){
+const SA=window.SR_ART,FX=window.SR_SPACE_FX,C=SA.C,TAU=Math.PI*2;
+const $=id=>document.getElementById(id);
+FX.reset();
+
+/* ---------- the guide's clock: one game clock shared by every pane ---------- */
+let gt=0,paused=false,speed=1,reduced=false,last=0;
+$('g-pause').onclick=e=>{paused=!paused;e.target.setAttribute('aria-pressed',paused);e.target.textContent=paused?'Resume game time':'Pause game time';};
+$('g-speed').onchange=e=>speed=+e.target.value;
+let stepQ=0;$('g-step').onclick=()=>{if(paused)stepQ+=1/60;};
+$('g-reduced').onclick=e=>{reduced=!reduced;e.target.setAttribute('aria-pressed',reduced);e.target.textContent='Reduced motion: '+(reduced?'on':'off');};
+$('g-shake').onclick=e=>{const v=e.target.getAttribute('aria-pressed')!=='true';e.target.setAttribute('aria-pressed',v);e.target.textContent='Screen shake: '+(v?'on':'off');FX.setShake(v);};
+
+function fit(cv,h){const r=cv.getBoundingClientRect(),dpr=Math.min(2,devicePixelRatio||1);cv.width=Math.round(r.width*dpr);cv.height=Math.round((h||+cv.dataset.h||260)*dpr);cv.style.height=(h||+cv.dataset.h||260)+'px';return dpr;}
+function view(cv,z,cx,cy,dpr,extra){return Object.assign({z,cx,cy,W:cv.width/dpr,H:cv.height/dpr,dpr,t:gt,now:performance.now(),ra:1,tick:0.05,reduced,mapW:8400,mapH:6000,margin:120},extra||{});}
+function world(c,v){c.setTransform(v.dpr*v.z,0,0,v.dpr*v.z,v.dpr*(v.W/2-v.cx*v.z),v.dpr*(v.H/2-v.cy*v.z));}
+
+/* ---------- a tiny synthetic ship: enough state to feed shipBody ---------- */
+function mkShip(id,art,livery,faction,size,x,y){return{id,art,livery,faction,drone:/pursuer|monitor|clamper/.test(art),size,x,y,h:0,vh:0,speed:0,speedFrac:0.8,turnFrac:0,
+  boost:false,rollT:null,driftT:0,kturnAge:9,hullFrac:1,armFrac:1,shieldF:{val:3,max:3},shieldR:{val:3,max:3},shieldHit:null,crits:[],damageStage:0,
+  panic:null,pinned:false,lead:false,flagship:false,firing:false,muzzleSide:1,missilesLeft:2,chaffLeft:2,selected:false,iconBoost:1,trail:[],_a:0,_r:400,_w:0.5,_cx:0,_cy:0};}
+function orbit(s,dt,cx,cy){s._a+=s._w*dt*(0.4+0.6*s.speedFrac);const r=s._r;
+  const nx=cx+Math.cos(s._a)*r,ny=cy+Math.sin(s._a)*r*0.72;
+  const vh=Math.atan2(ny-s.y,nx-s.x);if(dt>0){s.vh=vh;s.h=vh+0.12*Math.sin(s._a*2);s.x=nx;s.y=ny;
+    s.trail.push({x:s.x,y:s.y});if(s.trail.length>26)s.trail.shift();}
+}
+
+/* =================================================================
+   1 · SHIPS AT THREE ZOOMS
+   ================================================================= */
+const ARTS=[['talon','rebel','reb',4],['cross','rebel','reb',5],['graf','rebel','reb',7],['mote','heg','heg',4],['scim','heg','heg',5],['fledgling','heg','heg',3],['pursuer','heg','heg',3],['monitor','heg','heg',2],['clamper','heg','heg',6]];
+$('s-art').innerHTML=ARTS.map((a,i)=>'<option value="'+i+'">'+SA.SHIPS[a[0]].name+'</option>').join('');
+const FLAGS=[['boost','Boost'],['barrel','Barrel roll'],['drift','Drift'],['fleePanic','Panic: flee'],['freezePanic','Panic: freeze'],['pinned','Pinned'],['lead','Wing leader'],
+  ['c-engine','Crit: engine'],['c-targeting','Crit: targeting'],['c-controls','Crit: controls'],['c-emitter','Crit: emitter'],['c-feed','Crit: feed'],['c-cockpit','Crit: cockpit']];
+$('s-flags').innerHTML=FLAGS.map(([k,n])=>'<label class="chk"><input type="checkbox" data-f="'+k+'"> '+n+'</label>').join('');
+const bench=mkShip('bench','talon','rebel','reb',4,0,0);
+const panes=['cv-z0','cv-z1','cv-z2'].map(id=>({cv:$(id),c:$(id).getContext('2d'),z:+$(id).dataset.z}));
+function benchSync(){const a=ARTS[+$('s-art').value];bench.art=a[0];bench.livery=a[1];bench.faction=a[2];bench.size=a[3];bench.trail.length=0;}
+$('s-art').onchange=benchSync;benchSync();
+let barrelT=-9;
+function benchTick(dt){
+  const f=k=>document.querySelector('[data-f="'+k+'"]').checked;
+  bench.speedFrac=+$('s-spd').value;bench.turnFrac=+$('s-turn').value;bench.damageStage=+$('s-dmg').value;
+  bench.boost=f('boost');bench.driftT=f('drift')?1:0;bench.pinned=f('pinned');bench.lead=f('lead');
+  bench.panic=f('fleePanic')?'flee':f('freezePanic')?'freeze':null;
+  bench.crits=['engine','targeting','controls','emitter','feed','cockpit'].filter(k=>f('c-'+k));
+  if(f('barrel')){if(gt-barrelT>1.6)barrelT=gt;bench.rollT=Math.min(1,(gt-barrelT)/0.8);}else bench.rollT=null;
+  bench._w=0.5+bench.turnFrac*0;bench._r=380;
+  orbit(bench,dt,0,0);
+}
+function benchDraw(){
+  for(const p of panes){const dpr=p.dpr||(p.dpr=fit(p.cv,230));const v=view(p.cv,p.z,0,0,dpr);
+    v.cx=p.z<0.2?0:bench.x;v.cy=p.z<0.2?0:bench.y;
+    bench.iconBoost=Math.max(1,Math.min(3.2,0.5/p.z));
+    p.c.setTransform(dpr,0,0,dpr,0,0);p.c.fillStyle='#0a0c22';p.c.fillRect(0,0,v.W,v.H);
+    world(p.c,v);
+    FX.drawTrail(p.c,bench,v);
+    FX.shipBody(p.c,bench,v);
+    FX.drawLayer(p.c,'over',v);
+    p.c.setTransform(dpr,0,0,dpr,0,0);
+    p.c.font='700 12px "Exo 2",sans-serif';p.c.fillStyle='#8790c4';p.c.fillText('zoom '+p.z,10,18);
+  }
+}
+
+/* =================================================================
+   2 · STATIONS
+   ================================================================= */
+const stCv=$('cv-st'),stC=stCv.getContext('2d');let stDpr=0;
+const graf=mkShip('graf-b','graf','rebel','reb',7,520,210);graf.speedFrac=0.15;
+let relayDead=false,relayDeadAt=-9;
+$('st-kill').onclick=()=>{if(relayDead)return;relayDead=true;relayDeadAt=gt;
+  FX.event('explode',{x:-560,y:0,size:12,struct:true,art:'relay',h:0.2,faction:'heg'});};
+function stDraw(dt){
+  if(!stDpr)stDpr=fit(stCv);
+  const v=view(stCv,0.55,0,40,stDpr);
+  stC.setTransform(stDpr,0,0,stDpr,0,0);stC.fillStyle='#0a0c22';stC.fillRect(0,0,v.W,v.H);
+  world(stC,v);
+  const dmg=+$('st-dmg').value,dark=$('st-dark').checked,prog=+$('st-board').value;
+  const sts=[
+    {id:'relay',art:'relay',x:-560,y:0,h:0.2,size:12,damageStage:relayDead?3:dmg,dark:relayDead,jam:relayDead?null:{x:-560,y:420}},
+    {id:'ll',art:'lastlight',x:0,y:0,h:-0.15,size:12,damageStage:dmg},
+    {id:'re',art:'reactor',x:560,y:0,h:0.4,size:12,damageStage:dmg,dark,ours:dark},
+  ];
+  FX.drawLayer(stC,'under',v);
+  for(const st of sts)if(!(st.id==='relay'&&relayDead&&gt-relayDeadAt>2.8))FX.station(stC,st,v);
+  // the jump point the relay jams, and the boarding Graf
+  stC.save();stC.translate(-560,420);stC.rotate(v.now/2000%TAU);stC.setLineDash([22/v.z,14/v.z]);stC.lineWidth=3/v.z;stC.strokeStyle=relayDead?C.go:C.hazard;stC.beginPath();stC.arc(0,0,90,0,TAU);stC.stroke();stC.restore();
+  orbit(graf,0,0,0);graf.x=520+Math.cos(gt*0.3)*8;graf.y=214;graf.h=graf.vh=2.6;graf.trail.length=0;
+  FX.shipBody(stC,graf,v);
+  if(!dark&&prog>0)FX.drawBoardLink(stC,graf,{x:560+26,y:60},prog,v);
+  FX.drawLayer(stC,'over',v);
+  stC.setTransform(stDpr,0,0,stDpr,0,0);
+  stC.font='700 12px "Exo 2",sans-serif';stC.fillStyle='#8790c4';
+  stC.fillText('RELAY K-7 · jamming the jump point',16,20);stC.fillText('LASTLIGHT STATION',v.W/2-60,20);stC.fillText('REACTOR PLATFORM · boarding',v.W-250,20);
+}
+
+/* =================================================================
+   3 · EFFECTS LOOP
+   ================================================================= */
+const fxCv=$('cv-fx'),fxC=fxCv.getContext('2d');let fxDpr=0;
+const tgt=mkShip('tgt','mote','heg','heg',4,160,0);tgt.speedFrac=0.4;
+const shooter=mkShip('sh','cross','rebel','reb',5,-220,0);shooter.h=shooter.vh=0;shooter.speedFrac=0.5;
+const KINDS=['muzzle','boltHit shield','boltHit armour','boltHit hull','missileLaunch','missileHit','missileMiss','missileShaken','chaff','explode fighter','explode station','collide','jumpOut','warpIn','ability boost','ability kturn','ability barrel','ability shields','ability fieldrep','ability lockin','command support','command override','command recall','command recon','command decoy','capture','objective done','objective failed','steady'];
+$('fx-kind').innerHTML=KINDS.map(k=>'<option>'+k+'</option>').join('');
+let fxLoop=true,fxLast=-9;
+$('fx-loop').onclick=e=>{fxLoop=!fxLoop;e.target.setAttribute('aria-pressed',fxLoop);e.target.textContent='Loop: '+(fxLoop?'on':'off');};
+$('fx-once').onclick=()=>fireFx();
+function fireFx(){
+  const k=$('fx-kind').value,x=tgt.x,y=tgt.y;
+  if(k==='muzzle')FX.event('muzzle',{x:shooter.x+40,y:shooter.y,h:0,style:'repeaters',r:16});
+  else if(k.startsWith('boltHit'))FX.event('boltHit',{x,y,surface:k.split(' ')[1],dir:Math.PI,style:'repeaters',r:30});
+  else if(k==='missileLaunch')FX.event('missileLaunch',{x:shooter.x+20,y:shooter.y,faction:'reb'});
+  else if(k==='missileHit')FX.event('missileHit',{x,y,size:0.8});
+  else if(k==='missileMiss')FX.event('missileMiss',{x:x+60,y:y-40});
+  else if(k==='missileShaken')FX.event('missileShaken',{x:x-60,y:y+30});
+  else if(k==='chaff')FX.event('chaff',{x:tgt.x-50,y:tgt.y});
+  else if(k==='explode fighter')FX.event('explode',{x,y,size:4,art:'mote',livery:'heg',faction:'heg'});
+  else if(k==='explode station')FX.event('explode',{x,y,size:12,struct:true,art:'relay',faction:'heg'});
+  else if(k==='collide')FX.event('collide',{x:(x+shooter.x)/2,y,speed:600});
+  else if(k==='jumpOut')FX.event('jumpOut',{ship:shooter});
+  else if(k==='warpIn')FX.event('warpIn',{ship:Object.assign({},tgt,{x:x+120,y:y-60})});
+  else if(k.startsWith('ability'))FX.event('ability',{ship:shooter,x:shooter.x,y:shooter.y,key:k.split(' ')[1]});
+  else if(k.startsWith('command')){const key=k.split(' ')[1];
+    FX.event('command',key==='recon'?{key,edge:'E',x0:-420,x1:420,y0:-140,y1:140}:{key,x,y,tx:-300,ty:0});}
+  else if(k==='capture')FX.event('capture',{x,y,done:true});
+  else if(k.startsWith('objective'))FX.event('objective',{x,y,failed:k.includes('failed')});
+  else if(k==='steady')FX.event('steady',{x:shooter.x,y:shooter.y});
+}
+function fxDraw(dt){
+  if(!fxDpr)fxDpr=fit(fxCv);
+  if(fxLoop&&gt-fxLast>1.5&&!paused){fxLast=gt;fireFx();}
+  const v=view(fxCv,0.8,0,0,fxDpr);
+  fxC.setTransform(fxDpr,0,0,fxDpr,0,0);fxC.fillStyle='#0a0c22';fxC.fillRect(0,0,v.W,v.H);
+  world(fxC,v);
+  FX.drawLayer(fxC,'under',v);
+  shooter.trail.length=0;tgt.trail.length=0;
+  FX.shipBody(fxC,shooter,v);FX.shipBody(fxC,tgt,v);
+  FX.drawLayer(fxC,'over',v);
+  fxC.setTransform(fxDpr,0,0,fxDpr,0,0);
+  FX.drawLayer(fxC,'screen',v);
+}
+
+/* =================================================================
+   4 · BADGES
+   ================================================================= */
+const bCv=$('cv-badge'),bC=bCv.getContext('2d');let bDpr=0;
+const BKEYS=['shields','lockin','boost','drift','kturn','barrel','fieldrep','missile','evade','chaff','dodge','breakoff'];
+function badgeDraw(){
+  if(!bDpr)bDpr=fit(bCv);
+  const W=bCv.width/bDpr,H=bCv.height/bDpr;
+  bC.setTransform(bDpr,0,0,bDpr,0,0);bC.fillStyle='#10132e';bC.fillRect(0,0,W,H);
+  BKEYS.forEach((k,i)=>{const x=W*(i+0.5)/BKEYS.length;
+    const pop=reduced?1:Math.min(1,((performance.now()/1000+i*0.23)%2.4)/0.25);
+    FX.badge(bC,k,x,46,16,pop);
+    bC.font='700 11px "Exo 2",sans-serif';bC.textAlign='center';bC.fillStyle='#b3bbe3';bC.fillText(k,x,92);});
+}
+
+/* =================================================================
+   5 · BACKDROP + ROCKS
+   ================================================================= */
+const bkCv=$('cv-back'),bkC=bkCv.getContext('2d');let bkDpr=0;
+const ROCKS=[{x:4000,y:2900,r:150},{x:4600,y:3200,r:95},{x:3600,y:3250,r:120}].map((r,i)=>{const rn=SA.util.mkRng(i*7+3);r.verts=Array.from({length:9},()=>0.75+rn()*0.4);r.rot=rn()*TAU;return r;});
+function backDraw(){
+  if(!bkDpr)bkDpr=fit(bkCv);
+  const cx=4200+Math.sin(performance.now()/4000)*900,cy=3000+Math.cos(performance.now()/5200)*420;
+  const v=view(bkCv,0.5,cx,cy,bkDpr);
+  bkC.setTransform(bkDpr,0,0,bkDpr,0,0);bkC.fillStyle='#04060d';bkC.fillRect(0,0,v.W,v.H);
+  world(bkC,v);
+  FX.backdrop(bkC,v);
+  for(const r of ROCKS)FX.rock(bkC,r,v);
+}
+
+/* =================================================================
+   6 · THE STRESS SCENE — the hc3 brawl, synthesised
+   ================================================================= */
+const xCv=$('cv-x'),xC=xCv.getContext('2d');let xDpr=2,running=false;
+const X={ships:[],bolts:[],missiles:[],chaff:[],station:null,ms:[],t:0,boltT:0,misT:0,killT:0,chaffT:0};
+function stressBuild(){
+  X.ships.length=0;X.bolts.length=0;X.missiles.length=0;X.chaff.length=0;X.ms.length=0;
+  const put=(id,art,lv,fa,sz,a,r,w,o)=>{const s=mkShip(id,art,lv,fa,sz,0,0);s._a=a;s._r=r;s._w=w;Object.assign(s,o||{});X.ships.push(s);return s;};
+  put('anvil','graf','rebel','reb',7,0,860,0.22,{speedFrac:0.4});put('forge','graf','rebel','reb',7,2.6,860,0.22,{speedFrac:0.4});
+  for(let i=0;i<3;i++)put('t'+i,'talon','rebel','reb',4,i*2.1,560,0.5,{lead:i===0});
+  for(let i=0;i<3;i++)put('c'+i,'cross','rebel','reb',5,1+i*2.1,700,0.42,{damageStage:i===2?2:0});
+  const vex=put('vex','scim','heg','heg',5,0.5,420,-0.46,{flagship:true,boost:true});
+  for(let i=0;i<4;i++)put('m'+i,'mote','heg','heg',4,i*1.57,520,-0.55,{panic:i===3?'flee':null,damageStage:i===1?3:0});
+  for(let i=0;i<2;i++)put('p'+i,'pursuer','heg','heg',3,i*3.1,640,-0.62,{});
+  X.station={id:'re',art:'reactor',x:4980,y:2560,h:0.4,size:12,damageStage:1,dark:false};
+  X.t=0;X.killT=2;FX.reset();
+}
+function stressTick(dt){
+  X.t+=dt;
+  for(const s of X.ships){orbit(s,dt,4200,3000);s.turnFrac=Math.sin(s._a*2)*0.8;s.firing=false;}
+  // bolts: keep ~150 alive
+  X.boltT-=dt;
+  while(X.boltT<=0){X.boltT+=0.012;
+    const a=X.ships[(Math.random()*X.ships.length)|0];if(a.size===7)continue;
+    const foes=X.ships.filter(q=>q.faction!==a.faction);const b=foes[(Math.random()*foes.length)|0];if(!b)break;
+    const h=Math.atan2(b.y-a.y,b.x-a.x),sp=2000;
+    const mx=a.x+Math.cos(h)*26,my=a.y+Math.sin(h)*26;
+    X.bolts.push({x:mx,y:my,x0:mx,y0:my,vx:Math.cos(h)*sp,vy:Math.sin(h)*sp,faction:a.faction,style:a.faction==='reb'?'repeaters':(a.drone?'dronegun':'cruiser'),age:0,life:0.55,tgt:b});
+    a.firing=true;
+    if(Math.random()<0.25)FX.event('muzzle',{x:mx,y:my,h,style:a.faction==='reb'?'repeaters':'cruiser',r:14});
+  }
+  for(let i=X.bolts.length-1;i>=0;i--){const p=X.bolts[i];p.age+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    const b=p.tgt;if(b&&Math.hypot(b.x-p.x,b.y-p.y)<34){X.bolts.splice(i,1);
+      FX.event('boltHit',{x:p.x,y:p.y,surface:Math.random()<0.45?'shield':'hull',dir:Math.atan2(p.vy,p.vx),style:p.style,r:30});continue;}
+    if(p.age>=p.life)X.bolts.splice(i,1);}
+  // missiles: 6 in the air
+  X.misT-=dt;
+  if(X.missiles.length<6&&X.misT<=0){X.misT=0.5;
+    const a=X.ships.find(s=>s.id==='vex')||X.ships[0];const foes=X.ships.filter(q=>q.faction!==a.faction);const b=foes[(Math.random()*foes.length)|0];
+    const m={x:a.x,y:a.y,px:a.x,py:a.y,h:a.h,faction:a.faction,tgt:b,life:5,trail:[]};
+    X.missiles.push(m);FX.event('missileLaunch',{x:a.x,y:a.y,faction:a.faction});}
+  for(let i=X.missiles.length-1;i>=0;i--){const m=X.missiles[i];m.life-=dt;m.px=m.x;m.py=m.y;
+    const b=m.tgt,want=Math.atan2(b.y-m.y,b.x-m.x);let d=want-m.h;while(d>Math.PI)d-=TAU;while(d<-Math.PI)d+=TAU;
+    m.h+=Math.max(-5*dt,Math.min(5*dt,d));m.x+=Math.cos(m.h)*1500*dt;m.y+=Math.sin(m.h)*1500*dt;
+    if(Math.hypot(b.x-m.x,b.y-m.y)<40){FX.event('missileHit',{x:m.x,y:m.y,size:0.8});X.missiles.splice(i,1);continue;}
+    if(m.life<=0){FX.event('missileMiss',{x:m.x,y:m.y});X.missiles.splice(i,1);}}
+  // chaff
+  X.chaffT-=dt;if(X.chaffT<=0){X.chaffT=2.2;const s=X.ships[2+(Math.random()*4|0)];
+    X.chaff.push({id:(Math.random()*999)|0,x:s.x,y:s.y,t0:X.t,until:X.t+3});FX.event('chaff',{x:s.x,y:s.y});}
+  X.chaff=X.chaff.filter(f=>X.t<f.until);
+  // a kill every few seconds, respawned by warp-in
+  X.killT-=dt;if(X.killT<=0){X.killT=2.6;
+    const pool=X.ships.filter(s=>s.size<7&&!s.flagship);const s=pool[(Math.random()*pool.length)|0];
+    FX.event('explode',{x:s.x,y:s.y,size:s.size,art:s.art,livery:s.livery,faction:s.faction});
+    s._a+=Math.PI;orbit(s,0,4200,3000);s.trail.length=0;
+    FX.event('warpIn',{ship:s});}
+}
+const PROF=location.search.includes('prof'),PR={};const mk=PROF?(k,f)=>{const a=performance.now();f();PR[k]=(PR[k]||0)*0.95+(performance.now()-a)*0.05;}:(k,f)=>f();
+function stressDraw(){
+  const v=view(xCv,+$('x-z').value,4200,3060,xDpr);
+  const sh=FX.camShake(v);v.cx+=sh.x;v.cy+=sh.y;
+  const t0=performance.now();
+  mk('clear',()=>{xC.setTransform(xDpr,0,0,xDpr,0,0);xC.fillStyle='#04060d';xC.fillRect(0,0,v.W,v.H);});
+  world(xC,v);
+  mk('backdrop',()=>FX.backdrop(xC,v));
+  mk('rocks',()=>{for(const r of ROCKS)FX.rock(xC,r,v);});
+  mk('under',()=>FX.drawLayer(xC,'under',v));
+  mk('station',()=>{FX.station(xC,X.station,v);FX.drawBoardLink(xC,X.ships[0],{x:X.station.x,y:X.station.y+60},(X.t*0.07)%1,v);});
+  mk('trails',()=>{for(const s of X.ships)FX.drawTrail(xC,s,v);});
+  mk('ships',()=>{for(const s of X.ships)FX.shipBody(xC,s,v);});
+  mk('bolts',()=>{for(const p of X.bolts)FX.drawBolt(xC,p,v);});
+  mk('missiles',()=>{for(const m of X.missiles)FX.drawMissile(xC,m,v);});
+  mk('chaff',()=>{for(const f of X.chaff)FX.drawChaffCloud(xC,Object.assign({},f,{t0:f.t0,until:f.until}),Object.assign({},v,{t:X.t}));});
+  mk('over',()=>FX.drawLayer(xC,'over',v));
+  xC.setTransform(xDpr,0,0,xDpr,0,0);
+  FX.drawLayer(xC,'screen',v);
+  if(PROF)window.__PROF=PR;
+  const ms=performance.now()-t0;
+  X.ms.push(ms);if(X.ms.length>240)X.ms.shift();
+  const srt=X.ms.slice().sort((a,b)=>a-b),p50=srt[srt.length>>1]||0,p95=srt[Math.floor(srt.length*0.95)]||0;
+  const st=FX.stats();
+  window.__FXCLR=()=>{X.ms.length=0;};
+  window.__FXSTATS={p50,p95,particles:st.particles,sprites:st.spritesCached,frames:X.ms.length};
+  $('x-stats').innerHTML='draw <b>'+ms.toFixed(1)+'</b> ms · p50 <b>'+p50.toFixed(1)+'</b> · p95 <b class="'+(p95<=8?'ok':'bad')+'">'+p95.toFixed(1)+'</b> ms (budget 8) · particles <b>'+st.particles+'</b> · one-shots '+st.oneshots+' · sprites '+st.spritesCached+' · bolts '+X.bolts.length;
+}
+$('x-run').onclick=e=>{running=!running;e.target.setAttribute('aria-pressed',running);e.target.textContent=running?'Stop':'Run stress scene';
+  if(running){xDpr=+$('x-dpr').value;const r=xCv.getBoundingClientRect();xCv.width=Math.round(r.width*xDpr);xCv.height=Math.round(620*xDpr);xCv.style.height='620px';stressBuild();}};
+$('x-dpr').onchange=()=>{if(running){$('x-run').click();$('x-run').click();}};
+
+/* ---------- the loop ---------- */
+function frame(now){
+  const rdt=last?Math.min(100,now-last):16;last=now;
+  let dt=paused?0:rdt/1000*speed;if(paused&&stepQ>0){dt=stepQ;stepQ=0;}
+  gt+=dt;
+  FX.update(dt,rdt);
+  if(!running){   // the stress scene isolates itself: the other panes freeze so the counter measures the fight alone
+    benchTick(dt);benchDraw();
+    stDraw(dt);
+    fxDraw(dt);
+    badgeDraw();
+    backDraw();
+  } else {stressTick(dt);stressDraw();}
+  requestAnimationFrame(frame);
+}
+if(matchMedia('(prefers-reduced-motion: reduce)').matches){reduced=true;$('g-reduced').click();$('g-reduced').click();reduced=true;$('g-reduced').setAttribute('aria-pressed',true);$('g-reduced').textContent='Reduced motion: on';}
+requestAnimationFrame(frame);
+if(location.search.includes('stress')){setTimeout(()=>{$('x-run').click();$('cv-x').scrollIntoView();},300);}
+})();
+</script>
+</body>
+</html>
