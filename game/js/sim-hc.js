@@ -656,7 +656,8 @@ function build(scn,opt){
     S.ships.push(mkShip({id:a.id,name:a.name,faction:'reb',row,x:a.at[0],y:a.at[1],h:a.at[2],pilot:presetPilot(a.pilot,a.name),role:a.role||(inst?'station':'convoy'),quiet:!inst,to:a.to,stats:a.stats,label:a.label,loadout:a.loadout||[]}));
   }
   let eN=0;
-  for(const e of R.enemies||[])spawnEnemies(e,()=>++eN);
+  S.grpN=0;
+  for(const e of R.enemies||[])spawnEnemies(Object.assign({grp:++S.grpN},e),()=>++eN);
   S.eN=eN;
   for(const o of R.objectives||[])S.objectives.push(Object.assign({state:'live',prog:0},o));
   S.ruleN=0;
@@ -693,6 +694,7 @@ function spawnEnemies(e,nextN){
       asset:e.asset,home:e.home||{x:at[0],y:at[1]},flees:e.flees!=null?!!e.flees:!!r.flees,stats:e.stats,label:e.label,loadout:e.loadout});
     if(e.flagship)s.flagship=true;
     if(r.lead)s.lead=true;
+    s.grp=e.grp||0;   // its squadron: one scenario entry or one wave (C-72)
     S.ships.push(s);out.push(s);
   }
   return out;
@@ -835,8 +837,7 @@ function orderBehaviour(s,w,o,T,P){
   if(o.kind==='escort'){
     const ch=byId(o.target&&o.target.id);
     if(!ch||!ch.alive||ch.jumped)return local?{kind:'engage',target:local.id,why:'escort: charge gone'}:{kind:'form',why:'escort: charge gone'};
-    const threat=bestTarget(s,nearPoint(combat,ch,ESCORT_R*(T.leash||1)),{distW:0.5});
-    if(threat)return {kind:'engage',target:threat.id,why:'escort: threat to '+ch.name,guard:ch.id};
+    const gb=guardBehaviour(s,w,ch,threat,ESCORT_R*(T.leash||1));if(gb)return gb;
     return {kind:'escort',charge:ch.id,why:'order'};
   }
   if(o.kind==='intercept'){
@@ -848,8 +849,7 @@ function orderBehaviour(s,w,o,T,P){
   if(o.kind==='defend'){
     const a=anchorOf(o.target);
     if(!a)return {kind:'form',why:'order: nothing to defend'};
-    const t=bestTarget(s,nearPoint(combat,a,DEFEND_R*(T.leash||1)),{distW:0.5});
-    if(t)return {kind:'engage',target:t.id,why:'defend'};
+    const gb=guardBehaviour(s,w,a,threat,DEFEND_R*(T.leash||1));if(gb)return gb;
     return {kind:'defend',anchor:a,why:'order'};
   }
   if(o.kind==='hold'){
@@ -877,6 +877,40 @@ function orderBehaviour(s,w,o,T,P){
     return {kind:'defend',anchor:st,why:'board: covering'};
   }
   return {kind:'form',why:'order'};
+}
+/* guarding (Defend and Escort, C-72, playtest 4): defenders watch DEFEND_WATCH out from what they guard. A hostile
+   heading for it (within 60°), going for it, or already inside the guard reach is a threat, the soonest to arrive
+   first. Each threat gets up to two of the wing's ships, the nearest; the rest stay on station. A defender flies to a
+   point between its threat and its charge (INTERPOSE_K of the way out, kept 700 to 3,000 from the charge) and
+   engages once the threat is inside its guns' reach × 1.5, or inside the guard reach. A hostile shooting at a
+   defender inside the watch gets fought too (what a lure plays on) */
+let DEFEND_WATCH=6000;    // placeholder
+let INTERPOSE_K=0.45;     // placeholder
+function guardThreats(a,foes,reach){
+  const out=[];
+  for(const t of foes){
+    if(t.struct||!t.alive)continue;
+    const d=dist(t,a);if(d>DEFEND_WATCH)continue;
+    const v=Math.hypot(t.vx||0,t.vy||0),hx=(a.x-t.x)/(d||1),hy=(a.y-t.y)/(d||1),closing=v>1?((t.vx||0)*hx+(t.vy||0)*hy)/v:0;
+    const going=t.beh&&t.beh.target===a.id;
+    if(d<=reach||going||closing>0.5)out.push({t,eta:d/Math.max(150,v*Math.max(0.2,closing))*(going?0.7:1)});
+  }
+  return out.sort((x,y)=>x.eta-y.eta);
+}
+function guardBehaviour(s,w,a,threat,reach){
+  if(!w)return null;
+  if(!w.guardT||S.t-w.guardT>=0.5||w.guardA!==a){   // the wing's assignments, refreshed twice a second
+    w.guardT=S.t;w.guardA=a;w.guardOf={};
+    const th=guardThreats(a,foesOf(s),reach),free=wingShips(w).slice();
+    for(const x of th){for(let k=0;k<2&&free.length;k++){free.sort((p,q)=>dist(p,x.t)-dist(q,x.t));w.guardOf[free.shift().id]=x.t.id;}if(!free.length)break;}
+  }
+  const t=byId(w.guardOf[s.id]);
+  if(t&&t.alive){
+    if(dist(t,a)<=reach||dist(s,t)<=gunRange(s)*1.5)return {kind:'engage',target:t.id,why:'guarding '+(a.name||'the point'),guard:a.id};
+    return {kind:'interpose',target:t.id,anchor:a,why:'getting between '+(t.name)+' and '+(a.name||'the point')};
+  }
+  if(threat&&dist(threat,a)<DEFEND_WATCH)return {kind:'engage',target:threat.id,why:'self-defence'};
+  return null;
 }
 /* outnumbered: the target has company (SHAKEN_ODDS or more hostiles near it): a marginal fight */
 function outnumbered(s,t){return foesOf(s).filter(x=>!x.struct&&dist(x,t)<gunRange(s)*1.5).length>=SHAKEN_ODDS;}
@@ -1288,6 +1322,7 @@ const ASSESS={
   station:['Making a run on {t}.','Lining up on {t}.'],
   escort:['Sticking with {t}.','Eyes on {t}.'],
   defend:['Watching over {t}.','Nothing gets near {t}.'],
+  interpose:['{t} inbound, cutting it off.','Getting between {t} and home.'],
   hold:['Holding here.','Station kept.'],
   capture:['Working on the {t}.','Almost have the {t}.'],
   board:['Marines away!','Docking now.'],
@@ -1319,6 +1354,7 @@ function assessOf(s){
   if(b.kind==='engage')return pickLine(s,'engage',nm);
   if(b.kind==='escort')return pickLine(s,'escort',nm);
   if(b.kind==='defend')return pickLine(s,'defend',nm||'the point');
+  if(b.kind==='interpose')return pickLine(s,'interpose',nm);
   if(b.kind==='hold')return pickLine(s,'hold');
   if(b.kind==='capture')return pickLine(s,'capture',nm);
   if(b.kind==='board')return pickLine(s,'board');
@@ -1336,13 +1372,59 @@ let DETECT_R=2500;        // a patrol engages what comes this close. placeholder
 let GUARD_R=1200;          // a guard engages what comes this close to its asset (copied from sim2.js GUARD_R). placeholder
 let LEASH_R=5000;
 let RAID_TURN_R=700;      // a raider turns from the station onto a fighter this close with its guns on it. placeholder         // a patrol or guard gives up a chase this far from home. placeholder
+/* the Hegemony's squadron leaders (C-72, playtest 4). Every HEG_PLAN_SECS, for each of your stations their raiders go
+   for: with your fighters about it (inside DEFEND_WATCH), the raiders split. Two squadrons or more: the older lure,
+   the newest strikes. One squadron of two or more: the half nearest your fighters lure, the rest strike. A lure
+   flies at the nearest defender, then drags it out away from the station (and from the strikers) to LURE_DIST, and
+   comes back for more. A striker holds off at STANDOFF_R on its own side until nothing of yours is within CLEAR_R of
+   the station, then dives on it. With no defenders about, everyone strikes. */
+let HEG_RETREAT=0.35;     // a Hegemony pilot pulls back home under this share of hull (drones don't). placeholder
+let HEG_PLAN_SECS=1,LURE_DIST=5000,STANDOFF_R=6500,CLEAR_R=3000,STRIKE_WAIT=25;   // placeholders (STRIKE_WAIT: a striker dives anyway after holding off this long)
+function hegPlanTick(){
+  if(S.t-(S.planT==null?-99:S.planT)<HEG_PLAN_SECS)return;S.planT=S.t;
+  const goals=S.ships.filter(t=>t.alive&&t.struct&&t.faction==='reb');
+  const raiders=S.ships.filter(x=>x.alive&&x.faction==='heg'&&x.doctrine==='raid'&&!x.retreat);
+  for(const x of raiders){x.hegRole=null;x.hegFrom=null;}
+  if(!goals.length)return;
+  for(const st of goals){
+    const mine=raiders.filter(x=>goals.reduce((b,g)=>dist(x,g)<dist(x,b)?g:b,goals[0])===st);if(!mine.length)continue;
+    const defs=S.ships.filter(y=>y.alive&&y.faction==='reb'&&!y.struct&&!y.quiet&&dist(y,st)<DEFEND_WATCH);
+    // clear: none of your fighters near it is free (a fighter tangled with a lure doesn't count)
+    st.hegClear=!S.ships.some(y=>y.alive&&y.faction==='reb'&&!y.struct&&!y.quiet&&dist(y,st)<CLEAR_R&&!(y.beh&&y.beh.kind==='engage'&&byId(y.beh.target)&&byId(y.beh.target).hegRole==='lure'));
+    let baits=[],strikes=mine;
+    if(defs.length){
+      const grps=[...new Set(mine.map(x=>x.grp))].sort((a,b)=>a-b);
+      if(grps.length>=2){const last=grps[grps.length-1];baits=mine.filter(x=>x.grp!==last);strikes=mine.filter(x=>x.grp===last);}
+      else if(mine.length>=2){const nd=x=>Math.min(...defs.map(y=>dist(x,y))),g=mine.slice().sort((a,b)=>nd(a)-nd(b)),nb=mine.length>=3?Math.ceil(mine.length/2):1;baits=g.slice(0,nb);strikes=g.slice(nb);}
+      else strikes=[];
+    }
+    for(const x of baits){x.hegRole='lure';x.hegFrom=st.id;}
+    for(const x of strikes){x.hegRole='strike';x.hegFrom=st.id;}
+    const key=[...new Set(baits.map(x=>x.grp))].join()+'/'+[...new Set(strikes.map(x=>x.grp))].join();   // a new plan: a new mix of squadrons
+    if(baits.length&&strikes.length&&st.hegPlan!==key){
+      st.hegPlan=key;const c=strikes.reduce((a,x)=>({x:a.x+x.x/strikes.length,y:a.y+x.y/strikes.length}),{x:0,y:0});
+      pushEvent('heg','The raiders split: '+baits.length+' going for your fighters, '+strikes.length+' hanging back out of reach',{x:c.x,y:c.y,tone:'hazard'});
+    }
+  }
+}
 function thinkEnemy(s){
   const foes=foesOf(s).filter(t=>!t.struct);
   abilityTick(s);
+  // preservation (C-72): a hurt pilot pulls back home and stays out of it; drones fight on
+  if(!s.retreat&&!mute(s)&&s.hull/s.maxHull<HEG_RETREAT){s.retreat=true;pushEvent('heg',s.name+' pulls back, hurt',{ship:null,x:s.x,y:s.y,tone:'good'});}
   const dc=S.decoys.find(d=>Math.hypot(d.x-s.x,d.y-s.y)<DECOY_R);
   if(dc&&!s.panic){setBeh(s,{kind:'decoyed',dest:{x:dc.x,y:dc.y},why:'decoy',hard:true});return;}
   if(s.panic){const th=nearestThreat(s);setBeh(s,{kind:'flee',from:th?th.id:null,why:'panic',hard:true});return;}
+  if(s.retreat){setBeh(s,{kind:'hegback',dest:s.home||s,why:'hurt: pulling back'});return;}
   const home=s.asset&&byId(s.asset)?byId(s.asset):s.home||s;
+  // a pilot being shot at fights back (C-72: raiders flew on into your guns for the station)
+  const atk=byId(s.lastHitBy);
+  if(!mute(s)&&atk&&atk.alive&&!atk.struct&&S.t-s.hitT<2&&dist(atk,s)<gunRange(s)*1.5&&s.hegRole!=='lure'){setBeh(s,{kind:'engage',target:atk.id,why:'self-defence'});return;}
+  if(s.hegRole==='lure'){const st=byId(s.hegFrom),d=st&&S.ships.filter(y=>y.alive&&y.faction==='reb'&&!y.struct&&!y.quiet).sort((a,b)=>dist(a,s)-dist(b,s))[0];
+    if(st&&d){setBeh(s,{kind:'lure',target:d.id,from:st.id,why:'luring your fighters off '+(st.label||st.name)});return;}}
+  if(s.hegRole==='strike'){const st=byId(s.hegFrom);
+    if(s.standT==null)s.standT=S.t;
+    if(st&&!st.hegClear&&dist(s,st)>CLEAR_R*0.8&&S.t-s.standT<STRIKE_WAIT){setBeh(s,{kind:'standoff',anchor:st,why:'holding off until '+(st.label||st.name)+' is clear'});return;}}
   let pool=foes;
   if(s.doctrine==='raid'){   // raiders go for your installations, turning only on a fighter that has its guns on them
     const st=foesOf(s).filter(t=>t.struct);
@@ -1415,6 +1497,27 @@ function goalOf(s){
     const sl=w?slotOf(s,w,T):null;
     if(sl)g=stationGoal(s,sl,sl.lead);
     else if(s.faction==='reb'){const hold=w&&w.hold||{x:s.x+Math.cos(s.vh)*400,y:s.y+Math.sin(s.vh)*400};if(w&&!w.hold)w.hold=hold;g=Object.assign(orbitGoal(s,hold,LEAD_ORBIT),{spd:CRUISE*0.8});}
+  } else if(b.kind==='lure'){   // at the defender, then drag it out away from the station (and the strikers)
+    const D=byId(b.target),st=byId(b.from);
+    if(st){
+      if(s.lure!=='out'&&D&&(dist(s,D)<gunRange(s)*1.2||S.t-s.hitT<1))s.lure='out';
+      else if(s.lure==='out'&&(dist(s,st)>LURE_DIST||(D&&dist(s,D)>gunRange(D)*3.5)))s.lure='in';
+      if(s.lure!=='out'&&D){g=runGoal(s,D,T,P,null,c);s.fireAt=D.id;}
+      else{
+        let ax=s.x-st.x,ay=s.y-st.y;const al=Math.hypot(ax,ay)||1;ax/=al;ay/=al;
+        const sk=S.ships.filter(x=>x.alive&&x.hegRole==='strike'&&x.hegFrom===st.id);
+        if(sk.length){let bx=0,by=0;for(const x of sk){bx+=x.x-st.x;by+=x.y-st.y;}const bl=Math.hypot(bx,by)||1;bx/=bl;by/=bl;const dt2=ax*bx+ay*by;if(dt2>0){ax-=1.5*dt2*bx;ay-=1.5*dt2*by;const l2=Math.hypot(ax,ay)||1;ax/=l2;ay/=l2;}}
+        g={x:s.x+ax*1500,y:s.y+ay*1500,spd:1};
+      }
+    }
+  } else if(b.kind==='standoff'){   // hold off on its own side, out of the defenders' reach
+    const st=b.anchor;let ax=s.x-st.x,ay=s.y-st.y;const al=Math.hypot(ax,ay)||1;
+    const P={x:st.x+ax/al*STANDOFF_R,y:st.y+ay/al*STANDOFF_R};g=Object.assign(orbitGoal(s,P,700),{spd:CRUISE});
+  } else if(b.kind==='hegback'){   // hurt: home, and circling there
+    const h=b.dest;g=dist(s,h)>1500?{x:h.x,y:h.y,spd:1}:Object.assign(orbitGoal(s,h,900),{spd:CRUISE*0.8});
+  } else if(b.kind==='interpose'){   // between the threat and the charge, nose on the threat (C-72)
+    const t=byId(b.target),a=b.anchor;
+    if(t&&a){const d=dist(t,a),k=clamp(d*INTERPOSE_K,700,3000)/(d||1);g={x:a.x+(t.x-a.x)*k,y:a.y+(t.y-a.y)*k,spd:1,face:t};s.fireAt=t.id;}
   } else if(b.kind==='defend'||b.kind==='hold'){
     const a=b.anchor,i=w?Math.max(0,wingShips(w).indexOf(s)):0,R=(b.kind==='hold'?700:800)*(0.8+0.25*(T.space||1))+i*140;   // wide enough to fly at cruise (C-69)
     g=Object.assign(orbitGoal(s,a,R),{spd:CRUISE});
@@ -1755,12 +1858,12 @@ function waveTick(){
   }
 }
 function spawnAtEdge(e,force,role){
-  const n=force.reduce((a,f)=>a+(f.n||1),0);let i=0;
+  const n=force.reduce((a,f)=>a+(f.n||1),0),grp=++S.grpN;let i=0;
   for(const f of force)for(let k=0;k<(f.n||1);k++){
     const u=(i+0.5)/n;i++;
     const p=zoneEdge(e,1200),zw=Z.x1-Z.x0,zh=Z.y1-Z.y0;   // from out beyond the play area's edge, spread along it
     const at=e==='E'||e==='W'?[p.x,Z.y0+zh*(0.25+0.5*u),e==='E'?Math.PI:0]:[Z.x0+zw*(0.25+0.5*u),p.y,e==='N'?Math.PI/2:-Math.PI/2];
-    spawnEnemies(Object.assign({},f,{n:1,at,role:f.role||role}),()=>++S.eN);
+    spawnEnemies(Object.assign({},f,{n:1,at,role:f.role||role,grp}),()=>++S.eN);
   }
 }
 function reinforceTick(){
@@ -1885,6 +1988,7 @@ function step(){
   S.t+=dt;S.tick++;
   for(const s of S.ships){s.px=s.x;s.py=s.y;s.ph=s.h;}   // where each ship was: the HUD draws between this and now (smooth at any frame rate)
   wingTick();
+  hegPlanTick();
   for(const s of S.ships){
     if(!s.alive)continue;
     s.thinkT+=dt;
@@ -2058,6 +2162,8 @@ const TUNE={
   NERVE_K:{get:()=>NERVE_K,set:v=>{NERVE_K=v;},min:0,max:2,step:0.05,label:'Nerve losses ×'},
   CALM_SECS:{get:()=>CALM_SECS,set:v=>{CALM_SECS=v;},min:1,max:10,step:0.5,label:'Calm nerve every (s)'},
   COMMIT_SECS:{get:()=>COMMIT_SECS,set:v=>{COMMIT_SECS=v;},min:0,max:8,step:0.5,label:'Stay on a target at least (s)'},
+  DEFEND_WATCH:{get:()=>DEFEND_WATCH,set:v=>{DEFEND_WATCH=v;},min:1000,max:15000,step:250,label:'Defenders watch this far out'},
+  INTERPOSE_K:{get:()=>INTERPOSE_K,set:v=>{INTERPOSE_K=v;},min:0.1,max:0.9,step:0.05,label:'Get between at this share of the way'},
   DEFEND_R:{get:()=>DEFEND_R,set:v=>{DEFEND_R=v;},min:400,max:5000,step:50,label:'Defend reach'},
   HOLD_R:{get:()=>HOLD_R,set:v=>{HOLD_R=v;},min:400,max:5000,step:50,label:'Hold reach'},
   CAPTURE_R:{get:()=>CAPTURE_R,set:v=>{CAPTURE_R=v;},min:100,max:800,step:20,label:'Capture radius'},
@@ -2097,6 +2203,11 @@ const TUNE={
   PIN_CLEAR:{get:()=>PIN_CLEAR,set:v=>{PIN_CLEAR=v;},min:0.5,max:10,step:0.5,label:'Pin clears after (s)'},
   TS_SLOW:{get:()=>TIMESCALES[1],set:v=>{TIMESCALES[1]=v;},min:0.1,max:1,step:0.05,label:'Slow speed (×)'},
   TS_FAST:{get:()=>TIMESCALES[3],set:v=>{TIMESCALES[3]=v;},min:1.5,max:6,step:0.5,label:'Fast speed (×)'},
+  HEG_RETREAT:{get:()=>HEG_RETREAT,set:v=>{HEG_RETREAT=v;},min:0,max:0.9,step:0.05,label:'Hegemony pulls back under (hull)'},
+  LURE_DIST:{get:()=>LURE_DIST,set:v=>{LURE_DIST=v;},min:1000,max:15000,step:250,label:'A lure drags defenders this far out'},
+  STANDOFF_R:{get:()=>STANDOFF_R,set:v=>{STANDOFF_R=v;},min:1000,max:15000,step:250,label:'Strikers hold off this far'},
+  STRIKE_WAIT:{get:()=>STRIKE_WAIT,set:v=>{STRIKE_WAIT=v;},min:0,max:120,step:1,label:'Strikers dive anyway after (s)'},
+  CLEAR_R:{get:()=>CLEAR_R,set:v=>{CLEAR_R=v;},min:500,max:8000,step:250,label:'Strikers dive when nothing of yours is this close'},
   RAID_TURN_R:{get:()=>RAID_TURN_R,set:v=>{RAID_TURN_R=v;},min:0,max:2000,step:50,label:'Raiders turn on fighters within'},
   GUN_DPS:{get:()=>GUN_DPS,set:v=>{GUN_DPS=v;},min:0.1,max:2,step:0.05,label:'Gun damage a second (× roll)'},
 };
@@ -2111,8 +2222,8 @@ for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
   Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
-  Orders:['ESCORT_R','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
-  Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R'],
+  Orders:['ESCORT_R','DEFEND_WATCH','INTERPOSE_K','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
+  Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R','HEG_RETREAT','LURE_DIST','STANDOFF_R','CLEAR_R','STRIKE_WAIT'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
   Rules:['PRES_HULL','GUARDIAN_SECS','GUARDIAN_R','ESCAPE_K','FORM_SECS','BRING_HULL','SAVIOUR_HULL'],
   Morale:['BARK_GAP','MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
@@ -2127,7 +2238,7 @@ return {key:'hc',name:'Type 3: High Command',
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
-    THINK_SECS_:()=>THINK_SECS,spreadOf,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
+    THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
 })();

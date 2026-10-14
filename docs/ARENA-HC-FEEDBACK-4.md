@@ -1,6 +1,6 @@
 # High Command, playtest 4: your feedback and what I built
 
-**Status: building, 14 October**, in two phases: I1 (the display, locks, missiles and chaff) and I2 (Defend, and
+**Status: built, 14 October**, in two phases: I1 (the display, locks, missiles and chaff) and I2 (Defend, and
 the Hegemony's squadrons). `docs/DESIGN_BLOCKERS.md` C-72 records what I chose building them.
 
 ## 1. Your notes (after testing scenario 2, hc2_lastlight), verbatim

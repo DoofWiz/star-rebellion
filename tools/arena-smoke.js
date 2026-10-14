@@ -1322,7 +1322,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   f.load('hc2_lastlight',0,1);
   out.hc2=[S().scn.id,by('lastlight').faction,by('lastlight').struct,S().waves.length,S().rules.map(r=>r.rule).join()];
   SIM.runFor(25);
-  out.hc2.push(S().waves[0].spawned,S().ships.filter(s=>s.faction==='heg'&&s.doctrine==='raid').length,S().ships.filter(s=>s.doctrine==='raid'&&s.beh&&s.beh.target==='lastlight').length>0);
+  out.hc2.push(S().waves[0].spawned,S().ships.filter(s=>s.faction==='heg'&&s.doctrine==='raid').length,S().ships.filter(s=>s.doctrine==='raid'&&s.beh&&(s.beh.target==='lastlight'||s.hegRole)).length>0);   // C-72: or split into a lure and a strike
   // a full hc3 brawl, hands on the keyboard at speed 3: orders and tactics by keys, a command, through the driver
   f.load('hc3_meltdown',0,9);
   let now=1000;const fr=()=>{now+=16;f.frame(now);};
@@ -1764,11 +1764,42 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(i1.run.every(Boolean),'C-72: fired on, a pilot runs from the missile and boosts '+JSON.stringify(i1.run));
  ok(i1.chaff.every(Boolean),'C-72: chaff draws a missile off '+JSON.stringify(i1.chaff));
  ok(i1.status[0]===false&&i1.status[1]&&i1.status[2]&&i1.status[3]&&i1.status[4]===false&&i1.status[5],'C-72: status on the map only for the selection '+JSON.stringify(i1.status));
+ // ---------- C-72, I2: defenders get between; the Hegemony looks after itself and lures ----------
+ const i2=await pg3.evaluate(()=>{
+  const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,F=SIM.fn,out={};
+  const S=()=>H.S,by=id=>S().ships.find(s=>s.id===id||s.name===id);
+  // a raider heading for Lastlight 4,500 out: a defender gets between them, and engages once it is close
+  f.load('hc2_lastlight',0,5);const st=by('lastlight'),rook=by('Rook');
+  SIM.runFor(21);const r1=S().ships.find(x=>x.faction==='heg'&&x.alive);
+  for(const x of S().ships)if(x.faction==='heg'&&x!==r1)x.alive=false;
+  r1.x=st.x+4500;r1.y=st.y;r1.h=r1.vh=Math.PI;r1.vx=-600;r1.vy=0;r1.px=r1.x;r1.py=r1.y;
+  out.threat=[F.guardThreats(st,[r1],SIM.TUNE.DEFEND_R.get()).length===1];
+  SIM.runFor(1);
+  const cov=S().ships.filter(x=>x.wing==='ember'&&x.beh.target===r1.id);
+  out.threat.push(cov.length>=1&&cov.length<=2,cov.some(x=>x.beh.kind==='interpose'||x.beh.kind==='engage'));
+  const iv=cov.find(x=>x.beh.kind==='interpose');
+  if(iv){const g=iv.goal,ga=Math.atan2(g.y-st.y,g.x-st.x),ra=Math.atan2(r1.y-st.y,r1.x-st.x);out.threat.push(Math.abs(Math.atan2(Math.sin(ga-ra),Math.cos(ga-ra)))<0.3&&F.dist(g,st)<F.dist(r1,st));}else out.threat.push(true);
+  let n=0;while(n++<200&&!cov.some(x=>x.beh.kind==='engage'))SIM.step();out.threat.push(cov.some(x=>x.beh.kind==='engage'),F.dist(r1,st)>SIM.TUNE.DEFEND_R.get());
+  // the Hegemony: wave one splits into a lure and a strike, said in the feed; a hurt pilot pulls back; one shot at fights back
+  f.load('hc2_lastlight',0,5);SIM.runFor(26);
+  const w1=S().ships.filter(x=>x.faction==='heg'&&x.alive);
+  out.plan=[w1.filter(x=>x.hegRole==='lure').length,w1.filter(x=>x.hegRole==='strike').length,S().events.some(e=>e.kind==='heg'&&/raiders split/.test(e.text)),w1.some(x=>x.beh.kind==='lure'),w1.some(x=>x.beh.kind==='standoff')];
+  const sk=w1.find(x=>x.hegRole==='strike');SIM.TUNE.STRIKE_WAIT.set(0);SIM.runFor(1.2);out.plan.push(sk.beh.kind==='engage'&&sk.beh.target==='lastlight');SIM.TUNE.STRIKE_WAIT.set(25);
+  const hurt=w1.find(x=>x!==sk&&x.alive);hurt.hull=hurt.maxHull*0.3;hurt.thinkT=99;SIM.step();
+  out.pres=[hurt.retreat===true,hurt.beh.kind==='hegback',S().events.some(e=>/pulls back/.test(e.text))];
+  f.load('hc2_lastlight',0,5);SIM.runFor(26);const rd=S().ships.find(x=>x.faction==='heg'&&x.alive&&x.hegRole==='strike')||S().ships.find(x=>x.faction==='heg'&&x.alive);
+  const rk=by('Rook');rd.lastHitBy=rk.id;rd.hitT=S().t;rk.x=rd.x-500;rk.y=rd.y;rk.px=rk.x;rk.py=rk.y;rd.thinkT=99;SIM.step();
+  out.pres.push(rd.beh.kind==='engage'&&rd.beh.target===rk.id);
+  return out;
+ });
+ ok(i2.threat.every(Boolean),'C-72: a defender gets between an inbound raider and Lastlight, then engages it out from the station '+JSON.stringify(i2.threat));
+ ok(i2.plan[0]>=1&&i2.plan[1]>=1&&i2.plan.slice(2).every(Boolean),'C-72: the raiders split into a lure and a strike '+JSON.stringify(i2.plan));
+ ok(i2.pres.every(Boolean),'C-72: a hurt Hegemony pilot pulls back; one shot at fights back '+JSON.stringify(i2.pres));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

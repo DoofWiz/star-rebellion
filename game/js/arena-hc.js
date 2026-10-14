@@ -872,7 +872,7 @@ function syncRoster(){
   }
 }
 /* the ship's current order as a corner glyph (and a word on hover): gold-less, cyan when a rule set it, hazard in an emergency */
-const BEH={engage:['attack','ENGAGE'],withdraw:['withdraw','WITHDRAW'],escort:['escort','ESCORT'],form:['regroup','FORM UP'],defend:['defend','DEFEND'],
+const BEH={interpose:['defend','COVERING'],engage:['attack','ENGAGE'],withdraw:['withdraw','WITHDRAW'],escort:['escort','ESCORT'],form:['regroup','FORM UP'],defend:['defend','DEFEND'],
   hold:['hold','HOLD'],capture:['capture','CAPTURE'],board:['board','BOARD'],fallback:['withdraw','FALL BACK'],flee:['withdraw','FLEEING'],freeze:['hold','FROZEN'],idle:['hold','IDLE']};
 function behWord(s){const b=s.beh||{};return (BEH[b.kind]||['hold',String(b.kind||'').toUpperCase()])[1];}
 function behGlyph(s){const b=s.beh||{};return (BEH[b.kind]||['hold'])[0];}
