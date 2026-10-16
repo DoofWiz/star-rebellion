@@ -351,8 +351,9 @@ window.SR_ART=(function(){
     praxon:{name:'Praxon',what:'Industrial gear that accidentally became the pirates’ armoury.',look:'Safety yellow and black, rubber grips, hazard stripes, chunky clamps.',col:['#d8b030','#2a2a2a'],mark:'gear'},
     helix:{name:'Helix',what:'Medical equipment and pharmaceuticals. Excellent; not cheap.',look:'Clinical white and teal, rounded cases, a double-helix mark.',col:['#f4f6f8','#2ab0a0'],mark:'helix'},
     blamco:{name:'BLAMCo',what:'Explosives. Accept no imitations.',look:'Cartoon red-and-yellow branding, a starburst logo, hazard stripes.',col:['#e0402e',C.gold],mark:'burst'},
-    genastro:{name:'General Astronautics',short:'Gen. Astronautics',what:'The Hegemony’s frigates, destroyers and carriers.',look:'Slab grey hulls, navy bands, stencilled hull numbers. (Capital ships; nothing yet.)',col:['#7a8294','#2c3a5e'],mark:'ga'},
+    genastro:{name:'General Astronautics',short:'Gen. Astronautics',what:'The Hegemony’s frigates, destroyers and carriers.',look:'Slab grey hulls, navy bands and stencilled hull numbers; big, modular and blunt, built to a spec sheet. Standard-issue cargo modules, point-defence turrets and long rows of identical everything.',col:['#7a8294','#2c3a5e'],mark:'ga'},
     nomad:{name:'Nomad',what:'Frontier armour for settlers, prospectors and mercs who fix it themselves.',look:'Canvas, leather straps and scuffed plates in sand and khaki, visible stitching.',col:['#b8a070','#6a5a3a'],mark:'compass'},
+    core:{name:'CORE Assembly',short:'CORE',what:'Ships for traders, haulers, private security and bounty hunters. Built most of the Hegemony’s fleet under the Empress’ father, until her friends at Varrondow got the contracts.',look:'Boxy, honest and over-built: sand and sage enamel, thick riveted nose plates, external hardpoints, big stencilled serials and the interlocking-block badge. Old hulls still carry the faded sun crest of the old Hegemony.',col:['#8f9c80','#3a3d3a'],mark:'core'},
     rook:{name:'Rook',what:'Affordable, repairable personal protection.',look:'Matte charcoal and olive, modular plates, a chess-rook stamp.',col:['#3a3e42','#6a7046'],mark:'rook'},
   };
 
@@ -742,7 +743,7 @@ window.SR_ART=(function(){
      colour keys: hull, hull2, dark, acc, panel or any hex.
      ================================================================= */
   const SHIPS={
-    cross:{name:'FT-4 Cross',maker:'mendon',role:'Multirole patrol craft',game:'viper',mounts:{primary:[[0,-10.5],[0,10.5]],secondary:[[4,-6]]},defaults:{primary:'repeaters'},
+    cross:{name:'FT-4 Cross',maker:'mendon',role:'Multirole patrol craft',game:'viper',size:5,mounts:{primary:[[0,-10.5],[0,10.5]],secondary:[[4,-6]]},defaults:{primary:'repeaters'},
       parts:[
         {pts:[[-11,-3.5],[-16,-9],[-19.5,-9],[-17,-3]],m:1,f:'hull2'},
         {pts:[[5,-4],[3,-16],[-5.5,-16],[-6.5,-4]],m:1,f:'hull2',id:'wing'},
@@ -758,7 +759,7 @@ window.SR_ART=(function(){
         rebel:{label:'Dustfall (stolen)',hull:'#c4bba8',hull2:'#5a5f4a',dark:'#2f2c28',acc:C.rebel,pilot:'joss',mark:['DUSTFALL',-1,8.5,'#2a1a10'],
           stripes:[{pts:[[-9,-4.4],[-5.5,-4.4],[-5.5,4.4],[-9,4.4]],drips:1}],patches:[[2,-14,5,6,'#8a8a6a'],[-14,1.5,6,3,'#a89870']],tape:[[10,3,-.6],[-2,-6,.4]],scratch:[-8,8.5],scorch:[[13,-2,3],[-10,-12,2.6]],paletteNote:'Repainted by hand over the law livery; the old star is scratched out.'},
       }},
-    talon:{name:'SF-11 Talon',maker:'aerostar',role:'Racer turned interceptor',game:'talon',mounts:{primary:[[-3,-8.6],[-3,8.6]],secondary:[[4,-4.6]]},defaults:{primary:'repeaters'},
+    talon:{name:'SF-11 Talon',maker:'aerostar',role:'Racer turned interceptor',game:'talon',size:4,mounts:{primary:[[-3,-8.6],[-3,8.6]],secondary:[[4,-4.6]]},defaults:{primary:'repeaters'},
       parts:[
         {box:[-15,-7.2,11,3.6,1.5],m:1,f:'dark'},
         {pts:[[2,-3.4],[-8,-12.5],[-13,-12.5],[-9.5,-3.2]],m:1,f:'hull2',id:'wing'},
@@ -772,7 +773,7 @@ window.SR_ART=(function(){
         rebel:{label:'Rebel (ex-racer)',hull:'#ece2cc',hull2:'#d8ccb0',dark:'#3a3a44',acc:C.rebel,pilot:'runa',roundel:[16,0,'07'],racing:1,checker:[-13,-2.4,3,4.8],
           wingSwap:'#9a9a80',tape:[[4,-9,.5]],scorch:[[-6,6,2.6]],paletteNote:'Racing livery faded; one wing salvaged from another airframe.'},
       }},
-    graf:{name:'Graf Hauler',nick:"'ol Gran",maker:'mendon',role:'Light hauler, converted dropship',game:'graf',mounts:{primary:[[18,-5]],secondary:[[18,5]],door:[[2,-8.6,-1],[2,8.6,1]]},defaults:{},
+    graf:{name:'Graf Hauler',nick:"'ol Gran",maker:'mendon',role:'Light hauler, converted dropship',game:'graf',size:7,mounts:{primary:[[18,-5]],secondary:[[18,5]],door:[[2,-8.6,-1],[2,8.6,1]]},defaults:{},
       parts:[
         {box:[-17,-13.5,17,6,2],m:1,f:'hull2'},
         {pts:[[17,-5.5],[20,-2.4],[20,2.4],[17,5.5],[8,8],[-13,8],[-18,5.5],[-18,-5.5],[-13,-8],[8,-8]],f:'hull'},
@@ -787,7 +788,7 @@ window.SR_ART=(function(){
           stripes:[{pts:[[-5,-8],[-1.8,-8],[-1.8,8],[-5,8]],drips:1}],patches:[[-6,-6.5,7,5.4,'#a8b0b8']],scorch:[[12,4,3.2],[-14,-3,2.4]],paletteNote:'Welded armour plates over the cargo pods, door guns in the old hatches.'},
         civ:{label:'Stock hauler',hull:'#c8ccc4',hull2:'#9aa0a0',dark:'#4a4a56',acc:'#d8a03a',pilot:'civ',mark:['GRAF-1',-7,-10.8,'#3a3a40']},
       }},
-    mote:{name:'VC Mote',maker:'varrondow',role:'Hegemony Security patrol craft',game:'mote',mounts:{primary:[[6,4.4]]},defaults:{primary:'repeaters'},
+    mote:{name:'VC Mote',maker:'varrondow',role:'Hegemony Security patrol craft',game:'mote',size:4,mounts:{primary:[[6,4.4]]},defaults:{primary:'repeaters'},
       parts:[
         {pts:[[-2,-6],[-6,-10.5],[-9.5,-10.5],[-7.5,-5.4]],m:1,f:'hull2'},
         {pts:[[13,0],[9,-5],[0,-6.6],[-8,-6],[-11,-3],[-11,3],[-8,6],[0,6.6],[9,5]],f:'hull'},
@@ -796,7 +797,7 @@ window.SR_ART=(function(){
       lines:[[[4,-6.2],[4,6.2]],[[-5,-6],[-5,6]],[[9,-4.6],[11.5,0]]],vents:[[-9,-1.6],[-9,.6],[-3,-5],[-3,4]],rivets:[[1,-5.6],[1,5.6],[-7,-5],[-7,5]],
       slit:[3,0,5.6,2.2],engines:[[-11,-2.4,1.8],[-11,2.4,1.8]],lights:[[-8,-10.8,C.hegHi],[-8,10.8,C.hegHi]],scanner:[10.5,0,2.4],
       liveries:{heg:{label:'Hegemony Security',hull:'#8a90a0',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,mark:['VC-114',-1,-8.6,C.hegHi],emblem:[-1,8.6],trim:[[9,-5],[0,-6.6]]}}},
-    scim:{name:'VK-3 Scimitar',maker:'varrondow',role:'Advanced multirole fighter',game:'scim',mounts:{primary:[[-6,-14.6],[-6,14.6]],secondary:[[-2,-6.6],[-2,6.6]]},defaults:{primary:'repeaters',secondary:'missiles'},
+    scim:{name:'VK-3 Scimitar',maker:'varrondow',role:'Advanced multirole fighter',game:'scim',size:5,mounts:{primary:[[-6,-14.6],[-6,14.6]],secondary:[[-2,-6.6],[-2,6.6]]},defaults:{primary:'repeaters',secondary:'missiles'},
       parts:[
         {pts:[[4,-5],[0,-12],[-6,-18],[-12.5,-19],[-8,-11],[-4,-7]],m:1,f:'hull'},
         {pts:[[4,-5],[0,-12],[-6,-18],[-7.6,-17.4],[-1.6,-11.4],[2.4,-5]],m:1,f:'hull2'},
@@ -806,7 +807,7 @@ window.SR_ART=(function(){
       lines:[[[-4,-7.8],[-1,-2.6]],[[-4,7.8],[-1,2.6]],[[10,-3.6],[10,3.6]]],vents:[[-9,-5],[-9,4]],rivets:[[2,-4.6],[2,4.6],[-6,-6.6],[-6,6.6]],
       slit:[7,0,6.5,2.2],engines:[[-11,-4,2.4],[-11,4,2.4]],lights:[[-12,-18.6,C.hegHi],[-12,18.6,C.hegHi]],
       liveries:{heg:{label:'Wing commander',hull:'#2b3046',hull2:'#d5dbea',dark:'#141826',acc:C.heg,mark:['VK-3',-3,-10.6,C.hegHi],chev:[[-7,-13],[-5,-11.5],[-3,-10]],emblem:[-3,10.6],trim:[[6,-5],[-4,-8]],trim2:[[0,-12],[-6,-18]]}}},
-    monitor:{name:'Drone Monitor',maker:'autocom',role:'Patrols civilian routes; summons reinforcements',game:'monitor',drone:1,mounts:{primary:[[2,4.6]]},defaults:{primary:'repeaters'},
+    monitor:{name:'Drone Monitor',maker:'autocom',role:'Patrols civilian routes; summons reinforcements',game:'monitor',size:2,drone:1,mounts:{primary:[[2,4.6]]},defaults:{primary:'repeaters'},
       parts:[
         {pts:[[-1,-4],[-4,-8.4],[-7.5,-8.4],[-6.5,-3.4]],m:1,f:'hull2'},
         {pts:[[7,0],[5,-4.6],[0,-6.4],[-5,-5],[-7.4,0],[-5,5],[0,6.4],[5,4.6]],f:'hull'},
@@ -814,7 +815,7 @@ window.SR_ART=(function(){
       lines:[[[-2,-6],[-2,6]],[[3,-5.4],[3,5.4]]],vents:[[-6,-1.4],[-6,.4]],rivets:[[1,-5.4],[1,5.4]],
       dish:[-3,0,2.6],scanner:[6,0,2.2],engines:[[-7.4,0,1.5]],lights:[[-6,-8.6,C.hegHi],[-6,8.6,C.hegHi]],
       liveries:{heg:{label:'Hegemony Security',hull:'#b8c0cc',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,mark:['MON',-1,-7.4,C.hegHi]}}},
-    pursuer:{name:'Drone Pursuer',maker:'autocom',role:'Day-to-day hostile situations',game:'pursuer',drone:1,mounts:{primary:[[1,-8.6],[1,8.6]]},defaults:{primary:'repeaters'},
+    pursuer:{name:'Drone Pursuer',maker:'autocom',role:'Day-to-day hostile situations',game:'pursuer',size:3,drone:1,mounts:{primary:[[1,-8.6],[1,8.6]]},defaults:{primary:'repeaters'},
       parts:[
         {pts:[[11,-2.2],[2,-10],[-2.5,-10],[3,-2.4]],m:1,f:'hull2'},
         {pts:[[17,0],[8,-3.6],[-6,-5],[-11,-3],[-11,3],[-6,5],[8,3.6]],f:'hull'},
@@ -823,7 +824,7 @@ window.SR_ART=(function(){
       lines:[[[-6,-4.8],[-8,-1.4]],[[-6,4.8],[-8,1.4]],[[9,-3.2],[9,3.2]]],vents:[[-10,-2.2],[-10,1.2]],rivets:[[4,-3.8],[4,3.8]],
       slit:[10,0,6,1.8],engines:[[-11,-2.6,1.9],[-11,2.6,1.9]],lights:[[-1,-10.4,C.hegHi],[-1,10.4,C.hegHi]],
       liveries:{heg:{label:'Hegemony Security',hull:'#b8c0cc',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,mark:['PUR',-3,-7.6,C.hegHi],trim:[[8,-3.6],[-6,-5]]}}},
-    clamper:{name:'Drone Mag-Clamper',maker:'autocom',role:'Restrains and slows ships with magnets',game:'clamper',drone:1,mounts:{},defaults:{},
+    clamper:{name:'Drone Mag-Clamper',maker:'autocom',role:'Restrains and slows ships with magnets',game:'clamper',size:6,drone:1,mounts:{},defaults:{},
       parts:[
         {box:[6,-12.5,12,4.2,1.6],m:1,f:'hull2'},
         {box:[16,-14,4.4,7.4,1.6],m:1,f:'dark'},
@@ -833,7 +834,59 @@ window.SR_ART=(function(){
       lines:[[[2,-7.6],[2,7.6]],[[-10,-6],[-10,6]],[[8,-11],[14,-11]],[[8,11],[14,11]]],vents:[[-12,-2],[-12,.8],[6,-5],[6,4]],rivets:[[-1,-7.6],[-1,7.6],[9,-5.8],[9,5.8]],
       eye:[8,0,2.8],magnets:[[20,-10.3],[20,10.3]],engines:[[-14,-3.4,2],[-14,3.4,2],[-13,0,1.5]],lights:[[-8,-9,C.hegHi],[-8,9,C.hegHi]],
       liveries:{heg:{label:'Hegemony Security',hull:'#b8c0cc',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,mark:['MAG',3,-10.2,C.hegHi],emblem:[-4,0]}}},
-    gafrigate:{name:'GA Bulwark-class Frigate (style mock)',maker:'genastro',role:'Capital ship (mock)',game:null,mock:1,capital:1,mounts:{primary:[[18,-7],[18,7],[-4,-10],[-4,10]],secondary:[[-20,-8],[-20,8]]},defaults:{primary:'repeaters',secondary:'missiles'},
+    brickbat:{name:'BX-17 Brickbat',maker:'core',role:'Utility freighter; the rebels’ cheap improvised bomber',game:'brickbat',size:6,mounts:{primary:[[8.4,7.4]],pylon:[[-2,-13.6,-1],[-2,13.6,1]]},defaults:{},
+      parts:[
+        {box:[-5,-11.6,6,5.4,.8],m:1,f:'dark'},
+        {box:[-19,-10,9.5,5.2,1.4],m:1,f:'dark'},
+        {pts:[[14,-6.2],[14,6.2],[-6,7],[-14,6.6],[-16.5,4],[-16.5,-4],[-14,-6.6],[-6,-7]],f:'hull'},
+        {box:[-13,-3.4,15,6.8,1.6],f:'hull2'},
+        {pts:[[19.5,-4.4],[19.5,4.4],[17.4,6.6],[13,7],[13,-7],[17.4,-6.6]],f:'dark'},
+        {box:[4.8,-4.8,8.4,9.6,2],f:'hull'},
+      ],
+      lines:[[[2.4,-7],[2.4,7]],[[-6,-7],[-6,-3.4]],[[-6,3.4],[-6,7]],[[-5,-3.4],[-5,3.4]],[[13,-6.8],[13,6.8]],[[15.6,-6.4],[18.4,-3.6]],[[15.6,6.4],[18.4,3.6]],[[-17,-7.4],[-11,-7.4]],[[-17,7.4],[-11,7.4]]],
+      vents:[[-15.5,-1.8],[-15.5,.6],[-12,-6.2],[-12,5]],rivets:[[14.2,-5.6],[14.2,-2.8],[14.2,0],[14.2,2.8],[14.2,5.6],[17.8,-3.6],[17.8,0],[17.8,3.6],[16,-5.4],[16,5.4],[-4,-10.6],[0,-10.6],[-4,10.6],[0,10.6],[-11,-6.4],[-11,6.4]],
+      canopy:[9.4,0,2.4,4.2],engines:[[-19,-7.4,2.3],[-19,7.4,2.3]],lights:[[-17,-10.3,'#ff5a5a'],[-17,10.3,'#5aff7a'],[-8,0,'#ffb347']],
+      liveries:{
+        civ:{label:'CORE stock (trader)',hull:'#cdc5aa',hull2:'#8f9c80',dark:'#3a3d3a',acc:'#e0a53a',pilot:'civ',loadout:{attach:['cargopod']},mark:['CORE',-4.4,0,'#2c302c'],oldcrest:[-9.2,5.2],
+          stripes:[{pts:[[13.2,-6.8],[15.2,-6.5],[15.2,-4.4],[13.2,-4.4]]},{pts:[[13.2,4.4],[15.2,4.4],[15.2,6.5],[13.2,6.8]]}],serial:[-1,-5.3,'BX-17 / 4402'],paletteNote:'Factory sand and sage, cargo pods on the hardpoints, the old sun crest faded on the flank.'},
+        rebel:{label:'Rebel bomber (stripped freighter)',hull:'#b9ad8e',hull2:'#7f8a6a',dark:'#38383e',acc:C.rebel,pilot:'joss',loadout:{primary:'repeaters',attach:['bombrack']},mark:['BRICKBAT',-5.2,0,'#2a1a10'],nose:[16.4,0,'BAT'],
+          stripes:[{pts:[[.4,-7],[3.4,-7],[3.4,7],[.4,7]],drips:1}],patches:[[-10.4,-6.6,4.2,2.2,'#a2a7ac'],[-2.6,4.4,4,2.2,'#a8a090'],[6,-4.4,3,2.6,'#8a8f74']],tape:[[6.2,3.6,.5]],scorch:[[-15,3,2.4],[11,-5,1.8]],
+          oldcrest:[-9.2,5.2],defaced:1,tally:[-4.6,-5.3,4],paletteNote:'Commercial fittings torn out (bare patches where they were), BLAMCo bomb racks bolted to the cargo hardpoints, a chin repeater, the old crest sprayed out, a bomb tally under the canopy.'},
+        hunter:{label:'Bounty hunter',hull:'#4c4c54',hull2:'#2e2f36',dark:'#1d1d22',acc:'#ff7a2a',pilot:'craw',podDark:1,loadout:{primary:'repeaters',attach:['cargopod']},mark:['TOLL',-4.4,0,'#ff7a2a'],
+          stripes:[{pts:[[13.2,-6.8],[15.6,-6.4],[15.6,-3.6],[13.2,-4]]},{pts:[[13.2,4],[15.6,3.6],[15.6,6.4],[13.2,6.8]]},{pts:[[-14,-6.6],[-12.4,-6.6],[-12.4,6.6],[-14,6.6]]}],patches:[[-2.6,4.4,4,2.2,'#5a5a62']],tally:[-4.6,-5.3,6],tallyKind:'skull',paletteNote:'Gunmetal and hunter orange; the pods carry bounties, not cargo.'},
+      }},
+    /* the first fleet ship (size 10, ~130 m). Can't land at Haven Rock: it's drawn in space only. cargo = two rows of
+       standard modules along the spine (o.lost = module indices blown off, 0-5 port, 6-11 starboard); pd = point-defence
+       turrets that track o.aimAt [x,y] (world) or o.aim (radians off the nose); dmgSpots [x,y,r,threshold] place the
+       capital-scale damage (breaches, fires, smoke) instead of the fighter decals. */
+    gafreighter:{name:'GA FL-400 Fleet Freighter',maker:'genastro',role:'Fleet freighter: convoy logistics, a mission target',game:'fl400',capital:1,size:10,noLand:1,deathMs:4200,
+      mounts:{},defaults:{},cargo:{x0:26,step:-11.2,len:10,y0:4.8,w:8,n:6,hazard:[2,9]},pd:[[44.6,-7.6],[44.6,7.6],[-46.5,-16.6],[-46.5,16.6]],cut:-6,core:[-26,0],
+      dmgSpots:[[20,-9,3,.12],[-8,9.2,3.2,.26],[47,3.4,2.4,.4],[-36,-6.2,2.8,.5],[3,-1.2,2.2,.62],[-51,9,2.6,.72],[31,9,2.8,.84]],
+      parts:[
+        {pts:[[-36.5,-12.4],[-44,-21.4],[-52.4,-21.4],[-49.4,-12.4]],m:1,f:'hull2'},
+        {box:[-45,-4.4,84,8.8,1.4],f:'dark'},
+        {box:[-31,-14.4,69,1.6,.6],m:1,f:'dark'},
+        {pts:[[57,-3.6],[57,3.6],[53.4,8.2],[45,10.8],[37,10.8],[37,-10.8],[45,-10.8],[53.4,-8.2]],f:'hull'},
+        {pts:[[57,-3.6],[57,3.6],[55.2,5.8],[53.4,5.8],[53.4,-5.8],[55.2,-5.8]],f:'hull2'},
+        {pts:[[-42,-13.4],[-42,13.4],[-49,14.8],[-55.4,13.2],[-57,9.4],[-57,-9.4],[-55.4,-13.2],[-49,-14.8]],f:'hull'},
+        {box:[-57,-11.4,6.4,5.6,1.2],f:'dark'},{box:[-57,5.8,6.4,5.6,1.2],f:'dark'},{box:[-57,-3,6.4,6,1.2],f:'dark'},
+        {pts:[[-30,-7.2],[-30,7.2],[-32.6,9.4],[-43,9.4],[-43,-9.4],[-32.6,-9.4]],f:'hull'},
+        {box:[-41.4,-6.2,8,12.4,1.6],f:'hull2'},
+        {box:[-39.4,-2.2,3.6,4.4,1],f:'dark'},
+      ],
+      lines:[[[45,-10.6],[45,10.6]],[[41,-10.6],[41,10.6]],[[-49,-14.6],[-49,14.6]],[[-45,-13.6],[-45,13.6]],[[-36,-9.2],[-36,9.2]],[[-40,-12.6],[-47,-20.6]],[[-40,12.6],[-47,20.6]]],
+      vents:[[-48,-11],[-48,-8.6],[-48,7.4],[-48,9.8],[49,-7.4],[49,6.2],[-35,-8.4],[-35,7.2]],
+      rivets:[[55.6,-3],[55.6,3],[52,-6.8],[52,6.8],[38.4,-9.6],[38.4,9.6],[38.4,0],[-43.6,-12],[-43.6,12],[-55.8,-11],[-55.8,11],[-31.4,-6],[-31.4,6]],
+      engines:[[-57,-8.6,2.6],[-57,0,3],[-57,8.6,2.6],[-52.4,-18.6,1.5],[-52.4,18.6,1.5]],
+      lights:[[-51,-21.4,'#ff5a5a'],[-51,21.4,'#5aff7a'],[57,0,C.hegHi],[-37.6,0,C.hegHi],[38,-14.4,C.hegHi],[38,14.4,C.hegHi]],
+      bridge:[-30.2,6.2],
+      liveries:{
+        heg:{label:'Hegemony Fleet Auxiliary',hull:'#8c929e',hull2:'#2c3a5e',dark:'#1d2336',acc:C.heg,cargo:['#3e4a72','#8e96a2','#5c6884','#6e7684'],
+          mark:['HFA-2271',-4,0,'#aab2c4'],emblem:[49,0],serial:[24.4,0,'GENERAL ASTRONAUTICS'],
+          stripes:[{pts:[[50.6,-8.9],[52.4,-8.5],[52.4,8.5],[50.6,8.9]]},{pts:[[-44.2,-13.8],[-46.4,-14.3],[-46.4,14.3],[-44.2,13.8]]}],
+          paletteNote:'Slab grey, navy bands, the hull number down the spine; containers in four standard greys and blues, two hazard modules in orange.'},
+      }},
+    gafrigate:{name:'GA Bulwark-class Frigate (style mock)',maker:'genastro',role:'Capital ship (mock)',game:null,mock:1,capital:1,size:10,mounts:{primary:[[18,-7],[18,7],[-4,-10],[-4,10]],secondary:[[-20,-8],[-20,8]]},defaults:{primary:'repeaters',secondary:'missiles'},
       parts:[
         {pts:[[-26,-11],[-34,-14],[-38,-14],[-36,-9]],m:1,f:'hull2'},
         {pts:[[40,0],[34,-6],[20,-9],[-10,-12],[-30,-11],[-36,-6],[-36,6],[-30,11],[-10,12],[20,9],[34,6]],f:'hull'},
@@ -844,7 +897,7 @@ window.SR_ART=(function(){
       lines:[[[30,-7],[30,7]],[[10,-10],[10,10]],[[-6,-11.8],[-6,11.8]],[[-22,-11.2],[-22,11.2]],[[-30,0],[22,0]]],vents:[[-33,-4],[-33,-1],[-33,2],[24,-8],[24,7]],
       rivets:[[34,-4],[34,4],[16,-8],[16,8],[0,-11],[0,11],[-18,-11],[-18,11]],slit:[-7,0,9,2.4],engines:[[-36,-7,2.6],[-36,0,3],[-36,7,2.6]],lights:[[-34,-14.4,C.hegHi],[-34,14.4,C.hegHi],[38,0,C.hegHi]],
       liveries:{heg:{label:'Hegemony Navy',hull:'#7a8294',hull2:'#2c3a5e',dark:'#1a2240',acc:C.heg,mark:['HNS-0412',4,-10.4,'#2c3a5e'],emblem:[14,0],stripes:[{pts:[[26,-6.4],[29,-6.6],[29,6.6],[26,6.4]]}]}}},
-    fledgling:{name:'VT-2 Fledgling',maker:'varrondow',role:'Old trainer, no shields',game:'fled',mounts:{primary:[[9,0]]},defaults:{primary:'repeaters'},
+    fledgling:{name:'VT-2 Fledgling',maker:'varrondow',role:'Old trainer, no shields',game:'fled',size:3,mounts:{primary:[[9,0]]},defaults:{primary:'repeaters'},
       parts:[
         {pts:[[2,-3],[-1,-10.5],[-6,-10.5],[-6,-3]],m:1,f:'hull2'},
         {pts:[[-9,-2],[-12,-6],[-14,-6],[-13,-2]],m:1,f:'hull2'},
@@ -858,7 +911,7 @@ window.SR_ART=(function(){
         pirate:{label:'Scrapyard revival',hull:'#a8a08c',hull2:'#6a5a4a',dark:'#2f2c28',acc:C.rebel,pilot:'squatter',wingSwap:'#7a8a8a',patches:[[6,-3.4,4,3,'#8a7a5a'],[-12,1,3,2.4,'#6a6a72']],tape:[[-3,-6,.6]],scratch:[-3.5,7.2],scorch:[[2,2,2.6]],mark:['JUNKER',-3.5,-7.2,'#2a1a10']},
       }},
   };
-  const SHIP_FOR_GAME={viper:'cross',talon:'talon',graf:'graf',mote:'mote',scim:'scim',fled:'fledgling',monitor:'monitor',pursuer:'pursuer',clamper:'clamper'};
+  const SHIP_FOR_GAME={fl400:'gafreighter',brickbat:'brickbat',viper:'cross',talon:'talon',graf:'graf',mote:'mote',scim:'scim',fled:'fledgling',monitor:'monitor',pursuer:'pursuer',clamper:'clamper'};
   /* ship weapons and attachments: drawn at the hull's mount points. Hard points are game data and aren't shown. */
   const SHIP_WEAPONS={
     repeaters:{name:'BLS-T Light Repeaters',slot:'primary',draw(c,t,fire){rr(c,-2.5,-1.6,7,3.2,1.2);ink(c,'#3b3a44',.7);rr(c,4,-1.4,6,1.1,.5);ink(c,'#2a2a32',.5);rr(c,4,.3,6,1.1,.5);ink(c,'#2a2a32',.5);
@@ -867,12 +920,79 @@ window.SR_ART=(function(){
     doorgun:{name:'Door Mounted Gun',slot:'attachment',door:1,note:'Enables Door Gunner Support in ground missions.',draw(c,t,fire,side,pilot){rr(c,-2.6,-2.6,5.2,5.2,1.6);ink(c,'#2a2a32',.7);
       c.save();c.rotate(-side*.9+Math.sin(t*1.3)*.15);rr(c,0,-.7,8,1.4,.6);ink(c,'#3b3a44',.6);if(fire){circ(c,8.8,0,1.4);c.fillStyle='#fff3c8';c.fill();}c.restore();
       circ(c,-1.2*side*0,0,1.6);c.fillStyle='#d9a982';c.fill();c.lineWidth=.5;c.strokeStyle=C.ink;c.stroke();}},
+    /* hardpoint pods (mounts.pylon): draw(c,t,fire,side,pilot,lv,o). o.bombs = bombs left on each rack (0-3, default full) */
+    bombrack:{name:'Bolt-on Bomb Racks',slot:'attachment',pylon:1,maker:'blamco',note:'Rebel conversion: three BLAMCo bombs per rack on the cargo hardpoints.',draw(c,t,fire,side,pilot,lv,o){
+      rr(c,-7.4,-1.9,14.8,3.8,.9);ink(c,'#3b3a44',.7);c.fillStyle='#22222a';for(const bx of[-6.6,5.6])c.fillRect(bx,-2.4,1,4.8);
+      const n=o&&o.bombs!=null?Math.max(0,Math.min(3,o.bombs)):3;
+      [-4.4,-.2,4].forEach((bx,i)=>{if(i>=n){c.strokeStyle='#8a8e96';c.lineWidth=.45;c.beginPath();c.arc(bx,0,.9,-1.2,1.2);c.stroke();return;}
+        poly(c,[[bx-2.6,-1.5],[bx-1.6,0],[bx-2.6,1.5]]);ink(c,'#4a4f2a',.4);ell(c,bx,0,2.1,1.3);ink(c,'#6a7046',.55);c.fillStyle=C.gold;c.fillRect(bx+.5,-1.2,.6,2.4);c.fillStyle='#e0402e';c.fillRect(bx-.6,-1.25,.7,2.5);
+        c.fillStyle='rgba(255,255,255,.35)';ell(c,bx-.3,-.55,.9,.3);c.fill();});}},
+    cargopod:{name:'Cargo pod',slot:'attachment',pylon:1,maker:'core',note:'Stock CORE hardpoint pod. Rebel crews strip these out for bomb racks.',draw(c,t,fire,side,pilot,lv){
+      const dark=!!(lv&&lv.podDark);rr(c,-7.6,-2.5,15.2,5,2);ink(c,dark?'#3a3a42':'#e2dac4',.7);
+      c.fillStyle=dark?'#ff7a2a':'#e0a53a';c.fillRect(4.6,-2.4,1.4,4.8);c.fillRect(-6,-2.4,1.4,4.8);c.strokeStyle=rgba(C.ink,.45);c.lineWidth=.4;c.beginPath();c.moveTo(-2,-2.4);c.lineTo(-2,2.4);c.moveTo(1.4,-2.4);c.lineTo(1.4,2.4);c.stroke();
+      c.font='900 1.6px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=dark?'#ff7a2a':'#3a3d3a';c.fillText(dark?'BOUNTY':'CORE',-.3,.1);}},
     plates:{name:'Armour plates (example)',slot:'attachment',example:1,draw(){}},
     tank:{name:'External fuel tank (example)',slot:'attachment',example:1,draw(){}},
   };
 
+  /* =================================================================
+     SIZE — the database's size class (1-20) sets how big a hull is drawn.
+     SIZE_M is the size table's approximate length in metres. Drawn length
+     grows with √metres (SIZE_EXP), so a 130 m freighter reads about three
+     times a 16 m fighter rather than eight: every step reads, and fighters
+     stay playable next to fleet ships. sizeRel(5) = 1.
+       sizeNorm(id)  model units → a standard 40-unit hull (models are
+                     authored at whatever length suited the drawing)
+       sizeK(id,n)   sizeRel × sizeNorm: multiply the s you pass to ship()
+       o.sized       ship()/flyover() apply sizeK themselves (o.size overrides
+                     the hull's own size class)
+     The hangar uses true metres instead (base.js shipFit): pads are real
+     floor space. Small pads take size 6 and under; size 7-8 needs a large
+     pad; size 9+ (capital ships, noLand) can't land at Haven Rock at all.
+     ================================================================= */
+  const SIZE_M={1:2,2:4,3:8,4:12,5:16,6:25,7:40,8:60,9:90,10:130,11:180,12:250,13:350,14:500,15:700,16:1000,17:1500,18:2500,19:4000,20:6000};
+  const SIZE_EXP=.5,SMALL_PAD_MAX=6,LARGE_PAD_MAX=8;
+  const sizeRel=n=>Math.pow(SIZE_M[Math.max(1,Math.min(20,Math.round(n||5)))]/16,SIZE_EXP);
+  const _shipLen={};
+  function shipLen(id){if(_shipLen[id])return _shipLen[id];const D=SHIPS[id];if(!D)return 40;let a=1e9,b=-1e9;
+    for(const p of D.parts){if(p.pts)for(const q of p.pts){a=Math.min(a,q[0]);b=Math.max(b,q[0]);}if(p.box){a=Math.min(a,p.box[0]);b=Math.max(b,p.box[0]+p.box[2]);}}
+    return _shipLen[id]=b>a?b-a:40;}
+  const sizeNorm=id=>40/shipLen(id);
+  function sizeK(id,n){const D=SHIPS[id];return sizeRel(n!=null?n:(D&&D.size)||5)*sizeNorm(id);}
+  const padFor=n=>n<=SMALL_PAD_MAX?'small':n<=LARGE_PAD_MAX?'large':null;
+  /* capital hooks, drawn in hull space by ship() */
+  function capCargo(c,D,lv,o,lw,lx,ly,t,still){const K=D.cargo,lost=new Set(o.lost||[]),cols=lv.cargo||['#5c6884'];
+    for(let i=0;i<K.n*2;i++){const j=i%K.n,x=K.x0+K.step*j,y=i<K.n?-K.y0-K.w:K.y0,cx=x+K.len/2,cy=y+K.w/2;
+      c.fillStyle=lv.dark;c.fillRect(cx-.9,i<K.n?-K.y0-.2:K.y0-.6,1.8,.8);
+      if(lost.has(i)){rr(c,x,y,K.len,K.w,.6);c.fillStyle='rgba(6,8,18,.62)';c.fill();c.save();c.setLineDash([.9,.7]);c.lineWidth=lw*.6;c.strokeStyle=rgba('#c8ccd6',.55);c.stroke();c.restore();
+        c.fillStyle='#5a6070';for(const[a,b]of[[x+1.2,y+.3],[x+K.len-2.4,y+.3],[x+1.2,y+K.w-1.1],[x+K.len-2.4,y+K.w-1.1]])c.fillRect(a,b,1.2,.8);
+        const rn=mkRng(i*31+7),fl=still?1:.6+.4*Math.sin(t*19+i*2.1);c.strokeStyle=rgba('#ff8a2a',.75*fl);c.lineWidth=.5;c.beginPath();let px=x+.4,py=i<K.n?y+K.w-.3:y+.3;c.moveTo(px,py);while(px<x+K.len-.6){px+=.8+rn()*1.2;c.lineTo(px,py+(rn()-.5)*1.1);}c.stroke();
+        continue;}
+      const hz=K.hazard.includes(i),fc=hz?'#c8642e':cols[(i*5+j*3)%cols.length];
+      rr(c,x,y,K.len,K.w,.5);c.fillStyle=shade(fc,-.25);c.fill();c.save();rr(c,x,y,K.len,K.w,.5);c.clip();c.translate(lx,ly);rr(c,x,y,K.len,K.w,.5);c.fillStyle=fc;c.fill();c.restore();
+      c.strokeStyle=rgba(C.ink,.28);c.lineWidth=.35;c.beginPath();for(let k=1;k<6;k++){const xx=x+K.len*k/6;c.moveTo(xx,y+.7);c.lineTo(xx,y+K.w-.7);}c.stroke();
+      if(hz){c.save();rr(c,x,y,K.len,K.w,.5);c.clip();c.fillStyle='#f2c230';for(const ex of[x,x+K.len-2.2])for(let k=-2;k<6;k++){poly(c,[[ex,y+k*2],[ex+2.2,y+k*2-1.1],[ex+2.2,y+k*2],[ex,y+k*2+1.1]]);c.fill();}c.restore();
+        c.font='900 1.5px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#2a1a10';c.fillText('HAZ',cx,cy+.1);}
+      else{c.font='800 1.1px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=rgba('#f4f0e6',.7);c.fillText('GA-'+String(140+i*67).padStart(3,'0'),cx,cy+(i<K.n?1.6:-1.6));}
+      rr(c,x,y,K.len,K.w,.5);c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();}}
+  function capPD(c,D,lv,o,lw,t,fire,still,x,y,ang,s){
+    for(const[px,py]of D.pd){let a=still?(py<0?-.5:.5):(o.aim!=null?o.aim:Math.sin(t*.6+px*.3)*.9+(py<0?-.4:.4));
+      if(o.aimAt&&!still){const wx=x+(px*Math.cos(ang)-py*Math.sin(ang))*s,wy=y+(px*Math.sin(ang)+py*Math.cos(ang))*s;a=Math.atan2(o.aimAt[1]-wy,o.aimAt[0]-wx)-ang;}
+      c.save();c.translate(px,py);circ(c,0,0,2.5);ink(c,lv.hull2,lw*.8);c.rotate(a);
+      for(const yy of[-.95,.15]){rr(c,.4,yy,4.8,.8,.35);ink(c,'#3b3a44',lw*.55);}rr(c,-1.7,-1.7,3.2,3.4,.9);ink(c,lv.dark,lw*.7);
+      if(fire&&Math.sin(t*31+px)>.2){c.fillStyle='#fff3c8';c.beginPath();c.arc(5.6,-.55,.9,0,TAU);c.arc(5.6,.55,.9,0,TAU);c.fill();}
+      circ(c,0,0,.55);c.fillStyle=C.hegHi;c.fill();c.restore();}}
+  function capDamage(c,D,dmg,t,still,lw){let n=0;const A0=c.globalAlpha;   // alpha-composable: capitalDeath fades the hull
+    for(const[sx,sy,sr,th]of D.dmgSpots){if(dmg<=th)continue;const q=Math.min(1,(dmg-th)/.25),R=sr*(1+q*.8);
+      const g=c.createRadialGradient(sx,sy,0,sx,sy,R*1.6);g.addColorStop(0,'rgba(20,14,10,.7)');g.addColorStop(1,'rgba(20,14,10,0)');c.fillStyle=g;c.fillRect(sx-R*1.6,sy-R*1.6,R*3.2,R*3.2);
+      if(dmg<th+.1)continue;const rn=mkRng(Math.round(sx*13+sy*7+99)),pts=[];for(let i=0;i<9;i++){const a=i/9*TAU,r=R*.55*(.6+rn()*.6);pts.push([sx+Math.cos(a)*r,sy+Math.sin(a)*r*.8]);}
+      poly(c,pts);c.fillStyle='#120c0c';c.fill();const fl=still?1:.55+.45*Math.sin(t*17+sx);c.save();if(!still){c.shadowColor='#ff8a2a';c.shadowBlur=6;}poly(c,pts);c.lineWidth=lw*.8;c.strokeStyle=rgba('#ff9a3a',.6+.4*fl);c.stroke();c.restore();
+      for(let i=0;i<3;i++){const fx=sx+(rn()-.5)*R*.6,fy=sy+(rn()-.5)*R*.5,ff=still?1:.5+.5*Math.sin(t*23+i*2+sx);circ(c,fx,fy,R*.22*(.6+ff*.5));c.fillStyle=i?'#ff8a2a':'#fff3b0';c.globalAlpha=A0*.85;c.fill();c.globalAlpha=A0;}
+      if(!still){for(let i=0;i<4;i++){const kk=(t*.9+i/4+n*.13)%1;c.save();c.globalAlpha=A0*(1-kk)*.55;circ(c,sx-kk*R*5,sy+(sy<0?-1:1)*kk*R*.8,R*(.35+kk*.9));ink(c,'#7a7a82',lw*.5);c.restore();}
+        if(dmg>.6&&Math.sin(t*11+sx)>.75)star(c,sx+R*.4,sy-R*.3,R*.5,'#fff3b0');}
+      n++;}}
   function ship(c,id,x,y,ang,s,t,o){
-    o=o||{};const D=SHIPS[id];if(!D)return;const lv=D.liveries[o.livery]||Object.values(D.liveries)[0];
+    o=o||{};const D=SHIPS[id];if(!D)return;if(o.sized)s*=sizeK(id,o.size);const lv=D.liveries[o.livery]||Object.values(D.liveries)[0];
     const col=f=>f==='hull'?lv.hull:f==='hull2'?lv.hull2:f==='dark'?lv.dark:f==='acc'?lv.acc:f;
     const dmg=o.damage||0,lw=LW.char/s;
     const off=!!o.off;                      // powered down: a landed ship that is scenery, not a participant (repo addition)
@@ -893,6 +1013,7 @@ window.SR_ART=(function(){
       each(p,sy=>{let fc=col(p.f);if(p.id==='wing'&&lv.wingSwap&&sy<0)fc=lv.wingSwap;shp(p,sy);c.fillStyle=shade(fc,-.25);c.fill();
         c.save();shp(p,sy);c.clip();c.translate(lx,ly);shp(p,sy);c.fillStyle=fc;c.fill();c.restore();shp(p,sy);c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();});
     }
+    if(D.cargo)capCargo(c,D,lv,o,lw,lx,ly,t,still);
     // attachments that sit on the hull (examples until the attachment list exists)
     const L=Object.assign({},D.defaults||{},lv.loadout||{},o.loadout||{});const att=new Set(L.attach||[]);
     if(att.has('plates'))for(const sy of[-1,1]){rr(c,-12,sy>0?3.2:-7.2,9,4,.8);ink(c,'#7a7e86',lw*.7);c.fillStyle=rgba(C.ink,.5);for(const px of[-11,-4.8]){circ(c,px,sy*5.2,.35);c.fill();}}
@@ -900,7 +1021,9 @@ window.SR_ART=(function(){
     // weapons at their mounts
     const fireNow=o.fire&&Math.sin(t*14)>0;
     const mountAll=(key,list)=>{const Wd=SHIP_WEAPONS[key];if(!Wd||!list)return;for(const m of list){c.save();c.translate(m[0],m[1]);Wd.draw(c,t,fireNow,m[2]||1);c.restore();}};
-    if(D.mounts){mountAll(L.primary,D.mounts.primary);mountAll(L.secondary,D.mounts.secondary);if(att.has('doorgun'))mountAll('doorgun',D.mounts.door);}
+    if(D.mounts){mountAll(L.primary,D.mounts.primary);mountAll(L.secondary,D.mounts.secondary);if(att.has('doorgun'))mountAll('doorgun',D.mounts.door);
+      if(D.mounts.pylon)for(const k2 of att){const Wd=SHIP_WEAPONS[k2];if(Wd&&Wd.pylon)for(const m of D.mounts.pylon){c.save();c.translate(m[0],m[1]);Wd.draw(c,t,fireNow,m[2]||1,null,lv,o);c.restore();}}}
+    if(D.pd)capPD(c,D,lv,o,lw,t,fireNow,still,x,y,ang,s);
     // paint
     for(const st of lv.stripes||[]){const pts=st.pts;poly(c,pts);c.fillStyle=lv.acc;c.fill();
       if(st.drips){c.fillStyle=lv.acc;for(let i=0;i<3;i++){const dx=pts[0][0]+.6+i*1.1;rr(c,dx,pts[2][1]-.2,.7,1.2+i%2*1.2,.35);c.fill();}
@@ -916,13 +1039,17 @@ window.SR_ART=(function(){
     for(const[cx0,cy0]of D.clamps||[]){c.fillStyle='#9a9a9a';c.fillRect(cx0-.6,cy0-1.5,1.2,3);c.fillRect(cx0+2.4,cy0-1.5,1.2,3);}
     if(D.dish){const[dx,dy,dr]=D.dish;circ(c,dx,dy,dr);ink(c,'#e8e0cc',lw);circ(c,dx,dy,dr*.35);c.fillStyle='#8a8a92';c.fill();c.beginPath();c.moveTo(dx,dy);c.lineTo(dx-dr-3,dy-dr);c.lineWidth=.6;c.strokeStyle=C.ink;c.stroke();}
     for(const[tx,ty,ta]of lv.tape||[]){c.save();c.translate(tx,ty);c.rotate(ta);c.fillStyle='rgba(220,220,210,.9)';c.fillRect(-2.4,-.6,4.8,1.2);c.rotate(1.3);c.fillRect(-2,-.55,4,1.1);c.restore();}
-    for(const[sx,sy,sr]of(lv.scorch||[]).concat(dmg>.2?[[-4,2,3+dmg*3],[6,-2,2+dmg*3],[-9,-6,dmg*4]]:[])){const g=c.createRadialGradient(sx,sy,0,sx,sy,sr);g.addColorStop(0,'rgba(20,14,10,.6)');g.addColorStop(1,'rgba(20,14,10,0)');c.fillStyle=g;c.fillRect(sx-sr,sy-sr,sr*2,sr*2);}
-    if(dmg>.45){rr(c,-6,-3,5,3.4,.6);ink(c,'#1a1210',lw*.6);c.strokeStyle='#ff8a1f';c.lineWidth=.4;c.beginPath();c.moveTo(-5,-1.5);c.lineTo(-3,-.5);c.lineTo(-2,-2);c.stroke();}
+    for(const[sx,sy,sr]of(lv.scorch||[]).concat(dmg>.2&&!D.dmgSpots?[[-4,2,3+dmg*3],[6,-2,2+dmg*3],[-9,-6,dmg*4]]:[])){const g=c.createRadialGradient(sx,sy,0,sx,sy,sr);g.addColorStop(0,'rgba(20,14,10,.6)');g.addColorStop(1,'rgba(20,14,10,0)');c.fillStyle=g;c.fillRect(sx-sr,sy-sr,sr*2,sr*2);}
+    if(dmg>.45&&!D.dmgSpots){rr(c,-6,-3,5,3.4,.6);ink(c,'#1a1210',lw*.6);c.strokeStyle='#ff8a1f';c.lineWidth=.4;c.beginPath();c.moveTo(-5,-1.5);c.lineTo(-3,-.5);c.lineTo(-2,-2);c.stroke();}
     if(lv.emblem){const[ex,ey]=lv.emblem;c.save();c.translate(ex,ey);c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3;c.lineTo(Math.cos(a)*1.9,Math.sin(a)*1.9);}c.closePath();c.fillStyle=lv.acc===C.heg?C.hegDeep:lv.acc;c.fill();c.lineWidth=.4;c.strokeStyle=C.hegHi;c.stroke();circ(c,0,0,.6);c.fillStyle=C.hegHi;c.fill();c.restore();}
     if(lv.scratch){const[sx,sy]=lv.scratch;c.save();c.translate(sx,sy);c.globalAlpha=.55;c.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3;c.lineTo(Math.cos(a)*1.9,Math.sin(a)*1.9);}c.closePath();c.fillStyle='#6a7aa0';c.fill();c.globalAlpha=1;c.strokeStyle='#f4f0e6';c.lineWidth=.45;c.beginPath();c.moveTo(-2.2,-2);c.lineTo(2.2,2);c.moveTo(2.2,-2);c.lineTo(-2.2,2);c.stroke();c.restore();}
     for(const ch of lv.chev||[]){const[a,b]=ch;for(const sy of[1,-1]){c.beginPath();c.moveTo(a-1.4,b*sy-1.1);c.lineTo(a,b*sy);c.lineTo(a-1.4,b*sy+1.1);c.lineWidth=.8;c.strokeStyle='#e8ecf6';c.stroke();}}
     const glow=(seg,w)=>{c.save();if(!off){c.shadowColor=C.heg;c.shadowBlur=6;}c.strokeStyle=off?rgba(C.hegHi,.35):C.hegHi;c.lineWidth=w||.7;for(const sy of[1,-1]){c.beginPath();c.moveTo(seg[0][0],seg[0][1]*sy);c.lineTo(seg[1][0],seg[1][1]*sy);c.stroke();}c.restore();};
     if(lv.trim)glow(lv.trim);if(lv.trim2)glow(lv.trim2,.6);
+    if(lv.serial){const[sx,sy,txt]=lv.serial;c.save();c.translate(sx,sy);c.font='800 1.3px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=rgba(C.ink,.6);c.fillText(txt,0,0);c.restore();}
+    if(lv.oldcrest){const[ox,oy]=lv.oldcrest;c.save();c.translate(ox,oy);c.globalAlpha=.42;c.strokeStyle='#b08a3a';c.lineWidth=.35;for(let i=0;i<8;i++){const a=i*Math.PI/4;c.beginPath();c.moveTo(Math.cos(a)*.9,Math.sin(a)*.9);c.lineTo(Math.cos(a)*1.7,Math.sin(a)*1.7);c.stroke();}circ(c,0,0,.75);c.fillStyle='#b08a3a';c.fill();c.globalAlpha=1;
+      if(lv.defaced){c.strokeStyle=rgba(C.rebel,.9);c.lineWidth=.5;c.beginPath();c.moveTo(-1.6,-1.3);c.quadraticCurveTo(0,.2,1.7,1.4);c.moveTo(1.6,-1.4);c.quadraticCurveTo(.1,-.2,-1.5,1.5);c.stroke();}c.restore();}
+    if(lv.tally){const[tx,ty,tn]=lv.tally;for(let i=0;i<tn;i++){c.save();c.translate(tx+i*1.5,ty);if(lv.tallyKind==='skull'){circ(c,0,-.15,.5);c.fillStyle='#f4f0e6';c.fill();c.fillRect(-.3,.2,.6,.35);}else{ell(c,0,0,.42,.65);c.fillStyle='#f4f0e6';c.fill();c.fillRect(-.35,.55,.7,.18);}c.restore();}}
     if(lv.mark){const[txt,mx,my,mc]=lv.mark;c.save();c.translate(mx,my);c.font='900 2.4px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=mc;c.fillText(txt,0,0);c.restore();}
     if(lv.nose){const[nx,ny,txt]=lv.nose;c.save();c.translate(nx,ny);circ(c,0,0,1.8);ink(c,'#f4e6c8',lw*.5);c.fillStyle=C.rebel;c.font='900 1.5px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillText(txt,0,.1);c.restore();}
     for(const[nx,ny,nc]of D.lights){const on=!off&&(still||Math.sin(t*3+(ny>0?1.6:0))>-.2&&!(dmg>.6&&Math.sin(t*17)>0));circ(c,nx,ny,.9);c.fillStyle=off?rgba(nc,.25):nc;if(on){c.shadowColor=nc;c.shadowBlur=8;}c.fill();c.shadowBlur=0;}
@@ -933,6 +1060,8 @@ window.SR_ART=(function(){
     if(D.eye){const[ex,ey,er]=D.eye;circ(c,ex,ey,er);ink(c,'#0c1024',lw*.8);circ(c,ex,ey,er*.6);c.fillStyle=off?'#2a4a52':C.shield;if(!off){c.shadowColor=C.shield;c.shadowBlur=8;}c.fill();c.shadowBlur=0;if(!off){circ(c,ex-er*.25,ey-er*.25,er*.18);c.fillStyle='#fff';c.fill();}}
     if(D.magnets){for(const[mx,my]of D.magnets){const k=off?.18:(o.clamp?1:.45+.25*Math.sin(t*4));rr(c,mx-1.2,my-3.4,2.4,6.8,.8);c.fillStyle=rgba(C.hegHi,k);if(!off){c.shadowColor=C.heg;c.shadowBlur=o.clamp?12:5;}c.fill();c.shadowBlur=0;}}
     const faceless=D.slit||lv.faceless||D.drone;
+    if(D.bridge){const[bx,bw]=D.bridge;for(let i=0;i<7;i++){const by=-bw+i*bw*2/6;rr(c,bx-.9,by-.45,1.4,.9,.3);c.fillStyle=off?rgba(C.hegHi,.25):C.hegHi;if(!off){c.shadowColor=C.heg;c.shadowBlur=5;}c.fill();c.shadowBlur=0;}}
+    if(D.dmgSpots&&dmg>0)capDamage(c,D,dmg,t,still,lw);
     if(D.slit){const[sx2,sy2,sw,sh]=D.slit;rr(c,sx2-sw/2,sy2-sh/2,sw,sh,sh/2);ink(c,'#0c1024',lw);if(!off){c.save();c.shadowColor=C.heg;c.shadowBlur=8;rr(c,sx2-sw/2+1,sy2-.35,sw-2,.7,.35);c.fillStyle=C.hegHi;c.fill();c.restore();}}
     c.restore();
     if(D.canopy){const[cx0,cy0,rx,ry]=D.canopy;
@@ -947,10 +1076,10 @@ window.SR_ART=(function(){
       local(()=>{ell(c,cx0-rx*.25,cy0-ry*.3,rx*.45,ry*.22);c.fillStyle='rgba(255,255,255,.5)';c.fill();});
       if(o.pilotHit){c.save();glass();c.clip();c.strokeStyle='rgba(255,255,255,.85)';c.lineWidth=1.2;c.beginPath();c.moveTo(P[0]-rx*s*.6,P[1]-ry*s*.2);c.lineTo(P[0],P[1]);c.lineTo(P[0]+rx*s*.5,P[1]-ry*s*.5);c.moveTo(P[0],P[1]);c.lineTo(P[0]+rx*s*.2,P[1]+ry*s*.6);c.stroke();if(GORE&&!faceless){bloodSplat(c,P[0]+rx*s*.15,P[1]-ry*s*.1,rx*s*.35,9,.85);}c.restore();}
       glass();c.lineWidth=LW.char;c.strokeStyle=C.ink;c.stroke();}
-    if(dmg>.3&&!ISO&&!still){for(let i=0;i<4;i++){const kk=(t*1.6+i/4)%1;const bx=x+Math.cos(ang+2.2)*4*s,by=y+Math.sin(ang+2.2)*4*s;c.save();c.globalAlpha=(1-kk)*.6;circ(c,bx+Math.cos(ang+2.6)*kk*16*s,by+Math.sin(ang+2.6)*kk*16*s,(1+kk*3)*s);c.fillStyle='#e8eef6';c.fill();c.restore();}}
+    if(dmg>.3&&!ISO&&!still&&!D.dmgSpots){for(let i=0;i<4;i++){const kk=(t*1.6+i/4)%1;const bx=x+Math.cos(ang+2.2)*4*s,by=y+Math.sin(ang+2.2)*4*s;c.save();c.globalAlpha=(1-kk)*.6;circ(c,bx+Math.cos(ang+2.6)*kk*16*s,by+Math.sin(ang+2.6)*kk*16*s,(1+kk*3)*s);c.fillStyle='#e8eef6';c.fill();c.restore();}}
     if(o.calling){for(let i=0;i<3;i++){const k=(t*.8+i/3)%1;c.save();c.globalAlpha=1-k;c.beginPath();c.arc(x,y,(6+k*30)*s/2,0,TAU);c.lineWidth=2;c.strokeStyle=C.hegHi;c.setLineDash([4,4]);c.stroke();c.restore();}}
     if(o.clamp&&D.magnets){const[tx,ty]=o.clamp;for(const[mx,my]of D.magnets){const sx=x+(mx*Math.cos(ang)-my*Math.sin(ang))*s,sy=y+(mx*Math.sin(ang)+my*Math.cos(ang))*s;clampBeam(c,sx,sy,tx,ty,t);}}
-    if(dmg>.6&&!still){c.save();c.scale(1,1);for(let i=0;i<5;i++){const k=(t*1.1+i*.2)%1;const d=(4+k*26)*s;const bx=x-Math.cos(ang)*d+Math.sin(t*3+i)*3,by=y-Math.sin(ang)*d;c.globalAlpha=(1-k)*.85;circ(c,bx,by-k*6,(3+k*8)*s/2.2);ink(c,'#7a7a82',1.6);}c.restore();
+    if(dmg>.6&&!still&&!D.dmgSpots){c.save();c.scale(1,1);for(let i=0;i<5;i++){const k=(t*1.1+i*.2)%1;const d=(4+k*26)*s;const bx=x-Math.cos(ang)*d+Math.sin(t*3+i)*3,by=y-Math.sin(ang)*d;c.globalAlpha=(1-k)*.85;circ(c,bx,by-k*6,(3+k*8)*s/2.2);ink(c,'#7a7a82',1.6);}c.restore();
       if(Math.sin(t*13)>.5){const sx3=x+Math.cos(ang+1.2)*5*s,sy3=y+Math.sin(ang+1.2)*5*s;star(c,sx3,sy3,2.6*s/2.2,'#fff3b0');}}
   }
 
@@ -1065,6 +1194,15 @@ window.SR_ART=(function(){
      o.loadout. Ships without a model fall back to shipIso().
      ================================================================= */
   const HM={
+    brickbat:{lift:4,struts:[[13,0],[-12,-5],[-12,5]],pylons:[[-2,13.6]],parts:[
+      {t:'prism',pts:[[-9.5,-10],[-19,-10],[-19,-4.8],[-9.5,-4.8]],z0:5,z1:11,inset:.1,f:'dark',m:1},
+      {t:'cyl',x0:-21,x1:-18.5,y:-7.4,z:8,r:2.2,f:'dark',cap:'engine'},{t:'cyl',x0:-21,x1:-18.5,y:7.4,z:8,r:2.2,f:'dark',cap:'engine'},
+      {t:'prism',pts:[[1,-11.6],[-5,-11.6],[-5,-6.2],[1,-6.2]],z0:8,z1:9.4,inset:.04,f:'dark',m:1},
+      {t:'prism',pts:[[14,-6.2],[14,6.2],[-6,7],[-14,6.6],[-16.5,4],[-16.5,-4],[-14,-6.6],[-6,-7]],z0:4,z1:13,inset:.1,f:'hull'},
+      {t:'prism',pts:[[2,-3.4],[-13,-3.4],[-13,3.4],[2,3.4]],z0:13,z1:15,inset:.08,f:'hull2'},
+      {t:'prism',pts:[[19.5,-4.4],[19.5,4.4],[17.4,6.6],[13,7],[13,-7],[17.4,-6.6]],z0:3.4,z1:9.6,inset:.22,f:'dark'},
+      {t:'prism',pts:[[13,-4.8],[4.8,-4.8],[4.8,4.8],[13,4.8]],z0:13,z1:13.8,inset:.06,f:'hull'},
+      {t:'dome',x:9.4,y:0,z:13.6,rx:2.6,ry:4,rz:2.2},{t:'sphere',x:-8,y:0,z:15.6,r:.9,f:'#ffb347'}]},
     cross:{lift:5,struts:[[10,0],[-8,-4],[-8,4]],parts:[
       {t:'cyl',x0:-19,x1:-11,y:0,z:9,r:3.4,f:'dark',cap:'engine'},
       {t:'fin',pts:[[-10,9],[-17,9],[-19,16],[-15,16]],y:-3.2,th:.8,f:'hull2'},{t:'fin',pts:[[-10,9],[-17,9],[-19,16],[-15,16]],y:3.2,th:.8,f:'hull2'},
@@ -1118,7 +1256,11 @@ window.SR_ART=(function(){
     c.save();c.globalAlpha=.32;c.fillStyle='#000';for(const p of M.parts){if(p.t!=='prism')continue;for(const sy of p.m?[1,-1]:[1]){poly(c,p.pts.map(([a,b])=>P(a+1,b*sy+1,0)));c.fill();}}c.restore();
     const zb=Math.min(...M.parts.filter(p=>p.t==='prism').map(p=>p.z0));for(const[a,b]of M.struts){const g=P(a,b,0),u=P(a,b,L+zb);c.beginPath();c.moveTo(...g);c.lineTo(...u);c.lineWidth=3.4;c.strokeStyle=C.ink;c.stroke();c.lineWidth=1.8;c.strokeStyle='#8a8e96';c.stroke();ell(c,g[0],g[1],3.2*K/2,1.6*K/2);c.fillStyle='#3b3a44';c.fill();}
     // expand mirrored parts, add depth keys
-    const list=[];for(const p of M.parts){if(p.m){list.push(p);list.push(Object.assign({},p,{pts:p.pts.map(([a,b])=>[a,-b]),m:0,_mir:1}));}else list.push(p);}
+    const att0=new Set(((o.loadout||lv.loadout||{}).attach)||[]);const xparts=[];
+    if(M.pylons)for(const[px,py]of M.pylons)for(const sy of[-1,1]){const yy=py*sy;
+      if(att0.has('bombrack')){xparts.push({t:'prism',pts:[[px+7,yy-1.9],[px-7.4,yy-1.9],[px-7.4,yy+1.9],[px+7,yy+1.9]],z0:8.4,z1:9.4,inset:0,f:'#3b3a44'});const n=o.bombs!=null?o.bombs:3;[-4.4,-.2,4].slice(0,n).forEach(bx=>xparts.push({t:'cyl',x0:px+bx-2,x1:px+bx+2,y:yy,z:6.8,r:1.3,f:'#6a7046'}));}
+      if(att0.has('cargopod'))xparts.push({t:'prism',pts:[[px+7.6,yy-2.5],[px-7.6,yy-2.5],[px-7.6,yy+2.5],[px+7.6,yy+2.5]],z0:4.6,z1:10,inset:.25,f:lv.podDark?'#3a3a42':'#e2dac4'});}
+    const list=[...xparts];for(const p of M.parts){if(p.m){list.push(p);list.push(Object.assign({},p,{pts:p.pts.map(([a,b])=>[a,-b]),m:0,_mir:1}));}else list.push(p);}
     const cen=p=>{if(p.pts&&p.t==='prism'){let a=0,b=0;for(const q of p.pts){a+=q[0];b+=q[1];}return depth(a/p.pts.length,b/p.pts.length);}if(p.t==='fin')return depth(p.pts.reduce((s2,q)=>s2+q[0],0)/p.pts.length,p.y);if(p.t==='cyl')return depth((p.x0+p.x1)/2,p.y);return depth(p.x,p.y);};
     const rank=p=>p.t==='dome'||p.t==='sphere'||p.t==='disc'?200:p.t==='prism'&&p.z1>=11?100:0;
     list.sort((a,b)=>(cen(a)+rank(a))-(cen(b)+rank(b)));
@@ -1505,9 +1647,18 @@ window.SR_ART=(function(){
      on the ground; strafing ladders, the door gunner's sweep, supply
      drops and dropship landings. k runs 0..1 over the event.
      ================================================================= */
-  function flyover(c,id,x,y,ang,s,t,o){o=o||{};const alt=o.alt==null?70:o.alt;const D=SHIPS[id];
+  function flyover(c,id,x,y,ang,s,t,o){o=o||{};if(o.sized){s*=sizeK(id,o.size);o=Object.assign({},o,{sized:false});}const alt=o.alt==null?70:o.alt;const D=SHIPS[id];
     if(D){c.save();c.translate(x+alt*.35,y+alt);c.rotate(ang);c.scale(s*.92,s*.92);c.globalAlpha=.3;c.fillStyle='#000';for(const p of D.parts){if(!p.pts&&!p.box)continue;for(const sy of p.m?[1,-1]:[1]){if(p.pts)poly(c,p.pts.map(([a,b])=>[a,b*sy]));else{const[a,b,w,h,r]=p.box;rr(c,a,sy>0?b:-b-h,w,h,r);}c.fill();}}c.restore();}
     ship(c,id,x,y,ang,s,t,Object.assign({boost:true},o));}
+  /* Bombing Run (fire support): the Brickbat crosses high and drops its sticks; each bomb falls toward its shadow, then
+     blooms in a staged explosion and leaves a scorch. k runs 0..1.4 (scorch marks stay drawn past 1). o.n bombs (default 6). */
+  function bombRun(c,x0,y0,ang,len,k,t,o){o=o||{};const n=o.n||6,ca=Math.cos(ang),sa=Math.sin(ang),alt=o.alt||110,fall=.22;
+    for(let i=0;i<n;i++){const u=(i+.5)/n,drop=u*.7,land=drop+fall;const jx=Math.sin(i*5.1)*10,jy=Math.cos(i*3.7)*8;const gx=x0+ca*len*u-sa*jx,gy=y0+sa*len*u+ca*jy;
+      if(k<drop){if(k<=0){c.save();c.globalAlpha=.5;c.beginPath();c.ellipse(gx,gy,10,5,0,0,TAU);c.setLineDash([4,3]);c.lineWidth=1.6;c.strokeStyle=C.hazard;c.stroke();c.restore();}continue;}
+      if(k<land){const f=(k-drop)/fall,h=alt*(1-f*f);const sh=4+f*6;ell(c,gx,gy,sh,sh*.45);c.fillStyle=rgba('#000',.15+f*.3);c.fill();
+        c.save();c.translate(gx,gy-h);c.rotate(Math.sin(t*20+i)*.08);poly(c,[[-3.4,-6.4*(.8+f*.4)],[0,-4*(.8+f*.4)],[3.4,-6.4*(.8+f*.4)]]);ink(c,'#4a4f2a',1.2);ell(c,0,0,4.4*(.8+f*.4),7*(.8+f*.4));ink(c,'#6a7046',1.6);c.fillStyle='#e0402e';c.fillRect(-4,-1.2,8,2.4);c.restore();continue;}
+      const ek=(k-land)/.6;if(ek>.25)scorch(c,gx,gy,22);if(ek<1)explosion(c,gx,gy,ek,{size:1.25});}
+    const pu=k*1.15-.05;if(pu>-.1&&pu<1.15)flyover(c,'brickbat',x0+ca*len*pu,y0+sa*len*pu-alt*.55,ang,o.s||2.6,t,{livery:o.livery||'rebel',alt:alt*.55,bombs:Math.max(0,3-Math.floor(Math.max(0,pu)*4))});}
   function strafe(c,x0,y0,ang,len,k,t,o){o=o||{};const n=10,ca=Math.cos(ang),sa=Math.sin(ang);
     for(let i=0;i<n;i++){const u=(i+.5)/n,kk=(k-u*.8)/.25;const jx=Math.sin(i*7.3)*12,jy=Math.cos(i*4.1)*10;const px=x0+ca*len*u-sa*jx,py=y0+sa*len*u+ca*jy;
       if(kk>1)scorch(c,px,py,14);else if(kk>0)explosion(c,px,py,kk);else if(k<=0){circ(c,px,py,4);c.fillStyle=rgba(C.rebel,.5);c.fill();}}
@@ -1541,6 +1692,7 @@ window.SR_ART=(function(){
       case'helix':c.strokeStyle=b;for(const ph of[0,Math.PI]){c.beginPath();for(let i=0;i<=20;i++){const u=i/20,yy=-r*.55+u*r*1.1;c.lineTo(Math.sin(u*TAU*1.2+ph)*r*.32,yy);}c.stroke();}break;
       case'burst':c.fillStyle=b;c.beginPath();for(let i=0;i<14;i++){const q=i*Math.PI/7,rr2=i%2?r*.3:r*.62;c.lineTo(Math.cos(q)*rr2,Math.sin(q)*rr2);}c.closePath();c.fill();c.fillStyle=C.ink;c.font=`900 ${r*.42}px "Exo 2",system-ui`;c.textAlign='center';c.textBaseline='middle';c.fillText('B!',0,r*.04);break;
       case'compass':c.fillStyle=b;c.beginPath();c.moveTo(0,-r*.6);c.lineTo(r*.16,0);c.lineTo(0,r*.6);c.lineTo(-r*.16,0);c.closePath();c.fill();c.beginPath();c.moveTo(-r*.6,0);c.lineTo(0,r*.16);c.lineTo(r*.6,0);c.lineTo(0,-r*.16);c.closePath();c.fill();break;
+      case'core':{c.fillStyle=b;c.beginPath();for(let i=0;i<6;i++){const q=i*Math.PI/3+Math.PI/6;c.lineTo(Math.cos(q)*r*.62,Math.sin(q)*r*.62);}c.closePath();c.fill();c.fillStyle=a;const u=r*.2;c.fillRect(-u*1.6,-u*1.6,u*1.5,u*1.5);c.fillRect(u*.1,-u*1.6,u*1.5,u*1.5);c.fillRect(-u*.75,u*.1,u*1.5,u*1.5);break;}
       case'rook':c.fillStyle=b;c.beginPath();c.moveTo(-r*.4,r*.5);c.lineTo(r*.4,r*.5);c.lineTo(r*.3,r*.3);c.lineTo(r*.22,-r*.2);c.lineTo(r*.36,-r*.3);c.lineTo(r*.36,-r*.55);c.lineTo(r*.18,-r*.55);c.lineTo(r*.18,-r*.42);c.lineTo(r*.06,-r*.42);c.lineTo(r*.06,-r*.55);c.lineTo(-r*.06,-r*.55);c.lineTo(-r*.06,-r*.42);c.lineTo(-r*.18,-r*.42);c.lineTo(-r*.18,-r*.55);c.lineTo(-r*.36,-r*.55);c.lineTo(-r*.36,-r*.3);c.lineTo(-r*.22,-r*.2);c.lineTo(-r*.3,r*.3);c.closePath();c.fill();break;
     }c.restore();}
 
@@ -1563,7 +1715,7 @@ window.SR_ART=(function(){
     baton:{type:'melee',style:'patriot',speed:9999,len:0,w:0},rocket:{type:'rocket',style:'blamco',speed:520,len:14,w:5},razorrat:{type:'tracer',style:'bhord',speed:1600,len:30,w:3.2,heavy:1},
     mininglaser:{type:'beam',style:'praxon',speed:1e9,len:0,w:6},arclight:{type:'beam',style:'lmc',speed:1e9,len:0,w:3.4},
     /* ship and vehicle weapons */
-    repeaters:{type:'bolt',style:'bhord',speed:900,len:20,w:4,twin:3.4,space:1},missiles:{type:'missile',style:'varrondow',speed:380,len:10,w:4,space:1},doorgun:{type:'tracer',style:'bhord',speed:1500,len:24,w:2.6},
+    repeaters:{type:'bolt',style:'bhord',speed:900,len:20,w:4,twin:3.4,space:1},bombs:{type:'bomb',style:'blamco',speed:240,len:10,w:5.6,space:1},missiles:{type:'missile',style:'varrondow',speed:380,len:10,w:4,space:1},doorgun:{type:'tracer',style:'bhord',speed:1500,len:24,w:2.6},
     dronegun:{type:'bolt',style:'autocom',speed:950,len:14,w:3.4,space:1},cruiser:{type:'bolt',style:'patriot',speed:900,len:18,w:5},
     /* ship lasers (HC visual pass): slaser draws as a coherent beam-dart, not a tracer. Colours stay the maker's
        (rebel warm, Hegemony cold); the shape carries the difference. Assign per weapon in the sim when ready. */
@@ -1575,7 +1727,7 @@ window.SR_ART=(function(){
      automatic 6-10 with roughly half landing, fan hammer 3 with 2-3 landing, single shot exactly one.
      The damage is split across the rounds that land (10 might show as 3, 3, 4). Purely visual. */
   function volley(key,mode,o){o=o||{};const P=PROJ[key]||PROJ.akli,R=o.rng||Math.random,ri=(a,b)=>a+Math.floor(R()*(b-a+1));const ty=P.type;mode=mode||'semi';
-    let n=ty==='rocket'||ty==='missile'||mode==='single'?1:ty==='melee'?ri(1,2):mode==='fan'?3:mode==='auto'?ri(6,10):ri(3,5);if(ty==='pellets'&&mode!=='single')n=ri(2,3);if(ty==='beam'&&mode!=='single')n=ri(2,3);
+    let n=ty==='bomb'?ri(2,3):ty==='rocket'||ty==='missile'||mode==='single'?1:ty==='melee'?ri(1,2):mode==='fan'?3:mode==='auto'?ri(6,10):ri(3,5);if(ty==='pellets'&&mode!=='single')n=ri(2,3);if(ty==='beam'&&mode!=='single')n=ri(2,3);
     const hit=o.hit!==false;let h=!hit?0:n===1?1:mode==='auto'?Math.max(1,Math.round(n*(.35+R()*.35))):mode==='fan'?ri(2,3):ri(1,Math.min(3,n));
     const idx=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(R()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}const hitSet=new Set(idx.slice(0,h));
     const D=o.damage==null?10:o.damage;const wts=[...Array(h)].map(()=>.6+R());const ws=wts.reduce((a,b)=>a+b,0)||1;let parts=wts.map(w=>Math.max(1,Math.round(D*w/ws)));let diff=D-parts.reduce((a,b)=>a+b,0);for(let i=0;diff!==0&&h;i=(i+1)%h){if(diff>0){parts[i]++;diff--;}else if(parts[i]>1){parts[i]--;diff++;}}
@@ -1606,6 +1758,7 @@ window.SR_ART=(function(){
           const g=c.createLinearGradient(-len*3,0,0,0);g.addColorStop(0,rgba(glow,0));g.addColorStop(1,rgba(glow,.5));c.fillStyle=g;c.fillRect(-len*3,-ws*.5,len*3,ws);
           c.shadowColor=glow;c.shadowBlur=12;rr(c,-len,-ws*.7,len,ws*1.4,ws*.7);c.fillStyle=glow;c.fill();c.shadowBlur=0;rr(c,-len*.8,-ws*.3,len*.75,ws*.6,ws*.3);c.fillStyle=core;c.fill();
           if(P.type==='unstable'&&Math.sin(tt*29+ri)>.4){c.fillStyle=glow;for(let i=0;i<3;i++)c.fillRect(-len*.5-i*6,(rn()-.5)*10,2,2);}}
+        else if(P.type==='bomb'){c.rotate(tt*5+ri);poly(c,[[-len*.8,-w*.6],[-len*.5,0],[-len*.8,w*.6]]);ink(c,'#4a4f2a',.8);ell(c,0,0,len*.55,w*.5);ink(c,'#6a7046',1);c.fillStyle='#e0402e';c.fillRect(-.6,-w*.48,1.4,w*.96);if(Math.sin(tt*24)>0){circ(c,len*.5,0,1.1);c.fillStyle='#ff4a3d';c.fill();}}
         else if(P.type==='ring'){c.beginPath();c.ellipse(0,0,w*.6,w*(1.2+.3*Math.sin(tt*40)),0,0,TAU);c.lineWidth=2.4;c.strokeStyle=glow;c.shadowColor=glow;c.shadowBlur=8;c.stroke();c.shadowBlur=0;c.globalAlpha=.4;c.beginPath();c.ellipse(-10,0,w*.5,w,0,0,TAU);c.stroke();c.globalAlpha=1;}
         else if(P.type==='rocket'||P.type==='missile'){const f=1+Math.sin(tt*40)*.3;c.beginPath();c.moveTo(-len,-w*.4);c.lineTo(-len-10*f,0);c.lineTo(-len,w*.4);c.fillStyle='#ffb347';c.fill();rr(c,-len,-w*.5,len,w,w*.5);ink(c,P.type==='missile'?'#d5dbea':'#6a7040',1.2);
           c.beginPath();c.moveTo(0,-w*.5);c.lineTo(4,0);c.lineTo(0,w*.5);c.closePath();c.fillStyle=P.type==='missile'?glow:'#d8502e';c.fill();if(P.type==='missile'&&Math.sin(tt*20)>0){circ(c,-len*.4,0,1.2);c.fillStyle='#ff4a3d';c.fill();}}
@@ -1712,11 +1865,53 @@ window.SR_ART=(function(){
     c.save();c.globalAlpha=Math.min(1,k*6);for(let i=0;i<8;i++){const a=i*TAU/8+t*2,r=14+Math.sin(t*6+i)*3;star(c,x+Math.cos(a)*r,yy+Math.sin(a)*r*.7,2.2,C.gold);}c.restore();
     c.save();c.translate(x,yy);c.scale(Math.max(.01,sc),Math.max(.01,sc));item(c,key,0,0,44,t);c.restore();}
   /* ship destruction: the hull breaks in three, spinning apart inside a fireball */
-  function shipExplode(c,id,x,y,ang,s,k,t,o){o=o||{};const D=SHIPS[id];if(!D)return;
+  function shipExplode(c,id,x,y,ang,s,k,t,o){o=o||{};const D=SHIPS[id];if(!D)return;if(D.capital)return capitalDeath(c,id,x,y,ang,s,k,t,o);   // capital ships break up in stages (run it over D.deathMs)
+    if(o.sized){s*=sizeK(id,o.size);o=Object.assign({},o,{sized:false});}
     if(k<.12){circ(c,x,y,(10+k*200)*s/3);c.fillStyle='#fffbe6';c.fill();}
     const cuts=[[-99,-6],[-6,6],[6,99]];cuts.forEach(([a,b],i)=>{const dir=ang+(i-1)*1.4+Math.PI*(i===1?.5:0);const d=ease.outCubic(k)*30*s/3;c.save();c.globalAlpha=k>.7?(1-k)/.3:1;
       const cx=x+Math.cos(dir)*d,cy=y+Math.sin(dir)*d;c.translate(cx,cy);c.rotate(ang+(i-1)*k*2.5);c.beginPath();c.rect(a*s,-40*s,(b-a)*s,80*s);c.clip();c.rotate(-ang);ship(c,id,0,0,ang,s,t,Object.assign({},o,{damage:1,parked:true}));c.restore();});
     if(k>.04)explosion(c,x,y,Math.min(1,(k-.04)/.9),{size:s/2.4});}
+  /* capitalDeath: a capital ship dies in stages over D.deathMs (k 0..1). Secondary blasts walk the hull and blow cargo
+     modules loose (they tumble away), the core goes at k = .42 with a white flash and shockwave, the hull breaks in two
+     at D.cut and the halves drift apart, burning at the break; past k = .88 they fade (o.wreck keeps them). deathBangs(id)
+     lists every blast as {k,x,y,size,big} in hull units, so the game can shake the camera on each one. */
+  const DEATH_SPLIT=.42;
+  function deathBangs(id){const D=SHIPS[id];if(!D)return[];if(D._bangs)return D._bangs;const sp=(D.dmgSpots||[[0,0,3,0]]).slice().sort((a,b)=>a[0]-b[0]);
+    const out=sp.slice(0,6).map((p,i)=>({k:.03+i*.062,x:p[0],y:p[1],size:.9+i*.12}));const core=D.core||[0,0];out.push({k:DEATH_SPLIT,x:core[0],y:core[1],size:3.2,big:1});
+    out.push({k:.56,x:(D.cut||0)+18,y:4,size:1.4},{k:.68,x:(D.cut||0)-16,y:-5,size:1.3});return D._bangs=out;}
+  function capitalDeath(c,id,x,y,ang,s,k,t,o){o=o||{};const D=SHIPS[id];if(!D)return;if(o.sized){s*=sizeK(id,o.size);o=Object.assign({},o,{sized:false});}
+    const len=shipLen(id),cut=D.cut||0,B=deathBangs(id),ca=Math.cos(ang),sa=Math.sin(ang),K=D.cargo;
+    const W=(px,py)=>[x+(px*ca-py*sa)*s,y+(px*sa+py*ca)*s];
+    const q=Math.max(0,(k-DEATH_SPLIT)/(1-DEATH_SPLIT)),e=ease.outCubic(q);
+    const pose=side=>{const d=(side>0?.15:-.09)*len*e*s,perp=(side>0?-.03:.04)*len*e*s;return{px:(cut*ca)*s+x+ca*d-sa*perp,py:(cut*sa)*s+y+sa*d+ca*perp,rot:ang+side*e*(side>0?.32:.22)};};
+    const onHalf=(px,py)=>{const P=pose(px>=cut?1:-1),cr=Math.cos(P.rot),sr=Math.sin(P.rot),lx=(px-cut)*s,ly=py*s;return[P.px+lx*cr-ly*sr,P.py+lx*sr+ly*cr];};
+    const at=(px,py)=>k<DEATH_SPLIT?W(px,py):onHalf(px,py);
+    // cargo modules blown loose: one per early blast, the nearest still attached
+    const pops=[];if(K){const taken=new Set(o.lost||[]);for(const b of B){if(b.big||b.k>DEATH_SPLIT)continue;let best=-1,bd=1e9;for(let i=0;i<K.n*2;i++){if(taken.has(i))continue;const mx=K.x0+K.step*(i%K.n)+K.len/2,my=(i<K.n?-1:1)*(K.y0+K.w/2),d=Math.hypot(mx-b.x,my-b.y);if(d<bd){bd=d;best=i;}}if(best>=0){taken.add(best);pops.push({i:best,k:b.k+.02});}}}
+    const lost=(o.lost||[]).concat(pops.filter(p=>k>=p.k).map(p=>p.i));
+    const fade=o.wreck?1:k>.88?Math.max(0,(1-k)/.12):1;if(fade<=0)return;
+    c.save();c.globalAlpha=fade;
+    if(k<DEATH_SPLIT){const j=k*1.6*s;ship(c,id,x+Math.sin(t*53)*j,y+Math.cos(t*47)*j,ang,s,t,Object.assign({},o,{damage:Math.min(1,.55+k),lost,fire:false}));}
+    else for(const side of[-1,1]){const P=pose(side);c.save();c.translate(P.px,P.py);c.rotate(P.rot);c.beginPath();if(side>0)c.rect(0,-1e4,1e4,2e4);else c.rect(-1e4,-1e4,1e4,2e4);c.clip();
+      ship(c,id,-cut*s,0,0,s,t,Object.assign({},o,{damage:1,lost,off:true,fire:false,parked:true}));
+      const rn=mkRng(side>0?11:23),hw=16*s,glow=1-q*.7;c.save();c.shadowColor='#ff8a2a';c.shadowBlur=10;c.beginPath();let yy=-hw;c.moveTo(side*.5*s,yy);while(yy<hw){yy+=(1+rn()*2)*s;c.lineTo(side*(rn()*2.4+.3)*s,yy);}
+      c.lineWidth=2.2;c.strokeStyle=rgba('#ff9a3a',glow);c.stroke();c.restore();
+      for(let i=0;i<4;i++){const fy=(rn()-.5)*hw*1.6,ff=.5+.5*Math.sin(t*21+i*1.7+side);circ(c,side*1.4*s,fy,(1.2+ff*1.2)*s*glow);c.fillStyle=i%2?'#ff8a2a':'#fff3b0';c.globalAlpha=fade*glow*.9;c.fill();c.globalAlpha=fade;}
+      c.restore();}
+    // tumbling modules
+    if(K)for(const p of pops){if(k<p.k)continue;const u=k-p.k,i=p.i,sd=i<K.n?-1:1,mx=K.x0+K.step*(i%K.n)+K.len/2,my=sd*(K.y0+K.w/2),[bx,by]=W(mx,my);
+      const out=u*len*.45*s,back=-u*len*.12*s,px=bx+(-sa*sd)*out+ca*back,py=by+(ca*sd)*out+sa*back,rot=ang+sd*u*4.2+Math.sin(i)*.4;
+      c.save();c.globalAlpha=fade*Math.max(0,1-u*1.1);c.translate(px,py);c.rotate(rot);c.scale(s,s);rr(c,-K.len/2,-K.w/2,K.len,K.w,.5);
+      ink(c,K.hazard.includes(i)?'#c8642e':((SHIPS[id].liveries.heg||{}).cargo||['#5c6884'])[(i*5+(i%K.n)*3)%4],LW.char/s);c.restore();
+      for(let j=0;j<3;j++){const kk=(u*2.4+j/3)%1;c.save();c.globalAlpha=fade*(1-kk)*.5*Math.max(0,1-u);circ(c,px-(-sa*sd)*kk*14*s,py-(ca*sd)*kk*14*s,(1+kk*3)*s);ink(c,'#7a7a82',1.2);c.restore();}}
+    // debris from the break
+    if(k>=DEATH_SPLIT){const C0=W(cut,0),rn=mkRng(77);for(let i=0;i<18;i++){const a=rn()*TAU,v=(.2+rn()*.8)*len*.55*s*e,r=(.7+rn()*1.8)*s;c.save();c.globalAlpha=fade*Math.max(0,1-q*1.15);c.translate(C0[0]+Math.cos(a)*v,C0[1]+Math.sin(a)*v);c.rotate(rn()*6+q*(rn()-.5)*14);
+      poly(c,[[-r,-r*.6],[r,-r*.4],[r*.5,r*.8],[-r*.7,r*.5]]);ink(c,rn()<.5?'#8c929e':'#2c3a5e',1.2);c.restore();}}
+    // the blasts
+    for(const b of B){const dur=b.big?.5:.3,ek=(k-b.k)/dur;if(ek<0||ek>=1)continue;const[X,Y]=b.big?W(cut,0):at(b.x,b.y);explosion(c,X,Y,ek,{size:b.size*s/(b.big?3.6:4.2)});}
+    const fk=(k-DEATH_SPLIT)/.07;if(fk>=0&&fk<1){const[X,Y]=W(cut,0),g=c.createRadialGradient(X,Y,0,X,Y,len*.9*s);g.addColorStop(0,rgba('#ffffff',.95*(1-fk)));g.addColorStop(.5,rgba('#fffbe6',.5*(1-fk)));g.addColorStop(1,rgba('#fffbe6',0));c.fillStyle=g;c.fillRect(X-len*s,Y-len*s,len*2*s,len*2*s);}
+    const rk=(k-DEATH_SPLIT)/.38;if(rk>=0&&rk<1){const[X,Y]=W(cut,0);ring(c,X,Y,rk,'#fffbe6',{r:len*1.1*s,w:9});}
+    c.restore();}
   /* scene transitions (overlay drawn over everything; k 0..1, covered at .5) */
   function transition(c,W,H,k,type,o){o=o||{};const cover=k<.5?ease.inOutCubic(k*2):1-ease.inOutCubic((k-.5)*2);c.save();
     if(type==='iris'){const R=Math.hypot(W,H)*.6*(1-cover);c.beginPath();c.rect(0,0,W,H);c.arc(o.x||W/2,o.y||H/2,Math.max(0,R),0,TAU,true);c.fillStyle=C.ink;c.fill('evenodd');if(R>0){c.beginPath();c.arc(o.x||W/2,o.y||H/2,R,0,TAU);c.lineWidth=6;c.strokeStyle=C.rebel;c.stroke();}}
@@ -2058,7 +2253,7 @@ window.SR_ART=(function(){
   }
 
   return {C,W,BIOME,SKIN,HAIRC,LW,CAST,ARCH,WEAPONS,GEAR,POSES,PROPS,SHIPS,SHIP_FOR_GAME,WALL_H,STATIONS,station,
-    character,portrait,spec,recruit,viewFor,lookOf,VEHICLES,vehicle,strider,clampBeam,shipIso,hangarShip,HM,shapeOf,baseBackdrop,baseTile,baseRoom,roomInterior,RCOL,STYLE,PROJ,shot,shotTimes,volley,volleyImpacts,impact,bloodSplat,muzzleFor,shipShield,setGore:v=>{GORE=!!v;},ease,Shake,JUICE,Particles,ring,shieldBreak,popText,pickup,shipExplode,transition,TRAITS,DTYPES,WEAPON_INFO,icon,fireModeToggle,vitals,armourHit,shieldHit,sunder,pierce,misfire,deployable,flyover,strafe,doorGunner,supplyDrop,landing,makerBadge,ITEMS,item,MAKERS,SHIP_WEAPONS,GEAR_ALIAS,TRAIT_LOOK,RTRAIT_LOOK,SPEC_LOOK,COND_LOOK,ROLE_COATS,muzzle,prop,floor,trail,wall,lampLight,scorch,block,bolt,hit,explosion,smoke,ship,
+    character,portrait,spec,recruit,viewFor,lookOf,VEHICLES,vehicle,strider,clampBeam,shipIso,hangarShip,HM,shapeOf,baseBackdrop,baseTile,baseRoom,roomInterior,RCOL,STYLE,PROJ,shot,shotTimes,volley,volleyImpacts,impact,bloodSplat,muzzleFor,shipShield,setGore:v=>{GORE=!!v;},ease,Shake,JUICE,Particles,ring,shieldBreak,popText,pickup,shipExplode,transition,TRAITS,DTYPES,WEAPON_INFO,icon,fireModeToggle,vitals,armourHit,shieldHit,sunder,pierce,misfire,deployable,flyover,strafe,bombRun,SIZE_M,SMALL_PAD_MAX,LARGE_PAD_MAX,sizeRel,sizeNorm,sizeK,shipLen,padFor,capitalDeath,deathBangs,doorGunner,supplyDrop,landing,makerBadge,ITEMS,item,MAKERS,SHIP_WEAPONS,GEAR_ALIAS,TRAIT_LOOK,RTRAIT_LOOK,SPEC_LOOK,COND_LOOK,ROLE_COATS,muzzle,prop,floor,trail,wall,lampLight,scorch,block,bolt,hit,explosion,smoke,ship,
     isoP,isoBox,emote,planet,route,star,
     util:{rgba,shade,mkRng,hashStr,rr,ell,circ,poly,ink,headShade}};
 })();
