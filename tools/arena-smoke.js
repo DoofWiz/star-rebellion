@@ -35,7 +35,7 @@
      HC35 3 the modifiers and Dig deeper; P3 the leaders' plan and critiques, two plans → two fights, a Secondary, 8 Hold
      for My Signal, Weapons Tight, Preservation and OFF PLAN; 9 the comms delay; 7 command points by phase; 10 every
      power after its delay, and the powers bar by DOM; 11 pilot requests (default, Preservation, the caps, off, keys);
-     12 ejection pods */
+     12 ejection pods; 13 the debrief's cause chain; 14 determinism with pauses; 15 the metrics record */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -2161,11 +2161,54 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35f.off.every(Boolean),'HC35 11: Requests off raises none '+JSON.stringify(t35f.off));
  ok(t35f.keys.every(Boolean),'HC35 11: A/B/C answer the newest request '+JSON.stringify(t35f.keys));
  ok(t35f.pod.every(Boolean)&&t35f.captured.every(Boolean),'HC35 12: a pod; the Tug collects it; an uncollected one is captured in the debrief '+JSON.stringify([t35f.pod,t35f.captured]));
+ // HC35 13–15 (P6): the debrief's cause chain, determinism with pauses, the metrics record
+ const t35g=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    B.plan.assets=o.assets||[];B.plan.roes=o.roes||[];X.fn.launch();};
+  // 13: a scripted loss to point defence with no Suppress order gives that line
+  N.REQ_OFF=1;go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});
+  for(const e of S().ships)if(e.role35==='escort'){e.alive=false;e.jumped=true;}
+  L35.alarm('fired');const w=by('wren'),f=fr();w.x=f.x+600;w.y=f.y+600;w.px=w.x;w.py=w.y;w.segs.F.val=0;w.segs.R.val=0;w.arm=0;w.hull=0.05;for(const a in w.abCd)w.abCd[a]=1e9;   // no field repair
+  until(()=>{if(w.alive){const g=fr();w.x=g.x+600;w.y=g.y+600;w.px=w.x;w.py=w.y;w.segs.F.val=0;w.segs.R.val=0;}return !w.alive;},30);SIM.step();const d=L().deaths.find(x=>x.id==='wren');   // held in the turrets' reach
+  L35.use('retreat');X.fn.run(300);const db=document.querySelector('#arHc35 .h35-debrief'),why=[...document.querySelectorAll('#arHc35 .h35-why p')].map(p=>p.textContent);
+  out.why=why;out.pd=[!!d&&d.by==='pd',!!db,why.some(t=>/went down to the freighter's guns\. Nobody was told to take out the turrets/.test(t)),why.length>=3&&why.length<=6];
+  N.REQ_OFF=0;
+  // 14: the same seed, plan, powers and answers at the same ticks, with pauses and the HUD between: the same fight
+  const runA=pause=>{go('steal',{anvil:{k:'disable',arg:'engines'},amber:{k:'board'},dagger:{k:'defend',arg:'anvil'}},{seed:4242,assets:['mines'],roes:['preservation']});L().cp=9;
+    for(let i=0;i<900&&!S().over;i++){
+      if(i===120)L35.use('mark',{id:'fl400',sub:'engines'});if(i===300)L35.use('broadcast');
+      for(const q of L().req.open)if(q.state==='open')L35.answerReq(q.id,q.answers[q.answers.length-1]);
+      if(pause&&i%40===0){API.setSpeed(0);API.syncHud(true);X.fn.render();X.fn.OV.syncHud(performance.now());X.fn.OV.tick(performance.now());API.setSpeed(2);}
+      SIM.step();}
+    return [SIM.stateHash(),L().cause.length,L().req.log.length];};
+  const h1=runA(false),h2=runA(true),h3=runA(true);out.det=[h1[0]===h2[0]&&h2[0]===h3[0],h1[1]===h2[1],h1[2]===h2[2],h1];
+  // 15: the record carries every §10 field
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L35.use('retreat');X.fn.run(300);
+  const rec=A_metrics_last();document.querySelector('#arHc35 [data-act="again"]').click();
+  const keys=['seed','mods','primary','optionals','roes','wings','assets','briefSecs','phaseSecs','speedSecs','pauses','pausedSecs','powers','cpUnspent','requests','secondaries','offPlanSecs','outcome','loot','losses','pods','planAgain','commsOff','requestsOff'];
+  out.metrics=[keys.filter(k=>!(k in rec)),rec.ruleset==='hc35',rec.planAgain===true,Array.isArray(rec.speedSecs)&&rec.speedSecs.length===4,['raised','answered','defaulted'].every(k=>k in rec.requests)];
+  function A_metrics_last(){return B.metrics[B.metrics.length-1];}
+  // the keys (§7.6): Space pauses, P the plan overlay, Z the first power, Esc cancels its targeting
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L().cp=9;
+  const key=k=>document.dispatchEvent(new KeyboardEvent('keydown',{key:k,bubbles:true}));
+  const ov0=B.planOverlay;key('p');const ov1=B.planOverlay;key(' ');const paused=SIM.TIMESCALES[window.SR_ARENA_HC.api.A.speed]===0;key(' ');
+  const first=X.fn.OV.cmdsHtml().match(/data-p35="([a-z]+)"/)[1];key('x');const armed=!!B.pick||!!B.choose||L().txLog.length>0;key('Escape');
+  out.keys=[ov1!==ov0,paused,first==='retreat',armed,!B.pick&&!B.choose];
+  return out;
+ });
+ ok(t35g.pd.every(Boolean),'HC35 13: a loss to point defence with no Suppress order: that cause line '+JSON.stringify(t35g.pd));
+ ok(t35g.det[0]&&t35g.det[1]&&t35g.det[2],'HC35 14: determinism: same seed, plan, powers and answers, pauses between: the same hash '+JSON.stringify(t35g.det));
+ ok(!t35g.metrics[0].length&&t35g.metrics.slice(1).every(Boolean),'HC35 15: the record carries every §10 field '+JSON.stringify(t35g.metrics));
+ ok(t35g.keys.every(Boolean),'HC35 P6: the keys: Space, P, the powers, Esc '+JSON.stringify(t35g.keys));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

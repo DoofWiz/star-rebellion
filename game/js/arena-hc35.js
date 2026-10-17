@@ -330,6 +330,7 @@ function launch(){
   if(!ready())return;
   B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;
   B.attempt++;B.screen='live';B.pick=null;B.choose=null;B.abortArm=false;
+  B.lastBrief=B.briefT.slice();B.briefT=[0,0,0,0];B.spd=[0,0,0,0];B.pauses=0;B.lastNow=null;   // this attempt's metrics (§10)
   L35.detach();L35.attach();
   const scn=L35.compile(opp(),B.mods,B.plan,B.seed);
   API.loadScenario(scn,B.seed);L35.begin();
@@ -347,47 +348,100 @@ function onOver(){
 }
 function debriefHtml(){
   const S=SIM.S,L=L35.L,o=S.over||{},P=L?L.plan:B.plan;
-  const prim=S.objectives[0],won=prim&&prim.state==='done';
-  const stamp=o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won?['JOB DONE','']:['FAILED','sr-stamp--bad'];
-  const mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct);
-  const lost=mine.filter(s=>!s.alive&&!s.jumped);
+  const prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[];
+  // the stamp: JOB DONE (the primary and every optional), PARTIAL (the primary, not all the optionals), FAILED, ABORTED
+  const stamp=o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won&&opts.every(x=>x.state==='done')?['JOB DONE','']:won?['PARTIAL','sr-stamp--action']:['FAILED','sr-stamp--bad'];
   const ph=L?L.phaseT:[0];
   const phs=[0,1,2].map(i=>ph[i]==null?null:((ph[i+1]!=null?ph[i+1]:S.t)-ph[i])).map((v,i)=>v==null?'':'<span class="sr-tag sr-tag--info">Phase '+(i+1)+' · '+fmtClock(v)+'</span>').join('');
+  const chk=(ok,txt)=>'<div class="sr-check'+(ok?'':' is-no')+'"><span class="sr-check__box">'+(ok?'✓':'')+'</span>'+esc(txt)+'</div>';
+  const lost=losses();
   return '<div class="h35-scrim"><div class="sr-window sr-window--lg h35-debrief"><div class="sr-window__head"><div class="sr-window__title">Debrief · '+esc(opp().title)+'</div><span class="sr-stamp '+stamp[1]+'">'+stamp[0]+'</span></div>'+
-    '<div class="sr-window__body"><div class="h35-label">Objectives</div>'+
-    '<div class="sr-check'+(won?'':' is-no')+'"><span class="sr-check__box">'+(won?'✓':'')+'</span>'+esc(L35.PRIMARIES[P.primary].name)+' (primary)</div>'+
-    '<div class="h35-label">Losses</div><div>'+(lost.length?lost.map(s=>esc(s.name)).join(', '):'None')+'</div>'+
+    '<div class="sr-window__body"><div class="h35-label">Objectives</div>'+chk(won,L35.PRIMARIES[P.primary].name+' (primary)')+
+    opts.map(x=>chk(x.state==='done',L35.OPTIONALS[x.k].name+(x.ship?' · '+(SIM.fn.byId(x.ship)||{name:x.ship}).name:''))).join('')+
+    '<div class="h35-label">Loot</div><div>'+esc(lootOf())+'</div>'+
+    '<div class="h35-label">Losses</div><div>'+(lost.length?lost.map(x=>esc(x.name)+' <span class="h35-fine2">('+esc(x.pod)+')</span>').join(', '):'None')+'</div>'+
     '<div class="h35-label">Time in each phase</div><div class="sr-card__meta">'+phs+'</div>'+
     '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div></div>'+
     '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="rulesets">Back to rulesets</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
     '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
 }
+/* your losses, each with what became of its pilot */
+function losses(){
+  const S=SIM.S,L=L35.L;if(!L)return [];
+  return S.ships.filter(s=>s.faction==='reb'&&s.wing&&!s.alive&&!s.jumped).map(s=>{const p=L.pods.find(x=>x.ship===s.id);
+    return {name:s.name,pod:!p?'no pod':p.state==='aboard'?'picked up':p.state==='captured'?'captured':p.state==='lost'?'lost with the ship that had them':'drifting'};});
+}
+function lootOf(){
+  const L=L35.L;if(!L)return 'None';const left=L35.fn.cargoLeft();
+  switch(L.plan.primary){
+    case 'steal':return L.prizeHome?'The freighter, and '+left+' container'+(left===1?'':'s')+' aboard':'None';
+    case 'pirate':return L.transferred?Math.round(left*L35.N.PIRATE_SHARE)+' container'+(Math.round(left*L35.N.PIRATE_SHARE)===1?'':'s')+' handed over':'None';
+    case 'strip':return L.hauled?L.hauled+' container'+(L.hauled===1?'':'s')+' hauled home':'None';
+    case 'tag':return L.tag.planted&&L.escaped?'A follow-up lead (it carries your tracker)':'None';
+    case 'ambush':return L.respKills+' of the response destroyed';
+  }
+  return 'None: denied to them';
+}
+/* What decided it (§6): three to six lines, most specific first, each tying an outcome to a plan decision, a power or
+   an answer you gave; from the cause log and the context it kept. Placeholder copy (C-78) */
 function whyLines(){
   const S=SIM.S,L=L35.L,out=[];if(!L)return out;
-  if(L.escaped)out.push('The freighter jumped at '+fmtClock(SIM.fn.byId('fl400').jumpT)+'.');
+  const fr=SIM.fn.byId('fl400'),W=id=>(SIM.fn.wingOf(id)||L35.WINGS35.find(w=>w.id===id)||{name:id}).name,ord=e=>e?L35.ORDERS35[e.k].name.toLowerCase()+(e.arg&&typeof e.arg==='string'?' '+(L35.WINGS35.find(w=>w.id===e.arg)?W(e.arg):e.arg):''):'holding';
+  for(const d of L.deaths){
+    if(d.by==='pd'&&!L.execSeen['suppress:turrets'])out.push(d.name+' went down to the freighter\'s guns. Nobody was told to take out the turrets.');
+    else if(d.phase===3&&d.by==='response'&&d.execBusy&&!d.jumpdone)out.push(d.name+' was lost to the response at '+fmtClock(d.t)+'. '+W(d.wid)+' was still on '+ord(d.exec)+'.');
+    else if(d.stayBy!=null)out.push(d.name+' stayed in because you said so at '+fmtClock(d.stayBy)+'.');
+    else if(d.cls==='brickbat'&&!d.covered)out.push(d.name+'\'s Brickbat had no cover. No wing was defending '+W(d.wid)+'.');
+    else if(d.vol)out.push(d.name+' put their ship into the target, as you said they could.');
+  }
+  if(L.escaped&&fr){const e=L.subs.find(x=>x.k==='engines');
+    if(e&&e.hp>=e.max){const bb=S.ships.filter(s=>s.faction==='reb'&&s.cls==='brickbat'),why=!L.execSeen['disable:engines']?' Nobody had a Disable order.':bb.some(s=>!s.alive&&!s.jumped)?' A Brickbat was lost.':bb.length&&bb.every(s=>!s.bombs)?' The bombs were spent elsewhere.':'';
+      out.push('The freighter jumped at '+fmtClock(fr.jumpT)+'. Its engines were never hit.'+why);}
+    else out.push('The freighter jumped at '+fmtClock(fr.jumpT)+'.');}
+  const D=L.distress;
+  if(D&&D.landed&&!L.arrayT)out.push('The distress call got out at '+fmtClock(D.t)+(L35.modOn(L.mods,'remote')?', but nobody was near to hear it.':'. That\'s why the response came.'));
+  if(D&&D.cut)out.push('The comms array died with the distress call still sending: no response came.');
+  for(const r of L.powRes)out.push('Your '+(L35.POWERS35[r.k]||{name:r.k}).name+' at '+fmtClock(r.t)+' '+r.text+'.');
+  for(const m of L.mods){if(m.fake&&m.foundFake!=null)out.push('Cass was wrong: there was no '+L35.MODS[m.k].name+'.');
+    else if(!m.fake&&m.foundT!=null&&L35.MODS[m.k].tone==='warn')out.push('Cass missed '+L35.MODS[m.k].name+'. Now you know.');}
   if(L.alarmWhy==='jumpin')out.push('A wing dropped in inside their sensor ring. Phase 1 lasted '+Math.round(L.phaseT[1]||0)+' s.');
+  for(const q of L.req.log)if(q.by==='player'&&q.k==='surrender')out.push('You answered their hail at '+fmtClock(q.t0)+': '+L35.ANS[q.answer].toLowerCase()+'.');
+  const cap=L.pods.filter(p=>p.state==='captured');
+  if(cap.length)out.push(cap.map(p=>p.name).join(', ')+(cap.length>1?' were':' was')+' left in the pod and captured.');
   if(L.abort)out.push('You aborted at '+fmtClock(L.abortT)+'.');
   if(L.exposure)out.push('The Firebrand Broadcast went out in the clear: the Hegemony heard your voice (Exposure).');
   if(L.burned)out.push('The Agent aboard acted for you, and may be burned.');
-  const cap=L.pods.filter(p=>p.state==='captured'),saved=L.pods.filter(p=>p.state==='aboard');
-  if(cap.length)out.push(cap.map(p=>p.name).join(', ')+(cap.length>1?' were':' was')+' left in the pod and captured.');
-  if(saved.length)out.push(saved.map(p=>p.name).join(', ')+(saved.length>1?' were':' was')+' picked up after ejecting.');
-  const asked=L.req.log.filter(q=>q.by==='player'||q.by==='default');
-  if(asked.length)out.push('Requests: '+asked.map(q=>(SIM.fn.byId(q.who)||{name:'?'}).name+' · '+L35.ANS[q.answer]+(q.by==='default'?' (their call)':'')).join(', ')+'.');
   if(L.pirated)out.push('The pirates left with '+L.pirated+' container'+(L.pirated>1?'s':'')+'.');
-  if(L.powLog.length)out.push('Powers used: '+L.powLog.map(p=>(L35.POWERS35[p.k]||{name:'Insist'}).name+' (Phase '+p.phase+')').join(', ')+'.'+(L.cpLost?' '+L.cpLost+' CP went unspent.':''));
-  return out.length?out:['(The cause chain comes with phase P6 of the build.)'];
+  // too few: the moments the job turned on, from the feed
+  if(out.length<3)for(const c of L.cause){if(out.length>=3)break;if(/^(sub|board|surrender|crash|objective|tag|haul|phase|fjump|reinforce)$/.test(c.kind))out.push(c.text.replace(/[.:]?$/,'')+' ('+fmtClock(c.t)+').');}
+  // and how it ended: the primary, then the count
+  if(out.length<3){const o=L.prim,P=L35.PRIMARIES[L.plan.primary];out.push(P.name+(o.state==='done'?': done at '+fmtClock(o.doneT||S.t)+'.':L.retreat||L.abort?': not done; you called them home.':': not done.'));}
+  if(out.length<3){const mine=S.ships.filter(s=>s.faction==='reb'&&s.wing),lost=mine.filter(s=>!s.alive&&!s.jumped).length;out.push(lost?lost+' of your '+mine.length+' ships lost; '+(mine.length-lost)+' came home.':'All '+mine.length+' of your ships came home.');}
+  return out.slice(0,6);
 }
 function planAgain(){
   // the same seed and modifiers, every modifier found in play now known, the last plan kept
-  B.planAgain=true;
+  B.planAgain=true;const last=B.metrics[B.metrics.length-1];if(last)last.planAgain=true;
   B.step=4;enterBrief();
 }
+/* the attempt's record (§10), pushed to ARENA_METRICS ("Dump metrics" prints the session) */
 function record(){
   const S=SIM.S,L=L35.L;if(!S||!L)return null;
-  const rec={ruleset:'hc35',seed:B.seed,attempt:B.attempt,primary:L.plan.primary,outcome:S.over?S.over.outcome:'abandoned',t:+S.t.toFixed(2),phaseT:L.phaseT.slice(),
-    powers:L.powLog.slice(),cpUnspent:(L.cpLost||0)+L.cp,commsOff:!!L35.N.COMMS_OFF,requestsOff:!!L35.N.REQ_OFF,
-    requests:L.req.log.map(q=>({k:q.k,who:q.who,answer:q.answer,by:q.by,t:+q.t0.toFixed(2)})),pods:L.pods.map(p=>({who:p.ship,state:p.state}))};
+  const ph=L.phaseT,P=L.plan,lq=L.req.log;
+  const rec={ruleset:'hc35',seed:B.seed,attempt:B.attempt,opportunity:B.oppId,
+    mods:L.mods.map(m=>({k:m.k,fake:!!m.fake,hidden:!!m.hidden&&!m.dug&&!(m.found&&m.foundT==null),found:m.foundT!=null?m.foundT:m.foundFake!=null?+m.foundFake.toFixed(2):null})),   // hidden: unknown at launch; found: when, in play
+    primary:P.primary,optionals:L.opt.map(o=>({k:o.k,ship:o.ship,state:o.state})),roes:P.roes.slice(),
+    wings:Object.fromEntries(L35.WINGS35.map(w=>[w.id,{role:P.wings[w.id].role,loadout:Object.assign({},P.wings[w.id].loadout),exec:P.wings[w.id].exec,second:P.wings[w.id].second}])),
+    assets:P.assets.slice(),briefSecs:(B.lastBrief||[0,0,0,0]).map(v=>+v.toFixed(1)),
+    phaseSecs:[0,1,2].map(i=>ph[i]==null?null:+(((ph[i+1]!=null?ph[i+1]:S.t)-ph[i]).toFixed(1))),
+    speedSecs:(B.spd||[0,0,0,0]).map(v=>+v.toFixed(1)),pauses:B.pauses||0,pausedSecs:+((B.spd||[0])[0]).toFixed(1),
+    powers:L.powLog.slice(),cpUnspent:(L.cpLost||0)+L.cp,
+    requests:{raised:lq.filter(q=>q.by==='player'||q.by==='default').length,answered:lq.filter(q=>q.by==='player').length,defaulted:lq.filter(q=>q.by==='default').length,
+      list:lq.map(q=>({k:q.k,who:q.who,answer:q.answer,by:q.by,t:+q.t0.toFixed(2)}))},
+    secondaries:L.secLog.map(x=>({wing:x.wid,t:+x.t.toFixed(2),trig:x.trig,k:x.k})),offPlanSecs:Object.fromEntries(Object.entries(L.offSecs).map(([k,v])=>[k,+v.toFixed(1)])),
+    outcome:S.over?S.over.outcome:'abandoned',stamp:S.over&&S.over.outcome==='aborted'?'aborted':L.prim.state==='done'?(L.opt.every(o=>o.state==='done')?'done':'partial'):'failed',
+    loot:lootOf(),losses:losses().map(x=>x.name),pods:L.pods.map(p=>({who:p.ship,state:p.state})),t:+S.t.toFixed(2),
+    planAgain:false,commsOff:!!L35.N.COMMS_OFF,requestsOff:!!L35.N.REQ_OFF};
   B.metrics.push(rec);A.metrics.push(rec);
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   return rec;
@@ -597,7 +651,7 @@ function render(){
   else if(B.screen==='dossier')h=dossierHtml();
   else if(B.screen==='brief')h=briefHtml();
   else if(B.screen==='debrief')h=debriefHtml();
-  if(B.banner&&performance.now()-B.banner.at<1400&&!API.fxReduced())h+='<div class="sr-banner"><span class="sr-banner__txt">'+esc(B.banner.txt)+'<span class="sr-banner__sub">'+esc(B.banner.sub)+'</span></span></div>';
+  if(B.screen==='live'&&B.banner&&performance.now()-B.banner.at<1400&&!API.fxReduced())h+='<div class="sr-banner"><span class="sr-banner__txt">'+esc(B.banner.txt)+'<span class="sr-banner__sub">'+esc(B.banner.sub)+'</span></span></div>';
   ROOT.innerHTML=h;ROOT.dataset.screen=B.screen;
   paintCanvases();
 }
@@ -619,6 +673,9 @@ function paintTarget(t){
 }
 function tick(now){
   if(B.screen==='dossier'&&!API.fxReduced())paintTarget(now/1000);
+  // seconds at each speed, and the pauses (the boredom proxy, §10)
+  if(B.screen==='live'&&SIM.S&&!SIM.S.over){const dt=B.lastNow==null?0:Math.min(0.25,(now-B.lastNow)/1000);B.spd[A.speed]=(B.spd[A.speed]||0)+dt;if(A.speed===0&&B.prevSpd!==0)B.pauses++;B.prevSpd=A.speed;}
+  B.lastNow=now;
   if(B.screen==='live')syncReq();
 }
 byId('hcClock').addEventListener('click',ev=>{const b=ev.target.closest('[data-act="plan"]');if(!b||B.screen!=='live')return;B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);});
