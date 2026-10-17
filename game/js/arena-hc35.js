@@ -30,7 +30,8 @@ function open(){
   showBoard(true);
 }
 function close(){
-  ROOT.hidden=true;B.screen='off';L35.detach();
+  ROOT.hidden=true;B.screen='off';L35.detach();B.pick=null;B.choose=null;B.abortArm=false;
+  const ti=byId('hcCmds').querySelector('.hc-cmds__title');if(ti)ti.textContent='Commands';   // High Command's own bar again
 }
 function home(){showBoard(false);}
 
@@ -262,12 +263,13 @@ function inRing(ji){
   if(!ji||!SIM.S)return false;const p=toWorld(ji);
   return SIM.S.ships.some(e=>e.role35==='escort'&&e.alive&&Math.hypot(e.x-p.x,e.y-p.y)<L35.TUNE.DETECT_WARP_R.get());
 }
-function assetGlyph(k){
+function assetGlyph(k){return '<svg class="hc-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="'+(ASSET_PATH[k]||'M4 4h16v16H4z')+'"/></svg>';}
+const ASSET_PATH=(()=>{
   const g={ram:'M4 12h12l4-4v8l-4-4M8 8l-4 4 4 4',nuke:'M12 3l2 6h6l-5 4 2 7-5-4-5 4 2-7-5-4h6z',fireship:'M12 3c3 4 5 6 5 10a5 5 0 01-10 0c0-2 1-3 2-5 0 2 1 3 2 3 0-3-1-5 1-8z',
     mines:'M12 4v3M12 17v3M4 12h3M17 12h3M12 9a3 3 0 110 6 3 3 0 010-6z',buoy:'M12 3v5M8 8h8l-2 10h-4zM5 21h14',relay:'M12 21V9M8 5a6 6 0 018 0M5 2a10 10 0 0114 0M10 9h4',
-    tug:'M3 14h14l4-4M7 14v-4h6v4M17 10l-2-3',spoof:'M4 6h16v12H4zM8 10h8M8 14h5',pirates:'M12 4a7 7 0 017 7c0 3-2 4-2 6H7c0-2-2-3-2-6a7 7 0 017-7zM9 11h1M14 11h1'}[k]||'M4 4h16v16H4z';
-  return '<svg class="hc-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="'+g+'"/></svg>';
-}
+    tug:'M3 14h14l4-4M7 14v-4h6v4M17 10l-2-3',spoof:'M4 6h16v12H4zM8 10h8M8 14h5',pirates:'M12 4a7 7 0 017 7c0 3-2 4-2 6H7c0-2-2-3-2-6a7 7 0 017-7zM9 11h1M14 11h1'};
+  return g;
+})();
 
 /* =====================================================================
    The mission HUD (§7.4): objectives and ROE (read-only), the phase plate; the rest is High Command's
@@ -315,6 +317,8 @@ function pilotBody(s){
   const bar=(l,v,m,c)=>{const k=m>0?Math.max(0,Math.min(1,v/m)):0;return '<div class="hc-pbar '+c+'"><span>'+l+'</span><i><b style="width:'+Math.round(k*100)+'%"></b></i><em>'+(m>0?Math.max(0,Math.round(v))+'/'+m:'—')+'</em></div>';};
   h+='<div class="hc-pilot__bars">'+bar('Hull',s.hull,s.maxHull,'is-hull')+bar('Armour',s.arm,s.maxArm,'is-arm')+bar('Shields',SIM.fn.totalShield(s),SIM.fn.maxShield(s),'is-shd')+'</div>';
   const b=s.beh||{};
+  if(B.screen==='live'&&s.faction==='reb'&&s.wing&&L35.L){const why=L35.powerWhy('name');
+    h+='<div class="hc-pilot__acts"><button type="button" class="sr-btn sr-btn--sm" data-act="callname"'+(why?' aria-disabled="true" title="'+esc(why)+'"':'')+'>Call by name · '+L35.N.C_NAME+' CP</button></div>';}
   h+='<div class="hc-pilot__line"><b>'+esc(String(b.kind||'').toUpperCase())+'</b>'+(s.load35?' · '+esc(L35.LOADOUTS[s.load35].name)+(s.load35==='bombs'?' ('+(s.bombs||0)+' left)':''):'')+'<br><q>'+esc(s.assess||'')+'</q></div>';
   return h;
 }
@@ -325,7 +329,7 @@ function pilotBody(s){
 function launch(){
   if(!ready())return;
   B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;
-  B.attempt++;B.screen='live';
+  B.attempt++;B.screen='live';B.pick=null;B.choose=null;B.abortArm=false;
   L35.detach();L35.attach();
   const scn=L35.compile(opp(),B.mods,B.plan,B.seed);
   API.loadScenario(scn,B.seed);L35.begin();
@@ -362,6 +366,11 @@ function whyLines(){
   const S=SIM.S,L=L35.L,out=[];if(!L)return out;
   if(L.escaped)out.push('The freighter jumped at '+fmtClock(SIM.fn.byId('fl400').jumpT)+'.');
   if(L.alarmWhy==='jumpin')out.push('A wing dropped in inside their sensor ring. Phase 1 lasted '+Math.round(L.phaseT[1]||0)+' s.');
+  if(L.abort)out.push('You aborted at '+fmtClock(L.abortT)+'.');
+  if(L.exposure)out.push('The Firebrand Broadcast went out in the clear: the Hegemony heard your voice (Exposure).');
+  if(L.burned)out.push('The Agent aboard acted for you, and may be burned.');
+  if(L.pirated)out.push('The pirates left with '+L.pirated+' container'+(L.pirated>1?'s':'')+'.');
+  if(L.powLog.length)out.push('Powers used: '+L.powLog.map(p=>(L35.POWERS35[p.k]||{name:'Insist'}).name+' (Phase '+p.phase+')').join(', ')+'.'+(L.cpLost?' '+L.cpLost+' CP went unspent.':''));
   return out.length?out:['(The cause chain comes with phase P6 of the build.)'];
 }
 function planAgain(){
@@ -371,7 +380,8 @@ function planAgain(){
 }
 function record(){
   const S=SIM.S,L=L35.L;if(!S||!L)return null;
-  const rec={ruleset:'hc35',seed:B.seed,attempt:B.attempt,primary:L.plan.primary,outcome:S.over?S.over.outcome:'abandoned',t:+S.t.toFixed(2),phaseT:L.phaseT.slice()};
+  const rec={ruleset:'hc35',seed:B.seed,attempt:B.attempt,primary:L.plan.primary,outcome:S.over?S.over.outcome:'abandoned',t:+S.t.toFixed(2),phaseT:L.phaseT.slice(),
+    powers:L.powLog.slice(),cpUnspent:(L.cpLost||0)+L.cp,commsOff:!!L35.N.COMMS_OFF};
   B.metrics.push(rec);A.metrics.push(rec);
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   return rec;
@@ -383,6 +393,7 @@ function record(){
 const shipHidden=s=>B.screen==='brief'&&s.faction==='reb'&&!s.struct;   // in the plan view the markers stand in for your wings
 function drawBody(c,s,p,z,boost,view){
   if(shipHidden(s))return true;
+  if(s.prop35){drawProp(c,s,p,z,boost);return true;}
   if(s.cls==='fl400'){drawFreighter(c,s,p,z,boost,view);return true;}
   if(s.cls==='brickbat'){drawBrickbat(c,s,p,z,boost,view);return true;}
   return false;
@@ -412,6 +423,7 @@ function drawWorld(c,view,o){
   c.beginPath();c.arc(P.x,P.y,P.r-6/z,Math.PI*1.1,Math.PI*1.65);c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.stroke();
   c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();
   drawTarget(c,z,view,o);
+  if(!plan)drawPowers(c,z,view,o);
   if(plan||B.planOverlay)drawLane(c,z);
   if(!plan&&B.planOverlay)drawPlanLive(c,z);
   else{const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
@@ -423,7 +435,13 @@ function drawWorld(c,view,o){
     if(e==='N'){c.fillRect(Zn.x0,Zn.y0,Zn.x1-Zn.x0,g);c.strokeRect(Zn.x0,Zn.y0,Zn.x1-Zn.x0,g);}else if(e==='S'){c.fillRect(Zn.x0,Zn.y1-g,Zn.x1-Zn.x0,g);}
     c.restore();API.label(c,(Zn.x0+Zn.x1)/2,(e==='N'?Zn.y0+g/2:Zn.y1-g/2)+5/z,'RESPONSE',C.hegHi,z,11);
     // the relay, a cyan antenna
-    const rl=L.relay;if(rl){drawGlyphAt(c,rl.x,rl.y,'relay',C.shield,z);API.label(c,rl.x,rl.y+30/z,'HAVEN RELAY',C.shield,z,10);}
+    const rl=L.relay;if(rl&&!B.plan.assets.includes('relay')){drawGlyphAt(c,rl.x,rl.y,'relay',C.shield,z);API.label(c,rl.x,rl.y+30/z,'HAVEN RELAY',C.shield,z,10);}
+    // the placed assets (§4.3): each where you drag it, with its reach
+    for(const k of placedAssets()){const m=toWorld(L35.assetAt(B.plan,k)),hot=B.hover==='a:'+k||B.drag&&B.drag.id===k,col=k==='relay'?C.shield:C.gold;
+      const reach={fireship:L35.N.FIRE_R,mines:L35.N.MINE_RING,buoy:L35.N.INTERDICT_R,nuke:L35.N.NUKE_R}[k];
+      if(reach)API.ring(c,m.x,m.y,reach,TH.rgba(k==='buoy'||k==='nuke'?C.hazard:col,0.5),z,1.4,[6,7]);
+      c.save();c.beginPath();c.arc(m.x,m.y,(hot?17:15)/z,0,6.283);c.fillStyle=TH.rgba(C.ink,0.85);c.fill();c.lineWidth=2/z;c.strokeStyle=col;c.stroke();c.restore();
+      drawGlyphAt(c,m.x,m.y,k,col,z*1.25);API.label(c,m.x,m.y+30/z,L35.ASSETS[k].name.toUpperCase()+(k==='ram'||k==='nuke'?' · STAGING':''),col,z,10,'Bungee');}
     // jump-in markers and plan lines
     for(const w of L35.WINGS35){const pw=B.plan.wings[w.id];if(pw.role==='home')continue;
       const m=toWorld(pw.jumpIn),bad=inRing(pw.jumpIn),col=bad?C.heg:C.gold;
@@ -515,9 +533,13 @@ function planTarget(o,w){
   return best;
 }
 function diamond(c,x,y,r,col,hollow){c.save();c.translate(x,y);c.rotate(Math.PI/4);c.beginPath();c.rect(-r*0.7,-r*0.7,r*1.4,r*1.4);c.fillStyle=hollow?TH.rgba(col,0.2):col;c.fill();c.lineWidth=r*0.25;c.strokeStyle=C.ink;c.stroke();c.restore();}
-function drawGlyphAt(c,x,y,k,col,z){const g={relay:'M12 21V9M8 5a6 6 0 018 0M5 2a10 10 0 0114 0M10 9h4'}[k];const p=new Path2D(g),s=1.4/z;c.save();c.translate(x-12*s,y-12*s);c.scale(s,s);c.lineWidth=3.6;c.lineCap='round';c.strokeStyle=C.ink;c.stroke(p);c.lineWidth=2;c.strokeStyle=col;c.stroke(p);c.restore();}
+function drawGlyphAt(c,x,y,k,col,z){const p=new Path2D(pPath(k)),s=1.4/z;c.save();c.translate(x-12*s,y-12*s);c.scale(s,s);c.lineWidth=3.6;c.lineCap='round';c.strokeStyle=C.ink;c.stroke(p);c.lineWidth=2;c.strokeStyle=col;c.stroke(p);c.restore();}
 function drawScreen(c,view,o){
   const S=SIM.S,L=L35.L;if(!S||!L||B.screen!=='live')return;
+  // the Interdictor: a "NO JUMP" chip on every ship inside it
+  const I=L35.interdictOn();
+  if(I)for(const s of S.ships){if(!s.alive||s.struct||Math.hypot(s.x-I.x,s.y-I.y)>=L35.N.INTERDICT_R)continue;const q=API.toScreen(API.ipos(s).x,API.ipos(s).y);
+    c.save();c.font='800 10px "Exo 2",sans-serif';c.textAlign='center';const w=c.measureText('NO JUMP').width+10;c.fillStyle=C.ink;c.fillRect(q.x-w/2,q.y+20,w,15);c.strokeStyle=C.hazard;c.lineWidth=1.5;c.strokeRect(q.x-w/2,q.y+20,w,15);c.fillStyle=C.hazard;c.fillText('NO JUMP',q.x,q.y+31);c.restore();}
   // detection reads over each escort: a foe-blue "?" while it's rising
   if(L.phase===1&&L.detect>2)for(const e of S.ships)if(e.alive&&e.role35==='escort'){
     const near=S.ships.some(r=>r.alive&&r.faction==='reb'&&!r.struct&&Math.hypot(r.x-e.x,r.y-e.y)<L35.TUNE.DETECT_R.get());if(!near)continue;
@@ -528,17 +550,19 @@ function drawScreen(c,view,o){
 /* =====================================================================
    Input: plan-view markers, keys
    ===================================================================== */
+const placedAssets=()=>B.plan?B.plan.assets.filter(k=>L35.ASSETS[k]&&L35.ASSETS[k].placed):[];
 function markerAt(p){
   if(B.screen!=='brief'||B.step!==4)return null;
   let best=null,bd=18/cam.z;
   for(const w of L35.WINGS35){const pw=B.plan.wings[w.id];if(pw.role==='home')continue;const m=toWorld(pw.jumpIn),d=Math.hypot(m.x-p.x,m.y-p.y);if(d<bd){bd=d;best={type:'jumpIn',id:w.id};}}
+  for(const k of placedAssets()){const m=toWorld(L35.assetAt(B.plan,k)),d=Math.hypot(m.x-p.x,m.y-p.y);if(d<bd){bd=d;best={type:'asset',id:k};}}
   return best;
 }
 function pointer(kind,p,ev){
   if(B.screen==='brief'){
-    if(kind==='hover'){const m=markerAt(p),h=m?m.id:null;if(h!==B.hover){B.hover=h;STAGE.style.cursor=h?'grab':'';}return false;}
+    if(kind==='hover'){const m=markerAt(p),h=m?(m.type==='asset'?'a:':'')+m.id:null;if(h!==B.hover){B.hover=h;STAGE.style.cursor=h?'grab':'';}return false;}
     if(kind==='down'){if(ev.button!==0)return false;const m=markerAt(p);if(!m)return false;B.drag=m;STAGE.style.cursor='grabbing';return true;}
-    if(kind==='move'&&B.drag){B.plan.wings[B.drag.id].jumpIn=toLayout({x:p.x,y:p.y});return true;}
+    if(kind==='move'&&B.drag){if(B.drag.type==='asset')B.plan.assetAt[B.drag.id]=toLayout({x:p.x,y:p.y});else B.plan.wings[B.drag.id].jumpIn=toLayout({x:p.x,y:p.y});return true;}
     if(kind==='up'&&B.drag){B.drag=null;STAGE.style.cursor='';render();return true;}
   }
   return false;
@@ -547,6 +571,8 @@ function onKey(ev){
   if(B.screen==='off')return false;
   const k=ev.key;
   if(B.screen==='live'&&(k==='p'||k==='P')){ev.preventDefault();B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);return true;}
+  if(B.screen==='live'&&k==='Escape'&&(B.pick||B.choose||B.abortArm)){ev.preventDefault();B.pick=null;B.choose=null;B.abortArm=false;API.syncHud(true);return true;}
+  if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){const i=PKEYS.indexOf(k.toLowerCase());if(i>=0){const p=barPowers()[i];if(p){ev.preventDefault();startPower(p.k);return true;}}}
   if(B.screen==='board'||B.screen==='dossier'||B.screen==='debrief'||B.screen==='brief'){
     if(k==='Escape'&&B.screen==='dossier'){ev.preventDefault();showBoard(false);return true;}
     if(k==='Enter'&&B.screen==='board'){ev.preventDefault();B.screen='dossier';render();return true;}
@@ -624,13 +650,166 @@ ROOT.addEventListener('change',ev=>{
 });
 ROOT.addEventListener('input',ev=>{const el=ev.target;if(el.dataset.pres&&B.plan){B.plan.presHull=+el.value;const b=el.closest('label').querySelector('b');if(b)b.textContent=Math.round(B.plan.presHull*100)+'%';}});
 
+/* =====================================================================
+   P4: the powers bar (§7.4, High Command's skill icons), the comms queue above it, targeting, the CP pips
+   ===================================================================== */
+const PKEYS=['z','x','c','v','b','n','m',','];   // the powers, in bar order (Abort has none)
+const PGLYPH={go:'M6 21V4M6 4h11l-2 4 2 4H6',broadcast:'M4 10v4h3l5 4V6L7 10zM16 9a4 4 0 010 6M19 6a8 8 0 010 12',name:'M12 4a4 4 0 110 8 4 4 0 010-8zM5 20c1-4 4-6 7-6s6 2 7 6',
+  exec:'M5 5h14v14H5zM9 9h6M9 12h6M9 15h4',sleeper:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 110 6 3 3 0 010-6z'};
+const pPath=g=>PGLYPH[g]||ASSET_PATH[g]||API.GLYPH[g]||'M4 4h16v16H4z';
+const pSvg=(g,cls)=>'<svg class="hc-glyph'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+pPath(g)+'"/></svg>';
+const barPowers=()=>L35.L?L35.powers().filter(p=>p.k!=='abort'):[];
+function pickText(){
+  const P=B.pick&&L35.POWERS35[B.pick.k];if(!P)return '';
+  if(B.pick.stage==='focus')return 'Pick the target to focus · Esc to cancel';
+  return (P.target==='mine'?'Pick one of your ships':P.target==='foe'?'Pick an enemy'+(B.pick.k==='mark'||B.pick.k==='ram'?' or a freighter subsystem':''):'Pick a target')+' · Esc to cancel';
+}
+function cmdsHtml(){
+  const S=SIM.S,L=L35.L;if(!L||!S||B.screen!=='live')return '';
+  let h='';
+  if(B.pick)h+='<div class="hc-cmds__arm"><span class="sr-pill h35-pickpill">'+esc(pickText())+'</span><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelpick">Cancel</button></div>';
+  if(B.choose)h+='<div class="hc-cmds__arm h35-choose">'+chooseHtml()+'<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelpick">Cancel</button></div>';
+  const pb=L.pushback;
+  if(pb&&S.t<pb.until)h+='<div class="hc-cmds__arm"><span>'+esc((SIM.fn.wingOf(pb.wid)||{name:pb.wid}).name)+': "We\'re nearly there, Base."</span><button type="button" class="sr-btn sr-btn--sm" data-act="insist"'+(L.cp<L35.N.C_INSIST?' aria-disabled="true"':'')+'>Insist · '+L35.N.C_INSIST+' CP</button></div>';
+  // the comms queue: one slim row per transmission in flight; a delivered one flashes green, then drops out
+  if(L.tx.length)h+='<div class="h35-txq">'+L.tx.map(tx=>{const k=tx.landed!=null?1:tx.delay>0?Math.min(1,(S.t-tx.t0)/tx.delay):1,left=Math.max(0,tx.at-S.t);
+    return '<div class="h35-tx'+(tx.landed!=null?(tx.refused?' is-no':' is-in'):'')+'"><span class="h35-tx__to">→ '+esc(tx.label)+'</span><span class="h35-tx__what">'+esc(tx.what)+'</span><i><b style="width:'+Math.round(k*100)+'%"></b></i><em>'+(tx.landed!=null?(tx.refused?'refused':'in'):left.toFixed(1)+' s')+'</em></div>';}).join('')+'</div>';
+  h+='<div class="hc-cmds__list">'+barPowers().map((p,i)=>pBtn(p,PKEYS[i])).join('')+'</div>';
+  const ab=L35.powers().find(p=>p.k==='abort');
+  if(ab)h+='<button type="button" class="hc-cmd hc-cmd--abort'+(B.abortArm?' is-armed':'')+'" data-p35="abort" data-tip="p35:abort"'+(ab.why?' aria-disabled="true" data-why="'+esc(ab.why)+'"':'')+' aria-label="Abort">'+pSvg('close','hc-cmd__glyph')+'<span class="hc-free">free</span><span class="hc-cmd__name">'+(B.abortArm?'Confirm abort':'Abort')+'</span></button>';
+  return h;
+}
+function pBtn(p,key){
+  const armed=(B.pick&&B.pick.k===p.k)||(B.choose&&B.choose.k===p.k);
+  return '<button type="button" class="hc-cmd'+(armed?' is-armed':'')+'" data-p35="'+p.k+'" data-tip="p35:'+p.k+'"'+(p.why?' aria-disabled="true" data-why="'+esc(p.why)+'"':'')+' aria-label="'+esc(p.name)+'">'+
+    pSvg(p.glyph,'hc-cmd__glyph')+(p.cost?'<span class="hc-cmd__cost" aria-label="'+p.cost+' CP"><i></i><b>'+p.cost+'</b></span>':'<span class="hc-free">free</span>')+
+    '<span class="hc-cmd__name">'+esc(p.name)+'</span>'+(key?'<span class="h35-key">'+esc(key.toUpperCase())+'</span>':'')+'</button>';
+}
+/* the second step of a power: what to do (Call by Name, Wake the Sleeper), which wing and order (Change Executive), which reserve */
+function chooseHtml(){
+  const C=B.choose,L=L35.L,S=SIM.S,bt=(attr,txt,on)=>'<button type="button" class="sr-btn sr-btn--sm'+(on?' sr-btn--primary':'')+'" '+attr+'>'+esc(txt)+'</button>';
+  if(C.k==='exec'){
+    if(!C.args.wing)return '<span>Which wing?</span>'+S.wings.filter(w=>SIM.fn.wingShips(w).length).map(w=>bt('data-cwing="'+w.id+'"',w.name)).join('');
+    const w=SIM.fn.wingOf(C.args.wing);
+    if(!C.args.k)return '<span>'+esc(w.name)+':</span>'+L35.ORDER35_KEYS.map(k=>bt('data-corder="'+k+'"',L35.ORDERS35[k].name,L.exec[w.id]&&L.exec[w.id].k===k)).join('');
+    const O=L35.ORDERS35[C.args.k],opts=O.target==='sub'?O.subs:O.target==='what'?O.whats:O.target==='wing'?S.wings.filter(x=>x.id!==w.id).map(x=>x.id):[];
+    return '<span>'+esc(w.name)+' · '+esc(O.name)+':</span>'+opts.map(o=>bt('data-carg="'+o+'"',O.target==='wing'?SIM.fn.wingOf(o).name:o)).join('');
+  }
+  if(C.k==='reserve')return '<span>Which reserve?</span>'+L.X.reserves.filter(r=>!L.called[r.id]).map(r=>bt('data-cres="'+r.id+'"',r.name)).join('');
+  const P=L35.POWERS35[C.k];
+  return '<span>'+esc(C.args.ship?(SIM.fn.byId(C.args.ship)||{name:''}).name+':':P.name+':')+'</span>'+(P.choice||[]).map(a=>bt('data-cact="'+a+'"',L35.CHOICE_NAME[a])).join('');
+}
+function doUse(k,args){
+  const r=L35.use(k,args);
+  if(!r.ok)API.flash(r.why);
+  B.pick=null;B.choose=null;B.abortArm=false;API.syncHud(true);return r;
+}
+function startPower(k){
+  const L=L35.L,P=L35.POWERS35[k];if(!L||!P)return;
+  const why=L35.powerWhy(k);if(why){API.flash(P.name+': '+why);return;}
+  B.pick=null;B.choose=null;
+  if(k==='abort'){if(!B.abortArm){B.abortArm=true;API.syncHud(true);return;}doUse('abort',{});return;}
+  B.abortArm=false;
+  if(k==='exec'){B.choose={k,args:{}};API.syncHud(true);return;}
+  if(k==='reserve'){const left=L.X.reserves.filter(r=>!L.called[r.id]);if(left.length>1){B.choose={k,args:{}};API.syncHud(true);return;}doUse(k,{wing:left[0].id});return;}
+  if(P.target==='none'){if(P.choice){B.choose={k,args:{}};API.syncHud(true);return;}doUse(k,{});return;}
+  B.pick={k,stage:'target',args:{}};API.syncHud(true);
+}
+function cmdsClick(b){
+  const C=B.choose,a=b.dataset.act;
+  if(a==='cancelpick'){B.pick=null;B.choose=null;API.syncHud(true);return;}
+  if(a==='insist'){if(b.getAttribute('aria-disabled')==='true'){API.flash('Not enough command points');return;}doUse('insist',{});return;}
+  if(C&&b.dataset.cwing){C.args.wing=b.dataset.cwing;API.syncHud(true);return;}
+  if(C&&b.dataset.corder){C.args.k=b.dataset.corder;const O=L35.ORDERS35[C.args.k];if(!['sub','what','wing'].includes(O.target)){doUse('exec',C.args);return;}API.syncHud(true);return;}
+  if(C&&b.dataset.carg){C.args.arg=b.dataset.carg;doUse('exec',C.args);return;}
+  if(C&&b.dataset.cres){doUse('reserve',{wing:b.dataset.cres});return;}
+  if(C&&b.dataset.cact){C.args.act=b.dataset.cact;if(C.args.act==='focus'){B.pick={k:C.k,stage:'focus',args:C.args};B.choose=null;API.syncHud(true);return;}doUse(C.k,C.args);return;}
+  const k=b.dataset.p35;if(!k)return;
+  if(b.getAttribute('aria-disabled')==='true'){API.flash((L35.POWERS35[k]||{name:k}).name+': '+(b.dataset.why||'not now'));return;}
+  if(B.pick&&B.pick.k===k||B.choose&&B.choose.k===k){B.pick=null;B.choose=null;API.syncHud(true);return;}
+  startPower(k);
+}
+/* the freighter subsystem nearest a click on it (or null: the hull) */
+function subAt(fr,p){
+  const L=L35.L;let best=null,bd=Math.max(140,26/cam.z);
+  for(const sb of L.subs){if(sb.hp<=0||(sb.k==='cargo'&&sb.taken))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<bd){bd=d;best=sb;}}
+  return best?(best.k==='pd'?'turrets':best.k):null;
+}
+/* a click on the map while a power wants a target */
+function mapClick(p,ev,ship){
+  if(B.screen!=='live'||!B.pick)return false;
+  const k=B.pick.k,P=L35.POWERS35[k],args=B.pick.args,stage=B.pick.stage;
+  const want=stage==='focus'?'foe':P.target;
+  if(want==='mine'){
+    if(!ship||ship.faction!=='reb'||!ship.wing){API.flash('Pick one of your ships');return true;}
+    args.ship=ship.id;if(P.choice){B.pick=null;B.choose={k,args};API.syncHud(true);return true;}doUse(k,args);return true;}
+  if(want==='foe'){
+    if(!ship||ship.faction==='reb'){API.flash('Pick an enemy');return true;}
+    const sub=ship.id==='fl400'?subAt(ship,p):null;
+    if(stage==='focus'){args.target=ship.id;args.sub=sub;doUse(k,args);return true;}
+    args.id=ship.id;args.sub=sub;doUse(k,args);return true;}
+  return true;
+}
+function tipFor(key){
+  const [k,a]=String(key).split(':');if(k!=='p35')return null;
+  const P=L35.POWERS35[a];if(!P)return null;const c=P.cost(),why=L35.L?L35.powerWhy(a):null,i=barPowers().findIndex(x=>x.k===a);
+  return {name:P.name+' · '+(c?c+' CP':'free'),line:(typeof P.line==='function'?P.line():P.line)+(why?' Not now: '+why+'.':''),key:i>=0&&PKEYS[i]?PKEYS[i].toUpperCase():null};
+}
+/* the CP pips in the bar's title row, with when they refresh */
+function syncCp(){
+  const L=L35.L,el=byId('hcCp'),ti=byId('hcCmds').querySelector('.hc-cmds__title');
+  if(ti&&ti.textContent!=='Powers')ti.textContent='Powers';
+  if(!L||!el)return;
+  const max=L35.N['CP'+L.phase];let ph='';for(let i=0;i<Math.max(max,L.cp);i++)ph+='<i class="'+(i<L.cp?'is-on':'')+'"></i>';
+  const h='<span class="hc-cp__lbl">CP</span><span class="hc-cp__pips">'+ph+'</span><b>'+L.cp+' / '+max+'</b><span class="h35-cpnext">'+(L.phase<3?'refreshes at Phase '+(L.phase+1):'last phase')+'</span>';
+  if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
+}
+/* the world reads for the powers and comms (§7.5): transmissions as cyan rings, arrivals' warnings, the props */
+function drawPowers(c,z,view,o){
+  const S=SIM.S,L=L35.L,now=performance.now()/1000;
+  // each transmission: a thin cyan ring from the origin, reaching its recipient as it lands
+  for(const tx of L.tx){if(tx.landed!=null||!(tx.delay>0))continue;const d=Math.hypot(tx.p.x-tx.from.x,tx.p.y-tx.from.y),k=Math.min(1,(S.t-tx.t0)/tx.delay);
+    c.save();c.globalAlpha=0.55*(1-k*0.5);c.lineWidth=1.6/z;c.strokeStyle=C.shield;c.beginPath();c.arc(tx.from.x,tx.from.y,Math.max(1,d*k),0,6.283);c.stroke();c.restore();}
+  // the props: the fire ship (dark, unlit, a slow spin), the mines (blinking hazard dots), the buoy (and its ring while up)
+  const P=L.props;
+  if(P.fireship&&P.fireship.live){try{SA.ship(c,'graf',P.fireship.x,P.fireship.y,now*0.12,(0.7+0.09*7)*1.6*0.85*1.35*o.boost,now,{livery:'civ',sized:true,off:true,damage:0.4});}catch(e){}
+    API.label(c,P.fireship.x,P.fireship.y-90/z,'FIRE SHIP',C.hazard,z,10,'Bungee');}
+  if(P.mines&&P.mines.live)for(const [i,q] of P.mines.pts.entries()){const on=(Math.floor(now*2+i)%2)===0;c.save();c.beginPath();c.arc(q.x,q.y,(on?7:5)/z,0,6.283);c.fillStyle=on?C.hazard:TH.rgba(C.hazard,0.5);c.fill();c.lineWidth=1.5/z;c.strokeStyle=C.ink;c.stroke();c.restore();}
+  if(P.buoy){const b=P.buoy,I=L35.interdictOn();drawGlyphAt(c,b.x,b.y,'buoy',I?C.hazard:C.steel,z);
+    if(I){const u=(now%1.6)/1.6;API.ring(c,I.x,I.y,L35.N.INTERDICT_R,TH.rgba(C.hazard,0.75),z,2.2,[12,8]);c.save();c.globalAlpha=0.35*(1-u);c.lineWidth=3/z;c.strokeStyle=C.hazard;c.beginPath();c.arc(I.x,I.y,L35.N.INTERDICT_R*(0.92+0.08*u),0,6.283);c.stroke();c.restore();}}
+  // arrivals: a warning at the spot (a gold diamond for yours, hazard for the pirates), then the warp-in
+  for(const a of L.arrivals){
+    if(!a.done){const k=Math.min(1,(S.t-a.t0)/Math.max(0.01,a.t1-a.t0)),col=a.hazard?C.hazard:C.gold,pulse=1+0.15*Math.sin(now*8);
+      diamond(c,a.x,a.y,12*pulse/z,col,true);c.save();c.lineWidth=2.4/z;c.strokeStyle=col;c.beginPath();c.arc(a.x,a.y,26/z,-Math.PI/2,-Math.PI/2+k*6.283);c.stroke();c.restore();
+      API.label(c,a.x,a.y-34/z,ARRIVAL_NAME[a.k]+' · '+Math.max(0,a.t1-S.t).toFixed(1)+' S',col,z,10,'Bungee');}
+    else if(!a.fx&&FX){a.fx=true;for(const id of a.ships){const s=SIM.fn.byId(id);if(s)FX.event('warpIn',{ship:API.shipView(s,API.ipos(s),API.iconBoost())});}}}
+  // blasts: the fire ship and the nuke as a structure's explosion, the mines as missile hits
+  for(const b of L.blasts||[]){if(b.fx||!FX)continue;b.fx=true;FX.event(b.kind==='mine'?'missileHit':'explode',b.kind==='mine'?{x:b.x,y:b.y,size:3,iconBoost:o.boost}:{x:b.x,y:b.y,size:b.kind==='nuke'?14:9,struct:true,iconBoost:o.boost});if(b.kind!=='mine'&&FX.camShake)FX.camShake(view);}
+  // a marked target carries the gold lock mark while its focus lasts
+  const seen=new Set();
+  for(const wid in L.markW){const m=L.markW[wid];if(S.t>=m.until||seen.has(m.id+':'+m.sub))continue;seen.add(m.id+':'+m.sub);const t=SIM.fn.byId(m.id);if(!t||!t.alive)continue;
+    let q=API.ipos(t);if(t.id==='fl400'&&m.sub){const sb=L.subs.find(x=>x.k===(m.sub==='turrets'?'pd':m.sub)&&x.hp>0);if(sb)q=L35.fn.subWorld(t,sb);}
+    if(FX&&FX.lockMark)FX.lockMark(c,q.x,q.y,(t.id==='fl400'&&m.sub?60:90)*o.boost,1,{locked:true,flipAge:S.t-m.until+L35.N.MARK_SECS},view);}
+}
+const ARRIVAL_NAME={reserve:'RESERVES',ram:'RAM',tug:'TUG',pirates:'PIRATES'};
+/* the props the layer flies, drawn from the Brickbat: the ram (civilian, hazard chevrons on the nose), the tug, the pirates */
+function drawProp(c,s,p,z,boost){
+  const sc=(0.7+0.09*s.row.size)*1.6*0.85*1.35*boost,t=performance.now()/1000;
+  SA.ship(c,'brickbat',p.x,p.y,p.h,sc,t,{livery:s.prop35==='pirate'?'hunter':'civ',loadout:{attach:s.prop35==='pirate'&&s.load35==='pods'?['cargopod']:[]},damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull)});
+  if(s.prop35==='ram'){const ca=Math.cos(p.h),sa=Math.sin(p.h),r=26*boost;c.save();c.lineWidth=3/z;c.strokeStyle=C.hazard;
+    for(const o of [0.2,0.55]){const x=p.x+ca*r*(1-o),y=p.y+sa*r*(1-o);c.beginPath();c.moveTo(x-ca*8*boost-sa*10*boost,y-sa*8*boost+ca*10*boost);c.lineTo(x,y);c.lineTo(x-ca*8*boost+sa*10*boost,y-sa*8*boost-ca*10*boost);c.stroke();}c.restore();}
+  if(s.prop35==='pirate')API.ring(c,p.x,p.y,40*boost,TH.rgba(C.hazard,0.85),z,2,[5,4]);
+}
 /* ---------- the overlay High Command calls ---------- */
-const OV={home,onOver,record,drawBody,shipHidden,
+const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapClick,
+  pilotClick(s,b){if(b.dataset.act!=='callname')return false;if(b.getAttribute('aria-disabled')==='true'){API.flash('Call a Pilot by Name: '+(L35.powerWhy('name')||'not now'));return true;}
+    B.pick=null;B.choose={k:'name',args:{ship:s.id}};API.syncHud(true);return true;},
   orderChip(w){const L=L35.L,ex=L&&L.exec[w.id];if(!ex)return '';const O=L35.ORDERS35[ex.k];return 'EXEC · '+O.name+(ex.arg&&typeof ex.arg==='string'?' '+(L35.WINGS35.find(x=>x.id===ex.arg)||{name:ex.arg}).name:'');},
   tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>s.cls==='fl400'&&!s.jumped,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
   hudHidden:()=>B.screen!=='live'&&B.screen!=='debrief',
   syncHud(now){
     const L=L35.L;
+    if(B.screen==='live')syncCp();
     if(B.screen==='live'&&L&&L.phase!==B.lastPhase){B.lastPhase=L.phase;if(!B.planUser)B.planOverlay=L.phase===1;if(L.phase>1){banner('PHASE '+L.phase,L.phase===2?'They know we\'re here':'Hegemony on site');render();}}   // designer copy (C-78)
     if(B.screen==='live'&&B.banner&&now-B.banner.at>1400){B.banner=null;render();}},
   restart(same){if(same&&B.plan){planAgain();}else{B.seed=newSeed();rollAttempt();showBoard(false);}},

@@ -2260,5 +2260,5 @@ return {key:'hc',name:'Type 3: High Command',
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
     rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,rockHit,wdefOf,
-    presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
+    presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,addWing,mkShip,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
 })();

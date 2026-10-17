@@ -51,7 +51,17 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   AMBUSH_KILLS:3,                      // response ships an ambush must take
   INTIM_R:1900,                        // an intimidating wing orbits the freighter this wide
   HOLDOFF_R:3200,                      // a boarder or hauler waits this far off a freighter that isn't disabled yet
-  DISTRESS_SECS:20,RESPONSE_SECS:150,QUICK_SPOOL:60};   // the distress call, the response clock, Quick Jumper's spool
+  DISTRESS_SECS:20,RESPONSE_SECS:150,QUICK_SPOOL:60,   // the distress call, the response clock, Quick Jumper's spool
+  // comms (§5.4): delay = (COMMS_BASE + distance / COMMS_SPD + the leader's ACK) × ION_K under Ion Storm; COMMS_OFF 1: no delay
+  COMMS_BASE:2.5,COMMS_SPD:3000,ACK_GREEN:1.5,ACK_REG:1,ACK_VET:0.7,ION_K:2,ARRIVE_SPOOL:4,COMMS_OFF:0,
+  // command points (§5.5): this many at the start of each phase; what's left at a phase change is lost
+  CP1:2,CP2:3,CP3:3,
+  // what each power costs
+  C_BROADCAST:1,C_NAME:1,C_MARK:1,C_EXEC:2,C_INSIST:1,C_RESERVE:1,C_RAM:1,C_FIRE:1,C_MINES:1,C_BUOY:1,C_TUG:1,C_SPOOF:2,C_PIRATES:2,C_SLEEPER:1,
+  // what the powers do
+  BROADCAST_NERVE:25,BROADCAST_RES:25,REFUSE_P:0.5,MARK_SECS:20,NEARLY:0.2,
+  RAM_DMG:140,RAM_LIFE:40,NUKE_R:2200,NUKE_DMG:160,FIRE_R:1800,FIRE_DMG:110,MINE_N:8,MINE_RING:1100,MINE_R:700,MINE_DMG:55,
+  INTERDICT_R:5000,INTERDICT_SECS:30,SPOOF_SECS:25,PIRATE_N:3,PIRATE_GREED:0.4,PIRATE_SECS:120,TUG_R:500};
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
   FLANK_K:{get:()=>FLANK_K,set:v=>{FLANK_K=v;},min:1,max:3,step:0.1,label:'Alarmed speed ×',group:'Freighter'},
@@ -78,9 +88,20 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   DOCK_R:['Docking reach',200,3000,50,'Freighter'],DOCK_OFF:['Clamp off the spine',100,600,10,'Freighter'],BOARD35_SECS:['Boarding a ship (s)',5,120,1,'Freighter'],SCUTTLE_SECS:['Scuttle timer (s)',5,120,1,'Freighter'],
   PRIZE_SPD:['Prize speed home',20,600,10,'Freighter'],PRIZE_TURN:['Prize turn (rad/s)',0.02,1,0.01,'Freighter'],HAUL_SECS:['Seconds a container',1,60,1,'Freighter'],POD_CAP:['Containers a pod ship carries',1,6,1,'Freighter'],
   TAG_R:['Tag: within',200,3000,50,'Freighter'],TAG_SECS:['Tag: hold (s)',1,60,1,'Freighter'],AMBUSH_KILLS:['Ambush: kills to win',1,10,1,'Freighter'],INTIM_R:['Intimidate orbit',600,5000,50,'Freighter'],HOLDOFF_R:['Boarders hold off at',1000,8000,100,'Freighter'],
-  DISTRESS_SECS:['Distress call (s)',1,90,1,'Phases'],RESPONSE_SECS:['Response clock (s)',10,600,5,'Phases'],QUICK_SPOOL:['Quick Jumper spool (s)',5,180,5,'Phases']};
+  DISTRESS_SECS:['Distress call (s)',1,90,1,'Phases'],RESPONSE_SECS:['Response clock (s)',10,600,5,'Phases'],QUICK_SPOOL:['Quick Jumper spool (s)',5,180,5,'Phases'],
+  COMMS_OFF:['Comms delay off (1 = off)',0,1,1,'Comms'],COMMS_BASE:['Comms: base delay (s)',0,10,0.5,'Comms'],COMMS_SPD:['Comms: speed (units a second)',500,20000,100,'Comms'],
+  ACK_GREEN:['Ack: green leader (s)',0,5,0.1,'Comms'],ACK_REG:['Ack: regular leader (s)',0,5,0.1,'Comms'],ACK_VET:['Ack: veteran leader (s)',0,5,0.1,'Comms'],ION_K:['Ion Storm × delay',1,4,0.1,'Comms'],ARRIVE_SPOOL:['An asset\'s arrival (s)',0,20,0.5,'Comms'],
+  CP1:['CP in Phase 1',0,9,1,'Powers'],CP2:['CP in Phase 2',0,9,1,'Powers'],CP3:['CP in Phase 3',0,9,1,'Powers'],
+  C_BROADCAST:['Cost: Firebrand Broadcast',0,5,1,'Powers'],C_NAME:['Cost: Call a Pilot by Name',0,5,1,'Powers'],C_MARK:['Cost: Mark Priority Target',0,5,1,'Powers'],C_EXEC:['Cost: Change Executive Order',0,5,1,'Powers'],C_INSIST:['Cost: Insist',0,5,1,'Powers'],
+  C_RESERVE:['Cost: Call the Reserves',0,5,1,'Powers'],C_RAM:['Cost: Launch the Ram',0,5,1,'Powers'],C_FIRE:['Cost: Light the Fire Ship',0,5,1,'Powers'],C_MINES:['Cost: Detonate the Minefield',0,5,1,'Powers'],C_BUOY:['Cost: Raise the Interdictor',0,5,1,'Powers'],
+  C_TUG:['Cost: Send the Tug',0,5,1,'Powers'],C_SPOOF:['Cost: Spoof Orders',0,5,1,'Powers'],C_PIRATES:['Cost: Call the Pirates',0,5,1,'Powers'],C_SLEEPER:['Cost: Wake the Sleeper',0,5,1,'Powers'],
+  BROADCAST_NERVE:['Broadcast: nerve',0,60,1,'Powers'],BROADCAST_RES:['Broadcast: crew resolve lost',0,60,1,'Powers'],REFUSE_P:['A shaken pilot refuses (chance)',0,1,0.05,'Powers'],MARK_SECS:['Marked target: focus (s)',5,60,1,'Powers'],NEARLY:['"Nearly there" within',0,0.5,0.05,'Powers'],
+  RAM_DMG:['Ram damage',20,400,10,'Powers'],RAM_LIFE:['Ram: seconds to hit',5,120,5,'Powers'],NUKE_R:['Nuclear blast reach',500,5000,100,'Powers'],NUKE_DMG:['Nuclear blast damage',20,400,10,'Powers'],
+  FIRE_R:['Fire ship blast reach',300,4000,50,'Powers'],FIRE_DMG:['Fire ship blast damage',10,300,5,'Powers'],MINE_N:['Mines',1,16,1,'Powers'],MINE_RING:['Minefield ring',200,3000,50,'Powers'],MINE_R:['A mine\'s reach',100,2000,50,'Powers'],MINE_DMG:['A mine\'s damage',5,200,5,'Powers'],
+  INTERDICT_R:['Interdictor reach',1000,10000,100,'Powers'],INTERDICT_SECS:['Interdictor (s)',5,120,5,'Powers'],SPOOF_SECS:['Spoofed orders (s)',5,90,1,'Powers'],
+  PIRATE_N:['Pirates',1,6,1,'Powers'],PIRATE_GREED:['Pirates go for the cargo (chance)',0,1,0.05,'Powers'],PIRATE_SECS:['Pirates stay (s)',20,300,10,'Powers'],TUG_R:['Tug hooks on within',100,2000,50,'Powers']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
-const GROUPS35=['Opportunity','Freighter','Phases'];
+const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers'];
 
 /* =====================================================================
    The opportunity (§3.1): one type, as data
@@ -218,6 +239,9 @@ const ASSETS={
   pirates:{name:'Call the Pirates',power:'Call the Pirates',placed:false,line:'Black Market mercs. They hit the Hegemony; they may help themselves to the cargo.'},
 };
 let ASSET_SLOTS=3;
+/* where a placed asset starts in step 4 (layout units), until you drag it */
+const ASSET_AT={ram:{x:2000,y:1900},nuke:{x:2000,y:1900},fireship:{x:4700,y:2600},mines:{x:5700,y:2400},buoy:{x:6700,y:2150},relay:{x:1500,y:1900}};
+const assetAt=(plan,k)=>plan.assetAt&&plan.assetAt[k]||ASSET_AT[k]||null;
 /* the 3.5 orders (§4.4): each maps onto a High Command order where one exists; the rest are layer behaviours */
 const ORDERS35={
   disable:{name:'Disable',target:'sub',subs:['engines','comms','turrets']},
@@ -269,11 +293,11 @@ function compile(opp,mods,plan,seed){
   const lane=opp.lane.map(p=>p.slice());
   if(m('planet'))lane[1]=[lane[1][0],lane[1][1]+600];
   const h0=Math.atan2(lane[1][1]-lane[0][1],lane[1][0]-lane[0][0]);
-  const wings=[];
+  const wings=[],reserves=[];
   for(const w of WINGS35){
-    const pw=plan.wings[w.id];if(!pw||pw.role!=='strike')continue;
+    const pw=plan.wings[w.id];if(!pw||pw.role==='home')continue;
     const ji=pw.jumpIn||opp.jumpIn,face=Math.atan2(lane[1][1]-ji.y,lane[1][0]-ji.x);
-    wings.push({id:w.id,name:w.name,at:[ji.x,ji.y,face],leader:w.ships[0].id,order:execToHc(pw.exec,plan),tactic:'auto',
+    (pw.role==='strike'?wings:reserves).push({id:w.id,name:w.name,at:[ji.x,ji.y,face],leader:w.ships[0].id,order:execToHc(pw.exec,plan),tactic:'auto',
       ships:w.ships.map(sd=>Object.assign({},sd,{marines:pw.loadout[sd.id]==='board',load35:sd.cls==='brickbat'?(pw.loadout[sd.id]||'bombs'):null}))});
   }
   const esc=[];let en=0;
@@ -296,7 +320,7 @@ function compile(opp,mods,plan,seed){
     points,extract:'ourjump',
     objectives:[{id:'primary',kind:'hc35',text:P?P.name+': '+P.wins:'No primary',primary:true,key:plan.primary}],
     reinforce:{secs:1e9,edge:opp.response.edge,force:[]},rules:[],cp:0,
-    hc35plan:{opp:opp.id,mods:mods.map(x=>Object.assign({},x)),plan:JSON.parse(JSON.stringify(plan)),seed,lane}};
+    hc35plan:{opp:opp.id,mods:mods.map(x=>Object.assign({},x)),plan:JSON.parse(JSON.stringify(plan)),seed,lane,reserves}};   // reserves: in layout units, scaled when called
 }
 /* an Executive Order as the High Command order it rides on (the layer drives the rest) */
 function execToHc(ex,plan){
@@ -386,7 +410,7 @@ function begin(){
   const W=p=>({x:p[0]*k+Z.x0,y:p[1]*k+Z.y0});
   const m=key=>modOn(X.mods,key);
   L={S,X,opp,k,mods:X.mods,plan:X.plan,seed:X.seed,lane:X.lane.map(W),leg:1,W,
-    fjump:W(X.lane[X.lane.length-1]),relay:W([(X.plan.assetAt.relay||opp.relay).x,(X.plan.assetAt.relay||opp.relay).y]),
+    fjump:W(X.lane[X.lane.length-1]),relay:(()=>{const r=X.plan.assets.includes('relay')?assetAt(X.plan,'relay'):opp.relay;return W([r.x,r.y]);})(),   // the transmission origin
     phase:1,phaseT:[0,null,null],detect:0,alarm:false,alarmWhy:null,
     fr:'fl400',spool:null,spoolWhy:null,escaped:false,ended:false,disabled:false,drift:null,crashed:false,deadT:null,cause:[],m:{},prim:S.objectives[0],
     planet:{x:opp.planet.x*k+Z.x0,y:opp.planet.y*k+Z.y0,r:opp.planet.r*k,pull:opp.planet.pull*k},
@@ -396,7 +420,10 @@ function begin(){
     tag:{ship:X.plan.tagger,prog:0,planted:false},respKills:0,
     distress:null,responseAt:null,responded:false,exec:{},resHitT:{},escN:0,
     signal:!X.plan.roes.includes('signal'),signalT:null,sec:{},n0:{},off:{},offSecs:{},secLog:[],opt:X.plan.optionals.map(o=>({k:o.k,ship:o.ship,state:'live'})),
-    roe:k=>X.plan.roes.includes(k),briefedEsc:0,biggerT:null,stayIn:{},checkT:0};
+    roe:k=>X.plan.roes.includes(k),briefedEsc:0,biggerT:null,stayIn:{},checkT:0,
+    // P4: command points, transmissions in flight, arrivals, the powers' effects
+    cp:N.CP1,tx:[],txN:0,arrivals:[],powLog:[],used:{},sigW:{},markW:{},focus:{},pull:{},pushback:null,called:{},
+    interdict:null,abort:false,exposure:false,burned:false,beacon:true,pirated:0,props:{}};
   for(const wid in X.plan.wings){const pw=X.plan.wings[wid];L.exec[wid]=pw.exec?Object.assign({},pw.exec):null;L.sec[wid]=pw.second&&pw.second.trig?Object.assign({fired:false,noted:false,adopted:false},pw.second):null;}
   for(const w of S.wings){L.n0[w.id]=w.ships.length;L.offSecs[w.id]=0;w.rally={x:w.ships.map(F.byId).reduce((a,s)=>a+s.x,0)/w.ships.length,y:w.ships.map(F.byId).reduce((a,s)=>a+s.y,0)/w.ships.length};}
   const fr=FR();
@@ -406,10 +433,13 @@ function begin(){
     fr.vx=Math.cos(fr.h)*L.cruise;fr.vy=Math.sin(fr.h)*L.cruise;fr.subs35=L.subs;
     fr.abCd={};for(const a of Object.keys(SIM.ABILITIES))fr.abCd[a]=1e9;fr.chaffLeft=0;}   // a freighter has no pilot's tricks
   for(const e of R.enemies)if(e.role==='guard'&&e.asset==='fl400'){const s=F.byId(e.id);if(s){s.role35='escort';s.side35=e.side||0;}}
-  L.escN=S.ships.filter(s=>s.role35==='escort').length;
+  L.escN=S.ships.filter(s=>s.role35==='escort').length;L.escN0=L.escN;
   // the escort the Source briefed: what you'd expect without the hidden Heavy Escort or Ace Escort
   L.briefedEsc=L.escN-(modOn(L.mods,'heavy')&&!known(L.mods.find(x=>x.k==='heavy'))?L.escN/2:0)-(modOn(L.mods,'ace')&&!known(L.mods.find(x=>x.k==='ace'))?1:0);
   for(const s of S.ships)if(s.faction==='reb'&&!s.struct){const sd=findShipDef(s.id);s.load35=sd&&sd.load35||null;if(s.load35==='bombs')s.bombs=N.BOMB_N;if(s.load35==='pods')s.pods=[];}
+  // the placed assets that sit on the map from the start: the fire ship, the minefield, the buoy
+  for(const k of ['fireship','mines','buoy'])if(X.plan.assets.includes(k)){const a=assetAt(X.plan,k),p=W([a.x,a.y]);L.props[k]=Object.assign({k,live:true},p);
+    if(k==='mines'){L.props.mines.pts=[];for(let i=0;i<N.MINE_N;i++){const t=i/N.MINE_N*Math.PI*2;L.props.mines.pts.push({x:p.x+Math.cos(t)*N.MINE_RING,y:p.y+Math.sin(t)*N.MINE_RING});}}}
   // a jump-in inside an escort's ring is seen at once (§4.4)
   for(const w of S.wings){const c=F.wingCentre(w);if(S.ships.some(e=>e.role35==='escort'&&e.alive&&dist(e,c)<DETECT_WARP_R)){alarm('jumpin',w.name+' dropped in inside their sensor ring');break;}}
   return L;
@@ -423,6 +453,7 @@ function attach(){
   HK.event=(kind,text,o,e)=>{if(live())onEvent(kind,text,o,e);};
   HK.damage=(t,dmg,skip,front,hit)=>live()&&t.id===L.fr?damageFreighter(t,dmg,skip,front,hit):null;
   HK.canFire=(s,t,q)=>live()?canFire(s,t,q):true;
+  HK.canJump=s=>live()?canJump(s):true;
 }
 function detach(){for(const k of Object.keys(HK))delete HK[k];L=null;}
 
@@ -472,7 +503,8 @@ function canFire(s,t,q){
   if(t.id===L.fr&&(L.surrender||L.prize))return false;   // a surrendered ship or our prize: hold fire
   if(s.id===L.fr)return false;
   if(s.faction!=='reb')return true;
-  if(!L.signal&&!(SIM.S.t-s.hitT<3))return false;   // Hold for My Signal (unless fired on)
+  if(s.prop35==='ram'||s.prop35==='tug')return false;
+  if(s.wing&&!signalled(s.wing)&&!(SIM.S.t-s.hitT<3))return false;   // Hold for My Signal (unless fired on)
   if(t.id===L.fr&&L.roe('tight')&&!['engines','comms','turrets'].includes(s.sub35))return false;   // Weapons Tight: engines, comms, turrets only
   if(L.opt.some(o=>o.k==='bloodless')&&t.id!==L.fr&&t.hull/t.maxHull<0.3)return false;   // Bloodless: wound, don't kill (the primary comes first)
   return true;
@@ -480,6 +512,9 @@ function canFire(s,t,q){
 
 /* ---------- thinking: the freighter and its escorts here; your wings by their Executive Orders ---------- */
 function think(s){
+  if(s.prop35)return thinkProp(s);
+  if(s.towed35)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'under tow',hard:true});
+  if(s.faction==='heg'&&s.spoof35!=null&&SIM.S.t<s.spoof35)return setB(s,{kind:'waitpt',dest:s.spoofTo,why:'following spoofed orders'});
   if(s.role35==='freighter'){s.beh={kind:'freighter',why:L.prize?'the prize, crawling home':L.surrender?'hove to':L.disabled?'drifting, engines out':L.alarm?'running for its jump':'on its lane'};s.assess='';return true;}
   if(s.role35==='escort'&&!L.alarm){
     const fr=FR();if(!fr||!fr.alive)return false;
@@ -498,13 +533,20 @@ function thinkWing(s){
   if(!ex||!w)return false;
   // a pod ship with containers aboard takes them home once it's full or its haul is over
   if(s.pods&&s.pods.length&&(ex.k!=='haul'||s.pods.length>=N.POD_CAP))return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'carrying '+s.pods.length+' home',hard:true});
-  if(s.recall||s.panic||(s.beh&&s.beh.rule&&s.beh.rule!=='preservation35'))return false;   // High Command's own ladder outranks the plan
+  if(s.recall||s.panic||(s.beh&&s.beh.rule&&!/35$/.test(s.beh.rule)))return false;   // High Command's own ladder outranks the plan
+  // Call a Pilot by Name: Pull out
+  if(L.pull[s.id])return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'Base called me out',rule:'pull35',hard:true});
   // Preservation Order: under its hull threshold a ship withdraws and jumps out (a pilot you told to stay in, stays)
   if(L.roe('preservation')&&s.hull/s.maxHull<L.plan.presHull&&!L.stayIn[s.id])return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'Preservation Order',rule:'preservation35',hard:true});
   // the protected ship comes home before it's lost (Protect at all costs)
   const pro=L.opt.find(o=>o.k==='protect'&&o.ship===s.id);if(pro&&s.hull/s.maxHull<0.5)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'protected: pulling out',rule:'protect35',hard:true});
   // Hold for My Signal: in position and waiting; nobody fires (canFire) until it lands, or until fired on
-  if(!L.signal&&!(S.t-s.hitT<3)){const r=w.rally||F.wingCentre(w);return setB(s,{kind:'waitpt',dest:r,why:'waiting for your signal'});}
+  if(!signalled(s.wing)&&!(S.t-s.hitT<3)){const r=w.rally||F.wingCentre(w);return setB(s,{kind:'waitpt',dest:r,why:'waiting for your signal'});}
+  // Call a Pilot by Name: Focus [target]; Mark Priority Target: a wing with no Executive work goes for it
+  const fo=L.focus[s.id];
+  if(fo){const t=F.byId(fo.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender))){s.sub35=fo.sub||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'Base named my target',hard:true});}delete L.focus[s.id];}
+  const mk=L.markW[s.wing];
+  if(mk&&S.t<mk.until&&execState(s.wing)!=='busy'){const t=F.byId(mk.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender))){s.sub35=mk.sub||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'the marked target'});}}
   // Whale Hunt: once the freighter is disabled, everyone with nothing better to do goes for it
   if(L.roe('whale')&&L.disabled&&fr&&fr.alive&&!L.prize&&execState(s.wing)!=='busy'){w.order={kind:'attack',target:{type:'ship',id:L.fr}};s.sub35=s.load35==='bombs'?'core':null;return false;}
   const frLive=fr&&fr.alive&&!L.prize;
@@ -566,6 +608,7 @@ function goal(s){
   }
   if(s.role35==='escort'&&!L.alarm&&s.beh&&s.beh.kind==='patrol')return Object.assign(F.orbitGoal(s,s.beh.dest,ESCORT_ORBIT),{spd:F.CRUISE_()*0.8});
   const b=s.beh||{};
+  if(s.prop35&&(b.kind==='ram35'||b.kind==='tug35'||b.kind==='leave35'))return propGoal(s,b);
   if(b.kind==='docked'){const d=fr&&fr.alive?dockPoint(fr,s):s;s.holdFire=s.load35!=='board';return {x:d.x+Math.cos(fr?fr.h:s.h)*400,y:d.y+Math.sin(fr?fr.h:s.h)*400,spd:0};}
   if(b.kind==='dock35'&&fr){const d=dockPoint(fr,s);return {x:d.x,y:d.y,spd:dist(s,d)>2500?1:0.55,noCorner:true};}
   if(b.kind==='holdoff'&&fr)return Object.assign(F.orbitGoal(s,fr,N.HOLDOFF_R),{spd:F.CRUISE_()});
@@ -579,12 +622,13 @@ function alarm(why,text){
   if(L.alarm)return;
   L.alarm=true;L.alarmWhy=why;setPhase(2,text||'They know you\'re here');
   // the distress call goes out if the comms array is alive
-  if(subUp('comms'))L.distress={t0:SIM.S.t,landed:false,cut:false};
+  if(subUp('comms')&&L.beacon)L.distress={t0:SIM.S.t,landed:false,cut:false};
   if(modOn(L.mods,'quick')&&!L.disabled){const fr=FR();if(fr){L.spool=SIM.S.t;L.spoolWhy='quick';L.spoolAt={x:fr.x,y:fr.y};SIM.pushEvent('fjump','The freighter is spooling a jump where it is',{x:fr.x,y:fr.y,tone:'hazard'});}}
 }
 function setPhase(n,text){
   if(L.phase>=n)return;
   L.phase=n;L.phaseT[n-1]=SIM.S.t;if(n===3&&L.phaseT[1]==null)L.phaseT[1]=SIM.S.t;
+  L.cpLost=(L.cpLost||0)+L.cp;L.cp=N['CP'+n];   // a new phase, a fresh allowance: what was left is lost
   SIM.pushEvent('phase','Phase '+n+': '+(n===2?'engaged':'response')+(text?' · '+text:''),{tone:'hazard'});
 }
 function responseSecs(){let t=N.RESPONSE_SECS;if(modOn(L.mods,'rich'))t*=0.75;if(modOn(L.mods,'rapid'))t*=0.5;return t;}
@@ -594,6 +638,7 @@ function spawnResponse(){
   const cx=clamp(L.fjump.x,Z.x0+2000,Z.x1-2000);
   for(const f of R.force)for(let k=0;k<(f.n||1);k++){
     const at=R.edge==='N'?[cx+(i-(n-1)/2)*700,Z.y0-900,Math.PI/2]:[cx+(i-(n-1)/2)*700,Z.y1+900,-Math.PI/2];i++;
+    const I=interdictOn();if(I&&dist(I,{x:at[0],y:at[1]})<N.INTERDICT_R){const a=Math.atan2(at[1]-I.y,at[0]-I.x)||-Math.PI/2;at[0]=I.x+Math.cos(a)*N.INTERDICT_R;at[1]=I.y+Math.sin(a)*N.INTERDICT_R;}   // dropped at the Interdictor's edge
     const out=F.spawnEnemies(Object.assign({},f,{n:1,at,role:'hunt',grp,name:(f.name||'Response')+' '+i}),()=>++S.eN);
     for(const s of out){s.role35='response';s.thinkT=F.THINK_SECS_();}
   }
@@ -606,6 +651,8 @@ function step(dt){
   const S=SIM.S,fr=FR();
   if(fr&&fr.alive)stepFreighter(fr,dt);
   if(fr&&!fr.alive&&L.deadT==null&&!fr.jumped){L.deadT=S.t;L.deadPose={x:fr.x,y:fr.y,h:fr.h,lost:cargoLost()};}
+  txTick();arrivalTick();propTick(dt);
+  if(L.interdict&&!L.interdict.over&&S.t>=L.interdict.until){L.interdict.over=true;SIM.pushEvent('power','The Interdictor is down',{x:L.interdict.x,y:L.interdict.y,tone:'info'});}
   pdTick(fr,dt);bombTick(fr,dt);dockTick(fr,dt);
   for(const s of S.ships)if(s.role35==='response'&&!s.alive&&!s.jumped)countKill(s);
   // escorts lost shake the crew
@@ -711,6 +758,9 @@ function offPlanTick(dt){
     if(ws.some(s=>s.panic))why='panic';
     else if(ws.some(s=>s.beh&&s.beh.rule==='preservation35'))why='Preservation';
     else if(ws.some(s=>s.beh&&s.beh.rule==='protect35'))why='protecting';
+    else if(ws.some(s=>s.beh&&s.beh.rule==='pull35'))why='called out by name';
+    else if(ws.some(s=>L.focus[s.id]&&s.beh&&s.beh.kind==='engage'))why='a named target';
+    else if(L.markW[w.id]&&SIM.S.t<L.markW[w.id].until&&ws.some(s=>s.beh&&s.beh.why==='the marked target'))why='the marked target';
     else if(ws.some(s=>s.beh&&s.beh.rule))why='a rule';
     else if(ws.some(s=>s.req35))why=ws.find(s=>s.req35).req35;
     else if(sec&&sec.adopted)why='Secondary: '+ORDERS35[sec.k].name;
@@ -872,9 +922,9 @@ function primaryTick(fr){
   else if(k==='steal'){done=!!L.prizeHome;fail=dead||L.escaped;}
   else if(k==='pirate'){done=!!L.transferred;fail=dead||L.escaped||(modOn(L.mods,'fanatical')&&L.resolve<=0);}
   else if(k==='strip'){
-    const home=S.ships.filter(s=>s.jumped&&s.pods&&s.pods.length).reduce((a,s)=>a+s.pods.length,0);L.hauled=home;
-    const carriers=S.ships.filter(s=>s.alive&&s.pods&&s.pods.length);
-    done=home>0&&(gone||!carriers.length);fail=home===0&&(gone||(!S.ships.some(s=>s.alive&&s.load35==='pods')));}
+    const home=S.ships.filter(s=>s.jumped&&!s.prop35&&s.pods&&s.pods.length).reduce((a,s)=>a+s.pods.length,0);L.hauled=home;
+    const carriers=S.ships.filter(s=>s.alive&&!s.prop35&&s.pods&&s.pods.length);
+    done=home>0&&(gone||!carriers.length);fail=home===0&&(gone||(!S.ships.some(s=>s.alive&&!s.prop35&&s.load35==='pods')));}
   else if(k==='tag'){done=L.escaped&&L.tag.planted;fail=dead||(L.escaped&&!L.tag.planted);}
   else if(k==='ambush'){done=L.respKills>=N.AMBUSH_KILLS;fail=(gone&&!L.responseAt&&!L.responded&&!(L.distress&&!L.distress.landed&&!L.distress.cut))||modOn(L.mods,'remote');}
   if(done){o.state='done';o.doneT=S.t;SIM.pushEvent('objective',PRIMARIES[k].name+': done',{tone:'good',x:fr?fr.x:null,y:fr?fr.y:null});}
@@ -884,8 +934,323 @@ function primaryTick(fr){
     for(const w of S.wings){L.exec[w.id]={k:'withdraw',arg:null};w.order={kind:'withdraw'};for(const s of F.wingShips(w)){s.dock35=null;s.thinkT=F.THINK_SECS_();}}
   }
 }
+/* =====================================================================
+   P4: the comms delay (§5.4) and the commander powers (§5.5)
+   Every power is a transmission: queued, it lands after (COMMS_BASE + distance / COMMS_SPD + the recipient's ACK) ×
+   ION_K under Ion Storm, from the relay (the map's west edge, or the Comms Relay asset). An asset then takes
+   ARRIVE_SPOOL to warp in. A transmission can't be recalled. Command points are a phase's allowance (CP1–3)
+   ===================================================================== */
+const signalled=wid=>L.signal||!!L.sigW[wid];
+const interdictOn=()=>L&&L.interdict&&SIM.S.t<L.interdict.until?L.interdict:null;
+function canJump(s){const I=interdictOn();return !(I&&dist(s,I)<N.INTERDICT_R);}
+/* a pilot's acknowledgement: a green leader is slow to answer, a veteran quick */
+function ackOf(s){
+  const p=s&&s.pilot;if(!p)return N.ACK_REG;
+  const lv=p.preset==='green'?1:p.preset==='veteran'||p.preset==='ace'?5:p.level||3;
+  return lv<=2?N.ACK_GREEN:lv>=5?N.ACK_VET:N.ACK_REG;
+}
+function commsDelay(p,ack){
+  if(N.COMMS_OFF)return 0;
+  return (N.COMMS_BASE+dist(L.relay,p)/N.COMMS_SPD+ack)*(modOn(L.mods,'ion')?N.ION_K:1);
+}
+/* who a transmission goes to: a wing (its leader answers), one ship, or a place (an asset's spot, the freighter) */
+function recipient(to){
+  if(to.wing){const w=F.wingOf(to.wing),ls=w?F.wingShips(w):[],lead=ls.find(x=>x.id===w.leader)||ls[0];return lead?{p:F.wingCentre(w),ack:ackOf(lead),label:w.name}:null;}
+  if(to.ship){const s=F.byId(to.ship);return s&&s.alive?{p:{x:s.x,y:s.y},ack:ackOf(s),label:s.name}:null;}
+  if(to.at)return {p:to.at,ack:to.ack!=null?to.ack:N.ACK_REG,label:to.label||'the asset'};
+  return null;
+}
+function send(k,to,what,args){
+  const r=recipient(to);if(!r)return null;
+  const S=SIM.S,d=commsDelay(r.p,r.ack);
+  const tx={id:++L.txN,k,to,what,args:args||{},label:r.label,t0:S.t,at:S.t+d,delay:d,from:{x:L.relay.x,y:L.relay.y},p:{x:r.p.x,y:r.p.y},landed:null,refused:false};
+  L.tx.push(tx);(L.txLog||(L.txLog=[])).push(tx);return tx;
+}
+function txTick(){
+  const S=SIM.S;
+  for(const tx of L.tx){if(tx.landed!=null||S.t<tx.at-1e-9)continue;tx.landed=S.t;land(tx);}
+  L.tx=L.tx.filter(tx=>tx.landed==null||S.t-tx.landed<1.2);   // a delivered row flashes, then drops out
+}
+const leadOf=wid=>{const w=F.wingOf(wid),ls=w?F.wingShips(w):[];return ls.find(x=>x.id===w.leader)||ls[0]||null;};
+const ack=(s,line,tone)=>{if(s)F.say(s,line||'Copy, Base.',tone||'info',true);};   // designer copy (C-78)
+const fieldWings=()=>SIM.S.wings.filter(w=>F.wingShips(w).length);
+const rethink=ships=>{for(const s of ships)s.thinkT=F.THINK_SECS_();};
+/* the powers, in bar order (Abort is pinned last, in the title row) */
+const POWERS35={
+  signal:{name:'Give the Signal',cost:()=>0,target:'none',glyph:'go',line:'Every waiting wing goes; Phase 2 begins. Once.'},
+  retreat:{name:'General Retreat',cost:()=>0,target:'none',glyph:'withdraw',line:'Every wing withdraws to our jump point.'},
+  broadcast:{name:'Firebrand Broadcast',cost:()=>N.C_BROADCAST,target:'none',glyph:'broadcast',once:true,line:()=>'All your pilots +'+N.BROADCAST_NERVE+' nerve; the crew\'s resolve −'+N.BROADCAST_RES+'. The debrief notes the exposure. Once.'},
+  name:{name:'Call a Pilot by Name',cost:()=>N.C_NAME,target:'mine',glyph:'name',choice:['pull','stay','focus'],line:'Pick one of your pilots, then Pull out, Stay in or Focus a target. A shaken pilot may refuse.'},
+  mark:{name:'Mark Priority Target',cost:()=>N.C_MARK,target:'foe',glyph:'attack',line:()=>'Click an enemy or a freighter subsystem: ships with no Executive work focus it for '+N.MARK_SECS+' s.'},
+  exec:{name:'Change Executive Order',cost:()=>N.C_EXEC,target:'wing',glyph:'exec',line:()=>'A wing\'s new Executive Order. A leader within '+Math.round(N.NEARLY*100)+'% of finishing pushes back; Insist costs '+N.C_INSIST+' more.'},
+  reserve:{name:'Call the Reserves',cost:()=>N.C_RESERVE,target:'none',glyph:'escort',line:'A Reserve wing warps in at its jump-in point.'},
+  ram:{name:'Launch the Ram',cost:()=>N.C_RAM,target:'foe',glyph:'ram',asset:['ram','nuke'],once:true,line:()=>L&&L.plan.assets.includes('nuke')?'The nuclear-tipped ram warps in at its staging point and drives at what you click. Its blast hits everything near it, friends and cargo included.':'The ram warps in at its staging point and drives at what you click.'},
+  fireship:{name:'Light the Fire Ship',cost:()=>N.C_FIRE,target:'none',glyph:'fireship',asset:['fireship'],once:true,line:()=>'The derelict blows: '+N.FIRE_DMG+' damage within '+N.FIRE_R+'.'},
+  mines:{name:'Detonate the Minefield',cost:()=>N.C_MINES,target:'none',glyph:'mines',asset:['mines'],once:true,line:()=>'Every mine blows: '+N.MINE_DMG+' to anything within '+N.MINE_R+' of one.'},
+  buoy:{name:'Raise the Interdictor',cost:()=>N.C_BUOY,target:'none',glyph:'buoy',asset:['buoy'],once:true,line:()=>'No ship within '+N.INTERDICT_R+' can jump for '+N.INTERDICT_SECS+' s, yours included. The response drops at its edge.'},
+  tug:{name:'Send the Tug',cost:()=>N.C_TUG,target:'mine',glyph:'tug',asset:['tug'],once:true,line:'The tug warps in and tows one of your ships out (or picks up a pod).'},
+  spoof:{name:'Spoof Orders',cost:()=>N.C_SPOOF,target:'foe',glyph:'spoof',asset:['spoof'],once:true,line:()=>'An enemy group you click breaks off to the map edge for '+N.SPOOF_SECS+' s, then realises. Once.'},
+  pirates:{name:'Call the Pirates',cost:()=>N.C_PIRATES,target:'none',glyph:'pirates',asset:['pirates'],once:true,line:()=>N.PIRATE_N+' pirate Brickbats warp in at the nearest edge and hit the Hegemony; '+Math.round(N.PIRATE_GREED*100)+'% of the time they go for the cargo instead.'},
+  sleeper:{name:'Wake the Sleeper',cost:()=>N.C_SLEEPER,target:'none',glyph:'sleeper',choice:['engines','beacon','hatch'],once:true,line:'Your agent aboard: cut the engines, kill the beacon, or open the hatch (boarding × 2). Once; the agent may be burned.'},
+  abort:{name:'Abort',cost:()=>0,target:'none',glyph:'close',line:'Every wing withdraws; the mission ends as the last ship jumps, and the debrief says Aborted.'},
+};
+const POWER_KEYS=Object.keys(POWERS35);
+const CHOICE_NAME={pull:'Pull out',stay:'Stay in',focus:'Focus a target',engines:'Cut the engines',beacon:'Kill the beacon',hatch:'Open the hatch'};
+const reservesLeft=()=>L.X.reserves.filter(r=>!L.called[r.id]);
+/* the bar shows a power when the plan has its source */
+function powerHas(k){
+  const P=POWERS35[k];if(!P||!L)return false;
+  if(P.asset)return P.asset.some(a=>L.plan.assets.includes(a));
+  if(k==='signal')return L.roe('signal');
+  if(k==='reserve')return L.X.reserves.length>0;
+  if(k==='sleeper')return L.mods.some(m=>m.k==='insider'&&known(m));
+  return true;
+}
+/* why a power can't be used now (null: it can) */
+function powerWhy(k){
+  const S=SIM.S,P=POWERS35[k];if(!L||!S)return 'no mission';
+  if(S.over)return 'the mission is over';
+  if(!powerHas(k))return 'not in this plan';
+  if(P.once&&L.used[k])return 'used';
+  if(k==='signal'&&(L.signal||L.signalSent))return 'already given';
+  if(k==='abort'&&L.abort)return 'already aborting';
+  if(k==='reserve'&&!reservesLeft().length)return 'no reserves left';
+  if((k==='fireship'||k==='mines')&&!(L.props[k]&&L.props[k].live))return 'gone';
+  if(k==='sleeper'&&!(FR()&&FR().alive))return 'the freighter is gone';
+  if(P.cost()>L.cp)return 'not enough command points';
+  return null;
+}
+/* the edge point nearest a place: where the tug and the pirates come in */
+function edgeNear(p){
+  const Z=SIM.zone,c=[{x:Z.x0-600,y:p.y},{x:Z.x1+600,y:p.y},{x:p.x,y:Z.y0-600},{x:p.x,y:Z.y1+600}];
+  return c.reduce((b,q)=>dist(q,p)<dist(b,p)?q:b,c[0]);
+}
+/* a power used: spend, log, transmit. args: {ship}, {wing,k,arg}, {id,sub}, {act}, {target,sub} */
+function use(k,args){
+  args=args||{};
+  if(k==='insist')return insist();
+  const S=SIM.S,P=POWERS35[k];if(!P)return {ok:false,why:'no such power'};
+  const why=powerWhy(k);if(why)return {ok:false,why};
+  const fr=FR();
+  // the target, checked before anything is spent
+  if(P.target==='mine'){const s=F.byId(args.ship);if(!s||!s.alive||s.faction!=='reb'||!s.wing)return {ok:false,why:'pick one of your ships'};}
+  if(P.target==='foe'){const t=F.byId(args.id);if(!t||!t.alive||t.faction==='reb')return {ok:false,why:'pick an enemy'};}
+  if(P.target==='wing'){if(!F.wingOf(args.wing)||!F.wingShips(F.wingOf(args.wing)).length)return {ok:false,why:'pick one of your wings'};if(!ORDERS35[args.k])return {ok:false,why:'pick an order'};}
+  if(P.choice&&!P.choice.includes(args.act))return {ok:false,why:'pick what to do'};
+  if(k==='name'&&args.act==='focus'){const t=F.byId(args.target);if(!t||!t.alive||t.faction==='reb')return {ok:false,why:'pick the target to focus'};}
+  L.cp-=P.cost();L.used[k]=(L.used[k]||0)+1;
+  L.powLog.push({k,t:+S.t.toFixed(2),phase:L.phase,cost:P.cost(),act:args.act||args.k||null});
+  const txs=[],W=L.W;
+  const allWings=what=>{for(const w of fieldWings()){const t=send(k,{wing:w.id},what,args);if(t)txs.push(t);}};
+  switch(k){
+    case 'signal':L.signalSent=true;allWings('Give the Signal');break;
+    case 'retreat':allWings('General Retreat');break;
+    case 'abort':L.abort=true;L.abortT=S.t;allWings('Abort');break;
+    case 'broadcast':L.exposure=true;allWings('Firebrand Broadcast');if(fr&&fr.alive)txs.push(send(k,{at:{x:fr.x,y:fr.y},label:'the freighter'},'Firebrand Broadcast',{crew:true}));break;
+    case 'name':txs.push(send(k,{ship:args.ship},CHOICE_NAME[args.act],args));break;
+    case 'mark':allWings('Mark '+(F.byId(args.id).name||'the target')+(args.sub?' ('+SUB_NAME[subKey(args.sub)]+')':''));break;
+    case 'exec':txs.push(send(k,{wing:args.wing},'Exec: '+ORDERS35[args.k].name,args));break;
+    case 'reserve':{const r=reservesLeft().find(x=>x.id===args.wing)||reservesLeft()[0];L.called[r.id]=true;const p=W([r.at[0],r.at[1]]);
+      const sd=r.ships[0],lead={pilot:F.presetPilot(sd.pilot,sd.name)};txs.push(send(k,{at:p,label:r.name,ack:ackOf(lead)},'Call the Reserves',{wing:r.id}));break;}
+    case 'ram':{const a=L.plan.assets.includes('nuke')?'nuke':'ram',at=assetAt(L.plan,a);txs.push(send(k,{at:W([at.x,at.y]),label:'the ram'},'Launch the Ram',{id:args.id,sub:args.sub||null,nuke:a==='nuke'}));break;}
+    case 'fireship':case 'mines':case 'buoy':{const p=L.props[k];txs.push(send(k,{at:{x:p.x,y:p.y},label:ASSETS[k].name.toLowerCase()},P.name));break;}
+    case 'tug':{const s=F.byId(args.ship);txs.push(send(k,{at:edgeNear(s),label:'the tug'},'Send the Tug: '+s.name,{ship:s.id}));break;}
+    case 'spoof':{const t=F.byId(args.id),ids=groupOf(t).map(x=>x.id);txs.push(send(k,{at:{x:t.x,y:t.y},label:'their '+(t.role35==='escort'?'escort':t.role35==='response'?'response':'squadron')},'Spoof Orders',{ids}));break;}
+    case 'pirates':{const p=fr?{x:fr.x,y:fr.y}:L.fjump;txs.push(send(k,{at:edgeNear(p),label:'the pirates'},'Call the Pirates'));break;}
+    case 'sleeper':txs.push(send(k,{at:fr?{x:fr.x,y:fr.y}:L.fjump,label:'the Agent'},'Wake the Sleeper: '+CHOICE_NAME[args.act],{act:args.act}));break;
+  }
+  SIM.pushEvent('power','Base: '+P.name+(args.act?' · '+CHOICE_NAME[args.act]:'')+(k==='exec'?' · '+ORDERS35[args.k].name:''),{tone:'info'});
+  return {ok:true,tx:txs.filter(Boolean)};
+}
+/* Insist: a leader who pushed back on a new Executive Order is made to take it */
+function insist(){
+  const S=SIM.S,pb=L.pushback;
+  if(!pb||S.t>pb.until)return {ok:false,why:'nobody to insist with'};
+  if(N.C_INSIST>L.cp)return {ok:false,why:'not enough command points'};
+  L.cp-=N.C_INSIST;L.pushback=null;L.powLog.push({k:'insist',t:+S.t.toFixed(2),phase:L.phase,cost:N.C_INSIST,act:pb.k});
+  const t=send('exec',{wing:pb.wid},'Insist: '+ORDERS35[pb.k].name,{wing:pb.wid,k:pb.k,arg:pb.arg,insist:true});
+  return {ok:!!t,tx:[t]};
+}
+/* an enemy group for Spoof Orders: the escort, the response, else its squadron */
+function groupOf(t){const S=SIM.S;return S.ships.filter(s=>s.alive&&s.faction==='heg'&&s.id!==L.fr&&(t.role35?s.role35===t.role35:s.grp===t.grp));}
+/* how far along a wing's Executive Order is, 0–1 (for "We're nearly there, Base") */
+function progressOf(wid){
+  const ex=L.exec[wid],fr=FR(),S=SIM.S;if(!ex||!fr)return 0;
+  switch(ex.k){
+    case 'disable':{const l=L.subs.filter(x=>x.k===subKey(ex.arg||'engines'));return 1-l.reduce((a,x)=>a+Math.max(0,x.hp),0)/Math.max(1,l.reduce((a,x)=>a+x.max,0));}
+    case 'destroy':return 1-Math.max(0,fr.hull)/fr.maxHull;
+    case 'board':return L.board;
+    case 'haul':{const p=S.ships.filter(s=>s.wing===wid&&s.load35==='pods');return p.length?p.reduce((a,s)=>a+(s.pods?s.pods.length:0),0)/(p.length*N.POD_CAP):0;}
+    case 'suppress':return ex.arg==='turrets'?L.subs.filter(x=>x.k==='pd'&&x.hp<=0).length/4:1-S.ships.filter(s=>s.alive&&s.role35==='escort').length/Math.max(1,L.escN0);
+    case 'intimidate':return 1-L.resolve/N.RESOLVE_START;
+    case 'tag':return L.tag.prog/N.TAG_SECS;
+  }
+  return 0;
+}
+/* a transmission lands */
+function land(tx){
+  const S=SIM.S,a=tx.args,wid=tx.to.wing,w=wid?F.wingOf(wid):null,ws=w?F.wingShips(w):[],lead=wid?leadOf(wid):null,fr=FR();
+  switch(tx.k){
+    case 'signal':
+      L.sigW[wid]=true;rethink(ws);ack(lead,'Copy, Base. Going in.','good');
+      if(L.signalT==null){L.signalT=S.t;alarm('signal','Your signal');}
+      if(fieldWings().every(x=>L.sigW[x.id]))L.signal=true;
+      break;
+    case 'retreat':case 'abort':
+      L.exec[wid]={k:'withdraw',arg:null};if(L.sec[wid])L.sec[wid].adopted=L.sec[wid].adopted||S.t;
+      if(w)w.order={kind:'withdraw'};for(const s of ws){s.dock35=null;}rethink(ws);ack(lead,'Copy, Base. Heading home.');
+      break;
+    case 'broadcast':
+      if(a.crew){L.resolve=Math.max(0,L.resolve-N.BROADCAST_RES);L.exposure=true;SIM.pushEvent('power','The broadcast reaches the freighter\'s crew',{x:tx.p.x,y:tx.p.y,tone:'good'});}
+      else{for(const s of ws)F.adjCool(s,N.BROADCAST_NERVE);ack(lead,'You heard the lady. Let\'s go!','good');}
+      break;
+    case 'name':{
+      const s=F.byId(a.ship);if(!s||!s.alive)break;const m=SIM.moraleOf(s);
+      if((m==='SHAKEN'||m==='PANICKED')&&S.rng()<N.REFUSE_P){tx.refused=true;F.say(s,'I can\'t, Base. Not now.','hazard',true);SIM.pushEvent('power',s.name+' won\'t: '+CHOICE_NAME[a.act],{ship:s.id,x:s.x,y:s.y,tone:'hazard'});break;}
+      if(a.act==='pull'){L.pull[s.id]=true;delete L.stayIn[s.id];delete L.focus[s.id];}
+      else if(a.act==='stay'){L.stayIn[s.id]=true;delete L.pull[s.id];}
+      else if(a.act==='focus'){L.focus[s.id]={id:a.target,sub:a.sub||null};delete L.pull[s.id];}
+      rethink([s]);ack(s,a.act==='pull'?'Copy, pulling out.':a.act==='stay'?'Copy, Base. I\'m staying.':'Copy. On it.');
+      break;}
+    case 'mark':L.markW[wid]={id:a.id,sub:a.sub||null,until:S.t+N.MARK_SECS};rethink(ws);ack(lead);break;
+    case 'exec':{
+      if(!w||!ws.length)break;
+      if(!a.insist&&execState(wid)==='busy'&&progressOf(wid)>=1-N.NEARLY){tx.refused=true;L.pushback={wid,k:a.k,arg:a.arg||null,t:S.t,until:S.t+15};
+        ack(lead,'We\'re nearly there, Base.','hazard');SIM.pushEvent('power',w.name+' pushes back: nearly done with '+ORDERS35[L.exec[wid].k].name,{x:lead.x,y:lead.y,tone:'hazard'});break;}
+      L.exec[wid]={k:a.k,arg:a.arg||null};if(L.sec[wid]&&L.sec[wid].adopted)L.sec[wid]=null;if(L.pushback&&L.pushback.wid===wid)L.pushback=null;
+      w.order=execToHc(L.exec[wid],L.plan);for(const s of ws)s.dock35=s.dock35&&(a.k==='board'||a.k==='haul')?s.dock35:null;rethink(ws);ack(lead);
+      SIM.pushEvent('plan',w.name+': new Executive Order · '+ORDERS35[a.k].name+secArg(L.exec[wid]),{x:lead.x,y:lead.y,tone:'info'});
+      break;}
+    case 'reserve':case 'ram':case 'tug':case 'pirates':arrive(tx.k,tx.p,a);break;
+    case 'fireship':{const p=L.props.fireship;if(!p||!p.live)break;p.live=false;blast(p,N.FIRE_R,N.FIRE_DMG,'fire',null);SIM.pushEvent('power','The fire ship goes up',{x:p.x,y:p.y,tone:'good'});break;}
+    case 'mines':{const p=L.props.mines;if(!p||!p.live)break;p.live=false;for(const q of p.pts)blast(q,N.MINE_R,N.MINE_DMG,'mine',null);SIM.pushEvent('power','The minefield blows',{x:p.x,y:p.y,tone:'good'});break;}
+    case 'buoy':{const p=L.props.buoy;if(!p)break;L.interdict={x:p.x,y:p.y,t0:S.t,until:S.t+N.INTERDICT_SECS};SIM.pushEvent('power','The Interdictor is up: nobody near it jumps for '+N.INTERDICT_SECS+' s',{x:p.x,y:p.y,tone:'good'});break;}
+    case 'spoof':{const Z=SIM.zone;let n=0;for(const id of a.ids){const s=F.byId(id);if(!s||!s.alive)continue;n++;s.spoof35=S.t+N.SPOOF_SECS;s.spoofTo=edgeNear(s);s.thinkT=F.THINK_SECS_();}
+      SIM.pushEvent('power','Spoofed orders: '+n+' of them break off',{x:tx.p.x,y:tx.p.y,tone:'good'});break;}
+    case 'sleeper':{
+      L.burned=true;
+      if(!modOn(L.mods,'insider')){tx.refused=true;const fk=L.mods.find(m=>m.k==='insider'&&m.fake);if(fk){fk.foundFake=S.t;fk.found=true;}
+        SIM.pushEvent('intel','No answer from the Agent: there\'s nobody aboard. Unreliable Source',{tone:'hazard'});break;}
+      if(!fr||!fr.alive)break;
+      if(a.act==='engines'){const e=L.subs.find(x=>x.k==='engines');if(e&&e.hp>0){e.hp=0;subDown(fr,e,null);}}
+      else if(a.act==='beacon'){L.beacon=false;if(L.distress&&!L.distress.landed)L.distress.cut=true;else if(L.responseAt!=null&&!L.responded)L.responseAt=null;}
+      else if(a.act==='hatch')L.hatch=true;
+      SIM.pushEvent('power','The Agent: '+CHOICE_NAME[a.act].toLowerCase(),{x:fr.x,y:fr.y,tone:'good'});
+      break;}
+  }
+}
+/* an asset warping in: a warning at its spot for ARRIVE_SPOOL, then it's there */
+function arrive(k,at,args){L.arrivals.push({k,x:at.x,y:at.y,t0:SIM.S.t,t1:SIM.S.t+N.ARRIVE_SPOOL,args:args||{},done:false,hazard:k==='pirates',ships:[]});}
+function arrivalTick(){
+  const S=SIM.S;
+  for(const a of L.arrivals){if(a.done||S.t<a.t1-1e-9)continue;a.done=S.t;a.ships=(ARRIVE[a.k](a)||[]).map(s=>s.id);}
+}
+/* a ram hits inside its target's crash-avoidance room (the flight model steers every ship off a collision, a ram too) */
+const RAM_REACH=200;
+function propShip(id,name,p,h,role){
+  // a drone's row: no nerve to lose, no panic; and never "pinned" (an emergency is for your pilots)
+  const s=F.mkShip({id,name,faction:'reb',row:Object.assign({},F.rowOf('brickbat'),{kind:'drone'}),x:p.x,y:p.y,h,pilot:F.presetPilot({preset:'regular'},name)});
+  s.prop35=role;s.emerg={kind:'prop35',t0:0,resp:null};s.thinkT=F.THINK_SECS_();SIM.S.ships.push(s);return s;
+}
+const ARRIVE={
+  reserve(a){
+    const S=SIM.S,r=L.X.reserves.find(x=>x.id===a.args.wing);if(!r)return [];
+    const p=L.W([r.at[0],r.at[1]]),w=F.addWing(Object.assign({},r,{at:[p.x,p.y,r.at[2]],ships:r.ships.map(sd=>Object.assign({},sd))}));
+    const pw=L.plan.wings[w.id];
+    for(const s of F.wingShips(w)){const sd=r.ships.find(x=>x.id===s.id);s.load35=sd&&sd.load35||null;if(s.load35==='bombs')s.bombs=N.BOMB_N;if(s.load35==='pods')s.pods=[];s.thinkT=F.THINK_SECS_();}
+    L.n0[w.id]=w.ships.length;L.offSecs[w.id]=0;L.exec[w.id]=pw&&pw.exec?Object.assign({},pw.exec):{k:'hold',arg:null};
+    L.sec[w.id]=pw&&pw.second&&pw.second.trig?Object.assign({fired:false,noted:false,adopted:false},pw.second):null;
+    if(L.signalSent||L.signal)L.sigW[w.id]=true;
+    SIM.pushEvent('reserve',w.name+' warps in',{x:p.x,y:p.y,tone:'good'});
+    if(L.phase===1&&S.ships.some(e=>e.role35==='escort'&&e.alive&&dist(e,p)<DETECT_WARP_R))alarm('jumpin',w.name+' dropped in inside their sensor ring');
+    return F.wingShips(w);
+  },
+  ram(a){const t=F.byId(a.args.id),h=t?Math.atan2(t.y-a.y,t.x-a.x):0,s=propShip('ram35',a.args.nuke?'Nuclear Ram':'The Ram',a,h,'ram');s.ram35={id:a.args.id,sub:a.args.sub,nuke:!!a.args.nuke,t0:SIM.S.t};
+    SIM.pushEvent('power',s.name+' is away',{ship:s.id,x:a.x,y:a.y,tone:'good'});return [s];},
+  tug(a){const t=F.byId(a.args.ship),h=t?Math.atan2(t.y-a.y,t.x-a.x):0,s=propShip('tug35','Rescue Tug',a,h,'tug');s.tug35={ship:a.args.ship,stage:'go'};
+    SIM.pushEvent('power','The tug is here for '+(t?t.name:'the pod'),{ship:s.id,x:a.x,y:a.y,tone:'good'});return [s];},
+  pirates(a){
+    const S=SIM.S,greedy=S.rng()<N.PIRATE_GREED,fr=FR(),c=fr?fr:L.fjump,h=Math.atan2(c.y-a.y,c.x-a.x),out=[];
+    for(let i=0;i<N.PIRATE_N;i++){const o=(i-(N.PIRATE_N-1)/2)*320,p={x:a.x-Math.sin(h)*o,y:a.y+Math.cos(h)*o};
+      const s=propShip('pir35_'+(i+1),'Pirate '+(i+1),p,h,'pirate');s.pir35={greedy,until:S.t+N.PIRATE_SECS,edge:{x:a.x,y:a.y},leave:false};if(greedy){s.load35='pods';s.pods=[];}out.push(s);}
+    SIM.pushEvent('power','The pirates are here',{x:a.x,y:a.y,tone:'hazard'});return out;},
+};
+/* a blast (the fire ship, a mine, a nuke): everything near takes it, friends and cargo too; on the freighter each
+   subsystem in reach takes it, and the core half */
+function blast(p,R,D,kind,by){
+  const S=SIM.S,fr=FR();
+  (L.blasts||(L.blasts=[])).push({x:p.x,y:p.y,r:R,kind,t:S.t});
+  S.fx.push({x:p.x,y:p.y,t0:S.t,kind:'boom',size:kind==='mine'?0.6:1.4,src:'mhit'});
+  for(const s of S.ships){
+    if(!s.alive||s.id===by)continue;const d=dist(s,p);if(d>R+(s===fr?400:0))continue;
+    const k=1-0.6*Math.min(1,d/R);
+    if(s===fr){for(const sb of L.subs){if(sb.hp<=0)continue;const q=subWorld(fr,sb),dd=dist(q,p);if(dd>R)continue;sb.hp-=D*(1-0.6*dd/R);if(sb.hp<=0)subDown(fr,sb,F.byId(by));}
+      if(fr.alive){F.applyDamage(fr,D*k*0.5,true,true,{x:p.x,y:p.y,bomb:true,aimSub:'core',by});if(fr.hull<=0&&fr.alive)F.kill(fr,null);}continue;}
+    F.applyDamage(s,D*k,true,true);if(s.hull<=0&&s.alive)F.kill(s,null);
+  }
+}
+/* the props the layer flies: the ram, the tug and the pirates */
+function thinkProp(s){
+  const S=SIM.S,fr=FR();
+  if(s.prop35==='ram'){let t=F.byId(s.ram35.id);if(!t||!t.alive){t=nearestFoe(s,x=>!x.struct);if(t)s.ram35.id=t.id;}
+    return setB(s,{kind:'ram35',target:t?t.id:null,why:'ramming',hard:true});}
+  if(s.prop35==='tug'){const T=s.tug35;if(T.stage==='go'){const t=F.byId(T.ship);if(t&&t.alive&&!t.jumped)return setB(s,{kind:'tug35',target:t.id,why:'going for '+t.name,hard:true});T.stage='home';}
+    return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:T.stage==='tow'?'towing':'heading home',hard:true});}
+  if(s.prop35==='pirate'){const P=s.pir35;
+    const age=S.t-(P.until-N.PIRATE_SECS);
+    if(!P.leave&&(S.t>=P.until||(s.pods&&s.pods.length>=N.POD_CAP)||(P.greedy&&age>20&&(!fr||!fr.alive||!cargoLeft()))))P.leave=true;
+    if(P.leave)return setB(s,{kind:'leave35',dest:P.edge,why:s.pods&&s.pods.length?'off with the cargo':'leaving',hard:true});
+    if(P.greedy&&fr&&fr.alive&&!L.prize&&(L.disabled||L.surrender)&&cargoLeft())return setB(s,{kind:'dock35',why:'after the cargo'});
+    const e=nearestFoe(s,x=>!x.struct&&x.id!==L.fr);
+    if(e)return setB(s,{kind:'engage',target:e.id,why:'hitting the Hegemony'});
+    if(P.greedy&&fr&&fr.alive)return setB(s,{kind:'holdoff',why:'waiting for the holds to open'});
+    if(fr&&fr.alive&&!L.prize)return setB(s,{kind:'engage',target:fr.id,why:'hitting the freighter'});
+    P.leave=true;return setB(s,{kind:'leave35',dest:P.edge,why:'leaving',hard:true});}
+  return false;
+}
+function propTick(dt){
+  const S=SIM.S,fr=FR();
+  for(const s of S.ships){
+    if(!s.alive)continue;
+    if(s.prop35==='ram'){const t=F.byId(s.ram35.id);
+      if(S.t-s.ram35.t0>N.RAM_LIFE&&!s.ram35.nuke){s.alive=false;S.fx.push({x:s.x,y:s.y,t0:S.t,kind:'boom',size:0.6,src:'mmiss'});continue;}
+      // a nuclear ram goes off close enough (or when its run is over); a plain one has to hit
+      if(S.t-s.ram35.t0>N.RAM_LIFE||(t&&t.alive&&dist(s,t)<F.bodyR(t)+F.bodyR(s)+(s.ram35.nuke?N.NUKE_R*0.25:RAM_REACH))){
+        s.alive=false;s.deadT=S.t;
+        if(s.ram35.nuke){blast({x:s.x,y:s.y},N.NUKE_R,N.NUKE_DMG,'nuke',s.id);SIM.pushEvent('power','The nuclear ram detonates',{x:s.x,y:s.y,tone:'hazard'});}
+        else{S.fx.push({x:s.x,y:s.y,t0:S.t,kind:'boom',size:1.2,src:'mhit'});
+          F.applyDamage(t,N.RAM_DMG,true,true,{x:s.x,y:s.y,bomb:true,aimSub:s.ram35.sub||'core',by:s.id});t.hitT=S.t;if(t.hull<=0&&t.alive)F.kill(t,null);
+          SIM.pushEvent('power','The ram hits '+(t===fr?'the freighter':t.name),{x:s.x,y:s.y,tone:'good'});}}}
+    else if(s.prop35==='tug'){const T=s.tug35;
+      if(T.stage==='go'){const t=F.byId(T.ship);if(t&&t.alive&&dist(s,t)<N.TUG_R+F.bodyR(t)){T.stage='tow';t.towed35=s.id;t.dock35=null;t.thinkT=F.THINK_SECS_();s.thinkT=F.THINK_SECS_();SIM.pushEvent('power','The tug has '+t.name+' in tow',{ship:t.id,x:t.x,y:t.y,tone:'good'});}}}
+    else if(s.prop35==='pirate'&&s.pir35.leave&&dist(s,s.pir35.edge)<900){s.alive=false;s.jumped=true;s.jumpT=S.t;if(s.pods&&s.pods.length){L.pirated+=s.pods.length;SIM.pushEvent('power','The pirates leave with '+s.pods.length+' container'+(s.pods.length>1?'s':''),{x:s.x,y:s.y,tone:'hazard'});}}
+  }
+  // a ship in tow rides behind the tug, and goes when it goes
+  for(const s of S.ships){if(!s.alive||!s.towed35)continue;const g=F.byId(s.towed35);
+    if(!g||!g.alive){if(g&&g.jumped){s.alive=false;s.jumped=true;s.jumpT=S.t;SIM.pushEvent('jump',s.name+' is towed out',{ship:s.id,x:s.x,y:s.y,tone:'good'});}else s.towed35=null;continue;}
+    s.x=g.x-Math.cos(g.h)*320;s.y=g.y-Math.sin(g.h)*320;s.vx=g.vx;s.vy=g.vy;s.h=g.h;s.vh=g.vh;}
+  // spoofed orders run out: they realise
+  for(const s of S.ships)if(s.alive&&s.spoof35!=null&&S.t>=s.spoof35){s.spoof35=null;s.thinkT=F.THINK_SECS_();if(!L.spoofOut){L.spoofOut=S.t;SIM.pushEvent('power','They\'ve seen through the spoofed orders',{x:s.x,y:s.y,tone:'hazard'});}}
+  // with every wing of ours gone, the props go too (so the mission can end)
+  if(!S.ships.some(s=>s.alive&&s.wing&&s.faction==='reb'))for(const s of S.ships)if(s.alive&&s.prop35){s.alive=false;s.jumped=true;s.jumpT=S.t;}
+}
+function propGoal(s,b){
+  const t=b.target?F.byId(b.target):null;
+  if(b.kind==='ram35'){s.holdFire=true;return t?{x:t.x+t.vx*0.4,y:t.y+t.vy*0.4,spd:1,noCorner:true}:{x:s.x+s.vx,y:s.y+s.vy,spd:1};}
+  if(b.kind==='tug35'){s.holdFire=true;return t?{x:t.x,y:t.y,spd:dist(s,t)>2000?1:0.6}:null;}
+  if(b.kind==='leave35')return {x:b.dest.x,y:b.dest.y,spd:1,noCorner:true};
+  return null;
+}
+/* the power bar's read: each power the plan has, its cost, and why not (null: usable) */
+function powers(){return POWER_KEYS.filter(powerHas).map(k=>({k,name:POWERS35[k].name,cost:POWERS35[k].cost(),why:powerWhy(k),target:POWERS35[k].target,choice:POWERS35[k].choice||null,glyph:POWERS35[k].glyph}));}
+
 function onEvent(kind,text,o,e){
   L.cause.push({t:+SIM.S.t.toFixed(2),kind,text,phase:L.phase});
+  if(kind==='over'){const S=SIM.S,O=S.over;
+    // the props (the ram, the tug, the pirates) aren't yours to lose; an aborted mission says so
+    O.lost=S.ships.filter(s=>s.faction==='reb'&&s.wing&&!s.alive&&!s.jumped).length;
+    if(L.abort&&O.outcome!=='aborted'){O.outcome='aborted';O.win=false;O.why='Mission aborted';}
+    e.text=O.why+' · '+O.lost+' lost'+(O.leftBehind?' ('+O.leftBehind+' left behind)':'');}
 }
 /* a response ship killed (the kill hook is High Command's destroyShip: the layer counts it from the feed) */
 function countKill(t){if(t&&t.role35==='response'&&!t.counted35){t.counted35=true;L.respKills++;}}
@@ -897,5 +1262,6 @@ return {OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIM
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
-  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,primaryTick,countKill}};
+  POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
+  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,primaryTick,countKill,blast,send,land,canJump,edgeNear,groupOf}};
 })();

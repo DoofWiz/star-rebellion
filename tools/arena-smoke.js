@@ -33,7 +33,8 @@
      save; HC35 2 the loop by DOM (board, dossier, the four steps, Launch, the mission, the debrief, Plan again);
      HC35 5 bombs and subsystems, the drift and the planet; 6 each primary from a scripted setup; 7 the phases;
      HC35 3 the modifiers and Dig deeper; P3 the leaders' plan and critiques, two plans → two fights, a Secondary, 8 Hold
-     for My Signal, Weapons Tight, Preservation and OFF PLAN */
+     for My Signal, Weapons Tight, Preservation and OFF PLAN; 9 the comms delay; 7 command points by phase; 10 every
+     power after its delay, and the powers bar by DOM */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -2040,11 +2041,77 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35d.signal.every(Boolean),'HC35 8: Hold for My Signal: no fire until the signal (unless fired on) '+JSON.stringify(t35d.signal));
  ok(t35d.tight.every(Boolean),'HC35 P3: Weapons Tight '+JSON.stringify(t35d.tight));
  ok(t35d.pres[0]==='withdraw'&&t35d.pres[1]==='preservation35'&&t35d.pres[2]==='Preservation'&&/OFF PLAN: Preservation/.test(t35d.pres[3]),'HC35 P3: Preservation Order, and OFF PLAN '+JSON.stringify(t35d.pres));
+ // HC35 9–10 (P4): the comms delay, command points by phase, and every power doing its job after its delay
+ const t35e=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400'),by=id=>S().ships.find(s=>s.id===id);
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    for(const sid in o.lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=o.lo[sid];
+    B.plan.assets=o.assets||[];B.plan.assetAt=o.assetAt||{};B.plan.roes=o.roes||[];X.fn.launch();L().cp=o.cp!=null?o.cp:9;};
+  const landed=()=>L().txLog.every(t=>t.landed!=null);
+  const hold={dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}};
+  // 9: a transmission lands no earlier than the formula; the Comms Relay shortens it; Ion Storm doubles it
+  const delayOf=o=>{go('destroy',hold,o);const w=F.wingOf('dagger'),c=F.wingCentre(w),want=N.COMMS_BASE+Math.hypot(c.x-L().relay.x,c.y-L().relay.y)/N.COMMS_SPD+L35.ackOf(by('joss'));
+    const t0=S().t;L35.use('retreat');until(()=>L().exec.dagger.k==='withdraw',40);return [+(want*(o&&o.mods?N.ION_K:1)).toFixed(2),+(S().t-t0).toFixed(2)];};
+  const d0=delayOf(),d1=delayOf({assets:['relay'],assetAt:{relay:{x:3000,y:1400}}}),d2=delayOf({mods:[{k:'ion',hidden:false}]});
+  out.delay=[d0,d1,d2,d0[1]>=d0[0]-0.01&&d0[1]<=d0[0]+0.11,d1[1]<d0[1]-1,Math.abs(d2[1]-d0[1]*N.ION_K)<0.25];
+  N.COMMS_OFF=1;go('destroy',hold);L35.use('retreat');SIM.step();out.delay.push(L().exec.dagger.k==='withdraw');N.COMMS_OFF=0;
+  // 7 (P4): command points: a phase's allowance, what's left lost at the next
+  go('destroy',hold,{cp:N.CP1});const c1=L().cp;L35.use('broadcast');const c1b=L().cp;L35.alarm('fired');const c2=L().cp;L35.setPhase(3);
+  out.cp=[c1===N.CP1,c1b===N.CP1-N.C_BROADCAST,c2===N.CP2,L().cp===N.CP3,L35.use('broadcast').ok===false];
+  go('destroy',hold,{cp:0});out.cp.push(/command points/.test(L35.use('mark',{id:'fl400'}).why||''));
+  // 10: each power, after its delay, does its job
+  const P={};
+  go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{role:'home'}},{roes:['signal']});
+  const firedEarly=()=>S().proj.some(p=>p.faction==='reb');until(()=>false,3);
+  const sg=L35.use('signal'),sgAt=Math.max(...sg.tx.map(t=>t.at));P.signal=[!L().signal&&L().phase===1&&!firedEarly(),until(()=>L().signal,30),L().phase===2,S().t>=sgAt-0.01,L35.use('signal').ok===false];
+  go('destroy',hold);L35.use('abort');P.abort=[until(()=>!!S().over,240),S().over&&S().over.outcome];
+  go('destroy',hold);const r0=L().resolve,j0=by('joss').pilot.cool;L35.use('broadcast');until(landed,30);P.broadcast=[L().resolve<=r0-N.BROADCAST_RES+1,by('joss').pilot.cool>j0,L().exposure];
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});
+  L35.use('name',{ship:'wren',act:'pull'});L35.use('name',{ship:'petra',act:'stay'});L35.use('name',{ship:'joss',act:'focus',target:'esc1'});until(landed,30);until(()=>false,1);
+  P.name=[!!L().pull.wren,by('wren').beh.kind==='withdraw',!!L().stayIn.petra,by('joss').beh.kind==='engage'&&by('joss').beh.target==='esc1'];
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L35.use('mark',{id:'fl400',sub:'turrets'});until(landed,30);until(()=>false,1);
+  P.mark=[!!L().markW.dagger,F.wingShips(F.wingOf('dagger')).some(s=>s.beh.target==='fl400'&&s.beh.why==='the marked target')];
+  go('destroy',{dagger:{k:'hold'},anvil:{k:'disable',arg:'engines'},amber:{role:'home'}});L35.use('exec',{wing:'dagger',k:'suppress',arg:'escorts'});
+  L().subs.find(x=>x.k==='engines').hp=N.ENG_HP*0.1;L35.use('exec',{wing:'anvil',k:'destroy'});until(landed,30);
+  const pb=!!L().pushback&&L().exec.anvil.k==='disable';L35.use('insist');until(landed,30);
+  P.exec=[L().exec.dagger.k==='suppress',pb,L().exec.anvil.k==='destroy'];
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'reserve',k:'hold'}});const rt=L35.use('reserve',{});const rAt=rt.tx[0].at;
+  P.reserve=[until(()=>!!F.wingOf('amber'),40),S().t>=rAt+N.ARRIVE_SPOOL-0.01,F.wingShips(F.wingOf('amber')).length===4];
+  go('destroy',hold,{assets:['ram']});const h0=fr().hull;L35.use('ram',{id:'fl400'});P.ram=[until(()=>!!by('ram35'),40),until(()=>!by('ram35').alive,60),fr().hull<h0-N.RAM_DMG*0.5];
+  go('destroy',hold,{assets:['nuke']});const e1=by('esc1');L35.use('ram',{id:'esc1'});until(()=>!!by('ram35')&&!by('ram35').alive,90);P.nuke=[(L().blasts||[]).some(b=>b.kind==='nuke'),!e1.alive||e1.hull<e1.maxHull];
+  const hegHull=()=>S().ships.filter(s=>s.faction==='heg').reduce((a,s)=>a+Math.max(0,s.hull)+(s.id==='fl400'?L().subs.reduce((b,x)=>b+Math.max(0,x.hp),0):0),0);
+  go('destroy',hold,{assets:['fireship'],assetAt:{fireship:{x:700,y:2450}}});until(()=>false,6);const f0=hegHull();L35.use('fireship');until(landed,30);P.fireship=[!L().props.fireship.live,hegHull()<f0-20];
+  go('destroy',hold,{assets:['mines'],assetAt:{mines:{x:700,y:2450}}});until(()=>false,6);const m0=hegHull();L35.use('mines');until(landed,30);P.mines=[!L().props.mines.live,hegHull()<m0-10];
+  // the Interdictor: the freighter spooled at its jump point can't go while it's up, and nor can your ships
+  go('destroy',hold,{assets:['buoy']});const f1=fr(),j=L().fjump;f1.x=j.x;f1.y=j.y;f1.px=f1.x;f1.py=f1.y;L().leg=L().lane.length-1;L35.use('buoy');until(()=>!!L35.interdictOn(),30);
+  const b0=S().t;until(()=>!fr().alive,L().interdict.until-b0-0.5);const held=fr().alive&&L().spool!=null&&S().t-L().spool>L35.TUNE.JUMP_SECS.get();
+  const joss=by('joss');joss.x=L().interdict.x;joss.y=L().interdict.y;const mine=L35.fn.canJump(joss);
+  P.buoy=[held,mine===false,until(()=>!fr().alive,20),L().escaped];
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{assets:['tug']});L35.use('tug',{ship:'wren'});P.tug=[until(()=>!!by('tug35'),40),until(()=>!!by('wren').towed35,90),until(()=>by('wren').jumped,150)];
+  go('destroy',hold,{assets:['spoof']});L35.use('spoof',{id:'esc1'});until(landed,30);until(()=>false,1);P.spoof=[S().ships.filter(s=>s.role35==='escort').every(s=>s.spoof35!=null&&s.beh.why==='following spoofed orders'),L35.use('spoof',{id:'esc1'}).ok===false];
+  go('destroy',hold,{assets:['pirates']});L35.use('pirates');P.pirates=[until(()=>S().ships.filter(s=>s.prop35==='pirate').length===N.PIRATE_N,40)];
+  go('destroy',hold,{mods:[{k:'insider',hidden:false}]});const hasSl=L35.powers().some(p=>p.k==='sleeper');L35.use('sleeper',{act:'engines'});until(landed,30);P.sleeper=[hasSl,L().disabled,L().burned];
+  out.P=P;
+  // the bar by DOM: the powers as skill icons, a targeting pill, the comms queue
+  go('destroy',hold,{assets:['ram'],cp:N.CP1});window.SR_ARENA_HC.api.syncHud(true);
+  const bar=document.getElementById('hcCmds'),btn=k=>bar.querySelector('[data-p35="'+k+'"]');
+  out.dom=[!bar.hidden,!!btn('ram'),!!btn('abort'),!btn('tug'),/Powers/.test(bar.querySelector('.hc-cmds__title').textContent),bar.querySelectorAll('#hcCp .hc-cp__pips i').length===N.CP1];
+  btn('mark').click();out.dom.push(!!bar.querySelector('.h35-pickpill'));
+  X.fn.OV.mapClick({x:fr().x,y:fr().y},{},fr());window.SR_ARENA_HC.api.syncHud(true);out.dom.push(!bar.querySelector('.h35-pickpill'),bar.querySelectorAll('.h35-tx').length===L().tx.length&&L().tx.length>0);
+  return out;
+ });
+ ok(t35e.delay[3]&&t35e.delay[4]&&t35e.delay[5]&&t35e.delay[6],'HC35 9: comms delay: the formula, the relay shortens it, Ion Storm doubles it, off is instant '+JSON.stringify(t35e.delay));
+ ok(t35e.cp.every(Boolean),'HC35 7: command points reset at each phase '+JSON.stringify(t35e.cp));
+ for(const k in t35e.P)ok(t35e.P[k].every(x=>x===true||x==='aborted'),'HC35 10: '+k+' does its job after its delay '+JSON.stringify(t35e.P[k]));
+ ok(t35e.dom.every(Boolean),'HC35 10: the powers bar, targeting, the comms queue '+JSON.stringify(t35e.dom));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

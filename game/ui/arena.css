@@ -596,3 +596,22 @@
 #arHc .h35-platefoot{display:flex;align-items:center;gap:8px;}
 #arHc .h35-plantog{width:auto;height:26px;padding:0 10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;}
 #arHc .h35-plantog.is-on{background:var(--sr-shield-deep);color:#e6fdff;}
+/* Type 3.5 P4: the powers bar's extras: key hints, the comms queue above it, the targeting pill, the CP refresh */
+#arHc #hcCmdsBody .h35-key{position:absolute;top:3px;left:5px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+#arHc #hcCmdsBody .hc-cmd.is-armed{border-color:var(--sr-gold);box-shadow:0 0 0 2px var(--sr-gold);}
+#arHc .h35-cpnext{margin-left:6px;font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.05em;}
+#arHc .h35-pickpill{height:30px;}
+#arHc .h35-choose{flex-wrap:wrap;}
+#arHc .h35-choose>span{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .h35-txq{flex:1 0 100%;display:flex;flex-direction:column;gap:3px;margin:0 2px 2px;}
+#arHc .h35-tx{display:grid;grid-template-columns:minmax(70px,auto) 1fr 120px 52px;align-items:center;gap:8px;padding:3px 8px;border:2px solid var(--sr-ink);border-radius:6px;background:var(--sr-night);font:700 var(--sr-fs-micro)/1.1 var(--sr-font-ui);}
+#arHc .h35-tx__to{color:var(--sr-shield);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+#arHc .h35-tx__what{color:var(--sr-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc .h35-tx i{display:block;height:6px;border-radius:999px;background:var(--sr-shield-deep);overflow:hidden;}
+#arHc .h35-tx i b{display:block;height:100%;background:var(--sr-shield);}
+#arHc .h35-tx em{font-style:normal;text-align:right;color:var(--sr-text-2);}
+#arHc .h35-tx.is-in{border-color:var(--sr-go);}
+#arHc .h35-tx.is-in i b{background:var(--sr-go);}
+#arHc .h35-tx.is-no{border-color:var(--sr-hazard);}
+#arHc .h35-tx.is-no em{color:var(--sr-hazard);}
+#arHc .hc-pilot__acts{display:flex;gap:6px;margin:6px 0 2px;}
