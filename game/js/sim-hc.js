@@ -368,7 +368,7 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const share=homing?1:shotShare(),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
   const dmg=homing?Math.max(1,Math.round(raw)):raw;
   const fromFront=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0;
-  const r=applyDamage(t,dmg,w.skipShield,fromFront,hit);
+  const r=applyDamage(t,dmg,w.skipShield,fromFront,HK.damage?Object.assign({by:shooterId},hit):hit);   // a damage hook is told who fired
   if(imp>=0.8&&S.rng()<(CRIT_DIRECT+(w.crit||0))*(homing?1:share/CRIT_REF))applyCritical(t);
   t.hitT=S.t;t.lastHitBy=shooterId;
   if(s){s.st.hits++;s.st.dmg+=dmg;}

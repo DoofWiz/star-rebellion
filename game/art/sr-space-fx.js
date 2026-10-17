@@ -397,6 +397,16 @@ window.SR_SPACE_FX=(function(){
     const x=p.x-p.vx*(1-ra)*dt,y=p.y-p.vy*(1-ra)*dt,sp=Math.hypot(p.vx,p.vy)||1;
     const born=Math.max(0,(x-p.x0)*(p.vx/sp)+(y-p.y0)*(p.vy/sp));
     const fade=p.life?clamp((p.life-p.age)/0.12,0,1):1;
+    if(P&&P.type==='bomb'){   // a bomb (Type 3.5, arena-hc35.js): slow and tumbling, the fuse blinking; no tracer
+      const tt=(view.t||0)+(p.age||0),sz=Math.max(1,0.7/view.z)*(P.len||10)*0.9,rot=tt*5+(p.x0||0)*0.01;
+      c.save();c.globalAlpha=fade;c.translate(x,y);c.rotate(rot);c.scale(sz/10,sz/10);
+      c.beginPath();c.moveTo(-8,-3.4);c.lineTo(-5,0);c.lineTo(-8,3.4);c.closePath();c.fillStyle='#4a4f2a';c.fill();c.lineWidth=1.2;c.strokeStyle=C.ink;c.stroke();
+      c.beginPath();c.ellipse(0,0,5.5,2.9,0,0,TAU);c.fillStyle='#6a7046';c.fill();c.stroke();
+      c.fillStyle='#e0402e';c.fillRect(-0.6,-2.8,1.4,5.6);
+      c.restore();
+      if(Math.sin(tt*24)>0)drawSpr(c,glowDot(C.hazard),x,y,Math.max(5,4/view.z),0.9*fade,1);
+      c.globalAlpha=1;return;
+    }
     if(P&&P.type==='slaser'){   // a laser: a coherent beam-dart — hard edges, a white filament, no tracer taper
       const BL=Math.min(P.len||TUNE.laserLen,born),hx=x-p.vx/sp*BL,hy=y-p.vy/sp*BL;
       c.lineCap='butt';

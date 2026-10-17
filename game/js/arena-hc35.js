@@ -281,7 +281,9 @@ function clockHtml(){
   const fr=SIM.fn.byId('fl400');
   let status,name,round,ph=L.phase;
   if(ph===1){status='UNDETECTED';name='PHASE 1 · ARRIVAL';round=fr&&fr.alive?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):'';}
-  else if(ph===2){status='ALERTED';name='PHASE 2 · ENGAGED';round=L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):'';}
+  else if(ph===2){status='ALERTED';name='PHASE 2 · ENGAGED';const D=L.distress;
+    round=D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t):
+      L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive&&!L.disabled&&!L.prize?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):L.prize?'PRIZE HEADING HOME':L.disabled?'FREIGHTER DISABLED':'';}
   else {status='HEGEMONY ON SITE';name='PHASE 3 · RESPONSE';round='GET OUT';}
   return '<div class="sr-phase h35-phase" data-phase="'+(ph===1?'free':'fight')+'"'+(ph===3?' data-status="alert"':'')+'><span class="sr-phase__status" style="--s:'+(ph===1?'var(--sr-c-good)':ph===2?'var(--sr-hazard)':'var(--sr-heg)')+'"><span class="sr-phase__text">'+status+'</span></span>'+
     '<span class="sr-phase__name">'+name+'</span><span class="sr-phase__round">'+esc(round)+'</span></div>'+
@@ -320,7 +322,7 @@ function launch(){
   // the strike wings warp in at their jump-in points
   if(FX)for(const s of SIM.S.ships)if(s.faction==='reb'&&!s.struct)FX.event('warpIn',{ship:API.shipView(s,API.ipos(s),API.iconBoost())});
   fitPlan();API.setSpeed(2);
-  banner('PHASE 1','Arrival');
+  B.lastPhase=L35.L.phase;banner('PHASE '+B.lastPhase,B.lastPhase===1?'Arrival':'They know we\'re here');
   render();API.syncHud(true);
 }
 function onOver(){
@@ -371,13 +373,23 @@ const shipHidden=s=>B.screen==='brief'&&s.faction==='reb'&&!s.struct;   // in th
 function drawBody(c,s,p,z,boost,view){
   if(shipHidden(s))return true;
   if(s.cls==='fl400'){drawFreighter(c,s,p,z,boost,view);return true;}
+  if(s.cls==='brickbat'){drawBrickbat(c,s,p,z,boost,view);return true;}
   return false;
 }
 const freightScale=boost=>(0.7+0.09*5)*1.6*0.85*1.35*boost;   // a size-5 hull's scale; sized:true does the rest (SR_ART sizeK)
+/* the FL-400 straight through SR_ART.ship every frame (its blown modules and turret aim can't come from a cached
+   sprite, C-76): lost containers, the turrets on their targets, firing, the damage spots; powered down once disabled */
 function drawFreighter(c,s,p,z,boost,view){
-  const t=performance.now()/1000,sc=freightScale(boost);
-  if(FX&&view&&s.trail.length>1)FX.drawTrail(c,Object.assign(API.shipView(s,p,boost),{art:'gafreighter'}),view);
-  SA.ship(c,'gafreighter',p.x,p.y,p.h,sc,t,{livery:'heg',sized:true,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull)});
+  const L=L35.L,t=performance.now()/1000,sc=freightScale(boost);
+  if(FX&&view&&s.trail.length>1&&!(L&&L.disabled))FX.drawTrail(c,Object.assign(API.shipView(s,p,boost),{art:'gafreighter'}),view);
+  const subs=L?L.subs:[],pd=subs.filter(x=>x.k==='pd'&&x.hp>0&&x.aim),fire=pd.some(x=>SIM.S.t-x.shotT<0.3);
+  SA.ship(c,'gafreighter',p.x,p.y,p.h,sc,t,{livery:'heg',sized:true,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull),
+    lost:L?L35.fn.cargoLost():[],aimAt:pd.length?[pd[0].aim.x,pd[0].aim.y]:null,fire,off:!!(L&&(L.disabled||L.surrender))});
+}
+/* a Brickbat in the rebel livery its loadout calls for, its racks showing the bombs left */
+function drawBrickbat(c,s,p,z,boost,view){
+  const sc=(0.7+0.09*s.row.size)*1.6*0.85*1.35*boost,att=s.load35==='pods'?['cargopod']:s.load35==='board'?[]:['bombrack'];
+  SA.ship(c,'brickbat',p.x,p.y,p.h,sc,performance.now()/1000,{livery:'rebel',loadout:{attach:att},bombs:s.bombs!=null?Math.ceil(s.bombs/2):3,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull)});
 }
 function drawWorld(c,view,o){
   const S=SIM.S,L=L35.L;if(!S||!L)return;
@@ -388,6 +400,7 @@ function drawWorld(c,view,o){
   c.save();c.beginPath();c.arc(P.x,P.y,P.r,0,6.283);c.fillStyle='#141a33';c.fill();c.lineWidth=4/z;c.strokeStyle=C.ink;c.stroke();
   c.beginPath();c.arc(P.x,P.y,P.r-6/z,Math.PI*1.1,Math.PI*1.65);c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.stroke();
   c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();
+  drawTarget(c,z,view,o);
   if(plan||B.planOverlay)drawLane(c,z);
   else{const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
   // escort detection rings, faint foe blue (their awareness)
@@ -409,6 +422,40 @@ function drawWorld(c,view,o){
       // a short dashed arrival cone toward its target
       if(tg){const a=Math.atan2(tg.y-m.y,tg.x-m.x),r=60/z;c.save();c.setLineDash([4/z,4/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(col,0.8);c.beginPath();c.moveTo(m.x+Math.cos(a-0.4)*r,m.y+Math.sin(a-0.4)*r);c.lineTo(m.x,m.y);c.lineTo(m.x+Math.cos(a+0.4)*r,m.y+Math.sin(a+0.4)*r);c.stroke();c.restore();}
       API.label(c,m.x,m.y-20/z,w.name.toUpperCase()+(pw.role==='reserve'?' · RESERVE':''),col,z,12,'Bungee');}
+  }
+}
+/* the freighter as a target (P2): bombs, the distress arc, docking, hauling, its death, its fall */
+const deathBang=new Set();
+function drawTarget(c,z,view,o){
+  const S=SIM.S,L=L35.L,fr=SIM.fn.byId('fl400');if(!L)return;
+  const now=performance.now()/1000,boost=o.boost;
+  if(FX&&view)for(const b of L.bombs)FX.drawBolt(c,b,view);
+  if(fr&&fr.alive){
+    const F=L35.fn;
+    // the comms array while the distress sends: a foe-blue progress arc round the bridge, a ring every 2 s
+    const D=L.distress;
+    if(D&&!D.landed&&!D.cut){const cm=L.subs.find(x=>x.k==='comms'),p=F.subWorld(fr,cm),k=Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS),r=46*boost;
+      c.save();c.lineWidth=4/z;c.strokeStyle=TH.rgba(C.heg,0.4);c.beginPath();c.arc(p.x,p.y,r,0,6.283);c.stroke();c.strokeStyle=C.heg;c.beginPath();c.arc(p.x,p.y,r,-Math.PI/2,-Math.PI/2+k*6.283);c.stroke();
+      const u=((S.t-D.t0)%2)/2;c.globalAlpha=1-u;c.lineWidth=2/z;c.beginPath();c.arc(p.x,p.y,r+u*180*boost,0,6.283);c.stroke();c.restore();}
+    // docked Brickbats: boarders get the boarding link, pod ships the tether with a container sliding along it
+    for(const s of S.ships){if(!s.alive||!s.dock35)continue;const sp=API.ipos(s),d=F.dockPoint(fr,s);
+      if(s.load35==='board'&&FX&&view)FX.drawBoardLink(c,sp,{x:fr.x+(d.x-fr.x)*0.45,y:fr.y+(d.y-fr.y)*0.45},L.board,view);
+      else{const cm=L.subs.find(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard),q=cm?F.subWorld(fr,cm):fr;c.save();c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.85);c.beginPath();c.moveTo(sp.x,sp.y);c.lineTo(q.x,q.y);c.stroke();
+        const u=((s.haulT||0)/L35.N.HAUL_SECS);c.fillStyle='#8e96a2';c.strokeStyle=C.ink;c.lineWidth=1.5/z;const bx=q.x+(sp.x-q.x)*u,by=q.y+(sp.y-q.y)*u,bw=14*boost;c.fillRect(bx-bw/2,by-bw/3,bw,bw*0.66);c.strokeRect(bx-bw/2,by-bw/3,bw,bw*0.66);c.restore();}}
+    // disabled: sparks at the engine block now and then; falling into the planet: a hazard heat rim on its leading edge
+    if(L.disabled&&FX&&Math.floor(now*3)!==L._spark){L._spark=Math.floor(now*3);const e=L.subs.find(x=>x.k==='engines'),p=F.subWorld(fr,e);FX.event('boltHit',{x:p.x,y:p.y,surface:'hull',dir:fr.h+Math.PI,r:26*boost});}
+    const pd=Math.hypot(fr.x-L.planet.x,fr.y-L.planet.y);
+    if((L.disabled||L.surrender)&&pd<L.planet.r+4000){const a=Math.atan2(L.planet.y-fr.y,L.planet.x-fr.x),k=1-Math.max(0,(pd-L.planet.r)/4000),r=130*boost;
+      c.save();c.globalAlpha=0.35+0.5*k;c.lineWidth=6/z;c.strokeStyle=C.hazard;c.beginPath();c.arc(fr.x,fr.y,r,a-0.9,a+0.9);c.stroke();c.restore();}
+  }
+  // the capital death: SR_ART.capitalDeath over its deathMs, the camera shaken and a burst at each of its bangs
+  if(L.deadT!=null&&L.deadPose){
+    const D=SA.SHIPS.gafreighter,dur=(D.deathMs||4200)/1000,k=(S.t-L.deadT)/dur,P=L.deadPose,sc=freightScale(boost);
+    if(k>=0&&k<=1){SA.capitalDeath(c,'gafreighter',P.x,P.y,P.h,sc,k,now,{livery:'heg',sized:true,lost:P.lost});
+      const kk=SA.sizeK('gafreighter'),ca=Math.cos(P.h),sa=Math.sin(P.h);
+      SA.deathBangs('gafreighter').forEach((b,i)=>{const key=L.deadT+':'+i;if(k<b.k||deathBang.has(key))return;deathBang.add(key);
+        const x=P.x+(b.x*ca-b.y*sa)*sc*kk,y=P.y+(b.x*sa+b.y*ca)*sc*kk;
+        if(FX)FX.event(b.big?'explode':'missileHit',b.big?{x,y,size:10,struct:true,iconBoost:boost}:{x,y,size:b.size,iconBoost:boost});});}
   }
 }
 /* the lane: steel dashes from the freighter to its jump point, time ticks every 30 s of cruise, the gravity window */
@@ -549,9 +596,12 @@ ROOT.addEventListener('change',ev=>{
 ROOT.addEventListener('input',ev=>{const el=ev.target;if(el.dataset.pres&&B.plan){B.plan.presHull=+el.value;const b=el.closest('label').querySelector('b');if(b)b.textContent=Math.round(B.plan.presHull*100)+'%';}});
 
 /* ---------- the overlay High Command calls ---------- */
-const OV={home,onOver,record,drawBody,shipHidden,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
+const OV={home,onOver,record,drawBody,shipHidden,fxSkip:s=>s.cls==='fl400'&&!s.jumped,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
   hudHidden:()=>B.screen!=='live'&&B.screen!=='debrief',
-  syncHud(now){if(B.screen==='live'&&B.banner&&now-B.banner.at>1400){B.banner=null;render();}},
+  syncHud(now){
+    const L=L35.L;
+    if(B.screen==='live'&&L&&L.phase!==B.lastPhase){B.lastPhase=L.phase;if(L.phase>1){banner('PHASE '+L.phase,L.phase===2?'They know we\'re here':'Hegemony on site');render();}}   // designer copy (C-78)
+    if(B.screen==='live'&&B.banner&&now-B.banner.at>1400){B.banner=null;render();}},
   restart(same){if(same&&B.plan){planAgain();}else{B.seed=newSeed();rollAttempt();showBoard(false);}},
   panelHtml(){
     let h='<div class="hc-grp"><div class="hc-grp__head">Type 3.5</div>';

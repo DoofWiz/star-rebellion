@@ -30,7 +30,8 @@
      the death spiral, the lock marks), reduced motion, determinism
    Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §11; game/js/sim-hc35.js and arena-hc35.js, through
      DBGarena.hc35), in its own context: HC35 1 High Command byte-identical with the hooks (hash baselines), no campaign
-     save; HC35 2 the loop by DOM (board, dossier, the four steps, Launch, the mission, the debrief, Plan again) */
+     save; HC35 2 the loop by DOM (board, dossier, the four steps, Launch, the mission, the debrief, Plan again);
+     HC35 5 bombs and subsystems, the drift and the planet; 6 each primary from a scripted setup; 7 the phases */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1937,11 +1938,60 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));
  ok(t35b.again[0]==='brief'&&t35b.again[1]===4&&t35b.again[2]&&t35b.again[3]==='destroy'&&t35b.again[4],'HC35 2: Plan again keeps the seed and the plan '+JSON.stringify(t35b.again));
  ok(!t35b.campaign,'HC35 1: no campaign save after a 3.5 run');
+ // HC35 5–7: the target, each primary, the phases (from scripted setups: no modifiers, a fixed seed)
+ const t35c=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,out={};
+  const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400');
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;else B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    for(const sid in o.lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=o.lo[sid];
+    if(o.tagger)B.plan.tagger=o.tagger;X.fn.launch();};
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  // 5: fighter guns alone can't zero the engines in 60 s; two Brickbats with bombs can
+  go('destroy',{dagger:{k:'disable',arg:'engines'},anvil:{role:'home'},amber:{role:'home'}});
+  until(()=>false,60);out.guns=[Math.round(L().subs[0].hp),fr().alive];
+  go('destroy',{anvil:{k:'disable',arg:'engines'},dagger:{role:'home'},amber:{role:'home'}});
+  out.bombs=[until(()=>L().disabled,60),Math.round(S().t)];
+  // a disabled freighter doesn't jump (put by its jump point); inside the pull it falls in
+  const f1=fr(),j=L().fjump;f1.x=j.x;f1.y=j.y;f1.px=f1.x;f1.py=f1.y;L().leg=L().lane.length-1;SIM.step();
+  out.nojump=[until(()=>!fr().alive,20)===false,L().spool==null];
+  go('crash',{dagger:{role:'home'},anvil:{role:'home'},amber:{k:'hold'}});
+  const f2=fr(),Pl=L().planet;f2.x=Pl.x;f2.y=Pl.y-Pl.r-1200;f2.px=f2.x;f2.py=f2.y;L().subs[0].hp=1;F.applyDamage(f2,5,true,true,{x:f2.x,y:f2.y,by:'hale',aimSub:'engines'});
+  L().subs[0].hp=0;L().disabled=true;L().drift={vx:0,vy:0};
+  out.crash=[until(()=>!fr().alive,40),L().crashed,L().prim.state];
+  // 6: each primary from a scripted setup
+  const res={};
+  go('destroy',{anvil:{k:'destroy'},dagger:{k:'defend',arg:'anvil'},amber:{k:'suppress',arg:'turrets'}});until(()=>L().prim.state!=='live',150);res.destroy=L().prim.state;
+  go('steal',{anvil:{k:'disable',arg:'engines'},amber:{k:'board'},dagger:{k:'defend',arg:'anvil'}},{lo:{mags:'board'}});until(()=>L().prim.state!=='live',200);res.steal=L().prim.state;
+  go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});until(()=>L().prim.state!=='live',200);res.pirate=L().prim.state;
+  go('strip',{anvil:{k:'disable',arg:'engines'},amber:{k:'haul'},dagger:{k:'suppress',arg:'escorts'}},{lo:{mags:'pods'}});until(()=>L().prim.state!=='live',200);res.strip=L().prim.state;
+  go('tag',{amber:{k:'tag'},dagger:{role:'home'},anvil:{role:'home'}},{tagger:'kit'});until(()=>L().prim.state!=='live',300);res.tag=[L().prim.state,L().tag.planted];
+  go('ambush',{dagger:{k:'ambush'},amber:{k:'ambush'},anvil:{k:'disable',arg:'engines'}});until(()=>L().responseAt!=null,60);L().responseAt=S().t+1;until(()=>L().prim.state!=='live',200);res.ambush=[L().prim.state,L().respKills];
+  out.res=res;
+  // crash, with the disable timed inside the pull (the signal rule comes with P3)
+  go('crash',{anvil:{k:'hold'},dagger:{k:'hold'},amber:{k:'defend',arg:'anvil'}});
+  until(()=>{const f=fr();return f.alive&&Math.hypot(f.x-L().planet.x,f.y-L().planet.y)<L().planet.pull*0.97;},200);L().exec.anvil={k:'disable',arg:'engines'};
+  until(()=>L().prim.state!=='live',120);res.crash=L().prim.state;
+  // 7: the phases: detection to 100 → Phase 2; the array killed mid-send: no response; Remote: none either
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L().detect=99.5;
+  const e=S().ships.find(s=>s.role35==='escort'),r=S().ships.find(s=>s.faction==='reb'&&s.alive);r.x=e.x+1800;r.y=e.y;r.px=r.x;r.py=r.y;L().detect=99.9;SIM.step();SIM.step();
+  out.phase=[L().phase,L().alarmWhy,!!L().distress];
+  const cm=L().subs.find(x=>x.k==='comms');F.applyDamage(fr(),140,true,true,{x:fr().x,y:fr().y,by:null,aimSub:'comms'});
+  until(()=>false,30);out.phase.push(cm.hp<=0,L().distress.cut,L().responseAt);
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{mods:[{k:'remote',hidden:false}]});L35.alarm('fired');until(()=>false,40);out.remote=[L().distress&&L().distress.landed,L().responseAt];
+  return out;
+ });
+ ok(t35c.guns[0]>0&&t35c.guns[1],'HC35 5: fighter guns alone don\'t take the engines out in 60 s '+JSON.stringify(t35c.guns));
+ ok(t35c.bombs[0],'HC35 5: two Brickbats with bombs do '+JSON.stringify(t35c.bombs));
+ ok(t35c.nojump.every(Boolean)&&t35c.crash[0]&&t35c.crash[1],'HC35 5: a disabled freighter can\'t jump; inside the pull it crashes '+JSON.stringify([t35c.nojump,t35c.crash]));
+ ok(t35c.res.destroy==='done'&&t35c.res.steal==='done'&&t35c.res.pirate==='done'&&t35c.res.strip==='done'&&t35c.res.tag[0]==='done'&&t35c.res.ambush[0]==='done'&&t35c.res.crash==='done','HC35 6: each primary can be won '+JSON.stringify(t35c.res));
+ ok(t35c.phase[0]===2&&t35c.phase[1]==='detected'&&t35c.phase[2]&&t35c.phase[3]&&t35c.phase[4]&&t35c.phase[5]==null,'HC35 7: detection → Phase 2; the array killed mid-send cuts the call '+JSON.stringify(t35c.phase));
+ ok(t35c.remote[0]&&t35c.remote[1]==null,'HC35 7: Remote: the call lands but no response comes '+JSON.stringify(t35c.remote));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

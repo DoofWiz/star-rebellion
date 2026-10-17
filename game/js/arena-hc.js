@@ -426,6 +426,7 @@ function fxSense(){
     if(!on)continue;
     if(was===undefined){if(s.alive&&!s.struct&&s.spawn&&Math.hypot(s.x-s.spawn.x,s.y-s.spawn.y)<400)FX.event('warpIn',{ship:shipView(s,ipos(s),boost)});continue;}   // still where it arrived
     if(!was||s.alive)continue;
+    if(A.ov&&A.ov.fxSkip&&A.ov.fxSkip(s))continue;   // Type 3.5 plays the freighter's capital death itself
     const p={x:s.x,y:s.y,h:s.h};
     if(s.jumped){if(S.t-(s.jumpT||0)<1)FX.event('jumpOut',{ship:shipView(s,p,boost)});}
     else if(!s.boarded&&!s.leftBehind&&S.t-(s.deadT==null?S.t:s.deadT)<1)
