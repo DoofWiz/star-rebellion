@@ -27,7 +27,10 @@
      F4: speech bubbles (2 s, one a ship, four on screen, rate-limited, your pilots only, the feed kept)
    The visual pass (DESIGN_BLOCKERS C-73; game/art/sr-space-fx.js): V1 the station art, the panel's FX group, drawing at
      three zooms on and off, the sim's moments as effects, nothing stale, boarding links, round 2 (C-74: the hurt read,
-     the death spiral, the lock marks), reduced motion, determinism */
+     the death spiral, the lock marks), reduced motion, determinism
+   Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §11; game/js/sim-hc35.js and arena-hc35.js, through
+     DBGarena.hc35), in its own context: HC35 1 High Command byte-identical with the hooks (hash baselines), no campaign
+     save; HC35 2 the loop by DOM (board, dossier, the four steps, Launch, the mission, the debrief, Plan again) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1043,7 +1046,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.noSave=localStorage.getItem(SAVE_KEY)===null;
   return out;
  },CAMPAIGN_KEY);
- ok(JSON.stringify(hc.rulesets)==='["SR V2 Combat","SB Test","Type 3: High Command"]','HC 1: three rulesets '+JSON.stringify(hc.rulesets));
+ ok(JSON.stringify(hc.rulesets.slice(0,3))==='["SR V2 Combat","SB Test","Type 3: High Command"]','HC 1: three rulesets (Type 3.5 is fourth, C-75) '+JSON.stringify(hc.rulesets));
  ok(!hc.v2List.some(id=>id.startsWith('hc'))&&!hc.sbList.some(id=>id.startsWith('hc')),'HC 1: HC scenarios stay off the v2 and SB lists '+JSON.stringify([hc.v2List,hc.sbList]));
  ok(hc.hcActive.join()==='hc,true,true,true'&&hc.hcList.join()==='hc1_nightfall,hc2_lastlight,hc3_meltdown','HC 1: picking High Command opens its own list '+JSON.stringify([hc.hcActive,hc.hcList]));
  ok(hc.loaded[0]==='LIVE'&&hc.loaded[1]==='hc1_nightfall'&&hc.loaded[2]==='dagger:3,amber:2'&&hc.loaded[3]&&hc.loaded[4],'HC 1: hc1_nightfall loads with its wings '+JSON.stringify(hc.loaded));
@@ -1882,9 +1885,63 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(v1.det[0]===v1.det[1],'C-73: the visual pass never changes the fight '+JSON.stringify(v1.det));
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
+ // ================= Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §11), its own context =================
+ const ctx4=await b.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
+ const pg4=await ctx4.newPage();
+ pg4.on('pageerror',e=>errs.push('pageerror(hc35): '+e.message));
+ pg4.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))errs.push('console(hc35): '+m.text());});
+ await pg4.goto(base+'#arena');await pg4.waitForTimeout(800);
+ // HC35 1: High Command is byte-identical with the hooks in: hc1–hc3 after 90 s, seed 7, one scripted order at 5 s.
+ // The baselines were recorded on space-combat-testing before any 3.5 change (C-75)
+ const HC35_BASE={hc1_nightfall:'a9741455',hc2_lastlight:'f237a40',hc3_meltdown:'40316536'};
+ const t35a=await pg4.evaluate(()=>{
+  const top=window.DBGarena;top.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc"]').click();
+  const H=top.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
+  const orders={hc1_nightfall:['dagger','attack',{type:'class',cls:'mote'}],hc2_lastlight:['ash','defend',{type:'ship',id:'lastlight'}],hc3_meltdown:['hammer','board',{type:'station',id:'reactor'}]};
+  for(const id in orders){f.load(id,0,7);SIM.runFor(5);f.issue(...orders[id]);SIM.runFor(85);out.hash[id]=SIM.stateHash();}
+  out.hooks=Object.keys(SIM.hooks).length;
+  return out;
+ });
+ ok(JSON.stringify(t35a.hash)===JSON.stringify(HC35_BASE)&&t35a.hooks===0,'HC35 1: High Command unchanged by the hooks (hashes match the baselines; no hook set) '+JSON.stringify(t35a));
+ // HC35 2: the loop by DOM, board → dossier → the four steps → Launch → the mission → debrief → Plan again
+ const t35b=await pg4.evaluate(()=>{
+  const top=window.DBGarena;top.fn.openPicker();
+  const out={};const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
+  out.rulesets=[...document.querySelectorAll('#arRulesets [data-ruleset-item] b')].map(e=>e.textContent);
+  document.querySelector('#arRulesets [data-ruleset="hc35"]').click();
+  const X=top.hc35,B=X.B;X.B.seed=4242;X.fn.showBoard(false);
+  out.board=[B.screen,!!q('.h35-opp'),qa('.sr-btn--primary').length,!!q('canvas[data-portrait="cass"]')];
+  q('[data-act="dossier"]').click();out.dossier=[B.screen,!!q('canvas[data-target]'),!!q('[data-act="dig"]')];
+  q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-obj.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
+  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
+  q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wing').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.sr-slot').length];
+  q('[data-act="next"]').click();out.step4=[B.step,qa('[data-ord="exec"]').length,!!q('[data-act="launch"]'),q('[data-act="launch"]').getAttribute('aria-disabled')];
+  // the wings as listed: Dagger 2 Cross + 1 Talon, Anvil 1 Talon + 2 Brickbat, Amber 1 Cross + 2 Talon + 1 Brickbat
+  out.wings=X.L35.WINGS35.map(w=>w.ships.map(s=>s.cls).join(','));
+  for(const w in B.plan.wings)B.plan.wings[w].exec={k:'destroy',arg:null};
+  const seed=B.seed;q('[data-act="launch"]').click();
+  const S=()=>X.S;
+  out.live=[B.screen,S().scn.id,S().ships.filter(s=>s.faction==='reb'&&!s.struct).length,!!S().ships.find(s=>s.id==='fl400'),S().ships.filter(s=>s.role35==='escort').length>0,X.L.phase];
+  X.fn.run(400);
+  out.end=[B.screen,!!S().over,!!q('.h35-debrief'),!!q('.sr-stamp')];
+  q('[data-act="again"]').click();
+  out.again=[B.screen,B.step,B.seed===seed,B.plan.primary,Object.values(B.plan.wings).every(w=>w.exec.k==='destroy')];
+  out.campaign=!!localStorage.getItem('star-rebellion-campaign-v1');
+  return out;
+ });
+ ok(t35b.rulesets[3]==='Type 3.5: High Command Hands Off','HC35 2: the fourth ruleset '+JSON.stringify(t35b.rulesets));
+ ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='dossier'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary) and the dossier '+JSON.stringify([t35b.board,t35b.dossier]));
+ ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===5&&t35b.step2[0]===2&&t35b.step2[1]===7&&t35b.step2[2]===5&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
+  'HC35 2: the four briefing steps '+JSON.stringify([t35b.step1,t35b.step2,t35b.step3,t35b.step4]));
+ ok(t35b.wings.join('|')==='cross,cross,talon|talon,brickbat,brickbat|cross,talon,talon,brickbat','HC35 2: the wings as the designer listed them '+JSON.stringify(t35b.wings));
+ ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));
+ ok(t35b.again[0]==='brief'&&t35b.again[1]===4&&t35b.again[2]&&t35b.again[3]==='destroy'&&t35b.again[4],'HC35 2: Plan again keeps the seed and the plan '+JSON.stringify(t35b.again));
+ ok(!t35b.campaign,'HC35 1: no campaign save after a 3.5 run');
+ await ctx4.close();
+
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

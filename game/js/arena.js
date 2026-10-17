@@ -83,6 +83,9 @@ const RULESETS={
   hc:{key:'hc',name:'Type 3: High Command',desc:'Mission Control: autonomous wings fly themselves in real '+
     'time; you issue orders, set tactics and standing rules, and spend command points. Pause is free '+
     '(docs/ARENA-HC-HANDOFF.md).'},
+  hc35:{key:'hc35',name:'Type 3.5: High Command Hands Off',desc:'Plan the mission, then trust your pilots: an '+
+    'opportunity becomes a plan, the plan plays out, and you intervene only through slow comms, commander powers and '+
+    'your pilots\' questions (docs/ARENA-HC35-HANDOFF.md).'},
 };
 let RULESET='v2',rulesetChosen=false;
 const forRuleset=(s,k)=>!s.rulesets||s.rulesets.includes(k);
@@ -485,7 +488,7 @@ function sfx(k){
 /* ---------- the loop ---------- */
 function frame(now){
   if(RULESET==='sb'&&window.SR_ARENA_SB&&window.SR_ARENA_SB.active){window.SR_ARENA_SB.frame(now);return;}
-  if(RULESET==='hc'&&window.SR_ARENA_HC&&window.SR_ARENA_HC.active){window.SR_ARENA_HC.frame(now);return;}
+  if((RULESET==='hc'||RULESET==='hc35')&&window.SR_ARENA_HC&&window.SR_ARENA_HC.active){window.SR_ARENA_HC.frame(now);return;}   // 3.5 runs on High Command's loop
   const dt=Math.min(100,Math.max(0,now-(lastNow||now)));lastNow=now;
   const sim=A.sim;
   if(sim){
@@ -546,6 +549,7 @@ function openPicker(){
   const pk=byId('arPicker');
   if(window.SR_ARENA_SB)window.SR_ARENA_SB.close();
   if(window.SR_ARENA_HC)window.SR_ARENA_HC.close();
+  if(window.SR_ARENA_HC35)window.SR_ARENA_HC35.close();
   rulesetChosen=false;
   let r='';
   for(const k in RULESETS){
@@ -583,6 +587,7 @@ function chooseRuleset(k){
   const pk=byId('arPicker');
   if(k==='sb'){pk.hidden=true;window.SR_ARENA_SB.open();return;}
   if(k==='hc'){pk.hidden=true;window.SR_ARENA_HC.open();return;}
+  if(k==='hc35'){pk.hidden=true;window.SR_ARENA_HC35.open();return;}
   pk.querySelector('#arScnStep').hidden=false;
   pk.querySelector('#arRulesetTitle').textContent='Arena: '+RULESETS[k].name+', pick a scenario';
 }
@@ -956,7 +961,7 @@ SR.register('arena',{enter,exit,frame});
 
 if(TEST){
   window.DBGarena={get A(){return A;},get sim(){return S2.S;},SIM2:S2,scenarios:ARENA_SCENARIOS,
-    get ruleset(){return RULESET;},RULESETS,get sb(){return window.SR_ARENA_SB&&window.SR_ARENA_SB.dbg;},get hc(){return window.SR_ARENA_HC&&window.SR_ARENA_HC.dbg;},
+    get ruleset(){return RULESET;},RULESETS,get sb(){return window.SR_ARENA_SB&&window.SR_ARENA_SB.dbg;},get hc(){return window.SR_ARENA_HC&&window.SR_ARENA_HC.dbg;},get hc35(){return window.SR_ARENA_HC35&&window.SR_ARENA_HC35.dbg;},
     fn:{start:startScenario,restart,execute,openPicker,dumpMetrics,backToTitle:()=>{},chooseRuleset,
       go(){execute();return A.sim.phase;},
       manual(on){A.manual=!!on;},

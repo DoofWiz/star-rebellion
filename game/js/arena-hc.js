@@ -114,7 +114,8 @@ const scenarios=()=>REG.filter(s=>s.rulesets&&s.rulesets.includes('hc'));
 /* ---------- state: one object, rebuilt per scenario ---------- */
 const A={active:false,phase:'PICK',scen:null,variant:0,seed:1,speed:2,lastSpeed:2,acc:0,lastFrame:0,
   sel:null,selShip:null,tray:null,panel:null,drawer:false,arm:null,follow:false,camHeld:false,
-  realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0};
+  realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0,
+  mode:null,ov:null};   // mode 'hc35' (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1): ov is its overlay (SR_ARENA_HC35); absent, High Command as ever
 
 /* ---------- canvas and camera (arena-sb.js's kit, copied) ---------- */
 const cv=byId('hcCv'),ctx=cv.getContext('2d');
@@ -539,10 +540,11 @@ function render(now){
     const p=pos(s);if(!inV(p.x,p.y,Math.max(shieldR(s,boost)*2,1500)))continue;   // room for a trail that reaches into view
     body.push({s,p,v:!fx?null:s.struct?(stationArt(s)?stationView(s,p,boost):null):shipView(s,p,boost)});
   }
-  for(const b of body)if(b.s.alive&&!b.s.struct){if(fx)FX.drawTrail(ctx,b.v,view);else drawTrail(ctx,b.s,z);}
+  for(const b of body)if(b.s.alive&&!b.s.struct&&!(A.ov&&A.ov.shipHidden&&A.ov.shipHidden(b.s))){if(fx)FX.drawTrail(ctx,b.v,view);else drawTrail(ctx,b.s,z);}
   for(const {s,p,v} of body){
     if(A.selShip===s.id||sw.includes(s.wing))ring(ctx,p.x,p.y,shieldR(s,boost)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
-    if(v&&s.struct)FX.station(ctx,v,view);
+    if(A.ov&&A.ov.drawBody&&A.ov.drawBody(ctx,s,p,z,boost,view)){}
+    else if(v&&s.struct)FX.station(ctx,v,view);
     else if(v&&v.art)FX.shipBody(ctx,v,view);
     else drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
     if(s.alive&&statusShown(s,sw,sf))drawShields(ctx,s,p.x,p.y,p.h,z,boost);
@@ -559,13 +561,15 @@ function render(now){
     }
     FX.drawLayer(ctx,'over',view);
   } else{drawShots(ctx,z,a,S);drawChaff(ctx,z,S);}
+  if(A.ov&&A.ov.drawWorld)A.ov.drawWorld(ctx,view,{z,boost,now,fx});
   drawLocks(ctx,z,S,boost,now,fx?view:null);
   // screen space: hull pips and names, floaters
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if(fx)FX.drawLayer(ctx,'screen',view);
+  if(A.ov&&A.ov.drawScreen)A.ov.drawScreen(ctx,view,{z,boost,now,fx});
   ctx.font='700 11px "Exo 2",sans-serif';ctx.textAlign='center';
   for(const s of S.ships){
-    if(!s.alive)continue;
+    if(!s.alive||A.ov&&A.ov.shipHidden&&A.ov.shipHidden(s))continue;   // Type 3.5's plan view hides your wings (their markers stand in)
     const p=pos(s),q=toScreen(p.x,p.y),r=shieldR(s,boost)*z;
     if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4});
     if(!s.struct&&!s.quiet){ctx.lineWidth=3;ctx.strokeStyle=C.ink;ctx.strokeText(s.name,q.x,q.y+r+14);ctx.fillStyle=shipColHi(s);ctx.fillText(s.name,q.x,q.y+r+14);}
@@ -685,6 +689,7 @@ function frame(now){
     RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
+  if(A.ov&&A.ov.tick)A.ov.tick(now);   // Type 3.5's screens animate (the dossier's turning freighter)
   // the visual pass's clocks: game time runs smooth with the timescale (not in 50 ms steps), real time always
   if(FX){fxSense();FX.update(SIM.S&&SIM.S.over?realDt/1000:gameDt,realDt);fxPerfTick(realDt);}   // past the end, the last booms play out
   bubbleTick(performance.now());badgeTick(performance.now());
@@ -717,7 +722,7 @@ function togglePause(){if(SIM.TIMESCALES[A.speed]===0)setSpeed(A.lastSpeed||2);e
 function load(id,variant,seed){
   const scn=REG.find(s=>s.id===id);
   if(!scn)throw new Error('Unknown arena scenario '+id);
-  if(!scn.rulesets||!scn.rulesets.includes('hc'))throw new Error(id+' does not run under High Command');
+  if(!scn.rulesets||!(scn.rulesets.includes('hc')||A.mode&&scn.rulesets.includes(A.mode)))throw new Error(id+' does not run under High Command');
   if(!A.active)openUi();
   if(A.phase==='LIVE')record();   // the one being left counts as abandoned
   A.scen=scn;A.variant=variant||0;if(seed!=null)A.seed=seed>>>0;
@@ -732,8 +737,11 @@ function load(id,variant,seed){
   fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
   return SIM.S;
 }
-function restart(same){if(!A.scen)return;load(A.scen.id,A.variant,same?A.seed:((A.seed*2654435761+12345)>>>0)%1000000);}
+/* a scenario built elsewhere (Type 3.5's plan compiler): registered under its id, replacing an older build */
+function loadScenario(obj,seed){const i=REG.findIndex(x=>x.id===obj.id);if(i>=0)REG[i]=obj;else REG.push(obj);return load(obj.id,0,seed);}
+function restart(same){if(A.ov&&A.ov.restart){A.ov.restart(same);return;}if(!A.scen)return;load(A.scen.id,A.variant,same?A.seed:((A.seed*2654435761+12345)>>>0)%1000000);}
 function showPicker(){
+  if(A.ov&&A.ov.home){A.ov.home();return;}
   if(!A.active)openUi();
   if(A.phase==='LIVE')record();
   A.phase='PICK';closeAll();
@@ -755,6 +763,7 @@ byId('hcPicker').addEventListener('click',ev=>{
   else if(b.dataset.act==='title')backToTitle();
 });
 function onOver(){
+  if(A.ov&&A.ov.onOver){A.phase='OVER';A.ov.onOver();syncHud(true);return;}
   A.phase='OVER';record();
   const o=SIM.S.over;
   const el=byId('hcEnd');
@@ -878,8 +887,9 @@ function syncTop(){
   const S=SIM.S,on=A.phase!=='PICK'&&S;
   byId('hcTop').hidden=!on;
   if(!on)return;
-  const o=byId('hcObj'),oh=objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
-  const ru=byId('hcRules'),rh=rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
+  const o=byId('hcObj'),oh=A.ov&&A.ov.objHtml?A.ov.objHtml():objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
+  const ru=byId('hcRules'),rh=A.ov&&A.ov.rulesHtml?A.ov.rulesHtml():rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
+  if(A.ov&&A.ov.clockHtml){const ck=byId('hcClock'),c=A.ov.clockHtml();if(ck.dataset.h!==c){ck.innerHTML=c;ck.dataset.h=c;}byId('hcBanner').hidden=true;return;}
   const left=SIM.clockLeft(),ck=byId('hcClock');
   ck.textContent=S.reinforce.spawned?'REINFORCEMENTS':fmtClock(left);
   ck.classList.toggle('is-out',S.reinforce.spawned);
@@ -897,7 +907,7 @@ function syncFeed(){
   let h='';
   for(const e of evs){
     const where=e.x!=null||e.ship;
-    const sh=e.kind==='emergency'?SIM.fn.byId(e.ship):null,live=sh&&sh.alive&&sh.emerg&&sh.emerg.ev===e.id&&!sh.emerg.resp;
+    const sh=e.kind==='emergency'&&!A.mode?SIM.fn.byId(e.ship):null,live=sh&&sh.alive&&sh.emerg&&sh.emerg.ev===e.id&&!sh.emerg.resp;   // Type 3.5: no responses
     h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+(live?' is-live':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
       (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+
       (live?'<span class="hc-ev__resp">'+SIM.emergencyOpts(sh).map(o=>'<button type="button" class="hc-resp'+(o.rec?' is-rec':'')+'" data-resp="'+o.key+'" data-ship="'+sh.id+'"'+(o.ok?'':' aria-disabled="true"')+' data-tip="resp:'+o.key+'">'+esc(o.key==='wingmate'?'Wingmate':o.key==='ride'?'Ride it out':o.name.replace('Emergency ','').replace('Patriot ',''))+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':'')+'</button>').join('')+'</span>':'')+'</div>';
@@ -1069,6 +1079,7 @@ byId('hcRoster').addEventListener('contextmenu',ev=>{
   if(h)openDrawer({wing:h.dataset.wingHead});else if(t)openDrawer({id:t.dataset.ship});
 });
 function selectWing(id,open){
+  if(A.mode)open=false;   // Type 3.5: no order tray
   if(A.cmdArm==='recall'){cmdApply('recall',{wing:id});return;}
   A.sel=id;A.group=null;A.selShip=null;A.arm=null;
   if(open){A.tray=id;A.panel=null;}
@@ -1251,13 +1262,14 @@ function syncPilot(){
   el.hidden=false;
   if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
   el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
-  const body=byId('hcPilotBody'),h=pilotBody(s);
+  const body=byId('hcPilotBody'),h=A.ov&&A.ov.pilotBody?A.ov.pilotBody(s):pilotBody(s);
   if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
 }
 byId('hcPilot').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
   const s=SIM.fn.byId(A.panel);if(!s)return;
   if(b.dataset.act==='close'){A.panel=null;syncHud(true);return;}
+  if(A.ov&&A.ov.pilotClick&&A.ov.pilotClick(s,b))return;
   if(b.dataset.doc){SIM.setDoctrine(s.id,b.dataset.abil,b.dataset.doc);syncHud(true);return;}
   if(b.dataset.use){if(b.getAttribute('aria-disabled')==='true')return;const r=SIM.useAbility(s.id,b.dataset.use);if(!r.ok)flash(r.why);syncHud(true);return;}
   if(b.dataset.resp){respond(s.id,b.dataset.resp,b);}
@@ -1327,6 +1339,13 @@ function cmdApply(k,tg){
 function syncHud(){
   if(!A.active)return;
   syncTop();syncFeed();syncRoster();syncTime();syncTray();syncPilot();syncDrawer();syncReadout();
+  if(A.mode){   // Type 3.5: no tray, wheel or commands; the overlay may hide the whole HUD (its board and briefing)
+    byId('hcCmds').hidden=true;byId('hcTray').hidden=true;
+    const off=!!(A.ov&&A.ov.hudHidden&&A.ov.hudHidden());
+    for(const id of ['hcTop','hcRoster','hcPilot'])if(off)byId(id).hidden=true;
+    byId('hcFeed').hidden=off;
+    if(A.ov&&A.ov.syncHud)A.ov.syncHud(performance.now());
+  }
   placeRail();
 }
 const FEED_ROWS=5;   // the feed's height, in entries (C-70). placeholder
@@ -1379,14 +1398,19 @@ function shipAt(x,y){
 }
 /* the mouse (C-70, playtest 2): left-drag draws a selection box, right-drag (or middle-drag) pans, a right-click with
    wings selected opens the order wheel (with none, the commands that fit). A finger still pans. */
+let ovDrag=false;   // the overlay took this press (a plan-view marker)
 cv.addEventListener('pointerdown',ev=>{
-  if(A.phase==='PICK'||!SIM.S)return;
+  if(!SIM.S)return;
+  if(A.ov&&A.ov.pointer&&A.ov.pointer('down',evPt(ev),ev)){ovDrag=true;cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);return;}
+  if(A.phase==='PICK')return;
   if(A.wheel)closeWheel();
   cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);
   const p=evPt(ev),panning=ev.button===2||ev.button===1||ev.pointerType==='touch';
   pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button,mode:panning?'pan':'box'};
 });
 cv.addEventListener('pointermove',ev=>{
+  if(ovDrag){A.ov.pointer('move',evPt(ev),ev);return;}
+  if(A.ov&&A.ov.pointer&&!pan)A.ov.pointer('hover',evPt(ev),ev);
   if(!pan)return;
   const p=evPt(ev);
   if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
@@ -1395,6 +1419,7 @@ cv.addEventListener('pointermove',ev=>{
   else A.box={x0:pan.px,y0:pan.py,x1:p.px,y1:p.py};
 });
 cv.addEventListener('pointerup',ev=>{
+  if(ovDrag){ovDrag=false;A.ov.pointer('up',evPt(ev),ev);return;}
   if(!pan)return;const was=pan;pan=null;
   const p=evPt(ev);
   if(was.mode==='box'&&was.moved){boxSelect(A.box);A.box=null;return;}
@@ -1403,7 +1428,7 @@ cv.addEventListener('pointerup',ev=>{
   if(was.button===2){mapRight(p);return;}
   if(was.button===0||was.button==null)mapClick(p,ev);
 });
-cv.addEventListener('pointercancel',()=>{pan=null;A.box=null;});
+cv.addEventListener('pointercancel',()=>{pan=null;A.box=null;ovDrag=false;});
 cv.addEventListener('contextmenu',ev=>ev.preventDefault());   // the right button is ours: pointerup handles a right-click
 /* a box: every wing with one of your ships inside it (as drawn); none clears the selection */
 function boxSelect(b){
@@ -1424,6 +1449,7 @@ function drawBox(){
 }
 /* a right-click: with wings selected, the order wheel for what is under the cursor; with none, the commands (target-first) */
 function mapRight(p){
+  if(A.mode){if(A.ov&&A.ov.mapRight)A.ov.mapRight(p);return;}   // Type 3.5: no order wheel
   if(A.phase!=='LIVE')return;
   const s=shipAt(p.x,p.y);
   if(selWings().length){openWheel(p,s);return;}
@@ -1475,6 +1501,7 @@ cv.addEventListener('wheel',ev=>{
   const after=toWorld(p.px,p.py);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam();
 },{passive:false});
 function mapClick(p,ev){
+  if(A.ov&&A.ov.mapClick&&A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
   const S=SIM.S,s=shipAt(p.x,p.y);
   if(A.cmdArm){   // a command armed: the click names its target
     const C2=SIM.COMMANDS[A.cmdArm];
@@ -1512,8 +1539,10 @@ const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray c
   ['Q / E','previous / next wing'],['1–9','the tray\'s order icons (the wheel\'s, when open)'],['Shift+1–6','the tray\'s tactic icons'],['Esc','step back, close'],
   ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map'],['Right-click','the order wheel (no wing selected: the commands)']];
 function onKey(ev){
-  if(SR.active!=='arena'||!A.active||A.phase==='PICK')return false;
+  if(SR.active!=='arena'||!A.active)return false;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
+  if(A.ov&&A.ov.onKey&&A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
+  if(A.phase==='PICK')return false;
   const k=ev.key;
   if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}
   if(A.wheel&&/^[1-9]$/.test(k)){ev.preventDefault();wheelPick(+k-1);return true;}
@@ -1577,7 +1606,7 @@ function buildPanel(){
   h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="defaults">Reset numbers to defaults</button>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected wing</label></div>';
-  h+='</div>'+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
+  h+='</div>'+(A.ov&&A.ov.panelHtml?A.ov.panelHtml():'')+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
   byId('hcPanelBody').innerHTML=h;
   syncReadout();
@@ -1586,6 +1615,7 @@ byId('hcPanelBody').addEventListener('input',ev=>{
   const el=ev.target;
   if(el.dataset.toggle==='tiles'){TILES_LIVE=el.checked;tileAuto=false;return;}
   if(el.dataset.toggle==='quiet'){A.quietPref=el.checked;return;}
+  if(A.ov&&A.ov.panelInput&&A.ov.panelInput(el))return;
   if(el.dataset.toggle==='fx'){FX_ON=el.checked;return;}
   if(el.dataset.toggle==='shake'){FX_SHAKE=el.checked;if(FX)FX.setShake(FX_SHAKE);return;}
   if(el.dataset.toggle==='calm'){FX_CALM=el.checked;return;}
@@ -1595,7 +1625,7 @@ byId('hcPanelBody').addEventListener('input',ev=>{
   const out=byId('hcPanelBody').querySelector('[data-out="'+k+'"]');if(out)out.textContent=fmt(t.get(),t.step);
   savePrefs();
 });
-byId('hcPanelBody').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(b)panelAct(b.dataset.act);});
+byId('hcPanelBody').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(A.ov&&A.ov.panelAct&&A.ov.panelAct(b.dataset.act))return;panelAct(b.dataset.act);});
 byId('hcPanelToggle').addEventListener('click',()=>{
   const p=byId('hcPanel');p.classList.toggle('is-collapsed');
   byId('hcPanelToggle').setAttribute('aria-expanded',String(!p.classList.contains('is-collapsed')));
@@ -1655,6 +1685,7 @@ function metricsRecord(){
     orderRate:+(m.orders/realMin).toFixed(2),pauseRate:{perMin:+(A.pauses/realMin).toFixed(2),pausedShare:+(A.pausedSecs/Math.max(A.realSecs,1e-6)).toFixed(3)}};
 }
 function record(){
+  if(A.mode)return A.ov&&A.ov.record?A.ov.record():null;
   if(A.recorded||!SIM.S||!A.scen||(SIM.S.t<=0&&!SIM.S.m.orders))return null;
   A.recorded=true;
   const rec=metricsRecord();A.metrics.push(rec);
@@ -1677,7 +1708,12 @@ function closeUi(){
   A.active=false;A.phase='PICK';ROOT.hidden=true;closeAll();
   const v2=SCENE.querySelector('.ar-shell');if(v2)v2.hidden=false;
 }
-function open(){openUi();showPicker();}
+function open(o){
+  A.mode=o&&o.mode||null;A.ov=A.mode?o.overlay||null:null;
+  openUi();
+  if(A.ov){A.phase='PICK';closeAll();if(o.scenario)loadScenario(o.scenario,o.seed);syncHud(true);return;}
+  showPicker();
+}
 
 /* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
@@ -1687,6 +1723,10 @@ const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(
     FX,fxOn,fxSense,fxReset,shipView,stationView,stationArt,boarders,padNear,fxPanelHtml,FX_UI,render,
     fx_:()=>({on:FX_ON,shake:FX_SHAKE,calm:FX_CALM,primed:fxPrimed,stats:FX?FX.stats():null,frameMs:fxFrameMs,frames:fxFrames,nebAuto:fxNebAuto,nebUser:fxNebUser,SLOW:FX_SLOW_MS,WARM:FX_WARM}),fxPerfTick,setFx(o){if('on' in o)FX_ON=!!o.on;if('shake' in o){FX_SHAKE=!!o.shake;if(FX)FX.setShake(FX_SHAKE);}if('calm' in o)FX_CALM=!!o.calm;},
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
-    toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};}}};
-window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg};
+    toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
+/* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
+const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,label,ring,dashLine,ipos,
+  selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
+  get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
+window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
 })();

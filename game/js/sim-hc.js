@@ -49,6 +49,13 @@ let NERVE_K=0.6;          // every nerve loss × this (High Command only). place
 let CALM_SECS=3;          // ...given each this many seconds a ship goes unhurt (a round's length under SB). placeholder
 
 let S=null;
+/* hooks for a layer over this sim (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1; exported as SIMHC.hooks). Each one is
+   absent unless a layer sets it, and absent, High Command runs exactly as before: tools/arena-smoke.js HC35 1 checks
+   the hc1–hc3 hashes. classExtra{cls: row} · loadoutExtra(row, list) · think(s) → true skips · goal(s) → a goal ·
+   damage(t, dmg, skipShield, fromFront, hit) → a result · canJump(s) → false blocks · canFire(s, t, q) → false blocks ·
+   step(dt) · event(kind, text, o, e) */
+const HK={};
+const rowOf=cls=>(HK.classExtra&&HK.classExtra[cls])||SRDB.ship(cls);
 
 /* ---------- seeded RNG (copied from arena-sb.js mulberry) ---------- */
 function mulberry(seed){let a=seed>>>0;return ()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -126,6 +133,7 @@ function wdefOf(r){
    database's stock Cross (no missiles) is unchanged, so v2, SB and the campaign are too. A scenario's loadout wins */
 const HC_LOADOUT={'ft-4-cross':['bls-t-light-repeaters','missiles']};
 function loadout(row,list){
+  if(HK.loadoutExtra){const x=HK.loadoutExtra(row,list);if(x)return x;}
   const ids=(list||HC_LOADOUT[row.id]||[row.default_weapon_1,row.default_weapon_2]).filter(id=>id&&SRDB.weapons[id]).slice(0,row.weapon_slots||2);
   return ids.map((id,i)=>{const w=wdefOf(SRDB.weapons[id]);w.rng*=RANGE_MULT;return {key:'w'+i,w,ammo:w.ammo,cd:0};});
 }
@@ -140,7 +148,8 @@ const CRITDEFS={
 const maxShield=s=>s.segs.F.max+s.segs.R.max;
 const totalShield=s=>s.segs.F.val+s.segs.R.val;
 const mute=s=>s.row.kind!=='starship';
-function applyDamage(t,dmg,skipShield,fromFront){
+function applyDamage(t,dmg,skipShield,fromFront,hit){
+  if(HK.damage){const r=HK.damage(t,dmg,skipShield,fromFront,hit);if(r)return r;}
   let rem=dmg,sd=0,ad=0,hd=0;
   const zone=fromFront?'F':'R';
   if(!skipShield){
@@ -185,7 +194,7 @@ function adjCool(s,d){
 
 /* ---------- the hull, intersection and impact: copied from sim-sb.js ~419–449 ---------- */
 let HULL_LEN=22,HULL_WID=10,SHIP_SCALE=1.35;   // copied from sim-sb.js (placeholders there)
-function hullAxes(s){const v=SRDB.visualSize(s.row.size)*SHIP_SCALE,k=s.evadeT&&S.t<s.evadeT?Math.SQRT1_2:1;return {a:HULL_LEN*v*k,b:(s.struct?HULL_LEN*v:HULL_WID*v)*k};}   // a Barrel Roll halves the profile
+function hullAxes(s){const v=SRDB.visualSize(s.row.size)*SHIP_SCALE*(s.row.hitK||1),k=s.evadeT&&S.t<s.evadeT?Math.SQRT1_2:1;return {a:HULL_LEN*v*k,b:(s.struct?HULL_LEN*v:HULL_WID*v)*k};}   // a Barrel Roll halves the profile
 function hullHit(t,p0,p1){
   const {a,b}=hullAxes(t);
   const c=Math.cos(-t.h),sn=Math.sin(-t.h);
@@ -271,6 +280,7 @@ function lockTick(s,dt){
 function missileShot(s){
   const q=misWpn(s);if(!q||s.holdFire||q.cd>0||critCount(s,'feed'))return null;
   const t=byId(s.lockOn);if(!t||!t.alive)return null;
+  if(HK.canFire&&HK.canFire(s,t,q)===false)return null;
   const d=dist(s,t);
   return lockOf(s,t.id)>=MISSILE_LOCK&&d<=misRange(q)&&d>=MISSILE_MINR*RU?{q,t}:null;
 }
@@ -313,6 +323,7 @@ function aimAngle(s,t,w){
 }
 function canFire(s,q,t){
   if(!t||!t.alive||s.struct||s.holdFire)return false;
+  if(HK.canFire&&HK.canFire(s,t,q)===false)return false;
   if(q.w.kind!=='plasma'&&critCount(s,'feed'))return false;
   if(q.ammo!==undefined&&q.ammo<=0)return false;
   const d=dist(s,t);
@@ -357,7 +368,7 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const share=homing?1:shotShare(),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
   const dmg=homing?Math.max(1,Math.round(raw)):raw;
   const fromFront=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0;
-  const r=applyDamage(t,dmg,w.skipShield,fromFront);
+  const r=applyDamage(t,dmg,w.skipShield,fromFront,hit);
   if(imp>=0.8&&S.rng()<(CRIT_DIRECT+(w.crit||0))*(homing?1:share/CRIT_REF))applyCritical(t);
   t.hitT=S.t;t.lastHitBy=shooterId;
   if(s){s.st.hits++;s.st.dmg+=dmg;}
@@ -653,7 +664,7 @@ function build(scn,opt){
   S.pn=0;S.misN=0;S.chaff=[];S.chaffN=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
   for(const wd of R.wings||[])addWing(wd);
   for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark); an installation (a station row) is yours to defend
-    const row=SRDB.ship(a.cls||'graf'),inst=row.kind==='structure';
+    const row=rowOf(a.cls||'graf'),inst=row.kind==='structure';
     S.ships.push(mkShip({id:a.id,name:a.name,faction:'reb',row,x:a.at[0],y:a.at[1],h:a.at[2],pilot:presetPilot(a.pilot,a.name),role:a.role||(inst?'station':'convoy'),quiet:!inst,to:a.to,stats:a.stats,label:a.label,loadout:a.loadout||[]}));
   }
   let eN=0;
@@ -672,7 +683,7 @@ function addWing(wd){
   wd.ships.forEach((sd,i)=>{
     S.pn++;
     const at=sd.at||formation(wd.at||[Z.x0+900,(Z.y0+Z.y1)/2,0],i,wd.ships.length);
-    const row=SRDB.ship(sd.cls||'talon')||SRDB.ship('talon'),nm=sd.name||(wd.name+' '+(i+1));
+    const row=rowOf(sd.cls||'talon')||SRDB.ship('talon'),nm=sd.name||(wd.name+' '+(i+1));
     const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout,stats:sd.stats});
     s.thinkT=THINK_SECS;
     S.ships.push(s);w.ships.push(s.id);
@@ -683,7 +694,7 @@ function addWing(wd){
   return w;
 }
 function spawnEnemies(e,nextN){
-  const n=e.id?1:(e.n||1),r=Enemies.space(e.type),row=SRDB.ship(r.ship);
+  const n=e.id?1:(e.n||1),r=HK.classExtra&&HK.classExtra[e.type]?{ship:e.type}:Enemies.space(e.type),row=rowOf(r.ship);
   const out=[];
   for(let i=0;i<n;i++){
     const k=nextN();
@@ -708,6 +719,7 @@ function pushEvent(kind,text,o){
   o=o||{};
   const e={id:++S.evN,t:+S.t.toFixed(2),kind,text,x:o.x!=null?o.x:null,y:o.y!=null?o.y:null,ship:o.ship||null,tone:o.tone||'info',viewed:false,opts:o.opts||null,key:o.key||null};
   S.events.push(e);if(S.events.length>200)S.events.shift();
+  if(HK.event)HK.event(kind,text,o,e);
   return e;
 }
 /* the pilots' voices (C-69, playtest 1): a line becomes a speech bubble by the ship for 2 s (the HUD draws it). Only
@@ -759,6 +771,7 @@ function jammed(pointKey){const j=S.R.jam;if(!j||j.point!==pointKey)return false
 /* the behaviours a ship can be in: what it is doing and why (the order, a rule, an emergency, a command) */
 function think(s){
   if(s.struct||!s.alive)return;
+  if(HK.think&&HK.think(s))return;
   if(s.faction==='heg'){thinkEnemy(s);return;}
   if(s.quiet){thinkConvoy(s);return;}
   const w=wingOf(s.wing);if(!w)return;
@@ -1473,8 +1486,9 @@ function arriveGoal(s,p,spd){
 function goalOf(s){
   const b=s.beh||{kind:'idle'},w=wingOf(s.wing),T=w?tacticOf(w):HC_TACTICS.spread,P=PERSONALITY[s.persona]||PERSONALITY.even,c=capsOf(s);
   s.fireAt=null;s.intent=null;s.holdFire=false;
-  let g=null;
-  if(b.kind==='engage'){
+  let g=HK.goal?HK.goal(s):null;
+  if(g){}
+  else if(b.kind==='engage'){
     const t=byId(b.target);
     if(t&&t.alive){
       s.fireAt=t.id;
@@ -1769,7 +1783,7 @@ function fly(s,dt){
 let COLLIDE_DMG=40;       // damage at a closing speed of 1,000 a second (a head-on at full speed is ~4 ×). placeholder
 let COLLIDE_K=1.15;       // a ship's collision radius, × its hull length (HULL_LEN). placeholder
 let COLLIDE_BOUNCE=0.3;   // restitution. placeholder
-const bodyR=s=>s.struct?HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*1.2:HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*COLLIDE_K;
+const bodyR=s=>(s.struct?HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*1.2:HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*COLLIDE_K)*(s.row.hitK||1);
 const rockR=r=>r.r*0.95;
 function sweptMin(ax,ay,dx,dy){   // the closest a point a + u·d (u in 0..1) comes to the origin: [u, distance]
   const L=dx*dx+dy*dy,u=L<1e-9?1:clamp(-(ax*dx+ay*dy)/L,0,1);
@@ -1839,6 +1853,7 @@ function jumpCheck(){
     const leaving=s.beh&&(s.beh.kind==='withdraw'||s.beh.kind==='convoy'||s.beh.kind==='wait');
     const key=s.quiet?s.to:ex,p=S.points[key];
     if(!leaving||!p||jammed(key))continue;
+    if(HK.canJump&&HK.canJump(s)===false)continue;
     if(dist(s,p)<=JUMP_R){
       s.alive=false;s.jumped=true;s.jumpT=S.t;
       pushEvent('jump',s.name+' jumps out',{x:p.x,y:p.y,ship:s.id,tone:'good'});
@@ -2017,6 +2032,7 @@ function step(){
   reinforceTick();
   objTick();
   overCheck();
+  if(HK.step)HK.step(dt);
   return true;
 }
 function runFor(secs){const n=Math.round(secs*1000/TICK);for(let i=0;i<n&&!S.over;i++)step();return S.t;}
@@ -2076,7 +2092,7 @@ function targetChips(w,kind){
   if(kind==='attack'){
     for(const o of S.objectives)if(o.state==='live'&&o.kind==='destroy')for(const id of o.targets){const t=byId(id);if(t&&t.alive)out.push({label:t.label||t.name,kind:'objective',target:{type:'obj',id}});}
     const seen={};
-    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&!t.struct&&!seen[t.cls]){seen[t.cls]=1;out.push({label:SRDB.ship(t.cls).name.split(' ').pop()+'s',kind:'class',target:{type:'class',cls:t.cls}});}
+    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&!t.struct&&!seen[t.cls]){seen[t.cls]=1;out.push({label:rowOf(t.cls).name.split(' ').pop()+'s',kind:'class',target:{type:'class',cls:t.cls}});}
     for(const t of S.ships)if(t.alive&&t.faction==='heg'&&t.struct&&!out.some(c=>c.target.id===t.id))out.push({label:t.label||t.name,kind:'station',target:{type:'station',id:t.id}});
   }
   return out;
@@ -2084,7 +2100,7 @@ function targetChips(w,kind){
 function targetLabel(o){
   if(!o||!o.target)return '';
   const t=o.target;
-  if(t.type==='class'){const r=SRDB.ship(t.cls);return r?r.name.split(' ').pop()+'s':t.cls;}
+  if(t.type==='class'){const r=rowOf(t.cls);return r?r.name.split(' ').pop()+'s':t.cls;}
   if(t.type==='point'){const p=S.points[t.id];return p?p.label:'here';}
   if(t.type==='pos')return 'here';
   const s=byId(t.id);return s?(s.label||s.name):t.id;
@@ -2233,7 +2249,7 @@ for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
 return {key:'hc',name:'Type 3: High Command',
-  get S(){return S;},get W(){return W;},get H(){return H;},get zone(){return Z;},MARGIN,RU,SU,TICK,TIMESCALES,
+  get S(){return S;},get W(){return W;},get H(){return H;},get zone(){return Z;},MARGIN,RU,SU,TICK,TIMESCALES,hooks:HK,
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
@@ -2241,5 +2257,8 @@ return {key:'hc',name:'Type 3: High Command',
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
-    PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR}};
+    PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
+    // for a layer (Type 3.5): the pieces it drives the fight with
+    rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,rockHit,wdefOf,
+    presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
 })();

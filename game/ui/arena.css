@@ -488,3 +488,105 @@
 #arHc .hc-wheel__b i{position:absolute;top:2px;right:4px;font-style:normal;font-size:9px;color:var(--sr-text-3);}
 #arHc .hc-wheel__b:hover,#arHc .hc-wheel__b:focus-visible{border-color:var(--sr-gold);color:var(--sr-gold);}
 #arHc .hc-wheel__b.is-cmds{color:var(--sr-shield);}
+
+/* =====================================================================
+   Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §7): the board, the dossier, the briefing, the
+   mission HUD's own pieces. Kit classes and tokens only; laid over High Command's stage (#hcStage)
+   ===================================================================== */
+#arHc35{position:absolute;inset:0;z-index:9;pointer-events:none;font-family:var(--sr-font-ui);color:var(--sr-text);}
+#arHc35>*{pointer-events:auto;}
+#arHc35 .sr-banner{pointer-events:none;}
+#arHc35 .h35-scrim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,6,13,.78);}
+#arHc35 .h35-label{margin:14px 0 6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-hint{margin:0 0 4px;font-size:var(--sr-fs-sm);color:var(--sr-text-2);}
+#arHc35 .h35-sub,#arHc35 .h35-fine2{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+#arHc35 .h35-fine{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+/* the board */
+#arHc35 .h35-board{width:min(820px,100%);}
+#arHc35 .h35-board__head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;}
+#arHc35 .h35-board__head h2{margin:0;font-size:var(--sr-fs-2xl);}
+#arHc35 .h35-opp{display:flex;gap:16px;align-items:flex-start;}
+#arHc35 .h35-opp__src{display:flex;flex-direction:column;align-items:center;gap:6px;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-rebel);}
+#arHc35 .h35-opp__main{flex:1;min-width:0;}
+#arHc35 .h35-opp__title{font:400 var(--sr-fs-xl)/1.1 var(--sr-font-display);}
+#arHc35 .h35-portrait{width:72px;height:72px;}
+#arHc35 .h35-portrait--sm{width:40px;height:40px;}
+/* the dossier */
+#arHc35 .h35-dossier{width:min(940px,100%);max-height:100%;display:flex;flex-direction:column;}
+#arHc35 .h35-dossier__body{display:flex;gap:16px;align-items:flex-start;overflow:auto;}
+#arHc35 .h35-target{width:min(420px,48%);height:auto;border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);background:var(--sr-void);}
+#arHc35 .h35-dossier__txt{flex:1;min-width:0;}
+#arHc35 .h35-dossier__name{font:400 var(--sr-fs-lg)/1.1 var(--sr-font-display);color:var(--sr-heg-hi);}
+#arHc35 .h35-mod{display:flex;gap:10px;align-items:center;margin:6px 0;font-size:var(--sr-fs-sm);color:var(--sr-text-2);}
+#arHc35 .h35-rel{margin-top:10px;font-style:italic;color:var(--sr-text-2);font-size:var(--sr-fs-sm);}
+#arHc35 .h35-dig{display:flex;align-items:center;gap:10px;margin-top:14px;}
+#arHc35 .h35-intel{display:inline-flex;gap:4px;}
+#arHc35 .h35-intel i{width:12px;height:12px;border-radius:3px;border:2px solid var(--sr-ink);background:transparent;box-shadow:inset 0 0 0 2px var(--sr-shield);}
+#arHc35 .h35-intel i.is-on{background:var(--sr-shield);}
+#arHc35 .h35-none{color:var(--sr-text-3);font-size:var(--sr-fs-sm);}
+/* the briefing: the panel at the left, the map (High Command's canvas) at the right */
+#arHc35 .h35-brief{position:absolute;left:12px;top:12px;bottom:12px;width:420px;display:flex;flex-direction:column;background:color-mix(in srgb,var(--sr-hull) 96%,transparent);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);}
+#arHc35 .h35-brief__head{display:flex;align-items:center;gap:10px;padding:10px 14px 0;}
+#arHc35 .h35-brief__title{flex:1;font:400 var(--sr-fs-lg)/1.1 var(--sr-font-display);}
+#arHc35 .h35-steps{display:flex;gap:4px;padding:10px 12px;border-bottom:2px solid var(--sr-seam);}
+#arHc35 .h35-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;border:0;background:none;color:var(--sr-text-3);font:800 10px/1.15 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.04em;cursor:pointer;text-align:center;}
+#arHc35 .h35-step b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;border:2px solid var(--sr-ink);background:var(--sr-night);color:var(--sr-text-2);font:400 var(--sr-fs-sm)/1 var(--sr-font-display);}
+#arHc35 .h35-step.is-done{color:var(--sr-text-2);} #arHc35 .h35-step.is-done b{background:var(--sr-go);color:var(--sr-ink);}
+#arHc35 .h35-step.is-on{color:var(--sr-gold);} #arHc35 .h35-step.is-on b{background:var(--sr-gold);color:var(--sr-gold-ink);animation:h35-pulse 1.4s ease-in-out infinite;}
+@keyframes h35-pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--sr-gold) 35%,transparent);}}
+#arHc35 .h35-brief__body{flex:1;min-height:0;overflow-y:auto;padding:10px 14px;scrollbar-width:thin;}
+#arHc35 .h35-ready{padding:8px 14px 12px;border-top:2px solid var(--sr-seam);}
+#arHc35 .h35-ready .h35-label{margin-top:2px;}
+#arHc35 .h35-next{position:absolute;right:16px;bottom:16px;display:flex;gap:10px;}
+#arHc35 .h35-obj{display:block;width:100%;margin:0 0 8px;text-align:left;color:var(--sr-text);cursor:pointer;font:inherit;}
+#arHc35 .h35-obj.is-picked{box-shadow:inset 4px 0 0 var(--c),0 0 0 3px var(--sr-gold),var(--sr-lift);}
+#arHc35 .h35-obj[aria-disabled="true"]{opacity:.55;cursor:not-allowed;}
+#arHc35 .h35-obj .sr-card__body{margin:4px 0 4px;}
+#arHc35 .h35-obj .sr-card__top .sr-tag+.sr-tag{margin-left:0;}
+#arHc35 .h35-need{padding:2px 0;font-size:var(--sr-fs-xs);}
+#arHc35 .h35-need .sr-check__box{width:18px;height:18px;}
+#arHc35 .h35-noneed{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+#arHc35 .h35-pickrow{margin-top:6px;font-size:var(--sr-fs-sm);}
+#arHc35 .h35-pickrow input[type=range]{width:100%;}
+#arHc35 .h35-sel{height:30px;max-width:100%;padding:0 8px;border:2px solid var(--sr-ink);border-radius:var(--sr-r);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);}
+#arHc35 .h35-wing{margin:0 0 10px;padding:10px 12px;}
+#arHc35 .h35-wing.is-home{opacity:.6;}
+#arHc35 .h35-wing__head{display:flex;align-items:center;gap:10px;}
+#arHc35 .h35-wing__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);color:var(--sr-rebel);}
+#arHc35 .h35-wing__sub{margin-left:auto;font-size:var(--sr-fs-xs);color:var(--sr-text-2);}
+#arHc35 .h35-role{margin-left:auto;}
+#arHc35 .h35-ships{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+#arHc35 .h35-ship{display:flex;flex-direction:column;align-items:center;gap:2px;width:112px;}
+#arHc35 .h35-ship:has(.h35-lo){width:100%;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;column-gap:10px;}
+#arHc35 .h35-ship:has(.h35-lo) .h35-lo{margin:0 0 0 auto;}
+#arHc35 .h35-shippic{width:96px;height:58px;}
+#arHc35 .h35-ship__name{font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);}
+#arHc35 .h35-ship__sub{font-size:var(--sr-fs-xs);color:var(--sr-text-2);}
+#arHc35 .h35-lo{margin-top:4px;flex-wrap:wrap;justify-content:center;}
+#arHc35 .h35-lo .sr-btn{padding:0 6px;font-size:11px;min-height:24px;}
+#arHc35 .h35-take{margin-top:12px;padding:8px 12px;font-size:var(--sr-fs-sm);}
+#arHc35 .h35-ord{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;}
+#arHc35 .h35-ord__lbl{width:58px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);letter-spacing:.06em;}
+#arHc35 .h35-slots{display:flex;flex-direction:column;gap:8px;}
+#arHc35 .h35-slots .sr-slot{width:100%;text-align:left;cursor:pointer;font:inherit;color:var(--sr-text-2);background:none;}
+#arHc35 .h35-slots .sr-slot.is-filled{cursor:default;}
+#arHc35 .h35-slots .sr-slot__label{display:block;font-size:var(--sr-fs-xs);color:var(--sr-text-2);}
+#arHc35 .h35-aglyph{display:grid;place-items:center;width:34px;height:34px;flex:none;color:var(--sr-gold);}
+#arHc35 .h35-aglyph .hc-glyph{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;}
+#arHc35 .h35-assets{margin-top:6px;}
+#arHc35 .h35-assets .sr-choice small{color:var(--sr-text-2);}
+/* the debrief */
+#arHc35 .h35-debrief{max-height:100%;display:flex;flex-direction:column;}
+#arHc35 .h35-debrief .sr-window__body{overflow:auto;}
+#arHc35 .h35-debrief .sr-window__head .sr-stamp{margin-left:auto;transform:rotate(-4deg);}
+#arHc35 .h35-why p{margin:0 0 8px;padding:8px 12px;border-left:4px solid var(--sr-gold);background:var(--sr-night);border-radius:0 var(--sr-r) var(--sr-r) 0;font-size:var(--sr-fs-sm);}
+/* the mission HUD's phase plate sits where High Command's clock does */
+#arHc .hc-clock:has(.h35-phase){padding:0;background:none;border:0;box-shadow:none;text-shadow:none;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;}
+#arHc .h35-phase .sr-phase__name{font-size:var(--sr-fs-md);}
+#arHc .h35-detect{width:220px;height:8px;border:2px solid var(--sr-ink);border-radius:999px;background:var(--sr-night);overflow:hidden;}
+#arHc .h35-detect b{display:block;height:100%;background:var(--sr-heg);}
+#arHc .h35-prim{margin-left:auto;height:20px;font-size:10px;}
+@media (prefers-reduced-motion:reduce){#arHc35 .h35-step.is-on b{animation:none;}}
+#arHc .h35-phase{white-space:nowrap;}
+#arHc .hc-clockbox:has(.h35-phase){min-width:max-content;}
