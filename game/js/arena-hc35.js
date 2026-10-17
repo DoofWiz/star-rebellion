@@ -30,7 +30,7 @@ function open(){
   showBoard(true);
 }
 function close(){
-  ROOT.hidden=true;B.screen='off';L35.detach();B.pick=null;B.choose=null;B.abortArm=false;
+  ROOT.hidden=true;B.screen='off';REQEL.hidden=true;L35.detach();B.pick=null;B.choose=null;B.abortArm=false;
   const ti=byId('hcCmds').querySelector('.hc-cmds__title');if(ti)ti.textContent='Commands';   // High Command's own bar again
 }
 function home(){showBoard(false);}
@@ -369,6 +369,11 @@ function whyLines(){
   if(L.abort)out.push('You aborted at '+fmtClock(L.abortT)+'.');
   if(L.exposure)out.push('The Firebrand Broadcast went out in the clear: the Hegemony heard your voice (Exposure).');
   if(L.burned)out.push('The Agent aboard acted for you, and may be burned.');
+  const cap=L.pods.filter(p=>p.state==='captured'),saved=L.pods.filter(p=>p.state==='aboard');
+  if(cap.length)out.push(cap.map(p=>p.name).join(', ')+(cap.length>1?' were':' was')+' left in the pod and captured.');
+  if(saved.length)out.push(saved.map(p=>p.name).join(', ')+(saved.length>1?' were':' was')+' picked up after ejecting.');
+  const asked=L.req.log.filter(q=>q.by==='player'||q.by==='default');
+  if(asked.length)out.push('Requests: '+asked.map(q=>(SIM.fn.byId(q.who)||{name:'?'}).name+' · '+L35.ANS[q.answer]+(q.by==='default'?' (their call)':'')).join(', ')+'.');
   if(L.pirated)out.push('The pirates left with '+L.pirated+' container'+(L.pirated>1?'s':'')+'.');
   if(L.powLog.length)out.push('Powers used: '+L.powLog.map(p=>(L35.POWERS35[p.k]||{name:'Insist'}).name+' (Phase '+p.phase+')').join(', ')+'.'+(L.cpLost?' '+L.cpLost+' CP went unspent.':''));
   return out.length?out:['(The cause chain comes with phase P6 of the build.)'];
@@ -381,7 +386,8 @@ function planAgain(){
 function record(){
   const S=SIM.S,L=L35.L;if(!S||!L)return null;
   const rec={ruleset:'hc35',seed:B.seed,attempt:B.attempt,primary:L.plan.primary,outcome:S.over?S.over.outcome:'abandoned',t:+S.t.toFixed(2),phaseT:L.phaseT.slice(),
-    powers:L.powLog.slice(),cpUnspent:(L.cpLost||0)+L.cp,commsOff:!!L35.N.COMMS_OFF};
+    powers:L.powLog.slice(),cpUnspent:(L.cpLost||0)+L.cp,commsOff:!!L35.N.COMMS_OFF,requestsOff:!!L35.N.REQ_OFF,
+    requests:L.req.log.map(q=>({k:q.k,who:q.who,answer:q.answer,by:q.by,t:+q.t0.toFixed(2)})),pods:L.pods.map(p=>({who:p.ship,state:p.state}))};
   B.metrics.push(rec);A.metrics.push(rec);
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   return rec;
@@ -423,7 +429,7 @@ function drawWorld(c,view,o){
   c.beginPath();c.arc(P.x,P.y,P.r-6/z,Math.PI*1.1,Math.PI*1.65);c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.stroke();
   c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();
   drawTarget(c,z,view,o);
-  if(!plan)drawPowers(c,z,view,o);
+  if(!plan){drawPowers(c,z,view,o);drawPods(c,z);}
   if(plan||B.planOverlay)drawLane(c,z);
   if(!plan&&B.planOverlay)drawPlanLive(c,z);
   else{const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
@@ -572,6 +578,7 @@ function onKey(ev){
   const k=ev.key;
   if(B.screen==='live'&&(k==='p'||k==='P')){ev.preventDefault();B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);return true;}
   if(B.screen==='live'&&k==='Escape'&&(B.pick||B.choose||B.abortArm)){ev.preventDefault();B.pick=null;B.choose=null;B.abortArm=false;API.syncHud(true);return true;}
+  if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&/^[abc]$/i.test(k)&&reqKey(k)){ev.preventDefault();return true;}
   if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){const i=PKEYS.indexOf(k.toLowerCase());if(i>=0){const p=barPowers()[i];if(p){ev.preventDefault();startPower(p.k);return true;}}}
   if(B.screen==='board'||B.screen==='dossier'||B.screen==='debrief'||B.screen==='brief'){
     if(k==='Escape'&&B.screen==='dossier'){ev.preventDefault();showBoard(false);return true;}
@@ -612,6 +619,7 @@ function paintTarget(t){
 }
 function tick(now){
   if(B.screen==='dossier'&&!API.fxReduced())paintTarget(now/1000);
+  if(B.screen==='live')syncReq();
 }
 byId('hcClock').addEventListener('click',ev=>{const b=ev.target.closest('[data-act="plan"]');if(!b||B.screen!=='live')return;B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);});
 ROOT.addEventListener('click',ev=>{
@@ -662,7 +670,7 @@ const barPowers=()=>L35.L?L35.powers().filter(p=>p.k!=='abort'):[];
 function pickText(){
   const P=B.pick&&L35.POWERS35[B.pick.k];if(!P)return '';
   if(B.pick.stage==='focus')return 'Pick the target to focus · Esc to cancel';
-  return (P.target==='mine'?'Pick one of your ships':P.target==='foe'?'Pick an enemy'+(B.pick.k==='mark'||B.pick.k==='ram'?' or a freighter subsystem':''):'Pick a target')+' · Esc to cancel';
+  return (P.target==='mine'?(B.pick.k==='tug'?'Pick one of your ships, or a pod':'Pick one of your ships'):P.target==='foe'?'Pick an enemy'+(B.pick.k==='mark'||B.pick.k==='ram'?' or a freighter subsystem':''):'Pick a target')+' · Esc to cancel';
 }
 function cmdsHtml(){
   const S=SIM.S,L=L35.L;if(!L||!S||B.screen!=='live')return '';
@@ -741,7 +749,8 @@ function mapClick(p,ev,ship){
   const k=B.pick.k,P=L35.POWERS35[k],args=B.pick.args,stage=B.pick.stage;
   const want=stage==='focus'?'foe':P.target;
   if(want==='mine'){
-    if(!ship||ship.faction!=='reb'||!ship.wing){API.flash('Pick one of your ships');return true;}
+    const pod=k==='tug'?podAt(p):null;if(pod){doUse(k,{pod:pod.id});return true;}
+    if(!ship||ship.faction!=='reb'||!ship.wing){API.flash(k==='tug'?'Pick one of your ships, or a pod':'Pick one of your ships');return true;}
     args.ship=ship.id;if(P.choice){B.pick=null;B.choose={k,args};API.syncHud(true);return true;}doUse(k,args);return true;}
   if(want==='foe'){
     if(!ship||ship.faction==='reb'){API.flash('Pick an enemy');return true;}
@@ -800,6 +809,62 @@ function drawProp(c,s,p,z,boost){
     for(const o of [0.2,0.55]){const x=p.x+ca*r*(1-o),y=p.y+sa*r*(1-o);c.beginPath();c.moveTo(x-ca*8*boost-sa*10*boost,y-sa*8*boost+ca*10*boost);c.lineTo(x,y);c.lineTo(x-ca*8*boost+sa*10*boost,y-sa*8*boost-ca*10*boost);c.stroke();}c.restore();}
   if(s.prop35==='pirate')API.ring(c,p.x,p.y,40*boost,TH.rgba(C.hazard,0.85),z,2,[5,4]);
 }
+/* =====================================================================
+   P5: the request cards (§7.4): right column, newest on top, at most REQ_OPEN; the pods on the map
+   ===================================================================== */
+const REQEL=document.createElement('div');REQEL.className='h35-reqs';REQEL.hidden=true;STAGE.appendChild(REQEL);
+const RING_C=2*Math.PI*15;
+function reqCards(){const L=L35.L;return L?L.req.open.slice().sort((a,b)=>b.id-a.id):[];}
+function reqHtml(q){
+  const s=SIM.fn.byId(q.who),name=s?s.name:'Comms',mor=s?SIM.moraleOf(s):'';
+  let h='<div class="hc-card h35-req" data-req="'+q.id+'" data-state="'+q.state+'"><div class="h35-req__top">'+(s?'<canvas class="h35-portrait h35-portrait--req" width="64" height="64" data-portrait="'+esc(s.id)+'"></canvas>':'')+
+    '<span class="h35-req__who"><b>'+esc(name)+'</b>'+(mor?'<span class="hc-mor" data-m="'+mor+'">'+mor+'</span>':'')+'</span>'+
+    '<svg class="h35-req__ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="h35-req__rbg"/><circle cx="18" cy="18" r="15" class="h35-req__rfg" stroke-dasharray="'+RING_C.toFixed(1)+'"/></svg></div>'+
+    '<div class="sr-quote h35-req__q">'+esc(q.line)+'</div>';
+  if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">'+'ABC'[i]+'</span><span>'+esc(L35.ANS[a])+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
+  else if(q.state==='sent')h+='<div class="h35-req__sent">Sending · '+esc(L35.ANS[q.answer])+' <em data-left="1"></em><i><b data-bar="1"></b></i></div>';
+  else h+='<div class="h35-req__done">'+(q.by==='player'?'Answered: '+esc(L35.ANS[q.answer]):esc(name)+' decided: '+esc(L35.ANS[q.answer]))+'</div>';
+  return h+'</div>';
+}
+/* the cards: rebuilt when one comes, goes or changes state; the countdowns move every frame */
+function syncReq(){
+  const L=L35.L,S=SIM.S,on=B.screen==='live'&&!!L&&!!S;
+  const qs=on?reqCards().slice(0,Math.max(2,L35.N.REQ_OPEN)):[],key=qs.map(q=>q.id+q.state).join(',');
+  REQEL.hidden=!qs.length;
+  if(REQEL.dataset.k!==key){REQEL.dataset.k=key;REQEL.innerHTML=qs.map(reqHtml).join('');paintPortraits(REQEL);}
+  for(const q of qs){const el=REQEL.querySelector('[data-req="'+q.id+'"]');if(!el)continue;
+    const left=q.state==='open'?Math.max(0,q.until-S.t):0,k=q.state==='open'?left/Math.max(0.01,q.until-q.t0):0;
+    const fg=el.querySelector('.h35-req__rfg');if(fg){fg.style.strokeDashoffset=(RING_C*(1-k)).toFixed(1);fg.classList.toggle('is-low',q.state==='open'&&left<4);}
+    if(q.state==='sent'){const tx=L.txLog.find(t=>t.id===q.tx);if(tx){const e=el.querySelector('[data-left]'),b=el.querySelector('[data-bar]');
+      if(e)e.textContent=Math.max(0,tx.at-S.t).toFixed(1)+' s';if(b)b.style.width=Math.round((tx.delay>0?Math.min(1,(S.t-tx.t0)/tx.delay):1)*100)+'%';}}}
+  // a new request at 3×: back to 1× so you can read it (REQ_AUTOSLOW)
+  const top=qs.find(q=>q.state==='open');
+  if(top&&top.id>(B.reqSeen||0)){B.reqSeen=top.id;if(L35.N.REQ_AUTOSLOW&&A.speed>2)API.setSpeed(2);}
+}
+function paintPortraits(root){
+  for(const cv of root.querySelectorAll('canvas[data-portrait]')){const g=cv.getContext('2d'),id=cv.dataset.portrait,r=cv.width/2;g.clearRect(0,0,cv.width,cv.height);
+    const who=id==='cass'?SA.lookOf({id:'cass',name:'Cass',role:'Spy'}):SA.lookOf({id:id==='joss'?'joss':id,name:id,role:'Pilot'});
+    try{SA.portrait(g,r,r,r-3,who,{t:0});}catch(e){}}
+}
+function answer(id,a){const r=L35.answerReq(id,a);if(!r.ok)API.flash(r.why);syncReq();API.syncHud(true);return r;}
+REQEL.addEventListener('click',ev=>{const b=ev.target.closest('[data-ans]');if(!b)return;answer(+b.dataset.req,b.dataset.ans);});
+/* A / B / C: the newest open request (they win over the powers' keys while one is open) */
+function reqKey(k){
+  const q=reqCards().find(x=>x.state==='open');if(!q)return false;
+  const i='abc'.indexOf(k.toLowerCase());if(i<0||!q.answers[i])return false;
+  answer(q.id,q.answers[i]);return true;
+}
+/* the pods: a small rebel-red capsule, its beacon blinking, a ring counting down to its capture */
+function drawPods(c,z){
+  const L=L35.L,S=SIM.S,now=performance.now()/1000;
+  for(const p of L.pods){if(p.state!=='drift')continue;const k=Math.max(0,(p.until-S.t)/L35.N.POD_SECS),r=9/z;
+    c.save();c.translate(p.x,p.y);c.rotate(now*0.8);c.beginPath();c.ellipse(0,0,r*1.4,r*0.8,0,0,6.283);c.fillStyle=C.rebel;c.fill();c.lineWidth=2/z;c.strokeStyle=C.ink;c.stroke();c.restore();
+    if(Math.floor(now*3)%2===0){c.save();c.beginPath();c.arc(p.x,p.y-r*1.2,3/z,0,6.283);c.fillStyle='#fff';c.fill();c.restore();}
+    c.save();c.lineWidth=2/z;c.strokeStyle=TH.rgba(C.rebel,0.9);c.beginPath();c.arc(p.x,p.y,22/z,-Math.PI/2,-Math.PI/2+k*6.283);c.stroke();c.restore();
+    API.label(c,p.x,p.y-30/z,p.name.toUpperCase()+' · POD',C.rebel,z,10,'Bungee');}
+}
+function podAt(p){const L=L35.L;if(!L)return null;let b=null,bd=40/cam.z;for(const x of L.pods){if(x.state!=='drift')continue;const d=Math.hypot(x.x-p.x,x.y-p.y);if(d<bd){bd=d;b=x;}}return b;}
+
 /* ---------- the overlay High Command calls ---------- */
 const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapClick,
   pilotClick(s,b){if(b.dataset.act!=='callname')return false;if(b.getAttribute('aria-disabled')==='true'){API.flash('Call a Pilot by Name: '+(L35.powerWhy('name')||'not now'));return true;}
@@ -810,6 +875,7 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
   syncHud(now){
     const L=L35.L;
     if(B.screen==='live')syncCp();
+    syncReq();
     if(B.screen==='live'&&L&&L.phase!==B.lastPhase){B.lastPhase=L.phase;if(!B.planUser)B.planOverlay=L.phase===1;if(L.phase>1){banner('PHASE '+L.phase,L.phase===2?'They know we\'re here':'Hegemony on site');render();}}   // designer copy (C-78)
     if(B.screen==='live'&&B.banner&&now-B.banner.at>1400){B.banner=null;render();}},
   restart(same){if(same&&B.plan){planAgain();}else{B.seed=newSeed();rollAttempt();showBoard(false);}},

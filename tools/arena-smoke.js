@@ -34,7 +34,8 @@
      HC35 5 bombs and subsystems, the drift and the planet; 6 each primary from a scripted setup; 7 the phases;
      HC35 3 the modifiers and Dig deeper; P3 the leaders' plan and critiques, two plans → two fights, a Secondary, 8 Hold
      for My Signal, Weapons Tight, Preservation and OFF PLAN; 9 the comms delay; 7 command points by phase; 10 every
-     power after its delay, and the powers bar by DOM */
+     power after its delay, and the powers bar by DOM; 11 pilot requests (default, Preservation, the caps, off, keys);
+     12 ejection pods */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1944,6 +1945,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  // HC35 5–7: the target, each primary, the phases (from scripted setups: no modifiers, a fixed seed)
  const t35c=await pg4.evaluate(()=>{
   const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,out={};
+  L35.N.REQ_OFF=1;   // the target and the primaries on their own: no pilot requests (P5) but the surrender's
   const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400');
   const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
     for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;else B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
@@ -1966,7 +1968,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const res={};
   go('destroy',{anvil:{k:'destroy'},dagger:{k:'defend',arg:'anvil'},amber:{k:'suppress',arg:'turrets'}});until(()=>L().prim.state!=='live',150);res.destroy=L().prim.state;
   go('steal',{anvil:{k:'disable',arg:'engines'},amber:{k:'board'},dagger:{k:'defend',arg:'anvil'}},{lo:{mags:'board'}});until(()=>L().prim.state!=='live',200);res.steal=L().prim.state;
-  go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});until(()=>L().prim.state!=='live',200);res.pirate=L().prim.state;
+  L35.N.REQ_OFF=0;go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});   // the surrender's answer: take the cargo
+  until(()=>{const q=L().req.open.find(x=>x.k==='surrender'&&x.state==='open');if(q)L35.answerReq(q.id,'take');return L().prim.state!=='live';},200);res.pirate=L().prim.state;L35.N.REQ_OFF=1;
   go('strip',{anvil:{k:'disable',arg:'engines'},amber:{k:'haul'},dagger:{k:'suppress',arg:'escorts'}},{lo:{mags:'pods'}});until(()=>L().prim.state!=='live',200);res.strip=L().prim.state;
   go('tag',{amber:{k:'tag'},dagger:{role:'home'},anvil:{role:'home'}},{tagger:'kit'});until(()=>L().prim.state!=='live',300);res.tag=[L().prim.state,L().tag.planted];
   go('ambush',{dagger:{k:'ambush'},amber:{k:'ambush'},anvil:{k:'disable',arg:'engines'}});until(()=>L().responseAt!=null,60);L().responseAt=S().t+1;until(()=>L().prim.state!=='live',200);res.ambush=[L().prim.state,L().respKills];
@@ -1982,7 +1985,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const cm=L().subs.find(x=>x.k==='comms');F.applyDamage(fr(),140,true,true,{x:fr().x,y:fr().y,by:null,aimSub:'comms'});
   until(()=>false,30);out.phase.push(cm.hp<=0,L().distress.cut,L().responseAt);
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{mods:[{k:'remote',hidden:false}]});L35.alarm('fired');until(()=>false,40);out.remote=[L().distress&&L().distress.landed,L().responseAt];
-  return out;
+  L35.N.REQ_OFF=0;return out;
  });
  ok(t35c.guns[0]>0&&t35c.guns[1],'HC35 5: fighter guns alone don\'t take the engines out in 60 s '+JSON.stringify(t35c.guns));
  ok(t35c.bombs[0],'HC35 5: two Brickbats with bombs do '+JSON.stringify(t35c.bombs));
@@ -1993,6 +1996,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  // HC35 3 and P3: the modifiers, Dig deeper, the leaders' plan and critiques, two plans → two fights, Secondaries, the rules
  const t35d=await pg4.evaluate(()=>{
   const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,out={};
+  L35.N.REQ_OFF=1;   // the plan on its own: no pilot requests (P5)
   const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400'),q=s=>document.querySelector('#arHc35 '+s);
   const O=L35.OPPORTUNITIES.vulnerable_freighter;
   // 3: same seed, same modifiers; 20 seeds, at least 8 different sets; no exclusive pair; subtle 3 never on the board
@@ -2030,7 +2034,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   B.seed=555;B.mods=[];B.plan=L35.leaderPlan('destroy');B.plan.roes=['preservation'];B.plan.presHull=0.3;X.fn.launch();
   const p=S().ships.find(s=>s.id==='wren');p.hull=p.maxHull*0.2;p.thinkT=99;SIM.step();SIM.step();
   out.pres=[p.beh&&p.beh.kind,p.beh&&p.beh.rule,L().off.dagger,X.fn.OV.tacticChip(F.wingOf('dagger'))];
-  return out;
+  L35.N.REQ_OFF=0;return out;
  });
  ok(t35d.mods[0]&&t35d.mods[1]>=8&&t35d.mods[2]===0&&t35d.mods[3],'HC35 3: modifiers: same seed same set, varied, no exclusive pair, subtle 3 hidden '+JSON.stringify(t35d.mods));
  ok(t35d.dig.every(Boolean),'HC35 3: Dig deeper reveals one and spends Intel '+JSON.stringify(t35d.dig));
@@ -2044,6 +2048,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  // HC35 9–10 (P4): the comms delay, command points by phase, and every power doing its job after its delay
  const t35e=await pg4.evaluate(()=>{
   const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  N.REQ_OFF=1;   // the powers on their own: no pilot requests (P5)
   const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400'),by=id=>S().ships.find(s=>s.id===id);
   const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
   const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
@@ -2101,17 +2106,66 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.dom=[!bar.hidden,!!btn('ram'),!!btn('abort'),!btn('tug'),/Powers/.test(bar.querySelector('.hc-cmds__title').textContent),bar.querySelectorAll('#hcCp .hc-cp__pips i').length===N.CP1];
   btn('mark').click();out.dom.push(!!bar.querySelector('.h35-pickpill'));
   X.fn.OV.mapClick({x:fr().x,y:fr().y},{},fr());window.SR_ARENA_HC.api.syncHud(true);out.dom.push(!bar.querySelector('.h35-pickpill'),bar.querySelectorAll('.h35-tx').length===L().tx.length&&L().tx.length>0);
-  return out;
+  N.REQ_OFF=0;return out;
  });
  ok(t35e.delay[3]&&t35e.delay[4]&&t35e.delay[5]&&t35e.delay[6],'HC35 9: comms delay: the formula, the relay shortens it, Ion Storm doubles it, off is instant '+JSON.stringify(t35e.delay));
  ok(t35e.cp.every(Boolean),'HC35 7: command points reset at each phase '+JSON.stringify(t35e.cp));
  for(const k in t35e.P)ok(t35e.P[k].every(x=>x===true||x==='aborted'),'HC35 10: '+k+' does its job after its delay '+JSON.stringify(t35e.P[k]));
  ok(t35e.dom.every(Boolean),'HC35 10: the powers bar, targeting, the comms queue '+JSON.stringify(t35e.dom));
+ // HC35 11–12 (P5): pilot requests and ejection
+ const t35f=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id);
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    B.plan.assets=o.assets||[];B.plan.roes=o.roes||[];X.fn.launch();};
+  const hold={dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},openOf=(k,who)=>L().req.open.find(q=>q.k===k&&(!who||q.who===who));
+  // 11: a hit pilot asks; no answer: they do what their persona says
+  go('destroy',hold);const w=by('wren');w.hull=w.maxHull*0.35;until(()=>!!openOf('hit','wren'),5);const q=openOf('hit','wren');
+  out.hit=[!!q,q&&q.def];until(()=>q.state==='done',N.REQ_SECS+2);
+  out.hit.push(q.by==='default',q.answer===q.def,q.def==='pull'?!!L().pull.wren:!!L().stayIn.wren,X.fn.OV&&true);
+  // an answer overrides Preservation Order, for that pilot only
+  go('destroy',hold,{roes:['preservation']});L().plan.presHull=0.3;const pe=by('petra');pe.hull=pe.maxHull*0.25;
+  until(()=>!!openOf('hit','petra'),5);const qp=openOf('hit','petra');const r=L35.answerReq(qp.id,'stayin');
+  const wr=by('wren');wr.hull=wr.maxHull*0.25;until(()=>qp.state==='done',20);until(()=>false,1.5);
+  out.pres=[r.ok,!!L().stayIn.petra,pe.alive&&!(pe.beh&&pe.beh.rule==='preservation35'),wr.beh&&wr.beh.rule==='preservation35'];
+  // the open cap, the gap and the mission cap hold
+  const crowd=()=>{for(const s of S().ships)if(s.faction==='reb'&&s.wing)s.hull=s.maxHull*0.35;};
+  const g0=N.REQ_GAP,p0=N.REQ_PEND;N.REQ_PEND=60;
+  go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();let most=0;until(()=>{most=Math.max(most,L().req.open.filter(x=>x.state==='open').length);return false;},50);
+  const t0s=L().req.log.filter(x=>x.by!=='off'&&x.by!=='unasked').map(x=>x.t0);
+  out.gap=[t0s.length>=2,t0s.every((t,i)=>!i||t-t0s[i-1]>=N.REQ_GAP-0.01),most<=N.REQ_OPEN];
+  N.REQ_GAP=0;go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();most=0;until(()=>{most=Math.max(most,L().req.open.filter(x=>x.state==='open').length);return false;},60);
+  out.cap=[most===N.REQ_OPEN,L().req.log.filter(x=>x.by==='default'||x.by==='player').length===N.REQ_CAP];
+  N.REQ_GAP=g0;N.REQ_PEND=p0;
+  // Requests off: none
+  N.REQ_OFF=1;go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();until(()=>false,30);out.off=[L().req.log.length===0,L().req.open.length===0];N.REQ_OFF=0;
+  // the A/B/C keys answer the newest
+  go('destroy',hold);by('joss').hull=by('joss').maxHull*0.35;until(()=>!!openOf('hit','joss'),5);const qk=openOf('hit','joss');
+  window.SR_ARENA_HC.api.syncHud(true);const card=document.querySelector('.h35-reqs [data-req="'+qk.id+'"]');
+  document.dispatchEvent(new KeyboardEvent('keydown',{key:'b',bubbles:true}));out.keys=[!!card,qk.state==='sent',qk.answer===qk.answers[1]];
+  // 12: ejection: a pod; the Tug collects it; an uncollected pod is captured, and the debrief says so
+  const e0=N.EJECT_P;N.EJECT_P=1;
+  go('destroy',hold,{assets:['tug']});F.kill(by('wren'),null);SIM.step();const pod=L().pods[0];
+  out.pod=[!!pod,pod&&pod.state==='drift'];const u=L35.use('tug',{pod:pod.id});until(()=>pod.state!=='drift',90);out.pod.push(u.ok,pod.state==='aboard',pod.by==='tug35');
+  go('destroy',hold);F.kill(by('wren'),null);SIM.step();const p2=L().pods[0];until(()=>p2.state!=='drift',N.POD_SECS+2);
+  L35.use('retreat');X.fn.run(300);const db=document.querySelector('#arHc35 .h35-debrief');
+  out.captured=[p2.state==='captured',!!db&&/captured/.test(db.textContent)];
+  N.EJECT_P=e0;
+  return out;
+ });
+ ok(t35f.hit.every(x=>x===true||x==='pull'||x==='stayin'),'HC35 11: a hit pilot asks, and times out to the persona default '+JSON.stringify(t35f.hit));
+ ok(t35f.pres.every(Boolean),'HC35 11: an answer overrides Preservation Order for that pilot only '+JSON.stringify(t35f.pres));
+ ok(t35f.gap.every(Boolean)&&t35f.cap.every(Boolean),'HC35 11: the gap, the open cap and the mission cap hold '+JSON.stringify([t35f.gap,t35f.cap]));
+ ok(t35f.off.every(Boolean),'HC35 11: Requests off raises none '+JSON.stringify(t35f.off));
+ ok(t35f.keys.every(Boolean),'HC35 11: A/B/C answer the newest request '+JSON.stringify(t35f.keys));
+ ok(t35f.pod.every(Boolean)&&t35f.captured.every(Boolean),'HC35 12: a pod; the Tug collects it; an uncollected one is captured in the debrief '+JSON.stringify([t35f.pod,t35f.captured]));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

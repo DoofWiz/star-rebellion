@@ -61,7 +61,12 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   // what the powers do
   BROADCAST_NERVE:25,BROADCAST_RES:25,REFUSE_P:0.5,MARK_SECS:20,NEARLY:0.2,
   RAM_DMG:140,RAM_LIFE:40,NUKE_R:2200,NUKE_DMG:160,FIRE_R:1800,FIRE_DMG:110,MINE_N:8,MINE_RING:1100,MINE_R:700,MINE_DMG:55,
-  INTERDICT_R:5000,INTERDICT_SECS:30,SPOOF_SECS:25,PIRATE_N:3,PIRATE_GREED:0.4,PIRATE_SECS:120,TUG_R:500};
+  INTERDICT_R:5000,INTERDICT_SECS:30,SPOOF_SECS:25,PIRATE_N:3,PIRATE_GREED:0.4,PIRATE_SECS:120,TUG_R:500,
+  // pilot requests (§5.6): how long one waits, how many at once, the gap, a mission's cap, how long a trigger waits to be asked
+  REQ_SECS:12,REQ_OPEN:2,REQ_GAP:20,REQ_CAP:6,REQ_PEND:8,REQ_OFF:0,REQ_AUTOSLOW:1,
+  HIT_REQ:0.4,VOL_HULL:0.35,VOL_R:3000,RAM_K:1.5,CHASE_R:3000,
+  // ejection (§5.7)
+  EJECT_P:0.6,EJECT_VET:0.2,POD_SECS:40,POD_R:300};
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
   FLANK_K:{get:()=>FLANK_K,set:v=>{FLANK_K=v;},min:1,max:3,step:0.1,label:'Alarmed speed ×',group:'Freighter'},
@@ -99,9 +104,13 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   RAM_DMG:['Ram damage',20,400,10,'Powers'],RAM_LIFE:['Ram: seconds to hit',5,120,5,'Powers'],NUKE_R:['Nuclear blast reach',500,5000,100,'Powers'],NUKE_DMG:['Nuclear blast damage',20,400,10,'Powers'],
   FIRE_R:['Fire ship blast reach',300,4000,50,'Powers'],FIRE_DMG:['Fire ship blast damage',10,300,5,'Powers'],MINE_N:['Mines',1,16,1,'Powers'],MINE_RING:['Minefield ring',200,3000,50,'Powers'],MINE_R:['A mine\'s reach',100,2000,50,'Powers'],MINE_DMG:['A mine\'s damage',5,200,5,'Powers'],
   INTERDICT_R:['Interdictor reach',1000,10000,100,'Powers'],INTERDICT_SECS:['Interdictor (s)',5,120,5,'Powers'],SPOOF_SECS:['Spoofed orders (s)',5,90,1,'Powers'],
-  PIRATE_N:['Pirates',1,6,1,'Powers'],PIRATE_GREED:['Pirates go for the cargo (chance)',0,1,0.05,'Powers'],PIRATE_SECS:['Pirates stay (s)',20,300,10,'Powers'],TUG_R:['Tug hooks on within',100,2000,50,'Powers']};
+  PIRATE_N:['Pirates',1,6,1,'Powers'],PIRATE_GREED:['Pirates go for the cargo (chance)',0,1,0.05,'Powers'],PIRATE_SECS:['Pirates stay (s)',20,300,10,'Powers'],TUG_R:['Tug hooks on within',100,2000,50,'Powers'],
+  REQ_OFF:['Requests off (1 = off)',0,1,1,'Requests'],REQ_AUTOSLOW:['Slow to 1× on a request (1 = on)',0,1,1,'Requests'],REQ_SECS:['A request waits (s)',3,40,1,'Requests'],REQ_OPEN:['Requests open at once',1,4,1,'Requests'],
+  REQ_GAP:['Seconds between new requests',0,90,1,'Requests'],REQ_CAP:['Requests a mission',0,20,1,'Requests'],REQ_PEND:['A trigger waits to be asked (s)',0,30,1,'Requests'],
+  HIT_REQ:['"I\'m hit" under (hull)',0.1,0.8,0.05,'Requests'],VOL_HULL:['Volunteers under (hull)',0.1,0.8,0.05,'Requests'],VOL_R:['Volunteer: target within',500,8000,100,'Requests'],RAM_K:['Volunteer ram × ram damage',0.5,4,0.1,'Requests'],CHASE_R:['"Permission to chase" within',500,8000,100,'Requests'],
+  EJECT_P:['Ejects (chance)',0,1,0.05,'Requests'],EJECT_VET:['+ for a veteran',0,0.5,0.05,'Requests'],POD_SECS:['A pod drifts (s)',5,120,1,'Requests'],POD_R:['A pod is picked up within',50,1500,25,'Requests']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
-const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers'];
+const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests'];
 
 /* =====================================================================
    The opportunity (§3.1): one type, as data
@@ -423,7 +432,9 @@ function begin(){
     roe:k=>X.plan.roes.includes(k),briefedEsc:0,biggerT:null,stayIn:{},checkT:0,
     // P4: command points, transmissions in flight, arrivals, the powers' effects
     cp:N.CP1,tx:[],txN:0,arrivals:[],powLog:[],used:{},sigW:{},markW:{},focus:{},pull:{},pushback:null,called:{},
-    interdict:null,abort:false,exposure:false,burned:false,beacon:true,pirated:0,props:{}};
+    interdict:null,abort:false,exposure:false,burned:false,beacon:true,pirated:0,props:{},
+    // P5: requests, pods, and the overrides their answers set
+    req:{open:[],log:[],pend:[],seen:{},n:0,lastT:-1e9,applied:[]},pods:[],vol:{},fetch:{},holdUntil:{},divert:{},rookie:null,scuttleOut:false};
   for(const wid in X.plan.wings){const pw=X.plan.wings[wid];L.exec[wid]=pw.exec?Object.assign({},pw.exec):null;L.sec[wid]=pw.second&&pw.second.trig?Object.assign({fired:false,noted:false,adopted:false},pw.second):null;}
   for(const w of S.wings){L.n0[w.id]=w.ships.length;L.offSecs[w.id]=0;w.rally={x:w.ships.map(F.byId).reduce((a,s)=>a+s.x,0)/w.ships.length,y:w.ships.map(F.byId).reduce((a,s)=>a+s.y,0)/w.ships.length};}
   const fr=FR();
@@ -504,6 +515,7 @@ function canFire(s,t,q){
   if(s.id===L.fr)return false;
   if(s.faction!=='reb')return true;
   if(s.prop35==='ram'||s.prop35==='tug')return false;
+  if(L.rookie&&s.id===L.rookie.leader&&t.id===L.rookie.target&&SIM.S.t<L.rookie.until)return false;   // Blood the Rookie: Let her
   if(s.wing&&!signalled(s.wing)&&!(SIM.S.t-s.hitT<3))return false;   // Hold for My Signal (unless fired on)
   if(t.id===L.fr&&L.roe('tight')&&!['engines','comms','turrets'].includes(s.sub35))return false;   // Weapons Tight: engines, comms, turrets only
   if(L.opt.some(o=>o.k==='bloodless')&&t.id!==L.fr&&t.hull/t.maxHull<0.3)return false;   // Bloodless: wound, don't kill (the primary comes first)
@@ -534,10 +546,15 @@ function thinkWing(s){
   // a pod ship with containers aboard takes them home once it's full or its haul is over
   if(s.pods&&s.pods.length&&(ex.k!=='haul'||s.pods.length>=N.POD_CAP))return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'carrying '+s.pods.length+' home',hard:true});
   if(s.recall||s.panic||(s.beh&&s.beh.rule&&!/35$/.test(s.beh.rule)))return false;   // High Command's own ladder outranks the plan
+  // a volunteer's ram; a Brickbat picking up a pod; a wing holding for the reserves (request answers)
+  if(L.vol[s.id]){const t=F.byId(L.vol[s.id].id);if(t&&t.alive)return setB(s,{kind:'ram35',target:t.id,why:'putting her into it',rule:'vol35',hard:true});}
+  if(L.fetch[s.id]){const p=L.pods.find(x=>x.id===L.fetch[s.id]);if(p&&p.state==='drift')return setB(s,{kind:'fetch35',dest:{x:p.x,y:p.y},why:'picking up '+p.name,rule:'fetch35',hard:true});delete L.fetch[s.id];}
+  if(L.holdUntil[s.wing]&&S.t<L.holdUntil[s.wing]&&!(S.t-s.hitT<3))return setB(s,{kind:'waitpt',dest:w.rally||F.wingCentre(w),why:'holding for the reserves',rule:'hold35'});
   // Call a Pilot by Name: Pull out
   if(L.pull[s.id])return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'Base called me out',rule:'pull35',hard:true});
   // Preservation Order: under its hull threshold a ship withdraws and jumps out (a pilot you told to stay in, stays)
-  if(L.roe('preservation')&&s.hull/s.maxHull<L.plan.presHull&&!L.stayIn[s.id])return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'Preservation Order',rule:'preservation35',hard:true});
+  const asking=L.req.open.some(q=>q.k==='hit'&&q.who===s.id&&q.state!=='done');   // they asked to stay in: Preservation waits for your answer
+  if(L.roe('preservation')&&s.hull/s.maxHull<L.plan.presHull&&!L.stayIn[s.id]&&!asking)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'Preservation Order',rule:'preservation35',hard:true});
   // the protected ship comes home before it's lost (Protect at all costs)
   const pro=L.opt.find(o=>o.k==='protect'&&o.ship===s.id);if(pro&&s.hull/s.maxHull<0.5)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'protected: pulling out',rule:'protect35',hard:true});
   // Hold for My Signal: in position and waiting; nobody fires (canFire) until it lands, or until fired on
@@ -562,6 +579,7 @@ function thinkWing(s){
       if(mine){
         if(ex.k==='haul'&&s.pods&&s.pods.length>=N.POD_CAP)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'holds full: home'});
         if(!frLive)return holdBy(s,w);
+        if(ex.k==='board'&&L.scuttleOut)return holdBy(s,w);
         if(L.disabled||L.surrender)return setB(s,{kind:'dock35',why:ex.k==='board'?'closing to board':'closing to haul'});
         return setB(s,{kind:'holdoff',why:'waiting for the engines to go'});}
       // the rest of the wing covers its specialists
@@ -608,7 +626,8 @@ function goal(s){
   }
   if(s.role35==='escort'&&!L.alarm&&s.beh&&s.beh.kind==='patrol')return Object.assign(F.orbitGoal(s,s.beh.dest,ESCORT_ORBIT),{spd:F.CRUISE_()*0.8});
   const b=s.beh||{};
-  if(s.prop35&&(b.kind==='ram35'||b.kind==='tug35'||b.kind==='leave35'))return propGoal(s,b);
+  if((s.prop35||L.vol[s.id])&&(b.kind==='ram35'||b.kind==='tug35'||b.kind==='leave35'))return propGoal(s,b);
+  if(b.kind==='fetch35'){s.holdFire=false;return {x:b.dest.x,y:b.dest.y,spd:dist(s,b.dest)>1500?1:0.5};}
   if(b.kind==='docked'){const d=fr&&fr.alive?dockPoint(fr,s):s;s.holdFire=s.load35!=='board';return {x:d.x+Math.cos(fr?fr.h:s.h)*400,y:d.y+Math.sin(fr?fr.h:s.h)*400,spd:0};}
   if(b.kind==='dock35'&&fr){const d=dockPoint(fr,s);return {x:d.x,y:d.y,spd:dist(s,d)>2500?1:0.55,noCorner:true};}
   if(b.kind==='holdoff'&&fr)return Object.assign(F.orbitGoal(s,fr,N.HOLDOFF_R),{spd:F.CRUISE_()});
@@ -622,13 +641,15 @@ function alarm(why,text){
   if(L.alarm)return;
   L.alarm=true;L.alarmWhy=why;setPhase(2,text||'They know you\'re here');
   // the distress call goes out if the comms array is alive
-  if(subUp('comms')&&L.beacon)L.distress={t0:SIM.S.t,landed:false,cut:false};
+  if(subUp('comms')&&L.beacon){L.distress={t0:SIM.S.t,landed:false,cut:false};
+    if(!L.opt.some(o=>o.k==='distress')&&!Object.values(L.exec).some(e=>e&&e.k==='disable'&&e.arg==='comms'))reqTrigger('distress',{},'once');}
   if(modOn(L.mods,'quick')&&!L.disabled){const fr=FR();if(fr){L.spool=SIM.S.t;L.spoolWhy='quick';L.spoolAt={x:fr.x,y:fr.y};SIM.pushEvent('fjump','The freighter is spooling a jump where it is',{x:fr.x,y:fr.y,tone:'hazard'});}}
 }
 function setPhase(n,text){
   if(L.phase>=n)return;
   L.phase=n;L.phaseT[n-1]=SIM.S.t;if(n===3&&L.phaseT[1]==null)L.phaseT[1]=SIM.S.t;
   L.cpLost=(L.cpLost||0)+L.cp;L.cp=N['CP'+n];   // a new phase, a fresh allowance: what was left is lost
+  if(n===3)for(const w of SIM.S.wings)if(execState(w.id)==='busy')reqTrigger('phase3',{wid:w.id},w.id);
   SIM.pushEvent('phase','Phase '+n+': '+(n===2?'engaged':'response')+(text?' · '+text:''),{tone:'hazard'});
 }
 function responseSecs(){let t=N.RESPONSE_SECS;if(modOn(L.mods,'rich'))t*=0.75;if(modOn(L.mods,'rapid'))t*=0.5;return t;}
@@ -651,7 +672,7 @@ function step(dt){
   const S=SIM.S,fr=FR();
   if(fr&&fr.alive)stepFreighter(fr,dt);
   if(fr&&!fr.alive&&L.deadT==null&&!fr.jumped){L.deadT=S.t;L.deadPose={x:fr.x,y:fr.y,h:fr.h,lost:cargoLost()};}
-  txTick();arrivalTick();propTick(dt);
+  txTick();arrivalTick();propTick(dt);volTick();ejectTick();podTick(dt);reqTick();
   if(L.interdict&&!L.interdict.over&&S.t>=L.interdict.until){L.interdict.over=true;SIM.pushEvent('power','The Interdictor is down',{x:L.interdict.x,y:L.interdict.y,tone:'info'});}
   pdTick(fr,dt);bombTick(fr,dt);dockTick(fr,dt);
   for(const s of S.ships)if(s.role35==='response'&&!s.alive&&!s.jumped)countKill(s);
@@ -663,7 +684,7 @@ function step(dt){
     L.resolve=Math.max(0,L.resolve-n*N.RES_THREAT*dt);
     if(L.resolve<=0&&!modOn(L.mods,'fanatical')&&!L.offered&&S.t>=(L.noUntil||0)){L.offered=S.t;
       SIM.pushEvent('surrender','The freighter is hailing: they\'ll hand over the cargo if you let them go',{x:fr.x,y:fr.y,tone:'good'});
-      if(HK.surrenderAsk)HK.surrenderAsk();else answerSurrender(L.plan.primary==='pirate'?'take':'no');}
+      reqTrigger('surrender',{},String(L.offered));}   // the crew's offer: a request (request 5)
   }
   // Phase 1: detection, from every rebel inside an escort's ring (nearer counts more)
   if(L.phase===1){
@@ -681,7 +702,7 @@ function step(dt){
     SIM.pushEvent('distress','The distress call got out'+(modOn(L.mods,'remote')?', but there\'s nobody near to hear it':': the response is coming'),{tone:'hazard',x:fr?fr.x:null,y:fr?fr.y:null});}
   if(L.responseAt!=null&&!L.responded&&S.t>=L.responseAt){setPhase(3,'Hegemony on site');spawnResponse();}
   tagTick(fr,dt);
-  if(S.t-L.checkT>=0.5){L.checkT=S.t;planTick(fr);revealTick(fr);}
+  if(S.t-L.checkT>=0.5){L.checkT=S.t;planTick(fr);revealTick(fr);reqScan(fr);}
   offPlanTick(dt);
   optTick(fr);
   primaryTick(fr);
@@ -743,7 +764,7 @@ function revealTick(fr){
   const seen=L.phase>=2||S.ships.some(r=>r.alive&&r.faction==='reb'&&!r.struct&&S.ships.some(e=>e.alive&&e.role35==='escort'&&dist(e,r)<DETECT_R*1.3));
   if(seen&&L.biggerT==null&&L.escN>L.briefedEsc){L.biggerT=S.t;revealMod(modOn(L.mods,'heavy')?'heavy':'ace','That escort\'s bigger than Cass said: '+(modOn(L.mods,'heavy')?'Heavy Escort':'Ace Escort'));}
   if(L.phase>=2){if(modOn(L.mods,'green'))revealMod('green','The escort are cadets: Green Escort');
-    const fk=L.mods.find(m=>m.fake&&!m.foundFake);if(fk){fk.foundFake=S.t;fk.found=true;SIM.pushEvent('intel','Cass was wrong: there\'s no '+MODS[fk.k].name+'. Unreliable Source',{tone:'hazard'});
+    const fk=L.mods.find(m=>m.fake&&!m.foundFake);if(fk){fk.foundFake=S.t;fk.found=true;SIM.pushEvent('intel','Cass was wrong: there\'s no '+MODS[fk.k].name+'. Unreliable Source',{tone:'hazard'});reqTrigger('intel',{text:'Cass was wrong about the '+MODS[fk.k].name},'fake');
       const u=L.mods.find(m=>m.k==='unreliable');if(u)u.found=true;}}
   if(L.spoolWhy==='quick')revealMod('quick','It\'s spooling a jump where it is: Quick Jumper');
   if(L.distress&&L.distress.landed){if(modOn(L.mods,'rapid'))revealMod('rapid','Help\'s close for them: Rapid Response');if(modOn(L.mods,'remote'))revealMod('remote','Nobody near to answer: Remote');}
@@ -759,6 +780,10 @@ function offPlanTick(dt){
     else if(ws.some(s=>s.beh&&s.beh.rule==='preservation35'))why='Preservation';
     else if(ws.some(s=>s.beh&&s.beh.rule==='protect35'))why='protecting';
     else if(ws.some(s=>s.beh&&s.beh.rule==='pull35'))why='called out by name';
+    else if(ws.some(s=>s.beh&&s.beh.rule==='vol35'))why='a volunteer\'s ram';
+    else if(ws.some(s=>s.beh&&s.beh.rule==='fetch35'))why='picking up a pod';
+    else if(ws.some(s=>s.beh&&s.beh.rule==='hold35'))why='holding for the reserves';
+    else if(L.divert[w.id])why='the comms array';
     else if(ws.some(s=>L.focus[s.id]&&s.beh&&s.beh.kind==='engage'))why='a named target';
     else if(L.markW[w.id]&&SIM.S.t<L.markW[w.id].until&&ws.some(s=>s.beh&&s.beh.why==='the marked target'))why='the marked target';
     else if(ws.some(s=>s.beh&&s.beh.rule))why='a rule';
@@ -877,7 +902,7 @@ function dockTick(fr,dt){
         if(!c||s.pods.length>=N.POD_CAP){s.dock35=null;s.thinkT=F.THINK_SECS_();}}}
   }
   if(boarders&&ok){
-    if(L.boardT0==null){L.boardT0=S.t;if(modOn(L.mods,'scuttle')){L.scuttleT=S.t+N.SCUTTLE_SECS;revealMod('scuttle','Scuttle charges: the boarders have '+N.SCUTTLE_SECS+' s');}}
+    if(L.boardT0==null){L.boardT0=S.t;if(modOn(L.mods,'scuttle')){L.scuttleT=S.t+N.SCUTTLE_SECS;revealMod('scuttle','Scuttle charges: the boarders have '+N.SCUTTLE_SECS+' s');reqTrigger('scuttle',{},'once');}}
     const rate=boarders/N.BOARD35_SECS*(modOn(L.mods,'fanatical')?0.5:1)*(L.hatch?2:1);
     L.board=Math.min(1,L.board+rate*dt);
     if(L.board>=1){L.boarded=true;L.prize=true;fr.faction='reb';fr.quiet=true;L.disabled=false;L.drift=null;L.scuttleT=null;
@@ -902,7 +927,7 @@ function answerSurrender(a){
     else{L.resolve=30;L.offered=null;L.noUntil=SIM.S.t+60;SIM.pushEvent('surrender','They refuse to give up the ship: the fight goes on',{x:fr.x,y:fr.y,tone:'hazard'});}}
   else{L.resolve=20;L.offered=null;L.noUntil=SIM.S.t+60;}   // no deal: they won't ask again for a minute
 }
-function revealMod(k,text){const m=L.mods.find(x=>x.k===k&&!x.fake);if(m&&!m.found){m.found=true;SIM.pushEvent('intel',text,{tone:'hazard'});}}
+function revealMod(k,text){const m=L.mods.find(x=>x.k===k&&!x.fake);if(m&&!m.found){m.found=true;SIM.pushEvent('intel',text,{tone:'hazard'});reqTrigger('intel',{mod:k,text},k);}}
 function tagTick(fr,dt){
   if(L.tag.planted||!fr||!fr.alive)return;
   const t=F.byId(L.tag.ship);if(!t||!t.alive||!(t.beh&&t.beh.kind==='tag'))return;
@@ -918,7 +943,9 @@ function primaryTick(fr){
   const gone=!fr||!fr.alive,dead=gone&&!fr.jumped;
   let done=false,fail=false;
   if(k==='destroy'){done=dead;fail=L.escaped||L.prizeHome;}
-  else if(k==='crash'){done=dead&&L.crashed;fail=(dead&&!L.crashed)||L.escaped;}
+  else if(k==='crash'){done=dead&&L.crashed;
+    const stuck=!gone&&L.disabled&&dist(fr,L.planet)>L.planet.pull&&Math.hypot(fr.vx,fr.vy)<5;   // dead in space outside the pull: it will never fall
+    fail=(dead&&!L.crashed)||L.escaped||stuck;}
   else if(k==='steal'){done=!!L.prizeHome;fail=dead||L.escaped;}
   else if(k==='pirate'){done=!!L.transferred;fail=dead||L.escaped||(modOn(L.mods,'fanatical')&&L.resolve<=0);}
   else if(k==='strip'){
@@ -1033,7 +1060,8 @@ function use(k,args){
   const why=powerWhy(k);if(why)return {ok:false,why};
   const fr=FR();
   // the target, checked before anything is spent
-  if(P.target==='mine'){const s=F.byId(args.ship);if(!s||!s.alive||s.faction!=='reb'||!s.wing)return {ok:false,why:'pick one of your ships'};}
+  if(P.target==='mine'&&!(k==='tug'&&args.pod)){const s=F.byId(args.ship);if(!s||!s.alive||s.faction!=='reb'||!s.wing)return {ok:false,why:'pick one of your ships'};}
+  if(k==='tug'&&args.pod){const p=L.pods.find(x=>x.id===args.pod);if(!p||p.state!=='drift')return {ok:false,why:'pick a drifting pod'};}
   if(P.target==='foe'){const t=F.byId(args.id);if(!t||!t.alive||t.faction==='reb')return {ok:false,why:'pick an enemy'};}
   if(P.target==='wing'){if(!F.wingOf(args.wing)||!F.wingShips(F.wingOf(args.wing)).length)return {ok:false,why:'pick one of your wings'};if(!ORDERS35[args.k])return {ok:false,why:'pick an order'};}
   if(P.choice&&!P.choice.includes(args.act))return {ok:false,why:'pick what to do'};
@@ -1054,7 +1082,7 @@ function use(k,args){
       const sd=r.ships[0],lead={pilot:F.presetPilot(sd.pilot,sd.name)};txs.push(send(k,{at:p,label:r.name,ack:ackOf(lead)},'Call the Reserves',{wing:r.id}));break;}
     case 'ram':{const a=L.plan.assets.includes('nuke')?'nuke':'ram',at=assetAt(L.plan,a);txs.push(send(k,{at:W([at.x,at.y]),label:'the ram'},'Launch the Ram',{id:args.id,sub:args.sub||null,nuke:a==='nuke'}));break;}
     case 'fireship':case 'mines':case 'buoy':{const p=L.props[k];txs.push(send(k,{at:{x:p.x,y:p.y},label:ASSETS[k].name.toLowerCase()},P.name));break;}
-    case 'tug':{const s=F.byId(args.ship);txs.push(send(k,{at:edgeNear(s),label:'the tug'},'Send the Tug: '+s.name,{ship:s.id}));break;}
+    case 'tug':{const s=args.pod?L.pods.find(x=>x.id===args.pod):F.byId(args.ship);txs.push(send(k,{at:edgeNear(s),label:'the tug'},'Send the Tug: '+s.name+(args.pod?'\'s pod':''),args.pod?{pod:args.pod}:{ship:s.id}));break;}
     case 'spoof':{const t=F.byId(args.id),ids=groupOf(t).map(x=>x.id);txs.push(send(k,{at:{x:t.x,y:t.y},label:'their '+(t.role35==='escort'?'escort':t.role35==='response'?'response':'squadron')},'Spoof Orders',{ids}));break;}
     case 'pirates':{const p=fr?{x:fr.x,y:fr.y}:L.fjump;txs.push(send(k,{at:edgeNear(p),label:'the pirates'},'Call the Pirates'));break;}
     case 'sleeper':txs.push(send(k,{at:fr?{x:fr.x,y:fr.y}:L.fjump,label:'the Agent'},'Wake the Sleeper: '+CHOICE_NAME[args.act],{act:args.act}));break;
@@ -1122,6 +1150,7 @@ function land(tx){
       SIM.pushEvent('plan',w.name+': new Executive Order · '+ORDERS35[a.k].name+secArg(L.exec[wid]),{x:lead.x,y:lead.y,tone:'info'});
       break;}
     case 'reserve':case 'ram':case 'tug':case 'pirates':arrive(tx.k,tx.p,a);break;
+    case 'req':landReq(tx);break;
     case 'fireship':{const p=L.props.fireship;if(!p||!p.live)break;p.live=false;blast(p,N.FIRE_R,N.FIRE_DMG,'fire',null);SIM.pushEvent('power','The fire ship goes up',{x:p.x,y:p.y,tone:'good'});break;}
     case 'mines':{const p=L.props.mines;if(!p||!p.live)break;p.live=false;for(const q of p.pts)blast(q,N.MINE_R,N.MINE_DMG,'mine',null);SIM.pushEvent('power','The minefield blows',{x:p.x,y:p.y,tone:'good'});break;}
     case 'buoy':{const p=L.props.buoy;if(!p)break;L.interdict={x:p.x,y:p.y,t0:S.t,until:S.t+N.INTERDICT_SECS};SIM.pushEvent('power','The Interdictor is up: nobody near it jumps for '+N.INTERDICT_SECS+' s',{x:p.x,y:p.y,tone:'good'});break;}
@@ -1167,8 +1196,8 @@ const ARRIVE={
   },
   ram(a){const t=F.byId(a.args.id),h=t?Math.atan2(t.y-a.y,t.x-a.x):0,s=propShip('ram35',a.args.nuke?'Nuclear Ram':'The Ram',a,h,'ram');s.ram35={id:a.args.id,sub:a.args.sub,nuke:!!a.args.nuke,t0:SIM.S.t};
     SIM.pushEvent('power',s.name+' is away',{ship:s.id,x:a.x,y:a.y,tone:'good'});return [s];},
-  tug(a){const t=F.byId(a.args.ship),h=t?Math.atan2(t.y-a.y,t.x-a.x):0,s=propShip('tug35','Rescue Tug',a,h,'tug');s.tug35={ship:a.args.ship,stage:'go'};
-    SIM.pushEvent('power','The tug is here for '+(t?t.name:'the pod'),{ship:s.id,x:a.x,y:a.y,tone:'good'});return [s];},
+  tug(a){const pod=a.args.pod?L.pods.find(x=>x.id===a.args.pod):null,t=pod||F.byId(a.args.ship),h=t?Math.atan2(t.y-a.y,t.x-a.x):0,s=propShip('tug35','Rescue Tug',a,h,'tug');s.tug35={ship:a.args.ship||null,pod:a.args.pod||null,stage:'go'};
+    SIM.pushEvent('power','The tug is here for '+(pod?pod.name+'\'s pod':t?t.name:'the pod'),{ship:s.id,x:a.x,y:a.y,tone:'good'});return [s];},
   pirates(a){
     const S=SIM.S,greedy=S.rng()<N.PIRATE_GREED,fr=FR(),c=fr?fr:L.fjump,h=Math.atan2(c.y-a.y,c.x-a.x),out=[];
     for(let i=0;i<N.PIRATE_N;i++){const o=(i-(N.PIRATE_N-1)/2)*320,p={x:a.x-Math.sin(h)*o,y:a.y+Math.cos(h)*o};
@@ -1186,7 +1215,7 @@ function blast(p,R,D,kind,by){
     const k=1-0.6*Math.min(1,d/R);
     if(s===fr){for(const sb of L.subs){if(sb.hp<=0)continue;const q=subWorld(fr,sb),dd=dist(q,p);if(dd>R)continue;sb.hp-=D*(1-0.6*dd/R);if(sb.hp<=0)subDown(fr,sb,F.byId(by));}
       if(fr.alive){F.applyDamage(fr,D*k*0.5,true,true,{x:p.x,y:p.y,bomb:true,aimSub:'core',by});if(fr.hull<=0&&fr.alive)F.kill(fr,null);}continue;}
-    F.applyDamage(s,D*k,true,true);if(s.hull<=0&&s.alive)F.kill(s,null);
+    F.applyDamage(s,D*k,true,true);if(s.hull<=0&&s.alive){if(kind==='nuke')s.noEject=true;F.kill(s,null);}
   }
 }
 /* the props the layer flies: the ram, the tug and the pirates */
@@ -1194,7 +1223,9 @@ function thinkProp(s){
   const S=SIM.S,fr=FR();
   if(s.prop35==='ram'){let t=F.byId(s.ram35.id);if(!t||!t.alive){t=nearestFoe(s,x=>!x.struct);if(t)s.ram35.id=t.id;}
     return setB(s,{kind:'ram35',target:t?t.id:null,why:'ramming',hard:true});}
-  if(s.prop35==='tug'){const T=s.tug35;if(T.stage==='go'){const t=F.byId(T.ship);if(t&&t.alive&&!t.jumped)return setB(s,{kind:'tug35',target:t.id,why:'going for '+t.name,hard:true});T.stage='home';}
+  if(s.prop35==='tug'){const T=s.tug35;if(T.stage==='go'){
+      if(T.pod){const p=L.pods.find(x=>x.id===T.pod);if(p&&p.state==='drift')return setB(s,{kind:'tug35',dest:{x:p.x,y:p.y},why:'going for '+p.name+'\'s pod',hard:true});}
+      else{const t=F.byId(T.ship);if(t&&t.alive&&!t.jumped)return setB(s,{kind:'tug35',target:t.id,why:'going for '+t.name,hard:true});}T.stage='home';}
     return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:T.stage==='tow'?'towing':'heading home',hard:true});}
   if(s.prop35==='pirate'){const P=s.pir35;
     const age=S.t-(P.until-N.PIRATE_SECS);
@@ -1222,7 +1253,7 @@ function propTick(dt){
           F.applyDamage(t,N.RAM_DMG,true,true,{x:s.x,y:s.y,bomb:true,aimSub:s.ram35.sub||'core',by:s.id});t.hitT=S.t;if(t.hull<=0&&t.alive)F.kill(t,null);
           SIM.pushEvent('power','The ram hits '+(t===fr?'the freighter':t.name),{x:s.x,y:s.y,tone:'good'});}}}
     else if(s.prop35==='tug'){const T=s.tug35;
-      if(T.stage==='go'){const t=F.byId(T.ship);if(t&&t.alive&&dist(s,t)<N.TUG_R+F.bodyR(t)){T.stage='tow';t.towed35=s.id;t.dock35=null;t.thinkT=F.THINK_SECS_();s.thinkT=F.THINK_SECS_();SIM.pushEvent('power','The tug has '+t.name+' in tow',{ship:t.id,x:t.x,y:t.y,tone:'good'});}}}
+      if(T.stage==='go'&&!T.pod){const t=F.byId(T.ship);if(t&&t.alive&&dist(s,t)<N.TUG_R+F.bodyR(t)){T.stage='tow';t.towed35=s.id;t.dock35=null;t.thinkT=F.THINK_SECS_();s.thinkT=F.THINK_SECS_();SIM.pushEvent('power','The tug has '+t.name+' in tow',{ship:t.id,x:t.x,y:t.y,tone:'good'});}}}
     else if(s.prop35==='pirate'&&s.pir35.leave&&dist(s,s.pir35.edge)<900){s.alive=false;s.jumped=true;s.jumpT=S.t;if(s.pods&&s.pods.length){L.pirated+=s.pods.length;SIM.pushEvent('power','The pirates leave with '+s.pods.length+' container'+(s.pods.length>1?'s':''),{x:s.x,y:s.y,tone:'hazard'});}}
   }
   // a ship in tow rides behind the tug, and goes when it goes
@@ -1237,12 +1268,187 @@ function propTick(dt){
 function propGoal(s,b){
   const t=b.target?F.byId(b.target):null;
   if(b.kind==='ram35'){s.holdFire=true;return t?{x:t.x+t.vx*0.4,y:t.y+t.vy*0.4,spd:1,noCorner:true}:{x:s.x+s.vx,y:s.y+s.vy,spd:1};}
-  if(b.kind==='tug35'){s.holdFire=true;return t?{x:t.x,y:t.y,spd:dist(s,t)>2000?1:0.6}:null;}
+  if(b.kind==='tug35'){s.holdFire=true;const q=t||b.dest;return q?{x:q.x,y:q.y,spd:dist(s,q)>2000?1:0.6}:null;}
   if(b.kind==='leave35')return {x:b.dest.x,y:b.dest.y,spd:1,noCorner:true};
   return null;
 }
 /* the power bar's read: each power the plan has, its cost, and why not (null: usable) */
 function powers(){return POWER_KEYS.filter(powerHas).map(k=>({k,name:POWERS35[k].name,cost:POWERS35[k].cost(),why:powerWhy(k),target:POWERS35[k].target,choice:POWERS35[k].choice||null,glyph:POWERS35[k].glyph}));}
+
+/* =====================================================================
+   P5: pilot requests (§5.6) and ejection (§5.7)
+   The battle asks: a trigger raises a request with 2–3 answers and a default (the asker's persona); it lasts
+   REQ_SECS; the answer travels with the comms delay and the asker acknowledges. At most REQ_OPEN open, REQ_GAP
+   between new ones (the urgent ones, priority 8 and up, skip the gap), REQ_CAP a mission. A trigger that can't be
+   asked within REQ_PEND, or any trigger with Requests off, is dropped (the pilot carries on), except the crew's
+   surrender, which someone must answer: the asker's default
+   ===================================================================== */
+const lc1=t=>t.charAt(0).toLowerCase()+t.slice(1);
+const personaOf=s=>s?(s.persona||F.personalityOf(s.pilot)):'even';   // eager · steady · even (the handoff's "nervous")
+const vetOf=s=>!!s&&s.pilot&&(s.pilot.preset==='veteran'||s.pilot.preset==='ace'||(s.pilot.level||0)>=5);
+const wingShipsOf=wid=>{const w=F.wingOf(wid);return w?F.wingShips(w):[];};
+const nearestLeader=p=>{let b=null,bd=1e18;for(const w of SIM.S.wings){const l=leadOf(w.id);if(!l)continue;const d=p?dist(l,p):0;if(d<bd){bd=d;b=l;}}return b;};
+const ANS={press:'Press on',reserves:'Hold for reserves',secondary:'Switch to the Secondary',go:'Go',stay:'Stay on task',stayin:'Stay in',pull:'Pull out',
+  doit:'Do it',negative:'Negative',take:'Take the cargo',demand:'Demand the ship',no:'No deal',kill:'Kill it',ignore:'Ignore it',let:'Let her',self:'Take it yourself',
+  get:'Get him',leave:'Leave him',out:'Get out',keep:'Keep going',jump:'Jump',finish:'Finish it'};
+/* each request: its priority, who asks, the line (placeholder copy, C-78), the answers and the default by persona */
+const REQ35={
+  intel:{pri:3,build(c){const s=nearestLeader(FR());if(!s)return null;const res=reservesLeft().length>0,per=personaOf(s);
+    return {who:s.id,line:'Base, '+lc1(c.text.split(':')[0])+'. Your call.',answers:['press'].concat(res?['reserves']:[],['secondary']),def:per==='eager'?'press':per==='steady'?(res?'reserves':'press'):'secondary'};}},
+  chase:{pri:1,build(c){const s=F.byId(c.ship),t=F.byId(c.target);if(!s||!s.alive||!t||!t.alive)return null;return {who:s.id,line:'One\'s running! Permission to chase?',answers:['go','stay'],def:personaOf(s)==='eager'?'go':'stay'};}},
+  hit:{pri:6,build(c){const s=F.byId(c.ship);if(!s||!s.alive)return null;return {who:s.id,line:'I\'m hit, but I can stay in this.',answers:['stayin','pull'],def:personaOf(s)==='eager'?'stayin':'pull'};}},
+  volunteer:{pri:5,build(c){const s=F.byId(c.ship),t=F.byId(c.target);if(!s||!s.alive||!t||!t.alive)return null;
+    return {who:s.id,line:c.sub==='turrets'?'I can put her into that turret. Say the word.':c.sub==='engines'?'I can put her into those engines. Say the word.':'I can put her into him. Say the word.',answers:['doit','negative'],def:'negative'};}},
+  surrender:{pri:10,must:true,build(c){const fr=FR();if(!fr||!fr.alive||L.surrender||L.prize)return null;const s=nearestLeader(fr);
+    return {who:s?s.id:null,line:'They\'re hailing. They\'ll dump the cargo if we let them run.',answers:['take','demand','no'],def:personaOf(s)!=='eager'&&L.plan.primary==='pirate'?'take':'no'};}},   // the leader takes it if that's the plan
+  distress:{pri:7,build(c){const D=L.distress;if(!D||D.landed||D.cut||!subUp('comms'))return null;const s=nearestLeader(FR());if(!s)return null;
+    return {who:s.id,line:'They\'re calling for help. Want me on that array?',answers:['kill','ignore'],def:'ignore'};}},
+  rookie:{pri:2,build(c){const l=F.byId(c.leader),r=F.byId(c.rookie);if(!l||!l.alive||!r||!r.alive)return null;
+    return {who:l.id,line:r.name+'\'s got the angle. Let her take it?',answers:['let','self'],def:personaOf(l)==='eager'?'self':'let'};}},
+  pod:{pri:4,build(c){const p=L.pods.find(x=>x.id===c.pod);if(!p||p.state!=='drift')return null;const l=leadOf(p.wid)||nearestLeader(p);if(!l)return null;
+    const engaged=wingShipsOf(l.wing).some(s=>s.beh&&s.beh.kind==='engage');return {who:l.id,line:p.name+'\'s out, pod\'s drifting. Do we pick '+p.name+' up?',answers:['get','leave'],def:engaged?'leave':'get'};}},
+  scuttle:{pri:9,build(c){const s=SIM.S.ships.find(x=>x.alive&&x.dock35&&x.load35==='board');if(!s||L.boarded)return null;const per=personaOf(s);
+    return {who:s.id,line:'Scuttle charges! We\'ve got '+Math.round(N.SCUTTLE_SECS)+' seconds!',answers:['out','keep'],def:per==='eager'?'keep':'out'};}},
+  phase3:{pri:8,build(c){const l=leadOf(c.wid);if(!l||execState(c.wid)!=='busy')return null;
+    return {who:l.id,line:'They\'re here. Jump now, or finish it?',answers:['jump','finish'],def:personaOf(l)==='eager'?'finish':'jump'};}},
+};
+/* a trigger: queued as pending (once per subject), raised when there's room, else decided by the asker */
+function reqTrigger(k,ctx,key){
+  const R=L.req;key=k+':'+(key||'');if(R.seen[key])return;R.seen[key]=true;
+  R.pend.push({k,ctx:ctx||{},t:SIM.S.t,key});
+}
+function reqRaise(p){
+  const S=SIM.S,R=L.req,b=REQ35[p.k].build(p.ctx);if(!b)return null;
+  const q=Object.assign({id:++R.n,k:p.k,ctx:p.ctx,t0:S.t,until:S.t+N.REQ_SECS,state:'open',answer:null,by:null,pri:REQ35[p.k].pri},b);
+  R.open.push(q);R.log.push(q);R.lastT=S.t;
+  const s=F.byId(q.who);if(s)F.say(s,q.line,'hazard',true);
+  SIM.pushEvent('request',(s?s.name:'Comms')+': "'+q.line+'"',{ship:q.who,x:s?s.x:null,y:s?s.y:null,tone:'hazard'});
+  return q;
+}
+/* the asker decides (a time-out, a trigger that couldn't be asked, Requests off) */
+function reqDecide(p,why){
+  const b=REQ35[p.k].build(p.ctx);if(!b)return;
+  const S=SIM.S,R=L.req,q=Object.assign({id:++R.n,k:p.k,ctx:p.ctx,t0:S.t,until:S.t,state:'done',answer:b.def,by:why,doneT:S.t,pri:REQ35[p.k].pri},b);
+  R.log.push(q);applyReq(q,q.answer);
+  const s=F.byId(q.who);SIM.pushEvent('request',(s?s.name:'The pilot')+' decided: '+ANS[q.answer],{ship:q.who,x:s?s.x:null,y:s?s.y:null,tone:'info'});
+}
+function reqTick(){
+  const S=SIM.S,R=L.req;
+  // time-outs: the asker does what their personality says
+  for(const q of R.open)if(q.state==='open'&&S.t>=q.until){q.state='done';q.answer=q.def;q.by='default';q.doneT=S.t;applyReq(q,q.def);
+    const s=F.byId(q.who);SIM.pushEvent('request',(s?s.name:'The pilot')+' decided: '+ANS[q.def],{ship:q.who,x:s?s.x:null,y:s?s.y:null,tone:'info'});}
+  R.open=R.open.filter(q=>q.state!=='done'||S.t-q.doneT<2);   // a decided card stays 2 s
+  if(!R.pend.length)return;
+  if(N.REQ_OFF){for(const p of R.pend)if(REQ35[p.k].must)reqDecide(p,'off');R.pend=[];return;}
+  // room for a new one? the highest priority wins; the urgent skip the gap
+  R.pend.sort((a,b)=>REQ35[b.k].pri-REQ35[a.k].pri||a.t-b.t);
+  const open=R.open.filter(q=>q.state==='open'||q.state==='sent').length,raised=R.log.filter(q=>q.by!=='off'&&q.by!=='unasked').length;
+  const p=R.pend[0];
+  if(open<N.REQ_OPEN&&raised<N.REQ_CAP&&(S.t-R.lastT>=N.REQ_GAP||REQ35[p.k].pri>=8)){R.pend.shift();if(!reqRaise(p))reqTick();return;}
+  // too long waiting: dropped (the surrender: the asker decides)
+  const keep=[];for(const x of R.pend){if(S.t-x.t>=N.REQ_PEND){if(REQ35[x.k].must)reqDecide(x,'unasked');}else keep.push(x);}R.pend=keep;
+}
+/* the player's answer: free, but it travels with the comms delay */
+function answerReq(id,a){
+  const S=SIM.S,q=L.req.open.find(x=>x.id===id);
+  if(!q||q.state!=='open')return {ok:false,why:'too late'};
+  if(!q.answers.includes(a))return {ok:false,why:'not an answer'};
+  q.state='sent';q.answer=a;q.by='player';q.sentT=S.t;
+  const tx=send('req',q.who?{ship:q.who}:{at:{x:L.relay.x,y:L.relay.y},label:'comms',ack:0},ANS[a],{req:q.id,a});
+  if(!tx){q.state='done';q.doneT=S.t;applyReq(q,a);}else q.tx=tx.id;
+  return {ok:true,tx};
+}
+function landReq(tx){
+  const S=SIM.S,q=L.req.log.find(x=>x.id===tx.args.req);if(!q||q.state==='done')return;
+  q.state='done';q.doneT=S.t;applyReq(q,q.answer);
+  const s=F.byId(q.who);if(s)ack(s,q.answer==='negative'||q.answer==='stay'||q.answer==='leave'||q.answer==='ignore'||q.answer==='no'?'Copy, Base.':'Copy, Base. '+ANS[q.answer]+'.');
+}
+/* an answer (or a default) does its thing: a short-lived override on that ship or wing, read by the think hook */
+function applyReq(q,a){
+  const S=SIM.S,c=q.ctx,s=F.byId(q.who),wid=s&&s.wing;
+  L.req.applied.push({k:q.k,a,by:q.by,t:+S.t.toFixed(2),who:q.who});
+  switch(q.k){
+    case 'intel':
+      if(a==='reserves'&&wid){const r=reservesLeft()[0];if(r){L.called[r.id]=true;const p=L.W([r.at[0],r.at[1]]);send('reserve',{at:p,label:r.name},'Hold for reserves',{wing:r.id});}L.holdUntil[wid]=S.t+30;rethink(wingShipsOf(wid));}
+      else if(a==='secondary'&&wid){const sec=L.sec[wid];if(sec&&!sec.adopted){sec.fired=sec.fired||S.t;sec.adopted=S.t;L.exec[wid]={k:sec.k,arg:sec.arg||null};L.secLog.push({wid,t:S.t,trig:'request',k:sec.k});rethink(wingShipsOf(wid));}}
+      break;
+    case 'chase':if(a==='go'&&s){L.focus[s.id]={id:c.target,sub:null};rethink([s]);}break;
+    case 'hit':if(!s)break;if(a==='stayin'){L.stayIn[s.id]=true;delete L.pull[s.id];}else{L.pull[s.id]=true;delete L.stayIn[s.id];}rethink([s]);break;
+    case 'volunteer':if(a==='doit'&&s){L.vol[s.id]={id:c.target,sub:c.sub||null};rethink([s]);}break;
+    case 'surrender':answerSurrender(a);break;
+    case 'distress':if(a==='kill'&&wid&&!L.divert[wid]){L.divert[wid]={prev:L.exec[wid]};L.exec[wid]={k:'disable',arg:'comms'};rethink(wingShipsOf(wid));}break;
+    case 'rookie':if(a==='let'){L.rookie={leader:c.leader,rookie:c.rookie,target:c.target,until:S.t+15};L.focus[c.rookie]={id:c.target,sub:null};rethink([F.byId(c.rookie)].filter(Boolean));}break;
+    case 'pod':if(a==='get'){const p=L.pods.find(x=>x.id===c.pod);if(!p||p.state!=='drift')break;
+      const bb=S.ships.filter(x=>x.alive&&x.faction==='reb'&&x.wing&&podRoom(x)).sort((u,v)=>dist(u,p)-dist(v,p))[0];
+      if(bb){L.fetch[bb.id]=p.id;rethink([bb]);}else SIM.pushEvent('request','Nobody has room for '+p.name+': it\'s the Tug or nothing',{x:p.x,y:p.y,tone:'hazard'});}break;
+    case 'scuttle':if(a==='out'){L.scuttleOut=true;for(const x of S.ships)if(x.alive&&x.dock35&&x.load35==='board'){x.dock35=null;if(x.wing){L.exec[x.wing]={k:'hold',arg:null};rethink(wingShipsOf(x.wing));}}}break;
+    case 'phase3':if(a==='jump'&&c.wid){L.exec[c.wid]={k:'withdraw',arg:null};if(L.sec[c.wid])L.sec[c.wid].adopted=L.sec[c.wid].adopted||S.t;rethink(wingShipsOf(c.wid));}break;
+  }
+}
+/* the triggers that are conditions (checked twice a second) */
+function reqScan(fr){
+  const S=SIM.S;
+  for(const s of S.ships){
+    if(!s.alive||s.faction!=='reb'||!s.wing||s.prop35)continue;
+    if(s.hull/s.maxHull<N.HIT_REQ)reqTrigger('hit',{ship:s.id},s.id);
+    // a volunteer: eager or veteran, hurt or out of bombs, a key target in reach
+    if((personaOf(s)==='eager'||vetOf(s))&&(s.hull/s.maxHull<N.VOL_HULL||s.bombs===0)&&!s.dock35&&!L.vol[s.id]){
+      let tg=null;
+      if(fr&&fr.alive&&!L.prize&&!L.surrender){for(const k of ['engines','pd']){const sb=L.subs.find(x=>x.k===k&&x.hp>0&&dist(subWorld(fr,x),s)<N.VOL_R);if(sb){tg={target:fr.id,sub:k==='pd'?'turrets':'engines'};break;}}}
+      if(!tg){const ace=S.ships.find(x=>x.alive&&x.id==='vex'&&dist(x,s)<N.VOL_R);if(ace)tg={target:ace.id,sub:null};}
+      if(tg)reqTrigger('volunteer',Object.assign({ship:s.id},tg),s.id);
+    }
+  }
+  // an enemy breaks off and runs, and one of yours could chase
+  for(const e of S.ships){if(!e.alive||e.faction!=='heg'||e.struct||e.id===L.fr)continue;
+    if(!(e.panic||(e.beh&&(e.beh.kind==='fallback'||e.beh.kind==='flee'))))continue;
+    const r=S.ships.filter(x=>x.alive&&x.faction==='reb'&&x.wing&&!x.prop35&&!L.focus[x.id]&&!x.dock35&&dist(x,e)<N.CHASE_R).sort((a,b)=>dist(a,e)-dist(b,e))[0];
+    if(r)reqTrigger('chase',{ship:r.id,target:e.id},e.id);}
+  // Blood the Rookie: the leader's on a target the rookie has a shot at
+  const ro=L.opt.find(o=>o.k==='rookie'&&o.state==='live'&&o.ship);
+  if(ro){const r=F.byId(ro.ship),l=r&&r.alive?leadOf(r.wing):null;
+    if(l&&l!==r&&l.beh&&l.beh.kind==='engage'){const t=F.byId(l.beh.target);if(t&&t.alive&&t.id!==L.fr&&dist(r,t)<F.gunRange(r)*1.5)reqTrigger('rookie',{leader:l.id,rookie:r.id,target:t.id},'once');}}
+  // a diverted wing goes back to its Executive once the array's dead or the call is out
+  for(const wid in L.divert){const D=L.distress;if(!subUp('comms')||!D||D.landed||D.cut){if(L.exec[wid]&&L.exec[wid].k==='disable'&&L.exec[wid].arg==='comms')L.exec[wid]=L.divert[wid].prev;delete L.divert[wid];rethink(wingShipsOf(wid));}}
+}
+/* ---------- ejection (§5.7): a pod drifts POD_SECS; a Brickbat with room or the Tug picks it up, else it's captured ---------- */
+const podRoom=s=>s.load35==='board'||(s.load35==='pods'&&(s.pods?s.pods.length:0)+(s.rescued?s.rescued.length:0)<N.POD_CAP);
+function ejectTick(){
+  const S=SIM.S;
+  for(const s of S.ships){
+    if(s.alive||s.jumped||s.ej35||s.faction!=='reb'||!s.wing||s.prop35)continue;
+    s.ej35=true;if(s.noEject)continue;
+    const p=Math.min(1,N.EJECT_P+(vetOf(s)?N.EJECT_VET:0))*(s.ejectK||1);
+    if(S.rng()>=p)continue;
+    const pod={id:'pod'+(L.pods.length+1),ship:s.id,name:s.name,wid:s.wing,x:s.x,y:s.y,vx:(s.vx||0)*0.3,vy:(s.vy||0)*0.3,t0:S.t,until:S.t+N.POD_SECS,state:'drift',by:null};
+    L.pods.push(pod);SIM.pushEvent('eject',s.name+' ejects',{x:s.x,y:s.y,tone:'hazard'});
+    reqTrigger('pod',{pod:pod.id},pod.id);
+  }
+}
+function podTick(dt){
+  const S=SIM.S;
+  for(const p of L.pods){
+    if(p.state==='aboard'){const c=F.byId(p.by);if(c&&!c.alive&&!c.jumped){p.state='lost';SIM.pushEvent('eject',p.name+' was aboard '+c.name+': lost',{x:c.x,y:c.y,tone:'hazard'});}continue;}
+    if(p.state!=='drift')continue;
+    p.vx*=1-0.1*dt;p.vy*=1-0.1*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    const c=S.ships.find(x=>x.alive&&x.faction==='reb'&&(x.prop35==='tug'||(x.wing&&podRoom(x)))&&dist(x,p)<N.POD_R+F.bodyR(x));
+    if(c){p.state='aboard';p.by=c.id;if(c.load35==='pods')(c.rescued||(c.rescued=[])).push(p.id);for(const k in L.fetch)if(L.fetch[k]===p.id){delete L.fetch[k];const f=F.byId(k);if(f)f.thinkT=F.THINK_SECS_();}
+      if(c.prop35==='tug'&&c.tug35&&c.tug35.pod===p.id){c.tug35.stage='home';c.thinkT=F.THINK_SECS_();}
+      SIM.pushEvent('eject',(c.prop35==='tug'?'The tug':c.name)+' picks up '+p.name,{x:p.x,y:p.y,tone:'good'});continue;}
+    if(S.t>=p.until){p.state='captured';SIM.pushEvent('eject',p.name+'\'s pod is taken by the Hegemony: captured',{x:p.x,y:p.y,tone:'hazard'});}
+  }
+}
+/* a volunteer's ram: the ship is lost; the pilot ejects at half the chance */
+function volTick(){
+  const S=SIM.S;
+  for(const id in L.vol){const s=F.byId(id),v=L.vol[id],t=F.byId(v.id);
+    if(!s||!s.alive){delete L.vol[id];continue;}
+    if(!t||!t.alive||(t.id===L.fr&&(L.prize||L.surrender))){delete L.vol[id];s.thinkT=F.THINK_SECS_();continue;}
+    if(dist(s,t)<F.bodyR(t)+F.bodyR(s)+RAM_REACH){
+      F.applyDamage(t,N.RAM_DMG*N.RAM_K,true,true,{x:s.x,y:s.y,bomb:true,aimSub:v.sub||'core',by:s.id});t.hitT=S.t;if(t.hull<=0&&t.alive)F.kill(t,s);
+      s.ejectK=0.5;delete L.vol[id];SIM.pushEvent('volunteer',s.name+' rams '+(t.id===L.fr?'the freighter\'s '+(v.sub||'hull'):t.name),{x:s.x,y:s.y,tone:'hazard'});F.kill(s,null);}
+  }
+}
 
 function onEvent(kind,text,o,e){
   L.cause.push({t:+SIM.S.t.toFixed(2),kind,text,phase:L.phase});
@@ -1263,5 +1469,6 @@ return {OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIM
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
   POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
+  REQ35,ANS,answerReq,reqTrigger,personaOf,
   fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,primaryTick,countKill,blast,send,land,canJump,edgeNear,groupOf}};
 })();

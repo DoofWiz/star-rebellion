@@ -615,3 +615,22 @@
 #arHc .h35-tx.is-no{border-color:var(--sr-hazard);}
 #arHc .h35-tx.is-no em{color:var(--sr-hazard);}
 #arHc .hc-pilot__acts{display:flex;gap:6px;margin:6px 0 2px;}
+/* Type 3.5 P5: the request cards, right column, newest on top: your pilot speaking (a rebel-red stripe) */
+#arHc .h35-reqs{position:absolute;top:150px;right:12px;z-index:6;display:flex;flex-direction:column;gap:10px;width:340px;pointer-events:auto;}
+#arHc .h35-req{position:relative;padding:12px 14px 12px;border-top:5px solid var(--sr-rebel);}
+#arHc .h35-req__top{display:flex;align-items:center;gap:10px;}
+#arHc .h35-portrait--req{width:40px;height:40px;border-radius:50%;}
+#arHc .h35-req__who{display:flex;align-items:center;gap:8px;flex:1;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);}
+#arHc .h35-req__ring{width:30px;height:30px;transform:rotate(-90deg);}
+#arHc .h35-req__rbg{fill:none;stroke:var(--sr-night);stroke-width:4;}
+#arHc .h35-req__rfg{fill:none;stroke:var(--sr-shield);stroke-width:4;stroke-linecap:round;transition:stroke .2s;}
+#arHc .h35-req__rfg.is-low{stroke:var(--sr-hazard);}
+#arHc .h35-req__q{margin:10px 0 4px;}
+#arHc .h35-req__acts{display:flex;flex-direction:column;}
+#arHc .h35-ans{align-items:center;margin-top:6px;padding:8px 12px;}
+#arHc .h35-def{margin-left:auto;height:20px;font-size:var(--sr-fs-micro);}
+#arHc .h35-req__sent,#arHc .h35-req__done{margin-top:8px;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .h35-req__sent em{font-style:normal;color:var(--sr-shield);margin-left:6px;}
+#arHc .h35-req__sent i{display:block;height:6px;margin-top:6px;border-radius:999px;background:var(--sr-shield-deep);overflow:hidden;}
+#arHc .h35-req__sent i b{display:block;height:100%;width:0;background:var(--sr-shield);}
+#arHc .h35-req[data-state="done"]{opacity:.85;}
