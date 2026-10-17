@@ -590,3 +590,9 @@
 @media (prefers-reduced-motion:reduce){#arHc35 .h35-step.is-on b{animation:none;}}
 #arHc .h35-phase{white-space:nowrap;}
 #arHc .hc-clockbox:has(.h35-phase){min-width:max-content;}
+#arHc .hc-chip--tactic.is-off{color:var(--sr-hazard);border-color:var(--sr-hazard);background:color-mix(in srgb,var(--sr-hazard) 14%,transparent);}
+#arHc .h35-plantog{margin-left:6px;}
+#arHc .hc-clock .h35-plantog{pointer-events:auto;}
+#arHc .h35-platefoot{display:flex;align-items:center;gap:8px;}
+#arHc .h35-plantog{width:auto;height:26px;padding:0 10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;}
+#arHc .h35-plantog.is-on{background:var(--sr-shield-deep);color:#e6fdff;}

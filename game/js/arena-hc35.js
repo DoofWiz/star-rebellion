@@ -108,6 +108,14 @@ function fitPlan(){
   const z=Math.min(w/(b.x1-b.x0),h/(b.y1-b.y0))*0.96;
   cam.z=z;cam.x=(b.x0+b.x1)/2-(left/2)/z;cam.y=(b.y0+b.y1)/2+10/z;A.camHeld=true;A.follow=false;
 }
+/* the mission's opening view: your wings and the freighter, in the room right of the HUD's left column */
+function fitLive(){
+  const S=SIM.S,pts=S.ships.filter(s=>s.alive&&(s.faction==='reb'&&!s.struct||s.id==='fl400'));if(!pts.length){fitPlan();return;}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+  const pad=2500,left=360,w=Math.max(200,API.cssW-left-40),h=Math.max(200,API.cssH-220);
+  const z=Math.max(API.fitZoom(),Math.min(0.32,Math.min(w/(x1-x0+pad*2),h/(y1-y0+pad*2))));
+  cam.z=z;cam.x=(x0+x1)/2-(left/2)/z;cam.y=(y0+y1)/2;A.camHeld=true;A.follow=false;
+}
 const W35=id=>L35.WINGS35.find(w=>w.id===id);
 const toWorld=p=>{const Zn=SIM.zone,k=L35.L?L35.L.k:2;return {x:p.x*k+Zn.x0,y:p.y*k+Zn.y0};};
 const toLayout=p=>{const Zn=SIM.zone,k=L35.L?L35.L.k:2;return {x:(p.x-Zn.x0)/k,y:(p.y-Zn.y0)/k};};
@@ -210,14 +218,15 @@ function shipCell(w,sd,pw){
     (lo?'<span class="sr-btngroup h35-lo">'+['bombs','pods','board'].map(k=>'<button type="button" class="sr-btn sr-btn--sm" data-lo="'+k+'" aria-pressed="'+(lo===k)+'" data-ship="'+sd.id+'" data-wing="'+w.id+'" title="'+esc(L35.LOADOUTS[k].line)+'">'+esc(L35.LOADOUTS[k].name)+'</button>').join('')+'</span>':'')+'</div>';
 }
 function pilotWord(sd){const p=sd.pilot||{};if(p.id){const r=SRDB.pilots[p.id];return r?'L'+r.level:'';}return (p.preset||'regular');}
-/* the leader's one-line take (§4.4): from the critique rules (more come with P3), else their personality */
-function leaderTake(w){
-  const P=B.plan,pw=P.wings[w.id];
-  if(pw.role==='home')return 'We\'ll sit this one out, Base.';
-  if(pw.role==='reserve')return 'Standing by. Call us when you need us.';
-  if(inRing(pw.jumpIn))return 'They\'ll see us the second we drop in.';
-  const per=SIM.fn.personalityOf(SIM.fn.presetPilot(w.ships[0].pilot,w.ships[0].name));
-  return per==='eager'?'Let\'s go.':per==='steady'?'Sound plan.':'If you say so.';
+/* the leader's one-line take (§4.4): the critique rules, rewritten live as the plan changes */
+function leaderTake(w){return L35.critique(B.plan,w.id,B.mods,{inRing,unreachable});}
+/* can this wing reach its Executive target before the freighter jumps, at cruise? */
+function unreachable(wid){
+  const pw=B.plan.wings[wid],L=L35.L,ex=pw.exec;if(!L||!ex||['hold','ambush','withdraw','defend','escort'].includes(ex.k))return false;
+  const m=toWorld(pw.jumpIn),v=560;let acc=0;   // a fighter's cruise, world units a second (a rough read)
+  for(let i=1;i<L.lane.length;i++){const a=L.lane[i-1],b=L.lane[i],d=Math.hypot(b.x-a.x,b.y-a.y);
+    for(let u=0;u<=d;u+=300){const x=a.x+(b.x-a.x)*u/d,y=a.y+(b.y-a.y)*u/d;if(Math.hypot(x-m.x,y-m.y)/v<=(acc+u)/L.cruise)return false;}acc+=d;}
+  return true;
 }
 /* step 4: each wing's Executive Order and Secondary; jump-in and asset markers on the map */
 function step4(){
@@ -268,7 +277,7 @@ function objHtml(){
   const P=L.plan,o=S.objectives[0];
   let h='<div class="hc-obj__head">Objectives</div><ul class="hc-obj__list">';
   h+='<li class="hc-o is-'+o.state+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.PRIMARIES[P.primary].name)+'</span><span class="sr-tag sr-tag--action h35-prim">PRIMARY</span></li>';
-  for(const x of P.optionals)h+='<li class="hc-o is-live"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.OPTIONALS[x.k].name)+'</span></li>';
+  for(const x of L.opt)h+='<li class="hc-o is-'+x.state+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.OPTIONALS[x.k].name)+(x.ship?' · '+esc((SIM.fn.byId(x.ship)||{name:x.ship}).name):'')+'</span></li>';
   return h+'</ul>';
 }
 function rulesHtml(){
@@ -287,7 +296,8 @@ function clockHtml(){
   else {status='HEGEMONY ON SITE';name='PHASE 3 · RESPONSE';round='GET OUT';}
   return '<div class="sr-phase h35-phase" data-phase="'+(ph===1?'free':'fight')+'"'+(ph===3?' data-status="alert"':'')+'><span class="sr-phase__status" style="--s:'+(ph===1?'var(--sr-c-good)':ph===2?'var(--sr-hazard)':'var(--sr-heg)')+'"><span class="sr-phase__text">'+status+'</span></span>'+
     '<span class="sr-phase__name">'+name+'</span><span class="sr-phase__round">'+esc(round)+'</span></div>'+
-    (ph===1?'<div class="h35-detect" title="Detection"><b style="width:'+Math.round(L.detect)+'%"></b></div>':'');
+    '<div class="h35-platefoot">'+(ph===1?'<div class="h35-detect" title="Detection"><b style="width:'+Math.round(L.detect)+'%"></b></div>':'')+
+    '<button type="button" class="hc-tbtn h35-plantog'+(B.planOverlay?' is-on':'')+'" data-act="plan" aria-pressed="'+!!B.planOverlay+'" title="The plan overlay (P)">PLAN</button></div>';
 }
 /* seconds until the freighter reaches its jump point and spools, at its current pace */
 function etaJump(){
@@ -321,12 +331,13 @@ function launch(){
   API.loadScenario(scn,B.seed);L35.begin();
   // the strike wings warp in at their jump-in points
   if(FX)for(const s of SIM.S.ships)if(s.faction==='reb'&&!s.struct)FX.event('warpIn',{ship:API.shipView(s,API.ipos(s),API.iconBoost())});
-  fitPlan();API.setSpeed(2);
-  B.lastPhase=L35.L.phase;banner('PHASE '+B.lastPhase,B.lastPhase===1?'Arrival':'They know we\'re here');
+  fitLive();API.setSpeed(2);
+  B.planUser=false;B.planOverlay=L35.L.phase===1;B.lastPhase=L35.L.phase;banner('PHASE '+B.lastPhase,B.lastPhase===1?'Arrival':'They know we\'re here');
   render();API.syncHud(true);
 }
 function onOver(){
   B.screen='debrief';
+  const L=L35.L;if(L)for(const m of L.mods)if(m.found){const b=B.mods.find(x=>x.k===m.k&&!!x.fake===!!m.fake);if(b)b.found=true;}   // what you learned stays learned (Plan again)
   record();
   render();
 }
@@ -402,6 +413,7 @@ function drawWorld(c,view,o){
   c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();
   drawTarget(c,z,view,o);
   if(plan||B.planOverlay)drawLane(c,z);
+  if(!plan&&B.planOverlay)drawPlanLive(c,z);
   else{const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
   // escort detection rings, faint foe blue (their awareness)
   if(L.phase===1)for(const e of S.ships)if(e.alive&&e.role35==='escort'){c.save();c.beginPath();c.arc(e.x,e.y,L35.TUNE.DETECT_R.get(),0,6.283);c.fillStyle=TH.rgba(C.heg,0.05);c.fill();c.setLineDash([6/z,8/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(C.heg,0.45);c.stroke();c.restore();}
@@ -423,6 +435,21 @@ function drawWorld(c,view,o){
       if(tg){const a=Math.atan2(tg.y-m.y,tg.x-m.x),r=60/z;c.save();c.setLineDash([4/z,4/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(col,0.8);c.beginPath();c.moveTo(m.x+Math.cos(a-0.4)*r,m.y+Math.sin(a-0.4)*r);c.lineTo(m.x,m.y);c.lineTo(m.x+Math.cos(a+0.4)*r,m.y+Math.sin(a+0.4)*r);c.stroke();c.restore();}
       API.label(c,m.x,m.y-20/z,w.name.toUpperCase()+(pw.role==='reserve'?' · RESERVE':''),col,z,12,'Bungee');}
   }
+}
+/* the plan overlay (§7.4): each wing's Executive line from where it is now, so a wing pulled off plan leaves its line */
+function drawPlanLive(c,z){
+  const S=SIM.S,L=L35.L,fr=SIM.fn.byId('fl400');
+  for(const w of S.wings){const ls=SIM.fn.wingShips(w);if(!ls.length)continue;const ex=L.exec[w.id];if(!ex)continue;
+    const at={x:ls.reduce((a,s)=>a+API.ipos(s).x,0)/ls.length,y:ls.reduce((a,s)=>a+API.ipos(s).y,0)/ls.length};
+    let tg=null;
+    if(ex.k==='defend'){const ow=SIM.fn.wingOf(ex.arg),os=ow?SIM.fn.wingShips(ow):[];if(os.length)tg=API.ipos(os[0]);}
+    else if(ex.k==='withdraw')tg=S.points.ourjump;
+    else if(ex.k==='hold'||ex.k==='ambush')tg=ex.arg&&ex.arg.x!=null?toWorld(ex.arg):w.rally;
+    else if(ex.k==='suppress'&&ex.arg==='escorts'){const e=S.ships.find(x=>x.alive&&x.role35==='escort');tg=e?API.ipos(e):null;}
+    else if(fr&&fr.alive)tg=API.ipos(fr);
+    if(!tg)continue;
+    API.dashLine(c,at,tg,TH.rgba(L.off[w.id]?C.hazard:C.gold,0.75),z,1.6,[8,7]);
+    API.label(c,at.x,at.y-26/z,w.name.toUpperCase()+' · '+L35.ORDERS35[ex.k].name.toUpperCase(),L.off[w.id]?C.hazard:C.gold,z,10,'Bungee');}
 }
 /* the freighter as a target (P2): bombs, the distress arc, docking, hauling, its death, its fall */
 const deathBang=new Set();
@@ -519,6 +546,7 @@ function pointer(kind,p,ev){
 function onKey(ev){
   if(B.screen==='off')return false;
   const k=ev.key;
+  if(B.screen==='live'&&(k==='p'||k==='P')){ev.preventDefault();B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);return true;}
   if(B.screen==='board'||B.screen==='dossier'||B.screen==='debrief'||B.screen==='brief'){
     if(k==='Escape'&&B.screen==='dossier'){ev.preventDefault();showBoard(false);return true;}
     if(k==='Enter'&&B.screen==='board'){ev.preventDefault();B.screen='dossier';render();return true;}
@@ -559,6 +587,7 @@ function paintTarget(t){
 function tick(now){
   if(B.screen==='dossier'&&!API.fxReduced())paintTarget(now/1000);
 }
+byId('hcClock').addEventListener('click',ev=>{const b=ev.target.closest('[data-act="plan"]');if(!b||B.screen!=='live')return;B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);});
 ROOT.addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b){return;}
   if(b.closest('[data-stop]')&&!b.dataset.act)return;
@@ -576,7 +605,7 @@ ROOT.addEventListener('click',ev=>{
   if(a==='again'){planAgain();return;}
   if(b.dataset.step){B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;B.stepAt=performance.now();B.step=+b.dataset.step;render();return;}
   const P=B.plan;if(!P)return;
-  if(b.dataset.primary){P.primary=b.dataset.primary;render();return;}
+  if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan);render();return;}   // the leaders propose a plan; you edit from there
   if(b.dataset.opt){const k=b.dataset.opt,i=P.optionals.findIndex(x=>x.k===k);if(i>=0)P.optionals.splice(i,1);else if(P.optionals.length<OPT_MAX)P.optionals.push({k,ship:null});render();return;}
   if(b.dataset.roe){const k=b.dataset.roe,i=P.roes.indexOf(k);if(i>=0)P.roes.splice(i,1);else P.roes.push(k);render();return;}
   if(b.dataset.role){P.wings[b.dataset.wing].role=b.dataset.role;render();return;}
@@ -596,11 +625,13 @@ ROOT.addEventListener('change',ev=>{
 ROOT.addEventListener('input',ev=>{const el=ev.target;if(el.dataset.pres&&B.plan){B.plan.presHull=+el.value;const b=el.closest('label').querySelector('b');if(b)b.textContent=Math.round(B.plan.presHull*100)+'%';}});
 
 /* ---------- the overlay High Command calls ---------- */
-const OV={home,onOver,record,drawBody,shipHidden,fxSkip:s=>s.cls==='fl400'&&!s.jumped,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
+const OV={home,onOver,record,drawBody,shipHidden,
+  orderChip(w){const L=L35.L,ex=L&&L.exec[w.id];if(!ex)return '';const O=L35.ORDERS35[ex.k];return 'EXEC · '+O.name+(ex.arg&&typeof ex.arg==='string'?' '+(L35.WINGS35.find(x=>x.id===ex.arg)||{name:ex.arg}).name:'');},
+  tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>s.cls==='fl400'&&!s.jumped,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
   hudHidden:()=>B.screen!=='live'&&B.screen!=='debrief',
   syncHud(now){
     const L=L35.L;
-    if(B.screen==='live'&&L&&L.phase!==B.lastPhase){B.lastPhase=L.phase;if(L.phase>1){banner('PHASE '+L.phase,L.phase===2?'They know we\'re here':'Hegemony on site');render();}}   // designer copy (C-78)
+    if(B.screen==='live'&&L&&L.phase!==B.lastPhase){B.lastPhase=L.phase;if(!B.planUser)B.planOverlay=L.phase===1;if(L.phase>1){banner('PHASE '+L.phase,L.phase===2?'They know we\'re here':'Hegemony on site');render();}}   // designer copy (C-78)
     if(B.screen==='live'&&B.banner&&now-B.banner.at>1400){B.banner=null;render();}},
   restart(same){if(same&&B.plan){planAgain();}else{B.seed=newSeed();rollAttempt();showBoard(false);}},
   panelHtml(){

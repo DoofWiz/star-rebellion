@@ -1018,9 +1018,10 @@ function syncRoster(){
     const box=el.querySelector('[data-wing="'+w.id+'"]');if(!box)continue;
     box.classList.toggle('is-sel',selWings().includes(w.id));
     const oc=box.querySelector('[data-chip="order"]'),tc=box.querySelector('[data-chip="tactic"]');
-    const ot=SIM.ORDERS[w.order.kind].name+(w.order.target?' · '+SIM.targetLabel(w.order):'');
+    const ot=A.ov&&A.ov.orderChip?A.ov.orderChip(w):SIM.ORDERS[w.order.kind].name+(w.order.target?' · '+SIM.targetLabel(w.order):'');   // Type 3.5: the Executive Order
     if(oc.textContent!==ot)oc.textContent=ot;
-    const tt=w.tactic==='auto'?'AUTO · '+(SIM.HC_TACTICS[w.autoPick||'spread'].name.split(' ')[0]):SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
+    const tt=A.ov&&A.ov.tacticChip?A.ov.tacticChip(w):w.tactic==='auto'?'AUTO · '+(SIM.HC_TACTICS[w.autoPick||'spread'].name.split(' ')[0]):SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
+    if(A.ov&&A.ov.tacticChip){tc.hidden=!tt;tc.classList.toggle('is-off',!!tt);}   // Type 3.5: OFF PLAN, or nothing
     for(const sid of w.ships){
       const s=SIM.fn.byId(sid),t=box.querySelector('[data-ship="'+sid+'"]');if(!s||!t)continue;
       const lead=w.leader===sid;
@@ -1177,6 +1178,7 @@ function issue(wid,kind,target){
 
 /* hover cards (§3.4): name and one plain line, live numbers through getters */
 function tipFor(key){
+  if(A.ov&&A.ov.tipFor){const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips
   const [k,a]=String(key).split(':');
   if(k==='order'){const o=SIM.ORDERS[a];return {name:o.name,line:o.line+(a==='escort'?' Engages inside '+Math.round(SIM.TUNE.ESCORT_R.get())+' of its charge.':'')+(a==='withdraw'?' Jumps inside '+Math.round(SIM.fn.JUMP_R_())+' of the point.':'')};}
   if(k==='tactic'){const T=SIM.HC_TACTICS[a];
@@ -1314,12 +1316,13 @@ function skillBtn(k,name,g,cost,cls,attrs){
     glyph(g,'hc-cmd__glyph')+cost+'<span class="hc-cmd__name">'+esc(name)+'</span></button>';
 }
 function syncDrawer(){
-  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?drawerHtml():'';
+  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?(A.ov&&A.ov.cmdsHtml?A.ov.cmdsHtml():drawerHtml()):'';   // Type 3.5: its powers
   if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
   el.hidden=!on;el.classList.toggle('is-for',!!A.cmdFor);el.classList.toggle('is-armed',!!A.cmdArm);
 }
 byId('hcCmds').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
+  if(A.ov&&A.ov.cmdsClick){A.ov.cmdsClick(b);return;}   // Type 3.5's powers
   if(b.dataset.act==='close'){A.drawer=false;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;syncHud(true);return;}
   if(b.dataset.act==='cancelcmd'){A.cmdArm=null;syncHud(true);return;}
   const k=b.dataset.cmd;if(!k)return;
@@ -1341,8 +1344,9 @@ function syncHud(){
   if(!A.active)return;
   syncTop();syncFeed();syncRoster();syncTime();syncTray();syncPilot();syncDrawer();syncReadout();
   if(A.mode){   // Type 3.5: no tray, wheel or commands; the overlay may hide the whole HUD (its board and briefing)
-    byId('hcCmds').hidden=true;byId('hcTray').hidden=true;
+    byId('hcTray').hidden=true;
     const off=!!(A.ov&&A.ov.hudHidden&&A.ov.hudHidden());
+    if(off||!(A.ov&&A.ov.cmdsHtml))byId('hcCmds').hidden=true;   // the commands bar carries the overlay's powers, if it has any
     for(const id of ['hcTop','hcRoster','hcPilot'])if(off)byId(id).hidden=true;
     byId('hcFeed').hidden=off;
     if(A.ov&&A.ov.syncHud)A.ov.syncHud(performance.now());

@@ -31,7 +31,9 @@
    Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §11; game/js/sim-hc35.js and arena-hc35.js, through
      DBGarena.hc35), in its own context: HC35 1 High Command byte-identical with the hooks (hash baselines), no campaign
      save; HC35 2 the loop by DOM (board, dossier, the four steps, Launch, the mission, the debrief, Plan again);
-     HC35 5 bombs and subsystems, the drift and the planet; 6 each primary from a scripted setup; 7 the phases */
+     HC35 5 bombs and subsystems, the drift and the planet; 6 each primary from a scripted setup; 7 the phases;
+     HC35 3 the modifiers and Dig deeper; P3 the leaders' plan and critiques, two plans → two fights, a Secondary, 8 Hold
+     for My Signal, Weapons Tight, Preservation and OFF PLAN */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -1987,11 +1989,62 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35c.res.destroy==='done'&&t35c.res.steal==='done'&&t35c.res.pirate==='done'&&t35c.res.strip==='done'&&t35c.res.tag[0]==='done'&&t35c.res.ambush[0]==='done'&&t35c.res.crash==='done','HC35 6: each primary can be won '+JSON.stringify(t35c.res));
  ok(t35c.phase[0]===2&&t35c.phase[1]==='detected'&&t35c.phase[2]&&t35c.phase[3]&&t35c.phase[4]&&t35c.phase[5]==null,'HC35 7: detection → Phase 2; the array killed mid-send cuts the call '+JSON.stringify(t35c.phase));
  ok(t35c.remote[0]&&t35c.remote[1]==null,'HC35 7: Remote: the call lands but no response comes '+JSON.stringify(t35c.remote));
+ // HC35 3 and P3: the modifiers, Dig deeper, the leaders' plan and critiques, two plans → two fights, Secondaries, the rules
+ const t35d=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,out={};
+  const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400'),q=s=>document.querySelector('#arHc35 '+s);
+  const O=L35.OPPORTUNITIES.vulnerable_freighter;
+  // 3: same seed, same modifiers; 20 seeds, at least 8 different sets; no exclusive pair; subtle 3 never on the board
+  const sig=sd=>L35.rollMods(O,sd).map(m=>m.k+(m.fake?'*':'')).sort().join();
+  const sets=new Set(),ex=[];let sub3=true;
+  for(let sd=1;sd<=20;sd++){sets.add(sig(sd));const m=L35.rollMods(O,sd).filter(x=>!x.fake);for(const a of m)for(const b of m)if(L35.MODS[a.k].ex.includes(b.k))ex.push(a.k+'/'+b.k);
+    for(const x of L35.rollMods(O,sd))if(L35.MODS[x.k].subtle===3&&!x.fake&&L35.known(x))sub3=false;}
+  out.mods=[sig(42)===sig(42),sets.size,ex.length,sub3];
+  // Dig deeper: one hidden modifier revealed, one Intel spent
+  let dsd=0;for(let sd=1;sd<200&&!dsd;sd++)if(L35.rollMods(O,sd).some(m=>!L35.known(m)))dsd=sd;
+  B.seed=dsd;X.fn.showBoard(false);B.mods=L35.rollMods(O,dsd);B.intel=L35.TUNE.INTEL_START.get();X.fn.go('dossier');
+  const hid0=B.mods.filter(m=>!L35.known(m)).length,i0=B.intel;q('[data-act="dig"]').click();
+  out.dig=[hid0>0,B.mods.filter(m=>!L35.known(m)).length===hid0-1,B.intel===i0-1];
+  // the leaders' plan: picking Steal fills the orders, the loadouts and the rules
+  B.step=1;X.fn.enterBrief();q('[data-primary="steal"]').click();const P=B.plan;
+  out.lplan=[P.wings.amber.exec.k,P.wings.amber.loadout.mags,P.wings.anvil.exec.k+':'+P.wings.anvil.exec.arg,P.wings.anvil.second&&P.wings.anvil.second.trig,P.roes.join()];
+  // critiques: no bombs for a disable; a jump-in inside a ring
+  const P2=L35.leaderPlan('steal');P2.wings.anvil.loadout.brask='pods';P2.wings.anvil.loadout.ollo='pods';
+  out.crit=[L35.critique(P2,'anvil',[],{}),L35.critique(L35.leaderPlan('destroy'),'anvil',[],{}),L35.critique(L35.leaderPlan('destroy'),'dagger',[],{inRing:()=>true})];
+  // two plans on one seed: two different fights
+  const run=(prim,mut)=>{B.seed=555;B.mods=[];B.plan=L35.leaderPlan(prim);if(mut)mut(B.plan);X.fn.launch();for(let i=0;i<1200;i++)SIM.step();return SIM.stateHash();};
+  const h1=run('destroy'),h2=run('steal'),h3=run('destroy');out.plans=[h1!==h2,h1===h3];
+  // a Secondary: Anvil's engines job done → it suppresses the turrets
+  B.seed=555;B.mods=[];B.plan=L35.leaderPlan('steal');X.fn.launch();const st=L().exec.anvil.k;let n=0;while(n++<4000&&L().exec.anvil.k==='disable'&&!S().over)SIM.step();
+  out.sec=[st,L().exec.anvil.k,!!L().sec.anvil.adopted,L().subs[0].hp<=0];
+  // Hold for My Signal: no shots until the signal (unless fired on)
+  B.seed=555;B.mods=[];B.plan=L35.leaderPlan('crash');B.plan.roes=['signal'];X.fn.launch();
+  let shots=0;for(let i=0;i<600;i++){SIM.step();shots+=S().proj.filter(p=>p.faction==='reb'&&p.age<0.06).length;}
+  L35.giveSignal();let after=0;for(let i=0;i<1200;i++){SIM.step();after+=S().proj.filter(p=>p.faction==='reb'&&p.age<0.06).length;}
+  out.signal=[L().signal,shots===0||S().ships.some(s=>s.faction==='reb'&&S().t-s.hitT<30),after>0];
+  // Weapons Tight: a fighter with no subsystem to aim at holds fire on the freighter; one on the turrets may fire
+  B.seed=555;B.mods=[];B.plan=L35.leaderPlan('pirate');X.fn.launch();const j=S().ships.find(s=>s.id==='joss');
+  j.sub35=null;const c1=SIM.hooks.canFire(j,fr(),null);j.sub35='turrets';const c2=SIM.hooks.canFire(j,fr(),null);out.tight=[c1===false,c2===true];
+  // Preservation: under its threshold a ship withdraws; its wing shows OFF PLAN
+  B.seed=555;B.mods=[];B.plan=L35.leaderPlan('destroy');B.plan.roes=['preservation'];B.plan.presHull=0.3;X.fn.launch();
+  const p=S().ships.find(s=>s.id==='wren');p.hull=p.maxHull*0.2;p.thinkT=99;SIM.step();SIM.step();
+  out.pres=[p.beh&&p.beh.kind,p.beh&&p.beh.rule,L().off.dagger,X.fn.OV.tacticChip(F.wingOf('dagger'))];
+  return out;
+ });
+ ok(t35d.mods[0]&&t35d.mods[1]>=8&&t35d.mods[2]===0&&t35d.mods[3],'HC35 3: modifiers: same seed same set, varied, no exclusive pair, subtle 3 hidden '+JSON.stringify(t35d.mods));
+ ok(t35d.dig.every(Boolean),'HC35 3: Dig deeper reveals one and spends Intel '+JSON.stringify(t35d.dig));
+ ok(t35d.lplan.join('|')==='board|board|disable:engines|done|tight','HC35 P3: picking a primary fills the leaders\' plan '+JSON.stringify(t35d.lplan));
+ ok(/crack that hull/.test(t35d.crit[0])&&/watching our backs/.test(t35d.crit[1])===false&&/see us/.test(t35d.crit[2]),'HC35 P3: the leaders\' critiques '+JSON.stringify(t35d.crit));
+ ok(t35d.plans[0]&&t35d.plans[1],'HC35 P3: the same seed with two plans gives two fights (and one plan replays) '+JSON.stringify(t35d.plans));
+ ok(t35d.sec[0]==='disable'&&t35d.sec[1]==='suppress'&&t35d.sec[2]&&t35d.sec[3],'HC35 P3: a Secondary takes over when its trigger fires '+JSON.stringify(t35d.sec));
+ ok(t35d.signal.every(Boolean),'HC35 8: Hold for My Signal: no fire until the signal (unless fired on) '+JSON.stringify(t35d.signal));
+ ok(t35d.tight.every(Boolean),'HC35 P3: Weapons Tight '+JSON.stringify(t35d.tight));
+ ok(t35d.pres[0]==='withdraw'&&t35d.pres[1]==='preservation35'&&t35d.pres[2]==='Preservation'&&/OFF PLAN: Preservation/.test(t35d.pres[3]),'HC35 P3: Preservation Order, and OFF PLAN '+JSON.stringify(t35d.pres));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
