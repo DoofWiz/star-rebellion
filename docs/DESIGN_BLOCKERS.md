@@ -10,7 +10,7 @@
 > It is *not* a changelog (see `docs/REBELS_PLAN.md`, `docs/ROADMAP.md`) and not a wish list. Every row is
 > something that is stuck or that I guessed at.
 
-**Last updated:** 2026-10-09, after the 0.2 playtest's §4 (the Black Market's art is never clipped: the wells keep a floor and the art scales inside them, the stall scrolls, the news feed stays off the Market's and the Arsenal's cards; phone rows grow to fit a weapon card: C-51 item 24, C-52, C-53). Before that, 2026-10-09, after the 0.2 playtest's §3 (the prologue's economy: a ledger test that plays New Game to the frontier on its own income, salvage from Hegemony wrecks, the prologue missions' authored rewards, the friend-of-Cass Graf price, the affordability net; the second Hangar section needs 12 rubble tiles excavated, which nothing teaches: C-51 items 16 to 23, C-52, C-48). Before that, 2026-10-09, after the 0.2 playtest's §2 (the base is taught by side beats: the Barracks when the bunks fill, the Infirmary at the first injury, the Workshop at the first ship home damaged; story recruits with no bunk sleep rough: C-51 items 7 to 15, C-52, C-48's room tutorial rows). Before that, 2026-10-09, after the 0.2 playtest's §1 (Rescue Tachi's prisoner rides in the truck; no cinematic moves a prisoner; enemies hold only from cover; ambush guards follow the truck: C-51, C-52). Before that, 2026-10-08, for release 0.2 (main gets the enemy-shot camera hold, guided pointers kept on screen, and no command bar out of combat: the Galaxy and the Arsenal keep their buttons in the panel and the dossier, the Black Market keeps the lot pop-up from the screens handoff part 3; C-50's Arsenal question is settled by C-33.7). Before that, 2026-10-08, after your call on the command bar (none out of combat: C-33 item 7, settled as C-33.7). Before that, 2026-10-08, after your note on enemy shots (the camera holds on each shot and its result: C-45 item 7). Before that, 2026-10-08, after merging the screens handoff part 3 into main (the Fire support menu, the Black Market's type-tinted cards and lot pop-up, Door Gunner Cover on every enemy in its zone, Heavy Bombardment at round end: its entry became C-50, as C-46 was already the prologue's). Before that, 2026-10-08, after iPad Pro 12.9" support (the tablet layout in portrait: C-49). Before that, 2026-10-08, after your phase 5 calls (a lost prize pilot grounds only their ship; Steal the Cross is a Steal Ship; C-47 items 30 to 37 settled as C-47.5; Steal Ship's lines stay placeholders). Before that, 2026-10-08, after the prologue's phase 5 (Raid the Bunker: the Steal Ship type on one engine with Steal the Cross, the indoor bunker map, the player's Reinforcements bringing the pilots; New Game now plays to the frontier: C-47 items 30 to 37, C-48's phase 5 rows, C-41 item 2 in part). Before that, 2026-10-08, after the prologue's phase 4 (Raid the Bunker on the board, Tachi's three pilots, the Black Market and Sweet Tooth, the second hauler and Hangar room: C-47 items 22 to 29, C-48's P4 rows and the Steal Ship type). Before that, 2026-10-08, after the prologue's phase 3 (the tense day, the Bureau's first Lead on Venn, Someone's Asking Questions and Lie Low: C-47 items 18 to 21, C-48's Lie Low row). Before that, 2026-10-08, after the prologue's phase 2 (Rescue Tachi as the new Ambush: Extract VIP mission type, Tachi Gard as the first Agent, Run Your Network built: C-46 resolved, C-47 items 11 to 17, C-48's mission-type rows). Before that, 2026-10-08, after the prologue's phase 1 (`docs/PROLOGUE-HANDOFF.md`: the onboarding as a script of beats, gates that hide mechanics until a beat opens them, today's chain ported with the doc's fixes, the Steal Fuel recruit and Strafing Run callout: C-46 partly built, C-47, C-48, M-34; the designer's prologue decisions in the Resolved log). Before that, 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
+**Last updated:** 2026-10-17, after phase P6 of Type 3.5, the last (the debrief's cause chain, the metrics record, the keys: C-75 items 38 to 42). Before that, 2026-10-17, after phase P5 of Type 3.5 (the pilots' requests, the volunteers, ejection and pods: C-75 items 29 to 37, C-76 items 16 to 21, C-77). Before that, 2026-10-17, after phase P4 of Type 3.5 (the comms delay and its queue, command points by phase, every commander power and the assets you place: C-75 items 23 to 28, C-76 items 13 to 15, C-77, M-36). Before that, 2026-10-17, after phase P3 of Type 3.5 (the leaders' plans and critiques, the Executive and Secondary Orders playing out, the hidden modifiers showing themselves, OFF PLAN, the ROE and the optional objectives, the plan overlay: C-75 items 16 to 22, C-76 items 11 and 12). Before that, 2026-10-17, after phase P2 of Type 3.5 (the freighter as a target: subsystems, bombs, point defence, the drift and the planet, crew resolve, boarding, hauling, the three phases and the distress call, the seven primaries: C-75 items 9 to 15, C-76 items 7 to 10). Before that, 2026-10-17, after phase P1 of Type 3.5 (High Command Hands Off: the hooks and the hash test, the board, the dossier, the four-step briefing, the freighter's lane, the hands-off HUD, a debrief stub: C-75 to C-78, M-36). Before that, 2026-10-14, after wiring the visual pass round 2 into the map (the hurt read from the hull fraction, the death spiral, the lock marks: C-74 items 5 to 11). Before that, 2026-10-14, after the visual pass round 2 (hull-fraction smoke and fire trails, the death spiral, laser shot styles, the lock-on marks: C-74). Before that, 2026-10-14, after wiring Claude Chat's High Command visual pass (`game/art/sr-space-fx.js`, the station kit) into the map (C-73). Before that, 2026-10-14, after phase I2 of your fourth High Command playtest notes (defenders get between an inbound attacker and what they guard; Hegemony pilots pull back hurt and fight back; their squadrons split into lures and strikers: C-72 items 13 to 20, C-68). Before that, 2026-10-14, after phase I1 of your fourth High Command playtest notes (`docs/ARENA-HC-FEEDBACK-4.md`: map 16 ×, lines and status on the map only for the selected wing, every ship locks and a lock steadies its guns, missiles live 6 s and are run from at once, chaff: C-72 items 1 to 12, C-68). Before that, 2026-10-13, after your third High Command playtest notes (`docs/ARENA-HC-FEEDBACK-3.md`: the wing cards in a column in the bottom-left corner, the commands as big skill icons, the map 4 × wider and taller, the Cross turning at 80% of the interceptors' rate: C-71, C-69.20 in the Resolved log, C-68). Before that, 2026-10-13, after phase G5, the last of your second High Command playtest notes (the commands bar fixed bottom centre between the wings, the time controls under the clock, a five-entry feed, bigger objectives, quiet lines in hc1, status symbols by the ships: C-70 items 26 to 33; your playtest 2 calls are C-70.1 in the Resolved log). Before that, 2026-10-13, after phase G4 of your second High Command playtest notes (a click selects the wing, a second the ship; a selection box; right-drag pans; the right-click order wheel: C-70 items 20 to 25). Before that, 2026-10-13, after phases G2 and G3 of your second High Command playtest notes (collisions and pilots steering clear of them; the Cross's missiles with a lock you can see, the Missile ability's doctrine, targets breaking: C-70 items 8 to 19, C-68). Before that, 2026-10-13, after phase G1 of your second High Command playtest notes (`docs/ARENA-HC-FEEDBACK-2.md`: smooth motion, Convoy Lark's jump, speed 4 by default, the 8 × map round a 4 × play area, holding orbits at corner speed: C-70 items 1 to 7, C-68). Before that, 2026-10-13, after phase F4, the last of your approved playtest proposal (speech bubbles over your pilots' ships for 2 s, one per ship, at most 4, from their emergencies, kills, steadying, rules and new jobs: C-69 items 22 to 24, C-68; your playtest decisions are C-69.1 in the Resolved log). Before that, 2026-10-13, after phase F3 of your approved playtest proposal (attack runs for every ship, pilots breaking off a stalemate or a tail, the tactics reworked around runs, AUTO as the default tactic; a finding: the Cross now loses to Motes on turning: C-69 items 15 to 21, C-68). Before that, 2026-10-13, after phase F2 of your approved playtest proposal (the corner-speed turn model: weak slow turns, turning bleeds speed, no braking into turns, wider turns, a smaller nose lead, formations keeping station along a line: C-69 items 9 to 14, C-68). Before that, 2026-10-13, after building phase F1 of your approved playtest proposal (`docs/ARENA-HC-FEEDBACK-1.md`: faster ships at the full gun reach, the 4 × map with the scenarios scaled, wider spacing, Copy settings, Jump Out and Leave now, the tray and pilot panel above the roster, Commands bottom right opening upward: C-69, C-68). Before that, 2026-10-12, after your first High Command playtest notes (logged with my proposal in `docs/ARENA-HC-FEEDBACK-1.md`). Before that, 2026-10-12, after High Command's phase T4, the last (leaders and promotion tested, the keys, the per-mission metrics, `hc2_lastlight` and `hc3_meltdown` with its 3 / 5 / 7 command point variants, the sectioned HC panel with the tactic weights: C-67 items 30 to 37, C-68). Before that, 2026-10-12, after High Command's phase T3 (the pilot panel with abilities and their AUTO / EMERG / MANUAL doctrine, the commands drawer with the v1 six, command points and objective rewards, pins and panics answered from the feed or the panel: C-67 items 23 to 29, C-68). Before that, 2026-10-12, after High Command's phase T2 (all nine orders and six tactics, the mission rules and their panel, morale and panic, the pilots' assessments, the feed with VIEW and Tab, live camera tiles: C-67 items 14 to 22, C-68). Before that, 2026-10-12, after Arena Type 3, High Command (`docs/ARENA-HC-HANDOFF.md`, phase T1: a third ruleset behind the picker where autonomous wings fly themselves in real time and you order them; `hc1_nightfall` with Attack, Escort and Withdraw, the reinforcement clock, the HUD's top band, roster, wing tray and time controls: C-66 in the Resolved log, C-67, C-68). Before that, 2026-10-12, after your call for more shots doing less damage and a much bigger map (guns fire streams of small bolts at the same damage a second, the map is 2.5 × by default, weapon range and craft speed have room on the panel: C-65, C-65.1 in the Resolved log; C-59 item 12 and C-60's gun rows updated). Before that, 2026-10-12, after your notes on playing E1 under SB (ships flown as bodies along the plan rather than on rails, quicker and smaller bolts leaving the actual guns, thick shield arcs and hull / armour pips on every ship: C-64, C-64.1 in the Resolved log; C-60's projectile rows and C-59 item 6 updated). Before that, 2026-10-12, after the SB planning HUD (`docs/SB-HUD-HANDOFF.md`, phases H1 to H3: a per-ship stepper tray under the selected ship, SEG 1 → action → SEG 2, with the action now resolving between the two segments; ship chips, Execute (n/m planned), hover cards, keys: C-61 in the Resolved log, C-62, C-63; C-59 items 21 and 22 rewritten). Before that, 2026-10-12, after your call to add momentum to SB's reach (the speed carried into a round sets its speed window and how tightly it can turn; enemies too: C-59 item 32, C-59.32 in the Resolved log, C-60). Before that, 2026-10-11, after "it feels like slow motion": SB's rounds are 3 s (a conflict with your SteamBirds note's 6 s, flagged as C-59 item 31), turns brake less, acceleration is quicker, and the reach is documented as worked out per ship and situation (C-59 item 9, C-60). Before that, 2026-10-11, after your second round of SB Test notes (the reach drawn as a spearpoint from the dial, a round worth one dial move with no glide past your line, speed that brakes and powers through manoeuvres, the slip in hard turns, and a manoeuvre-searching AI: C-59 items 6, 7, 9, 11, 26; C-59.6 in the Resolved log; C-60). Before that, 2026-10-11, after your notes on SB Test's feel (smooth motion between sim steps, a chase camera, faster craft, slower glowing tracers with muzzle flashes and sparks, bigger ships with matching hulls, banking and contrails: C-59 item 30, C-60). Before that, 2026-10-11, after your call on SB Test's drag (drag to the destination, and the ship banks there like a plane as far as its dial allows: C-59 items 9 to 11, C-59.9 in the Resolved log). Before that, 2026-10-11, after merging the SB Test ruleset (`docs/ARENA-SB-HANDOFF.md`, phases B1 to B5) into the Arena branch: the picker asks for "SR V2 Combat" or "SB Test" before the scenario, SB runs on its own driver over the same scenario entries (C-59, C-60); this branch's first Arena decisions entry became C-58, as main's C-54 is the CD playtest. Before that, 2026-10-09, after your Arena calls on movement and action points (drag-and-release moves inside each ship's envelope, chained; one AP meter per pilot per round for everything; the Cool bonus: C-57 in the Resolved log, C-55 and C-56 rewritten). Before that, 2026-10-09, after the Arena (`docs/ARENA-HANDOFF.md`: a campaign-free lab for space combat v2, with drawn paths fitted to the dial, continuous simultaneous execution, nerve-priced interrupts and doctrine AI; the decisions are C-58 in the Resolved log, the placeholders C-55, my readings C-56, what waits for E1 M-35). Before that, 2026-10-09, after the 0.2 playtest's §4 (the Black Market's art is never clipped: the wells keep a floor and the art scales inside them, the stall scrolls, the news feed stays off the Market's and the Arsenal's cards; phone rows grow to fit a weapon card: C-51 item 24, C-52, C-53). Before that, 2026-10-09, after the 0.2 playtest's §3 (the prologue's economy: a ledger test that plays New Game to the frontier on its own income, salvage from Hegemony wrecks, the prologue missions' authored rewards, the friend-of-Cass Graf price, the affordability net; the second Hangar section needs 12 rubble tiles excavated, which nothing teaches: C-51 items 16 to 23, C-52, C-48). Before that, 2026-10-09, after the 0.2 playtest's §2 (the base is taught by side beats: the Barracks when the bunks fill, the Infirmary at the first injury, the Workshop at the first ship home damaged; story recruits with no bunk sleep rough: C-51 items 7 to 15, C-52, C-48's room tutorial rows). Before that, 2026-10-09, after the 0.2 playtest's §1 (Rescue Tachi's prisoner rides in the truck; no cinematic moves a prisoner; enemies hold only from cover; ambush guards follow the truck: C-51, C-52). Before that, 2026-10-08, for release 0.2 (main gets the enemy-shot camera hold, guided pointers kept on screen, and no command bar out of combat: the Galaxy and the Arsenal keep their buttons in the panel and the dossier, the Black Market keeps the lot pop-up from the screens handoff part 3; C-50's Arsenal question is settled by C-33.7). Before that, 2026-10-08, after your call on the command bar (none out of combat: C-33 item 7, settled as C-33.7). Before that, 2026-10-08, after your note on enemy shots (the camera holds on each shot and its result: C-45 item 7). Before that, 2026-10-08, after merging the screens handoff part 3 into main (the Fire support menu, the Black Market's type-tinted cards and lot pop-up, Door Gunner Cover on every enemy in its zone, Heavy Bombardment at round end: its entry became C-50, as C-46 was already the prologue's). Before that, 2026-10-08, after iPad Pro 12.9" support (the tablet layout in portrait: C-49). Before that, 2026-10-08, after your phase 5 calls (a lost prize pilot grounds only their ship; Steal the Cross is a Steal Ship; C-47 items 30 to 37 settled as C-47.5; Steal Ship's lines stay placeholders). Before that, 2026-10-08, after the prologue's phase 5 (Raid the Bunker: the Steal Ship type on one engine with Steal the Cross, the indoor bunker map, the player's Reinforcements bringing the pilots; New Game now plays to the frontier: C-47 items 30 to 37, C-48's phase 5 rows, C-41 item 2 in part). Before that, 2026-10-08, after the prologue's phase 4 (Raid the Bunker on the board, Tachi's three pilots, the Black Market and Sweet Tooth, the second hauler and Hangar room: C-47 items 22 to 29, C-48's P4 rows and the Steal Ship type). Before that, 2026-10-08, after the prologue's phase 3 (the tense day, the Bureau's first Lead on Venn, Someone's Asking Questions and Lie Low: C-47 items 18 to 21, C-48's Lie Low row). Before that, 2026-10-08, after the prologue's phase 2 (Rescue Tachi as the new Ambush: Extract VIP mission type, Tachi Gard as the first Agent, Run Your Network built: C-46 resolved, C-47 items 11 to 17, C-48's mission-type rows). Before that, 2026-10-08, after the prologue's phase 1 (`docs/PROLOGUE-HANDOFF.md`: the onboarding as a script of beats, gates that hide mechanics until a beat opens them, today's chain ported with the doc's fixes, the Steal Fuel recruit and Strafing Run callout: C-46 partly built, C-47, C-48, M-34; the designer's prologue decisions in the Resolved log). Before that, 2026-10-08, after merging the base and combat work into main (its two entries became C-44 and C-45, as the weapon voices had taken C-43). Before that, 2026-10-08, after the weapon voices (a distinct sound per weapon, reports driven by the volley the tracers draw: C-43). Before that, 2026-10-07, after your calls on C-45 items 3 and 4 (no Flanked penalty; Take cover keeps the shot). Before that, 2026-10-07, after your cover rework notes (cover by the line of the shot, walls and corners, flanking, the AI's cover; quicker enemy shots; the rebel on turn auto-selected; Automatic (Deployed) -2 on the Razorrat: C-45). Before that, 2026-10-07, after your base and combat notes (Standby and Working at the base; the stun wears off; Leave gun and Pack up gun; Treat wound picks and marks its patient; the per-round check that ends combat once contact is lost: C-44). Before that, 2026-10-07, after the screens handoff part 2, §3 (the Intelligence tab — The Network, all four phases: C-42). Before that, 2026-10-07, after part 2's §4 (the slot-filling planning window: C-41). Before that, 2026-10-07, after part 2's §2 (the source approach and standby contacts: C-40). Before that, 2026-10-07, after part 2's §1 (the Starfighter window: C-39; the part 2 doc and its stylesheets landed). Before that, 2026-10-06, after your call on fire support: the transport assigned to a ground mission brings its own Supply Drop (if its type can fly one) and Door Gunner Cover (if a Door Mounted Gun is fitted), with no second ship (C-31 item 5 resolved). Before that, 2026-10-06, after your call to undo my fire support changes (the Supply Drop toggle is back on the planning board; the transport gives no fire support of its own; the crate carries no Med Packs: C-31). Before that, 2026-10-06, after the audio pass (the persisted sound setting, one toggle wiring, the base's split alert palette: C-38). Before that, 2026-10-06, after the screens handoff, screen 4 (the Missions tab: C-37; M-22 item 4 built). Before that, 2026-10-06, after screen 3 (the comm burst: C-36). Before that, 2026-10-06, after screen 2 (the personnel file: C-35). Before that, 2026-10-06, after screen 1 (the mission report: C-33, C-34). Before that, 2026-10-06, after your Hangar answers (4 × 4 sections, small and large pads, a 14 × 18 map: C-32). Before that, 2026-10-06, after the Haven Rock art handoff (art update 4: the base map and walk-in views, M-33). Before that, 2026-10-06, after your answers on C-29 and C-30 (enemy range with the shooter revealed; downed VIPs; every transport leaves; the transport's own fire support; the developer logo on the title screen: C-31). Before that, 2026-10-06, after your field changes (death, stims, Steal the Cross, the Personnel File, Flight Controller and Combat Support: C-29, C-30). Before that, 2026-10-06, after the Support specialties build (the Support Specialties doc; your answers on staff posts, C-28; M-14 resolved; M-32 lists what waits). Before that, 2026-10-06, after the designer's C-26 answers (mission text per type, the transport by name, guard names by type). Before that, 2026-10-05, after the October 5 art handoff and the designer's answers on the Back slot (C-25),
 wrecks (M-15), the new art (M-26) and Steady (M-27): the Back slot with the Razorrat and Riot Shield as deployables,
 fire modes, Steady and Knockback, the EG-55 as Fightstar plasma, maker badges and trait icons, the layered vitals
 bar, fire-support art and ships parked in the iso hangar.
@@ -59,7 +59,27 @@ bar, fire-support art and ships parked in the iso hangar.
 | C-54 | 🟡 | CD playtest (8 Oct): the smaller items around the core-gameplay feedback — the two-classes-of-message UI rule, ground phase legibility, an overwatch tell, the briefing layout, the stealth rework, a narrow-win debrief line, ground impact effects, a flavour-text audit, and three live bugs (the revenge shot after the win, a refused lock-on, the Marta prompt) | Future triage; none of it blocks current work |
 | C-45 | ⚪ | Cover by the line of the shot: the numbers (hug distance, corner arc, wall cover 9, Take cover +2), what counts as a threat in the cover hints, enemy-shot pacing | How every firefight plays |
 | C-44 | ⚪ | Standby and Working; the combat-flow fixes: what Standby does, when a rebel rests on their own, how many quiet rounds end a fight, alerted enemies holding still out of contact, extraction with hostiles alive, what Leave gun leaves in their hands | How the base reads; when a fight ends |
+| C-55 | 🟡 | Arena: every number in the space combat v2 sim is a placeholder (exec length, the action point meter and every price on it, the Cool bonus, lock time, doctrine radii…) | The whole Arena's tuning, and experiment E1's verdict |
+| C-56 | ⚪ | Arena: readings to confirm (Enter Arena for everyone, Evade kept, K-turns as moves, no slow-motion, tells always on) and what I chose building it (move bands, the round's distance, action point details, fixed rate of fire, opportunity fire, which enemy hunts) | How every Arena fight plays |
 | C-43 | ⚪ | Weapon voices: every weapon's own sound, reports per visible round — the character I gave each weapon | How combat sounds |
+| C-59 | 🟡 | SB Test ruleset: decisions and readings (two rival rulesets behind one picker, SB's own driver, the continuous envelope, projectiles not the d20, the two deviations from your notes; open: a quarter weapon roll per projectile, the freighter's turn radius equal to the Talon's) | Your head-to-head verdict; how SB plays |
+| C-65 | 🟡 | SB streams of fire and the bigger map: what I chose (damage kept per second, fractional hits, criticals and nerve rescaled, damage numbers added up, the scenario set in the middle of the map, pursuit's range following the guns) and the placeholders | How an SB fight reads; every number is on the panel |
+| C-64 | 🟡 | SB flight, guns and ship status: what I chose (a ship's grip and thrust come from its own plan's peaks, the deterministic pilot wander, the K-Turn's flip, bolts that don't carry the ship's speed, the colours by maker) and the placeholders | How SB ships fly and read; every number is on the panel |
+| C-62 | ⚪ | SB planning HUD: readings to confirm (locked mods shown greyed, Basic armed each turn, no confirm on Execute, designer-facing tooltip copy) and what I chose building it (Keep facing, where SEG 2's drag starts, the boost actions greyed with a reason, the ship-ability slot collapsed, AP capped at 2, a pause button) | How planning an SB turn feels |
+| C-63 | 🟡 | SB planning HUD: placeholders (the tray's gap, icon size and flip zone, the hover delay) | The tray's look; every one is on the panel |
+| C-78 | 🟡 | Type 3.5: every line is lab copy | The text you'll rewrite |
+| C-77 | 🟡 | Type 3.5: placeholders (on the panel's Type 3.5 group) | How 3.5 plays |
+| C-76 | 🟡 | Type 3.5: readings to confirm (Wing 3 has four, Cass, the 3.5-only classes, the slow freighter, jump-ins inside a ring warn) | How the demo reads your brief |
+| C-75 | 🟡 | Type 3.5: decisions (on High Command through hooks, guarded by a hash test; the plan compiles to a scenario) | How 3.5 is built |
+| C-74 | 🟡 | HC visual pass round 2, art and wiring: laser art exists (`shiplaser`/`heglaser`) but no ship fires lasers yet; the hurt-read thresholds and death-spiral odds are placeholders; the lock marks are gold; the smoke trail is dotted at HC speeds | Which ships get lasers; the hurt read |
+| C-73 | 🟡 | High Command's visual pass, wired: the sim's labels for the art, effects on smooth game time, shake in screen pixels, booms that grow with the icons, the nebula's fallback without a GPU, the panel's FX group | How the High Command map looks and how fast it draws |
+| C-72 | 🟡 | High Command playtest 4, as built: the map at 16 ×, the map's lines and status for the selection only, locks for every ship, missiles' life and the evasion, chaff, interposing defenders, the Hegemony's preservation and lures; open: hc2 may now be too easy | How High Command plays after your fourth notes |
+| C-71 | 🟡 | High Command playtest 3, as built: the wing cards' column, the skill icons, the 32 × map with a tiled starfield, the Cross's turn, and the avoidance fixes they needed | How High Command plays after your third notes |
+| C-70 | 🟡 | High Command playtest 2, as built: what I chose (smooth motion one step behind the sim, the map round the play area, arriving at the jump point, holding orbits at corner speed, collisions and avoidance, the Cross's missiles and the lock, selecting and ordering on the map, the HUD's new layout and status symbols) and the new placeholders; open: missiles on the database's stock Cross | How High Command plays after your second notes |
+| C-69 | 🟡 | High Command playtest 1, as built: what I chose (the scenarios scaled to the 4 × map, Jump Out and Leave now, the tray and pilot panel above the roster, Commands bottom right, the corner-speed turn model, attack runs and break-offs, the reworked tactics and AUTO, speech bubbles) and the new placeholders | How High Command plays after your first notes |
+| C-67 | ⚪ | High Command: readings to confirm (the third ruleset's scenarios, flight as SB's flown body steered at a goal, personality from traits, the relay jamming the jump point, when a mission ends, the "better local target", leaders by level, how each order, tactic and rule reads, nerve as morale with two changes, panic, placeholder assessment lines `[TEXT NEEDED]`, live tiles, withdrawing to the rally point while jammed, the v1 commands and the v2 stubs, emergencies and the recommended answer, two gold buttons at once, abilities and doctrine, the digits' two jobs, the metrics record, hc2 and hc3, a leader's death as a mass panic, the panel, what isn't built; the SB test now checks only the first two rulesets) | How every High Command mission plays |
+| C-68 | 🟡 | High Command: placeholders (the timescales, think rate, speeds, ranges, formation spacing, the tactic weight table, leader loss, command points, the scenario's stats) | How High Command plays; every one is a getter, most on the panel |
+| C-60 | 🟡 | SB Test: placeholders (AP per round, Fly Defensively, Boost, K-Turn, Barrel Roll, the flair, the movesets; bursts, spread, lock, impact, missiles, the hull ellipse) | How SB plays; every one is on the panel |
 | M-1 | 🟡 | Per-rebel Risk and notoriety | 8 Rebel Traits, 2 Character Traits |
 | M-2 | 🟡 | Capture, interrogation and ambush | 4 Rebel Traits, Rescue Prisoners missions |
 | M-3 | 🟡 | Family | 2 Rebel Traits |
@@ -86,12 +106,1316 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 97 of 161 niche unlocks and 3 of 16 base effects; 12 niches have nothing live yet |
 | M-33 | 🟡 | Haven Rock art: no Tech Lab furniture or simulator pod in the kit; the base alert has no rule | The Tech Lab draws a stand-in; the alert fires at 70 network exposure |
 | M-34 | 🟡 | Prologue: stubbed beats (security forces arrive, the first Campaign, the farewell) | Everything after Raid the Bunker; the prologue ends at its frontier until they are written |
+| M-36 | 🟡 | Type 3.5: campaign wiring, other target types, the later objectives and powers, db rows and prop art | 3.5 outside the Arena |
+| M-35 | 🟡 | Arena graduation: what waits until experiment E1 passes (a shared combat-maths module, ground combat in the Arena, the campaign on the v2 sim, the parked design-doc items) | Space combat v2 anywhere but the Arena |
 
 (Counts are as of today: 12 of 45 Character Traits and 27 of 59 Rebel Traits are listed but never granted.)
 
 ---
 
 ## 1. Conflicts
+### C-75 🟡 Type 3.5 (High Command Hands Off): decisions
+`docs/ARENA-HC35-HANDOFF.md`, built in `game/js/sim-hc35.js` (the layer) and `game/js/arena-hc35.js` (the screens and
+HUD). A fourth Arena ruleset beside v2, SB and Type 3: an opportunity becomes a mission through a four-step briefing,
+the mission plays out with you hands off, and a debrief says why it went the way it did.
+
+1. **It runs on High Command's sim and renderer through hooks, not a copy.** This breaks the Arena's
+   copy-don't-refactor rule on purpose (the handoff asks for it): copying 4,000 lines would fork the flight and AI you
+   tuned over four playtests. `sim-hc.js` gained nine guarded hooks (`SIMHC.hooks`: classExtra, loadoutExtra, think,
+   goal, damage, canJump, canFire, step, event), a row lookup that the class hook extends, an optional hit-size factor
+   on a row (`hitK`, × 1 when absent), and more exports for the layer. `arena-hc.js` gained a mode (`open({mode:'hc35',
+   overlay})`, `loadScenario`) whose overlay can draw and take input, and hides the tray, the order wheel, the commands
+   bar and the rule editor. With no layer set, High Command runs byte for byte as before: `tools/arena-smoke.js` HC35 1
+   checks hc1, hc2 and hc3's hashes after 90 s against baselines recorded before any change (seed 7, one scripted
+   order at 5 s: a9741455, f237a40, 40316536).
+2. **The hooks are set only while a 3.5 mission is loaded** (the briefing's plan view or the mission), and every one
+   checks it is the live 3.5 mission, so leaving for Type 3 leaves High Command as it was.
+3. **One existing test changed**: HC 1 asserted exactly three rulesets; it now checks the first three, with Type 3.5
+   fourth. The handoff asks that no existing test change, which adding a ruleset can't meet.
+4. **The plan compiles into an ordinary High Command scenario** (`SIMHC35.compile`, registered as `hc35_freighter`),
+   so an attempt can be replayed from its compiled entry and seed. The freighter is a Hegemony ship that its layer
+   flies along the lane; its escorts are guards on it that the layer holds beside it until they're alarmed.
+5. **Bombs, point defence and the freighter's subsystems live in the layer**, not in High Command's weapon code
+   (P2), so the guns' code stays untouched.
+6. **The map** is High Command's 16 × map; the opportunity is written in layout units, as hc1 is, and scaled with it.
+   Only our jump point is a High Command point: the lane, the planet, the relay and the assets are the layer's own, so
+   High Command doesn't label them.
+7. **In the plan view** (the briefing's map) your ships are hidden and their gold jump-in markers stand in for them;
+   the scenario is built at t = 0 and paused, and rebuilt at Launch with the final plan.
+8. **The briefing keeps High Command's keys off** (the sim never moves while you plan); in the mission the time
+   controls and camera keys work as in Type 3.
+9. **The freighter as a target (P2)**: its engines, comms array, four turrets and twelve containers sit where the art
+   draws them, and a hit goes to the one it lands on (or to the one the shooter is told to hit); the rest goes to the
+   core (its 400 hull). A dead engine block disables it, a dead array cuts the distress call, a hazard module blows
+   everything near it. Its point defence, the bombs and the docking are the layer's (C-75 item 5).
+10. **Bombs**: slow (`BOMB_K` 0.3 × a missile), they get past shields and half the armour, and they hit only ships of
+    size 7 and up, so only the freighter here. Fighter guns do `GUN_VS_CAP` (25%) to a capital hull: on their own they
+    don't take the engines out in a minute (`tools/arena-smoke.js` HC35 5).
+11. **Brickbats dock to board or haul**: a drifting freighter is far slower than any ship can fly in High Command's
+    flight model, so a boarder or hauler that reaches it clamps on beside its spine and moves with it until it's done.
+12. **The prize steers itself home**: a capital ship can't turn round at a crawl in the flight model, so the layer flies
+    the boarded freighter to our jump point at `PRIZE_SPD` (160 a second).
+13. **A lane waypoint counts as reached once the freighter is level with it**: it can't turn tightly enough to touch
+    one.
+14. **Until pilot requests (P5), the surrender answers itself**: with Pirate as the primary they take the cargo; with
+    anything else, no deal (and they don't ask again for a minute).
+15. **Tests**: `tools/arena-smoke.js` HC35 5 (guns against bombs, no jump while disabled, the fall into the planet),
+    6 (each of the seven primaries won from a scripted plan) and 7 (detection to Phase 2, the cut distress call,
+    Remote).
+16. **The leaders' plans (P3)**: picking a primary fills in the roles, Executive and Secondary Orders, loadouts and
+    ROE the handoff's example plans give for it (`LEADER_PLANS`); your jump-ins and assets are kept. Each leader's line
+    on step 4 is the first critique rule that applies (no bombs for a hull, no boarder, no pods, nobody defending a
+    Brickbat wing, a jump-in in a ring, a jump-in too far to catch the lane, waiting on your signal), else their
+    personality's line.
+17. **An Executive Order is busy, waiting, done, impossible or broken** (half the wing lost, or all of it panicking).
+    A Secondary is taken up when its trigger fires and the Executive isn't busy; while it's busy the leader says
+    they'll switch once it allows. An Executive that's over with no Secondary left holds, or goes home with Jump on
+    Completion (a broken wing always goes home).
+18. **Hidden modifiers show themselves** when they first matter (a bigger escort when one is first in sensor range,
+    Green when Phase 2 begins, Quick Jumper when it spools where it is, Rapid and Remote when the call lands, Fanatical
+    at zero resolve, Demoralised when they offer); Unreliable Source's false one is found out in Phase 2.
+19. **OFF PLAN** on a wing card names what has it off its Executive Order (panic, Preservation, protecting a pilot, a
+    rule, a request, the Secondary, the comms array), and the seconds off plan are kept for the debrief.
+20. **The ROE**: Hold for My Signal holds fire unless fired on in the last 3 s; Weapons Tight lets only ships aimed at
+    the engines, the array or the turrets fire on the freighter; Preservation pulls a ship out below its hull line;
+    Whale Hunt sends a wing with nothing busy at a disabled freighter. Bloodless holds fire on an enemy below 30% hull;
+    Kill the Distress Call sends a wing that isn't busy at the array when the call goes out. Ion Storm cuts sensor
+    range to 70%.
+21. **The plan overlay** (the PLAN button on the phase plate, or P) is on through Phase 1 and off after, unless you
+    toggle it yourself.
+22. **Tests**: `tools/arena-smoke.js` HC35 3 (the modifiers' roll, Dig deeper), HC35 P3 (the leaders' plans and critiques, two
+    plans replaying identically, the Secondary's adoption, Weapons Tight, Preservation and OFF PLAN) and 8 (the signal).
+23. **Comms (P4)**: every power is a transmission, queued in the bar's comms rows and drawn as a cyan ring from the
+    origin; it lands after the handoff's formula (`COMMS_BASE` + distance / `COMMS_SPD` + the leader's
+    acknowledgement, × `ION_K` under Ion Storm) and can't be recalled. A power for the whole force (the signal,
+    General Retreat, Abort, the broadcast, a marked target) goes to each wing separately, so each wing hears it at its
+    own delay. A leader's acknowledgement goes by level: 2 and under green (1.5 s), 5 and up veteran (0.7 s), else 1 s.
+    *Comms delay off* is on the panel (`COMMS_OFF`).
+24. **Command points are a phase's allowance** (`CP1`–`CP3`: 2, 3, 3): a new phase sets them afresh and what was left is
+    lost (counted for the debrief and the record).
+25. **The powers**, as built: *Mark Priority Target* goes to wings whose Executive Order isn't busy; *Change Executive
+    Order* gets "We're nearly there, Base" when the order is busy and at least 80% done (`NEARLY`), and *Insist* is
+    offered for 15 s; *Call a Pilot by Name* is refused half the time (`REFUSE_P`) by a shaken or panicking pilot; the
+    *Reserves* warp in at their jump-in point; the *Ram* drives at what you click and has to hit it, while the
+    nuclear one goes off within a quarter of its blast (or at the end of its 40 s run); a blast (fire ship, mine, nuke)
+    hits every freighter subsystem in its reach and the core for half; the *Tug* tows a ship to our jump point; *Spoof
+    Orders* sends the escort, the response or a squadron away as one group; the *Pirates* roll their greed once as a
+    group and leave from the edge they came in by; *Wake the Sleeper* with no agent aboard (Unreliable Source) gets no
+    answer and shows the lie.
+26. **The ram, the tug and the pirates are the layer's drones** (no nerve, never "pinned"), flown by the layer and
+    shot at like your ships; they never count as your losses, and they leave when your last wing does.
+27. **Assets you place** (the ram's staging point, the fire ship, the minefield, the buoy, the relay) start where
+    `ASSET_AT` puts them and are dragged on the step 4 map, each with its reach drawn.
+28. **Tests**: `tools/arena-smoke.js` HC35 9 (the delay against the formula, the relay, Ion Storm, delay off), 7 (command
+    points by phase) and 10 (every power after its delay, and the bar by DOM: the icons, the targeting pill, the comms
+    queue).
+29. **Pilot requests (P5)**: all ten of §5.6, each raised once per subject (a pilot, an enemy, a pod, a wing) with the
+    handoff's answers and persona defaults, as an `hc-card` in the right column with A/B/C answers, a DEFAULT tag and a
+    countdown ring, and in the feed. An answer rides the comms delay to the asker, who acknowledges; no answer in
+    `REQ_SECS` and the asker does their default ("Sera decided: …"). A new request at 3 × drops the speed to 1 ×.
+30. **When there's no room** (two open, the 20 s gap, six a mission), the highest priority waits; the urgent ones (the
+    surrender, the scuttle charges, Phase 3) skip the gap; one not asked within `REQ_PEND` (8 s, mine) is dropped and
+    the pilot carries on, except the surrender, which the asker answers by their default.
+31. **Requests off** (the panel): nothing is asked and nothing a request would change happens, except the surrender
+    (the asker's default). The P2–P4 tests run with it on, so they test the plan alone.
+32. **Preservation Order waits** while a pilot's own "I'm hit, but I can stay in" is open: they asked, so your answer
+    decides; *Stay in* then holds against Preservation for that pilot only.
+33. **Pods**: a Brickbat with room (Cargo pods with a free slot, or a Boarding party) picks one up passing within
+    `POD_R`; *Get him* sends the nearest one with room from any wing; the Tug power can now be pointed at a pod. A pod
+    aboard a ship that's lost later is lost with it. Fighters here only die in the fight, so only a nuclear blast stops
+    the ejection (no crash deaths).
+34. **A volunteer's ram** does `RAM_K` × the ram's damage and, like the Ram, hits inside the target's crash-avoidance
+    room; the pilot ejects at half the chance.
+35. **Keys**: while a request is open, A, B and C answer the newest, over the powers' C and B.
+36. **Crash fails** once the freighter is disabled outside the planet's pull and has drifted to a stop.
+37. **Tests**: `tools/arena-smoke.js` HC35 11 (a hit pilot's request timing out to the default, the answer against
+    Preservation, the gap and both caps, Requests off, the keys) and 12 (a pod, the Tug collecting it, a pod captured in
+    the debrief).
+38. **The debrief (P6)**: the stamp is JOB DONE for the primary and every optional, PARTIAL for the primary alone,
+    FAILED, or ABORTED; then the objectives, the loot (by primary: the ship and its cargo, the cargo handed over, the
+    containers hauled, a lead, response kills, or nothing for a denial), the losses with what became of each pilot
+    (picked up, captured, no pod) and the time in each phase.
+39. **What decided it** reads your table off the cause log and the context it kept at each loss (who got them, the
+    wing's Executive, who was defending whom, the ROE, the phase): the point-defence loss with no Suppress turrets ever
+    ordered, the loss to the response mid-Executive without Jump on Completion, *Stay in* on your word, the uncovered
+    Brickbat, the escape with the engines never hit (and why: no Disable order, a Brickbat lost, the bombs spent), the
+    distress with nobody on the array, each power's result, the modifier Cass missed or got wrong, the jump-in in the
+    ring; then your answer to their hail, captured pods, an abort, the exposure, a burned agent, the pirates' take.
+    Most specific first, six at most; under three, it adds the feed's turning points and the result.
+40. **The record (§10)** pushed to `ARENA_METRICS` per attempt carries every field: the modifiers (hidden at launch,
+    and when each was found in play), the plan, the briefing's seconds per step, each phase's length, seconds at each
+    speed and the pauses (wall-clock, while the mission is on screen), the powers by type and phase, CP unspent, the
+    requests (raised, answered, defaulted, by whom), the Secondaries, OFF PLAN seconds per wing, the outcome and stamp,
+    loot, losses, pods, Plan again (set on the attempt's record when you press it), and both panel toggles.
+41. **The keys** are §7.6's: High Command's own (Space, 1–4, Tab, F, Q/E, Esc) work as in Type 3, plus P, the powers
+    on Z X C V B N M , and A/B/C for requests (C-75 item 35).
+42. **Tests**: `tools/arena-smoke.js` HC35 13 (a scripted loss to point defence gives its line), 14 (the same seed, plan,
+    powers and answers with pauses and the HUD worked between: the same hash), 15 (the record's fields) and the keys.
+**Your call:** none needed; overrule any item.
+
+### C-76 🟡 Type 3.5: readings to confirm
+Each with the reading I built:
+
+1. **Wing 3 has four ships** (Cross, two Talons, Brickbat), as you listed them, against "each with three ships".
+2. **The Source is Cass** (level 2), and her portrait is a generated face: the art cast has no Cass.
+3. **The Brickbat and FL-400 stats are 3.5-only placeholders** (`HC35_CLASSES` in `sim-hc35.js`; neither has a
+   `db.json` row).
+4. **The freighter is slow**: the handoff gives it the dial's 1–2, but on the 16 × map that crosses the lane in under
+   a minute; it crosses in `FREIGHTER_SECS` (270 s) as the handoff also says, so it runs at about 55 units a second
+   (its dial floor is 0.2).
+5. **A jump-in inside an escort's sensor ring warns, not blocks**: Launch is still allowed (the leaders say so), and
+   jumping in there ends Phase 1 at once.
+6. **Pause is free in 3.5 too** and the briefing never runs the clock.
+7. **The FL-400's hull**: the handoff gives "400 over subsystems", but its subsystems alone come to 640 (engines 120,
+   comms 60, turrets 4 × 40, containers 12 × 25). I read the 400 as its core, with the subsystems on top.
+8. **Crash is deny-only**: the doc's line is cut off ("crash it on the planet to"); the cargo is lost with the ship.
+9. **Crew resolve drains at 0.25 a second for each rebel ship near it**, not the handoff's 1.5: at 1.5, ten ships
+   empty it from 70 in five seconds.
+10. **Detection builds at 12 a second at the ring's centre** (falling to nothing at its edge); a ship closing in to tag
+    counts 35%, a ship holding still 50%.
+11. **"[Wing] in trouble"** (a Secondary's trigger) means a ship of that wing below 40% hull, and **"half lost"** half
+    of that wing gone: the trigger reads its own wing.
+12. **Bloodless** stops your pilots finishing an enemy fighter off (below 30% hull), not just counting kills against
+    you; the freighter itself is the primary's, so it's exempt.
+13. **The command points sit in the powers bar's title row**, where High Command keeps them, not top right as the
+    handoff's sketch has them; they still say when they refresh.
+14. **Kill the beacon** (Wake the Sleeper) also calls off a response that's already coming, if the call got out.
+15. **Exposure** is noted in the debrief only (it's a campaign resource, M-36).
+16. **"Nervous" is High Command's "even" persona** (it has eager, steady and even).
+17. **The surrender's default**: an eager leader says no deal (as you wrote); anyone else takes the cargo only when
+    Pirate is the plan, else no deal (the handoff gives only the eager default).
+18. **Defaults you left open**: a steady leader jumps when Phase 3 comes with the job unfinished; a steady leader holds
+    for reserves when a hidden modifier shows itself (press on, with no Reserve wing).
+19. **Hold for reserves** calls the Reserve wing at no CP (an answer is free) and holds the asker's wing 30 s.
+20. **Get out** (the scuttle charges): the boarders cast off and their wing holds; the charges still blow.
+21. **A typical run raises two or three requests** at these numbers: the missions run one to three minutes and the
+    20 s gap drops a lot. `REQ_GAP` and `REQ_PEND` are the dials for the handoff's three to five.
+22. **As the handoff reads them, built so**: pause freezes the request timers (they run on mission time); Abort and
+    General Retreat are free but still delayed like any transmission; command points left at a phase change are lost;
+    the FL-400 is drawn straight through the art, not the hull cache; the pirates are Brickbats in the hunter livery
+    with hazard rings; the objective families aren't colour-coded.
+**Your call:** any of these
+
+### C-77 🟡 Type 3.5: placeholders
+Every number in `sim-hc35.js` is a getter on the designer panel's **Type 3.5** group (Opportunity, Freighter, Phases,
+Comms, Powers, Requests): the freighter's crossing time, its alarmed speed and jump spool, the escort's station, the detection
+ring, its rates and the jump-in ring, Intel to dig with; the comms delay's parts; command points per phase, each
+power's cost and what it does; the requests' timing and caps, their triggers, ejection and pods (Requests).
+**Your call:** tune on the panel
+
+### C-78 🟡 Type 3.5: text
+Every line in Type 3.5 is lab copy you'll rewrite: the opportunity's lead, the modifiers' lines, the objective and
+rule cards, the wings' takes, the critique lines, the request lines, the power cards and the debrief's lines. None of
+it reaches the campaign without the normal `[TEXT NEEDED]` flow.
+**Your call:** rewrite in the text workbook when it moves there
+
+### C-74 🟡 High Command visual pass round 2: lasers need a weapon, and the readability placeholders
+The space FX pass (`game/art/sr-space-fx.js`, `docs/art/HC-VFX-HANDOFF.md`, the guide at
+`docs/art/space-fx-guide.html`) is art only — nothing in the sim changed. Three things for you:
+
+1. **Lasers have art but no gun.** You asked for laser shot effects beside the ballistic ones. The art kit now has
+   two laser projectile styles (`PROJ.shiplaser` warm, `PROJ.heglaser` cold — drawn as a coherent beam-dart, not a
+   tracer) and the renderer path for them, but no weapon in the game's data fires them, so in play nobody lasers.
+   **Your call:** which ships or weapons (if any) switch to lasers — a new weapon row, or a variant on an existing
+   one. Until then they show only in the style guide and the stress scene.
+2. **The hurt read's thresholds are placeholders you named once:** smoke trail at ≤ 25% hull, fire + smoke at
+   ≤ 10% (`TUNE.trailSmokeAt` / `trailFireAt`). Confirm or move them.
+3. **The death spiral is visual-only and its odds are a slider** (`TUNE.spiralChance` 0.5, `spiralSecs` 2): the sim
+   still kills, scores and floats SPLASH at the real moment of death; the corpse's careen-then-boom is theatre after
+   the fact. If you ever want the spiral to matter (a ship that can crash into others), that's a sim feature, not art.
+4. **Claude Code's C-73 item 6 (booms grow with the icon boost): agreed and kept** — the round-2 kill paths
+   (the spiral corpse and its end boom) carry the same boost.
+
+*Wired into the map (Claude Code, `game/js/arena-hc.js`):*
+
+5. **The hurt read uses the real hull fraction.** Every ship's view carries `hullFrac`, on the map and in the camera
+   tiles, so the old stage-based smoke no longer runs in High Command. Its two panel sliders are gone; the new
+   numbers are in the panel's FX numbers (smoke and fire thresholds, smoke rate, spiral chance, length and tumble,
+   laser length).
+6. **A kill hands the spiral the ship's heading and speed**, so the corpse carries on along its real flight. The
+   sim's SPLASH and the scoring stay at the real moment of death.
+7. **The lock marks replace the brackets** while the pass is on (the flat look keeps the old brackets). Your locks:
+   gold arcs turning while they build, still gold ticks and a diamond once held, with the red LOCK word under them
+   as before. A full lock used to turn the brackets red; it's gold now, as the artist's rule says (gold is the
+   player's). A Hegemony missile lock on your ship now draws a hazard mark round it as well as the ⚠ LOCK text. The
+   pop ring at the flip runs on game time, so it waits while paused; a lost lock pops again when it comes back.
+8. **Two small fixes in the module, for the artist to review.** The spiral's end boom kept the icon boost for its
+   debris. A spiral is now the last effect dropped when the one-shot list is full, since dropping it would lose the
+   explosion it owes.
+9. **At High Command speeds the smoke trail reads as dots.** A ship at about 540 a second, puffing 9 times a second,
+   drops a puff every ~60 units: at zoom 0.45 that's a dotted line, not a ribbon. Raise "Smoke trail puffs /s" on
+   the panel, or the artist could space the puffs by distance flown rather than time.
+10. **Lasers**: nothing to wire until a weapon fires them (item 1). A sim weapon mapped to `shiplaser` or
+    `heglaser` will draw as a laser with no renderer change.
+11. **Tests**: `tools/arena-smoke.js` V1 round 2 checks the hull fraction on the view, the spiral's heading and speed
+    and its end boom, and the lock marks (turning while building, held with the pop once locked).
+
+### C-73 🟡 High Command's visual pass, wired: what I chose and where I left the handoff
+Claude Chat's art pass (`game/art/sr-space-fx.js` and the station kit in `sr-art.js`; its notes are
+`docs/art/HC-VFX-HANDOFF.md`, against my brief `docs/art/HC-VFX-BRIEF.md`) now draws the High Command map. It draws
+the backdrop, the rocks, the hulls (live engine flames, banking, lights, damage smoke, crits), the three stations, the
+trails, the bolts and missiles, the chaff and every effect. `game/js/arena-hc.js` keeps the command layer as it was:
+the selection rings, the lines, the labels, the shields, the pips, the locks and the bubbles. v2 and SB are untouched.
+
+1. **The sim only gained labels** (no gameplay change; `tools/arena-smoke.js` V1 checks that the same seed ends the
+   same with the pass on or off). Each bolt hit now records the surface it struck (shield, armour or hull), the bolt's
+   style, and whether it was a missile. A crash, a missile hit and a missile miss are each marked as such. Each command
+   in the event feed carries its key.
+2. **The artist's asks.** The collision positions go through as they were. The station art is a `station` field on
+   each structure's scenario entry (relay, lastlight, reactor), falling back to the entry's id; a structure with
+   neither draws the old octagon. The handoff asked for the boarder's id; that wasn't needed. The map uses the sim's
+   own boarding test, so each Graf docked with the station gets its own link, to the nearest clamp pad.
+3. **Effects run on smooth game time**: the real frame time × the speed, so they slow, speed up and freeze with the
+   clock. The handoff said to advance them by the sim's 50 ms steps. That would move every particle in jumps, 20 times
+   a second, the stutter we fixed in C-70. Past the end of a mission the last explosions play out in real time.
+4. **The pass's real-time clock is its own.** The handoff said to give it the browser's clock. But the big-kill screen
+   flash measures from the module's own clock, so with the browser's clock it never showed. Lights, blinks and the
+   shake all run on the module's clock.
+5. **Camera shake is in screen pixels** (at most 9 × 7 px and a hair of roll, from the art kit's shake). The handoff
+   said to add the offset to the camera in world units, which at the commander zoom (0.12) would be about one pixel.
+   The world shakes; the pips, names, badges and bubbles hold still. Reduced motion (your system setting, or the
+   panel's switch) stops it; so does the panel's Camera shake switch.
+6. **Booms grow with the icons** (my one change to the artist's module, theirs to review). Zoomed out, the map draws
+   ships up to 3.2 × bigger so they stay readable; the explosions didn't grow with them, so a fighter's death at 0.12
+   was a 7 px puff beside a 30 px hull. Kills, station deaths, missile hits and misses, crashes and the debris now
+   scale with the same boost. The art guide passes no boost, so it is unchanged.
+7. **The screen is still cleared before the backdrop, but only when the view shows past the map's edge.** The handoff
+   said to drop that clear because the backdrop covers the map. It does, but the camera can show past the map's edge,
+   and there the last frame would show through.
+8. **Performance, measured headless at 1,440 × 900** (software rendering, no GPU). At DPR 1 a frame's script p95 is
+   5–9 ms (the flat look's is 4–6) and the frame rate holds. At DPR 2 the backdrop's nebula, one faint image stretched
+   over the view, costs about 20 ms a frame in software: 12–18 frames a second with it, 45–52 without. Any full-screen
+   stretched image costs the same, so there's no cheaper way to draw it without a GPU. With a GPU it costs next to
+   nothing. So the nebula has a fallback, like the camera tiles: once a mission's first `FX_WARM` (90) frames have
+   gone, frames averaging over `FX_SLOW_MS` (30 ms) turn it off, with a toast and a line in the read-outs. Move its
+   slider and your setting stands for the session. The handoff's p95 of 3–7 ms at DPR 2 came from its own guide.
+9. **Muzzle flashes and bolt hits fire only in or near the view, and no muzzle flashes below the detail zoom.** The
+   pass keeps at most 72 one-shot effects and drops the oldest first, so a big fight off screen could otherwise push
+   out the explosion you're looking at.
+10. **Nothing stale.** After a reload or a debug run the pass skips what has already happened: bolt hits over 0.5 s
+    old, kills and jumps over 1 s old, ships already well away from where they arrived.
+11. **Warp-ins** for every ship that arrives (waves, reinforcements, the Reinforcement Request), not for those on the
+    map at the start.
+12. **A boarded station stays on the map**, dark, with the rebel claim light the reactor's art has for it. It used to
+    vanish. Its label stays too.
+13. **The cream ★ marks every wing leader, both sides**, as the module draws it: Vex and the Hegemony squadron leaders
+    as well as yours. The roster cards' ★ is unchanged.
+14. **The panel's FX group**: Visual pass (off draws the flat look of C-72, kept for comparison), Camera shake, Reduced
+    motion, and "FX numbers", 27 sliders over the module's tunables. Moved numbers are saved with the panel's own,
+    appear in Copy settings as `fx.<name>`, and go back with "Reset numbers to defaults".
+15. **Unused**: the module's lock events (the locks stay ours, as the artist recommends), and `BARREL_SECS` (1.5) in
+    `arena-hc.js` copies the sim's barrel roll window to time the roll.
+16. **Tests**: `tools/arena-smoke.js` V1 checks the station art, the panel's FX group, drawing at 0.12, 0.4 and 1.2
+    with the pass on and off, each of the sim's moments becoming its effect, nothing stale after a reload, the boarding
+    links, no shake under reduced motion, and determinism.
+**Your call:** none needed; overrule any item. Item 6 is for the artist to review too.
+
+### C-72 🟡 High Command playtest 4: what I chose building it, and the placeholders
+Your notes are in `docs/ARENA-HC-FEEDBACK-4.md`. Built in `game/js/sim-hc.js` and `game/js/arena-hc.js`; v2 and SB
+are untouched. The numbers that changed are updated in C-68.
+
+*I1 (the map, the display, locks, missiles, chaff):*
+
+1. **The map is 16 × by default** (`HC_MAP`, as you set it; was 32).
+2. **The map's lines show only for the selected wing**, in every scenario (it was hc1's own setting, and a hovered wing
+   showed too). With a wing selected: its intent lines and gold attack rings, faint, and the faint blue lines of the
+   enemies going for its ships. With nothing selected, none; Recon Sweep still shows every Hegemony line. The panel's
+   toggle ("Lines only for the selected wing") turns it off.
+3. **Shield arcs and hull pips show on the map only for the selection**: the selected ship or wing, and the enemies it
+   is fighting (their target or the one in their guns). Stations and the convoy always show theirs (they are
+   objectives); the roster's tiles keep every ship's bars.
+4. **Every ship locks on**: a ship with missiles out to missile reach (as before), any other out to 1.3 × its gun
+   reach (`LOCK_GUN_K`), on its target or the hostile nearest its nose, filling and fading as in C-70 item 14.
+5. **A lock steadies the guns**: a full lock takes 60% off the bolts' spread (`LOCK_AIM`), less for a partial one.
+   Across six runs of the three scenarios gun hits went from 36–50% of bolts to 42–59%.
+6. **The lock's damage bonus is now the missiles' alone.** SB's lock also added up to 100% to every hit's damage
+   (`LOCK_DMG_MAX`); with every ship locking that would have doubled the guns, which you didn't ask for. The Crosses'
+   guns had it before this; no other ship's did.
+7. **Lock brackets on the map**: for the selected wing's ships and for ships with missiles; the ⚠ LOCK warning over your
+   ships comes only from a Hegemony ship with missiles (every lock would be noise).
+8. **Missiles explode 6 s after launch, hit or not** (`MIS_LIFE`, the panel's Fighting group; it was about 1.4 s, set by
+   range). A missile that overshoots and comes round again gives its target another chance to shake it.
+9. **A ship fired on reacts at once**, not just in the last second: while the missile is more than 1.1 s out
+   (`MIS_BREAK_T`) it runs straight away from it at full speed, and Boost (if the pilot flies it) fires on AUTO and
+   EMERG; inside that it breaks hard across the missile's path and Barrel Roll fires (half the hit profile). The
+   abilities are checked every step while a missile is coming, not at the next think. The ⚠ symbol by the ship reads
+   "Evading a missile" while it lasts.
+10. **Chaff**, an ability for every ship (both sides), two a sortie (`CHAFF_N`), 6 s recharge: a glittering cloud
+    thrown out behind the ship. Every missile on its way to that ship within 3,000 (`CHAFF_R`) takes the cloud for it
+    (`CHAFF_P`, 100%) and bursts there. AUTO throws it when a missile is 1.2 s out (`CHAFF_T`), EMERG when one is
+    about to hit; MANUAL on the pilot panel ("Chaff ×2", **Empty** when spent). It goes in the feed and shows a
+    symbol. In six runs (three minutes each of the three scenarios), 28 missiles fired and 7 hit; chaff drew off 19.
+11. **Avoidance fixes this turned up**: two ships flying side by side, touching, now push apart (nothing closing was ever
+    seen, so they ground along each other); and a dodge's side is held at most 1 s from when it was chosen (it was
+    renewed every step, so a stale side could push two ships the same way). Contacts across the six runs: 0 to 2 each.
+12. **Tests**: `tools/arena-smoke.js` C-72 I1 (a gunship's lock and spread, the fuse, the run and boost, chaff, status for
+    the selection); the abilities and pilot panel tests count Chaff; F1 and G1 follow the 16 × map; G3's break test
+    takes Kit's chaff away (Kit would otherwise throw it and lose the missile).
+
+*I2 (Defend, and the Hegemony's squadrons):*
+
+13. **Defenders get between.** A wing on Defend (or Escort, which had the same problem) watches 6,000 out from what it
+    guards (`DEFEND_WATCH`). A hostile is a threat if it heads for the charge (within 60°), is going for it, or is
+    already inside the guard reach; the soonest to arrive first. Each threat gets up to two of the wing, the nearest;
+    the rest stay on station. A defender flies to a point between its threat and the charge (45% of the way out,
+    `INTERPOSE_K`, kept 700 to 3,000 from the charge), nose on the threat ("COVERING" in the roster), and engages once
+    the threat is inside 1.5 × its guns' reach, or inside the guard reach (`DEFEND_R`, `ESCORT_R`, as before). A
+    hostile shooting at a defender inside the watch is fought too. Before, a defender only engaged inside 2,000 of the
+    charge, which at speed 4 is two seconds out.
+14. **Hegemony pilots pull back hurt**: under 35% hull (`HEG_RETREAT`) a pilot flies home (where it spawned) and circles
+    there, out of the fight; the feed says so. Drones fight on.
+15. **A Hegemony pilot being shot at fights back**: hit in the last 2 s by a fighter within 1.5 × its guns' reach, it
+    turns on it (raiders used to fly on into your guns for the station). A lure doesn't: it wants to be chased.
+16. **The squadron leaders' plan.** Every second, for each of your stations the raiders go for: if your fighters are
+    within the watch of it, the raiders split. Two squadrons or more (a squadron is one wave, or one scenario entry):
+    the older lure, the newest strikes. One squadron of two or more: the half nearest your fighters lure, the rest
+    strike (one of each for a pair). The feed says "The raiders split: 2 going for your fighters, 1 hanging back out
+    of reach" when a plan forms. With none of your fighters about, everyone strikes.
+17. **A lure** flies at the nearest of your fighters until it is in reach (or hit), then drags it out away from the
+    station, and away from its strikers' side, to 5,000 (`LURE_DIST`), and comes back for more once there or once
+    nothing follows.
+18. **A striker** holds off 6,500 out on its own side (`STANDOFF_R`) until the station is clear: none of your fighters
+    within 3,000 of it (`CLEAR_R`) except ones tangled with a lure. Then it dives, as a raider did before. It dives
+    anyway after 25 s (`STRIKE_WAIT`): a raid can't wait all day with your reinforcements' clock running.
+19. **The effect on hc2** (three runs of 175 s, before → after): Lastlight first hit at 32 s → 56 to 119 s, and left at
+    120 to 169 hull of 300 → 285 to 300; none of your ships lost either way; Hegemony losses 2 to 5 → 1 to 3 (they
+    pull back now). **Your call:** hc2 may now be too easy. Levers: the waves' size, `STRIKE_WAIT`, `CLEAR_R`,
+    `DEFEND_WATCH`, or taking the starting Guardian Directive off.
+20. **Tests**: `tools/arena-smoke.js` C-72 I2 (a defender gets between an inbound raider and Lastlight and engages it out
+    from the station; wave one splits, said in the feed, and its striker dives once its patience runs out; a hurt
+    pilot pulls back; one shot at fights back). HC T4's hc2 check accepts a raider with a role in the plan.
+**Your call:** item 19
+
+### C-71 🟡 High Command playtest 3: what I chose building it, and the placeholders
+Your notes are in `docs/ARENA-HC-FEEDBACK-3.md`. Built in `game/js/sim-hc.js` and `game/js/arena-hc.js`; v2 and SB
+are untouched. The numbers that changed are updated in C-68.
+
+1. **The wing cards are a column in the bottom-left corner** (they were either side of the commands bar, C-70 item
+   26). The event feed keeps its five rows unless the cards need the room, when it gives up rows (keeping at least
+   60 px, `RAIL_FEED_MIN`). A column too tall for the stage compacts its tiles, then scrolls.
+2. **The order tray and the pilot panel open beside the column**, level with their wing card or tile (and above the
+   commands bar where they'd overlap it). They used to pop up above the card (your call in playtest 1), but in a
+   column that would cover the cards above.
+3. **The commands are big skill icons**: 76 × 84 with a 34 px glyph, the cost (a diamond and a number, or FREE) in
+   the top right corner, the name under the glyph; the full card is still on hover. The bar sits at the bottom,
+   centred in the room right of the cards, and wraps to a second row when that room is narrow (1,280 wide with the
+   designer panel open). **Abort is a small button in the bar's title row**, not an icon: it's the one command not to
+   hit by accident, and nine icons didn't fit one row at 1,440.
+4. **The map is 4 × as wide and tall: `HC_MAP` 32** (134,400 × 96,000; the slider goes to 48). I read "×4 the size" as
+   the "Map size ×" slider (8 to 32); if you meant 4 × the area, that's 16. The scenario's places stay where they were
+   (`HC_SPREAD` 4) in the middle, with 50,400 of open space east and west and 42,000 north and south. A wing a
+   scenario places nowhere now starts in the play area, not at the map's west edge.
+5. **The starfield is one tile (8,400 × 6,000, 1,680 stars) repeated over the map**, drawing only what is in view and
+   thinning a zoomed-out view to 6,000 stars, so a bigger map neither thins it nor slows it.
+6. **The Cross turns at 80% of a Mote's or a Talon's rate**: a High Command turn factor of 1.6 on the Cross (the panel's
+   "Cross turn ×", `HC_TURN`). Its tightest circle at corner speed is about 477 against their 382 (it was 760, half
+   their rate). The Scimitar, which has the same dial, is unchanged. In a guns-only two-against-two with Motes in
+   Spread, a Mote has its guns on a Cross 18% of the time (it was 28%); the shares swing a lot run to run.
+7. **Avoidance fixes the faster Cross turned up**:
+   - two ships flying the same way and drifting into each other dead-on now dodge away from where the other is,
+     not from a predicted passing point that is noise on that course (Sera and Kit turned into each other in
+     formation);
+   - an extension begun short of a station now veers clear of it rather than flying through it.
+
+   In two runs of hc1 for 120 s: 1 collision that does damage each, 4 contacts in all, against 14 of each with
+   avoidance off.
+8. **Tests**: `tools/arena-smoke.js` C-71 (the Cross's turn against a Mote, the skill icons and the corner column).
+   The F1 placement tests follow the column, F1's scale and G1's map the 32 × map. G2's avoidance test counts
+   collisions that do damage, and compares all contacts with avoidance off. G1's convoy test kills the relay as soon
+   as the convoy waits (a dodge can briefly push it out of the waiting ring).
+**Your call:** none
+
+### C-70 🟡 High Command playtest 2: what I chose building it, and the placeholders
+Your notes and what I found are in `docs/ARENA-HC-FEEDBACK-2.md`. You asked for the changes directly, so I'm building
+them in phases G1 to G5 in `game/js/sim-hc.js` and `game/js/arena-hc.js`; v2 and SB are untouched. The numbers that
+changed are updated in C-68.
+
+*G1 (smooth motion, the convoy, speed 4, the map):*
+
+1. **Ships are drawn between their last two sim steps**, not extrapolated ahead of the last one. The sim steps 20
+   times a second; a turning ship drawn ahead along its velocity snapped back onto its path every step (about 6 × the
+   frame-to-frame jerk in a measured fight at speed 4). The map now shows the world one step (50 ms of game time)
+   behind the sim, which is smooth at any frame rate and timescale. Missiles, bolts, trails, the follow camera and the
+   camera tiles use the same positions. The starfield only draws the stars in view. Script time was never the
+   problem: about 3 ms a frame in a close, followed fight.
+2. **Speed 4 by default** (`SPEED_SCALE`, as you set it; the slider now goes to 8): a Talon tops out at 1,000 a second.
+3. *(The map is 32 × since C-71 item 4.)* **The map is 8 × space.js's (33,600 × 24,000), and the scenario's places are spread 4 × in its middle**
+   (`HC_MAP` 8, the new `HC_SPREAD` 4, both on the panel, on restart). The places are as far apart as in the build you
+   played; there is 8,400 of open space east and west of the play area and 6,000 north and south.
+4. **Waves and reinforcements come in from 1,200 beyond the play area's edge**, not the map's (which is now far
+   away); Recon Sweep's band and the event markers sit on the play area's edge.
+5. **Arriving at the jump point.** When the point a ship must fly into is inside its turning circle (closer than 2 ×
+   its turn radius × the sine of the bearing off its nose), it flies straight out until it is `ARRIVE_OUT` (2.6) ×
+   its turn radius away, then comes back in on a line. Convoy Lark and withdrawing ships use it. In the test the Lark
+   jumps 16 s after the relay falls.
+6. **Holding on a point is flown at corner speed**, on a circle no tighter than the ship can fly: capturing,
+   boarding and the convoy waiting at a jammed jump point. They used to slow down, which under the corner-speed model
+   (C-69 item 9) widens the turn; a Graf boarding circled at about 570, outside its boarding range.
+7. **Capture and boarding ranges are 550** (`CAPTURE_R`, `BOARD_R`, were 400), so a ship circling at its tightest
+   (about 400 for a Graf) counts.
+
+*G2 (collisions):*
+
+8. **Ships collide with ships of either side, stations and rocks.** Each body is a circle: a ship's hull length × 1.15
+   (`COLLIDE_K`; about 40 for a Cross), a station's × 1.2, a rock's radius × 0.95. Contact is tested along each
+   step's path, since a ship at speed 4 moves 50 units a step, further than a fighter is long.
+9. **Damage goes with the square of the closing speed**: `COLLIDE_DMG` 40 at 1,000 a second, through shields, armour
+   and hull like any hit, shared by size (the smaller ship takes more). A head-on at full speed (about 2,000 closing)
+   is about 160 between two fighters: both die. A scrape at 200 does 1 or 2. The two bounce apart (`COLLIDE_BOUNCE`
+   0.3 of the closing speed back) and are knocked off their nose; rocks and stations don't move. Your pilots lose
+   some nerve, the feed says who hit what, and the metrics count `collisions`. Nobody gets the kill for a collision.
+10. **Pilots steer clear on their own.** Every pilot looks 1.6 s ahead (`AVOID_T`) along its motion relative to every
+    ship, station and rock. Anything it would pass closer than the two bodies plus 90 (`AVOID_PAD`; eager pilots ×
+    0.6, steady × 1.4) it steers off sideways. The sooner and closer the crash, the harder it steers (`AVOID_W` 3); an
+    imminent one outweighs the goal. The side it dodges to is held while the danger lasts, so it never flips mid-turn
+    (that put Sera into a rock in an early version). Attack runs still pass close: their break-off distance (0.3 ×
+    gun reach) is outside the avoidance.
+11. **The proof**: two runs of hc1 for 120 s, 1 collision each with avoidance; with it off (`AVOID_W` 0), 20 each.
+12. **Two new speech-bubble banks** (placeholders, `[TEXT NEEDED]`): `bump` after a collision, `evade` when a pilot
+    dodges another ship (at most every 8 s).
+
+*G3 (the Cross's missiles and the lock):*
+
+13. **Crosses carry two missiles in High Command** (the repeaters and the missile system in their empty second slot,
+    `HC_LOADOUT` in `sim-hc.js`). The database's stock Cross still has none, so v2, SB and the campaign are unchanged.
+    **Your call:** should the stock Cross carry missiles everywhere (`default_weapon_2` in the database), or only here?
+    On the Hegemony side only the Scimitar (Commandant Vex, in hc1's reinforcements) carries missiles.
+14. **The lock, reworked for real-time runs** (the copied SB lock filled at 0.4 a second inside the guns' arc and
+    barely filled in a fast run). A ship with missiles locks its target while it holds it inside 0.75 rad of its nose
+    (`LOCK_CONE`; the guns' arc is 0.55) and inside missile reach, clear of rocks. The lock fills at 1.1 a second dead
+    ahead (`LOCK_RATE`; a little slower off-centre, a little faster for a good shot) and falls away at 1.4 a second
+    once the target slips out (`LOCK_LOSS`). A missile can go at 60% (`MISSILE_LOCK`, unchanged); a fuller lock
+    still hits harder (`LOCK_DMG_MAX`, unchanged). With no target it locks the hostile nearest its nose.
+15. **Missiles scale with speed**: they fly at 13 dial units a round (`MIS_SPD_K`: 2,600 a second at speed 4, 2.6 × a
+    Talon's top speed), turn at 6 rad/s (`MIS_TURN`), lead their target a little, and reach 1.6 × the listed range
+    (`MIS_RANGE_K`: 1,440). The lock range is the same. They still need 450 of room (`MISSILE_MINR`).
+16. **Missiles are an ability with a doctrine**, on the pilot panel as "Missile ×2". *AUTO* fires the moment the lock
+    is good. *EMERG* fires only when the pilot is pinned or under half hull. *MANUAL* holds fire; the button reads
+    **Fire** when locked (fires now) and **Arm** otherwise (fires at the next lock within 10 s, `MIS_ARM_SECS`), then
+    **Armed**, and **Empty** with none left. Missiles no longer fire automatically with the guns. A launch goes in the
+    feed and the pilot calls it (a `fox` bank).
+17. **A target breaks hard** across a missile's path, at corner speed, when one is 1.1 s out (`MIS_BREAK_T`), whatever
+    its job (a frozen pilot can't), and your pilots call it (a `missile` bank). The break shakes the missile with a
+    chance of 1 × the lock it was fired without (`MIS_SHAKE`: 40% at a 60% lock, none at a full lock). So AUTO's
+    quick shot is the less sure one. In two runs of hc1, 6 missiles fired and 4 hit.
+18. **The HUD**: your pilots' locks are four brackets closing on the target, gold and turning while the lock builds,
+    orange with **LOCK** under them once a missile can go (fainter for wings you haven't selected). A Hegemony lock on one
+    of your ships shows **⚠ LOCK** over it, blinking **⚠ LOCKED** once it can fire. Missiles are small darts with a
+    glowing motor, purple for yours and orange for theirs; a hit floats "MISSILE HIT", a shaken one "SHOOK IT".
+19. **Tests**: `tools/arena-smoke.js` G2 (a head-on, a rock, the dodge, hc1 with and without avoidance) and G3 (the
+    loadout, the lock and AUTO, MANUAL, EMERG, the break, a fight, the pilot panel). F3's run test now also accepts a
+    pursue (a Talon catching a Mote's tail, which the runs allow), and G1's convoy test waits for the convoy to reach
+    the jump point.
+
+*G4 (selecting and ordering on the map):*
+
+20. **A click selects the wing; a second click selects the ship.** On the map or in the roster, clicking one of your
+    ships selects its wing (the order tray opens over the wing's card). Clicking a ship of the wing already selected
+    selects that ship (its pilot panel opens). Clicking a ship of another wing selects that wing. A roster click still
+    brings the camera to the ship.
+21. **Left-drag draws a selection box** (gold, dashed): every wing with one of your ships inside it is selected (none
+    clears the selection). With several wings selected the tray reads "DAGGER + AMBER · 2 wings: orders and tactics go
+    to all", its orders and tactics go to every one of them, the roster and the map ring them all, and a wing an order
+    doesn't fit is named in a toast (Board with no marines). Pressing a ship of a group selects just its wing.
+22. **Right-drag pans** (middle-drag too). On a touch screen one finger still pans, as there is no right button.
+23. **A right-click, with wings selected, opens the order wheel** round the cursor: the orders that fit what is under
+    it, for every selected wing, numbered for the keys 1 to 9.
+    - A Hegemony fighter: Attack, Intercept.
+    - A Hegemony station: Attack, and Board if a wing carries marines.
+    - Another of your ships or the convoy: Escort, Defend.
+    - A capture point: Capture, Defend here.
+    - Any other point or open space: Hold here, Defend here.
+    - Always: Regroup, Withdraw, and **Commands…**, which opens the commands drawer for that ship or place, as the
+      right-click did before.
+
+    With no wing selected a right-click opens the commands, as before. Esc or a click elsewhere closes the wheel.
+24. **The panel's key list** adds the mouse: click, left-drag, right-drag, right-click.
+25. **Tests**: `tools/arena-smoke.js` G4 (the clicks, a group's shared order, the wheel's items for each kind of
+    target, a pick, the commands with nothing selected, and a real mouse: a box, a right-drag, a right-click and a key).
+
+*G5 (the HUD):*
+
+26. *(Its placement and icons replaced by C-71 items 1 to 3.)* **The commands bar is a fixed part of the HUD, bottom centre.** The roster's wings sit either side of it (the first
+    half left, the rest right), and it shows **COMMANDS**, the command points and every command in three rows of
+    three, Abort last. Costs read as one diamond and a number, as the bar is narrow. There is no COMMANDS button and
+    no drawer: click a command to use it, or to arm it and then click its target on the map (as before). A right-click
+    on a ship or place with no wing selected (or **Commands…** on the order wheel) narrows the bar to what fits there,
+    under "For …", with a gold edge; × shows them all again. This replaces C-69 item 8 (COMMANDS bottom right, a
+    drawer opening upward). With nothing gold left on the HUD, Jump Out is its only gold button when it shows.
+27. **The time controls sit top centre, under the clock**, above the PAUSED banner. The bottom right is empty.
+28. **The event feed shows five entries** (`FEED_ROWS`) and scrolls for the rest (it keeps the last 40).
+29. **The objectives panel is bigger**: up to 400 wide (was 320), body text 15 px (was 12), bigger diamonds and the
+    GET OUT line at 15 px.
+30. **Quiet lines in hc1.** The intent lines and the gold attack rings show only for the selected wing (or wings) and
+    the wing under the pointer (a ship on the map, or its card in the roster), dashed thinner at 40% (`QUIET_ALPHA`).
+    The Hegemony's intent lines are hidden too, except during Recon Sweep. It is a scenario setting (`quietLines`,
+    on for hc1 only) and the panel's new toggle, "Lines only for the selected or hovered wing", overrides it in any
+    scenario.
+31. **Status symbols by the ships**, either side, for 2.5 s of real time (`BADGE_MS`), the newest three (`BADGE_MAX`)
+    to the ship's right. One for each ability (Boost Shields, Lock In, Boost, Drift, K-Turn, Barrel Roll, Field
+    Repair), a missile away, breaking from a missile, dodging a crash (once every 2.5 s at most) and breaking off a
+    run. They pop in and fade, with no pop under reduced motion. The glyphs are mine, drawn in the HUD's stroke style;
+    **they want your art pass**.
+32. *(Replaced by C-71 item 1.)* **On a small screen** (1,280 wide with the designer panel open) the dock compacts its tiles and wraps the wing
+    headers' chips; if it still doesn't fit, it scrolls sideways and the bar rides along.
+33. **Tests**: `tools/arena-smoke.js` G5 (the bar narrowed and restored, the feed's five rows, the objectives' size,
+    quiet lines, the symbols). F1's placement test now checks the bar between the wings and the time controls under
+    the clock; the HUD test allows at most one gold button.
+**Your call:** item 13
+
+### C-69 🟡 High Command playtest 1: what I chose building it, and the placeholders
+Your notes and the approved proposal (with your answers of 13 October) are in `docs/ARENA-HC-FEEDBACK-1.md`. Built in
+phases F1 to F4 in `game/js/sim-hc.js` and `game/js/arena-hc.js`; v2 and SB are untouched. The numbers that changed
+are updated in C-68.
+
+*F1 (the scale, Jump Out, the HUD's placement):*
+
+1. **Faster ships, the full gun reach.** Top speed × 2 (`SPEED_SCALE` 2.5: a Talon tops out at 625 a second, panel to
+   5). Ships try to fight at their weapon's full reach (`ENGAGE_FRAC` 1, as you set it). The new weapon range × slider
+   (`RANGE_MULT`, on the next load) stays at 1 ×, since that isn't the slider you moved.
+2. **The map is 4 × space.js's** (16,800 × 12,000, panel to 8). **Scenarios are written for the old 2 × map and
+   scaled** to whatever map they load on: every place × 2 now, and rocks a little bigger (× 1.5). With ships twice as
+   fast, the trips take as long as before; the clocks are unchanged. **The ranges that are about the map, not the
+   guns, grew too**:
+   - escort reach 2,200;
+   - defend 2,000, hold 1,800;
+   - patrol detection 2,500, guard 1,200, leash 5,000;
+   - Guardian's reach 6,000;
+   - the decoy's draw 2,500;
+   - steering wide while withdrawing 1,600;
+   - the jump, capture and boarding radii 350, 400 and 400.
+3. **Spacing.** Formation slots are 320 apart (was 120), groups start 340 apart (`SPAWN_GAP`), and ships of one side keep
+   220 of personal space (`SEP_R`, was a weak 90).
+4. **The opening view frames your ships** (with 1,400 of room), not the whole map.
+5. **Copy settings** (the panel's Run group) puts every panel number on the clipboard as one line, and shows it in a
+   window to copy by hand if the browser won't allow the clipboard (it often won't from a file).
+6. **Jump Out.** Once every primary objective is done, or the clock has run out, the objectives panel shows OBJECTIVES
+   COMPLETE (or GET OUT) and a gold **ALL WINGS: JUMP OUT**. While it shows, COMMANDS steps down from gold, so the
+   screen keeps one gold button. It orders every wing to Withdraw (cancelling any Recall), shows "Jumping out: n of m
+   away", and the mission ends "complete" when the last surviving ship jumps. It is disabled while the jump point is
+   jammed (the clock running out with Relay K-7 still up). **Leave now** ends the mission at once; anyone not yet
+   jumped is lost, and the end card says how many were left behind. Both go in the metrics as commands.
+7. **The order tray pops up above its wing's card** in the roster, and **the pilot panel above its tile**, centred on it
+   and kept on the stage.
+8. **Command points and COMMANDS sit bottom right, over the time controls**, bigger (a 54 px button, larger diamonds),
+   and **the drawer opens upward** from the button. The top right is now empty.
+
+*F2 (turning):*
+
+9. **The corner-speed model, for both sides.** A ship turns best at its corner speed (`CORNER`, 0.7 × top speed), on
+   the dial's tightest radius × 4 (`TURN_SCALE`): about 380 for a Talon or a Mote, 760 for a Cross. Below corner
+   speed the turn rate falls with the square of speed: a Talon at its slowest turns at a third of its best. Above
+   it, the turn widens (the rate falls with speed).
+10. **Turning bleeds speed** (`TURN_BLEED` 1.2: a turn at the full corner rate costs 1.2 × top speed a second) while
+    the engines push back (`THRUST_K` 0.7 × top speed a second, was 1.6). A sustained hard turn settles at about 0.76
+    × corner speed, turning at under 60% of its best, so circling is a losing fight. I first tried a bleed of 0.9,
+    but a turn then settled at 0.88 × corner speed, which didn't cost enough.
+11. **Ships no longer brake into turns.** A ship that wants a hard turn aims for its corner speed: no faster, and never
+    slower on purpose.
+12. **The nose leads the line of flight by at most 0.2 rad** (`SLIP_NOSE`, was SB's 0.42), so guns point near where a
+    ship is going.
+13. **Formations keep station along a line**, not on a point: a ship that can't stop or turn tightly flies through
+    its station toward a mark 700 ahead of it along the leader's heading (`SLOT_LOOK`), at a speed set by how far
+    ahead or behind it is. A leader holding or re-forming circles 1,400 wide (`LEAD_ORBIT`), and holds and defences
+    orbit 700 to 1,100 out. Before this the new wide turns made followers circle their slots.
+14. **The proof**: in a two-against-two of Talons against Motes in open space, the ships pass, extend (out to about
+    2,300 apart) and come round. They are within 400 of each other under a tenth of the time, where before they
+    circled on top of each other.
+
+*F3 (fighting: attack runs, break-offs, the tactics, AUTO):*
+
+15. **Every ship fights in attack runs, both sides**:
+    - **run** in at the target's lead point at full speed, guns on it;
+    - **extend** once it passes within 0.3 × gun reach (`PASS_K`), or overshoots, straight out to 1.4 × reach past it
+      (`EXTEND_K`, at most 9 s), veering away from the target's nose if it is facing them;
+    - **turn** back at corner speed;
+    - **run** again.
+
+    A ship faster than its target that finds itself in the target's rear quarter may **pursue** it there, and drops
+    back to runs as soon as the target turns inside it. Stations get the same runs. This replaces Hit and Run's timed
+    passes and Tight / Spread's sit-behind pursuit.
+16. **Pilots break off a bad fight themselves.** A close fight (inside 1.5 × reach) turning for 4 s without the target
+    in the guns (`STALE_SECS`; eager pilots hang on 1.5 × as long, steady ones 0.7 ×), or an enemy close (0.8 × reach)
+    on its six, sends the ship into an extension (boosting if its Boost is on AUTO), then back with a fresh run. Six
+    break-offs are at least 3 s apart. The metrics count them (`breakoffs`).
+17. **The tactics now shape the runs and the travel formation, never a turning fight**:
+    - *Tight* makes its passes together on one target: the wing extends when the leader does and re-forms on the
+      leader between passes.
+    - *Spread*: each pilot runs on its own target, with wide spacing while travelling.
+    - *Screen* is unchanged, with shorter extensions.
+    - *Pincer*: the two halves come in from either side (75° apart in the test) and both extend.
+    - *Hit and Run* is harassment: it breaks off earlier (1.8 × the pass distance), extends 1.8 × as far, never takes
+      the target's tail, and only one ship of the wing runs on a target at a time while the rest wait out of reach.
+    - *Defensive* takes short passes (0.7 × the extension), never tail-chases, and falls back hurt at 50%.
+18. **AUTO is a seventh tactic, first in the row and every scenario wing's default** (option A). The leader re-thinks
+    the wing's tactic every second and holds a choice at least 4 s:
+    - *Defensive* when the wing is under 50% average hull, or outnumbered 1.5 : 1 within 4 × gun reach;
+    - *Screen* when it is escorting or defending and a hostile is within the escort reach of the charge;
+    - *Tight* when its target is a station or a ship of size 7 or more;
+    - *Pincer* when it has two or more ships and its target is alone (nothing else within 1.6 × reach);
+    - *Spread* otherwise.
+
+    The roster's chip reads "AUTO · TIGHT", the tray marks the picked tactic, and its hover card names it. A
+    leaderless wing's cohesion penalty applies to the picked tactic. The metrics count AUTO's switches.
+19. **Station keeping uses the new turning** (item 13) for Tight's re-forming too.
+20. **The Cross now loses the shot battle to Motes.** The dial gives a Cross half a Mote's tightest turn (a hard turn
+    from speed 2 against 1). Under the corner-speed model its turn back takes about 11 s against a Mote's 4, so in
+    runs a Mote has its guns on a Cross for about 20 to 33% of a Spread or Tight fight, against 1 to 4% the other
+    way. Pincer is the Cross's best answer (0 to 2% either way). Talons, as nimble as Motes and faster, beat them (a
+    2 v 2 in open space left one Mote at a quarter hull and both Talons untouched). **Decided** (C-69.20 in the
+    Resolved log): the Cross turns faster, but not as fast as the interceptors (C-71 item 6).
+21. **Tests updated for the new scale and tactics**: the Tight-vs-Spread spacing test, the T1 escort and withdraw
+    checks, T2's defend and hold distances and its feed check, HC 5's recall timing, the keys test (Spread is now
+    Shift+3, AUTO being first) and the tray's tactic count. Nothing else changed in the earlier tests.
+
+*F4 (speech bubbles):*
+
+22. **Your pilots speak in bubbles over their ships**, for 2 s of real time (`BUBBLE_MS`), so a bubble reads the same
+    at slow, play or fast (and still goes after 2 s while paused). What they say:
+    - a pin or a panic: the emergency's quote (amber edge), as well as its feed line;
+    - a kill: a "winning" line (green edge);
+    - steadying after a panic: a new `steady` bank in `ASSESS` (green edge);
+    - a mission rule firing: the pilot's assessment of the job the rule gave them;
+    - a new job (a new kind of behaviour or a new target, not re-forming): their assessment.
+
+    Only your pilots speak; the Hegemony is silent. The first four always speak; a new job speaks at most every 4 s
+    per pilot (`BARK_GAP`, the panel's Morale group, 0 to 20).
+23. **One bubble per ship, at most 4 on screen** (`BUBBLE_MAX`, the newest win): a pilot's new line replaces their
+    old bubble. Bubbles are at most 210 px wide (`BUBBLE_W`), wrap, sit above the ship with a tail to it, and are
+    nudged apart so two never overlap. They pop in and out over 140 ms (`BUBBLE_POP`), with no pop under reduced
+    motion. The feed still carries the events, so nothing said is lost when a bubble goes.
+24. **The lines are still the placeholders** (`[TEXT NEEDED]`, C-67 item 19), now with `steady` too. They will be read
+    far more often in bubbles than in tooltips, so they are worth writing early.
+**Your call:** none open (item 20 decided: C-69.20)
+
+### C-68 🟡 High Command: placeholders
+Every number in `game/js/sim-hc.js` marked `// placeholder`, each with a getter (`SIMHC.fn.THINK_SECS_()`…, or the
+`SIMHC.TUNE` table the panel's HC group is built from).
+| Constant | Value | What it does |
+|---|---|---|
+| `TICK` | 50 ms | The sim's fixed step (copied from SB) |
+| `TIMESCALES` | 0 / 0.3 / 1 / 3 | Pause / slow / play / fast |
+| `THINK_SECS` | 0.5 s (panel) | How often each ship re-decides |
+| `ROUND_SECS`, `SPEED_SCALE` | 3 s, 4 (panel to 8; was 1.25 until C-69, 2.5 until C-70) | A ship's top speed covers its top dial straight × `SPEED_SCALE` in `ROUND_SECS` (SB's round), so a Talon tops out at 1,000 units a second and can't fly slower than 400 |
+| `CRUISE`, `CONVOY_SPD` | 0.7, 0.55 of top speed (panel) | Unpressed speed; the convoy's speed |
+| `THRUST_K`, `TURN_K`, `BOOST_MULT` | 0.7 (panel; was 1.6), 3 (panel), 1.6 | Acceleration (top speed from rest in 1/`THRUST_K` s), how hard the autopilot turns onto its goal, a boost's top speed × |
+| `ENGAGE_FRAC`, `RANGE_MULT` | 1 × the longest gun (panel; was 0.55 until C-69), 1 (panel, on the next load) | The range a ship tries to fight at, before the tactic and personality; every weapon's range × |
+| `THREAT_R` | 1.1 × gun range (panel) | A hostile this close with its guns on a ship (or that just hit it) is a threat it turns on (C-67 item 6) |
+| `COMMIT_SECS` | 2.5 s (panel) | A ship stays on a target it just took at least this long |
+| `FORM_GAP`, `SLOT_LEAD`, `SEP_R`, `SPAWN_GAP` | 320 units (panel; was 120), 0.6 s, 220 (panel), 340 (panel) | Formation spacing at a tactic's spacing 1; how far ahead a slot looks; personal space; a scenario group's starting spacing (C-69 item 3) |
+| `ESCORT_R` | 2,200 (panel; was 1,500) | An escort engages what comes this close to its charge (at least a patrol's detection, so it moves first) |
+| `JUMP_R` | 350 (panel; was 260) | Inside this of the jump point a withdrawing ship jumps |
+| `DETECT_R`, `GUARD_R`, `LEASH_R` | 2,500, 1,200, 5,000 (panel; were 1,500, 900, 2,600) | The Hegemony's patrol detection, guard radius and chase leash |
+| `EXTEND_K`, `PASS_K`, `EXT_MAX` | 1.4 × gun reach, 0.3 × gun reach, 9 s (panel) | The attack run: how far it carries past the target, how close it goes before breaking off, the longest extension (C-69 item 15; replaced `HR_IN` / `HR_OUT`) |
+| `STALE_SECS` | 4 s (panel); eager pilots × 1.5, steady × 0.7 | A close fight turning without a shot this long is a stalemate: break off (C-69 item 16) |
+| `AUTO_SECS`, `AUTO_HOLD`, `AUTO_HURT`, `AUTO_ODDS` | 1 s, 4 s, 50% hull, 1.5 : 1 (panel) | AUTO re-thinks this often and holds a choice this long; it goes Defensive under this average hull or at these odds (C-69 item 18) |
+| `CORNER`, `TURN_SCALE`, `TURN_BLEED` | 0.7 × top speed, 4 × the dial's radius, 1.2 × top speed a second (panel) | The corner-speed turn model (C-69 items 9 to 11) |
+| `HC_TURN` | the Cross × 1.6 (panel: "Cross turn ×") | A class's turn × in High Command (C-71 item 6) |
+| `LOCK_GUN_K`, `LOCK_AIM` | 1.3 × gun reach, 0.6 (panel) | A lock's reach without missiles; how much a full lock takes off the guns' spread (C-72 items 4, 5) |
+| `MIS_LIFE` | 6 s (panel) | A missile explodes this long after launch (C-72 item 8) |
+| `DEFEND_WATCH`, `INTERPOSE_K` | 6,000, 0.45 (panel) | How far out defenders watch; where between threat and charge they go (C-72 item 13) |
+| `HEG_RETREAT`, `LURE_DIST`, `STANDOFF_R`, `CLEAR_R`, `STRIKE_WAIT`, `HEG_PLAN_SECS` | 35% hull, 5,000, 6,500, 3,000, 25 s (panel), 1 s | The Hegemony pulls back; the lure's drag, the strikers' hold-off, when it's clear, their patience; how often the leaders re-plan (C-72 items 14 to 18) |
+| `CHAFF_N`, `CHAFF_R`, `CHAFF_P`, `CHAFF_SECS`, `CHAFF_T` | 2 a sortie, 3,000, 100%, 3 s, 1.2 s (panel: N, P, T) | Chaff: charges, reach, the chance a missile takes it, a cloud's life, when AUTO throws it (C-72 item 10) |
+| `RAIL_FEED_MIN`, `STAR_TW` × `STAR_TH`, `STAR_N`, `STAR_BUDGET` | 60 px; 8,400 × 6,000, 1,680, 6,000 (`arena-hc.js`) | The feed's least height over the wing cards; the starfield tile (C-71 items 1, 5) |
+| `SLIP_NOSE`, `SLOT_LOOK`, `LEAD_ORBIT` | 0.2 rad (panel; was 0.42), 700, 1,400 | How far the nose leads; station keeping's lookahead; a holding leader's circle (C-69 items 12, 13) |
+| `AVOID_R` | 260 | Rocks, the map edge and wingmates push a ship's heading away inside this |
+| `CALM_SECS` | 3 s (panel) | A ship unhurt this long regains the copied `CALM_GAIN` (6) nerve |
+| `LEAD_LOSS`, `PROMOTE_SECS` | 0.5, 8 s (panel) | A leaderless wing's cohesion; when the next pilot takes the lead |
+| `HC_CP` | 5 (panel) | The command point pool when a scenario sets none |
+| `HC_MAP`, `HC_SPREAD` | 16 (panel to 48, on restart; was 2, then 4 until C-70, 8 until C-71, 32 until C-72), 4 (panel, on restart) | The map is `HC_MAP` × space.js's 4,200 × 3,000; a scenario (written for 2) is scaled to `HC_SPREAD` and sits in the map's middle (C-69 item 2, C-70 item 3) |
+| `ARRIVE_OUT` | 2.6 × the turn radius | How far a ship flies out to line up on a point it can't turn into (C-70 item 5) |
+| `HC_TACTICS` | the table in `sim-hc.js` | Each tactic's weights: formation keeping, spacing, fighting range, focus fire, flank, screen, hit-and-run, disengage hull, leash |
+| `PERSONALITY` | eager 1.25 / 0.6 / 0.6, steady 1 / 1.4 / 1 | Fighting range ×, formation weight ×, disengage threshold × |
+| hc1's stats | Relay K-7 hull 200, armour 30; Convoy Lark hull 80, armour 20 | The scenario's own overrides (C-67 item 11) |
+| `DEFEND_R`, `HOLD_R` | 2,000, 1,800 (panel; were 1,300, 1,200) | A defending or holding wing engages what comes this close |
+| `CAPTURE_R`, `CAPTURE_SECS` | 550 (was 320, then 400 until C-70), 10 s (panel) | Capture: how close, and how long uncontested |
+| `BOARD_R`, `BOARD_SECS` | 550 (was 320, then 400 until C-70) + the station's size, 12 marine-ship seconds (panel) | Boarding: how close, and how long (two boarders take half as long) |
+| `MORALE_EAGER`, `MORALE_SHAKEN`, `MORALE_PANIC` | nerve 80, 45, 25 (panel) | The morale ladder: EAGER at or over 80, STEADY from 45, SHAKEN from 25, PANICKED under |
+| `STEADY_AT`, `PANIC_FLEE` | 35, 0.6 (panel) | A panic ends once nerve is back over 35; a panicking pilot flees 60% of the time, else freezes |
+| `SHAKEN_ODDS`, `SHAKEN_DISENGAGE` | 2, × 1.6 (panel) | A SHAKEN pilot hangs back from a target with 2 or more hostiles round it, and falls back hurt at 1.6 × the tactic's threshold |
+| `COLLIDE_DMG`, `COLLIDE_K`, `COLLIDE_BOUNCE` | 40 at 1,000 a second, 1.15 × the hull length, 0.3 (panel) | Collisions: damage by closing speed², a ship's size, the bounce (C-70 items 8, 9) |
+| `AVOID_T`, `AVOID_PAD`, `AVOID_W` | 1.6 s, 90 (eager × 0.6, steady × 1.4), 3 (panel) | How far ahead pilots look for a crash, how much room they leave, how hard they steer (C-70 item 10) |
+| `LOCK_CONE`, `LOCK_RATE`, `LOCK_LOSS` | 0.75 rad, 1.1 a second, 1.4 a second (panel) | The missile lock (C-70 item 14; replaced SB's `LOCK_GAIN` 0.4 inside the guns' arc) |
+| `MIS_SPD_K`, `MIS_TURN`, `MIS_RANGE_K` | 13 dial units a round, 6 rad/s, 1.6 × (panel) | A missile's speed (2,600 a second at speed 4), turn and reach; the lock range (C-70 item 15) |
+| `MIS_BREAK_T`, `MIS_SHAKE`, `MIS_ARM_SECS` | 1.1 s, 1, 10 s (panel, but the last) | When a target breaks; the chance a break shakes a missile × its missing lock; how long MANUAL's arming lasts (C-70 items 16, 17) |
+| `HC_LOADOUT` | the Cross: repeaters + missiles | High Command's own stock loadouts (C-70 item 13) |
+| `FEED_ROWS`, `QUIET_ALPHA` | 5, 0.4 (`arena-hc.js`) | The feed's height in entries; quiet lines' strength (C-70 items 28, 30) |
+| `BADGE_MS`, `BADGE_MAX`, `BADGE_R` | 2,500 ms real time, 3, 11 px (`arena-hc.js`) | Status symbols: how long, how many a ship, their size (C-70 item 31) |
+| `NERVE_K` | 0.6 (panel) | Every nerve loss × this, High Command only (C-67 item 17) |
+| `BARK_GAP` | 4 s (panel) | A pilot speaks about a new job at most this often; emergencies, kills, steadying and rules always speak (C-69 item 22) |
+| `BUBBLE_MS`, `BUBBLE_MAX`, `BUBBLE_W`, `BUBBLE_POP` | 2,000 ms real time, 4, 210 px, 140 ms (`arena-hc.js`) | A speech bubble's life, how many show at once, its width, its pop in and out (C-69 item 23) |
+| `PIN_N` | 2 (panel) | This many hostiles with their guns on a ship pin it |
+| `PRES_HULL` | 30% (panel) | Preservation Order's threshold |
+| `GUARDIAN_SECS`, `GUARDIAN_R` | 2 s, 6,000 (panel; was 3,200) | Guardian Directive: an objective hit this recently; its attacker intercepted if this close |
+| `ESCAPE_K`, `FORM_SECS` | 2.2 × gun range, 5 s (panel) | Formation Discipline: when a target has escaped; how long the ship re-forms |
+| `BRING_HULL` | 50% (panel) | Bring It Down: the flagship counts as disabled under this (or with an engine or controls critical) |
+| `SAVIOUR_HULL` | 30% (panel) | Saviour Protocol: the named friendly is critical under this |
+| `TILE_Z`, `TILE_BUDGET`, `TILE_WARM` | 0.34, 3 ms, 4 rounds | A camera tile's zoom; what the tiles may cost a frame (with 8 or more) before they fall back to static glyphs; how many rounds are drawn before that is measured |
+| `TS_SLOW`, `TS_FAST` | 0.3 ×, 3 × (panel) | The slow and fast speeds |
+| `RAID_TURN_R` | 700 (panel) | A raider turns from your station onto a fighter this close with its guns on it |
+| Tactic weights | the `HC_TACTICS` table (panel, 60 sliders) | Every tactic's formation, spacing, fighting range, focus, flank, extend, pass, tail-chasing, disengage and reach |
+| hc2's numbers | Lastlight hull 300, armour 40; waves at 0:20, 1:15, 2:10; the clock 3:00; 4 command points | Last Light's balance |
+| hc3's numbers | the reactor hull 260, armour 40; Vex hull 120, armour 20; the haulers hull 70, armour 20; the clock 3:30 | Meltdown's balance |
+| `CMD_COST` | Override 1, Recall 2, Reinforcement Request 3, Emergency Support 1, Recon Sweep 1, Comm Scramble 2, Comm Hack 3, Decoy Signal 1, Abort 0 (panel, bar the two stubs) | The command costs, in command points |
+| `OVERRIDE_SECS`, `OVERRIDE_COOL` | 12 s, 55 (panel) | How long Patriot Override holds a pilot; the nerve it lifts them to |
+| `RECALL_BOOST`, `RECALL_HULL` | 6 s, 40% (panel) | A recalled ship's burn; under this hull Recall is the recommended answer |
+| `RECON_SECS` | 25 s (panel) | How long a Recon Sweep shows the Hegemony's intent |
+| `DECOY_SECS`, `DECOY_R` | 12 s, 2,500 (panel; was 1,600) | How long a decoy draws, and from how far |
+| `HELP_SECS`, `PIN_CLEAR` | 15 s, 3 s (panel) | How long a sent wingmate helps at most; how long after a pin breaks it clears |
+| `DISENGAGE_R` | 1,600 (panel; was 1,100) | Withdrawing and falling-back ships steer wide of hostiles inside this |
+| Abilities | recharge: Boost Shields 8 s, Lock In 14, Boost 10, Drift 10, K-Turn 12, Barrel Roll 9, Field Repair 25 | Effects: shields +15% of their total to the weaker side; nerve +35; 2 s at boost; 3 s of the nose on a pursuer; a flip at half speed; half the hit profile for 1.5 s; hull +15% (the copied `space.js` amounts where one exists) |
+The gun, lock, spread, damage and nerve numbers are SB's (C-60, C-64, C-65), copied with their values.
+**Your call:** _open_
+
+### C-67 ⚪ High Command: readings to confirm, and what I chose building it
+`docs/ARENA-HC-HANDOFF.md`, phase T1 (later phases add to this list). Built in `game/js/sim-hc.js` (the sim) and
+`game/js/arena-hc.js` (the HUD); v2 and SB are untouched.
+1. **The scenarios sit in the registry but are written in `arena-hc.js`**, which adds them to `ARENA_SCENARIOS` with
+   `rulesets:['hc']` when it loads, so `arena.js` only gains the ruleset entry and its three dispatch lines. Their
+   shape is v2's grouped into wings, plus quiet allies, named points, objectives, the clock, a jammer and rules.
+2. **Flight is SB's flown body steered at a goal point** (its turning was replaced by the corner-speed model in C-69), not SB's segment fitter: there are no rounds to fit a
+   curve to. The envelope is still the dial's: a speed band (a ship can't stop, so holding is orbiting) and a turn
+   rate capped at speed × its tightest-turn curvature, with SB's nose that leads into a turn (`SLIP_NOSE`). Pilot
+   movesets (Boost, Drift…) are not flown yet; they arrive as abilities (T3).
+3. **Personality comes from traits**: `sim2.js`'s doctrine AI has no per-pilot weights to copy, so reckless / brave
+   pilots are *eager* (fight closer, hold formation loosely, stay in hurt) and steady / cautious / veteran ones
+   *steady* (hold formation); everyone else is even. Joss (reckless) is hc1's eager pilot.
+4. **Relay K-7 jams the jump point**: nothing jumps while it stands, so the convoy waits there for Dagger. Your
+   canvas lists the relay and the convoy as separate objectives; this ties them so the scenario has one story.
+5. **A mission ends when nothing of yours is left on the map** (every ship down or jumped), or on Abort. It is won
+   when every primary objective is done; the optional satellite only pays command points.
+6. **The "better local target"**: a ship on Attack turns on a hostile within `THREAT_R` of its guns that has it in
+   its arc (or just hit it), unless that is its designation anyway; Patriot Override (T3) holds it to the
+   designation. Otherwise wings hold their target `COMMIT_SECS` before switching, so they don't thrash.
+7. **Opportunity fire**: while its designated target is outside its guns, a ship fires at any hostile ship that
+   crosses them (never at a station it wasn't ordered onto). A withdrawing or escorting ship still shoots; a
+   panicking one doesn't.
+8. **Leaders are the highest-level pilot** unless the scenario names one, pending the meta layer's Wing Leader.
+9. **A mission opens paused**, so the first decision never runs against the clock.
+10. **The Hegemony has three roles**: patrol (engages inside `DETECT_R`, gives up past `LEASH_R`), guard (holds on an
+    asset inside `GUARD_R`) and hunt (the reinforcements: anything, anywhere).
+11. **Relay K-7 is the fuel depot's row** (there is no relay ship or art) with the scenario's own hull and armour;
+    it draws as the depot's octagon in Hegemony blue.
+12. **The map is 16,800 × 12,000** (4 × space.js's; `HC_MAP`; it was 8,400 × 6,000 until C-69). At the fitted zoom
+    ships are drawn up to 3.2 × their size to stay visible.
+13. **One existing smoke check changed**: SB's picker test asserted the ruleset list was exactly the two; it now
+    checks the first two, and the High Command section checks all three. The handoff asks for every earlier test
+    to pass unchanged; a third picker entry makes that one line impossible.
+
+*T2 (orders, tactics, rules, morale, the feed, the tiles):*
+
+14. **The orders.** *Defend* takes an ally, a named point or "Here" (the wing's middle, or a map click) and engages
+    what comes inside `DEFEND_R`. *Intercept* takes one enemy ship and never trades it for a closer one. *Hold* holds
+    the wing's middle at the moment of the order (orbiting) and engages inside `HOLD_R`. *Regroup* re-forms on the
+    leader and fires only at what crosses its guns. *Capture* needs `CAPTURE_SECS` of uncontested presence by ships
+    ordered to capture (a hostile inside 1.5 × `CAPTURE_R` stops the clock). *Board* sends the wing's marine ships
+    to dock while the rest cover them; a boarded station leaves the fight (a destroy objective on it counts as done).
+15. **The tactics, as flown** (reworked in C-69 items 15 to 21; this was the T2 version): *Tight*: a V at 1 × the gap,
+    every gun on the leader's target. *Spread*: line abreast at 3.4 ×, each pilot picks their own. *Screen*: an
+    escort or defence hangs between its charge and the nearest threat. *Pincer*: alternate ships come in from either
+    side of the target. *Hit and Run*: a 3 s pass, a 3 s extension. *Defensive*: fights at 0.8 × range and falls
+    back hurt at 50% hull. Every tactic's "falls back hurt" means: when a ship is under its threshold and something
+    has its guns on it, it breaks away toward its wing.
+16. **The rules.** They outrank each other in the order Preservation, Saviour, Guardian, Bring It Down, Formation,
+    and all outrank the wing order. Each fires once per ship (with a feed entry) and holds it; Preservation is for
+    good (a ship sent home stays out). The hull rules fire the step the hull crosses, not at the next think.
+    Guardian's "friendly objective" is a quiet ally (the convoy), a station you hold, or a ship you must protect.
+    Bring It Down's "disabled" is under 50% hull or an engine or controls critical. Saviour asks for its ship when
+    you add it. "No Rules" is an empty list, shown as such.
+17. **Nerve is rebadged as morale** (EAGER / STEADY / SHAKEN / PANICKED from the same 0–100 meter). Two changes from
+    the copied rule, both High Command only: **breathing room only recovers a pilot to their resting nerve** (the
+    copied rule climbs to 100, which made every unhurt pilot EAGER within a minute; kills still lift them past it),
+    and **every loss is × 0.6** (`NERVE_K`), because a pilot under fire in real time drops through a 3 s round's
+    worth of nerve in a second and panics within two.
+18. **SHAKEN** pilots hang back from an outnumbered target and fall back hurt sooner. **PANICKED** pilots flee (run
+    from the nearest threat) or freeze (straight on, slow), guns silent, until nerve is back over 35: a pilot
+    emergency, in the feed with their own words. Hegemony pilots panic too, and flee.
+19. **Assessments are placeholder lines** `[TEXT NEEDED]`: two per state in `ASSESS` (`sim-hc.js`): pinned, flee,
+    freeze, preserve, withdraw, winning, hurt, engage, station, escort, defend, hold, capture, board, shaken,
+    fallback, form. Designer-facing for now; nothing ships without the text flow.
+20. **Camera tiles are live** at about 10 frames a second (one tile a frame, round-robin), each its own zoomed view.
+    With 8 or more tiles costing over `TILE_BUDGET` (after `TILE_WARM` rounds, while the sprites are first drawn)
+    they fall back to static glyphs by themselves, and the panel has a switch.
+21. **A tile's corner glyph is what the ship is doing** (cyan when a rule set it, hazard in an emergency), with the
+    word and the morale in its foot; the pilot's assessment is its tooltip.
+22. **Tab steps to the newest event you haven't viewed**; VIEW on any entry jumps there and opens that pilot.
+
+*T3 (the pilot panel, the commands drawer, the command point economy, abilities and doctrine, emergencies):*
+
+23. **While the jump point is jammed, a withdrawing ship falls back to its wing's rally point** (where the wing
+    arrived) and waits there, out of the fight; it heads for the jump once the relay is down. Before this,
+    Withdraw, Recall and Preservation all flew a ship through the relay's guards to a jump point it couldn't use.
+    Withdrawing and falling-back ships also steer wide of hostiles (`DISENGAGE_R`).
+24. **The v1 commands** (your §3.3 list): *Patriot Override* lifts a pilot's nerve to 55 (ending a panic) and holds
+    them to the wing's designation for 12 s, ignoring closer threats and fear. *Emergency Recall* sends a ship (or a
+    whole wing: arm it, then click the wing in the roster) out at a 6 s burn, for good. *Emergency Support*
+    recharges one ship's shields to full (shields only, as the handoff says). *Recon Sweep* shows every Hegemony
+    pilot's intent and target for 25 s, and the edge and make-up of the reinforcements. *Decoy Signal* plants a
+    false contact at a place: Hegemony pilots within 1,600 chase it for 12 s (still shooting what crosses their
+    guns). *Abort Mission* is free, pinned last in hazard, and takes a second click to confirm; the mission ends
+    "aborted". *Reinforcement Request* is built behind a scenario's `reserves` (a wing it calls in at your edge);
+    no scenario has reserves yet, so it renders disabled. *Comm Scramble* and *Comm Hack* render disabled with a
+    `// DESIGN OPEN` card. **Not rendered (v2 stubs)**: Targeting Distortion, Dead Zone, Target Designation
+    Support, the environmental orders, carrier ops.
+25. **Command points** come from the scenario (hc1: 5), are spent on use, and come back only from an objective's
+    `cpReward` (hc1's satellite: +1), never above the starting pool.
+26. **Pilot emergencies** are a panic (C-67 item 18) or a **pin**: 2 or more hostiles with their guns on the ship
+    while it is taking hits; a pin clears 3 s after it breaks. The feed entry carries the answers as live buttons,
+    and the pilot panel has the same row. **The recommended answer**: in a panic, Override; under 40% hull,
+    Recall; shields under 30%, Support; otherwise Override. Free answers: *send a wingmate* (the nearest wingmate
+    not in trouble goes for whoever has them pinned, up to 15 s) and *ride it out*. In hc1 (seed 7) Wren is pinned
+    at 0:12: Override holds her on the relay through the guards; Recall takes her out of the fight to the rally
+    point, hull intact; a wingmate (Petra) turns onto her pinners; Support or riding it out leave her fighting on,
+    with less shield. Each answer and the time it took are in the metrics.
+27. **Two gold buttons can show at once**: the pilot panel's recommended answer is a gold primary, as your canvas
+    draws it, beside the standing gold COMMANDS. The house rule is one gold primary a screen; the canvas wins (the
+    handoff says so), so this is flagged rather than changed.
+28. **Abilities and doctrine.** A pilot's abilities are Boost Shields and Lock In (anyone with shields and nerve),
+    their moveset from SB (`ARENA_MOVESETS` by preset, or by level for a database pilot: Boost, Drift, K-Turn,
+    Barrel Roll), and the leader's Field Repair. Each has an AUTO trigger and a stricter emergency one (its hover
+    card says which); AUTO uses either, EMERG only the emergency one, MANUAL never (the panel's Use button works
+    under any doctrine). Everyone starts on AUTO; Hegemony pilots are always AUTO. **Lock In on AUTO catches most
+    panics before they land**; set it to EMERG or MANUAL to see more emergencies.
+29. **Command first or target first**: COMMANDS, then a ship (on the map or its tile), a wing (Recall) or a place
+    (Decoy); or right-click a ship, a tile, a wing header or open space for only the commands that fit it.
+
+*T4 (leaders, the keys, the metrics, the scenarios, the panel):*
+
+30. **The digits do two jobs** in §3.5 (speeds, and the tray's icons). With the tray open, 1–9 press its order icons
+    and Shift+1–6 its tactics; with it closed, 1–4 set the speed. Space, Tab, F, Q / E and Esc work either way.
+31. **The metrics record is per mission**, written to `ARENA_METRICS` when it ends, or when it is left unfinished
+    (outcome "abandoned"). "Time to first order after an alert" counts any order, command or answer after it; the
+    order rate is orders a real minute; the pause rate is pauses a real minute and the share of real time paused.
+    Abort counts as a command.
+32. **hc2, Last Light**: Lastlight is the fuel depot's row as your station (300 hull, 40 armour); three waves on their
+    own clock (0:20 east, 1:15 north, 2:10 south) bring *raiders*, a fourth Hegemony role that goes for your
+    installations and turns only on a fighter with its guns on it. The clock is the evacuation (3:00); at zero the
+    reinforcements come and it's time to get out west. Guardian Directive starts standing.
+33. **hc3, Meltdown**: Hammer is two marine-carrying Graf haulers (Anvil and Forge; there is no marine ship in the
+    data, M-8) with two Talons; Lance is four fighters. Commandant Vex's Scimitar is the flagship guarding the
+    reactor platform (the fuel depot's row again); Bring It Down starts standing. The variants are the standard
+    5 command points, 3 and 7.
+34. **A leader's death is a likely mass panic.** The copied `space.js` rule costs every wingmate 45 nerve when the
+    lead dies (27 here, × `NERVE_K`). Under space.js only the scenario's lead counts; here every wing has one, so
+    losing a leader both drops the wing's cohesion and often panics two or three pilots at once. **Your call:** keep
+    it, soften it for High Command, or count only the mission's overall lead.
+35. **The HC panel group** holds every High Command number in sections (Run, Flight, Fighting, Orders, Hegemony,
+    Leaders, Rules, Morale, Commands, Tactics), including the whole tactic weight table and the slow and fast
+    speeds, with Reset to defaults and the key list. Values are remembered under `sr-arena-hc-prefs`, never the
+    campaign key.
+36. **Performance**: an hc3 brawl at speed 3 averages about 9 ms a frame here with eight live tiles. The tiles first
+    cost about 3 ms each (enough to trip the fallback) because they drew ships at a size the map doesn't and the two
+    evicted each other's cached sprites; with their own coarser cache they cost 0.1 to 0.4 ms, so they stay live.
+    With 8 or more ships the roster's tiles are drawn smaller so the whole roster fits beside the time controls.
+37. **Not built, waiting on systems that don't exist**: a mission briefing (rules start from the scenario's list and
+    are edited live with + RULE), the meta layer's Wing Leader assignment (leaders are by level), marines as a ship
+    type (M-8: Hammer's haulers carry them by scenario flag), and reserves in any scenario (Reinforcement Request is
+    built and stays disabled).
+**Your call:** _open_ (item 34 especially)
+
+### C-65 🟡 SB streams of fire and the bigger map: what I chose, and the placeholders
+Your 12 October note (C-65.1 in the Resolved log): more shots doing less damage, "more going on visually… even if the
+maths works out the same", a much bigger map, and room to make ships go further over longer rounds and guns reach
+further. Built in `game/js/sim-sb.js` and `game/js/arena-sb.js`; v2 is untouched.
+
+1. **Guns fire streams.** A gun with a shot fires 8 bolts 0.06 s apart every 0.75 s, about 10 a second (was 4 every
+   2 s). **The damage a second is pinned, not the damage a bolt**: `GUN_DPS` is 0.5 of the weapon roll a second, what
+   four quarter-rolls every 2 s came to, and each bolt's share is `GUN_DPS` × `BURST_EVERY` / `BURST_N` (about 0.05 of
+   a roll). So the stream sliders change how busy the screen is, not how fast ships die; `GUN_DPS` changes that.
+2. **Bolts deal fractions**: shields, armour and hull keep the remainder (the arcs and pips show part-spent cells), and
+   no hit is rounded up to 1 as before, so the old maths ran a little hotter than this.
+3. **Criticals per point of damage are unchanged**: a direct hit's critical chance is scaled by the bolt's share over
+   the old quarter roll. **Nerve per second under fire is unchanged**: a stream's nerve hit (−12 through armour or
+   hull, −5 on shields) is scaled by how often streams come.
+4. **Damage numbers add up**: a ship's hits are summed and pop as one number every 0.35 s (`-0.8`, `-2.4`), and a gun's
+   "hits / fired" card shows at most every 1.5 s, so the screen shows the stream without a number on every bolt.
+   Missiles still show their own hit.
+5. **Missiles keep their own launch rate** (`MISSILE_EVERY` 2 s), so the stream rate doesn't empty a rack.
+6. **The map is 2.5 × by default** (10,500 × 7,500; `MAP_SCALE`, panel 1–4, applies on the next load or restart and is
+   remembered with the sim speed). The scenario's layout (ships and rocks) is set in the middle, so starts are as close
+   as they were with open space all round; there are no extra rocks out there yet, and an exit objective's edge is
+   that much further away. The starfield grows with the map.
+7. **Weapon range ×** (`RANGE_MULT`, panel 0.5–5) stretches every weapon's range, the lock range, the firing-arc
+   drawing and the chase camera's framing, and **pursuit's preferred distance follows it** so the AI fights at the same
+   share of its gun range. Spread still grows per range unit past the first band, so long shots get wilder.
+8. **Room on the sliders**: `SPEED_SCALE` now runs to 6 (was 3); the exec length already runs 1.5–10 s. Longer rounds
+   at the same speed scale fly the same distance more slowly; raise both together to go further.
+9. The tests run on the original 4,200 × 3,000 map (they set `MAP_SCALE` 1), plus one check of the bigger default.
+
+**Placeholders**: `BURST_N` 8, `BURST_GAP` 0.06 s, `BURST_EVERY` 0.75 s, `GUN_DPS` 0.5, `MISSILE_EVERY` 2 s,
+`RANGE_MULT` 1, `MAP_SCALE` 2.5 (all on the panel), the damage number's 0.35 s and the card's 1.5 s (not on the panel).
+**Your call:** _open_
+
+### C-64 🟡 SB flight, guns and ship status: what I chose, and the placeholders
+Your 12 October notes after playing E1 under SB (C-64.1 in the Resolved log), built in `game/js/sim-sb.js` with a
+small kit addition in `arena-sb.js` (`toScreen`, `dpr`). v2 is untouched.
+
+**Flight: ships are flown, not on rails.**
+1. **The plan is the pilot's intent.** Each ship is a body (position, velocity, nose, turn rate) and an autopilot
+   steers it along the planned path: thrust along its line of flight and grip across it are limited, the nose turns
+   at its own rate and has to brake to stop, and the pilot's hands wander. It flies close to the line (in tests,
+   8 to 35 units off at its hardest moment, ending about 10 units from the planned end), carries its speed into the
+   next round, slides a touch wide at the peak of a hard turn and catches up. Drift's nose takes about 0.4 s to swing
+   round rather than the plan's 0.25 s. `PHYSICS` (panel toggle) puts the ships back on the rails.
+2. **A ship's thrust and grip come from its own plan**: each is the plan's peak demand × `GRIP` (0.85), never less
+   than a floor. A fixed per-ship number doesn't work with today's pacing: speed is even across a round, so a hard
+   turn drawn after a fast straight is taken at full speed, and any fixed grip either flies every plan perfectly or
+   can't fly that one at all. **Your call:** keep it, or turn the dial into real physical limits (thrust and grip
+   per hull), which would mean the reach has to be computed from the physics too.
+3. **The wander has no randomness**: a fixed wave per ship over the round's clock, so a seed and its orders still
+   replay exactly. Green pilots wander ×1.5 and track a little looser; aces ×0.55 and tighter (`pilotFly`).
+4. **The next round starts along the ship's line of flight**, and the nose snaps onto it between rounds if it is
+   within 0.6 rad (it only differs by a few degrees after a normal round). A round never asks a ship to fly backwards
+   from how it is moving: if it would, the velocity is turned onto the new line. **A K-Turn or Loop's flip reverses
+   the line of flight** the moment the flip ends, as the rails did.
+5. **The reach and momentum still come from the planned distance**, so the planning rules are unchanged.
+6. **`SHOW_FLIGHT` (off)** draws, while planning, exactly where the selected ship will fly. It's off because a
+   perfect prediction would bring back the strict link you didn't want; it's there to tune with.
+
+**Guns.**
+7. **Bolts fly at 2,000 units a second** (`PROJ_SPD`, was 850; ballistic weapons × 1.25; missiles unchanged), so
+   they cross a range band in about 0.15 s but still have visible travel. **They fly straight as aimed and don't
+   carry the firing ship's speed** (adding it would bend their direction; your note asked for a fixed direction).
+8. **Each bolt leaves from a gun on the ship art**: the mounts in `SR_ART.SHIPS` (a Talon's two wing pods, a Mote's
+   one gun, a Scimitar's pods and missile rails), the barrel's end (`MUZZLE`: 10.6 art units ahead for the
+   repeaters), scaled as the hull is drawn; paired guns fire alternately. The muzzle is placed at the hull's true
+   size, so when zoomed far out (where ships are drawn larger to stay visible) a bolt can appear from inside the
+   drawn hull.
+9. **Bolts are drawn in the weapon maker's colours** (`SR_ART.PROJ` / `STYLE`, as the main game does), with the
+   main game's muzzle flash. A Hegemony Mote fits the same BLS-T repeaters as your Talon, so its bolts are the same
+   gold; the main game is the same. Say if you'd rather have faction colours.
+
+**What each ship has left.**
+10. **Shield arcs** are the main game's ship-file zones drawn round the ship: fore (120°, centred on the nose) and
+    aft, `SHIELD_W` (7 px) thick, a cell per 5 points, lit cyan (a segment angled in from the other zone violet),
+    spent cells dark, the cell being spent part-lit. The arc that takes a hit flares for 0.4 s. A zone with no
+    shield covering it is drawn red-dashed (as in the ship file).
+11. **Hull and armour** are the main game's pips (`hpPips`: 5 hull cells, the armour layer over them) above every
+    ship. The target's LOCK % label moved up above them, and the selection ring sits outside the shield arcs.
+    `STATUS` (panel toggle) hides both.
+
+**Placeholders** (each on the panel's SB Test group with a getter on `DBGarena.sb.sim`, except where noted):
+| Constant | Value | What it does |
+|---|---|---|
+| `PHYSICS` | on (toggle) | Ships are flown bodies; off puts them on the rails |
+| `TRACK` | 3.2 rad/s | The autopilot's tracking bandwidth: higher holds the line tighter |
+| `GRIP` | 0.85 | Thrust and grip as a share of the plan's peak demand: below 1 it slides wide at the peak |
+| `THRUST_K`, `LAT_FLOOR` | 2.5, 1.4 (× top speed a second) | Floors under thrust and grip |
+| `WANDER` | 0.4 (× top speed a second) | The pilot's sideways wander; × 1.5 green, × 1 regular, × 0.8 veteran, × 0.55 ace (not on the panel) |
+| `NOSE_K`, `NOSE_RATE`, `NOSE_ACC` | 9 rad/s, 12 rad/s, 120 rad/s² | The nose: tracking, top turn rate, turn acceleration |
+| `SHOW_FLIGHT` | off (toggle) | Draw the selected ship's actual flight while planning |
+| `FLY_SUB` | 2 | Physics steps per sim tick (not on the panel) |
+| `KIND_SPD` | plasma × 1, ballistic × 1.25 | A weapon kind's bolt speed × `PROJ_SPD` (not on the panel) |
+| `BOLT_LEN` | 22 units | A bolt's drawn length |
+| `MUZZLE` | repeaters 10.6, missiles 8, others 6 art units | How far ahead of its mount a gun's barrel ends (not on the panel) |
+| `STATUS`, `SHIELD_W` | on, 7 px | Shield arcs and pips on the ships; the arcs' thickness |
+**Your call:** _open_ (item 2 especially)
+
+### C-63 🟡 SB planning HUD: placeholders
+The planning tray's numbers (`docs/SB-HUD-HANDOFF.md` §8), each a named constant in `game/js/sim-sb.js` marked
+`// placeholder`, with a getter on `DBGarena.sb.sim` (`TRAY_GAP_()`…) and a row in the panel's SB Test group.
+| Constant | Value | What it does |
+|---|---|---|
+| `TRAY_GAP` | 18 px (panel 0–60) | From the selected ship's ring to the top of its tray |
+| `TRAY_ICON` | 36 px (panel 24–56) | A tray icon's side |
+| `TRAY_FLIP_ZONE` | 140 px (panel 0–400) | A ship this close to the stage's bottom edge (or with no room below) gets its tray above it |
+| `TIP_DELAY` | 250 ms (panel 0–1,000) | Hover or focus time before an icon's card opens |
+| `showLockedMods` | on (panel toggle) | Mods the pilot lacks show greyed with a padlock (C-62 item 1) |
+| Tray margin | 8 px | The tray and the cards never come closer than this to the stage's edge |
+**Needs from you:** tune any of them; the panel is the place.
+**Your call:** _open_
+
+### C-62 ⚪ SB planning HUD: readings to confirm, and what I chose building it
+`docs/SB-HUD-HANDOFF.md`, all three phases (H1 to H3) built in `game/js/sim-sb.js` (the stepper, the tray, the hover
+cards, the boundary timing) and `game/js/arena-sb.js` (placing the tray every frame, the chips, Execute, the keys);
+the old bottom bar is gone. The top strap keeps the scenario, turn and objective, so no status ribbon was added.
+
+**Readings to confirm (the handoff's §8, with my interim choice):**
+1. **Locked mods are shown greyed** with a padlock and "Needs: veteran" / "Needs: ace" on the card
+   (`showLockedMods`, default on), rather than hidden. Right for the lab; what the shipping game does is open.
+2. **The armed mode defaults to Basic every turn**; remembering last turn's mode per ship is off in v1.
+3. **No confirm on Execute** with ships unplanned: an unplanned ship flies its standing order (a straight glide at
+   its slowest speed for the round), and its action is None.
+4. **The tooltip copy is designer-facing**: the handoff's lines for the moves, and lines of mine for Loop, End
+   here, Keep facing and the actions. Any line that ships goes back through `[TEXT NEEDED]` and the normal text
+   flow.
+
+**What I chose building it (not in the handoff, or where it disagreed with itself):**
+5. **A Keep facing icon on the Drift facing step**, so the default facing (straight back) can be committed with a
+   click or the 1 key; dragging the handle commits it too. The handle stays live afterwards, as the handoff asks.
+6. **Where each drag starts:** SEG 1 from the ship, SEG 2 from the end of SEG 1 (a pulsing ring marks the step's
+   start, and the faint reach for the armed mode shows from it). Pressing the ship on a later step and dragging
+   redoes SEG 1 (and drops SEG 2, keeping the action); a click without a drag changes nothing. Pressing another of
+   your ships selects it and opens its tray.
+7. **Boost fore / aft are greyed with a reason** ("No shields to boost", "Shield emitter damaged") where the
+   handoff's table says they are never off: the rules already refuse them in those cases, so the tray says so.
+   **Lock In** is greyed with "Nerve already full" or, for a craft with no nerve, "No pilot nerve to steady".
+8. **The Ship ability slot collapses out** while no ship has one: the handoff's table says "always greyed", its
+   next paragraph says Special and Ship render only when the ship has an entry. I followed the paragraph.
+9. **AP per round is capped at 2 on the panel** (was 1 to 3): the stepper is SEG 1 → action → SEG 2. At 1, the
+   tray runs SEG 1 → action and the action fires at the end of that segment.
+10. **SEG 2's hint reads "Drag from the end of the first move…"** (the handoff gives the SEG 1 line for both), and
+    when SEG 1 used the whole round the move icons grey out with "No distance left this round" and End here is
+    the choice.
+11. **The number keys press the tray's icons** (they used to select ships); Tab and Shift-Tab move between your
+    ships; Esc goes back one step; Enter (and Space, as before) executes. Clicking a hostile still sets the
+    target at any step.
+12. **Execute became pause / resume during the exec**, as the handoff expects of the chassis; the SB driver had no
+    pause, so I added one. The Execute in the top bar went (one button, bottom right); the designer panel keeps its
+    own.
+13. **The drag readout** shows the segment's length against the reach at that turn, in SU, and the momentum the
+    whole round would leave (`2.9 / 5.0 SU · momentum 4.9`), drawn just above the pointer.
+14. **Fly def's no-fire preview**: the segment draws in the shield colour with a weaving ghost line and "no fire" in
+    its label, and the start-pose fire arc is hidden when SEG 1 is Fly def. The plan carries a `noFire` flag.
+15. **Planning time per step** (`s1`, `act`, `s2`, in ms) is clocked while that ship's tray shows that step, and
+    lands in each exec's `ARENA_METRICS` record as `planSteps` (summed) and on each of your ships as `plan`.
+16. The handoff asks for a commit per phase; H1 to H3 landed in one commit, as the stepper, the action timing and
+    the keys share most of their code.
+**Your call:** _open_ (any of 1 to 4; the rest only if you mind)
+
+### C-60 🟡 SB Test: placeholders
+Every number the SB Test ruleset uses that is mine or the handoff's placeholder, each one named constant in
+`game/js/sim-sb.js` marked `// placeholder`, exposed through a getter on `DBGarena.sim` (`AP_PER_ROUND_()`…) and on
+the panel's SB Test group.
+| Constant | Value | What it does |
+|---|---|---|
+| `AP_PER_ROUND` | 2 (panel 1–2; was 1–3 until the planning tray, C-62 item 9) | Movement segments a round, 1 AP each; every kind costs the same |
+| `FLYDEF_FACTOR` | 0.25 (panel) | Fly Defensively: incoming hit profile, as ellipse area (each axis × 0.5) |
+| `flydefImmunity` | off (panel toggle) | Your literal Fly Defensively: cannot be hit except by homing weapons |
+| `BOOST_MULT` | 2.0 (panel) | Boost: the segment's speed range × this |
+| `BOOST_TURN` | 0.25 (panel) | Boost: the turn cap × this (fast and nearly straight) |
+| `KTURN_MAX` | 3 (panel) | K-Turn: the speed cap, as the dial's K |
+| `BARREL_LAT` | 1 SU (panel) | Barrel Roll: lateral displacement over the segment, heading kept |
+| `SPEED_FLAIR` | on (panel toggle) | Acceleration flair (visual pacing only) |
+| `EXEC_LEN` (SB) | 3 s (panel 1.5–10; v2's stays 6 s) | SB Test's round length (C-59 item 31) |
+| `FLAIR_DIP` | 0.35 (panel; was 0.55) | Flair: how much a minimum-radius turn brakes at its apex |
+| `ACCEL`, `BRAKE` | 0.03, 0.05 per 8 units flown (panel) | How fast speed can rise and fall (C-59 item 11) |
+| `SLIP_OUT`, `SLIP_NOSE` | 32 units, 0.42 rad (panel) | The slip at the minimum radius: how far wide it slides, how far the nose leads |
+| `SEG_MIN` | 0.5 SU | The shortest segment |
+| `MOMENTUM` | on (panel toggle) | The reach depends on the speed carried into the round (C-59 item 32) |
+| `MOM_UP`, `MOM_DOWN` | 1.5, 2 dial speeds a round (panel) | How much faster or slower than its momentum a ship can fly this round |
+| `MOM_TURN` | 1.5 (panel) | The tightest turn × (slowest straight / speed carried in) ^ this |
+| Movesets | green none · regular Boost · veteran Boost, Drift · ace Boost, Drift, K-Turn, Barrel Roll | `ARENA_MOVESETS`, keyed off the scenario's pilot preset; moves to `db.json` only if SB wins |
+| `BURST_N`, `BURST_GAP`, `BURST_EVERY` | 8 bolts, 0.06 s apart, a stream every 0.75 s (panel; were 4, 0.08 s, 2 s until C-65) | A gun's streams: about 10 bolts a second while it has a shot |
+| `GUN_DPS` | 0.5 × the weapon roll a second (panel) | A gun's damage per second of fire; each bolt's share is this × `BURST_EVERY` / `BURST_N` (C-65) |
+| `MISSILE_EVERY` | 2 s (panel) | Seconds between a missile rack's launches (was `BURST_EVERY`) |
+| `RANGE_MULT` | 1 (panel 0.5–5) | Every weapon's range, the lock range and pursuit's preferred distance × this (C-65) |
+| `PROJ_SPD` | 2,000 u/s (panel; was 850 until your 12 Oct note "they all move too slowly", 1,400 before your 11 Oct feel notes) | Gun bolt speed (ballistic × 1.25, C-64); lifetime is the weapon's range at that speed, +15% |
+| `SPREAD_BASE` | 6° (panel) | Burst spread, the cone's full width, before Aim, nerve and range |
+| `SPREAD_AIM_K` | 0.1 (panel) | Aim narrows spread: × 1 / (1 + this × Aim bonus) |
+| `SPREAD_NERVE_K` | 1.5 (panel) | Falling nerve widens it: × 1 + this × (1 − nerve / 100) |
+| `SPREAD_CRIT` | 3° (panel) | Added per Targeting Array Damage critical |
+| `RANGE_SPREAD` | +3° per RU past band 1 (panel) | Guns: accurate close, poor far |
+| `MISSILE_LOCK` | 60% (panel) | Lock a missile needs |
+| `MISSILE_MINR` | 1.5 RU (panel) | Range a missile needs: disabled in a knife fight |
+| `MISSILE_SPD`, `MISSILE_TURN` | 800 u/s (was 650), 2.4 rad/s (panel) | Missile flight and homing; faster than the fastest craft at the default speed scale |
+| `SPEED_SCALE` | 1.25 (panel 0.5–6, widened for the bigger map; was 1.6 until the round's distance became one dial move) | The round's distance and the reach × this; the turn radius is not scaled (C-59 items 6, 30) |
+| `SHIP_SCALE` | 1.35 (panel) | Drawn ship size and hull ellipse together (C-59 item 30) |
+| `BANK_ROLL` | 0.75 (panel) | How far a ship rolls into a turn at its minimum radius (visual) |
+| Chase camera | on (panel toggle); zoom 0.45–1.0, 240 units of margin, eases at 5/s | Frames your selected ship, a little ahead of it, and its target while the exec runs; a hand pan or zoom lets go until the next exec |
+| Bolts | 22 units long (`BOLT_LEN`, panel), 2 px core and 5 px glow in the weapon maker's colours, from the gun mounts, the main game's muzzle flash, sparks at the hit (C-64) | How a shot reads (visual); was a glowing 0.12 s streak |
+| `LOCK_GAIN` | 40%/s (panel) | Lock gained with the target dead centre, falling to zero at the arc's edge |
+| `LOCK_DECAY` | 50%/s (panel) | Lock lost while the target is behind the firer |
+| `IMPACT_MIN` | 0.2 (panel) | Damage scale at the shallowest skim; 1.0 dead-on |
+| `LOCK_DMG_MAX` | 1.0 (panel) | Damage × (1 + lock × this): a full lock doubles it |
+| `CRIT_DIRECT` | 10% (panel) | Critical chance on a direct hit (impact ≥ 0.8), plus the weapon's own |
+| `HULL_LEN`, `HULL_WID` | 22, 10 (panel) | The hull ellipse's half-axes before the ship's visual size |
+| `PREF_RANGE` | 340 (panel) | Pursuit's preferred distance behind its target (copied from today's `aiManeuver`) |
+| `FLANK` | 0.55 rad (panel) | How far each further pursuer of one target sits off the line behind it |
+| `AI_NOISE` | 0 (panel 0–400) | Extra score noise on every enemy's choice, in hundredths |
+| `AI_JITTER` | 1.2 (panel) | A green pilot's score noise; it shrinks with the Aim bonus |
+| `AI_LOOK` | 1 (panel) | How much of its target's current turn the AI expects it to hold |
+| `AI_W_ARC`, `AI_W_THREAT`, `AI_W_RANGE`, `AI_W_SIX` | 3, 3, 2, 1.5 (panel) | The search's weights: guns on the target, out of its guns, preferred range, on its six |
+| `AI_SWING`, `AI_OVERSHOOT` | 0.5 rad, 700 (panel) | The danger cone's widening; how close in front of the target counts as an overshoot |
+| `TELLS`, `CARDS` | on, on (panel toggles) | Doctrine tells; burst resolution cards and damage numbers |
+**Needs from you:** tune any of them; the panel is the place.
+**Your call:** _open_
+
+### C-59 🟡 SB Test ruleset: decisions and readings
+`docs/ARENA-SB-HANDOFF.md`: the Arena's second, rival ruleset ("SB Test", `game/js/sim-sb.js`, driven by
+`game/js/arena-sb.js`) beside "SR V2 Combat" (`sim2.js`, driven by `arena.js`), picked before the scenario. All five phases are built (B1–B5): the picker and the ruleset interface;
+the continuous drag inside the envelope, two AP segments, Fly Defensively, the acceleration flair; projectiles,
+bursts, spread, continuous lock, glancing damage, missiles, burst resolution cards; one action a craft and the
+pilot movesets, Drift's facing handle included; the doctrine planner, the full SB panel group, and the experiments
+`sb1_fox`, `sb2_drift` and `sb3_count` (4 or 8 ships) with their metrics. **SB-1, the comparison gate, is playable**,
+and so is v2 (C-55 to C-58, C-57's moves and action points included), so **the head-to-head can be played now**: pick
+a ruleset, then the same scenario and seed (both rulesets place the same cast from the same entry).
+
+**Decisions (yours, written down):**
+1. The Arena runs **two rival rulesets behind one picker**; nothing is shared below the Arena chassis (scenarios,
+   the PLAN→EXEC loop, the seeded RNG, the panel, metrics, the no-save guarantee), and v2 is the control: its
+   behaviour and its section of `tools/arena-smoke.js` are untouched by the SB build.
+2. **SB movement is a continuous envelope** derived from the same database dial fields (speed range, minimum turn
+   radius): the dial stays the balance backend without discrete manoeuvres.
+3. **SB resolution is projectiles**: no d20; Aim → spread, nerve → steadiness, lock → damage multiplier; glancing
+   versus direct by impact angle.
+4. **Two deliberate deviations from your verbatim notes**, each with a toggle or stub so your literal version can be
+   felt: Fly Defensively defaults to a heavy degradation rather than immunity (the panel's `flydefImmunity` restores
+   your wording), and the AP system is a flat two segments a round with no spend economy yet. (v2 has since
+   gained an AP meter, C-57; SB keeps the handoff's flat two segments so the two models stay distinct.)
+
+**Readings (the handoff's, with my interim choices as they are built):**
+5. The picker is one window in two steps: the ruleset cards, then that ruleset's scenarios (a scenario's optional
+   `rulesets` allowlist hides it from the other; the SB experiments are SB-only). **SB has its own driver**,
+   `arena-sb.js`, beside `arena.js`: the v2 scene is written straight against SIM2 and the handoff makes v2 the
+   untouched control, so choosing SB Test hands the scene to a second driver (its own loop, camera and panel) that
+   reads `arena.js`'s scenario entries, and copies v2's presets, rock layouts and placement so the casts match.
+   Folding the two drivers into one chassis is a refactor for after the comparison. SB remembers its sim speed
+   under its own key, `sr-arena-sb-prefs`. v2's only touches: the ruleset step in its picker, the SB entries in its
+   scenario list, a `ruleset:'v2'` field in its metrics records, and `DBGarena.sb`.
+6. **A round is one dial move's distance, and the ship flies what you drew** (since your 12 October note it is flown
+   as a body along that line, close but not exact: C-64) (your call, 11 October:
+   "ships overall can move too far"; Resolved log). The round's distance is the top straight × `SPEED_SCALE`, shared
+   by its AP segments: the second segment's reach is what the first left (the drag readout shows it).
+   Unspent AP does nothing in v1. A ship can't stop, so a round drawn shorter than the slowest straight is topped up
+   with a straight glide (drawn dashed grey); a longer one is never glided past. Before this, each segment could use
+   the whole top straight and an unplanned AP glided a full segment on, so a ship flew far past your line.
+7. **Time follows distance**: the ship's base speed for the round is its whole flight over the exec (a Boost stretch
+   at `BOOST_MULT` that speed), then the flair (item 11) shapes it.
+8. **The minimum turn radius comes from the slowest hard turn on the dial** (90° over `turn_min` speed units), else
+   the slowest bank (45° over `bank_min`). The database gives the Graf freighter the same speed-1 hard turn as the
+   Talon, so **both have the same minimum radius (about 95 units)**: the freighter differs only in its shorter top
+   straight (3 against 5). If the freighter should draw lazier arcs, its dial row needs a slower-turning entry, or a
+   size factor on the radius: your call.
+9. **The drag is a destination, not a path, inside a drawn reach** (your calls, 11 October; Resolved log): the
+   ships fly like planes, so dragging from the ship previews the flight path to where it should end up. Each
+   segment is **one steady banked arc** that leaves along the ship's heading and passes through the pointer.
+   **The reach** follows the dial's templates continuously: the furthest a segment can go falls from the top
+   straight (θ = 0) through the top bank (at 45° of turn) to the top hard turn (at 90°); no segment turns more than
+   90° or tighter than the minimum radius. It is drawn while you drag (and faintly for the next segment), and its
+   shape is **worked out from that ship's dial and its situation**, never drawn to a template (your clarification,
+   11 October): the Talon's reads like a spearpoint because its top straight is long and its hard turns short; the
+   Graf's is short and squat, the Mote's broad, a ship with Control Surfaces damage loses its hard-turn shoulders,
+   engine damage shortens the corridor, the second segment's reach shrinks with the distance left, and Boost is long
+   and narrow. A destination outside it
+   ends at the reach's nearest point, with an orange crosshair and dashed line to where you pointed. A drag under 20
+   units is a click; the map edge slides the ship along it. Ships without a bank or hard turn on their dial (the
+   depot) have no sideways reach.
+10. **Barrel Roll rolls toward the side the destination lies on**, the arc aiming short of it by the roll so the
+   ship ends near the pointer; **Loop** is the
+   K-Turn's flip after the shortest run the ship can fly (the slowest straight), so the two are already close
+   (reading 5 of the handoff: they may merge after play).
+11. **Acceleration and the slip** (your notes, 11 October: "I don't like how ships fly at a constant speed during
+   their turns… there's no slight drift as they perform hard turns"). Speed now changes within a manoeuvre: a turn
+   brakes into its apex and powers out (down to 45% of cruise at the minimum radius, `FLAIR_DIP`), a Boost surges,
+   a glide is throttled back, and speed carries across segments at limited rates (`ACCEL` slower than `BRAKE`), so
+   a ship visibly accelerates out of a hard bank; its engines flare while it does. In a hard turn the ship **slips**:
+   its nose leads the line of flight (up to 0.42 rad at the minimum radius, `SLIP_NOSE`, so the guns come round
+   first) and it slides a little wide of the arc (up to 32 units, `SLIP_OUT`), back on line by the end. The preview
+   draws the slide, so the line is still the flight. Where the ship ends and the round's length never change.
+12. **A deviation from the handoff's damage line (flagged, not silently picked): each projectile deals a quarter of a
+   weapon roll** (`PROJ_DMG` 0.25), so a four-round burst is about one roll, the damage one attack does today. With
+   the handoff's literal "per projectile: the weapon's damage" (`PROJ_DMG` 1.0, on the panel) a burst is four rolls,
+   and on the first test run the E1 Fox died inside one exec to two locked-on Motes, with no plan able to matter. A
+   missile is one warhead and deals its whole roll. **Since C-65** a bolt's share comes from `GUN_DPS` (0.5 of a roll a
+   second, the same as four quarter-rolls every 2 s) spread over about ten bolts a second.
+13. **Guns aim at the intercept**: each burst leads the target by its current velocity, clamped inside the firing
+   arc, then the pilot's spread scatters it (the spread is the cone's full width). Drift's guns therefore fire along
+   the nose, anywhere inside its arc.
+14. **Spread is Aim and nerve**: the base × 1 / (1 + 0.1 × the Aim bonus, the database's skill-and-level bonus) ×
+   (1 + 1.5 × (1 − nerve / 100)), plus range past band 1 for guns, plus 3° per Targeting Array Damage critical (the
+   critical's "−2 aim" has no meaning without the d20). Drones and the depot have no nerve to rattle, as today.
+15. **Nerve from fire, once a burst**: the existing −12 (armour or hull hit) or −5 (shields only) lands once per burst
+   that hits a ship, not per projectile (four of them would empty the meter in one burst); each missile hit counts
+   on its own. Kills, wingmen lost, a lead down, the cockpit breach and +6 breathing room for a ship not hit all
+   exec are today's numbers.
+16. **Rocks stop projectiles and missiles** (the same 85% radius `losBlocked` uses), and **block lock gain**: lock
+   only climbs with a clear line, as a lock action needs today.
+17. **Lock is stored per target and survives target switching**; it decays only while that target is behind the
+   firer. Each ship keeps one target: yours default to the nearest hostile and change when you click a hostile with
+   your ship selected; enemies take the nearest.
+18. **Fly Defensively's profile is an area**: × 0.25 makes each axis of the hull ellipse half as long. With
+   `flydefImmunity` on, guns cannot hit at all. The hull ellipse is 22 × 10 units (half-axes) times the ship's
+   visual size: a guess at the art's outline, on the panel.
+19. **Projectiles in flight keep flying across the PLAN pause**: the next exec picks them up where they were.
+20. **Interrupts stay out of SB v1** (they are v2's pillar); whether SB gains them is a cross-breeding question
+   after the comparison.
+21. **Special Ability and Ship Ability are empty stub slots** (`// DESIGN OPEN` in `sim-sb.js`): the planning
+   tray shows a Special or Ship icon only when the ship has one (C-62 item 8); the only entry is the lead's
+   self-repair (today's Field repair, +15% hull). What pilots learn and what ships or attachments grant is yours to
+   design.
+22. **The action resolves between the two segments**, as SEG 1's arc completes (with End here, at that segment's
+   end; a ship with no move, at once): `docs/SB-HUD-HANDOFF.md` §3.4, your 12 October instruction (C-61 item 2).
+   Until then it resolved as the exec began. The Hegemony chooses its action as the exec begins and it fires at the
+   same boundary. **Fix Critical clears the oldest critical**: `CRITDEFS` has no "repairable" flag, so every
+   critical is repairable.
+23. **The Hegemony takes an action too**, a copy of the useful half of today's `aiAction`: a lead fixes criticals,
+   low shields get boosted, nerve under 55 Locks In; panicking pilots do nothing.
+24. **Drift**: the facing handle starts pointing straight back (the hunted fox's shot); during the segment the nose
+   swings to the facing over its first 15%, holds, and swings back to the line of flight over its last 10%. The guns
+   fire anywhere inside the arc around that nose.
+25. **Loop is in no preset's moveset** (the handoff's presets give the ace Boost, Drift, K-Turn and Barrel Roll); a
+   scenario can grant it with its own `pilot.moveset`, or tick it on the panel's moveset rows.
+26. **The Hegemony's pilots search their manoeuvres** (your note, 11 October: "the AI needs major work in order to
+   pose a threat"). Each enemy tries about 500 two-segment plans through its own reach (the doctrine's goal among
+   them as a seed), predicting where its target is going from how it is flying now (holding its current turn,
+   `AI_LOOK`), never from the plan you just drew. It scores each over ten moments of the round: its guns on the target
+   (more for centred and close), the target's guns on it (with a wider cone, since the target can swing its nose),
+   ending at 340 units and on the target's six, never overshooting in front of it, and staying off the rocks (checked
+   every ~30 units), the map edge and its wingmates. A green pilot's choice is noisier than a veteran's; a target is
+   picked by nearness, already being in its guns, damage and stickiness. Measured against the old planner on a scripted
+   weaving fox in E1 (six seeds): guns on target about 8 s a round against 4 (of 12 possible), the fox lasting 3.5
+   rounds against 5. From a head-on start the pursuers now decline the joust, swing wide and come round onto the
+   fox's six. All the weights are on the panel. **Doctrine stays a goal module** (`SB_DOCTRINES`, the same
+   `{goal, tell}` shape as v2's): only `pursuit` exists. An unbuilt doctrine
+   (`wingman`, `hold_asset`, `firing_line`, all built in v2) pursues under SB until they are ported across (one goal
+   function, two planners). The pursuit tell is a blue chevron over the pursuer pointing at its quarry, with the
+   lock line; both always on (panel toggle).
+27. **Panic**: a panicking Hegemony pilot flies its doctrine's line defensively (Fly Defensively segments); one
+   that `flees` runs for the nearest edge and jumps out within 120 units of it, as today.
+28. **The experiments** are SB-only entries (`rulesets:['sb']`); E1 to E5 also run under SB, so the same seed can be
+   played under both rulesets. `sb3_count` reuses E3's 4- and 8-ship variants (matched flights).
+   SB metrics add, per ship: bursts, shots, hits, damage, missiles, kills, peak lock, seconds with the target in arc,
+   shots fired in a Drift segment and how many of those flew backward along the line of flight (sb2_drift's
+   question), the action taken and the segment kinds flown.
+29. **At the 8-ship cap the screen is busy** (sb3's question): the panel's "Resolution cards and damage numbers"
+   toggle quiets it to tracers, locks and impacts.
+30. **Speed, visible shots, smooth motion** (your notes, 11 October: "very slow and lethargic and not like an
+   exciting dogfight"). What I changed, all in SB Test, v2 untouched:
+   - **Smooth motion.** The sim still steps 20 times a second (deterministic), but ships, shots and missiles are now
+     drawn where they are between steps, so motion runs at the screen's frame rate. Before, two of every three frames
+     repeated the last step. Ship art is drawn once per look and stamped (it cost about half a millisecond a ship a
+     frame), and the starfield is batched.
+   - **Speed.** `SPEED_SCALE` 1.6 multiplies every craft's speed range but not its turn radius, so craft cover 60% more
+     ground a round and the turn limit bites harder: **the dial is still the backend, scaled**. The chase camera holds
+     the fight close, so the speed reads on screen.
+   - **Shots.** Projectiles slowed from 1,400 to 850 u/s, longer glowing tracers, muzzle flashes, sparks thrown back
+     along the shot, a fuller explosion, and v2's sounds for firing, hits and kills. While the fight runs the firing
+     arc and the dashed lock lines are hidden (the lock ring stays), so nothing sits on top of the tracers.
+   - **Ship size.** `SHIP_SCALE` 1.35 draws ships bigger **and grows their hull ellipse with them**, so what you see is
+     what gets hit; the price is more hits than before. Slower shots and faster craft pull the other way.
+   - **Banking and contrails.** Ships roll into turns in proportion to how tight they are, and leave fading contrails
+     that carry across the planning pause.
+   Rate of fire was unchanged then (`BURST_EVERY` 2 s, the handoff's "frequent, not constant"); C-65 turned it into
+   streams. The Graf still turns as tightly as the Talon (item 8).
+
+32. **Momentum shapes the reach** (your call, 12 October, SB only; Resolved log). Each ship carries the speed it flew
+   last round (in dial speeds; a fresh ship carries cruise, halfway between its slowest and top straight). This
+   round's distance must sit within 1.5 dial speeds faster (`MOM_UP`) and 2 slower (`MOM_DOWN`) than that, and the
+   faster it comes in, the wider its tightest turn (× (slowest straight / speed carried in) ^ 1.5, `MOM_TURN`). For a
+   Talon: out of a slow round (2) the reach is short and wide with full hard turns but tops out at speed 3.5; at
+   cruise (3.5) it is the whole dial; out of a full-speed run (5) the hard-turn shoulders are gone (69° at most) and it
+   can't fly slower than 3. While you drag, an orange dashed arc marks the slowest it can fly this round; the orders
+   strip shows the momentum and this round's speed range. A Boosted round carries its extra speed into the next.
+   The Hegemony flies by the same rule, and its planner now looks a round ahead: a plan that ends pointed at a rock is
+   scored down, because momentum will carry it on (before, a pursuer could steer into the belt and find every next
+   option crossing rock). Off with the panel's "Momentum shapes the reach" toggle.
+31. **A conflict, flagged: SB's rounds are now 3 seconds, where your SteamBirds notes asked for 6** ("it lasts about
+   3 seconds… I'd extend it to 6 seconds to account for our action point system"). Your 11 October note ("it feels a
+   bit like I'm playing in slow motion; everything movement related ought to be much quicker") and the one before
+   ("ships overall can move too far") together leave only time to change: so SB's default exec is 3 s (its own; v2
+   keeps 6 s) and the same reach flies twice as fast (a Talon's top speed ~310 units a second, from ~155). The panel's
+   exec slider runs 1.5 to 10 s if you'd rather keep the longer round and raise `SPEED_SCALE` instead. With it: turns
+   brake less (to 65% of cruise at the minimum radius), acceleration is quicker, Drift's nose swings in 0.25 s, and
+   the chase camera follows twice as tightly. Combat's per-second numbers (bursts every 2 s, lock gain) are untouched,
+   so a 3 s round has half the shooting of a 6 s one; that waits for the combat pass, as you said.
+   **Your call:** keep 3 s, or go back to 6 s with faster craft.
+
+**Needs from you:** your felt verdict after playing the same seed and scenario under both rulesets (the comparison
+is the deliverable; I'll record it here); calls on item 8 (should the freighter turn wider than the Talon?) and
+item 12 (now a damage-a-second question: `GUN_DPS`, C-65); confirm or change the rest.
+**Your call:** _open_
+
 ### C-54 🟡 CD playtest (8 Oct): UI rules, feedback gaps and bugs for future triage
 From the creative director's first playthrough, 8 October 2026 (the transcript is on the project). Logged
 unactioned at the designer's request, to work through later. The core-gameplay feedback itself is handled
@@ -980,6 +2304,119 @@ tablets, so these are my choices (`tools/ipad-smoke.js` checks them in both orie
 **Needs from you:** confirm the portrait layout, or describe the tablet layout you want.
 **Your call:** _open_
 
+### C-55 🟡 Arena: placeholders
+Every number the space combat v2 sim (`game/js/sim2.js`) adds is mine and marked `// placeholder` in its `DEFAULTS`
+table; each has a getter on `SIM2` (`EXEC_LEN_()` and so on) and, except `TICK`, a slider in the Arena's designer panel.
+Slider values are remembered in this browser under the Arena's own key, `sr-arena-prefs`; a scenario's own `tune` wins
+when it loads (E2's variants set the exec length that way).
+| Constant | Value | What it does |
+|---|---|---|
+| `TICK` | 50 ms | Sim time per fixed tick (the sim is deterministic for a seed and a set of orders) |
+| `EXEC_LEN` | 6 s (panel 2 to 10) | Sim time per execution (a round) |
+| `SIM_SPEED` | 1× (panel 0.25 to 2) | Wall-clock multiplier |
+| `SEG_TIME` | 2 s | The pace a move's length is measured against: a round covers at most top speed × SU × `EXEC_LEN` ÷ `SEG_TIME` (a Talon: 5 × 150 × 3 = 2,250) and at least its slowest straight × the same |
+| `STRAIGHT_TOL` | 6° | How far off the nose a move may be and still count, and fly, as a straight |
+| `AP_BASE`, `AP_LEVELS` | 6, +1 per 3 levels | Action points a pilot has each round (green 6, regular and veteran 7, ace 8) |
+| `COOL_AP`, `COOL_SPENT_TO` | +2; nerve 69 | The Cool bonus, and the nerve a pilot falls to when they spend into it (just under Cool at 70) |
+| `AP_STRAIGHT`, `AP_BANK`, `AP_TURN`, `AP_KTURN` | 1, 2, 3, 3 | Moves, whatever their length |
+| `AP_EVADE`, `AP_LOCKIN`, `AP_BOOST`, `AP_SHIFT` | 2, 2, 2, 1 | Planning actions: fly defensive, lock in, boost the weaker shield segment, angle a segment |
+| `AP_SNAP`, `AP_JUKE`, `AP_SHIFT_INT` | 3, 1 (+ the move), 2 | Interrupts |
+| `INT_FLOOR` | 30 | At or below this nerve (panicking) a pilot cannot interrupt |
+| `INT_CAP` | 0 (none) | 1 to 3 caps interrupts per exec; otherwise AP is the only limit |
+| `WPN_CD` | guns 3 s, missiles 6 s (`GUN_SHOTS` 2, `MSL_SHOTS` 1) | Weapon cooldown: the default exec length over shots per exec. Fixed against the default, not the current `EXEC_LEN`: C-56 item 8 |
+| `LOCK_TIME` | 1.5 s | Target held in the lock zone per lock level (to 3) |
+| `CALM_GAIN` | 6 | Nerve at an exec's end for a ship not hit in it (today's 6) |
+| `SNAP_BONUS` | +2 ATK | Snap Shot |
+| `NERVE_GAIN`, `NERVE_DRAIN` | 1×, 1× | Multipliers on every combat nerve change |
+| `ENEMY_N` | 0 (the scenario's) | Ships per enemy flight, applied on restart |
+| `AI_NOISE` | 0 | Random cost added to each enemy plan candidate (0 = perfect doctrine) |
+| `PATH_SEGS` | 3 | Most dial manoeuvres an order or a doctrine chains in a round |
+| `PREF_RANGE` | 340 | Pursuit's preferred range (today's `aiManeuver` value) |
+| `WING_FLOUNDER` | 4 s | How long a wingman drifts after losing its lead |
+| `GUARD_R` | 900 | `hold_asset`'s guard radius |
+| `RALLY_D`, `FORM_R` | 1,300, 280 | `firing_line`: how far from the nearest rebel it forms up; how close to its slot each ship must be before the line runs in |
+| `OPP_FIRE` | 1 (on) | A ship with no shot on its target fires at any other valid hostile: C-56 item 10 |
+| Pilot presets | green L1, skills 10/10/0, presence 24, initiative 2 · regular L3, 20/20/20, 30, 3 · veteran L5, 35/35/30, 36, 4, K-turn · ace L8, 50/50/40, 42, 5, K-turn | The stat templates scenarios pick from (aim / cunning / focus); a scenario's own numbers win (E1's Fox is the handoff's level 3 veteran) |
+| Plan beam | 10 | Candidate chains kept per manoeuvre when an order or a doctrine plans (not a slider) |
+**Needs from you:** the numbers, after playing E1. **Your call:** _open_
+
+### C-56 ⚪ Arena: readings to confirm, and what I chose building it
+Readings of the handoff (§9), each with the interim choice:
+1. **"Enter Arena" is on the title screen for everyone** for now (an internal build), under Start game, styled as a
+   tool (the debug menu's dashed violet).
+2. **Evade survives** rather than folding into Juke: a planning action (2 AP since C-57) that keeps today's +3 to be
+   hit and stops lock acquisition for the round (the old trade: fly defensive or lock).
+3. **K-turns are moves, not an interrupt verb:** a 3 AP move (a button, or K) for pilots with the loop on their dial
+   (veteran and ace presets).
+4. **No slow-motion on interrupts** in v1: a hard pause with the acting ship lit and the rest of the screen dimmed.
+5. **Tells are always on in the Arena** (a panel switch turns them off); how the shipping game shows them is out of
+   scope (M-35).
+6. ~~A path has at most 3 segments.~~ Superseded by C-57: AP and the round's distance limit a chain.
+What I chose while building it (items 7, 12 and 16 rewritten for C-57's moves and action points):
+7. **Moves.** A move is one arc from where the last ended, tangent to the ship's heading: a straight, a bank of any
+   angle up to 45° or a turn of any angle up to 90°. The dial's whole speeds become continuous length bands: a type the
+   dial flies at speeds lo to hi covers lengths from lo − 0.5 to hi (× SU), so the Talon banks from 225 to 450 and
+   turns from 75 to 300. Pressing on a ship shows the bands (turn orange, bank gold, straight green, each with its AP);
+   the ghost follows the pointer and, outside the bands, sits on the nearest point inside them. A round's chain covers
+   at most top speed × SU × `EXEC_LEN` ÷ `SEG_TIME`, so the bands shrink as moves are added, and the chain is flown at
+   one steady speed across the exec. A ship never flies slower than its slowest straight: a short chain (or none) is
+   followed by flying straight on, drawn faint. If the exec ends mid-move, the next round starts from where the ship is.
+8. **Rate of fire is fixed** at the default exec length over shots per exec (guns 3 s, missiles 6 s). The handoff's
+   formula (`EXEC_LEN / shots`) would make E2's 2 s exec fire three times as fast as its 6 s one; fixing it keeps E2
+   about the commitment window alone.
+9. **Locks:** every ship acquires on its planned target (not only missile carriers), as any ship could Lock today;
+   panic, Evade and Lock in stop acquisition; a missile spends a level; the rear hemisphere breaks a lock every tick.
+10. **Opportunity fire** (`OPP_FIRE`): the handoff fires only at the planned target; a ship that has no shot on it
+    fires at any other hostile it has a shot on. Ships whose doctrine holds fire (a wingman's wing, `hold_asset`
+    guards, anyone breaking off) don't. Each weapon has its own cooldown; a missile is held for a target of under 20
+    points (today's `bestWeaponFor` rule) when another weapon has the shot.
+11. **Simultaneity:** every shot in a tick is chosen from the same instant and then resolved, so a ship destroyed in
+    that tick still gets its shot off. Damage lands the instant a shot fires (a missile has no flight time).
+12. **Action points in detail.** Moves cost by type, not length. Planning actions last one round and reset at the next
+    plan: Evade, Lock in (+35 nerve at the round's end, no lock acquisition; it and Evade exclude each other), Boost
+    shield (today's boost, on the weaker segment, as the round starts) and angling a segment (swinging it back
+    refunds). AP left when the exec starts is the reserve for interrupts and is lost at the round's end. Interrupts
+    cost AP and no longer nerve; panicking pilots still can't interrupt, and the level-based cap is gone (`INT_CAP`
+    can bring a flat one back). Snap Shot needs a real shot (arc, range, lock, ammo) at the target, else the nearest
+    hostile it has one on. Juke replaces the rest of the exec with one new move from where the ship is, at its
+    current speed. The Cool bonus is set when the round's plan starts: a pilot Cool then gets +2; spending past the
+    base pool (when the exec starts, or by an interrupt) drops their nerve to 69, so Cool's +2 to hit and +1 to be
+    hit go with it until they earn Cool back. Today's actions not yet on the meter: field repair, fix a critical,
+    barrel roll, Heroic Surge (say which you want, and their price).
+13. **Which enemy hunts:** the handoff's `heg_fighter` is not a `space_enemies` row. The hunters are VC Mote
+    Patrolcraft (`vc-mote-patrol`), manned, so nerve and panic apply; the depot is the Fuel Depot row. No rows added.
+14. **Enemy planning** sees no one's plan: other ships are predicted flying straight on at their last speed. Pursuit
+    scores candidates with today's `aiManeuver` maths (copied). Orders and doctrines plan in whole dial manoeuvres
+    within the same AP and round distance as the player (no Cool bonus), searched with a small beam. A panicking enemy
+    flies defensive, and `flees` types run, as today. A doctrine switched off in the panel holds position.
+15. **Doctrines in detail.** `wingman`: pairs in order within a flight; the wing flies 200 behind and 170 to one side
+    of its lead and fires only at a threat to the lead; on the lead's death it flounders (Evade on, no fire) for
+    `WING_FLOUNDER`, then pairs with any lone wingman of its side (a lead without a wing, or another flounderer) or
+    breaks off for the edge and leaves. `hold_asset`: patrols at half the radius and chases threats inside it on a
+    leash (a candidate path that strays outside the radius costs so much that none is picked while one that stays
+    inside exists). `firing_line`: forms line abreast, 220 apart, `RALLY_D` from the nearest rebel on its own side,
+    runs in once every ship is within `FORM_R` of its slot, runs for one exec, then forms again.
+16. **Player ships with no moves** fly their standing order, which plans within the base AP (never the Cool bonus);
+    with no order they fly straight on for no AP. The first move dragged replaces the order's plan for that round
+    only. Orders: pursue, escort (follow a ship of yours and fire at its threats), follow, hold (circle where it is).
+17. **Objectives:** destroying "all" counts a ship that fled as gone; an exit is any one of your ships within 180 of
+    the edge; survive counts fight time. A finished scenario offers same seed, new seed or the picker.
+18. **The scenarios:** E1 is the handoff's Fox (level 3 veteran Talon) v two pursuit Motes in a rock belt, survive
+    60 s. E2 is E1 at 2, 4, 6 and 8 s, clock off or 30 s. E3 is 2, 4 or 8 of a mixed flight of Talons and Crosses v
+    half pursuit, half wingman Motes (two wingmen at 2), destroy all. E4 is the Fox and a Cross v four wingman Motes,
+    then three `hold_asset` Motes guarding a depot (destroy the guards: the depot is only their asset), then three
+    `firing_line` Motes; the parts are labelled Contact 1 to 3 so nothing names the behaviour. E5 is the Fox and a
+    Cross: burn the depot while two pursuit Motes hunt, then leave by the east edge.
+19. **The board** is today's 4,200 × 3,000; rock layouts (`belt1`, `scatter`, `field`, `open`) have their own seeds, so a
+    new fight seed keeps the same rocks. No campaign consequences: no experience, no salvage, no injuries; today's
+    nerve fallout of a death (wingman lost, leader down, friends) is kept.
+20. **Back to title** reloads the page with the hash cleared; `#arena` boots straight in and counts as a test page (no
+    transitions, `DBGarena`).
+No line the Arena shows is meant for players, so none is `[TEXT NEEDED]` and none is in the text workbook.
+**Needs from you:** confirm items 1 to 5, or say otherwise; anything in 7 to 20 you'd rather have differently; which of
+today's other actions belong on the meter (item 12).
+**Your call:** _open_
+
 ---
 
 ## 2. Missing systems
@@ -1305,6 +2742,32 @@ beds on screen can number fewer than `bunkCap()`.
 or the raid system when it exists).
 **Your call:** _open_
 
+### M-36 🟡 Type 3.5: what waits for systems that don't exist yet
+Built for the Arena only; these wait:
+
+- **Campaign wiring**: Sources creating opportunities (with their detection levels), Intel and Exposure as campaign
+  resources (the dossier's Intel is an Arena-only budget), Leads from Firebrand Broadcast and witnesses, burned Agents.
+- **The other target types** (Person, Place, Ship) and the follow-up opportunities Tag and Track would create (the
+  debrief names them only).
+- **The later objectives and powers** (shown greyed "Not in this demo").
+- **`db.json` rows** for the Brickbat and the FL-400.
+- **Art** for the Ram, the Tug, the pirates, the Fire Ship, the mines and the buoy: the ram, tug and pirates are
+  Brickbats (civilian, civilian, hunter livery; hazard chevrons on the ram's nose), the fire ship an unlit Graf, the
+  mines and the buoy drawn marks.
+- **Speech for the drones**: the ram, the tug and the pirates bark High Command's pilot lines like your pilots.
+**Your call:** when the campaign side is ready
+
+### M-35 🟡 Arena graduation: what waits until E1 passes
+Deliberately not built until experiment E1 (the hunted fox) passes, per the handoff (§9):
+1. **A shared combat-maths module.** `sim2.js` copies the `space.js` functions it needs (each block names its source);
+   extracting one module both use is a separate job, and only if v2 graduates. Until then the copies must not drift.
+2. **Ground combat in the Arena** (the same skeleton: doctrine, nerve, cover-first AI), as Arena v2 reusing the picker
+   and the panel.
+3. **The campaign's space combat on the v2 sim.**
+4. **The design doc's parked items:** FFG-style mods, doctrine pages as intel, the one authored fly-it-yourself
+   setpiece; and how much of each doctrine's tell the shipping game shows (always, on hover, or once learned).
+**Needs from you:** E1's verdict. **Your call:** _open_
+
 ---
 
 ## 3. Resolved log
@@ -1314,6 +2777,18 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-69.20 | **The Cross's turn** (the designer, 13 October: "The cross spacecraft turns way too slowly to be useful, it should turn faster but not as fast as the lighter inteceptor craft"), answering C-69 item 20; with it, playtest 3's layout and map notes (`docs/ARENA-HC-FEEDBACK-3.md`) | 2026-10-13 | A High Command turn factor on the Cross (`HC_TURN`, × 1.6: 80% of a Mote's or a Talon's rate), the wing cards in a column in the bottom-left corner, the commands as skill icons, the 32 × map with a tiled starfield, and the avoidance fixes (C-71), `1bfbfe6`. `tools/arena-smoke.js` C-71 |
+| C-70.1 | **High Command playtest 2** (the designer's notes, 13 October, in `docs/ARENA-HC-FEEDBACK-2.md`, asked for directly): speed 4; a bigger map; smooth motion when following the action; Convoy Lark must jump; collisions, with pilots wanting to avoid ships and rocks; missiles and the lock on the FT-4 Cross; select the wing first, then the ship; a right-click wheel of orders; box select on the left button and panning on the right; in hc1, engagement lines only for a hovered or selected wing, fainter; Commands a fixed part of the HUD in the centre; a five-entry feed with a scroll; bigger objectives; the time controls top centre under the clock; symbols by a ship using actions and abilities | 2026-10-13 | G1 `3b57c42`: drawing between sim steps, speed 4, the 8 × map round a 4 × play area, arriving at the jump point, holding orbits (C-70 items 1–7). G2 and G3 `40577e2`: collisions and avoidance, the Cross's missiles, the lock and the Missile doctrine (items 8–19). G4 `62c5112`: the clicks, the box, right-drag, the order wheel (items 20–25). G5 `7ac541b`: the commands bar, the time controls, the feed, the objectives, quiet lines, status symbols (items 26–33). `tools/arena-smoke.js` G1–G5. Open in C-70: item 13 (missiles on the database's stock Cross) |
+| C-69.1 | **High Command playtest 1** (the designer's notes and answers, 13 October, in `docs/ARENA-HC-FEEDBACK-1.md`): a bigger map with faster ships and wider spacing; fighting at the full gun reach ("I set fighting range (x gun range) to max"); weaker turning at low speed; attack runs (hit and run) as every ship's way of fighting, with the tactics reworked around them and AUTO as the default tactic (option A: "Yes sounds good to me"); Commands and command points bigger, "near the time controls", opening upward; the order panel popping up "above its tile"; Jump Out once the objectives are done, with "a leave now button too"; speech bubbles for 2 s as well as the event log | 2026-10-13 | F1 `fc579e4`: `SPEED_SCALE` 2.5, `ENGAGE_FRAC` 1, `RANGE_MULT`, the 4 × map with scenarios scaled, spacing, the opening view, Copy settings, ALL WINGS: JUMP OUT and Leave now, the tray and pilot panel above their cards, Commands bottom right opening upward (C-69 items 1–8). F2 `e0c69f7`: the corner-speed turn model, bleed, no braking into turns, `SLIP_NOSE`, station keeping along a line (items 9–14). F3 `5b678c4`: attack runs and pursuit, stalemate and six break-offs, the tactics reworked, AUTO (items 15–21). F4 `e9095da`: bubbles from your pilots' lines, one per ship, at most 4, 2 s of real time, `BARK_GAP` (items 22–24). `tools/arena-smoke.js` F1–F4. Open in C-69: item 20 (the Cross against Motes) |
+| C-66 | **High Command: decisions** (`docs/ARENA-HC-HANDOFF.md` §9), recorded so later work doesn't reopen them: (1) Type 3 is **a third ruleset, additive behind the picker**; v2 and SB untouched; (2) **real time with free, unlimited pause; no phases**; orders can be issued at any speed; (3) **wings from mission start**, each sharing one order and one tactic; (4) **intent lines are read-only**: the player never draws a path; (5) **the reinforcement clock is always on**: at zero a dangerous Hegemony force arrives and the objective flips to "get out"; (6) **Abort is always free**; (7) **the High Command HUD canvas is the living layout spec** | 2026-10-12 | T4: leaders and promotion, the keys, the §7 metrics, `hc2_lastlight` (waves, raiders) and `hc3_meltdown` (CP variants), the HC panel group with the tactic weights; `tools/arena-smoke.js` HC 9, 10 and T4, every §8 test green (C-67 items 30–37). T3: the pilot panel and doctrine, the commands drawer (Override, Recall, Emergency Support, Recon Sweep, Decoy, Abort; Reinforcement Request behind reserves), CP and rewards, emergencies and their answers (C-67 items 23–29). T2: every order and tactic, the rules engine and its panel, morale, assessments, the feed's VIEW and Tab, live tiles (C-67 items 14–22). T1: `sim-hc.js` (SB's flown body steered by goals, wings with leaders, Attack / Escort / Withdraw autonomy, the Hegemony's patrol / guard / hunt, SB's guns copied, the clock, objectives, the jammed jump point, the fixed-step determinism); `arena-hc.js` (the map with intent lines, the engagement ring and the gold attack designation; the objectives, the clock, CP and COMMANDS; the event feed with VIEW; the wing roster with static tiles; time controls; the wing tray with the order and tactic rows and target chips; hover cards; the picker and the HC panel group); `hc1_nightfall`; `RULESETS.hc` and its dispatch in `arena.js`; `index.html`, `arena.css`; `tools/arena-smoke.js` HC 1, 6, 7 and T1. Readings: C-67; placeholders: C-68 |
+| C-65.1 | **SB: more shots for less damage, a bigger map** (the designer, 12 October: "I'd prefer more shots that do less damage, than one shot per 'round' that does more damage… we do need to alter toward 'more going on' visually to the player even if the maths works out the same. We also need to make the map a lot bigger, and I'll be playing with the designer variables to make ships move further over longer rounds, and increase the range of weapons") | 2026-10-12 | `sim-sb.js`: streams (`BURST_N` 8, `BURST_GAP`, `BURST_EVERY` 0.75) with `GUN_DPS` pinning the damage a second, fractional bolt damage, rescaled criticals and nerve, summed damage numbers, `MISSILE_EVERY`, `RANGE_MULT`, `SPEED_SCALE` to 6; `arena-sb.js`: `MAP_SCALE` 2.5 with the scenario centred; `tools/arena-smoke.js` stream, range and map tests. Choices: C-65 |
+| C-64.1 | **SB: flown ships, quicker bolts from the guns, status on the ships** (the designer, 12 October, after playing E1: "I don't want there to be such a strict link between what the player tells the ship to do and what the ship actually does… I'd like it if the ships were actually physically simulated… those paths should map to how the ships work"; "Lasers need both a travel time, to move in a fixed direction, to be smaller overall, and to be accurately mapped to the cannons they are emerging from"; "see each ship's health and armour values visually on them, to have thick shield arcs around each ship that deplete… use all of our existing visual assets") | 2026-10-12 | `sim-sb.js`: the flight model (`planState`, `flightCaps`, `flyStep`, `bodyStart`, `predictFlight`), bolts at `PROJ_SPD` 2,000 from the art's gun mounts (`mountsOf`, `muzzleAt`) drawn small in the maker's colours with the main game's muzzle flash, the ship-file shield arcs and the main game's hull / armour pips (`drawShields`, `drawStatus`); `arena-sb.js` kit `toScreen` / `dpr`; `tools/arena-smoke.js` Flight / Guns / Status tests. What I chose and the numbers: C-64 |
+| C-61 | **SB planning HUD: decisions** (the designer, 12 October; `docs/SB-HUD-HANDOFF.md` §8), recorded so later work doesn't reopen them: (1) planning is a **per-ship enforced stepper**, SEG 1 → one action → SEG 2, with the controls in a tray anchored to the ship and only the current step's controls rendered; (2) **the action resolves at the segment boundary** (amends `docs/ARENA-SB-HANDOFF.md` §4's unspecified timing); (3) **the bottom bar loses its controls**; one tray at a time; enemy ships never show one; (4) **End here** is a first-class SEG 2 choice (unspent AP still does nothing); (5) **Execute never blocks**: unplanned ships fly their standing order | 2026-10-12 | `sim-sb.js`: the stepper (`nextStep`, `advance`, `arm`, `pickAction`, `endHere`, `keepFacing`, `goPip`, `back`, `clearPlan`), the tray HTML with inline SVG glyphs and live hover cards, actions fired by `fireActions` at SEG 1's end, Fly def's `noFire` flag, the drag readout; `arena-sb.js`: the tray placed every frame (flip, clamp), ship chips with auto-advance, Execute (n/m planned) and pause, the keys; `index.html`, `arena.css`; `tools/arena-smoke.js` HUD 1–10. Readings and choices: C-62; placeholders: C-63 |
+| C-59.32 | **SB Test: momentum in the reach** (the designer, 12 October: "yes, add momentum to the reach, for the SB version of the space rules only") | 2026-10-12 | `sim-sb.js`: `s.mom` carried from the distance flown; `dialOf` gives each round a speed window and a speed-widened tightest turn; the reach, the glide top-up and the Hegemony's search all use them; the planner looks a round ahead for rocks; the "slowest this round" arc; `tools/arena-smoke.js` SB momentum (C-59 item 32) |
+| C-59.6 | **SB Test: the reach and the round's distance** (the designer, 11 October: "Ships overall can move too far… when I start clicking and dragging a ship, I'd like to see where I can move it mapped out visually… a bit like a spearpoint, with a narrow side that shows I can bank hard, and a long straight corridor for moving very fast"). With acceleration through manoeuvres, a slip in hard turns, and a threatening AI from the same notes | 2026-10-11 | `sim-sb.js`: `dialOf`/`envelope` build the reach from the dial's straight, bank and hard-turn templates; `solveArc` ends outside it at its nearest point; a round is one dial move's distance shared by its segments, topped up only to the slowest straight; `drawReach` draws it while dragging; the speed profile and slip in `paceSchedule`/`poseAt`; the manoeuvre search (`planSearch`) for the Hegemony; `tools/arena-smoke.js` SB 3 and SB AI (C-59 items 6, 7, 9, 11, 26) |
+| C-59.9 | **SB Test: the drag is a destination** (the designer, 11 October: "when the player clicks and drags, they are effectively affecting the final destination… if it's too tight of a corner then it won't be able to move further than what it's capable of doing"). Ships fly like planes: dragging from the ship previews the banked flight path to the destination, limited by the dial | 2026-10-11 | `sim-sb.js` `solveArc`/`buildCurve`: one banked arc per segment through the pointer, cut short past the speed range, flown at the minimum radius toward a too-tight corner, with the shortfall drawn; the traced-path steering removed; flair paced across the round (`paceSchedule`); `tools/arena-smoke.js` SB 3 rewritten (C-59 items 9 to 11) |
+| C-57 | **Arena: moves and action points** (the designer, 9 October, after playing the first build: "the movement controls are incredibly stiff"). (1) **Moves are dragged and released:** press and hold on the ship to see how it can and can't move, drag a ghost that follows the pointer within the ship's move stats, release to set one move; further drags from its end chain more. (2) **One move is locked to one direction** (straight, bank or turn); variety comes from chaining. (3) **One action point meter per pilot per round** pays for movement, actions, special moves and interrupts alike, replacing one action per round. (4) **Cool adds a bonus to the meter;** spending it is like spending Cool on an ability: it is gone until the pilot earns Cool back. This supersedes C-58 item 2 (paths fitted to the dial from a drawn line) and the handoff's nerve-priced interrupts (§3.4); the dial still sets each ship's limits. | 2026-10-09 | `sim2.js`: moves are arcs inside each ship's envelope (`envOf`, `moveTo`), chained under a round's distance and flown at one speed; the AP meter (`apMax`, `apLeft`, `settleBonus`) with every price a placeholder (C-55); interrupts paid in AP; orders and doctrines plan within the same AP and distance. `arena.js`: the banded envelope, the ghost on the pointer, the gold handle at the chain's end, Undo (Z) and Clear, the AP meter on the ship card, prices on every button. The drag fitter and the drawn line are gone. Readings in C-56 items 7, 12 and 16. `tools/arena-smoke.js` covers moves, chaining, the AP meter and the Cool bonus. The "Arena: drag-and-release moves and one action point meter" commit |
+| C-58 | **Arena: decisions** (items 2 and 3's nerve price superseded by C-57) (the designer, *Space Combat Core Redesign v0.1*, 9 October; `docs/ARENA-HANDOFF.md` §9), recorded so later work doesn't reopen them: (1) space combat v2 is **continuous WEGO**: one plan step, then simultaneous continuous execution; no action or attack phases, no initiative. (2) **Drawn paths are fitted to the ship's dial**: the dial is the balance backend; an illegal path cannot be drawn rather than being refused. (3) **Interrupts are player-only**, priced in the existing nerve meter; enemies commit for the whole turn. (4) **Enemy behaviour is doctrine modules** planning through the same path fitter as the player. (5) The Arena is **campaign-free and save-free**: it never writes the campaign key. (6) Today's `space.js` combat maths is **copied, not shared**, and must not drift during the experiment. | 2026-10-09 | `game/js/sim2.js` (the v2 sim: copied maths, the fixed-tick loop, the dial fitter, standing orders, interrupts, four doctrines, metrics) and `game/js/arena.js` (the scene: picker, five experiment scenarios, drawing, input, the designer panel, `DBGarena`), `game/ui/arena.css`; touches outside them are the title button (`intro.js`), `SR.bootArena` (`core.js`) and the scene, styles, scripts and `#arena` route (`game/index.html`). `space.js`, `ground.js` and `base.js` are unchanged. `tools/arena-smoke.js` covers it. The "Arena" commit |
 | C-33.7 | **No command bar out of combat** (the designer, 8 October, confirming `docs/ui/SCREENS-HANDOFF.md` §0.1 for every screen built): a screen's buttons sit with what they act on; Advance day stays bottom-right on its own. | 2026-10-08 | The base's bar is gone (`#baseGo`: Advance day alone, no count line). **Galaxy:** the selection's actions (Contact, Visit, Silence, Cut loose, Scout, Raise access, Run the job, Back…) are buttons at the foot of its panel (the region card when one is open), with any reason they can't be used under them; on a phone, in the bottom sheet, which now sits above Advance day (it had been running off the top of the screen). **Arsenal:** Give to… / Sell, and Hangar / Refit for a ship, sit in the dossier under the name. **Black Market:** the lot pop-up beside the picked card (screens handoff part 3, C-50) carries the stats and Buy / Buy all (Hire); the restock count is Sweet Tooth's, in the rail. Keys 1–9 press them as before. The "No command bar out of combat" commit |
 | C-47.5 | **Steal Ship and Raid the Bunker** (the designer, 8 October). A prize pilot lost (dead, or down with no way left to bring them round) before their ship is up does **not** fail the mission: that ship stays on its pad and the others can still be stolen. Only losing every pilot fails it. Steal the Cross works mechanically as a Steal Ship mission (one ship). The rest of phase 5's choices stand: the Reinforcements hauler (the first transport added as an asset on a mission flown with Reinforcements, carrying the prize pilots and any soldier the first hauler has no seat for; once it has brought them it can't be re-tasked); hotwiring by standing on the pad (a round at a time in combat, 4.5 s out of it, 2 to finish, no Work order); a ship flies once hot with its own clamp and fuel line off; one objective row per ship at its current step; the bunker map and its ten guards; stolen ships at 85% hull, named by class and number, each handed to a pilot without a ship, fenced with no pad free; the call-in card only during the prologue. The Steal Ship lines stay `[TEXT NEEDED]` placeholders until the designer writes them (C-48). | 2026-10-08 | Phase 5 built the rest. Lost pilots: `prizeLostCheck()` in `game/js/ground.js` grounds the ship, fails its objective row and logs it; the way home opens once every ship is up or lost and at least one is up; the win's end screen notes the ships left behind and the result lists only the ships flown; every pilot lost fails as before. Three new placeholder lines (`float.lost`, `log.lost`, `end.someLost`). `tools/stealship-smoke.js` covers it. The "Steal Ship: a lost pilot grounds one ship" commit |
 | — | **Prologue: decisions** (the designer, 8 October, `docs/PROLOGUE-HANDOFF.md` §7), recorded so later work doesn't reopen them: (1) the Sources tutorial plays with the first brand-new Source, not before *Raid the Bunker*; the **?** stays on Sources throughout; Cass and Venn are called Sources from the start. (2) Tachi recruits three pilots, not two. (3) *Raid the Bunker* teaches the player's reinforcements: a second transport added as an asset sets up Reinforcements, loaded with the pilots, who are called in once it's safer. (4) Gated tabs are hidden, not shown locked. (5) The bunker job arrives the day after Lie Low is ordered. (6) Recruiting is taught in Run Your Network (Step 5); the later recruit beat is a prompt, with no second tutorial. *Cook the Depots* is now **Torch the Depots**. | 2026-10-08 | Phase 1 builds (1) (the Sources tutorial waits for the first new Source after the frontier, its Making Contact page the Agents version), (4) (every gated tab and button is hidden; one that opens pulses once with a New tag) and the rename. (6) is built in phase 2 (Run Your Network's Step 5 opens Recruit); (5) in phase 3 (the beat after Lie Low waits one day); (2) in phase 4 (the next Recruit brings exactly three Pilots); (3) in phase 5 (Raid the Bunker's second hauler is Reinforcements, carrying the pilots: C-47.5). The "Prologue phase 1" to "Prologue phase 5" commits |

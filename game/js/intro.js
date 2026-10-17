@@ -14,7 +14,7 @@ window.SR_INTRO=(function(){
   const SA=window.SR_ART,CC=SA.C,U=SA.util;
   const RM=SR.hud.reduced;
   let el=null,cv=null,c2=null,W=0,H=0,dpr=1;
-  let bg=null,badge=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null;
+  let bg=null,badge=null,raf=0,t0=0,skipTo=0,ready=false,leaving=false,onStartCb=null,onArenaCb=null;
   let stars=[],nextFly=0,fly=null,impactFired=false,impactAt=0,debris=[];
   let dev=null;   // the developer's mark (art/brand/perchang.webp); without it the badge lands straight away
 
@@ -299,18 +299,21 @@ window.SR_INTRO=(function(){
     const done=()=>{cancelAnimationFrame(raf);if(el){el.remove();el=null;}if(onStartCb)onStartCb();};
     if(RM)done();else setTimeout(done,460);
   }
-  function show(onStart){
-    onStartCb=onStart;
+  function show(onStart,onArena){
+    onStartCb=onStart;onArenaCb=onArena||null;
     el=document.createElement('div');
     el.id='splash';
     el.innerHTML='<canvas></canvas><div class="splash__ui">'+
-      '<button type="button" class="sr-btn sr-btn--primary sr-btn--lg" id="splashStart">Start game</button></div>';
+      '<button type="button" class="sr-btn sr-btn--primary sr-btn--lg" id="splashStart">Start game</button>'+
+      (onArenaCb?'<button type="button" class="sr-btn sr-btn--sm splash__tool" id="splashArena">Enter Arena</button>':'')+'</div>';
     document.body.appendChild(el);
     cv=el.querySelector('canvas');c2=cv.getContext('2d');
     try{const sv=SR.loadSave();if(sv&&sv.started)el.querySelector('#splashStart').textContent='Continue';}catch(e){}
     el.querySelector('#splashStart').addEventListener('click',start);
+    const ab=el.querySelector('#splashArena');   // the Arena: a designer's tool, styled as one (docs/ARENA-HANDOFF.md §2.1)
+    if(ab)ab.addEventListener('click',()=>{onStartCb=onArenaCb;start();});
     el.addEventListener('pointerdown',ev=>{   // a tap skips the developer's mark; a second slams the badge home early
-      if(ready||ev.target.id==='splashStart')return;
+      if(ready||ev.target.id==='splashStart'||ev.target.id==='splashArena')return;
       const t=performance.now()-t0;
       skipTo=(dev&&t<STAMP_AT&&skipTo<STAMP_AT)?STAMP_AT:STAMP_AT+STAMP_MS+SETTLE_MS+20;
     });
