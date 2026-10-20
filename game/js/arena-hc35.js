@@ -1278,7 +1278,7 @@ function reqHtml(q){
     '<div class="sr-quote h35-req__q">'+esc(q.line)+'</div>';
   if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">⇧'+(i+1)+'</span><span>'+esc(L35.ANS[a])+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
   else if(q.state==='sent')h+='<div class="h35-req__sent">Sending · '+esc(L35.ANS[q.answer])+' <em data-left="1"></em><i><b data-bar="1"></b></i></div>';
-  else h+='<div class="h35-req__done">'+(q.by==='player'?'Answered: '+esc(L35.ANS[q.answer]):esc(name)+' decided: '+esc(L35.ANS[q.answer]))+'</div>';
+  else h+='<div class="h35-req__done">'+(q.by==='void'?'Withdrawn: no longer needed':q.by==='player'?'Answered: '+esc(L35.ANS[q.answer]):esc(name)+' decided: '+esc(L35.ANS[q.answer]))+'</div>';
   return h+'</div>';
 }
 /* the cards: rebuilt when one comes, goes or changes state; the countdowns move every frame */

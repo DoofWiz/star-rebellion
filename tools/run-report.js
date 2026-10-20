@@ -114,7 +114,7 @@ function report(R,opt){
     P('');P('## Requests');
     if(!L.req.log.length)P('- None');
     for(const q of L.req.log){const who=(S.ships.find(s=>s.id===q.who)||{name:q.who}).name;
-      P('- '+clock(q.t0)+' **'+q.k+'** · '+who+': "'+q.line+'" → '+(q.answer||'?')+' ('+(q.by==='player'?'you, at '+clock(q.sentT):q.by==='default'?'timed out: their default':q.by==='unasked'?'not asked: their default':q.by==='off'?'requests off: their default':q.by||'open')+')'+(q.doneT!=null?' · applied '+clock(q.doneT):''));}
+      P('- '+clock(q.t0)+' **'+q.k+'** · '+who+': "'+q.line+'" → '+(q.answer||'?')+' ('+(q.by==='player'?'you, at '+clock(q.sentT):q.by==='default'?'timed out: their default':q.by==='void'?'withdrawn: its reason had gone':q.by==='unasked'?'not asked: their default':q.by==='off'?'requests off: their default':q.by||'open')+')'+(q.doneT!=null?' · applied '+clock(q.doneT):''));}
     P('');P('## Powers');
     if(!L.powLog.length)P('- None');
     for(const p of L.powLog)P('- '+clock(p.t)+' '+p.k+(p.act?' ('+p.act+')':'')+' · Phase '+p.phase+' · '+p.cost+' CP');

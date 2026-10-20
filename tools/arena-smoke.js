@@ -2593,14 +2593,14 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   go('destroy','destroy',{roes:['signal'],seed:991});SIM.runFor(2);
   const esc=S().ships.find(s=>s.role35==='escort'&&s.alive),joss=by('joss');
   const wait0=mine().every(s=>s.beh&&s.beh.why==='waiting for your signal');
-  joss.hitT=S().t;joss.lastHitBy=esc.id;think(joss);SIM.runFor(4);
+  joss.hitT=S().t;joss.firedOnT=S().t;joss.lastHitBy=esc.id;think(joss);SIM.runFor(4);
   out.fired=[wait0,!!L().sigW.dagger,L().dec[0].wid==='dagger'&&/fired on/.test(L().dec[0].why),L().dec.some(d=>d.wid==='dagger'&&d.kind==='signal'),by('wren').beh.why!=='waiting for your signal'];
   L35.alarm('detected','test');SIM.runFor(1);
   out.spotted=[['dagger','anvil','amber'].every(w=>L().sigW[w]),L().dec.filter(d=>d.kind==='signal').length===3,mine().every(s=>s.beh&&s.beh.why!=='waiting for your signal'),
     S().events.some(e=>e.kind==='leader')];
   // 2: self-defence. A wing on Hold, one of its ships shot at: it turns on the shooter without being told
   go('destroy','hold',{seed:992});SIM.runFor(2);
-  const kit=by('kit'),e2=S().ships.find(s=>s.role35==='escort'&&s.alive);kit.hitT=S().t;kit.lastHitBy=e2.id;think(kit);
+  const kit=by('kit'),e2=S().ships.find(s=>s.role35==='escort'&&s.alive);kit.hitT=S().t;kit.firedOnT=S().t;kit.lastHitBy=e2.id;think(kit);
   out.defend=[kit.beh.kind==='engage',kit.beh.target===e2.id,kit.beh.why==='self-defence'];
   // 3: the retreat. A fight with the escort going; Retreat: every ship heads for the jump point (after a 4 s turn), and gets there
   go('tag',{k:'suppress',arg:'escorts'},{seed:41});for(let i=0;i<300&&!L().alarm;i++)SIM.runFor(1);SIM.runFor(20);out.t0=[+S().t.toFixed(1),L().prim.state];
@@ -2747,11 +2747,38 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35l6.kit.every(Boolean),'HC35 L6 6: your Talons carry the plasma cannon (PX_BOLTS a burst, the damage carried between them); the Crosses keep their repeaters '+JSON.stringify(t35l6.kit));
  ok(t35l6.fire.every(Boolean),'HC35 L6 6: plasma bolts fly at PX_SPD × a repeater bolt\'s speed, PX_BOLTS a burst '+JSON.stringify(t35l6.fire));
  ok(t35l6.draw.every(Boolean),'HC35 L6 6: the plasma orb draws, warm for ours and violet for theirs '+JSON.stringify(t35l6.draw));
+ // HC35 L7 (after playtest 2): a request whose reason has gone is withdrawn; holding for your signal isn't "getting nowhere"; no Secondary once the job's settled
+ const t35l7=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const go=(prim,ex,roes)=>{B.seed=91;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=Object.assign({arg:null},ex);B.plan.wings[w].second=null;}B.plan.assets=[];B.plan.roes=roes||[];B.plan.optionals=[];X.fn.launch();L().cp=9;};
+  const co=N.COMMS_OFF,rt=N.RES_THREAT;N.COMMS_OFF=1;N.REQ_OFF=0;N.RES_THREAT=0;
+  // 1: Hold for My Signal in Phase 1, past the stuck guard's 90 s: no "We're getting nowhere"
+  go('crash',{k:'suppress',arg:'escorts'},['signal']);for(let i=0;i<N.EXEC_STALL+15;i++){L().detect=0;L().sigW={};L().signal=false;SIM.runFor(1);}   // unseen and still holding all the while
+  out.wait=[!L().req.log.some(q=>q.k==='stall'),S().t>N.EXEC_STALL];
+  // 2: the hail, then the freighter dies: the request is withdrawn, nothing applied
+  go('destroy',{k:'hold'});L35.alarm('fired','test');SIM.runFor(1);L35.fn.reqTrigger('surrender',{},'t');SIM.runFor(1);
+  const q=L().req.open.find(x=>x.k==='surrender');F.kill(fr(),null);SIM.step();SIM.step();
+  out.dead=[!!q,q&&q.state==='done',q&&q.by==='void',q&&q.answer==null,!L().surrender,S().events.some(e=>e.kind==='request'&&/never mind/.test(e.text))];
+  // 3: the job settled: an open "jump now or finish it?" goes, a hurt pilot's request stays; no Secondary is taken up after
+  const gap=N.REQ_GAP;N.REQ_GAP=0;go('destroy',{k:'destroy'});L35.alarm('fired','test');SIM.runFor(1);
+  L35.fn.reqTrigger('hit',{ship:'joss'},'t');SIM.runFor(1);L35.fn.reqTrigger('phase3',{wid:'dagger'},'t');SIM.runFor(1);
+  const p3=L().req.log.find(x=>x.k==='phase3'),hit=L().req.log.find(x=>x.k==='hit');
+  L().sec.anvil={k:'defend',arg:'dagger',trig:'phase3',fired:false,noted:false,adopted:false};const n0=L().secLog.length;
+  F.kill(fr(),null);SIM.runFor(2);
+  out.settled=[L().prim.state==='done',!p3||p3.by==='void',!!hit&&hit.by!=='void',L().secLog.length===n0,!L().sec.anvil.adopted];
+  N.COMMS_OFF=co;N.RES_THREAT=rt;N.REQ_OFF=0;N.REQ_GAP=gap;
+  return out;
+ });
+ ok(t35l7.wait.every(Boolean),'HC35 L7: holding for your signal past the stuck guard raises no "getting nowhere" '+JSON.stringify(t35l7.wait));
+ ok(t35l7.dead.every(Boolean),'HC35 L7: the freighter\'s hail, withdrawn once it\'s dead, nothing applied '+JSON.stringify(t35l7.dead));
+ ok(t35l7.settled.every(Boolean),'HC35 L7: once the job\'s settled its requests go (a hurt pilot\'s stays) and no Secondary is taken up '+JSON.stringify(t35l7.settled));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
