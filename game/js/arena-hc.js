@@ -1323,8 +1323,13 @@ function tipHtml(d,why){
 function showTip(el){
   const tip=byId('hcTip'),d=tipOf(el);if(!d||!(d.title||d.name))return;
   tip.innerHTML=tipHtml(d,el.dataset.why);tip.hidden=false;tipEl=el;
-  // anchored to the element: above it, or below if there's no room; kept on screen
+  const holo=!!el.closest('.h35-holo');tip.classList.toggle('is-holo',holo);   // Type 3.5's planning windows: their look, and beside the element
   const st=byId('hcStage').getBoundingClientRect(),r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  if(holo){let side='right',x=r.right-st.left+12;if(x+w>st.width-8){side='left';x=r.left-st.left-12-w;}if(x<8){side='below';x=Math.max(8,Math.min(st.width-8-w,r.left-st.left+r.width/2-w/2));}
+    let y=side==='below'?r.bottom-st.top+12:r.top-st.top+r.height/2-h/2;y=Math.max(8,Math.min(st.height-8-h,y));
+    tip.dataset.side=side;tip.style.setProperty('--py',Math.round(side==='below'?0:r.top-st.top+r.height/2-y)+'px');tip.style.setProperty('--px',Math.round(side==='below'?r.left-st.left+r.width/2-x:0)+'px');
+    tip.style.left=Math.round(x)+'px';tip.style.top=Math.round(y)+'px';return;}
+  // anchored to the element: above it, or below if there's no room; kept on screen
   let x=r.left-st.left+r.width/2-w/2,y=r.top-st.top-h-8;if(y<8)y=r.bottom-st.top+8;if(y+h>st.height-8)y=Math.max(8,r.top-st.top-h-8);
   tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x)))+'px';tip.style.top=Math.round(y)+'px';
 }
@@ -1333,7 +1338,7 @@ function hideTip(){clearTimeout(tipT);tipEl=null;tipPend=null;const t=byId('hcTi
 function hideTipIn(root){if((tipEl&&root.contains(tipEl))||(tipPend&&root.contains(tipPend)))hideTip();}
 /* the same tip at a point on the map (stage px): for things drawn on the canvas, like Type 3.5's subsystems */
 function showTipAt(x,y,d){
-  const tip=byId('hcTip');tip.innerHTML=tipHtml(d);
+  const tip=byId('hcTip');tip.innerHTML=tipHtml(d);tip.classList.remove('is-holo');
   tip.hidden=false;tipEl=null;const st=byId('hcStage').getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
   let ty=y-h-14;if(ty<8)ty=y+18;tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x-w/2)))+'px';tip.style.top=Math.round(ty)+'px';
 }

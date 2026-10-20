@@ -132,7 +132,7 @@ function dig(){
 /* =====================================================================
    The briefing (§4, §7.2): four steps, the map in plan view on the right
    ===================================================================== */
-const STEPS=['Objectives','Rules of engagement','Wings & assets','The plan'];   // window 1 in two parts: the primary, then the secondaries (feedback 2, §2)
+const STEPS=['Objectives','Rules','Wings & assets','The plan'];   // window 1 in two parts: the primary, then the secondaries (feedback 2, §2)
 function enterBrief(){
   if(!B.plan)B.plan=L35.defaultPlan(opp());
   const opening=B.screen!=='brief';B.screen='brief';B.stepAt=performance.now();if(opening)B.holoAnim='is-open';if(B.step!==1)B.part=1;   // it rises out of the beam
@@ -179,37 +179,49 @@ function checklist(){
   rows.push({text:'Jump-ins outside their sensor rings',ok:!ringed.length,warn:true,why:ringed.length?ringed.map(w=>w.name).join(', '):''});   // a warning, not a block
   return rows;
 }
-function checkHtml(){
-  return '<div class="h35-ready"><div class="h35-label">Readiness</div>'+checklist().map(r=>'<div class="sr-check'+(r.ok?'':' is-no')+'"><span class="sr-check__box">'+(r.ok?'✓':'')+'</span>'+esc(r.text)+(r.why?'<span class="sr-check__why">'+esc(r.why)+'</span>':'')+'</div>').join('')+'</div>';
-}
 const ready=()=>checklist().every(r=>r.ok||r.warn);
 /* the planning windows (feedback 1, §3.6): one holographic window a step, risen from the holo-table's beam over the
    dimmed Missions view; window 4 is wide, with a cut-out pane where the plan map shows through */
-const STEP_NEXT=['Rules of engagement','Wings & assets','The plan'];
-const nextName=()=>B.step===1&&B.part!==2?'Secondary objectives':STEP_NEXT[B.step-1];
+const STEP_NEXT=['Rules','Wings & assets','The plan'];
+const nextName=()=>B.step===1&&B.part!==2?'Secondaries':STEP_NEXT[B.step-1];
 const nextWhy=()=>B.step===1&&!B.plan.primary?'Pick a primary objective':null;
+/* the step track (the windows handoff, §1): a numbered circle and a label pill a step; done green with a ✓ badge, the
+   current one gold with a turning sunburst, the rest grey; the connectors solid green, gold chevrons to the next, grey */
 function trackHtml(){
   return '<ol class="h35-track">'+STEPS.map((n,i)=>{const st=i+1<B.step?'done':i+1===B.step?'on':'todo';
     const parts=i===0?'<i class="h35-node__parts">'+[1,2].map(n=>'<u class="'+(st!=='on'||n<=B.part?'is-on':'')+'"></u>').join('')+'</i>':'';   // window 1's two parts
-    return '<li class="h35-node is-'+st+'"><button type="button"'+(st==='done'?' data-step="'+(i+1)+'"':' disabled')+' data-tip="@" data-tt="'+(i+1)+' · '+esc(n)+'"'+(i===0?' data-tb="'+(st==='done'?'Done: click to go back to it. ':'')+'Part 1, the primary; part 2, the secondary objectives."':st==='done'?' data-tb="Done: click to go back to it."':'')+'><b>'+(st==='done'?'✓':(i+1))+'</b><span>'+esc(n)+'</span>'+parts+'</button></li>';}).join('')+'</ol>';
+    const link=i?'<i class="h35-link is-'+(i+1<=B.step?'done':i===B.step?'next':'todo')+'" aria-hidden="true"><u></u><u></u><u></u></i>':'';   // the connector into this node
+    return '<li class="h35-node is-'+st+'">'+link+'<button type="button"'+(st==='done'?' data-step="'+(i+1)+'"':' disabled')+' data-tip="@" data-tt="'+(i+1)+' · '+esc(n)+'"'+(i===0?' data-tb="'+(st==='done'?'Done: click to go back to it. ':'')+'Part 1, the primary; part 2, the secondary objectives."':st==='done'?' data-tb="Done: click to go back to it."':'')+'>'+
+      '<b><em>'+(i+1)+'</em>'+(st==='done'?'<i class="h35-node__ok">✓</i>':'')+'</b><span>'+esc(n)+parts+'</span></button></li>';}).join('')+'</ol>';
 }
-function stripHtml(){
-  return '<div class="h35-strip">'+checklist().map(r=>'<span class="h35-strip__i'+(r.ok?' is-ok':r.warn?' is-warn':' is-no')+'" data-tip="@" data-tt="'+esc(r.text)+'" data-tb="'+esc(r.ok?'Met.':r.why||(r.warn?'A warning, not a block.':'Missing: Launch waits for it.'))+'">'+(r.ok?'✓':r.warn?'!':'✕')+' '+esc(r.text)+'</span>').join('')+'</div>';
+/* the readiness pill (§1): what Launch still needs, in one line; its tip lists every check, a click opens the list */
+function needsHtml(why){
+  const rows=checklist(),miss=rows.filter(r=>!r.ok&&!r.warn).length,mark=r=>r.ok?'✓':r.warn?'!':'✕';
+  const list=rows.map(r=>mark(r)+' '+r.text+(r.why?' ('+r.why+')':'')).join('\n');
+  let h='<div class="h35-needs"><button type="button" class="h35-needs__pill'+(miss?' is-miss':' is-ok')+'" data-act="needs" data-tip="@" data-tt="Readiness" data-tb="'+esc(list)+'" aria-expanded="'+!!B.needsPop+'">Needs: '+
+    (miss?'<b>'+miss+' missing</b>':'<b>all met ✓</b>')+'</button>';
+  if(B.needsPop)h+='<div class="h35-needs__pop" role="list">'+rows.map(r=>'<div class="sr-check'+(r.ok?'':r.warn?' is-warn':' is-no')+'" role="listitem"><span class="sr-check__box">'+(r.ok?'✓':r.warn?'!':'')+'</span>'+esc(r.text)+(r.why?'<span class="sr-check__why">'+esc(r.why)+'</span>':'')+'</div>').join('')+'</div>';
+  if(why)h+='<span class="h35-holo__why">'+esc(why)+'</span>';
+  return h+'</div>';
 }
+/* the frame (§1): a chamfered holo plate, its edges as stacked layers (ink, cyan, fill, a thin inner line, the fill
+   again), a V-notch at the bottom where the beam comes in; the pedestal and the beam under it */
+const FRAME='<i class="h35-fr" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></i>';
 function briefHtml(){
   const last=B.step===4,ok=ready(),nw=nextWhy(),anim=B.holoAnim||'';B.holoAnim=null;
   const miss=checklist().filter(r=>!r.ok&&!r.warn).map(r=>r.text).join(' · ');
   let body;
   if(last)body='<div class="h35-holo__split"><div class="h35-holo__col" data-keep="c4">'+step4()+'</div><div class="h35-pane" data-pane="1" aria-hidden="true"></div></div>';
   else body='<div class="h35-holo__body is-step'+B.step+'" data-keep="b'+B.step+'.'+(B.step===1?B.part:1)+'">'+(B.step===1?(B.part===2?step1b():step1()):B.step===2?step2():step3())+'</div>';
-  const win='<div class="sr-window h35-holo'+(last?' is-wide':'')+(anim?' '+anim:'')+'" role="dialog" aria-label="Plan">'+
-    '<div class="sr-window__head h35-holo__head"><div class="sr-window__title">PLAN: '+esc(opp().title.toUpperCase())+'</div>'+trackHtml()+
-    '<button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-act="board" aria-label="Close" data-tip="@" data-tt="Back to the mission board" data-tb="Your plan is kept.">✕</button></div>'+
+  const win='<div class="sr-window h35-holo'+(last?' is-wide':'')+(anim?' '+anim:'')+'" role="dialog" aria-label="Plan">'+FRAME+
+    '<div class="h35-holo__head"><div class="h35-holo__title">PLAN: '+esc(opp().title.toUpperCase())+'</div>'+
+    '<button type="button" class="h35-holo__x" data-act="board" aria-label="Close" data-tip="@" data-tt="Back to the mission board" data-tb="Your plan is kept.">✕</button>'+trackHtml()+'</div>'+
     body+
-    '<div class="sr-window__foot h35-holo__foot"><button type="button" class="sr-btn" data-act="prev" data-tip="@" data-tt="'+(atStart()?'Mission board':'Back')+'" data-tb="Esc">◀ '+(atStart()?'Mission board':'Back')+'</button>'+stripHtml()+
-    (last?'<button type="button" class="sr-btn sr-btn--primary" data-act="launch" data-tip="h35:launch"'+(ok?'':' aria-disabled="true" data-why="'+esc(miss)+'"')+'>Launch ▶</button>':
-      '<button type="button" class="sr-btn sr-btn--primary" data-act="next" data-tip="@" data-tt="Next: '+esc(nextName())+'" data-tb="Enter"'+(nw?' aria-disabled="true" data-why="'+esc(nw)+'"':'')+'>Next: '+esc(nextName())+' ▶</button>')+
-    (nw||(last&&!ok)?'<span class="h35-holo__why">'+esc(nw||miss)+'</span>':'')+'</div></div>';
+    '<div class="h35-holo__foot"><button type="button" class="h35-fbtn h35-fbtn--back" data-act="prev" data-tip="@" data-tt="'+(atStart()?'Back to the mission board':'Back')+'" data-tb="Esc">◀ '+(atStart()?'Back to board':'Back')+'</button>'+
+    needsHtml(nw||(last&&!ok?miss:null))+
+    (last?'<button type="button" class="h35-fbtn h35-fbtn--go" data-act="launch" data-tip="h35:launch"'+(ok?'':' aria-disabled="true" data-why="'+esc(miss)+'"')+'>Launch ▶</button>':
+      '<button type="button" class="h35-fbtn h35-fbtn--go" data-act="next" data-tip="@" data-tt="Next: '+esc(nextName())+'" data-tb="Enter"'+(nw?' aria-disabled="true" data-why="'+esc(nw)+'"':'')+'>Next: '+esc(nextName())+' ▶</button>')+
+    '</div><i class="h35-holo__beam" aria-hidden="true"></i><i class="h35-holo__ped" aria-hidden="true"></i></div>';
   return (last?'':boardHtml())+'<div class="h35-holowrap'+(last?' is-wide':'')+'">'+win+'</div>';
 }
 /* a step: forward, back, or a done node; the window slides that way and flickers once */
@@ -895,9 +907,11 @@ function tick(now){
 }
 byId('hcClock').addEventListener('click',ev=>{const b=ev.target.closest('[data-act="plan"]');if(!b||B.screen!=='live')return;B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);});
 ROOT.addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b){return;}
+  const b=ev.target.closest('button'),a=b&&b.dataset.act;
+  if(a==='needs'){B.needsPop=!B.needsPop;render();return;}
+  if(B.needsPop&&!ev.target.closest('.h35-needs__pop')){B.needsPop=false;if(!a)render();}   // the readiness list: any other click closes it
+  if(!b)return;
   if(b.closest('[data-stop]')&&!b.dataset.act)return;
-  const a=b.dataset.act;
   if(b.getAttribute('aria-disabled')==='true'){if(b.dataset.why)API.flash(b.dataset.why);return;}
   if(a==='board'){if(B.screen==='brief')B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;showBoard(false);return;}   // the plan is kept
   if(a==='newopp'){B.seed=newSeed();rollAttempt();showBoard(false);return;}

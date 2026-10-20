@@ -2856,11 +2856,44 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(t35n1.prize.slice(0,9).every(Boolean),'HC35 N1: the prize crew mends her engines on her thrusters, she can\'t jump till then, then makes her cruise, turning like a capital ship '+JSON.stringify(t35n1.prize));
  ok(t35n1.phase.every(Boolean),'HC35 N1: a settled job isn\'t Phase 3; the response arriving is '+JSON.stringify(t35n1.phase));
+ // HC35 W1 (the windows handoff, §1): the step track reads done, current and to come; window 1's part dots; the readiness pill counts what's missing; no title attributes
+ const t35w1=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,out={};
+  const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
+  B.seed=4243;B.plan=null;B.step=1;B.part=1;X.fn.showBoard(false);q('.bf-plan [data-act="brief"]').click();
+  await new Promise(r=>setTimeout(r,400));
+  const track=()=>qa('.h35-node').map(n=>n.className.replace('h35-node is-','')).join(','),dots=()=>qa('.h35-node__parts u.is-on').length,
+    links=()=>qa('.h35-link').map(l=>l.className.replace(/.*is-/,'')).join(',');
+  out.frame=[!!q('.h35-holo .h35-fr'),!!q('.h35-holo__title'),/^PLAN: /.test(q('.h35-holo__title').textContent),!!q('.h35-holo__ped'),!!q('.h35-holo__beam')];
+  const t1=[track(),dots(),links(),q('.h35-fbtn--back').textContent.includes('Back to board')];
+  q('[data-primary="crash"]').click();const setLo=v=>{for(const w in B.plan.wings)for(const sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=v;};setLo('pods');
+  B.part=2;X.fn.render();const t1b=[track(),dots(),q('.h35-fbtn--back').textContent.includes('Back to board')];
+  B.step=3;B.part=1;X.fn.render();const t3=[track(),dots(),links(),!!q('.h35-node.is-done [data-step="1"]'),!q('.h35-node.is-todo [data-step]')];
+  out.track=[t1[0]==='on,todo,todo,todo',t1[1]===1,t1[2]==='next,todo,todo',t1[3],t1b[0]==='on,todo,todo,todo',t1b[1]===2,!t1b[2],
+    t3[0]==='done,done,on,todo',t3[1]===2,t3[2]==='done,done,next',t3[3],t3[4]];
+  // the pill: Crash with no bombs aboard is one missing; its tip lists every check; a click opens the list, any other click closes it
+  const rows=X.fn.checklist(),miss=rows.filter(r=>!r.ok&&!r.warn).length,pill=q('.h35-needs__pill');
+  out.pill=[miss>=1,pill.textContent.includes(miss+' missing'),pill.classList.contains('is-miss'),pill.dataset.tb.split('\n').length===rows.length,
+    rows.every(r=>pill.dataset.tb.includes(r.text)),!X.fn.ready()];
+  pill.click();const open=qa('.h35-needs__pop .sr-check').length===rows.length;q('.h35-holo__title').click();
+  out.pop=[open,!q('.h35-needs__pop')];
+  setLo('bombs');X.fn.render();const p2=q('.h35-needs__pill'),miss2=X.fn.checklist().filter(r=>!r.ok&&!r.warn).length;
+  out.met=[miss2===0,p2.textContent.includes('all met'),p2.classList.contains('is-ok')];
+  B.step=4;X.fn.render();out.w4=[!!q('.h35-holo.is-wide'),!!q('.h35-holo__title'),!!q('.h35-fbtn--go[data-act="launch"]'),!!q('.h35-needs__pill')];
+  out.title=qa('[title]').length;
+  B.step=1;B.part=1;X.fn.render();
+  return out;
+ });
+ ok(t35w1.frame.every(Boolean),'HC35 W1: the window has the holo frame, its title, the pedestal and the beam '+JSON.stringify(t35w1.frame));
+ ok(t35w1.track.every(Boolean),'HC35 W1: the step track reads done, current and to come, and window 1\'s part dots follow the part '+JSON.stringify(t35w1.track));
+ ok(t35w1.pill.every(Boolean)&&t35w1.pop.every(Boolean)&&t35w1.met.every(Boolean),'HC35 W1: the readiness pill counts the missing checks, its tip lists them all, a click opens the list '+JSON.stringify([t35w1.pill,t35w1.pop,t35w1.met]));
+ ok(t35w1.w4.every(Boolean),'HC35 W1: window 4 has the frame, the pill and Launch '+JSON.stringify(t35w1.w4));
+ ok(t35w1.title===0,'HC35 W1: no title attributes inside #arHc35 ('+t35w1.title+')');
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1,t35w1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
