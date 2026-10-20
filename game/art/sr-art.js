@@ -857,8 +857,10 @@ window.SR_ART=(function(){
       }},
     /* the first fleet ship (size 10, ~130 m). Can't land at Haven Rock: it's drawn in space only. cargo = two rows of
        standard modules along the spine (o.lost = module indices blown off, 0-5 port, 6-11 starboard); pd = point-defence
-       turrets that track o.aimAt [x,y] (world) or o.aim (radians off the nose); dmgSpots [x,y,r,threshold] place the
-       capital-scale damage (breaches, fires, smoke) instead of the fighter decals. */
+       turrets that track o.aimAt [x,y] (world) or o.aim (radians off the nose), or each its own with o.aims [a0..a3]
+       (radians off the nose); o.pdDead [bool×4] draws a dead turret (blackened, drooped, smoking); o.fire may be one
+       flag or one a turret. dmgSpots [x,y,r,threshold] place the capital-scale damage (breaches, fires, smoke) instead
+       of the fighter decals; o.breaches [[x,y,r]] (hull units) forces a breach where something hit it (a ram). */
     gafreighter:{name:'GA FL-400 Fleet Freighter',maker:'genastro',role:'Fleet freighter: convoy logistics, a mission target',game:'fl400',capital:1,size:10,noLand:1,deathMs:4200,
       mounts:{},defaults:{},cargo:{x0:26,step:-11.2,len:10,y0:4.8,w:8,n:6,hazard:[2,9]},pd:[[44.6,-7.6],[44.6,7.6],[-46.5,-16.6],[-46.5,16.6]],cut:-6,core:[-26,0],
       dmgSpots:[[20,-9,3,.12],[-8,9.2,3.2,.26],[47,3.4,2.4,.4],[-36,-6.2,2.8,.5],[3,-1.2,2.2,.62],[-51,9,2.6,.72],[31,9,2.8,.84]],
@@ -976,12 +978,18 @@ window.SR_ART=(function(){
       else{c.font='800 1.1px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=rgba('#f4f0e6',.7);c.fillText('GA-'+String(140+i*67).padStart(3,'0'),cx,cy+(i<K.n?1.6:-1.6));}
       rr(c,x,y,K.len,K.w,.5);c.lineWidth=lw;c.strokeStyle=C.ink;c.stroke();}}
   function capPD(c,D,lv,o,lw,t,fire,still,x,y,ang,s){
-    for(const[px,py]of D.pd){let a=still?(py<0?-.5:.5):(o.aim!=null?o.aim:Math.sin(t*.6+px*.3)*.9+(py<0?-.4:.4));
+    D.pd.forEach(([px,py],i)=>{let a=still?(py<0?-.5:.5):(o.aim!=null?o.aim:Math.sin(t*.6+px*.3)*.9+(py<0?-.4:.4));
       if(o.aimAt&&!still){const wx=x+(px*Math.cos(ang)-py*Math.sin(ang))*s,wy=y+(px*Math.sin(ang)+py*Math.cos(ang))*s;a=Math.atan2(o.aimAt[1]-wy,o.aimAt[0]-wx)-ang;}
+      if(o.aims&&o.aims[i]!=null)a=o.aims[i];   // each turret on its own target (radians off the nose)
+      if(o.pdDead&&o.pdDead[i]){   // a dead turret: blackened, its barrels drooped, a wisp of smoke
+        c.save();c.translate(px,py);circ(c,0,0,2.5);ink(c,'#2a2626',lw*.8);c.rotate(py<0?-1.25:1.25);
+        for(const yy of[-.95,.15]){rr(c,.4,yy,4.2,.8,.35);ink(c,'#1a1818',lw*.55);}circ(c,0,0,1.2);c.fillStyle='#120c0c';c.fill();c.restore();
+        if(!still){const k=(t*.7+i*.37)%1;c.save();c.globalAlpha=.35*(1-k);circ(c,px-k*3,py+(py<0?-1:1)*k*4,1+k*2.4);c.fillStyle='#8a8a90';c.fill();c.restore();}
+        return;}
       c.save();c.translate(px,py);circ(c,0,0,2.5);ink(c,lv.hull2,lw*.8);c.rotate(a);
       for(const yy of[-.95,.15]){rr(c,.4,yy,4.8,.8,.35);ink(c,'#3b3a44',lw*.55);}rr(c,-1.7,-1.7,3.2,3.4,.9);ink(c,lv.dark,lw*.7);
-      if(fire&&Math.sin(t*31+px)>.2){c.fillStyle='#fff3c8';c.beginPath();c.arc(5.6,-.55,.9,0,TAU);c.arc(5.6,.55,.9,0,TAU);c.fill();}
-      circ(c,0,0,.55);c.fillStyle=C.hegHi;c.fill();c.restore();}}
+      if((Array.isArray(fire)?fire[i]:fire)&&Math.sin(t*31+px)>.2){c.fillStyle='#fff3c8';c.beginPath();c.arc(5.6,-.55,.9,0,TAU);c.arc(5.6,.55,.9,0,TAU);c.fill();}
+      circ(c,0,0,.55);c.fillStyle=C.hegHi;c.fill();c.restore();});}
   function capDamage(c,D,dmg,t,still,lw){let n=0;const A0=c.globalAlpha;   // alpha-composable: capitalDeath fades the hull
     for(const[sx,sy,sr,th]of D.dmgSpots){if(dmg<=th)continue;const q=Math.min(1,(dmg-th)/.25),R=sr*(1+q*.8);
       const g=c.createRadialGradient(sx,sy,0,sx,sy,R*1.6);g.addColorStop(0,'rgba(20,14,10,.7)');g.addColorStop(1,'rgba(20,14,10,0)');c.fillStyle=g;c.fillRect(sx-R*1.6,sy-R*1.6,R*3.2,R*3.2);
@@ -1019,7 +1027,7 @@ window.SR_ART=(function(){
     if(att.has('plates'))for(const sy of[-1,1]){rr(c,-12,sy>0?3.2:-7.2,9,4,.8);ink(c,'#7a7e86',lw*.7);c.fillStyle=rgba(C.ink,.5);for(const px of[-11,-4.8]){circ(c,px,sy*5.2,.35);c.fill();}}
     if(att.has('tank')){rr(c,-6,(D.mounts&&D.mounts.primary?Math.abs(D.mounts.primary[0][1]):8)+2,12,3.4,1.7);ink(c,'#b8b0a0',lw*.7);}
     // weapons at their mounts
-    const fireNow=o.fire&&Math.sin(t*14)>0;
+    const fireNow=Array.isArray(o.fire)?(Math.sin(t*14)>0?o.fire:null):o.fire&&Math.sin(t*14)>0;   // o.fire: one flag for all, or one a turret
     const mountAll=(key,list)=>{const Wd=SHIP_WEAPONS[key];if(!Wd||!list)return;for(const m of list){c.save();c.translate(m[0],m[1]);Wd.draw(c,t,fireNow,m[2]||1);c.restore();}};
     if(D.mounts){mountAll(L.primary,D.mounts.primary);mountAll(L.secondary,D.mounts.secondary);if(att.has('doorgun'))mountAll('doorgun',D.mounts.door);
       if(D.mounts.pylon)for(const k2 of att){const Wd=SHIP_WEAPONS[k2];if(Wd&&Wd.pylon)for(const m of D.mounts.pylon){c.save();c.translate(m[0],m[1]);Wd.draw(c,t,fireNow,m[2]||1,null,lv,o);c.restore();}}}
@@ -1062,6 +1070,7 @@ window.SR_ART=(function(){
     const faceless=D.slit||lv.faceless||D.drone;
     if(D.bridge){const[bx,bw]=D.bridge;for(let i=0;i<7;i++){const by=-bw+i*bw*2/6;rr(c,bx-.9,by-.45,1.4,.9,.3);c.fillStyle=off?rgba(C.hegHi,.25):C.hegHi;if(!off){c.shadowColor=C.heg;c.shadowBlur=5;}c.fill();c.shadowBlur=0;}}
     if(D.dmgSpots&&dmg>0)capDamage(c,D,dmg,t,still,lw);
+    if(o.breaches&&o.breaches.length)capDamage(c,{dmgSpots:o.breaches.map(b=>[b[0],b[1],b[2]||6,0])},1,t,still,lw);   // forced breaches (a ram's impact)
     if(D.slit){const[sx2,sy2,sw,sh]=D.slit;rr(c,sx2-sw/2,sy2-sh/2,sw,sh,sh/2);ink(c,'#0c1024',lw);if(!off){c.save();c.shadowColor=C.heg;c.shadowBlur=8;rr(c,sx2-sw/2+1,sy2-.35,sw-2,.7,.35);c.fillStyle=C.hegHi;c.fill();c.restore();}}
     c.restore();
     if(D.canopy){const[cx0,cy0,rx,ry]=D.canopy;

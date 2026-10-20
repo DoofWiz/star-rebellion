@@ -19,7 +19,7 @@
 window.SIMHC=(function(){
 const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
-const SIM_VERSION='hc-1';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc-2';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -55,7 +55,8 @@ let S=null;
    absent unless a layer sets it, and absent, High Command runs exactly as before: tools/arena-smoke.js HC35 1 checks
    the hc1–hc3 hashes. classExtra{cls: row} · loadoutExtra(row, list) · think(s) → true skips · goal(s) → a goal ·
    damage(t, dmg, skipShield, fromFront, hit) → a result · canJump(s) → false blocks · canFire(s, t, q) → false blocks ·
-   step(dt) · event(kind, text, o, e) */
+   step(dt) · event(kind, text, o, e) · noCollide(a, b) and noAvoid(s, o) → true exempts the pair · noSep(s) → true: it
+   ignores its wingmates' spacing */
 const HK={};
 const rowOf=cls=>(HK.classExtra&&HK.classExtra[cls])||SRDB.ship(cls);
 
@@ -377,7 +378,7 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   t.dmgAcc=(t.dmgAcc||0)+dmg;
   S.fx.push({x:hit.x,y:hit.y,t0:S.t,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx),   // surface, style, homing: for the
     surface:r.sd>0&&r.ad+r.hd===0?'shield':r.hd>0?'hull':'armour',style:PROJ_OF[w.id]||null,homing:!!homing});   // visual pass (C-73)
-  if(r.sd>0)t.shFx={zone:r.zone,t:S.t};
+  if(r.sd>0){t.shFx={zone:r.zone,t:S.t};(t.zoneHitT||(t.zoneHitT={}))[r.zone]=S.t;}
   if(t.hull<=0&&t.alive)destroyShip(t,s);
   return {dmg,imp,r};
 }
@@ -1132,7 +1133,7 @@ function respond(id,key){
    ===================================================================== */
 const ARENA_MOVESETS={green:[],regular:['boost'],veteran:['boost','drift'],ace:['boost','drift','kturn','barrel']};   // copied from sim-sb.js
 const ABILITIES={
-  shields:{name:'Boost Shields',cd:8,line:'Push power to the weaker shield. Auto: shields under half and under fire. Emergency: shields gone and still taking hits.'},
+  shields:{name:'Boost Shields',get cd(){return SHIELD_CD;},line:'Push power to the weaker shield. Auto: a shield half under 30% and hit in the last 2 s. Emergency: shields gone and still taking hits.'},
   lockin:{name:'Lock In',cd:14,line:'Breathe, focus: nerve +35. Auto: SHAKEN. Emergency: PANICKED.'},
   boost:{name:'Boost',cd:10,line:'Burn hard for 2 s. Auto: closing on a far target or getting out. Emergency: pinned and hurt.'},
   drift:{name:'Drift',cd:10,line:'Swing the nose (and guns) onto a pursuer while flying on. Auto: withdrawing with something behind. Emergency: withdrawing and hit.'},
@@ -1163,7 +1164,8 @@ function abilityTriggers(s,k){
   const b=s.beh||{},t=byId(b.target);
   const mis=incomingMissile(s),misT=mis?dist(mis,s)/misSpd():1e9,misFar=!!mis&&misT>=MIS_BREAK_T,misClose=!!mis&&misT<MIS_BREAK_T;
   switch(k){
-    case 'shields':return {want:sf<0.5&&S.t-s.hitT<2,emerg:sf<=0.01&&hitNow};
+    case 'shields':{const hz=['F','R'].some(z=>s.segs[z].max>0&&s.segs[z].val/s.segs[z].max<0.3&&s.zoneHitT&&s.zoneHitT[z]!=null&&S.t-s.zoneHitT[z]<2);   // a half under 30% and just hit (feedback 1, §3.2)
+      return {want:hz,emerg:sf<=0.01&&hitNow};}
     case 'lockin':return {want:mor==='SHAKEN',emerg:mor==='PANICKED'};
     case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw'||(s.mv==='extend'&&!!onSix(s))||misFar,emerg:(pinned&&hf<0.5)||misFar};   // C-72: boost away from a missile
     case 'drift':{const six=onSix(s);return {want:b.kind==='withdraw'&&!!six,emerg:b.kind==='withdraw'&&hitNow};}
@@ -1196,7 +1198,7 @@ function useAbility(s,k,manual){
   else if(k==='fieldrep')s.hull=Math.min(s.maxHull,s.hull+Math.ceil(0.15*s.maxHull));
   else if(k==='chaff')throwChaff(s);
   (s.abLog=s.abLog||[]).push({k,t:+S.t.toFixed(2),how:manual?'manual':s.abWhy||'auto'});
-  floater(s,ABILITIES[k].name.toUpperCase(),C.shield);
+  if(k!=='shields')floater(s,ABILITIES[k].name.toUpperCase(),C.shield);   // Boost Shields shows as the shield's refill (feedback 1, §3.3)
   return {ok:true};
 }
 function abilityTick(s){
@@ -1693,7 +1695,7 @@ function avoidHeading(s,want){
       if(d<DISENGAGE_R&&d>1){const w=(DISENGAGE_R-d)/DISENGAGE_R*1.6;ax+=dx/d*w;ay+=dy/d*w;}
     }
   }
-  for(const o of S.ships){   // wingmates keep a little room
+  if(!(HK.noSep&&HK.noSep(s)))for(const o of S.ships){   // wingmates keep a little room (a layer can exempt a ship: Type 3.5's docking)
     if(o===s||!o.alive||o.faction!==s.faction||o.struct)continue;
     const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy);
     if(d<SEP_R&&d>1){const k=(SEP_R-d)/SEP_R*1.5;ax+=dx/d*k;ay+=dy/d*k;}
@@ -1740,7 +1742,7 @@ function evadeVec(s){
     const k=urg*AVOID_W,sx=side>0?hy:-hy,sy=side>0?-hx:hx;
     ex+=sx*k;ey+=sy*k;if(urg>worst){worst=urg;who=o;}
   };
-  for(const o of S.ships){if(o===s||!o.alive)continue;test(o.x,o.y,o.struct?0:o.vx,o.struct?0:o.vy,rs+bodyR(o)+pad,o);}
+  for(const o of S.ships){if(o===s||!o.alive||(HK.noAvoid&&HK.noAvoid(s,o)))continue;test(o.x,o.y,o.struct?0:o.vx,o.struct?0:o.vy,rs+bodyR(o)+pad,o);}
   for(const r of S.rocks)test(r.x,r.y,0,0,rs+rockR(r)+pad,null);
   if(!worst)return null;
   s.evadeAt=S.t;s.evUrg=worst;if(worst>0.6&&who)s.dodgeT=S.t;   // a real dodge (the HUD shows a symbol)
@@ -1785,21 +1787,28 @@ function fly(s,dt){
 let COLLIDE_DMG=40;       // damage at a closing speed of 1,000 a second (a head-on at full speed is ~4 ×). placeholder
 let COLLIDE_K=1.15;       // a ship's collision radius, × its hull length (HULL_LEN). placeholder
 let COLLIDE_BOUNCE=0.3;   // restitution. placeholder
+let SHIELD_CD=24;        // Boost Shields' recharge (was 8: it fired too often, feedback 1 §3.2). placeholder
 const bodyR=s=>(s.struct?HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*1.2:HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*COLLIDE_K)*(s.row.hitK||1);
 const rockR=r=>r.r*0.95;
 function sweptMin(ax,ay,dx,dy){   // the closest a point a + u·d (u in 0..1) comes to the origin: [u, distance]
   const L=dx*dx+dy*dy,u=L<1e-9?1:clamp(-(ax*dx+ay*dy)/L,0,1);
   return [u,Math.hypot(ax+dx*u,ay+dy*u)];
 }
-function bump(s,o,nx,ny,vn,dmg,what){   // s takes dmg, o (a ship or null) is what it hit
+/* a ship's mass for collisions (feedback 1, §3.8): its size class in metres (sr-art.js's SIZE_M, copied), squared, so
+   a Cross (16 m, 256) hitting the FL-400 (130 m, 16,900) moves it 1.5% as much as it moves itself */
+const SIZE_M={1:2,2:4,3:8,4:12,5:16,6:25,7:40,8:60,9:90,10:130,11:180,12:250,13:350,14:500,15:700,16:1000,17:1500,18:2500,19:4000,20:6000};
+const massOf=s=>s.struct?1e9:Math.pow(SIZE_M[Math.max(1,Math.min(20,Math.round(s.row.size||5)))],2);
+function bump(s,o,nx,ny,vn,dmg,what,k){   // s takes dmg, o (a ship or null) is what it hit; k: its share of the impulse (by mass)
   const fromFront=(nx*Math.cos(s.h)+ny*Math.sin(s.h))<0;   // n points from o to s
   const r=dmg>0?applyDamage(s,dmg,false,fromFront):{sd:0,ad:0,hd:0};
   if(dmg>0){s.hitT=S.t;if(r.sd>0)s.shFx={zone:r.zone,t:S.t};}
-  s.spinK=(S.rng()<0.5?-1:1)*Math.min(4,vn/250);s.w+=s.spinK;   // knocked about
+  s.spinK=(S.rng()<0.5?-1:1)*Math.min(4,vn/250)*(k==null?1:k);s.w+=s.spinK;   // knocked about, as much as its share of the mass lets it be
   if(dmg>=1&&s.faction==='reb'&&!s.quiet)adjCool(s,-Math.min(15,4+dmg/4));
   if(s.hull<=0&&s.alive)destroyShip(s,null);
   return r;
 }
+/* the impulse a collision gave a ship this step, for a layer that flies a ship itself (Type 3.5's freighter, §3.8) */
+function knock(s,dx,dy){const k=s.knock||(s.knock={x:0,y:0});k.x+=dx;k.y+=dy;}
 function collideTick(){
   const L=S.ships.filter(s=>s.alive);
   for(let i=0;i<L.length;i++){
@@ -1824,23 +1833,24 @@ function collideTick(){
     if(!a.alive)continue;
     for(let j=i+1;j<L.length;j++){
       const b=L[j];if(!b.alive||(a.struct&&b.struct))continue;
+      if(HK.noCollide&&HK.noCollide(a,b))continue;   // a layer's exemption (Type 3.5: a boarder on its final leg, a ram, and their target)
       const R=ra+bodyR(b);if(Math.abs(a.x-b.x)>R+150||Math.abs(a.y-b.y)>R+150)continue;
       const [u,d]=sweptMin(a.px-b.px,a.py-b.py,(a.x-a.px)-(b.x-b.px),(a.y-a.py)-(b.y-b.py));if(d>=R)continue;
       const ax=a.px+(a.x-a.px)*u,ay=a.py+(a.y-a.py)*u,bx=b.px+(b.x-b.px)*u,by2=b.py+(b.y-b.py)*u;
       let nx=ax-bx,ny=ay-by2;const nl=Math.hypot(nx,ny);if(nl<1e-6){nx=Math.cos(a.vh+Math.PI/2);ny=Math.sin(a.vh+Math.PI/2);}else{nx/=nl;ny/=nl;}
       const vn=-((a.vx-b.vx)*nx+(a.vy-b.vy)*ny);
-      const ma=a.struct?1e6:a.row.size||5,mb=b.struct?1e6:b.row.size||5,ka=mb/(ma+mb),kb=ma/(ma+mb);
+      const ma=massOf(a),mb=massOf(b),ka=mb/(ma+mb),kb=ma/(ma+mb);   // by mass (feedback 1, §3.8), not size class
       // pushed apart either way; only a closing contact hurts and bounces
       const over=R+1-Math.hypot(a.x-b.x,a.y-b.y);
       if(over>0){if(!a.struct){a.x+=nx*over*ka;a.y+=ny*over*ka;}if(!b.struct){b.x-=nx*over*kb;b.y-=ny*over*kb;}}
       if(vn<=0)continue;
-      if(!a.struct){a.vx+=(1+COLLIDE_BOUNCE)*vn*ka*nx;a.vy+=(1+COLLIDE_BOUNCE)*vn*ka*ny;a.vh=Math.atan2(a.vy,a.vx);}
-      if(!b.struct){b.vx-=(1+COLLIDE_BOUNCE)*vn*kb*nx;b.vy-=(1+COLLIDE_BOUNCE)*vn*kb*ny;b.vh=Math.atan2(b.vy,b.vx);}
+      if(!a.struct){const dx=(1+COLLIDE_BOUNCE)*vn*ka*nx,dy=(1+COLLIDE_BOUNCE)*vn*ka*ny;a.vx+=dx;a.vy+=dy;a.vh=Math.atan2(a.vy,a.vx);knock(a,dx,dy);}
+      if(!b.struct){const dx=-(1+COLLIDE_BOUNCE)*vn*kb*nx,dy=-(1+COLLIDE_BOUNCE)*vn*kb*ny;b.vx+=dx;b.vy+=dy;b.vh=Math.atan2(b.vy,b.vx);knock(b,dx,dy);}
       const base=COLLIDE_DMG*(vn/1000)*(vn/1000)*2;
       S.m.collisions=(S.m.collisions||0)+1;
       S.fx.push({x:(ax+bx)/2,y:(ay+by2)/2,t0:S.t,kind:'hull',src:'crash',speed:vn});floater(a,'COLLISION',C.hazard);
       if(base>=1)pushEvent('collide',a.name+' and '+b.name+' collide',{ship:a.faction==='reb'?a.id:b.id,x:a.x,y:a.y,tone:'hazard'});
-      bump(a,b,nx,ny,vn,base*ka,'ship');bump(b,a,-nx,-ny,vn,base*kb,'ship');
+      bump(a,b,nx,ny,vn,base*ka,'ship',ka);bump(b,a,-nx,-ny,vn,base*kb,'ship',kb);
       for(const q of [a,b])if(q.alive&&base>=1)say(q,pickLine(q,'bump'),'hazard',true);
       if(!a.alive)break;
     }
@@ -2145,6 +2155,7 @@ const TUNE={
   MIS_SHAKE:{get:()=>MIS_SHAKE,set:v=>{MIS_SHAKE=v;},min:0,max:2.5,step:0.1,label:'A break shakes a missile × its missing lock'},
   MIS_BREAK_T:{get:()=>MIS_BREAK_T,set:v=>{MIS_BREAK_T=v;},min:0,max:3,step:0.1,label:'Break from a missile at (s out)'},
   COLLIDE_BOUNCE:{get:()=>COLLIDE_BOUNCE,set:v=>{COLLIDE_BOUNCE=v;},min:0,max:1,step:0.05,label:'Collision bounce'},
+  SHIELD_CD:{get:()=>SHIELD_CD,set:v=>{SHIELD_CD=v;},min:2,max:90,step:1,label:'Boost Shields recharge (s)'},
   SPAWN_GAP:{get:()=>SPAWN_GAP,set:v=>{SPAWN_GAP=v;},min:150,max:800,step:10,label:'Starting spacing (on restart)'},
   THINK_SECS:{get:()=>THINK_SECS,set:v=>{THINK_SECS=v;},min:0.1,max:2,step:0.1,label:'Think every (s)'},
   ROUND_SECS:{get:()=>ROUND_SECS,set:v=>{ROUND_SECS=v;},min:1,max:6,step:0.25,label:'Top dial move takes (s)'},
@@ -2240,7 +2251,7 @@ for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
-  Fighting:['ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
+  Fighting:['SHIELD_CD','ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_WATCH','INTERPOSE_K','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R','HEG_RETREAT','LURE_DIST','STANDOFF_R','CLEAR_R','STRIKE_WAIT'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
@@ -2261,6 +2272,6 @@ return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
-    rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,rockHit,wdefOf,
+    rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,
     presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,addWing,mkShip,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
 })();

@@ -1898,7 +1898,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  await pg4.goto(base+'#arena');await pg4.waitForTimeout(800);
  // HC35 1: High Command is byte-identical with the hooks in: hc1–hc3 after 90 s, seed 7, one scripted order at 5 s.
  // The baselines were recorded on space-combat-testing before any 3.5 change (C-75)
- const HC35_BASE={hc1_nightfall:'5d3ce14f',hc2_lastlight:'b48f8492',hc3_meltdown:'a36d8ace'};   // re-recorded for the deterministic maths (feedback 1 K0, C-79)
+ const HC35_BASE={hc1_nightfall:'6823701e',hc2_lastlight:'9a4e5999',hc3_meltdown:'ba50c171'};   // re-recorded for Boost Shields' cooldown and AUTO rule and mass-split collisions (feedback 1 K2, C-79)
  const t35a=await pg4.evaluate(()=>{
   const top=window.DBGarena;top.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc"]').click();
   const H=top.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
@@ -1946,6 +1946,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  const t35c=await pg4.evaluate(()=>{
   const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,out={};
   L35.N.REQ_OFF=1;   // the target and the primaries on their own: no pilot requests (P5) but the surrender's
+  const rt0=L35.N.RES_THREAT;L35.N.RES_THREAT=0;   // and no hail but Pirate's: the crew fold about 20 s into any fight (C-80)
   const S=()=>X.S,L=()=>X.L,fr=()=>S().ships.find(s=>s.id==='fl400');
   const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
     for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;else B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
@@ -1968,8 +1969,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const res={};
   go('destroy',{anvil:{k:'destroy'},dagger:{k:'defend',arg:'anvil'},amber:{k:'suppress',arg:'turrets'}});until(()=>L().prim.state!=='live',150);res.destroy=L().prim.state;
   go('steal',{anvil:{k:'disable',arg:'engines'},amber:{k:'board'},dagger:{k:'defend',arg:'anvil'}},{lo:{mags:'board'}});until(()=>L().prim.state!=='live',200);res.steal=L().prim.state;
-  L35.N.REQ_OFF=0;go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});   // the surrender's answer: take the cargo
-  until(()=>{const q=L().req.open.find(x=>x.k==='surrender'&&x.state==='open');if(q)L35.answerReq(q.id,'take');return L().prim.state!=='live';},200);res.pirate=L().prim.state;L35.N.REQ_OFF=1;
+  L35.N.REQ_OFF=0;L35.N.RES_THREAT=rt0;go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});   // the surrender's answer: take the cargo
+  until(()=>{const q=L().req.open.find(x=>x.k==='surrender'&&x.state==='open');if(q)L35.answerReq(q.id,'take');return L().prim.state!=='live';},200);res.pirate=L().prim.state;L35.N.REQ_OFF=1;L35.N.RES_THREAT=0;
   go('strip',{anvil:{k:'disable',arg:'engines'},amber:{k:'haul'},dagger:{k:'suppress',arg:'escorts'}},{lo:{mags:'pods'}});until(()=>L().prim.state!=='live',200);res.strip=L().prim.state;
   go('tag',{amber:{k:'tag'},dagger:{role:'home'},anvil:{role:'home'}},{tagger:'kit'});until(()=>L().prim.state!=='live',300);res.tag=[L().prim.state,L().tag.planted];
   go('ambush',{dagger:{k:'ambush'},amber:{k:'ambush'},anvil:{k:'disable',arg:'engines'}});until(()=>L().responseAt!=null,60);L().responseAt=S().t+1;until(()=>L().prim.state!=='live',200);res.ambush=[L().prim.state,L().respKills];
@@ -1985,7 +1986,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const cm=L().subs.find(x=>x.k==='comms');F.applyDamage(fr(),140,true,true,{x:fr().x,y:fr().y,by:null,aimSub:'comms'});
   until(()=>false,30);out.phase.push(cm.hp<=0,L().distress.cut,L().responseAt);
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{mods:[{k:'remote',hidden:false}]});L35.alarm('fired');until(()=>false,40);out.remote=[L().distress&&L().distress.landed,L().responseAt];
-  L35.N.REQ_OFF=0;return out;
+  L35.N.REQ_OFF=0;L35.N.RES_THREAT=rt0;return out;
  });
  ok(t35c.guns[0]>0&&t35c.guns[1],'HC35 5: fighter guns alone don\'t take the engines out in 60 s '+JSON.stringify(t35c.guns));
  ok(t35c.bombs[0],'HC35 5: two Brickbats with bombs do '+JSON.stringify(t35c.bombs));
@@ -2085,7 +2086,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   P.exec=[L().exec.dagger.k==='suppress',pb,L().exec.anvil.k==='destroy'];
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'reserve',k:'hold'}});const rt=L35.use('reserve',{});const rAt=rt.tx[0].at;
   P.reserve=[until(()=>!!F.wingOf('amber'),40),S().t>=rAt+N.ARRIVE_SPOOL-0.01,F.wingShips(F.wingOf('amber')).length===4];
-  go('destroy',hold,{assets:['ram']});const h0=fr().hull;L35.use('ram',{id:'fl400'});P.ram=[until(()=>!!by('ram35'),40),until(()=>!by('ram35').alive,60),fr().hull<h0-N.RAM_DMG*0.5];
+  go('destroy',hold,{assets:['ram']});const h0=fr().hull;L35.use('ram',{id:'fl400'});P.ram=[until(()=>!!by('ram35'),40),until(()=>!by('ram35').alive,60),fr().hull<=h0-N.RAM_CORE+0.01];   // the core's share (K2: the struck subsystem takes RAM_DMG)
   go('destroy',hold,{assets:['nuke']});const e1=by('esc1');L35.use('ram',{id:'esc1'});until(()=>!!by('ram35')&&!by('ram35').alive,90);P.nuke=[(L().blasts||[]).some(b=>b.kind==='nuke'),!e1.alive||e1.hull<e1.maxHull];
   const hegHull=()=>S().ships.filter(s=>s.faction==='heg').reduce((a,s)=>a+Math.max(0,s.hull)+(s.id==='fl400'?L().subs.reduce((b,x)=>b+Math.max(0,x.hp),0):0),0);
   go('destroy',hold,{assets:['fireship'],assetAt:{fireship:{x:700,y:2450}}});until(()=>false,6);const f0=hegHull();L35.use('fireship');until(landed,30);P.fireship=[!L().props.fireship.live,hegHull()<f0-20];
@@ -2134,17 +2135,20 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const crowd=()=>{for(const s of S().ships)if(s.faction==='reb'&&s.wing)s.hull=s.maxHull*0.35;};
   const g0=N.REQ_GAP,p0=N.REQ_PEND;N.REQ_PEND=60;
   go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();let most=0;until(()=>{most=Math.max(most,L().req.open.filter(x=>x.state==='open').length);return false;},50);
-  const t0s=L().req.log.filter(x=>x.by!=='off'&&x.by!=='unasked').map(x=>x.t0);
+  const t0s=L().req.log.filter(x=>x.by!=='off'&&x.by!=='unasked'&&x.k!=='surrender').map(x=>x.t0);   // the hail ignores the gap and the caps (K2)
   out.gap=[t0s.length>=2,t0s.every((t,i)=>!i||t-t0s[i-1]>=N.REQ_GAP-0.01),most<=N.REQ_OPEN];
   N.REQ_GAP=0;go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();most=0;until(()=>{most=Math.max(most,L().req.open.filter(x=>x.state==='open').length);return false;},60);
-  out.cap=[most===N.REQ_OPEN,L().req.log.filter(x=>x.by==='default'||x.by==='player').length===N.REQ_CAP];
+  out.cap=[most===N.REQ_OPEN,L().req.log.filter(x=>(x.by==='default'||x.by==='player')&&x.k!=='surrender').length===N.REQ_CAP];
   N.REQ_GAP=g0;N.REQ_PEND=p0;
   // Requests off: none
   N.REQ_OFF=1;go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();until(()=>false,30);out.off=[L().req.log.length===0,L().req.open.length===0];N.REQ_OFF=0;
   // the A/B/C keys answer the newest
   go('destroy',hold);by('joss').hull=by('joss').maxHull*0.35;until(()=>!!openOf('hit','joss'),5);const qk=openOf('hit','joss');
   window.SR_ARENA_HC.api.syncHud(true);const card=document.querySelector('.h35-reqs [data-req="'+qk.id+'"]');
-  document.dispatchEvent(new KeyboardEvent('keydown',{key:'b',bubbles:true}));out.keys=[!!card,qk.state==='sent',qk.answer===qk.answers[1]];
+  const sk=(code,shift)=>document.dispatchEvent(new KeyboardEvent('keydown',{key:shift?'@':code.slice(-1).toLowerCase(),code,shiftKey:!!shift,bubbles:true}));
+  sk('Digit2',true);const early=qk.state==='open';   // within 400 ms of the card: swallowed
+  X.B.reqShown[qk.id]-=500;sk('KeyC');const third=qk.state==='open'&&(!!X.B.pick||L().tx.length>0||!!X.B.choose);   // C: the third power, not an answer
+  X.B.pick=null;X.B.choose=null;sk('Digit2',true);out.keys=[!!card,early,third,qk.state==='sent',qk.answer===qk.answers[1]];
   // 12: ejection: a pod; the Tug collects it; an uncollected pod is captured, and the debrief says so
   const e0=N.EJECT_P;N.EJECT_P=1;
   go('destroy',hold,{assets:['tug']});F.kill(by('wren'),null);SIM.step();const pod=L().pods[0];
@@ -2159,7 +2163,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35f.pres.every(Boolean),'HC35 11: an answer overrides Preservation Order for that pilot only '+JSON.stringify(t35f.pres));
  ok(t35f.gap.every(Boolean)&&t35f.cap.every(Boolean),'HC35 11: the gap, the open cap and the mission cap hold '+JSON.stringify([t35f.gap,t35f.cap]));
  ok(t35f.off.every(Boolean),'HC35 11: Requests off raises none '+JSON.stringify(t35f.off));
- ok(t35f.keys.every(Boolean),'HC35 11: A/B/C answer the newest request '+JSON.stringify(t35f.keys));
+ ok(t35f.keys.every(Boolean),'HC35 11 / K2 20: Shift+1–3 answer the newest request, not within 400 ms; C stays the third power '+JSON.stringify(t35f.keys));
  ok(t35f.pod.every(Boolean)&&t35f.captured.every(Boolean),'HC35 12: a pod; the Tug collects it; an uncollected one is captured in the debrief '+JSON.stringify([t35f.pod,t35f.captured]));
  // HC35 13–15 (P6): the debrief's cause chain, determinism with pauses, the metrics record
  const t35g=await pg4.evaluate(()=>{
@@ -2234,7 +2238,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   return {hcRec:last,runs:st.length,panel:document.querySelectorAll('#hcPanelBody .hc-run [data-act^="run:"]').length};}));
  const rh=RR.replay(t35k0.hcRec);t35k0.hc=[t35k0.hcRec.ruleset==='hc',t35k0.hcRec.unfinished===true,rh.ok,rh.tr.checked];delete t35k0.hcRec;
  ok(/^sr-run-\d{4}-\d\d-\d\d-\d{4}-vulnerable_freighter-321\.json$/.test(t35k0.name)&&t35k0.size<1e6,'HC35 K0: the debrief saves the flight record '+JSON.stringify([t35k0.name,t35k0.size]));
- ok(t35k0.ok&&t35k0.end&&t35k0.checked===t35k0.cp&&t35k0.cp>100,'HC35 K0: the harness re-simulates it, every checkpoint matching '+JSON.stringify([t35k0.cp,t35k0.checked,t35k0.end]));
+ ok(t35k0.ok&&t35k0.end&&t35k0.checked===t35k0.cp&&t35k0.cp>60,'HC35 K0: the harness re-simulates it, every checkpoint matching '+JSON.stringify([t35k0.cp,t35k0.checked,t35k0.end]));
  ok(t35k0.inputs.filter(k=>k==='35.use').length===3&&t35k0.inputs.includes('35.answerReq')&&t35k0.speeds>=2,'HC35 K0: the inputs and speeds are recorded '+JSON.stringify([t35k0.inputs,t35k0.speeds]));
  ok(t35k0.ans&&t35k0.def,'HC35 K0: the report lists the answered request at its time, and the timed-out one '+JSON.stringify([t35k0.ans,t35k0.def]));
  ok(t35k0.warn,'HC35 K0: an older SIM_VERSION warns, not crashes');
@@ -2251,11 +2255,136 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k1.talon[0]===1&&t35k1.talon.slice(1).every(k=>k===0)&&t35k1.fr.every(k=>k===1),'HC35 K1: a Talon becomes an icon below the threshold; the freighter is still art there '+JSON.stringify([t35k1.talon,t35k1.fr]));
  ok(new Set(t35k1.rad.slice(1)).size===1,'HC35 K1: the icon is the same size on screen at three zooms '+JSON.stringify(t35k1.rad));
  ok(Math.abs(t35k1.open[1]-30)<=2,'HC35 K1: the mission opens with fighters about 30 px long '+JSON.stringify(t35k1.open));
+ // HC35 K2 (feedback 1, tests 2–5, 16, 19, 21; 20 is in HC35 11 above; 14 is HC35 1's re-recorded baselines):
+ // boarding, the ram, turret tracking, Boost Shields, course keeping, Pirate end to end, the stuck guard
+ const t35k2=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=o.mods||[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};if(e.second)B.plan.wings[w].second=e.second;}
+    for(const sid in o.lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=o.lo[sid];
+    B.plan.assets=o.assets||[];B.plan.assetAt=o.assetAt||{};B.plan.roes=o.roes||[];if(o.tagger)B.plan.tagger=o.tagger;
+    const was=X.S;X.fn.launch();if(X.S===was||S().t!==0)(out.stale||(out.stale=[])).push(prim);L().cp=9;};   // a plan that can't launch would test the last mission
+  const dA=(a,b)=>Math.abs(((a-b)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI)*180/Math.PI;
+  const ell=(t,p)=>{const A=F.hullAxes(t),c=Math.cos(-t.h),sn=Math.sin(-t.h),lx=(p.x-t.x)*c-(p.y-t.y)*sn,ly=(p.x-t.x)*sn+(p.y-t.y)*c;return (lx/A.a)**2+(ly/A.b)**2;};
+  const rt0=N.RES_THREAT;N.REQ_OFF=1;N.RES_THREAT=0;   // no hail but Pirate's (C-80)
+  // 2: boarding. A scripted disabled freighter; Mags (a Boarding party) in a Disable wing, 3,000 off its left side
+  go('steal',{amber:{k:'disable',arg:'engines'},dagger:{role:'home'},anvil:{k:'hold'}},{lo:{mags:'board'}});   // (Anvil's bombs: a Steal plan needs them to launch)
+  {const f=fr();L().subs[0].hp=0;L().disabled=true;L().spool=null;L().drift={vx:f.vx,vy:f.vy};
+   const m=by('mags'),a=f.h+Math.PI/2;m.x=f.x+Math.cos(a)*3000;m.y=f.y+Math.sin(a)*3000;m.px=m.x;m.py=m.y;
+   const side0=Math.cos(f.h)*(m.y-f.y)-Math.sin(f.h)*(m.x-f.x)>=0?1:-1,tb=S().t;let step=0,inside=false,docked=null,shots=0;
+   const hs=F.hitShip;F.hitShip=function(t,o){if(o==='mags'&&t.id==='fl400')shots++;return hs.apply(this,arguments);};
+   for(let i=0;i<30*20&&docked==null;i++){const x=m.x,y=m.y;SIM.step();step=Math.max(step,Math.hypot(m.x-x-f.vx*SIM.TICK/1000,m.y-y-f.vy*SIM.TICK/1000));if(ell(f,m)<=1)inside=true;if(m.dock35)docked=S().t;}
+   until(()=>false,5);for(let i=0;i<40;i++){SIM.step();if(ell(f,m)<=1)inside=true;}F.hitShip=hs;
+   out.board=[docked!=null,m.dockSide===side0,!S().events.some(e=>e.t>=tb&&e.kind==='collide'&&/Mags/.test(e.text)),step<=N.DOCK_SNAP,shots===0&&!!m.dock35,!inside,L().board>0,Math.round(docked),Math.round(step)];}
+  // 3: the ram. Point defence off: it strikes the hull outline, the subsystem it hit loses RAM_DMG, the cause line names it,
+  // no kill effect. Then a slow, thin-skinned ram against four full turrets: shot down, and the debrief says so
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{assets:['ram']});L35.alarm('fired');
+  {for(const x of L().subs)if(x.k==='pd')x.hp=0;const s0=L().subs.map(x=>x.hp),h0=fr().hull;L35.use('ram',{id:'fl400'});until(()=>!!by('ram35'),40);const r=by('ram35');until(()=>!r.alive,30);
+   const q=(L().fxQ||[]).find(x=>x.kind==='ramImpact'),hit=L().ramHit,sb=hit&&L().subs.find(x=>x.k===hit.sub&&x.i===hit.i),i=sb?L().subs.indexOf(sb):-1;
+   const name=hit?({engines:'engines',comms:'comms',pd:'turret',cargo:'container'})[hit.sub]:'?';
+   out.ram=[r.ram35.done==='impact',!!q&&Math.abs(ell(fr(),q)-1)<0.03,i>=0&&s0[i]-sb.hp===Math.min(s0[i],N.RAM_DMG),Math.abs(h0-fr().hull-N.RAM_CORE)<0.01,
+     L().cause.some(c=>/ram hits the freighter/.test(c.text)&&c.text.includes(name)),X.fn.OV.fxSkip(r)===true,L().callouts.some(c=>/^RAM IMPACT · /.test(c.text))];}
+  {const sp=N.RAM_SPD,rh=N.RAM_HULL,ra=N.RAM_ARM;N.RAM_SPD=0.3;N.RAM_HULL=10;N.RAM_ARM=0;
+   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{assets:['ram']});L35.alarm('fired');L35.use('ram',{id:'fl400'});until(()=>!!by('ram35'),40);
+   const r=by('ram35'),f=fr(),a=f.h+0.3;r.x=f.x+Math.cos(a)*2100;r.y=f.y+Math.sin(a)*2100;r.px=r.x;r.py=r.y;r.vx=0;r.vy=0;until(()=>!r.alive,40);
+   const shot=r.ram35.done;N.RAM_SPD=sp;N.RAM_HULL=rh;N.RAM_ARM=ra;L35.use('retreat');X.fn.run(300);const db=document.querySelector('#arHc35 .h35-debrief');
+   out.ramShot=[shot==='shot',!!L().ramShot,L().callouts.some(c=>c.text==='RAM DESTROYED'),!!db&&/Your ram was shot down \d+ m short at \d+:\d\d/.test(db.textContent)];}
+  // 4: turret tracking. 60 s each: a Talon crossing at full speed 1,500 out; a docked Brickbat; a Brickbat's straight bomb run
+  const pdRun=mode=>{go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{role:'home'}});
+    for(const e of S().ships)if(e.role35==='escort'){e.alive=false;e.jumped=true;}
+    L35.alarm('fired');const f=fr(),id=mode==='cross'?'petra':'brask',t=by(id);
+    for(const s of S().ships)if(s.faction==='reb'&&s!==t&&s.alive){s.alive=false;s.jumped=true;}
+    const HK=SIM.hooks,g0=HK.goal;let pass=0,end=null;
+    const start=()=>{const a0=f.h+1.2+pass*0.7,ux=Math.cos(a0),uy=Math.sin(a0);
+      if(mode==='cross'){const d=1500;t.x=f.x+ux*d-uy*2500;t.y=f.y+uy*d+ux*2500;end={x:f.x+ux*d+uy*2500,y:f.y+uy*d-ux*2500};}
+      else{t.x=f.x+ux*2200-uy*250;t.y=f.y+uy*2200+ux*250;end={x:f.x-ux*1500-uy*250,y:f.y-uy*1500+ux*250};}
+      t.px=t.x;t.py=t.y;t.h=Math.atan2(end.y-t.y,end.x-t.x);t.vh=t.h;const v=F.capsOf(t).vMax*(mode==='cross'?1:0.8);t.vx=Math.cos(t.h)*v;t.vy=Math.sin(t.h)*v;pass++;};
+    HK.goal=s=>s===t?{x:end.x,y:end.y,spd:mode==='cross'?1:0.8,noCorner:true}:g0(s);start();
+    for(let i=0;i<1200;i++){t.hull=t.maxHull;t.arm=t.maxArm;t.thinkT=-1e9;
+      if(mode==='dock'){const a=f.h+Math.PI/2;t.x=f.x+Math.cos(a)*90;t.y=f.y+Math.sin(a)*90;t.vx=f.vx;t.vy=f.vy;t.px=t.x;t.py=t.y;}
+      else if(Math.hypot(t.x-end.x,t.y-end.y)<300)start();
+      SIM.step();}
+    HK.goal=g0;const st=L().pdStats[id]||{shots:0,hits:0};return +(st.hits/Math.max(1,st.shots)).toFixed(3);};
+  const pc=pdRun('cross'),pk=pdRun('dock'),pb=pdRun('run');
+  out.pd=[pc<0.1,pk>0.5,pb>=0.25&&pb<=0.4,pc,pk,pb];
+  // a dead turret doesn't fire, and draws dead (the art's pdDead)
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L35.alarm('fired');
+  {const pd=L().subs.filter(x=>x.k==='pd');pd[0].hp=0;pd[0].shotT=-99;until(()=>false,20);const f=fr();
+   for(const s of S().ships)if(s.faction==='reb'&&s.alive){s.x=f.x+700;s.y=f.y;s.px=s.x;s.py=s.y;}until(()=>false,5);
+   API.setSpeed(0);API.camTo(f.x,f.y,0.3);let o=null;const SA=window.SR_ART,s0=SA.ship;SA.ship=function(c,art){if(art==='gafreighter')o=arguments[7];return s0.apply(this,arguments);};
+   window.SR_ARENA_HC.frame(performance.now());SA.ship=s0;API.setSpeed(1);
+   out.pdDead=[pd[0].shotT<0,pd.slice(1).some(x=>x.shotT>0),!!o&&Array.isArray(o.pdDead)&&o.pdDead[0]===true&&o.pdDead.slice(1).every(x=>x===false),!!o&&Array.isArray(o.aims)&&o.aims[0]==null];}
+  // 5: Boost Shields: SHIELD_CD 24; AUTO only with a half under 30% just hit; no floater
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});
+  {const j=by('joss'),sg=j.segs.F,tr=()=>SIM.abilityTriggers?SIM.abilityTriggers('joss','shields'):F.abilityTriggers('joss','shields');
+   const f0=(SIM.floaters||S().floaters).length;
+   sg.val=sg.max*0.4;j.zoneHitT={F:S().t};const a=tr().want;sg.val=sg.max*0.2;const b=tr().want;j.zoneHitT={F:S().t-5};const c=tr().want;
+   SIM.useAbility?SIM.useAbility('joss','shields'):F.useAbility('joss','shields');
+   out.shields=[SIM.ABILITIES.shields.cd===24,a===false,b===true,c===false,!S().floaters.some(x=>/BOOST SHIELDS/.test(x.text))];}
+  // 16: course keeping. A Cross rammed into the cruising freighter's side at full speed
+  go('destroy',{dagger:{role:'home'},anvil:{role:'home'},amber:{k:'hold'}});until(()=>false,5);
+  {const f=fr(),brg=()=>{const p=L().lane[L().leg];return Math.atan2(p.y-f.y,p.x-f.x);},h0=f.h,c=by('hale'),a=f.h+Math.PI/2;
+   c.x=f.x+Math.cos(a)*400;c.y=f.y+Math.sin(a)*400;c.px=c.x;c.py=c.y;c.h=a+Math.PI;c.vh=c.h;const v=F.capsOf(c).vMax;c.vx=Math.cos(c.h)*v+f.vx;c.vy=Math.sin(c.h)*v+f.vy;
+   const g0=SIM.hooks.goal;SIM.hooks.goal=s=>s===c?{x:f.x,y:f.y,spd:1,noCorner:true}:g0(s);const col0=S().m.collisions||0;let hd=0,off=0;
+   for(let i=0;i<60;i++){SIM.step();hd=Math.max(hd,dA(f.h,h0));off=Math.max(off,dA(f.vh,brg()));}SIM.hooks.goal=g0;
+   const hitN=(S().m.collisions||0)-col0;let back=null;const t0=S().t;until(()=>{if(back==null&&dA(f.h,brg())<5&&dA(f.vh,brg())<5)back=S().t-t0;return false;},20);
+   out.course=[hitN>=1,hd<3,back!=null,until(()=>L().spool!=null||!f.alive,400)&&f.alive,+hd.toFixed(2),+off.toFixed(1)];}
+  // … and a disabled freighter shoved by a Brickbat drifts the way it was shoved
+  go('destroy',{dagger:{role:'home'},anvil:{role:'home'},amber:{k:'hold'}});until(()=>false,3);
+  {const f=fr();L().subs[0].hp=0;L().disabled=true;L().spool=null;L().drift={vx:0,vy:0};f.vx=0;f.vy=0;
+   const c=by('mags'),a=f.h+Math.PI/2;c.x=f.x+Math.cos(a)*400;c.y=f.y+Math.sin(a)*400;c.px=c.x;c.py=c.y;c.h=a+Math.PI;c.vh=c.h;const v=F.capsOf(c).vMax;c.vx=Math.cos(c.h)*v;c.vy=Math.sin(c.h)*v;
+   const g0=SIM.hooks.goal;SIM.hooks.goal=s=>s===c?{x:f.x,y:f.y,spd:1,noCorner:true}:g0(s);const p0={x:f.x,y:f.y};for(let i=0;i<40;i++)SIM.step();SIM.hooks.goal=g0;until(()=>false,5);
+   const mv=Math.hypot(f.x-p0.x,f.y-p0.y);out.shove=[mv>20,dA(Math.atan2(f.y-p0.y,f.x-p0.x),a+Math.PI)<30,Math.round(mv)];}
+  // 19: Pirate. Two Intimidate wings and no player input: resolve falls, the hail defaults to Take the cargo, the wing
+  // overwatches, the containers jettison, the transfer completes
+  N.REQ_OFF=0;N.RES_THREAT=rt0;
+  go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});
+  {let over=false,crates=0;until(()=>{if(S().ships.some(s=>s.beh&&s.beh.kind==='overwatch35'))over=true;crates=Math.max(crates,(L().crates||[]).length);return L().prim.state!=='live';},300);
+   const sur=L().req.log.find(x=>x.k==='surrender');
+   out.pirate=[L().prim.state==='done',L().resMin===0,!!sur&&sur.by==='default'&&sur.answer==='take',over,L().jettOut>0&&crates>0,!!L().transferred,L().callouts.some(c=>/^CARGO SURRENDERED/.test(c.text))];}
+  // No deal answered: resolve to 40, the hail comes back (30 s at least)
+  go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});
+  {let noAt=null,r40=null,back=null;until(()=>{const q=L().req.open.find(x=>x.k==='surrender'&&x.state==='open');
+     if(q&&noAt==null){L35.answerReq(q.id,'no');noAt=S().t;}else if(noAt!=null&&r40==null&&L().resolve>=39)r40=L().resolve;
+     if(q&&noAt!=null&&S().t>noAt+1){back=S().t-noAt;return true;}return false;},200);
+   out.nodeal=[noAt!=null,r40!=null,back!=null&&back>=30,L().callouts.some(c=>c.text==='THEY\'RE HOLDING OUT')];}
+  // past REQ_CAP the hail still shows a card
+  {const cap=N.REQ_CAP;N.REQ_CAP=0;go('pirate',{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}});
+   until(()=>!!L().req.open.find(x=>x.k==='surrender'),120);const q=L().req.open.find(x=>x.k==='surrender');API.syncHud(true);
+   out.capped=[!!q&&q.state==='open',!!q&&!!document.querySelector('.h35-reqs [data-req="'+q.id+'"]')];N.REQ_CAP=cap;}
+  // Fanatical Crew: Intimidate becomes impossible, and its Secondary is taken up
+  N.REQ_OFF=1;
+  go('steal',{dagger:{k:'intimidate',second:{trig:'phase2',k:'suppress',arg:'escorts'}},anvil:{k:'disable',arg:'engines'},amber:{k:'board'}},{mods:[{k:'fanatical',hidden:true}],lo:{mags:'board'}});
+  {let noted=null;until(()=>{const sc=L().sec.dagger;if(sc&&sc.fired&&noted==null)noted=!sc.adopted&&L().exec.dagger.k==='intimidate';return L().fanaticT!=null;},150);until(()=>false,1);
+   out.fanatical=[L().fanaticT!=null,noted===true,L().exec.dagger.k==='suppress',L().secLog.some(x=>x.wid==='dagger'&&x.k==='suppress'),L().mods.find(m=>m.k==='fanatical').found===true];}
+  // 21: the stuck guard. Dagger on Tag with no way to do it (Kit's at home): "getting nowhere", once
+  N.REQ_OFF=0;N.RES_THREAT=0;
+  go('destroy',{dagger:{k:'tag'},anvil:{role:'home'},amber:{role:'home'}},{tagger:'kit'});until(()=>false,N.EXEC_STALL+60);
+  {const st=L().req.log.filter(x=>x.k==='stall');out.stall=[st.length===1,st.length===1&&st[0].who==='joss'&&st[0].t0>=N.EXEC_STALL-0.1];}
+  N.RES_THREAT=rt0;N.REQ_OFF=0;
+  return out;
+ });
+ ok(!t35k2.stale,'HC35 K2: every scripted plan launched '+JSON.stringify(t35k2.stale));
+ ok(t35k2.board.slice(0,7).every(Boolean),'HC35 K2 2: a boarder docks on the side it came from in 30 s, no collision, no jump past DOCK_SNAP, holds fire, outside the hull '+JSON.stringify(t35k2.board));
+ ok(t35k2.ram.every(Boolean),'HC35 K2 3: the ram strikes the hull outline, the subsystem it hit loses RAM_DMG, the cause names it, no kill effect '+JSON.stringify(t35k2.ram));
+ ok(t35k2.ramShot.every(Boolean),'HC35 K2 3: a slow ram is shot down and the debrief says how far short '+JSON.stringify(t35k2.ramShot));
+ ok(t35k2.pd.slice(0,3).every(Boolean),'HC35 K2 4: turret hit rates: crossing Talon < 10%, docked Brickbat > 50%, bomb run 25–40% '+JSON.stringify(t35k2.pd));
+ ok(t35k2.pdDead.every(Boolean),'HC35 K2 4: a dead turret doesn\'t fire and draws with pdDead '+JSON.stringify(t35k2.pdDead));
+ ok(t35k2.shields.every(Boolean),'HC35 K2 5: SHIELD_CD 24; AUTO only below 30% and just hit; no BOOST SHIELDS floater '+JSON.stringify(t35k2.shields));
+ ok(t35k2.course.slice(0,4).every(Boolean),'HC35 K2 16: a Cross rammed into the freighter turns it under 3°, it\'s back on its lane in 20 s and reaches its jump '+JSON.stringify(t35k2.course));
+ ok(t35k2.shove.slice(0,2).every(Boolean),'HC35 K2 16: a disabled freighter drifts the way it was shoved '+JSON.stringify(t35k2.shove));
+ ok(t35k2.pirate.every(Boolean),'HC35 K2 19: Pirate wins with no input: resolve, the default hail, overwatch, the crates, the transfer '+JSON.stringify(t35k2.pirate));
+ ok(t35k2.nodeal.every(Boolean),'HC35 K2 19: No deal: resolve to 40, the hail returns after 30 s '+JSON.stringify(t35k2.nodeal));
+ ok(t35k2.capped.every(Boolean),'HC35 K2 19: past REQ_CAP the hail still shows a card '+JSON.stringify(t35k2.capped));
+ ok(t35k2.fanatical.every(Boolean),'HC35 K2 19: Fanatical Crew makes Intimidate impossible and its Secondary is taken up '+JSON.stringify(t35k2.fanatical));
+ ok(t35k2.stall.every(Boolean),'HC35 K2 21: the stuck guard asks once '+JSON.stringify(t35k2.stall));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

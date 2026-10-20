@@ -661,7 +661,7 @@ function badgeTick(now){
     if(!s.alive||s.struct)continue;
     const seen=badgeSeen.get(s.id)||{ab:(s.abLog||[]).length,mis:s.misBreakT,dodge:s.dodgeT,brk:s.breakT};
     const add=k=>{badges=badges.filter(b=>!(b.ship===s.id&&b.k===k));badges.push({ship:s.id,k,born:now});};
-    const log=s.abLog||[];for(let i=seen.ab;i<log.length;i++){add(log[i].k);if(badgeSeen.has(s.id))fxAbility(s,log[i].k);}
+    const log=s.abLog||[];for(let i=seen.ab;i<log.length;i++){if(log[i].k!=='shields')add(log[i].k);if(badgeSeen.has(s.id))fxAbility(s,log[i].k);}   // Boost Shields: the refill shows it, no badge (feedback 1)
     if(s.misBreakT!=null&&s.misBreakT!==seen.mis)add('evade');
     if(s.dodgeT!=null&&s.dodgeT!==seen.dodge&&!(badges.some(b=>b.ship===s.id&&b.k==='dodge'&&now-b.born<BADGE_MS)))add('dodge');
     if(s.breakT!=null&&s.breakT!==seen.brk)add('breakoff');
@@ -739,7 +739,7 @@ function frame(now){
     A.realSecs+=realDt/1000;
     const ts=SIM.TIMESCALES[A.speed];gameDt=realDt*ts/1000;
     if(ts===0)A.pausedSecs+=realDt/1000;
-    A.acc+=realDt*ts;
+    if(!(A.hitstop>now))A.acc+=realDt*ts;   // a hitstop (Type 3.5's ram impact) holds the sim for a beat
     let n=0;
     while(A.acc>=SIM.TICK&&n++<200&&A.phase==='LIVE'){A.acc-=SIM.TICK;SIM.step();if(SIM.S.over){onOver();break;}}
     RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));
@@ -1791,7 +1791,7 @@ const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
 /* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
-const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,label,ring,dashLine,ipos,
+const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
   selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
   get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};

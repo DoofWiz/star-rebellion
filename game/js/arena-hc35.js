@@ -378,7 +378,7 @@ function lootOf(){
   const L=L35.L;if(!L)return 'None';const left=L35.fn.cargoLeft();
   switch(L.plan.primary){
     case 'steal':return L.prizeHome?'The freighter, and '+left+' container'+(left===1?'':'s')+' aboard':'None';
-    case 'pirate':return L.transferred?Math.round(left*L35.N.PIRATE_SHARE)+' container'+(Math.round(left*L35.N.PIRATE_SHARE)===1?'':'s')+' handed over':'None';
+    case 'pirate':return L.transferred?(L.jettOut||0)+' container'+(L.jettOut===1?'':'s')+' handed over':'None';
     case 'strip':return L.hauled?L.hauled+' container'+(L.hauled===1?'':'s')+' hauled home':'None';
     case 'tag':return L.tag.planted&&L.escaped?'A follow-up lead (it carries your tracker)':'None';
     case 'ambush':return L.respKills+' of the response destroyed';
@@ -404,11 +404,16 @@ function whyLines(){
   const D=L.distress;
   if(D&&D.landed&&!L.arrayT)out.push('The distress call got out at '+fmtClock(D.t)+(L35.modOn(L.mods,'remote')?', but nobody was near to hear it.':'. That\'s why the response came.'));
   if(D&&D.cut)out.push('The comms array died with the distress call still sending: no response came.');
-  for(const r of L.powRes)out.push('Your '+(L35.POWERS35[r.k]||{name:r.k}).name+' at '+fmtClock(r.t)+' '+r.text+'.');
+  for(const r of L.powRes)out.push(r.k==='ram'?'Your ram '+r.text+' at '+fmtClock(r.t)+'.':'Your '+(L35.POWERS35[r.k]||{name:r.k}).name+' at '+fmtClock(r.t)+' '+r.text+'.');   // "Your ram was shot down 300 m short at 0:36" (§3.2)
   for(const m of L.mods){if(m.fake&&m.foundFake!=null)out.push('Cass was wrong: there was no '+L35.MODS[m.k].name+'.');
     else if(!m.fake&&m.foundT!=null&&L35.MODS[m.k].tone==='warn')out.push('Cass missed '+L35.MODS[m.k].name+'. Now you know.');}
   if(L.alarmWhy==='jumpin')out.push('A wing dropped in inside their sensor ring. Phase 1 lasted '+Math.round(L.phaseT[1]||0)+' s.');
-  for(const q of L.req.log)if(q.by==='player'&&q.k==='surrender')out.push('You answered their hail at '+fmtClock(q.t0)+': '+L35.ANS[q.answer].toLowerCase()+'.');
+  if(L.plan.primary==='pirate'&&L.prim.state!=='done'){const turned=L.req.log.find(q=>q.k==='surrender'&&q.answer==='no'&&q.by==='player');
+    const why=L.transferred?'':L.surrender==='take'?'Nobody stood guard for the transfer.':turned?'You turned down their offer at '+fmtClock(turned.sentT)+'.':L.fanaticT!=null?'The crew never folded: they were fanatics.':
+      'The crew never folded: resolve bottomed at '+Math.round(L.resMin==null?L.resolve:L.resMin)+'.';if(why)out.unshift(why);}
+  for(const q of L.req.log){if(q.k!=='surrender')continue;const who=(SIM.fn.byId(q.who)||{name:'Your leader'}).name;
+    if(q.by==='player')out.push('You answered their hail at '+fmtClock(q.sentT)+': '+L35.ANS[q.answer].toLowerCase()+'.');
+    else if(q.by==='default')out.push(who+' decided: '+L35.ANS[q.answer].toLowerCase()+' (no answer from you).');}
   const cap=L.pods.filter(p=>p.state==='captured');
   if(cap.length)out.push(cap.map(p=>p.name).join(', ')+(cap.length>1?' were':' was')+' left in the pod and captured.');
   if(L.abort)out.push('You aborted at '+fmtClock(L.abortT)+'.');
@@ -467,9 +472,10 @@ const freightScale=boost=>(0.7+0.09*5)*1.6*0.85*1.35*boost;   // a size-5 hull's
 function drawFreighter(c,s,p,z,boost,view){
   const L=L35.L,t=performance.now()/1000,sc=freightScale(boost);
   if(FX&&view&&s.trail.length>1&&!(L&&L.disabled))FX.drawTrail(c,Object.assign(API.shipView(s,p,boost),{art:'gafreighter'}),view);
-  const subs=L?L.subs:[],pd=subs.filter(x=>x.k==='pd'&&x.hp>0&&x.aim),fire=pd.some(x=>SIM.S.t-x.shotT<0.3);
+  const subs=L?L.subs:[],pd=subs.filter(x=>x.k==='pd');   // each turret on its own target; a dead one drawn dead (§3.2)
   SA.ship(c,'gafreighter',p.x,p.y,p.h,sc,t,{livery:'heg',sized:true,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull),
-    lost:L?L35.fn.cargoLost():[],aimAt:pd.length?[pd[0].aim.x,pd[0].aim.y]:null,fire,off:!!(L&&(L.disabled||L.surrender))});
+    lost:L?L35.fn.cargoLost():[],aims:pd.map(x=>x.hp>0&&x.aimA!=null?x.aimA:null),pdDead:pd.map(x=>x.hp<=0),fire:pd.map(x=>x.hp>0&&SIM.S.t-x.shotT<0.3),
+    breaches:L&&L.breaches||null,off:!!(L&&(L.disabled||L.surrender))});
 }
 /* a Brickbat in the rebel livery its loadout calls for, its racks showing the bombs left */
 function drawBrickbat(c,s,p,z,boost,view){
@@ -635,7 +641,7 @@ function onKey(ev){
   const k=ev.key;
   if(B.screen==='live'&&(k==='p'||k==='P')){ev.preventDefault();B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);return true;}
   if(B.screen==='live'&&k==='Escape'&&(B.pick||B.choose||B.abortArm)){ev.preventDefault();B.pick=null;B.choose=null;B.abortArm=false;API.syncHud(true);return true;}
-  if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&/^[abc]$/i.test(k)&&reqKey(k)){ev.preventDefault();return true;}
+  if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey&&reqKey(ev)){ev.preventDefault();return true;}   // Shift+1–3: the newest request
   if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){const i=PKEYS.indexOf(k.toLowerCase());if(i>=0){const p=barPowers()[i];if(p){ev.preventDefault();startPower(p.k);return true;}}}
   if(B.screen==='board'||B.screen==='dossier'||B.screen==='debrief'||B.screen==='brief'){
     if(k==='Escape'&&B.screen==='dossier'){ev.preventDefault();showBoard(false);return true;}
@@ -837,6 +843,7 @@ function syncCp(){
 /* the world reads for the powers and comms (§7.5): transmissions as cyan rings, arrivals' warnings, the props */
 function drawPowers(c,z,view,o){
   const S=SIM.S,L=L35.L,now=performance.now()/1000;
+  drawK2(c,z,view,o);
   // each transmission: a thin cyan ring from the origin, reaching its recipient as it lands
   for(const tx of L.tx){if(tx.landed!=null||!(tx.delay>0))continue;const d=Math.hypot(tx.p.x-tx.from.x,tx.p.y-tx.from.y),k=Math.min(1,(S.t-tx.t0)/tx.delay);
     c.save();c.globalAlpha=0.55*(1-k*0.5);c.lineWidth=1.6/z;c.strokeStyle=C.shield;c.beginPath();c.arc(tx.from.x,tx.from.y,Math.max(1,d*k),0,6.283);c.stroke();c.restore();}
@@ -862,6 +869,32 @@ function drawPowers(c,z,view,o){
     if(FX&&FX.lockMark)FX.lockMark(c,q.x,q.y,(t.id==='fl400'&&m.sub?60:90)*o.boost,1,{locked:true,flipAge:S.t-m.until+L35.N.MARK_SECS},view);}
 }
 const ARRIVAL_NAME={reserve:'RESERVES',ram:'RAM',tug:'TUG',pirates:'PIRATES'};
+/* feedback 1, K2 (§3.2, §3.11): the ram's line and its impact; Pirate's transfer ring, its crates and the crew's resolve */
+function drawK2(c,z,view,o){
+  const S=SIM.S,L=L35.L,fr=SIM.fn.byId('fl400'),now=performance.now();
+  // the ram: a hazard dashed line to what it's going for, with an ETA chip
+  for(const s of S.ships){if(!s.alive||s.prop35!=='ram')continue;const t=SIM.fn.byId(s.ram35.id);if(!t||!t.alive)continue;
+    const p=API.ipos(s),q=API.ipos(t),v=Math.max(1,Math.hypot(s.vx,s.vy)),eta=Math.max(0,(Math.hypot(q.x-p.x,q.y-p.y)-SIM.fn.bodyR(t))/v);
+    API.dashLine(c,p,q,TH.rgba(C.hazard,0.9),z,2,[10,7]);API.label(c,(p.x+q.x)/2,(p.y+q.y)/2-12/z,'IMPACT '+Math.ceil(eta)+' s',C.hazard,z,12,'Bungee');}
+  // the ram's impact: a hitstop, a shake, a big flash and a shockwave where it struck (once each)
+  for(const e of L.fxQ||[]){if(e.shown)continue;e.shown=now;
+    if(!API.fxReduced()){A.hitstop=now+120;if(FX&&FX.fn&&FX.fn.addShake)FX.fn.addShake(e.kind==='nuke'?1:0.6,e.x,e.y);}
+    if(FX)FX.event('explode',{x:e.x,y:e.y,size:e.kind==='nuke'?12:7,struct:true,iconBoost:API.fxMin?API.fxMin(80):1});}
+  for(const e of L.fxQ||[]){const k=(now-e.shown)/(e.kind==='nuke'?900:600);if(k<0||k>1)continue;
+    c.save();c.globalAlpha=(1-k)*0.9;c.lineWidth=(6*(1-k)+2)/z;c.strokeStyle=e.kind==='nuke'?'#ffffff':C.hazard;c.beginPath();c.arc(e.x,e.y,(e.kind==='nuke'?L35.N.NUKE_R:420)*k+30/z,0,6.283);c.stroke();
+    if(k<0.25){c.globalAlpha=(1-k*4)*0.7;c.fillStyle=e.kind==='nuke'?'#ffffff':'#ffb347';c.beginPath();c.arc(e.x,e.y,(e.kind==='nuke'?600:180)*(0.5+k*2),0,6.283);c.fill();}c.restore();}
+  if(!fr||!fr.alive)return;
+  // the crew's resolve: a thin foe-blue arc round the freighter that shrinks as they lose their nerve (Pirate, Intimidate)
+  if(L.plan.primary==='pirate'||Object.values(L.exec).some(e=>e&&e.k==='intimidate')){const p=API.ipos(fr),r=SIM.fn.hullAxes(fr).a+120/z*0,k=Math.max(0,L.resolve)/100;
+    c.save();c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.heg,0.35);c.beginPath();c.arc(p.x,p.y,r+40,0,6.283);c.stroke();c.strokeStyle=C.heg;c.beginPath();c.arc(p.x,p.y,r+40,-Math.PI/2,-Math.PI/2+k*6.283);c.stroke();c.restore();}
+  // the transfer: a gold dashed ring at TRANSFER_R, its progress over it; the crates drifting to your ships
+  if(L.surrender==='take'&&!L.transferred){const p=API.ipos(fr),R=L35.N.TRANSFER_R,k=Math.min(1,L.transfer/L35.N.TRANSFER_SECS);
+    API.ring(c,p.x,p.y,R,TH.rgba(C.gold,0.85),z,2.4,[12,9]);
+    const w=180/z,h=10/z,y=p.y-R-26/z;c.save();c.fillStyle=C.ink;c.fillRect(p.x-w/2,y,w,h);c.fillStyle=C.gold;c.fillRect(p.x-w/2,y,w*k,h);c.lineWidth=2/z;c.strokeStyle=C.ink;c.strokeRect(p.x-w/2,y,w,h);c.restore();
+    API.label(c,p.x,y-12/z,'TRANSFER '+Math.round(k*100)+'%',C.gold,z,12,'Bungee');}
+  for(const cr of L.crates||[]){if(cr.done&&S.t-cr.done>0.4)continue;const sz=14;c.save();c.translate(cr.x,cr.y);c.rotate((S.t-cr.t0)*0.8);
+    c.fillStyle='#8e96a2';c.fillRect(-sz/2,-sz/3,sz,sz*0.66);c.lineWidth=2/z;c.strokeStyle=C.ink;c.strokeRect(-sz/2,-sz/3,sz,sz*0.66);c.restore();}
+}
 /* the props the layer flies, drawn from the Brickbat: the ram (civilian, hazard chevrons on the nose), the tug, the pirates */
 function drawProp(c,s,p,z,boost){
   const sc=(0.7+0.09*s.row.size)*1.6*0.85*1.35*boost,t=performance.now()/1000;
@@ -882,7 +915,7 @@ function reqHtml(q){
     '<span class="h35-req__who"><b>'+esc(name)+'</b>'+(mor?'<span class="hc-mor" data-m="'+mor+'">'+mor+'</span>':'')+'</span>'+
     '<svg class="h35-req__ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="h35-req__rbg"/><circle cx="18" cy="18" r="15" class="h35-req__rfg" stroke-dasharray="'+RING_C.toFixed(1)+'"/></svg></div>'+
     '<div class="sr-quote h35-req__q">'+esc(q.line)+'</div>';
-  if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">'+'ABC'[i]+'</span><span>'+esc(L35.ANS[a])+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
+  if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">⇧'+(i+1)+'</span><span>'+esc(L35.ANS[a])+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
   else if(q.state==='sent')h+='<div class="h35-req__sent">Sending · '+esc(L35.ANS[q.answer])+' <em data-left="1"></em><i><b data-bar="1"></b></i></div>';
   else h+='<div class="h35-req__done">'+(q.by==='player'?'Answered: '+esc(L35.ANS[q.answer]):esc(name)+' decided: '+esc(L35.ANS[q.answer]))+'</div>';
   return h+'</div>';
@@ -892,7 +925,8 @@ function syncReq(){
   const L=L35.L,S=SIM.S,on=B.screen==='live'&&!!L&&!!S;
   const qs=on?reqCards().slice(0,Math.max(2,L35.N.REQ_OPEN)):[],key=qs.map(q=>q.id+q.state).join(',');
   REQEL.hidden=!qs.length;
-  if(REQEL.dataset.k!==key){REQEL.dataset.k=key;REQEL.innerHTML=qs.map(reqHtml).join('');paintPortraits(REQEL);}
+  if(REQEL.dataset.k!==key){REQEL.dataset.k=key;REQEL.innerHTML=qs.map(reqHtml).join('');paintPortraits(REQEL);
+    const sh=B.reqShown||(B.reqShown={}),t=performance.now();for(const q of qs)if(sh[q.id]==null)sh[q.id]=t;}   // when each card first showed (the 400 ms guard)
   for(const q of qs){const el=REQEL.querySelector('[data-req="'+q.id+'"]');if(!el)continue;
     const left=q.state==='open'?Math.max(0,q.until-S.t):0,k=q.state==='open'?left/Math.max(0.01,q.until-q.t0):0;
     const fg=el.querySelector('.h35-req__rfg');if(fg){fg.style.strokeDashoffset=(RING_C*(1-k)).toFixed(1);fg.classList.toggle('is-low',q.state==='open'&&left<4);}
@@ -910,9 +944,11 @@ function paintPortraits(root){
 function answer(id,a){const r=L35.answerReq(id,a);if(!r.ok)API.flash(r.why);syncReq();API.syncHud(true);return r;}
 REQEL.addEventListener('click',ev=>{const b=ev.target.closest('[data-ans]');if(!b)return;answer(+b.dataset.req,b.dataset.ans);});
 /* A / B / C: the newest open request (they win over the powers' keys while one is open) */
-function reqKey(k){
+function reqKey(ev){
+  if(!ev.shiftKey||!/^Digit[1-3]$/.test(ev.code||''))return false;
   const q=reqCards().find(x=>x.state==='open');if(!q)return false;
-  const i='abc'.indexOf(k.toLowerCase());if(i<0||!q.answers[i])return false;
+  const shown=(B.reqShown||{})[q.id];if(shown==null||performance.now()-shown<400)return true;   // too soon: swallowed, not answered
+  const i=+ev.code.slice(5)-1;if(!q.answers[i])return false;
   answer(q.id,q.answers[i]);return true;
 }
 /* the pods: a small rebel-red capsule, its beacon blinking, a ring counting down to its capture */
@@ -931,7 +967,7 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
   pilotClick(s,b){if(b.dataset.act!=='callname')return false;if(b.getAttribute('aria-disabled')==='true'){API.flash('Call a Pilot by Name: '+(L35.powerWhy('name')||'not now'));return true;}
     B.pick=null;B.choose={k:'name',args:{ship:s.id}};API.syncHud(true);return true;},
   orderChip(w){const L=L35.L,ex=L&&L.exec[w.id];if(!ex)return '';const O=L35.ORDERS35[ex.k];return 'EXEC · '+O.name+(ex.arg&&typeof ex.arg==='string'?' '+(L35.WINGS35.find(x=>x.id===ex.arg)||{name:ex.arg}).name:'');},
-  tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>s.cls==='fl400'&&!s.jumped,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
+  tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>(s.cls==='fl400'&&!s.jumped)||!!s.noDeathFx,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
   hudHidden:()=>B.screen!=='live'&&B.screen!=='debrief',
   syncHud(now){
     const L=L35.L;
