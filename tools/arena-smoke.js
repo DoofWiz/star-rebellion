@@ -2700,11 +2700,33 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35l4.guns.every(Boolean),'HC35 L4 4: guns down, it can\'t fire; shield generator down, its shields stay at 0 and can\'t be boosted '+JSON.stringify(t35l4.guns));
  ok(t35l4.card.every(Boolean),'HC35 L4 4: the readout shows a small ship\'s schematic and its subsystems '+JSON.stringify(t35l4.card));
  ok(t35l4.pick.every(Boolean),'HC35 L4 4: a power picking on a small ship\'s subsystem names it '+JSON.stringify(t35l4.pick));
+ // HC35 L5: the drift as a slide in a turning fight: the nose swings onto the target off the line of flight, which turns slower; it costs speed; never to run (feedback 2, §5)
+ const t35l5=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,by=id=>S().ships.find(s=>s.id===id),dA=(a,b)=>Math.abs(((a-b)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI);
+  B.seed=71;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';
+  for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec={k:'hold',arg:null};B.plan.wings[w].second=null;}
+  B.plan.assets=[];B.plan.roes=[];const co=N.COMMS_OFF;N.COMMS_OFF=1;N.REQ_OFF=1;X.fn.launch();L35.alarm('fired','test');SIM.runFor(1);
+  const h=by('hale'),e=S().ships.find(s=>s.role35==='escort'&&s.alive),c=F.capsOf(h),gr=F.gunRange(h);
+  h.h=0;h.vh=0;h.w=0;h.vx=c.vMax*0.9;h.vy=0;h.px=h.x;h.py=h.y;e.x=h.x+Math.cos(1.2)*gr*0.9;e.y=h.y+Math.sin(1.2)*gr*0.9;e.px=e.x;e.py=e.y;
+  h.beh={kind:'engage',target:e.id,why:'test'};h.abCd={};
+  const trig=SIM.abilityTriggers('hale','drift'),r=SIM.useAbility('hale','drift'),v0=Math.hypot(h.vx,h.vy),cd=h.abCd.drift-S().t;
+  let maxOff=0,maxW=0,bear=0,n=0;
+  while(h.driftT>S().t&&n<200){const vv=Math.max(c.vMin,Math.hypot(h.vx,h.vy));SIM.step();n++;maxOff=Math.max(maxOff,dA(h.h,h.vh));if(h.driftT>S().t)maxW=Math.max(maxW,Math.abs(h.turnW)/F.turnCap(c,vv));if(F.inArc(h,e))bear++;}
+  const v1=Math.hypot(h.vx,h.vy);
+  out.slide=[trig.want===true,r.ok,maxOff>0.6&&maxOff<=N.DRIFT_NOSE+0.05,maxW<=N.DRIFT_TURN+0.01,bear>=10,v1<v0,v1>=c.vc*0.85,Math.abs(cd-N.DRIFT_CD)<0.01,+maxOff.toFixed(2),Math.round(v0),Math.round(v1),bear];
+  // never to run: withdrawing with something behind is no drift now
+  h.beh={kind:'withdraw',dest:{x:0,y:0}};h.abCd={};out.run=[SIM.abilityTriggers('hale','drift').want===false];
+  N.COMMS_OFF=co;N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35l5.slide.slice(0,8).every(Boolean),'HC35 L5 5: a drift: the nose swings up to DRIFT_NOSE onto the target, the line of flight turns at DRIFT_TURN, the guns bear, it costs speed (down to about corner speed), a DRIFT_CD recharge '+JSON.stringify(t35l5.slide));
+ ok(t35l5.run.every(Boolean),'HC35 L5 5: no drift to run away '+JSON.stringify(t35l5.run));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

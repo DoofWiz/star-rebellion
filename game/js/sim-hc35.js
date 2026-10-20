@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-6';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-7';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -81,7 +81,13 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   RETREAT_SIDE:0.5,DEFEND_HIT:2,JUMP35_R:1000,IDLE_LOOK:5,
   // feedback 2, L4: every ship's subsystems, as shares of its hull; an aimed hit puts AIM_SUB of its hull damage into the
   // subsystem and AIM_HULL into the hull; an unaimed one spills SPILL_SUB into the subsystem on the side it came from
-  SUB_ENG:0.35,SUB_GUN:0.3,SUB_SHD:0.3,AIM_SUB:1,AIM_HULL:0.5,SPILL_SUB:0.25};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
+  SUB_ENG:0.35,SUB_GUN:0.3,SUB_SHD:0.3,AIM_SUB:1,AIM_HULL:0.5,SPILL_SUB:0.25,
+  // feedback 2, L5: the drift, a slide in a turning fight. It lasts DRIFT_SECS; no new thrust; the line of flight turns
+  // at DRIFT_TURN of its rate; the nose may swing DRIFT_NOSE off it (radians) onto the target; the slide brakes at
+  // DRIFT_COAST of the engines' braking and bleeds DRIFT_BLEED of top speed a second, on top of the turn's own bleed. A pilot drifts with a target within DRIFT_REACH ×
+  // gun range, DRIFT_OFF_MIN to DRIFT_OFF_MAX off the nose, and the speed to slide on (over DRIFT_VMIN × corner
+  // speed); then not again for DRIFT_CD
+  DRIFT_SECS:1.4,DRIFT_TURN:0.45,DRIFT_NOSE:1.2,DRIFT_COAST:0.15,DRIFT_BLEED:0.12,DRIFT_REACH:1.6,DRIFT_OFF_MIN:0.6,DRIFT_OFF_MAX:2.2,DRIFT_VMIN:1.05,DRIFT_CD:14};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
   FLANK_K:{get:()=>FLANK_K,set:v=>{FLANK_K=v;},min:1,max:3,step:0.1,label:'Alarmed speed ×',group:'Freighter'},
@@ -132,7 +138,10 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   INTIM_STANDOFF:['Intimidate: standoff off the hull',100,3000,50,'Freighter'],EXEC_STALL:['Stuck guard: no progress for (s)',20,300,5,'Requests'],POD_CAPTURE_R:['A pod left at the end is captured within',0,8000,100,'Requests'],
   RETREAT_SIDE:['Retreat: share of a hostile\'s push kept (sideways)',0,1.6,0.05,'Wings'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings'],
   SUB_ENG:['A ship\'s engines × its hull',0.05,2,0.05,'Subsystems'],SUB_GUN:['A ship\'s guns × its hull',0.05,2,0.05,'Subsystems'],SUB_SHD:['A ship\'s shield generator × its hull',0.05,2,0.05,'Subsystems'],
-  AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems']};
+  AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems'],
+  DRIFT_SECS:['Drift: seconds',0.3,4,0.1,'Wings'],DRIFT_TURN:['Drift: line of flight turns at ×',0,1,0.05,'Wings'],DRIFT_NOSE:['Drift: nose off the line of flight (rad)',0.2,1.6,0.05,'Wings'],
+  DRIFT_COAST:['Drift: braking × (it coasts)',0,1,0.05,'Wings'],DRIFT_BLEED:['Drift: top speed bled a second',0,0.5,0.01,'Wings'],DRIFT_REACH:['Drift: target within × gun range',0.5,4,0.1,'Wings'],
+  DRIFT_OFF_MIN:['Drift: target at least this far off the nose (rad)',0,1.5,0.05,'Wings'],DRIFT_OFF_MAX:['Drift: and at most (rad)',0.5,3.14,0.05,'Wings'],DRIFT_VMIN:['Drift: speed over × corner speed',0.5,2,0.05,'Wings'],DRIFT_CD:['Drift: recharge (s)',2,60,1,'Wings']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
 const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems'];
 
@@ -509,6 +518,7 @@ function attach(){
   HK.floater=(s,text,kind)=>!live()||kind==='dmg';   // 3.5 floats no words (the callouts carry what matters, §3.3); damage numbers only if the panel asks
   HK.noSep=s=>live()&&(!!s.dock35||(s.beh&&s.beh.kind==='dock35'&&s.dockLeg==='final'));   // its escort's spacing mustn't herd a docking ship off
   HK.jumpR=()=>live()?N.JUMP35_R:null;
+  HK.slideDrift=s=>live()?{secs:N.DRIFT_SECS,turnK:N.DRIFT_TURN,nose:N.DRIFT_NOSE,coast:N.DRIFT_COAST,bleed:N.DRIFT_BLEED,reach:N.DRIFT_REACH,offMin:N.DRIFT_OFF_MIN,offMax:N.DRIFT_OFF_MAX,vMin:N.DRIFT_VMIN,cd:N.DRIFT_CD}:null;   // feedback 2, §5
   HK.disengage=s=>live()&&s.faction==='reb'&&s.beh&&s.beh.kind==='withdraw'?N.RETREAT_SIDE:0;   // a retreat stays pointed home (feedback 2, §3.2)
 }
 function detach(){for(const k of Object.keys(HK))delete HK[k];L=null;}

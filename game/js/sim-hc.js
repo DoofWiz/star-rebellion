@@ -1172,7 +1172,12 @@ function abilityTriggers(s,k){
       return {want:hz,emerg:sf<=0.01&&hitNow};}
     case 'lockin':return {want:mor==='SHAKEN',emerg:mor==='PANICKED'};
     case 'boost':return {want:(b.kind==='engage'&&t&&dist(s,t)>gunRange(s)*2)||b.kind==='withdraw'||(s.mv==='extend'&&!!onSix(s))||misFar,emerg:(pinned&&hf<0.5)||misFar};   // C-72: boost away from a missile
-    case 'drift':{const six=onSix(s);return {want:b.kind==='withdraw'&&!!six,emerg:b.kind==='withdraw'&&hitNow};}
+    case 'drift':{const D=HK.slideDrift&&HK.slideDrift(s);
+      if(D){   // a layer's drift (Type 3.5): a slide in a turning fight, to bring the guns round early; never to run
+        if(b.kind!=='engage'||!t||!t.alive||t.struct)return {want:false,emerg:false};
+        const off=Math.abs(angNorm(Math.atan2(t.y-s.y,t.x-s.x)-s.h)),c=capsOf(s),v=Math.hypot(s.vx,s.vy);
+        return {want:dist(s,t)<gunRange(s)*D.reach&&off>D.offMin&&off<D.offMax&&v>c.vc*D.vMin,emerg:false};}
+      const six=onSix(s);return {want:b.kind==='withdraw'&&!!six,emerg:b.kind==='withdraw'&&hitNow};}
     case 'kturn':{const six=onSix(s);return {want:!!six,emerg:!!six&&hf<0.5};}
     case 'barrel':return {want:pinned||misClose,emerg:(pinned&&hf<0.4)||misClose};   // C-72: jink as a missile closes
     case 'fieldrep':return {want:hf<0.6,emerg:hf<0.3};
@@ -1197,7 +1202,8 @@ function useAbility(s,k,manual){
   if(k==='shields'){const z=s.segs.F.val<=s.segs.R.val?'F':'R',seg=s.segs[z];seg.val=Math.min(seg.max,seg.val+Math.ceil(0.15*maxShield(s)));s.shFx={zone:z,t:S.t};}
   else if(k==='lockin')adjCool(s,35);
   else if(k==='boost')s.boostT=2;
-  else if(k==='drift')s.driftT=S.t+3;
+  else if(k==='drift'){const D=HK.slideDrift&&HK.slideDrift(s);
+    if(D){s.driftT=S.t+D.secs;s.driftAt=s.beh&&s.beh.target||null;s.abCd[k]=S.t+D.cd;}else s.driftT=S.t+3;}
   else if(k==='kturn'){const sp=Math.hypot(s.vx,s.vy)*0.5;s.vh=angNorm(s.vh+Math.PI);s.vx=Math.cos(s.vh)*sp;s.vy=Math.sin(s.vh)*sp;}
   else if(k==='barrel')s.evadeT=S.t+1.5;
   else if(k==='fieldrep')s.hull=Math.min(s.maxHull,s.hull+Math.ceil(0.15*s.maxHull));
@@ -1572,7 +1578,7 @@ function goalOf(s){
     g=Object.assign(orbitGoal(s,b.dest,420),{spd:CRUISE*0.8});
   }
   // opportunity fire: with nothing designated in its guns, a ship shoots at whatever hostile crosses them
-  if(s.driftT&&S.t<s.driftT){const six=onSix(s);if(six)s.fireAt=six.id;}
+  if(s.driftT&&S.t<s.driftT){const six=HK.slideDrift&&HK.slideDrift(s)?(s.driftAt&&byId(s.driftAt)):onSix(s);if(six&&six.alive)s.fireAt=six.id;}
   if(!s.holdFire&&(!s.fireAt||!byId(s.fireAt)||!inArc(s,byId(s.fireAt)))){
     const opp=foesOf(s).filter(t=>inArc(s,t)&&dist(s,t)<=gunRange(s)&&(!t.struct||(b.kind==='engage'&&b.target===t.id)));
     const o=bestTarget(s,opp);if(o)s.fireAt=o.id;   // the designated target isn't in the guns: shoot what is
@@ -1764,22 +1770,28 @@ function fly(s,dt){
   let want=g?Math.atan2(g.y-s.y,g.x-s.x):s.vh;
   want=avoidHeading(s,want);
   const v=Math.max(c.vMin,Math.hypot(s.vx,s.vy));
-  const e=angNorm(want-s.vh),wCap=turnCap(c,v),w=clamp(e*TURN_K,-wCap,wCap);
+  // a layer's drift (Type 3.5, feedback 2 §5): a slide. No new thrust; the line of flight turns at a fraction of
+  // its rate (the ship carries on wide on its momentum) while the nose swings onto the target, up to D.nose off the
+  // line of flight, so the guns bear early; the slide bleeds speed, which the ship has to win back after
+  const D=s.driftT&&S.t<s.driftT&&HK.slideDrift?HK.slideDrift(s):null;
+  const e=angNorm(want-s.vh),wCap=turnCap(c,v)*(D?D.turnK:1),w=clamp(e*TURN_K,-wCap,wCap);
   s.vh=angNorm(s.vh+w*dt);s.turnW=w;
   const boost=s.boostT>0?BOOST_MULT:1;
   let tv=(g&&g.spd!=null?g.spd:CRUISE)*c.vMax*boost;
+  if(D)tv=Math.min(tv,v);   // no new thrust in a slide: the engines only hold what it has
   if(Math.abs(e)>0.6&&!(g&&g.noCorner))tv=Math.max(Math.min(tv,c.vc),Math.min(c.vc,tv*1.4));   // a hard turn wants corner speed: no faster, and never braking below it
   tv=clamp(tv,c.vMin,c.vMax*boost);
   // turning bleeds speed; the engines fight back (a sustained hard turn loses the fight)
   const acc=THRUST_K*c.vMax*boost*dt,bleed=TURN_BLEED*c.vMax*Math.abs(w)/c.wc*dt;
-  const nv=clamp(v+clamp(tv-v,-acc*1.4,acc)-bleed,c.vMin,c.vMax*boost);
+  const nv=clamp(v+clamp(tv-v,-acc*1.4*(D?D.coast:1),acc)-bleed-(D?D.bleed*c.vMax*dt:0),c.vMin,c.vMax*boost);
   s.vx=Math.cos(s.vh)*nv;s.vy=Math.sin(s.vh)*nv;
   s.x+=s.vx*dt;s.y+=s.vy*dt;
   s.x=clamp(s.x,10,W-10);s.y=clamp(s.y,10,H-10);
   // the nose: along the line of flight, leading toward its target by up to SLIP_NOSE (sim-sb.js flyStep's nose)
   let nh=s.vh;
-  const six=s.driftT&&S.t<s.driftT?onSix(s):null;
-  if(six)nh=Math.atan2(six.y-s.y,six.x-s.x);   // Drift: the nose (and the guns) on the pursuer, flying on
+  const six=s.driftT&&S.t<s.driftT&&!D?onSix(s):null,dt2=D&&s.driftAt?byId(s.driftAt):null;
+  if(D){const ta=dt2&&dt2.alive?Math.atan2(dt2.y-s.y,dt2.x-s.x):want;nh=s.vh+clamp(angNorm(ta-s.vh),-D.nose,D.nose);}   // the slide: the nose onto the target
+  else if(six)nh=Math.atan2(six.y-s.y,six.x-s.x);   // Drift: the nose (and the guns) on the pursuer, flying on
   else if(g&&g.face){const f=g.face,off=angNorm(Math.atan2(f.y-s.y,f.x-s.x)-s.vh);if(Math.abs(off)<Math.PI*0.75)nh=s.vh+clamp(off,-SLIP_NOSE,SLIP_NOSE);}
   const en=angNorm(nh-s.h),ws=Math.sign(en)*Math.min(NOSE_RATE,NOSE_K*Math.abs(en),Math.sqrt(1.6*NOSE_ACC*Math.abs(en)));
   const al=clamp((ws-s.w)*25,-NOSE_ACC,NOSE_ACC);
