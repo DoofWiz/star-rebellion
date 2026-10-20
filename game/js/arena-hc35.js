@@ -397,7 +397,7 @@ function clockHtml(){
   if(ph===1){status='UNDETECTED';name='PHASE 1 · ARRIVAL';round=fr&&fr.alive?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):'';}
   else if(ph===2){status='ALERTED';name='PHASE 2 · ENGAGED';const D=L.distress;
     round=D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t):
-      L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive&&!L.disabled&&!L.prize?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):L.prize?'PRIZE HEADING HOME':L.disabled?'FREIGHTER DISABLED':'';}
+      L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive&&!L.disabled&&!L.prize&&!L.engOut?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):fr&&fr.alive&&L.engOut&&!L.disabled&&!L.prize?'FREIGHTER CAN\'T JUMP':L.prize?'PRIZE HEADING HOME':L.disabled?'FREIGHTER DEAD IN SPACE':'';}
   else {status='HEGEMONY ON SITE';name='PHASE 3 · RESPONSE';round='GET OUT';}
   return '<div class="sr-phase h35-phase" data-phase="'+(ph===1?'free':'fight')+'"'+(ph===3?' data-status="alert"':'')+'><span class="sr-phase__status" style="--s:'+(ph===1?'var(--sr-c-good)':ph===2?'var(--sr-hazard)':'var(--sr-heg)')+'"><span class="sr-phase__text">'+status+'</span></span>'+
     '<span class="sr-phase__name">'+name+'</span><span class="sr-phase__round">'+esc(round)+'</span></div>'+
@@ -525,8 +525,8 @@ function whyLines(){
     else (failed?fail:out).push('The freighter jumped at '+fmtClock(fr.jumpT)+'.');}
   // the primary's own failure, when the jump wasn't it
   if(failed&&!fail.length&&L.prim.state==='failed'){const k=L.primK,dead=fr&&!fr.alive&&!fr.jumped;
-    if(k==='steal')fail.push(dead?'The freighter was destroyed at '+fmtClock(fr.deadT||S.t)+': there was no prize to take.':!L.disabled&&!L.surrender?'Its engines were never knocked out, so nobody could board.':'The prize never made it home.');
-    else if(k==='crash')fail.push(dead&&!L.crashed?'It was destroyed in space, not in the planet\'s pull.':L.disabled?'It was disabled outside the planet\'s pull: it will never fall.':'It was never disabled.');
+    if(k==='steal')fail.push(dead?'The freighter was destroyed at '+fmtClock(fr.deadT||S.t)+': there was no prize to take.':!L.boardT0?'The boarders never got aboard.':'The prize never made it home.');
+    else if(k==='crash')fail.push(dead&&!L.crashed?'It was destroyed in space, not in the planet\'s pull.':L.disabled?'Its power plant went down outside the planet\'s pull: it will never fall.':'Its power plant was never knocked out.');
     else if(k==='strip')fail.push(dead?'The freighter was destroyed before a container came home.':'No container came home.');
     else if(k==='tag')fail.push(dead?'The freighter was destroyed: there\'s nothing left to track.':'The tracker was never planted.');
     else if(k==='ambush')fail.push(L35.modOn(L.mods,'remote')?'It\'s too remote: no response came to ambush.':'No response came to ambush.');
@@ -593,7 +593,7 @@ function record(){
 /* =====================================================================
    The world layer: the plan view (lane, gravity window, planet, rings, markers) and the FL-400
    ===================================================================== */
-const shipHidden=s=>B.screen==='brief'&&s.faction==='reb'&&!s.struct;   // in the plan view the markers stand in for your wings
+const shipHidden=s=>(B.screen==='brief'&&s.faction==='reb'&&!s.struct)||!!s.inHangar35;   // in the plan view the markers stand in for your wings; a boarder in a hangar is out of sight
 function drawBody(c,s,p,z,boost,view){
   if(shipHidden(s))return true;
   if(s.prop35){drawProp(c,s,p,z,boost);return true;}
@@ -698,7 +698,7 @@ function drawTarget(c,z,view,o){
     // disabled: sparks at the engine block now and then; falling into the planet: a hazard heat rim on its leading edge
     if(L.disabled&&FX&&Math.floor(now*3)!==L._spark){L._spark=Math.floor(now*3);const e=L.subs.find(x=>x.k==='engines'),p=F.subWorld(fr,e);FX.event('boltHit',{x:p.x,y:p.y,surface:'hull',dir:fr.h+Math.PI,r:26*boost});}
     const pd=Math.hypot(fr.x-L.planet.x,fr.y-L.planet.y);
-    if((L.disabled||L.surrender)&&pd<L.planet.r+4000){const a=Math.atan2(L.planet.y-fr.y,L.planet.x-fr.x),k=1-Math.max(0,(pd-L.planet.r)/4000),r=130*boost;
+    if(L.disabled&&pd<L.planet.r+4000){const a=Math.atan2(L.planet.y-fr.y,L.planet.x-fr.x),k=1-Math.max(0,(pd-L.planet.r)/4000),r=130*boost;
       c.save();c.globalAlpha=0.35+0.5*k;c.lineWidth=6/z;c.strokeStyle=C.hazard;c.beginPath();c.arc(fr.x,fr.y,r,a-0.9,a+0.9);c.stroke();c.restore();}
   }
   // the capital death: SR_ART.capitalDeath over its deathMs, the camera shaken and a burst at each of its bangs
@@ -1018,7 +1018,7 @@ function sub35Under(s,p){if(!s||!s.sys35)return null;let best=null,bd=1e9;
 /* the freighter subsystem nearest a click on it (or null: the hull) */
 function subAt(fr,p){
   const L=L35.L,u=L35.fn.FL_UNIT();let best=null,bd=1e9;   // within each one's true-scale size (§3.5), or a fingertip at this zoom
-  for(const sb of L.subs){if(sb.hp<=0||(sb.k==='cargo'&&sb.taken))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,14/cam.z)&&d<bd){bd=d;best=sb;}}
+  for(const sb of L.subs){if(sb.hp<=0||(sb.k==='cargo'&&sb.taken)||!(sb.k!=='power'||L.powerSeen))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,14/cam.z)&&d<bd){bd=d;best=sb;}}
   return best?(best.k==='pd'?'turrets':best.k):null;
 }
 
@@ -1026,7 +1026,8 @@ function subAt(fr,p){
    The target's state (feedback 1, §3.5): an enemy selected to inspect, its readout card (top right, until K7
    places it), and the subsystem rings and tips on the map
    ===================================================================== */
-const SUB_TIP={engines:['Engines','It can\'t run or jump.','Knock them out and it can\'t run or jump.'],comms:['Comms','No distress call can go out.','It sends the distress call.'],
+const SUB_TIP={engines:['Engines','She crawls on her thrusters, and can\'t jump.','Knock them out and she crawls on her thrusters, and can\'t jump.'],
+  power:['Power plant','Dead in space: no guns, no comms; she drifts, and inside the pull she falls.','Knock it out and she\'s dead in space: inside the planet\'s pull, she falls.'],comms:['Comms','No distress call can go out.','It sends the distress call.'],
   pd:['Turret','One less gun on your ships.','Point defence: it struggles against fast ships.'],cargo:['Container','','A container: take it, or lose it.']};
 const SUB35_TIP={engines:['Engines','It limps: slow, no hard turns, no boost.','Knock them out and it limps: slow, no hard turns, no boost.'],
   guns:['Guns','Its guns are silent.','Knock them out and it can\'t shoot.'],shields:['Shield generator','Its shields are down for good.','Knock it out and its shields drop for good.']};
@@ -1039,7 +1040,7 @@ const inspected=()=>{const s=B.inspect&&SIM.S?SIM.fn.byId(B.inspect):null;return
 const ringsOn=fr=>B.inspect==='fl400'||B.hoverFr||cam.z>=RING_ZOOM||(B.pick&&!!B.pick.k);
 const RING_ZOOM=0.5;   // the subsystem rings show at this zoom and closer, or with the freighter selected or hovered. placeholder (C-81)
 function subUnder(fr,p,cargo){const L=L35.L,u=L35.fn.FL_UNIT();let best=null,bd=1e9;
-  for(const sb of L.subs){if(sb.k==='cargo'&&!cargo)continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,12/cam.z)&&d<bd){bd=d;best=sb;}}
+  for(const sb of L.subs){if((sb.k==='cargo'&&!cargo)||!(sb.k!=='power'||L.powerSeen))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,12/cam.z)&&d<bd){bd=d;best=sb;}}
   return best;}
 function hoverSubs(p){
   const L=L35.L,fr=SIM.fn.byId('fl400');let hs=null;
@@ -1068,7 +1069,7 @@ function drawSubRings(c,z){
   drawSub35Rings(c,z);
   const L=L35.L,fr=SIM.fn.byId('fl400');if(!fr||!fr.alive||!L||!ringsOn(fr))return;
   const u=L35.fn.FL_UNIT(),all=B.inspect==='fl400';
-  for(const sb of L.subs){if(sb.k==='cargo'&&!all)continue;if(sb.k==='cargo'&&sb.taken)continue;
+  for(const sb of L.subs){if(sb.k==='cargo'&&!all)continue;if(sb.k==='cargo'&&sb.taken)continue;if(!(sb.k!=='power'||L.powerSeen))continue;
     const q=L35.fn.subWorld(fr,sb),r=Math.max(sb.r*u*(sb.k==='cargo'?0.75:1.25),(sb.k==='cargo'?3.5:5)/z),col=subCol(sb),hot=B.hoverSub===sb;
     c.save();c.lineWidth=(hot?3:1.8)/z;c.strokeStyle=hot&&B.pick?C.gold:col;c.globalAlpha=sb.hp<=0?0.8:0.9;c.beginPath();c.arc(q.x,q.y,r,0,6.283);c.stroke();
     if(sb.hp<=0){const d=r*0.55;c.beginPath();c.moveTo(q.x-d,q.y-d);c.lineTo(q.x+d,q.y+d);c.moveTo(q.x+d,q.y-d);c.lineTo(q.x-d,q.y+d);c.stroke();}
@@ -1100,13 +1101,13 @@ function frCard(fr){
   const row=(k,txt,col)=>'<div class="h35-tgt__row" data-row="'+k+'"><i style="background:'+col+'"></i><span>'+esc(txt)+'</span></div>';
   const hpr=x=>Math.max(0,Math.ceil(x.hp))+'/'+x.max+(x.hp<=0?' · DOWN':'');
   let h='<div class="h35-tgt__head"><b>'+esc(fr.name)+'</b><span>FL-400 freighter</span></div><canvas class="h35-tgt__sch" width="520" height="168"></canvas><div class="h35-tgt__rows">'+
-    row('engines','Engines · '+hpr(e),subCol(e))+row('comms','Comms · '+hpr(cm),subCol(cm))+
+    row('engines','Engines · '+hpr(e),subCol(e))+(L.powerSeen?row('power','Power plant · '+hpr(subs.find(x=>x.k==='power')),subCol(subs.find(x=>x.k==='power'))):'')+row('comms','Comms · '+hpr(cm),subCol(cm))+
     row('turrets','Turrets · '+pdUp+' of '+pd.length,pdUp?TH.hpCol(pdUp/pd.length,'gor'):'#5a5f6e')+
     row('cargo','Cargo · '+aboard+' aboard'+(taken?' · '+taken+' taken':'')+(lost?' · '+lost+' destroyed':''),C.steel)+'</div>';
   h+=API.bar('Core',fr.hull,fr.maxHull,'is-hull');
   if(L.primK==='pirate'||Object.values(L.exec).some(x=>x&&x.k==='intimidate'))h+='<div class="hc-pbar is-res" data-k="Resolve"><span>Crew resolve</span><i><b style="width:'+Math.round(Math.max(0,L.resolve))+'%;background:'+C.heg+'"></b></i><em>'+Math.round(Math.max(0,L.resolve))+'</em></div>';
   const ch=[];const D=L.distress;
-  if(L.disabled)ch.push('DISABLED');if(L.disabled&&L.drift&&Math.hypot(fr.vx,fr.vy)>2)ch.push('DRIFTING');
+  if(L.disabled)ch.push('DEAD IN SPACE');else if(L.engOut)ch.push('THRUSTERS ONLY');if(L.disabled&&L.drift&&Math.hypot(fr.vx,fr.vy)>2)ch.push('DRIFTING');
   if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil(L35.TUNE.JUMP_SECS.get()-(S.t-L.spool)))+' s');
   if(L.board>0&&!L.boarded)ch.push('BOARDING '+Math.round(L.board*100)+'%');
   if(D&&!D.landed&&!D.cut)ch.push('DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/N.DISTRESS_SECS)*100)+'%');
@@ -1137,7 +1138,7 @@ function paintSchematic(cv,fr){
   c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);B.schX=[];   // (the ✕s it drew: the tests read them)
   try{SA.ship(c,'gafreighter',cx,cy,0,k,0,{livery:'heg',still:true,off:true});}catch(e){}
   c.globalCompositeOperation='source-atop';c.fillStyle=TH.rgba(C.steel,0.9);c.fillRect(0,0,W,H);c.globalCompositeOperation='source-over';
-  for(const sb of L.subs){const x=cx+sb.x*k,y=cy+sb.y*k;
+  for(const sb of L.subs){if(!(sb.k!=='power'||L.powerSeen))continue;const x=cx+sb.x*k,y=cy+sb.y*k;
     if(sb.k==='cargo'){const w=8.6*k,h=6.6*k;
       c.save();c.globalAlpha=sb.taken?0.35:1;c.fillStyle=sb.taken?'#8e96a2':sb.hp<=0?'#14141c':sb.hazard?C.hazard:'#8e96a2';c.fillRect(x-w/2,y-h/2,w,h);c.lineWidth=2;c.strokeStyle=C.ink;c.strokeRect(x-w/2,y-h/2,w,h);c.restore();
       if(sb.taken){c.save();c.strokeStyle=C.rebel;c.lineWidth=3;c.beginPath();c.moveTo(x-w*0.22,y);c.lineTo(x-w*0.05,y+h*0.25);c.lineTo(x+w*0.28,y-h*0.25);c.stroke();c.restore();}
@@ -1166,7 +1167,7 @@ function mapClick(p,ev,ship){
   return true;
 }
 /* every 3.5 tip (feedback 1, §3.6): {title, body, foot, tone}; the copy is designer-facing placeholder (C-81) */
-const ORD_TIP={disable:'Knock out a subsystem: the engines, the comms array or the turrets. Bombs crack a hull; guns barely scratch it.',
+const ORD_TIP={disable:'Knock out a subsystem: the power plant (dead in space; it shows once her hull is under 80%), the engines (she crawls, and can\'t jump), the comms array or the turrets. Bombs crack a hull; guns barely scratch it.',
   destroy:'Kill the freighter.',board:'Brickbats with a Boarding party clamp on once it\'s disabled, and take her.',haul:'Brickbats with Cargo pods clamp on once it\'s disabled and take containers home.',
   defend:'Get between the threats and that wing.',escort:'Stay with the prize and protect it.',suppress:'Engage the point defence or the escorts, to clear the way.',
   intimidate:'A threatening orbit at gun range, guns on the turrets and escorts only: the crew\'s resolve drains until they hail.',

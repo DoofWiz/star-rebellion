@@ -1720,7 +1720,8 @@ window.SR_ART=(function(){
      ================================================================= */
   const STYLE={ /* projectile + muzzle palettes by maker: core, glow */
     bhord:['#fff3c0','#ffb347'],devlin:['#ffffff','#ffd27a'],patriot:['#ffffff','#9cc2ff'],fightstar:['#fff0e0','#ff6a2a'],lmc:['#f6eeff','#b08aff'],
-    praxon:['#fff3e0','#ff6a3a'],autocom:['#e8ffff','#36e3f2'],crafted:['#fff0f6','#ff4aa0'],varrondow:['#ffffff','#4f8cff'],blamco:['#fff3b0','#ff8a1f']};
+    praxon:['#fff3e0','#ff6a3a'],autocom:['#e8ffff','#36e3f2'],crafted:['#fff0f6','#ff4aa0'],varrondow:['#ffffff','#4f8cff'],blamco:['#fff3b0','#ff8a1f'],
+    blaster:['#fff4f4','#ff2d2d'],hegblaster:['#f2fff4','#33ff66']};   /* Type 3.5's plasma: classic blaster bolts, red for ours, green for theirs */
   const PROJ={ /* type, maker palette, speed px/s, length, width */
     akli:{type:'tracer',style:'bhord',speed:1500,len:26,w:2.6},stiletto:{type:'dart',style:'fightstar',speed:1200,len:16,w:3},carbine:{type:'bolt',style:'fightstar',speed:1000,len:22,w:5},
     cowboy:{type:'slug',style:'devlin',speed:1400,len:14,w:4},longiron:{type:'rail',style:'devlin',speed:4000,len:60,w:2},scatter:{type:'pellets',style:'devlin',speed:1300,len:10,w:1.8,pellets:7,spread:.16},
@@ -1730,8 +1731,8 @@ window.SR_ART=(function(){
     /* ship and vehicle weapons */
     repeaters:{type:'bolt',style:'bhord',speed:900,len:20,w:4,twin:3.4,space:1},bombs:{type:'bomb',style:'blamco',speed:240,len:10,w:5.6,space:1},missiles:{type:'missile',style:'varrondow',speed:380,len:10,w:4,space:1},doorgun:{type:'tracer',style:'bhord',speed:1500,len:24,w:2.6},
     dronegun:{type:'bolt',style:'autocom',speed:950,len:14,w:3.4,space:1},cruiser:{type:'bolt',style:'patriot',speed:900,len:18,w:5},
-    /* plasma (Type 3.5, feedback 2 §6): a slow, heavy orb; warm for ours, violet for theirs */
-    plasma:{type:'plasma',style:'fightstar',speed:400,len:16,w:6,space:1},hegplasma:{type:'plasma',style:'lmc',speed:400,len:16,w:6,space:1},
+    /* plasma (Type 3.5, after playtest 2): a blaster bolt, a long glowing streak with a white core */
+    plasma:{type:'plasma',style:'blaster',speed:3000,len:46,w:3.2,space:1},hegplasma:{type:'plasma',style:'hegblaster',speed:3000,len:46,w:3.2,space:1},
     /* ship lasers (HC visual pass): slaser draws as a coherent beam-dart, not a tracer. Colours stay the maker's
        (rebel warm, Hegemony cold); the shape carries the difference. Assign per weapon in the sim when ready. */
     shiplaser:{type:'slaser',style:'devlin',speed:2500,len:70,w:2,space:1},heglaser:{type:'slaser',style:'varrondow',speed:2500,len:70,w:2,space:1},dispersal:{type:'pellets',style:'patriot',speed:900,len:8,w:3,pellets:5,spread:.2},strider:{type:'tracer',style:'autocom',speed:1500,len:24,w:3.4,heavy:1},

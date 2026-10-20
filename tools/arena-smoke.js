@@ -1959,8 +1959,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   go('destroy',{dagger:{k:'disable',arg:'engines'},anvil:{role:'home'},amber:{role:'home'}});
   until(()=>false,60);out.guns=[Math.round(L().subs[0].hp),fr().alive];
   go('destroy',{anvil:{k:'disable',arg:'engines'},dagger:{role:'home'},amber:{role:'home'}});
-  out.bombs=[until(()=>L().disabled,60),Math.round(S().t)];
-  // a disabled freighter doesn't jump (put by its jump point); inside the pull it falls in
+  out.bombs=[until(()=>L().engOut,60),Math.round(S().t)];   // (engines out: she crawls on her thrusters, after playtest 2)
+  // with her engines out she doesn't jump (put by its jump point); inside the pull it falls in
   const f1=fr(),j=L().fjump;f1.x=j.x;f1.y=j.y;f1.px=f1.x;f1.py=f1.y;L().leg=L().lane.length-1;SIM.step();
   out.nojump=[until(()=>!fr().alive,20)===false,L().spool==null];
   go('crash',{dagger:{role:'home'},anvil:{role:'home'},amber:{k:'hold'}});
@@ -1979,7 +1979,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.res=res;
   // crash, with the disable timed inside the pull (the signal rule comes with P3)
   go('crash',{anvil:{k:'hold'},dagger:{k:'hold'},amber:{k:'defend',arg:'anvil'}});
-  until(()=>{const f=fr();return f.alive&&Math.hypot(f.x-L().planet.x,f.y-L().planet.y)<L().planet.pull;},200);L().exec.anvil={k:'disable',arg:'engines'};   // as it enters the pull (its lane only grazes it)
+  until(()=>{const f=fr();return f.alive&&Math.hypot(f.x-L().planet.x,f.y-L().planet.y)<L().planet.pull;},200);L().exec.anvil={k:'disable',arg:'power'};   // as it enters the pull (its lane only grazes it)
+  {const f=fr();f.hull=Math.min(f.hull,f.maxHull*0.78);const pw=L().subs.find(x=>x.k==='power');pw.hp=Math.min(pw.hp,30);}   // after playtest 2 the power plant kills her: its hull already worn open, the plant hurt
   until(()=>L().prim.state!=='live',120);res.crash=L().prim.state;
   // 7: the phases: detection to 100 → Phase 2; the array killed mid-send: no response; Remote: none either
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L().detect=99.5;
@@ -2101,7 +2102,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{assets:['tug']});L35.use('tug',{ship:'wren'});P.tug=[until(()=>!!by('tug35'),40),until(()=>!!by('wren').towed35,90),until(()=>by('wren').jumped,150)];
   go('destroy',hold,{assets:['spoof']});L35.use('spoof',{id:'esc1'});until(landed,30);until(()=>false,1);P.spoof=[S().ships.filter(s=>s.role35==='escort').every(s=>s.spoof35!=null&&s.beh.why==='following spoofed orders'),L35.use('spoof',{id:'esc1'}).ok===false];
   go('destroy',hold,{assets:['pirates']});L35.use('pirates');P.pirates=[until(()=>S().ships.filter(s=>s.prop35==='pirate').length===N.PIRATE_N,40)];
-  go('destroy',hold,{mods:[{k:'insider',hidden:false}]});const hasSl=L35.powers().some(p=>p.k==='sleeper');L35.use('sleeper',{act:'engines'});until(landed,30);P.sleeper=[hasSl,L().disabled,L().burned];
+  go('destroy',hold,{mods:[{k:'insider',hidden:false}]});const hasSl=L35.powers().some(p=>p.k==='sleeper');L35.use('sleeper',{act:'engines'});until(landed,30);P.sleeper=[hasSl,!!L().engOut,L().burned];
   out.P=P;
   // the bar by DOM: the powers as skill icons, a targeting pill, the comms queue
   go('destroy',hold,{assets:['ram'],cp:N.CP1});window.SR_ARENA_HC.api.syncHud(true);
@@ -2542,7 +2543,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   for(const w in B.plan.wings)B.plan.wings[w].exec={k:'hold',arg:null};B.plan.wings.amber.loadout.mags='board';B.plan.assets=[];B.plan.roes=[];X.fn.launch();
   L35.use('retreat');X.fn.run(400);
   const db=q('.h35-debrief'),why=db?[...db.querySelectorAll('.h35-why p')].map(p=>p.textContent):[];
-  out.deb=[X.L.prim.state==='failed',/jumped at|never knocked out|prize never|destroyed/.test(why[0]||''),why[0]||''];
+  out.deb=[X.L.prim.state==='failed',/jumped at|never knocked out|never got aboard|prize never|destroyed/.test(why[0]||''),why[0]||''];
   // the mission ends with Wren's pod still out
   B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';for(const w in B.plan.wings)B.plan.wings[w].exec={k:'hold',arg:null};B.plan.assets=[];B.plan.roes=[];X.fn.launch();
   F.kill(SIM.fn.byId('wren'),null);SIM.step();const pod=X.L.pods[0],drift=!!pod&&pod.state==='drift';SIM.endMission('done');X.fn.run(2);
@@ -2774,11 +2775,62 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35l7.wait.every(Boolean),'HC35 L7: holding for your signal past the stuck guard raises no "getting nowhere" '+JSON.stringify(t35l7.wait));
  ok(t35l7.dead.every(Boolean),'HC35 L7: the freighter\'s hail, withdrawn once it\'s dead, nothing applied '+JSON.stringify(t35l7.dead));
  ok(t35l7.settled.every(Boolean),'HC35 L7: once the job\'s settled its requests go (a hurt pilot\'s stays) and no Secondary is taken up '+JSON.stringify(t35l7.settled));
+ // HC35 M1 (after playtest 2): boarding without stopping her; the power plant under 80% hull; engines out, thrusters; a hangar; size 10 and up; plasma as blaster bolts
+ const t35m1=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400'),pd=()=>Math.hypot(fr().x-L().planet.x,fr().y-L().planet.y);
+  const go=(prim,ex,lo)=>{B.seed=93;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=Object.assign({arg:null},ex[w]||{k:'hold'});B.plan.wings[w].second=null;}
+    for(const sid in lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=lo[sid];
+    B.plan.assets=[];B.plan.roes=[];B.plan.optionals=[];X.fn.launch();L().cp=9;};
+  const keep={COMMS_OFF:N.COMMS_OFF,RES_THREAT:N.RES_THREAT};N.COMMS_OFF=1;N.REQ_OFF=1;N.RES_THREAT=0;
+  const sub=k=>L().subs.find(x=>x.k===k);
+  // 1: the power plant is buried until the hull's under 80%; then it shows, on the card too
+  go('destroy',{});SIM.runFor(1);X.fn.OV.mapClick({x:fr().x,y:fr().y},{},fr());X.fn.syncTarget(true);const card=()=>document.getElementById('h35Tgt').textContent;
+  const hid=[!L().powerSeen,!!sub('power'),!/Power plant/.test(card())];
+  fr().hull=fr().maxHull*0.79;SIM.runFor(1);X.fn.syncTarget(true);
+  out.power=hid.concat([!!L().powerSeen,L().callouts.some(c=>c.text==='POWER PLANT EXPOSED'),/Power plant/.test(card())]);B.inspect=null;
+  // 2: engines out: she crawls on her thrusters, can't jump, and the planet doesn't take her; the power plant out: dead in space, and she falls
+  go('crash',{});SIM.runFor(1);L().alarm=true;const e=sub('engines');e.hp=0;L35.fn.subDown(fr(),e,null);
+  const p=L().planet,a=Math.atan2(fr().y-p.y,fr().x-p.x);fr().x=p.x+Math.cos(a)*(p.r+900);fr().y=p.y+Math.sin(a)*(p.r+900);fr().px=fr().x;fr().py=fr().y;
+  SIM.runFor(20);const v=Math.hypot(fr().vx,fr().vy);
+  out.thrust=[!!L().engOut,!L().disabled,fr().alive&&!L().crashed,Math.abs(v-L().cruise*N.THRUST_SPD)<L().cruise*0.1,L().spool==null,+v.toFixed(1)];
+  L().powerSeen=1;const pw=sub('power');pw.hp=0;L35.fn.subDown(fr(),pw,null);let fell=false;for(let i=0;i<120&&!fell;i++){SIM.runFor(1);fell=!!L().crashed;}
+  out.dead=[!!L().disabled,fell,L().prim.state==='done'];
+  // 3: boarding a ship on the move: no Disable; Mags closes, clamps on, rides with her, helpless; the board fills
+  go('steal',{amber:{k:'board'}},{mags:'board'});L35.alarm('fired','test');
+  const m=by('mags'),f=fr();m.x=f.x+Math.cos(f.h+Math.PI/2)*2500;m.y=f.y+Math.sin(f.h+Math.PI/2)*2500;m.px=m.x;m.py=m.y;
+  let dockT=null;for(let i=0;i<20*60&&dockT==null;i++){SIM.step();if(m.dock35)dockT=S().t;}
+  const rel=()=>{const c=Math.cos(-f.h),sn=Math.sin(-f.h);return {x:(m.x-f.x)*c-(m.y-f.y)*sn,y:(m.x-f.x)*sn+(m.y-f.y)*c};};SIM.runFor(1.5);const r0=rel(),sp0=Math.hypot(f.vx,f.vy);SIM.runFor(3);const r1=rel();
+  out.board=[dockT!=null,!L().disabled&&!L().engOut,sp0>10,Math.hypot(r1.x-r0.x,r1.y-r0.y)<5,SIM.hooks.canFire(m,S().ships.find(x=>x.role35==='escort'&&x.alive)||f,null)===false,
+    SIM.hooks.abilityOk(m,'boost')==='clamped on',L().board>0,L35.PRIMARIES.steal.needs.join()==='board',dockT&&Math.round(dockT)];
+  // 4: a hangar takes her in, out of sight and out of reach; and only size 10 and up can be boarded
+  const row=L35.HC35_CLASSES.fl400;row.hangar={x:0,y:0};SIM.runFor(1.5);
+  out.hangar=[!!m.inHangar35,!!m.unseen,X.fn.OV.shipHidden(m),!S().ships.some(t=>t.faction==='heg'&&t.alive&&F.foesOf&&F.foesOf(t).includes(m))];
+  delete row.hangar;
+  const sz=row.size;row.size=9;go('steal',{amber:{k:'board'}},{mags:'board'});SIM.runFor(1);L35.alarm('fired','test');SIM.runFor(3);
+  out.size=[!by('mags').dock35&&by('mags').beh.kind!=='dock35'];row.size=sz;
+  // 5: hove to, she holds station: no drift into the planet
+  go('pirate',{});SIM.runFor(1);{const p2=L().planet,a2=Math.atan2(fr().y-p2.y,fr().x-p2.x);fr().x=p2.x+Math.cos(a2)*(p2.r+900);fr().y=p2.y+Math.sin(a2)*(p2.r+900);fr().px=fr().x;fr().py=fr().y;}
+  L35.answerSurrender('take');SIM.runFor(25);out.hove=[L().surrender==='take',fr().alive&&!L().crashed,Math.hypot(fr().vx,fr().vy)<5];
+  // 6: plasma: blaster bolts, the designer's defaults
+  const P=window.SR_ART.PROJ;out.px=[P.plasma.style==='blaster',P.hegplasma.style==='hegblaster',N.PX_SPD===1.5,N.PX_CRIT===0,N.PX_RNG===0.7];
+  Object.assign(N,keep);N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35m1.power.every(Boolean),'HC35 M1: the power plant is hidden until the hull is under 80%, then shown, on the card too '+JSON.stringify(t35m1.power));
+ ok(t35m1.thrust.slice(0,5).every(Boolean),'HC35 M1: engines out, she crawls on her thrusters, can\'t jump, and doesn\'t fall '+JSON.stringify(t35m1.thrust));
+ ok(t35m1.dead.every(Boolean),'HC35 M1: the power plant out inside the pull, she\'s dead in space and falls: Crash done '+JSON.stringify(t35m1.dead));
+ ok(t35m1.board.slice(0,8).every(Boolean),'HC35 M1: boarding a ship under way: clamped on, riding with her, helpless; Steal needs only the boarders '+JSON.stringify(t35m1.board));
+ ok(t35m1.hangar.every(Boolean),'HC35 M1: in a hangar the boarder is out of sight and out of reach '+JSON.stringify(t35m1.hangar));
+ ok(t35m1.size.every(Boolean),'HC35 M1: a ship under size 10 can\'t be boarded '+JSON.stringify(t35m1.size));
+ ok(t35m1.hove.every(Boolean),'HC35 M1: hove to, she holds station, no fall into the planet '+JSON.stringify(t35m1.hove));
+ ok(t35m1.px.every(Boolean),'HC35 M1: plasma as blaster bolts, the designer\'s slider defaults '+JSON.stringify(t35m1.px));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
