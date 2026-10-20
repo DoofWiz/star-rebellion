@@ -104,6 +104,8 @@ function report(R,opt){
   P('## Outcome');
   const o=S.over;P('- '+(o?o.why+' ('+o.outcome+')':'Not over')+(L?' · primary **'+(L.plan.primary||'?')+'**: '+L.prim.state:''));
   for(const [t,objs] of tr.objT)P('- '+clock(t)+': '+objs.map(x=>x.id+' '+x.state).join(', '));
+  if(L&&L.fallback)P('- '+clock(L.fallback.t)+': **'+L.fallback.from+'** off ('+L.fallback.why+'): fell back to **'+L.fallback.to+'**');
+  if(L&&R.L35.rewardOf){const w=R.L35.rewardOf(),b=x=>x?Object.entries(x).map(([k,v])=>v+' '+k).join(', '):'';P('- Reward: '+(b(w.earned)||'nothing')+(w.bonus?' (incl. Accomplished '+b(w.bonus)+')':w.missed?' · missed Accomplished '+b(w.missed):''));}
   if(L&&L.opt.length)P('- Optionals: '+L.opt.map(x=>x.k+' '+x.state).join(', '));
   if(L){
     P('');P('## Phases');
@@ -117,6 +119,7 @@ function report(R,opt){
     if(!L.powLog.length)P('- None');
     for(const p of L.powLog)P('- '+clock(p.t)+' '+p.k+(p.act?' ('+p.act+')':'')+' · Phase '+p.phase+' · '+p.cost+' CP');
     for(const r of L.powRes||[])P('  - '+clock(r.t)+' '+r.k+': '+r.text);
+    if(L.dec&&L.dec.length){P('');P('## The leaders\' calls');for(const d of L.dec)P('- '+clock(d.t)+' '+d.wing+(d.who?' ('+d.who+')':'')+' · '+d.kind+': "'+d.line+'"'+(d.why?' · '+d.why:''));}
     P('');P('## Losses');
     const dead=S.ships.filter(s=>s.faction==='reb'&&s.wing&&!s.alive&&!s.jumped);
     if(!dead.length)P('- None');

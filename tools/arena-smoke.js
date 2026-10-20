@@ -2580,11 +2580,95 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35l1.pop.slice(0,3).every(Boolean),'HC35 L1 1: picking a primary re-renders the window without replaying its opening '+JSON.stringify(t35l1.pop));
  ok(t35l1.rew.every(Boolean),'HC35 L1 1.1: every primary shows what it pays and its Accomplished bonus '+JSON.stringify(t35l1.rew));
  ok(t35l1.keep.slice(1).every(Boolean),'HC35 L1 1: a pick keeps the scrolled pane where it was, with no pop '+JSON.stringify(t35l1.keep));
+ // HC35 L2: a retreat really retreats; Hold for My Signal ends when a wing is fired on or the alarm goes up; wings fight back (feedback 2, §3.1–3.2)
+ const t35l2=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id);
+  const go=(prim,k,o)=>{o=o||{};B.seed=o.seed||777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=typeof k==='string'?{k,arg:null}:Object.assign({},k);B.plan.wings[w].second=null;}B.plan.assets=[];B.plan.assetAt={};B.plan.roes=o.roes||[];X.fn.launch();L().cp=9;};
+  const rt0=N.RES_THREAT,co=N.COMMS_OFF;N.REQ_OFF=1;N.RES_THREAT=0;N.COMMS_OFF=1;
+  const mine=()=>S().ships.filter(s=>s.alive&&s.faction==='reb'&&s.wing&&!s.prop35);
+  const think=s=>{s.thinkT=F.THINK_SECS_();SIM.step();};
+  // 1: holding for the signal. Fired on, that wing goes (for good) and its leader says so; the alarm sends every wing
+  go('destroy','destroy',{roes:['signal'],seed:991});SIM.runFor(2);
+  const esc=S().ships.find(s=>s.role35==='escort'&&s.alive),joss=by('joss');
+  const wait0=mine().every(s=>s.beh&&s.beh.why==='waiting for your signal');
+  joss.hitT=S().t;joss.lastHitBy=esc.id;think(joss);SIM.runFor(4);
+  out.fired=[wait0,!!L().sigW.dagger,L().dec[0].wid==='dagger'&&/fired on/.test(L().dec[0].why),L().dec.some(d=>d.wid==='dagger'&&d.kind==='signal'),by('wren').beh.why!=='waiting for your signal'];
+  L35.alarm('detected','test');SIM.runFor(1);
+  out.spotted=[['dagger','anvil','amber'].every(w=>L().sigW[w]),L().dec.filter(d=>d.kind==='signal').length===3,mine().every(s=>s.beh&&s.beh.why!=='waiting for your signal'),
+    S().events.some(e=>e.kind==='leader')];
+  // 2: self-defence. A wing on Hold, one of its ships shot at: it turns on the shooter without being told
+  go('destroy','hold',{seed:992});SIM.runFor(2);
+  const kit=by('kit'),e2=S().ships.find(s=>s.role35==='escort'&&s.alive);kit.hitT=S().t;kit.lastHitBy=e2.id;think(kit);
+  out.defend=[kit.beh.kind==='engage',kit.beh.target===e2.id,kit.beh.why==='self-defence'];
+  // 3: the retreat. A fight with the escort going; Retreat: every ship heads for the jump point (after a 4 s turn), and gets there
+  go('tag',{k:'suppress',arg:'escorts'},{seed:41});for(let i=0;i<300&&!L().alarm;i++)SIM.runFor(1);SIM.runFor(20);out.t0=[+S().t.toFixed(1),L().prim.state];
+  const n0=mine().length;L35.use('retreat');SIM.runFor(4);
+  const jp=S().points.ourjump;let toward=0,samples=0,kinds=new Set();
+  for(let i=0;i<12;i++){for(const s of mine()){samples++;kinds.add(s.beh&&s.beh.kind);const dx=jp.x-s.x,dy=jp.y-s.y,d=Math.hypot(dx,dy)||1,v=Math.hypot(s.vx,s.vy)||1;if((s.vx*dx+s.vy*dy)/(d*v)>0.3)toward++;}SIM.runFor(1);}
+  const panicky=mine().filter(s=>s.panic).length;
+  SIM.runFor(60);const home=S().ships.filter(s=>s.faction==='reb'&&s.wing&&s.jumped).length,left=mine().length;
+  out.retreat=[n0>0,toward/samples>=0.8,[...kinds].every(k=>k==='withdraw'||k==='flee'||k==='freeze'),left<=panicky,L().dec.some(d=>d.kind==='retreat'),+(toward/samples).toFixed(2),[...kinds].join('/'),n0,home,left];
+  N.RES_THREAT=rt0;N.REQ_OFF=0;N.COMMS_OFF=co;
+  return out;
+ });
+ ok(t35l2.fired.every(Boolean),'HC35 L2 3.1: holding for the signal, a wing fired on goes for good, and its leader says so '+JSON.stringify(t35l2.fired));
+ ok(t35l2.spotted.every(Boolean),'HC35 L2 3.1: the alarm sends every waiting wing, each leader\'s call logged '+JSON.stringify(t35l2.spotted));
+ ok(t35l2.defend.every(Boolean),'HC35 L2 3.1: a ship on Hold turns on whoever shoots at it, untold '+JSON.stringify(t35l2.defend));
+ ok(t35l2.retreat.slice(0,5).every(Boolean),'HC35 L2 3.2: on Retreat every ship heads for the jump point and gets there '+JSON.stringify(t35l2.retreat));
+ // HC35 L3: the leaders decide in the field: a primary that can't be done falls back in its family; idle wings find work; the debrief shows their calls and the rewards (feedback 2, §1.1, §3)
+ const t35l3=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const go=(prim,ex,o)=>{o=o||{};B.seed=o.seed||777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=Object.assign({arg:null},ex[w]);B.plan.wings[w].second=null;}
+    for(const sid in o.lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=o.lo[sid];
+    B.plan.assets=[];B.plan.assetAt={};B.plan.roes=[];B.plan.optionals=[];if(o.tagger)B.plan.tagger=o.tagger;
+    const was=X.S;X.fn.launch();if(X.S===was||S().t!==0)(out.stale||(out.stale=[])).push(prim);L().cp=9;};
+  const keep={RES_THREAT:N.RES_THREAT,RES_ENGINES:N.RES_ENGINES,RES_TURRET:N.RES_TURRET,RES_ESCORT:N.RES_ESCORT,COMMS_OFF:N.COMMS_OFF};
+  N.REQ_OFF=1;N.RES_THREAT=0;N.RES_ENGINES=0;N.RES_TURRET=0;N.RES_ESCORT=0;N.COMMS_OFF=1;   // no surrender to muddy it
+  // 1: Crash, the engines shot out far from the planet: dead in space outside the pull. Destroy takes over; every wing re-tasks
+  go('crash',{dagger:{k:'suppress',arg:'escorts'},anvil:{k:'disable',arg:'engines'},amber:{k:'defend',arg:'anvil'}},{seed:31});
+  SIM.runFor(5);const e=L().subs.find(x=>x.k==='engines');e.hp=0;L35.fn.subDown(fr(),e,null);
+  for(let i=0;i<200&&!L().fallback;i++)SIM.runFor(1);
+  const fb=L().fallback||{},dec=L().dec;
+  out.crash=[fb.from==='crash',fb.to==='destroy',/outside the pull/.test(fb.why||''),L().primK==='destroy',L().prim.state==='live',dec.some(d=>d.kind==='fallback'&&/Crash is off/.test(d.line)),
+    Object.values(L().exec).every(x=>x.k==='destroy'||x.k==='suppress'),/Destroy \(for Crash\)/.test(S().objectives[0].text)];
+  fr().hull=1;SIM.runFor(20);const r=L35.rewardOf();
+  out.reward=[L().prim.state==='done',r.k==='destroy',r.earned.c===300,!r.bonus,r.missed&&r.missed.c===200];
+  X.fn.run(400);const db=document.querySelector('#arHc35 .h35-debrief');
+  out.deb=[!!db,(db.querySelector('.sr-stamp')||{}).textContent==='PARTIAL',/the fallback/.test(db.textContent),!!db.querySelector('.h35-rew--deb .sr-cost'),/Missed: Crash/.test(db.textContent),
+    db.querySelectorAll('.h35-leaders .h35-lead').length>=2,db.querySelectorAll('.h35-leaders li.is-fallback').length===1,/Crash was off at/.test((db.querySelector('.h35-why p')||{}).textContent||''),
+    (B.metrics[B.metrics.length-1]||{}).stamp==='partial'];
+  // 2: Steal, the boarding party lost before it boards: no pods, so Pirate; 3: Crash blown up in space: Destroy, done
+  go('steal',{dagger:{k:'defend',arg:'anvil'},anvil:{k:'disable',arg:'engines'},amber:{k:'board'}},{seed:32,lo:{mags:'board'}});
+  SIM.runFor(3);F.kill(by('mags'),null);SIM.runFor(2);
+  out.steal=[L().primK==='pirate',/boarding party/.test((L().fallback||{}).why||''),Object.values(L().exec).every(x=>x.k==='intimidate')];
+  go('crash',{dagger:{k:'destroy'},anvil:{k:'destroy'},amber:{k:'destroy'}},{seed:33});SIM.runFor(3);F.kill(fr(),null);SIM.runFor(2);
+  out.blown=[L().primK==='destroy',L().prim.state==='done',L35.rewardOf().earned.c===300];
+  // 4: no fallback outside a family (Tag); one fallback a mission
+  go('tag',{dagger:{k:'destroy'},anvil:{k:'destroy'},amber:{k:'tag'}},{seed:35,tagger:'kit'});SIM.runFor(3);F.kill(fr(),null);SIM.runFor(2);
+  out.tag=[L().prim.state==='failed',!L().fallback,!!L35.rewardOf().missed];
+  // 5: an idle wing finds work; your own Hold stays a Hold
+  go('destroy',{dagger:{k:'hold'},anvil:{k:'suppress',arg:'escorts'},amber:{k:'destroy'}},{seed:34});
+  SIM.runFor(3);for(const s of S().ships)if(s.role35==='escort')F.kill(s,null);SIM.runFor(12);
+  out.idle=[L().exec.dagger.k==='hold',L().exec.anvil.k==='destroy',L().dec.some(d=>d.wid==='anvil'&&d.kind==='job'&&/Suppress done/.test(d.why||''))];
+  Object.assign(N,keep);N.REQ_OFF=0;
+  return out;
+ });
+ ok(!t35l3.stale,'HC35 L3: every scripted plan launched '+JSON.stringify(t35l3.stale));
+ ok(t35l3.crash.every(Boolean),'HC35 L3 3: Crash that can\'t fall falls back to Destroy, the leader says why, every wing re-tasks '+JSON.stringify(t35l3.crash));
+ ok(t35l3.reward.every(Boolean),'HC35 L3 1.1/3: the fallback pays Destroy\'s reward without Crash\'s Accomplished bonus '+JSON.stringify(t35l3.reward));
+ ok(t35l3.deb.every(Boolean),'HC35 L3 3.3: the debrief: PARTIAL, the fallback, the rewards, the leaders\' calls '+JSON.stringify(t35l3.deb));
+ ok(t35l3.steal.every(Boolean)&&t35l3.blown.every(Boolean),'HC35 L3 3: Steal without its boarders falls back to Pirate; a Crash blown up in space is a Destroy '+JSON.stringify([t35l3.steal,t35l3.blown]));
+ ok(t35l3.tag.every(Boolean),'HC35 L3 3: no fallback outside a family '+JSON.stringify(t35l3.tag));
+ ok(t35l3.idle.every(Boolean),'HC35 L3 3.1: a wing with its job done finds work; your Hold stays '+JSON.stringify(t35l3.idle));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

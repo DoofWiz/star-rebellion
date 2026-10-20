@@ -380,7 +380,8 @@ function objHtml(){
   const S=SIM.S,L=L35.L;if(!S||!L||!L.plan.primary)return '';
   const P=L.plan,o=S.objectives[0];
   let h='<div class="hc-obj__head">Objectives</div><ul class="hc-obj__list">';
-  h+='<li class="hc-o is-'+o.state+'" data-tip="obj:'+P.primary+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.PRIMARIES[P.primary].name)+'</span><span class="sr-tag sr-tag--action h35-prim">PRIMARY</span></li>';
+  if(L.fallback)h+='<li class="hc-o is-failed" data-tip="obj:'+P.primary+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.PRIMARIES[P.primary].name)+'</span><span class="sr-tag sr-tag--action h35-prim">PRIMARY</span></li>';
+  h+='<li class="hc-o is-'+o.state+'" data-tip="obj:'+L.primK+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.PRIMARIES[L.primK].name)+'</span><span class="sr-tag sr-tag--action h35-prim">'+(L.fallback?'FALLBACK':'PRIMARY')+'</span></li>';
   for(const x of L.opt)h+='<li class="hc-o is-'+x.state+'" data-tip="opt:'+x.k+'"><span class="hc-o__mark"></span><span class="hc-o__txt">'+esc(L35.OPTIONALS[x.k].name)+(x.ship?' · '+esc((SIM.fn.byId(x.ship)||{name:x.ship}).name):'')+'</span></li>';
   return h+'</ul>';
 }
@@ -451,23 +452,41 @@ function onOver(){
 }
 function debriefHtml(){
   const S=SIM.S,L=L35.L,o=S.over||{},P=L?L.plan:B.plan;
-  const prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[];
-  // the stamp: JOB DONE (the primary and every optional), PARTIAL (the primary, not all the optionals), FAILED, ABORTED
-  const stamp=o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won&&opts.every(x=>x.state==='done')?['JOB DONE','']:won?['PARTIAL','sr-stamp--action']:['FAILED','sr-stamp--bad'];
+  const prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[],fb=L&&L.fallback;
+  // the stamp: JOB DONE (the primary and every optional), PARTIAL (a fallback, or not all the optionals), FAILED, ABORTED
+  const stamp=o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won&&!fb&&opts.every(x=>x.state==='done')?['JOB DONE','']:won?['PARTIAL','sr-stamp--action']:['FAILED','sr-stamp--bad'];
   const ph=L?L.phaseT:[0];
   const phs=[0,1,2].map(i=>ph[i]==null?null:((ph[i+1]!=null?ph[i+1]:S.t)-ph[i])).map((v,i)=>v==null?'':'<span class="sr-tag sr-tag--info">Phase '+(i+1)+' · '+fmtClock(v)+'</span>').join('');
   const chk=(ok,txt)=>'<div class="sr-check'+(ok?'':' is-no')+'"><span class="sr-check__box">'+(ok?'✓':'')+'</span>'+esc(txt)+'</div>';
   const lost=losses();
   return '<div class="h35-scrim"><div class="sr-window sr-window--lg h35-debrief"><div class="sr-window__head"><div class="sr-window__title">Debrief · '+esc(opp().title)+'</div><span class="sr-stamp '+stamp[1]+'">'+stamp[0]+'</span></div>'+
-    '<div class="sr-window__body"><div class="h35-label">Objectives</div>'+chk(won,L35.PRIMARIES[P.primary].name+' (primary)')+
+    '<div class="sr-window__body"><div class="h35-label">Objectives</div>'+(fb?chk(false,L35.PRIMARIES[fb.from].name+' (primary): off at '+fmtClock(fb.t)+', '+fb.why)+chk(won,L35.PRIMARIES[fb.to].name+' (the fallback)'):chk(won,L35.PRIMARIES[P.primary].name+' (primary)'))+
     opts.map(x=>chk(x.state==='done',L35.OPTIONALS[x.k].name+(x.ship?' · '+(SIM.fn.byId(x.ship)||{name:x.ship}).name:''))).join('')+
-    '<div class="h35-label">Loot</div><div>'+esc(lootOf())+'</div>'+
+    '<div class="h35-label">Loot</div><div>'+esc(lootOf())+'</div>'+rewardRow()+
     '<div class="h35-label">Losses</div><div>'+(lost.length?lost.map(x=>esc(x.name)+' <span class="h35-fine2">('+esc(x.pod)+')</span>').join(', '):'None')+'</div>'+
     '<div class="h35-label">Time in each phase</div><div class="sr-card__meta">'+phs+'</div>'+
-    '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div></div>'+
+    '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div>'+leadersHtml()+'</div>'+
     '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="rulesets">Back to rulesets</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="saverec">Save flight record</button>'+
     '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
+}
+/* what it paid (feedback 2, §1.1, §3): the reward of the primary you ended on; the Accomplished bonus, or the one missed */
+function rewardRow(){
+  const L=L35.L;if(!L||!L35.rewardOf)return '';const r=L35.rewardOf(),P=L35.PRIMARIES;
+  const got=chips(r.earned)||'<span class="h35-fine2">Nothing</span>';
+  const bonus=r.bonus?'<span class="h35-rew__per">incl. Accomplished + '+chips(r.bonus)+'</span>':r.missed?'<span class="h35-rew__miss">Missed: '+esc(P[r.picked].name)+'\'s Accomplished + '+chips(r.missed)+(L.fallback?' (you fell back to '+esc(P[r.k].name)+')':'')+'</span>':'';
+  return '<div class="h35-label">Rewards</div><div class="h35-rew h35-rew--deb">'+got+' '+bonus+'</div>';
+}
+/* how your leaders played it (feedback 2, §3.3): each wing's calls in the field, in order, with why */
+const DEC_ICON={signal:'▶',retreat:'↩',home:'↩',fallback:'⟳',job:'➤',second:'➤',hold:'■',request:'?'};
+function leadersHtml(){
+  const L=L35.L;if(!L||!L.dec||!L.dec.length)return '';
+  const by={};for(const d of L.dec)(by[d.wid]=by[d.wid]||[]).push(d);
+  let h='<div class="h35-label">How your leaders played it</div><div class="h35-leaders">';
+  const order=L35.WINGS35.map(w=>w.id).filter(id=>by[id]).concat(Object.keys(by).filter(id=>!L35.WINGS35.some(w=>w.id===id)));   // the wings in their order
+  for(const wid of order){const w=SIM.fn.wingOf(wid)||L35.WINGS35.find(x=>x.id===wid)||{name:wid};
+    h+='<div class="h35-lead"><div class="h35-lead__name">'+esc(w.name)+'</div><ol>'+by[wid].map(d=>'<li class="is-'+esc(d.kind)+'"><time>'+fmtClock(d.t)+'</time><i aria-hidden="true">'+(DEC_ICON[d.kind]||'·')+'</i><span><b>'+esc(d.who||w.name)+':</b> “'+esc(d.line)+'”'+(d.why?'<em>'+esc(d.why)+'</em>':'')+'</span></li>').join('')+'</ol></div>';}
+  return h+'</div>';
 }
 /* your losses, each with what became of its pilot */
 function losses(){
@@ -477,7 +496,7 @@ function losses(){
 }
 function lootOf(){
   const L=L35.L;if(!L)return 'None';const left=L35.fn.cargoLeft();
-  switch(L.plan.primary){
+  switch(L.primK){
     case 'steal':return L.prizeHome?'The freighter, and '+left+' container'+(left===1?'':'s')+' aboard':'None';
     case 'pirate':return L.transferred?(L.jettOut||0)+' container'+(L.jettOut===1?'':'s')+' handed over':'None';
     case 'strip':return L.hauled?L.hauled+' container'+(L.hauled===1?'':'s')+' hauled home':'None';
@@ -504,7 +523,7 @@ function whyLines(){
       (failed?fail:out).push('The freighter jumped at '+fmtClock(fr.jumpT)+'. Its engines were never hit.'+why);}
     else (failed?fail:out).push('The freighter jumped at '+fmtClock(fr.jumpT)+'.');}
   // the primary's own failure, when the jump wasn't it
-  if(failed&&!fail.length&&L.prim.state==='failed'){const k=L.plan.primary,dead=fr&&!fr.alive&&!fr.jumped;
+  if(failed&&!fail.length&&L.prim.state==='failed'){const k=L.primK,dead=fr&&!fr.alive&&!fr.jumped;
     if(k==='steal')fail.push(dead?'The freighter was destroyed at '+fmtClock(fr.deadT||S.t)+': there was no prize to take.':!L.disabled&&!L.surrender?'Its engines were never knocked out, so nobody could board.':'The prize never made it home.');
     else if(k==='crash')fail.push(dead&&!L.crashed?'It was destroyed in space, not in the planet\'s pull.':L.disabled?'It was disabled outside the planet\'s pull: it will never fall.':'It was never disabled.');
     else if(k==='strip')fail.push(dead?'The freighter was destroyed before a container came home.':'No container came home.');
@@ -518,7 +537,7 @@ function whyLines(){
   for(const m of L.mods){if(m.fake&&m.foundFake!=null)out.push('Cass was wrong: there was no '+L35.MODS[m.k].name+'.');
     else if(!m.fake&&m.foundT!=null&&L35.MODS[m.k].tone==='warn')out.push('Cass missed '+L35.MODS[m.k].name+'. Now you know.');}
   if(L.alarmWhy==='jumpin')out.push('A wing dropped in inside their sensor ring. Phase 1 lasted '+Math.round(L.phaseT[1]||0)+' s.');
-  if(L.plan.primary==='pirate'&&L.prim.state!=='done'){const turned=L.req.log.find(q=>q.k==='surrender'&&q.answer==='no'&&q.by==='player');
+  if(L.primK==='pirate'&&L.prim.state!=='done'){const turned=L.req.log.find(q=>q.k==='surrender'&&q.answer==='no'&&q.by==='player');
     const why=L.transferred?'':L.surrender==='take'?'Nobody stood guard for the transfer.':turned?'You turned down their offer at '+fmtClock(turned.sentT)+'.':L.fanaticT!=null?'The crew never folded: they were fanatics.':
       'The crew never folded: resolve bottomed at '+Math.round(L.resMin==null?L.resolve:L.resMin)+'.';if(why)fail.unshift(why);}
   for(const q of L.req.log){if(q.k!=='surrender')continue;const who=(SIM.fn.byId(q.who)||{name:'Your leader'}).name;
@@ -527,6 +546,9 @@ function whyLines(){
   const cap=L.pods.filter(p=>p.state==='captured');
   if(cap.length)loss.push(cap.map(p=>p.name).join(', ')+(cap.length>1?' were':' was')+' left in the pod and captured.');
   if(L.abort)fail.unshift('You aborted at '+fmtClock(L.abortT)+'.');
+  // a fallback (feedback 2, §3): why the primary was off, whose call the new job was, and what it cost
+  const fb=L.fallback;if(fb){const d=L.dec.find(x=>x.kind==='fallback'),P=L35.PRIMARIES;
+    fail.unshift(P[fb.from].name+' was off at '+fmtClock(fb.t)+': '+fb.why+'. '+(d&&d.who?d.who+'\'s call':'The leaders\' call')+': '+P[fb.to].name+' instead'+(L.prim.state==='done'?', done at '+fmtClock(L.prim.doneT||S.t)+'. It paid '+P[fb.to].name+'\'s reward, without '+P[fb.from].name+'\'s Accomplished bonus.':', and that wasn\'t done either.'));}
   out.unshift(...fail,...loss);
   if(L.exposure)out.push('The Firebrand Broadcast went out in the clear: the Hegemony heard your voice (Exposure).');
   if(L.burned)out.push('The Agent aboard acted for you, and may be burned.');
@@ -534,7 +556,7 @@ function whyLines(){
   // too few: the moments the job turned on, from the feed
   if(out.length<3)for(const c of L.cause){if(out.length>=3)break;if(/^(sub|board|surrender|crash|objective|tag|haul|phase|fjump|reinforce)$/.test(c.kind))out.push(c.text.replace(/[.:]?$/,'')+' ('+fmtClock(c.t)+').');}
   // and how it ended: the primary, then the count
-  if(out.length<3){const o=L.prim,P=L35.PRIMARIES[L.plan.primary];out.push(P.name+(o.state==='done'?': done at '+fmtClock(o.doneT||S.t)+'.':L.retreat||L.abort?': not done; you called them home.':': not done.'));}
+  if(out.length<3){const o=L.prim,P=L35.PRIMARIES[L.primK];out.push(P.name+(o.state==='done'?': done at '+fmtClock(o.doneT||S.t)+'.':L.retreat||L.abort?': not done; you called them home.':': not done.'));}
   if(out.length<3){const mine=S.ships.filter(s=>s.faction==='reb'&&s.wing),lost=mine.filter(s=>!s.alive&&!s.jumped).length;out.push(lost?lost+' of your '+mine.length+' ships lost; '+(mine.length-lost)+' came home.':'All '+mine.length+' of your ships came home.');}
   return out.slice(0,6);
 }
@@ -558,7 +580,8 @@ function record(){
     requests:{raised:lq.filter(q=>q.by==='player'||q.by==='default').length,answered:lq.filter(q=>q.by==='player').length,defaulted:lq.filter(q=>q.by==='default').length,
       list:lq.map(q=>({k:q.k,who:q.who,answer:q.answer,by:q.by,t:+q.t0.toFixed(2)}))},
     secondaries:L.secLog.map(x=>({wing:x.wid,t:+x.t.toFixed(2),trig:x.trig,k:x.k})),offPlanSecs:Object.fromEntries(Object.entries(L.offSecs).map(([k,v])=>[k,+v.toFixed(1)])),
-    outcome:S.over?S.over.outcome:'abandoned',stamp:S.over&&S.over.outcome==='aborted'?'aborted':L.prim.state==='done'?(L.opt.every(o=>o.state==='done')?'done':'partial'):'failed',
+    outcome:S.over?S.over.outcome:'abandoned',stamp:S.over&&S.over.outcome==='aborted'?'aborted':L.prim.state==='done'?(!L.fallback&&L.opt.every(o=>o.state==='done')?'done':'partial'):'failed',
+    fallback:L.fallback?Object.assign({},L.fallback):null,reward:L35.rewardOf?L35.rewardOf():null,decisions:(L.dec||[]).map(d=>({wing:d.wid,t:d.t,kind:d.kind,line:d.line,why:d.why})),
     loot:lootOf(),losses:losses().map(x=>x.name),pods:L.pods.map(p=>({who:p.ship,state:p.state})),t:+S.t.toFixed(2),
     planAgain:false,commsOff:!!L35.N.COMMS_OFF,requestsOff:!!L35.N.REQ_OFF};
   B.metrics.push(rec);A.metrics.push(rec);if(window.SR_FLIGHT)SR_FLIGHT.metrics(rec);   // joins the run's flight record
@@ -1054,7 +1077,7 @@ function frCard(fr){
     row('turrets','Turrets · '+pdUp+' of '+pd.length,pdUp?TH.hpCol(pdUp/pd.length,'gor'):'#5a5f6e')+
     row('cargo','Cargo · '+aboard+' aboard'+(taken?' · '+taken+' taken':'')+(lost?' · '+lost+' destroyed':''),C.steel)+'</div>';
   h+=API.bar('Core',fr.hull,fr.maxHull,'is-hull');
-  if(L.plan.primary==='pirate'||Object.values(L.exec).some(x=>x&&x.k==='intimidate'))h+='<div class="hc-pbar is-res" data-k="Resolve"><span>Crew resolve</span><i><b style="width:'+Math.round(Math.max(0,L.resolve))+'%;background:'+C.heg+'"></b></i><em>'+Math.round(Math.max(0,L.resolve))+'</em></div>';
+  if(L.primK==='pirate'||Object.values(L.exec).some(x=>x&&x.k==='intimidate'))h+='<div class="hc-pbar is-res" data-k="Resolve"><span>Crew resolve</span><i><b style="width:'+Math.round(Math.max(0,L.resolve))+'%;background:'+C.heg+'"></b></i><em>'+Math.round(Math.max(0,L.resolve))+'</em></div>';
   const ch=[];const D=L.distress;
   if(L.disabled)ch.push('DISABLED');if(L.disabled&&L.drift&&Math.hypot(fr.vx,fr.vy)>2)ch.push('DRIFTING');
   if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil(L35.TUNE.JUMP_SECS.get()-(S.t-L.spool)))+' s');
@@ -1184,7 +1207,7 @@ function drawK2(c,z,view,o){
     if(k<0.25){c.globalAlpha=(1-k*4)*0.7;c.fillStyle=e.kind==='nuke'?'#ffffff':'#ffb347';c.beginPath();c.arc(e.x,e.y,(e.kind==='nuke'?600:180)*(0.5+k*2),0,6.283);c.fill();}c.restore();}
   if(!fr||!fr.alive)return;
   // the crew's resolve: a thin foe-blue arc round the freighter that shrinks as they lose their nerve (Pirate, Intimidate)
-  if(L.plan.primary==='pirate'||Object.values(L.exec).some(e=>e&&e.k==='intimidate')){const p=API.ipos(fr),r=SIM.fn.hullAxes(fr).a+120/z*0,k=Math.max(0,L.resolve)/100;
+  if(L.primK==='pirate'||Object.values(L.exec).some(e=>e&&e.k==='intimidate')){const p=API.ipos(fr),r=SIM.fn.hullAxes(fr).a+120/z*0,k=Math.max(0,L.resolve)/100;
     c.save();c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.heg,0.35);c.beginPath();c.arc(p.x,p.y,r+40,0,6.283);c.stroke();c.strokeStyle=C.heg;c.beginPath();c.arc(p.x,p.y,r+40,-Math.PI/2,-Math.PI/2+k*6.283);c.stroke();c.restore();}
   // the transfer: a gold dashed ring at TRANSFER_R, its progress over it; the crates drifting to your ships
   if(L.surrender==='take'&&!L.transferred){const p=API.ipos(fr),R=L35.N.TRANSFER_R,k=Math.min(1,L.transfer/L35.N.TRANSFER_SECS);

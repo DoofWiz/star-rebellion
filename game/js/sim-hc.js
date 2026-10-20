@@ -1696,7 +1696,10 @@ function avoidHeading(s,want){
     for(const o of S.ships){
       if(!o.alive||o.faction===s.faction||o.struct)continue;
       const dx=s.x-o.x,dy=s.y-o.y,d=Math.hypot(dx,dy);
-      if(d<DISENGAGE_R&&d>1){const w=(DISENGAGE_R-d)/DISENGAGE_R*1.6;ax+=dx/d*w;ay+=dy/d*w;}
+      if(d<DISENGAGE_R&&d>1){const w=(DISENGAGE_R-d)/DISENGAGE_R*1.6;let px=dx/d*w,py=dy/d*w;
+        const fwd=HK.disengage&&HK.disengage(s);   // a layer can keep a retreat pointed home: no push back against the goal, only sideways
+        if(fwd){const gx=Math.cos(want),gy=Math.sin(want),back=px*gx+py*gy;if(back<0){px-=back*gx;py-=back*gy;}px*=fwd;py*=fwd;}
+        ax+=px;ay+=py;}
     }
   }
   if(!(HK.noSep&&HK.noSep(s)))for(const o of S.ships){   // wingmates keep a little room (a layer can exempt a ship: Type 3.5's docking)
@@ -1863,6 +1866,7 @@ function collideTick(){
 }
 
 /* ---------- jumps: a withdrawing ship (or the convoy) inside the jump point leaves, unless it is jammed ---------- */
+const jumpR=()=>(HK.jumpR&&HK.jumpR())||JUMP_R;   // a layer can widen the jump point (Type 3.5: a fighter at full speed can't turn inside 350)
 function jumpCheck(){
   const ex=S.R.extract||'jump';
   for(const s of S.ships){
@@ -1871,7 +1875,7 @@ function jumpCheck(){
     const key=s.quiet?s.to:ex,p=S.points[key];
     if(!leaving||!p||jammed(key))continue;
     if(HK.canJump&&HK.canJump(s)===false)continue;
-    if(dist(s,p)<=JUMP_R){
+    if(dist(s,p)<=jumpR()){
       s.alive=false;s.jumped=true;s.jumpT=S.t;
       pushEvent('jump',s.name+' jumps out',{x:p.x,y:p.y,ship:s.id,tone:'good'});
     }
@@ -2275,7 +2279,7 @@ return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
-    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>JUMP_R,ESCORT_R_:()=>ESCORT_R,
+    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
     rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,

@@ -578,6 +578,15 @@
 #arHc35 .h35-debrief{max-height:100%;display:flex;flex-direction:column;}
 #arHc35 .h35-debrief .sr-window__body{overflow:auto;}
 #arHc35 .h35-debrief .sr-window__head .sr-stamp{margin-left:auto;transform:rotate(-4deg);}
+#arHc35 .h35-rew--deb{font-size:var(--sr-fs-sm);margin:0;} #arHc35 .h35-rew__miss{color:var(--sr-text-3);font-weight:700;}
+#arHc35 .h35-leaders{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}   /* how your leaders played it (feedback 2, §3.3) */
+#arHc35 .h35-lead{background:var(--sr-night);border-radius:var(--sr-r);padding:8px 10px;}
+#arHc35 .h35-lead__name{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-gold);margin-bottom:6px;}
+#arHc35 .h35-lead ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+#arHc35 .h35-lead li{display:grid;grid-template-columns:34px 16px minmax(0,1fr);gap:4px;font-size:var(--sr-fs-xs);line-height:1.35;color:var(--sr-text);}
+#arHc35 .h35-lead time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;} #arHc35 .h35-lead i{font-style:normal;color:var(--sr-shield);text-align:center;}
+#arHc35 .h35-lead em{display:block;font-style:normal;color:var(--sr-text-3);}
+#arHc35 .h35-lead li.is-fallback i,#arHc35 .h35-lead li.is-fallback b{color:var(--sr-gold);} #arHc35 .h35-lead li.is-request i{color:var(--sr-text-3);}
 #arHc35 .h35-why p{margin:0 0 8px;padding:8px 12px;border-left:4px solid var(--sr-gold);background:var(--sr-night);border-radius:0 var(--sr-r) var(--sr-r) 0;font-size:var(--sr-fs-sm);}
 /* the mission HUD's phase plate sits where High Command's clock does */
 #arHc .hc-clock:has(.h35-phase){padding:0;background:none;border:0;box-shadow:none;text-shadow:none;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;}

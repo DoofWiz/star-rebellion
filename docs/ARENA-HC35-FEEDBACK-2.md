@@ -43,9 +43,11 @@ C-83.
   3 s after being hit. Amber, called in from reserve at 3:56, spent most of the next four minutes waiting for a
   signal that couldn't come, between bursts of "Pinned!". All seven losses were ships on Withdraw "with nobody
   defending its wing".
-- **Why the retreat scattered.** The same check: a ship ordered home flew "Withdrawing" for a few seconds after each
-  hit, then went back to orbiting its rally point waiting for the signal. And while it was withdrawing, High
-  Command's pinned emergency turned it round to fight.
+- **Why the retreat scattered.** Three things. The same check: a ship ordered home flew "Withdrawing" for a few
+  seconds after each hit, then went back to orbiting its rally point waiting for the signal. A withdrawing ship
+  steers wide of every hostile within 1,600, which in a furball pushes it every way but home. And the jump point is
+  High Command's 350 across, where a fighter flying home at full speed turns 780 to 970 wide: it flew through the
+  point, missed it, and looped round to try again.
 
 ## 3. The build
 
