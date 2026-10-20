@@ -332,7 +332,7 @@ function pilotBody(s){
 function launch(){
   if(!ready())return;
   B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;
-  B.attempt++;B.screen='live';B.pick=null;B.choose=null;B.abortArm=false;
+  B.attempt++;B.screen='live';B.pick=null;B.choose=null;B.abortArm=false;B.inspect=null;B.hoverSub=null;B.hoverFr=false;
   B.lastBrief=B.briefT.slice();B.briefT=[0,0,0,0];B.spd=[0,0,0,0];B.pauses=0;B.lastNow=null;   // this attempt's metrics (§10)
   L35.detach();L35.attach();
   const scn=L35.compile(opp(),B.mods,B.plan,B.seed);
@@ -678,6 +678,7 @@ function markerAt(p){
   return best;
 }
 function pointer(kind,p,ev){
+  if(B.screen==='live'&&kind==='hover'){hoverSubs(p);return false;}
   if(B.screen==='brief'){
     if(kind==='hover'){const m=markerAt(p),h=m?(m.type==='asset'?'a:':'')+m.id:null;if(h!==B.hover){B.hover=h;STAGE.style.cursor=h?'grab':'';}return false;}
     if(kind==='down'){if(ev.button!==0)return false;const m=markerAt(p);if(!m)return false;B.drag=m;STAGE.style.cursor='grabbing';return true;}
@@ -736,6 +737,7 @@ function tick(now){
   if(B.screen==='live'&&SIM.S&&!SIM.S.over){const dt=B.lastNow==null?0:Math.min(0.25,(now-B.lastNow)/1000);B.spd[A.speed]=(B.spd[A.speed]||0)+dt;if(A.speed===0&&B.prevSpd!==0)B.pauses++;B.prevSpd=A.speed;}
   B.lastNow=now;
   if(B.screen==='live')syncReq();
+  syncTarget(false);
 }
 byId('hcClock').addEventListener('click',ev=>{const b=ev.target.closest('[data-act="plan"]');if(!b||B.screen!=='live')return;B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);});
 ROOT.addEventListener('click',ev=>{
@@ -856,13 +858,101 @@ function cmdsClick(b){
 }
 /* the freighter subsystem nearest a click on it (or null: the hull) */
 function subAt(fr,p){
-  const L=L35.L;let best=null,bd=Math.max(140,26/cam.z);
-  for(const sb of L.subs){if(sb.hp<=0||(sb.k==='cargo'&&sb.taken))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<bd){bd=d;best=sb;}}
+  const L=L35.L,u=L35.fn.FL_UNIT();let best=null,bd=1e9;   // within each one's true-scale size (§3.5), or a fingertip at this zoom
+  for(const sb of L.subs){if(sb.hp<=0||(sb.k==='cargo'&&sb.taken))continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,14/cam.z)&&d<bd){bd=d;best=sb;}}
   return best?(best.k==='pd'?'turrets':best.k):null;
+}
+
+/* =====================================================================
+   The target's state (feedback 1, §3.5): an enemy selected to inspect, its readout card (top right, until K7
+   places it), and the subsystem rings and tips on the map
+   ===================================================================== */
+const SUB_TIP={engines:['Engines','It can\'t run or jump.','Knock them out and it can\'t run or jump.'],comms:['Comms','No distress call can go out.','It sends the distress call.'],
+  pd:['Turret','One less gun on your ships.','Point defence: it struggles against fast ships.'],cargo:['Container','','A container: take it, or lose it.']};
+const subCol=sb=>sb.hp<=0?'#5a5f6e':TH.hpCol(sb.hp/sb.max,'gor');
+function subTip(sb){const T=SUB_TIP[sb.k]||[sb.k,'',''],dead=sb.hp<=0;
+  if(sb.k==='cargo')return {name:'Container · '+(sb.taken?'Taken':dead?'Destroyed':Math.ceil(sb.hp)+'/'+sb.max)+(sb.hazard&&!sb.taken?' · Hazard':''),line:sb.taken?'It\'s yours.':dead?'Lost with what was in it.':T[2]};
+  return {name:T[0]+' · '+Math.max(0,Math.ceil(sb.hp))+'/'+sb.max+(dead?' · Down':''),line:dead?T[1]:T[2]};}
+const inspected=()=>{const s=B.inspect&&SIM.S?SIM.fn.byId(B.inspect):null;return s&&s.alive?s:null;};
+const ringsOn=fr=>B.inspect==='fl400'||B.hoverFr||cam.z>=RING_ZOOM||(B.pick&&!!B.pick.k);
+const RING_ZOOM=0.5;   // the subsystem rings show at this zoom and closer, or with the freighter selected or hovered. placeholder (C-81)
+function subUnder(fr,p,cargo){const L=L35.L,u=L35.fn.FL_UNIT();let best=null,bd=1e9;
+  for(const sb of L.subs){if(sb.k==='cargo'&&!cargo)continue;const q=L35.fn.subWorld(fr,sb),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<Math.max(sb.r*u*1.6,12/cam.z)&&d<bd){bd=d;best=sb;}}
+  return best;}
+function hoverSubs(p){
+  const L=L35.L,fr=SIM.fn.byId('fl400');let hs=null;
+  if(fr&&fr.alive&&L){const A2=SIM.fn.hullAxes(fr),c=Math.cos(-fr.h),sn=Math.sin(-fr.h),lx=(p.x-fr.x)*c-(p.y-fr.y)*sn,ly=(p.x-fr.x)*sn+(p.y-fr.y)*c;
+    B.hoverFr=(lx/A2.a)**2+(ly/A2.b)**2<=1.4;if(ringsOn(fr))hs=subUnder(fr,p,B.inspect==='fl400');}else B.hoverFr=false;
+  if(hs!==B.hoverSub){B.hoverSub=hs;if(hs){const q=L35.fn.subWorld(fr,hs),sp=API.toScreen(q.x,q.y);API.showTipAt(sp.x,sp.y,subTip(hs));B.tipOn=true;}else if(B.tipOn){API.hideTip();B.tipOn=false;}}
+}
+/* on the map: a small ring on each subsystem in its state colour (a dead one grey with a ✕); the containers too with
+   the freighter selected; and the one a power would hit, while it picks */
+function drawSubRings(c,z){
+  const L=L35.L,fr=SIM.fn.byId('fl400');if(!fr||!fr.alive||!L||!ringsOn(fr))return;
+  const u=L35.fn.FL_UNIT(),all=B.inspect==='fl400';
+  for(const sb of L.subs){if(sb.k==='cargo'&&!all)continue;if(sb.k==='cargo'&&sb.taken)continue;
+    const q=L35.fn.subWorld(fr,sb),r=Math.max(sb.r*u*(sb.k==='cargo'?0.75:1.25),(sb.k==='cargo'?3.5:5)/z),col=subCol(sb),hot=B.hoverSub===sb;
+    c.save();c.lineWidth=(hot?3:1.8)/z;c.strokeStyle=hot&&B.pick?C.gold:col;c.globalAlpha=sb.hp<=0?0.8:0.9;c.beginPath();c.arc(q.x,q.y,r,0,6.283);c.stroke();
+    if(sb.hp<=0){const d=r*0.55;c.beginPath();c.moveTo(q.x-d,q.y-d);c.lineTo(q.x+d,q.y+d);c.moveTo(q.x+d,q.y-d);c.lineTo(q.x-d,q.y+d);c.stroke();}
+    c.restore();}
+}
+/* the readout card */
+let TGT=null,tgtAt=0,tgtH='';
+function tgtEl(){if(!TGT||!TGT.isConnected){TGT=document.createElement('div');TGT.className='h35-tgt';TGT.id='h35Tgt';TGT.hidden=true;document.getElementById('hcStage').appendChild(TGT);}return TGT;}
+function syncTarget(force){
+  const el=tgtEl(),s=B.screen==='live'?inspected():null;
+  if(!s){if(!el.hidden){el.hidden=true;tgtH='';}return;}
+  const now=performance.now();if(!force&&now-tgtAt<150)return;tgtAt=now;
+  const h=s.id==='fl400'?frCard(s):escortCard(s);
+  if(h!==tgtH){el.innerHTML=h;tgtH=h;}el.hidden=false;
+  if(s.id==='fl400')paintSchematic(el.querySelector('canvas'),s);
+}
+function frCard(fr){
+  const L=L35.L,N=L35.N,S=SIM.S,subs=L.subs,e=subs.find(x=>x.k==='engines'),cm=subs.find(x=>x.k==='comms'),pd=subs.filter(x=>x.k==='pd'),cg=subs.filter(x=>x.k==='cargo');
+  const taken=cg.filter(x=>x.taken).length,lost=cg.filter(x=>!x.taken&&x.hp<=0).length,aboard=cg.length-taken-lost,pdUp=pd.filter(x=>x.hp>0).length;
+  const row=(k,txt,col)=>'<div class="h35-tgt__row" data-row="'+k+'"><i style="background:'+col+'"></i><span>'+esc(txt)+'</span></div>';
+  const hpr=x=>Math.max(0,Math.ceil(x.hp))+'/'+x.max+(x.hp<=0?' · DOWN':'');
+  let h='<div class="h35-tgt__head"><b>'+esc(fr.name)+'</b><span>FL-400 freighter</span></div><canvas class="h35-tgt__sch" width="520" height="168"></canvas><div class="h35-tgt__rows">'+
+    row('engines','Engines · '+hpr(e),subCol(e))+row('comms','Comms · '+hpr(cm),subCol(cm))+
+    row('turrets','Turrets · '+pdUp+' of '+pd.length,pdUp?TH.hpCol(pdUp/pd.length,'gor'):'#5a5f6e')+
+    row('cargo','Cargo · '+aboard+' aboard'+(taken?' · '+taken+' taken':'')+(lost?' · '+lost+' destroyed':''),C.steel)+'</div>';
+  h+=API.bar('Core',fr.hull,fr.maxHull,'is-hull');
+  if(L.plan.primary==='pirate'||Object.values(L.exec).some(x=>x&&x.k==='intimidate'))h+='<div class="hc-pbar is-res" data-k="Resolve"><span>Crew resolve</span><i><b style="width:'+Math.round(Math.max(0,L.resolve))+'%;background:'+C.heg+'"></b></i><em>'+Math.round(Math.max(0,L.resolve))+'</em></div>';
+  const ch=[];const D=L.distress;
+  if(L.disabled)ch.push('DISABLED');if(L.disabled&&L.drift&&Math.hypot(fr.vx,fr.vy)>2)ch.push('DRIFTING');
+  if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil(L35.TUNE.JUMP_SECS.get()-(S.t-L.spool)))+' s');
+  if(L.board>0&&!L.boarded)ch.push('BOARDING '+Math.round(L.board*100)+'%');
+  if(D&&!D.landed&&!D.cut)ch.push('DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/N.DISTRESS_SECS)*100)+'%');
+  if(L.surrender)ch.push('SURRENDERING');
+  if(ch.length)h+='<div class="h35-tgt__chips">'+ch.map(t=>'<span class="sr-tag">'+esc(t)+'</span>').join('')+'</div>';
+  return h;
+}
+function escortCard(s){
+  const P=s.pilot||{},row=s.row||{};
+  return '<div class="h35-tgt__head"><b>'+esc(s.label||s.name)+'</b><span>'+esc((row.name||s.cls)+(P.level?' · L'+P.level+(P.preset?' '+P.preset:''):''))+'</span></div>'+
+    API.bar('Shield front',s.segs.F.val,s.segs.F.max,'is-shd')+API.bar('Shield rear',s.segs.R.val,s.segs.R.max,'is-shd')+API.bar('Armour',s.arm,s.maxArm,'is-arm')+API.bar('Hull',s.hull,s.maxHull,'is-hull');
+}
+/* the schematic: the FL-400's outline in steel, each subsystem where it sits on the hull */
+function paintSchematic(cv,fr){
+  if(!cv)return;const c=cv.getContext('2d'),W=cv.width,H=cv.height,k=W/138,cx=W/2+2,cy=H/2,L=L35.L;
+  c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,H);B.schX=[];   // (the ✕s it drew: the tests read them)
+  try{SA.ship(c,'gafreighter',cx,cy,0,k,0,{livery:'heg',still:true,off:true});}catch(e){}
+  c.globalCompositeOperation='source-atop';c.fillStyle=TH.rgba(C.steel,0.9);c.fillRect(0,0,W,H);c.globalCompositeOperation='source-over';
+  for(const sb of L.subs){const x=cx+sb.x*k,y=cy+sb.y*k;
+    if(sb.k==='cargo'){const w=8.6*k,h=6.6*k;
+      c.save();c.globalAlpha=sb.taken?0.35:1;c.fillStyle=sb.taken?'#8e96a2':sb.hp<=0?'#14141c':sb.hazard?C.hazard:'#8e96a2';c.fillRect(x-w/2,y-h/2,w,h);c.lineWidth=2;c.strokeStyle=C.ink;c.strokeRect(x-w/2,y-h/2,w,h);c.restore();
+      if(sb.taken){c.save();c.strokeStyle=C.rebel;c.lineWidth=3;c.beginPath();c.moveTo(x-w*0.22,y);c.lineTo(x-w*0.05,y+h*0.25);c.lineTo(x+w*0.28,y-h*0.25);c.stroke();c.restore();}
+      continue;}
+    const r=(sb.k==='pd'?4.6:sb.k==='comms'?5.6:7)*k*0.9;
+    c.beginPath();c.arc(x,y,r,0,6.283);c.fillStyle=subCol(sb);c.fill();c.lineWidth=2.4;c.strokeStyle=C.ink;c.stroke();
+    if(sb.hp<=0){B.schX.push(sb.k+(sb.i!=null?sb.i:''));const d=r*0.6;c.strokeStyle='#e8e8ee';c.lineWidth=3;c.beginPath();c.moveTo(x-d,y-d);c.lineTo(x+d,y+d);c.moveTo(x+d,y-d);c.lineTo(x-d,y+d);c.stroke();}}
 }
 /* a click on the map while a power wants a target */
 function mapClick(p,ev,ship){
-  if(B.screen!=='live'||!B.pick)return false;
+  if(B.screen!=='live')return false;
+  if(!B.pick){   // §3.5: a click on the freighter, an escort or a response ship selects it to inspect; anything else clears it
+    if(ship&&(ship.faction!=='reb'||ship.id==='fl400')){B.inspect=ship.id;API.A.selShip=null;syncTarget(true);API.syncHud(true);return true;}
+    if(B.inspect){B.inspect=null;syncTarget(true);}return false;}
   const k=B.pick.k,P=L35.POWERS35[k],args=B.pick.args,stage=B.pick.stage;
   const want=stage==='focus'?'foe':P.target;
   if(want==='mine'){
@@ -893,7 +983,7 @@ function syncCp(){
 /* the world reads for the powers and comms (§7.5): transmissions as cyan rings, arrivals' warnings, the props */
 function drawPowers(c,z,view,o){
   const S=SIM.S,L=L35.L,now=performance.now()/1000;
-  drawK2(c,z,view,o);
+  drawK2(c,z,view,o);drawSubRings(c,z);
   // each transmission: a thin cyan ring from the origin, reaching its recipient as it lands
   for(const tx of L.tx){if(tx.landed!=null||!(tx.delay>0))continue;const d=Math.hypot(tx.p.x-tx.from.x,tx.p.y-tx.from.y),k=Math.min(1,(S.t-tx.t0)/tx.delay);
     c.save();c.globalAlpha=0.55*(1-k*0.5);c.lineWidth=1.6/z;c.strokeStyle=C.shield;c.beginPath();c.arc(tx.from.x,tx.from.y,Math.max(1,d*k),0,6.283);c.stroke();c.restore();}
@@ -1046,7 +1136,7 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
 
 /* ---------- DBGarena.hc35 ---------- */
 const dbg={B,L35,get L(){return L35.L;},get S(){return SIM.S;},
-  fn:{open,close,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,toWorld,toLayout,fitPlan,record,OV,
+  fn:{open,close,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,toWorld,toLayout,fitPlan,record,OV,syncTarget,subTip,hoverSubs,
     go(screen){if(screen==='dossier'){B.screen='dossier';render();}else if(screen==='brief')enterBrief();else if(screen==='board')showBoard(false);},
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++)SIM.step();if(SIM.S.over&&B.screen==='live')API.onOver();API.syncHud(true);return SIM.S.t;}}};
 window.SR_ARENA_HC35={open,close,dbg,get active(){return B.screen!=='off';}};

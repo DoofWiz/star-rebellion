@@ -2489,11 +2489,31 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k4.co.every(Boolean),'HC35 K4 9: CARGO SECURED, ENGINES and COMMS DOWN, and an edge arrow for one off screen '+JSON.stringify(t35k4.co));
  ok(t35k4.res.every(Boolean),'HC35 K4 18: the Reserves get a roster card in the frame they warp in, "on station", ARRIVED '+JSON.stringify(t35k4.res));
  ok(t35k4.hcRes.every(Boolean),'HC35 K4 18: High Command\'s Reinforce adds its roster card '+JSON.stringify(t35k4.hcRes));
+ // HC35 K5 (feedback 1, test 10): an enemy selected to inspect; the target readout tracks the engines; a dead turret's ✕
+ const t35k5=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  B.seed=777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';B.plan.assets=[];B.plan.roes=[];X.fn.launch();API.setSpeed(0);
+  const card=()=>document.getElementById('h35Tgt'),row=k=>{const r=card()&&card().querySelector('[data-row="'+k+'"] span');return r?r.textContent:null;};
+  const f=fr();X.fn.OV.mapClick({x:f.x,y:f.y},{},f);X.fn.syncTarget(true);
+  out.sel=[B.inspect==='fl400',!!card()&&!card().hidden,!!card().querySelector('canvas'),API.A.selShip==null];
+  const e=L().subs.find(x=>x.k==='engines');e.hp=50;X.fn.syncTarget(true);const r1=row('engines');e.hp=0;X.fn.syncTarget(true);const r2=row('engines');
+  out.eng=[r1==='Engines · 50/120',r2==='Engines · 0/120 · DOWN',r1,r2];
+  const pd=L().subs.filter(x=>x.k==='pd');pd[2].hp=0;X.fn.syncTarget(true);out.pd=[row('turrets')==='Turrets · 3 of 4',(B.schX||[]).includes('pd2'),X.fn.subTip(pd[2]).name==='Turret · 0/40 · Down'];
+  const es=S().ships.find(s=>s.role35==='escort');X.fn.OV.mapClick({x:es.x,y:es.y},{},es);X.fn.syncTarget(true);
+  out.esc=[B.inspect===es.id,!!card().querySelector('.hc-pbar.is-hull'),!card().querySelector('canvas')];
+  X.fn.OV.mapClick({x:f.x+20000,y:f.y},{},null);X.fn.syncTarget(true);out.esc.push(B.inspect==null,card().hidden);
+  API.setSpeed(1);return out;
+ });
+ ok(t35k5.sel.every(Boolean),'HC35 K5 10: a click on the freighter selects it to inspect and shows its readout '+JSON.stringify(t35k5.sel));
+ ok(t35k5.eng.slice(0,2).every(Boolean),'HC35 K5 10: the engines row tracks hp '+JSON.stringify(t35k5.eng));
+ ok(t35k5.pd.every(Boolean),'HC35 K5 10: a destroyed turret shows ✕ '+JSON.stringify(t35k5.pd));
+ ok(t35k5.esc.every(Boolean),'HC35 K5: an escort shows its smaller card; a click on empty space clears it '+JSON.stringify(t35k5.esc));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

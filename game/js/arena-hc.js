@@ -1321,6 +1321,12 @@ function showTip(el){
   tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x)))+'px';tip.style.top=Math.round(y)+'px';
 }
 function hideTip(){clearTimeout(tipT);tipEl=null;const t=byId('hcTip');if(t)t.hidden=true;}
+/* the same tip at a point on the map (stage px): for things drawn on the canvas, like Type 3.5's subsystems */
+function showTipAt(x,y,d){
+  const tip=byId('hcTip');tip.innerHTML='<div class="hc-tip__name">'+esc(d.name)+'</div>'+(d.line?'<div class="hc-tip__line">'+esc(d.line)+'</div>':'');
+  tip.hidden=false;tipEl=null;const st=byId('hcStage').getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  let ty=y-h-14;if(ty<8)ty=y+18;tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x-w/2)))+'px';tip.style.top=Math.round(ty)+'px';
+}
 byId('hcStage').addEventListener('pointerover',ev=>{
   const el=ev.target.closest&&ev.target.closest('[data-tip]');
   if(!el||el===tipEl)return;hideTip();tipT=setTimeout(()=>{if(el.isConnected)showTip(el);},250);
@@ -1863,7 +1869,7 @@ const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
 /* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
 const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
-  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
+  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
   get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
 })();
