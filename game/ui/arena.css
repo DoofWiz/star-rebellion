@@ -651,7 +651,13 @@
 #arHc35 .h35-fams{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;align-items:start;}
 #arHc35 .h35-fam .h35-label{margin-top:4px;}
 #arHc35 .h35-fam--later{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;} #arHc35 .h35-fam--later .h35-obj{width:auto;margin:0;}
-#arHc35 .h35-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+#arHc35 .h35-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 14px;align-items:start;}   /* window 1 part 2, and window 2 */
+#arHc35 .h35-rew{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 0;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-rew__lbl{min-width:84px;color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.06em;font-size:var(--sr-fs-micro);}
+#arHc35 .h35-rew--bonus{margin:2px 0 6px;} #arHc35 .h35-rew--bonus .h35-rew__lbl{color:var(--sr-gold);}
+#arHc35 .h35-node__parts{display:inline-flex;gap:3px;margin-left:2px;} #arHc35 .h35-node__parts u{width:6px;height:6px;border-radius:50%;background:var(--sr-text-3);opacity:.5;}
+#arHc35 .h35-node__parts u.is-on{background:currentColor;opacity:1;}
+#arHc35 .sr-window.h35-holo{animation:none;}   /* the kit's pop is for a window opening: a re-render isn't one (feedback 2, §1) */
 #arHc35 .h35-wings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:start;}
 #arHc35 .h35-wings .h35-wing{margin:0;}
 #arHc35 .h35-wings .h35-wing__head{flex-wrap:wrap;} #arHc35 .h35-wings .h35-role{margin-left:0;width:100%;} #arHc35 .h35-wings .h35-role .sr-btn{flex:1;justify-content:center;}

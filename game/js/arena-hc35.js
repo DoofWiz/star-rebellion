@@ -15,7 +15,7 @@ const STAGE=byId('hcStage');
 const ROOT=document.createElement('div');ROOT.id='arHc35';ROOT.hidden=true;STAGE.appendChild(ROOT);
 
 /* ---------- state: the board → dossier → briefing → mission → debrief loop ---------- */
-const B={screen:'off',oppId:'vulnerable_freighter',seed:1,mods:[],plan:null,step:1,intel:0,attempt:0,briefT:[0,0,0,0],stepAt:0,
+const B={screen:'off',oppId:'vulnerable_freighter',seed:1,mods:[],plan:null,step:1,part:1,intel:0,attempt:0,briefT:[0,0,0,0],stepAt:0,
   pickAsset:null,drag:null,hover:null,metrics:[],planAgain:false,banner:null};
 const opp=()=>L35.OPPORTUNITIES[B.oppId];
 const newSeed=()=>((B.seed*2654435761+12345)>>>0)%1000000;
@@ -44,7 +44,7 @@ function showBoard(fresh){
   B.screen='board';A.phase='PICK';
   render();API.syncHud(true);
 }
-function rollAttempt(){B.mods=L35.rollMods(opp(),B.seed);B.intel=L35.TUNE.INTEL_START.get();B.plan=null;B.step=1;B.briefT=[0,0,0,0];}
+function rollAttempt(){B.mods=L35.rollMods(opp(),B.seed);B.intel=L35.TUNE.INTEL_START.get();B.plan=null;B.step=1;B.part=1;B.briefT=[0,0,0,0];}
 const TONE_TAG={good:'sr-tag--good',warn:'sr-tag--warn',info:'sr-tag--info'};
 function modTags(cls){return B.mods.filter(L35.known).map(m=>'<span class="sr-tag '+TONE_TAG[L35.MODS[m.k].tone]+(cls?' '+cls:'')+'" data-tip="mod:'+m.k+'">'+esc(L35.MODS[m.k].name)+'</span>').join('');}
 /* =====================================================================
@@ -132,10 +132,10 @@ function dig(){
 /* =====================================================================
    The briefing (§4, §7.2): four steps, the map in plan view on the right
    ===================================================================== */
-const STEPS=['Objective','Optionals & rules','Wings & assets','The plan'];
+const STEPS=['Objectives','Rules of engagement','Wings & assets','The plan'];   // window 1 in two parts: the primary, then the secondaries (feedback 2, §2)
 function enterBrief(){
   if(!B.plan)B.plan=L35.defaultPlan(opp());
-  const opening=B.screen!=='brief';B.screen='brief';B.stepAt=performance.now();if(opening)B.holoAnim='is-open';   // it rises out of the beam
+  const opening=B.screen!=='brief';B.screen='brief';B.stepAt=performance.now();if(opening)B.holoAnim='is-open';if(B.step!==1)B.part=1;   // it rises out of the beam
   buildPlanView();
   render();API.syncHud(true);
 }
@@ -185,11 +185,13 @@ function checkHtml(){
 const ready=()=>checklist().every(r=>r.ok||r.warn);
 /* the planning windows (feedback 1, §3.6): one holographic window a step, risen from the holo-table's beam over the
    dimmed Missions view; window 4 is wide, with a cut-out pane where the plan map shows through */
-const STEP_NEXT=['Optionals & rules','Wings & assets','The plan'];
+const STEP_NEXT=['Rules of engagement','Wings & assets','The plan'];
+const nextName=()=>B.step===1&&B.part!==2?'Secondary objectives':STEP_NEXT[B.step-1];
 const nextWhy=()=>B.step===1&&!B.plan.primary?'Pick a primary objective':null;
 function trackHtml(){
   return '<ol class="h35-track">'+STEPS.map((n,i)=>{const st=i+1<B.step?'done':i+1===B.step?'on':'todo';
-    return '<li class="h35-node is-'+st+'"><button type="button"'+(st==='done'?' data-step="'+(i+1)+'"':' disabled')+' data-tip="@" data-tt="'+(i+1)+' · '+esc(n)+'"'+(st==='done'?' data-tb="Done: click to go back to it."':'')+'><b>'+(st==='done'?'✓':(i+1))+'</b><span>'+esc(n)+'</span></button></li>';}).join('')+'</ol>';
+    const parts=i===0?'<i class="h35-node__parts">'+[1,2].map(n=>'<u class="'+(st!=='on'||n<=B.part?'is-on':'')+'"></u>').join('')+'</i>':'';   // window 1's two parts
+    return '<li class="h35-node is-'+st+'"><button type="button"'+(st==='done'?' data-step="'+(i+1)+'"':' disabled')+' data-tip="@" data-tt="'+(i+1)+' · '+esc(n)+'"'+(i===0?' data-tb="'+(st==='done'?'Done: click to go back to it. ':'')+'Part 1, the primary; part 2, the secondary objectives."':st==='done'?' data-tb="Done: click to go back to it."':'')+'><b>'+(st==='done'?'✓':(i+1))+'</b><span>'+esc(n)+'</span>'+parts+'</button></li>';}).join('')+'</ol>';
 }
 function stripHtml(){
   return '<div class="h35-strip">'+checklist().map(r=>'<span class="h35-strip__i'+(r.ok?' is-ok':r.warn?' is-warn':' is-no')+'" data-tip="@" data-tt="'+esc(r.text)+'" data-tb="'+esc(r.ok?'Met.':r.why||(r.warn?'A warning, not a block.':'Missing: Launch waits for it.'))+'">'+(r.ok?'✓':r.warn?'!':'✕')+' '+esc(r.text)+'</span>').join('')+'</div>';
@@ -198,26 +200,30 @@ function briefHtml(){
   const last=B.step===4,ok=ready(),nw=nextWhy(),anim=B.holoAnim||'';B.holoAnim=null;
   const miss=checklist().filter(r=>!r.ok&&!r.warn).map(r=>r.text).join(' · ');
   let body;
-  if(last)body='<div class="h35-holo__split"><div class="h35-holo__col">'+step4()+'</div><div class="h35-pane" data-pane="1" aria-hidden="true"></div></div>';
-  else body='<div class="h35-holo__body is-step'+B.step+'">'+(B.step===1?step1():B.step===2?step2():step3())+'</div>';
+  if(last)body='<div class="h35-holo__split"><div class="h35-holo__col" data-keep="c4">'+step4()+'</div><div class="h35-pane" data-pane="1" aria-hidden="true"></div></div>';
+  else body='<div class="h35-holo__body is-step'+B.step+'" data-keep="b'+B.step+'.'+(B.step===1?B.part:1)+'">'+(B.step===1?(B.part===2?step1b():step1()):B.step===2?step2():step3())+'</div>';
   const win='<div class="sr-window h35-holo'+(last?' is-wide':'')+(anim?' '+anim:'')+'" role="dialog" aria-label="Plan">'+
     '<div class="sr-window__head h35-holo__head"><div class="sr-window__title">PLAN: '+esc(opp().title.toUpperCase())+'</div>'+trackHtml()+
     '<button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" data-act="board" aria-label="Close" data-tip="@" data-tt="Back to the mission board" data-tb="Your plan is kept.">✕</button></div>'+
     body+
-    '<div class="sr-window__foot h35-holo__foot"><button type="button" class="sr-btn" data-act="prev" data-tip="@" data-tt="'+(B.step===1?'Mission board':'Back')+'" data-tb="Esc">◀ '+(B.step===1?'Mission board':'Back')+'</button>'+stripHtml()+
+    '<div class="sr-window__foot h35-holo__foot"><button type="button" class="sr-btn" data-act="prev" data-tip="@" data-tt="'+(atStart()?'Mission board':'Back')+'" data-tb="Esc">◀ '+(atStart()?'Mission board':'Back')+'</button>'+stripHtml()+
     (last?'<button type="button" class="sr-btn sr-btn--primary" data-act="launch" data-tip="h35:launch"'+(ok?'':' aria-disabled="true" data-why="'+esc(miss)+'"')+'>Launch ▶</button>':
-      '<button type="button" class="sr-btn sr-btn--primary" data-act="next" data-tip="@" data-tt="Next: '+esc(STEP_NEXT[B.step-1])+'" data-tb="Enter"'+(nw?' aria-disabled="true" data-why="'+esc(nw)+'"':'')+'>Next: '+esc(STEP_NEXT[B.step-1])+' ▶</button>')+
+      '<button type="button" class="sr-btn sr-btn--primary" data-act="next" data-tip="@" data-tt="Next: '+esc(nextName())+'" data-tb="Enter"'+(nw?' aria-disabled="true" data-why="'+esc(nw)+'"':'')+'>Next: '+esc(nextName())+' ▶</button>')+
     (nw||(last&&!ok)?'<span class="h35-holo__why">'+esc(nw||miss)+'</span>':'')+'</div></div>';
   return (last?'':boardHtml())+'<div class="h35-holowrap'+(last?' is-wide':'')+'">'+win+'</div>';
 }
 /* a step: forward, back, or a done node; the window slides that way and flickers once */
-function goStep(n){
-  n=Math.max(1,Math.min(4,n));if(n===B.step)return;
-  if(n>B.step&&B.step===1&&nextWhy()){API.flash(nextWhy());return;}
+function goStep(n,part){
+  n=Math.max(1,Math.min(4,n));part=n===1?part||1:1;if(n===B.step&&part===(B.part||1))return;
+  const fwd=n>B.step||(n===B.step&&part>(B.part||1));
+  if(fwd&&B.step===1&&nextWhy()){API.flash(nextWhy());return;}
   B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;B.stepAt=performance.now();
-  B.holoAnim=n>B.step?'is-fwd':'is-back';B.step=n;render();
+  B.holoAnim=fwd?'is-fwd':'is-back';B.step=n;B.part=part;render();
 }
-function backStep(){if(B.step===1){if(B.screen==='brief')B.briefT[0]+=(performance.now()-B.stepAt)/1000;showBoard(false);}else goStep(B.step-1);}
+/* Next and Back walk window 1's two parts too */
+const atStart=()=>B.step===1&&B.part!==2;
+function nextStep(){if(B.step===1&&B.part!==2)goStep(1,2);else goStep(B.step+1);}
+function backStep(){if(atStart()){if(B.screen==='brief')B.briefT[0]+=(performance.now()-B.stepAt)/1000;showBoard(false);}else if(B.step===2)goStep(1,2);else goStep(B.step-1);}
 /* Launch: the window folds into the beam (180 ms), then the mission; with reduced motion, at once */
 function launchFromWindow(){
   if(!ready()){API.flash('Not ready');return;}
@@ -242,7 +248,7 @@ function step1(){
     for(const k of fams[f]){const o=L35.PRIMARIES[k],pk=P.primary===k;
       const needs=pk?L35.needsMet(P,B.mods):o.needs.map(n=>({text:L35.NEED_TEXT[n],ok:null}));
       h+='<button type="button" class="sr-card h35-obj'+(pk?' is-picked':'')+'" data-primary="'+k+'" data-tip="obj:'+k+'"><div class="sr-card__top"><span class="sr-card__title">'+esc(o.name)+'</span>'+conflictTags(k)+'</div>'+
-        '<div class="sr-card__body">'+esc(o.wins)+'</div>'+(needs.length?needs.map(n=>'<div class="sr-check h35-need'+(n.ok===false?' is-no':'')+'"><span class="sr-check__box">'+(n.ok?'✓':'')+'</span>'+esc(n.text)+'</div>').join(''):'<div class="h35-noneed">No needs</div>')+'</button>';}
+        '<div class="sr-card__body">'+esc(o.wins)+'</div>'+rewardHtml(k)+(needs.length?needs.map(n=>'<div class="sr-check h35-need'+(n.ok===false?' is-no':'')+'"><span class="sr-check__box">'+(n.ok?'✓':'')+'</span>'+esc(n.text)+'</div>').join(''):'<div class="h35-noneed">No needs</div>')+'</button>';}
     h+='</div>';
   }
   h+='<div class="h35-fam h35-fam--later"><div class="h35-label">Later</div>'+L35.LATER_PRIMARIES.map(n=>'<div class="sr-card is-locked h35-obj" data-tip="na:demo"><div class="sr-card__top"><span class="sr-card__title">'+esc(n)+'</span><span class="sr-tag">Not in this demo</span></div></div>').join('')+'</div></div>';
@@ -256,19 +262,33 @@ function conflictTags(k){
   return h;
 }
 const nameOf=k=>(L35.PRIMARIES[k]||L35.OPTIONALS[k]||L35.ROES[k]||{name:k}).name;
-/* step 2: optional objectives (up to OPT_MAX) and the rules of engagement */
+/* a primary's rewards (feedback 2, §1.1): what it pays, and the bonus for doing the one you picked */
+function rewardHtml(k){
+  const R=L35.PRIMARIES[k].reward;if(!R)return '';
+  const per=R.per?' <span class="h35-rew__per">+ '+chips(R.per)+' '+esc(R.perText)+'</span>':'';
+  return '<div class="h35-rew"><span class="h35-rew__lbl">Pays</span>'+(chips(R.base)||'')+per+(R.extra?' <span class="h35-rew__per">+ '+esc(R.extra)+'</span>':'')+
+    '</div><div class="h35-rew h35-rew--bonus"><span class="h35-rew__lbl">Accomplished</span>+ '+chips(R.bonus)+'</div>';
+}
+const RES_ICO={c:'credits',s:'supplies',m:'materials',f:'fuel',i:'intel'},RES_NAME={c:'Credits',s:'Supplies',m:'Materials',f:'Fuel',i:'Intel'};
+const chips=b=>b?Object.keys(RES_ICO).filter(k=>b[k]).map(k=>'<span class="sr-cost" style="--c:var(--sr-res-'+RES_ICO[k]+')" data-tip="@" data-tt="'+RES_NAME[k]+'">'+SR.hud.ico(RES_ICO[k])+b[k]+'</span>').join(' '):'';
+/* window 1, part 2: the secondary objectives (up to OPT_MAX) */
 const OPT_MAX=2;
-function step2(){
-  const P=B.plan;
-  let h='<div class="h35-cols"><div class="h35-col"><p class="h35-hint">Optional objectives (up to '+OPT_MAX+'): your pilots try for them, but the primary comes first.</p>';
+function step1b(){
+  const P=B.plan,o=L35.PRIMARIES[P.primary];
+  let h='<p class="h35-hint">Part 2 · Secondary objectives (up to '+OPT_MAX+'), on top of <b>'+esc(o?o.name:'the primary')+'</b>: your pilots try for them, but the primary comes first.</p><div class="h35-opts">';
   for(const k in L35.OPTIONALS){const o=L35.OPTIONALS[k],on=P.optionals.find(x=>x.k===k);
     h+='<button type="button" class="sr-card h35-obj h35-tog'+(on?' is-picked':'')+'" data-opt="'+k+'" data-tip="opt:'+k+'"'+(!on&&P.optionals.length>=OPT_MAX?' aria-disabled="true" data-why="Two optionals at most"':'')+'><div class="sr-card__top"><span class="sr-card__title">'+esc(o.name)+'</span>'+conflictTags(k)+'</div><div class="sr-card__body">'+esc(o.line)+'</div>'+
       (on&&o.needs?'<div class="h35-pickrow" data-stop="1">'+pilotPick(k,on.ship,o.needs)+'</div>':'')+'</button>';}
-  h+='</div><div class="h35-col"><div class="h35-label">Rules of engagement</div>';
+  return h+'</div>';
+}
+/* window 2: the rules of engagement */
+function step2(){
+  const P=B.plan;
+  let h='<p class="h35-hint">How your pilots fight: the rules hold for every wing, all mission.</p><div class="h35-opts">';
   for(const k in L35.ROES){const o=L35.ROES[k],on=P.roes.includes(k);
     h+='<button type="button" class="sr-card h35-obj h35-tog'+(on?' is-picked':'')+'" data-roe="'+k+'" data-tip="roe:'+k+'"><div class="sr-card__top"><span class="sr-card__title">'+esc(o.name)+'</span>'+conflictTags(k)+'</div><div class="sr-card__body">'+esc(o.line)+'</div>'+
       (on&&k==='preservation'?'<div class="h35-pickrow" data-stop="1"><label>Withdraw under <b>'+Math.round(P.presHull*100)+'%</b> hull <input type="range" min="0.1" max="0.6" step="0.05" value="'+P.presHull+'" data-pres="1"></label></div>':'')+'</button>';}
-  return h+'</div></div>';
+  return h+'</div>';
 }
 function pilotPick(k,cur,need){
   const ships=[];for(const w of L35.WINGS35)for(const sd of w.ships){const p=sd.pilot||{};if(need==='green'&&!(p.preset==='green'))continue;ships.push(sd);}
@@ -521,7 +541,7 @@ function whyLines(){
 function planAgain(){
   // the same seed and modifiers, every modifier found in play now known, the last plan kept
   B.planAgain=true;const last=B.metrics[B.metrics.length-1];if(last)last.planAgain=true;
-  B.step=1;enterBrief();   // back to window 1, the plan kept (§3.6)
+  B.step=1;B.part=1;enterBrief();   // back to window 1, the plan kept (§3.6)
 }
 /* the attempt's record (§10), pushed to ARENA_METRICS ("Dump metrics" prints the session) */
 function record(){
@@ -802,8 +822,8 @@ function onKey(ev){
     const typing=ev.target&&/^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName||'');
     if(B.screen==='brief'&&!typing){
       if(k==='Escape'||k==='ArrowLeft'){ev.preventDefault();backStep();return true;}
-      if(k==='ArrowRight'&&B.step<4){ev.preventDefault();goStep(B.step+1);return true;}
-      if(k==='Enter'&&B.step<4&&!(ev.target&&ev.target.closest&&ev.target.closest('button'))){ev.preventDefault();if(!nextWhy())goStep(B.step+1);return true;}}
+      if(k==='ArrowRight'&&B.step<4){ev.preventDefault();nextStep();return true;}
+      if(k==='Enter'&&B.step<4&&!(ev.target&&ev.target.closest&&ev.target.closest('button'))){ev.preventDefault();if(!nextWhy())nextStep();return true;}}
     if(k==='Enter'&&B.screen==='board'){ev.preventDefault();enterBrief();return true;}
     return /^[ 0-9]$/.test(k)||k==='Tab';   // the sim stays still while you plan: High Command's keys are off
   }
@@ -819,7 +839,10 @@ function render(){
   else if(B.screen==='brief')h=briefHtml();
   else if(B.screen==='debrief')h=debriefHtml();
   if(B.screen==='live'&&B.banner&&performance.now()-B.banner.at<1400&&!API.fxReduced())h+='<div class="sr-banner"><span class="sr-banner__txt">'+esc(B.banner.txt)+'<span class="sr-banner__sub">'+esc(B.banner.sub)+'</span></span></div>';
-  API.hideTipIn(ROOT);ROOT.innerHTML=h;ROOT.dataset.screen=B.screen;ROOT.dataset.step=B.screen==='brief'?B.step:'';
+  // a re-render keeps each scrolled pane where it was, so a pick doesn't throw you back to the top (feedback 2, §1)
+  const keep=[...ROOT.querySelectorAll('[data-keep]')].map(el=>[el.dataset.keep,el.scrollTop]);
+  API.hideTipIn(ROOT);ROOT.innerHTML=h;ROOT.dataset.screen=B.screen;ROOT.dataset.step=B.screen==='brief'?B.step:'';ROOT.dataset.part=B.screen==='brief'&&B.step===1?B.part:'';
+  for(const [k,t] of keep){const el=ROOT.querySelector('[data-keep="'+k+'"]');if(el)el.scrollTop=t;}
   paintCanvases();
   if(B.screen==='brief'&&B.step===4)fitPane();   // the plan map, through window 4's pane
 }
@@ -858,7 +881,7 @@ ROOT.addEventListener('click',ev=>{
   if(a==='brief'){enterBrief();return;}
   if(a==='rulesets'){close();API.toRulesets();return;}
   if(a==='title'){API.backToTitle();return;}
-  if(a==='next'){goStep(B.step+1);return;}
+  if(a==='next'){nextStep();return;}
   if(a==='prev'){backStep();return;}
   if(a==='launch'){launchFromWindow();return;}
   if(a==='again'){planAgain();return;}

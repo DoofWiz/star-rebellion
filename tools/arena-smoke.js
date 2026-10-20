@@ -1919,7 +1919,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.board=[B.screen,!!q('.bf-board .bf-card.is-sel'),qa('.sr-btn--primary').length,!!q('canvas[data-portrait="cass"]')];
   out.dossier=[B.screen,!!q('canvas[data-target]'),!!q('[data-act="dig"]')];
   q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-obj.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
-  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
+  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step1b=[B.step,B.part,qa('[data-opt]').length,qa('[data-roe]').length];   // window 1, part 2: the secondaries
+  q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
   q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wing').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.sr-slot').length];
   q('[data-act="next"]').click();out.step4=[B.step,qa('[data-ord="exec"]').length,!!q('[data-act="launch"]'),q('[data-act="launch"]').getAttribute('aria-disabled')];
   // the wings as listed: Dagger 2 Cross + 1 Talon, Anvil 1 Talon + 2 Brickbat, Amber 1 Cross + 2 Talon + 1 Brickbat
@@ -1937,8 +1938,8 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(t35b.rulesets[3]==='Type 3.5: High Command Hands Off','HC35 2: the fourth ruleset '+JSON.stringify(t35b.rulesets));
  ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='board'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary), its holo freighter and Dig deeper '+JSON.stringify([t35b.board,t35b.dossier]));
- ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===5&&t35b.step2[0]===2&&t35b.step2[1]===7&&t35b.step2[2]===5&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
-  'HC35 2: the four briefing steps '+JSON.stringify([t35b.step1,t35b.step2,t35b.step3,t35b.step4]));
+ ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===5&&t35b.step1b.join()==='1,2,7,0'&&t35b.step2.join()==='2,0,5'&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
+  'HC35 2: the four briefing steps, window 1 in two parts '+JSON.stringify([t35b.step1,t35b.step1b,t35b.step2,t35b.step3,t35b.step4]));
  ok(t35b.wings.join('|')==='cross,cross,talon|talon,brickbat,brickbat|cross,talon,talon,brickbat','HC35 2: the wings as the designer listed them '+JSON.stringify(t35b.wings));
  ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));
  ok(t35b.again[0]==='brief'&&t35b.again[1]===1&&t35b.again[2]&&t35b.again[3]==='destroy'&&t35b.again[4],'HC35 2: Plan again keeps the seed and the plan (window 1, K6) '+JSON.stringify(t35b.again));
@@ -2523,11 +2524,12 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
     qa('.h35-tab[data-tip="na:arena"]').length===4,qa('.bf-card[aria-disabled="true"]').length>=3,!!q('[data-act="newopp"]'),!!q('.bf-callout.is-foe')];titles('board');
   q('.bf-plan [data-act="brief"]').click();
   out.w1=[B.screen==='brief',B.step===1,!!q('.h35-holo'),/Objective/.test((q('.h35-node.is-on')||{}).textContent||''),q('[data-act="next"]').getAttribute('aria-disabled')==='true'];titles('w1');
-  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();const w2=B.step===2;titles('w2');q('[data-act="prev"]').click();const back=B.step===1;
-  q('[data-act="next"]').click();key('Escape');const esc1=B.step===1;key('Escape');const esc0=B.screen==='board'&&B.plan&&B.plan.primary==='destroy';
-  q('.bf-plan [data-act="brief"]').click();key('ArrowRight');key('ArrowRight');titles('w3');key('ArrowRight');const w4=B.step===4&&!!q('.h35-holo.is-wide [data-pane]');titles('w4');
+  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();const w2=B.step===1&&B.part===2;titles('w1b');q('[data-act="next"]').click();const w2b=B.step===2;titles('w2');
+  q('[data-act="prev"]').click();const back=B.step===1&&B.part===2;q('[data-act="prev"]').click();const back1=B.step===1&&B.part===1;
+  q('[data-act="next"]').click();key('Escape');const esc1=B.step===1&&B.part===1;key('Escape');const esc0=B.screen==='board'&&B.plan&&B.plan.primary==='destroy';
+  q('.bf-plan [data-act="brief"]').click();key('ArrowRight');key('ArrowRight');key('ArrowRight');titles('w3');key('ArrowRight');const w4=B.step===4&&!!q('.h35-holo.is-wide [data-pane]');titles('w4');
   q('.h35-node.is-done [data-step="2"]').click();const node=B.step===2;key('ArrowRight');key('ArrowRight');
-  out.steps=[w2,back,esc1,esc0,w4,node,B.step===4];
+  out.steps=[w2,w2b,back,back1,esc1,esc0,w4,node,B.step===4];
   q('[data-act="launch"]').click();out.launch=[B.screen==='live',!!SIM.S&&SIM.S.t===0];API.syncHud(true);API.openPilot('joss');API.syncHud(true);titles('live');
   // 12: the one tooltip: hovering an objective card shows #hcTip with its title
   X.fn.run(400);titles('debrief');q('[data-act="again"]').click();out.again=[B.screen==='brief',B.step===1,B.plan.primary==='destroy'];
@@ -2558,11 +2560,31 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k6.tip.slice(0,3).every(Boolean),'HC35 K6 12: hovering an objective card shows #hcTip with its title '+JSON.stringify(t35k6.tip));
  ok(t35k6.deb.slice(0,2).every(Boolean),'HC35 K6 13: a failed Steal lists its failure cause first '+JSON.stringify(t35k6.deb));
  ok(t35k6.pod.slice(0,4).every(Boolean),'HC35 K6 13: a pod still drifting at the end is Captured or Lost, never drifting '+JSON.stringify(t35k6.pod));
+ // HC35 L1: the planning windows (feedback 2, §1–2): a pick doesn't replay the window's opening, a scrolled pane stays put, each primary shows its rewards
+ const t35l1=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,out={};
+  const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
+  B.seed=4243;B.plan=null;B.step=1;B.part=1;X.fn.showBoard(false);q('.bf-plan [data-act="brief"]').click();
+  await new Promise(r=>setTimeout(r,400));
+  q('[data-primary="crash"]').click();const w=q('.h35-holo');
+  out.pop=[!!w,!w.classList.contains('is-open'),w.getAnimations().length===0,getComputedStyle(w).animationName];
+  out.rew=[qa('[data-primary]').length===7,qa('[data-primary] .h35-rew--bonus .sr-cost').length===7,qa('[data-primary="strip"] .h35-rew__per .sr-cost').length===1,
+    /300/.test(q('[data-primary="destroy"] .h35-rew').textContent),qa('[data-primary] .h35-rew [title]').length===0];
+  // window 3: scroll its body, pick an asset slot; the body is where it was
+  B.step=3;X.fn.render();const b=q('.h35-holo__body'),over=b.scrollHeight>b.clientHeight+20;b.scrollTop=over?b.scrollHeight:0;const st=b.scrollTop;
+  q('[data-slot]').click();const b2=q('.h35-holo__body');
+  out.keep=[over,b2!==b,Math.abs(b2.scrollTop-st)<=2||b2.scrollTop>=b2.scrollHeight-b2.clientHeight-2,q('.h35-holo').getAnimations().length===0];
+  B.step=1;B.part=1;X.fn.render();
+  return out;
+ });
+ ok(t35l1.pop.slice(0,3).every(Boolean),'HC35 L1 1: picking a primary re-renders the window without replaying its opening '+JSON.stringify(t35l1.pop));
+ ok(t35l1.rew.every(Boolean),'HC35 L1 1.1: every primary shows what it pays and its Accomplished bonus '+JSON.stringify(t35l1.rew));
+ ok(t35l1.keep.slice(1).every(Boolean),'HC35 L1 1: a pick keeps the scrolled pane where it was, with no pop '+JSON.stringify(t35l1.keep));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

@@ -220,14 +220,23 @@ const LOADOUTS={bombs:{name:'Bombs',line:'Two racks of three. The only thing tha
 /* =====================================================================
    Objectives, rules, assets (§4.1, §4.2, §4.3)
    ===================================================================== */
+/* the rewards (feedback 2, §1.1) are a first pass for the demo: what the primary pays, per container or kill where it
+   counts them, and the Accomplished bonus for doing the primary you picked rather than a fallback. placeholder */
 const PRIMARIES={
-  steal:{family:'Take it',name:'Steal',wins:'Disable it, board it, and fly the prize out through our jump point.',needs:['bombs','board'],loot:'Every surviving container and the ship'},
-  pirate:{family:'Take it',name:'Pirate',wins:'Break the crew\'s nerve, accept their surrender, and hold by them while they hand it over.',needs:[],loot:'Most of the surviving cargo'},
-  strip:{family:'Take it',name:'Strip the Cargo',wins:'Disable it and haul at least one container home.',needs:['bombs','pods'],loot:'The containers hauled out'},
-  destroy:{family:'Deny it',name:'Destroy',wins:'The freighter dies.',needs:[],loot:'None'},
-  crash:{family:'Deny it',name:'Crash',wins:'Disable it inside the planet\'s pull: it falls in.',needs:['bombs'],loot:'None'},
-  tag:{family:'Use it',name:'Tag and Track',wins:'Plant a tracker unseen, then let it jump out alive.',needs:['tagger'],loot:'A follow-up lead'},
-  ambush:{family:'Bait with it',name:'Ambush the Responders',wins:'Destroy three of the Hegemony response.',needs:['notRemote'],loot:'Response kills'},
+  steal:{family:'Take it',name:'Steal',wins:'Disable it, board it, and fly the prize out through our jump point.',needs:['bombs','board'],loot:'Every surviving container and the ship',
+    reward:{base:{c:250,m:120},per:{s:25},perText:'a container aboard',bonus:{c:200}}},
+  pirate:{family:'Take it',name:'Pirate',wins:'Break the crew\'s nerve, accept their surrender, and hold by them while they hand it over.',needs:[],loot:'Most of the surviving cargo',
+    reward:{base:{c:150},per:{s:30},perText:'a container handed over',bonus:{c:150}}},
+  strip:{family:'Take it',name:'Strip the Cargo',wins:'Disable it and haul at least one container home.',needs:['bombs','pods'],loot:'The containers hauled out',
+    reward:{base:null,per:{s:40},perText:'a container hauled home',bonus:{c:100}}},
+  destroy:{family:'Deny it',name:'Destroy',wins:'The freighter dies.',needs:[],loot:'None',
+    reward:{base:{c:300},bonus:{c:100}}},
+  crash:{family:'Deny it',name:'Crash',wins:'Disable it inside the planet\'s pull: it falls in.',needs:['bombs'],loot:'None',
+    reward:{base:{c:300,i:2},bonus:{c:200}}},
+  tag:{family:'Use it',name:'Tag and Track',wins:'Plant a tracker unseen, then let it jump out alive.',needs:['tagger'],loot:'A follow-up lead',
+    reward:{base:{i:4},extra:'a follow-up lead',bonus:{c:150}}},
+  ambush:{family:'Bait with it',name:'Ambush the Responders',wins:'Destroy three of the Hegemony response.',needs:['notRemote'],loot:'Response kills',
+    reward:{base:{c:100},per:{c:60},perText:'a response kill',bonus:{c:150}}},
 };
 const PRIMARY_KEYS=Object.keys(PRIMARIES);
 const LATER_PRIMARIES=['Snatch the Paymaster','Misjump','Trojan Freighter','Turn the Crew','Cover Op'];
