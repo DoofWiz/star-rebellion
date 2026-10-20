@@ -280,13 +280,15 @@ function lockTick(s,dt){
     if(s.locks[id]<=0)delete s.locks[id];
   }
 }
+/* the lock a missile needs (Type 3.5 can ask for more: HK.misLock) */
+const misLockNeed=(s,t)=>(HK.misLock&&HK.misLock(s,t))||MISSILE_LOCK;
 /* the missile a ship could fire now: a lock of MISSILE_LOCK on a target in range and past the minimum */
 function missileShot(s){
   const q=misWpn(s);if(!q||s.holdFire||q.cd>0||critCount(s,'feed'))return null;
   const t=byId(s.lockOn);if(!t||!t.alive)return null;
   if(HK.canFire&&HK.canFire(s,t,q)===false)return null;
   const d=dist(s,t);
-  return lockOf(s,t.id)>=MISSILE_LOCK&&d<=misRange(q)&&d>=MISSILE_MINR*RU?{q,t}:null;
+  return lockOf(s,t.id)>=misLockNeed(s,t)&&d<=misRange(q)&&d>=MISSILE_MINR*RU?{q,t}:null;
 }
 function fireMissile(s,q,t){
   q.ammo--;q.cd=MISSILE_EVERY;s.st.missiles++;
@@ -332,7 +334,7 @@ function canFire(s,q,t){
   if(q.ammo!==undefined&&q.ammo<=0)return false;
   const d=dist(s,t);
   if(!inArc(s,t)||d>q.w.rng)return false;
-  if(q.w.needsLock)return lockOf(s,t.id)>=MISSILE_LOCK&&d>=MISSILE_MINR*RU;
+  if(q.w.needsLock)return lockOf(s,t.id)>=misLockNeed(s,t)&&d>=MISSILE_MINR*RU;
   return true;
 }
 function fireTick(s,dt){
@@ -458,7 +460,7 @@ function throwChaff(s){
   const c={id:++S.chaffN,x:s.x-Math.cos(s.vh)*60,y:s.y-Math.sin(s.vh)*60,vx:s.vx*0.25,vy:s.vy*0.25,t0:S.t,until:S.t+CHAFF_SECS,owner:s.id};
   S.chaff.push(c);s.chaffLeft=(s.chaffLeft==null?CHAFF_N:s.chaffLeft)-1;
   let n=0;
-  for(const m of S.missiles)if(m.target===s.id&&dist(m,s)<=CHAFF_R&&S.rng()<CHAFF_P){m.target=null;m.decoy=c.id;n++;}
+  for(const m of S.missiles)if(m.target===s.id&&dist(m,s)<=CHAFF_R&&S.rng()<((HK.chaffP&&HK.chaffP(m,s))??CHAFF_P)){m.target=null;m.decoy=c.id;n++;}   // Type 3.5: a firmer lock is harder to draw off
   pushEvent('chaff',s.name+' throws chaff'+(n?': '+n+' missile'+(n>1?'s':'')+' drawn off':''),{ship:s.faction==='reb'?s.id:null,x:s.x,y:s.y,tone:s.faction==='reb'?'good':'info'});
   return n;
 }

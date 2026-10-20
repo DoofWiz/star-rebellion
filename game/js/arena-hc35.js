@@ -1199,7 +1199,7 @@ function frCard(fr){
   if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil(L35.TUNE.JUMP_SECS.get()-(S.t-L.spool)))+' s');
   if(L.board>0&&!L.boarded)ch.push('BOARDING '+Math.round(L.board*100)+'%');
   if(D&&!D.landed&&!D.cut)ch.push('DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/N.DISTRESS_SECS)*100)+'%');
-  if(L.surrender)ch.push('SURRENDERING');
+  if(L.surrender&&!L.prize)ch.push('SURRENDERING');
   if(ch.length)h+='<div class="h35-tgt__chips">'+ch.map(t=>'<span class="sr-tag">'+esc(t)+'</span>').join('')+'</div>';
   return h;
 }

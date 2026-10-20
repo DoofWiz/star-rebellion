@@ -2604,13 +2604,14 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const kit=by('kit'),e2=S().ships.find(s=>s.role35==='escort'&&s.alive);kit.hitT=S().t;kit.firedOnT=S().t;kit.lastHitBy=e2.id;think(kit);
   out.defend=[kit.beh.kind==='engage',kit.beh.target===e2.id,kit.beh.why==='self-defence'];
   // 3: the retreat. A fight with the escort going; Retreat: every ship heads for the jump point (after a 4 s turn), and gets there
-  go('tag',{k:'suppress',arg:'escorts'},{seed:41});for(let i=0;i<300&&!L().alarm;i++)SIM.runFor(1);SIM.runFor(20);out.t0=[+S().t.toFixed(1),L().prim.state];
+  // (was Tag, which can't launch without a tracker named, so the test ran on the last mission)
+  go('destroy',{k:'suppress',arg:'escorts'},{seed:41});for(let i=0;i<300&&!L().alarm;i++)SIM.runFor(1);SIM.runFor(20);out.t0=[+S().t.toFixed(1),L().prim.state];
   const n0=mine().length;L35.use('retreat');SIM.runFor(4);
   const jp=S().points.ourjump;let toward=0,samples=0,kinds=new Set();
   for(let i=0;i<12;i++){for(const s of mine()){samples++;kinds.add(s.beh&&s.beh.kind);const dx=jp.x-s.x,dy=jp.y-s.y,d=Math.hypot(dx,dy)||1,v=Math.hypot(s.vx,s.vy)||1;if((s.vx*dx+s.vy*dy)/(d*v)>0.3)toward++;}SIM.runFor(1);}
   const panicky=mine().filter(s=>s.panic).length;
   SIM.runFor(60);const home=S().ships.filter(s=>s.faction==='reb'&&s.wing&&s.jumped).length,left=mine().length;
-  out.retreat=[n0>0,toward/samples>=0.8,[...kinds].every(k=>k==='withdraw'||k==='flee'||k==='freeze'),left<=panicky,L().dec.some(d=>d.kind==='retreat'),+(toward/samples).toFixed(2),[...kinds].join('/'),n0,home,left];
+  out.retreat=[n0>0&&L().primK==='destroy',toward/samples>=0.8,[...kinds].every(k=>k==='withdraw'||k==='flee'||k==='freeze'),left<=panicky,L().dec.some(d=>d.kind==='retreat'),+(toward/samples).toFixed(2),[...kinds].join('/'),n0,home,left];
   N.RES_THREAT=rt0;N.REQ_OFF=0;N.COMMS_OFF=co;
   return out;
  });
@@ -2838,7 +2839,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   // 1: her engines out, then boarded: the prize crew mends them on her thrusters, then she makes her cruise; she can't jump till then
   go('steal',{amber:{k:'board'}},{mags:'board'});L35.alarm('fired','test');const e=L().subs.find(x=>x.k==='engines');e.hp=0;L35.fn.subDown(fr(),e,null);
   const m=by('mags'),f=fr();m.x=f.x+Math.cos(f.h+Math.PI/2)*2500;m.y=f.y+Math.sin(f.h+Math.PI/2)*2500;m.px=m.x;m.py=m.y;
-  for(let i=0;i<20*120&&!L().prize;i++)SIM.step();
+  for(let i=0;i<20*200&&!L().prize;i++)SIM.step();   // (no cargo deal for a Steal now: she doesn't heave to, so the boarder chases her)
   const prize=!!L().prize;let maxW=0,prev=f.h;const turn=n=>{for(let i=0;i<n;i++){SIM.step();maxW=Math.max(maxW,Math.abs(((f.h-prev+3*Math.PI)%(2*Math.PI))-Math.PI)*20);prev=f.h;}};
   turn(20*N.CAP_REALIGN*4);const rep0=L().repair&&L().repair.k,v0=Math.hypot(f.vx,f.vy);
   for(let i=0;i<N.REPAIR_SECS+5&&L().engOut;i++)turn(20);
@@ -2856,6 +2857,47 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(t35n1.prize.slice(0,9).every(Boolean),'HC35 N1: the prize crew mends her engines on her thrusters, she can\'t jump till then, then makes her cruise, turning like a capital ship '+JSON.stringify(t35n1.prize));
  ok(t35n1.phase.every(Boolean),'HC35 N1: a settled job isn\'t Phase 3; the response arriving is '+JSON.stringify(t35n1.phase));
+ // HC35 O1 (the designer's run 248991): a released freighter runs for its jump point, not jumping where it is; the surrender's default serves the primary; missiles wait for a full lock; a firm lock shrugs off some chaff
+ const t35o1=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const go=(prim,ex,lo)=>{B.seed=96;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=Object.assign({arg:null},(ex||{})[w]||{k:'hold'});B.plan.wings[w].second=null;if(lo)for(const sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=lo;}
+    B.plan.assets=[];B.plan.roes=[];B.plan.optionals=[];X.fn.launch();L().cp=9;};
+  const keep={COMMS_OFF:N.COMMS_OFF,RES_THREAT:N.RES_THREAT};N.COMMS_OFF=1;N.REQ_OFF=1;N.RES_THREAT=0;
+  const JS=L35.TUNE.JUMP_SECS.get();
+  // 1: the hand-over done mid-lane, she's let go: no spool there; she runs on and spools only at her lane's end
+  go('destroy');L35.alarm('fired','test');SIM.runFor(1);L35.answerSurrender('take');   // not Pirate: its hand-over ends the mission
+  const j=by('joss');for(let i=0;i<20&&!L().transferred;i++){L().transfer=Math.max(L().transfer,N.TRANSFER_SECS-0.05);j.x=fr().x+400;j.y=fr().y;j.px=j.x;j.py=j.y;SIM.step();}
+  const rel=[!!L().transferred,!!L().released,L().spool==null,L().leg<L().lane.length-1];
+  SIM.runFor(JS+4);rel.push(fr().alive&&!fr().jumped,L().spool==null,Math.hypot(fr().vx,fr().vy)>L().cruise*0.5);
+  const end=L().lane[L().lane.length-1];L().leg=L().lane.length-1;fr().x=end.x;fr().y=end.y;fr().px=fr().x;fr().py=fr().y;
+  SIM.runFor(2);rel.push(L().spool!=null);SIM.runFor(JS+1);rel.push(!fr().alive&&!!fr().jumped);
+  out.release=rel;
+  // 2: the hail's default: the ship for Steal, no deal for Destroy and Crash, the cargo for Pirate and Strip
+  // (each launched with the Brickbats it needs: a Steal needs boarders, a Strip pods, a Crash bombs)
+  const def={},LO={steal:'board',strip:'pods',crash:'bombs'};
+  for(const p of ['steal','destroy','crash','pirate','strip']){go(p,null,LO[p]||'bombs');L35.alarm('fired','test');SIM.runFor(0.5);
+    N.REQ_OFF=0;const gap=N.REQ_GAP;N.REQ_GAP=0;L35.fn.reqTrigger('surrender',{},'t');SIM.runFor(0.5);N.REQ_OFF=1;N.REQ_GAP=gap;
+    const q=L().req.open.find(x=>x.k==='surrender')||L().req.log.find(x=>x.k==='surrender');def[p]=L().primK===p&&q&&q.def;}
+  // a crew that gives up the ship (Demoralised, Demand the ship): the prize crew flies her home, she doesn't sit hove to
+  go('steal',null,'board');B.mods=[];L().mods.push({k:'demoralised',hidden:false});L35.alarm('fired','test');SIM.runFor(0.5);L35.answerSurrender('demand');
+  const p0={x:fr().x,y:fr().y},jp=S().points.ourjump,d0=F.dist(fr(),jp);SIM.runFor(15);
+  out.given=[!!L().prize,L().surrender==='ship',F.dist(fr(),p0)>200,F.dist(fr(),jp)<d0];
+  out.def=[def.steal==='demand',def.destroy==='no',def.crash==='no',def.pirate==='take',def.strip==='take',JSON.stringify(def)];
+  // 3: a missile waits for a full lock; chaff draws a firm lock off less often
+  go('destroy',{dagger:{k:'destroy'}});L35.alarm('fired','test');SIM.runFor(0.5);
+  const s=by('joss'),e=S().ships.find(x=>x.role35==='escort'&&x.alive);s.x=e.x-1000;s.y=e.y;s.px=s.x;s.py=s.y;s.h=0;s.vh=0;s.fireAt=e.id;s.lockOn=e.id;
+  for(const q of s.wpns)if(q.w.needsLock)q.cd=0;
+  s.locks[e.id]=0.7;const at70=F.missileShot(s);s.locks[e.id]=1;const at100=F.missileShot(s);
+  out.mis=[!!s.wpns.find(q=>q.w.needsLock),at70===null,!!at100,Math.abs(SIM.hooks.chaffP({lock:1})-0.5)<1e-9,Math.abs(SIM.hooks.chaffP({lock:0.6})-0.7)<1e-9,SIM.hooks.misLock()===N.MIS_LOCK35];
+  Object.assign(N,keep);N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35o1.release.every(Boolean),'HC35 O1: released after the hand-over, she runs her lane and jumps only at its end '+JSON.stringify(t35o1.release));
+ ok(t35o1.given.every(Boolean),'HC35 O1: a crew that gives up the ship: the prize crew flies her home '+JSON.stringify(t35o1.given));
+ ok(t35o1.def.slice(0,5).every(Boolean),'HC35 O1: the surrender\'s default serves the primary '+JSON.stringify(t35o1.def));
+ ok(t35o1.mis.every(Boolean),'HC35 O1: a missile waits for a full lock; a firm lock is harder to draw off with chaff '+JSON.stringify(t35o1.mis));
  // HC35 W1 (the windows handoff, §1): the step track reads done, current and to come; window 1's part dots; the readiness pill counts what's missing; no title attributes
  const t35w1=await pg4.evaluate(async()=>{
   const X=window.DBGarena.hc35,B=X.B,out={};
@@ -3007,7 +3049,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1,t35w1,t35w2,t35w3,t35fit},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1,t35o1,t35w1,t35w2,t35w3,t35fit},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

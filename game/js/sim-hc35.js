@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-11';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-12';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -94,6 +94,7 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   // feedback 2, L6: plasma. A heavy gun: PX_BOLTS slow bolts a burst (PX_SPD × a repeater bolt's speed) carrying the
   // burst's damage between them, × PX_DMG (slow bolts miss more: this evens it out); a hit is likelier to be critical
   // (PX_CRIT); PX_RNG × the reach
+  MIS_LOCK35:0.95,CHAFF35:1,CHAFF_LOCK35:0.5,   // a missile waits for a full lock, so a break can't shake it; chaff draws one off CHAFF35 × (1 − CHAFF_LOCK35 × its lock). placeholder
   PX_BOLTS:2,PX_SPD:1.2,PX_DMG:1.15,PX_CRIT:0,PX_RNG:0.7,PX_SPREAD:1.6,   // the designer's slider settings (playtest 2), toned down after ("super duper strong"); PX_SPREAD × the guns' scatter
   DRIFT_SECS:1.4,DRIFT_TURN:0.45,DRIFT_NOSE:1.2,DRIFT_COAST:0.15,DRIFT_BLEED:0.12,DRIFT_REACH:1.6,DRIFT_OFF_MIN:0.6,DRIFT_OFF_MAX:2.2,DRIFT_VMIN:1.05,DRIFT_CD:14};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
 const T35={
@@ -149,12 +150,13 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   THRUST_TURN:['Engines out: turn × its rate',0,1,0.05,'Freighter'],BOARD_SIZE:['Boardable from size',1,20,1,'Freighter'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings'],
   SUB_ENG:['A ship\'s engines × its hull',0.05,2,0.05,'Subsystems'],SUB_GUN:['A ship\'s guns × its hull',0.05,2,0.05,'Subsystems'],SUB_SHD:['A ship\'s shield generator × its hull',0.05,2,0.05,'Subsystems'],
   AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems'],
+  MIS_LOCK35:['Missiles: the lock they wait for',0.6,1,0.05,'Missiles'],CHAFF35:['Chaff: chance it draws a missile off',0,1,0.05,'Missiles'],CHAFF_LOCK35:['Chaff: share a full lock takes off that',0,1,0.05,'Missiles'],
   PX_BOLTS:['Plasma: bolts a burst',1,8,1,'Plasma'],PX_SPD:['Plasma: bolt speed × a repeater\'s',0.1,1.5,0.05,'Plasma'],PX_DMG:['Plasma: damage a second × the repeaters\'',0.3,3,0.05,'Plasma'],PX_CRIT:['Plasma: extra critical chance',0,0.6,0.01,'Plasma'],PX_SPREAD:['Plasma: scatter × the repeaters\'',0.3,4,0.05,'Plasma'],PX_RNG:['Plasma: reach × the repeaters\'',0.3,1.5,0.05,'Plasma'],
   DRIFT_SECS:['Drift: seconds',0.3,4,0.1,'Wings'],DRIFT_TURN:['Drift: line of flight turns at ×',0,1,0.05,'Wings'],DRIFT_NOSE:['Drift: nose off the line of flight (rad)',0.2,1.6,0.05,'Wings'],
   DRIFT_COAST:['Drift: braking × (it coasts)',0,1,0.05,'Wings'],DRIFT_BLEED:['Drift: top speed bled a second',0,0.5,0.01,'Wings'],DRIFT_REACH:['Drift: target within × gun range',0.5,4,0.1,'Wings'],
   DRIFT_OFF_MIN:['Drift: target at least this far off the nose (rad)',0,1.5,0.05,'Wings'],DRIFT_OFF_MAX:['Drift: and at most (rad)',0.5,3.14,0.05,'Wings'],DRIFT_VMIN:['Drift: speed over × corner speed',0.5,2,0.05,'Wings'],DRIFT_CD:['Drift: recharge (s)',2,60,1,'Wings']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
-const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems','Plasma'];
+const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems','Missiles','Plasma'];
 
 /* =====================================================================
    The opportunity (§3.1): one type, as data
@@ -534,6 +536,8 @@ function attach(){
   HK.floater=(s,text,kind)=>!live()||kind==='dmg';   // 3.5 floats no words (the callouts carry what matters, §3.3); damage numbers only if the panel asks
   HK.noSep=s=>live()&&(!!s.dock35||(s.beh&&s.beh.kind==='dock35'&&s.dockLeg==='final'));   // its escort's spacing mustn't herd a docking ship off
   HK.jumpR=()=>live()?N.JUMP35_R:null;
+  HK.misLock=()=>live()?N.MIS_LOCK35:null;   // the designer's run: missiles at a 60% lock read as fired blind
+  HK.chaffP=m=>live()?N.CHAFF35*(1-N.CHAFF_LOCK35*(m.lock||0)):null;
   HK.slideDrift=s=>live()?{secs:N.DRIFT_SECS,turnK:N.DRIFT_TURN,nose:N.DRIFT_NOSE,coast:N.DRIFT_COAST,bleed:N.DRIFT_BLEED,reach:N.DRIFT_REACH,offMin:N.DRIFT_OFF_MIN,offMax:N.DRIFT_OFF_MAX,vMin:N.DRIFT_VMIN,cd:N.DRIFT_CD}:null;   // feedback 2, §5
   HK.disengage=s=>live()&&s.faction==='reb'&&s.beh&&s.beh.kind==='withdraw'?N.RETREAT_SIDE:0;   // a retreat stays pointed home (feedback 2, §3.2)
 }
@@ -1049,7 +1053,7 @@ function optTick(fr){
 function giveSignal(){if(L.signal)return false;L.signal=true;L.signalT=SIM.S.t;for(const s of SIM.S.ships)if(s.faction==='reb')s.thinkT=F.THINK_SECS_();alarm('signal','Your signal');return true;}
 function stepFreighter(fr,dt){
   const S=SIM.S,kn=fr.knock||{x:0,y:0};fr.knock=null;   // this step's collision impulse (mass-split, sim-hc.js knock)
-  if(L.surrender&&!L.disabled){   // hove to: it holds station on its thrusters (no drift into the planet)
+  if(L.surrender&&!L.disabled&&!L.prize){   // hove to: it holds station on its thrusters (no drift into the planet); given up to us, the prize crew flies her
     const d=L.drift||(L.drift={vx:fr.vx,vy:fr.vy});d.vx+=kn.x;d.vy+=kn.y;fr.h=fr.ph;fr.w=0;const k=Math.min(1,dt*0.5);d.vx-=d.vx*k;d.vy-=d.vy*k;
     fr.x=fr.px+d.vx*dt;fr.y=fr.py+d.vy*dt;fr.vx=d.vx;fr.vy=d.vy;if(Math.hypot(d.vx,d.vy)>1)fr.vh=Math.atan2(d.vy,d.vx);return;}
   if(L.disabled){   // dead in space: the power plant's out; it drifts, the planet pulls, a knock pushes it (§3.8)
@@ -1224,8 +1228,8 @@ function dockTick(fr,dt){
       c.taken=true;L.jettOut++;const p=subWorld(fr,c);(L.crates||(L.crates=[])).push({x:p.x,y:p.y,vx:fr.vx,vy:fr.vy,t0:S.t,i:c.i});}
     if(L.transfer>=N.TRANSFER_SECS){L.transferred=true;SIM.pushEvent('surrender','The cargo is handed over',{x:fr.x,y:fr.y,tone:'good'});
       callout('CARGO SURRENDERED · '+L.jettOut+' CRATE'+(L.jettOut===1?'':'S'),'good',fr);
-      L.surrender=null;L.released=true;L.disabled=!subUp('power');if(L.disabled)L.drift={vx:fr.vx,vy:fr.vy};else L.drift=null;if(!L.engOut&&!L.disabled){L.spool=S.t;L.spoolWhy='released';}L.spoolAt={x:fr.x,y:fr.y};L.capV={x:fr.vx,y:fr.vy};L.capH=fr.h;   // let go: it spools and jumps (engines out, it crawls on; no power, it drifts)
-      SIM.pushEvent('fjump',L.spool!=null?'The freighter is released: it spools its jump':'The freighter is released: with no engines, it crawls on',{x:fr.x,y:fr.y,tone:'info'});}
+      L.surrender=null;L.released=true;L.disabled=!subUp('power');if(L.disabled)L.drift={vx:fr.vx,vy:fr.vy};else L.drift=null;L.capV={x:fr.vx,y:fr.vy};L.capH=fr.h;   // let go: it runs for its jump point like any freighter (engines out, it crawls; no power, it drifts)
+      SIM.pushEvent('fjump',L.disabled?'The freighter is released: with no power, it drifts':L.engOut?'The freighter is released: with no engines, it crawls on':'The freighter is released: it runs for its jump point',{x:fr.x,y:fr.y,tone:'info'});}
   }
   // jettisoned crates drift to the nearest of your ships and are taken aboard
   if(L.crates)for(const c of L.crates){if(c.done)continue;const r=S.ships.filter(s=>s.alive&&s.faction==='reb'&&s.wing).sort((a,b)=>dist(a,c)-dist(b,c))[0];
@@ -1241,6 +1245,9 @@ function answerSurrender(a){
     else{L.resolve=30;L.offered=null;L.noUntil=SIM.S.t+30;SIM.pushEvent('surrender','They refuse to give up the ship: the fight goes on',{x:fr.x,y:fr.y,tone:'hazard'});}}
   else{L.resolve=40;L.offered=null;L.noUntil=SIM.S.t+30;callout('THEY\'RE HOLDING OUT','hazard',fr);}   // no deal: back to 40; they hail again when it next reaches 0, 30 s at least
 }
+/* the surrender's default, for the primaries it matters to: a Steal wants the ship (letting her run loses it), a
+   Destroy or Crash wants no deal; Pirate and Strip want the cargo */
+const SURRENDER_DEF={pirate:'take',strip:'take',steal:'demand',destroy:'no',crash:'no'};
 function revealMod(k,text){const m=L.mods.find(x=>x.k===k&&!x.fake);if(m&&!m.found){m.found=true;m.foundT=+SIM.S.t.toFixed(2);SIM.pushEvent('intel',text,{tone:'hazard'});reqTrigger('intel',{mod:k,text},k);}}
 function tagTick(fr,dt){
   if(L.tag.planted||!fr||!fr.alive)return;
@@ -1776,7 +1783,7 @@ const REQ35={
   volunteer:{pri:5,build(c){const s=F.byId(c.ship),t=F.byId(c.target);if(!s||!s.alive||!t||!t.alive)return null;
     return {who:s.id,line:c.sub==='turrets'?'I can put her into that turret. Say the word.':c.sub==='engines'?'I can put her into those engines. Say the word.':'I can put her into him. Say the word.',answers:['doit','negative'],def:'negative'};}},
   surrender:{pri:10,must:true,build(c){const fr=FR();if(!fr||!fr.alive||L.surrender||L.prize)return null;const s=nearestLeader(fr);
-    return {who:s?s.id:null,line:'They\'re hailing. They\'ll dump the cargo if we let them run.',answers:['take','demand','no'],def:L.primK==='pirate'?'take':personaOf(s)==='eager'?'no':'take'};}},   // the answer that serves the primary (§3.11); else the persona's
+    return {who:s?s.id:null,line:'They\'re hailing. They\'ll dump the cargo if we let them run.',answers:['take','demand','no'],def:SURRENDER_DEF[L.primK]||(personaOf(s)==='eager'?'no':'take')};}},   // the answer that serves the primary (§3.11); else the persona's
   distress:{pri:7,build(c){const D=L.distress;if(!D||D.landed||D.cut||!subUp('comms'))return null;const s=nearestLeader(FR());if(!s)return null;
     return {who:s.id,line:'They\'re calling for help. Want me on that array?',answers:['kill','ignore'],def:'ignore'};}},
   rookie:{pri:2,build(c){const l=F.byId(c.leader),r=F.byId(c.rookie);if(!l||!l.alive||!r||!r.alive)return null;
