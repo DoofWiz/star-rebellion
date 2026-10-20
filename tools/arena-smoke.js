@@ -1908,15 +1908,16 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   return out;
  });
  ok(JSON.stringify(t35a.hash)===JSON.stringify(HC35_BASE)&&t35a.hooks===0,'HC35 1: High Command unchanged by the hooks (hashes match the baselines; no hook set) '+JSON.stringify(t35a));
- // HC35 2: the loop by DOM, board → dossier → the four steps → Launch → the mission → debrief → Plan again
+ // HC35 2: the loop by DOM, the Missions tab → the four planning windows → Launch → the mission → debrief → Plan again
+ // (feedback 1 K6: the dossier now lives in the board's rail and holo-table)
  const t35b=await pg4.evaluate(()=>{
   const top=window.DBGarena;top.fn.openPicker();
   const out={};const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
   out.rulesets=[...document.querySelectorAll('#arRulesets [data-ruleset-item] b')].map(e=>e.textContent);
   document.querySelector('#arRulesets [data-ruleset="hc35"]').click();
   const X=top.hc35,B=X.B;X.B.seed=4242;X.fn.showBoard(false);
-  out.board=[B.screen,!!q('.h35-opp'),qa('.sr-btn--primary').length,!!q('canvas[data-portrait="cass"]')];
-  q('[data-act="dossier"]').click();out.dossier=[B.screen,!!q('canvas[data-target]'),!!q('[data-act="dig"]')];
+  out.board=[B.screen,!!q('.bf-board .bf-card.is-sel'),qa('.sr-btn--primary').length,!!q('canvas[data-portrait="cass"]')];
+  out.dossier=[B.screen,!!q('canvas[data-target]'),!!q('[data-act="dig"]')];
   q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-obj.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
   q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
   q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wing').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.sr-slot').length];
@@ -1935,12 +1936,12 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   return out;
  });
  ok(t35b.rulesets[3]==='Type 3.5: High Command Hands Off','HC35 2: the fourth ruleset '+JSON.stringify(t35b.rulesets));
- ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='dossier'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary) and the dossier '+JSON.stringify([t35b.board,t35b.dossier]));
+ ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='board'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary), its holo freighter and Dig deeper '+JSON.stringify([t35b.board,t35b.dossier]));
  ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===5&&t35b.step2[0]===2&&t35b.step2[1]===7&&t35b.step2[2]===5&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
   'HC35 2: the four briefing steps '+JSON.stringify([t35b.step1,t35b.step2,t35b.step3,t35b.step4]));
  ok(t35b.wings.join('|')==='cross,cross,talon|talon,brickbat,brickbat|cross,talon,talon,brickbat','HC35 2: the wings as the designer listed them '+JSON.stringify(t35b.wings));
  ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));
- ok(t35b.again[0]==='brief'&&t35b.again[1]===4&&t35b.again[2]&&t35b.again[3]==='destroy'&&t35b.again[4],'HC35 2: Plan again keeps the seed and the plan '+JSON.stringify(t35b.again));
+ ok(t35b.again[0]==='brief'&&t35b.again[1]===1&&t35b.again[2]&&t35b.again[3]==='destroy'&&t35b.again[4],'HC35 2: Plan again keeps the seed and the plan (window 1, K6) '+JSON.stringify(t35b.again));
  ok(!t35b.campaign,'HC35 1: no campaign save after a 3.5 run');
  // HC35 5–7: the target, each primary, the phases (from scripted setups: no modifiers, a fixed seed)
  const t35c=await pg4.evaluate(()=>{
@@ -2509,11 +2510,59 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k5.eng.slice(0,2).every(Boolean),'HC35 K5 10: the engines row tracks hp '+JSON.stringify(t35k5.eng));
  ok(t35k5.pd.every(Boolean),'HC35 K5 10: a destroyed turret shows ✕ '+JSON.stringify(t35k5.pd));
  ok(t35k5.esc.every(Boolean),'HC35 K5: an escort shows its smaller card; a click on empty space clears it '+JSON.stringify(t35k5.esc));
+ // HC35 K6 (feedback 1, tests 11–13): the journey (the Missions tab, the four windows, Back / Next / Esc, Launch, Plan
+ // again), one tooltip and no native title anywhere, the debrief's pods and its order of causes
+ await pg4.mouse.move(2,2);   // the cursor out of the way: Chromium's hover follows a re-layout under a parked cursor
+ const t35k6=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={titles:[]};
+  const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)],key=(k,o)=>document.dispatchEvent(new KeyboardEvent('keydown',Object.assign({key:k,bubbles:true},o||{})));
+  const titles=where=>{const n=document.querySelectorAll('#arHc [title]').length;if(n)out.titles.push(where+':'+n+':'+[...document.querySelectorAll('#arHc [title]')].slice(0,3).map(e=>e.className).join('|'));};
+  B.seed=4242;B.plan=null;B.step=1;X.fn.showBoard(true);B.seed=4242;X.fn.showBoard(false);
+  // 11: the Missions tab, with the vanilla classes; Plan mission opens window 1
+  out.tab=[B.screen==='board',!!q('.bf-stage.h35-missions'),!!q('.bf-board .bf-card.is-sel'),!!q('.bf-holo .bf-proj svg'),!!q('.bf-rail .bf-plan [data-act="brief"]'),
+    qa('.h35-tab[data-tip="na:arena"]').length===4,qa('.bf-card[aria-disabled="true"]').length>=3,!!q('[data-act="newopp"]'),!!q('.bf-callout.is-foe')];titles('board');
+  q('.bf-plan [data-act="brief"]').click();
+  out.w1=[B.screen==='brief',B.step===1,!!q('.h35-holo'),/Objective/.test((q('.h35-node.is-on')||{}).textContent||''),q('[data-act="next"]').getAttribute('aria-disabled')==='true'];titles('w1');
+  q('[data-primary="destroy"]').click();q('[data-act="next"]').click();const w2=B.step===2;titles('w2');q('[data-act="prev"]').click();const back=B.step===1;
+  q('[data-act="next"]').click();key('Escape');const esc1=B.step===1;key('Escape');const esc0=B.screen==='board'&&B.plan&&B.plan.primary==='destroy';
+  q('.bf-plan [data-act="brief"]').click();key('ArrowRight');key('ArrowRight');titles('w3');key('ArrowRight');const w4=B.step===4&&!!q('.h35-holo.is-wide [data-pane]');titles('w4');
+  q('.h35-node.is-done [data-step="2"]').click();const node=B.step===2;key('ArrowRight');key('ArrowRight');
+  out.steps=[w2,back,esc1,esc0,w4,node,B.step===4];
+  q('[data-act="launch"]').click();out.launch=[B.screen==='live',!!SIM.S&&SIM.S.t===0];API.syncHud(true);API.openPilot('joss');API.syncHud(true);titles('live');
+  // 12: the one tooltip: hovering an objective card shows #hcTip with its title
+  X.fn.run(400);titles('debrief');q('[data-act="again"]').click();out.again=[B.screen==='brief',B.step===1,B.plan.primary==='destroy'];
+  API.hideTip();const card=q('[data-primary="steal"]');card.dispatchEvent(new PointerEvent('pointerover',{bubbles:true}));await new Promise(r=>setTimeout(r,320));
+  const tip=document.getElementById('hcTip');out.tip=[!tip.hidden,/Steal/.test(tip.textContent),!!tip.querySelector('.sr-tip__title'),tip.textContent.slice(0,80)];
+  card.dispatchEvent(new PointerEvent('pointerout',{bubbles:true}));
+  // 13: a pod left drifting at the end resolves (never "drifting"); a failed Steal's cause comes first
+  const e0=N.EJECT_P;N.EJECT_P=1;N.REQ_OFF=1;
+  B.seed=777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='steal';
+  for(const w in B.plan.wings)B.plan.wings[w].exec={k:'hold',arg:null};B.plan.wings.amber.loadout.mags='board';B.plan.assets=[];B.plan.roes=[];X.fn.launch();
+  L35.use('retreat');X.fn.run(400);
+  const db=q('.h35-debrief'),why=db?[...db.querySelectorAll('.h35-why p')].map(p=>p.textContent):[];
+  out.deb=[X.L.prim.state==='failed',/jumped at|never knocked out|prize never|destroyed/.test(why[0]||''),why[0]||''];
+  // the mission ends with Wren's pod still out
+  B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';for(const w in B.plan.wings)B.plan.wings[w].exec={k:'hold',arg:null};B.plan.assets=[];B.plan.roes=[];X.fn.launch();
+  F.kill(SIM.fn.byId('wren'),null);SIM.step();const pod=X.L.pods[0],drift=!!pod&&pod.state==='drift';SIM.endMission('done');X.fn.run(2);
+  const db2=q('.h35-debrief');
+  out.pod=[drift,!!pod&&(pod.state==='captured'||pod.state==='lost'),!!db2&&!/drifting/.test(db2.textContent),!!db2&&/Wren \((captured|lost, left behind)\)/.test(db2.textContent),pod&&pod.state];
+  N.EJECT_P=e0;N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35k6.tab.every(Boolean),'HC35 K6 11: the Missions tab mock (bf- classes, inert tabs, dimmed cards, the holo-table, the rail) '+JSON.stringify(t35k6.tab));
+ ok(t35k6.w1.every(Boolean),'HC35 K6 11: Plan mission opens window 1; Next waits for a primary '+JSON.stringify(t35k6.w1));
+ ok(t35k6.steps.every(Boolean),'HC35 K6 11: Next and Back move one step, Esc goes back, the arrows step, a done node returns '+JSON.stringify(t35k6.steps));
+ ok(t35k6.launch.every(Boolean),'HC35 K6 11: Launch from window 4 starts the mission '+JSON.stringify(t35k6.launch));
+ ok(t35k6.again.every(Boolean),'HC35 K6 11: Plan again returns to window 1 with the plan kept '+JSON.stringify(t35k6.again));
+ ok(!t35k6.titles.length,'HC35 K6 12: no [title] in #arHc or #arHc35 on any screen '+JSON.stringify(t35k6.titles));
+ ok(t35k6.tip.slice(0,3).every(Boolean),'HC35 K6 12: hovering an objective card shows #hcTip with its title '+JSON.stringify(t35k6.tip));
+ ok(t35k6.deb.slice(0,2).every(Boolean),'HC35 K6 13: a failed Steal lists its failure cause first '+JSON.stringify(t35k6.deb));
+ ok(t35k6.pod.slice(0,4).every(Boolean),'HC35 K6 13: a pod still drifting at the end is Captured or Lost, never drifting '+JSON.stringify(t35k6.pod));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

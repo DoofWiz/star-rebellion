@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-3';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-4';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -1628,6 +1628,15 @@ function podTick(dt){
     if(S.t>=p.until){p.state='captured';SIM.pushEvent('eject',p.name+'\'s pod is taken by the Hegemony: captured',{x:p.x,y:p.y,tone:'hazard'});}
   }
 }
+/* the end (§3.6): a pod still drifting is captured if Hegemony ships remain within POD_CAPTURE_R, else lost. Never
+   "drifting" */
+function resolvePods(){
+  if(!L||L.podsResolved)return;L.podsResolved=true;const S=SIM.S;
+  for(const p of L.pods){if(p.state!=='drift')continue;
+    const near=S.ships.some(e=>e.alive&&e.faction==='heg'&&!e.struct&&dist(e,p)<N.POD_CAPTURE_R);
+    p.state=near?'captured':'lost';p.endT=S.t;
+    SIM.pushEvent('eject',p.name+'\'s pod, left behind: '+(near?'captured by the Hegemony':'lost'),{x:p.x,y:p.y,tone:'hazard'});}
+}
 /* a volunteer's ram: the ship is lost; the pilot ejects at half the chance */
 function volTick(){
   const S=SIM.S;
@@ -1661,7 +1670,7 @@ function deathTick(){
 }
 function onEvent(kind,text,o,e){
   L.cause.push({t:+SIM.S.t.toFixed(2),kind,text,phase:L.phase});
-  if(kind==='over'){const S=SIM.S,O=S.over;
+  if(kind==='over'){const S=SIM.S,O=S.over;resolvePods();   // the pods left out resolve at the end (§3.6)
     // the props (the ram, the tug, the pirates) aren't yours to lose; an aborted mission says so
     O.lost=S.ships.filter(s=>s.faction==='reb'&&s.wing&&!s.alive&&!s.jumped).length;
     if(L.abort&&O.outcome!=='aborted'){O.outcome='aborted';O.win=false;O.why='Mission aborted';}

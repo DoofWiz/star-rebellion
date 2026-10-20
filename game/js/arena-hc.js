@@ -1002,7 +1002,7 @@ function syncTop(){
   const left=SIM.clockLeft(),ck=byId('hcClock');
   ck.textContent=S.reinforce.spawned?'REINFORCEMENTS':fmtClock(left);
   ck.classList.toggle('is-out',S.reinforce.spawned);
-  ck.title='Hegemony reinforcements arrive when this reaches zero';
+  ck.dataset.tip='@';ck.dataset.tt='Reinforcements';ck.dataset.tb='Hegemony reinforcements arrive when this reaches zero.';
   byId('hcBanner').hidden=!(SIM.TIMESCALES[A.speed]===0&&A.phase==='LIVE');
   const cp=byId('hcCp');let ph='';for(let i=0;i<S.cpMax;i++)ph+='<i class="'+(i<S.cp?'is-on':'')+'"></i>';
   const ch='<span class="hc-cp__lbl">CP</span><span class="hc-cp__pips">'+ph+'</span><b>'+S.cp+' / '+S.cpMax+'</b>';
@@ -1147,7 +1147,7 @@ function syncRoster(){
       const wEl=t.querySelector('.hc-tile__word');if(wEl.textContent!==ord)wEl.textContent=ord;
       const gk=s.alive?behGlyph(s)+'|'+behTone(s):'';const oEl=t.querySelector('.hc-tile__ord');
       if(oEl.dataset.g!==gk){oEl.dataset.g=gk;oEl.innerHTML=s.alive?glyph(behGlyph(s),'hc-glyph--sm'):'';oEl.dataset.tone=behTone(s);}
-      t.title=s.alive?s.name+': '+ord+(s.assess?' · "'+s.assess+'"':''):s.name;
+      t.dataset.tip='@';t.dataset.tt=s.alive?s.name+': '+ord:s.name;t.dataset.tb=s.alive&&s.assess?'"'+s.assess+'"':'';
       const mo=s.alive?moraleWord(s):'';const mEl=t.querySelector('.hc-tile__mor');if(mEl.textContent!==mo){mEl.textContent=mo;mEl.dataset.m=mo;}
       t.classList.toggle('is-crit',s.alive&&(s.hull/s.maxHull<0.35||moraleWord(s)==='PANICKED'));
       t.classList.toggle('is-down',!s.alive);
@@ -1259,7 +1259,7 @@ function trayHtml(){
 }
 function syncTray(){
   const el=byId('hcTray'),h=A.tray&&A.phase!=='PICK'?trayHtml():'';
-  if(el.dataset.h!==h){hideTip();el.innerHTML=h;el.dataset.h=h;}
+  if(el.dataset.h!==h){hideTipIn(el);el.innerHTML=h;el.dataset.h=h;}
   el.hidden=!h;
 }
 byId('hcTray').addEventListener('click',ev=>{
@@ -1291,6 +1291,8 @@ function issue(wid,kind,target){
 }
 
 /* hover cards (§3.4): name and one plain line, live numbers through getters */
+/* the one tooltip (feedback 1, §3.6): every [data-tip] in #arHc and #arHc35 resolves here to {title, body, foot,
+   tone} ({name, line, key} still read). data-tip="@" is a literal: its data-tt title and data-tb body */
 function tipFor(key){
   if(A.ov&&A.ov.tipFor){const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips
   const [k,a]=String(key).split(':');
@@ -1311,27 +1313,40 @@ function tipFor(key){
   if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
   return {name:key,line:''};
 }
-let tipT=0,tipEl=null;
+let tipT=0,tipEl=null,tipPend=null;
+const tipOf=el=>el.dataset.tip==='@'?{title:el.dataset.tt||'',body:el.dataset.tb||''}:tipFor(el.dataset.tip);
+function tipHtml(d,why){
+  const title=d.title!=null?d.title:d.name,body=d.body!=null?d.body:d.line,foot=d.foot||why||null,tone=why&&!d.foot?'warn':d.tone||'info';
+  return '<div class="sr-tip__title">'+esc(title||'')+(d.key?'<span class="sr-kbd">'+esc(d.key)+'</span>':'')+'</div>'+(body?'<div class="sr-tip__rule">'+esc(body)+'</div>':'')+
+    (foot?'<div class="hc-tip__foot" data-tone="'+tone+'">'+esc(foot)+'</div>':'');
+}
 function showTip(el){
-  const tip=byId('hcTip'),d=tipFor(el.dataset.tip),why=el.dataset.why;
-  tip.innerHTML=(why?'<div class="hc-tip__warn">'+esc(why)+'</div>':'')+'<div class="hc-tip__name">'+esc(d.name)+(d.key?' <span class="sr-kbd">'+esc(d.key)+'</span>':'')+'</div><div class="hc-tip__line">'+esc(d.line)+'</div>';
-  tip.hidden=false;tipEl=el;
+  const tip=byId('hcTip'),d=tipOf(el);if(!d||!(d.title||d.name))return;
+  tip.innerHTML=tipHtml(d,el.dataset.why);tip.hidden=false;tipEl=el;
+  // anchored to the element: above it, or below if there's no room; kept on screen
   const st=byId('hcStage').getBoundingClientRect(),r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
-  let x=r.left-st.left+r.width/2-w/2,y=r.top-st.top-h-8;if(y<8)y=r.bottom-st.top+8;
+  let x=r.left-st.left+r.width/2-w/2,y=r.top-st.top-h-8;if(y<8)y=r.bottom-st.top+8;if(y+h>st.height-8)y=Math.max(8,r.top-st.top-h-8);
   tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x)))+'px';tip.style.top=Math.round(y)+'px';
 }
-function hideTip(){clearTimeout(tipT);tipEl=null;const t=byId('hcTip');if(t)t.hidden=true;}
+function hideTip(){clearTimeout(tipT);tipEl=null;tipPend=null;const t=byId('hcTip');if(t)t.hidden=true;}
+/* a part of the HUD re-renders: only a tip shown or pending for something inside it goes (not one elsewhere) */
+function hideTipIn(root){if((tipEl&&root.contains(tipEl))||(tipPend&&root.contains(tipPend)))hideTip();}
 /* the same tip at a point on the map (stage px): for things drawn on the canvas, like Type 3.5's subsystems */
 function showTipAt(x,y,d){
-  const tip=byId('hcTip');tip.innerHTML='<div class="hc-tip__name">'+esc(d.name)+'</div>'+(d.line?'<div class="hc-tip__line">'+esc(d.line)+'</div>':'');
+  const tip=byId('hcTip');tip.innerHTML=tipHtml(d);
   tip.hidden=false;tipEl=null;const st=byId('hcStage').getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
   let ty=y-h-14;if(ty<8)ty=y+18;tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x-w/2)))+'px';tip.style.top=Math.round(ty)+'px';
 }
 byId('hcStage').addEventListener('pointerover',ev=>{
   const el=ev.target.closest&&ev.target.closest('[data-tip]');
-  if(!el||el===tipEl)return;hideTip();tipT=setTimeout(()=>{if(el.isConnected)showTip(el);},250);
+  if(!el||el===tipEl)return;hideTip();tipPend=el;tipT=setTimeout(()=>{tipPend=null;if(el.isConnected)showTip(el);},250);
 });
 byId('hcStage').addEventListener('pointerout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el&&!el.contains(ev.relatedTarget))hideTip();});
+for(const id of ['hcStage','hcPanel']){const host=document.getElementById(id);if(!host)continue;   // keyboard focus shows it too; the designer panel has it
+  host.addEventListener('focusin',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el){hideTip();showTip(el);}});
+  host.addEventListener('focusout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el)hideTip();});
+  if(id==='hcPanel'){host.addEventListener('pointerover',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(!el||el===tipEl)return;hideTip();tipPend=el;tipT=setTimeout(()=>{tipPend=null;if(el.isConnected)showTip(el);},250);});
+    host.addEventListener('pointerout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el&&!el.contains(ev.relatedTarget))hideTip();});}}
 let flashT=0;
 function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
 
@@ -1395,7 +1410,7 @@ function syncPilot(){
   if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
   el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
   const body=byId('hcPilotBody'),h=A.ov&&A.ov.pilotBody?A.ov.pilotBody(s):pilotBody(s);
-  if(body.dataset.h!==h){hideTip();const old={};for(const b of body.querySelectorAll('.hc-pbar'))old[b.dataset.k]=b.querySelector('b').style.width;
+  if(body.dataset.h!==h){hideTipIn(body);const old={};for(const b of body.querySelectorAll('.hc-pbar'))old[b.dataset.k]=b.querySelector('b').style.width;
     body.innerHTML=h;body.dataset.h=h;easeBars(body,old);}
 }
 byId('hcPilot').addEventListener('click',ev=>{
@@ -1447,7 +1462,7 @@ function skillBtn(k,name,g,cost,cls,attrs){
 }
 function syncDrawer(){
   const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?(A.ov&&A.ov.cmdsHtml?A.ov.cmdsHtml():drawerHtml()):'';   // Type 3.5: its powers
-  if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
+  if(body.dataset.h!==h){hideTipIn(body);body.innerHTML=h;body.dataset.h=h;}
   el.hidden=!on;el.classList.toggle('is-for',!!A.cmdFor);el.classList.toggle('is-armed',!!A.cmdArm);
 }
 byId('hcCmds').addEventListener('click',ev=>{
@@ -1717,7 +1732,7 @@ function fxPanelHtml(){
   const tg=(k,on,lbl)=>'<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_'+k+'" data-toggle="'+k+'"'+(on?' checked':'')+'><label for="hcP_'+k+'">'+lbl+'</label></div>';
   let h='<div class="hc-grp"><div class="hc-grp__head">FX</div>'+tg('fx',FX_ON,'Visual pass (off: the flat look)')+tg('shake',FX_SHAKE,'Camera shake')+tg('calm',FX_CALM,'Reduced motion');
   h+='<details class="hc-fx"><summary>FX numbers</summary>';
-  for(const[k,lbl,mn,mx,st]of FX_UI)if(k in FX.TUNE)h+='<div class="hc-row"><label for="hcF_'+k+'" title="'+esc(k)+'">'+esc(lbl)+'</label><output data-fxout="'+k+'">'+fmt(FX.TUNE[k],st)+'</output>'+
+  for(const[k,lbl,mn,mx,st]of FX_UI)if(k in FX.TUNE)h+='<div class="hc-row"><label for="hcF_'+k+'" data-tip="@" data-tt="'+esc(k)+'">'+esc(lbl)+'</label><output data-fxout="'+k+'">'+fmt(FX.TUNE[k],st)+'</output>'+
     '<input type="range" id="hcF_'+k+'" data-fx="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+FX.TUNE[k]+'"></div>';
   h+='</details><details class="hc-fx"><summary>Map icons and shields</summary>';
   for(const[k,lbl,mn,mx,st]of ICON_UI)h+='<div class="hc-row"><label for="hcI_'+k+'">'+esc(lbl)+'</label><output data-iconout="'+k+'">'+fmt(ICONS[k],st)+'</output><input type="range" id="hcI_'+k+'" data-icon="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+ICONS[k]+'"></div>';
@@ -1737,7 +1752,7 @@ function buildPanel(){
   for(const g of order){
     h+='<details class="hc-sec"'+(g==='Run'?' open':'')+'><summary>'+esc(g)+'</summary>';
     for(const k of groups[g]){const t=SIM.TUNE[k];
-      h+='<div class="hc-row"><label for="hcP_'+k+'" title="'+esc(k)+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
+      h+='<div class="hc-row"><label for="hcP_'+k+'" data-tip="@" data-tt="'+esc(k)+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
         '<input type="range" id="hcP_'+k+'" data-tune="'+k+'" min="'+t.min+'" max="'+t.max+'" step="'+t.step+'" value="'+t.get()+'"></div>';}
     h+='</details>';
   }
@@ -1869,7 +1884,7 @@ const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
 /* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
 const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
-  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
+  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,hideTipIn,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
   get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
 })();
