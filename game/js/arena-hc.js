@@ -167,7 +167,7 @@ const ICON_PATH={
   mote:'M10 0L-8-8L-4 0L-8 8Z',fledgling:'M10 0L-8-8L-4 0L-8 8Z',scim:'M11 0L-9-9L-9-3L-4 0L-9 3L-9 9Z',drone:'M7 0L0-6L-7 0L0 6Z'};
 const iconPaths=new Map();
 function iconPath(k){let p=iconPaths.get(k);if(!p){p=new Path2D(ICON_PATH[k]||ICON_PATH.mote);iconPaths.set(k,p);}return p;}
-const hpBand=f=>f>0.6?C.go:f>0.3?C.hazard:C.rebel;   // §3.3: green, orange, red
+const hpBand=f=>TH.hpCol(f,'gor');   // §3.3: green, orange, red
 function drawIcon(c,s,q,h,alpha,sel){
   const art=SA&&SA.SHIP_FOR_GAME?SA.SHIP_FOR_GAME[s.cls]:null,D=SA&&SA.SHIPS&&SA.SHIPS[art];
   const k=ICONS.ICON_SIZE/22,haz=!!s.prop35,col=haz?C.hazard:s.faction==='reb'?C.rebel:C.heg;
@@ -295,17 +295,51 @@ function drawPoints(c,z,S){
 }
 /* the ship status: shield arcs and hull pips, copied from sim-sb.js drawShields / drawStatus (lighter: one arc a zone) */
 function shieldR(s,boost){return (s.struct?44:30)*SHIP_SCALE*Math.max(1,SRDB.visualSize(s.row.size)*0.9)*boost;}
-function drawShields(c,s,x,y,h,z,boost){
+/* the shields as two halves (feedback 1, §3.3): two arcs on an ellipse fitted to the hull (the sim's hit size, true
+   scale, plus SH_PAD), the nose half and the tail half, each 180° less a gap at the beam. Each arc's thickness and
+   alpha follow its half's strength; an empty half is a thin broken line. A hit flashes only the half it struck; a
+   refill (Boost, or 10% of the half back within 1 s) sweeps out from the arc's middle and swells it a moment.
+   mode 'quiet' (Type 3.5's always-on arcs on your ships): thinner and fainter */
+const SHD={SH_PAD:10,SH_GAP:10,SWEEP_SECS:0.6,SWEEP_GAIN:0.1};   // placeholders (C-81), on the panel's FX group
+const SHD_UI=[['SH_PAD','Shield arc off the hull',0,80,1],['SH_GAP','Shield gap at the beam (°)',0,40,1],['SWEEP_SECS','Shield refill sweep (s)',0.1,2,0.05],['SWEEP_GAIN','Refill that sweeps (× max, in 1 s)',0.02,0.5,0.01]];
+function shieldEll(s){const A=SIM.fn.hullAxes(s),k=s.evadeT&&SIM.S.t<s.evadeT?Math.SQRT1_2:1;return {a:A.a/k+SHD.SH_PAD,b:A.b/k+SHD.SH_PAD};}   // a barrel roll doesn't shrink the bubble
+/* where a hit from (x, y) sits on a ship's shield ellipse: its bearing from the hull's centre, out to the ellipse */
+function onShield(s,x,y){
+  const E=shieldEll(s),th=Math.atan2(y-s.y,x-s.x)-s.h,c=Math.cos(th),sn=Math.sin(th),r=E.a*E.b/Math.sqrt((E.b*c)**2+(E.a*sn)**2);
+  return {x:s.x+Math.cos(th+s.h)*r,y:s.y+Math.sin(th+s.h)*r};
+}
+const zoneOf=(s,zn)=>{let val=0,max=0;for(const k of ['F','R'])if(s.segs[k].at===zn&&s.segs[k].max>0){val+=Math.max(0,s.segs[k].val);max+=s.segs[k].max;}return {val,max};};
+/* the refill watch: each half's strength over the last second; a gain of SWEEP_GAIN × its max starts a sweep */
+const shHist=new Map(),shSweep=new Map();
+function shieldTick(){
+  const S=SIM.S;if(!S)return;
+  for(const s of S.ships){if(!s.alive||SIM.fn.maxShield(s)<=0)continue;
+    let H=shHist.get(s.id);if(!H)shHist.set(s.id,H={F:[],R:[]});
+    for(const zn of ['F','R']){const {val,max}=zoneOf(s,zn);if(!max)continue;const q=H[zn];
+      if(q.length&&q[q.length-1][0]>S.t)q.length=0;   // a restart or a replay: start again
+      q.push([S.t,val]);while(q.length&&S.t-q[0][0]>1)q.shift();
+      let lo=val;for(const e of q)lo=Math.min(lo,e[1]);
+      if(val-lo>=SHD.SWEEP_GAIN*max-1e-9&&val>lo){(shSweep.get(s.id)||shSweep.set(s.id,{}).get(s.id))[zn]={t0:S.t};q.length=0;q.push([S.t,val]);}}}
+}
+const sweepOf=(id,zn)=>{const w=shSweep.get(id),e=w&&w[zn];if(!e)return null;const k=(SIM.S.t-e.t0)/SHD.SWEEP_SECS;return k>=0&&k<=1?k:null;};
+function drawShields(c,s,x,y,h,z,boost,mode){
   if(SIM.fn.maxShield(s)<=0)return;
-  const R=shieldR(s,boost),lw=5/z,span=Math.PI*2/3,fx=s.shFx?Math.max(0,1-(SIM.S.t-s.shFx.t)/0.4):0;
-  c.save();c.translate(x,y);c.rotate(h);c.lineCap='butt';
+  const E=shieldEll(s),quiet=mode==='quiet',fx=s.shFx?Math.max(0,1-(SIM.S.t-s.shFx.t)/0.4):0,half=Math.PI/2-SHD.SH_GAP/2*Math.PI/180;
+  c.save();c.translate(x,y);c.rotate(h);c.lineCap='round';
   for(const zn of ['F','R']){
-    const at=['F','R'].filter(k=>s.segs[k].at===zn&&s.segs[k].max>0),mid=zn==='F'?0:Math.PI,a0=mid-span/2,a1=mid+span/2;
-    c.beginPath();c.arc(0,0,R,a0,a1);c.lineWidth=lw+2/z;c.strokeStyle=TH.rgba(C.ink,0.7);c.stroke();
-    let val=0,max=0;for(const k of at){val+=s.segs[k].val;max+=s.segs[k].max;}
-    c.beginPath();c.arc(0,0,R,a0,a1);c.lineWidth=lw;c.strokeStyle='#1f2550';c.stroke();
-    if(max>0&&val>0){c.beginPath();c.arc(0,0,R,a0,a0+(a1-a0)*val/max);c.strokeStyle=C.shield;c.stroke();}
-    if(fx>0&&s.shFx.zone===zn){c.beginPath();c.arc(0,0,R,a0,a1);c.lineWidth=lw*1.6;c.strokeStyle=TH.rgba('#e8ffff',0.7*fx);c.stroke();}
+    const {val,max}=zoneOf(s,zn);if(!max)continue;
+    const f=val/max,mid=zn==='F'?0:Math.PI,sw=sweepOf(s.id,zn),sk=sw!=null?1+0.1*Math.sin(Math.PI*sw):1,ea=E.a*sk,eb=E.b*sk;
+    const arc=(a0,a1)=>{c.beginPath();c.ellipse(0,0,ea,eb,0,a0,a1);};
+    if(f<=0.02){arc(mid-half,mid+half);c.setLineDash([4/z,6/z]);c.lineWidth=1.2/z;c.strokeStyle=TH.rgba(C.shield,quiet?0.3:0.5);c.stroke();c.setLineDash([]);}
+    else{
+      const lw=(quiet?1+1.4*f:1.6+3.6*f)/z,al=quiet?0.25+0.35*f:0.45+0.55*f;
+      if(!quiet){arc(mid-half,mid+half);c.lineWidth=lw+2/z;c.strokeStyle=TH.rgba(C.ink,0.55*al);c.stroke();}
+      arc(mid-half,mid+half);c.lineWidth=lw;c.strokeStyle=TH.rgba(C.shield,al);c.stroke();
+    }
+    if(fx>0&&s.shFx.zone===zn){arc(mid-half,mid+half);c.lineWidth=(quiet?3:5)/z;c.strokeStyle=TH.rgba('#e8ffff',0.75*fx);c.stroke();}
+    if(sw!=null){const e=half*Math.min(1,sw*1.25),al=1-sw*0.8;   // the sweep: out from the middle to both ends
+      arc(mid-e,mid+e);c.lineWidth=(quiet?2.6:4.4)/z;c.strokeStyle=TH.rgba('#e8ffff',0.85*al);c.stroke();
+      for(const a of [mid-e,mid+e]){c.beginPath();c.arc(Math.cos(a)*ea,Math.sin(a)*eb,3.2/z,0,6.283);c.fillStyle=TH.rgba('#ffffff',al);c.fill();}}
   }
   c.restore();
 }
@@ -453,7 +487,7 @@ function padNear(st,p,from,boost){
 /* what the sim did since the last frame, as the module's events. Everything is seen once (WeakSets on the sim's own
    objects); stale entries (a debug run, a reload) are marked without effects */
 let fxSeen=new WeakSet(),fxLost=new WeakSet(),fxShips=new Map(),fxEvN=0,fxPrimed=false;
-function fxReset(){fxFrames=0;lockAt.clear();fxSeen=new WeakSet();fxLost=new WeakSet();fxShips=new Map();fxEvN=0;fxPrimed=false;stArtSeen.clear();if(FX)FX.reset();}
+function fxReset(){shHist.clear();shSweep.clear();fxFrames=0;lockAt.clear();fxSeen=new WeakSet();fxLost=new WeakSet();fxShips=new Map();fxEvN=0;fxPrimed=false;stArtSeen.clear();if(FX)FX.reset();}
 function fxSense(){
   const S=SIM.S;if(!S||!FX)return;
   const on=fxOn()&&fxPrimed,boost=fxMin(60),hw=cssW/2/cam.z+400,hh=cssH/2/cam.z+400;   // booms: true scale, but at least FX_MIN_PX
@@ -465,7 +499,8 @@ function fxSense(){
     if(f.src==='crash')FX.event('collide',{x:f.x,y:f.y,speed:f.speed,iconBoost:boost});
     else if(f.src==='mhit')FX.event('missileHit',{x:f.x,y:f.y,size:f.size,iconBoost:boost});
     else if(f.src==='mmiss')FX.event('missileMiss',{x:f.x,y:f.y,iconBoost:boost});
-    else if(f.kind!=='boom'&&!f.homing&&near(f.x,f.y))FX.event('boltHit',{x:f.x,y:f.y,surface:f.surface||(f.kind==='shield'?'shield':'hull'),dir:f.h,style:projStyle(f.style),r:26*boost});}
+    else if(f.kind!=='boom'&&!f.homing&&near(f.x,f.y)){const sf2=f.surface||(f.kind==='shield'?'shield':'hull'),t=sf2==='shield'&&f.ship?SIM.fn.byId(f.ship):null,q=t?onShield(t,f.x,f.y):f;   // a shield hit sits on the arc it struck
+      FX.event('boltHit',{x:q.x,y:q.y,surface:sf2,dir:f.h,style:projStyle(f.style),r:26*boost});}}
   for(const m of S.missiles){
     if(!fxSeen.has(m)){fxSeen.add(m);if(on)FX.event('missileLaunch',{x:m.x,y:m.y,faction:m.faction});}
     if(m.lost&&!fxLost.has(m)){fxLost.add(m);if(on)FX.event('missileShaken',{x:m.x,y:m.y});}
@@ -481,7 +516,8 @@ function fxSense(){
     if(s.jumped){if(S.t-(s.jumpT||0)<1)FX.event('jumpOut',{ship:shipView(s,p,boost)});}
     else if(!s.boarded&&!s.leftBehind&&S.t-(s.deadT==null?S.t:s.deadT)<1)
       FX.event('explode',{x:s.x,y:s.y,size:s.row.size,art:s.struct?stationArt(s):SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],livery:s.faction==='reb'?'rebel':'heg',
-        faction:s.faction,struct:s.struct,h:s.h,vh:s.vh,speed:Math.hypot(s.vx||0,s.vy||0),stage:dmgStage(s),iconBoost:s.struct?1:fxMin(shipLenW(s))});   // vh, speed: a death spiral carries on its flight (C-74)
+        faction:s.faction,struct:s.struct,h:s.h,vh:s.vh,speed:Math.hypot(s.vx||0,s.vy||0),stage:dmgStage(s),iconBoost:s.struct?1:fxMin(shipLenW(s)),   // vh, speed: a death spiral carries on its flight (C-74)
+        w:s.w||0,turnW:s.turnW||0,turnCap:s.struct?0:SIM.fn.turnCap(SIM.fn.capsOf(s),Math.max(1,Math.hypot(s.vx||0,s.vy||0)))});   // and its turn: the spin and the curl follow it (feedback 1, §3.9)
   }
   for(const e of S.events){
     if(e.id<=fxEvN)continue;fxEvN=e.id;
@@ -602,7 +638,7 @@ function render(now){
     else if(v&&v.art)FX.shipBody(ctx,v,view);
     else drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
     if(ak<1)ctx.restore();
-    if(s.alive&&ak>=0.5&&statusShown(s,sw,sf))drawShields(ctx,s,p.x,p.y,p.h,z,boost);
+    if(s.alive&&ak>=0.5){const base=statusShown(s,sw,sf),md=A.ov&&A.ov.shieldMode?A.ov.shieldMode(s,base):base?'full':null;if(md)drawShields(ctx,s,p.x,p.y,p.h,z,boost,md);}   // Type 3.5 has its own rule (§3.3)
     if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
     else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
   }
@@ -627,7 +663,7 @@ function render(now){
     if(!s.alive||A.ov&&A.ov.shipHidden&&A.ov.shipHidden(s))continue;   // Type 3.5's plan view hides your wings (their markers stand in)
     const p=pos(s),q=toScreen(p.x,p.y),r=uiR(s)*z,ak=artK(s);
     if(ak<1){drawIcon(ctx,s,q,p.h,1-ak,A.selShip===s.id||sw.includes(s.wing));if(ak<0.5)continue;}   // icon mode: the icon carries the name and the health tick
-    if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4});
+    if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4,bands:'gor'});
     if(!s.struct&&!s.quiet){ctx.lineWidth=3;ctx.strokeStyle=C.ink;ctx.strokeText(s.name,q.x,q.y+r+14);ctx.fillStyle=shipColHi(s);ctx.fillText(s.name,q.x,q.y+r+14);}
   }
   ctx.font='800 13px "Exo 2",sans-serif';
@@ -747,6 +783,7 @@ function frame(now){
   }
   if(A.ov&&A.ov.tick)A.ov.tick(now);   // Type 3.5's screens animate (the dossier's turning freighter)
   // the visual pass's clocks: game time runs smooth with the timescale (not in 50 ms steps), real time always
+  shieldTick();   // the shields' refill watch (§3.3), with FX on or off
   if(FX){fxSense();FX.update(SIM.S&&SIM.S.over?realDt/1000:gameDt,realDt);fxPerfTick(realDt);}   // past the end, the last booms play out
   bubbleTick(performance.now());badgeTick(performance.now());
   render(performance.now());
@@ -1082,8 +1119,10 @@ function syncRoster(){
       const lead=w.leader===sid;
       const nm=(lead?'★ ':'')+s.name;
       const nmEl=t.querySelector('.hc-tile__name');if(nmEl.textContent!==nm)nmEl.textContent=nm;
-      t.querySelector('.hc-bar--hull b').style.width=Math.round(Math.max(0,s.hull)/s.maxHull*100)+'%';
-      const ms=SIM.fn.maxShield(s);t.querySelector('.hc-bar--shd b').style.width=(ms?Math.round(SIM.fn.totalShield(s)/ms*100):0)+'%';
+      const hf=Math.max(0,s.hull)/s.maxHull,hb=t.querySelector('.hc-bar--hull b');hb.style.width=Math.round(hf*100)+'%';hb.style.background=TH.hpCol(hf,'gor');   // §3.3's colours
+      hb.parentNode.classList.toggle('is-pulse',s.alive&&hf>0&&hf<0.15);
+      const ms=SIM.fn.maxShield(s),sb=t.querySelector('.hc-bar--shd b'),sw=(ms?Math.round(SIM.fn.totalShield(s)/ms*100):0)+'%';
+      if(sb.style.width!==sw){if(parseFloat(sw)>parseFloat(sb.style.width||'0')+4)glint(sb.parentNode);sb.style.width=sw;}
       const ord=s.jumped?'JUMPED':!s.alive?'DOWN':behWord(s);
       const wEl=t.querySelector('.hc-tile__word');if(wEl.textContent!==ord)wEl.textContent=ord;
       const gk=s.alive?behGlyph(s)+'|'+behTone(s):'';const oEl=t.querySelector('.hc-tile__ord');
@@ -1277,7 +1316,16 @@ function closeAll(){if(A.wheel)closeWheel();A.tray=null;A.panel=null;A.drawer=fa
    ===================================================================== */
 function openPilot(id){A.panel=id;A.tray=null;A.arm=null;pilotBuilt=null;syncHud(true);}
 let pilotBuilt=null;
-function bar(lbl,v,max,cls){const k=max>0?Math.max(0,Math.min(1,v/max)):0;return '<div class="hc-pbar'+(cls?' '+cls:'')+'"><span>'+lbl+'</span><i><b style="width:'+Math.round(k*100)+'%"></b></i><em>'+(max>0?Math.max(0,Math.round(v))+'/'+max:'—')+'</em></div>';}
+/* a pilot-panel bar; the hull's in the health colours (§3.3: green, orange, red, pulsing under 15%) */
+function bar(lbl,v,max,cls){const k=max>0?Math.max(0,Math.min(1,v/max)):0,hull=cls==='is-hull';
+  return '<div class="hc-pbar'+(cls?' '+cls:'')+(hull&&k>0&&k<0.15?' is-pulse':'')+'" data-k="'+lbl+'"><span>'+lbl+'</span><i><b style="width:'+Math.round(k*100)+'%'+(hull?';background:'+TH.hpCol(k,'gor'):'')+'"></b></i><em>'+(max>0?Math.max(0,Math.round(v))+'/'+max:'—')+'</em></div>';}
+/* a bar's fill eases to its new width (§3.3); a rising shield bar gets a glint along it */
+function easeBars(root,old){
+  for(const b of root.querySelectorAll('.hc-pbar')){const n=b.querySelector('b'),w=n.style.width,o=old[b.dataset.k];if(o==null||o===w)continue;
+    n.style.transition='none';n.style.width=o;void n.offsetWidth;n.style.transition='';n.style.width=w;
+    if(b.classList.contains('is-shd')&&parseFloat(w)>parseFloat(o))glint(b);}
+}
+function glint(el){el.classList.remove('is-glint');void el.offsetWidth;el.classList.add('is-glint');clearTimeout(el._gl);el._gl=setTimeout(()=>el.classList.remove('is-glint'),700);}
 function pilotBody(s){
   const S=SIM.S,w=SIM.fn.wingOf(s.wing),b=s.beh||{},t=SIM.fn.byId(b.target||b.charge||b.station),mor=SIM.moraleOf(s);
   const P=s.pilot;
@@ -1321,7 +1369,8 @@ function syncPilot(){
   if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
   el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
   const body=byId('hcPilotBody'),h=A.ov&&A.ov.pilotBody?A.ov.pilotBody(s):pilotBody(s);
-  if(body.dataset.h!==h){hideTip();body.innerHTML=h;body.dataset.h=h;}
+  if(body.dataset.h!==h){hideTip();const old={};for(const b of body.querySelectorAll('.hc-pbar'))old[b.dataset.k]=b.querySelector('b').style.width;
+    body.innerHTML=h;body.dataset.h=h;easeBars(body,old);}
 }
 byId('hcPilot').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
@@ -1630,7 +1679,7 @@ addEventListener('keydown',onKey);
    ===================================================================== */
 /* the FX group (C-73): the visual pass's switches and its TUNE numbers (sr-space-fx.js reads them live) */
 const FX_UI=[['trailSmokeAt','Smoke trail at hull ≤',0,1,0.05],['trailFireAt','Burning at hull ≤',0,1,0.05],['trailSmokeRate','Smoke trail puffs /s',1,30,1],
-  ['spiralChance','Death spiral chance',0,1,0.05],['spiralSecs','Death spiral (s)',0.4,5,0.1],['spiralSpin','Spiral tumble (rad/s)',0,20,0.5],['laserLen','Laser dart length',10,200,5],
+  ['spiralChance','Death spiral chance',0,1,0.05],['spiralSecs','Death spiral (s)',0.4,5,0.1],['spiralSpin','Spiral tumble (rad/s)',0,20,0.5],['spinK','Spiral tumble × nose rate',0,4,0.05],['spinMin','Spiral tumble, least',0,5,0.05],['spinMax','Spiral tumble, most',0.5,20,0.5],['spinGrow','Spiral tumble grows ×',1,6,0.1],['spiralMaxSize','No spiral from size',1,20,1],['laserLen','Laser dart length',10,200,5],
   ['flameLen','Engine flame length',0,6,0.1],['flameBoost','Flame × when boosting',1,4,0.1],['boltGlow','Bolt glow width',1,12,0.5],['boltCore','Bolt core width',0.5,6,0.25],
   ['trailSecs','Trail life (s)',0.2,3,0.1],['sparkN','Sparks a hit',0,16,1],['shardN','Shards a shield hit',0,12,1],['boomDur','Kill boom (s)',0.3,2,0.05],['boomDebris','Debris a kill',0,20,1],
   ['stationBoomDur','Station boom (s)',1,5,0.1],['missileSmoke','Missile smoke gap (s)',0.01,0.2,0.005],
@@ -1644,8 +1693,9 @@ function fxPanelHtml(){
   h+='<details class="hc-fx"><summary>FX numbers</summary>';
   for(const[k,lbl,mn,mx,st]of FX_UI)if(k in FX.TUNE)h+='<div class="hc-row"><label for="hcF_'+k+'" title="'+esc(k)+'">'+esc(lbl)+'</label><output data-fxout="'+k+'">'+fmt(FX.TUNE[k],st)+'</output>'+
     '<input type="range" id="hcF_'+k+'" data-fx="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+FX.TUNE[k]+'"></div>';
-  h+='</details><details class="hc-fx"><summary>Map icons</summary>';
+  h+='</details><details class="hc-fx"><summary>Map icons and shields</summary>';
   for(const[k,lbl,mn,mx,st]of ICON_UI)h+='<div class="hc-row"><label for="hcI_'+k+'">'+esc(lbl)+'</label><output data-iconout="'+k+'">'+fmt(ICONS[k],st)+'</output><input type="range" id="hcI_'+k+'" data-icon="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+ICONS[k]+'"></div>';
+  for(const[k,lbl,mn,mx,st]of SHD_UI)h+='<div class="hc-row"><label for="hcS_'+k+'">'+esc(lbl)+'</label><output data-shdout="'+k+'">'+fmt(SHD[k],st)+'</output><input type="range" id="hcS_'+k+'" data-shd="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+SHD[k]+'"></div>';
   return h+'</details></div>';
 }
 function fmt(v,step){return step&&step<1?(+v).toFixed(step<0.1?2:1):String(Math.round(v*100)/100);}
@@ -1683,6 +1733,7 @@ byId('hcPanelBody').addEventListener('input',ev=>{
   if(el.dataset.toggle==='shake'){FX_SHAKE=el.checked;if(FX)FX.setShake(FX_SHAKE);return;}
   if(el.dataset.toggle==='calm'){FX_CALM=el.checked;return;}
   if(el.dataset.icon){const k=el.dataset.icon;ICONS[k]=+el.value;const out=byId('hcPanelBody').querySelector('[data-iconout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);return;}
+  if(el.dataset.shd){const k=el.dataset.shd;SHD[k]=+el.value;const out=byId('hcPanelBody').querySelector('[data-shdout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);return;}
   if(el.dataset.fx){const k=el.dataset.fx;FX.TUNE[k]=+el.value;if(k==='nebulaAlpha')fxNebUser=true;const out=byId('hcPanelBody').querySelector('[data-fxout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);savePrefs();return;}
   const k=el.dataset.tune;if(!k)return;
   const t=SIM.TUNE[k];t.set(+el.value);
@@ -1792,7 +1843,7 @@ const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
 /* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
 const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
-  selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
+  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
   get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
 })();

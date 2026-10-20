@@ -56,7 +56,7 @@ let S=null;
    the hc1–hc3 hashes. classExtra{cls: row} · loadoutExtra(row, list) · think(s) → true skips · goal(s) → a goal ·
    damage(t, dmg, skipShield, fromFront, hit) → a result · canJump(s) → false blocks · canFire(s, t, q) → false blocks ·
    step(dt) · event(kind, text, o, e) · noCollide(a, b) and noAvoid(s, o) → true exempts the pair · noSep(s) → true: it
-   ignores its wingmates' spacing */
+   ignores its wingmates' spacing · floater(s, text, kind) → false drops a floating word */
 const HK={};
 const rowOf=cls=>(HK.classExtra&&HK.classExtra[cls])||SRDB.ship(cls);
 
@@ -375,8 +375,8 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   if(imp>=0.8&&S.rng()<(CRIT_DIRECT+(w.crit||0))*(homing?1:share/CRIT_REF))applyCritical(t);
   t.hitT=S.t;t.lastHitBy=shooterId;
   if(s){s.st.hits++;s.st.dmg+=dmg;}
-  t.dmgAcc=(t.dmgAcc||0)+dmg;
-  S.fx.push({x:hit.x,y:hit.y,t0:S.t,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx),   // surface, style, homing: for the
+  t.dmgAcc=(t.dmgAcc||0)+(r.sd||0)+(r.ad||0)+(r.hd||0);   // what it actually took (a capital hull's guns-vs-hull cut included)
+  S.fx.push({x:hit.x,y:hit.y,t0:S.t,ship:t.id,kind:r.sd>0&&r.ad+r.hd===0?'shield':'hull',h:Math.atan2(vy,vx),   // surface, style, homing, whose: for the
     surface:r.sd>0&&r.ad+r.hd===0?'shield':r.hd>0?'hull':'armour',style:PROJ_OF[w.id]||null,homing:!!homing});   // visual pass (C-73)
   if(r.sd>0){t.shFx={zone:r.zone,t:S.t};(t.zoneHitT||(t.zoneHitT={}))[r.zone]=S.t;}
   if(t.hull<=0&&t.alive)destroyShip(t,s);
@@ -407,7 +407,7 @@ function projTick(dt){
   }
   S.proj=kept;
   for(const t of S.ships)if(t.dmgAcc>0&&S.t-(t.dmgT==null?(t.dmgT=S.t):t.dmgT)>=0.35){
-    if(t.alive)floater(t,'-'+(t.dmgAcc<10?t.dmgAcc.toFixed(1):Math.round(t.dmgAcc)),C.hazard);
+    if(t.alive&&SHOW_DMG)floater(t,'-'+(t.dmgAcc<10?t.dmgAcc.toFixed(1):Math.round(t.dmgAcc)),C.hazard,'dmg');   // off unless the panel asks (feedback 1, §3.3)
     t.dmgAcc=0;t.dmgT=null;
   }
   S.bursts=S.bursts.filter(B=>B.left>0||B.live>0);
@@ -736,7 +736,7 @@ function say(s,text,tone,urgent){
   if(S.barks.length>60)S.barks.shift();
   return true;
 }
-function floater(s,text,col){S.floaters.push({x:s.x,y:s.y-40,text,col,t:S.t});if(S.floaters.length>60)S.floaters.shift();}
+function floater(s,text,col,kind){if(HK.floater&&HK.floater(s,text,kind||null)===false)return;S.floaters.push({x:s.x,y:s.y-40,text,col,kind:kind||null,id:s.id,t:S.t});if(S.floaters.length>60)S.floaters.shift();}
 
 /* =====================================================================
    Autonomy (§2.3): every THINK_SECS each ship scores what it could do and takes the best
@@ -1788,6 +1788,7 @@ let COLLIDE_DMG=40;       // damage at a closing speed of 1,000 a second (a head
 let COLLIDE_K=1.15;       // a ship's collision radius, × its hull length (HULL_LEN). placeholder
 let COLLIDE_BOUNCE=0.3;   // restitution. placeholder
 let SHIELD_CD=24;        // Boost Shields' recharge (was 8: it fired too often, feedback 1 §3.2). placeholder
+let SHOW_DMG=0;          // 1: the '-N' damage numbers float again (off: they cluttered the fight, feedback 1 §3.3)
 const bodyR=s=>(s.struct?HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*1.2:HULL_LEN*SRDB.visualSize(s.row.size)*SHIP_SCALE*COLLIDE_K)*(s.row.hitK||1);
 const rockR=r=>r.r*0.95;
 function sweptMin(ax,ay,dx,dy){   // the closest a point a + u·d (u in 0..1) comes to the origin: [u, distance]
@@ -2156,6 +2157,7 @@ const TUNE={
   MIS_BREAK_T:{get:()=>MIS_BREAK_T,set:v=>{MIS_BREAK_T=v;},min:0,max:3,step:0.1,label:'Break from a missile at (s out)'},
   COLLIDE_BOUNCE:{get:()=>COLLIDE_BOUNCE,set:v=>{COLLIDE_BOUNCE=v;},min:0,max:1,step:0.05,label:'Collision bounce'},
   SHIELD_CD:{get:()=>SHIELD_CD,set:v=>{SHIELD_CD=v;},min:2,max:90,step:1,label:'Boost Shields recharge (s)'},
+  SHOW_DMG:{get:()=>SHOW_DMG,set:v=>{SHOW_DMG=v?1:0;},min:0,max:1,step:1,label:'Damage numbers (1 = on)'},
   SPAWN_GAP:{get:()=>SPAWN_GAP,set:v=>{SPAWN_GAP=v;},min:150,max:800,step:10,label:'Starting spacing (on restart)'},
   THINK_SECS:{get:()=>THINK_SECS,set:v=>{THINK_SECS=v;},min:0.1,max:2,step:0.1,label:'Think every (s)'},
   ROUND_SECS:{get:()=>ROUND_SECS,set:v=>{ROUND_SECS=v;},min:1,max:6,step:0.25,label:'Top dial move takes (s)'},
@@ -2251,7 +2253,7 @@ for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
-  Fighting:['SHIELD_CD','ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
+  Fighting:['SHIELD_CD','SHOW_DMG','ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_WATCH','INTERPOSE_K','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R','HEG_RETREAT','LURE_DIST','STANDOFF_R','CLEAR_R','STRIKE_WAIT'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],

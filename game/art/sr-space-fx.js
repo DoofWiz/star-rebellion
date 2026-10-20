@@ -65,7 +65,12 @@ window.SR_SPACE_FX=(function(){
     smokeStage3:7,
     spiralChance:0.5,       // the chance a killed fighter careens off in a death spiral first
     spiralSecs:2,           //  … for this long, then the explosion fires where it ends
-    spiralSpin:7,           // the corpse's tumble rate, rad/s
+    spiralSpin:7,           // the corpse's tumble rate, rad/s, when the caller doesn't say how it was turning
+    spinK:4,                // the tumble from the ship's own turn (docs/ARENA-HC35-FEEDBACK-1.md §3.9): |nose rate| × this (the doc's 1.0 never whips: C-80),
+    spinMin:0.4,            //  … at least this,
+    spinMax:9,              //  … at most this (rad/s), ÷ √ its size, so a big hull sags rather than whips
+    spinGrow:1.6,           // the tumble's rate at the end of the fall, × its start (was 4)
+    spiralMaxSize:9,        // ships this size and up never spiral (they break up: capitalDeath)
     laserLen:70,            // a laser dart's beam length (world units)
     muzzleDur:0.085,        // seconds a muzzle flash lives
     sparkN:6,               // sparks per armour/hull bolt hit
@@ -197,7 +202,7 @@ window.SR_SPACE_FX=(function(){
     spiral:{layer:'over',dur:2,draw(c,e,k,v){
       const p=spiralPos(e,k);
       // the corpse: the stage-3 hull tumbling, trailing its own light
-      c.save();c.translate(p.x,p.y);c.rotate(e.h0+k*e.dur*e.spin*(1+k*1.5));c.globalAlpha=1;
+      c.save();c.translate(p.x,p.y);c.rotate(e.h0+e.dur*e.spin*(k+(e.grow-1)/2*k*k));c.globalAlpha=1;   // its rate grows to grow × over the fall
       c.drawImage(e.cv,-e.whalf,-e.whalf,2*e.whalf,2*e.whalf);c.restore();
       const fl=0.7+0.3*Math.sin(v.now/41);
       drawSpr(c,puff(FIRE[1],0),p.x,p.y,e.sc*8*fl,0.9,1);
@@ -703,11 +708,14 @@ window.SR_SPACE_FX=(function(){
     }catch(e){cv=null;}
     if(!cv){fighterBoom(x,y,d,size,livery);return;}
     const dur=Math.max(0.4,TUNE.spiralSecs),vh0=d.vh!=null?d.vh:d.h!=null?d.h:R()*TAU;
-    const v0=Math.max(120,(d.speed||0)*0.7+140),curl=(R()<0.5?-1:1)*rs(1.2,2.6),N=32,path=new Array(N+1);
+    // the curl follows the turn it died in, and the tumble its nose rate (§3.9); a caller that doesn't say: as before
+    const tw=d.turnW,cs=tw?Math.sign(tw):(R()<0.5?-1:1);
+    const v0=Math.max(120,(d.speed||0)*0.7+140),curl=cs*rs(1.2,2.6),N=32,path=new Array(N+1);
+    const spin=d.w!=null?(d.w<0?-1:d.w>0?1:cs)*clamp(Math.abs(d.w)*TUNE.spinK,TUNE.spinMin,TUNE.spinMax)/Math.sqrt(SA.sizeRel?SA.sizeRel(d.size||4):1):(curl<0?-1:1)*TUNE.spiralSpin;
     let px2=x,py2=y,hd=vh0+rs(-0.3,0.3);
     for(let i=0;i<=N;i++){path[i]={x:px2,y:py2};const t=i/N*dur,st=dur/N,v=v0*(1-0.55*(i/N));
       hd+=curl*t*st*2.2;px2+=Math.cos(hd)*v*st;py2+=Math.sin(hd)*v*st;}
-    const e=oneshot('spiral',x,y,{dur,path,cv,whalf:sc*ART_R,h0:d.h||vh0,spin:(curl<0?-1:1)*TUNE.spiralSpin,
+    const e=oneshot('spiral',x,y,{dur,path,cv,whalf:sc*ART_R,h0:d.h!=null?d.h:vh0,spin,grow:d.w!=null?TUNE.spinGrow:4,
       sc,size,emitN:0,boomD:{art:d.art,size:d.size,stage:d.stage,iconBoost:d.iconBoost},livery});   // iconBoost: the end boom's debris (arena-hc C-74)
     for(let i=0;i<5;i++)emit(sparkBit('#ffd866'),x,y,rs(-160,160),rs(-160,160),rs(0.2,0.4),5,2,{add:1,rot:R()*TAU,drag:1.5,pr:1});
     addShake(TUNE.shakeBoom*0.5,x,y);
@@ -755,7 +763,9 @@ window.SR_SPACE_FX=(function(){
           addShake(TUNE.shakeStation,x,y);flashAt(x,y,1);}
         else{
           const livery=d.livery||(d.faction==='reb'?'rebel':'heg');
-          const wantSpiral=d.spiral!=null?!!d.spiral:R()<TUNE.spiralChance;   // size above already carries ib
+          // the chance rises with the turn it died in (§3.9); a capital-sized hull never spirals
+          const turnK=d.turnW!=null&&d.turnCap>0?0.5+Math.abs(d.turnW)/d.turnCap:1;
+          const wantSpiral=(d.size||0)>=TUNE.spiralMaxSize?false:d.spiral!=null?!!d.spiral:R()<TUNE.spiralChance*turnK;   // size above already carries ib
           if(wantSpiral&&d.art){deathSpiral(x,y,d,size,livery);}
           else fighterBoom(x,y,d,size,livery);}
         break;}

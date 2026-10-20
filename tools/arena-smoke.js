@@ -2380,11 +2380,66 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k2.capped.every(Boolean),'HC35 K2 19: past REQ_CAP the hail still shows a card '+JSON.stringify(t35k2.capped));
  ok(t35k2.fanatical.every(Boolean),'HC35 K2 19: Fanatical Crew makes Intimidate impossible and its Secondary is taken up '+JSON.stringify(t35k2.fanatical));
  ok(t35k2.stall.every(Boolean),'HC35 K2 21: the stuck guard asks once '+JSON.stringify(t35k2.stall));
+ // HC35 K3 (feedback 1, tests 5's sweep, 6, 7, 17): no damage numbers, the shield halves' refill sweep, health
+ // colours, the death spin from the ship's turn
+ const t35k3=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,FX=API.FX,TH=(typeof SR!=='undefined'&&SR.theme)||window.SR_THEME,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex)=>{B.seed=777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    B.plan.assets=[];B.plan.assetAt={};B.plan.roes=[];const was=X.S;X.fn.launch();if(X.S===was||S().t!==0)(out.stale||(out.stale=[])).push(prim);};
+  let fn=performance.now();const frame=()=>{fn+=1000;window.SR_ARENA_HC.frame(fn);};
+  const rt0=N.RES_THREAT;N.REQ_OFF=1;N.RES_THREAT=0;
+  // 6: no damage numbers (and in 3.5 no floating words at all); with SHOW_DMG on, the freighter's add up to what it took
+  const fight={dagger:{k:'destroy'},anvil:{role:'home'},amber:{role:'home'}};
+  go('destroy',fight);const seen=new Set();let words=0,nums=0;
+  until(()=>{for(const f of S().floaters)if(!seen.has(f)){seen.add(f);words++;if(/^-\d/.test(f.text))nums++;}return false;},30);
+  out.off=[nums===0,words===0,SIM.TUNE.SHOW_DMG.get()===0];
+  SIM.TUNE.SHOW_DMG.set(1);go('destroy',fight);
+  {const f=fr();for(const k of ['F','R']){f.segs[k].val=0;f.segs[k].max=0;}   // no shield regeneration to muddy the sum
+   const tot=()=>Math.max(0,f.arm)+Math.max(0,f.hull)+L().subs.reduce((a,x)=>a+Math.max(0,x.hp),0),t0=tot();let sum=0,n=0;const sn=new Set();
+   until(()=>{for(const q of S().floaters)if(!sn.has(q)){sn.add(q);if(q.kind==='dmg'&&q.id==='fl400'){sum+=+q.text.slice(1);n++;}}return false;},30);
+   const took=t0-tot(),shown=sum+(f.dmgAcc||0);out.on=[n>0,Math.abs(shown-took)<=n*0.5+0.5,+shown.toFixed(1),+took.toFixed(1),n];}
+  SIM.TUNE.SHOW_DMG.set(0);
+  // 5 (K3): a refill starts the arc's sweep
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});API.setSpeed(0);
+  {const j=by('joss');j.segs.F.val=j.segs.F.max*0.2;j.segs.R.val=j.segs.R.max*0.2;frame();const before=API.sweepOf('joss','F')==null&&API.sweepOf('joss','R')==null;
+   (SIM.useAbility||F.useAbility)('joss','shields');frame();out.sweep=[before,API.sweepOf('joss','F')!=null||API.sweepOf('joss','R')!=null];}
+  // 7: health colours. A tile, a canvas pip and the pilot panel at 70%, 45% and 20% hull: go, hazard, rebel red
+  {const j=by('joss'),rgb=h=>'rgb('+[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(', ')+')',want=[TH.C.go,TH.C.hazard,TH.C.rebel].map(rgb),got=[];
+   API.A.selShip='joss';API.openPilot('joss');const hp0=TH.hpPips;let pip=null;TH.hpPips=function(c,x,y,o){if(o&&Math.abs(o.hp-Math.max(0,j.hull))<1e-6&&o.max===j.maxHull)pip=rgb(TH.hpCol(o.hp/o.max,o.bands));return hp0.apply(this,arguments);};
+   for(const f of [0.7,0.45,0.2]){j.hull=j.maxHull*f;pip=null;frame();API.syncHud(true);frame();
+     const tb=document.querySelector('.hc-tile[data-ship="joss"] .hc-bar--hull b'),pb=document.querySelector('#hcPilot .hc-pbar.is-hull b');
+     got.push([tb&&tb.style.background,pip,pb&&pb.style.background]);}
+   TH.hpPips=hp0;API.A.selShip=null;
+   out.colours=[got.every((g,i)=>g.every(x=>x===want[i])),JSON.stringify(got)];}
+  API.setSpeed(1);
+  // 17: the death spin. A Brickbat flying straight tumbles slowly; a Talon killed mid-turn whips round its turn's way;
+  // the FL-400 never spirals
+  {const ch=FX.TUNE.spiralChance;FX.TUNE.spiralChance=2;const OS=FX.fn.os_,spirals=()=>OS().filter(e=>e.kind==='spiral');
+   go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{role:'home'}});until(()=>false,3);API.setSpeed(0);frame();   // (the effects see the ships once first)
+   const b=by('brask');b.w=0;b.turnW=0;let n0=spirals().length;F.kill(b,null);b.deadT=S().t;frame();const sb=spirals().slice(n0)[0];
+   const t=by('petra'),g0=SIM.hooks.goal;SIM.hooks.goal=s=>s===t?{x:t.x+Math.cos(t.vh+1.5)*800,y:t.y+Math.sin(t.vh+1.5)*800,spd:0.7}:g0(s);
+   for(let i=0;i<120&&Math.abs(t.w)<1.1;i++)SIM.step();SIM.hooks.goal=g0;const tw=t.turnW;n0=spirals().length;   // killed with its nose swinging
+  F.kill(t,null);t.deadT=S().t;frame();const st=spirals().slice(n0)[0];
+   n0=spirals().length;FX.event('explode',{x:0,y:0,size:10,art:'gafreighter',livery:'heg',spiral:true,w:2,turnW:2});const sf=spirals().length===n0;
+   FX.TUNE.spiralChance=ch;API.setSpeed(1);
+   out.spin=[!!sb&&Math.abs(sb.spin)<1.5,!!st&&Math.abs(st.spin)>4&&Math.sign(st.spin)===Math.sign(tw),sf,sb&&+sb.spin.toFixed(2),st&&+st.spin.toFixed(2),+tw.toFixed(2)];}
+  N.RES_THREAT=rt0;N.REQ_OFF=0;
+  return out;
+ });
+ ok(!t35k3.stale,'HC35 K3: every scripted plan launched '+JSON.stringify(t35k3.stale));
+ ok(t35k3.off.every(Boolean),'HC35 K3 6: 30 s of fighting floats no damage numbers (and no words in 3.5) '+JSON.stringify(t35k3.off));
+ ok(t35k3.on.slice(0,2).every(Boolean),'HC35 K3 6: with SHOW_DMG on, the freighter\'s numbers add up to the damage it took '+JSON.stringify(t35k3.on));
+ ok(t35k3.sweep.every(Boolean),'HC35 K3 5: a refill starts the arc sweep '+JSON.stringify(t35k3.sweep));
+ ok(t35k3.colours[0],'HC35 K3 7: tile, canvas pip and pilot panel at 70/45/20% hull read go, hazard, red '+t35k3.colours[1]);
+ ok(t35k3.spin.slice(0,3).every(Boolean),'HC35 K3 17: a straight Brickbat tumbles under 1.5 rad/s, a turning Talon over 4 its turn\'s way, the FL-400 never spirals '+JSON.stringify(t35k3.spin));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

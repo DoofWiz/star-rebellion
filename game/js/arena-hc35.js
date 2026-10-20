@@ -316,7 +316,7 @@ function pilotBody(s){
   let h='<div class="hc-pilot__head"><span class="hc-pilot__name">'+esc(s.name)+'</span><span class="hc-pilot__sub">'+esc((P.preset||'')+(P.preset?' · ':'')+'L'+P.level+' · '+(w?w.name:'')+(w&&w.leader===s.id?' lead':''))+'</span>'+
     '<span class="hc-mor" data-m="'+mor+'">'+mor+'</span><button type="button" class="hc-x" data-act="close" aria-label="Close">✕</button></div>';
   if(!s.alive)return h+'<div class="hc-pilot__line">'+(s.jumped?'Jumped out.':'Down.')+'</div>';
-  const bar=(l,v,m,c)=>{const k=m>0?Math.max(0,Math.min(1,v/m)):0;return '<div class="hc-pbar '+c+'"><span>'+l+'</span><i><b style="width:'+Math.round(k*100)+'%"></b></i><em>'+(m>0?Math.max(0,Math.round(v))+'/'+m:'—')+'</em></div>';};
+  const bar=API.bar;   // High Command's: the health colours and the eased fill (§3.3)
   h+='<div class="hc-pilot__bars">'+bar('Hull',s.hull,s.maxHull,'is-hull')+bar('Armour',s.arm,s.maxArm,'is-arm')+bar('Shields',SIM.fn.totalShield(s),SIM.fn.maxShield(s),'is-shd')+'</div>';
   const b=s.beh||{};
   if(B.screen==='live'&&s.faction==='reb'&&s.wing&&L35.L){const why=L35.powerWhy('name');
@@ -967,7 +967,12 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
   pilotClick(s,b){if(b.dataset.act!=='callname')return false;if(b.getAttribute('aria-disabled')==='true'){API.flash('Call a Pilot by Name: '+(L35.powerWhy('name')||'not now'));return true;}
     B.pick=null;B.choose={k:'name',args:{ship:s.id}};API.syncHud(true);return true;},
   orderChip(w){const L=L35.L,ex=L&&L.exec[w.id];if(!ex)return '';const O=L35.ORDERS35[ex.k];return 'EXEC · '+O.name+(ex.arg&&typeof ex.arg==='string'?' '+(L35.WINGS35.find(x=>x.id===ex.arg)||{name:ex.arg}).name:'');},
-  tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>(s.cls==='fl400'&&!s.jumped)||!!s.noDeathFx,drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
+  tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>(s.cls==='fl400'&&!s.jumped)||!!s.noDeathFx,
+  // the shield arcs (§3.3): always on your ships at art zoom (quiet unless selected, just hit or refilling); on theirs
+  // for 2 s after a hit, and while selected
+  shieldMode(s,base){const S=SIM.S,hit=S.t-(s.hitT==null?-99:s.hitT)<2,sel=API.A.selShip===s.id;
+    if(s.faction==='reb')return base||hit||sel||API.sweepOf(s.id,'F')!=null||API.sweepOf(s.id,'R')!=null?'full':'quiet';
+    return sel||hit?'full':null;},drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,
   hudHidden:()=>B.screen!=='live'&&B.screen!=='debrief',
   syncHud(now){
     const L=L35.L;

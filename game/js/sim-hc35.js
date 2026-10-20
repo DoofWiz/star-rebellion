@@ -486,6 +486,7 @@ function attach(){
   HK.canJump=s=>live()?canJump(s):true;
   HK.noCollide=(a,b)=>live()&&(exempt(a,b)||exempt(b,a));
   HK.noAvoid=(s,o)=>live()&&exempt(s,o);
+  HK.floater=(s,text,kind)=>!live()||kind==='dmg';   // 3.5 floats no words (the callouts carry what matters, §3.3); damage numbers only if the panel asks
   HK.noSep=s=>live()&&(!!s.dock35||(s.beh&&s.beh.kind==='dock35'&&s.dockLeg==='final'));   // its escort's spacing mustn't herd a docking ship off
 }
 function detach(){for(const k of Object.keys(HK))delete HK[k];L=null;}

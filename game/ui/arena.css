@@ -302,8 +302,15 @@
 #arHc .hc-tile__name{font-size:var(--sr-fs-xs);color:var(--sr-rebel-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #arHc .hc-tile__bars{display:flex;flex-direction:column;gap:2px;}
 #arHc .hc-bar{display:block;height:4px;border-radius:2px;background:var(--sr-void);overflow:hidden;}
-#arHc .hc-bar b{display:block;height:100%;}
-#arHc .hc-bar--hull b{background:var(--sr-go);} #arHc .hc-tile.is-crit .hc-bar--hull b{background:var(--sr-hazard);}
+#arHc .hc-bar b{display:block;height:100%;transition:width .6s cubic-bezier(.22,.8,.3,1),background-color .3s;}
+#arHc .hc-bar--hull b{background:var(--sr-go);}
+#arHc .hc-bar,#arHc .hc-pbar i{position:relative;}
+/* feedback 1 §3.3: a rising shield bar's glint, and the red hull bar's pulse under 15% */
+#arHc .hc-bar.is-glint::after,#arHc .hc-pbar.is-glint i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(232,255,255,.85) 50%,transparent 70%);background-size:220% 100%;animation:hc-glint .7s ease-out;pointer-events:none;}
+@keyframes hc-glint{from{background-position:120% 0;}to{background-position:-100% 0;}}
+#arHc .is-pulse b{animation:hc-hpulse .9s ease-in-out infinite;}
+@keyframes hc-hpulse{50%{opacity:.45;}}
+@media (prefers-reduced-motion:reduce){#arHc .hc-bar b,#arHc .hc-pbar b{transition:none;}#arHc .hc-bar.is-glint::after,#arHc .hc-pbar.is-glint i::after{animation:none;}#arHc .is-pulse b{animation:none;}}
 #arHc .hc-bar--shd b{background:var(--sr-shield);}
 #arHc .hc-tile__foot{display:flex;justify-content:space-between;gap:4px;color:var(--sr-text-3);}
 #arHc .hc-tile__ord{position:absolute;top:8px;left:8px;display:inline-flex;padding:2px;border-radius:4px;background:color-mix(in srgb,var(--sr-ink) 80%,transparent);color:var(--sr-text-2);}
@@ -405,7 +412,7 @@
 #arHc .hc-pilot__bars{display:flex;flex-direction:column;gap:3px;margin:8px 0;}
 #arHc .hc-pbar{display:grid;grid-template-columns:56px 1fr 44px;align-items:center;gap:6px;color:var(--sr-text-3);font-weight:700;}
 #arHc .hc-pbar i{display:block;height:7px;border-radius:4px;background:var(--sr-void);box-shadow:inset 0 0 0 1px var(--sr-ink);overflow:hidden;}
-#arHc .hc-pbar b{display:block;height:100%;}
+#arHc .hc-pbar b{display:block;height:100%;transition:width .6s cubic-bezier(.22,.8,.3,1);}
 #arHc .hc-pbar.is-hull b{background:var(--sr-go);} #arHc .hc-pbar.is-arm b{background:var(--sr-steel);} #arHc .hc-pbar.is-shd b{background:var(--sr-shield);}
 #arHc .hc-pbar em{font-style:normal;color:var(--sr-text);text-align:right;font-variant-numeric:tabular-nums;}
 #arHc .hc-pilot__line{color:var(--sr-text-2);font-weight:600;line-height:1.4;}
