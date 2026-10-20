@@ -316,6 +316,8 @@
 #arHc .h35-tgt__head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;}
 #arHc .h35-tgt__head b{font:400 var(--sr-fs-md)/1 var(--sr-font-display);color:var(--sr-heg-hi);}
 #arHc .h35-tgt__sch{display:block;width:260px;height:84px;margin:0 auto 6px;}
+#arHc .h35-tgt__sch.is-small{height:60px;}   /* a small ship's schematic (feedback 2, L4) */
+#arHc .h35-subs{display:flex;flex-wrap:wrap;gap:4px;}
 #arHc .h35-tgt__rows{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;}
 #arHc .h35-tgt__row{display:flex;align-items:center;gap:6px;color:var(--sr-text);}
 #arHc .h35-tgt__row i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1.5px var(--sr-ink);flex:none;}

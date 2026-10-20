@@ -2664,11 +2664,47 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35l3.steal.every(Boolean)&&t35l3.blown.every(Boolean),'HC35 L3 3: Steal without its boarders falls back to Pirate; a Crash blown up in space is a Destroy '+JSON.stringify([t35l3.steal,t35l3.blown]));
  ok(t35l3.tag.every(Boolean),'HC35 L3 3: no fallback outside a family '+JSON.stringify(t35l3.tag));
  ok(t35l3.idle.every(Boolean),'HC35 L3 3.1: a wing with its job done finds work; your Hold stays '+JSON.stringify(t35l3.idle));
+ // HC35 L4: every ship's subsystems: engines, guns, a shield generator; aimed fire takes them out; the readout, the rings and a pick on one (feedback 2, §4)
+ const t35l4=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id);
+  B.seed=51;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';
+  for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec={k:w==='dagger'?'suppress':'hold',arg:w==='dagger'?'escorts':null};B.plan.wings[w].second=null;}
+  B.plan.assets=[];B.plan.roes=[];const co=N.COMMS_OFF,rt=N.RES_THREAT;N.COMMS_OFF=1;N.REQ_OFF=1;N.RES_THREAT=0;X.fn.launch();L().cp=9;SIM.runFor(2);
+  const small=S().ships.filter(s=>s.alive&&!s.struct&&s.id!=='fl400'&&!s.prop35);
+  out.all=[small.length>10,small.every(s=>s.sys35&&s.sys35.some(x=>x.k==='engines')&&s.sys35.some(x=>x.k==='guns')),small.filter(s=>F.maxShield(s)>0).every(s=>s.sys35.some(x=>x.k==='shields')),!by('fl400').sys35];
+  // Focus on an escort's engines: the aim shows in the verb, they go down, it limps, the focus ends
+  const e=S().ships.find(s=>s.role35==='escort'&&s.alive);L35.use('name',{ship:'joss',act:'focus',target:e.id,sub:'engines'});SIM.runFor(1);
+  const j=by('joss'),v0=L35.verbOf(j).words;let downT=null;for(let i=0;i<120&&e.alive;i++){SIM.runFor(1);const x=e.sys35.find(x=>x.k==='engines');if(x.hp<=0){downT=S().t;break;}}
+  SIM.runFor(1);
+  out.engines=[/Disabling .*'s engines/.test(v0),downT!=null,e.crits.filter(c=>c==='engine').length===2&&e.crits.includes('controls'),!L().focus.joss,S().events.some(x=>x.kind==='sub35'&&/engines are out/.test(x.text)),
+    L().callouts.some(c=>c.text==='ENGINES DOWN'),v0];
+  // guns and shields down: it can't fire; its shields drop and stay down; it can't boost them
+  const e2=S().ships.find(s=>s.role35==='escort'&&s.alive&&s!==e)||e;L35.fn.sub35Down(e2,e2.sys35.find(x=>x.k==='guns'),null);
+  const sh=e2.sys35.find(x=>x.k==='shields');if(sh)L35.fn.sub35Down(e2,sh,null);
+  const n0=S().proj.filter(p=>p.owner===e2.id).length;SIM.runFor(6);
+  out.guns=[e2.gunsDown35===true,S().proj.filter(p=>p.owner===e2.id&&p.age<6).length===0,!sh||(e2.segs.F.val===0&&e2.segs.R.val===0),!sh||!!SIM.hooks.abilityOk(e2,'shields')];
+  // the readout: inspect it; its schematic with three subsystems, the engines struck out
+  X.fn.OV.mapClick({x:e.x,y:e.y},{},e);X.fn.syncTarget(true);const card=document.getElementById('h35Tgt');
+  out.card=[B.inspect===e.id,!!card.querySelector('canvas.h35-tgt__sch.is-small'),card.querySelectorAll('.h35-tgt__row').length===e.sys35.length,/Engines · 0\/\d+ · DOWN/.test(card.textContent),(B.schX||[]).includes('engines')];
+  // a pick on a subsystem: Mark with the cursor on the guns
+  const e3=S().ships.find(s=>s.role35==='escort'&&s.alive&&s.sys35.find(x=>x.k==='guns').hp>0);
+  let pick=null;if(e3){const g=e3.sys35.find(x=>x.k==='guns'),q=API.ipos(e3),a=F.hullAxes(e3).a,p={x:q.x+Math.cos(q.h)*g.x*a,y:q.y+Math.sin(q.h)*g.x*a};
+    const use=L35.use;L35.use=(k,args)=>{pick={k,args:Object.assign({},args)};return {ok:true};};B.pick={k:'mark',args:{}};X.fn.OV.mapClick(p,{},e3);L35.use=use;B.pick=null;}
+  out.pick=[!!pick&&pick.args.id===e3.id,!!pick&&pick.args.sub==='guns'];
+  N.COMMS_OFF=co;N.REQ_OFF=0;N.RES_THREAT=rt;B.inspect=null;
+  return out;
+ });
+ ok(t35l4.all.every(Boolean),'HC35 L4 4: every ship but the freighter has engines and guns, and a shield generator if shielded '+JSON.stringify(t35l4.all));
+ ok(t35l4.engines.slice(0,6).every(Boolean),'HC35 L4 4: Focus on an escort\'s engines: the verb names them, they go down, it limps, the focus ends, the feed and callout say so '+JSON.stringify(t35l4.engines));
+ ok(t35l4.guns.every(Boolean),'HC35 L4 4: guns down, it can\'t fire; shield generator down, its shields stay at 0 and can\'t be boosted '+JSON.stringify(t35l4.guns));
+ ok(t35l4.card.every(Boolean),'HC35 L4 4: the readout shows a small ship\'s schematic and its subsystems '+JSON.stringify(t35l4.card));
+ ok(t35l4.pick.every(Boolean),'HC35 L4 4: a power picking on a small ship\'s subsystem names it '+JSON.stringify(t35l4.pick));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

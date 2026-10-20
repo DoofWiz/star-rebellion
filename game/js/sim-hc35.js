@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-5';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-6';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -78,7 +78,10 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   INTIM_STANDOFF:600,EXEC_STALL:90,POD_CAPTURE_R:2500,
   // feedback 2, L2: a retreating ship keeps this share of a hostile's push, and only sideways; a ship fights back at
   // whoever hit it in the last DEFEND_HIT seconds, or has guns on it
-  RETREAT_SIDE:0.5,DEFEND_HIT:2,JUMP35_R:1000,IDLE_LOOK:5};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
+  RETREAT_SIDE:0.5,DEFEND_HIT:2,JUMP35_R:1000,IDLE_LOOK:5,
+  // feedback 2, L4: every ship's subsystems, as shares of its hull; an aimed hit puts AIM_SUB of its hull damage into the
+  // subsystem and AIM_HULL into the hull; an unaimed one spills SPILL_SUB into the subsystem on the side it came from
+  SUB_ENG:0.35,SUB_GUN:0.3,SUB_SHD:0.3,AIM_SUB:1,AIM_HULL:0.5,SPILL_SUB:0.25};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
   FLANK_K:{get:()=>FLANK_K,set:v=>{FLANK_K=v;},min:1,max:3,step:0.1,label:'Alarmed speed ×',group:'Freighter'},
@@ -127,9 +130,11 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   PD_TRAVERSE:['Turret traverse (rad/s)',0.1,5,0.05,'Freighter'],PD_ON_TARGET:['Turret fires within (rad)',0.01,0.5,0.01,'Freighter'],PD_RETARGET:['Turret retargets every (s)',0.2,10,0.1,'Freighter'],
   PD_LAG:['Turret lead from (s ago)',0,2,0.05,'Freighter'],PD_SPREAD_BASE:['Turret spread at rest',0,0.2,0.005,'Freighter'],PD_TRANSV_K:['Turret spread × crossing speed',0,5,0.05,'Freighter'],PD_SPREAD_MAX:['Turret spread, most',0.02,1,0.01,'Freighter'],PD_ARC:['A turret pair\'s arc (rad)',0.5,6.28,0.05,'Freighter'],
   INTIM_STANDOFF:['Intimidate: standoff off the hull',100,3000,50,'Freighter'],EXEC_STALL:['Stuck guard: no progress for (s)',20,300,5,'Requests'],POD_CAPTURE_R:['A pod left at the end is captured within',0,8000,100,'Requests'],
-  RETREAT_SIDE:['Retreat: share of a hostile\'s push kept (sideways)',0,1.6,0.05,'Wings'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings']};
+  RETREAT_SIDE:['Retreat: share of a hostile\'s push kept (sideways)',0,1.6,0.05,'Wings'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings'],
+  SUB_ENG:['A ship\'s engines × its hull',0.05,2,0.05,'Subsystems'],SUB_GUN:['A ship\'s guns × its hull',0.05,2,0.05,'Subsystems'],SUB_SHD:['A ship\'s shield generator × its hull',0.05,2,0.05,'Subsystems'],
+  AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
-const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings'];
+const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems'];
 
 /* =====================================================================
    The opportunity (§3.1): one type, as data
@@ -494,7 +499,8 @@ function attach(){
   HK.goal=s=>live()?goal(s):null;
   HK.step=dt=>{if(live())step(dt);};
   HK.event=(kind,text,o,e)=>{if(live())onEvent(kind,text,o,e);};
-  HK.damage=(t,dmg,skip,front,hit)=>live()&&t.id===L.fr?damageFreighter(t,dmg,skip,front,hit):null;
+  HK.damage=(t,dmg,skip,front,hit)=>!live()?null:t.id===L.fr?damageFreighter(t,dmg,skip,front,hit):t.sys35?damageShip(t,dmg,skip,front,hit):null;
+  HK.abilityOk=(s,k)=>live()?abilityOk(s,k):null;
   HK.canFire=(s,t,q)=>live()?canFire(s,t,q):true;
   HK.canJump=s=>live()?canJump(s):true;
   HK.noCollide=(a,b)=>live()&&(exempt(a,b)||exempt(b,a));
@@ -546,11 +552,67 @@ function subDown(fr,sb,by){
       if(fr.hull<=0&&fr.alive)F.kill(fr,by&&by.alive?by:null);}
   }
 }
+/* =====================================================================
+   Feedback 2, L4: every ship's subsystems. Engines (aft), guns (fore) and, if it has shields, the shield generator
+   (amidships), each with its share of the hull's points. A shot aimed at one (Mark Priority Target or Call a Pilot by
+   Name: Focus, on a subsystem) puts its hull damage there and less into the hull; any other hit spills a little into
+   the one on the side it came from. Down: engines, it limps (High Command's engine and control-surface criticals) and
+   can't boost, drift or K-turn; guns, it can't fire; shields, they drop and can't be boosted
+   ===================================================================== */
+const SUBS35={engines:{name:'engines',x:-0.65},guns:{name:'guns',x:0.6},shields:{name:'shield generator',x:0}};
+function mkSys35(s){
+  const out=[{k:'engines',max:Math.round(s.maxHull*N.SUB_ENG)},{k:'guns',max:Math.round(s.maxHull*N.SUB_GUN)}];
+  if(F.maxShield(s)>0)out.push({k:'shields',max:Math.round(s.maxHull*N.SUB_SHD)});
+  for(const x of out){x.hp=Math.max(1,x.max);x.max=x.hp;x.x=SUBS35[x.k].x;}
+  return out;
+}
+function sys35Tick(){
+  for(const s of SIM.S.ships){
+    if(!s.alive||s.struct||s.id===L.fr||s.prop35)continue;
+    if(!s.sys35)s.sys35=mkSys35(s);
+    if(s.shDown35){s.segs.F.val=0;s.segs.R.val=0;}
+  }
+}
+const sub35=(s,k)=>s.sys35&&s.sys35.find(x=>x.k===k);
+const sub35Up=(s,k)=>{const x=sub35(s,k);return !x||x.hp>0;};
+/* where a subsystem sits, in the world */
+function sub35World(s,x){const a=F.hullAxes(s).a;return {x:s.x+Math.cos(s.h)*x.x*a,y:s.y+Math.sin(s.h)*x.x*a};}
+function damageShip(t,dmg,skip,front,hit){
+  let rem=dmg,sd=0,ad=0,hd=0;const zone=front?'F':'R';
+  if(!skip){const keys=['F','R'].filter(k=>t.segs[k].at===zone).sort((a,b)=>(a===zone?1:0)-(b===zone?1:0));
+    for(const k of keys){if(rem<=0)break;const take=Math.min(t.segs[k].val,rem);t.segs[k].val-=take;rem-=take;sd+=take;}}
+  if(rem>0&&t.arm>0){ad=Math.min(t.arm,rem);t.arm-=ad;rem-=ad;}
+  if(rem>0){
+    hd=rem;const by=hit&&hit.by?F.byId(hit.by):null;
+    const aim=by&&by.sub35&&SUBS35[by.sub35]&&((by.beh&&by.beh.target===t.id)||by.fireAt===t.id)?sub35(t,by.sub35):null;
+    if(aim&&aim.hp>0){aim.hp-=hd*N.AIM_SUB;t.hull-=hd*N.AIM_HULL;if(aim.hp<=0)sub35Down(t,aim,by);}
+    else{t.hull-=hd;const sp=sub35(t,front?'guns':'engines');if(sp&&sp.hp>0&&N.SPILL_SUB>0){sp.hp-=hd*N.SPILL_SUB;if(sp.hp<=0)sub35Down(t,sp,by);}}
+  }
+  return {sd,ad,hd,zone};
+}
+function sub35Down(s,x,by){
+  x.hp=0;x.downT=+SIM.S.t.toFixed(2);
+  if(x.k==='engines'){for(const c of ['engine','engine','controls'])if(F.critCount(s,c)<(c==='engine'?2:1))s.crits.push(c);s.boostT=0;}
+  else if(x.k==='guns')s.gunsDown35=true;
+  else if(x.k==='shields'){s.shDown35=true;s.segs.F.val=0;s.segs.R.val=0;}
+  const mine=s.faction==='reb',p={x:s.x,y:s.y};
+  SIM.pushEvent('sub35',(s.label||s.name)+'\'s '+SUBS35[x.k].name+' '+(x.k==='shields'?'is':'are')+' out',{ship:s.id,x:p.x,y:p.y,tone:mine?'hazard':'good'});
+  callout(x.k==='shields'?'SHIELDS DOWN':x.k.toUpperCase()+' DOWN',mine?'hazard':'good',s,{feed:false});
+  if(by&&by.faction==='reb'&&by.sub35===x.k){const w=by.wing;if(w){rethink(F.wingShips(F.wingOf(w))||[]);}}   // done with that aim: think again
+}
+function abilityOk(s,k){
+  if(!s.sys35)return null;
+  if((k==='boost'||k==='drift'||k==='kturn')&&!sub35Up(s,'engines'))return 'its engines are out';
+  if(k==='shields'&&!sub35Up(s,'shields'))return 'its shield generator is out';
+  if(k==='missile'&&!sub35Up(s,'guns'))return 'its guns are out';
+  return null;
+}
 const cargoLeft=()=>L.subs.filter(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard).length;
 const cargoLost=()=>L.subs.filter(x=>x.k==='cargo'&&(x.hp<=0||x.taken)).map(x=>x.i);
 
 /* ---------- who may fire on what (P3 adds the rules) ---------- */
 function canFire(s,t,q){
+  if(s.gunsDown35)return false;   // its guns are out (L4)
   if(t.id===L.fr&&(L.surrender||L.prize))return false;   // a surrendered ship or our prize: hold fire
   if(s.id===L.fr)return false;
   if(s.faction!=='reb')return true;
@@ -607,9 +669,10 @@ function thinkWing(s){
   if(!signalled(s.wing)){if(S.t-s.hitT<3)release(s.wing,'fired');else{const r=w.rally||F.wingCentre(w);return setB(s,{kind:'waitpt',dest:r,why:'waiting for your signal'});}}
   // Call a Pilot by Name: Focus [target]; Mark Priority Target: a wing with no Executive work goes for it
   const fo=L.focus[s.id];
-  if(fo){const t=F.byId(fo.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender))){s.sub35=fo.sub||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'Base named my target',hard:true});}delete L.focus[s.id];}
+  if(fo&&fo.sub&&SUBS35[fo.sub]){const t=F.byId(fo.id);if(t&&t.sys35&&!sub35Up(t,fo.sub)){delete L.focus[s.id];F.say(s,'Its '+SUBS35[fo.sub].name+(fo.sub==='shields'?' is':' are')+' out, Base.','good',true);}}   // that subsystem's down: done
+  if(L.focus[s.id]){const t=F.byId(fo.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender))){s.sub35=aimAt(t,fo.sub)||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'Base named my target',hard:true});}delete L.focus[s.id];}
   const mk=L.markW[s.wing];
-  if(mk&&S.t<mk.until&&execState(s.wing)!=='busy'){const t=F.byId(mk.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender||s.load35==='board'||s.load35==='pods'))){s.sub35=mk.sub||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'the marked target'});}}
+  if(mk&&S.t<mk.until&&execState(s.wing)!=='busy'){const t=F.byId(mk.id);if(t&&t.alive&&!(t.id===L.fr&&(L.prize||L.surrender||s.load35==='board'||s.load35==='pods'))){s.sub35=aimAt(t,mk.sub)||(s.load35==='bombs'?'core':null);return setB(s,{kind:'engage',target:t.id,why:'the marked target'});}}
   // a Boarding party or Cargo pods: the loadout decides, whatever the wing's Executive (§3.2)
   if((s.load35==='board'||s.load35==='pods')&&fr&&fr.alive&&!L.prize){
     const spec=s.load35,can=(L.disabled||L.surrender)&&(spec==='board'?!L.boarded&&!L.scuttleOut:cargoLeft()>0&&(s.pods?s.pods.length:0)<N.POD_CAP);
@@ -670,6 +733,8 @@ function thinkWing(s){
   }
   return false;
 }
+/* the subsystem to aim at on a target: the freighter's as named; a small ship's only while it's up (then the hull) */
+function aimAt(t,sub){if(!sub)return null;if(t.id===L.fr)return sub;return SUBS35[sub]&&sub35Up(t,sub)?sub:null;}
 const HOLD35_R=3500;   // a holding or ambushing wing takes on what comes this close to its point. placeholder
 function holdBy(s,w){
   if(defend(s))return true;
@@ -787,7 +852,7 @@ function step(dt){
   if(fr&&!fr.alive&&L.deadT==null&&!fr.jumped){L.deadT=S.t;L.deadPose={x:fr.x,y:fr.y,h:fr.h,lost:cargoLost()};}
   txTick();arrivalTick();propTick(dt);ramShotTick();volTick();ejectTick();podTick(dt);reqTick();calloutTick();
   if(L.interdict&&!L.interdict.over&&S.t>=L.interdict.until){L.interdict.over=true;SIM.pushEvent('power','The Interdictor is down',{x:L.interdict.x,y:L.interdict.y,tone:'info'});}
-  vHistTick();pdTick(fr,dt);bombTick(fr,dt);dockTick(fr,dt);
+  vHistTick();pdTick(fr,dt);bombTick(fr,dt);dockTick(fr,dt);sys35Tick();
   for(const s of S.ships)if(s.role35==='response'&&!s.alive&&!s.jumped)countKill(s);
   // escorts lost shake the crew
   const escN=S.ships.filter(s=>s.alive&&s.role35==='escort').length;if(escN<L.escN){L.resolve=Math.max(0,L.resolve-N.RES_ESCORT*(L.escN-escN));L.escN=escN;}
@@ -1875,6 +1940,7 @@ function verbOf(s){
         if(ex.k==='disable'){const k=ex.arg||'engines',l=L.subs.filter(x=>x.k===(k==='turrets'?'pd':k));return v_('disable','Disabling the '+(k==='turrets'?'turrets':SUB_NAME[k]||k),1-l.reduce((a,x)=>a+Math.max(0,x.hp),0)/Math.max(1,l.reduce((a,x)=>a+x.max,0)));}
         if(ex.k==='suppress'&&ex.arg!=='escorts'||s.sub35==='turrets')return v_('suppress','Suppressing turrets');
         return v_('attack','Attacking the freighter');}
+      if(t&&s.sub35&&SUBS35[s.sub35]&&t.sys35){const x=sub35(t,s.sub35);return v_('disable','Disabling '+nm(t)+'\'s '+SUBS35[s.sub35].name,x?1-Math.max(0,x.hp)/x.max:0);}
       if(b.why==='guarding the transfer')return v_('overwatch','Guarding the transfer');
       if(ex.k==='suppress'&&ex.arg==='escorts')return v_('suppress','Suppressing '+nm(t));
       if(b.why==='springing the ambush')return v_('ambush','Springing the ambush on '+nm(t));
@@ -1921,5 +1987,5 @@ return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PR
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
   POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
   REQ35,ANS,answerReq,reqTrigger,personaOf,SUB_NAME,verbOf,VERBS,
-  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,primaryTick,findWork,countKill,blast,send,land,canJump,edgeNear,groupOf}};
+  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,countKill,blast,send,land,canJump,edgeNear,groupOf}};
 })();

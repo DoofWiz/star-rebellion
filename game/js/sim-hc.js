@@ -1183,6 +1183,7 @@ function abilityTriggers(s,k){
 }
 function useAbility(s,k,manual){
   if(!s.alive||!abilitiesOf(s).includes(k))return {ok:false,why:'not this pilot\'s'};
+  if(HK.abilityOk){const why=HK.abilityOk(s,k);if(why)return {ok:false,why};}   // a layer's say (Type 3.5: a subsystem that's down)
   if(k==='chaff'&&(s.chaffLeft!=null?s.chaffLeft:CHAFF_N)<=0)return {ok:false,why:'no chaff left'};
   if(k==='missile'){   // pressed: fire now if locked, else arm it for the next lock
     const q=misWpn(s);if(!q)return {ok:false,why:'no missiles left'};
@@ -2277,7 +2278,7 @@ return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
-  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
