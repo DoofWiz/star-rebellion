@@ -412,6 +412,14 @@ window.SR_SPACE_FX=(function(){
       if(Math.sin(tt*24)>0)drawSpr(c,glowDot(C.hazard),x,y,Math.max(5,4/view.z),0.9*fade,1);
       c.globalAlpha=1;return;
     }
+    if(P&&P.type==='plasma'){   // plasma (Type 3.5, feedback 2 §6): a slow, heavy, glowing orb with a short smeared tail; it throbs
+      const tt=(view.t||0)+(p.age||0),r=Math.max(P.w*1.2,P.w*0.8/view.z)*(1+0.12*Math.sin(tt*30+(p.x0||0)*0.01));
+      const TL=Math.min(P.len*1.6*Math.max(1,0.8/view.z),born),hx=x-p.vx/sp*TL,hy=y-p.vy/sp*TL;
+      c.lineCap='round';c.globalAlpha=0.32*fade;c.strokeStyle=glow;c.lineWidth=r*1.7;c.beginPath();c.moveTo(hx,hy);c.lineTo(x,y);c.stroke();
+      drawSpr(c,glowDot(glow),x,y,r*3.4,0.9*fade,1);
+      c.globalAlpha=fade;c.fillStyle=core;c.beginPath();c.arc(x,y,r*0.55,0,TAU);c.fill();
+      c.globalAlpha=1;return;
+    }
     if(P&&P.type==='slaser'){   // a laser: a coherent beam-dart — hard edges, a white filament, no tracer taper
       const BL=Math.min(P.len||TUNE.laserLen,born),hx=x-p.vx/sp*BL,hy=y-p.vy/sp*BL;
       c.lineCap='butt';

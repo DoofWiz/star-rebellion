@@ -232,7 +232,7 @@ let PROJ_SPD=2000,SPREAD_BASE=6,RANGE_SPREAD=3,SPREAD_AIM_K=0.1,SPREAD_NERVE_K=1
 let MISSILE_LOCK=0.6,MISSILE_MINR=1.5,MISSILE_SPD=800,MISSILE_TURN=2.4,LOCK_GAIN=0.4,LOCK_DECAY=0.5,LOCK_DMG_MAX=1.0,CRIT_DIRECT=0.10;
 const CRIT_REF=0.25,KIND_SPD={plasma:1,laser:1,ballistic:1.25};
 const shotShare=()=>GUN_DPS*BURST_EVERY/Math.max(1,BURST_N);
-const projSpd=w=>PROJ_SPD*(KIND_SPD[w&&w.kind]||1);
+const projSpd=w=>PROJ_SPD*(KIND_SPD[w&&w.kind]||1)*(w&&w.spdK||1);   // a layer's weapon may be slower (Type 3.5's plasma)
 const PROJ_OF={'bls-t-light-repeaters':'repeaters','missiles':'missiles','door-mounted-gun':'doorgun','pursuer-pulse-cannon':'cruiser',
   'sentry-pulse-emitter':'dronegun','monitor-pulse-emitter':'dronegun','clamper-pulse-emitter':'dronegun'};
 const gunRange=s=>Math.max(300,...s.wpns.map(q=>q.w.rng));
@@ -342,7 +342,7 @@ function fireTick(s,dt){
     if(q.w.needsLock)continue;   // missiles go by the Missile ability's doctrine (missileDoctrine), not with the guns
     if(q.cd>0||!canFire(s,q,t))continue;
     q.cd=BURST_EVERY;
-    S.bursts.push({owner:s.id,faction:s.faction,w:q.w,left:BURST_N,next:0,target:t.id,fired:0,hits:0,live:0,hitT:{},id:++S.burstN,q});
+    S.bursts.push({owner:s.id,faction:s.faction,w:q.w,left:q.w.bolts||BURST_N,next:0,target:t.id,fired:0,hits:0,live:0,hitT:{},id:++S.burstN,q});
   }
 }
 function muzzleAt(s,i){   // sim-sb.js muzzleAt, simplified: a bolt leaves the nose, alternating sides
@@ -359,7 +359,7 @@ function emitBursts(dt){
       const tt=t&&t.alive?t:null;
       const ang=tt?aimAngle(s,tt,B.w):s.h,d=tt?dist(s,tt):B.w.rng;
       const h=ang+(S.rng()-0.5)*spreadOf(s,B.w,d,tt?lockOf(s,tt.id):0),V=projSpd(B.w),m=muzzleAt(s,B.fired);
-      S.proj.push({x:m.x,y:m.y,x0:m.x,y0:m.y,vx:Math.cos(h)*V,vy:Math.sin(h)*V,owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:B.w.rng/V*1.15,age:0,style:PROJ_OF[B.w.id]});
+      S.proj.push({x:m.x,y:m.y,x0:m.x,y0:m.y,vx:Math.cos(h)*V,vy:Math.sin(h)*V,owner:s.id,faction:s.faction,w:B.w,burst:B.id,life:B.w.rng/V*1.15,age:0,style:B.w.style||PROJ_OF[B.w.id]});
       B.left--;B.fired++;B.live++;s.st.shots++;B.next+=BURST_GAP;
     }
   }
@@ -369,7 +369,7 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const imp=impactOf(vx,vy,hit);
   const lk=homing?(lockAt!=null?lockAt:(s?lockOf(s,t.id):0)):0;   // the lock's damage bonus is the missiles' alone (C-72: every ship locks now)
   const roll=w.dmg[0]+Math.floor(S.rng()*(w.dmg[1]-w.dmg[0]+1));
-  const share=homing?1:shotShare(),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
+  const share=homing?1:shotShare()*(w.boltK||1),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
   const dmg=homing?Math.max(1,Math.round(raw)):raw;
   const fromFront=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0;
   const r=applyDamage(t,dmg,w.skipShield,fromFront,HK.damage?Object.assign({by:shooterId},hit):hit);   // a damage hook is told who fired
@@ -2292,7 +2292,7 @@ return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
   build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
   fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
-    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),ESCORT_R_:()=>ESCORT_R,
+    CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),RANGE_MULT_:()=>RANGE_MULT,BURST_N_:()=>BURST_N,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
     rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,

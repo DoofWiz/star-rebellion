@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-7';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-8';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -87,6 +87,10 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   // DRIFT_COAST of the engines' braking and bleeds DRIFT_BLEED of top speed a second, on top of the turn's own bleed. A pilot drifts with a target within DRIFT_REACH ×
   // gun range, DRIFT_OFF_MIN to DRIFT_OFF_MAX off the nose, and the speed to slide on (over DRIFT_VMIN × corner
   // speed); then not again for DRIFT_CD
+  // feedback 2, L6: plasma. A heavy gun: PX_BOLTS slow bolts a burst (PX_SPD × a repeater bolt's speed) carrying the
+  // burst's damage between them, × PX_DMG (slow bolts miss more: this evens it out); a hit is likelier to be critical
+  // (PX_CRIT); PX_RNG × the reach
+  PX_BOLTS:2,PX_SPD:0.45,PX_DMG:1.3,PX_CRIT:0.12,PX_RNG:0.85,
   DRIFT_SECS:1.4,DRIFT_TURN:0.45,DRIFT_NOSE:1.2,DRIFT_COAST:0.15,DRIFT_BLEED:0.12,DRIFT_REACH:1.6,DRIFT_OFF_MIN:0.6,DRIFT_OFF_MAX:2.2,DRIFT_VMIN:1.05,DRIFT_CD:14};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
@@ -139,11 +143,12 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   RETREAT_SIDE:['Retreat: share of a hostile\'s push kept (sideways)',0,1.6,0.05,'Wings'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings'],
   SUB_ENG:['A ship\'s engines × its hull',0.05,2,0.05,'Subsystems'],SUB_GUN:['A ship\'s guns × its hull',0.05,2,0.05,'Subsystems'],SUB_SHD:['A ship\'s shield generator × its hull',0.05,2,0.05,'Subsystems'],
   AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems'],
+  PX_BOLTS:['Plasma: bolts a burst',1,8,1,'Plasma'],PX_SPD:['Plasma: bolt speed × a repeater\'s',0.1,1.5,0.05,'Plasma'],PX_DMG:['Plasma: damage a second × the repeaters\'',0.3,3,0.05,'Plasma'],PX_CRIT:['Plasma: extra critical chance',0,0.6,0.01,'Plasma'],PX_RNG:['Plasma: reach × the repeaters\'',0.3,1.5,0.05,'Plasma'],
   DRIFT_SECS:['Drift: seconds',0.3,4,0.1,'Wings'],DRIFT_TURN:['Drift: line of flight turns at ×',0,1,0.05,'Wings'],DRIFT_NOSE:['Drift: nose off the line of flight (rad)',0.2,1.6,0.05,'Wings'],
   DRIFT_COAST:['Drift: braking × (it coasts)',0,1,0.05,'Wings'],DRIFT_BLEED:['Drift: top speed bled a second',0,0.5,0.01,'Wings'],DRIFT_REACH:['Drift: target within × gun range',0.5,4,0.1,'Wings'],
   DRIFT_OFF_MIN:['Drift: target at least this far off the nose (rad)',0,1.5,0.05,'Wings'],DRIFT_OFF_MAX:['Drift: and at most (rad)',0.5,3.14,0.05,'Wings'],DRIFT_VMIN:['Drift: speed over × corner speed',0.5,2,0.05,'Wings'],DRIFT_CD:['Drift: recharge (s)',2,60,1,'Wings']};
 for(const k in NUM35){const [label,min,max,step,group]=NUM35[k];T35[k]={get:()=>N[k],set:v=>{N[k]=v;},min,max,step,label,group};}
-const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems'];
+const GROUPS35=['Opportunity','Freighter','Phases','Comms','Powers','Requests','Wings','Subsystems','Plasma'];
 
 /* =====================================================================
    The opportunity (§3.1): one type, as data
@@ -504,6 +509,7 @@ function begin(){
 function findShipDef(id){for(const w of SIM.S.R.wings||[])for(const sd of w.ships)if(sd.id===id)return sd;return null;}
 function attach(){
   HK.classExtra=HC35_CLASSES;
+  HK.loadoutExtra=(row,list)=>plasmaLoadout(row,list);   // attached means a 3.5 build (the ships are made before begin())
   HK.think=s=>live()?think(s):false;
   HK.goal=s=>live()?goal(s):null;
   HK.step=dt=>{if(live())step(dt);};
@@ -616,6 +622,19 @@ function abilityOk(s,k){
   if(k==='shields'&&!sub35Up(s,'shields'))return 'its shield generator is out';
   if(k==='missile'&&!sub35Up(s,'guns'))return 'its guns are out';
   return null;
+}
+/* =====================================================================
+   Feedback 2, L6: plasma on some ships. Your Talons carry a plasma cannon in place of their repeaters, and the
+   response's Pursuer drones fire their pulse cannon as plasma: a few slow, heavy, glowing bolts a burst instead of a
+   stream, the same damage a second, likelier to crit, a little shorter reach. Which ships: placeholder (C-83)
+   ===================================================================== */
+const PLASMA_ON={'sf-11-talon':{id:'px-plasma-cannon',name:'PX-4 Plasma Cannon',from:'bls-t-light-repeaters'},'drone-pursuer':{id:'px-pulse-plasma',name:'Pursuer Pulse Cannon (plasma)',from:'pursuer-pulse-cannon'}};
+function plasmaLoadout(row,list){
+  const P=PLASMA_ON[row.id];if(!P||list)return null;   // a scenario's own loadout wins
+  const base=SRDB.weapons[P.from];if(!base)return null;
+  const w={id:P.id,name:P.name,kind:'plasma',rng:base.range*F.RANGE_MULT_()*N.PX_RNG,skipShield:false,crit:(base.crit_chance||0)+N.PX_CRIT,needsLock:false,
+    dmg:[base.damage_min,base.damage_max],bolts:N.PX_BOLTS,boltK:F.BURST_N_()/N.PX_BOLTS*N.PX_DMG,spdK:N.PX_SPD,style:row.id==='drone-pursuer'?'hegplasma':'plasma',plasma:true};
+  return [{key:'w0',w,ammo:undefined,cd:0}];
 }
 const cargoLeft=()=>L.subs.filter(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard).length;
 const cargoLost=()=>L.subs.filter(x=>x.k==='cargo'&&(x.hp<=0||x.taken)).map(x=>x.i);

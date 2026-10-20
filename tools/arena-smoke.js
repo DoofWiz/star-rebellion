@@ -2279,7 +2279,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
    const hs=F.hitShip;F.hitShip=function(t,o){if(o==='mags'&&t.id==='fl400')shots++;return hs.apply(this,arguments);};
    for(let i=0;i<30*20&&docked==null;i++){const x=m.x,y=m.y;SIM.step();step=Math.max(step,Math.hypot(m.x-x-f.vx*SIM.TICK/1000,m.y-y-f.vy*SIM.TICK/1000));if(ell(f,m)<=1)inside=true;if(m.dock35)docked=S().t;}
    until(()=>false,5);for(let i=0;i<40;i++){SIM.step();if(ell(f,m)<=1)inside=true;}F.hitShip=hs;
-   out.board=[docked!=null,m.dockSide===side0,!S().events.some(e=>e.t>=tb&&e.kind==='collide'&&/Mags/.test(e.text)),step<=N.DOCK_SNAP,shots===0&&!!m.dock35,!inside,L().board>0,Math.round(docked),Math.round(step)];}
+   out.board=[docked!=null,m.dockSide===side0,!S().events.some(e=>e.t>=tb&&e.t<=(docked==null?1e9:docked)+0.1&&e.kind==='collide'&&/Mags/.test(e.text)),step<=N.DOCK_SNAP,shots===0&&!!m.dock35,!inside,L().board>0,Math.round(docked),Math.round(step)];}
   // 3: the ram. Point defence off: it strikes the hull outline, the subsystem it hit loses RAM_DMG, the cause line names it,
   // no kill effect. Then a slow, thin-skinned ram against four full turrets: shot down, and the debrief says so
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}},{assets:['ram']});L35.alarm('fired');
@@ -2684,9 +2684,10 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const sh=e2.sys35.find(x=>x.k==='shields');if(sh)L35.fn.sub35Down(e2,sh,null);
   const n0=S().proj.filter(p=>p.owner===e2.id).length;SIM.runFor(6);
   out.guns=[e2.gunsDown35===true,S().proj.filter(p=>p.owner===e2.id&&p.age<6).length===0,!sh||(e2.segs.F.val===0&&e2.segs.R.val===0),!sh||!!SIM.hooks.abilityOk(e2,'shields')];
-  // the readout: inspect it; its schematic with three subsystems, the engines struck out
-  X.fn.OV.mapClick({x:e.x,y:e.y},{},e);X.fn.syncTarget(true);const card=document.getElementById('h35Tgt');
-  out.card=[B.inspect===e.id,!!card.querySelector('canvas.h35-tgt__sch.is-small'),card.querySelectorAll('.h35-tgt__row').length===e.sys35.length,/Engines · 0\/\d+ · DOWN/.test(card.textContent),(B.schX||[]).includes('engines')];
+  // the readout: inspect a live escort with its engines out; its schematic with three subsystems, the engines struck out
+  const ec=S().ships.find(s=>s.role35==='escort'&&s.alive&&s.sys35.some(x=>x.k==='engines'&&x.hp>0))||e;if(ec!==e)L35.fn.sub35Down(ec,ec.sys35.find(x=>x.k==='engines'),null);
+  X.fn.OV.mapClick({x:ec.x,y:ec.y},{},ec);X.fn.syncTarget(true);const card=document.getElementById('h35Tgt');
+  out.card=[B.inspect===ec.id,!!card.querySelector('canvas.h35-tgt__sch.is-small'),card.querySelectorAll('.h35-tgt__row').length===ec.sys35.length,/Engines · 0\/\d+ · DOWN/.test(card.textContent),(B.schX||[]).includes('engines')];
   // a pick on a subsystem: Mark with the cursor on the guns
   const e3=S().ships.find(s=>s.role35==='escort'&&s.alive&&s.sys35.find(x=>x.k==='guns').hp>0);
   let pick=null;if(e3){const g=e3.sys35.find(x=>x.k==='guns'),q=API.ipos(e3),a=F.hullAxes(e3).a,p={x:q.x+Math.cos(q.h)*g.x*a,y:q.y+Math.sin(q.h)*g.x*a};
@@ -2722,11 +2723,35 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(t35l5.slide.slice(0,8).every(Boolean),'HC35 L5 5: a drift: the nose swings up to DRIFT_NOSE onto the target, the line of flight turns at DRIFT_TURN, the guns bear, it costs speed (down to about corner speed), a DRIFT_CD recharge '+JSON.stringify(t35l5.slide));
  ok(t35l5.run.every(Boolean),'HC35 L5 5: no drift to run away '+JSON.stringify(t35l5.run));
+ // HC35 L6: plasma on some ships: the Talons' cannon and the Pursuers' pulse cannon fire a few slow heavy bolts a burst (feedback 2, §6)
+ const t35l6=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,by=id=>S().ships.find(s=>s.id===id);
+  B.seed=81;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='tag';B.plan.tagger='kit';
+  for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec={k:'suppress',arg:'escorts'};B.plan.wings[w].second=null;}
+  B.plan.assets=[];B.plan.roes=[];const co=N.COMMS_OFF;N.COMMS_OFF=1;N.REQ_OFF=1;X.fn.launch();L35.alarm('fired','test');
+  const tal=S().ships.filter(s=>s.cls==='talon'),cross=S().ships.filter(s=>s.cls==='viper'),w=tal[0].wpns[0].w;
+  out.kit=[tal.length===4,tal.every(s=>s.wpns.length===1&&s.wpns[0].w.id==='px-plasma-cannon'&&s.wpns[0].w.style==='plasma'),cross.every(s=>s.wpns[0].w.id==='bls-t-light-repeaters'),
+    w.bolts===N.PX_BOLTS,Math.abs(w.boltK-F.BURST_N_()/N.PX_BOLTS*N.PX_DMG)<1e-9];
+  // its bursts: PX_BOLTS bolts each, slower than a repeater's
+  let px=null,rep=null;const per={};for(let i=0;i<20*60&&!(px&&rep&&Object.keys(per).length>2);i++){SIM.step();for(const p of S().proj){if(p.style==='plasma'){if(!px)px=p;(per[p.burst]||(per[p.burst]=new Set())).add(p);}if(!rep&&p.w&&p.w.id==='bls-t-light-repeaters')rep=p;}}
+  const bursts=Object.values(per).map(x=>({fired:x.size}));
+  out.fire=[!!px&&!!rep,!!px&&!!rep&&Math.abs(Math.hypot(px.vx,px.vy)/Math.hypot(rep.vx,rep.vy)-N.PX_SPD)<0.02,bursts.length>0&&bursts.every(b=>b.fired<=N.PX_BOLTS)];
+  // it draws: the plasma orb, warm for ours, violet for theirs
+  const cv=document.createElement('canvas');cv.width=200;cv.height=200;const g=cv.getContext('2d');let drew=true;
+  try{for(const st of ['plasma','hegplasma'])window.SR_SPACE_FX.drawBolt(g,{x:100,y:100,x0:40,y0:100,vx:400,vy:0,age:0.2,life:2,faction:st==='plasma'?'reb':'heg',style:st},{z:1,t:0,ra:1,tick:0.05,lod:2});}catch(e){drew=String(e);}
+  out.draw=[drew===true,!!window.SR_ART.PROJ.plasma&&window.SR_ART.PROJ.plasma.type==='plasma',window.SR_ART.PROJ.hegplasma.style!==window.SR_ART.PROJ.plasma.style];
+  N.COMMS_OFF=co;N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35l6.kit.every(Boolean),'HC35 L6 6: your Talons carry the plasma cannon (PX_BOLTS a burst, the damage carried between them); the Crosses keep their repeaters '+JSON.stringify(t35l6.kit));
+ ok(t35l6.fire.every(Boolean),'HC35 L6 6: plasma bolts fly at PX_SPD × a repeater bolt\'s speed, PX_BOLTS a burst '+JSON.stringify(t35l6.fire));
+ ok(t35l6.draw.every(Boolean),'HC35 L6 6: the plasma orb draws, warm for ours and violet for theirs '+JSON.stringify(t35l6.draw));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

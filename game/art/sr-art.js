@@ -1730,6 +1730,8 @@ window.SR_ART=(function(){
     /* ship and vehicle weapons */
     repeaters:{type:'bolt',style:'bhord',speed:900,len:20,w:4,twin:3.4,space:1},bombs:{type:'bomb',style:'blamco',speed:240,len:10,w:5.6,space:1},missiles:{type:'missile',style:'varrondow',speed:380,len:10,w:4,space:1},doorgun:{type:'tracer',style:'bhord',speed:1500,len:24,w:2.6},
     dronegun:{type:'bolt',style:'autocom',speed:950,len:14,w:3.4,space:1},cruiser:{type:'bolt',style:'patriot',speed:900,len:18,w:5},
+    /* plasma (Type 3.5, feedback 2 §6): a slow, heavy orb; warm for ours, violet for theirs */
+    plasma:{type:'plasma',style:'fightstar',speed:400,len:16,w:6,space:1},hegplasma:{type:'plasma',style:'lmc',speed:400,len:16,w:6,space:1},
     /* ship lasers (HC visual pass): slaser draws as a coherent beam-dart, not a tracer. Colours stay the maker's
        (rebel warm, Hegemony cold); the shape carries the difference. Assign per weapon in the sim when ready. */
     shiplaser:{type:'slaser',style:'devlin',speed:2500,len:70,w:2,space:1},heglaser:{type:'slaser',style:'varrondow',speed:2500,len:70,w:2,space:1},dispersal:{type:'pellets',style:'patriot',speed:900,len:8,w:3,pellets:5,spread:.2},strider:{type:'tracer',style:'autocom',speed:1500,len:24,w:3.4,heavy:1},

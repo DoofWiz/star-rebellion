@@ -58,6 +58,12 @@ C-83.
 | L3 | 3, 3.1, 3.3 | The wing leaders decide in the field: a primary that can no longer be done falls back to one in its family that can, paying that one's reward without the bonus; a wing with nothing left to do picks a job; every decision logged and shown in the debrief |
 | L4 | 4 | Subsystems on every ship: engines, guns, shields; the rings, the readout and Mark / Focus on any ship |
 | L5 | 5 | Drift as part of the turn: the nose swings past the velocity, the ship slides, and it costs speed coming out; earned, not spammed |
-| L6 | 6 | Plasma: slow, heavy, glowing bolts on some ships |
+| L6 | 6 | Plasma: slow, heavy, glowing bolts on your Talons and the response's Pursuers |
 
-The detail of each is in C-82 as it lands.
+All six are built (C-82 items 1 to 13). What I need from you is C-83: above all, whether being spotted should end
+Hold for My Signal (item 2), whether a fallback may cross families (item 4), and which ships carry plasma (item 8).
+
+Your run can't be replayed as evidence on the new code: it diverges at 2:01, when Dagger is fired on and now goes
+in for good, and from there your inputs land in a different fight (your minefield, detonated at 2:37, now catches
+Dagger fighting beside the freighter). The smoke tests script each case instead: a Crash disabled outside the pull
+falls back to Destroy and is done, paying Destroy's reward without Crash's bonus; a retreat gets every ship home.
