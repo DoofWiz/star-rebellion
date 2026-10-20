@@ -789,6 +789,7 @@ function frame(now){
   render(performance.now());
   if(A.panel){const pc=byId('hcPilotCam'),ps=SIM.fn.byId(A.panel);if(pc&&ps)drawTileCam(pc,ps,0.5);}
   if(A.phase==='LIVE'&&now-(A.tileAt||0)>=100/Math.max(1,byId('hcRoster').querySelectorAll('.hc-tile').length)){A.tileAt=now;tileTick();}
+  if(A.phase==='LIVE'&&SIM.S&&rosterBuilt&&rosterBuilt!==rosterKey(SIM.S))syncRoster();   // a new wing's card in the frame it arrives (§3.10)
   if(now-A.hudAt>120){A.hudAt=now;syncHud();}
 }
 /* follow: ease the camera onto the selected ship (or the selected wing's middle) */
@@ -912,6 +913,21 @@ const GLYPH={
   follow:circ(12,12,8)+'M12 2v4M12 18v4M2 12h4M18 12h4',
   view:'M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z'+circ(12,12,2.5),
   close:'M6 6l12 12M18 6L6 18',
+  // Type 3.5's verbs (feedback 1, §3.4): placeholders until the glyph set's art (M-37)
+  v_bomb:'M12 2v4M9 4.5l3 2 3-2'+circ(12,14,5.5)+'M10 13.5l2 2',
+  v_disable:circ(12,12,8)+'M13 5.5l-3.5 6.5h5l-3.5 6.5',
+  v_suppress:'M4 20h16M7 20v-5h10v5M12 15v-3'+circ(12,8,3.6)+'M12 1.5v2.5',
+  v_holdoff:circ(12,12,9)+'M10 8.5v7M14 8.5v7',
+  v_grapple:'M12 3v11M8.5 6.5L12 3l3.5 3.5M5.5 13c0 4 3 7 6.5 7s6.5-3 6.5-7',
+  v_crate:'M4 9h16v11H4zM4 9l3-4h10l3 4M12 9v11M4 14.5h16',
+  v_carry:'M3 10h11v10H3zM3 15h11M16.5 9h5M19 6.5l2.5 2.5-2.5 2.5',
+  v_fist:'M7 11V7.5a1.5 1.5 0 013 0V10M10 10V6.5a1.5 1.5 0 013 0V10M13 10V7.5a1.5 1.5 0 013 0V11M16 11V9.5a1.5 1.5 0 013 0V14c0 4-3 7-7 7s-6-2.5-6-6v-2.5',
+  v_watch:'M12 3l7 3v5c0 5-3 8-7 10c-4-2-7-5-7-10V6z'+circ(12,11,2.6),
+  v_pin:'M12 21s-6-6-6-11a6 6 0 0112 0c0 5-6 11-6 11z'+circ(12,10,2.2),
+  v_pause:'M9 6v12M15 6v12',
+  v_eye:'M2 12s4-6.5 10-6.5S22 12 22 12s-4 6.5-10 6.5S2 12 2 12z'+circ(12,12,3),
+  v_ram:'M3 12h12M11 7l5 5-5 5M20 4v16',
+  v_hook:'M12 2v10a5 5 0 11-5 5M7 17l-2.5-1.5'
 };
 const glyph=(k,cls)=>'<svg class="hc-glyph'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+GLYPH[k]+'"/></svg>';
 const TIME_BTNS=[{k:'pause',name:'Pause',line:'Stop the clock. Orders, tactics, rules and commands all work while paused; pause is free and unlimited.',key:'Space · 1'},
@@ -1038,16 +1054,19 @@ function tileHtml(s){
     '<span class="hc-tile__name"></span><span class="hc-tile__bars"><i class="hc-bar hc-bar--hull"><b></b></i><i class="hc-bar hc-bar--shd"><b></b></i></span>'+
     '<span class="hc-tile__foot"><span class="hc-tile__word"></span><span class="hc-tile__mor"></span></span><span class="hc-tile__ord"></span></button>';
 }
+const rosterKey=S=>S.seed+'|'+S.scn.id+'|'+S.wings.map(w=>w.id).join(',');
 function buildRoster(){
   const S=SIM.S,el=byId('hcRoster');
   let h='';
   for(const w of S.wings){
     h+='<div class="hc-wing" data-wing="'+w.id+'"><button type="button" class="hc-wing__head" data-wing-head="'+w.id+'"><span class="hc-wing__name">'+esc(w.name)+'</span>'+
-      '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span></button><div class="hc-wing__tiles">';
+      '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span>'+(A.ov&&A.ov.wingChip?'<span class="hc-chip hc-chip--extra" data-chip="extra" hidden></span>':'')+'</button><div class="hc-wing__tiles">';
     for(const id of w.ships)h+=tileHtml(SIM.fn.byId(id));
     h+='</div></div>';
   }
-  el.innerHTML=h;rosterBuilt=S.seed+'|'+S.scn.id;tileN=0;tileMs=0;
+  const had=rosterBuilt&&rosterBuilt.split('|')[0]===S.seed+''&&rosterBuilt.split('|')[1]===S.scn.id?rosterBuilt.split('|')[2].split(','):null;
+  el.innerHTML=h;rosterBuilt=rosterKey(S);tileN=0;tileMs=0;
+  if(had)for(const w of S.wings)if(!had.includes(w.id)){const box=el.querySelector('[data-wing="'+w.id+'"]');if(box)box.classList.add('is-arriving');}   // slides in, its header flashes
   el.classList.toggle('is-many',S.wings.reduce((n,w)=>n+w.ships.length,0)>6);
   for(const t of el.querySelectorAll('.hc-tile')){const s=SIM.fn.byId(t.dataset.ship);drawTileGlyph(t.querySelector('canvas'),s);}
 }
@@ -1105,7 +1124,7 @@ function syncRoster(){
   const S=SIM.S,el=byId('hcRoster');
   if(!S||A.phase==='PICK'){el.hidden=true;return;}
   el.hidden=false;
-  if(rosterBuilt!==S.seed+'|'+S.scn.id)buildRoster();
+  if(rosterBuilt!==rosterKey(S))buildRoster();   // a wing that arrives mid-mission gets its card (feedback 1, §3.10)
   for(const w of S.wings){
     const box=el.querySelector('[data-wing="'+w.id+'"]');if(!box)continue;
     box.classList.toggle('is-sel',selWings().includes(w.id));
@@ -1114,6 +1133,7 @@ function syncRoster(){
     if(oc.textContent!==ot)oc.textContent=ot;
     const tt=A.ov&&A.ov.tacticChip?A.ov.tacticChip(w):w.tactic==='auto'?'AUTO · '+(SIM.HC_TACTICS[w.autoPick||'spread'].name.split(' ')[0]):SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
     if(A.ov&&A.ov.tacticChip){tc.hidden=!tt;tc.classList.toggle('is-off',!!tt);}   // Type 3.5: OFF PLAN, or nothing
+    const xc=box.querySelector('[data-chip="extra"]');if(xc){const xt=A.ov.wingChip(w)||'';if(xc.textContent!==xt)xc.textContent=xt;xc.hidden=!xt;}   // Type 3.5: the crates aboard
     for(const sid of w.ships){
       const s=SIM.fn.byId(sid),t=box.querySelector('[data-ship="'+sid+'"]');if(!s||!t)continue;
       const lead=w.leader===sid;
@@ -1138,8 +1158,8 @@ function syncRoster(){
 /* the ship's current order as a corner glyph (and a word on hover): gold-less, cyan when a rule set it, hazard in an emergency */
 const BEH={interpose:['defend','COVERING'],engage:['attack','ENGAGE'],withdraw:['withdraw','WITHDRAW'],escort:['escort','ESCORT'],form:['regroup','FORM UP'],defend:['defend','DEFEND'],
   hold:['hold','HOLD'],capture:['capture','CAPTURE'],board:['board','BOARD'],fallback:['withdraw','FALL BACK'],flee:['withdraw','FLEEING'],freeze:['hold','FROZEN'],idle:['hold','IDLE']};
-function behWord(s){const b=s.beh||{};return (BEH[b.kind]||['hold',String(b.kind||'').toUpperCase()])[1];}
-function behGlyph(s){const b=s.beh||{};return (BEH[b.kind]||['hold'])[0];}
+function behWord(s){const v=A.ov&&A.ov.verbOf&&A.ov.verbOf(s);if(v)return v.words;const b=s.beh||{};return (BEH[b.kind]||['hold',String(b.kind||'').toUpperCase()])[1];}   // Type 3.5: its vocabulary (feedback 1, §3.4)
+function behGlyph(s){const v=A.ov&&A.ov.verbOf&&A.ov.verbOf(s);if(v)return v.g;const b=s.beh||{};return (BEH[b.kind]||['hold'])[0];}
 const behTone=s=>s.panic||s.emerg?'hazard':s.beh&&s.beh.rule?'rule':'';
 byId('hcRoster').addEventListener('click',ev=>{
   const h=ev.target.closest('[data-wing-head]');

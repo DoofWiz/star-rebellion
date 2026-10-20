@@ -69,7 +69,7 @@ function look(W,S,L){
   const F=W.SIMHC.fn,fr=S.ships.find(s=>s.id==='fl400');
   const o={t:+S.t.toFixed(1),tick:S.tick,ships:S.ships.map(s=>({id:s.id,name:s.name,wing:s.wing,f:s.faction,alive:s.alive,jumped:s.jumped,x:Math.round(s.x),y:Math.round(s.y),h:s.h,
     kind:s.beh&&s.beh.kind||'',why:s.beh&&s.beh.why||'',target:s.beh&&s.beh.target||null,hull:Math.round(s.hull),maxHull:s.maxHull,sh:Math.round(F.totalShield(s)),
-    verb:L&&W.SIMHC35.verbOf&&s.alive&&s.faction==='reb'&&s.wing?W.SIMHC35.verbOf(s).words:null}))};
+    verb:L&&W.SIMHC35.verbOf&&s.alive&&s.faction==='reb'&&s.wing?W.SIMHC35.verbOf(s).words.replace(/\s*\d+(%|\/\d+)$/,''):null}))};   // the layer's vocabulary, its progress figure dropped
   if(L){o.phase=L.phase;o.cp=L.cp;o.detect=Math.round(L.detect);o.resolve=Math.round(L.resolve);o.exec=JSON.parse(JSON.stringify(L.exec));o.off=Object.assign({},L.off);
     o.fr=fr?{alive:fr.alive,jumped:fr.jumped,x:Math.round(fr.x),y:Math.round(fr.y),h:fr.h,leg:L.leg,v:Math.round(Math.hypot(fr.vx,fr.vy)),hull:Math.round(fr.hull),
       dev:L.prize?null:Math.round(laneDev(L.lane,fr)),subs:L.subs.map(x=>({k:x.k,i:x.i,hp:Math.round(x.hp),max:x.max,taken:!!x.taken}))}:null;
@@ -84,7 +84,7 @@ function laneDev(lane,p){let b=1e18;for(let i=1;i<lane.length;i++){const a=lane[
 const clock=t=>{t=Math.max(0,Math.round(t));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
 const parseClock=s=>{const m=String(s).match(/^(\d+):(\d\d)$/);return m?+m[1]*60+ +m[2]:+s;};
 const verbOf=sh=>sh.verb||KIND_WORDS[sh.kind]||sh.kind||'?';
-// a reading for each behaviour kind, until the layer names its own verbs (K4)
+// a reading for each behaviour kind where the layer's vocabulary (SIMHC35.verbOf) doesn't apply: High Command runs
 const KIND_WORDS={engage:'Attacking',escort:'Escorting',defend:'Defending',withdraw:'Withdrawing',waitpt:'Holding',hold:'Holding',patrol:'Patrolling',dock35:'Closing to dock',
   docked:'Docked',holdoff:'Holding off',intim:'Intimidating',tag:'Tagging',far:'Keeping out of sight',ram35:'Ramming',fetch35:'Picking up a pod',tug35:'Towing',leave35:'Leaving',
   flee:'Panicking (fleeing)',freeze:'Panicking (frozen)',regroup:'Regrouping',capture:'Capturing',board:'Boarding',idle:'Idle',freighter:'On its lane',fallback:'Falling back',hunt:'Hunting',

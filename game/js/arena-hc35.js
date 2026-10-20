@@ -321,7 +321,8 @@ function pilotBody(s){
   const b=s.beh||{};
   if(B.screen==='live'&&s.faction==='reb'&&s.wing&&L35.L){const why=L35.powerWhy('name');
     h+='<div class="hc-pilot__acts"><button type="button" class="sr-btn sr-btn--sm" data-act="callname"'+(why?' aria-disabled="true" title="'+esc(why)+'"':'')+'>Call by name · '+L35.N.C_NAME+' CP</button></div>';}
-  h+='<div class="hc-pilot__line"><b>'+esc(String(b.kind||'').toUpperCase())+'</b>'+(s.load35?' · '+esc(L35.LOADOUTS[s.load35].name)+(s.load35==='bombs'?' ('+(s.bombs||0)+' left)':''):'')+'<br><q>'+esc(s.assess||'')+'</q></div>';
+  const v=L35.verbOf(s);   // the one vocabulary (§3.4): its glyph, its words, and why
+  h+='<div class="hc-pilot__line"><span class="h35-verb">'+API.glyph(v.g,'hc-glyph--sm')+'<b>'+esc(v.words)+'</b></span>'+(b.why&&!/^order/.test(b.why)?' · '+esc(b.why):'')+(s.load35?' · '+esc(L35.LOADOUTS[s.load35].name)+(s.load35==='bombs'?' ('+(s.bombs||0)+' left)':''):'')+'<br><q>'+esc(s.assess||'')+'</q></div>';
   return h;
 }
 
@@ -480,7 +481,7 @@ function drawFreighter(c,s,p,z,boost,view){
 /* a Brickbat in the rebel livery its loadout calls for, its racks showing the bombs left */
 function drawBrickbat(c,s,p,z,boost,view){
   const sc=(0.7+0.09*s.row.size)*1.6*0.85*1.35*boost,att=s.load35==='pods'?['cargopod']:s.load35==='board'?[]:['bombrack'];
-  SA.ship(c,'brickbat',p.x,p.y,p.h,sc,performance.now()/1000,{livery:'rebel',loadout:{attach:att},bombs:s.bombs!=null?Math.ceil(s.bombs/2):3,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull)});
+  SA.ship(c,'brickbat',p.x,p.y,p.h,sc,performance.now()/1000,{livery:'rebel',loadout:{attach:att},bombs:s.bombs!=null?Math.ceil(s.bombs/2):3,crates:s.pods?s.pods.length:0,damage:Math.max(0,1-Math.max(0,s.hull)/s.maxHull)});
 }
 function drawWorld(c,view,o){
   const S=SIM.S,L=L35.L;if(!S||!L)return;
@@ -553,9 +554,13 @@ function drawTarget(c,z,view,o){
       const u=((S.t-D.t0)%2)/2;c.globalAlpha=1-u;c.lineWidth=2/z;c.beginPath();c.arc(p.x,p.y,r+u*180*boost,0,6.283);c.stroke();c.restore();}
     // docked Brickbats: boarders get the boarding link, pod ships the tether with a container sliding along it
     for(const s of S.ships){if(!s.alive||!s.dock35)continue;const sp=API.ipos(s),d=F.dockPoint(fr,s);
-      if(s.load35==='board'&&FX&&view)FX.drawBoardLink(c,sp,{x:fr.x+(d.x-fr.x)*0.45,y:fr.y+(d.y-fr.y)*0.45},L.board,view);
+      if(s.load35==='board'){const q={x:fr.x+(d.x-fr.x)*0.45,y:fr.y+(d.y-fr.y)*0.45};if(FX&&view)FX.drawBoardLink(c,sp,q,L.board,view);else API.dashLine(c,sp,q,C.gold,z,2.4,[6,5]);}   // always, whatever is selected (§3.4)
       else{const cm=L.subs.find(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard),q=cm?F.subWorld(fr,cm):fr;c.save();c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.85);c.beginPath();c.moveTo(sp.x,sp.y);c.lineTo(q.x,q.y);c.stroke();
         const u=((s.haulT||0)/L35.N.HAUL_SECS);c.fillStyle='#8e96a2';c.strokeStyle=C.ink;c.lineWidth=1.5/z;const bx=q.x+(sp.x-q.x)*u,by=q.y+(sp.y-q.y)*u,bw=14*boost;c.fillRect(bx-bw/2,by-bw/3,bw,bw*0.66);c.strokeRect(bx-bw/2,by-bw/3,bw,bw*0.66);c.restore();}}
+  }
+  // a tow: the line from the tug to what it's towing, whatever is selected (§3.4)
+  for(const s of S.ships){if(!s.alive||!s.towed35)continue;const g=SIM.fn.byId(s.towed35);if(!g||!g.alive)continue;API.dashLine(c,API.ipos(g),API.ipos(s),C.steel,z,2.6,[9,6]);}
+  if(fr&&fr.alive){const F=L35.fn;
     // disabled: sparks at the engine block now and then; falling into the planet: a hazard heat rim on its leading edge
     if(L.disabled&&FX&&Math.floor(now*3)!==L._spark){L._spark=Math.floor(now*3);const e=L.subs.find(x=>x.k==='engines'),p=F.subWorld(fr,e);FX.event('boltHit',{x:p.x,y:p.y,surface:'hull',dir:fr.h+Math.PI,r:26*boost});}
     const pd=Math.hypot(fr.x-L.planet.x,fr.y-L.planet.y);
@@ -603,8 +608,53 @@ function planTarget(o,w){
 }
 function diamond(c,x,y,r,col,hollow){c.save();c.translate(x,y);c.rotate(Math.PI/4);c.beginPath();c.rect(-r*0.7,-r*0.7,r*1.4,r*1.4);c.fillStyle=hollow?TH.rgba(col,0.2):col;c.fill();c.lineWidth=r*0.25;c.strokeStyle=C.ink;c.stroke();c.restore();}
 function drawGlyphAt(c,x,y,k,col,z){const p=new Path2D(pPath(k)),s=1.4/z;c.save();c.translate(x-12*s,y-12*s);c.scale(s,s);c.lineWidth=3.6;c.lineCap='round';c.strokeStyle=C.ink;c.stroke(p);c.lineWidth=2;c.strokeStyle=col;c.stroke(p);c.restore();}
+/* the activity badge (§3.4): over each of your ships at every zoom, a round badge with a rebel-red rim, the verb's
+   white glyph, and a gold ring for a timed verb's progress. It pops when the verb changes; badges that overlap fan
+   apart (up to 14 px each). Enemies get none */
+const VB=new Map(),VBP=new Map(),BADGE_R=11;   // placeholders (C-81)
+const vbPath=k=>{let p=VBP.get(k);if(!p){p=new Path2D(API.GLYPH[k]||API.GLYPH.hold);VBP.set(k,p);}return p;};
+function drawVerbBadges(c,z){
+  const S=SIM.S,now=performance.now(),R=BADGE_R,calm=API.fxReduced(),list=[];
+  for(const s of S.ships){
+    if(!s.alive||s.faction!=='reb'||!s.wing||s.struct||(API.A.ov&&API.A.ov.shipHidden&&API.A.ov.shipHidden(s)))continue;
+    const v=L35.verbOf(s),p=API.ipos(s),q=API.toScreen(p.x,p.y);if(q.x<-40||q.y<-40||q.x>API.cssW+40||q.y>API.cssH+40)continue;
+    let e=VB.get(s.id);if(!e||e.k!==v.k)VB.set(s.id,e={k:v.k,t:now});
+    const r=API.artK(s)<0.5?API.ICONS.ICON_SIZE/2:API.uiR(s)*z;list.push({v,e,x:q.x,y:q.y-r-26,off:0});}
+  list.sort((a,b)=>a.x-b.x);
+  for(let i=0;i<list.length;i++)for(let j=0;j<i;j++){const a=list[j],b=list[i],gap=2*R+3-Math.abs((b.x+b.off)-(a.x+a.off));
+    if(gap>0&&Math.abs(b.y-a.y)<2*R+3){const m=gap/2;a.off=Math.max(-14,a.off-m);b.off=Math.min(14,b.off+m);}}
+  c.save();
+  for(const b of list){const x=b.x+b.off,y=b.y,age=now-b.e.t,k=calm?1:age<200?1.3-0.3*age/200:1;
+    c.save();c.translate(x,y);c.scale(k,k);
+    c.beginPath();c.arc(0,0,R,0,6.283);c.fillStyle=C.ink;c.fill();c.lineWidth=2.4;c.strokeStyle=C.rebel;c.stroke();
+    if(b.v.prog!=null){c.beginPath();c.arc(0,0,R+3,-Math.PI/2,-Math.PI/2+b.v.prog*6.283);c.lineWidth=2.6;c.strokeStyle=C.gold;c.stroke();}
+    c.translate(-R*0.62,-R*0.62);c.scale(R*1.24/24,R*1.24/24);c.lineWidth=2.6;c.lineCap='round';c.lineJoin='round';c.strokeStyle='#fff';c.stroke(vbPath(b.v.g));
+    c.restore();}
+  c.restore();
+}
+/* the callouts (§3.4): a world-anchored label over the spot (1.2 × → 1, held 2.5 s, faded), green for our wins, orange
+   for danger to us, blue for the enemy's moves; off screen, an edge arrow in its colour points at it for 3 s */
+const CO={POP:0.2,HOLD:2.5,FADE:0.5,ARROW:3};   // placeholders (C-81)
+function drawCallouts(c){
+  const S=SIM.S,L=L35.L,now=S.t,W=API.cssW,H=API.cssH,calm=API.fxReduced(),laid=[];B.coArrows=[];
+  c.save();c.textAlign='center';c.textBaseline='middle';
+  for(const e of L.callouts||[]){const age=now-e.t;if(age<0||age>=Math.max(CO.HOLD+CO.FADE,CO.ARROW)||e.x==null)continue;
+    const col=e.tone==='good'?C.go:e.tone==='foe'?C.heg:C.hazard,q=API.toScreen(e.x,e.y);
+    if(q.x<0||q.y<0||q.x>W||q.y>H){if(age>=CO.ARROW)continue;   // off screen: an arrow on the edge, pointing at it
+      const cx=W/2,cy=H/2,dx=q.x-cx,dy=q.y-cy,k=Math.min((W/2-30)/Math.max(1e-6,Math.abs(dx)),(H/2-30)/Math.max(1e-6,Math.abs(dy))),ax=cx+dx*k,ay=cy+dy*k,an=Math.atan2(dy,dx);
+      c.save();c.translate(ax,ay);c.rotate(an);c.beginPath();c.moveTo(14,0);c.lineTo(-8,-10);c.lineTo(-3,0);c.lineTo(-8,10);c.closePath();c.fillStyle=col;c.fill();c.lineWidth=2.5;c.strokeStyle=C.ink;c.stroke();c.restore();
+      B.coArrows.push({text:e.text,x:ax,y:ay});continue;}
+    if(age>=CO.HOLD+CO.FADE)continue;
+    const k=calm?1:age<CO.POP?1.2-0.2*age/CO.POP:1,al=age>CO.HOLD?1-(age-CO.HOLD)/CO.FADE:1;
+    c.font='400 18px Bungee,"Exo 2",sans-serif';const w=c.measureText(e.text).width+16;let y=q.y-54;
+    for(let pass=0;pass<4;pass++)for(const o of laid)if(Math.abs(o.x-q.x)<(o.w+w)/2&&Math.abs(o.y-y)<26)y=o.y-28;   // stacked, never on top of each other
+    laid.push({x:q.x,y,w});
+    c.save();c.globalAlpha=al;c.translate(q.x,y);c.scale(k,k);c.lineWidth=5;c.lineJoin='round';c.strokeStyle=C.ink;c.strokeText(e.text,0,0);c.fillStyle=col;c.fillText(e.text,0,0);c.restore();}
+  c.restore();
+}
 function drawScreen(c,view,o){
   const S=SIM.S,L=L35.L;if(!S||!L||B.screen!=='live')return;
+  drawVerbBadges(c,o.z);drawCallouts(c);
   // the Interdictor: a "NO JUMP" chip on every ship inside it
   const I=L35.interdictOn();
   if(I)for(const s of S.ships){if(!s.alive||s.struct||Math.hypot(s.x-I.x,s.y-I.y)>=L35.N.INTERDICT_R)continue;const q=API.toScreen(API.ipos(s).x,API.ipos(s).y);
@@ -970,6 +1020,8 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
   tacticChip(w){const L=L35.L,o=L&&L.off[w.id];return o?'OFF PLAN: '+o:'';},fxSkip:s=>(s.cls==='fl400'&&!s.jumped)||!!s.noDeathFx,
   // the shield arcs (§3.3): always on your ships at art zoom (quiet unless selected, just hit or refilling); on theirs
   // for 2 s after a hit, and while selected
+  verbOf:s=>s.faction==='reb'&&L35.L?L35.verbOf(s):null,   // the tiles' words and glyphs (§3.4)
+  wingChip(w){const n=SIM.fn.wingShips(w).reduce((a,s)=>a+(s.pods?s.pods.length:0),0);return n?'▣ '+n+' aboard':'';},   // the crates the wing carries
   shieldMode(s,base){const S=SIM.S,hit=S.t-(s.hitT==null?-99:s.hitT)<2,sel=API.A.selShip===s.id;
     if(s.faction==='reb')return base||hit||sel||API.sweepOf(s.id,'F')!=null||API.sweepOf(s.id,'R')!=null?'full':'quiet';
     return sel||hit?'full':null;},drawWorld,drawScreen,objHtml,rulesHtml,clockHtml,pilotBody,pointer,onKey,tick,

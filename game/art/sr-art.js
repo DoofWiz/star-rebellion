@@ -922,17 +922,20 @@ window.SR_ART=(function(){
     doorgun:{name:'Door Mounted Gun',slot:'attachment',door:1,note:'Enables Door Gunner Support in ground missions.',draw(c,t,fire,side,pilot){rr(c,-2.6,-2.6,5.2,5.2,1.6);ink(c,'#2a2a32',.7);
       c.save();c.rotate(-side*.9+Math.sin(t*1.3)*.15);rr(c,0,-.7,8,1.4,.6);ink(c,'#3b3a44',.6);if(fire){circ(c,8.8,0,1.4);c.fillStyle='#fff3c8';c.fill();}c.restore();
       circ(c,-1.2*side*0,0,1.6);c.fillStyle='#d9a982';c.fill();c.lineWidth=.5;c.strokeStyle=C.ink;c.stroke();}},
-    /* hardpoint pods (mounts.pylon): draw(c,t,fire,side,pilot,lv,o). o.bombs = bombs left on each rack (0-3, default full) */
+    /* hardpoint pods (mounts.pylon): draw(c,t,fire,side,pilot,lv,o). o.bombs = bombs left on each rack (0-3, default full);
+       o.crates = containers carried on the cargo pods (0-2, default none) */
     bombrack:{name:'Bolt-on Bomb Racks',slot:'attachment',pylon:1,maker:'blamco',note:'Rebel conversion: three BLAMCo bombs per rack on the cargo hardpoints.',draw(c,t,fire,side,pilot,lv,o){
       rr(c,-7.4,-1.9,14.8,3.8,.9);ink(c,'#3b3a44',.7);c.fillStyle='#22222a';for(const bx of[-6.6,5.6])c.fillRect(bx,-2.4,1,4.8);
       const n=o&&o.bombs!=null?Math.max(0,Math.min(3,o.bombs)):3;
       [-4.4,-.2,4].forEach((bx,i)=>{if(i>=n){c.strokeStyle='#8a8e96';c.lineWidth=.45;c.beginPath();c.arc(bx,0,.9,-1.2,1.2);c.stroke();return;}
         poly(c,[[bx-2.6,-1.5],[bx-1.6,0],[bx-2.6,1.5]]);ink(c,'#4a4f2a',.4);ell(c,bx,0,2.1,1.3);ink(c,'#6a7046',.55);c.fillStyle=C.gold;c.fillRect(bx+.5,-1.2,.6,2.4);c.fillStyle='#e0402e';c.fillRect(bx-.6,-1.25,.7,2.5);
         c.fillStyle='rgba(255,255,255,.35)';ell(c,bx-.3,-.55,.9,.3);c.fill();});}},
-    cargopod:{name:'Cargo pod',slot:'attachment',pylon:1,maker:'core',note:'Stock CORE hardpoint pod. Rebel crews strip these out for bomb racks.',draw(c,t,fire,side,pilot,lv){
+    cargopod:{name:'Cargo pod',slot:'attachment',pylon:1,maker:'core',note:'Stock CORE hardpoint pod. Rebel crews strip these out for bomb racks.',draw(c,t,fire,side,pilot,lv,o){
       const dark=!!(lv&&lv.podDark);rr(c,-7.6,-2.5,15.2,5,2);ink(c,dark?'#3a3a42':'#e2dac4',.7);
       c.fillStyle=dark?'#ff7a2a':'#e0a53a';c.fillRect(4.6,-2.4,1.4,4.8);c.fillRect(-6,-2.4,1.4,4.8);c.strokeStyle=rgba(C.ink,.45);c.lineWidth=.4;c.beginPath();c.moveTo(-2,-2.4);c.lineTo(-2,2.4);c.moveTo(1.4,-2.4);c.lineTo(1.4,2.4);c.stroke();
-      c.font='900 1.6px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=dark?'#ff7a2a':'#3a3d3a';c.fillText(dark?'BOUNTY':'CORE',-.3,.1);}},
+      c.font='900 1.6px "Exo 2",system-ui';c.textAlign='center';c.textBaseline='middle';c.fillStyle=dark?'#ff7a2a':'#3a3d3a';c.fillText(dark?'BOUNTY':'CORE',-.3,.1);
+      // o.crates (0-2): a container strapped on, the port pod first (Type 3.5's hauling, docs/ARENA-HC35-FEEDBACK-1.md §3.4)
+      if(o&&o.crates>(side<0?0:1)){rr(c,-4,-2.2,8,4.4,.6);ink(c,'#c58a3a',.7);c.strokeStyle=rgba(C.ink,.6);c.lineWidth=.45;c.beginPath();c.moveTo(-4,-2.2);c.lineTo(4,2.2);c.moveTo(-4,2.2);c.lineTo(4,-2.2);c.stroke();}}},
     plates:{name:'Armour plates (example)',slot:'attachment',example:1,draw(){}},
     tank:{name:'External fuel tank (example)',slot:'attachment',example:1,draw(){}},
   };
@@ -1268,7 +1271,8 @@ window.SR_ART=(function(){
     const att0=new Set(((o.loadout||lv.loadout||{}).attach)||[]);const xparts=[];
     if(M.pylons)for(const[px,py]of M.pylons)for(const sy of[-1,1]){const yy=py*sy;
       if(att0.has('bombrack')){xparts.push({t:'prism',pts:[[px+7,yy-1.9],[px-7.4,yy-1.9],[px-7.4,yy+1.9],[px+7,yy+1.9]],z0:8.4,z1:9.4,inset:0,f:'#3b3a44'});const n=o.bombs!=null?o.bombs:3;[-4.4,-.2,4].slice(0,n).forEach(bx=>xparts.push({t:'cyl',x0:px+bx-2,x1:px+bx+2,y:yy,z:6.8,r:1.3,f:'#6a7046'}));}
-      if(att0.has('cargopod'))xparts.push({t:'prism',pts:[[px+7.6,yy-2.5],[px-7.6,yy-2.5],[px-7.6,yy+2.5],[px+7.6,yy+2.5]],z0:4.6,z1:10,inset:.25,f:lv.podDark?'#3a3a42':'#e2dac4'});}
+      if(att0.has('cargopod')){xparts.push({t:'prism',pts:[[px+7.6,yy-2.5],[px-7.6,yy-2.5],[px-7.6,yy+2.5],[px+7.6,yy+2.5]],z0:4.6,z1:10,inset:.25,f:lv.podDark?'#3a3a42':'#e2dac4'});
+        if(o.crates>(sy<0?0:1))xparts.push({t:'prism',pts:[[px+4,yy-2.2],[px-4,yy-2.2],[px-4,yy+2.2],[px+4,yy+2.2]],z0:10,z1:13,inset:.2,f:'#c58a3a'});}}
     const list=[...xparts];for(const p of M.parts){if(p.m){list.push(p);list.push(Object.assign({},p,{pts:p.pts.map(([a,b])=>[a,-b]),m:0,_mir:1}));}else list.push(p);}
     const cen=p=>{if(p.pts&&p.t==='prism'){let a=0,b=0;for(const q of p.pts){a+=q[0];b+=q[1];}return depth(a/p.pts.length,b/p.pts.length);}if(p.t==='fin')return depth(p.pts.reduce((s2,q)=>s2+q[0],0)/p.pts.length,p.y);if(p.t==='cyl')return depth((p.x0+p.x1)/2,p.y);return depth(p.x,p.y);};
     const rank=p=>p.t==='dome'||p.t==='sphere'||p.t==='disc'?200:p.t==='prism'&&p.z1>=11?100:0;

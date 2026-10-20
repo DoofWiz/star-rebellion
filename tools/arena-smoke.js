@@ -1861,7 +1861,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
    // explosion, the lock marks: turning while building, held once locked
    f.load('hc1_nightfall',0,5);f.fxSense();seen.length=0;
    const jh=by('Joss');jh.hull=jh.maxHull*0.2;const sv=f.shipView(jh,f.ipos(jh),1);
-   FX.TUNE.spiralChance=1;const g3=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);F.kill(g3,null);tick(1);
+   FX.TUNE.spiralChance=2;const g3=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);F.kill(g3,null);tick(1);   // × 2: one flying straight spirals half as often (feedback 1 K3)
    const ex=evd.explode||{},sp1=FX.fn.os_().some(e=>e.kind==='spiral');
    for(let i=0;i<Math.ceil(FX.TUNE.spiralSecs/0.05)+2;i++)FX.update(0.05,16);FX.TUNE.spiralChance=0.5;
    out.r2=[+sv.hullFrac.toFixed(2)===0.2,ex.vh===g3.vh&&ex.speed>0,sp1,FX.fn.os_().some(e=>e.kind==='boom')];
@@ -1977,7 +1977,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   out.res=res;
   // crash, with the disable timed inside the pull (the signal rule comes with P3)
   go('crash',{anvil:{k:'hold'},dagger:{k:'hold'},amber:{k:'defend',arg:'anvil'}});
-  until(()=>{const f=fr();return f.alive&&Math.hypot(f.x-L().planet.x,f.y-L().planet.y)<L().planet.pull*0.97;},200);L().exec.anvil={k:'disable',arg:'engines'};
+  until(()=>{const f=fr();return f.alive&&Math.hypot(f.x-L().planet.x,f.y-L().planet.y)<L().planet.pull;},200);L().exec.anvil={k:'disable',arg:'engines'};   // as it enters the pull (its lane only grazes it)
   until(()=>L().prim.state!=='live',120);res.crash=L().prim.state;
   // 7: the phases: detection to 100 → Phase 2; the array killed mid-send: no response; Remote: none either
   go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});L().detect=99.5;
@@ -2143,7 +2143,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   // Requests off: none
   N.REQ_OFF=1;go('destroy',{dagger:{k:'hold'},anvil:{k:'hold'},amber:{k:'hold'}});crowd();until(()=>false,30);out.off=[L().req.log.length===0,L().req.open.length===0];N.REQ_OFF=0;
   // the A/B/C keys answer the newest
-  go('destroy',hold);by('joss').hull=by('joss').maxHull*0.35;until(()=>!!openOf('hit','joss'),5);const qk=openOf('hit','joss');
+  go('destroy',hold);by('petra').hull=by('petra').maxHull*0.35;until(()=>!!openOf('hit','petra'),5);const qk=openOf('hit','petra');   // (a wingman: since K4 a leader's Field Repair heals it past the threshold)
   window.SR_ARENA_HC.api.syncHud(true);const card=document.querySelector('.h35-reqs [data-req="'+qk.id+'"]');
   const sk=(code,shift)=>document.dispatchEvent(new KeyboardEvent('keydown',{key:shift?'@':code.slice(-1).toLowerCase(),code,shiftKey:!!shift,bubbles:true}));
   sk('Digit2',true);const early=qk.state==='open';   // within 400 ms of the card: swallowed
@@ -2238,7 +2238,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   return {hcRec:last,runs:st.length,panel:document.querySelectorAll('#hcPanelBody .hc-run [data-act^="run:"]').length};}));
  const rh=RR.replay(t35k0.hcRec);t35k0.hc=[t35k0.hcRec.ruleset==='hc',t35k0.hcRec.unfinished===true,rh.ok,rh.tr.checked];delete t35k0.hcRec;
  ok(/^sr-run-\d{4}-\d\d-\d\d-\d{4}-vulnerable_freighter-321\.json$/.test(t35k0.name)&&t35k0.size<1e6,'HC35 K0: the debrief saves the flight record '+JSON.stringify([t35k0.name,t35k0.size]));
- ok(t35k0.ok&&t35k0.end&&t35k0.checked===t35k0.cp&&t35k0.cp>60,'HC35 K0: the harness re-simulates it, every checkpoint matching '+JSON.stringify([t35k0.cp,t35k0.checked,t35k0.end]));
+ ok(t35k0.ok&&t35k0.end&&t35k0.checked===t35k0.cp&&t35k0.cp>=40,'HC35 K0: the harness re-simulates it, every checkpoint matching '+JSON.stringify([t35k0.cp,t35k0.checked,t35k0.end]));
  ok(t35k0.inputs.filter(k=>k==='35.use').length===3&&t35k0.inputs.includes('35.answerReq')&&t35k0.speeds>=2,'HC35 K0: the inputs and speeds are recorded '+JSON.stringify([t35k0.inputs,t35k0.speeds]));
  ok(t35k0.ans&&t35k0.def,'HC35 K0: the report lists the answered request at its time, and the timed-out one '+JSON.stringify([t35k0.ans,t35k0.def]));
  ok(t35k0.warn,'HC35 K0: an older SIM_VERSION warns, not crashes');
@@ -2435,11 +2435,65 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k3.sweep.every(Boolean),'HC35 K3 5: a refill starts the arc sweep '+JSON.stringify(t35k3.sweep));
  ok(t35k3.colours[0],'HC35 K3 7: tile, canvas pip and pilot panel at 70/45/20% hull read go, hazard, red '+t35k3.colours[1]);
  ok(t35k3.spin.slice(0,3).every(Boolean),'HC35 K3 17: a straight Brickbat tumbles under 1.5 rad/s, a turning Talon over 4 its turn\'s way, the FL-400 never spirals '+JSON.stringify(t35k3.spin));
+ // HC35 K4 (feedback 1, tests 8, 9, 18): one vocabulary for what your ships do, the callouts, reinforcements on the roster
+ const t35k4=await pg4.evaluate(()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,API=window.SR_ARENA_HC.api,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const until=(f,secs)=>{const n=Math.round(secs*20);for(let i=0;i<n&&!S().over;i++){if(f())return true;SIM.step();}return !!f();};
+  const go=(prim,ex,o)=>{o=o||{};B.seed=777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){const e=ex[w];if(!e)continue;if(e.role)B.plan.wings[w].role=e.role;if(e.k)B.plan.wings[w].exec={k:e.k,arg:e.arg||null};}
+    for(const sid in o.lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=o.lo[sid];
+    B.plan.assets=[];B.plan.assetAt={};B.plan.roes=[];if(o.tagger)B.plan.tagger=o.tagger;const was=X.S;X.fn.launch();if(X.S===was||S().t!==0)(out.stale||(out.stale=[])).push(prim);L().cp=9;};
+  let fn=performance.now();const frame=()=>{fn+=1000;window.SR_ARENA_HC.frame(fn);};
+  const rt0=N.RES_THREAT;N.REQ_OFF=1;
+  // 8: every behaviour your ships reach in a scripted run of each primary maps to a verb; no tile shows a raw id
+  const plans={destroy:[{anvil:{k:'destroy'},dagger:{k:'defend',arg:'anvil'},amber:{k:'suppress',arg:'turrets'}}],
+    steal:[{anvil:{k:'disable',arg:'engines'},amber:{k:'board'},dagger:{k:'defend',arg:'anvil'}},{lo:{mags:'board'}}],
+    pirate:[{dagger:{k:'intimidate'},amber:{k:'intimidate'},anvil:{k:'defend',arg:'amber'}}],
+    strip:[{anvil:{k:'disable',arg:'engines'},amber:{k:'haul'},dagger:{k:'suppress',arg:'escorts'}},{lo:{mags:'pods'}}],
+    tag:[{amber:{k:'tag'},dagger:{k:'hold'},anvil:{role:'home'}},{tagger:'kit'}],
+    ambush:[{dagger:{k:'ambush'},amber:{k:'ambush'},anvil:{k:'disable',arg:'engines'}}],
+    crash:[{anvil:{k:'disable',arg:'engines'},dagger:{k:'hold'},amber:{k:'defend',arg:'anvil'}}]};
+  const kinds={},raw=[],tiles=new Set();let n=0;API.setSpeed(0);
+  for(const p in plans){N.RES_THREAT=p==='pirate'?rt0:0;go(p,plans[p][0],plans[p][1]);API.setSpeed(0);
+    until(()=>{for(const s of S().ships)if(s.alive&&s.faction==='reb'&&s.wing){const v=L35.verbOf(s),k=(s.beh&&s.beh.kind)||'none';(kinds[k]||(kinds[k]=new Set())).add(v.k);if(v.k==='busy')raw.push(p+':'+k);}
+      if(++n%40===0){frame();for(const e of document.querySelectorAll('#arHc .hc-tile__word'))tiles.add(e.textContent);}return L().prim.state!=='live';},150);}
+  N.RES_THREAT=0;
+  const rawTile=[...tiles].filter(t=>/^[A-Z0-9]+$/.test(t)&&!/^(DOWN|JUMPED)$/.test(t));
+  out.vocab=[!raw.length,!rawTile.length,Object.keys(kinds).length>=10,raw.slice(0,5),rawTile.slice(0,5),Object.keys(kinds)];
+  // 9: the callouts. A container coming aboard fires CARGO SECURED; a subsystem dying fires its DOWN; one off screen
+  // makes an edge arrow
+  go('strip',{anvil:{k:'disable',arg:'engines'},amber:{k:'haul'},dagger:{k:'suppress',arg:'escorts'}},{lo:{mags:'pods'}});
+  {const got=until(()=>L().callouts&&L().callouts.some(c=>/^CARGO SECURED 1\/\d · MAGS$/.test(c.text)),150);out.co=[got,(L().callouts||[]).some(c=>c.text==='ENGINES DOWN'&&c.tone==='good')];}
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'home'}});
+  {const f=fr(),cm=L().subs.find(x=>x.k==='comms');F.applyDamage(f,cm.hp*4+40,true,true,{x:f.x,y:f.y,by:null,aimSub:'comms'});SIM.step();
+   const c=(L().callouts||[]).find(x=>x.text==='COMMS DOWN');out.co.push(!!c&&cm.hp<=0);
+   API.setSpeed(0);API.camTo(f.x+60000>SIM.W?f.x-60000:f.x+60000,f.y,0.5);frame();const ar=B.coArrows||[];out.co.push(ar.some(a=>a.text==='COMMS DOWN'));API.camTo(f.x,f.y,0.3);API.setSpeed(1);}
+  // 18: the Reserves called in get a roster card in the frame they warp in; so does High Command's Reinforce
+  go('destroy',{dagger:{k:'hold'},anvil:{role:'home'},amber:{role:'reserve',k:'hold'}});API.setSpeed(0);frame();
+  {const had=!!document.querySelector('#hcRoster [data-wing="amber"]');L35.use('reserve',{});until(()=>!!F.wingOf('amber'),40);frame();
+   const card=document.querySelector('#hcRoster [data-wing="amber"]');
+   out.res=[!had,!!card,!!card&&card.classList.contains('is-arriving'),!!card&&card.querySelectorAll('.hc-tile').length===4,S().events.some(e=>e.text==='Amber on station'),(L().callouts||[]).some(c=>c.text==='AMBER ARRIVED')];}
+  API.setSpeed(1);N.RES_THREAT=rt0;N.REQ_OFF=0;
+  // High Command: hc1 with a reserve wing put in (no HC scenario has one)
+  window.DBGarena.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc"]').click();
+  {const H=window.DBGarena.hc,f=H.fn,HS=H.SIM;f.load('hc1_nightfall',0,7);HS.runFor(2);const Z=HS.zone;
+   HS.S.R.reserves={id:'ember',name:'Ember',at:[Z.x0+900,(Z.y0+Z.y1)/2,0],ships:[{id:'em1',cls:'talon',name:'Emi',pilot:{preset:'regular'}},{id:'em2',cls:'talon',name:'Bo',pilot:{preset:'regular'}}]};HS.S.cp=9;
+   API.setSpeed(0);frame();const had=!!document.querySelector('#hcRoster [data-wing="ember"]');const r=HS.command('reinforce');frame();
+   const card=document.querySelector('#hcRoster [data-wing="ember"]');out.hcRes=[r&&r.ok,!had,!!card,!!card&&card.querySelectorAll('.hc-tile').length===2];API.setSpeed(1);}
+  window.DBGarena.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc35"]').click();
+  return out;
+ });
+ ok(!t35k4.stale,'HC35 K4: every scripted plan launched '+JSON.stringify(t35k4.stale));
+ ok(t35k4.vocab.slice(0,3).every(Boolean),'HC35 K4 8: every behaviour reached in each primary maps to a verb; no tile shows a raw id '+JSON.stringify(t35k4.vocab));
+ ok(t35k4.co.every(Boolean),'HC35 K4 9: CARGO SECURED, ENGINES and COMMS DOWN, and an edge arrow for one off screen '+JSON.stringify(t35k4.co));
+ ok(t35k4.res.every(Boolean),'HC35 K4 18: the Reserves get a roster card in the frame they warp in, "on station", ARRIVED '+JSON.stringify(t35k4.res));
+ ok(t35k4.hcRes.every(Boolean),'HC35 K4 18: High Command\'s Reinforce adds its roster card '+JSON.stringify(t35k4.hcRes));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

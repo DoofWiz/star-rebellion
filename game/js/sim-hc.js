@@ -56,7 +56,8 @@ let S=null;
    the hc1–hc3 hashes. classExtra{cls: row} · loadoutExtra(row, list) · think(s) → true skips · goal(s) → a goal ·
    damage(t, dmg, skipShield, fromFront, hit) → a result · canJump(s) → false blocks · canFire(s, t, q) → false blocks ·
    step(dt) · event(kind, text, o, e) · noCollide(a, b) and noAvoid(s, o) → true exempts the pair · noSep(s) → true: it
-   ignores its wingmates' spacing · floater(s, text, kind) → false drops a floating word */
+   ignores its wingmates' spacing · floater(s, text, kind) → false drops a floating word · assess(s) → its line for a job
+   of the layer's own */
 const HK={};
 const rowOf=cls=>(HK.classExtra&&HK.classExtra[cls])||SRDB.ship(cls);
 
@@ -774,7 +775,7 @@ function jammed(pointKey){const j=S.R.jam;if(!j||j.point!==pointKey)return false
 /* the behaviours a ship can be in: what it is doing and why (the order, a rule, an emergency, a command) */
 function think(s){
   if(s.struct||!s.alive)return;
-  if(HK.think&&HK.think(s))return;
+  if(HK.think){const was=s.beh;if(HK.think(s)){if(s.faction==='reb'&&!s.quiet&&s.wing&&s.beh)afterThink(s,was);return;}}   // a layer's ship still assesses, speaks and uses its abilities (feedback 1, §3.4)
   if(s.faction==='heg'){thinkEnemy(s);return;}
   if(s.quiet){thinkConvoy(s);return;}
   const w=wingOf(s.wing);if(!w)return;
@@ -789,7 +790,10 @@ function think(s){
   if(!beh)beh=stamp(orderBehaviour(s,w,o,T,P));
   const was=s.beh;
   setBeh(s,beh);
-  s.assess=assessOf(s);
+  afterThink(s,was);
+}
+function afterThink(s,was){
+  s.assess=(HK.assess&&HK.assess(s))||assessOf(s);   // a layer's own jobs have its own words
   // a new job is worth a word: a new target, or a change of what it is doing (rate-limited, so a furball stays quiet)
   if(s.beh!==was&&(!was||was.kind!==s.beh.kind||was.target!==s.beh.target)&&s.beh.kind!=='form'&&!s.beh.rule)say(s,s.assess,'info',false);
   abilityTick(s);
