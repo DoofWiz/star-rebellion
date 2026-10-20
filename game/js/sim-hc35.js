@@ -11,7 +11,9 @@
    on High Command's 16 × map like the others.
    ===================================================================== */
 window.SIMHC35=(function(){
+const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
+const SIM_VERSION='hc35-1';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -398,7 +400,7 @@ const FR=()=>F.byId('fl400');
 /* the FL-400's subsystems (§5.2), placed in hull units from its art (SR_ART.SHIPS.gafreighter), and hull units → world
    (the scale the map draws it at with no icon boost: a size-5 hull's, with sizeK; arena-hc35.js freightScale) */
 const SA=window.SR_ART;
-const FL_UNIT=()=>(0.7+0.09*5)*1.6*0.85*1.35*(SA&&SA.sizeK?SA.sizeK('gafreighter'):1);
+const FL_UNIT=()=>(0.7+0.09*5)*1.6*0.85*1.35*(SA&&SA.sizeK?Math.round(SA.sizeK('gafreighter')*1e9)/1e9:1);   // the art's size, rounded so an engine's last bit can't reach the sim
 const SUB_NAME={engines:'engines',comms:'comms array',pd:'turret',cargo:'container',core:'core'};
 const subKey=k=>k==='turrets'?'pd':k;
 function makeSubs(guns){
@@ -1493,7 +1495,7 @@ function countKill(t){if(t&&t.role35==='response'&&!t.counted35){t.counted35=tru
 /* =====================================================================
    The panel (getters, grouped) and the export
    ===================================================================== */
-return {OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIMARY_KEYS,LATER_PRIMARIES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
+return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIMARY_KEYS,LATER_PRIMARIES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,

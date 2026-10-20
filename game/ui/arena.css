@@ -634,3 +634,6 @@
 #arHc .h35-req__sent i{display:block;height:6px;margin-top:6px;border-radius:999px;background:var(--sr-shield-deep);overflow:hidden;}
 #arHc .h35-req__sent i b{display:block;height:100%;width:0;background:var(--sr-shield);}
 #arHc .h35-req[data-state="done"]{opacity:.85;}
+/* the flight recorder's Runs group (designer panel) */
+#arHc .hc-run{display:flex;align-items:center;gap:8px;justify-content:space-between;max-width:100%;margin:4px 0;font-size:var(--sr-fs-micro);color:var(--sr-text-2);}
+#arHc .hc-run span{flex:1 1 0;width:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}

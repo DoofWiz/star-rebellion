@@ -17,7 +17,9 @@
    long the player sat paused.
    ===================================================================== */
 window.SIMHC=(function(){
+const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
+const SIM_VERSION='hc-1';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -2248,7 +2250,7 @@ const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
 for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
-return {key:'hc',name:'Type 3: High Command',
+return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
   get S(){return S;},get W(){return W;},get H(){return H;},get zone(){return Z;},MARGIN,RU,SU,TICK,TIMESCALES,hooks:HK,
   ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
   COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,

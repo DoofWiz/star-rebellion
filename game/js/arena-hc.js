@@ -770,7 +770,7 @@ function onOver(){
   const el=byId('hcEnd');
   el.innerHTML='<div class="hc-win"><h2 class="sr-display">'+esc(o.why)+'</h2><p>'+esc(A.scen.title)+' · '+fmtClock(SIM.S.t)+' flown · '+o.lost+' lost, '+o.jumped+' jumped out · seed '+A.seed+'</p>'+
     '<div class="hc-btns"><button type="button" class="sr-btn" data-act="same">Restart (same seed)</button><button type="button" class="sr-btn" data-act="new">Restart (new seed)</button>'+
-    '<button type="button" class="sr-btn" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--ghost" data-act="picker">HC scenarios</button></div></div>';
+    '<button type="button" class="sr-btn" data-act="dump">Dump metrics</button><button type="button" class="sr-btn" data-act="saverec">Save flight record</button><button type="button" class="sr-btn sr-btn--ghost" data-act="picker">HC scenarios</button></div></div>';
   el.hidden=false;
   syncHud(true);
 }
@@ -1613,6 +1613,7 @@ function buildPanel(){
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected wing</label></div>';
   h+='</div>'+(A.ov&&A.ov.panelHtml?A.ov.panelHtml():'')+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
+  if(window.SR_FLIGHT)h+=SR_FLIGHT.panelHtml(esc);   // the recorded runs, to download
   byId('hcPanelBody').innerHTML=h;
   syncReadout();
 }
@@ -1644,6 +1645,8 @@ function panelAct(a){
   else if(a==='dump')dumpMetrics();
   else if(a==='title')backToTitle();
   else if(a==='copyset')copySettings();
+  else if(a==='saverec'){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))flash('No flight record yet');}   // the flight recorder (§3.7)
+  else if(/^run:\d+$/.test(a)&&window.SR_FLIGHT)SR_FLIGHT.downloadStored(+a.slice(4));
   else if(a==='defaults'){for(const k in DEFAULTS)if(SIM.TUNE[k])SIM.TUNE[k].set(DEFAULTS[k]);if(FX)Object.assign(FX.TUNE,FX_DEFAULTS);savePrefs();buildPanel();}
 }
 const DEFAULTS={};for(const k in SIM.TUNE)DEFAULTS[k]=SIM.TUNE[k].get();
@@ -1693,7 +1696,7 @@ function record(){
   if(A.mode)return A.ov&&A.ov.record?A.ov.record():null;
   if(A.recorded||!SIM.S||!A.scen||(SIM.S.t<=0&&!SIM.S.m.orders))return null;
   A.recorded=true;
-  const rec=metricsRecord();A.metrics.push(rec);
+  const rec=metricsRecord();A.metrics.push(rec);if(window.SR_FLIGHT)SR_FLIGHT.metrics(rec);   // joins the run's flight record
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   return rec;
 }

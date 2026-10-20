@@ -363,6 +363,7 @@ function debriefHtml(){
     '<div class="h35-label">Time in each phase</div><div class="sr-card__meta">'+phs+'</div>'+
     '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div></div>'+
     '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="rulesets">Back to rulesets</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="saverec">Save flight record</button>'+
     '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
 }
 /* your losses, each with what became of its pilot */
@@ -442,7 +443,7 @@ function record(){
     outcome:S.over?S.over.outcome:'abandoned',stamp:S.over&&S.over.outcome==='aborted'?'aborted':L.prim.state==='done'?(L.opt.every(o=>o.state==='done')?'done':'partial'):'failed',
     loot:lootOf(),losses:losses().map(x=>x.name),pods:L.pods.map(p=>({who:p.ship,state:p.state})),t:+S.t.toFixed(2),
     planAgain:false,commsOff:!!L35.N.COMMS_OFF,requestsOff:!!L35.N.REQ_OFF};
-  B.metrics.push(rec);A.metrics.push(rec);
+  B.metrics.push(rec);A.metrics.push(rec);if(window.SR_FLIGHT)SR_FLIGHT.metrics(rec);   // joins the run's flight record
   try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
   return rec;
 }
@@ -694,6 +695,7 @@ ROOT.addEventListener('click',ev=>{
   if(a==='next'||a==='prev'){B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;B.stepAt=performance.now();B.step=Math.max(1,Math.min(4,B.step+(a==='next'?1:-1)));render();return;}
   if(a==='launch'){launch();return;}
   if(a==='again'){planAgain();return;}
+  if(a==='saverec'){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))API.flash('No flight record yet');return;}
   if(b.dataset.step){B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;B.stepAt=performance.now();B.step=+b.dataset.step;render();return;}
   const P=B.plan;if(!P)return;
   if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan);render();return;}   // the leaders propose a plan; you edit from there

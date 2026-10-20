@@ -1891,14 +1891,14 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(hc4.panel[1]&&/Run,Flight,Fighting,Orders,Hegemony,Leaders,Rules,Morale,Commands/.test(hc4.panel[2])&&/Tactics/.test(hc4.panel[2])&&hc4.panel[3]===5&&hc4.panel[4]===60&&hc4.panel[5]===12&&hc4.panel[6]===3.4,'HC T4: the panel '+JSON.stringify(hc4.panel));
  await ctx3.close();
  // ================= Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §11), its own context =================
- const ctx4=await b.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
+ const ctx4=await b.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce',acceptDownloads:true});
  const pg4=await ctx4.newPage();
  pg4.on('pageerror',e=>errs.push('pageerror(hc35): '+e.message));
  pg4.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))errs.push('console(hc35): '+m.text());});
  await pg4.goto(base+'#arena');await pg4.waitForTimeout(800);
  // HC35 1: High Command is byte-identical with the hooks in: hc1–hc3 after 90 s, seed 7, one scripted order at 5 s.
  // The baselines were recorded on space-combat-testing before any 3.5 change (C-75)
- const HC35_BASE={hc1_nightfall:'a9741455',hc2_lastlight:'f237a40',hc3_meltdown:'40316536'};
+ const HC35_BASE={hc1_nightfall:'5d3ce14f',hc2_lastlight:'b48f8492',hc3_meltdown:'a36d8ace'};   // re-recorded for the deterministic maths (feedback 1 K0, C-79)
  const t35a=await pg4.evaluate(()=>{
   const top=window.DBGarena;top.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc"]').click();
   const H=top.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
@@ -2204,11 +2204,46 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35g.det[0]&&t35g.det[1]&&t35g.det[2],'HC35 14: determinism: same seed, plan, powers and answers, pauses between: the same hash '+JSON.stringify(t35g.det));
  ok(!t35g.metrics[0].length&&t35g.metrics.slice(1).every(Boolean),'HC35 15: the record carries every §10 field '+JSON.stringify(t35g.metrics));
  ok(t35g.keys.every(Boolean),'HC35 P6: the keys: Space, P, the powers, Esc '+JSON.stringify(t35g.keys));
+ // HC35 K0 (feedback 1, test 15): the flight recorder. A scripted run through the UI (powers with targets, an
+ // answered request, one timed out, a pause, a speed change), saved from the debrief as a download, re-simulated
+ // offline by tools/run-report.js with every checkpoint matching
+ await pg4.evaluate(()=>{const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,API=window.SR_ARENA_HC.api;L35.N.REQ_OFF=0;
+  B.seed=321;X.fn.showBoard(false);B.mods=L35.rollMods(L35.OPPORTUNITIES.vulnerable_freighter,321);B.plan=null;B.step=1;X.fn.enterBrief();
+  document.querySelector('#arHc35 [data-primary="steal"]').click();B.plan.assets=['mines','ram'];B.step=4;X.fn.render();document.querySelector('#arHc35 [data-act="launch"]').click();
+  let answered=0;
+  for(let i=0;i<6000&&!SIM.S.over;i++){
+    if(i===60)L35.use('mark',{id:'fl400',sub:'engines'});if(i===200)L35.use('ram',{id:'fl400'});if(i===400)L35.use('mines');
+    if(i===500){API.setSpeed(0);API.setSpeed(3);}
+    const q=X.L.req.open.find(x=>x.state==='open');if(q&&!answered&&SIM.S.t-q.t0>2){L35.answerReq(q.id,q.answers[0]);answered=1;}
+    SIM.step();}
+  X.fn.run(1);});
+ const [dl]=await Promise.all([pg4.waitForEvent('download'),pg4.click('#arHc35 [data-act="saverec"]')]);
+ const recFile=await dl.path(),recName=dl.suggestedFilename();
+ const RR=require('./run-report.js'),rec=JSON.parse(require('fs').readFileSync(recFile,'utf8'));
+ const rp=RR.replay(rec),rtxt=RR.report(rp);
+ const reqAns=rp.L.req.log.find(q=>q.by==='player'),reqDef=rp.L.req.log.find(q=>q.by==='default');
+ const t35k0={name:recName,size:JSON.stringify(rec).length,cp:rec.cp.length,checked:rp.tr.checked,ok:rp.ok,end:rp.endOk,inputs:rec.inputs.map(x=>x[1]),speeds:rec.speeds.length,
+   ans:!!reqAns&&new RegExp(reqAns.k+'\\*\\* · [^\\n]*\\(you, at '+RR.clock_(reqAns.sentT)).test(rtxt),def:!!reqDef&&/timed out: their default/.test(rtxt)};
+ // an older SIM_VERSION warns, it doesn't crash
+ const old=JSON.parse(JSON.stringify(rec));old.simVersion.hc35='hc35-0';const ro=RR.replay(old);t35k0.warn=ro.warn.some(w=>/hc35-0/.test(w))&&/⚠/.test(RR.report(ro));
+ // a High Command run records and replays too; the Runs group lists the last ten
+ Object.assign(t35k0,await pg4.evaluate(()=>{const top=window.DBGarena;top.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc"]').click();
+  const H=top.hc,f=H.fn,SIM=H.SIM;f.load('hc2_lastlight',0,11);SIM.runFor(3);f.issue('ash','defend',{type:'ship',id:'lastlight'});
+  for(let i=0;i<1200&&!SIM.S.over;i++)SIM.step();f.load('hc1_nightfall',0,5);   // leaving it: an abandoned record
+  const st=window.SR_FLIGHT.stored(),last=st[st.length-1];window.SR_ARENA_HC.api.buildPanel();
+  return {hcRec:last,runs:st.length,panel:document.querySelectorAll('#hcPanelBody .hc-run [data-act^="run:"]').length};}));
+ const rh=RR.replay(t35k0.hcRec);t35k0.hc=[t35k0.hcRec.ruleset==='hc',t35k0.hcRec.unfinished===true,rh.ok,rh.tr.checked];delete t35k0.hcRec;
+ ok(/^sr-run-\d{4}-\d\d-\d\d-\d{4}-vulnerable_freighter-321\.json$/.test(t35k0.name)&&t35k0.size<1e6,'HC35 K0: the debrief saves the flight record '+JSON.stringify([t35k0.name,t35k0.size]));
+ ok(t35k0.ok&&t35k0.end&&t35k0.checked===t35k0.cp&&t35k0.cp>100,'HC35 K0: the harness re-simulates it, every checkpoint matching '+JSON.stringify([t35k0.cp,t35k0.checked,t35k0.end]));
+ ok(t35k0.inputs.filter(k=>k==='35.use').length===3&&t35k0.inputs.includes('35.answerReq')&&t35k0.speeds>=2,'HC35 K0: the inputs and speeds are recorded '+JSON.stringify([t35k0.inputs,t35k0.speeds]));
+ ok(t35k0.ans&&t35k0.def,'HC35 K0: the report lists the answered request at its time, and the timed-out one '+JSON.stringify([t35k0.ans,t35k0.def]));
+ ok(t35k0.warn,'HC35 K0: an older SIM_VERSION warns, not crashes');
+ ok(t35k0.hc.every(x=>x===true||x>0)&&t35k0.runs>=1&&t35k0.runs<=10&&t35k0.panel===t35k0.runs,'HC35 K0: High Command records and replays; the Runs group lists the last ten '+JSON.stringify([t35k0.hc,t35k0.runs,t35k0.panel]));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();
