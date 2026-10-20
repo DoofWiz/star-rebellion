@@ -111,12 +111,14 @@ function fitPlan(){
 }
 /* the mission's opening view: your wings and the freighter, in the room right of the HUD's left column */
 function fitLive(){
-  const S=SIM.S,pts=S.ships.filter(s=>s.alive&&(s.faction==='reb'&&!s.struct||s.id==='fl400'));if(!pts.length){fitPlan();return;}
-  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
-  const pad=2500,left=360,w=Math.max(200,API.cssW-left-40),h=Math.max(200,API.cssH-220);
-  const z=Math.max(API.fitZoom(),Math.min(0.32,Math.min(w/(x1-x0+pad*2),h/(y1-y0+pad*2))));
-  cam.z=z;cam.x=(x0+x1)/2-(left/2)/z;cam.y=(y0+y1)/2;A.camHeld=true;A.follow=false;
+  const S=SIM.S,mine=S.ships.filter(s=>s.alive&&s.faction==='reb'&&!s.struct),fr=SIM.fn.byId('fl400');if(!mine.length){fitPlan();return;}
+  // the zoom where a fighter is about FIT_PX long (§3.1), on your wings; the freighter's lane joins the frame if it fits
+  const z=FIT_PX/API.shipLenW(mine[0]),left=360,w=Math.max(200,API.cssW-left-40)/z,h=Math.max(200,API.cssH-220)/z;
+  let cx=mine.reduce((a,s)=>a+s.x,0)/mine.length,cy=mine.reduce((a,s)=>a+s.y,0)/mine.length;
+  if(fr&&Math.abs(fr.x-cx)<w*0.9&&Math.abs(fr.y-cy)<h*0.9){cx=(cx+fr.x)/2;cy=(cy+fr.y)/2;}
+  cam.z=z;cam.x=cx-(left/2)/z;cam.y=cy;API.clampCam();A.camHeld=true;A.follow=false;
 }
+const FIT_PX=30;   // a fighter's length on screen when the mission opens (feedback 1, §3.1). placeholder
 const W35=id=>L35.WINGS35.find(w=>w.id===id);
 const toWorld=p=>{const Zn=SIM.zone,k=L35.L?L35.L.k:2;return {x:p.x*k+Zn.x0,y:p.y*k+Zn.y0};};
 const toLayout=p=>{const Zn=SIM.zone,k=L35.L?L35.L.k:2;return {x:(p.x-Zn.x0)/k,y:(p.y-Zn.y0)/k};};

@@ -2239,11 +2239,23 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35k0.ans&&t35k0.def,'HC35 K0: the report lists the answered request at its time, and the timed-out one '+JSON.stringify([t35k0.ans,t35k0.def]));
  ok(t35k0.warn,'HC35 K0: an older SIM_VERSION warns, not crashes');
  ok(t35k0.hc.every(x=>x===true||x>0)&&t35k0.runs>=1&&t35k0.runs<=10&&t35k0.panel===t35k0.runs,'HC35 K0: High Command records and replays; the Runs group lists the last ten '+JSON.stringify([t35k0.hc,t35k0.runs,t35k0.panel]));
+ // HC35 K1 (feedback 1, test 1): true scale; past ICON_PX a fighter is a screen-constant icon; the freighter stays art
+ const t35k1=await pg4.evaluate(()=>{window.DBGarena.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc35"]').click();
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,API=window.SR_ARENA_HC.api,F=window.SIMHC.fn;
+  B.seed=777;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary='destroy';X.fn.launch();
+  const t=F.byId('petra'),fr=F.byId('fl400'),out={boost:[],talon:[],fr:[],rad:[]};
+  const open=API.cam.z;out.open=[+open.toFixed(3),Math.round(API.shipLenW(F.byId('joss'))*open)];
+  for(const z of [0.6,0.18,0.12,0.09]){API.camTo(t.x,t.y,z);API.syncHud(true);out.boost.push(API.iconBoost());out.talon.push(+API.artK(t).toFixed(2));out.fr.push(+API.artK(fr).toFixed(2));out.rad.push(+(API.uiR(t)*API.cam.z).toFixed(1));}
+  return out;});
+ ok(t35k1.boost.every(b=>b===1),'HC35 K1: iconBoost is 1 at every zoom '+JSON.stringify(t35k1.boost));
+ ok(t35k1.talon[0]===1&&t35k1.talon.slice(1).every(k=>k===0)&&t35k1.fr.every(k=>k===1),'HC35 K1: a Talon becomes an icon below the threshold; the freighter is still art there '+JSON.stringify([t35k1.talon,t35k1.fr]));
+ ok(new Set(t35k1.rad.slice(1)).size===1,'HC35 K1: the icon is the same size on screen at three zooms '+JSON.stringify(t35k1.rad));
+ ok(Math.abs(t35k1.open[1]-30)<=2,'HC35 K1: the mission opens with fighters about 30 px long '+JSON.stringify(t35k1.open));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

@@ -145,6 +145,19 @@ bar, fire-support art and ships parked in the iso hangar.
 6. **Tests:** `tools/arena-smoke.js` HC35 K0 (a run through the UI with powers, an answered and a timed-out request, a
    pause and a speed change, saved from the debrief and re-simulated with every checkpoint matching; an older
    `SIM_VERSION` warns; a High Command run replays; the Runs group lists the last ten).
+7. **True scale (K1, §3.1):** nothing is drawn bigger than it is any more (`iconBoost` is 1 at every zoom), in High
+   Command too. "True scale" is the scale the sim's hit sizes already use (the art at its size class); the freighter
+   keeps the art's own size factor as before.
+8. **Icons:** once a ship is shorter than `ICON_PX` (18 px) on screen it fades into a 22 px icon in its side's colour
+   (the shapes of §3.1; the ram, the tug and the pirates in hazard orange), with a 3-cell health tick and its name
+   under it, and the shield halves as two ticks when it's selected. Each class crosses at its own zoom: fighters at
+   about 0.2, the freighter at about 0.07. Selection rings, lock marks, attack rings, names and pips sit outside the
+   icon, so they stay the same size on screen. A boom is never smaller than `FX_MIN_PX` (28 px). The numbers are on the
+   panel's FX group (*Map icons*).
+9. **The mission opens** at the zoom where a fighter is about 30 px long (`FIT_PX`), on your wings, with the freighter
+   in the frame when it fits.
+10. **Tests:** `tools/arena-smoke.js` HC35 K1 (iconBoost 1 everywhere, a Talon an icon below the threshold while the
+    freighter is still art, the icon's size constant across zooms, the opening zoom).
 **Your call:** none needed; overrule any item.
 
 ### C-80 🟡 Type 3.5 playtest 1: readings to confirm
@@ -153,6 +166,8 @@ Filled in as K1 to K6 land.
 
 ### C-81 🟡 Type 3.5 playtest 1: placeholders and text
 - **The flight recorder:** a sample and a checkpoint every 20 ticks (1 s), 10 runs kept (`flight-rec.js`).
+- **Icons (K1):** `ICON_PX` 18, `ICON_FADE` ±15%, the icon's size 22 px, `FX_MIN_PX` 28 (the panel's FX group), and
+  the opening zoom's 30 px fighter (`FIT_PX`).
 - The K1–K6 numbers and copy are added as they land.
 **Your call:** tune on the panel; rewrite the copy
 
