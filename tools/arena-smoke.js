@@ -1918,10 +1918,10 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   const X=top.hc35,B=X.B;X.B.seed=4242;X.fn.showBoard(false);
   out.board=[B.screen,!!q('.bf-board .bf-card.is-sel'),qa('.sr-btn--primary').length,!!q('canvas[data-portrait="cass"]')];
   out.dossier=[B.screen,!!q('canvas[data-target]'),!!q('[data-act="dig"]')];
-  q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-obj.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
+  q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-ocard.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
   q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step1b=[B.step,B.part,qa('[data-opt]').length,qa('[data-roe]').length];   // window 1, part 2: the secondaries
   q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
-  q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wing').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.sr-slot').length];
+  q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wcol').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.h35-aslot').length];
   q('[data-act="next"]').click();out.step4=[B.step,qa('[data-ord="exec"]').length,!!q('[data-act="launch"]'),q('[data-act="launch"]').getAttribute('aria-disabled')];
   // the wings as listed: Dagger 2 Cross + 1 Talon, Anvil 1 Talon + 2 Brickbat, Amber 1 Cross + 2 Talon + 1 Brickbat
   out.wings=X.L35.WINGS35.map(w=>w.ships.map(s=>s.cls).join(','));
@@ -1938,7 +1938,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  });
  ok(t35b.rulesets[3]==='Type 3.5: High Command Hands Off','HC35 2: the fourth ruleset '+JSON.stringify(t35b.rulesets));
  ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='board'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary), its holo freighter and Dig deeper '+JSON.stringify([t35b.board,t35b.dossier]));
- ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===5&&t35b.step1b.join()==='1,2,7,0'&&t35b.step2.join()==='2,0,5'&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
+ ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===4&&t35b.step1b.join()==='1,2,7,0'&&t35b.step2.join()==='2,0,5'&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
   'HC35 2: the four briefing steps, window 1 in two parts '+JSON.stringify([t35b.step1,t35b.step1b,t35b.step2,t35b.step3,t35b.step4]));
  ok(t35b.wings.join('|')==='cross,cross,talon|talon,brickbat,brickbat|cross,talon,talon,brickbat','HC35 2: the wings as the designer listed them '+JSON.stringify(t35b.wings));
  ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));
@@ -2889,11 +2889,125 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35w1.pill.every(Boolean)&&t35w1.pop.every(Boolean)&&t35w1.met.every(Boolean),'HC35 W1: the readiness pill counts the missing checks, its tip lists them all, a click opens the list '+JSON.stringify([t35w1.pill,t35w1.pop,t35w1.met]));
  ok(t35w1.w4.every(Boolean),'HC35 W1: window 4 has the frame, the pill and Launch '+JSON.stringify(t35w1.w4));
  ok(t35w1.title===0,'HC35 W1: no title attributes inside #arHc35 ('+t35w1.title+')');
+ // HC35 W2 (the windows handoff, §2–§3): the objective cards in their family columns; the toggle rows, their conflict and suggestion tags, the cap, the Preservation field; the second panels
+ const t35w2=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,out={};
+  const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
+  B.seed=4243;B.plan=null;B.step=1;B.part=1;X.fn.showBoard(false);q('.bf-plan [data-act="brief"]').click();
+  await new Promise(r=>setTimeout(r,400));
+  // part 1: four family columns, a card a primary with its pitch and glyph, at most one locked card a column, the rest named in the header's tip
+  const cols=qa('.h35-fam'),heads=cols.map(c=>c.querySelector('.h35-panel__head').textContent);
+  const PITCH={steal:'Take the freighter intact',pirate:'Scare the crew into handing it over',strip:'Haul off what you can carry',destroy:'Blow it apart',crash:'Smash it into the planet',tag:'Follow it home to its depot',ambush:'Use it as bait to draw them in'};
+  const later=L35.LATER_PRIMARIES.every(x=>{const c=cols[L35.FAMILIES.indexOf(x.family)];return c.textContent.includes(x.name)||(c.querySelector('.h35-panel__head').dataset.tb||'').includes(x.name);});
+  out.cols=[heads.join()==='Take it,Deny it,Use it,Bait with it',cols.every(c=>c.querySelectorAll('.h35-ocard.is-locked').length<=1),later,
+    L35.PRIMARY_KEYS.every(k=>q('[data-primary="'+k+'"] .h35-ocard__pitch').textContent===PITCH[k]&&!!q('[data-primary="'+k+'"] svg.h35-g')),
+    L35.PRIMARY_KEYS.every(k=>cols[L35.FAMILIES.indexOf(L35.PRIMARIES[k].family)].contains(q('[data-primary="'+k+'"]'))),!q('.h35-fam--later')];
+  // picked: the gold tab; its needs green or orange; the others neutral
+  q('[data-primary="crash"]').click();for(const w in B.plan.wings)for(const sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]='pods';X.fn.render();
+  out.pick=[!!q('[data-primary="crash"].is-picked .h35-ocard__tab'),qa('.h35-ocard__tab').length===1,!!q('[data-primary="crash"] .h35-need.is-no'),!q('[data-primary="strip"] .h35-need.is-ok,[data-primary="strip"] .h35-need.is-no')];
+  // part 2: the secondaries as toggle rows; the counter; at 2 / 2 the rest dim and don't toggle; your primary read-only, with Change
+  B.part=2;X.fn.render();
+  const optRow=k=>q('[data-opt="'+k+'"]').closest('.h35-trow');
+  q('[data-opt="witnesses"]').click();q('[data-opt="everyone"]').click();
+  const cap=[B.plan.optionals.length===2,q('.h35-count').textContent.replace(/\s/g,'')==='2/2',optRow('ghost').classList.contains('is-cap'),q('[data-opt="ghost"]').getAttribute('aria-disabled')==='true',
+    q('[data-opt="ghost"]').dataset.why==='Two at most: turn one off first'];
+  q('[data-opt="ghost"]').click();cap.push(!B.plan.optionals.some(o=>o.k==='ghost'),B.plan.optionals.length===2);
+  out.cap=cap;
+  out.side=[!!q('.h35-panel--side .h35-ocard.is-ro'),!q('.h35-panel--side [data-primary]'),q('.h35-panel--side .h35-ocard__name').textContent==='Crash'];
+  // conflict: Leave No Witnesses against the Preservation Order, only while both are on
+  const noTag=!optRow('witnesses').querySelector('.h35-ctag');
+  B.step=2;B.part=1;X.fn.render();const roeRow=k=>q('[data-roe="'+k+'"]').closest('.h35-trow');
+  const noTag2=!roeRow('preservation').querySelector('.h35-ctag');q('[data-roe="preservation"]').click();
+  const tagW2=roeRow('preservation').querySelector('.h35-ctag'),soFar=qa('.h35-sofar__row').map(r=>r.textContent);
+  B.step=1;B.part=2;X.fn.render();const tagW1=optRow('witnesses').querySelector('.h35-ctag');
+  out.conflict=[noTag,noTag2,!!tagW2&&/Conflicts with Leave No Witnesses/.test(tagW2.textContent),!!tagW1&&/Conflicts with Preservation Order/.test(tagW1.textContent),
+    soFar.length===3&&/Crash/.test(soFar[0])&&soFar.some(t=>/Leave No Witnesses/.test(t)&&/Conflicts/.test(t))];
+  // the Preservation field: 5% steps, 10% to 60%, by click and by ←/→; the plan's presHull follows
+  B.step=2;B.part=1;X.fn.render();const field=()=>q('[data-presfield]');B.plan.presHull=0.3;X.fn.render();
+  const seen=[];for(let i=0;i<8;i++){q('[data-pres="1"]').click();seen.push(B.plan.presHull);}
+  const top=B.plan.presHull;for(let i=0;i<12;i++)q('[data-pres="-1"]').click();const bottom=B.plan.presHull;
+  field().dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));const key=B.plan.presHull;
+  field().dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
+  out.pres=[seen[0]===0.35,top===0.6,bottom===0.1,key===0.15,B.plan.presHull===0.1,q('[data-presfield] b').textContent==='10%',field().getAttribute('aria-valuenow')==='10',!q('[data-roe="preservation"] ~ * input[type=range]')];
+  // the suggestion: Weapons Tight for Steal, while it's off
+  B.plan=L35.leaderPlan('steal',B.plan);B.plan.roes=B.plan.roes.filter(k=>k!=='tight');X.fn.render();
+  const sg=roeRow('tight').querySelector('.h35-stag');q('[data-roe="tight"]').click();
+  out.suggest=[!!sg&&sg.textContent==='☆ Suggested for Steal',!roeRow('tight').querySelector('.h35-stag'),roeRow('tight').classList.contains('is-on')];
+  // the pilot pick, expanded inside its row while on
+  B.step=1;B.part=2;B.plan.optionals=[];X.fn.render();q('[data-opt="rookie"]').click();
+  out.pilot=[!!optRow('rookie').querySelector('.h35-trow__more select.h35-field[data-optship="rookie"]'),!optRow('ghost').querySelector('.h35-trow__more'),qa('[title]').length===0];
+  B.step=1;B.part=1;X.fn.render();
+  return out;
+ });
+ ok(t35w2.cols.every(Boolean),'HC35 W2: window 1\'s family columns, each primary with its pitch and glyph, one locked card a column, the rest named '+JSON.stringify(t35w2.cols));
+ ok(t35w2.pick.every(Boolean),'HC35 W2: the picked card has the gold tab and its needs in green or orange '+JSON.stringify(t35w2.pick));
+ ok(t35w2.cap.every(Boolean)&&t35w2.side.every(Boolean),'HC35 W2: at 2 / 2 an unpicked secondary dims and doesn\'t toggle; your primary beside, read-only '+JSON.stringify([t35w2.cap,t35w2.side]));
+ ok(t35w2.conflict.every(Boolean),'HC35 W2: a conflict tag only with both of its pair on, in both windows and the plan so far '+JSON.stringify(t35w2.conflict));
+ ok(t35w2.pres.every(Boolean),'HC35 W2: the Preservation field steps by 5% between 10% and 60%, and presHull follows '+JSON.stringify(t35w2.pres));
+ ok(t35w2.suggest.every(Boolean)&&t35w2.pilot.every(Boolean),'HC35 W2: the suggestion chip while the rule is off; the pilot pick inside its row '+JSON.stringify([t35w2.suggest,t35w2.pilot]));
+ // HC35 W3 (the windows handoff, §4): the wing columns, their ship rows (WINGS35's pilots, the leader starred), the role and loadout controls, the leader's take, the assets bar and its picker
+ const t35w3=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,out={};
+  const q=s=>document.querySelector('#arHc35 '+s),qa=s=>[...document.querySelectorAll('#arHc35 '+s)];
+  B.seed=4243;B.plan=null;B.step=1;B.part=1;X.fn.showBoard(false);q('.bf-plan [data-act="brief"]').click();
+  await new Promise(r=>setTimeout(r,400));
+  q('[data-primary="destroy"]').click();B.plan.assets=[];B.step=3;X.fn.render();
+  // the rows: one a ship, named for its pilot, ★ on the leader only; the class's full name
+  const ok1=L35.WINGS35.every(w=>{const col=q('[data-wcol="'+w.id+'"]'),rows=[...col.querySelectorAll('.h35-srow')];
+    return rows.length===w.ships.length&&rows.every((r,i)=>{const t=r.querySelector('.h35-srow__pilot').textContent;return t.startsWith(w.ships[i].name)&&(i===0)===t.includes('★');})&&
+      col.querySelector('.h35-wcol__call').textContent===w.name&&col.querySelector('.h35-wcol__lead').textContent===w.ships[0].name;});
+  const names=new Set(L35.WINGS35.flatMap(w=>w.ships.map(s=>s.name))),pilots=qa('.h35-srow__pilot').map(e=>e.textContent.split(' ')[0]);
+  out.rows=[ok1,pilots.every(n=>names.has(n)),q('[data-wcol="dagger"] .h35-srow__cls').textContent==='FT-4 Cross',qa('.h35-srow.has-lo').length===qa('.h35-srow').filter((_,i)=>L35.WINGS35.flatMap(w=>w.ships)[i].cls==='brickbat').length,
+    qa('.h35-srow canvas[data-ship]').length===qa('.h35-srow').length];
+  // the controls: one segment pressed a control; Stay home dims the column, not its role control
+  q('[data-role="home"][data-wing="amber"]').click();const am=q('[data-wcol="amber"]');
+  out.seg=[qa('.h35-seg').every(g=>g.querySelectorAll('[aria-pressed="true"]').length===1),am.classList.contains('is-home'),getComputedStyle(am.querySelector('.h35-wcol__ships')).opacity==='0.55',getComputedStyle(am.querySelector('.h35-seg--role')).opacity==='1'];
+  q('[data-role="strike"][data-wing="amber"]').click();
+  // the take: orange when it's a critique
+  B.plan.wings.anvil.exec={k:'disable',arg:'engines'};for(const sid in B.plan.wings.anvil.loadout)B.plan.wings.anvil.loadout[sid]='pods';X.fn.render();
+  const anv=q('[data-wcol="anvil"] .h35-wcol__take'),calm=Object.values(L35.CALM_TAKES);
+  out.take=[anv.classList.contains('is-warn'),!calm.includes(anv.textContent),qa('.h35-wcol__take:not(.is-warn)').every(e=>calm.includes(e.textContent))];
+  // the assets: an empty slot opens the picker above it; a pick fills it (✓, "unlocks"); Esc and a click outside close the picker
+  q('[data-slot="0"]').click();const pop=!!q('.h35-apop'),rows=qa('.h35-apop [data-asset]').length;q('.h35-apop [data-asset="buoy"]').click();
+  const slot=q('.h35-aslot.is-filled');
+  out.assets=[pop,rows===Object.keys(L35.ASSETS).length,B.plan.assets[0]==='buoy',!q('.h35-apop'),!!slot&&!!slot.querySelector('.h35-aslot__ok'),!!slot&&/unlocks Raise the Interdictor/.test(slot.textContent),qa('.h35-aslot.is-empty').length===L35.ASSET_SLOTS-1];
+  q('[data-slot="1"]').click();const open2=!!q('.h35-apop');window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));const esc=!q('.h35-apop')&&B.step===3;
+  q('[data-slot="1"]').click();q('.h35-wcol__call').click();const outside=!q('.h35-apop');
+  q('[data-unasset="0"]').click();
+  q('[data-slot="2"]').click();out.close=[open2,esc,outside,B.plan.assets.length===0,!!q('canvas[data-ship]'),qa('[title]').length===0];
+  B.step=1;B.part=1;X.fn.render();
+  return out;
+ });
+ ok(t35w3.rows.every(Boolean),'HC35 W3: a column a wing, a row a ship named for its WINGS35 pilot, the leader starred '+JSON.stringify(t35w3.rows));
+ ok(t35w3.seg.every(Boolean)&&t35w3.take.every(Boolean),'HC35 W3: the segmented controls; Stay home dims all but its role control; a critique take in orange '+JSON.stringify([t35w3.seg,t35w3.take]));
+ ok(t35w3.assets.every(Boolean)&&t35w3.close.every(Boolean),'HC35 W3: the assets bar: an empty slot opens the picker, a pick fills it, Esc or a click outside closes it '+JSON.stringify([t35w3.assets,t35w3.close]));
+ // HC35 W1–W3 fit: at 1440 × 900 and 1920 × 1080 the windows' bodies don't scroll (every Brickbat on Boarding party, two secondaries that expand)
+ const t35fit=[];
+ for(const [vw,vh] of [[1440,900],[1920,1080]]){
+  const ctxF=await b.newContext({viewport:{width:vw,height:vh},reducedMotion:'reduce'});const pgF=await ctxF.newPage();
+  pgF.on('pageerror',e=>errs.push('pageerror(fit): '+e.message));
+  await pgF.goto(base+'#arena');await pgF.waitForTimeout(800);
+  await pgF.evaluate(()=>{window.DBGarena.fn.openPicker();document.querySelector('#arRulesets [data-ruleset="hc35"]').click();});await pgF.waitForTimeout(300);
+  t35fit.push(await pgF.evaluate(async([vw,vh])=>{
+   const X=window.DBGarena.hc35,B=X.B,q=s=>document.querySelector('#arHc35 '+s),out={size:vw+'x'+vh};
+   q('.bf-plan [data-act="brief"]').click();await new Promise(r=>setTimeout(r,300));
+   q('[data-primary="steal"]').click();for(const w in B.plan.wings)for(const sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]='board';
+   const fits=async()=>{await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));   // the reduced-motion rule's 1 ms transitions settle
+     const b=q('.h35-holo__body');return b.scrollHeight<=b.clientHeight+1?true:[b.scrollHeight,b.clientHeight];};
+   B.step=1;B.part=1;X.fn.render();out.w1a=await fits();
+   B.part=2;B.plan.optionals=[{k:'protect',ship:null},{k:'rookie',ship:null}];X.fn.render();out.w1b=await fits();
+   B.step=2;B.part=1;B.plan.roes=['preservation','tight'];X.fn.render();out.w2=await fits();
+   B.step=3;B.plan.assets=['ram','buoy'];X.fn.render();out.w3=await fits();
+   const tops=[...document.querySelectorAll('#arHc35 .h35-wcol .h35-seg--role')].map(e=>Math.round(e.getBoundingClientRect().top));out.align=tops.length===3&&Math.max(...tops)-Math.min(...tops)<=1;
+   return out;},[vw,vh]));
+  await ctxF.close();
+ }
+ ok(t35fit.every(f=>f.w1a===true&&f.w1b===true&&f.w2===true&&f.w3===true&&f.align),'HC35 W1–W3: the windows don\'t scroll at 1440 × 900 or 1920 × 1080 '+JSON.stringify(t35fit));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1,t35w1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1,t35w1,t35w2,t35w3,t35fit},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

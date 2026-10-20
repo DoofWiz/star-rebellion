@@ -250,26 +250,28 @@ const LOADOUTS={bombs:{name:'Bombs',line:'Two racks of three. The only thing tha
    Objectives, rules, assets (§4.1, §4.2, §4.3)
    ===================================================================== */
 /* the rewards (feedback 2, §1.1) are a first pass for the demo: what the primary pays, per container or kill where it
-   counts them, and the Accomplished bonus for doing the primary you picked rather than a fallback. placeholder */
+   counts them, and the Accomplished bonus for doing the primary you picked rather than a fallback. placeholder.
+   pitch is the card's one-line sell and caveat its tooltip's footer (the windows handoff, §2): lab copy (C-86) */
 const PRIMARIES={
-  steal:{family:'Take it',name:'Steal',wins:'Board her (a slow, careful approach: the boarders are exposed while they close and clamp on), then fly the prize out through our jump point.',needs:['board'],loot:'Every surviving container and the ship',
+  steal:{family:'Take it',name:'Steal',pitch:'Take the freighter intact',caveat:'Timing: aboard before the response arrives',wins:'Board her (a slow, careful approach: the boarders are exposed while they close and clamp on), then fly the prize out through our jump point.',needs:['board'],loot:'Every surviving container and the ship',
     reward:{base:{c:250,m:120},per:{s:25},perText:'a container aboard',bonus:{c:200}}},
-  pirate:{family:'Take it',name:'Pirate',wins:'Break the crew\'s nerve, accept their surrender, and hold by them while they hand it over.',needs:[],loot:'Most of the surviving cargo',
+  pirate:{family:'Take it',name:'Pirate',pitch:'Scare the crew into handing it over',caveat:'Caveat: a crew holds out while their escort fights',wins:'Break the crew\'s nerve, accept their surrender, and hold by them while they hand it over.',needs:[],loot:'Most of the surviving cargo',
     reward:{base:{c:150},per:{s:30},perText:'a container handed over',bonus:{c:150}}},
-  strip:{family:'Take it',name:'Strip the Cargo',wins:'Clamp on and haul at least one container home (the haulers are exposed while they work).',needs:['pods'],loot:'The containers hauled out',
+  strip:{family:'Take it',name:'Strip the Cargo',pitch:'Haul off what you can carry',caveat:'Timing: one container a haul',wins:'Clamp on and haul at least one container home (the haulers are exposed while they work).',needs:['pods'],loot:'The containers hauled out',
     reward:{base:null,per:{s:40},perText:'a container hauled home',bonus:{c:100}}},
-  destroy:{family:'Deny it',name:'Destroy',wins:'The freighter dies.',needs:[],loot:'None',
+  destroy:{family:'Deny it',name:'Destroy',pitch:'Blow it apart',caveat:'Caveat: nothing to bring home',wins:'The freighter dies.',needs:[],loot:'None',
     reward:{base:{c:300},bonus:{c:100}}},
-  crash:{family:'Deny it',name:'Crash',wins:'Knock out her power plant inside the planet\'s pull: she falls in. It shows once her hull is under 80%.',needs:['bombs'],loot:'None',
+  crash:{family:'Deny it',name:'Crash',pitch:'Smash it into the planet',caveat:'Timing: the gravity window',wins:'Knock out her power plant inside the planet\'s pull: she falls in. It shows once her hull is under 80%.',needs:['bombs'],loot:'None',
     reward:{base:{c:300,i:2},bonus:{c:200}}},
-  tag:{family:'Use it',name:'Tag and Track',wins:'Plant a tracker unseen, then let it jump out alive.',needs:['tagger'],loot:'A follow-up lead',
+  tag:{family:'Use it',name:'Tag and Track',pitch:'Follow it home to its depot',caveat:'Caveat: unseen, or the tracker is found',wins:'Plant a tracker unseen, then let it jump out alive.',needs:['tagger'],loot:'A follow-up lead',
     reward:{base:{i:4},extra:'a follow-up lead',bonus:{c:150}}},
-  ambush:{family:'Bait with it',name:'Ambush the Responders',wins:'Destroy three of the Hegemony response.',needs:['notRemote'],loot:'Response kills',
+  ambush:{family:'Bait with it',name:'Ambush the Responders',pitch:'Use it as bait to draw them in',caveat:'Timing: the response arrives in Phase 3',wins:'Destroy three of the Hegemony response.',needs:['notRemote'],loot:'Response kills',
     reward:{base:{c:100},per:{c:60},perText:'a response kill',bonus:{c:150}}},
 };
 const PRIMARY_KEYS=Object.keys(PRIMARIES);
-const LATER_PRIMARIES=['Snatch the Paymaster','Misjump','Trojan Freighter','Turn the Crew','Cover Op'];
+const LATER_PRIMARIES=[{name:'Snatch the Paymaster',family:'Take it'},{name:'Misjump',family:'Deny it'},{name:'Turn the Crew',family:'Use it'},{name:'Trojan Freighter',family:'Use it'},{name:'Cover Op',family:'Bait with it'}];   // locked cards in their families
 const NEED_TEXT={bombs:'A Brickbat with Bombs',board:'A Brickbat with a Boarding party',pods:'A Brickbat with Cargo pods',tagger:'One ship named to plant the tracker',notRemote:'A response to ambush (not Remote)'};
+const FAMILIES=['Take it','Deny it','Use it','Bait with it'];
 const OPTIONALS={
   protect:{name:'Protect a ship at all costs',line:'Name one: it must come home.',needs:'ship'},
   witnesses:{name:'Leave No Witnesses',line:'No escort or crew escapes (the freighter jumping counts).'},
@@ -426,10 +428,11 @@ function leaderPlan(prim,keep){
   return P;
 }
 /* the leader's one-line take on the plan (§4.4): the first critique rule that applies, else their personality */
+const CALM_TAKES={home:'We\'ll sit this one out, Base.',reserve:'Standing by. Call us when you need us.',eager:'Let\'s go.',steady:'Sound plan.',other:'If you say so.'};   // anything else is a critique
 function critique(plan,wid,mods,ctx){
   const w=WINGS35.find(x=>x.id===wid),pw=plan.wings[wid];if(!w||!pw)return '';
-  if(pw.role==='home')return 'We\'ll sit this one out, Base.';
-  if(pw.role==='reserve')return 'Standing by. Call us when you need us.';
+  if(pw.role==='home')return CALM_TAKES.home;
+  if(pw.role==='reserve')return CALM_TAKES.reserve;
   const ex=pw.exec||{},has=planHas(plan),lo=w.ships.filter(s=>s.cls==='brickbat').map(s=>pw.loadout[s.id]||'bombs');
   if((ex.k==='disable'||(ex.k==='destroy'&&plan.primary!=='ambush'))&&!lo.includes('bombs')&&!has.bombs)return 'We can\'t crack that hull with repeaters, Base.';
   if(ex.k==='disable'&&!lo.includes('bombs'))return 'We can\'t crack that hull with repeaters, Base.';
@@ -441,7 +444,7 @@ function critique(plan,wid,mods,ctx){
   if(ctx&&ctx.unreachable&&ctx.unreachable(wid))return 'We\'ll never catch it from there.';
   if(plan.roes.includes('signal')&&!['hold','ambush','withdraw','defend','escort'].includes(ex.k))return 'Waiting on your word, Base. Don\'t leave us hanging.';
   const per=F.personalityOf(F.presetPilot(w.ships[0].pilot,w.ships[0].name));
-  return per==='eager'?'Let\'s go.':per==='steady'?'Sound plan.':'If you say so.';
+  return per==='eager'?CALM_TAKES.eager:per==='steady'?CALM_TAKES.steady:CALM_TAKES.other;
 }
 
 /* =====================================================================
@@ -2061,7 +2064,7 @@ function verbOf(s){
 /* =====================================================================
    The panel (getters, grouped) and the export
    ===================================================================== */
-return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIMARY_KEYS,LATER_PRIMARIES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
+return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIMARY_KEYS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
