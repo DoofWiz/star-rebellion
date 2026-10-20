@@ -315,7 +315,7 @@ function spreadOf(s,w,d,lk){
   if(!mute(s))deg*=1+SPREAD_NERVE_K*(1-s.pilot.cool/100);
   deg+=SPREAD_CRIT*critCount(s,'targeting');
   deg*=1-LOCK_AIM*Math.min(1,lk||0);   // a lock steadies the guns (C-72)
-  return deg*Math.PI/180;
+  return deg*(w.spreadK||1)*Math.PI/180;   // a layer's weapon may scatter more (Type 3.5's plasma)
 }
 function aimAngle(s,t,w){
   const rx=t.x-s.x,ry=t.y-s.y,vx=t.vx||0,vy=t.vy||0,V=projSpd(w);

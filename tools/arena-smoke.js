@@ -2814,7 +2814,7 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
   go('pirate',{});SIM.runFor(1);{const p2=L().planet,a2=Math.atan2(fr().y-p2.y,fr().x-p2.x);fr().x=p2.x+Math.cos(a2)*(p2.r+900);fr().y=p2.y+Math.sin(a2)*(p2.r+900);fr().px=fr().x;fr().py=fr().y;}
   L35.answerSurrender('take');SIM.runFor(25);out.hove=[L().surrender==='take',fr().alive&&!L().crashed,Math.hypot(fr().vx,fr().vy)<5];
   // 6: plasma: blaster bolts, the designer's defaults
-  const P=window.SR_ART.PROJ;out.px=[P.plasma.style==='blaster',P.hegplasma.style==='hegblaster',N.PX_SPD===1.5,N.PX_CRIT===0,N.PX_RNG===0.7];
+  const P=window.SR_ART.PROJ;out.px=[P.plasma.style==='blaster',P.hegplasma.style==='hegblaster',N.PX_SPD===1.2,N.PX_CRIT===0,N.PX_RNG===0.7,N.PX_DMG===1.15,N.PX_SPREAD===1.6];
   Object.assign(N,keep);N.REQ_OFF=0;
   return out;
  });
@@ -2825,12 +2825,42 @@ const CAMPAIGN_KEY='star-rebellion-campaign-v1';
  ok(t35m1.hangar.every(Boolean),'HC35 M1: in a hangar the boarder is out of sight and out of reach '+JSON.stringify(t35m1.hangar));
  ok(t35m1.size.every(Boolean),'HC35 M1: a ship under size 10 can\'t be boarded '+JSON.stringify(t35m1.size));
  ok(t35m1.hove.every(Boolean),'HC35 M1: hove to, she holds station, no fall into the planet '+JSON.stringify(t35m1.hove));
- ok(t35m1.px.every(Boolean),'HC35 M1: plasma as blaster bolts, the designer\'s slider defaults '+JSON.stringify(t35m1.px));
+ ok(t35m1.px.every(Boolean),'HC35 M1/N1: plasma as blaster bolts, its defaults (toned down after the Steal run) '+JSON.stringify(t35m1.px));
+ // HC35 N1 (the Steal run): the prize crew repairs the engines before she can make her cruise or jump; she turns like a capital ship; Phase 3 is the response arriving
+ const t35n1=await pg4.evaluate(async()=>{
+  const X=window.DBGarena.hc35,B=X.B,L35=X.L35,SIM=window.SIMHC,F=SIM.fn,N=L35.N,out={};
+  const S=()=>X.S,L=()=>X.L,by=id=>S().ships.find(s=>s.id===id),fr=()=>by('fl400');
+  const go=(prim,ex,lo)=>{B.seed=95;B.mods=[];B.plan=L35.defaultPlan(L35.OPPORTUNITIES.vulnerable_freighter);B.plan.primary=prim;
+    for(const w in B.plan.wings){B.plan.wings[w].role='strike';B.plan.wings[w].exec=Object.assign({arg:null},ex[w]||{k:'hold'});B.plan.wings[w].second=null;}
+    for(const sid in lo||{})for(const w in B.plan.wings)if(sid in B.plan.wings[w].loadout)B.plan.wings[w].loadout[sid]=lo[sid];
+    B.plan.assets=[];B.plan.roes=[];B.plan.optionals=[];X.fn.launch();L().cp=9;};
+  const keep={COMMS_OFF:N.COMMS_OFF,RES_THREAT:N.RES_THREAT};N.COMMS_OFF=1;N.REQ_OFF=1;N.RES_THREAT=0;
+  // 1: her engines out, then boarded: the prize crew mends them on her thrusters, then she makes her cruise; she can't jump till then
+  go('steal',{amber:{k:'board'}},{mags:'board'});L35.alarm('fired','test');const e=L().subs.find(x=>x.k==='engines');e.hp=0;L35.fn.subDown(fr(),e,null);
+  const m=by('mags'),f=fr();m.x=f.x+Math.cos(f.h+Math.PI/2)*2500;m.y=f.y+Math.sin(f.h+Math.PI/2)*2500;m.px=m.x;m.py=m.y;
+  for(let i=0;i<20*120&&!L().prize;i++)SIM.step();
+  const prize=!!L().prize;let maxW=0,prev=f.h;const turn=n=>{for(let i=0;i<n;i++){SIM.step();maxW=Math.max(maxW,Math.abs(((f.h-prev+3*Math.PI)%(2*Math.PI))-Math.PI)*20);prev=f.h;}};
+  turn(20*N.CAP_REALIGN*4);const rep0=L().repair&&L().repair.k,v0=Math.hypot(f.vx,f.vy);
+  for(let i=0;i<N.REPAIR_SECS+5&&L().engOut;i++)turn(20);
+  turn(20*N.CAP_REALIGN*4);const v1=Math.hypot(f.vx,f.vy),fixed=!L().engOut,hpOk=e.hp===Math.round(e.max*N.REPAIR_HP);
+  // engines out, parked at our jump point, she doesn't jump; with them back, she does
+  const jp=S().points.ourjump,e2=L().subs.find(x=>x.k==='engines');e2.hp=0;L35.fn.subDown(f,e2,null);f.x=jp.x;f.y=jp.y;f.px=f.x;f.py=f.y;SIM.runFor(2);const stayed=f.alive&&!f.jumped;
+  out.prize=[prize,rep0==='engines',Math.abs(v0-L().cruise*N.THRUST_SPD)<L().cruise*0.1,stayed,fixed,hpOk,Math.abs(v1-L().cruise*N.PRIZE_K)<L().cruise*0.15,maxW<=N.PRIZE_TURN+0.005,
+    L().callouts.some(c=>c.text==='ENGINES BACK ONLINE'),+v0.toFixed(1),+v1.toFixed(1),+maxW.toFixed(3)];
+  // 2: a settled job sends everyone home but isn't Phase 3; the response arriving is
+  go('destroy',{dagger:{k:'destroy'}});L35.alarm('fired','test');SIM.runFor(1);F.kill(fr(),null);SIM.runFor(2);
+  const ph=L().phase;L().responseAt=S().t+0.5;SIM.runFor(1.5);
+  out.phase=[L().prim.state==='done',ph===2,L().phase===3,S().ships.some(s=>s.role35==='response')];
+  Object.assign(N,keep);N.REQ_OFF=0;
+  return out;
+ });
+ ok(t35n1.prize.slice(0,9).every(Boolean),'HC35 N1: the prize crew mends her engines on her thrusters, she can\'t jump till then, then makes her cruise, turning like a capital ship '+JSON.stringify(t35n1.prize));
+ ok(t35n1.phase.every(Boolean),'HC35 N1: a settled job isn\'t Phase 3; the response arriving is '+JSON.stringify(t35n1.phase));
  await ctx4.close();
 
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
- console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1},null,0));
+ console.log(JSON.stringify({fails,r,sb,sc,drift,b4,hud,fly,feel,mom,ai,b5,hc,hc2,hc3,hc4,f1,f2,f3,f4,g1,g2,g3,g4,g5,h3,i1,i2,v1,t35a,t35b,t35c,t35d,t35e,t35f,t35g,t35k0,t35k1,t35k2,t35k3,t35k4,t35k5,t35k6,t35l1,t35l2,t35l3,t35l4,t35l5,t35l6,t35l7,t35m1,t35n1},null,0));
  if(fails.length){console.error('arena-smoke FAILED:\n - '+fails.join('\n - '));process.exit(1);}
  console.log('arena-smoke OK');
 })();

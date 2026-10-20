@@ -396,7 +396,7 @@ function clockHtml(){
   let status,name,round,ph=L.phase;
   if(ph===1){status='UNDETECTED';name='PHASE 1 · ARRIVAL';round=fr&&fr.alive?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):'';}
   else if(ph===2){status='ALERTED';name='PHASE 2 · ENGAGED';const D=L.distress;
-    round=D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t):
+    round=L.prize&&L.repair?'PRIZE: '+(L.repair.k==='power'?'POWER':'ENGINES')+' '+Math.round(L.repair.prog*100)+'%':D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t):
       L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive&&!L.disabled&&!L.prize&&!L.engOut?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):fr&&fr.alive&&L.engOut&&!L.disabled&&!L.prize?'FREIGHTER CAN\'T JUMP':L.prize?'PRIZE HEADING HOME':L.disabled?'FREIGHTER DEAD IN SPACE':'';}
   else {status='HEGEMONY ON SITE';name='PHASE 3 · RESPONSE';round='GET OUT';}
   return '<div class="sr-phase h35-phase" data-phase="'+(ph===1?'free':'fight')+'"'+(ph===3?' data-status="alert"':'')+'><span class="sr-phase__status" style="--s:'+(ph===1?'var(--sr-c-good)':ph===2?'var(--sr-hazard)':'var(--sr-heg)')+'"><span class="sr-phase__text">'+status+'</span></span>'+

@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-10';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-11';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -47,7 +47,7 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   RESOLVE_START:70,RES_THREAT:1.5,RES_ESCORT:15,RES_TURRET:10,RES_ENGINES:20,RES_HIT:10,THREAT35_R:2600,   // crew resolve (Pirate)
   TRANSFER_SECS:20,TRANSFER_R:1400,PIRATE_SHARE:0.7,   // the surrender's hand-over
   DOCK_R:900,DOCK_OFF:190,             // a Brickbat docks this close to a disabled freighter, clamped this far off its spine
-  BOARD35_SECS:30,SCUTTLE_SECS:45,PRIZE_SPD:160,PRIZE_TURN:0.25,   // boarding a ship; the scuttle timer; the prize's crawl home (world units a second) and its turn (radians a second)
+  BOARD35_SECS:30,SCUTTLE_SECS:45,PRIZE_K:1,PRIZE_TURN:0.08,REPAIR_SECS:40,REPAIR_HP:0.5,   // boarding a ship; the scuttle timer; the prize's crawl home (world units a second) and its turn (radians a second)
   HAUL_SECS:10,POD_CAP:2,              // a container a docked pod ship takes, and how many it carries
   TAG_R:900,TAG_SECS:12,               // Tag and Track: hold this close this long, unseen
   AMBUSH_KILLS:3,                      // response ships an ambush must take
@@ -94,7 +94,7 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   // feedback 2, L6: plasma. A heavy gun: PX_BOLTS slow bolts a burst (PX_SPD × a repeater bolt's speed) carrying the
   // burst's damage between them, × PX_DMG (slow bolts miss more: this evens it out); a hit is likelier to be critical
   // (PX_CRIT); PX_RNG × the reach
-  PX_BOLTS:2,PX_SPD:1.5,PX_DMG:1.3,PX_CRIT:0,PX_RNG:0.7,   // the designer's slider settings (playtest 2)
+  PX_BOLTS:2,PX_SPD:1.2,PX_DMG:1.15,PX_CRIT:0,PX_RNG:0.7,PX_SPREAD:1.6,   // the designer's slider settings (playtest 2), toned down after ("super duper strong"); PX_SPREAD × the guns' scatter
   DRIFT_SECS:1.4,DRIFT_TURN:0.45,DRIFT_NOSE:1.2,DRIFT_COAST:0.15,DRIFT_BLEED:0.12,DRIFT_REACH:1.6,DRIFT_OFF_MIN:0.6,DRIFT_OFF_MAX:2.2,DRIFT_VMIN:1.05,DRIFT_CD:14};   // and the jump point's reach: a fighter flying home at full speed turns wider than High Command's 350
 const T35={
   FREIGHTER_SECS:{get:()=>FREIGHTER_SECS,set:v=>{FREIGHTER_SECS=v;},min:60,max:600,step:10,label:'Freighter crossing (s)',group:'Freighter'},
@@ -120,7 +120,7 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   RES_TURRET:['Resolve lost per turret',0,50,1,'Freighter'],RES_ENGINES:['Resolve lost: engines out',0,60,1,'Freighter'],RES_HIT:['Resolve gained per hit on hull or cargo',0,30,1,'Freighter'],THREAT35_R:['A ship near (resolve)',500,6000,100,'Freighter'],
   TRANSFER_SECS:['Surrender hand-over (s)',0,60,1,'Freighter'],TRANSFER_R:['Hand-over reach',300,4000,50,'Freighter'],PIRATE_SHARE:['Pirate share of the cargo',0,1,0.05,'Freighter'],
   DOCK_R:['Docking reach',200,3000,50,'Freighter'],DOCK_OFF:['Clamp off the spine',100,600,10,'Freighter'],BOARD35_SECS:['Boarding a ship (s)',5,120,1,'Freighter'],SCUTTLE_SECS:['Scuttle timer (s)',5,120,1,'Freighter'],
-  PRIZE_SPD:['Prize speed home',20,600,10,'Freighter'],PRIZE_TURN:['Prize turn (rad/s)',0.02,1,0.01,'Freighter'],HAUL_SECS:['Seconds a container',1,60,1,'Freighter'],POD_CAP:['Containers a pod ship carries',1,6,1,'Freighter'],
+  PRIZE_K:['Prize speed home × her cruise',0.2,4,0.05,'Freighter'],PRIZE_TURN:['Prize turn (rad/s)',0.02,1,0.01,'Freighter'],REPAIR_SECS:['Prize crew: seconds to repair a system',5,180,5,'Freighter'],REPAIR_HP:['Prize crew: a repaired system × its HP',0.1,1,0.05,'Freighter'],HAUL_SECS:['Seconds a container',1,60,1,'Freighter'],POD_CAP:['Containers a pod ship carries',1,6,1,'Freighter'],
   TAG_R:['Tag: within',200,3000,50,'Freighter'],TAG_SECS:['Tag: hold (s)',1,60,1,'Freighter'],AMBUSH_KILLS:['Ambush: kills to win',1,10,1,'Freighter'],INTIM_R:['Intimidate orbit',600,5000,50,'Freighter'],HOLDOFF_R:['Boarders hold off at',1000,8000,100,'Freighter'],
   DISTRESS_SECS:['Distress call (s)',1,90,1,'Phases'],RESPONSE_SECS:['Response clock (s)',10,600,5,'Phases'],QUICK_SPOOL:['Quick Jumper spool (s)',5,180,5,'Phases'],
   COMMS_OFF:['Comms delay off (1 = off)',0,1,1,'Comms'],COMMS_BASE:['Comms: base delay (s)',0,10,0.5,'Comms'],COMMS_SPD:['Comms: speed (units a second)',500,20000,100,'Comms'],
@@ -149,7 +149,7 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   THRUST_TURN:['Engines out: turn × its rate',0,1,0.05,'Freighter'],BOARD_SIZE:['Boardable from size',1,20,1,'Freighter'],DEFEND_HIT:['Fights back at a hit this recent (s)',0,10,0.5,'Wings'],JUMP35_R:['Jump point radius',300,3000,50,'Wings'],IDLE_LOOK:['A holding leader looks for work every (s)',1,60,1,'Wings'],
   SUB_ENG:['A ship\'s engines × its hull',0.05,2,0.05,'Subsystems'],SUB_GUN:['A ship\'s guns × its hull',0.05,2,0.05,'Subsystems'],SUB_SHD:['A ship\'s shield generator × its hull',0.05,2,0.05,'Subsystems'],
   AIM_SUB:['Aimed hit: × into the subsystem',0,2,0.05,'Subsystems'],AIM_HULL:['Aimed hit: × into the hull',0,1.5,0.05,'Subsystems'],SPILL_SUB:['Unaimed hit: × spilt into a subsystem',0,1,0.05,'Subsystems'],
-  PX_BOLTS:['Plasma: bolts a burst',1,8,1,'Plasma'],PX_SPD:['Plasma: bolt speed × a repeater\'s',0.1,1.5,0.05,'Plasma'],PX_DMG:['Plasma: damage a second × the repeaters\'',0.3,3,0.05,'Plasma'],PX_CRIT:['Plasma: extra critical chance',0,0.6,0.01,'Plasma'],PX_RNG:['Plasma: reach × the repeaters\'',0.3,1.5,0.05,'Plasma'],
+  PX_BOLTS:['Plasma: bolts a burst',1,8,1,'Plasma'],PX_SPD:['Plasma: bolt speed × a repeater\'s',0.1,1.5,0.05,'Plasma'],PX_DMG:['Plasma: damage a second × the repeaters\'',0.3,3,0.05,'Plasma'],PX_CRIT:['Plasma: extra critical chance',0,0.6,0.01,'Plasma'],PX_SPREAD:['Plasma: scatter × the repeaters\'',0.3,4,0.05,'Plasma'],PX_RNG:['Plasma: reach × the repeaters\'',0.3,1.5,0.05,'Plasma'],
   DRIFT_SECS:['Drift: seconds',0.3,4,0.1,'Wings'],DRIFT_TURN:['Drift: line of flight turns at ×',0,1,0.05,'Wings'],DRIFT_NOSE:['Drift: nose off the line of flight (rad)',0.2,1.6,0.05,'Wings'],
   DRIFT_COAST:['Drift: braking × (it coasts)',0,1,0.05,'Wings'],DRIFT_BLEED:['Drift: top speed bled a second',0,0.5,0.01,'Wings'],DRIFT_REACH:['Drift: target within × gun range',0.5,4,0.1,'Wings'],
   DRIFT_OFF_MIN:['Drift: target at least this far off the nose (rad)',0,1.5,0.05,'Wings'],DRIFT_OFF_MAX:['Drift: and at most (rad)',0.5,3.14,0.05,'Wings'],DRIFT_VMIN:['Drift: speed over × corner speed',0.5,2,0.05,'Wings'],DRIFT_CD:['Drift: recharge (s)',2,60,1,'Wings']};
@@ -645,7 +645,7 @@ function plasmaLoadout(row,list){
   const P=PLASMA_ON[row.id];if(!P||list)return null;   // a scenario's own loadout wins
   const base=SRDB.weapons[P.from];if(!base)return null;
   const w={id:P.id,name:P.name,kind:'plasma',rng:base.range*F.RANGE_MULT_()*N.PX_RNG,skipShield:false,crit:(base.crit_chance||0)+N.PX_CRIT,needsLock:false,
-    dmg:[base.damage_min,base.damage_max],bolts:N.PX_BOLTS,boltK:F.BURST_N_()/N.PX_BOLTS*N.PX_DMG,spdK:N.PX_SPD,style:row.id==='drone-pursuer'?'hegplasma':'plasma',plasma:true};
+    dmg:[base.damage_min,base.damage_max],bolts:N.PX_BOLTS,boltK:F.BURST_N_()/N.PX_BOLTS*N.PX_DMG,spdK:N.PX_SPD,spreadK:N.PX_SPREAD,style:row.id==='drone-pursuer'?'hegplasma':'plasma',plasma:true};
   return [{key:'w0',w,ammo:undefined,cd:0}];
 }
 const cargoLeft=()=>L.subs.filter(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard).length;
@@ -673,7 +673,7 @@ function think(s){
   if(s.prop35)return thinkProp(s);
   if(s.towed35)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'under tow',hard:true});
   if(s.faction==='heg'&&s.spoof35!=null&&SIM.S.t<s.spoof35)return setB(s,{kind:'waitpt',dest:s.spoofTo,why:'following spoofed orders'});
-  if(s.role35==='freighter'){s.beh={kind:'freighter',why:L.prize?'the prize, crawling home':L.surrender?'hove to':L.disabled?'dead in space':L.engOut?'crawling on thrusters':L.alarm?'running for its jump':'on its lane'};s.assess='';return true;}
+  if(s.role35==='freighter'){s.beh={kind:'freighter',why:L.prize?(L.repair?'the prize, repairs under way':'the prize, heading home'):L.surrender?'hove to':L.disabled?'dead in space':L.engOut?'crawling on thrusters':L.alarm?'running for its jump':'on its lane'};s.assess='';return true;}
   if(s.role35==='escort'&&!L.alarm){
     const fr=FR();if(!fr||!fr.alive)return false;
     const th=fr.vh!=null?fr.vh:fr.h,side=s.side35||0;
@@ -1050,6 +1050,7 @@ function stepFreighter(fr,dt){
     const d=L.drift||(L.drift={vx:fr.vx,vy:fr.vy});d.vx+=kn.x;d.vy+=kn.y;fr.h=fr.ph;fr.w=0;const k=Math.min(1,dt*0.5);d.vx-=d.vx*k;d.vy-=d.vy*k;
     fr.x=fr.px+d.vx*dt;fr.y=fr.py+d.vy*dt;fr.vx=d.vx;fr.vy=d.vy;if(Math.hypot(d.vx,d.vy)>1)fr.vh=Math.atan2(d.vy,d.vx);return;}
   if(L.disabled){   // dead in space: the power plant's out; it drifts, the planet pulls, a knock pushes it (§3.8)
+    if(L.prize)repairTick(fr,dt);   // a prize crew works on the power plant as she drifts
     const d=L.drift||(L.drift={vx:fr.vx,vy:fr.vy});d.vx+=kn.x;d.vy+=kn.y;fr.h=fr.ph;fr.w=0;
     d.vx*=1-N.DRIFT_DECAY*dt;d.vy*=1-N.DRIFT_DECAY*dt;
     const pd=dist(fr,L.planet);
@@ -1059,10 +1060,16 @@ function stepFreighter(fr,dt){
     return;
   }
   if(L.prize){   // the prize crew flies her home: a capital ship can't turn at a crawl in the flight model, so the layer steers
-    const p=S.points.ourjump,want=Math.atan2(p.y-fr.py,p.x-fr.px),e=angNorm(want-(L.prizeH==null?(L.prizeH=Math.atan2(fr.vy,fr.vx)):L.prizeH));
-    L.prizeH=angNorm(L.prizeH+clamp(e,-N.PRIZE_TURN*dt,N.PRIZE_TURN*dt));
-    fr.vx=Math.cos(L.prizeH)*N.PRIZE_SPD;fr.vy=Math.sin(L.prizeH)*N.PRIZE_SPD;fr.vh=L.prizeH;fr.x=fr.px+fr.vx*dt;fr.y=fr.py+fr.vy*dt;fr.h=angNorm(fr.ph+clamp(angNorm(L.prizeH-fr.ph),-N.PRIZE_TURN*dt,N.PRIZE_TURN*dt));
-    if(dist(fr,p)<=F.JUMP_R_()*1.5){fr.alive=false;fr.jumped=true;fr.jumpT=S.t;L.prizeHome=true;SIM.pushEvent('fjump','The prize jumps out: the freighter is ours',{x:p.x,y:p.y,tone:'good'});}return;}
+    // at her cruise, turning like the capital ship she is; with the engines out, on her thrusters while the crew mend them
+    // (after playtest 2: the prize crew repairs what's broken, the power plant first, then the engines), easing into it;
+    // she needs her engines to jump
+    repairTick(fr,dt);
+    const p=S.points.ourjump,want=Math.atan2(p.y-fr.py,p.x-fr.px),e=angNorm(want-(L.prizeH==null?(L.prizeH=L.capH!=null?L.capH:Math.atan2(fr.vy,fr.vx)):L.prizeH)),tr=N.PRIZE_TURN*(L.engOut?N.THRUST_TURN:1)*dt;
+    L.prizeH=angNorm(L.prizeH+clamp(e,-tr,tr));
+    const v=L.cruise*(L.engOut?N.THRUST_SPD:N.PRIZE_K),k=Math.min(1,dt/N.CAP_REALIGN);
+    const pv=L.prizeV||(L.prizeV=L.capV?{x:L.capV.x,y:L.capV.y}:{x:fr.vx,y:fr.vy});pv.x+=(Math.cos(L.prizeH)*v-pv.x)*k;pv.y+=(Math.sin(L.prizeH)*v-pv.y)*k;   // her own velocity (the flight model's is overwritten)
+    fr.vx=pv.x;fr.vy=pv.y;fr.vh=Math.atan2(fr.vy,fr.vx);fr.x=fr.px+fr.vx*dt;fr.y=fr.py+fr.vy*dt;fr.h=angNorm(fr.ph+clamp(angNorm(L.prizeH-fr.ph),-tr,tr));
+    if(dist(fr,p)<=F.JUMP_R_()*1.5&&!L.engOut){fr.alive=false;fr.jumped=true;fr.jumpT=S.t;L.prizeHome=true;SIM.pushEvent('fjump','The prize jumps out: the freighter is ours',{x:p.x,y:p.y,tone:'good'});}return;}
   const p=L.lane[Math.min(L.leg,L.lane.length-1)];
   // the layer flies it (§3.8): it turns toward its waypoint at CAP_TURN, whatever the flight model's corner speed, and
   // its velocity eases back onto its heading over CAP_REALIGN, so a knock is a lurch and a slow swing back
@@ -1087,6 +1094,15 @@ function stepFreighter(fr,dt){
     SIM.pushEvent('fjump','The freighter jumped out',{x:fr.x,y:fr.y,tone:'hazard'});
     for(const e of S.ships)if(e.alive&&e.role35==='escort'&&dist(e,fr)<6000){e.alive=false;e.jumped=true;e.jumpT=S.t;}   // its escort goes with it
   }
+}
+/* the prize crew's repairs (after playtest 2): the power plant, then the engines, REPAIR_SECS each, back to REPAIR_HP */
+function repairTick(fr,dt){
+  const sb=['power','engines'].map(k=>L.subs.find(x=>x.k===k)).find(x=>x&&x.hp<=0);if(!sb){L.repair=null;return;}
+  if(!L.repair||L.repair.k!==sb.k){L.repair={k:sb.k,t0:SIM.S.t,prog:0};SIM.pushEvent('repair','The prize crew is working on the '+SUB_NAME[sb.k],{x:fr.x,y:fr.y,tone:'info'});}
+  L.repair.prog+=dt/N.REPAIR_SECS;
+  if(L.repair.prog>=1){sb.hp=Math.max(1,Math.round(sb.max*N.REPAIR_HP));L.repair=null;
+    if(sb.k==='power'){L.disabled=false;L.drift=null;L.capV=null;}else L.engOut=false;
+    const q=subWorld(fr,sb);SIM.pushEvent('repair','The prize crew has the '+SUB_NAME[sb.k]+' back',{x:q.x,y:q.y,tone:'good'});callout((sb.k==='power'?'POWER PLANT':'ENGINES')+' BACK ONLINE','good',q,{feed:false});}
 }
 /* point defence (§3.2): each turret has a facing it traverses at PD_TRAVERSE, a mount arc (the prow pair the front
    PD_ARC, the fin pair the rear), and fires only within PD_ON_TARGET of its aim. It retargets every PD_RETARGET (or
@@ -1188,7 +1204,7 @@ function dockTick(fr,dt){
     if(L.boardT0==null){L.boardT0=S.t;if(modOn(L.mods,'scuttle')){L.scuttleT=S.t+N.SCUTTLE_SECS;revealMod('scuttle','Scuttle charges: the boarders have '+N.SCUTTLE_SECS+' s');reqTrigger('scuttle',{},'once');}}
     const rate=boarders/N.BOARD35_SECS*(modOn(L.mods,'fanatical')?0.5:1)*(L.hatch?2:1);
     L.board=Math.min(1,L.board+rate*dt);
-    if(L.board>=1){L.boarded=true;L.prize=true;fr.faction='reb';fr.quiet=true;L.disabled=false;L.drift=null;L.scuttleT=null;
+    if(L.board>=1){L.boarded=true;L.prize=true;fr.faction='reb';fr.quiet=true;L.disabled=!subUp('power');if(!L.disabled)L.drift=null;L.scuttleT=null;
       for(const s of S.ships)if(s.dock35){s.dock35=null;s.dockLeg=null;s.unseen=false;s.inHangar35=false;s.thinkT=F.THINK_SECS_();}
       SIM.pushEvent('board','The freighter is ours: the prize crew is taking her home',{x:fr.x,y:fr.y,tone:'good'});callout('BOARDED · PRIZE TAKEN','good',fr,{feed:false});}
   }
@@ -1253,7 +1269,7 @@ function primaryTick(fr){
   if(done){o.state='done';o.doneT=S.t;SIM.pushEvent('objective',PRIMARIES[k].name+': done',{tone:'good',x:fr?fr.x:null,y:fr?fr.y:null});}
   else if(fail){o.state='failed';o.failT=S.t;o.failWhy=failWhy(k,fr);SIM.pushEvent('objective','Failed: '+PRIMARIES[k].name,{tone:'hazard',x:fr?fr.x:null,y:fr?fr.y:null});}
   if(o.state!=='live'){
-    if(!L.responded&&L.phase<3)setPhase(3,'The job\'s settled: get out');
+    // (Phase 3 is the response arriving, after playtest 2: a settled job only sends everyone home)
     const sr=fieldWings()[0];if(sr)decide(sr.id,o.state==='done'?'That\'s the job. Everyone home.':'We\'ve lost this one, Base. Everyone home.','home',o.state==='done'?PRIMARIES[k].name+' done':PRIMARIES[k].name+' failed: '+o.failWhy);
     for(const w of S.wings){L.exec[w.id]={k:'withdraw',arg:null};w.order={kind:'withdraw'};for(const s of F.wingShips(w)){s.dock35=null;s.thinkT=F.THINK_SECS_();}}
   }
