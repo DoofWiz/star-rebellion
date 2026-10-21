@@ -2004,7 +2004,6 @@ window.SR_ART=(function(){
   function furnishRoom(c,key,W,D,proj,ZS,o){const F=furn(c,proj,ZS),{box,wallQuad,cyl,glow,L}=F,t=o.t||0,up=new Set(o.up||[]);const items=[],posts=[],beds=[],pads=[];
     const add=(d,fn)=>items.push({d,fn});const col=RCOL[key]||C.steel;const SH=shapeOf(o.tiles,W,D),{T,has,NW,WW,mainN,mainW,centre,front}=SH;
     const cx=centre.tx*100+50,cy=centre.ty*100+50;const convs=[];const claim=()=>{for(const q of front){if(!convs.includes(q)&&!(T.length>1&&q===centre&&front.length>1&&convs.length<front.length-1&&false)){convs.push(q);return q;}}return null;};
-    const isConv=q=>convs.includes(q);
     // wall-mounted things sit on real wall runs: north runs (fy = y+1) and west runs (fx = x+1)
     const screenN=(seg,x0,x1,z0,z1,colS)=>{add(-1,()=>{const y=seg.y+1;wallQuad(x0,y,x1,y,z0,z1,'#0d1426');c.save();poly(c,[proj(x0+2,y,z0+2),proj(x1-2,y,z0+2),proj(x1-2,y,z1-2),proj(x0+2,y,z1-2)]);c.clip();for(let i=0;i<4;i++){const zz=z0+4+i*(z1-z0-8)/4;c.beginPath();const a=proj(x0+4,y,zz),b=proj(x0+4+(x1-x0-8)*(.4+.5*Math.abs(Math.sin(t*1.3+i+x0))),y,zz);c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.lineWidth=L(2);c.strokeStyle=rgba(colS,.8);c.stroke();}c.restore();});};
     const screenW=(seg,y0,y1,z0,z1,colS)=>{add(-1,()=>{const x=seg.x+1;wallQuad(x,y0,x,y1,z0,z1,'#0d1426');c.save();poly(c,[proj(x,y0+2,z0+2),proj(x,y1-2,z0+2),proj(x,y1-2,z1-2),proj(x,y0+2,z1-2)]);c.clip();const m=proj(x,(y0+y1)/2,(z0+z1)/2);circ(c,m[0],m[1],(z1-z0)*.25*ZS);c.lineWidth=L(1.4);c.strokeStyle=rgba(colS,.8);c.stroke();c.restore();});};

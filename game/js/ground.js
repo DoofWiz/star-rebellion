@@ -2516,7 +2516,6 @@ function packTurret(u){
   sTick();syncUI();
   return true;
 }
-function workDone(){return WORK.every(w=>w.done);}
 function workStep(wp,u){
   if(wp.rounds>1){
     wp.prog=(wp.prog||0)+1;wp.t=0;
@@ -4781,93 +4780,6 @@ function drawGround(){
   drawPadHex(PAD);
   for(const p of PZ)if(p.pad!==PAD)drawPadHex(p.pad);
 }
-function drawProps(){
-  /* retired: props draw in drawActors' depth sort; dead props leave kit scorch on the ground */
-  return;
-  const now=clock();
-  for(const p of PROPS){
-    const d=PROPDEF[p.kind];
-    ctx.save();ctx.translate(p.x,p.y);
-    if(p.dead){
-      // rubble — the cover it gave is gone
-      ctx.fillStyle='rgba(0,0,0,0.25)';
-      ctx.beginPath();ctx.ellipse(3,4,d.r*0.9,d.r*0.6,0,0,7);ctx.fill();
-      ctx.fillStyle='#3a3026';
-      for(let k=0;k<5;k++){
-        const a=k*1.4+p.x;
-        ctx.fillRect(Math.cos(a)*d.r*0.5-4,Math.sin(a)*d.r*0.4-3,8+k,5);
-      }
-      ctx.restore();continue;
-    }
-    ctx.fillStyle='rgba(0,0,0,0.3)';
-    ctx.beginPath();ctx.ellipse(4,5,d.r,d.r*0.7,0,0,7);ctx.fill();
-    if(p.kind==='barrel'){
-      // sealed fuel drum
-      ctx.fillStyle='#3c4048';ctx.beginPath();ctx.arc(0,0,d.r,0,7);ctx.fill();
-      ctx.strokeStyle='#1c2026';ctx.lineWidth=2;ctx.stroke();
-      ctx.strokeStyle='#ffb454';ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(0,0,d.r*0.62,0.4,2.2);ctx.stroke();
-      ctx.beginPath();ctx.arc(0,0,d.r*0.62,3.5,5.3);ctx.stroke();
-      ctx.fillStyle='#181c22';ctx.beginPath();ctx.arc(0,0,3,0,7);ctx.fill();
-    } else if(p.kind==='crate'){
-      // poly cargo crate, powered seam
-      ctx.rotate(0.12);
-      ctx.fillStyle='#39404e';ctx.fillRect(-d.r,-d.r,d.r*2,d.r*2);
-      ctx.strokeStyle='#181c24';ctx.lineWidth=2;ctx.strokeRect(-d.r,-d.r,d.r*2,d.r*2);
-      ctx.strokeStyle='rgba(87,215,226,0.35)';ctx.lineWidth=1.5;
-      ctx.strokeRect(-d.r+5,-d.r+5,d.r*2-10,d.r*2-10);
-      ctx.fillStyle='rgba(87,215,226,0.7)';
-      ctx.fillRect(-2,-d.r+2,4,4);
-    } else if(p.kind==='trough'){
-      // vehicle charge station
-      ctx.fillStyle='#2c3038';ctx.beginPath();ctx.roundRect(-d.r,-13,d.r*2,26,5);ctx.fill();
-      ctx.strokeStyle='#14181e';ctx.lineWidth=2;ctx.stroke();
-      ctx.fillStyle='#0e2434';ctx.beginPath();ctx.roundRect(-d.r+5,-8,d.r*2-10,16,3);ctx.fill();
-      for(let k=0;k<3;k++){
-        ctx.fillStyle='rgba(87,168,255,'+(0.5+0.4*Math.sin(now*0.004+k*2))+')';
-        ctx.beginPath();ctx.arc(-d.r+12+k*16,0,2.6,0,7);ctx.fill();
-      }
-    } else if(p.kind==='rock'){
-      ctx.fillStyle='#39404c';
-      ctx.beginPath();
-      for(let k=0;k<7;k++){
-        const a2=k*0.897+p.x*0.01;
-        const rr=d.r*(0.75+0.3*Math.abs(Math.sin(a2*3+p.y)));
-        const px2=Math.cos(a2)*rr,py2=Math.sin(a2)*rr*0.85;
-        k?ctx.lineTo(px2,py2):ctx.moveTo(px2,py2);
-      }
-      ctx.closePath();ctx.fill();
-      ctx.strokeStyle='#1c2028';ctx.lineWidth=2;ctx.stroke();
-      ctx.strokeStyle='rgba(140,155,175,0.3)';ctx.lineWidth=1.4;
-      ctx.beginPath();ctx.moveTo(-d.r*0.4,-d.r*0.3);ctx.lineTo(d.r*0.2,-d.r*0.5);ctx.stroke();
-    } else if(p.kind==='canister'){
-      const pul=0.55+0.45*Math.sin(now*0.006+p.x);
-      ctx.fillStyle='#6e2418';ctx.beginPath();ctx.arc(0,0,d.r,0,7);ctx.fill();
-      ctx.strokeStyle='#ff6a3c';ctx.lineWidth=2;ctx.stroke();
-      ctx.save();ctx.rotate(Math.PI/4);
-      ctx.strokeStyle='rgba(255,210,125,'+(0.5+0.4*pul)+')';ctx.lineWidth=1.6;
-      ctx.strokeRect(-4.5,-4.5,9,9);
-      ctx.restore();
-      ctx.fillStyle='rgba(255,106,60,'+(0.25*pul)+')';
-      ctx.beginPath();ctx.arc(0,0,d.r+5,0,7);ctx.fill();
-    } else { // utility truck
-      ctx.rotate(p.a||0);
-      ctx.fillStyle='#2a2c30';
-      for(const wx of [-d.r+13,d.r-13]){
-        ctx.beginPath();ctx.arc(wx,-21,8,0,7);ctx.fill();
-        ctx.beginPath();ctx.arc(wx,21,8,0,7);ctx.fill();
-      }
-      ctx.fillStyle='#4c5568';ctx.beginPath();ctx.roundRect(-d.r,-18,d.r*1.35,36,5);ctx.fill();   // bed
-      ctx.strokeStyle='#20242e';ctx.lineWidth=2;ctx.stroke();
-      ctx.fillStyle='#5a6478';ctx.beginPath();ctx.roundRect(d.r*0.38,-16,d.r*0.62,32,6);ctx.fill(); // cab
-      ctx.stroke();
-      ctx.fillStyle='rgba(159,214,255,0.55)';ctx.beginPath();ctx.roundRect(d.r*0.44,-10,8,20,2);ctx.fill();
-      ctx.strokeStyle='rgba(255,180,84,0.5)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(-d.r+6,0);ctx.lineTo(d.r*0.3,0);ctx.stroke();
-    }
-    ctx.restore();
-  }
-}
 function drawTurret(now){
   if(!turretOn())return;
   const g=turret.gunner&&U.find(x=>x.id===turret.gunner);
@@ -5019,67 +4931,6 @@ function drawBldgs(){
       }
       continue;
     }
-  }
-}
-function drawBldgsOld(){
-  for(const b of BLDGS){
-    const now=clock();
-    ctx.fillStyle='rgba(0,0,0,0.35)';
-    ctx.fillRect(b.x+8,b.y+10,b.w,b.h);
-    ctx.fillStyle='#15120e';
-    ctx.fillRect(b.x,b.y,b.w,b.h);
-    const g=ctx.createLinearGradient(b.x,b.y,b.x+b.w*0.4,b.y+b.h);
-    g.addColorStop(0,'#232028');g.addColorStop(1,'#181419');
-    ctx.fillStyle=g;
-    ctx.fillRect(b.x+5,b.y+5,b.w-10,b.h-10);
-    // corrugated sheet roofing
-    ctx.strokeStyle='rgba(0,0,0,0.45)';ctx.lineWidth=1;
-    for(let px=b.x+14;px<b.x+b.w-8;px+=11){
-      ctx.beginPath();ctx.moveTo(px,b.y+6);ctx.lineTo(px,b.y+b.h-6);ctx.stroke();
-    }
-    // a couple of patched panels
-    ctx.fillStyle='rgba(120,110,90,0.10)';
-    ctx.fillRect(b.x+b.w*0.14,b.y+b.h*0.18,b.w*0.2,b.h*0.24);
-    ctx.fillRect(b.x+b.w*0.6,b.y+b.h*0.55,b.w*0.24,b.h*0.3);
-    // solar array quarter
-    if(b.solar){
-      const sx=b.x+b.w*0.55,sy=b.y+10,sw=b.w*0.38,sh2=b.h*0.4;
-      ctx.fillStyle='#122438';ctx.fillRect(sx,sy,sw,sh2);
-      ctx.strokeStyle='rgba(87,168,255,0.35)';ctx.lineWidth=1;
-      for(let k=1;k<4;k++){ctx.beginPath();ctx.moveTo(sx+sw*k/4,sy);ctx.lineTo(sx+sw*k/4,sy+sh2);ctx.stroke();}
-      ctx.beginPath();ctx.moveTo(sx,sy+sh2/2);ctx.lineTo(sx+sw,sy+sh2/2);ctx.stroke();
-      ctx.strokeStyle='#0a1826';ctx.strokeRect(sx,sy,sw,sh2);
-    }
-    ctx.strokeStyle='#2e2a30';ctx.lineWidth=3;
-    ctx.strokeRect(b.x,b.y,b.w,b.h);
-    ctx.strokeStyle='rgba(110,100,110,0.4)';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(b.x+8,b.y+b.h/2);ctx.lineTo(b.x+b.w-8,b.y+b.h/2);ctx.stroke();
-    // comms mast on the HQ
-    if(b.mast){
-      const mx=b.x+b.w*0.82,my=b.y+b.h*0.3;
-      ctx.strokeStyle='#3a3a44';ctx.lineWidth=3;
-      ctx.beginPath();ctx.moveTo(mx-12,my+12);ctx.lineTo(mx,my-16);ctx.lineTo(mx+12,my+12);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(mx,my-16);ctx.lineTo(mx,my+8);ctx.stroke();
-      ctx.fillStyle='rgba(255,80,90,'+(0.35+0.6*(Math.sin(now*0.003)>0.4?1:0))+')';
-      ctx.beginPath();ctx.arc(mx,my-18,3,0,7);ctx.fill();
-    }
-    // window glow along the street side
-    const streetSide=b.y<800?b.y+b.h:b.y;
-    ctx.fillStyle='rgba(255,180,84,0.5)';
-    for(let px=b.x+30;px<b.x+b.w-20;px+=54){
-      ctx.beginPath();ctx.arc(px,streetSide+(b.y<800?6:-6),3,0,7);ctx.fill();
-    }
-    // cantina holo-sign, flickering
-    if(b.sign){
-      const flick=Math.sin(now*0.02)>-0.92?1:0.3;
-      ctx.fillStyle='rgba(8,12,24,0.85)';
-      ctx.beginPath();ctx.roundRect(b.x+b.w/2-74,b.y+b.h+4,148,22,4);ctx.fill();
-      ctx.strokeStyle='rgba(87,215,226,'+(0.6*flick)+')';ctx.lineWidth=1;ctx.stroke();
-      ctx.font='700 13px '+FONT.ui;ctx.textAlign='center';
-      ctx.fillStyle='rgba(125,227,236,'+(0.9*flick)+')';
-      ctx.fillText(b.name,b.x+b.w/2,b.y+b.h+20);
-    }
-    if(b.name&&!b.sign)plb(b.name,b.x+b.w/2,b.y-12,C.text2,13);
   }
 }
 function drawTowerBase(){

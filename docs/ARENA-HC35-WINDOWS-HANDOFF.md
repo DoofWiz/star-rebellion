@@ -20,7 +20,7 @@ contents as they are. The review log for all the mock-ups is `docs/ui/HUD-MOCKUP
 use**. Take **every word, number, name and rule from the game's data**, never from the picture: ChatGPT invented some
 of them (§5). Where this file and a mock-up disagree, this file wins.
 
-**Ground rules:** as `docs/ARENA-HANDOFF.md` §0. Blockers in the same commit (next free: **C-84**, **M-38**), every
+**Ground rules:** as `docs/archive/ARENA-HANDOFF.md` §0. Blockers in the same commit (next free: **C-84**, **M-38**), every
 `tools/*-smoke.js` before each commit, and High Command untouched (this is all inside `#arHc35`).
 
 ---

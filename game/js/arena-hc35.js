@@ -23,7 +23,7 @@ const newSeed=()=>((B.seed*2654435761+12345)>>>0)%1000000;
 const PANEL_W=440;   // the briefing panel's width, px (the plan view fits the room right of it)
 
 /* =====================================================================
-   Opening and closing (arena.js's picker calls these)
+   Opening and closing (the test bench, hc35-bench.js, calls these)
    ===================================================================== */
 function open(){
   HC.open({mode:'hc35',overlay:OV});
@@ -94,7 +94,7 @@ function boardHtml(){
     digHtml(hid)+'</div>'+
     '<div class="bf-plan"><button type="button" class="sr-btn sr-btn--primary sr-btn--lg" data-act="brief" data-tip="h35:plan2">Plan mission</button></div></div></aside>';
   const comms='<div class="h35-mcomms"><div class="h35-mcomms__h">'+mic('comms')+'Comms feed</div><p><em>[02:14]</em> Patrol ship reports nothing unusual.</p><p><em>[01:32]</em> Jump point in 5 minutes.</p></div>';
-  const fine='<div class="h35-mfine"><button type="button" class="sr-btn sr-btn--sm" data-act="rulesets">Change ruleset</button><span>Nothing here touches your campaign. Seed '+B.seed+'</span><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div>';
+  const fine='<div class="h35-mfine"><span>Nothing here touches your campaign. Seed '+B.seed+'</span><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div>';
   return '<div class="bf-stage h35-missions'+(B.screen==='brief'?' is-dim':'')+'">'+top+board+holo+rail+comms+fine+'</div>';
 }
 function digHtml(hid){
@@ -563,7 +563,7 @@ function debriefHtml(){
     '<div class="h35-label">Losses</div><div>'+(lost.length?lost.map(x=>esc(x.name)+' <span class="h35-fine2">('+esc(x.pod)+')</span>').join(', '):'None')+'</div>'+
     '<div class="h35-label">Time in each phase</div><div class="sr-card__meta">'+phs+'</div>'+
     '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div>'+leadersHtml()+'</div>'+
-    '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="rulesets">Back to rulesets</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
+    '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="saverec">Save flight record</button>'+
     '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
 }
@@ -1027,7 +1027,6 @@ ROOT.addEventListener('click',ev=>{
   if(a==='newopp'){B.seed=newSeed();rollAttempt();showBoard(false);return;}
   if(a==='dig'){dig();return;}
   if(a==='brief'){enterBrief();return;}
-  if(a==='rulesets'){close();API.toRulesets();return;}
   if(a==='title'){API.backToTitle();return;}
   if(a==='next'){nextStep();return;}
   if(a==='prev'){backStep();return;}

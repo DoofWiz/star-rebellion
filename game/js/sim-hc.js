@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   STAR REBELLION — Arena Type 3: High Command (docs/ARENA-HC-HANDOFF.md)
+   STAR REBELLION — Arena Type 3: High Command (docs/archive/ARENA-HC-HANDOFF.md)
    The Arena's third ruleset. The player does not fly ships: they are
    Mission Control. Ships fly themselves in real time, grouped into wings;
    the player issues each wing an order and a tactic, sets standing mission
@@ -98,10 +98,17 @@ const HC_TURN={'ft-4-cross':1.6};   // placeholder (the panel's "Cross turn ×")
 let TURN_BLEED=1.2;       // a turn at the full corner rate costs this × top speed a second. placeholder
 function turnCap(c,v){const r=v/c.vc;return v<c.vc?c.wc*r*r:c.wc/r;}
 
-/* ---------- pilots: copied from arena-sb.js presetPilot / dbPilotOf (v2's presets) ---------- */
+/* ---------- pilots: copied from arena-sb.js presetPilot / dbPilotOf ---------- */
+/* pilot quality presets (placeholder stat templates, skills 0–50 like a database pilot row): Arena v2's, moved here
+   when v2 (sim2.js) was archived (docs/MAIN-SWITCH-HANDOFF.md S0) */
+const PRESETS={
+  green:  {level:1,aim:10,cunning:10,focus:0, presence:24,initiative:2},
+  regular:{level:3,aim:20,cunning:20,focus:20,presence:30,initiative:3},
+  veteran:{level:5,aim:35,cunning:35,focus:30,presence:36,initiative:4,mans:['loop']},
+  ace:    {level:8,aim:50,cunning:50,focus:40,presence:42,initiative:5,mans:['loop']},
+};
 function presetPilot(spec,name){
   spec=spec||{};
-  const PRESETS=window.SIM2.PRESETS;
   if(spec.id&&SRDB.pilots[spec.id])return dbPilotOf(spec.id,name,spec);
   const P=Object.assign({},PRESETS[spec.preset||'regular']||PRESETS.regular,spec);
   return {preset:spec.preset||'regular',pname:name,level:P.level,skills:{aim:P.aim,cunning:P.cunning,focus:P.focus,presence:P.presence},

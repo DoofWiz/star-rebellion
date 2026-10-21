@@ -653,8 +653,6 @@ function sys35Tick(){
 }
 const sub35=(s,k)=>s.sys35&&s.sys35.find(x=>x.k===k);
 const sub35Up=(s,k)=>{const x=sub35(s,k);return !x||x.hp>0;};
-/* where a subsystem sits, in the world */
-function sub35World(s,x){const a=F.hullAxes(s).a;return {x:s.x+Math.cos(s.h)*x.x*a,y:s.y+Math.sin(s.h)*x.x*a};}
 function damageShip(t,dmg,skip,front,hit){
   let rem=dmg,sd=0,ad=0,hd=0;const zone=front?'F':'R';
   if(hit&&hit.by){const b=F.byId(hit.by);if(b&&b.faction!==t.faction)t.firedOnT=SIM.S.t;}   // a shot, not a bump

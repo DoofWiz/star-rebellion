@@ -12,6 +12,6 @@
   `python3 tools/text/text.py import <file> --dry-run`, show them the changes, then import without `--dry-run`.
   Some smoke tests check exact wording (`'STEADY'`, `'Arsenal'`, rank titles): update them to the new words, then
   run all `tools/*-smoke.js`. Act on the import's "also written at" warnings before committing.
-- **The designer's flight records** (`sr-run-….json`, saved from a High Command or Type 3.5 debrief): run
+- **The designer's flight records** (`sr-run-….json`, saved from a Type 3.5 debrief on the test bench, `game/index.html?dev#arena`): run
   `node tools/run-report.js <file>` for the report (`--at m:ss`, `--ship`, `--wing`, `--objective`, `--json` to dig).
   Bump `SIM_VERSION` in `sim-hc.js` / `sim-hc35.js` in any commit that changes how the sim plays.

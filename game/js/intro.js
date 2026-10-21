@@ -305,12 +305,12 @@ window.SR_INTRO=(function(){
     el.id='splash';
     el.innerHTML='<canvas></canvas><div class="splash__ui">'+
       '<button type="button" class="sr-btn sr-btn--primary sr-btn--lg" id="splashStart">Start game</button>'+
-      (onArenaCb?'<button type="button" class="sr-btn sr-btn--sm splash__tool" id="splashArena">Enter Arena</button>':'')+'</div>';
+      (onArenaCb?'<button type="button" class="sr-btn sr-btn--sm splash__tool" id="splashArena">Test bench</button>':'')+'</div>';
     document.body.appendChild(el);
     cv=el.querySelector('canvas');c2=cv.getContext('2d');
     try{const sv=SR.loadSave();if(sv&&sv.started)el.querySelector('#splashStart').textContent='Continue';}catch(e){}
     el.querySelector('#splashStart').addEventListener('click',start);
-    const ab=el.querySelector('#splashArena');   // the Arena: a designer's tool, styled as one (docs/ARENA-HANDOFF.md §2.1)
+    const ab=el.querySelector('#splashArena');   // the Type 3.5 test bench, with ?dev only: a designer's tool, styled as one
     if(ab)ab.addEventListener('click',()=>{onStartCb=onArenaCb;start();});
     el.addEventListener('pointerdown',ev=>{   // a tap skips the developer's mark; a second slams the badge home early
       if(ready||ev.target.id==='splashStart'||ev.target.id==='splashArena')return;

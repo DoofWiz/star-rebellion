@@ -188,8 +188,10 @@ window.SR=(function(){
     requestAnimationFrame(frame);
   }
   function boot(){setup();go('base',{boot:true});}
-  /* the Arena (docs/ARENA-HANDOFF.md §2.1): the same scene setup, straight into the lab; the base and its save are never entered */
-  function bootArena(){setup();go('arena',{});}
+  /* development tools (docs/MAIN-SWITCH-HANDOFF.md S0): ?dev in the URL. Players never see them */
+  const dev=typeof location!=="undefined"&&/[?&]dev(=|&|$)/.test(location.search);
+  /* the Type 3.5 test bench (hc35-bench.js), dev only: the same scene setup, straight into the bench; the base and its save are never entered */
+  function bootArena(){if(!dev){boot();return;}setup();go('arena',{});}
   /* ---------- shared briefing furniture ----------
      Every scene builds its mission-brief objectives and squad cards
      through these, so the player sees one consistent language. */
@@ -232,7 +234,7 @@ window.SR=(function(){
   };
   /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,bootArena,endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,bootArena,get dev(){return dev;},endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

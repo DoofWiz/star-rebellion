@@ -379,61 +379,8 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </div>
 </div>
 </div>
+<!-- the Type 3.5 test bench (hc35-bench.js, dev only: ?dev#arena). Arena v2, SB Test and Type 3's picker are archived (archive/README.md) -->
 <div class="scene sr-app sr-root" id="sc-arena" hidden>
-<div class="sr-shell ar-shell">
-  <header class="sr-topbar">
-    <div class="sr-topbar__id">
-      <div class="sr-topbar__title">Arena</div>
-      <div class="sr-topbar__sub" id="arScen">Pick a scenario</div>
-    </div>
-    <div class="sr-topbar__mid"><div class="ar-status" id="arStatus" aria-live="polite"></div></div>
-    <div class="sr-topbar__tools">
-      <button class="sr-btn sr-btn--primary" id="arGo" disabled>Execute</button>
-      <button class="sr-btn" id="arPause" disabled>Pause</button>
-      <button class="sr-btn sr-btn--icon" id="arDockBtn" aria-label="Designer panel"><svg class="sr-ico" aria-hidden="true"><use href="#i-debug"/></svg></button>
-      <button class="sr-btn sr-btn--icon" id="arMenuBtn" aria-label="Menu"><svg class="sr-ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
-    </div>
-    <div class="sr-menu" id="arMenu" role="menu" hidden></div>
-  </header>
-  <div class="sr-stage" id="arStage">
-    <canvas id="arCv"></canvas>
-    <div class="ar-ship" id="arShip" hidden></div>
-    <div class="ar-int" id="arInt" hidden></div>
-    <div class="ar-toast" id="arToast" hidden></div>
-  </div>
-  <aside class="sr-rail ar-dock"><div class="sr-rail__scroll" id="arPanel"></div></aside>
-</div>
-<div class="sr-scrim" id="arPicker" hidden>
-  <div class="sr-window sr-window--lg">
-    <div class="sr-window__head"><div class="sr-window__title" id="arRulesetTitle">Arena: pick a ruleset</div></div>
-    <div class="sr-window__body"><div id="arRulesets"></div><div id="arScnStep" hidden><div id="arScnList"></div></div></div>
-    <div class="sr-window__foot"><span class="sr-window__note" id="arTuneNow"></span></div>
-  </div>
-</div>
-<div class="arn-root" id="arSb" hidden>
-<div class="arn-shell">
-  <header class="arn-top">
-    <div><div class="arn-top__title" id="sbTitle">SB Test</div><div class="arn-top__sub" id="sbSub"></div></div>
-    <div class="arn-top__mid"><span class="arn-phase" id="sbPhase" data-phase="PICK">Pick</span><span class="arn-chip" id="sbTurn"></span><span class="arn-chip" id="sbObj"></span></div>
-    <button type="button" class="sr-btn sr-btn--sm" id="sbFit">Fit map</button>
-  </header>
-  <div class="arn-body">
-    <div class="arn-stage">
-      <canvas id="sbCv"></canvas>
-      <div class="arn-tray" id="sbTray" hidden></div>
-      <div class="arn-tip" id="sbTip" role="tooltip" hidden></div>
-      <div class="arn-shipchips" id="sbChips"></div>
-      <button type="button" class="sr-btn sr-btn--primary arn-go" id="sbGo" hidden>Execute</button>
-      <div class="arn-scrim" id="sbPicker" hidden></div>
-      <div class="arn-scrim" id="sbEnd" hidden></div>
-    </div>
-    <aside class="arn-panel" id="sbPanel">
-      <div class="arn-panel__head"><button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" id="sbPanelToggle" aria-label="Designer panel" aria-expanded="true">&#9776;</button><span class="arn-panel__title">Designer panel</span></div>
-      <div class="arn-panel__scroll" id="sbPanelBody"></div>
-    </aside>
-  </div>
-</div>
-</div>
 <div class="hc-root sr-root" id="arHc" hidden>
 <div class="hc-shell">
   <div class="hc-stage" id="hcStage">
@@ -443,38 +390,17 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
       <div class="hc-clockbox"><div class="hc-clock" id="hcClock">4:00</div><div class="hc-time" id="hcTime"></div><div class="hc-banner" id="hcBanner" hidden>PAUSED &#8212; ISSUING ORDERS</div></div>
     </div>
     <div class="hc-feed" id="hcFeed" aria-live="polite"></div>
-    <div class="hc-tray" id="hcTray" hidden></div>
     <div class="hc-pilot" id="hcPilot" hidden></div>
     <div class="hc-cmds" id="hcCmds" hidden><div class="hc-cmds__top"><span class="hc-cmds__title">Commands</span><div class="hc-cp" id="hcCp"></div></div><div id="hcCmdsBody"></div></div>
-    <div class="hc-wheel" id="hcWheel" hidden></div>
     <div class="hc-roster" id="hcRoster" hidden></div>
     <div class="hc-tip" id="hcTip" role="tooltip" hidden></div>
     <div class="hc-toast" id="hcToast" hidden></div>
-    <div class="hc-scrim" id="hcPicker" hidden></div>
     <div class="hc-scrim" id="hcEnd" hidden></div>
   </div>
   <aside class="hc-panel" id="hcPanel">
     <div class="hc-panel__head"><button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" id="hcPanelToggle" aria-label="Designer panel" aria-expanded="true">&#9776;</button><span class="hc-panel__title">Designer panel</span></div>
     <div class="hc-panel__scroll" id="hcPanelBody"></div>
   </aside>
-</div>
-</div>
-<div class="sr-scrim" id="arOver" hidden>
-  <div class="sr-window sr-window--sm">
-    <div class="sr-window__head"><div class="sr-window__title ar-over__title">&#8212;</div></div>
-    <div class="sr-window__body"><p class="ar-over__text"></p></div>
-    <div class="sr-window__foot"><span class="sr-spacer"></span>
-      <button class="sr-btn sr-btn--sm" data-ob="picker">Picker</button>
-      <button class="sr-btn sr-btn--sm" data-ob="new">New seed</button>
-      <button class="sr-btn sr-btn--sm sr-btn--primary" data-ob="same">Same seed</button></div>
-  </div>
-</div>
-<div class="sr-scrim" id="arDump" hidden>
-  <div class="sr-window">
-    <div class="sr-window__head"><div class="sr-window__title">Metrics (this session)</div></div>
-    <div class="sr-window__body"><textarea class="ar-dump" readonly></textarea></div>
-    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--sm" data-close>Close</button></div>
-  </div>
 </div>
 </div>
 <script src="ui/sr-theme.js"></script>
@@ -495,22 +421,20 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 <script src="js/prologue.js"></script>
 <script src="js/base.js"></script>
 <script src="js/space.js"></script>
-<script src="js/sim2.js"></script>
-<script src="js/sim-sb.js"></script>
 <script src="js/det-math.js"></script>
 <script src="js/sim-hc.js"></script>
-<script src="js/arena.js"></script>
-<script src="js/arena-sb.js"></script>
 <script src="js/arena-hc.js"></script>
 <script src="js/ops-core.js"></script>
 <script src="js/sim-hc35.js"></script>
 <script src="js/arena-hc35.js"></script>
 <script src="js/flight-rec.js"></script>
+<script src="js/hc35-bench.js"></script>
 <script src="js/ground.js"></script>
 <script src="js/intro.js"></script>
 <script>
-// the harnesses boot straight into the game; players get the title screen first. #arena boots the Arena (a test environment)
-if(location.hash==='#arena')SR.bootArena();
+// the harnesses boot straight into the game; players get the title screen first. With ?dev, #arena (or the title's
+// Test bench button) opens the Type 3.5 test bench, a development tool; without it, neither exists
+if(SR.dev&&location.hash==='#arena')SR.bootArena();
 else if(location.hash==='#test'||location.hash==='#deploy')SR.boot();
-else SR_INTRO.show(()=>SR.boot(),()=>SR.bootArena());
+else SR_INTRO.show(()=>SR.boot(),SR.dev?()=>SR.bootArena():null);
 </script>

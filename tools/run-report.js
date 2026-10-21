@@ -16,7 +16,7 @@
    ===================================================================== */
 const vm=require('vm'),fs=require('fs'),path=require('path');
 const GAME=path.join(__dirname,'..','game');
-const FILES=['ui/sr-theme.js','art/sr-art.js','data/db.js','js/data.js','js/items.js','js/enemies.js','js/core.js','js/rebel.js','js/sim2.js',
+const FILES=['ui/sr-theme.js','art/sr-art.js','data/db.js','js/data.js','js/items.js','js/enemies.js','js/core.js','js/rebel.js',
   'js/det-math.js','js/sim-hc.js','js/ops-core.js','js/sim-hc35.js','js/flight-rec.js'];
 
 /* ---------- the sim, headless: a window with no DOM ---------- */

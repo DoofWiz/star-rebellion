@@ -2,8 +2,8 @@
 
 **For:** Claude Code in `DoofWiz/star-rebellion`, on the **`space-combat-testing`** branch.
 **Save as** `docs/ARENA-HC35-HANDOFF.md`.
-**Read first, in order:** `docs/ARENA-HANDOFF.md` §0 (the Arena ground rules), `docs/ARENA-HC-HANDOFF.md` (Type 3,
-which this builds on), `docs/ARENA-HC-FEEDBACK-1.md` to `-4.md` (what the designer has already tuned in Type 3), and
+**Read first, in order:** `docs/archive/ARENA-HANDOFF.md` §0 (the Arena ground rules), `docs/archive/ARENA-HC-HANDOFF.md` (Type 3,
+which this builds on), `docs/archive/ARENA-HC-FEEDBACK-1.md` to `-4.md` (what the designer has already tuned in Type 3), and
 `docs/art/HC-VFX-HANDOFF.md` (the space FX module this reuses).
 
 **Design sources:**
@@ -33,7 +33,7 @@ modifiers, objectives, powers, requests, debrief, metrics and tests. It does not
 
 ## 0. Ground rules
 
-Everything in `docs/ARENA-HANDOFF.md` §0 applies: blockers in the same commit (next free ids: **C-75** on, **M-36**
+Everything in `docs/archive/ARENA-HANDOFF.md` §0 applies: blockers in the same commit (next free ids: **C-75** on, **M-36**
 on), no `G` changes, never the campaign save, designer-facing text in plain words, placeholders as named
 getter-exposed constants on the designer panel, every `tools/*-smoke.js` before each commit. Additions:
 

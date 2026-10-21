@@ -628,8 +628,6 @@ function healRate(p,tb,rh){
   const doc=(tb||treatedBy())[p.id],phys=(rh||inRehab())[p.id];
   return base*(1+(doc?SP.scale(doc.level,RU.treatment_min,RU.treatment_max):0)+(phys?RU.rehab_bonus:0))+room;
 }
-/* under a Doctor's Treatment today (Critical Condition only heals then) */
-const underTreatment=(p,tb)=>!!(tb||treatedBy())[p.id];
 /* off duty (laid up), and how many days until they are back at today's rate */
 const laidUp=p=>Rebel.laidUp(p)>0;
 const outDays=p=>Math.ceil(Rebel.laidUp(p)/healRate(p));
@@ -8998,7 +8996,6 @@ function plAutoFill(){
   }
 }
 const shipAvatar=(extra,f)=>{const u=f&&shipTopURL(f,48,48,1.15);return '<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>';};
-const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+faceHTML(p)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
 const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';

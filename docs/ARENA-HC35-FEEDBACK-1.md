@@ -2,7 +2,7 @@
 
 **For:** Claude Code in `DoofWiz/star-rebellion`, on `space-combat-testing` (after `4389f30`, Type 3.5 P6).
 **Save as** `docs/ARENA-HC35-FEEDBACK-1.md`.
-**Read first:** `docs/ARENA-HC35-HANDOFF.md` (what 3.5 is), and `docs/ARENA-HC-FEEDBACK-1.md` to `-4.md` (how
+**Read first:** `docs/ARENA-HC35-HANDOFF.md` (what 3.5 is), and `docs/archive/ARENA-HC-FEEDBACK-1.md` to `-4.md` (how
 earlier playtest notes were handled).
 **Status:** designed by Claude Chat from the designer's notes; build phases K0 to K6 now. **K7, the HUD layout pass,
 waits for the designer's mock-ups.** Don't start it, and don't rearrange the HUD beyond what K0 to K6 say.

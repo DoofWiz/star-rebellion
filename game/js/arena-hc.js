@@ -1,28 +1,20 @@
 'use strict';
 /* =====================================================================
-   STAR REBELLION — Arena Type 3: High Command, the HUD (docs/ARENA-HC-HANDOFF.md §3)
-   The Arena's third ruleset. game/js/arena.js owns the scene, the title route and
-   the ruleset picker; choosing "Type 3: High Command" there hands the scene to this
-   file, which drives game/js/sim-hc.js in real time and draws the approved High
-   Command HUD on the game's own kit (sr-theme "Chunky Ops"):
+   STAR REBELLION — High Command's renderer and HUD (docs/archive/ARENA-HC-HANDOFF.md §3), hosting Type 3.5
+   It drives game/js/sim-hc.js in real time and draws the map and the HUD on the game's own kit (sr-theme
+   "Chunky Ops"): the objectives and rules (top left), the clock (top centre), the event feed with VIEW (left
+   rail), the wing roster with a camera tile per ship (bottom), the time controls (bottom right), the pilot panel,
+   and the map. Type 3.5 (arena-hc35.js) is its only mode now: its overlay supplies the objectives, the clock, the
+   powers bar and the pilot panel's body, and steers the map through the hooks marked "Type 3.5".
+   Type 3 as a playable ruleset (its scenarios, the order tray and wheel, the commands drawer, the rules picker,
+   its end card and metrics) was archived in the switch to main (docs/MAIN-SWITCH-HANDOFF.md S0): the whole file
+   as it was is archive/arena/arena-hc.js. The test bench (hc35-bench.js) owns the scene, behind ?dev.
 
-     top left    objectives, with the standing mission rules nested under them
-     top centre  the reinforcement clock (the loudest status), PAUSED under it
-     top right   command points and the COMMANDS button (the screen's one gold primary)
-     left rail   the event feed, each entry with VIEW
-     bottom      the wing roster: a header per wing, a camera tile per ship
-     bottom right time controls (pause / slow / play / fast · event focus / follow)
-     the map     your ships rebel red with read-only intent lines, theirs Hegemony blue,
-                 the selected wing's engagement ring, the attack designation in gold
-   plus the wing command tray (left), the pilot panel and the commands drawer.
-
-   The Arena's ground rules hold: designer-facing text in plain words, nothing here
-   calls newGame(), saveSnap(), persist() or SR.endMission(), nothing touches G.
+   Nothing here calls newGame(), saveSnap(), persist() or SR.endMission(), nothing touches G.
    ===================================================================== */
 (function(){
 const ROOT=document.getElementById('arHc');
 if(!ROOT||!window.SIMHC)return;
-const SCENE=document.getElementById('sc-arena');
 const byId=SR.util.scoped(ROOT);
 const TH=SR.theme,C=TH.C;
 const SA=window.SR_ART;
@@ -30,86 +22,8 @@ const SIM=window.SIMHC;
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const PREFS_KEY='sr-arena-hc-prefs';   // High Command's own key; never the campaign's
 
-/* =====================================================================
-   Scenarios (§6): registry entries in arena.js's ARENA_SCENARIOS, allowlisted to this ruleset
-   (rulesets:['hc'] keeps them off the v2 and SB lists). Map 8400 × 6000 (HC_MAP 2).
-   wings:   [{id, name, at:[x,y,h], order:{kind,target}, tactic, leader, ships:[{cls, name, pilot, marines}]}]
-   allies:  quiet friendlies the player can't command (Convoy Lark): [{id, name, cls, at, role:'convoy', to}]
-   enemies: [{type, n, id, name, label, at, role:'patrol'|'guard'|'hunt', asset, stats, flagship}]
-   station: on a structure entry (enemy or ally), its art in SR_ART.STATIONS ('relay' | 'lastlight' | 'reactor'); the
-            entry's id when it has none, and the flat octagon when neither is art (C-73)
-   points:  named places: {jump:{x,y,label}, sat:{x,y,label,capture:true}}
-   objectives: [{id, kind:'destroy'|'escort'|'capture'|'protect'|'board', text, primary, cpReward, …}]
-   reinforce: {secs, edge, force:[enemy entries]}   always on (§2.1)
-   jam:     {point, by}: the point can't be jumped from while `by` stands
-   rules:   the standing mission rules it starts with (§4.3); cp: the command point pool (§4.4)
-   ===================================================================== */
-const ROCKS_NIGHTFALL=[{x:3000,y:2900,r:120},{x:3220,y:3120,r:85},{x:4800,y:2350,r:140},{x:6400,y:3050,r:110},{x:2500,y:1500,r:100},{x:6900,y:4700,r:130},{x:4100,y:4700,r:95}];
-const HC_SCENARIOS=[
-  {id:'hc1_nightfall',title:'HC1: Nightfall',rulesets:['hc'],
-    desc:'The canvas mission. Dagger (3) and Amber (2) see Convoy Lark to the jump point; Relay K-7 jams it until it falls. Optional: capture the satellite. Hegemony reinforcements in 4:00. Does mission command feel like gameplay?',
-    rocks:ROCKS_NIGHTFALL,
-    wings:[
-      {id:'dagger',name:'Dagger',at:[1100,2350,0],order:{kind:'attack',target:{type:'obj',id:'relay'}},tactic:'auto',
-        ships:[{cls:'talon',name:'Joss',pilot:{id:'joss-marrek'}},{cls:'talon',name:'Wren',pilot:{preset:'regular'}},{cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
-      {id:'amber',name:'Amber',at:[950,3750,0],order:{kind:'escort',target:{type:'ship',id:'lark'}},tactic:'auto',
-        ships:[{cls:'cross',name:'Sera',pilot:{id:'sera-kest'}},{cls:'cross',name:'Kit',pilot:{preset:'green'}}]}],
-    allies:[{id:'lark',name:'Convoy Lark',cls:'graf',at:[700,3450,0],role:'convoy',to:'jump',stats:{hull:80,arm:20}}],
-    enemies:[
-      {type:'fuel-depot',id:'relay',station:'relay',name:'Relay K-7',label:'Relay K-7',at:[5800,1600,0],stats:{hull:200,arm:30}},
-      {type:'vc-mote-patrol',n:2,name:'Guard',role:'guard',asset:'relay',at:[5550,1900,Math.PI]},
-      {type:'vc-mote-patrol',n:2,name:'Patrol',role:'patrol',at:[4700,4300,Math.PI]}],
-    points:{jump:{x:7500,y:3900,label:'Jump point'},sat:{x:3400,y:1000,label:'Satellite',capture:true}},
-    jam:{point:'jump',by:'relay'},extract:'jump',
-    objectives:[
-      {id:'convoy',kind:'escort',ship:'lark',text:'Get Convoy Lark to the jump point',primary:true},
-      {id:'relay',kind:'destroy',targets:['relay'],text:'Destroy Relay K-7 (it jams the jump point)',primary:true,at:{x:5800,y:1600}},
-      {id:'sat',kind:'capture',point:'sat',text:'Capture the satellite (optional)',cpReward:1,at:{x:3400,y:1000}}],
-    reinforce:{secs:240,edge:'E',force:[{type:'academy-commandant',n:1,name:'Vex'},{type:'vc-mote-patrol',n:3,name:'Strike'},{type:'drone-pursuer',n:2,name:'Pursuer'}]},
-    rules:[],cp:5},
-  {id:'hc2_lastlight',title:'HC2: Last Light',rulesets:['hc'],
-    desc:'Defend: Ember (3) and Ash (2) keep Lastlight station standing through three raiding waves until the evacuation clock runs out, then get out west. Starts with Guardian Directive. Tests Defend, Hold and the rules.',
-    rocks:[{x:3300,y:2100,r:110},{x:5200,y:3900,r:120},{x:4900,y:1900,r:90},{x:3000,y:4100,r:100}],
-    wings:[
-      {id:'ember',name:'Ember',at:[3500,2500,0],order:{kind:'defend',target:{type:'ship',id:'lastlight'}},tactic:'auto',
-        ships:[{cls:'talon',name:'Rook',pilot:{preset:'veteran'}},{cls:'talon',name:'Vale',pilot:{preset:'regular'}},{cls:'talon',name:'Jory',pilot:{preset:'regular'}}]},
-      {id:'ash',name:'Ash',at:[3500,3500,0],order:{kind:'hold'},tactic:'auto',
-        ships:[{cls:'cross',name:'Mara',pilot:{preset:'regular'}},{cls:'cross',name:'Tamsin',pilot:{preset:'green'}}]}],
-    allies:[{id:'lastlight',station:'lastlight',name:'Lastlight',label:'Lastlight Station',cls:'fuel-depot',at:[4200,3000,0],stats:{hull:300,arm:40}}],
-    enemies:[],
-    waves:[
-      {at:20,edge:'E',force:[{type:'vc-mote-patrol',n:3,name:'Raider',role:'raid'}],text:'Wave one: raiders from the east'},
-      {at:75,edge:'N',force:[{type:'vc-mote-patrol',n:2,name:'Raider',role:'raid'},{type:'drone-pursuer',n:2,name:'Pursuer'}],text:'Wave two: raiders and drones from the north'},
-      {at:130,edge:'S',force:[{type:'vc-mote-patrol',n:3,name:'Raider',role:'raid'},{type:'drone-pursuer',n:1,name:'Pursuer'}],text:'Wave three: from the south'}],
-    points:{jump:{x:800,y:3000,label:'Jump point'}},extract:'jump',
-    objectives:[{id:'hold',kind:'protect',ship:'lastlight',text:'Keep Lastlight standing until the evacuation clock runs out',primary:true}],
-    reinforce:{secs:180,edge:'E',force:[{type:'academy-commandant',n:1,name:'Vex'},{type:'vc-mote-patrol',n:4,name:'Strike'},{type:'drone-pursuer',n:2,name:'Pursuer'}]},
-    rules:[{rule:'guardian',scope:'all'}],cp:4},
-  {id:'hc3_meltdown',title:'HC3: Meltdown',rulesets:['hc'],
-    desc:'Two wings of four against Commandant Vex\'s group. Board the reactor platform with Hammer\'s marines, bring Vex down (Bring It Down is standing), or Abort: the honourable out. Variants: 3 or 7 command points. Does the command economy carry the drama?',
-    rocks:[{x:3600,y:2300,r:130},{x:4300,y:3900,r:110},{x:5200,y:2700,r:95},{x:2800,y:3300,r:90},{x:5600,y:4300,r:120}],
-    wings:[
-      {id:'hammer',name:'Hammer',at:[1300,2300,0],order:{kind:'regroup'},tactic:'auto',
-        ships:[{cls:'graf',name:'Anvil',marines:true,pilot:{preset:'regular'},stats:{hull:70,arm:20}},{cls:'graf',name:'Forge',marines:true,pilot:{preset:'green'},stats:{hull:70,arm:20}},
-          {cls:'talon',name:'Pike',pilot:{preset:'veteran'}},{cls:'talon',name:'Brand',pilot:{preset:'regular'}}]},
-      {id:'lance',name:'Lance',at:[1300,3700,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'auto',
-        ships:[{cls:'talon',name:'Sable',pilot:{preset:'ace'}},{cls:'cross',name:'Corin',pilot:{preset:'veteran'}},{cls:'cross',name:'Wick',pilot:{preset:'regular'}},{cls:'talon',name:'Isla',pilot:{preset:'green'}}]}],
-    enemies:[
-      {type:'fuel-depot',id:'reactor',station:'reactor',name:'Reactor Platform',label:'Reactor Platform',at:[6600,3000,0],stats:{hull:260,arm:40}},
-      {type:'academy-commandant',id:'vex',name:'Vex',label:'Commandant Vex',at:[6000,3000,Math.PI],role:'guard',asset:'reactor',flagship:true,stats:{hull:120,arm:20}},
-      {type:'vc-mote-patrol',n:4,name:'Escort',role:'guard',asset:'reactor',at:[5800,2600,Math.PI]},
-      {type:'drone-pursuer',n:2,name:'Pursuer',role:'patrol',at:[4600,3300,Math.PI]}],
-    points:{jump:{x:700,y:3000,label:'Jump point'}},extract:'jump',
-    objectives:[
-      {id:'board',kind:'board',station:'reactor',text:'Board the reactor platform (Hammer\'s marines)',primary:true,at:{x:6600,y:3000}},
-      {id:'vex',kind:'destroy',targets:['vex'],text:'Bring down Commandant Vex',primary:true,cpReward:1,at:{x:6000,y:3000}}],
-    reinforce:{secs:210,edge:'E',force:[{type:'vc-mote-patrol',n:4,name:'Strike'},{type:'drone-pursuer',n:3,name:'Pursuer'}]},
-    rules:[{rule:'bringdown',scope:'all'}],cp:5,
-    variants:[{label:'CP 5'},{label:'CP 3',cp:3},{label:'CP 7',cp:7}]},
-];
-const REG=window.SR_ARENA_SCENARIOS||[];
-for(const s of HC_SCENARIOS)if(!REG.some(x=>x.id===s.id))REG.push(s);
-const scenarios=()=>REG.filter(s=>s.rulesets&&s.rulesets.includes('hc'));
+/* the scenarios High Command builds: Type 3.5's plan compiler registers each one (loadScenario) */
+const REG=[];
 
 /* ---------- state: one object, rebuilt per scenario ---------- */
 const A={active:false,phase:'PICK',scen:null,variant:0,seed:1,speed:2,lastSpeed:2,acc:0,lastFrame:0,
@@ -811,12 +725,11 @@ function setSpeed(i){
 function togglePause(){if(SIM.TIMESCALES[A.speed]===0)setSpeed(A.lastSpeed||2);else setSpeed(0);}
 
 /* =====================================================================
-   Loading, the picker, the end card
+   Loading and the end (the overlay owns the board and the debrief)
    ===================================================================== */
 function load(id,variant,seed){
   const scn=REG.find(s=>s.id===id);
   if(!scn)throw new Error('Unknown arena scenario '+id);
-  if(!scn.rulesets||!(scn.rulesets.includes('hc')||A.mode&&scn.rulesets.includes(A.mode)))throw new Error(id+' does not run under High Command');
   if(!A.active)openUi();
   if(A.phase==='LIVE')record();   // the one being left counts as abandoned
   A.scen=scn;A.variant=variant||0;if(seed!=null)A.seed=seed>>>0;
@@ -824,51 +737,18 @@ function load(id,variant,seed){
   makeStars();fxReset();
   bubbles=[];barkSeen=0;badges=[];badgeSeen.clear();
   A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
-  A.sel=null;A.group=null;A.box=null;A.selShip=null;A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.camHeld=false;closeWheel();
-  A.cmdFor=null;A.cmdArm=null;A.abortArm=false;
+  A.sel=null;A.group=null;A.box=null;A.selShip=null;A.panel=null;A.camHeld=false;
   A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
-  byId('hcPicker').hidden=true;byId('hcEnd').hidden=true;
+  byId('hcEnd').hidden=true;
   fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
   return SIM.S;
 }
 /* a scenario built elsewhere (Type 3.5's plan compiler): registered under its id, replacing an older build */
 function loadScenario(obj,seed){const i=REG.findIndex(x=>x.id===obj.id);if(i>=0)REG[i]=obj;else REG.push(obj);return load(obj.id,0,seed);}
-function restart(same){if(A.ov&&A.ov.restart){A.ov.restart(same);return;}if(!A.scen)return;load(A.scen.id,A.variant,same?A.seed:((A.seed*2654435761+12345)>>>0)%1000000);}
-function showPicker(){
-  if(A.ov&&A.ov.home){A.ov.home();return;}
-  if(!A.active)openUi();
-  if(A.phase==='LIVE')record();
-  A.phase='PICK';closeAll();
-  let h='<div class="hc-win"><h2 class="sr-display">Type 3: High Command</h2><p>Mission Control: your wings fly themselves. Order them, set their tactics and standing rules, spend command points. Pause is free. Seed '+A.seed+'.</p><div class="hc-pick">';
-  for(const s of scenarios()){
-    h+='<div class="hc-pick__item" data-scen="'+esc(s.id)+'"><div class="hc-pick__txt"><div class="hc-pick__name">'+esc(s.title)+'</div><div class="hc-pick__desc">'+esc(s.desc||'')+'</div></div><div class="hc-pick__go">';
-    if(s.variants&&s.variants.length)s.variants.forEach((v,i)=>{h+='<button type="button" class="sr-btn sr-btn--sm" data-load="'+esc(s.id)+'" data-variant="'+i+'">'+esc(v.label)+'</button>';});
-    else h+='<button type="button" class="sr-btn sr-btn--sm" data-load="'+esc(s.id)+'">Fly</button>';
-    h+='</div></div>';
-  }
-  h+='</div><div class="hc-fine"><button type="button" class="sr-btn sr-btn--sm" data-act="rulesets">Change ruleset</button> Nothing here touches your campaign. <button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
-  const el=byId('hcPicker');el.innerHTML=h;el.hidden=false;byId('hcEnd').hidden=true;
-  syncHud(true);
-}
-byId('hcPicker').addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b)return;
-  if(b.dataset.load)load(b.dataset.load,b.dataset.variant!=null?+b.dataset.variant:0);
-  else if(b.dataset.act==='rulesets')toRulesets();
-  else if(b.dataset.act==='title')backToTitle();
-});
-function onOver(){
-  if(A.ov&&A.ov.onOver){A.phase='OVER';A.ov.onOver();syncHud(true);return;}
-  A.phase='OVER';record();
-  const o=SIM.S.over;
-  const el=byId('hcEnd');
-  el.innerHTML='<div class="hc-win"><h2 class="sr-display">'+esc(o.why)+'</h2><p>'+esc(A.scen.title)+' · '+fmtClock(SIM.S.t)+' flown · '+o.lost+' lost, '+o.jumped+' jumped out · seed '+A.seed+'</p>'+
-    '<div class="hc-btns"><button type="button" class="sr-btn" data-act="same">Restart (same seed)</button><button type="button" class="sr-btn" data-act="new">Restart (new seed)</button>'+
-    '<button type="button" class="sr-btn" data-act="dump">Dump metrics</button><button type="button" class="sr-btn" data-act="saverec">Save flight record</button><button type="button" class="sr-btn sr-btn--ghost" data-act="picker">HC scenarios</button></div></div>';
-  el.hidden=false;
-  syncHud(true);
-}
+function restart(same){A.ov.restart(same);}
+function showPicker(){A.ov.home();}
+function onOver(){A.phase='OVER';A.ov.onOver();syncHud(true);}
 byId('hcEnd').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(b.dataset.act==='closewin'){byId('hcEnd').hidden=true;return;}panelAct(b.dataset.act);});
-function toRulesets(){closeUi();if(window.SR_ARENA_PICKER)window.SR_ARENA_PICKER();}
 function backToTitle(){try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}location.reload();}
 const fmtClock=t=>{t=Math.max(0,Math.ceil(t-1e-9));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
 
@@ -938,75 +818,14 @@ const TIME_BTNS=[{k:'pause',name:'Pause',line:'Stop the clock. Orders, tactics, 
 /* =====================================================================
    The HUD
    ===================================================================== */
-/* top left: the objectives, with the mission rules nested under them */
-function objHtml(){
-  const S=SIM.S;
-  let h='<div class="hc-obj__head">Objectives</div><ul class="hc-obj__list">';
-  for(const o of S.objectives)h+='<li class="hc-obj__item is-'+o.state+(o.primary?' is-primary':'')+'"><i></i><span>'+esc(o.text)+'</span></li>';
-  h+='</ul>';
-  const J=SIM.jumpOutState();
-  if(J){
-    h+='<div class="hc-jump"><div class="hc-jump__head">'+(J.why==='complete'?'OBJECTIVES COMPLETE':'GET OUT')+'</div>';
-    if(J.started)h+='<div class="hc-jump__prog">Jumping out: '+J.away+' of '+J.of+' away</div>';
-    else h+='<button type="button" class="sr-btn sr-btn--primary hc-jump__go" data-act="jumpout"'+(J.jammed?' aria-disabled="true" data-why="The jump point is jammed"':'')+'>ALL WINGS: JUMP OUT</button>'+
-      (J.jammed?'<div class="hc-jump__prog is-bad">The jump point is jammed</div>':'');
-    h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost hc-jump__leave" data-act="leavenow" data-tip="leave">Leave now'+(J.left?' ('+J.left+' left behind)':'')+'</button></div>';
-  } else if(S.getOut)h+='<div class="hc-obj__getout">GET OUT: withdraw every wing to the jump point</div>';
-  return h;
-}
-byId('hcObj').addEventListener('click',ev=>{
-  const b=ev.target.closest('button[data-act]');if(!b||!SIM.S)return;
-  if(b.getAttribute('aria-disabled')==='true'){flash(b.dataset.why||'Not now');return;}
-  const r=b.dataset.act==='jumpout'?SIM.jumpOut():b.dataset.act==='leavenow'?SIM.leaveNow():null;
-  if(r&&!r.ok)flash(r.why);
-  if(SIM.S.over&&A.phase==='LIVE')onOver();
-  syncHud(true);
-});
-/* the mission rules, nested under the objectives: cyan scope chips (rescind with ×) and + RULE */
-function rulesHtml(){
-  const S=SIM.S;
-  let h='<div class="hc-rules__head">Mission rules</div><div class="hc-rules__chips">';
-  if(!S.rules.length)h+='<span class="hc-rules__none">No rules</span>';
-  for(const r of S.rules)h+='<span class="hc-rchip" data-tip="rule:'+r.rule+'">'+esc(SIM.ruleLabel(r))+'<button type="button" class="hc-rchip__x" data-unrule="'+r.id+'" aria-label="Rescind">'+glyph('close','hc-glyph--xs')+'</button></span>';
-  h+='<button type="button" class="hc-addrule" data-act="addrule" aria-expanded="'+!!A.rulePick+'">+ RULE</button></div>';
-  const P=A.rulePick;
-  if(P){
-    h+='<div class="hc-rulepick">';
-    if(P.step==='rule'){for(const k of SIM.RULE_KEYS)h+='<button type="button" class="hc-rulepick__row" data-pickrule="'+k+'"><b>'+esc(SIM.RULES[k].name)+'</b><span>'+esc(SIM.RULES[k].line())+'</span></button>';}
-    else if(P.step==='scope'){h+='<div class="hc-rulepick__q">'+esc(SIM.RULES[P.rule].name)+': for which wings?</div><div class="hc-rulepick__chips"><button type="button" class="hc-tchip is-point" data-pickscope="all">All wings</button>';
-      for(const w of S.wings)h+='<button type="button" class="hc-tchip is-ally" data-pickscope="'+w.id+'">'+esc(w.name)+'</button>';h+='</div>';}
-    else if(P.step==='ship'){h+='<div class="hc-rulepick__q">Saviour Protocol: which friendly?</div><div class="hc-rulepick__chips">';
-      for(const x of S.ships)if(x.alive&&x.faction==='reb'&&!x.struct)h+='<button type="button" class="hc-tchip is-ally" data-pickship="'+x.id+'">'+esc(x.name)+'</button>';h+='</div>';}
-    h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelrule">Cancel</button></div>';
-  }
-  return h;
-}
-byId('hcRules').addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b||!SIM.S)return;
-  if(b.dataset.unrule){SIM.removeRule(+b.dataset.unrule);syncHud(true);return;}
-  if(b.dataset.act==='addrule'){A.rulePick=A.rulePick?null:{step:'rule'};syncHud(true);return;}
-  if(b.dataset.act==='cancelrule'){A.rulePick=null;syncHud(true);return;}
-  const P=A.rulePick;if(!P)return;
-  if(b.dataset.pickrule){P.rule=b.dataset.pickrule;P.step='scope';}
-  else if(b.dataset.pickscope){P.scope=b.dataset.pickscope;if(SIM.RULES[P.rule].needs==='ship')P.step='ship';else{const r=SIM.addRule(P.rule,P.scope);if(!r.ok)flash(r.why);A.rulePick=null;}}
-  else if(b.dataset.pickship){const r=SIM.addRule(P.rule,P.scope,b.dataset.pickship);if(!r.ok)flash(r.why);A.rulePick=null;}
-  syncHud(true);
-});
+/* top left: the overlay's objectives and rules; top centre: its clock */
 function syncTop(){
   const S=SIM.S,on=A.phase!=='PICK'&&S;
   byId('hcTop').hidden=!on;
   if(!on)return;
-  const o=byId('hcObj'),oh=A.ov&&A.ov.objHtml?A.ov.objHtml():objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
-  const ru=byId('hcRules'),rh=A.ov&&A.ov.rulesHtml?A.ov.rulesHtml():rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
-  if(A.ov&&A.ov.clockHtml){const ck=byId('hcClock'),c=A.ov.clockHtml();if(ck.dataset.h!==c){ck.innerHTML=c;ck.dataset.h=c;}byId('hcBanner').hidden=true;return;}
-  const left=SIM.clockLeft(),ck=byId('hcClock');
-  ck.textContent=S.reinforce.spawned?'REINFORCEMENTS':fmtClock(left);
-  ck.classList.toggle('is-out',S.reinforce.spawned);
-  ck.dataset.tip='@';ck.dataset.tt='Reinforcements';ck.dataset.tb='Hegemony reinforcements arrive when this reaches zero.';
-  byId('hcBanner').hidden=!(SIM.TIMESCALES[A.speed]===0&&A.phase==='LIVE');
-  const cp=byId('hcCp');let ph='';for(let i=0;i<S.cpMax;i++)ph+='<i class="'+(i<S.cp?'is-on':'')+'"></i>';
-  const ch='<span class="hc-cp__lbl">CP</span><span class="hc-cp__pips">'+ph+'</span><b>'+S.cp+' / '+S.cpMax+'</b>';
-  if(cp.dataset.h!==ch){cp.innerHTML=ch;cp.dataset.h=ch;}
+  const o=byId('hcObj'),oh=A.ov.objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
+  const ru=byId('hcRules'),rh=A.ov.rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
+  const ck=byId('hcClock'),c=A.ov.clockHtml();if(ck.dataset.h!==c){ck.innerHTML=c;ck.dataset.h=c;}byId('hcBanner').hidden=true;
 }
 /* left rail: the event feed; VIEW jumps the camera there */
 function syncFeed(){
@@ -1016,10 +835,8 @@ function syncFeed(){
   let h='';
   for(const e of evs){
     const where=e.x!=null||e.ship;
-    const sh=e.kind==='emergency'&&!A.mode?SIM.fn.byId(e.ship):null,live=sh&&sh.alive&&sh.emerg&&sh.emerg.ev===e.id&&!sh.emerg.resp;   // Type 3.5: no responses
-    h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+(live?' is-live':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
-      (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+
-      (live?'<span class="hc-ev__resp">'+SIM.emergencyOpts(sh).map(o=>'<button type="button" class="hc-resp'+(o.rec?' is-rec':'')+'" data-resp="'+o.key+'" data-ship="'+sh.id+'"'+(o.ok?'':' aria-disabled="true"')+' data-tip="resp:'+o.key+'">'+esc(o.key==='wingmate'?'Wingmate':o.key==='ride'?'Ride it out':o.name.replace('Emergency ','').replace('Patriot ',''))+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':'')+'</button>').join('')+'</span>':'')+'</div>';
+    h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
+      (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+'</div>';
   }
   if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
 }
@@ -1033,18 +850,10 @@ function viewEvent(id){
   syncHud(true);
   return true;
 }
-byId('hcRoster').addEventListener('scroll',()=>placeRail(),{passive:true});   // the tray and pilot panel follow their card
+byId('hcRoster').addEventListener('scroll',()=>placeRail(),{passive:true});   // the pilot panel follows its card
 byId('hcFeed').addEventListener('click',ev=>{
-  const r=ev.target.closest('[data-resp]');
-  if(r){respond(r.dataset.ship,r.dataset.resp,r);return;}
   const b=ev.target.closest('[data-view]');if(b)viewEvent(+b.dataset.view);
 });
-function respond(id,key,el){
-  if(el&&el.getAttribute('aria-disabled')==='true'){flash(key==='wingmate'?'No wingmate free':'Not enough command points');return {ok:false};}
-  const r=SIM.respond(id,key);
-  if(!r.ok)flash(r.why);
-  syncHud(true);return r;
-}
 
 /* bottom: the wing roster. A header per wing (name, order chip, tactic chip) and a tile per ship */
 let rosterBuilt='';
@@ -1163,42 +972,30 @@ function behGlyph(s){const v=A.ov&&A.ov.verbOf&&A.ov.verbOf(s);if(v)return v.g;c
 const behTone=s=>s.panic||s.emerg?'hazard':s.beh&&s.beh.rule?'rule':'';
 byId('hcRoster').addEventListener('click',ev=>{
   const h=ev.target.closest('[data-wing-head]');
-  if(h){selectWing(h.dataset.wingHead,true);return;}
+  if(h){selectWing(h.dataset.wingHead);return;}
   const t=ev.target.closest('[data-ship]');
   if(t){
     const s=SIM.fn.byId(t.dataset.ship);if(!s)return;
-    if(A.cmdArm){cmdApply(A.cmdArm,{id:s.id});return;}
     clickShip(s);if(s.alive)camTo(s.x,s.y);
   }
 });
 /* selecting (C-70, playtest 2): a click on one of your ships (map or roster) selects its wing; a second click on a ship
-   of the selected wing selects that ship (its pilot panel). A box selection may hold several wings (A.group): the
-   tray's orders and tactics then go to all of them */
+   of the selected wing selects that ship (its pilot panel). A box selection may hold several wings (A.group) */
 function selWings(){return A.group&&A.group.length?A.group.slice():A.sel?[A.sel]:[];}
-function trayWings(){return A.group&&A.group.includes(A.tray)?A.group.slice():A.tray?[A.tray]:[];}
 function clickShip(s){
   if(!s.wing){syncHud(true);return;}
   const single=!(A.group&&A.group.length>1);
-  if(!single||A.sel!==s.wing){selectWing(s.wing,true);return;}
+  if(!single||A.sel!==s.wing){selectWing(s.wing);return;}
   if(A.selShip!==s.id){A.selShip=s.id;openPilot(s.id);}
 }
 function selectGroup(ids){
   ids=[...new Set(ids)].filter(id=>SIM.fn.wingOf(id));
-  if(!ids.length){A.sel=null;A.group=null;A.selShip=null;A.tray=null;A.arm=null;syncHud(true);return;}
-  if(ids.length===1){selectWing(ids[0],true);return;}
-  A.group=ids;A.sel=ids[0];A.selShip=null;A.arm=null;A.tray=ids[0];A.panel=null;syncHud(true);
+  if(!ids.length){A.sel=null;A.group=null;A.selShip=null;syncHud(true);return;}
+  if(ids.length===1){selectWing(ids[0]);return;}
+  A.group=ids;A.sel=ids[0];A.selShip=null;A.panel=null;syncHud(true);
 }
-/* target-first: right-click a tile or a wing header for the commands that apply to it */
-byId('hcRoster').addEventListener('contextmenu',ev=>{
-  ev.preventDefault();
-  const h=ev.target.closest('[data-wing-head]'),t=ev.target.closest('[data-ship]');
-  if(h)openDrawer({wing:h.dataset.wingHead});else if(t)openDrawer({id:t.dataset.ship});
-});
-function selectWing(id,open){
-  if(A.mode)open=false;   // Type 3.5: no order tray
-  if(A.cmdArm==='recall'){cmdApply('recall',{wing:id});return;}
-  A.sel=id;A.group=null;A.selShip=null;A.arm=null;
-  if(open){A.tray=id;A.panel=null;}
+function selectWing(id){
+  A.sel=id;A.group=null;A.selShip=null;
   syncHud(true);
 }
 
@@ -1229,86 +1026,15 @@ function nextEvent(){   // the newest unviewed event with a place, then the next
   return e?viewEvent(e.id):false;
 }
 
-/* the wing command tray (§3.4): anchored panel-left */
-function trayHtml(){
-  const w=SIM.fn.wingOf(A.tray);if(!w)return '';
-  const lead=SIM.fn.byId(w.leader),tw=trayWings().map(id=>SIM.fn.wingOf(id)).filter(Boolean),many=tw.length>1;
-  let h='<div class="hc-tray__head"><span class="hc-tray__name">'+esc(many?tw.map(x=>x.name).join(' + '):w.name)+'</span><span class="hc-tray__lead">'+
-    (many?tw.length+' wings: orders and tactics go to all':lead?'Led by '+esc(lead.name)+' · L'+lead.pilot.level:'No leader: '+(w.leadLostT!=null?'promoting':'—'))+'</span>'+
-    '<button type="button" class="hc-x" data-act="close" aria-label="Close">'+glyph('close','hc-glyph--sm')+'</button></div>';
-  h+='<div class="hc-tray__lbl">Order</div><div class="hc-tray__row">';
-  let n=0;
-  for(const k of SIM.ORDER_KEYS){
-    const built=SIM.ORDERS_LIVE.includes(k),why=!built?'Arrives in a later build phase':(k==='board'&&!tw.some(x=>SIM.fn.wingShips(x).some(s=>s.marines)))?'No marines in this wing':null;
-    n++;
-    const cls=(w.order.kind===k?' is-set':'')+(A.arm===k?' is-armed':'');
-    h+='<button type="button" class="hc-ico hc-ico--order'+cls+'" data-order="'+k+'" data-tip="order:'+k+'" data-key="'+n+'" aria-label="'+esc(SIM.ORDERS[k].name)+'"'+(why?' aria-disabled="true" data-why="'+esc(why)+'"':'')+'>'+glyph(k)+'<span class="hc-ico__n">'+n+'</span></button>';
-  }
-  h+='</div>';
-  if(A.arm&&SIM.ORDERS[A.arm].targeted){
-    const chips=SIM.targetChips(w,A.arm);
-    h+='<div class="hc-tray__lbl">Target <span class="hc-tray__hint">or click the map</span></div><div class="hc-tray__chips">';
-    chips.forEach((c,i)=>{h+='<button type="button" class="hc-tchip is-'+c.kind+'" data-tchip="'+i+'">'+esc(c.label)+'</button>';});
-    if(!chips.length)h+='<span class="hc-tray__hint">Nothing to target</span>';
-    h+='</div>';
-  }
-  h+='<div class="hc-tray__lbl">Wing tactic</div><div class="hc-tray__row">';
-  for(const k of SIM.TACTIC_KEYS)h+='<button type="button" class="hc-ico hc-ico--tactic'+(w.tactic===k?' is-set':'')+(w.tactic==='auto'&&w.autoPick===k?' is-auto':'')+'" data-tactic="'+k+'" data-tip="tactic:'+k+'" aria-label="'+esc(SIM.HC_TACTICS[k].name)+'">'+glyph(k)+'</button>';
-  h+='</div>';
-  return h;
-}
-function syncTray(){
-  const el=byId('hcTray'),h=A.tray&&A.phase!=='PICK'?trayHtml():'';
-  if(el.dataset.h!==h){hideTipIn(el);el.innerHTML=h;el.dataset.h=h;}
-  el.hidden=!h;
-}
-byId('hcTray').addEventListener('click',ev=>{
-  const b=ev.target.closest('button');if(!b)return;
-  const w=SIM.fn.wingOf(A.tray);if(!w)return;
-  if(b.dataset.act==='close'){A.tray=null;A.arm=null;syncHud(true);return;}
-  if(b.getAttribute('aria-disabled')==='true'){flash(b.dataset.why||'Not available');return;}
-  if(b.dataset.order){
-    const k=b.dataset.order;
-    if(SIM.ORDERS[k].targeted){A.arm=A.arm===k?null:k;syncHud(true);return;}
-    issueSel(k,null);return;
-  }
-  if(b.dataset.tchip!=null){const c=SIM.targetChips(w,A.arm)[+b.dataset.tchip];if(c)issueSel(A.arm,c.target);return;}
-  if(b.dataset.tactic){for(const id of trayWings()){const r=SIM.setTactic(id,b.dataset.tactic);if(!r.ok)flash(r.why);}syncHud(true);}
-});
-/* an order to every wing in the tray's selection (one wing, or a box's several); a wing it doesn't fit is named */
-function issueSel(kind,target,ids){
-  ids=ids||trayWings();let first=null;const bad=[];
-  for(const id of ids){const r=SIM.setOrder(id,kind,target);if(r.ok){if(!first)first=r;}else bad.push((SIM.fn.wingOf(id)||{name:id}).name+': '+r.why);}
-  if(bad.length)flash(bad.join(' · '));
-  A.arm=null;syncHud(true);
-  return first||{ok:false,why:bad.join(' · ')};
-}
-function issue(wid,kind,target){
-  const r=SIM.setOrder(wid,kind,target);
-  if(!r.ok){flash(r.why);return r;}
-  A.arm=null;syncHud(true);
-  return r;
-}
-
 /* hover cards (§3.4): name and one plain line, live numbers through getters */
 /* the one tooltip (feedback 1, §3.6): every [data-tip] in #arHc and #arHc35 resolves here to {title, body, foot,
    tone} ({name, line, key} still read). data-tip="@" is a literal: its data-tt title and data-tb body */
 function tipFor(key){
-  if(A.ov&&A.ov.tipFor){const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips
+  {const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips first
   const [k,a]=String(key).split(':');
-  if(k==='order'){const o=SIM.ORDERS[a];return {name:o.name,line:o.line+(a==='escort'?' Engages inside '+Math.round(SIM.TUNE.ESCORT_R.get())+' of its charge.':'')+(a==='withdraw'?' Jumps inside '+Math.round(SIM.fn.JUMP_R_())+' of the point.':'')};}
-  if(k==='tactic'){const T=SIM.HC_TACTICS[a];
-    if(a==='auto'){const w=SIM.fn.wingOf(A.tray);return {name:T.name,line:T.line+(w&&w.tactic==='auto'?' Now: '+SIM.HC_TACTICS[w.autoPick||'spread'].name+'.':'')};}
-    return {name:T.name,line:T.line+' Spacing ×'+T.space+', fights at ×'+T.engage+' range, extends ×'+T.extend+', breaks off under '+Math.round(T.disengage*100)+'% hull.'};}
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
-  if(k==='rule'){const R=SIM.RULES[a];return {name:R.name,line:R.line()};}
-  if(k==='leave')return {name:'Leave now',line:'End the mission at once. Ships that haven\'t jumped yet are lost.'};
-  if(k==='cmd'){const C2=SIM.COMMANDS[a];return {name:C2.name+' · '+(C2.cost()?C2.cost()+' CP':'free'),line:C2.line()};}
   if(k==='abil'){const B=SIM.ABILITIES[a];return {name:B.name+' · '+B.cd+' s recharge',line:B.line};}
   if(k==='doc')return {name:a,line:{AUTO:'The pilot uses it whenever it helps.',EMERG:'Only under its emergency trigger.',MANUAL:'Never by itself: press Use.'}[a]};
-  if(k==='resp'){if(a==='wingmate')return {name:'Send a wingmate',line:'Free: the nearest wingmate not in trouble breaks off to go for whoever has this pilot pinned.'};
-    if(a==='ride')return {name:'Ride it out',line:'Free: do nothing, and let the pilot handle it.'};
-    const C2=SIM.COMMANDS[a];return {name:C2.name+' · '+C2.cost()+' CP',line:C2.line()};}
   if(k==='focus')return {name:'Event focus',line:'Jump the camera to the newest event you have not viewed.',key:'Tab'};
   if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
   return {name:key,line:''};
@@ -1355,12 +1081,12 @@ for(const id of ['hcStage','hcPanel']){const host=document.getElementById(id);if
 let flashT=0;
 function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
 
-function closeAll(){if(A.wheel)closeWheel();A.tray=null;A.panel=null;A.drawer=false;A.arm=null;A.rulePick=null;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;hideTip();}
+function closeAll(){A.panel=null;hideTip();}
 
 /* =====================================================================
    The pilot panel (§3.2): over the left rail, from a tile or VIEW
    ===================================================================== */
-function openPilot(id){A.panel=id;A.tray=null;A.arm=null;pilotBuilt=null;syncHud(true);}
+function openPilot(id){A.panel=id;pilotBuilt=null;syncHud(true);}
 let pilotBuilt=null;
 /* a pilot-panel bar; the hull's in the health colours (§3.3: green, orange, red, pulsing under 15%) */
 function bar(lbl,v,max,cls){const k=max>0?Math.max(0,Math.min(1,v/max)):0,hull=cls==='is-hull';
@@ -1372,49 +1098,13 @@ function easeBars(root,old){
     if(b.classList.contains('is-shd')&&parseFloat(w)>parseFloat(o))glint(b);}
 }
 function glint(el){el.classList.remove('is-glint');void el.offsetWidth;el.classList.add('is-glint');clearTimeout(el._gl);el._gl=setTimeout(()=>el.classList.remove('is-glint'),700);}
-function pilotBody(s){
-  const S=SIM.S,w=SIM.fn.wingOf(s.wing),b=s.beh||{},t=SIM.fn.byId(b.target||b.charge||b.station),mor=SIM.moraleOf(s);
-  const P=s.pilot;
-  let h='<div class="hc-pilot__head"><span class="hc-pilot__name">'+esc(s.name)+'</span><span class="hc-pilot__sub">'+esc((P.preset||'')+(P.preset?' · ':'')+'L'+P.level+' · '+(w?w.name:'')+(w&&w.leader===s.id?' lead':'')+' · '+SIM.PERSONALITY[s.persona].label)+'</span>'+
-    '<span class="hc-mor" data-m="'+mor+'">'+mor+'</span><button type="button" class="hc-x" data-act="close" aria-label="Close">'+glyph('close','hc-glyph--sm')+'</button></div>';
-  if(!s.alive)return h+'<div class="hc-pilot__line">'+(s.jumped?'Jumped out.':'Down.')+'</div>';
-  h+='<div class="hc-pilot__bars">'+bar('Hull',s.hull,s.maxHull,'is-hull')+bar('Armour',s.arm,s.maxArm,'is-arm')+bar('Shields',SIM.fn.totalShield(s),SIM.fn.maxShield(s),'is-shd')+'</div>';
-  h+='<div class="hc-pilot__line"><b>'+esc(behWord(s))+'</b>'+(t?' · '+esc(t.label||t.name):'')+(b.rule?' · <span class="is-rule">'+esc(SIM.RULES[b.rule].name)+'</span>':'')+'<br><q>'+esc(s.assess||'')+'</q></div>';
-  const abil=SIM.abilitiesOf(s.id);
-  if(abil.length){
-    h+='<div class="hc-tray__lbl">Abilities · doctrine</div>';
-    for(const k of abil){
-      const doc=(s.doct&&s.doct[k])||'AUTO',cd=Math.max(0,((s.abCd&&s.abCd[k])||0)-S.t);
-      h+='<div class="hc-abil"><span class="hc-abil__name" data-tip="abil:'+k+'">'+esc(SIM.ABILITIES[k].name)+(k==='missile'?' ×'+misLeft(s):k==='chaff'?' ×'+chaffLeft(s):'')+'</span><span class="hc-seg" role="group">'+
-        SIM.DOCTRINES.map(d=>'<button type="button" class="hc-seg__b'+(d===doc?' is-on':'')+'" data-doc="'+d+'" data-abil="'+k+'" aria-pressed="'+(d===doc)+'" data-tip="doc:'+d+'">'+d+'</button>').join('')+
-        '</span>'+(k==='missile'?misBtn(s):k==='chaff'&&!chaffLeft(s)?'<button type="button" class="hc-use" data-use="chaff" aria-disabled="true">Empty</button>':'<button type="button" class="hc-use" data-use="'+k+'"'+(cd>0?' aria-disabled="true"':'')+'>'+(cd>0?Math.ceil(cd)+' s':'Use')+'</button>')+'</div>';
-    }
-  }
-  // the response row: in an emergency, the interventions that fit (gold: the recommended one) and the free ones
-  const opts=s.emerg?SIM.emergencyOpts(s):null;
-  h+='<div class="hc-tray__lbl">'+(opts?(s.emerg.resp?'Answered: '+esc(s.emerg.resp):'Emergency · respond'):'Interventions')+'</div><div class="hc-pilot__resp">';
-  const list=opts||['override','recall','support'].filter(k=>k!=='support'||SIM.fn.maxShield(s)>0).map(k=>({key:k,name:SIM.COMMANDS[k].name,cost:SIM.COMMANDS[k].cost(),ok:S.cp>=SIM.COMMANDS[k].cost()})).concat([{key:'wingmate',name:'Send a wingmate',free:true,ok:false,why:'only in an emergency'}]);
-  for(const o of list){
-    const prim=o.rec&&!s.emerg.resp;
-    h+='<button type="button" class="sr-btn sr-btn--sm'+(prim?' sr-btn--primary':'')+'" data-resp="'+o.key+'" data-tip="resp:'+o.key+'"'+(o.ok?'':' aria-disabled="true"')+'>'+esc(o.name)+(o.cost?' <b class="hc-cpc">'+o.cost+'</b>':o.free?' <span class="hc-free">free</span>':'')+'</button>';
-  }
-  return h+'</div>';
-}
-/* the Missile row's button: Fire when locked, Armed while armed, else Arm (it fires at the next lock); Empty with none left */
-const chaffLeft=s=>s.chaffLeft!=null?s.chaffLeft:SIM.TUNE.CHAFF_N.get();
-const misLeft=s=>s.wpns.filter(q=>q.w.needsLock).reduce((n,q)=>n+(q.ammo||0),0);
-function misBtn(s){
-  const S=SIM.S,left=misLeft(s),shot=SIM.fn.missileShot(s),armed=(s.misArm||0)>S.t;
-  const lbl=!left?'Empty':shot?'Fire':armed?'Armed':'Arm';
-  return '<button type="button" class="hc-use'+(shot?' is-hot':armed?' is-armed':'')+'" data-use="missile"'+(left?'':' aria-disabled="true"')+'>'+lbl+'</button>';
-}
 function syncPilot(){
   const el=byId('hcPilot'),s=A.panel&&A.phase!=='PICK'?SIM.fn.byId(A.panel):null;
   if(!s){el.hidden=true;pilotBuilt=null;return;}
   el.hidden=false;
   if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
   el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
-  const body=byId('hcPilotBody'),h=A.ov&&A.ov.pilotBody?A.ov.pilotBody(s):pilotBody(s);
+  const body=byId('hcPilotBody'),h=A.ov.pilotBody(s);
   if(body.dataset.h!==h){hideTipIn(body);const old={};for(const b of body.querySelectorAll('.hc-pbar'))old[b.dataset.k]=b.querySelector('b').style.width;
     body.innerHTML=h;body.dataset.h=h;easeBars(body,old);}
 }
@@ -1422,79 +1112,23 @@ byId('hcPilot').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
   const s=SIM.fn.byId(A.panel);if(!s)return;
   if(b.dataset.act==='close'){A.panel=null;syncHud(true);return;}
-  if(A.ov&&A.ov.pilotClick&&A.ov.pilotClick(s,b))return;
-  if(b.dataset.doc){SIM.setDoctrine(s.id,b.dataset.abil,b.dataset.doc);syncHud(true);return;}
-  if(b.dataset.use){if(b.getAttribute('aria-disabled')==='true')return;const r=SIM.useAbility(s.id,b.dataset.use);if(!r.ok)flash(r.why);syncHud(true);return;}
-  if(b.dataset.resp){respond(s.id,b.dataset.resp,b);}
+  if(A.ov.pilotClick)A.ov.pilotClick(s,b);
 });
 
-/* =====================================================================
-   The commands drawer (§3.3): from COMMANDS, or target-first from a right-click
-   ===================================================================== */
-const CMD_GLYPH={override:'attack',recall:'withdraw',reinforce:'escort',support:'defend',recon:'view',scramble:'pincer',hack:'hitrun',decoy:'capture',abort:'close'};
-function openDrawer(tg){A.drawer=true;A.cmdFor=tg||null;A.cmdArm=null;A.abortArm=false;A.tray=null;A.arm=null;syncHud(true);}
-function cmdFits(k,tg){
-  const C2=SIM.COMMANDS[k];
-  if(!tg)return true;
-  if(tg.wing)return k==='recall';
-  if(tg.id)return C2.target==='ship';
-  if(tg.x!=null)return C2.target==='point';
-  return true;
-}
-function drawerHtml(){
-  let h='';
-  if(A.cmdFor){const x=A.cmdFor.id?SIM.fn.byId(A.cmdFor.id):null,w=A.cmdFor.wing?SIM.fn.wingOf(A.cmdFor.wing):null;
-    h+='<div class="hc-cmds__for">For '+esc(x?x.name:w?w.name+' (whole wing)':'this place')+'<button type="button" class="hc-x" data-act="close" aria-label="Show every command">'+glyph('close','hc-glyph--sm')+'</button></div>';}
-  if(A.cmdArm)h+='<div class="hc-cmds__arm">'+esc(SIM.COMMANDS[A.cmdArm].name)+': '+(SIM.COMMANDS[A.cmdArm].target==='point'?'click a place on the map':A.cmdArm==='recall'?'click one of your ships, or a wing in the roster':'click one of your ships')+
-    ' <button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="cancelcmd">Cancel</button></div>';
-  h+='<div class="hc-cmds__list">';
-  for(const k of SIM.COMMAND_KEYS){
-    if(k==='abort')continue;
-    if(!cmdFits(k,A.cmdFor))continue;
-    const C2=SIM.COMMANDS[k],tgFree=C2.target==='none',why=SIM.commandRefusal(k,A.cmdFor||(tgFree?null:undefined))||null;
-    const block=why&&(C2.open||/reserves|command points|over/.test(why)||(A.cmdFor&&why));
-    h+=skillBtn(k,C2.name,CMD_GLYPH[k],C2.cost()?'<span class="hc-cmd__cost" aria-label="'+C2.cost()+' CP"><i></i><b>'+C2.cost()+'</b></span>':'<span class="hc-free">free</span>',
-      (A.cmdArm===k?' is-armed':''),block?' aria-disabled="true" data-why="'+esc(why)+'"':'');
-  }
-  h+='</div>';
-  if(!A.cmdFor)h+=skillBtn('abort',A.abortArm?'Confirm abort':'Abort Mission','close','<span class="hc-free">free</span>',' hc-cmd--abort'+(A.abortArm?' is-armed':''),'');
-  return h;
-}
-/* a command as a skill icon (C-71): a big glyph, the cost in the corner, the name under it; the full card on hover */
-function skillBtn(k,name,g,cost,cls,attrs){
-  return '<button type="button" class="hc-cmd'+cls+'" data-cmd="'+k+'" data-tip="cmd:'+k+'"'+attrs+' aria-label="'+esc(name)+'">'+
-    glyph(g,'hc-cmd__glyph')+cost+'<span class="hc-cmd__name">'+esc(name)+'</span></button>';
-}
+/* the commands bar: the overlay's powers */
 function syncDrawer(){
-  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?(A.ov&&A.ov.cmdsHtml?A.ov.cmdsHtml():drawerHtml()):'';   // Type 3.5: its powers
+  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on&&A.ov.cmdsHtml?A.ov.cmdsHtml():'';
   if(body.dataset.h!==h){hideTipIn(body);body.innerHTML=h;body.dataset.h=h;}
-  el.hidden=!on;el.classList.toggle('is-for',!!A.cmdFor);el.classList.toggle('is-armed',!!A.cmdArm);
+  el.hidden=!on;
 }
 byId('hcCmds').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
-  if(A.ov&&A.ov.cmdsClick){A.ov.cmdsClick(b);return;}   // Type 3.5's powers
-  if(b.dataset.act==='close'){A.drawer=false;A.cmdArm=null;A.cmdFor=null;A.abortArm=false;syncHud(true);return;}
-  if(b.dataset.act==='cancelcmd'){A.cmdArm=null;syncHud(true);return;}
-  const k=b.dataset.cmd;if(!k)return;
-  if(b.getAttribute('aria-disabled')==='true'){flash(b.dataset.why||'Not available');return;}
-  if(k==='abort'){if(!A.abortArm){A.abortArm=true;syncHud(true);return;}cmdApply('abort',null);return;}
-  const C2=SIM.COMMANDS[k];
-  if(C2.target==='none'){cmdApply(k,null);return;}
-  if(A.cmdFor){cmdApply(k,A.cmdFor);return;}
-  A.cmdArm=A.cmdArm===k?null:k;syncHud(true);
+  A.ov.cmdsClick(b);
 });
-function cmdApply(k,tg){
-  const r=SIM.command(k,tg);
-  if(!r.ok){flash(r.why);return r;}
-  A.cmdArm=null;A.cmdFor=null;A.abortArm=false;A.drawer=false;
-  if(SIM.S.over&&A.phase==='LIVE')onOver();
-  syncHud(true);return r;
-}
 function syncHud(){
   if(!A.active)return;
-  syncTop();syncFeed();syncRoster();syncTime();syncTray();syncPilot();syncDrawer();syncReadout();
-  if(A.mode){   // Type 3.5: no tray, wheel or commands; the overlay may hide the whole HUD (its board and briefing)
-    byId('hcTray').hidden=true;
+  syncTop();syncFeed();syncRoster();syncTime();syncPilot();syncDrawer();syncReadout();
+  {   // the overlay may hide the whole HUD (its board and briefing)
     const off=!!(A.ov&&A.ov.hudHidden&&A.ov.hudHidden());
     if(off||!(A.ov&&A.ov.cmdsHtml))byId('hcCmds').hidden=true;   // the commands bar carries the overlay's powers, if it has any
     for(const id of ['hcTop','hcRoster','hcPilot'])if(off)byId(id).hidden=true;
@@ -1504,7 +1138,7 @@ function syncHud(){
   placeRail();
 }
 const FEED_ROWS=5;   // the feed's height, in entries (C-70). placeholder
-/* the left rail (the feed, the tray, the pilot panel) starts under the objectives panel, however tall it grows */
+/* the left rail (the feed, the pilot panel) starts under the objectives panel, however tall it grows */
 function placeRail(){
   const st=byId('hcStage').getBoundingClientRect(),ob=byId('hcObjBox').getBoundingClientRect();
   const top=Math.round(Math.max(80,(byId('hcTop').hidden?60:ob.bottom-st.top)+10));
@@ -1526,7 +1160,7 @@ function placeRail(){
     cm.style.left=Math.round(x0+Math.max(0,(avail-cm.offsetWidth)/2))+'px';
     bar=cm.getBoundingClientRect();
   }
-  // the order tray and the pilot panel open beside the cards, level with their wing card or tile, above the bar
+  // the pilot panel opens beside the cards, level with its tile, above the bar
   const beside=(el,anchor)=>{
     if(el.hidden||!anchor)return;
     const a=anchor.getBoundingClientRect(),gap=10,w=el.offsetWidth;
@@ -1536,13 +1170,12 @@ function placeRail(){
     el.style.left=left+'px';el.style.bottom=bottom+'px';
     el.style.maxHeight=Math.round(Math.max(160,st.height-bottom-top))+'px';
   };
-  beside(byId('hcTray'),A.tray&&ro.querySelector('[data-wing="'+A.tray+'"]'));
   beside(byId('hcPilot'),A.panel&&ro.querySelector('[data-ship="'+A.panel+'"]'));
 }
 const RAIL_FEED_MIN=60;   // the feed keeps at least this much height over the wing cards. placeholder
 
 /* =====================================================================
-   Input on the map: select a wing by its ship; with a targeted order armed, a click names the target
+   Input on the map: select a wing by its ship; the overlay takes the clicks it wants first
    ===================================================================== */
 let pan=null;
 function evPt(ev){const r=cv.getBoundingClientRect();const px=ev.clientX-r.left,py=ev.clientY-r.top,w=toWorld(px,py);return {px,py,x:w.x,y:w.y};}
@@ -1551,14 +1184,13 @@ function shipAt(x,y){
   for(const s of SIM.S.ships){if(!s.alive)continue;const d=Math.hypot(s.x-x,s.y-y),r=artK(s)<0.5?(ICONS.ICON_SIZE/2+3)/cam.z:Math.max(10/cam.z,shieldR(s,1)*1.1);if(d<r&&d<bd){bd=d;best=s;}}
   return best;
 }
-/* the mouse (C-70, playtest 2): left-drag draws a selection box, right-drag (or middle-drag) pans, a right-click with
-   wings selected opens the order wheel (with none, the commands that fit). A finger still pans. */
+/* the mouse (C-70, playtest 2): left-drag draws a selection box, right-drag (or middle-drag) pans, a right-click goes
+   to the overlay. A finger still pans. */
 let ovDrag=false;   // the overlay took this press (a plan-view marker)
 cv.addEventListener('pointerdown',ev=>{
   if(!SIM.S)return;
   if(A.ov&&A.ov.pointer&&A.ov.pointer('down',evPt(ev),ev)){ovDrag=true;cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);return;}
   if(A.phase==='PICK')return;
-  if(A.wheel)closeWheel();
   cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);
   const p=evPt(ev),panning=ev.button===2||ev.button===1||ev.pointerType==='touch';
   pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button,mode:panning?'pan':'box'};
@@ -1602,53 +1234,7 @@ function drawBox(){
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=TH.rgba(C.gold,0.08);ctx.fillRect(x,y,w,h);
   ctx.setLineDash([6,4]);ctx.lineWidth=1.5;ctx.strokeStyle=C.gold;ctx.strokeRect(x+0.5,y+0.5,w,h);ctx.restore();
 }
-/* a right-click: with wings selected, the order wheel for what is under the cursor; with none, the commands (target-first) */
-function mapRight(p){
-  if(A.mode){if(A.ov&&A.ov.mapRight)A.ov.mapRight(p);return;}   // Type 3.5: no order wheel
-  if(A.phase!=='LIVE')return;
-  const s=shipAt(p.x,p.y);
-  if(selWings().length){openWheel(p,s);return;}
-  if(s&&s.faction==='reb'&&!s.quiet)openDrawer({id:s.id});
-  else if(!s)openDrawer({x:Math.round(p.x),y:Math.round(p.y)});
-}
-/* the order wheel: the orders that fit the thing clicked, for every selected wing, plus Commands (target-first) */
-function wheelItems(p,s){
-  const S=SIM.S,ws=selWings().map(id=>SIM.fn.wingOf(id)).filter(Boolean),items=[];
-  const marines=ws.some(w=>SIM.fn.wingShips(w).some(x=>x.marines));
-  const add=(k,target,label)=>items.push({k,glyph:k,label:label||SIM.ORDERS[k].name,target});
-  const nm=x=>x.label||x.name;
-  let what;
-  if(s&&s.faction==='heg'&&s.struct){what=nm(s);add('attack',{type:'station',id:s.id});if(marines)add('board',{type:'station',id:s.id});}
-  else if(s&&s.faction==='heg'){what=nm(s);add('attack',{type:'ship',id:s.id});add('intercept',{type:'ship',id:s.id});}
-  else if(s&&s.faction==='reb'&&!ws.some(w=>w.id===s.wing)){what=nm(s);if(!s.struct)add('escort',{type:'ship',id:s.id});add('defend',{type:'ship',id:s.id});}
-  else{
-    let pt=null;for(const k in S.points){const q=S.points[k];if(Math.hypot(q.x-p.x,q.y-p.y)<Math.max(60/cam.z,SIM.fn.CAPTURE_R_())){pt=k;break;}}
-    if(pt){what=S.points[pt].label||pt;if(S.points[pt].capture)add('capture',{type:'point',id:pt});add('defend',{type:'point',id:pt},'Defend here');}
-    else{what='Here';add('hold',{type:'pos',x:Math.round(p.x),y:Math.round(p.y)},'Hold here');add('defend',{type:'pos',x:Math.round(p.x),y:Math.round(p.y)},'Defend here');}
-  }
-  add('regroup',null);add('withdraw',null);
-  items.push({k:'cmds',glyph:'view',label:'Commands…',cmd:s&&s.faction==='reb'&&!s.quiet?{id:s.id}:!s?{x:Math.round(p.x),y:Math.round(p.y)}:null});
-  return {what,items:items.filter(it=>it.k==='cmds'||SIM.ORDERS_LIVE.includes(it.k))};
-}
-function openWheel(p,s){
-  const W=wheelItems(p,s);A.wheel={p,ship:s?s.id:null,items:W.items,what:W.what};
-  const el=byId('hcWheel'),n=W.items.length,R=74;
-  let h='<div class="hc-wheel__hub">'+esc(W.what)+'</div>';
-  W.items.forEach((it,i)=>{const a=-Math.PI/2+i*2*Math.PI/n,x=Math.cos(a)*R,y=Math.sin(a)*R;
-    h+='<button type="button" class="hc-wheel__b'+(it.k==='cmds'?' is-cmds':'')+'" data-wi="'+i+'" style="left:'+x.toFixed(0)+'px;top:'+y.toFixed(0)+'px" aria-label="'+esc(it.label)+'">'+glyph(it.glyph)+'<span>'+esc(it.label)+'</span><i>'+(i+1)+'</i></button>';});
-  el.innerHTML=h;el.hidden=false;
-  const st=byId('hcStage').getBoundingClientRect(),r=cv.getBoundingClientRect();
-  el.style.left=Math.round(Math.max(110,Math.min(st.width-110,p.px+r.left-st.left)))+'px';el.style.top=Math.round(Math.max(110,Math.min(st.height-110,p.py+r.top-st.top)))+'px';
-}
-function closeWheel(){A.wheel=null;const el=byId('hcWheel');el.hidden=true;el.innerHTML='';}
-function wheelPick(i){
-  const W=A.wheel;if(!W)return false;const it=W.items[i];if(!it)return false;
-  closeWheel();
-  if(it.k==='cmds'){openDrawer(it.cmd);return true;}
-  const ids=selWings();A.tray=A.tray&&ids.includes(A.tray)?A.tray:ids[0];
-  issueSel(it.k,it.target,ids);return true;
-}
-byId('hcWheel').addEventListener('click',ev=>{const b=ev.target.closest('[data-wi]');if(b)wheelPick(+b.dataset.wi);});
+function mapRight(p){if(A.ov.mapRight)A.ov.mapRight(p);}
 cv.addEventListener('wheel',ev=>{
   ev.preventDefault();
   const p=evPt(ev),before=toWorld(p.px,p.py);
@@ -1656,65 +1242,31 @@ cv.addEventListener('wheel',ev=>{
   const after=toWorld(p.px,p.py);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam();
 },{passive:false});
 function mapClick(p,ev){
-  if(A.ov&&A.ov.mapClick&&A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
-  const S=SIM.S,s=shipAt(p.x,p.y);
-  if(A.cmdArm){   // a command armed: the click names its target
-    const C2=SIM.COMMANDS[A.cmdArm];
-    if(C2.target==='point'){cmdApply(A.cmdArm,{x:Math.round(p.x),y:Math.round(p.y)});return;}
-    if(s&&s.faction==='reb'&&!s.quiet){cmdApply(A.cmdArm,{id:s.id});return;}
-    flash('Pick one of your ships for '+C2.name);return;
-  }
-  if(A.arm&&A.tray){   // a targeted order armed: the click names its target
-    const w=SIM.fn.wingOf(A.tray),tgt=mapTarget(w,A.arm,s,p);
-    if(tgt){issueSel(A.arm,tgt);return;}
-    flash('Not a target for '+SIM.ORDERS[A.arm].name);return;
-  }
+  if(A.ov.mapClick&&A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
+  const s=shipAt(p.x,p.y);
   if(s&&s.faction==='reb'&&s.wing){clickShip(s);return;}
   if(!s){A.selShip=null;syncHud(true);}
 }
-/* what a map click means for an armed order: a ship (or its class), a station, an ally, or a point */
-function mapTarget(w,kind,s,p){
-  const S=SIM.S;
-  const pointAt=()=>{for(const k in S.points){const q=S.points[k];if(Math.hypot(q.x-p.x,q.y-p.y)<Math.max(60/cam.z,SIM.fn.CAPTURE_R_()))return k;}return null;};
-  if(kind==='attack'&&s&&s.faction==='heg')return s.struct?{type:'station',id:s.id}:{type:'ship',id:s.id};
-  if(kind==='intercept'&&s&&s.faction==='heg'&&!s.struct)return {type:'ship',id:s.id};
-  if(kind==='escort'&&s&&s.faction==='reb'&&s.wing!==w.id&&!s.struct)return {type:'ship',id:s.id};
-  if(kind==='board'&&s&&s.faction==='heg'&&s.struct)return {type:'station',id:s.id};
-  if(kind==='capture'){const k=pointAt();return k&&S.points[k].capture?{type:'point',id:k}:null;}
-  if(kind==='defend'){
-    if(s&&s.faction==='reb'&&s.wing!==w.id)return {type:'ship',id:s.id};
-    const k=pointAt();if(k)return {type:'point',id:k};
-    if(!s)return {type:'pos',x:Math.round(p.x),y:Math.round(p.y)};
-  }
-  return null;
-}
-/* the keys (§3.5): Space pause · 1–4 speeds · Tab next event · F follow · Q / E cycle wings · with the tray
-   open, 1–9 press its order icons and Shift+1–6 its tactics · Esc steps back (an armed choice, then the windows) */
+/* the keys (§3.5): the overlay's first; Space pause · 1–4 speeds · Tab next event · F follow · Q / E cycle wings · Esc closes */
 const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray closed)'],['Tab','next unviewed event'],['F','follow the selection'],
-  ['Q / E','previous / next wing'],['1–9','the tray\'s order icons (the wheel\'s, when open)'],['Shift+1–6','the tray\'s tactic icons'],['Esc','step back, close'],
-  ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map'],['Right-click','the order wheel (no wing selected: the commands)']];
+  ['Q / E','previous / next wing'],['Esc','close'],
+  ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map']];
 function onKey(ev){
   if(SR.active!=='arena'||!A.active)return false;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
-  if(A.ov&&A.ov.onKey&&A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
+  if(A.ov.onKey&&A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
   if(A.phase==='PICK')return false;
   const k=ev.key;
   if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}
-  if(A.wheel&&/^[1-9]$/.test(k)){ev.preventDefault();wheelPick(+k-1);return true;}
-  if(k==='Escape'){ev.preventDefault();if(A.wheel)closeWheel();else if(A.cmdArm)A.cmdArm=null;else if(A.abortArm)A.abortArm=false;else if(A.arm)A.arm=null;else if(A.rulePick)A.rulePick=null;else closeAll();syncHud(true);return true;}
+  if(k==='Escape'){ev.preventDefault();closeAll();syncHud(true);return true;}
   if(k==='Tab'){ev.preventDefault();nextEvent();return true;}
   if(A.phase!=='LIVE')return false;
   if(k==='f'||k==='F'){A.follow=!A.follow;A.camHeld=false;syncHud(true);return true;}
   if(k==='q'||k==='Q'||k==='e'||k==='E'){const ws=SIM.S.wings.filter(w=>SIM.fn.wingShips(w).length);if(!ws.length)return true;
-    const i=ws.findIndex(w=>w.id===A.sel),n=ws.length,j=i<0?0:(i+((k==='e'||k==='E')?1:n-1))%n;selectWing(ws[j].id,true);const c=focusPoint();if(c)camTo(c.x,c.y);return true;}
+    const i=ws.findIndex(w=>w.id===A.sel),n=ws.length,j=i<0?0:(i+((k==='e'||k==='E')?1:n-1))%n;selectWing(ws[j].id);const c=focusPoint();if(c)camTo(c.x,c.y);return true;}
   const dig=ev.code&&/^Digit[1-9]$/.test(ev.code)?+ev.code.slice(5):/^[1-9]$/.test(k)?+k:0;
   if(!dig)return false;
   ev.preventDefault();
-  if(A.tray){
-    const sel=ev.shiftKey?'#hcTray [data-tactic]':'#hcTray [data-order]';
-    const b=ROOT.querySelectorAll(sel)[dig-1];if(b)b.click();
-    return true;
-  }
   if(dig<=4)setSpeed(dig-1);
   return true;
 }
@@ -1748,7 +1300,7 @@ function fmt(v,step){return step&&step<1?(+v).toFixed(step<0.1?2:1):String(Math.
 function buildPanel(){
   let h='<div class="hc-grp"><div class="hc-grp__head">Run</div><div class="hc-btns">'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="same">Restart (same seed)</button><button type="button" class="sr-btn sr-btn--sm" data-act="new">Restart (new seed)</button>'+
-    '<button type="button" class="sr-btn sr-btn--sm" data-act="picker">HC scenarios</button><button type="button" class="sr-btn sr-btn--sm" data-act="rulesets">Change ruleset</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="picker">Opportunity board</button>'+
     '<button type="button" class="sr-btn sr-btn--sm" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--sm" data-act="copyset">Copy settings</button>'+
     '<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">HC</div>';
@@ -1764,7 +1316,7 @@ function buildPanel(){
   h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="defaults">Reset numbers to defaults</button>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
   h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected wing</label></div>';
-  h+='</div>'+(A.ov&&A.ov.panelHtml?A.ov.panelHtml():'')+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
+  h+='</div>'+A.ov.panelHtml()+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
   h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
   if(window.SR_FLIGHT)h+=SR_FLIGHT.panelHtml(esc);   // the recorded runs, to download
   byId('hcPanelBody').innerHTML=h;
@@ -1774,7 +1326,7 @@ byId('hcPanelBody').addEventListener('input',ev=>{
   const el=ev.target;
   if(el.dataset.toggle==='tiles'){TILES_LIVE=el.checked;tileAuto=false;return;}
   if(el.dataset.toggle==='quiet'){A.quietPref=el.checked;return;}
-  if(A.ov&&A.ov.panelInput&&A.ov.panelInput(el))return;
+  if(A.ov.panelInput(el))return;
   if(el.dataset.toggle==='fx'){FX_ON=el.checked;return;}
   if(el.dataset.toggle==='shake'){FX_SHAKE=el.checked;if(FX)FX.setShake(FX_SHAKE);return;}
   if(el.dataset.toggle==='calm'){FX_CALM=el.checked;return;}
@@ -1786,7 +1338,7 @@ byId('hcPanelBody').addEventListener('input',ev=>{
   const out=byId('hcPanelBody').querySelector('[data-out="'+k+'"]');if(out)out.textContent=fmt(t.get(),t.step);
   savePrefs();
 });
-byId('hcPanelBody').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(A.ov&&A.ov.panelAct&&A.ov.panelAct(b.dataset.act))return;panelAct(b.dataset.act);});
+byId('hcPanelBody').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(A.ov.panelAct&&A.ov.panelAct(b.dataset.act))return;panelAct(b.dataset.act);});
 byId('hcPanelToggle').addEventListener('click',()=>{
   const p=byId('hcPanel');p.classList.toggle('is-collapsed');
   byId('hcPanelToggle').setAttribute('aria-expanded',String(!p.classList.contains('is-collapsed')));
@@ -1796,7 +1348,6 @@ function panelAct(a){
   if(a==='same')restart(true);
   else if(a==='new')restart(false);
   else if(a==='picker')showPicker();
-  else if(a==='rulesets')toRulesets();
   else if(a==='dump')dumpMetrics();
   else if(a==='title')backToTitle();
   else if(a==='copyset')copySettings();
@@ -1824,72 +1375,45 @@ function syncReadout(){
   const el=byId('hcReadout');if(!el)return;
   const S=SIM.S;
   if(!S||A.phase==='PICK'){el.textContent='';return;}
-  let t='Sim '+S.t.toFixed(1)+' s · tick '+S.tick+' · speed '+SIM.TIMESCALES[A.speed]+'×\nReal '+A.realSecs.toFixed(1)+' s, paused '+A.pausedSecs.toFixed(1)+' s ('+A.pauses+' pauses)\nOrders '+S.m.orders+' · tactics '+S.m.tactics+' · CP spent '+S.m.cpSpent;
-  for(const w of S.wings)t+='\n'+w.name+': '+w.order.kind+' · '+w.tactic+' · cohesion '+w.cohesion;
-  t+='\nRule triggers '+S.m.ruleTriggers+' · emergencies '+S.m.emergencies.length+'\nTiles '+(TILES_LIVE?'live':'static'+(tileAuto?' (fell back)':''))+' · '+tileMs.toFixed(2)+' ms a tile';
+  let t='Sim '+S.t.toFixed(1)+' s · tick '+S.tick+' · speed '+SIM.TIMESCALES[A.speed]+'×\nReal '+A.realSecs.toFixed(1)+' s, paused '+A.pausedSecs.toFixed(1)+' s ('+A.pauses+' pauses)';
+  for(const w of S.wings)t+='\n'+w.name+': cohesion '+w.cohesion;
+  t+='\nTiles '+(TILES_LIVE?'live':'static'+(tileAuto?' (fell back)':''))+' · '+tileMs.toFixed(2)+' ms a tile';
   if(FX){const st=FX.stats();t+='\nFX '+(FX_ON?'on':'off')+' · nebula '+(FX.TUNE.nebulaAlpha>0?'on':'off'+(fxNebAuto?' (fell back)':''))+' · '+fxFrameMs.toFixed(1)+' ms a frame · '+st.particles+' particles, '+st.oneshots+' one-shots';}
   if(el.textContent!==t)el.textContent=t;
 }
-/* the engagement record (§7): one per mission, when it ends (or is left unfinished), into ARENA_METRICS */
-function metricsRecord(){
-  const S=SIM.S,m=S.m,resp={};
-  for(const e of m.emergencies)if(e.resp)resp[e.resp]=(resp[e.resp]||0)+1;
-  const ans=m.alerts.filter(a=>a.answered!=null).map(a=>a.answered),realMin=Math.max(A.realSecs,1e-6)/60;
-  const mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.quiet);
-  return {ruleset:'hc',scenario:A.scen.id,variant:S.variantLabel||null,seed:A.seed,
-    orders:{count:m.orders,byType:Object.assign({},m.byOrder)},tactics:{count:m.tactics,byType:Object.assign({},m.byTactic),autoSwitches:m.autoSwitches||0},breakoffs:m.breakoffs||0,
-    cp:{start:S.cpMax,left:S.cp,spent:m.cpSpent,byCommand:Object.assign({},m.byCommand)},
-    pauses:{count:A.pauses,pausedSecs:+A.pausedSecs.toFixed(2),realSecs:+A.realSecs.toFixed(2),simSecs:+S.t.toFixed(2)},
-    rules:{set:m.rulesSet||0,triggers:m.ruleTriggers,byRule:Object.assign({},m.byRule)},
-    emergencies:{count:m.emergencies.length,list:m.emergencies.map(e=>Object.assign({},e)),responses:resp},
-    outcome:S.over?S.over.outcome:'abandoned',shipsLost:mine.filter(s=>!s.alive&&!s.jumped).length,shipsJumped:mine.filter(s=>s.jumped).length,shipsTotal:mine.length,
-    objectives:S.objectives.map(o=>({id:o.id,state:o.state})),
-    firstOrderAfterAlert:{each:ans,mean:ans.length?+(ans.reduce((a,b)=>a+b,0)/ans.length).toFixed(2):null,unanswered:m.alerts.length-ans.length},
-    orderRate:+(m.orders/realMin).toFixed(2),pauseRate:{perMin:+(A.pauses/realMin).toFixed(2),pausedShare:+(A.pausedSecs/Math.max(A.realSecs,1e-6)).toFixed(3)}};
-}
-function record(){
-  if(A.mode)return A.ov&&A.ov.record?A.ov.record():null;
-  if(A.recorded||!SIM.S||!A.scen||(SIM.S.t<=0&&!SIM.S.m.orders))return null;
-  A.recorded=true;
-  const rec=metricsRecord();A.metrics.push(rec);if(window.SR_FLIGHT)SR_FLIGHT.metrics(rec);   // joins the run's flight record
-  try{console.log('ARENA_METRICS '+JSON.stringify(rec));}catch(e){}
-  return rec;
-}
+/* the metrics: the overlay's record, one per mission */
+function record(){return A.ov.record();}
 function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_METRICS_DUMP '+s);}catch(e){}flash('Metrics dumped to the console');return s;}
 function savePrefs(){try{const o={};for(const k in SIM.TUNE)o[k]=SIM.TUNE[k].get();Object.assign(o,fxMoved());localStorage.setItem(PREFS_KEY,JSON.stringify(o));}catch(e){}}
 
-/* ---------- inside arena.js's scene: open and close (arena.js calls these from its picker) ---------- */
+/* ---------- inside the bench's scene: open and close (arena-hc35.js calls these) ---------- */
 function openUi(){
   if(!A.prefsLoaded){A.prefsLoaded=true;loadPrefs();}
   A.active=true;ROOT.hidden=false;
-  const v2=SCENE.querySelector('.ar-shell');if(v2)v2.hidden=true;
-  for(const id of ['arPicker','arOver']){const e=SCENE.querySelector('#'+id);if(e)e.hidden=true;}
   fitCanvas();
 }
 function closeUi(){
   if(A.phase==='LIVE')record();
   A.active=false;A.phase='PICK';ROOT.hidden=true;closeAll();
-  const v2=SCENE.querySelector('.ar-shell');if(v2)v2.hidden=false;
 }
 function open(o){
-  A.mode=o&&o.mode||null;A.ov=A.mode?o.overlay||null:null;
+  A.mode=o.mode;A.ov=o.overlay;
   openUi();
-  if(A.ov){A.phase='PICK';closeAll();if(o.scenario)loadScenario(o.scenario,o.seed);syncHud(true);return;}
-  showPicker();
+  A.phase='PICK';closeAll();if(o.scenario)loadScenario(o.scenario,o.seed);syncHud(true);
 }
 
-/* ---------- DBGarena.hc (arena.js hands this out): always on, the Arena is a test environment ---------- */
-const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},scenarios:HC_SCENARIOS,
-  fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,toRulesets,setSpeed,togglePause,selectWing,issue,viewEvent,openPilot,openDrawer,cmdApply,respond,onKey,metricsRecord,record,KEYMAP,nextEvent,mapClick,mapTarget,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+/* ---------- DBGarena.hc (hc35-bench.js hands this out): the bench is dev-only ---------- */
+const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},
+  fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,setSpeed,togglePause,selectWing,viewEvent,openPilot,onKey,record,KEYMAP,nextEvent,mapClick,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
-    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,linesQuiet,statusShown,selFoes,badgeTick,badges_:()=>badges.map(b=>b.ship+':'+b.k),BADGE_:()=>({MS:BADGE_MS,MAX:BADGE_MAX}),clickShip,selectGroup,boxSelect,mapRight,wheelItems,openWheel,closeWheel,wheelPick,selWings,issueSel,
+    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,linesQuiet,statusShown,selFoes,badgeTick,badges_:()=>badges.map(b=>b.ship+':'+b.k),BADGE_:()=>({MS:BADGE_MS,MAX:BADGE_MAX}),clickShip,selectGroup,boxSelect,mapRight,selWings,
     FX,fxOn,fxSense,fxReset,shipView,stationView,stationArt,boarders,padNear,fxPanelHtml,FX_UI,render,
     fx_:()=>({on:FX_ON,shake:FX_SHAKE,calm:FX_CALM,primed:fxPrimed,stats:FX?FX.stats():null,frameMs:fxFrameMs,frames:fxFrames,nebAuto:fxNebAuto,nebUser:fxNebUser,SLOW:FX_SLOW_MS,WARM:FX_WARM}),fxPerfTick,setFx(o){if('on' in o)FX_ON=!!o.on;if('shake' in o){FX_SHAKE=!!o.shake;if(FX)FX.setShake(FX_SHAKE);}if('calm' in o)FX_CALM=!!o.calm;},
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
     toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
 /* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
 const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
-  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,hideTipIn,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,toRulesets,backToTitle,buildPanel,
+  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,hideTipIn,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,backToTitle,buildPanel,
   get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
 window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
 })();
