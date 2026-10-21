@@ -37,7 +37,7 @@ experiments are **archived**: preserved in the repo, but nothing (smoke tests in
 - **Being spotted ends Hold for My Signal:** the wings go into action at once.
 - **When the primary can't be done, the wing leader asks the player for a new objective.** The automatic fallback (C-82, C-83) is replaced by a request card listing the primaries still possible plus **Retreat**. With no answer, the leader picks by their persona. A replacement pays without the Accomplished bonus.
 - **A leader's death** is a big hit to **its own wing's** morale and a smaller one to the other wings. Traits like **Brave** give individual resilience.
-- **Rewards:** Claude Code's stand-ins are the first pass. A design proposal for rewards is coming from Claude Chat; don't change the numbers until the designer approves it.
+- **Rewards:** Claude Code's stand-ins are the first pass. Claude Chat's design proposal (rewards by cargo, per primary, secondary objectives paid in campaign stats, pilot XP, crafting costs, and a fuel question) is in the Claude Doc's *Rewards: a design proposal* section. **Don't apply it until the designer approves it.**
 - Every other reading in C-75 to C-87 stands as interim.
 
 ---
@@ -171,7 +171,7 @@ save puts every pilot with a ship into one wing, led by the highest level, and n
 
 - **A Crafting tab in the Arsenal**, marked as a placeholder. A list of recipes: the asset, what it unlocks, its cost in
   basic resources (credits, supplies, materials), the time (0 days for now), and a Craft button.
-- **Recipes** (costs from the rewards proposal when approved; until then, placeholders logged in a blocker):
+- **Recipes** (use the proposal's crafting costs as placeholders, logged in a blocker, until the designer approves them):
   - Unmanned Ram;
   - Nuclear-tipped Ram;
   - Fire Ship;
