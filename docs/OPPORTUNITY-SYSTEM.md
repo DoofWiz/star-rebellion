@@ -1,6 +1,6 @@
 # The opportunity system: from a lead to a plan to orders, for the whole game
 
-**Status: proposal (21 October), awaiting the designer's sign-off on §8.** Written by Claude Chat from the designer's
+**Status: approved (21 October); the designer's decisions are in §8.** Written by Claude Chat from the designer's
 brief. Type 3.5's demo is its first implementation (`docs/ARENA-HC35-FEEDBACK-3.md`). The campaign, the other space
 modes and ground missions adopt it later (§7). **Claude Code: treat this as the plan for every future mission system.**
 When you build one, build it on this grammar, or log in `docs/DESIGN_BLOCKERS.md` why you can't.
@@ -183,27 +183,66 @@ The same picker serves Secondary Orders, Mark Priority Target, and Change Execut
 `event + object` the same way ("when **the response** arrives", "when **Anvil** is in trouble", "when **the freighter**
 starts its jump").
 
-## 5. The leaders: duties come before orders
+## 5. The background simulation: duties, requests and decisions
 
-Orders say what a wing is *for*. Pilots and leaders also have **standing duties** that no order turns off, because
-real pilots would do them. The ladder, highest first:
+Orders say what a wing (or a squad) is *for*. Underneath them runs a **background simulation**: every NPC is trying to
+carry out its orders while the mission's circumstances, and its own personality and traits, pull on its decisions.
+The player watches it happen, as radio chatter and field decisions.
+
+### 5.1 The duty ladder
+
+Highest first. A unit acts on the highest rung that applies to it:
 
 1. **Retreat** (ordered): straight for the exit.
-2. **Survive:** a ship under fire defends itself or breaks away.
-3. **Mutual aid:** a unit pinned, under attack by more than one, or under 40% hull gets help. Its leader sends the
-   nearest one or two wingmates. If its own wing can't, the nearest other wing's leader does. *Waiting* jobs (Ambush
-   before the arrival, Hold, waiting for the signal, idle) **never** block aid. Only critical work does (a docked
-   boarder, a bomb run in its final seconds, a transfer nearly done).
+2. **Survive:** a unit under fire defends itself or breaks away.
+3. **Help:** answering a call for help, when its leader has said yes (§5.2).
 4. **The Executive order.**
-5. **Openings that serve the mission:** a surrender offer, a lone straggler, loose cargo. They're taken only when the
-   Executive is waiting or idle, and **a decision always comes with the job.** If a leader accepts the cargo, they
-   assign someone to collect it. If nobody can be spared, they turn it down and say so.
+5. **Openings that serve the mission:** a surrender offer, a lone straggler, loose cargo. **A decision always comes
+   with the job:** if a leader accepts the cargo, they send someone to collect it. If nobody can be spared, they turn
+   it down and say so.
 6. **The Secondary order**, when its trigger fires.
-7. **Find work:** idle wings pick something useful.
+7. **Find work:** idle units pick something useful.
 
-Every rung that changes what a wing is doing is a **field decision**: logged, spoken, shown in the feed, and listed
-in the debrief, as L3 does now. A wing also **moves at its slowest ship's pace** until its job splits it up, so a
-Brickbat isn't left behind.
+### 5.2 Help is asked for, and decided by people
+
+Help isn't automatic. It moves through the chain of command as **requests between NPCs**. These are the same kind of
+thing as the requests pilots send the player, but answered by NPCs.
+
+- **A unit in trouble can ask its leader for help** (pinned, attacked by more than one, badly hurt and under fire). It
+  may also choose not to ask: a proud or reckless pilot might not.
+- **The leader decides:**
+  - send someone (who, and how many);
+  - go themselves;
+  - or refuse ("Hold your position, Ollo, we can't break the ambush").
+- **A leader may act unasked:** sending help, or going themselves, when they see a unit in trouble.
+- **Across wings:** a pilot or a leader can call another wing's leader, who decides in the same way.
+- **The player** isn't asked these questions (they're the background), but hears them, and can override with a power
+  (Call a Pilot by Name, Change Executive Order).
+
+**Whether a request is made, and what's decided**, is a weighted choice:
+
+| Factor | Pushes toward helping | Pushes against |
+|---|---|---|
+| **Personality** (today's HC personas) | Eager, loyal, protective | Cold, by-the-book, cautious |
+| **Traits** (the pilot's traits now; the campaign's rebel traits later) | "Loyal", "Protective", "Hot-headed" | "Glory-hound", "Cold", "Coward" |
+| **Relationships** (trait links, `with:`) | Friends, wingmates of long standing, family | Rivals |
+| **The unit's state** | It's badly hurt, green, or pinned by several | It's only scratched |
+| **The helper's job** | Waiting: Ambush before the arrival, Hold, the signal, idle | Critical: docked, a bomb run about to release, a transfer nearly done |
+| **The helper's state** | Healthy, close | Hurt, far, out of ammunition |
+| **The odds** | The help can win the fight | Help would mean two losses |
+| **The orders' urgency** | The Executive can wait | The primary is seconds from done |
+
+**Decisions are deterministic** from the run's seed, so a flight record replays them exactly.
+
+**Every decision is a field decision:** logged, spoken (a speech bubble and a feed line: "Ollo: Two on me! · Sera:
+Brask, go."), and listed in the debrief by wing. So the player can see why someone was or wasn't saved.
+
+**Personality and traits come from the campaign's meta layer** once 3.5 is in the campaign. The arena uses the
+pilots' existing presets and traits.
+
+### 5.3 Moving together
+
+A wing (or squad) **moves at its slowest unit's pace** until its job splits it up, so a Brickbat isn't left behind.
 
 ## 6. Example: three opportunities, one grammar
 
@@ -220,17 +259,28 @@ Brickbat isn't left behind.
    `docs/ARENA-HC35-FEEDBACK-3.md`.
 2. **The campaign's space missions:** Sources create opportunities from cast templates (`M-` entry). The mission
    board shows the families and key object; planning uses the same windows.
-3. **Ground missions:** today's `MPOOL` defs and `SCENARIOS` modes map onto casts. Ground is hands-on, so its orders
-   are the player's own actions, but objectives, secondaries, the clock, the debrief and any autonomous squads use the
-   same vocabulary.
+3. **Ground missions.** Ground combat hasn't been designed yet, and it's likely to work much like Type 3.5: the
+   player plans, and squads with leaders carry it out under the same background simulation. So plan for it now:
+   - **The core is mode-agnostic.** The opportunity grammar (cast, tags, verbs, objectives, the clock), orders as verb
+     plus object, the duty ladder, NPC requests and decisions, the field-decision log and the debrief live in one
+     shared module. They are not part of the space sim.
+   - **Each mode supplies an adapter:** how a unit moves, fights and is "in trouble"; what counts as a squad and a
+     leader; and its maps.
+   - **Space is the first adapter, ground the second.** Today's `MPOOL` and ground `SCENARIOS` become casts when ground
+     is built.
 4. **Designer tooling:** an opportunity editor that lists the derived primaries and order menus as the cast is edited,
    so a designer sees what a lead will offer before playing it.
 
-## 8. For the designer to decide
+## 8. The designer's decisions (21 October)
 
-1. **The family names.** Take it, Deny it, Use it, Bait with it, as in the demo. Should Clear sit under Deny?
-2. **Mutual aid's reach.** Should other wings help, or only the unit's own wing? The proposal says other wings too,
-   unless they're doing critical work.
-3. **Accepting a surrender outside Pirate.** The proposal says the leader takes it only if someone can be spared,
-   and it pays bonus cargo. Or should only Pirate accept surrenders?
-4. **Ground.** Confirm ground keeps hands-on control and adopts only the objective side of the grammar for now.
+1. **The family names** are right: Take it, Deny it, Use it, Bait with it. **Clear sits under Deny it.**
+2. **Help across wings:** by **requests and decisions between NPCs**, not an automatic rule (§5.2). "A pilot could
+   ask their wing leader to go and help someone. The wing leader can approve or deny that request. Or a wing leader
+   may decide to send someone to help, or even go themselves. Whether they do or not would be based on factors from
+   their personality or traits from the main game's meta layer. It's all part of the 'background simulation' that
+   happens during missions: NPCs trying to accomplish their orders, while other elements get involved in affecting
+   their decision making from circumstances during the mission and their own personality and traits."
+3. **Surrenders are accepted outside Pirate**, and pay bonus cargo.
+4. **Must-answer requests slow the game to 0.3 ×** while they're open, so the player doesn't miss them.
+5. **Ground:** not designed yet; expect it to work much like space combat. **Plan for it** with a mode-agnostic core
+   (§7 item 3).

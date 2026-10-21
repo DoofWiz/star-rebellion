@@ -1,10 +1,10 @@
 # Type 3.5, playtest 3: the plan stage, orders with objects, and leaders who look after their own
 
 **For:** Claude Code, on `space-combat-testing` (after `b54eec7`).
-**Read first:** `docs/OPPORTUNITY-SYSTEM.md` (the game-wide design this demo implements first; a proposal, with §8
-open for the designer).
-**Status:** designed by Claude Chat, 21 October. **Wait for the designer's go-ahead before building.** The designer
-is reviewing `OPPORTUNITY-SYSTEM.md` §8 and this file's §4.
+**Read first:** `docs/OPPORTUNITY-SYSTEM.md` (the game-wide design this demo implements first; approved, with the
+designer's decisions in its §8).
+**Status:** designed by Claude Chat, 21 October; **approved by the designer the same day: build it** (§4 records the
+answers).
 **Flight record:** none was attached for this run, so §2 comes from reading the code and a headless replay of the
 plan. Ask for the record next time.
 
@@ -106,29 +106,73 @@ stage.
 **In the HUD:** the phase plate's clock names the place ("RESPONSE IN 1:17 · AT THE JUMP POINT"), and the arrival
 ring stays on the map with its countdown.
 
-### 3.4 Duties before orders (the system doc's §5, implemented)
+### 3.4 The background simulation: duties, help requests, decisions (the system doc's §5)
 
-**Mutual aid.** Each think tick, a leader checks its wing for a unit in danger:
-- pinned (`F.pinnedBy` ≥ 1 with a hit in the last 3 s);
-- attacked by 2 or more;
-- or under 40% hull and under fire.
+**Where it lives.** Build the duty ladder, NPC requests, decisions and the field-decision log in a **new mode-agnostic
+module**, `game/js/ops-core.js` (`window.SR_OPS`), together with N1's cast, tags and verbs. Space reaches it through
+an adapter in `sim-hc35.js`, which says:
+- what "in trouble" means (pinned, attacked by N, hull and fire);
+- who a unit's leader and group are;
+- how to give a unit a Protect job.
 
-It assigns the nearest 1 wingmate (2 if there are 2 or more attackers) a **Protect** job on that unit: engage its
-attackers, then stay by it until it's been clear for 5 s, then go back to the Executive.
-- **Never blocked by:** waiting jobs (Ambush before the arrival, Hold, waiting for the signal, idle).
-- **Blocked by critical work only:** docked boarding or hauling, a bomb run within 3 s of release, a transfer over 70%.
-- **If its own wing can't spare anyone,** the nearest other wing within `AID_R` (4,000) whose Executive is waiting or
-  idle sends one.
-- **Logged as a field decision**, with the line "Brask, get on Ollo!", a feed line and a "PROTECTING OLLO" verb on the
-  helper.
-- **The pinned ship** heads for the nearest friendly group (a new "Falling back to Dagger" verb) rather than carrying
-  on alone, unless it's on critical work.
+Ground will add its own adapter (`OPPORTUNITY-SYSTEM.md` §7). Nothing in `ops-core.js` may reference ships, wings or
+`S` directly.
+
+**In trouble.** A unit is in trouble when it's pinned (`F.pinnedBy` ≥ 1 with a hit in the last 3 s), attacked by 2 or
+more, or under 40% hull and under fire.
+
+**Help requests (NPC to NPC).**
+1. **Ask?** A unit in trouble decides whether to call for help, from its persona and traits (§3.4.1). A unit
+   that doesn't ask can still be seen and helped.
+2. **The leader decides**, from the factors in the system doc's §5.2: send the nearest wingmate (or two, if there are
+   two or more attackers), go themselves, or refuse. A leader who sees a unit in trouble also decides unasked, once
+   per `AID_LOOK` (3 s).
+3. **Across wings:** if its own leader refuses, or has nobody to send, the unit (or its leader) may call the nearest
+   other wing's leader within `AID_R` (4,000), who decides the same way.
+4. **A helper on Protect** engages the attackers, stays by the unit until it's been clear for 5 s, then goes back to
+   its Executive.
+5. **A refused unit** heads for the nearest friendly group (a "Falling back to Dagger" verb), unless it's on critical
+   work.
+
+**Every request and decision:**
+- is spoken (a bubble: "Two on me, Sera!" / "Brask, go." or "Hold position, Ollo.");
+- goes to the feed with VIEW;
+- is logged as a field decision (who asked, who decided, what, the top two factors);
+- appears in the debrief by wing ("Sera sent Brask to cover Ollo at 0:51"; "Hale refused Kit at 1:30: Amber was
+  docked").
+
+These requests never become player cards.
+
+#### 3.4.1 The weights (placeholders, all on a new **Duties** panel group)
+
+A decision is a score against a threshold, using the run's seeded RNG for the tie-break noise, so records replay
+exactly.
+
+**Score** = `AID_BASE`
+- `+ persona` (eager +0.25, even 0, steady −0.05, nervous −0.15)
+- `+ traits` (each listed trait's weight, from a `TRAIT_AID` table; unknown traits count 0)
+- `+ relationship` (a `with:` trait naming the unit: friend +0.3, rival −0.3)
+- `+ the unit's trouble` (pinned by 2 or more +0.2; hull under 25% +0.2; green +0.1)
+- `+ the helper's job` (waiting or idle +0.2; ordinary 0; critical −1, which blocks)
+- `− the helper's own hurt` (hull under 40%: −0.3)
+- `− distance` (−0.1 per 1,000 beyond 1,500)
+- `− urgency` (the primary at over 80% progress: −0.2)
+- `± AID_NOISE` (0.1)
+
+The leader helps if the score is at least `AID_THRESH` (0.5). The unit **asks** if its own score, using its persona,
+traits and trouble terms, is at least `ASK_THRESH` (0.3). "Proud" or "Reckless" traits lower it.
+
+The arena's pilots get a few traits to show this off (placeholders, log them):
+- Sera: Protective.
+- Joss: Reckless, and Petra's friend.
+- Hale: By-the-book.
+- Ollo: Green, proud.
 
 **Pace.** A wing travels at its slowest ship's cruise (× 0.95) until its job splits it up (boarding, hauling, Tag,
 specialists). On the map, a wing in transit stays in formation.
 
-**The escort is a threat, not scenery.** Waiting wings engage any hostile that attacks a friendly within `AID_R` (this
-covers the designer's "ignored the escort"), not only hostiles near their point.
+**The escort is a threat, not scenery.** Waiting wings engage any hostile that attacks one of their own within
+`AID_R`, not only hostiles near their point. Helping *another* wing goes through the requests above.
 
 ### 3.5 Surrender, done properly
 
@@ -179,20 +223,22 @@ hunting our smugglers in the Ashfall belt."
 
 If anything about it needs special-case code, log it under the blocker and say why.
 
-## 4. For the designer (choose before the build)
+## 4. The designer's answers (21 October)
 
-1. Approve `OPPORTUNITY-SYSTEM.md` and answer its §8.
-2. **Mutual aid across wings:** yes (as written) or own wing only?
-3. **The 0.3 × slow-down** while a must-show request is open: on by default?
-4. **Bait-family default:** take the cargo when a wing can be spared?
+1. `OPPORTUNITY-SYSTEM.md` approved: the family names stand, and Clear sits under Deny it.
+2. **Help across wings** goes through NPC requests and leaders' decisions, weighted by personality and traits (§3.4),
+   not an automatic rule.
+3. **Surrenders are accepted outside Pirate** and pay bonus cargo (§3.5).
+4. **The 0.3 × slow-down** while a must-show request is open: on by default (§3.5).
+5. **Ground isn't designed yet**, but will likely work like space: build the core mode-agnostic (§3.4).
 
 ## 5. Phases and tests
 
 | Phase | Build | Proof |
 |---|---|---|
-| **N1** | The cast, tags, verbs and handlers. The freighter opportunity as data. The switches moved into handlers | Replaying the designer's recorded runs (the K0 and L-round records) reproduces their outcomes, apart from what this file changes |
+| **N1** | `ops-core.js`: the cast, tags, verbs and handlers. The freighter opportunity as data. The switches moved into handlers | Replaying the designer's recorded runs (the K0 and L-round records) reproduces their outcomes, apart from what this file changes |
 | **N2** | Orders as verb + object; map point markers; the arrival ring; trigger objects; the "How this plays out" strip and HUD clock; Ambush plan and critique | Destroy can target the escort; an Ambush point can be dragged; the strip reads the events |
-| **N3** | Duties: mutual aid, pace, falling back, threat response | §5 tests 5–7 |
+| **N3** | The background simulation in `ops-core.js` and its space adapter: the duty ladder, NPC help requests and decisions with the weights, falling back, pace, threat response; the field decisions in the feed and debrief | §5 tests 5–7 and 12 |
 | **N4** | Surrender: resolve drain, family defaults, job with the decision, transfer counting, pay, the slow-down; Ambush end states and fallback | §5 tests 8–10 |
 | **N5** | Patrol Sweep as data | §5 test 11 |
 
@@ -202,21 +248,26 @@ If anything about it needs special-case code, log it under the blocker and say w
    freighter's parts.
 3. An Ambush point dragged on the map is where the wing waits. With no point set, it's the response's arrival point.
 4. The strip shows "No response" with Kill the Distress Call on. The HUD clock names the arrival place.
-5. A Brickbat pinned by two Motes while its wing ambushes gets a wingmate on Protect within 2 s. With its wing docked
-   boarding, the nearest waiting wing sends someone instead.
+5. A Brickbat pinned by two Motes while its wing ambushes: with Sera (Protective) leading, help is sent within 3 s,
+   and the debrief names who sent whom. With the leader's weights forced below `AID_THRESH`, the leader refuses, the
+   Brickbat asks the nearest other wing, and it falls back. With its wing docked boarding, nobody in that wing is sent.
 6. A wing with a Brickbat arrives at its point together (the gap between first and last arrival is under 4 s).
-7. A waiting wing engages an escort attacking a friendly within `AID_R`.
+7. A waiting wing engages an escort attacking one of its own ships within `AID_R`.
 8. Wings flying past the freighter on their way to an ambush point don't trigger a surrender.
 9. With an Ambush primary and a spare wing, the default *Take* assigns an Overwatch ship, and the transfer completes
    only while it's in the ring. With nobody spare, the answer becomes No deal with a spoken reason. With Leave No
    Witnesses on, the default is No deal.
 10. Ambush with Kill the Distress Call on: the Executive is impossible, the leader says so, and the wing finds work.
 11. Patrol Sweep: its primaries are derived as Clear and Ambush, and Clear wins when the patrol is destroyed.
+12. `ops-core.js` loads and runs its decision tests in node with a stub adapter (no ships, no `S`). The same seed gives
+    the same decisions, and the flight record replays them.
 
 **Blockers** (next free: **C-87**, **M-39**):
 - **C-87:** the opportunity grammar adopted in 3.5; orders as verb + object; duties before orders; the surrender
   rules; Ambush's end states; Patrol Sweep.
-- **C-88:** the readings in §4 until the designer answers. Resolve the old line at `DESIGN_BLOCKERS.md:889`.
+- **C-88:** the designer's answers (§4) go to the Resolved log. Resolve the old line at `DESIGN_BLOCKERS.md:889`
+  (non-Pirate surrender defaults now follow §3.5). Log the arena pilots' new traits and the Duties weights as
+  placeholders.
 - **M-39:**
   - the campaign's Sources creating opportunities from casts;
   - ground missions on the grammar;
