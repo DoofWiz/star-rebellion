@@ -775,7 +775,7 @@ function frame(now){
     A.realSecs+=realDt/1000;
     const ts=SIM.TIMESCALES[A.speed];gameDt=realDt*ts/1000;
     if(ts===0)A.pausedSecs+=realDt/1000;
-    if(!(A.hitstop>now))A.acc+=realDt*ts;   // a hitstop (Type 3.5's ram impact) holds the sim for a beat
+    if(!(A.hitstop>now))A.acc+=realDt*ts*(A.slowK||1);   // a hitstop (Type 3.5's ram impact) holds the sim for a beat; slowK: 3.5's must-answer slow-down
     let n=0;
     while(A.acc>=SIM.TICK&&n++<200&&A.phase==='LIVE'){A.acc-=SIM.TICK;SIM.step();if(SIM.S.over){onOver();break;}}
     RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));

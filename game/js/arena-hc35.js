@@ -18,6 +18,7 @@ const ROOT=document.createElement('div');ROOT.id='arHc35';ROOT.hidden=true;STAGE
 const B={screen:'off',oppId:'vulnerable_freighter',seed:1,mods:[],plan:null,step:1,part:1,intel:0,attempt:0,briefT:[0,0,0,0],stepAt:0,
   pickAsset:null,drag:null,hover:null,metrics:[],planAgain:false,banner:null};
 const opp=()=>L35.OPPORTUNITIES[B.oppId];
+const isFr=()=>opp().key==='freighter';   // the freighter opportunity (Patrol Sweep has no key object)
 const newSeed=()=>((B.seed*2654435761+12345)>>>0)%1000000;
 const PANEL_W=440;   // the briefing panel's width, px (the plan view fits the room right of it)
 
@@ -59,27 +60,30 @@ const MI={board:'M4 5h16v14H4zM8 9h8M8 13h5',pin:'M12 21s-6-6-6-11a6 6 0 0112 0c
 const mic=(k,cls)=>'<svg class="sr-ico'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+MI[k]+'"/></svg>';
 const RISK_C=['var(--sr-go)','var(--sr-gold)','var(--sr-hazard)'];
 const riskPips=r=>'<span class="bf-risk" style="--rc:'+RISK_C[r-1]+'">'+[1,2,3].map(i=>'<i'+(i<=r?' class="is-on"':'')+'></i>').join('')+'</span>';
-function escortsKnown(){const O=opp();let n=O.escorts.reduce((a,e)=>a+(e.n||1),0);if(B.mods.some(m=>m.k==='heavy'&&L35.known(m)&&!m.fake))n*=2;return n;}
+function escortsKnown(){const O=opp();if(!isFr())return 0;let n=O.escorts.reduce((a,e)=>a+(e.n||1),0);if(B.mods.some(m=>m.k==='heavy'&&L35.known(m)&&!m.fake))n*=2;return n;}
 const NUMW=['no','one','two','three','four','five','six','seven','eight','nine','ten'];
 function boardHtml(){
   const O=opp(),kn=B.mods.filter(L35.known),hid=B.mods.some(m=>!L35.known(m));
   const top='<div class="h35-mtop"><div class="h35-mtop__t"><h1 class="sr-display">Missions</h1><span>Briefing room · Haven Rock</span></div>'+
     '<nav class="h35-tabs" aria-label="Tabs">'+['Galaxy','Missions','Intelligence','Arsenal','Base'].map(t=>'<span class="sr-btn h35-tab'+(t==='Missions'?' is-on':'')+'"'+(t==='Missions'?'':' data-tip="na:arena" tabindex="0"')+'>'+t+'</span>').join('')+'</nav>'+
     '<div class="h35-pills">'+[['coin','1,240','var(--sr-gold)'],['cube','86','var(--sr-go)'],['fuel','54','var(--sr-rebel)'],['intel',String(B.intel),'var(--sr-shield)']].map(([k,v,c])=>'<span class="h35-pill" style="--c:'+c+'" data-tip="'+(k==='intel'?'h35:intel':'na:arena')+'">'+mic(k)+'<b>'+v+'</b></span>').join('')+'</div></div>';
-  const card=(o)=>'<button type="button" class="bf-card'+(o.sel?' is-sel':'')+(o.lock||o.na?' is-locked':'')+(o.flag?' has-flag':'')+'"'+(o.sel?' data-msel="vf" aria-pressed="true"':' data-tip="na:demo" aria-disabled="true"')+'>'+
+  const card=(o)=>'<button type="button" class="bf-card'+(o.sel?' is-sel':'')+(o.lock||o.na?' is-locked':'')+(o.flag?' has-flag':'')+'"'+(o.opp?' data-msel="'+o.opp+'" aria-pressed="'+!!o.sel+'"':' data-tip="na:demo" aria-disabled="true"')+'>'+
     '<span class="bf-card__ico'+(o.thumb?' h35-thumb':'')+'">'+(o.thumb?'<canvas width="112" height="112" data-thumb="fl400"></canvas>':mic(o.icon))+'</span><span class="bf-card__name">'+esc(o.name)+'</span>'+
     '<span class="bf-card__meta">'+o.type+(o.risk?riskPips(o.risk):'')+(o.src?esc(o.src):'')+'</span>'+(o.flag?'<span class="bf-card__flag" style="background:var(--sr-gold);color:var(--sr-ink)">New</span>':'')+'</button>';
   const board='<div class="bf-board h35-mboard"><div class="bf-board__head">'+mic('board')+'Mission board</div>'+
     '<div class="bf-filters">'+['All','Ground','Space'].map(f=>'<span class="sr-btn sr-btn--sm h35-filt'+(f==='Space'?' is-on':'')+'" data-tip="na:demo">'+f+'</span>').join('')+'</div>'+
-    '<div class="bf-list">'+card({sel:1,thumb:1,name:O.title,type:'Space',risk:2,src:O.source.name,flag:1})+card({na:1,icon:'soldier',name:'Steal Fuel',type:'Ground',risk:2})+
+    '<div class="bf-list">'+card({opp:'vulnerable_freighter',sel:B.oppId==='vulnerable_freighter',thumb:1,name:L35.OPPORTUNITIES.vulnerable_freighter.title,type:'Space',risk:2,src:'Cass',flag:1})+
+      card({opp:'patrol_sweep',sel:B.oppId==='patrol_sweep',icon:'force',name:L35.OPPORTUNITIES.patrol_sweep.title,type:'Space',risk:2,src:'Cass',flag:1})+card({na:1,icon:'soldier',name:'Steal Fuel',type:'Ground',risk:2})+
     card({na:1,icon:'soldier',name:'Rescue Tachi',type:'Ground',risk:2})+card({lock:1,icon:'lock',name:'Signal encrypted',type:'Space'})+'</div>'+
     '<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost h35-newopp" data-act="newopp" data-tip="h35:newopp">New opportunity</button></div>';
   const n=escortsKnown(),ace=B.mods.some(m=>m.k==='ace'&&L35.known(m)&&!m.fake);
   const holo='<div class="bf-holo h35-mholo"><div class="bf-beam"></div>'+holoTable()+'<div class="bf-proj"><div class="bf-scan"></div>'+holoSvg(n)+
     '<canvas class="h35-holofr" width="300" height="90" data-target="1"></canvas>'+
-    '<div class="bf-callout" style="left:2%;top:4%"><b>Target</b><span>GA '+esc(O.target.label.replace('Fleet','fleet'))+', holds full</span></div>'+
+    (isFr()?'<div class="bf-callout" style="left:2%;top:4%"><b>Target</b><span>GA '+esc(O.target.label.replace('Fleet','fleet'))+', holds full</span></div>'+
     '<div class="bf-callout is-foe" style="right:0;top:2%"><b>Opposition</b><span>Escort of '+(NUMW[n]||n)+' Motes'+(ace?', with Commandant Vex':'')+'</span></div>'+
-    '<div class="bf-callout" style="right:2%;bottom:16%"><b>Window</b><span>Crosses in about 4:30</span></div></div>'+
+    '<div class="bf-callout" style="right:2%;bottom:16%"><b>Window</b><span>Crosses in about 4:30</span></div>':
+    '<div class="bf-callout is-foe" style="right:0;top:2%"><b>Opposition</b><span>A patrol: six Motes and a Scimitar lead</span></div>'+
+    '<div class="bf-callout" style="left:2%;top:4%"><b>Where</b><span>The Ashfall belt</span></div>')+'</div>'+
     '<div class="bf-title"><i></i>Thessa Reach · Remote system</div></div>';
   const rail='<aside class="h35-mrail bf-rail"><div class="bf-railtitle">'+mic('intel')+'Briefing</div><div class="bf-brief">'+
     '<div><div class="bf-brief__title">'+esc(O.title)+'</div><div class="bf-loc">'+mic('pin')+'Thessa Reach · Orbit</div></div>'+
@@ -148,7 +152,7 @@ function buildPlanView(){
 }
 function zoneBox(){
   const Zn=SIM.zone,L=L35.L,pts=[{x:Zn.x0,y:Zn.y0},{x:Zn.x1,y:Zn.y1}];
-  if(L){pts.push({x:L.planet.x,y:L.planet.y-L.planet.r*0.4});}
+  if(L&&L.opp.key==='freighter'){pts.push({x:L.planet.x,y:L.planet.y-L.planet.r*0.4});}
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of pts){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
   return {x0,y0,x1,y1};
 }
@@ -289,8 +293,9 @@ function objCard(k,ro){
 /* window 1, part 1: the primary objective, a column for each family, the ones to come locked in theirs (one shown) */
 function step1(){
   let h='<h2 class="h35-ask">What\'s the job?</h2><div class="h35-fams">';
-  for(const f of L35.FAMILIES){
-    const ks=L35.PRIMARY_KEYS.filter(k=>L35.PRIMARIES[k].family===f),later=L35.LATER_PRIMARIES.filter(x=>x.family===f);
+  const keys=L35.primaryKeysOf(opp()),fams=L35.FAMILIES.filter(f=>(opp().families||[]).includes(SR_OPS.FAMILY_OF_NAME[f]));
+  for(const f of fams){
+    const ks=keys.filter(k=>L35.PRIMARIES[k].family===f),later=isFr()?L35.LATER_PRIMARIES.filter(x=>x.family===f):[];
     h+='<section class="h35-panel h35-fam"><div class="h35-panel__head"'+(later.length?' data-tip="@" data-tt="'+esc(f)+'" data-tb="Later: '+esc(later.map(x=>x.name).join(', '))+' (not in this demo)."':'')+'>'+esc(f)+'</div>'+
       ks.map(k=>objCard(k)).join('')+
       (later.length?'<div class="h35-ocard is-locked" data-tip="na:demo"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(later[0].name)+'</div><div class="h35-ocard__pitch">not in this demo</div></div></div></div>':'')+'</section>';
@@ -328,12 +333,14 @@ function rewardHtml(k){
 }
 const RES_ICO={c:'credits',s:'supplies',m:'materials',f:'fuel',i:'intel'},RES_NAME={c:'Credits',s:'Supplies',m:'Materials',f:'Fuel',i:'Intel'};
 const chips=b=>b?Object.keys(RES_ICO).filter(k=>b[k]).map(k=>'<span class="sr-cost" style="--c:var(--sr-res-'+RES_ICO[k]+')" data-tip="@" data-tt="'+RES_NAME[k]+'">'+SR.hud.ico(RES_ICO[k])+b[k]+'</span>').join(' '):'';
+/* a secondary is offered only if the cast has what it needs: Leave No Witnesses something that escapes, Kill the Distress Call something that calls for help */
+const optHere=k=>k==='witnesses'?(opp().cast||[]).some(t=>SR_OPS.has(t,'escapes')):k==='distress'?(opp().cast||[]).some(t=>SR_OPS.has(t,'calls-help')):true;
 /* window 1, part 2 (§3): the secondary objectives (up to OPT_MAX), beside the primary you picked */
 const OPT_MAX=2;
 function step1b(){
   const P=B.plan,n=P.optionals.length;
   let h='<div class="h35-duo"><section class="h35-panel h35-panel--main"><div class="h35-panel__head">Secondary objectives <small>(pick up to '+OPT_MAX+')</small><span class="h35-count">'+n+' / '+OPT_MAX+'</span></div><div class="h35-trows">';
-  for(const k in L35.OPTIONALS){const o=L35.OPTIONALS[k],on=P.optionals.find(x=>x.k===k);
+  for(const k in L35.OPTIONALS){if(!optHere(k))continue;const o=L35.OPTIONALS[k],on=P.optionals.find(x=>x.k===k);
     h+=trow('opt',k,o,on,o.needs?'Pilot: '+pilotPick(k,on&&on.ship,o.needs):'',!on&&n>=OPT_MAX);}
   h+='</div></section><section class="h35-panel h35-panel--side"><div class="h35-panel__head">Your primary</div>'+(P.primary?objCard(P.primary,true):'<p class="h35-noneed">No primary yet.</p>')+
     '<button type="button" class="sr-btn sr-btn--ghost h35-change" data-step="1" data-tip="@" data-tt="Change the primary" data-tb="Back to part 1. Your secondaries are kept.">Change</button></section></div>';
@@ -349,7 +356,7 @@ function stepPres(d){const P=B.plan;P.presHull=Math.round(Math.max(PRES_MIN,Math
 function step2(){
   const P=B.plan;
   let h='<div class="h35-duo"><section class="h35-panel h35-panel--main"><div class="h35-panel__head">Rules of engagement</div><div class="h35-trows">';
-  for(const k in L35.ROES)h+=trow('roe',k,L35.ROES[k],P.roes.includes(k),k==='preservation'?presField():'');
+  for(const k in L35.ROES)if(isFr()||!['whale','tight'].includes(k))h+=trow('roe',k,L35.ROES[k],P.roes.includes(k),k==='preservation'?presField():'');   // Whale Hunt and Weapons Tight are about the freighter
   return h+'</div></section><section class="h35-panel h35-panel--side"><div class="h35-panel__head">The plan so far</div><div class="h35-sofar">'+soFar()+'</div></section></div>';
 }
 function pilotPick(k,cur,need){
@@ -405,9 +412,18 @@ function unreachable(wid){
   return true;
 }
 /* step 4: each wing's Executive Order and Secondary; jump-in and asset markers on the map */
+function playsOutHtml(){
+  const E=opp().events||{},N=L35.N,resp=L35.fn.canComeAtAll(B.plan,B.mods),at=L35.L?L35.fn.arrivalName():'the jump point',st=(t,tt,tb)=>'<span class="h35-po__st" data-tip="@" data-tt="'+esc(tt)+'" data-tb="'+esc(tb)+'">'+t+'</span>';
+  if(!E.alarm)return '';
+  return '<div class="hc-card h35-po"><div class="h35-label">How this plays out</div>'+
+    st('<b>Alarm</b> (they spot you, shots are fired, or you give the signal)','The alarm','Being seen inside an escort\'s ring, the first shot, a jump-in too close, or your signal. It starts Phase 2.')+' → '+
+    (isFr()?st('<b>Distress call</b> '+N.DISTRESS_SECS+' s (stopped by killing the comms or the power)','The distress call','The freighter calls for help as soon as the alarm goes up. Knock out her comms array (or her power) before it gets out and nobody comes.'):
+      st('<b>Call for help</b> '+N.DISTRESS_SECS+' s (stopped by downing their lead)','The call for help','Their lead calls for help as soon as the alarm goes up. Shoot it down before the call gets out and nobody comes.'))+' → '+
+    (resp?st('<b>Response</b> about '+fmtClock(N.RESPONSE_SECS)+' later, at '+esc(at),'The response','The Hegemony warps in, at the blue ring on the map. That\'s Phase 3, and what an Ambush waits for.'):st('<b>No response</b>','No response','Kill the Distress Call (or a Remote freighter) means nobody comes.'))+'</div>';
+}
 function step4(){
   const P=B.plan;
-  let h='<p class="h35-hint">Drag each wing\'s gold diamond to its jump-in point. A diamond turns blue inside an escort\'s sensor ring.</p>';
+  let h='<p class="h35-hint">Drag each wing\'s gold diamond to its jump-in point, and an Ambush or Hold marker to where it waits. A diamond turns blue inside an escort\'s sensor ring.</p>'+playsOutHtml();
   for(const w of L35.WINGS35){const pw=P.wings[w.id];if(pw.role==='home')continue;
     h+='<div class="hc-card h35-wing"><div class="h35-wing__head"><span class="h35-wing__name">'+esc(w.name)+'</span><span class="h35-wing__sub">'+esc(w.ships.map(s=>clsName(s.cls)).join(' · '))+(pw.role==='reserve'?' · RESERVE':'')+'</span></div>'+
       '<div class="h35-ord"><span class="h35-ord__lbl">EXEC</span>'+orderSel(w,'exec',pw.exec)+'</div>'+
@@ -415,20 +431,27 @@ function step4(){
       '<div class="sr-quote h35-take"><span class="sr-quote__who">'+esc(w.ships[0].name)+'</span>'+esc(leaderTake(w))+'</div></div>';}
   return h;
 }
+/* an order's objects: the cast things the verb applies to (SR_OPS.objectsFor), Destroy's "anything near a point" */
+function orderObjs(k){const O=L35.ORDERS35[k];if(!O||O.target!=='obj')return [];
+  const l=SR_OPS.objectsFor(opp(),k).map(t=>({id:t.id,name:t.name}));if(O.area)l.push({id:'area',name:'anything near a point'});return l;}
 function orderSel(w,slot,o){
   const k=o&&o.k||'';
   let h='<select class="h35-sel" data-ord="'+slot+'" data-wing="'+w.id+'" data-tip="ord:'+k+'">'+L35.ORDER35_KEYS.map(x=>'<option value="'+x+'"'+(x===k?' selected':'')+'>'+esc(L35.ORDERS35[x].name)+'</option>').join('')+'</select>';
   const O=L35.ORDERS35[k];
+  if(O&&O.target==='obj')h+='<select class="h35-sel" data-arg="'+slot+'" data-wing="'+w.id+'" data-tip="@" data-tt="The order\'s object" data-tb="Only what this order can be used on in this mission.">'+orderObjs(k).map(t=>'<option value="'+t.id+'"'+(o.arg===t.id?' selected':'')+'>'+esc(t.name)+'</option>').join('')+'</select>';
   if(O&&O.target==='sub')h+='<select class="h35-sel" data-arg="'+slot+'" data-wing="'+w.id+'">'+O.subs.map(s=>'<option value="'+s+'"'+(o.arg===s?' selected':'')+'>'+s+'</option>').join('')+'</select>';
   else if(O&&O.target==='what')h+='<select class="h35-sel" data-arg="'+slot+'" data-wing="'+w.id+'">'+O.whats.map(s=>'<option value="'+s+'"'+(o.arg===s?' selected':'')+'>'+s+'</option>').join('')+'</select>';
   else if(O&&O.target==='wing')h+='<select class="h35-sel" data-arg="'+slot+'" data-wing="'+w.id+'">'+L35.WINGS35.filter(x=>x.id!==w.id).map(x=>'<option value="'+x.id+'"'+(o.arg===x.id?' selected':'')+'>'+esc(x.name)+'</option>').join('')+'</select>';
   return h;
 }
 function trigSel(w,sec){
-  return '<select class="h35-sel" data-trig="1" data-wing="'+w.id+'" data-tip="h35:trig"><option value="">None</option>'+Object.keys(L35.TRIGGERS).map(k=>'<option value="'+k+'"'+(sec&&sec.trig===k?' selected':'')+'>if '+esc(L35.TRIGGERS[k].toLowerCase())+'</option>').join('')+'</select>';
+  let h='<select class="h35-sel" data-trig="1" data-wing="'+w.id+'" data-tip="h35:trig"><option value="">None</option>'+Object.keys(L35.TRIGGERS).map(k=>'<option value="'+k+'"'+(sec&&sec.trig===k?' selected':'')+'>if '+esc(L35.TRIGGERS[k].toLowerCase())+'</option>').join('')+'</select>';
+  if(sec&&sec.trig==='trouble')h+='<select class="h35-sel" data-twing="1" data-wing="'+w.id+'">'+L35.WINGS35.map(x=>'<option value="'+x.id+'"'+((sec.twing||w.id)===x.id?' selected':'')+'>'+esc(x.id===w.id?'this wing':x.name)+'</option>').join('')+'</select>';   // a wing can watch another
+  return h;
 }
 /* an order needs an argument: fill the first one */
 function fixArg(o,w){const O=L35.ORDERS35[o.k];if(!O)return;
+  if(O.target==='obj'){if(o.arg&&typeof o.arg==='object'){o.at=o.arg;o.arg=null;}const l=orderObjs(o.k);if(!l.some(t=>t.id===o.arg))o.arg=l.length?l[0].id:null;if(!O.point&&o.arg!=='area')delete o.at;return;}
   if(O.target==='sub'&&!O.subs.includes(o.arg))o.arg=O.subs[0];
   else if(O.target==='what'&&!O.whats.includes(o.arg))o.arg=O.whats[0];
   else if(O.target==='wing'&&!L35.WINGS35.some(x=>x.id===o.arg&&x.id!==w.id))o.arg=L35.WINGS35.find(x=>x.id!==w.id).id;
@@ -469,7 +492,7 @@ function clockHtml(){
   let status,name,round,ph=L.phase;
   if(ph===1){status='UNDETECTED';name='PHASE 1 · ARRIVAL';round=fr&&fr.alive?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):'';}
   else if(ph===2){status='ALERTED';name='PHASE 2 · ENGAGED';const D=L.distress;
-    round=L.prize&&L.repair?'PRIZE: '+(L.repair.k==='power'?'POWER':'ENGINES')+' '+Math.round(L.repair.prog*100)+'%':D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t):
+    round=L.prize&&L.repair?'PRIZE: '+(L.repair.k==='power'?'POWER':'ENGINES')+' '+Math.round(L.repair.prog*100)+'%':D&&!D.landed&&!D.cut?'DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/L35.N.DISTRESS_SECS)*100)+'%':L.responseAt!=null?'RESPONSE IN '+fmtClock(L.responseAt-S.t)+' · AT '+L35.fn.arrivalName().replace(/^the /,'').toUpperCase():
       L.spool!=null?'FREIGHTER SPOOLING':fr&&fr.alive&&!L.disabled&&!L.prize&&!L.engOut?'FREIGHTER JUMPS IN '+fmtClock(etaJump()):fr&&fr.alive&&L.engOut&&!L.disabled&&!L.prize?'FREIGHTER CAN\'T JUMP':L.prize?'PRIZE HEADING HOME':L.disabled?'FREIGHTER DEAD IN SPACE':'';}
   else {status='HEGEMONY ON SITE';name='PHASE 3 · RESPONSE';round='GET OUT';}
   return '<div class="sr-phase h35-phase" data-phase="'+(ph===1?'free':'fight')+'"'+(ph===3?' data-status="alert"':'')+'><span class="sr-phase__status" style="--s:'+(ph===1?'var(--sr-c-good)':ph===2?'var(--sr-hazard)':'var(--sr-heg)')+'"><span class="sr-phase__text">'+status+'</span></span>'+
@@ -549,7 +572,7 @@ function rewardRow(){
   const L=L35.L;if(!L||!L35.rewardOf)return '';const r=L35.rewardOf(),P=L35.PRIMARIES;
   const got=chips(r.earned)||'<span class="h35-fine2">Nothing</span>';
   const bonus=r.bonus?'<span class="h35-rew__per">incl. Accomplished + '+chips(r.bonus)+'</span>':r.missed?'<span class="h35-rew__miss">Missed: '+esc(P[r.picked].name)+'\'s Accomplished + '+chips(r.missed)+(L.fallback?' (you fell back to '+esc(P[r.k].name)+')':'')+'</span>':'';
-  return '<div class="h35-label">Rewards</div><div class="h35-rew h35-rew--deb">'+got+' '+bonus+'</div>';
+  return '<div class="h35-label">Rewards</div><div class="h35-rew h35-rew--deb">'+got+' '+bonus+(r.surrendered?' <span class="h35-rew__per">incl. Surrendered cargo ('+r.surrendered.n+') + '+chips(r.surrendered.pay)+'</span>':'')+'</div>';
 }
 /* how your leaders played it (feedback 2, §3.3): each wing's calls in the field, in order, with why */
 const DEC_ICON={signal:'▶',retreat:'↩',home:'↩',fallback:'⟳',job:'➤',second:'➤',hold:'■',request:'?'};
@@ -695,16 +718,17 @@ function drawWorld(c,view,o){
   const z=o.z;
   const plan=B.screen==='brief';
   // the planet: a dim cel disc, a thin rim light, its pull zone in faint dotted steel
-  const P=L.planet;
-  c.save();c.beginPath();c.arc(P.x,P.y,P.r,0,6.283);c.fillStyle='#141a33';c.fill();c.lineWidth=4/z;c.strokeStyle=C.ink;c.stroke();
+  const P=L.planet,FRT=L.opp.key==='freighter';
+  if(FRT){c.save();c.beginPath();c.arc(P.x,P.y,P.r,0,6.283);c.fillStyle='#141a33';c.fill();c.lineWidth=4/z;c.strokeStyle=C.ink;c.stroke();
   c.beginPath();c.arc(P.x,P.y,P.r-6/z,Math.PI*1.1,Math.PI*1.65);c.lineWidth=3/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.stroke();
-  c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();
+  c.setLineDash([3/z,10/z]);c.lineWidth=1.6/z;c.strokeStyle=TH.rgba(C.steel,0.35);c.beginPath();c.arc(P.x,P.y,P.pull,0,6.283);c.stroke();c.setLineDash([]);c.restore();}
   drawTarget(c,z,view,o);
   if(!plan){drawPowers(c,z,view,o);drawPods(c,z);}
-  if(plan||B.planOverlay)drawLane(c,z);
+  if(FRT&&(plan||B.planOverlay))drawLane(c,z);
   if(!plan&&B.planOverlay)drawPlanLive(c,z);
-  else{const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
+  else if(FRT){const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.6),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);}
   // escort detection rings, faint foe blue (their awareness)
+  if(!plan&&L.responseAt!=null&&!L.responded){const ap=L35.fn.ambushPoint();API.ring(c,ap.x,ap.y,1200,TH.rgba(C.heg,0.7),z,2,[12,8]);API.label(c,ap.x,ap.y-1200-14/z,'RESPONSE IN '+fmtClock(Math.max(0,L.responseAt-S.t)),C.hegHi,z,11);}   // where it arrives, counting down
   if(L.phase===1)for(const e of S.ships)if(e.alive&&e.role35==='escort'){c.save();c.beginPath();c.arc(e.x,e.y,L35.TUNE.DETECT_R.get(),0,6.283);c.fillStyle=TH.rgba(C.heg,0.05);c.fill();c.setLineDash([6/z,8/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(C.heg,0.45);c.stroke();c.restore();}
   if(plan){
     // the response edge: a foe-blue dashed band
@@ -728,7 +752,13 @@ function drawWorld(c,view,o){
       diamond(c,m.x,m.y,(B.hover===w.id||B.drag&&B.drag.id===w.id?13:11)/z,col,pw.role==='reserve');
       // a short dashed arrival cone toward its target
       if(tg){const a=Math.atan2(tg.y-m.y,tg.x-m.x),r=60/z;c.save();c.setLineDash([4/z,4/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(col,0.8);c.beginPath();c.moveTo(m.x+Math.cos(a-0.4)*r,m.y+Math.sin(a-0.4)*r);c.lineTo(m.x,m.y);c.lineTo(m.x+Math.cos(a+0.4)*r,m.y+Math.sin(a+0.4)*r);c.stroke();c.restore();}
-      API.label(c,m.x,m.y-20/z,w.name.toUpperCase()+(pw.role==='reserve'?' · RESERVE':''),col,z,12,'Bungee');}
+      API.label(c,m.x,m.y-20/z,w.name.toUpperCase()+(pw.role==='reserve'?' · RESERVE':''),col,z,12,'Bungee');
+      const pt=exPoint(w);if(pt){const hot=B.hover==='p:'+w.id||B.drag&&B.drag.type==='pt'&&B.drag.id===w.id;
+        c.save();c.beginPath();c.arc(pt.x,pt.y,(hot?15:13)/z,0,6.283);c.fillStyle=TH.rgba(C.ink,0.85);c.fill();c.setLineDash([4/z,3/z]);c.lineWidth=2/z;c.strokeStyle=C.gold;c.stroke();c.restore();
+        API.label(c,pt.x,pt.y+28/z,(L35.ORDERS35[pw.exec.k].name+' · '+w.name).toUpperCase(),C.gold,z,10,'Bungee');}}
+    // where the response arrives, and when (playtest 3, §3.2–3.3)
+    if(L35.fn.canComeAtAll(B.plan,B.mods)){const ap=L35.fn.ambushPoint();API.ring(c,ap.x,ap.y,1200,TH.rgba(C.heg,0.75),z,2,[12,8]);
+      API.label(c,ap.x,ap.y-1200-14/z,'RESPONSE ARRIVES HERE · ABOUT '+fmtClock(L35.fn.responseEta())+' AFTER THE ALARM',C.hegHi,z,11);}
   }
 }
 /* the plan overlay (§7.4): each wing's Executive line from where it is now, so a wing pulled off plan leaves its line */
@@ -802,8 +832,13 @@ function drawLane(c,z){
     const m=win.pts[Math.floor(win.pts.length/2)];API.label(c,m.x,m.y+26/z,'GRAVITY WINDOW '+fmtClock(win.t0)+'–'+fmtClock(win.t1),C.steel,z,11,'Bungee');}
   const fj=L.fjump;API.ring(c,fj.x,fj.y,SIM.fn.JUMP_R_()*1.4,TH.rgba(C.heg,0.7),z,2,[10,8]);API.label(c,fj.x,fj.y-SIM.fn.JUMP_R_()*1.4-12/z,'FREIGHTER JUMP POINT',C.hegHi,z,11);
 }
+/* an Executive's point marker: where it is (world units), or null for orders without one */
+function exPoint(w){const pw=B.plan.wings[w.id],o=pw.exec,O=o&&L35.ORDERS35[o.k];if(!O||!(O.point||(o.k==='destroy'&&o.arg==='area')))return null;
+  if(o.at)return toWorld(o.at);if(o.arg&&o.arg.x!=null)return toWorld(o.arg);
+  return o.k==='ambush'?L35.fn.ambushPoint():toWorld(pw.jumpIn);}
 function planTarget(o,w){
   if(!o)return null;const S=SIM.S;
+  if(w&&o===B.plan.wings[w.id].exec){const p=exPoint(w);if(p)return p;}
   if(o.k==='defend'){const ow=B.plan.wings[o.arg];return ow?toWorld(ow.jumpIn):null;}
   if(o.k==='withdraw')return S.points.ourjump;
   if(o.k==='hold'||o.k==='ambush'){return o.arg&&o.arg.x!=null?toWorld(o.arg):null;}
@@ -883,12 +918,15 @@ function markerAt(p){
   let best=null,bd=18/cam.z;
   for(const w of L35.WINGS35){const pw=B.plan.wings[w.id];if(pw.role==='home')continue;const m=toWorld(pw.jumpIn),d=Math.hypot(m.x-p.x,m.y-p.y);if(d<bd){bd=d;best={type:'jumpIn',id:w.id};}}
   for(const k of placedAssets()){const m=toWorld(L35.assetAt(B.plan,k)),d=Math.hypot(m.x-p.x,m.y-p.y);if(d<bd){bd=d;best={type:'asset',id:k};}}
+  for(const w of L35.WINGS35){if(B.plan.wings[w.id].role==='home')continue;const m=exPoint(w);if(m){const d=Math.hypot(m.x-p.x,m.y-p.y);if(d<bd){bd=d;best={type:'pt',id:w.id};}}}
   return best;
 }
 /* the canvas's tips (§3.6), in the one tooltip box: the plan markers, the lane's time ticks, the gravity window */
 function planTip(p,m){
   let d=null,at=null;const tol=14/cam.z;
-  if(m){const w=m.type==='asset'?null:W35(m.id),pw=w?B.plan.wings[w.id]:null;at=toWorld(m.type==='asset'?L35.assetAt(B.plan,m.id):pw.jumpIn);
+  if(m&&m.type==='pt'){const w=W35(m.id),o=B.plan.wings[w.id].exec;at=exPoint(w);
+    d={title:L35.ORDERS35[o.k].name+' · '+w.name,body:'Drag to move it. '+(o.k==='ambush'?'The wing waits here for '+(L35.fn.thingName(o.arg)||'them')+' and springs on what comes close.':o.k==='hold'?'The wing holds here and takes on what comes close.':'The wing takes on anything hostile that comes close to it.'),tone:'info'};}
+  else if(m){const w=m.type==='asset'?null:W35(m.id),pw=w?B.plan.wings[w.id]:null;at=toWorld(m.type==='asset'?L35.assetAt(B.plan,m.id):pw.jumpIn);
     d=m.type==='asset'?{title:L35.ASSETS[m.id].name,body:'Drag to place it.',foot:L35.ASSETS[m.id].power?'Unlocks '+L35.ASSETS[m.id].power:'Passive',tone:'cost'}:
       {title:w.name+'\'s jump-in',body:'Drag to move it. It warps in here at the start'+(pw.role==='reserve'?', when you call it.':'.'),foot:inRing(pw.jumpIn)?'Inside an escort\'s sensor ring: they\'ll see it arrive':null,tone:'warn'};}
   else{const t=(B.laneTicks||[]).find(q=>Math.hypot(q.x-p.x,q.y-p.y)<tol);
@@ -901,9 +939,9 @@ function planTip(p,m){
 function pointer(kind,p,ev){
   if(B.screen==='live'&&kind==='hover'){hoverSubs(p);return false;}
   if(B.screen==='brief'){
-    if(kind==='hover'){const m=markerAt(p),h=m?(m.type==='asset'?'a:':'')+m.id:null;if(h!==B.hover){B.hover=h;STAGE.style.cursor=h?'grab':'';}planTip(p,m);return false;}
+    if(kind==='hover'){const m=markerAt(p),h=m?(m.type==='asset'?'a:':m.type==='pt'?'p:':'')+m.id:null;if(h!==B.hover){B.hover=h;STAGE.style.cursor=h?'grab':'';}planTip(p,m);return false;}
     if(kind==='down'){if(ev.button!==0)return false;const m=markerAt(p);if(!m)return false;B.drag=m;STAGE.style.cursor='grabbing';return true;}
-    if(kind==='move'&&B.drag){if(B.drag.type==='asset')B.plan.assetAt[B.drag.id]=toLayout({x:p.x,y:p.y});else B.plan.wings[B.drag.id].jumpIn=toLayout({x:p.x,y:p.y});return true;}
+    if(kind==='move'&&B.drag){if(B.drag.type==='asset')B.plan.assetAt[B.drag.id]=toLayout({x:p.x,y:p.y});else if(B.drag.type==='pt')B.plan.wings[B.drag.id].exec.at=toLayout({x:p.x,y:p.y});else B.plan.wings[B.drag.id].jumpIn=toLayout({x:p.x,y:p.y});return true;}
     if(kind==='up'&&B.drag){B.drag=null;STAGE.style.cursor='';render();return true;}
   }
   return false;
@@ -985,6 +1023,7 @@ ROOT.addEventListener('click',ev=>{
   if(b.closest('[data-stop]')&&!b.dataset.act)return;
   if(b.getAttribute('aria-disabled')==='true'){if(b.dataset.why)API.flash(b.dataset.why);return;}
   if(a==='board'){if(B.screen==='brief')B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;showBoard(false);return;}   // the plan is kept
+  if(b.dataset.msel&&b.dataset.msel!==B.oppId&&L35.OPPORTUNITIES[b.dataset.msel]){B.oppId=b.dataset.msel;rollAttempt();showBoard(false);return;}
   if(a==='newopp'){B.seed=newSeed();rollAttempt();showBoard(false);return;}
   if(a==='dig'){dig();return;}
   if(a==='brief'){enterBrief();return;}
@@ -997,7 +1036,7 @@ ROOT.addEventListener('click',ev=>{
   if(a==='saverec'){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))API.flash('No flight record yet');return;}
   if(b.dataset.step){goStep(+b.dataset.step);return;}
   const P=B.plan;if(!P)return;
-  if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan);render();return;}   // the leaders propose a plan; you edit from there
+  if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan,B.oppId);render();return;}   // the leaders propose a plan; you edit from there
   if(b.dataset.opt){const k=b.dataset.opt,i=P.optionals.findIndex(x=>x.k===k);if(i>=0)P.optionals.splice(i,1);else if(P.optionals.length<OPT_MAX)P.optionals.push({k,ship:null});render();return;}
   if(b.dataset.pres){stepPres(+b.dataset.pres);render();const f=ROOT.querySelector('[data-presfield]');if(f)f.focus();return;}
   if(b.dataset.roe){const k=b.dataset.roe,i=P.roes.indexOf(k);if(i>=0)P.roes.splice(i,1);else P.roes.push(k);render();return;}
@@ -1012,6 +1051,7 @@ ROOT.addEventListener('change',ev=>{
   if(el.dataset.ord){const pw=P.wings[el.dataset.wing],w=W35(el.dataset.wing);
     if(el.dataset.ord==='exec'){pw.exec={k:el.value,arg:pw.exec&&pw.exec.arg};fixArg(pw.exec,w);}else{pw.second=Object.assign(pw.second||{trig:'phase3'},{k:el.value});fixArg(pw.second,w);}render();return;}
   if(el.dataset.arg){const pw=P.wings[el.dataset.wing],o=el.dataset.arg==='exec'?pw.exec:pw.second;if(o)o.arg=el.value;render();return;}
+  if(el.dataset.twing){const pw=P.wings[el.dataset.wing];if(pw.second)pw.second.twing=el.value===el.dataset.wing?null:el.value;render();return;}
   if(el.dataset.trig){const pw=P.wings[el.dataset.wing];if(!el.value)pw.second=null;else{pw.second=pw.second||{k:'withdraw',arg:null};pw.second.trig=el.value;}render();return;}
   if(el.dataset.optship){const o=P.optionals.find(x=>x.k===el.dataset.optship);if(o)o.ship=el.value||null;render();return;}
 });
@@ -1061,8 +1101,8 @@ function chooseHtml(){
     if(!C.args.wing)return '<span>Which wing?</span>'+S.wings.filter(w=>SIM.fn.wingShips(w).length).map(w=>bt('data-cwing="'+w.id+'"',w.name)).join('');
     const w=SIM.fn.wingOf(C.args.wing);
     if(!C.args.k)return '<span>'+esc(w.name)+':</span>'+L35.ORDER35_KEYS.map(k=>bt('data-corder="'+k+'"',L35.ORDERS35[k].name,L.exec[w.id]&&L.exec[w.id].k===k)).join('');
-    const O=L35.ORDERS35[C.args.k],opts=O.target==='sub'?O.subs:O.target==='what'?O.whats:O.target==='wing'?S.wings.filter(x=>x.id!==w.id).map(x=>x.id):[];
-    return '<span>'+esc(w.name)+' · '+esc(O.name)+':</span>'+opts.map(o=>bt('data-carg="'+o+'"',O.target==='wing'?SIM.fn.wingOf(o).name:o)).join('');
+    const O=L35.ORDERS35[C.args.k],objs=orderObjs(C.args.k).filter(t=>t.id!=='area'),opts=O.target==='obj'?objs.map(t=>t.id):O.target==='sub'?O.subs:O.target==='what'?O.whats:O.target==='wing'?S.wings.filter(x=>x.id!==w.id).map(x=>x.id):[];
+    return '<span>'+esc(w.name)+' · '+esc(O.name)+':</span>'+opts.map(o=>bt('data-carg="'+o+'"',O.target==='wing'?SIM.fn.wingOf(o).name:O.target==='obj'?objs.find(t=>t.id===o).name:o)).join('');
   }
   if(C.k==='reserve')return '<span>Which reserve?</span>'+L.X.reserves.filter(r=>!L.called[r.id]).map(r=>bt('data-cres="'+r.id+'"',r.name)).join('');
   const P=L35.POWERS35[C.k];
@@ -1089,7 +1129,7 @@ function cmdsClick(b){
   if(a==='cancelpick'){B.pick=null;B.choose=null;API.syncHud(true);return;}
   if(a==='insist'){if(b.getAttribute('aria-disabled')==='true'){API.flash('Not enough command points');return;}doUse('insist',{});return;}
   if(C&&b.dataset.cwing){C.args.wing=b.dataset.cwing;API.syncHud(true);return;}
-  if(C&&b.dataset.corder){C.args.k=b.dataset.corder;const O=L35.ORDERS35[C.args.k];if(!['sub','what','wing'].includes(O.target)){doUse('exec',C.args);return;}API.syncHud(true);return;}
+  if(C&&b.dataset.corder){C.args.k=b.dataset.corder;const O=L35.ORDERS35[C.args.k];if(!['sub','what','wing','obj'].includes(O.target)){doUse('exec',C.args);return;}API.syncHud(true);return;}
   if(C&&b.dataset.carg){C.args.arg=b.dataset.carg;doUse('exec',C.args);return;}
   if(C&&b.dataset.cres){doUse('reserve',{wing:b.dataset.cres});return;}
   if(C&&b.dataset.cact){C.args.act=b.dataset.cact;if(C.args.act==='focus'){B.pick={k:C.k,stage:'focus',args:C.args};B.choose=null;API.syncHud(true);return;}doUse(C.k,C.args);return;}
@@ -1341,7 +1381,7 @@ function drawK2(c,z,view,o){
   if(L.surrender==='take'&&!L.transferred){const p=API.ipos(fr),R=L35.N.TRANSFER_R,k=Math.min(1,L.transfer/L35.N.TRANSFER_SECS);
     API.ring(c,p.x,p.y,R,TH.rgba(C.gold,0.85),z,2.4,[12,9]);
     const w=180/z,h=10/z,y=p.y-R-26/z;c.save();c.fillStyle=C.ink;c.fillRect(p.x-w/2,y,w,h);c.fillStyle=C.gold;c.fillRect(p.x-w/2,y,w*k,h);c.lineWidth=2/z;c.strokeStyle=C.ink;c.strokeRect(p.x-w/2,y,w,h);c.restore();
-    API.label(c,p.x,y-12/z,'TRANSFER '+Math.round(k*100)+'%',C.gold,z,12,'Bungee');}
+    API.label(c,p.x,y-12/z,'TRANSFER '+Math.round(k*100)+'%'+(L.transferPaused?' · NOBODY STANDING BY':''),L.transferPaused?C.hazard:C.gold,z,12,'Bungee');}
   for(const cr of L.crates||[]){if(cr.done&&S.t-cr.done>0.4)continue;const sz=14;c.save();c.translate(cr.x,cr.y);c.rotate((S.t-cr.t0)*0.8);
     c.fillStyle='#8e96a2';c.fillRect(-sz/2,-sz/3,sz,sz*0.66);c.lineWidth=2/z;c.strokeStyle=C.ink;c.strokeRect(-sz/2,-sz/3,sz,sz*0.66);c.restore();}
 }
@@ -1365,7 +1405,7 @@ function reqHtml(q){
     '<span class="h35-req__who"><b>'+esc(name)+'</b>'+(mor?'<span class="hc-mor" data-m="'+mor+'">'+mor+'</span>':'')+'</span>'+
     '<svg class="h35-req__ring" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" class="h35-req__rbg"/><circle cx="18" cy="18" r="15" class="h35-req__rfg" stroke-dasharray="'+RING_C.toFixed(1)+'"/></svg></div>'+
     '<div class="sr-quote h35-req__q">'+esc(q.line)+'</div>';
-  if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">⇧'+(i+1)+'</span><span>'+esc(L35.ANS[a])+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
+  if(q.state==='open')h+='<div class="h35-req__acts">'+q.answers.map((a,i)=>'<button type="button" class="sr-choice h35-ans" data-ans="'+a+'" data-req="'+q.id+'"><span class="sr-kbd">⇧'+(i+1)+'</span><span>'+esc(L35.ANS[a])+(q.note&&q.note[a]?' <em class="h35-ans__note">'+esc(q.note[a])+'</em>':'')+'</span>'+(a===q.def?'<span class="sr-tag h35-def">DEFAULT</span>':'')+'</button>').join('')+'</div>';
   else if(q.state==='sent')h+='<div class="h35-req__sent">Sending · '+esc(L35.ANS[q.answer])+' <em data-left="1"></em><i><b data-bar="1"></b></i></div>';
   else h+='<div class="h35-req__done">'+(q.by==='void'?'Withdrawn: no longer needed':q.by==='player'?'Answered: '+esc(L35.ANS[q.answer]):esc(name)+' decided: '+esc(L35.ANS[q.answer]))+'</div>';
   return h+'</div>';
@@ -1384,7 +1424,9 @@ function syncReq(){
       if(e)e.textContent=Math.max(0,tx.at-S.t).toFixed(1)+' s';if(b)b.style.width=Math.round((tx.delay>0?Math.min(1,(S.t-tx.t0)/tx.delay):1)*100)+'%';}}}
   // a new request at 3×: back to 1× so you can read it (REQ_AUTOSLOW)
   const top=qs.find(q=>q.state==='open');
-  if(top&&top.id>(B.reqSeen||0)){B.reqSeen=top.id;if(L35.N.REQ_AUTOSLOW&&A.speed>2)API.setSpeed(2);}
+  if(top&&top.id>(B.reqSeen||0)){B.reqSeen=top.id;if(L35.N.REQ_AUTOSLOW&&A.speed>2)API.setSpeed(2);
+    const el=REQEL.querySelector('[data-req="'+top.id+'"]');if(el)el.classList.add('is-new');try{if(window.SR&&SR.audio&&!SR.audio.off())SR.audio.osc('triangle',660,990,0.06,0.18);}catch(e){}}   // a card enters with a pulse and a sound (playtest 3, §3.5)
+  A.slowK=on&&qs.some(q=>q.state==='open'&&q.must)?L35.N.REQ_SLOW:1;   // a must-answer card open: the game runs at REQ_SLOW
 }
 function paintPortraits(root){
   for(const cv of root.querySelectorAll('canvas[data-portrait]')){const g=cv.getContext('2d'),id=cv.dataset.portrait,r=cv.width/2;g.clearRect(0,0,cv.width,cv.height);

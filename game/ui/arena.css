@@ -545,6 +545,7 @@
 #arHc35 .h35-wing__sub{margin-left:auto;font-size:var(--sr-fs-xs);color:var(--sr-text-2);}
 #arHc35 .h35-take{margin-top:12px;padding:8px 12px;font-size:var(--sr-fs-sm);}
 #arHc35 .h35-ord{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;}
+#arHc35 .h35-po{margin:0 0 10px;padding:8px 12px;font:600 13px/1.45 var(--sr-font-ui);color:var(--sr-text-2);} #arHc35 .h35-po .h35-label{margin:0 0 4px;} #arHc35 .h35-po b{color:#fff;} #arHc35 .h35-po__st{cursor:help;}
 #arHc35 .h35-ord__lbl{width:58px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);letter-spacing:.06em;}
 /* the debrief */
 #arHc35 .h35-debrief{max-height:100%;display:flex;flex-direction:column;}
@@ -875,3 +876,8 @@
 /* the flight recorder's Runs group (designer panel) */
 #arHc .hc-run{display:flex;align-items:center;gap:8px;justify-content:space-between;max-width:100%;margin:4px 0;font-size:var(--sr-fs-micro);color:var(--sr-text-2);}
 #arHc .hc-run span{flex:1 1 0;width:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* playtest 3, §3.5: a new request card pulses in; Take's hazard note */
+#arHc .h35-req.is-new{animation:h35-reqin .9s ease-out 2;}
+@keyframes h35-reqin{0%{box-shadow:0 0 0 0 rgba(255,200,58,.9);}100%{box-shadow:0 0 0 14px rgba(255,200,58,0);}}
+#arHc .h35-ans__note{display:block;font-style:normal;font-size:11px;color:var(--sr-hazard);}
+@media (prefers-reduced-motion:reduce){#arHc .h35-req.is-new{animation:none;outline:2px solid var(--sr-gold);}}
