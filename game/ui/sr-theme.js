@@ -173,15 +173,20 @@ window.SR_THEME=(function(){
     if(o.targeted)reticle(ctx,x,y,r+10,o.t);
   }
 
+  /* ---------- health colours: the default bands (green → gold → hazard), or 'gor' (green → orange → red, the space
+     HUDs: High Command and Type 3.5, docs/ARENA-HC35-FEEDBACK-1.md §3.3) ---------- */
+  function hpCol(f,bands){return bands==='gor'?(f>.6?C.go:f>=.3?C.hazard:C.rebel):(f>.6?ROLE.hpHigh:f>.34?ROLE.hpMid:ROLE.hpLow);}
   /* ---------- health pips above a unit ---------- */
   function hpPips(ctx,x,y,o){
     o=Object.assign({hp:100,max:100,cells:5,cw:8,ch:6,gap:2},o||{});
-    const f=Math.max(0,o.hp/o.max),col=f>.6?ROLE.hpHigh:f>.34?ROLE.hpMid:ROLE.hpLow;
+    const f=Math.max(0,o.hp/o.max),col=hpCol(f,o.bands);
+    const pulse=o.bands==='gor'&&f<.15&&f>0,a0=ctx.globalAlpha;   // 'gor': the red pulses under 15%
     const w=o.cells*o.cw+(o.cells-1)*o.gap+4,h=o.ch+4,lx=x-w/2,ly=y-h/2;
     rr(ctx,lx,ly,w,h,3);ctx.fillStyle=C.ink;ctx.fill();
     const lit=Math.ceil(f*o.cells-0.001);
     for(let i=0;i<o.cells;i++){
-      rr(ctx,lx+2+i*(o.cw+o.gap),ly+2,o.cw,o.ch,1.5);ctx.fillStyle=i<lit?col:'#1b1f40';ctx.fill();
+      rr(ctx,lx+2+i*(o.cw+o.gap),ly+2,o.cw,o.ch,1.5);ctx.fillStyle=i<lit?col:'#1b1f40';
+      if(pulse&&i<lit)ctx.globalAlpha=a0*(0.55+0.45*Math.sin(performance.now()/120));ctx.fill();ctx.globalAlpha=a0;
     }
     if(o.showNum){label(ctx,Math.round(o.hp)+'',lx+w+12,y,{size:11,color:col,pad:4});}
     /* armour (steel) and a raised shield (cyan) sit over health as thinner segmented bars */
@@ -291,5 +296,5 @@ window.SR_THEME=(function(){
     ctx.restore();
   }
 
-  return {C,ROLE,FONT,ICONS,sync,rgba,icon,rr,chunky,label,labelLayer,unitToken,hpPips,coverPip,reticle,sightCone,detectGauge,moveRing,plotLine,fireLine,marker};
+  return {C,ROLE,FONT,ICONS,sync,rgba,icon,rr,chunky,label,labelLayer,unitToken,hpPips,hpCol,coverPip,reticle,sightCone,detectGauge,moveRing,plotLine,fireLine,marker};
 })();

@@ -200,6 +200,14 @@ mission type and Data Limpet item, and the Engineer, CEO, Professor and Double A
 ### Rebels and Recruits — **built** (after the Level 1 phases above)
 The rebel model from the designer's *Rebels & Recruits* document is in: names, levels, Character and Rebel Traits, morale, skills, ranks with insignia, gear slots with auto-equip, recruiting through the Command Center and a multi-card New Recruit screen, Heroes (one in Level 1, more from Level 2), and Injury & Recovery with Treat Wound (which uses Med Packs) and prosthetics. See `docs/REBELS_PLAN.md` for each phase and for the questions that the traits not yet granted are waiting on.
 
+### The opportunity system — **approved, building in Type 3.5** (21 October)
+Every mission system from here on (Type 3.5 first, then the campaign's space missions, then ground) is built on one
+grammar: a designer authors an opportunity as a cast of things with tags and an optional key object; primaries,
+secondaries and every order's verb and object are derived from it; NPCs follow standing duties and make their own decisions (the background simulation). The core is
+mode-agnostic, because ground combat is expected to work much like Type 3.5. See
+`docs/OPPORTUNITY-SYSTEM.md` (the designer's decisions in §8) and its first implementation,
+`docs/ARENA-HC35-FEEDBACK-3.md`.
+
 ## Suggested order
 Phase 0 → 1 → 2 in sequence, then Phases 3 and 4 in parallel, then 5, 6 and 7.
 Phase 1 needs the most design work, but everything else builds on it.

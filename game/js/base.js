@@ -163,7 +163,9 @@ function gearLayout(items,cols){
 }
 const EXCAVATE={m:40,days:1};
 /* Ships, fuel, seats and weapons come from the game database (SRDB). A fighter in G.fighters is one physical
-   ship: {id,name,cls,hull,out,loadout}, where loadout lists the weapon ids fitted (any weapon fits any slot). */
+   ship: {id,name,cls,hull,out,config,loadout}. config is what it has fitted where on its hardpoints (MAIN-SWITCH S2:
+   {primary, secondary, pylon, internal}, SRDB.parseConfig); loadout is its weapons in mount order, which space.js and
+   the Arsenal read. Refit (the ship inspector's tab, S4: refitFit) edits the config, and loadout follows. */
 const fuelPer=cls=>{const r=SRDB.ship(cls);return r&&r.fuel_per_sortie?r.fuel_per_sortie:5;};   // fuel burned per sortie
 const fuelOf=f=>Math.ceil(fuelPer(f.cls)*(hangarUp('refuel')?0.75:1));
 const wpnLabel=id=>{const w=SRDB.weapon(id);return w?w.name+(w.ammo?' ×'+w.ammo:''):id;};
@@ -172,17 +174,272 @@ function shipStats(f){
   return {label:r.name+' · '+r.role,shd:r.shield_front+'F / '+r.shield_rear+'A',arm:r.armour,hull:r.hull,
     wpns:(f.loadout&&f.loadout.length?f.loadout:[]).map(id=>[wpnLabel(id)])};
 }
-/* the weapons a ship starts with: the starting-fleet entry if it is one of those named ships, else the stock model's */
-function defaultLoadout(f){
+/* a configuration with these weapons on their mounts (each on its slot: missiles secondary, guns primary), keeping the
+   attachments of keep (a configuration) */
+function configOfWeapons(ids,keep){
+  const c=SRDB.parseConfig(keep||'');c.primary=[];c.secondary=[];
+  for(const id of ids||[])if(id)c[SRDB.slotOf(id)==='secondary'?'secondary':'primary'].push(id);
+  return c;
+}
+/* what a ship starts with: the starting-fleet entry's configuration if it is one of those named ships (Dustfall comes
+   with missiles; a stock Cross has none), else the stock model's */
+function defaultConfig(f){
   const r=SRDB.ship(f.cls);
   const row=Object.values(SRDB.fleet).find(x=>x.name===f.name&&SRDB.ship(x.model)===r);
-  return (row?[row.weapon_1,row.weapon_2]:[r.default_weapon_1,r.default_weapon_2]).filter(Boolean);
+  return row?(row.config?SRDB.parseConfig(row.config):configOfWeapons([row.weapon_1,row.weapon_2])):SRDB.stockConfig(r);
 }
-function newFighter(o){const f=Object.assign({out:false},o);f.loadout=defaultLoadout(f);return f;}
+function defaultLoadout(f){return SRDB.configWeapons(defaultConfig(f));}
+function newFighter(o){const f=Object.assign({out:false},o);f.config=defaultConfig(f);f.loadout=SRDB.configWeapons(f.config);return f;}
 /* Door Gunner Support needs a gunner position and a weapon that enables it */
 function hasDoorGun(f){
   const r=SRDB.ship(f.cls);
   return !!r&&r.gunner_positions>0&&(f.loadout||[]).some(id=>{const w=SRDB.weapon(id);return !!w&&w.fire_support==='door_gunner';});
+}
+/* ---------- Wings (docs/MAIN-SWITCH-HANDOFF.md S3, decision 2) ----------
+   G.wings=[{id,name,leaderId,members:[{pilotId,shipId}]}]: a wing is 1 to WING_MAX ships, each with its pilot or
+   none (a free ship). Only wings fly space missions; a ship outside a wing can still be an asset (a ground mission's
+   transport and fire support, a space mission's asset slot). A pilot is in a wing when seated in one of its ships, and
+   p.ship follows the seat. A pilot with a ship but no wing must be given one (the Assign window, which can't be
+   skipped); a pilot without a ship can wait. Until the prologue's frontier, ships and their pilots join the first wing
+   on their own, so the story is never stopped (C-89). The leader is the wing's decision-maker in Type 3.5 */
+const WING_MAX=4;   // ships in a wing. placeholder (C-91): squadrons come later (M-40)
+const WING_NAMES=['Dagger','Anvil','Amber','Ember','Lance','Hammer','Sable','Flint','Kestrel','Ash'];
+const wingsOf=()=>G.wings||(G.wings=[]);
+const wingById=id=>wingsOf().find(w=>w.id===id)||null;
+const wingOfShip=id=>wingsOf().find(w=>w.members.some(m=>m.shipId===id))||null;
+const wingOfPilot=id=>wingsOf().find(w=>w.members.some(m=>m.pilotId===id))||null;
+const seatOf=pid=>{const w=wingOfPilot(pid);return w?w.members.find(m=>m.pilotId===pid):null;};
+/* out on a mission: any of its ships out, or any of its pilots */
+const wingBusy=w=>w.members.some(m=>{const f=G.fighters.find(x=>x.id===m.shipId),p=m.pilotId&&G.people.find(x=>x.id===m.pilotId);return !!(f&&f.out)||!!(p&&p.assign==='mission');});
+function wingName(){const used=new Set(wingsOf().map(w=>w.name));return WING_NAMES.find(n=>!used.has(n))||'Wing '+(wingsOf().length+1);}
+function newWing(name){G.wingSeq=(G.wingSeq||0)+1;const w={id:'w'+G.wingSeq,name:name||wingName(),leaderId:null,members:[]};wingsOf().push(w);return w;}
+/* the leader stays while they fly with it; otherwise the highest-level pilot aboard leads */
+function wingLead(w){
+  const ps=w.members.map(m=>m.pilotId&&G.people.find(p=>p.id===m.pilotId)).filter(Boolean);
+  if(!ps.some(p=>p.id===w.leaderId))w.leaderId=ps.length?ps.slice().sort((a,b)=>(b.level||0)-(a.level||0))[0].id:null;
+}
+/* keep the wings true to the fleet and the roster: ships gone and pilots gone leave, p.ship follows the seats, a pilot
+   with a claim on a free seat takes it, empty wings close. Before the frontier, every ship and its pilot join the
+   first wing with room */
+function wingsTidy(){
+  if(!G||!G.fighters)return;
+  const W=wingsOf();
+  for(const w of W){
+    w.members=w.members.filter(m=>G.fighters.some(f=>f.id===m.shipId));
+    for(const m of w.members)if(m.pilotId){const p=G.people.find(x=>x.id===m.pilotId);if(!p||!isFlyer(p))m.pilotId=null;else p.ship=m.shipId;}
+  }
+  if(!Pro.done()){   // the prologue: every ship flies in a wing
+    for(const f of G.fighters)if(!wingOfShip(f.id)){const w=W.find(x=>x.members.length<WING_MAX)||newWing();w.members.push({pilotId:null,shipId:f.id});}
+  }
+  for(const p of G.people){
+    if(!isFlyer(p)||!p.ship||wingOfPilot(p.id))continue;
+    const w=wingOfShip(p.ship);if(!w)continue;   // a ship outside a wing: the Assign window asks (wingNeed)
+    const m=w.members.find(x=>x.shipId===p.ship);
+    if(!m.pilotId)m.pilotId=p.id;else p.ship='';   // its seat is someone else's: they have no ship now
+  }
+  for(let i=W.length-1;i>=0;i--)if(!W[i].members.length)W.splice(i,1);
+  for(const w of W)wingLead(w);
+}
+/* a pilot who has a ship outside every wing: the Assign window opens for them (after the frontier) */
+function wingNeed(){
+  if(!G||!Pro.done())return null;
+  return G.people.find(p=>isFlyer(p)&&p.ship&&G.fighters.some(f=>f.id===p.ship)&&!wingOfShip(p.ship)&&!wingOfPilot(p.id))||null;
+}
+const wingFull=w=>w.members.length>=WING_MAX?'The '+w.name+' wing has '+WING_MAX+' ships already':null;
+const wingOut=w=>w&&wingBusy(w)?'The '+w.name+' wing is out on a mission':null;
+/* the player's changes: each returns why it can't be done, or null */
+function wingJoin(pid,wid){   // a pilot with their own ship joins a wing (the Assign window)
+  const p=G.people.find(x=>x.id===pid),w=wingById(wid);if(!p||!w||!p.ship)return 'Nothing to join';
+  const why=wingFull(w)||wingOut(w);if(why)return why;
+  w.members.push({pilotId:p.id,shipId:p.ship});wingsTidy();return null;
+}
+function wingStart(pid){   // a new wing with this pilot and their ship
+  const p=G.people.find(x=>x.id===pid);if(!p||!p.ship)return 'They have no ship';
+  const old=wingOfPilot(pid),ow=wingOut(old);if(ow)return ow;
+  if(old)old.members=old.members.filter(m=>m.pilotId!==pid);
+  const w=newWing();w.members.push({pilotId:p.id,shipId:p.ship});wingsTidy();return null;
+}
+function wingMove(pid,wid){   // a pilot and their ship to another wing
+  const old=wingOfPilot(pid),w=wingById(wid);if(!old||!w)return 'Not in a wing';if(old===w)return null;
+  const why=wingOut(old)||wingOut(w)||wingFull(w);if(why)return why;
+  const m=seatOf(pid);old.members=old.members.filter(x=>x!==m);w.members.push(m);wingsTidy();return null;
+}
+function wingRemove(pid){   // off the wing: the pilot leaves their seat; the ship stays, free for another pilot
+  const w=wingOfPilot(pid);if(!w)return 'Not in a wing';const why=wingOut(w);if(why)return why;
+  const m=seatOf(pid),p=G.people.find(x=>x.id===pid);m.pilotId=null;if(p)p.ship='';wingsTidy();return null;
+}
+function wingSeat(pid,sid){   // a pilot takes a free ship in a wing
+  const w=wingOfShip(sid),p=G.people.find(x=>x.id===pid);if(!w||!p)return 'No such seat';
+  const m=w.members.find(x=>x.shipId===sid);if(m.pilotId)return 'Someone flies it already';
+  const old=wingOfPilot(pid),why=wingOut(w)||wingOut(old);if(why)return why;
+  if(old){const om=seatOf(pid);om.pilotId=null;}
+  m.pilotId=pid;p.ship=sid;wingsTidy();return null;
+}
+function wingLeader(wid,pid){const w=wingById(wid);if(!w||!w.members.some(m=>m.pilotId===pid))return 'They don\'t fly with this wing';w.leaderId=pid;return null;}
+function wingRename(wid,name){const w=wingById(wid),n=String(name||'').trim().slice(0,16);if(!w)return 'No such wing';if(!n)return 'A wing needs a name';w.name=n;return null;}
+function wingAddShip(sid,wid){   // a ship outside a wing joins one (as a new wing when wid is empty)
+  if(wingOfShip(sid))return 'It flies with a wing already';
+  const f=G.fighters.find(x=>x.id===sid);if(!f)return 'No such ship';
+  const w=wid?wingById(wid):null;if(wid&&!w)return 'No such wing';
+  if(w){const why=wingFull(w)||wingOut(w);if(why)return why;}
+  (w||newWing()).members.push({pilotId:null,shipId:sid});wingsTidy();return null;
+}
+function wingDropShip(sid){   // a free ship leaves its wing: an asset again
+  const w=wingOfShip(sid);if(!w)return 'Not in a wing';const m=w.members.find(x=>x.shipId===sid);
+  if(m.pilotId)return 'Its pilot flies it: take them off the wing first';const why=wingOut(w);if(why)return why;
+  w.members=w.members.filter(x=>x!==m);wingsTidy();return null;
+}
+/* ---------- Refit (docs/MAIN-SWITCH-HANDOFF.md S4): the ship inspector's tab ----------
+   Her hardpoints by type and what's fitted on each, swapped from what is on the hangar racks (G.shipKit: the ship
+   weapons and the attachments the fleet owns; crafted ones join them in S5). A change takes no time with an Aerogineer
+   in the Workshop, 2 days without (the ship is grounded meanwhile). A fit that doesn't suit the ship is refused with
+   the reason (SRDB.configWhy: the wrong hardpoint, none free, no passenger room, a ship that can't carry it) */
+let shipTab='sheet';   // the ship inspector's tab: 'sheet' or 'refit'
+const RF_SLOT={primary:'Guns',secondary:'Missiles',pylon:'Pylons',internal:'Inside the hull'};
+const RF_NO={primary:'gun mount',secondary:'missile mount',pylon:'pylon',internal:'passenger room'};   // what she lacks, in the Can't fit list
+function rackAdd(id,n){G.shipKit=G.shipKit||[];const e=G.shipKit.find(x=>x.id===id);if(e)e.n+=n||1;else G.shipKit.push({id,n:n||1});}
+const rackHas=id=>((G.shipKit||[]).find(x=>x.id===id)||{n:0}).n;
+/* fit id on hardpoint k's mount i (null: clear it). Returns why it can't be done, or null */
+function refitFit(f,k,i,id){
+  if(!f)return 'No such ship';
+  if(f.out)return 'She is out on a mission';
+  const row=SRDB.ship(f.cls),c=SRDB.parseConfig(f.config||SRDB.stockConfig(row)),cur=c[k]&&c[k][i]||null;
+  if(!c[k])return 'No such hardpoint';
+  if((id||null)===cur)return null;
+  if(id){
+    const next=SRDB.parseConfig(c);if(i<next[k].length)next[k][i]=id;else next[k].push(id);
+    const why=SRDB.configWhy(row,next);if(why)return why;   // whether it can go on at all, before whether there is one
+    if(rackHas(id)<1)return 'None on the racks';
+    G.shipKit.find(x=>x.id===id).n--;if(cur)rackAdd(cur);f.config=next;
+    news('<b>'+esc(SRDB.itemName(id))+'</b> fitted to the <b>'+esc(f.name)+'</b>'+(cur?' (the '+esc(SRDB.itemName(cur))+' goes on the racks)':'')+'.'+refitTime(f),'d');
+  } else {
+    c[k].splice(i,1);rackAdd(cur);f.config=c;
+    news('The <b>'+esc(SRDB.itemName(cur))+'</b> comes off the <b>'+esc(f.name)+'</b> and onto the racks.'+refitTime(f),'d');
+  }
+  f.loadout=SRDB.configWeapons(f.config);   // her weapons, for space.js and the Arsenal
+  saveSnap();return null;
+}
+const shipTabsHTML=()=>'<span class="sh-tabs" role="tablist">'+[['sheet','Ship'],['refit','Refit']].map(([k,l])=>rbtn('role="tab" data-shiptab="'+k+'" aria-selected="'+(shipTab===k)+'"',l,false,'sr-btn--sm'+(shipTab===k?' sr-btn--primary':' sr-btn--ghost'))).join('')+'</span>';
+function refitHTML(f){
+  const row=SRDB.ship(f.cls),hp=SRDB.hardpoints(row),c=SRDB.parseConfig(f.config||SRDB.stockConfig(row));
+  const busy=f.out?'She is out on a mission':null,aero=runnersOf('aerogineer.refit').length>0;
+  const rack=(G.shipKit||[]).filter(e=>e.n>0);
+  const B=(attr,label,why,cls)=>rbtn(attr+(why?' title="'+esc(why)+'"':''),label,!!why,'sr-btn--sm '+(cls||'sr-btn--ghost'));
+  const tryWhy=(k,i,id)=>{if(busy)return busy;const n=SRDB.parseConfig(c);if(i<n[k].length)n[k][i]=id;else n[k].push(id);return SRDB.configWhy(row,n);};
+  let h='<p class="sr-p">'+(aero?'An <b>Aerogineer</b> in the Workshop: changes are done at once.':'No Aerogineer in the Workshop: a change grounds her for <b>2 days</b>.')+
+    (f.refit>0?' <span class="bs-bad">In refit: '+f.refit+' day'+(f.refit>1?'s':'')+' left.</span>':'')+'</p>';
+  for(const k of SRDB.SLOTS){
+    if(!hp[k])continue;
+    h+='<div class="sr-h3">'+RF_SLOT[k]+' <span class="sr-fine">'+c[k].length+' / '+hp[k]+'</span></div>';
+    const fits=rack.filter(e=>SRDB.slotOf(e.id)===k);
+    for(let i=0;i<hp[k];i++){
+      const cur=c[k][i]||null,att=cur&&SRDB.attachment(cur);
+      const acts=(cur?B('data-rfx="'+k+'|'+i+'|"','Take off',busy):'')+
+        fits.filter(e=>e.id!==cur).map(e=>{const why=tryWhy(k,i,e.id);return B('data-rfx="'+k+'|'+i+'|'+e.id+'"',(cur?'Swap for ':'Fit ')+SRDB.itemName(e.id)+' ×'+e.n,why)+(why&&!busy?'<span class="sr-fine rf-why">'+esc(why)+'</span>':'');}).join('');
+      h+='<div class="wg-row rf-row">'+swpnArt(cur||'',' kf')+'<span class="wg-who"><b>'+(cur?esc(SRDB.itemName(cur)):'<i>Empty</i>')+'</b><small>'+(att&&att.description?esc(att.description):cur?'Ship weapon':'Nothing fitted')+'</small></span><span class="wg-acts">'+acts+'</span></div>';
+      if(i>=c[k].length)break;   // one empty mount shown at a time
+    }
+  }
+  // what's on the racks that she can't take, and why
+  const nope=rack.filter(e=>!hp[SRDB.slotOf(e.id)]).map(e=>'<div class="sr-fine rf-no">'+esc(SRDB.itemName(e.id))+': the '+esc(row.name)+' has no '+RF_NO[SRDB.slotOf(e.id)]+'</div>').join('');
+  return h+(nope?'<div class="sr-h3">Can\'t fit</div>'+nope:'')+(rack.length?'':'<p class="sr-fine">The hangar racks are bare. Ship weapons come from Sweet Tooth; attachments from the Arsenal\'s Crafting (soon).</p>');
+}
+/* ---------- Crafting (docs/MAIN-SWITCH-HANDOFF.md S5): a placeholder until the crafting system is designed ----------
+   The Arsenal's Crafting tab makes Type 3.5's assets and the ship attachments from basic resources, at once (0 days).
+   Costs: the rewards proposal's (Claude Doc), placeholders (C-91); the bombs', cargo pods' and boarding party's are mine.
+   Assets go into G.assets (counted) and fill a space mission's asset slots; one spent in the mission is used up, an
+   unspent one comes home. Attachments go on the hangar racks (Refit). Spoofed Orders come from intel work and Call the
+   Pirates is a Black Market hire: neither is crafted */
+const RECIPES=[
+  {id:'ram',kind:'asset',cost:{c:150,m:120}},{id:'nuke',kind:'asset',cost:{c:350,m:200,i:1}},{id:'fireship',kind:'asset',cost:{c:80,m:100}},
+  {id:'mines',kind:'asset',cost:{c:100,m:80}},{id:'buoy',kind:'asset',cost:{c:200,m:60,i:1}},{id:'relay',kind:'asset',cost:{c:120,m:40}},
+  {id:'tug',kind:'asset',cost:{c:160,m:80}},
+  {id:'boarding-pod',kind:'attachment',cost:{c:120,m:60}},{id:'bombs',kind:'attachment',cost:{c:100,m:60}},
+  {id:'cargo-pods',kind:'attachment',cost:{c:80,m:50}},{id:'boarding-party',kind:'attachment',cost:{c:100,s:40}}];
+const recipe=id=>RECIPES.find(r=>r.id===id)||null;
+const ASSET35=()=>(window.SIMHC35&&SIMHC35.ASSETS)||{};
+const recipeName=r=>r.kind==='asset'?((ASSET35()[r.id]||{}).name||r.id):SRDB.itemName(r.id);
+const recipeLine=r=>r.kind==='asset'?((ASSET35()[r.id]||{}).line||''):((SRDB.attachment(r.id)||{}).description||'');
+/* what it unlocks: the power it brings to a space mission, or what the attachment lets a ship do */
+const recipeUnlocks=r=>r.kind==='asset'?(((ASSET35()[r.id]||{}).power)?'The '+ASSET35()[r.id].power+' power, in a space mission':'Shorter transmission delays, in a space mission'):
+  (({bombs:'Bombing (the Graf and the Brickbat)','cargo-pods':'Hauling cargo home',[ 'boarding-party']:'Boarding (needs passenger room)','boarding-pod':'Boarding, on any ship with a pylon'})[r.id]||'');
+const recipeHave=r=>r.kind==='asset'?((G.assets||{})[r.id]||0):rackHas(r.id);
+function craft(id){
+  const r=recipe(id);if(!r)return 'No such recipe';
+  const why=needWhy(r.cost);if(why)return why;
+  for(const [k,f] of [['c','credits'],['s','supplies'],['m','materials'],['i','intel']])if(r.cost[k])G[f]-=r.cost[k];
+  if(r.kind==='asset'){G.assets=G.assets||{};G.assets[r.id]=(G.assets[r.id]||0)+1;}else rackAdd(r.id);
+  news('Crafted: <b>'+esc(recipeName(r))+'</b>'+(r.kind==='asset'?', ready for a space mission.':', on the hangar racks.'),'d');
+  saveSnap();return null;
+}
+function craftHTML(){
+  return '<div class="sr-p cr-note">'+wTag('Placeholder','action')+' Crafting is a stand-in until the crafting system is designed. Everything is made at once.</div>'+
+    '<div class="cr-list">'+RECIPES.map(r=>{const sel=arSel&&arSel.t==='recipe'&&arSel.id===r.id,why=needWhy(r.cost);
+      return '<div class="sr-card cr-card'+(sel?' is-sel':'')+'"><button type="button" class="cr-pick" data-arsel="recipe:'+r.id+'" aria-pressed="'+sel+'">'+swpnArt(r.kind==='asset'?'':r.id)+
+        '<span class="cr-who"><b>'+esc(recipeName(r))+'</b><small>'+esc(recipeUnlocks(r))+'</small></span></button>'+
+        '<span class="cr-cost">'+bundleHTML(r.cost,WALLET())+'<span class="sr-fine">0 days · have '+recipeHave(r)+'</span></span>'+
+        rbtn('data-arcraft="'+r.id+'"'+(why?' title="'+esc(why)+'"':''),'Craft',!!why,'sr-btn--sm sr-btn--primary')+'</div>';}).join('')+'</div>';
+}
+/* ---------- the player's wings in Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S6) ----------
+   Every wing with a ship free to fly and its pilot, the leader first, as 3.5 flies them: the pilot's skills, nerve and
+   traits (the one mapping table: SR_OPS.traitsOf), the ship's configuration, stored hull %, Heavy Frames */
+function wings35(){
+  const out=[],sim=id=>'pf_'+id,flying={};
+  for(const w of wingsOf()){
+    if(wingBusy(w))continue;
+    const ms=w.members.filter(m=>m.pilotId).map(m=>({p:G.people.find(x=>x.id===m.pilotId),f:G.fighters.find(x=>x.id===m.shipId)}))
+      .filter(x=>x.p&&x.f&&!offDuty(x.p)&&x.p.assign!=='mission'&&x.p.assign!=='spec'&&!Rebel.expHas(x.p,'grieving')&&!x.f.out&&!(x.f.refit>0));   // as ablePilots: grieving pilots stay home
+    ms.sort((a,b)=>(b.p.id===w.leaderId)-(a.p.id===w.leaderId));
+    if(ms.length){for(const x of ms)flying[x.p.id]=sim(x.f.id);out.push({id:w.id,name:w.name,ms});}
+  }
+  return out.map(w=>({id:w.id,name:w.name,ships:w.ms.map(({p,f})=>{
+    const sk=pilotSkills(p),tr=Rebel.traitsFor(p,'s');
+    return {id:sim(f.id),shipId:f.id,shipName:f.name,pilotId:p.id,cls:f.cls,name:p.name.split(' ')[0],config:SRDB.parseConfig(f.config||''),
+      hullFrac:Math.max(0.05,(f.hull==null?100:f.hull)/100),hullBonus:f.frame||0,
+      pilot:{preset:'regular',level:p.level,aim:sk.aim,cunning:sk.cunning,focus:sk.focus,presence:sk.presence,initiative:pilotInit(p),
+        cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),traits:tr.map(t=>t.k).join('|')},
+      traits:SR_OPS.traitsOf(tr,p.level,rid=>flying[rid]||null)};})}));
+}
+/* the Wings window (the Hangar's) */
+let wingMoveSel=null;   // the pilot whose Move choices are open
+function wingShipFace(f){const u=f&&shipTopURL(f,40,40,1.15);return '<span class="kf">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>';}
+function wingsHTML(){
+  wingsTidy();
+  const W=wingsOf(),B=(attr,label,why,cls)=>rbtn(attr+(why?' title="'+esc(why)+'"':''),label,!!why,'sr-btn--sm '+(cls||'sr-btn--ghost'));
+  const card=w=>{
+    const out=wingOut(w);
+    const rows=w.members.map(m=>{
+      const f=G.fighters.find(x=>x.id===m.shipId),p=m.pilotId&&G.people.find(x=>x.id===m.pilotId),lead=p&&w.leaderId===p.id;
+      let acts='';
+      if(p){
+        acts+=lead?wTag('Leader','action'):B('data-wlead="'+w.id+'|'+p.id+'"','Make leader',null);
+        acts+=B('data-wmovesel="'+p.id+'"','Move',out,wingMoveSel===p.id?'sr-btn--primary':'');
+        acts+=B('data-wrem="'+p.id+'"','Take off the wing',out);
+      } else {
+        const free=G.people.filter(x=>isFlyer(x)&&!x.ship&&!offDuty(x));
+        acts+=free.slice(0,3).map(x=>B('data-wseat="'+x.id+'|'+m.shipId+'"','Seat '+x.name.split(' ')[0],out)).join('');
+        acts+=B('data-wdrop="'+m.shipId+'"','Out of the wing',out);
+      }
+      let move='';
+      if(p&&wingMoveSel===p.id){
+        const to=W.filter(o=>o!==w);
+        move='<div class="wg-move">'+to.map(o=>B('data-wmove="'+p.id+'|'+o.id+'"','To '+o.name,wingFull(o)||wingOut(o),'')).join('')+B('data-wstart="'+p.id+'"','A new wing',out,'')+'</div>';
+      }
+      return '<div class="wg-row'+(lead?' is-lead':'')+'">'+wingShipFace(f)+'<span class="wg-who"><b>'+(p?esc(p.name)+(lead?' <span class="wg-star" aria-label="Leader">★</span>':''):'<i>No pilot</i>')+'</b><small>'+esc(f?f.name+' · '+shipSub(f):'')+'</small></span>'+
+        '<span class="wg-acts">'+acts+'</span>'+move+'</div>';
+    }).join('');
+    return '<div class="sr-card wg-card" data-wing="'+w.id+'"><div class="sr-card__top"><input class="wg-name" type="text" data-wname="'+w.id+'" value="'+esc(w.name)+'" maxlength="16" aria-label="Wing name"><span class="wg-tags">'+
+      (out?wTag('Out on a mission','info'):'')+wTag(w.members.length+' / '+WING_MAX+' ships')+'</span></div>'+rows+'</div>';
+  };
+  const assets=G.fighters.filter(f=>!wingOfShip(f.id));
+  const grounded=G.people.filter(p=>isFlyer(p)&&!wingOfPilot(p.id));
+  const freeSeats=W.flatMap(w=>w.members.filter(m=>!m.pilotId).map(m=>({w,m})));
+  return '<p class="sr-p">Only wings fly space missions: one to '+WING_MAX+' ships, each with its pilot. The <b>leader</b> makes the wing\'s calls in the field. A ship outside a wing can still go as an asset: a ground mission\'s transport, or a space mission\'s asset slot.</p>'+
+    (W.length?W.map(card).join(''):'<div class="sr-empty">No wings yet. Give a ship a wing below.</div>')+
+    (assets.length?'<div class="sr-h3">Outside a wing</div>'+assets.map(f=>'<div class="wg-row">'+wingShipFace(f)+'<span class="wg-who"><b>'+esc(f.name)+'</b><small>'+esc(shipSub(f))+(f.out?' · out on a mission':'')+'</small></span><span class="wg-acts">'+
+      W.map(w=>B('data-wadd="'+f.id+'|'+w.id+'"','To '+w.name,wingFull(w)||wingOut(w))).join('')+B('data-wadd="'+f.id+'|"','A new wing',null)+'</span></div>').join(''):'')+
+    (grounded.length?'<div class="sr-h3">Pilots without a wing</div>'+grounded.map(p=>'<div class="wg-row">'+avat(p,32)+'<span class="wg-who"><b>'+esc(p.name)+'</b><small>'+esc(personSub(p))+'</small></span><span class="wg-acts">'+
+      (freeSeats.length?freeSeats.slice(0,4).map(s=>{const f=G.fighters.find(x=>x.id===s.m.shipId);return B('data-wseat="'+p.id+'|'+s.m.shipId+'"','Fly '+(f?f.name:'it')+' ('+s.w.name+')',wingOut(s.w));}).join(''):'<span class="sr-fine">No free ship in a wing</span>')+'</span></div>').join(''):'');
 }
 // pilots carry an initiative of 1 to 6 and four skills of 0 to 50; the campaign has no skills yet, so derive them from level
 const SEED_PILOT={sera:'sera-kest',joss:'joss-marrek',petra:'petra-voss'};
@@ -254,6 +511,8 @@ function newGame(){
     planets:PLANETDEF.map(mkPlanet),
     recruitN:0,recSeq:0,recruit:{days:0},recWait:[],misPopQ:[],candQ:[],standby:[],
     agents:[],agentSeq:0,exposure:0,bureauLeads:[],interrogations:[],
+    wings:[],wingSeq:0,   // MAIN-SWITCH S3
+    assets:{},captured:[],   // MAIN-SWITCH S5 (crafted assets, counted), S6 (pilots the Hegemony took)
     news:[],
     v:saveVersion(),   // born at the current save version: no migration runs on it (MIGRATIONS below)
   };
@@ -628,8 +887,6 @@ function healRate(p,tb,rh){
   const doc=(tb||treatedBy())[p.id],phys=(rh||inRehab())[p.id];
   return base*(1+(doc?SP.scale(doc.level,RU.treatment_min,RU.treatment_max):0)+(phys?RU.rehab_bonus:0))+room;
 }
-/* under a Doctor's Treatment today (Critical Condition only heals then) */
-const underTreatment=(p,tb)=>!!(tb||treatedBy())[p.id];
 /* off duty (laid up), and how many days until they are back at today's rate */
 const laidUp=p=>Rebel.laidUp(p)>0;
 const outDays=p=>Math.ceil(Rebel.laidUp(p)/healRate(p));
@@ -840,6 +1097,9 @@ const SRC_EVENTS={
      ]},
   ],
 };
+/* Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S1): the missions a test wing can fly in Type 3.5, with ?dev, and the opportunity
+   each flies as. The flight changes nothing in the campaign until S6; S7 makes them cast templates on the Sources */
+const M35={intercept:'vulnerable_freighter'};
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
@@ -1159,8 +1419,15 @@ function spawnMission(tid,ctx){
     loc:ctx.loc,region:ctx.region||undefined,lib:Math.max(5,Math.round(T.lib*REV_W.libMul/5)*5),req:JSON.parse(JSON.stringify(T.req)),rew,bonus:T.bonus,
     npcRole:T.npcRole,ctx:{target,place:reg?reg.name:(d?d.name:'the target'),locName:d?d.name:'',sec}};
   if(T.npcRole)m.npc=holdRecruit(T.npcRole);
+  if(T.ships&&!ctx.ships)m.ships=[stealPick()];   // a Steal Ship offer names its prize: any ship the player can own (the Brickbat too: the designer, 21 October)
+  else if(ctx.ships)m.ships=ctx.ships.slice();
   bindNpc(m);
   return m;
+}
+/* the ship a Steal Ship offer names: any starship the player can own (db: ownable), as its class key */
+function stealPick(){
+  const keys=SRDB.raw.ships.filter(s=>s.ownable&&s.kind==='starship').map(s=>String(s.legacy_keys||s.id).split('|').pop());
+  return keys[Math.floor(rng()*keys.length)]||'talon';
 }
 function pushMission(m,quiet){
   if(!m)return null;
@@ -3527,6 +3794,7 @@ function renderRoomBar(){
   }
   if(rm.key==='diplo')acts=rbtn('data-open="diplo"','Diplomatic Tasks');
   if(rm.key==='store')acts=rbtn('data-open="gear"','Arsenal');
+  if(rm.key==='hangar')acts=rbtn('data-open="wings"','Wings');   // MAIN-SWITCH S3
   if(rm.key==='hangar'){
     for(const t of (G.patrols||[])){const f=G.fighters.find(x=>x.id===t.fid);cards+='<div class="sr-tag sr-tag--info">'+IC('ship')+(f?f.name:'A ship')+' on patrol · '+t.days+'d left</div>';}
     for(const f of G.fighters.filter(x=>!x.out)){
@@ -5206,6 +5474,7 @@ function closeWin(){
     return;
   }
   if(started&&G&&chainPrompt())return;
+  if(started&&G&&wingNeed()){openWin('wingjoin',wingNeed());return;}   // a pilot with a ship and no wing (S3)
   if(started&&G&&G.escPending)openEscalation();
 }
 /* ---------- window furniture (kit chrome; actions live in the foot, primary rightmost) ---------- */
@@ -5236,7 +5505,7 @@ const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
 let shipSheetShip=null;
 const accentOf={newhero:'progress',comm:'friend',ship:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
-const sizeOf={newhero:'sm',plan:'lg',srcTutIntro:'sm',agentTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
+const sizeOf={wingjoin:'sm',newhero:'sm',plan:'lg',srcTutIntro:'sm',agentTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -5619,6 +5888,16 @@ function renderWin(){
     } else if(step.k==='decode')btns=step.choices.map((ch,i)=>choice(i+1,'data-chain="'+id+':pick:'+i+'"','<b>'+ch[0]+'</b><br><span class="sr-faint">'+ch[2]+'</span>')).join('');
     h=wHead(CH.name,{tags:wTag(step.title,'friend'),x:false})+wBody(paras+btns)+(foot?wFoot(foot):'');
   }
+  else if(winMode==='wings'){   // MAIN-SWITCH S3
+    h=wHead('Wings',{tags:wTag(wingsOf().length+' wing'+(wingsOf().length===1?'':'s'),'info')})+wBody(wingsHTML())+wFoot(rbtn('data-close','Done',false,'sr-btn--primary'));
+  }
+  else if(winMode==='wingjoin'){   // a pilot with a ship and no wing: can't be skipped (S3)
+    const p=winArg,f=p&&G.fighters.find(x=>x.id===p.ship);
+    const opts=wingsOf().map(w=>{const why=wingFull(w)||wingOut(w);const lead=G.people.find(x=>x.id===w.leaderId);
+      return choice(wingsOf().indexOf(w)+1,'data-wjoin="'+w.id+'"'+(why?' title="'+esc(why)+'"':''),'<b>Join '+esc(w.name)+'</b> · '+w.members.length+' / '+WING_MAX+' ships'+(lead?' · led by '+esc(lead.name):'')+(why?' <span class="sr-fine">'+esc(why)+'</span>':''),!!why);}).join('');
+    h=wHead('Assign '+esc(p?p.name:'a pilot')+' to a wing',{x:false})+wBody('<p class="sr-p"><b>'+esc(p?p.name:'')+'</b> flies the <b>'+esc(f?f.name:'ship')+'</b>'+(f?' ('+esc(shipSub(f))+')':'')+'. Every pilot with a ship flies in a wing: only wings fly space missions.</p>'+
+      '<div class="sr-stack">'+opts+choice(wingsOf().length+1,'data-wstartj="1"','<b>Start a new wing</b> · '+esc(wingName())+', with '+esc(p?p.name.split(' ')[0]:'them')+' leading',false)+'</div>');
+  }
   else if(winMode==='diplo'){
     const cap=dipCapacity(),out=G.dip||[];
     const dp=headOf('diplo');
@@ -5738,12 +6017,16 @@ function renderWin(){
       choice(1,'data-kill="'+s.id+'"','Do it. The rebellion is bigger than one frightened '+s.type.split(' ')[0].toLowerCase()+'.')+
       choice(2,'data-close','Not yet. Back into the shadows.'));
   }
+  else if(winMode==='ship'&&shipTab==='refit'){   // Refit (MAIN-SWITCH S4): her hardpoints and what's fitted
+    const f=winArg;size='';
+    h=wHead(esc(f.name)+' · Refit',{tags:wTag(shipSub(f),'info')})+wBody(refitHTML(f))+wFoot(shipTabsHTML()+rbtn('data-close','Done',false,'sr-btn--primary'),f.out?'On a mission right now':'');
+  }
   else if(winMode==='ship'){
     const f=winArg,SS=SR.shipSheet;
     const pilots=G.people.filter(p=>p.role==='Pilot'&&!laidUp(p));
     shipSheetShip=SS.make(f.cls,f.name,f.out?100:f.hull,pilots.length?Math.max(...pilots.map(pilotAim)):2);
     size='';cls=' sf-win';
-    h=SS.html(shipSheetShip,f.name)+wFoot(rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
+    h=SS.html(shipSheetShip,f.name)+wFoot(shipTabsHTML()+rbtn('data-visithangar','Visit the hangar',false,'sr-btn--ghost')+rbtn('data-close','Close',false,'sr-btn--primary'),f.out?'On a mission right now':'');
   }
   else if(winMode==='news'){
     h=wHead('All news')+wBody('<div class="sr-log" id="log" aria-live="polite"></div>');
@@ -5757,7 +6040,7 @@ function renderWin(){
   if(winMode==='plan'){const b=card.querySelector('.pl-body');if(b)b.scrollTop=plTop;plPlacePicker(card);}
   const ttl=card.querySelector('.sr-window__title');if(ttl)card.setAttribute('aria-label',ttl.textContent);
   if(winMode==='news')renderNews();
-  if(winMode==='ship')SR.shipSheet.paint(card,shipSheetShip);   // the stage's big top-down ship
+  if(winMode==='ship'&&shipTab!=='refit')SR.shipSheet.paint(card,shipSheetShip);   // the stage's big top-down ship
   markWin();
 }
 
@@ -5828,7 +6111,8 @@ function msBoardHTML(list,sel){
       '<span class="bf-card__meta">'+OPKIND[k].label+'<span class="bf-risk" style="--rc:'+MS_RISK_C[r]+'" title="'+esc(m.riskTxt||'')+' risk">'+[1,2,3].map(i=>'<i'+(i<=r?' class="is-on"':'')+'></i>').join('')+'</span>'+esc(src)+'</span>'+flag+'</button>';
   }).join('');
   return '<div class="bf-board__head">'+IC('missions')+'Mission board</div><div class="bf-filters">'+chip('all','All')+chip('ground','Ground')+chip('space','Space')+'</div>'+
-    '<div class="bf-list">'+(cards||'<div class="sr-empty">Nothing here. Work your sources; follow their signals.</div>')+'</div>';
+    '<div class="bf-list">'+(cards||'<div class="sr-empty">Nothing here. Work your sources; follow their signals.</div>')+'</div>'+
+    (SR.dev?rbtn('data-m35="test" title="Type 3.5’s demo board: the freighter and Patrol Sweep, flown by the demo’s three wings"','Test opportunity (dev)',false,'sr-btn--sm splash__tool bf-dev35'):'');   // dev only (S1)
 }
 /* the label over the table: world and region (or orbit), encrypted when locked */
 function msPlace(m){
@@ -5958,6 +6242,7 @@ function msBriefHTML(m){
   else{
     const ok=canPlan(m),why=ok?'':(pc.find(c=>!c.ok&&!c.soft)||{}).why||'';
     plan=rbtn('data-mplan="'+m.id+'"','Plan mission',!ok,'sr-btn--primary sr-btn--lg')+(why?'<div class="bf-plan__why">'+IC('lock')+esc(why)+'</div>':'');
+    if(SR.dev&&M35[m.id])plan+=rbtn('data-m35="'+m.id+'" title="Your wings fly it in Type 3.5, and it counts (dev only until S8)"','Fly it in Type 3.5 (dev)',false,'sr-btn--sm splash__tool bf-dev35');   // dev only (S1, S6)
   }
   return h+'<div class="bf-plan">'+plan+'</div></div>';
 }
@@ -5972,6 +6257,20 @@ function msClick(ev){
   if(map){sClick();closeMissions();setView('galaxy');enterWorld(map);return;}
   const mp=t.getAttribute('data-mplan');
   if(mp){const m=G.missions.find(x=>x.id===mp);if(m&&canPlan(m)){sClick();openPlan(m);}return;}
+  const m35=t.getAttribute('data-m35');
+  if(m35&&SR.dev){sClick();fly35(m35);return;}
+}
+/* a Type 3.5 test flight (S1, dev only): a mission on the board flown by the demo's test wings, or the test opportunity's
+   board. Nothing is paid or spent, and the debrief comes back as a test flight */
+function fly35(id){
+  const m=id==='test'?null:G.missions.find(x=>x.id===id&&M35[x.id]);
+  if(id!=='test'&&!m)return;
+  const ws=m?wings35():[];
+  if(m&&!ws.length){flashMsg('No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
+  // S6: your wings fly it and it counts (the days, the pay, the hurt), with your Intel and your crafted assets
+  SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{})}:null;
+  closeWin();closeTilePop();
+  SR.transition('hyperspace',{},()=>SR.go('space35',SR.mission?{mission:SR.mission}:{}));
 }
 
 /* ---------- the Intelligence tab: The Network (docs/ui/SCREENS-HANDOFF-2.md §3) ----------
@@ -6832,11 +7131,11 @@ function rpLoot(got,max){
 }
 /* one crew row: portrait with a state badge, the XP bar growing from the old fill, the gain */
 function rpMate(pi,i){
-  const p=pi.who||{},lost=pi.state==='lost',hurt=pi.state==='injured',up=(pi.lvl1||0)>(pi.lvl0||0);
+  const p=pi.who||{},lost=pi.state==='lost'||pi.state==='captured',hurt=pi.state==='injured',up=(pi.lvl1||0)>(pi.lvl0||0);
   const d=(0.35+i*0.08).toFixed(2)+'s';
   const u=p.id?portraitURL(p):null;
   const badge=lost?'<span class="rp-mate__badge" style="--c:var(--sr-text-3)">'+IC('skull')+'</span>':hurt?'<span class="rp-mate__badge" style="--c:var(--sr-c-warn)">'+IC('patch')+'</span>':'';
-  const state=lost?'<span class="rp-mate__state" style="--c:var(--sr-text-3)">Lost</span>':hurt?'<span class="rp-mate__state" style="--c:var(--sr-c-warn)">Injured</span>':'';
+  const state=pi.state==='captured'?'<span class="rp-mate__state" style="--c:var(--sr-c-bad)">Captured</span>':lost?'<span class="rp-mate__state" style="--c:var(--sr-text-3)">Lost</span>':hurt?'<span class="rp-mate__state" style="--c:var(--sr-c-warn)">Injured</span>':'';
   const pct=x=>Math.round(Math.max(0,Math.min(1,x||0))*100);
   const from=up?0:pct(pi.xp0),gain=up?100:Math.max(0,pct(pi.xp1)-pct(pi.xp0));
   const role=(pi.role||p.role||'')+(pi.lvl1?' · Lv '+pi.lvl1:'');
@@ -6868,11 +7167,23 @@ function rpRev(m,cr){
   }
   return '<div class="rp-rev">'+h+'</div>';
 }
+/* a Type 3.5 flight's ships for the report (MAIN-SWITCH S6): each with the hull it came home with, or lost */
+function shipsOf(r){
+  if(!r.space35)return null;
+  return (r.fighters||[]).map(x=>{const f=G.fighters.find(y=>y.id===x.fighterId);return {name:f?f.name:(x.name||'A ship'),cls:f?f.cls:'',hull:x.hull,lost:!!x.destroyed};});
+}
+/* More information: what the flight's own debrief said, and its comms (a Type 3.5 flight) */
+function reportMoreHTML(rp){
+  return wHead('More information · '+rp.m.name)+'<div class="sr-window__body rp-more">'+rp.more+'</div>'+
+    wFoot((SR.dev?rbtn('data-rpsave','Save flight record',false,'sr-btn--sm'):'')+'<span class="sr-spacer"></span>'+rbtn('data-rpmore','Back',false,'sr-btn--primary'));
+}
 function reportHTML(rp){
+  if(rp.moreOpen&&rp.more)return reportMoreHTML(rp);
   const m=rp.m,got=rp.got||newGot();
-  const objs=(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(');
+  const objs=rp.objs&&rp.objs.length?rp.objs.map(o=>o.t):(m.objectives||['Complete the operation']).filter(o=>o[0]!=='(');
+  const nDone=rp.objs&&rp.objs.length?rp.objs.filter(o=>o.done).length:objs.length;
   const hero='<div class="rp-hero">'+rpSkyline()+'<div class="rp-hero__txt">'+rpLoc(m)+'<h3 class="sr-brief__title">'+m.name+'</h3>'+
-    (rp.win?'<div class="rp-hero__meta"><span class="rp-objpill">'+IC('check')+'All '+objs.length+' objective'+(objs.length===1?'':'s')+'</span></div>':'')+'</div>'+
+    (rp.win?'<div class="rp-hero__meta"><span class="rp-objpill">'+IC('check')+(nDone<objs.length?nDone+' of ':'All ')+objs.length+' objective'+(objs.length===1?'':'s')+'</span></div>':'')+'</div>'+
     '<span class="sr-stamp '+(rp.win?'sr-stamp--action':'sr-stamp--bad')+'">'+(rp.win?'Secured':'Mission failed')+'</span></div>';
   const res=rpRes(got);
   const nLoot=got.loot.length;
@@ -6890,9 +7201,11 @@ function reportHTML(rp){
   if(rp.win&&rp.cr)left.push(rpSec(0.4,'revolution','The revolution','',rpRev(m,rp.cr)));
   if(!rp.win)left.push('<section class="rp-sec" style="--d:.4s"><div class="rp-next">'+IC('missions')+'<span><b>'+m.name+'</b> stays on the Mission Board. Regroup and try again.</span></div></section>');
   const crew=rp.people.length?rpSec(0.2,'people','Crew','','<div class="rp-crew">'+rp.people.map(rpMate).join('')+'</div>'):'';
+  const ships=rp.ships&&rp.ships.length?rpSec(0.3,'ship','Ships','','<div class="rp-ships">'+rp.ships.map(s=>'<div class="rp-ship'+(s.lost?' is-lost':'')+'"><b>'+esc(s.name)+'</b>'+
+    (s.lost?'<span class="rp-ship__state">Lost</span>':'<span class="rp-ship__hull" style="--h:'+Math.max(0,Math.min(100,s.hull))+'%"><i></i></span><span>Hull '+Math.round(s.hull)+'%</span>')+'</div>').join('')+'</div>'):'';
   return wHead(rp.win?'Mission Complete':'Mission Failed')+hero+
-    '<div class="sr-window__body rp-body"><div class="rp-col">'+left.join('')+'</div><div class="rp-col">'+crew+'</div></div>'+
-    wFoot(rbtn('data-close','Continue',false,'sr-btn--primary'));
+    '<div class="sr-window__body rp-body"><div class="rp-col">'+left.join('')+'</div><div class="rp-col">'+crew+ships+'</div></div>'+
+    wFoot((rp.more?rbtn('data-rpmore','More information',false,'sr-btn--ghost'):'')+'<span class="sr-spacer"></span>'+rbtn('data-close','Continue',false,'sr-btn--primary'));
 }
 /* loot cells: two rows of four, of three on a phone */
 const RP_LOOT_MAX=()=>ROOT.clientWidth&&ROOT.clientWidth<=900?6:8;
@@ -6944,6 +7257,8 @@ function syncTabs(){
 const roleIcon={Pilot:'pilot',Soldier:'soldier',Marine:'marine',Hero:'star'};
 function syncUI(){
   clampSupplies();
+  wingsTidy();   // MAIN-SWITCH S3
+  if(started&&!winMode&&SR.active==='base'){const p=wingNeed();if(p)openWin('wingjoin',p);}
   ensureMarket();   // a new game rolls week 1 on day 1; an old save rolls its current week once
   $('resSW').title='Supplies '+Math.round(G.supplies)+' / '+supCap()+' (Storerooms raise the cap)';
   $('dayLbl').textContent=G.day;
@@ -7040,10 +7355,10 @@ function syncUI(){
 /* ---------- Arsenal (a full stage view; replaces the Gear Grid window) ----------
    Everything we own in one place: personal kit on the footprint grid, ships and vehicles as bay cards,
    ship weapons on the hangar racks. The rail swaps to Loadouts; the command bar carries Give to… and Sell. */
-const AR_CATS=[['all','All kit'],['weapon','Weapons'],['armour','Armour'],['gadget','Gadgets'],['vehicles','Vehicles'],['ships','Ships'],['shipkit','Ship kit']];
+const AR_CATS=[['all','All kit'],['weapon','Weapons'],['armour','Armour'],['gadget','Gadgets'],['vehicles','Vehicles'],['ships','Ships'],['shipkit','Ship kit'],['craft','Crafting']];   // Crafting: MAIN-SWITCH S5
 const AR_CATLBL={weapon:'Weapon',armour:'Armour',gadget:'Gadget',other:'Other'};
 const START_IDS=['akli','cowboy','medpack'];   // the day-one armory, for saves from before stacks recorded their source
-let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false,arRefit=null;
+let arOpen=false,arCat='all',arSel=null,arOverlay=null,arGive=false;
 const arLast={};   // last selection per category chip (module state, not saved)
 /* ---------- Arsenal/Market art bridge ----------
    SR_ART drawn once to data URLs and cached; anything the kit can't draw keeps its sr-icons glyph.
@@ -7146,7 +7461,7 @@ function drawerLabel(){
 }
 function openArsenal(){
   closeWin();closeTilePop();exitRoomView();closeMarket();closeMissions();closeIntel();
-  arOpen=true;arOverlay=null;arGive=false;arRefit=null;
+  arOpen=true;arOverlay=null;arGive=false;
   Pro.emit('tab','arsenal');
   $('arView').hidden=false;
   shell.classList.add('is-arsenal');
@@ -7157,7 +7472,7 @@ function openArsenal(){
 }
 function closeArsenal(){
   if(!arOpen)return;
-  arOpen=false;arOverlay=null;arGive=false;arRefit=null;
+  arOpen=false;arOverlay=null;arGive=false;
   $('arView').hidden=true;
   shell.classList.remove('is-arsenal');
   $('railArsenal').hidden=true;
@@ -7175,11 +7490,11 @@ function arKitItems(cat){
     return oa-ob||mb.w*mb.h-ma.w*ma.h||kitName(a).localeCompare(kitName(b));
   });
 }
-/* ship weapons: what the racks hold (G.shipKit, once the market lands) plus what the fleet has fitted */
+/* ship kit: what the racks hold (G.shipKit: weapons and attachments) plus what the fleet has fitted (its configurations) */
 function arShipWpns(){
   const rows={};
   for(const e of G.shipKit||[])rows[e.id]={n:e.n||0,fitted:0,ships:[]};
-  for(const f of G.fighters)for(const id of f.loadout||[]){
+  for(const f of G.fighters)for(const id of SRDB.SLOTS.flatMap(k=>SRDB.parseConfig(f.config||'')[k])){
     rows[id]=rows[id]||{n:0,fitted:0,ships:[]};
     rows[id].fitted++;
     if(!rows[id].ships.includes(f.name))rows[id].ships.push(f.name);
@@ -7192,12 +7507,14 @@ function arExists(sel){
   if(sel.t==='ship')return G.fighters.some(f=>f.id===sel.id);
   if(sel.t==='veh')return (G.vehicles||[]).some(v=>v.id===sel.id);
   if(sel.t==='shipwpn')return !!arShipWpns()[sel.id];
+  if(sel.t==='recipe')return !!recipe(sel.id);
   return false;
 }
 function arDefaultSel(){
   if(arCat==='ships')arSel=G.fighters.length?{t:'ship',id:G.fighters[0].id}:null;
   else if(arCat==='vehicles')arSel=(G.vehicles||[]).length?{t:'veh',id:G.vehicles[0].id}:null;
   else if(arCat==='shipkit'){const k=Object.keys(arShipWpns());arSel=k.length?{t:'shipwpn',id:k[0]}:null;}
+  else if(arCat==='craft')arSel={t:'recipe',id:RECIPES[0].id};
   else{const it=arKitItems(arCat);arSel=it.length?{t:'kit',id:it[0].id}:null;}   // the top-left tile
   arLast[arCat]=arSel;
 }
@@ -7212,7 +7529,6 @@ function renderArsenal(){
   let ov='';
   if(arOverlay){const p=G.people.find(x=>x.id===arOverlay.pid);ov=p?gearOverlayHTML(p,arOverlay):'';}
   else if(arGive&&arSel&&arSel.t==='kit')ov=arGiveHTML();
-  else if(arRefit)ov=arRefitHTML();
   if(ov)$('arView').insertAdjacentHTML('beforeend',ov);
 }
 const statRow=(dt,dd)=>'<dt>'+dt+'</dt><dd>'+dd+'</dd>';
@@ -7264,13 +7580,20 @@ function arDossierBody(){
       statRow('Crew',d.kind==='bot'?'Drives itself':(d.seats||1)+' seat'+((d.seats||1)>1?'s':''))+'</dl>'+
       '<p class="ar-blurb">Bring it to a ground mission from the plan’s Fire support area.</p>';
   }
+  if(arSel.t==='recipe'){   // Crafting (S5): the recipe
+    const r=recipe(arSel.id);if(!r)return '';
+    return well(swpnArt(r.kind==='asset'?'':r.id))+
+      '<div><div class="ar-dossier__name">'+esc(recipeName(r))+'</div><div class="ar-dossier__kind">'+wTag(r.kind==='asset'?'Space mission asset':'Attachment','info')+wTag('Placeholder','action')+'</div></div>'+
+      '<dl class="kit-stat">'+statRow('Unlocks',esc(recipeUnlocks(r)))+statRow('Cost',bundleHTML(r.cost,WALLET()))+statRow('Time','0 days')+statRow('Have',String(recipeHave(r)))+'</dl>'+
+      '<p class="ar-blurb">'+esc(recipeLine(r))+'</p><p class="ar-blurb">'+(r.kind==='asset'?'Fills an asset slot in a space mission’s plan. Used up if it’s spent; comes home if not.':'Goes on the hangar racks: fit it at a ship’s Refit.')+'</p>';
+  }
   if(arSel.t==='shipwpn'){
     const rows=arShipWpns(),row=rows[arSel.id];if(!row)return '';
-    const w=SRDB.weapon(arSel.id);
+    const att=SRDB.attachment(arSel.id);
     return well(swpnArt(arSel.id))+
-      '<div><div class="ar-dossier__name">'+esc(w?w.name:arSel.id)+'</div><div class="ar-dossier__kind">'+wTag('Ship weapon','info')+'</div></div>'+
+      '<div><div class="ar-dossier__name">'+esc(SRDB.itemName(arSel.id))+'</div><div class="ar-dossier__kind">'+wTag(att?'Attachment':'Ship weapon','info')+'</div></div>'+
       '<dl class="kit-stat">'+statRow('On the racks',String(row.n))+statRow('Fitted',row.fitted+(row.ships.length?' · '+row.ships.map(esc).join(', '):''))+'</dl>'+
-      '<p class="ar-blurb">Hangar racks · no limit. Fit them from a ship’s Refit order in the Ships view.</p>';
+      (att&&att.description?'<p class="ar-blurb">'+esc(att.description)+'</p>':'')+'<p class="ar-blurb">Hangar racks · no limit. Fit them from a ship’s Refit tab.</p>';
   }
   return '';
 }
@@ -7281,6 +7604,7 @@ function arMainHTML(){
   if(arCat==='ships')cap='<span>Landing pads <b>'+G.fighters.length+'</b> / '+fighterCap()+'</span>';
   else if(arCat==='vehicles'){const n=(G.vehicles||[]).length;cap='<span><b>'+n+'</b> vehicle'+(n===1?'':'s')+' and Bots</span>';}
   else if(arCat==='shipkit')cap='<span>Hangar racks · no limit</span>';
+  else if(arCat==='craft')cap='<span>'+bundleHTML({c:G.credits,s:G.supplies,m:G.materials,i:G.intel})+'</span>';
   else{
     const used=arKitItems('all').reduce((n,a)=>{const m=gearMeta(a);return n+m.w*m.h;},0),capn=gearCapacity();
     cap='<span>Storeroom <b>'+used+'</b> / '+capn+' slots</span>'+
@@ -7292,6 +7616,7 @@ function arMainHTML(){
 function arGridHTML(){
   if(arCat==='ships'||arCat==='vehicles')return arBaysHTML();
   if(arCat==='shipkit')return arShipKitHTML();
+  if(arCat==='craft')return craftHTML();
   const items=arKitItems(arCat);
   const cols=ROOT.clientWidth<=900?4:GEAR_COLS;
   const lay=gearLayout(items,cols);
@@ -7363,12 +7688,12 @@ function arShipKitHTML(){
   const rows=arShipWpns(),ids=Object.keys(rows);
   if(!ids.length)return '<div class="sr-empty">The hangar racks are bare. Ship weapons from Sweet Tooth stack here.</div>';
   const tiles=ids.map(id=>{
-    const w=SRDB.weapon(id),row=rows[id];
+    const row=rows[id];
     const sel=arSel&&arSel.t==='shipwpn'&&arSel.id===id;
     return '<button class="ar-tile is-wide'+(sel?' is-sel':'')+'" data-arsel="shipwpn:'+id+'" aria-pressed="'+sel+'" style="grid-column:span 2">'+
       swpnArt(id)+'<span class="ar-tile__q">×'+row.n+'</span>'+
       (row.fitted?'<span class="ar-tile__c is-foe" title="Fitted: '+esc(row.ships.join(', '))+'">'+IC('ship')+row.fitted+'</span>':'')+
-      '<span class="ar-tile__n">'+esc(w?w.name:id)+'</span></button>';
+      '<span class="ar-tile__n">'+esc(SRDB.itemName(id))+'</span></button>';
   }).join('');
   const cols=ROOT.clientWidth<=900?4:GEAR_COLS;
   return '<div class="ar-grid" style="grid-template-columns:repeat('+cols+',minmax(0,1fr))">'+tiles+'</div>';
@@ -7420,7 +7745,7 @@ function arActsHTML(){
   if(arSel.t==='ship'){
     const f=G.fighters.find(x=>x.id===arSel.id);if(!f)return '';
     return kitActs('arActs',[kitAct(1,'hangar','Hangar','data-arhangar',false,'Step into the Hangar'),
-      kitAct(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Swap weapons with the hangar racks')],[f.out?'Out on a mission.':'']);
+      kitAct(2,'turret','Refit','data-arrefit',f.out,f.out?'Out on a mission':'Fit weapons and attachments on her hardpoints')],[f.out?'Out on a mission.':'']);
   }
   return '';
 }
@@ -7440,65 +7765,11 @@ function arGiveHTML(){
     '<div class="bs-overlay__panel" role="dialog" aria-label="Give to"><div class="sr-window__head"><span class="sr-window__title">Give the '+esc(kitNameId(id))+' to…</span>'+wX('data-rank-close')+'</div>'+
     '<div class="sr-window__body"><div class="bs-gearpicks">'+list+'</div></div></div></div>';
 }
-/* Refit: swap a ship's mounted weapons with the hangar racks (G.shipKit). A cleared mount goes back
-   to the racks; fitting takes one off them. Mount count comes from the db's weapon_slots. */
-function arRefitHTML(){
-  const f=G.fighters.find(x=>x.id===arRefit.sid);
-  if(!f)return '';
-  const slots=(SRDB.ship(f.cls)||{}).weapon_slots||2;
-  const panel=(title,body)=>'<div class="bs-overlay"><button class="bs-overlay__scrim" data-rank-close aria-label="Close"></button>'+
-    '<div class="bs-overlay__panel" role="dialog" aria-label="Refit"><div class="sr-window__head"><span class="sr-window__title">'+title+'</span>'+wX('data-rank-close')+'</div>'+
-    '<div class="sr-window__body"><div class="bs-gearpicks">'+body+'</div></div></div></div>';
-  if(arRefit.mi===null){
-    const rows=Array.from({length:slots},(_,i)=>{
-      const id=(f.loadout||[])[i];
-      return '<button class="bs-gearpick" data-armount="'+i+'"><span class="bs-gearpick__n">'+IC('turret')+'<span>Mount '+(i+1)+'</span></span>'+
-        '<span class="bs-sub">'+(id?esc(wpnLabel(id)):'Empty')+'</span></button>';
-    }).join('');
-    return panel(esc(f.name)+' · Refit',rows+'<p class="sr-fine" style="margin:8px 0 0">Swapped-out weapons go back on the hangar racks.</p>');
-  }
-  const cur=(f.loadout||[])[arRefit.mi];
-  const rack=(G.shipKit||[]).filter(e=>e.n>0);
-  const rows=(cur?'<button class="bs-gearpick" data-arfit=""><span class="bs-gearpick__n">Leave empty</span><span class="bs-sub">The '+esc(wpnLabel(cur))+' goes back on the racks</span></button>':'')+
-    rack.map(e=>{
-      const w=SRDB.weapon(e.id);
-      return '<button class="bs-gearpick'+(cur===e.id?' is-on':'')+'" data-arfit="'+e.id+'"><span class="bs-gearpick__n">'+IC('turret')+'<span>'+esc(w?w.name:e.id)+'</span></span><span class="bs-sub">×'+e.n+' on the racks</span></button>';
-    }).join('')||(cur?'':'<div class="sr-empty">The racks are bare. Sweet Tooth sometimes has ship weapons.</div>');
-  return panel(esc(f.name)+' · Mount '+(arRefit.mi+1),rows);
-}
-/* Refit (Aerogineer): with one in the Workshop a weapon change is done at once; without, the ship is laid up 2 days */
+/* Refit (Aerogineer): with one in the Workshop a change is done at once; without, the ship is laid up 2 days */
 function refitTime(f){
   if(runnersOf('aerogineer.refit').length)return '';
   f.refit=2;
   return ' Without an Aerogineer it takes the mechanics 2 days: the ship is grounded meanwhile.';
-}
-function arFit(id){
-  const f=G.fighters.find(x=>x.id===arRefit.sid);
-  if(!f)return false;
-  const mi=arRefit.mi;
-  f.loadout=f.loadout||[];
-  G.shipKit=G.shipKit||[];
-  if(id){
-    const e=G.shipKit.find(x=>x.id===id);
-    if(!e||e.n<=0)return false;
-    if(mi<f.loadout.length&&f.loadout[mi]===id)return true;   // already fitted there
-    e.n--;
-    if(mi<f.loadout.length){
-      const old=f.loadout[mi];
-      const oe=G.shipKit.find(x=>x.id===old);
-      if(oe)oe.n++;else G.shipKit.push({id:old,n:1});
-      f.loadout[mi]=id;
-    } else f.loadout.push(id);
-    news('<b>'+esc(wpnLabel(id))+'</b> fitted to the <b>'+esc(f.name)+'</b>.'+refitTime(f),'d');
-  } else if(mi<f.loadout.length){
-    const old=f.loadout[mi];
-    f.loadout.splice(mi,1);
-    const oe=G.shipKit.find(x=>x.id===old);
-    if(oe)oe.n++;else G.shipKit.push({id:old,n:1});
-    news('The <b>'+esc(wpnLabel(old))+'</b> comes off the <b>'+esc(f.name)+'</b> and onto the racks.'+refitTime(f),'d');
-  }
-  saveSnap();
-  return true;
 }
 function arGiveTo(pid){
   const id=arSel.id,p=G.people.find(x=>x.id===pid);
@@ -7518,16 +7789,8 @@ function arClick(ev){
   const sel=t.getAttribute('data-arsel');
   if(sel){const q=sel.indexOf(':');arSel={t:sel.slice(0,q),id:sel.slice(q+1)};arLast[arCat]=arSel;renderArsenal();return;}
   const slot=t.getAttribute('data-arslot');
-  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;arRefit=null;setDrawer(false);renderArsenal();return;}   // the picker lives on the view, not in the drawer
-  if(t.hasAttribute('data-rank-close')){arOverlay=null;arGive=false;arRefit=null;renderArsenal();return;}
-  const mount=t.getAttribute('data-armount');
-  if(mount!==null&&arRefit){arRefit.mi=+mount;renderArsenal();return;}
-  const fit=t.getAttribute('data-arfit');
-  if(fit!==null&&arRefit&&arRefit.mi!==null){
-    arFit(fit||null);
-    arRefit.mi=null;   // back to the mount list to keep refitting
-    syncUI();return;
-  }
+  if(slot){const [pid,k,i]=slot.split(':');arOverlay={pid,k,i:+i};arGive=false;setDrawer(false);renderArsenal();return;}   // the picker lives on the view, not in the drawer
+  if(t.hasAttribute('data-rank-close')){arOverlay=null;arGive=false;renderArsenal();return;}
   const pick=t.getAttribute('data-gear-pick');
   if(pick){
     const [pid,k,i,id]=pick.split(':');
@@ -7537,6 +7800,8 @@ function arClick(ev){
   }
   const give=t.getAttribute('data-argiveto');
   if(give){arGiveTo(give);return;}
+  const cr=t.getAttribute('data-arcraft');
+  if(cr){const why=craft(cr);if(why)flashMsg(esc(why),'action');renderArsenal();syncUI();return;}   // Crafting (S5)
   if(t.closest('#arActs'))arAct(t);
 }
 $('arView').addEventListener('click',arClick);
@@ -7546,8 +7811,8 @@ $('railArsenal').addEventListener('click',arClick);   // the Loadouts slots live
 /* the dossier's actions */
 function arAct(t){
   if(!arOpen||!arSel)return;
-  if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;arRefit=null;renderArsenal();return;}
-  if(t.hasAttribute('data-arrefit')){arRefit={sid:arSel.id,mi:null};arOverlay=null;arGive=false;renderArsenal();return;}
+  if(t.hasAttribute('data-argive')){arGive=true;arOverlay=null;renderArsenal();return;}
+  if(t.hasAttribute('data-arrefit')){const f=G.fighters.find(x=>x.id===arSel.id);if(f){shipTab='refit';openWin('ship',f);}return;}   // the ship inspector's Refit tab (MAIN-SWITCH S4)
   if(t.hasAttribute('data-arsell')){sellItem(arSel.id);return;}
   if(t.hasAttribute('data-arhangar')){
     const rm=G.rooms.find(r=>r.key==='hangar'&&!r.build);
@@ -7608,12 +7873,12 @@ const BM_GSTATS={
 };
 /* ships, vehicles and ship weapons Sweet Tooth sells: prices from the handoff §1; their data stays in the db.
    Varrondow and AutoCom craft, drones, structures and Hegemony-issue vehicles never reach her table. */
-const SHIP_PRICE={talon:2200,cross:2600,graf:3200};
+const SHIP_PRICE={talon:2200,cross:2600,graf:3200,brickbat:2400};   // the Brickbat: MAIN-SWITCH S2 (decision 8), price a placeholder (C-91)
 /* the prologue's Graf hauler is sold at a friend-of-Cass price until the frontier (docs/FEEDBACK-0.2-HANDOFF.md §3.2) */
 const shipPrice=k=>k==='graf'&&!Pro.done()?Pro.PRO_GRAF_PRICE:SHIP_PRICE[k];
 const SHIPWPN_PRICE={'bls-t-light-repeaters':380,'missiles':520,'door-mounted-gun':300};
 const VEH_PRICE={truck:1100};   // listed, but only sellable once GVEH.truck exists (stats are a blocker: M-17)
-const SHIP_SHORT={talon:'Talon',cross:'Cross',graf:'Hauler'};
+const SHIP_SHORT={talon:'Talon',cross:'Cross',graf:'Hauler',brickbat:'Brickbat'};
 const makerName=id=>{const m=(SRDB.raw.manufacturers||[]).find(x=>x.id===id);return m?m.name:'';};
 const inboundShips=()=>((G.inbound||[]).filter(x=>x.kind==='ship').length);
 const padFree=(cls,n)=>berthFree(cls||'talon',n);   // a bought ship needs a pad of its size held for it (C-32)
@@ -8070,7 +8335,7 @@ cv.addEventListener('click',ev=>{
       const key='fig:'+(f.pid||f.fid),now=performance.now();
       if(lastTap.key===key&&now-lastTap.t<380){
         lastTap={key:null,t:0};
-        if(f.fid){const sh=G.fighters.find(x=>x.id===f.fid);if(sh)openWin('ship',sh);}
+        if(f.fid){const sh=G.fighters.find(x=>x.id===f.fid);if(sh){shipTab='sheet';openWin('ship',sh);}}
         else{const p=G.people.find(x=>x.id===f.pid);if(p)openWin('person',p);}
       } else lastTap={key,t:now};
     }
@@ -8140,6 +8405,10 @@ $('roomViewBar').addEventListener('click',ev=>{
   if(open==='sources'){exitRoomView();showView('galaxy');return;}   // the Source Network window became the Galaxy view
   if(open){openWin(open);return;}
 });
+$('winsB').addEventListener('change',ev=>{
+  const el=ev.target.closest&&ev.target.closest('[data-wname]');if(!el||winMode!=='wings')return;
+  const why=wingRename(el.getAttribute('data-wname'),el.value);if(why){flashMsg(esc(why),'action');renderWin();}else saveSnap();
+});
 $('winsB').addEventListener('dragstart',ev=>{
   const c=ev.target.closest('[data-rid]');
   if(c){
@@ -8158,7 +8427,37 @@ $('winsB').addEventListener('drop',ev=>{
   sClick();renderWin();
 });
 $('winsB').addEventListener('click',ev=>{
-  if(ev.target.id==='winsB'||ev.target.closest('[data-close]')){closeWin();return;}
+  if((ev.target.id==='winsB'&&winMode!=='wingjoin')||ev.target.closest('[data-close]')){closeWin();return;}   // the Assign window can't be skipped
+  if(winMode==='reward'){   // a Type 3.5 flight's More information, and back (MAIN-SWITCH S6)
+    const b=ev.target.closest('button');
+    if(b&&b.hasAttribute('data-rpmore')){winArg.moreOpen=!winArg.moreOpen;sClick();renderWin();return;}
+    if(b&&b.hasAttribute('data-rpsave')){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))flashMsg('No flight record yet','action');return;}
+  }
+  if(winMode==='ship'){   // the ship inspector's tabs and Refit (MAIN-SWITCH S4)
+    const b=ev.target.closest('button');
+    if(b&&!b.disabled&&b.hasAttribute('data-shiptab')){shipTab=b.getAttribute('data-shiptab');sClick();renderWin();return;}
+    if(b&&!b.disabled&&b.hasAttribute('data-rfx')){const [k,i,id]=b.getAttribute('data-rfx').split('|');const why=refitFit(winArg,k,+i,id||null);if(why)flashMsg(esc(why),'action');else sClick();renderWin();syncUI();return;}
+  }
+  if(winMode==='wings'||winMode==='wingjoin'){
+    const b=ev.target.closest('button');
+    if(b&&!b.disabled){
+      const g=a=>b.getAttribute(a),done=why=>{if(why)flashMsg(esc(why),'action');else sClick();renderWin();syncUI();};
+      if(g('data-wlead')){const [w,p]=g('data-wlead').split('|');done(wingLeader(w,p));return;}
+      if(g('data-wmovesel')){wingMoveSel=wingMoveSel===g('data-wmovesel')?null:g('data-wmovesel');sClick();renderWin();return;}
+      if(g('data-wmove')){const [p,w]=g('data-wmove').split('|');wingMoveSel=null;done(wingMove(p,w));return;}
+      if(g('data-wstart')){wingMoveSel=null;done(wingStart(g('data-wstart')));return;}
+      if(g('data-wrem')){done(wingRemove(g('data-wrem')));return;}
+      if(g('data-wseat')){const [p,s]=g('data-wseat').split('|');done(wingSeat(p,s));return;}
+      if(g('data-wdrop')){done(wingDropShip(g('data-wdrop')));return;}
+      if(g('data-wadd')){const [s,w]=g('data-wadd').split('|');done(wingAddShip(s,w));return;}
+      if(winMode==='wingjoin'&&winArg){
+        const why=g('data-wjoin')?wingJoin(winArg.id,g('data-wjoin')):g('data-wstartj')?wingStart(winArg.id):'';
+        if(why){flashMsg(esc(why),'action');return;}
+        if(why===null){sClick();const p=winArg;closeWin();news('<b>'+esc(p.name)+'</b> flies with the <b>'+esc((wingOfPilot(p.id)||{}).name||'new')+'</b> wing.','d');syncUI();}
+        return;
+      }
+    }
+  }
   if(winMode==='plan'&&PL){
     const un=ev.target.closest('[data-unslot]');
     if(un){delete PL.v[un.getAttribute('data-unslot')];PL.pick=null;sClick();renderWin();return;}
@@ -8420,7 +8719,7 @@ byId('panel').addEventListener('click',ev=>{
       if(p)openWin('person',p);
     } else {
       const f=G.fighters.find(x=>x.id===fr.getAttribute('data-fighter'));
-      if(f)openWin('ship',f);
+      if(f){shipTab='sheet';openWin('ship',f);}
     }
     return;
   }
@@ -8467,7 +8766,8 @@ addEventListener('keydown',ev=>{
     if(!menu.hidden){closeMenu();return;}
     const kw=HUD.topWin(ROOT);if(kw){kw.querySelector('[data-close]').click();return;}   // a kit dialog (the restart question)
     if(rankOverlay||gearOverlay){rankOverlay=null;gearOverlay=null;renderWin();return;}
-    if(!winMode&&arOpen&&(arOverlay||arGive||arRefit)){arOverlay=null;arGive=false;arRefit=null;renderArsenal();return;}
+    if(!winMode&&arOpen&&(arOverlay||arGive)){arOverlay=null;arGive=false;renderArsenal();return;}
+    if(winMode==='wingjoin')return;   // it can't be skipped (MAIN-SWITCH S3)
     if(winMode)closeWin();
     else if(shell.classList.contains('is-drawer-open'))setDrawer(false);
     else if(arOpen)closeArsenal();
@@ -8481,7 +8781,7 @@ addEventListener('keydown',ev=>{
     return;
   }
   // keys 1-2: the Arsenal's dossier buttons; the Black Market's lot pop-up, Buy and Buy all
-  if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&!arRefit&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
+  if((arOpen||bmOpen)&&!winMode&&!arOverlay&&!arGive&&/^[12]$/.test(ev.key)&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){
     const btn=bmOpen?[...$('bmStall').querySelectorAll('#bmPop .sr-btn')][+ev.key-1]:($('arActs')?[...$('arActs').querySelectorAll('.kit-act')][+ev.key-1]:null);
     if(btn&&!btn.disabled){ev.preventDefault();btn.click();}
     return;
@@ -8878,10 +9178,10 @@ function plAccepts(slot,rid){
   if(kind==='v'||slot.acc==='gveh')return kind==='v'&&slot.acc==='gveh'&&vehPool().some(v=>v.id===id);
   if(kind==='p'){
     const p=G.people.find(x=>x.id===id);if(!p)return false;
-    return (slot.acc==='soldier'||slot.acc==='rsoldier')?isGround(p):(slot.acc==='pilot'||slot.acc==='apilot')?isFlyer(p):false;
+    return (slot.acc==='soldier'||slot.acc==='rsoldier')?isGround(p):(slot.acc==='pilot'||slot.acc==='apilot')?isFlyer(p)&&(!/^rp/.test(slot.key)||!!wingOfPilot(p.id)):false;   // rp: a space sortie's pilot flies in a wing (S3)
   }
   const f=G.fighters.find(x=>x.id===id);if(!f)return false;
-  return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id):slot.acc==='assetship'?(!f.out&&!(f.refit>0)&&f.hull>=60):false;
+  return slot.acc==='vehicle'?!!SEATS[f.cls]:slot.acc==='ship'?shipPool(PL.req).some(x=>x.id===id)&&!!wingOfShip(id):slot.acc==='assetship'?(!f.out&&!(f.refit>0)&&f.hull>=60):false;
 }
 function plSet(key,rid){
   const id=rid.slice(2);
@@ -8998,7 +9298,6 @@ function plAutoFill(){
   }
 }
 const shipAvatar=(extra,f)=>{const u=f&&shipTopURL(f,48,48,1.15);return '<span class="sr-avatar" style="--c:var(--sr-shield)'+(extra||'')+'">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>';};
-const personAvatar=p=>'<span class="sr-avatar'+(p.role==='Pilot'||p.role==='Hero'?' sr-avatar--pilot':'')+'">'+faceHTML(p)+'</span>';
 const personSub=p=>rankFor(p)+', level '+p.level+(p.spec?' · '+specOf(p):'');
 const shipSub=f=>SRDB.ship(f.cls).name;
 const vehAvatar=()=>'<span class="sr-avatar" style="--c:var(--sr-gold)">'+IC('vehicle')+'</span>';
@@ -9010,8 +9309,9 @@ const vehSub=v=>gvehOf(v).label+' \u00b7 '+(gvehOf(v).kind==='bot'?'Bot':'vehicl
 const plFace=p=>'<span class="kf">'+faceHTML(p)+'</span>';
 const plLvl=p=>'<span class="pl-lvl" style="--xp:'+Math.round((p.xp||0)*100)+'" title="Level '+p.level+'"><b>'+p.level+'</b></span>';
 /* who or what fits a slot, with the reason when they can't come */
-function plWhyPerson(p,used){
+function plWhyPerson(p,used,sl){
   if(used.has(p.id))return 'In squad';
+  if(sl&&/^rp/.test(sl.key)&&!wingOfPilot(p.id))return 'Not in a wing';   // MAIN-SWITCH S3
   if(laidUp(p))return 'Injured · '+outDays(p)+' day'+(outDays(p)>1?'s':'');
   if(conked(p))return 'Resting · '+restLeft(p)+' day'+(restLeft(p)>1?'s':'');
   if(p.assign==='mission')return 'On a mission';
@@ -9025,6 +9325,7 @@ function plWhyShip(f,used,sl){
   if(f.refit>0)return 'In refit';
   if(f.hull<60)return 'Hull '+f.hull+'%';
   if(sl.acc==='ship'&&PL.req.starfighter&&SEATS[f.cls])return 'A transport won’t do';
+  if(sl.acc==='ship'&&!wingOfShip(f.id))return 'Not in a wing';   // MAIN-SWITCH S3: an asset slot still takes it
   if(sl.acc==='vehicle'&&!SEATS[f.cls])return 'No seats';
   return null;
 }
@@ -9033,7 +9334,7 @@ function plPickHTML(key){
   const opts=[];
   const opt=(rid,art,name,sub,why,subHtml)=>opts.push('<button type="button" class="pl-opt" data-pickval="'+rid+'"'+(why?' disabled':'')+'>'+art+
     '<span><b>'+esc(name)+'</b><small>'+(subHtml?sub:esc(sub))+'</small></span><em style="--c:'+(why?'var(--sr-text-3)':'var(--sr-go)')+'">'+esc(why||'Available')+'</em></button>');
-  const people=list=>{for(const p of list)opt('p:'+p.id,plFace(p),p.name,personSub(p),plWhyPerson(p,used));};
+  const people=(list,sl)=>{for(const p of list)opt('p:'+p.id,plFace(p),p.name,personSub(p),plWhyPerson(p,used,sl));};
   const ships=(list,sl)=>{for(const f of list){const u=shipTopURL(f,48,48,1.15);
     opt('f:'+f.id,'<span class="kf">'+(u?'<img class="bs-face bs-shipface" src="'+u+'" alt="">':IC('ship'))+'</span>',
       f.name,'<span>'+esc(shipSub(f))+'</span> · <span>'+F(fuelOf(f))+'</span>'+(SEATS[f.cls]?' · <span>'+SEATS[f.cls]+' seats</span>':''),plWhyShip(f,used,sl),true);}};
@@ -9048,7 +9349,7 @@ function plPickHTML(key){
     if(!sl)return '';
     title=sl.label;
     if(sl.acc==='soldier')people(G.people.filter(isGround));
-    else if(sl.acc==='pilot'||sl.acc==='apilot')people(G.people.filter(isFlyer));
+    else if(sl.acc==='pilot'||sl.acc==='apilot')people(G.people.filter(isFlyer),sl);
     else if(sl.acc==='gveh')vehs();
     else ships(G.fighters.filter(f=>sl.acc!=='vehicle'||SEATS[f.cls]),sl);
   }
@@ -9398,6 +9699,11 @@ function usePacks(r){
 }
 function applyDebrief(r){
   if(!r)return;
+  if(r.kind==='space35'&&r.test){   // a Type 3.5 test flight (S1): logged, and nothing else changes until S6 wires the results
+    SR.mission=null;
+    news('Type 3.5 test flight: <b>'+esc(r.name||r.missionId)+'</b>, '+esc(String(r.stamp||'flown').toLowerCase())+'. Nothing in the campaign is counted yet.','d');
+    saveSnap();syncUI();return;
+  }
   // the Supply Drop is paid at launch; if it was never called in, the crates come home (SCREENS-HANDOFF-2 §4)
   if(G.sortie&&G.sortie.s&&r.kind==='ground'&&!r.dropUsed){
     G.supplies+=G.sortie.s;
@@ -9465,6 +9771,13 @@ function applyDebrief(r){
     p.kills=(p.kills||0)+(pr.kills||0);
     let state=pr.state;
     if(state==='shotdown')state=(rng()<0.15)?'lost':'injured';
+    if(state==='captured'){   // Type 3.5 (S6, decision 4): counted as lost until the capture system exists (M-2), with a rescue lead
+      G.captured=G.captured||[];G.captured.push({id:p.id,name:p.name,day:G.day,missionId:r.missionId,person:JSON.parse(JSON.stringify(p))});
+      G.people=G.people.filter(x=>x.id!==p.id);lostP.push(p);pi.xp=0;pi.state='captured';pinfo.push(pi);
+      moraleAll(-4,'death',(r.people||[]).map(x=>x.id),-8);
+      news('<b>'+p.name+'</b>’s pod was taken by the Hegemony. A lead to where they hold them is on file, for when we can mount a rescue.','h');
+      continue;
+    }
     pi.xp=xg*Rebel.xpMult(p);pi.state=state;   // what gainXp actually added
     pinfo.push(pi);
     if(r.win&&state!=='lost')creditMission(p);
@@ -9553,7 +9866,15 @@ function applyDebrief(r){
   if(r.chargeUsed){
     Items.take(G.armory,'charge',r.chargeUsed);
   }
-  if(r.win&&m)applyRew(salvaged(m.rew),got);
+  if(r.space35){   // Type 3.5 (S6): what the mission paid (the stand-ins: the rewards proposal waits for the designer), whatever the primary
+    applyRew(salvaged(r.rew35||{}),got);
+    if(r.broadcast)expGain(5,'the Firebrand Broadcast');   // placeholder (C-91)
+    for(let i=0;i<(r.witnesses||0);i++){expGain(2,'a witness got away');   // placeholders: +2 each, a 25% Bureau Lead (C-91)
+      if(rng()<0.25){G.bureauLeads=G.bureauLeads||[];G.bureauLeads.push({target:{kind:'cell',id:(m&&m.loc)||'veray'},from:null,day:G.day,cold:0,space35:1});}}
+    G.assets=G.assets||{};for(const a of (r.assets&&r.assets.spent)||[])if(G.assets[a])G.assets[a]--;   // a spent asset is used up; the rest come home
+    if(r.intelSpent)G.intel=Math.max(0,G.intel-r.intelSpent);   // Dig deeper, 1 Intel each
+  }
+  else if(r.win&&m)applyRew(salvaged(m.rew),got);
   if(r.salvage&&on('aerogineer.scavenger')){G.materials+=r.salvage;gotRes(got,'m',r.salvage,'salvaged');}   // Scavenger's Eye
   if(r.win&&r.salvHp){const n=Math.round(r.salvHp*SALVAGE_PER_HP/10)*10;if(n){G.materials+=n;gotRes(got,'m',n,'salvaged');}}   // Hegemony wrecks (§3.2)
   maintenance(r,got);
@@ -9593,7 +9914,8 @@ function applyDebrief(r){
       m.state='done';m.meta='SUCCESS';
       if(m.loc){G.wins=G.wins||{};G.wins[m.loc]=G.day;}   // for Hero Stories
       const cr=missionCredit(m);
-      queueReport(buildReport(m,true,got,pinfo,cr,true));
+      const rpt=buildReport(m,true,got,pinfo,cr,true);rpt.objs=r.objs;rpt.more=r.more;rpt.ships=shipsOf(r);
+      queueReport(rpt);
       if(m.npc&&!m.noRecruit)RQ.push({t:'recruit',m});
       moraleAll(1,'win',(r.people||[]).map(x=>x.id),3);
       const gt=gotText(got);
@@ -9603,7 +9925,7 @@ function applyDebrief(r){
     } else {
       m.state='avail';m.progress=null;
       moraleAll(-3,'loss',(r.people||[]).map(x=>x.id),-8);
-      const rpt=buildReport(m,false,got,pinfo,null,true);rpt.objs=r.objs;
+      const rpt=buildReport(m,false,got,pinfo,null,true);rpt.objs=r.objs;rpt.more=r.more;rpt.ships=shipsOf(r);
       queueReport(rpt);
       news('<b>'+m.name+'</b> \u2014 the field op failed. The board keeps the job open.','h');
       sWarn();
@@ -9867,6 +10189,25 @@ const MIGRATIONS=[
     const crossDone=(G.missions||[]).some(m=>(m.id==='stealcross'||m.story==='stealcross')&&m.state==='done');
     for(const f of G.fighters||[])if(f.id!=='graf'||crossDone)f.flown=1;
   },
+  /* 15 -> 16: every ship has a configuration, what it has fitted where on its hardpoints (docs/MAIN-SWITCH-HANDOFF.md S2):
+     its weapons as fitted (each on its slot), and its model's stock attachments */
+  function(){
+    for(const f of G.fighters||[])if(!f.config)f.config=configOfWeapons(f.loadout||[],SRDB.stockConfig(SRDB.ship(f.cls)));
+  },
+  /* 16 -> 17: wings (docs/MAIN-SWITCH-HANDOFF.md S3). Every pilot with a ship joins one wing, led by the highest level,
+     named (more than WING_MAX: the next wing). Ships with no pilot stay outside, as assets (before the frontier
+     wingsTidy brings them in) */
+  function(){
+    G.wings=[];G.wingSeq=0;
+    const flying=(G.people||[]).filter(p=>isFlyer(p)&&p.ship&&(G.fighters||[]).some(f=>f.id===p.ship)).sort((a,b)=>(b.level||0)-(a.level||0));
+    let w=null;
+    for(const p of flying){if(!w||w.members.length>=WING_MAX)w=newWing();w.members.push({pilotId:p.id,shipId:p.ship});}
+    for(const x of G.wings)wingLead(x);
+  },
+  /* 17 -> 18: the asset inventory (docs/MAIN-SWITCH-HANDOFF.md S5) and the pilots the Hegemony captured in space (S6) */
+  function(){
+    G.assets=G.assets||{};G.captured=G.captured||[];
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -9958,14 +10299,15 @@ SR.register('base',{enter,exit,frame:render});
 if(location.hash==='#test'){
   window.DBGbase={get G(){return G;},set G(v){G=v;},get started(){return started;},
     fn:{castRebel,enterRoomView,resting,onStandby,sleepers,loungeRoom,baseDrawOrder,pilotAimMod,ctxNames,restTag,tireNews,packTick,packsCarried,usePacks,pilotAim,buildCostAt,UPGRADES_:()=>UPGRADES,REV_W_:()=>REV_W,startRestore,digAt,buildAt,srcContact,srcVisit,acceptCandidate,startSpec,openWin,getWin:()=>winMode,standbyCandidate,declineCandidate,gxHitL_:()=>gxHitL,
-      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,msRewards,makeOffer,news,proCost,hangarPlan,shipPrice,SHIP_PRICE_:()=>SHIP_PRICE,SALVAGE_PER_HP_:()=>SALVAGE_PER_HP,MAT_HINT_:()=>MAT_HINT,agentLieLow,upOf,upQueued,hasRoom,bunksUsed,genRecruit,closeTilePop,roomTileFor,guideTarget,cellToCss,roughIds,sleepsRough,ROUGH_:()=>({ROUGH_MORALE,ROUGH_REST,ROUGH_CARD}),openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
+      openIntel,closeIntel,renderIntel,captureSource,expGain,expBand,agentRecruit,agentOf,agentCap,answerInterrogation,mkAgent,INTEL_N_:()=>INTEL_N,gainXp,sGood,sWarn,sAlert,dossierHead,squadEntry,soldierAim,pilotAim,moraleAll,mood,moraleTick,crewOf,applyInjuries,medicalSection,healRate,recordCard,meterBlock,rankRow,insignia,getRankOverlay:()=>rankOverlay,getGearOverlay:()=>gearOverlay,setRng:f=>{rng=f;},heroCheck,heroCard,isGround,isFlyer,runExperiences,squadTension,nameOfRebel,expCards,autoEquip,outfitSquad,gearSection,carried,freeOf,slotGet,slotSet,gearSlots,wpnsFromGear,nadesCarried,reconcileGear,recruitTick,recruitCard,rankFor,creditMission,rankCard,roomsAdj,PLANETDEF_:()=>PLANETDEF,BUILDS_:()=>BUILDS,srcAnswer,CHAINS_:()=>CHAINS,chainTick,chainPrompt,chainAct,chainState,startPatrol,patrolTick,upBlocked,gearLayout,startUpgrade,startDip,canDip,clusterOf,bunkCap,fighterCap,supCap,sourceCap,capUsed,tilesOf,openTilePop,roomAt,fuelOf,addMission,spawnMission,pushMission,msRewards,makeOffer,news,proCost,hangarPlan,shipPrice,SHIP_PRICE_:()=>SHIP_PRICE,SALVAGE_PER_HP_:()=>SALVAGE_PER_HP,MAT_HINT_:()=>MAT_HINT,agentLieLow,upOf,upQueued,hasRoom,bunksUsed,genRecruit,closeTilePop,roomTileFor,guideTarget,cellToCss,roughIds,sleepsRough,ROUGH_:()=>({ROUGH_MORALE,ROUGH_REST,ROUGH_CARD}),openPlan,plPlace,plComplete,plFuel,startPlan,plAutoFill,plSet,plAccepts,plWhyShip,plWhyPerson,startRestore,acceptCandidate,applyDebrief,advanceDay,scoutPlanet,syncUI,saveSnap,
       ablePilots,openWin,closeWin,launchIntro,precondList,canAttempt,
       newFighter,defaultLoadout,shipStats,hasDoorGun,fuelPer,pilotInit,pilotSkills,plAddAsset,plRemoveAsset,plAssetMode,plReinf,plPax,plSquadMax,plActiveSlots,plDropOn,plTransport,plComplete,SEATS_:()=>SEATS,
       restoreCampaign,restartCampaign,upgradeSave,saveVersion,MIGRATIONS_:()=>MIGRATIONS,padCounts,fleetFits,berthFree,padsFree,flipBlocked,flipHalf,hangarBlockAt,hangarPads,padOccupants,havenGround,isLargeShip,shipFit,zoomCam,baseCam_:()=>baseCam,isoParams,saveSnap,newGame,addVehicle,vehPool,GVEH_:()=>GVEH,soldierPool,crewIn,headOf,leadOf,on,runnersOf,treatedBy,inRehab,startNiche,chooseFork,setLead,startJob,stopJob,jobsFor,JOBS_:()=>JOBS,supportStart,supportTick,specTick,trainees,supervised,roomCap,postedTo,repairCrew,coveredSources,tutored,salvaged,gearCapacity,outDays,
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
-      padFree,inboundShips,shipSerial,arFit,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
+      padFree,inboundShips,shipSerial,refitFit,rackAdd,craft,RECIPES_:()=>RECIPES,wings35,fly35,shipTab_:v=>{if(v)shipTab=v;return shipTab;},newFighter,defaultConfig,configOfWeapons,
+      wingsOf,wingById,wingOfShip,wingOfPilot,wingBusy,wingsTidy,wingNeed,wingJoin,wingStart,wingMove,wingRemove,wingSeat,wingLeader,wingRename,wingAddShip,wingDropShip,WING_MAX_:()=>WING_MAX,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,getWinArg:()=>winArg,rqLen:()=>RQ.length,canAttempt,precondList,
       enterRoom:key=>{const rm=G.rooms.find(r=>r.key===key&&!r.build);if(rm)enterRoomView(rm);return !!rm;},exitRoomView}};

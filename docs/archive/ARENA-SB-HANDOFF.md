@@ -123,6 +123,10 @@ No d20 anywhere in this ruleset; the VS/need UI stays hidden. Misses are things 
 
 ## 4. SB orders: one movement + one action
 
+**Amendment (12 Oct):** the planning UI for movement and actions is specified in `docs/SB-HUD-HANDOFF.md` (a
+per-ship stepper: SEG 1 → action → SEG 2), and that file pins the action's timing — it resolves **between the two
+segments**, at the segment boundary. Nothing else in this section changes.
+
 Per craft, each PLAN: the movement (§2) and **one action** —
 
 - **Angle Shields** / **Boost Shields** — the existing `shiftF`/`shiftR` and boost, unchanged.

@@ -119,7 +119,7 @@ window.SR=(function(){
   let trCv=null,trBusy=null;
   function transition(type,opts,mid){
     opts=opts||{};
-    if(reducedMotion()||location.hash==='#test'||!window.SR_ART||!window.SR_ART.transition){if(mid)mid();return;}
+    if(reducedMotion()||location.hash==='#test'||location.hash==='#arena'||!window.SR_ART||!window.SR_ART.transition){if(mid)mid();return;}
     if(trBusy){if(mid)mid();return;}   // one at a time: a second asks just swaps
     if(!trCv){trCv=document.createElement('canvas');trCv.className='sr-transition';document.body.appendChild(trCv);}
     const dpr=window.devicePixelRatio||1,W=innerWidth,H=innerHeight;
@@ -172,13 +172,13 @@ window.SR=(function(){
     scenes[name].enter(params||{},prev);
   }
   /* home from a mission: hyperspace out of a space fight, a stripe wipe from the ground */
-  function endMission(result){transition(active==='space'?'hyperspace':'stripes',{},()=>go('base',{debrief:result}));}
+  function endMission(result){transition(active==='space'||active==='space35'?'hyperspace':'stripes',{},()=>go('base',{debrief:result}));}
   function frame(now){
     requestAnimationFrame(frame);
     const s=scenes[active];
     if(s&&s.frame){try{s.frame(now);}catch(e){console.error(e);}}
   }
-  function boot(){
+  function setup(){
     if(window.SR_THEME)window.SR_THEME.sync();
     applyPrefs();
     for(const n in scenes){
@@ -186,8 +186,12 @@ window.SR=(function(){
       if(el)containers[n]=el;
     }
     requestAnimationFrame(frame);
-    go('base',{boot:true});
   }
+  function boot(){setup();go('base',{boot:true});}
+  /* development tools (docs/MAIN-SWITCH-HANDOFF.md S0): ?dev in the URL. Players never see them */
+  const dev=typeof location!=="undefined"&&/[?&]dev(=|&|$)/.test(location.search);
+  /* Type 3.5's test opportunity (space35.js), dev only: the same scene setup, straight into it; the base and its save are never entered */
+  function bootArena(){if(!dev){boot();return;}setup();go('space35',{});}
   /* ---------- shared briefing furniture ----------
      Every scene builds its mission-brief objectives and squad cards
      through these, so the player sees one consistent language. */
@@ -230,7 +234,7 @@ window.SR=(function(){
   };
   /* phones: coarse pointers get tap-first hints */
   const touch=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
+  return {theme:window.SR_THEME,hud:window.SR_HUD,util,register,go,boot,bootArena,get dev(){return dev;},endMission,persist,loadSave,wipeSave,audio,ui,touch,settings,transition,
     get active(){return active;},
     set mission(m){mission=m;},
     get mission(){return mission;}};

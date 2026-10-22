@@ -45,15 +45,16 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 
 | Table | Holds |
 |---|---|
-| `ships` | Starships, drones (no pilot) and structures (never move). Stock model stats only. |
-| `weapons` | Every ship weapon. Any weapon fits any slot. Ammo and damage live here, not on the ship. |
+| `ships` | Starships, drones (no pilot) and structures (never move). Stock model stats, its **hardpoints** by type and its stock **configuration** (what is fitted where), and whether the player can own one. |
+| `weapons` | Every ship weapon, and the hardpoint it mounts on (`slot`: primary guns, secondary missiles). Ammo and damage live here, not on the ship. |
+| `attachments` | What goes on a pylon or inside the hull: Bombs (the Graf and the Brickbat only: `ships`), Cargo pods, a Boarding party (needs passenger room), a Boarding pod. |
 | `items` | Personal kit (weapons, armour, gadgets, other) and the built-in weapons of units and vehicles. |
 | `enemies` | The ground enemy roster: people, robots and vehicles; faction, tier, stats, and what each type carries (item ids). |
 | `vehicle_seats` | Each vehicle's seats: who drives, which gun the seat fires, whether it is enclosed. |
-| `space_enemies` | The space roster: which ship and pilot each enemy type flies with, and how it behaves. |
+| `space_enemies` | The space roster: which ship and pilot each enemy type flies with, how it behaves, and its own configuration if it isn't the stock one (a Pirate Cross). |
 | `market_weights` | How likely each kind of Black Market lot is (weapon, gadget, mercenary, armour, ship weapon, vehicle, ship), one row per Revolution Level it applies from. |
 | `pilots` | Level, XP, initiative (1 to 6), the four skills, rebel trait keys, and a rank title for Hegemony pilots. Drones carry a built-in "core" pilot. |
-| `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it. |
+| `starting_fleet` | Individual ships the player begins with: a stock model plus what is loaded in it (`config`; `weapon_1`/`weapon_2` until S4). |
 | `size_scale` | Sizes 1 to 20 (human to super carrier). Capital ships start above size 8. |
 | `manufacturers` | Lore list from the Gear doc. |
 | `rules` | Shared numbers the formulas use. |
@@ -86,9 +87,16 @@ the ship, and traits or morale may push the effective value outside 1 to 6.
   line up; `CLS[key].id` is the database id.
 - **Movement:** engine damage and mag-clamps lower top speed but never below the slowest straight move. A bank or turn
   whose slowest speed is above the cap drops off the dial, so a Cross with three engine hits can only fly straight at 1.
-- **Weapons:** each ship has slots `w0`, `w1`; any weapon fits any slot. Damage, ammo, range, accuracy, crit, shield
-  bypass and lock all come from the weapon. A ship's loadout is part of the ship, not the model:
-  `G.fighters[i].loadout` lists weapon ids (stock defaults, or the `starting_fleet` entry for named ships such as Dustfall and Marta).
+- **Hardpoints and configurations** (`docs/MAIN-SWITCH-HANDOFF.md` S2, `docs/SHIPS-REVIEW.md`): a ship row's `hardpoints`
+  are counts by type (`primary:1|secondary:1|pylon:4|internal:0`): weapons on primary or secondary, attachments on a pylon
+  or internal. Its `config` is what a stock one has fitted where (`primary:bls-t-light-repeaters|pylon:bombs`).
+  `build.py validate` checks every configuration fits its ship (the right slot, not too many, passenger room for a
+  boarding party); the game reads them through `SRDB.parseConfig`, `SRDB.configWhy` and `SRDB.configWeapons`.
+- **Weapons:** damage, ammo, range, accuracy, crit, shield bypass and lock all come from the weapon. Every ship's
+  configuration is its own: `G.fighters[i].config` (the stock one, or the `starting_fleet` entry's for named ships:
+  Dustfall comes with missiles, Marta with her door gun), and `G.fighters[i].loadout` lists its weapons in mount order
+  for `space.js` and the Arsenal. An enemy type can carry its own (`space_enemies.config`). Refit (the ship inspector's
+  tab, S4) fits weapons and attachments on the hardpoints from the hangar racks (`G.shipKit`).
 - **Pilot traits and ranks:** a row's `traits` are the rebels' own trait keys (`lucky`, `veteran`, a pair trait with its
   partner's row: `friends:joss-marrek`), and they do in space exactly what their dossier cards say. Rebels' ranks come
   from the rebel ladder; a Hegemony pilot's from the row's `rank` (Commandant, Cadet, Patrol Officer).
@@ -195,8 +203,9 @@ initiative values.
 
 ## Not in the database yet
 
-Ship attachments (Hard Points are stored; the items that use them are not), ship Utilities (activated abilities),
-capital ship weapons and attachments, and vehicle attachments (the Floatin' Truck's).
+Ship Utilities (activated abilities), capital ship weapons and attachments (the FL-400's point defence is Type 3.5's
+own), Type 3.5's plasma weapons (`PLASMA_ON`), and vehicle attachments (the Floatin' Truck's). Ship attachments are
+in since S2 (the `attachments` table).
 
 ## Market weights
 

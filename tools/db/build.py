@@ -32,6 +32,9 @@ KINDS_WEAPON = ["plasma", "ballistic", "missile"]
 KINDS_PILOT = ["rebel", "enemy", "drone"]
 CLASSES = ["starship", "capital"]
 ITEM_CATS = ["weapon", "armour", "gadget", "other", "builtin"]
+# a ship's hardpoints by type (docs/MAIN-SWITCH-HANDOFF.md S2): weapons go in primary or secondary, attachments on a
+# pylon or internal (inside the hull: needs passenger room)
+HARDPOINT_SLOTS = ["primary", "secondary", "pylon", "internal"]
 ITEM_SLOTS = ["primary", "secondary", "back", "head", "body", "gadget"]
 ITEM_ORIGINS = ["factory", "handmade", "scavenged"]
 DAMAGE_TYPES = ["ballistic", "plasma", "laser", "explosive", "blunt"]
@@ -75,6 +78,7 @@ SCHEMA = {
             ("id", "id", 24, "Unique lowercase id, e.g. bls-t-light-repeaters."),
             ("name", "text", 26, "Display name."),
             ("kind", "id", 11, "plasma, ballistic or missile. Drives the icon and base rules."),
+            ("slot", "id", 10, "The hardpoint it mounts on: primary (guns) or secondary (missiles)."),
             ("manufacturer", "id", 14, "Manufacturer id. Blank is fine."),
             ("damage_min", "int", 10, "Lowest damage roll."),
             ("damage_max", "int", 10, "Highest damage roll."),
@@ -89,6 +93,20 @@ SCHEMA = {
             ("description", "text", 50, "Flavour text."),
             ("legacy_keys", "text", 14, "Key used in the current code, so the old and new data can be matched."),
             ("notes", "text", 60, "Designer notes. Not shown to players."),
+        ],
+    },
+    "attachments": {
+        "sheet": "Attachments", "key": "id",
+        "cols": [
+            ("id", "id", 16, "Unique lowercase id. Ship configurations name it, so do not rename."),
+            ("name", "text", 18, "Display name."),
+            ("slot", "id", 9, "The hardpoint it takes: pylon (outside the hull) or internal (inside: needs passenger room)."),
+            ("needs_passengers", "bool", 10, "TRUE if the ship needs passenger room (extra_people) to carry it."),
+            ("boards", "bool", 7, "TRUE if it lets the ship board a disabled ship."),
+            ("carries", "int", 8, "Cargo containers it carries home. Blank for none."),
+            ("ships", "text", 26, "The ships that can carry it (Ships ids, separated by |). Blank: any ship with the hardpoint."),
+            ("description", "text", 60, "Shown to the player."),
+            ("notes", "text", 50, "Designer notes. Not shown to players."),
         ],
     },
     "ships": {
@@ -111,7 +129,10 @@ SCHEMA = {
             ("armour", "int", 8, "Armour value."),
             ("hull", "int", 7, "Hull value."),
             ("weapon_slots", "int", 8, "Number of weapon slots. Any weapon fits any slot."),
-            ("hard_points", "int", 8, "Cap on attachment points the ship supports. Attachments are not weapons."),
+            ("hard_points", "int", 8, "Cap on attachment points the ship supports. Attachments are not weapons. (Superseded by hardpoints' pylon count: docs/SHIPS-REVIEW.md.)"),
+            ("hardpoints", "text", 30, "Its hardpoints by type, separated by |: primary:1|secondary:1|pylon:2|internal:0. Weapons go in primary or secondary, attachments on a pylon or internal."),
+            ("config", "text", 40, "What a stock ship has fitted where, separated by |: primary:bls-t-light-repeaters|pylon:bombs. Must fit its hardpoints."),
+            ("ownable", "bool", 8, "TRUE if the player can own one (buy, steal, salvage). FALSE: enemy or mission only, for now."),
             ("default_weapon_1", "id", 22, "Weapon id in slot 1 on a stock ship. Blank is none."),
             ("default_weapon_2", "id", 22, "Weapon id in slot 2 on a stock ship. Blank is none."),
             ("extra_people", "int", 8, "People who can ride along besides the pilot."),
@@ -154,6 +175,7 @@ SCHEMA = {
             ("model", "id", 18, "Ship id this is an instance of."),
             ("weapon_1", "id", 22, "Weapon id in slot 1."),
             ("weapon_2", "id", 22, "Weapon id in slot 2."),
+            ("config", "text", 40, "Its own configuration (see Ships: config). Blank: the model's stock one."),
             ("notes", "text", 80, "Designer notes."),
         ],
     },
@@ -277,6 +299,7 @@ SCHEMA = {
             ("calls", "id", 16, "Space Enemies id it calls in once it spots a rebel ship (once per fight). Blank for none."),
             ("clamps", "bool", 7, "Fires mag-clamps that slow the target."),
             ("nerve_cap", "int", 8, "Their nerve never rises above this (green cadets: 60). Blank: no cap."),
+            ("config", "text", 40, "This type's own configuration (see Ships: config), so a pirate Cross can be fitted differently from a stock one. Blank: the ship's stock one."),
             ("age", "int", 5, "Pilot's age on the dossier. Blank: none shown (drones, structures)."),
             ("bio", "text", 50, "Dossier line. A spawn can give its own."),
             ("description", "text", 50, "From the Enemies doc where it has one."),
@@ -285,7 +308,7 @@ SCHEMA = {
     },
 }
 TABLE_ORDER = list(SCHEMA)
-SHEET_ORDER = ["ships", "weapons", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "market_weights", "size_scale", "manufacturers", "rules"]
+SHEET_ORDER = ["ships", "weapons", "attachments", "items", "enemies", "vehicle_seats", "space_enemies", "pilots", "starting_fleet", "market_weights", "size_scale", "manufacturers", "rules"]
 REQUIRED_RULES = ["tn_base", "tn_size_divisor", "tn_floor", "skill_cap", "skill_per_bonus",
                   "level_per_bonus", "level_cap", "xp_per_level", "initiative_min", "initiative_max",
                   # repair, training and the Support specialties, read by game/js/base.js (RU)
@@ -357,6 +380,57 @@ def movement_text(s):
 # --------------------------------------------------------------------------
 # Validation
 # --------------------------------------------------------------------------
+def parse_hardpoints(text, where, E):
+    """primary:1|secondary:1|pylon:2|internal:0 -> {slot: count}; every slot named once."""
+    out = {k: 0 for k in HARDPOINT_SLOTS}
+    if text is None or str(text).strip() == "":
+        E("%s: hardpoints is required" % where)
+        return None
+    seen = set()
+    for part in str(text).split("|"):
+        k, _, v = part.strip().partition(":")
+        if k not in HARDPOINT_SLOTS or not v.strip().isdigit():
+            E("%s: hardpoints part %r (want slot:count, slots %s)" % (where, part, ", ".join(HARDPOINT_SLOTS)))
+            return None
+        seen.add(k)
+        out[k] = int(v)
+    if seen != set(HARDPOINT_SLOTS):
+        E("%s: hardpoints must name %s" % (where, ", ".join(HARDPOINT_SLOTS)))
+    return out
+
+
+def check_config(db, ship, text, where, E):
+    """A configuration fits its ship: known items, on the right slot type, within the hardpoints, passenger room."""
+    if ship is None:
+        E("%s: no ship to fit it to" % where)
+        return
+    hp = parse_hardpoints(ship["hardpoints"], "ships %r" % ship["id"], lambda m: None)
+    if hp is None:
+        return
+    weapons = {w["id"]: w for w in db["weapons"]}
+    atts = {a["id"]: a for a in db["attachments"]}
+    used = {k: 0 for k in HARDPOINT_SLOTS}
+    for part in [q for q in str(text or "").split("|") if q.strip()]:
+        k, _, item = part.strip().partition(":")
+        if k not in HARDPOINT_SLOTS:
+            E("%s: %r is not a hardpoint type" % (where, k))
+            continue
+        it = weapons.get(item) or atts.get(item)
+        if it is None:
+            E("%s: %r is neither a weapon nor an attachment" % (where, item))
+            continue
+        if it["slot"] != k:
+            E("%s: %s goes on %s, not %s" % (where, item, it["slot"], k))
+        if item in atts and atts[item]["needs_passengers"] and not ship["extra_people"]:
+            E("%s: %s needs passenger room" % (where, item))
+        if item in atts and atts[item]["ships"] and ship["id"] not in atts[item]["ships"].split("|"):
+            E("%s: a %s can't carry %s (only %s)" % (where, ship["id"], item, atts[item]["ships"]))
+        used[k] += 1
+    for k in HARDPOINT_SLOTS:
+        if used[k] > hp[k]:
+            E("%s: %d on %s but the ship has %d" % (where, used[k], k, hp[k]))
+
+
 def validate(db):
     errs = []
     E = errs.append
@@ -430,6 +504,20 @@ def validate(db):
                 E("%s: %s must be TRUE or FALSE" % (n, b))
         if w["fire_support"] not in (None, "door_gunner"):
             E("%s: unknown fire_support %r (known: door_gunner)" % (n, w["fire_support"]))
+        if w["slot"] not in ("primary", "secondary"):
+            E("%s: slot %r (primary or secondary)" % (n, w["slot"]))
+
+    for a in db["attachments"]:
+        n = "attachments %r" % a["id"]
+        if a["slot"] not in ("pylon", "internal"):
+            E("%s: slot %r (pylon or internal)" % (n, a["slot"]))
+        for b in ("needs_passengers", "boards"):
+            if not isinstance(a[b], bool):
+                E("%s: %s must be TRUE or FALSE" % (n, b))
+        rng("attachments", a, "carries", 1, 99, required=False)
+        for sid in [x for x in (a["ships"] or "").split("|") if x]:
+            if sid not in ids["ships"]:
+                E("%s: ships %r is not in ships" % (n, sid))
 
     for s in db["ships"]:
         n = "ships %r" % s["id"]
@@ -464,6 +552,20 @@ def validate(db):
             E("%s: only starships burn fuel" % n)
         if s["kind"] == "structure" and (s["bank_max"] or s["turn_max"]):
             E("%s: structures cannot bank or turn" % n)
+        if not isinstance(s["ownable"], bool):
+            E("%s: ownable must be TRUE or FALSE" % n)
+        hp = parse_hardpoints(s["hardpoints"], n, E)
+        if hp is not None:
+            if hp["primary"] + hp["secondary"] != s["weapon_slots"]:
+                E("%s: hardpoints have %d weapon mounts but weapon_slots is %d" % (n, hp["primary"] + hp["secondary"], s["weapon_slots"]))
+            check_config(db, s, s["config"], n + " config", E)
+
+    for f in db["starting_fleet"]:
+        if f["config"]:
+            check_config(db, next((s for s in db["ships"] if s["id"] == f["model"]), None), f["config"], "starting_fleet %r config" % f["id"], E)
+    for e in db["space_enemies"]:
+        if e["config"]:
+            check_config(db, next((s for s in db["ships"] if s["id"] == e["ship"]), None), e["config"], "space_enemies %r config" % e["id"], E)
 
     for p in db["pilots"]:
         n = "pilots %r" % p["id"]

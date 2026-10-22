@@ -12,7 +12,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const D=window.DBGbase,f=D.fn,G=()=>D.G,out={};
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const KIT=f.KIT_();
-  // --- the tab opens, and all 7 chips render
+  // --- the tab opens, and all 8 chips render (Crafting: MAIN-SWITCH S5)
   $('#sc-base #navArsenal').click();
   out.open=[!$('#arView').hidden,$$('#arView [data-arcat]').length,$('#sc-base #navArsenal').getAttribute('aria-selected'),f.getArOpen()];
   out.title=$('#sc-base .sr-topbar__title').textContent;
@@ -68,7 +68,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.kitRows=[!!KIT.cowboyhat&&KIT.cowboyhat.q===0,!!KIT.stim&&!KIT.stim.live,f.marketable('carbine')===false,f.marketable('akli')===true];
   return out;
  });
- ok(r.open[0]===true&&r.open[1]===7&&r.open[2]==='true'&&r.open[3]===true,'tab opens with 7 chips '+r.open);
+ ok(r.open[0]===true&&r.open[1]===8&&r.open[2]==='true'&&r.open[3]===true,'tab opens with 8 chips '+r.open);
  ok(r.title==='Arsenal','top bar reads Arsenal, got '+r.title);
  ok(r.cells[0]+r.cells[2]===r.cells[1]&&r.cells[3]===1,'tiles + free cells = capacity, one locked block '+r.cells);
  ok(r.capRow.indexOf(r.cells[0]+'')>=0&&r.capRow.indexOf(r.cells[1]+'')>=0,'capacity row shows used/cap '+r.capRow);
