@@ -23,7 +23,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   const baseOf=l=>l.kind==='kit'?(KIT[l.key]||{}).price:l.kind==='ship'?f.SHIP_PRICE_()[l.key]:l.kind==='shipwpn'?f.SHIPWPN_PRICE_()[l.key]:null;
   out.legal=M.lots.every(l=>{
     if(l.kind==='merc')return !!l.merc&&!!l.merc.name;
-    if(l.kind==='ship')return ['talon','cross','graf'].includes(l.key);
+    if(l.kind==='ship')return ['talon','cross','graf','brickbat'].includes(l.key);   // the Brickbat: MAIN-SWITCH S2
     if(l.kind==='shipwpn')return !!f.SHIPWPN_PRICE_()[l.key];
     if(l.kind==='vehicle')return false;   // nothing sellable until GVEH.truck exists (M-17)
     const m=KIT[l.key];return !!m&&!!m.live&&!m.heg&&!m.dropOnly&&!!m.price;});
@@ -208,7 +208,8 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   // ===== Phase 4: ships, ship weapons and 2-day deliveries =====
   const drain=()=>{let g4=0;while(f.getWin()&&g4++<6)f.closeWin();};
   const findSeed=pred=>{for(let s3=1;s3<3000;s3++){G().seed=s3;f.rollMarket();if(G().market.lots.some(pred))return s3;}return 0;};
-  out.shipSeed=findSeed(l=>l.kind==='ship'&&l.key!=='graf')>0;
+  out.brickbatSeed=findSeed(l=>l.kind==='ship'&&l.key==='brickbat')>0;   // she is for sale (MAIN-SWITCH S2)
+  out.shipSeed=findSeed(l=>l.kind==='ship'&&(l.key==='talon'||l.key==='cross'))>0;   // a fighter, with two mounts for the Refit below
   f.openMarket();
   const si=lots().findIndex(l=>l.kind==='ship');
   const sl2=()=>G().market.lots[si];
@@ -253,21 +254,19 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.wpnBuy=[wc0-G().credits===wp2,rack(wkey).n===1,lots()[wi2].stock===0,
     G().news.some(n=>n.html.indexOf('hangar racks')>=0)];
   f.closeMarket();
-  // Refit: fit the bought weapon to an empty mount, then clear a mount back onto the racks
+  // Refit (the ship inspector's tab, MAIN-SWITCH S4): take her gun off onto the racks, then fit the bought weapon on its
+  // hardpoint (one gun mount: the bought repeaters can't go on as a second)
   f.openArsenal();f.setArCat('ships');f.setArSel('ship',bought.id);
   $('#arActs [data-arrefit]').click();
-  out.refitOpen=$$('#arView [data-armount]').length>=2;
-  const emptyMi=(bought.loadout||[]).length;
-  $$('#arView [data-armount]')[emptyMi].click();
-  const fitBtn=$('#arView [data-arfit="'+wkey+'"]');
+  out.refitOpen=f.getWin()==='ship'&&f.shipTab_()==='refit'&&$$('#winsB [data-rfx]').length>=1;
+  const n0=bought.loadout.length,old0=SRDB.parseConfig(bought.config).primary[0],r0=rack(old0).n;
+  $('#winsB [data-rfx="primary|0|"]').click();
+  out.unfit=[bought.loadout.length===n0-1,rack(old0).n===r0+1];
+  const w0=rack(wkey).n,fitBtn=$$('#winsB [data-rfx]').find(e=>!e.disabled&&e.getAttribute('data-rfx').endsWith('|'+wkey));
   out.fitBtn=!!fitBtn;
-  fitBtn.click();
-  out.fit=[bought.loadout.includes(wkey),rack(wkey).n===0];
-  const old0=bought.loadout[0];
-  $$('#arView [data-armount]')[0].click();
-  $('#arView [data-arfit=""]').click();
-  out.unfit=[bought.loadout.length===1,rack(old0).n>=1];
-  f.closeArsenal();
+  if(fitBtn)fitBtn.click();
+  out.fit=[bought.loadout.includes(wkey),rack(wkey).n===w0-1,SRDB.parseConfig(bought.config)[SRDB.slotOf(wkey)].includes(wkey)];
+  f.closeWin();f.closeArsenal();
   // vehicle delivery plumbing (nothing is sellable until GVEH.truck exists: M-17)
   G().market.lots[0]={kind:'vehicle',key:'strider',stock:1,price:500,deal:'fair'};
   f.openMarket();f.setBmSel(0);
@@ -320,6 +319,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.joinBtn&&r.join.every(Boolean),'Join the cause: free, contract gone, own kit joins the armory '+[r.joinBtn,r.join]);
  // Phase 4: ships, ship weapons and deliveries
  ok(r.shipSeed,'a seed with a ship lot was found');
+ ok(r.brickbatSeed,'the Brickbat comes up for sale (MAIN-SWITCH S2)');
  ok(r.shipLot.every(Boolean),'ship lot: known class, stock 1, Rare tag in a cyan header band '+r.shipLot);
  ok(r.shipStats,'ship stats row: Hull / Shields / Speed');
  ok(r.noPad[0]===true&&r.noPad[1]==='Needs a free landing pad'&&r.noPad[2],'full pads grey the Buy with the reason, her line says so '+r.noPad);
@@ -329,9 +329,9 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
  ok(r.wpnSeed,'a seed with a ship-weapon lot was found');
  ok(r.wpnStats,'ship-weapon stats row: Damage / Ammo / Kind');
  ok(r.wpnBuy.every(Boolean),'ship-weapon buy: paid, on the racks, sold out, racks comm '+r.wpnBuy);
- ok(r.refitOpen&&r.fitBtn,'Refit opens the mounts and offers the rack weapon '+[r.refitOpen,r.fitBtn]);
- ok(r.fit.every(Boolean),'fitting takes the weapon off the racks and onto the mount '+r.fit);
- ok(r.unfit.every(Boolean),'clearing a mount returns the weapon to the racks '+r.unfit);
+ ok(r.refitOpen&&r.fitBtn,'Refit opens the ship inspector\'s Refit tab and offers the rack weapon '+[r.refitOpen,r.fitBtn]);
+ ok(r.fit.every(Boolean),'fitting takes the weapon off the racks and onto its hardpoint '+r.fit);
+ ok(r.unfit.every(Boolean),'taking one off returns it to the racks '+r.unfit);
  ok(r.vehStats&&r.vehBuy.every(Boolean)&&r.vehLand.every(Boolean),'vehicle plumbing: stats, inbound, lands in G.vehicles in 2 days '+[r.vehStats,r.vehBuy,r.vehLand]);
  // the 0.2 playtest's §4 (docs/FEEDBACK-0.2-HANDOFF.md): at four sizes, a stock with a weapon, a ship and a mercenary.
  // Every art well keeps its floor, the art (or the mercenary's block) lies inside its well, the stall scrolls when two

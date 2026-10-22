@@ -37,13 +37,13 @@ const ARCHIVED=['sim2.js','sim-sb.js','arena-sb.js','arena.js','arena-smoke.js']
 
  // 2. #arena without ?dev: the title screen; SR.bootArena() is the campaign's boot
  {const {ctx,pg}=await page('#arena');
-  out.noDev=await pg.evaluate(()=>({active:SR.active||null,splash:!!document.getElementById('splash'),arena:!document.getElementById('sc-arena').hidden}));
+  out.noDev=await pg.evaluate(()=>({active:SR.active||null,splash:!!document.getElementById('splash'),arena:!document.getElementById('sc-space35').hidden}));
   await pg.goto(base+'#test');await pg.waitForTimeout(900);
   out.boot=await pg.evaluate(()=>{SR.bootArena();return SR.active;});
   await pg.waitForTimeout(300);out.boot=[out.boot,await pg.evaluate(()=>SR.active)];
   await ctx.close();}
- ok(out.noDev.splash&&out.noDev.active!=='arena'&&!out.noDev.arena,'2: #arena without ?dev shows the title screen '+JSON.stringify(out.noDev));
- ok(out.boot[1]!=='arena','2: SR.bootArena() without ?dev never opens the bench '+JSON.stringify(out.boot));
+ ok(out.noDev.splash&&out.noDev.active!=='space35'&&!out.noDev.arena,'2: #arena without ?dev shows the title screen '+JSON.stringify(out.noDev));
+ ok(out.boot[1]!=='space35','2: SR.bootArena() without ?dev never opens the bench '+JSON.stringify(out.boot));
 
  // 3. ?dev: the title's Test bench; ?dev#arena opens 3.5's board, never the campaign save
  {const {ctx,pg}=await page('?dev');await splashReady(pg);
@@ -52,12 +52,12 @@ const ARCHIVED=['sim2.js','sim-sb.js','arena-sb.js','arena.js','arena-smoke.js']
   out.devBench=await pg.evaluate(k=>({active:SR.active,board:window.DBGarena&&window.DBGarena.hc35.B.screen,save:localStorage.getItem(k)}),CAMPAIGN_KEY);
   await ctx.close();}
  ok(out.devTitle.bench&&out.devTitle.dev===true,'3: ?dev puts the Test bench on the title '+JSON.stringify(out.devTitle));
- ok(out.devBench.active==='arena'&&out.devBench.board==='board'&&out.devBench.save===null,'3: the Test bench opens the board without the campaign '+JSON.stringify(out.devBench));
+ ok(out.devBench.active==='space35'&&out.devBench.board==='board'&&out.devBench.save===null,'3: the Test bench opens the board without the campaign '+JSON.stringify(out.devBench));
  {const {ctx,pg}=await page('?dev#arena');
   out.devHash=await pg.evaluate(k=>({active:SR.active,board:window.DBGarena.hc35.B.screen,picker:!!document.getElementById('arPicker'),v2:!!document.querySelector('.ar-shell'),
    hcActive:window.DBGarena.hc.active,save:localStorage.getItem(k)}),CAMPAIGN_KEY);
   await ctx.close();}
- ok(out.devHash.active==='arena'&&out.devHash.board==='board'&&!out.devHash.picker&&!out.devHash.v2&&out.devHash.hcActive&&out.devHash.save===null,'3: ?dev#arena opens 3.5\'s board, with no ruleset picker or v2 shell '+JSON.stringify(out.devHash));
+ ok(out.devHash.active==='space35'&&out.devHash.board==='board'&&!out.devHash.picker&&!out.devHash.v2&&out.devHash.hcActive&&out.devHash.save===null,'3: ?dev#arena opens 3.5\'s board, with no ruleset picker or v2 shell '+JSON.stringify(out.devHash));
 
  // 4. nothing live loads an archived file
  const html=fs.readFileSync(path.join(ROOT,'game','index.html'),'utf8');

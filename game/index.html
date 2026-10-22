@@ -379,8 +379,8 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   </div>
 </div>
 </div>
-<!-- the Type 3.5 test bench (hc35-bench.js, dev only: ?dev#arena). Arena v2, SB Test and Type 3's picker are archived (archive/README.md) -->
-<div class="scene sr-app sr-root" id="sc-arena" hidden>
+<!-- Type 3.5's scene (space35.js): campaign missions, and the test opportunity with ?dev (?dev#arena). Arena v2, SB Test and Type 3's picker are archived (archive/README.md) -->
+<div class="scene sr-app sr-root" id="sc-space35" hidden>
 <div class="hc-root sr-root" id="arHc" hidden>
 <div class="hc-shell">
   <div class="hc-stage" id="hcStage">
@@ -428,12 +428,12 @@ canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 <script src="js/sim-hc35.js"></script>
 <script src="js/arena-hc35.js"></script>
 <script src="js/flight-rec.js"></script>
-<script src="js/hc35-bench.js"></script>
+<script src="js/space35.js"></script>
 <script src="js/ground.js"></script>
 <script src="js/intro.js"></script>
 <script>
 // the harnesses boot straight into the game; players get the title screen first. With ?dev, #arena (or the title's
-// Test bench button) opens the Type 3.5 test bench, a development tool; without it, neither exists
+// Test bench button) opens Type 3.5's test opportunity, a development tool; without it, neither exists
 if(SR.dev&&location.hash==='#arena')SR.bootArena();
 else if(location.hash==='#test'||location.hash==='#deploy')SR.boot();
 else SR_INTRO.show(()=>SR.boot(),SR.dev?()=>SR.bootArena():null);

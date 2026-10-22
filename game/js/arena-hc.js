@@ -8,7 +8,7 @@
    powers bar and the pilot panel's body, and steers the map through the hooks marked "Type 3.5".
    Type 3 as a playable ruleset (its scenarios, the order tray and wheel, the commands drawer, the rules picker,
    its end card and metrics) was archived in the switch to main (docs/MAIN-SWITCH-HANDOFF.md S0): the whole file
-   as it was is archive/arena/arena-hc.js. The test bench (hc35-bench.js) owns the scene, behind ?dev.
+   as it was is archive/arena/arena-hc.js. The scene is space35.js (SR.go('space35')).
 
    Nothing here calls newGame(), saveSnap(), persist() or SR.endMission(), nothing touches G.
    ===================================================================== */
@@ -1252,7 +1252,7 @@ const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray c
   ['Q / E','previous / next wing'],['Esc','close'],
   ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map']];
 function onKey(ev){
-  if(SR.active!=='arena'||!A.active)return false;
+  if(SR.active!=='space35'||!A.active)return false;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
   if(A.ov.onKey&&A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
   if(A.phase==='PICK')return false;
@@ -1402,7 +1402,7 @@ function open(o){
   A.phase='PICK';closeAll();if(o.scenario)loadScenario(o.scenario,o.seed);syncHud(true);
 }
 
-/* ---------- DBGarena.hc (hc35-bench.js hands this out): the bench is dev-only ---------- */
+/* ---------- DBGspace35.hc (space35.js hands this out, with ?dev) ---------- */
 const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},
   fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,setSpeed,togglePause,selectWing,viewEvent,openPilot,onKey,record,KEYMAP,nextEvent,mapClick,tipFor,dumpMetrics,syncHud,camFit,tileTick,
     tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},

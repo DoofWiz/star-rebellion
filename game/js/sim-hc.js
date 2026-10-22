@@ -112,7 +112,8 @@ function presetPilot(spec,name){
   if(spec.id&&SRDB.pilots[spec.id])return dbPilotOf(spec.id,name,spec);
   const P=Object.assign({},PRESETS[spec.preset||'regular']||PRESETS.regular,spec);
   return {preset:spec.preset||'regular',pname:name,level:P.level,skills:{aim:P.aim,cunning:P.cunning,focus:P.focus,presence:P.presence},
-    init:P.initiative,cool:P.presence*2,tr:(P.traits||'').split('|').filter(Boolean).map(k=>({k}))};
+    init:P.initiative,cool:spec.cool!=null?spec.cool:P.presence*2,   // a campaign pilot brings their own nerve (MAIN-SWITCH S6)
+    tr:(P.traits||'').split('|').filter(Boolean).map(k=>({k}))};
 }
 function dbPilotOf(id,name,spec){
   const r=SRDB.pilots[id];
@@ -140,12 +141,15 @@ function wdefOf(r){
   return {id:r.id,name:r.name,kind:r.kind,rng:r.range,skipShield:r.bypasses_shields,crit:r.crit_chance,
     needsLock:r.needs_lock,dmg:[r.damage_min,r.damage_max],ammo:r.ammo==null?undefined:r.ammo};
 }
-/* High Command's own stock loadouts (C-70, playtest 2): the Cross carries missiles in its empty second slot here; the
-   database's stock Cross (no missiles) is unchanged, so v2, SB and the campaign are too. A scenario's loadout wins */
-const HC_LOADOUT={'ft-4-cross':['bls-t-light-repeaters','missiles']};
-function loadout(row,list){
-  if(HK.loadoutExtra){const x=HK.loadoutExtra(row,list);if(x)return x;}
-  const ids=(list||HC_LOADOUT[row.id]||[row.default_weapon_1,row.default_weapon_2]).filter(id=>id&&SRDB.weapons[id]).slice(0,row.weapon_slots||2);
+/* the weapons a ship fires (MAIN-SWITCH S2: every ship's configuration is its own): a scenario's own weapon list wins,
+   then the ship's configuration (config: text or {primary, secondary, pylon, internal}), then its row's stock one.
+   High Command's HC_LOADOUT (every Cross with missiles, C-70) became the configurations of the Crosses that carry
+   them: Type 3.5's demo wings (WINGS35) and the Type 3 fixtures (tools/hc-fixtures.js) */
+const cfgWeapons=c=>SRDB.configWeapons(SRDB.parseConfig(c));
+function loadout(row,list,config){
+  const own=list||(config?cfgWeapons(config):null);
+  if(HK.loadoutExtra){const x=HK.loadoutExtra(row,own);if(x)return x;}
+  const ids=(own||(row.config!=null?cfgWeapons(row.config):[row.default_weapon_1,row.default_weapon_2])).filter(id=>id&&SRDB.weapons[id]).slice(0,row.weapon_slots||2);
   return ids.map((id,i)=>{const w=wdefOf(SRDB.weapons[id]);w.rng*=RANGE_MULT;return {key:'w'+i,w,ammo:w.ammo,cd:0};});
 }
 const CRITDEFS={
@@ -610,14 +614,19 @@ const keyOf=row=>String(row.legacy_keys).split('|')[0]||row.id;
 function mkShip(d){
   const r=d.row;
   const s={id:d.id,name:d.name,faction:d.faction,row:r,cls:keyOf(r),struct:r.kind==='structure',x:d.x,y:d.y,h:d.h,px:d.x,py:d.y,ph:d.h,vh:d.h,vx:0,vy:0,w:0,
-    pilot:d.pilot,lead:false,wing:d.wing||null,role:d.role||null,quiet:!!d.quiet,marines:!!d.marines,
+    pilot:d.pilot,lead:false,wing:d.wing||null,role:d.role||null,quiet:!!d.quiet,marines:!!d.marines||(!!d.config&&SRDB.boards(d.config)),config:d.config?SRDB.parseConfig(d.config):SRDB.stockConfig(r),
     segs:{F:{val:r.shield_front,max:r.shield_front,at:'F'},R:{val:r.shield_rear,max:r.shield_rear,at:'R'}},
     arm:r.armour,hull:r.hull,maxArm:r.armour,maxHull:r.hull,crits:[],
-    alive:true,jumped:false,trail:[],wpns:loadout(r,d.loadout),fireAt:null,locks:{},
+    alive:true,jumped:false,trail:[],wpns:loadout(r,d.loadout,d.config),fireAt:null,locks:{},
     goal:null,beh:{kind:'idle'},intent:null,thinkT:0,calmT:0,hitT:-99,mv:null,mvT:0,
     st:{shots:0,hits:0,dmg:0,missiles:0,kills:0},
     doctrine:d.doctrine||null,asset:d.asset||null,home:d.home||null,to:d.to||null,flees:!!d.flees,label:d.label||null};
   if(d.stats){for(const k of ['hull','arm']){if(d.stats[k]!=null){s[k]=d.stats[k];s['max'+(k==='hull'?'Hull':'Arm')]=d.stats[k];}}}
+  // a campaign ship (MAIN-SWITCH S6): Heavy Frames' extra hull, Pre-flight Checks' extra front shield, and the hull % she
+  // starts at (her stored hull, not a fresh one)
+  if(d.hullBonus){s.maxHull+=d.hullBonus;s.hull=s.maxHull;}
+  if(d.shieldBonus){s.segs.F.max+=d.shieldBonus;s.segs.F.val+=d.shieldBonus;}
+  if(d.hullFrac!=null)s.hull=Math.max(1,Math.round(s.maxHull*Math.max(0,Math.min(1,d.hullFrac))));
   if(!s.struct){const c=capsOf(s);s.vx=Math.cos(s.h)*c.vMax*CRUISE;s.vy=Math.sin(s.h)*c.vMax*CRUISE;}
   s.persona=personalityOf(s.pilot);
   s.pilot.rest=s.pilot.cool;   // the nerve a pilot settles back to
@@ -697,7 +706,7 @@ function addWing(wd){
     S.pn++;
     const at=sd.at||formation(wd.at||[Z.x0+900,(Z.y0+Z.y1)/2,0],i,wd.ships.length);
     const row=rowOf(sd.cls||'talon')||SRDB.ship('talon'),nm=sd.name||(wd.name+' '+(i+1));
-    const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout,stats:sd.stats});
+    const s=mkShip({id:sd.id||('P'+S.pn),name:nm,faction:'reb',row,x:at[0],y:at[1],h:at[2],pilot:presetPilot(sd.pilot,nm),wing:w.id,marines:sd.marines,loadout:sd.loadout,config:sd.config,stats:sd.stats,hullFrac:sd.hullFrac,hullBonus:sd.hullBonus,shieldBonus:sd.shieldBonus});
     s.thinkT=THINK_SECS;
     S.ships.push(s);w.ships.push(s.id);
   });
@@ -716,7 +725,7 @@ function spawnEnemies(e,nextN){
     const pilot=e.preset?presetPilot({preset:e.preset},nm):dbPilotOf(e.pilot||r.pilot,nm);
     if(r.nerve_cap!=null)pilot.coolCap=r.nerve_cap;
     const s=mkShip({id:e.id&&n===1?e.id:'E'+k,name:nm,faction:'heg',row,x:at[0],y:at[1],h:at[2],pilot,doctrine:row.kind==='structure'?null:(e.role||'patrol'),
-      asset:e.asset,home:e.home||{x:at[0],y:at[1]},flees:e.flees!=null?!!e.flees:!!r.flees,stats:e.stats,label:e.label,loadout:e.loadout});
+      asset:e.asset,home:e.home||{x:at[0],y:at[1]},flees:e.flees!=null?!!e.flees:!!r.flees,stats:e.stats,label:e.label,loadout:e.loadout,config:e.config||r.config||null});   // an enemy type's own configuration (a pirate Cross)
     if(e.flagship)s.flagship=true;
     if(r.lead)s.lead=true;
     s.grp=e.grp||0;   // its squadron: one scenario entry or one wave (C-72)

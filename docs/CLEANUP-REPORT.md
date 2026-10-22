@@ -41,7 +41,7 @@ Line numbers are as of this report. Where a file has since changed, the function
   - the "Change ruleset" route.
 
   The overlay hooks Type 3.5 uses are unchanged.
-- **`game/js/hc35-bench.js` (new), the dev-only test bench.** It is the 'arena' scene: it opens Type 3.5's board
+- **`game/js/hc35-bench.js` (new), the dev-only test bench** (S1 turned it into the `space35` scene, `game/js/space35.js`). It was the 'arena' scene: it opens Type 3.5's board
   directly and drives High Command's loop. Its debug hooks are `DBGarena.hc` and `DBGarena.hc35`, plus `fn.open35`.
 - **`?dev`.** `core.js` reads `?dev` from the URL into `SR.dev`.
   - Without it, `SR.bootArena()` is the campaign's own boot and `#arena` shows the title screen.

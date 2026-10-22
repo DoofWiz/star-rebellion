@@ -59,6 +59,29 @@ const WEIGHTS={AID_BASE:0.3,AID_THRESH:0.5,ASK_THRESH:0.3,AID_NOISE:0.1,
 /* traits: what each adds to helping (aid) and to asking (ask); unknown traits count 0 */
 const TRAIT_AID={protective:{aid:0.3,ask:0},reckless:{aid:0.1,ask:-0.2},'by-the-book':{aid:-0.1,ask:0.05},green:{aid:0,ask:0.1},proud:{aid:0,ask:-0.25},loyal:{aid:0.2,ask:0},cold:{aid:-0.25,ask:0},coward:{aid:-0.3,ask:0.2}};
 const PERSONA={eager:'P_EAGER',even:'P_EVEN',steady:'P_STEADY',nervous:'P_NERVOUS'};
+/* the one mapping table (docs/MAIN-SWITCH-HANDOFF.md decision 10, S6): a rebel's Character and Rebel Traits to what they
+   do in Type 3.5. aid: the help weights' key above (TRAIT_AID); pair: a relationship with another pilot (friend or rival).
+   The persona (eager, steady, even) is High Command's own, read from the same keys (sim-hc.js personalityOf: reckless,
+   brave, hothead are eager; steady, cautious, veteran are steady). A key not here does nothing in 3.5 (C-89 lists them).
+   Placeholders: the designer's to change */
+const TRAIT_MAP={
+  reckless:{aid:'reckless'},hothead:{aid:'proud'},cautious:{aid:'by-the-book'},loyal:{aid:'loyal'},empathetic:{aid:'protective'},
+  cynical:{aid:'cold'},pragmatic:{aid:'by-the-book'},selfpres:{aid:'coward'},cowardly:{aid:'coward'},hegsoldier:{aid:'by-the-book'},
+  hegofficer:{aid:'by-the-book'},panicky:{aid:'coward'},vengeful:{aid:'reckless'},avenging:{aid:'reckless'},hardened:{aid:'cold'},
+  desens:{aid:'cold'},decorated:{aid:'proud'},hero:{aid:'proud'},celebrity:{aid:'proud'},
+  friends:{pair:'friend'},love:{pair:'friend'},family:{pair:'friend'},oldfriends:{pair:'friend'},battlebros:{pair:'friend'},
+  mentored:{pair:'friend'},mentoring:{pair:'friend'},owes:{pair:'friend'},saved:{pair:'friend'},rivals:{pair:'rival'},
+  brave:{},steady:{},veteran:{}};
+/* a pilot's 3.5 traits from their rebel traits ([{k, with}]); idOf(rebel id) is the partner's unit id, if they fly. A rookie
+   (level 2 or lower) is green */
+function traitsOf(tr,level,idOf){
+  const out=[];
+  for(const t of tr||[]){const m=TRAIT_MAP[t.k];if(!m)continue;
+    if(m.aid&&!out.includes(m.aid))out.push(m.aid);
+    if(m.pair&&t.with){const id=idOf?idOf(t.with):null;if(id)out.push({k:m.pair,with:id});}}
+  if((level||1)<=2&&!out.includes('green'))out.push('green');
+  return out;
+}
 /* a unit as the core sees it: {id, persona, traits:[k or {k:'friend'|'rival', with:id}], hull (0–1), green} ;
    trouble: {attackers, pinned}; job: 'waiting'|'ordinary'|'critical'; dist: between helper and unit; urgent: the
    primary nearly done */
@@ -100,7 +123,7 @@ function selfTest(){
   const c=decideAid(lead,ollo,{attackers:2,pinned:true},[{unit:brask,job:'critical',dist:1200}],{},rng(7));
   return {sends:a.send.length>0,same:JSON.stringify(a)===JSON.stringify(b),critical:c.refused};
 }
-const api={FAMILIES,FAMILY_OF_NAME,TYPES,TAGS,VERBS,ORDER_OBJ,WEIGHTS,TRAIT_AID,has,thing,applies,primaries,objectsFor,fallbacks,aidScore,askScore,decideAid,selfTest};
+const api={FAMILIES,FAMILY_OF_NAME,TYPES,TAGS,VERBS,ORDER_OBJ,WEIGHTS,TRAIT_AID,TRAIT_MAP,traitsOf,has,thing,applies,primaries,objectsFor,fallbacks,aidScore,askScore,decideAid,selfTest};
 if(typeof window!=='undefined')window.SR_OPS=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })();

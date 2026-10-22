@@ -534,3 +534,40 @@
 
 /* the ship window is the Starfighter sheet (sr-shipfile.css); only the fleet-list face remains ours */
 #sc-base .bs-shipface{border-radius:50%;background:var(--sr-night,#101330);}
+
+/* the Hangar's Wings window and the Assign window (docs/MAIN-SWITCH-HANDOFF.md S3) */
+.wg-card{margin-top:10px;}
+.wg-card .sr-card__top{gap:8px;align-items:center;}
+.wg-name{flex:1 1 auto;min-width:0;max-width:220px;font:700 var(--sr-fs-lg) var(--sr-font-display);letter-spacing:.02em;color:var(--sr-text);background:transparent;border:0;border-bottom:2px dashed color-mix(in srgb,var(--sr-text) 25%,transparent);padding:2px 4px;}
+.wg-name:focus{outline:none;border-bottom-color:var(--sr-gold);}
+.wg-tags{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;}
+.wg-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-top:1px solid color-mix(in srgb,var(--sr-text) 10%,transparent);}
+.wg-row:first-of-type{border-top:0;}
+.wg-row.is-lead .wg-who b{color:var(--sr-gold);}
+.wg-row .kf{width:40px;height:40px;display:grid;place-items:center;}
+.wg-who{display:flex;flex-direction:column;min-width:0;}
+.wg-who small{color:var(--sr-text-2);font-size:var(--sr-fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wg-star{color:var(--sr-gold);}
+.wg-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;}
+.wg-move{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;padding-top:4px;}
+
+/* the Arsenal's Crafting tab, a placeholder (docs/MAIN-SWITCH-HANDOFF.md S5) */
+.cr-note{display:flex;align-items:center;gap:8px;margin:0 0 10px;}
+.cr-list{display:flex;flex-direction:column;gap:8px;}
+.cr-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:8px 10px;}
+.cr-card.is-sel{outline:2px solid var(--sr-gold);}
+.cr-pick{display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;padding:0;text-align:left;color:var(--sr-text);font:inherit;cursor:pointer;}
+.cr-pick .it-art{width:40px;height:40px;flex:none;display:grid;place-items:center;}
+.cr-who{display:flex;flex-direction:column;min-width:0;}
+.cr-who small{color:var(--sr-text-2);font-size:var(--sr-fs-xs);}
+.cr-cost{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+
+/* the mission report: a Type 3.5 flight's ships, and its More information (MAIN-SWITCH S6) */
+.rp-ships{display:flex;flex-direction:column;gap:6px;}
+.rp-ship{display:grid;grid-template-columns:minmax(0,1fr) 90px auto;align-items:center;gap:10px;padding:8px 12px;background:var(--sr-night);border-radius:var(--sr-r);font-size:var(--sr-fs-sm);}
+.rp-ship b{font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rp-ship__hull{height:8px;border-radius:4px;background:var(--sr-seam);overflow:hidden;}
+.rp-ship__hull i{display:block;height:100%;width:var(--h);background:var(--sr-shield);}
+.rp-ship.is-lost b{color:var(--sr-text-3);text-decoration:line-through;}
+.rp-ship__state{grid-column:2 / -1;justify-self:end;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+.rp-more{overflow:auto;max-height:min(70vh,640px);}

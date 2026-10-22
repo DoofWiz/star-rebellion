@@ -2,6 +2,9 @@
    was archived (docs/MAIN-SWITCH-HANDOFF.md S0; the ruleset itself is archive/arena/arena-hc.js). tools/hc35-smoke.js
    loads them into High Command's renderer (DBGarena.hc.fn.loadScenario) for the sim's hash baselines and the visual
    pass. Copied verbatim from the archived file; plain data, no game code. */
+/* High Command's HC_LOADOUT (C-70) gave every Cross missiles; since MAIN-SWITCH S2 a ship's configuration is its own, so these
+   Crosses carry theirs (the hash baselines are unchanged) */
+const CROSS_MISSILES='primary:bls-t-light-repeaters|secondary:missiles';
 const ROCKS_NIGHTFALL=[{x:3000,y:2900,r:120},{x:3220,y:3120,r:85},{x:4800,y:2350,r:140},{x:6400,y:3050,r:110},{x:2500,y:1500,r:100},{x:6900,y:4700,r:130},{x:4100,y:4700,r:95}];
 const HC_SCENARIOS=[
   {id:'hc1_nightfall',title:'HC1: Nightfall',rulesets:['hc'],
@@ -11,7 +14,7 @@ const HC_SCENARIOS=[
       {id:'dagger',name:'Dagger',at:[1100,2350,0],order:{kind:'attack',target:{type:'obj',id:'relay'}},tactic:'auto',
         ships:[{cls:'talon',name:'Joss',pilot:{id:'joss-marrek'}},{cls:'talon',name:'Wren',pilot:{preset:'regular'}},{cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
       {id:'amber',name:'Amber',at:[950,3750,0],order:{kind:'escort',target:{type:'ship',id:'lark'}},tactic:'auto',
-        ships:[{cls:'cross',name:'Sera',pilot:{id:'sera-kest'}},{cls:'cross',name:'Kit',pilot:{preset:'green'}}]}],
+        ships:[{cls:'cross',config:CROSS_MISSILES,name:'Sera',pilot:{id:'sera-kest'}},{cls:'cross',config:CROSS_MISSILES,name:'Kit',pilot:{preset:'green'}}]}],
     allies:[{id:'lark',name:'Convoy Lark',cls:'graf',at:[700,3450,0],role:'convoy',to:'jump',stats:{hull:80,arm:20}}],
     enemies:[
       {type:'fuel-depot',id:'relay',station:'relay',name:'Relay K-7',label:'Relay K-7',at:[5800,1600,0],stats:{hull:200,arm:30}},
@@ -32,7 +35,7 @@ const HC_SCENARIOS=[
       {id:'ember',name:'Ember',at:[3500,2500,0],order:{kind:'defend',target:{type:'ship',id:'lastlight'}},tactic:'auto',
         ships:[{cls:'talon',name:'Rook',pilot:{preset:'veteran'}},{cls:'talon',name:'Vale',pilot:{preset:'regular'}},{cls:'talon',name:'Jory',pilot:{preset:'regular'}}]},
       {id:'ash',name:'Ash',at:[3500,3500,0],order:{kind:'hold'},tactic:'auto',
-        ships:[{cls:'cross',name:'Mara',pilot:{preset:'regular'}},{cls:'cross',name:'Tamsin',pilot:{preset:'green'}}]}],
+        ships:[{cls:'cross',config:CROSS_MISSILES,name:'Mara',pilot:{preset:'regular'}},{cls:'cross',config:CROSS_MISSILES,name:'Tamsin',pilot:{preset:'green'}}]}],
     allies:[{id:'lastlight',station:'lastlight',name:'Lastlight',label:'Lastlight Station',cls:'fuel-depot',at:[4200,3000,0],stats:{hull:300,arm:40}}],
     enemies:[],
     waves:[
@@ -51,7 +54,7 @@ const HC_SCENARIOS=[
         ships:[{cls:'graf',name:'Anvil',marines:true,pilot:{preset:'regular'},stats:{hull:70,arm:20}},{cls:'graf',name:'Forge',marines:true,pilot:{preset:'green'},stats:{hull:70,arm:20}},
           {cls:'talon',name:'Pike',pilot:{preset:'veteran'}},{cls:'talon',name:'Brand',pilot:{preset:'regular'}}]},
       {id:'lance',name:'Lance',at:[1300,3700,0],order:{kind:'attack',target:{type:'class',cls:'mote'}},tactic:'auto',
-        ships:[{cls:'talon',name:'Sable',pilot:{preset:'ace'}},{cls:'cross',name:'Corin',pilot:{preset:'veteran'}},{cls:'cross',name:'Wick',pilot:{preset:'regular'}},{cls:'talon',name:'Isla',pilot:{preset:'green'}}]}],
+        ships:[{cls:'talon',name:'Sable',pilot:{preset:'ace'}},{cls:'cross',config:CROSS_MISSILES,name:'Corin',pilot:{preset:'veteran'}},{cls:'cross',config:CROSS_MISSILES,name:'Wick',pilot:{preset:'regular'}},{cls:'talon',name:'Isla',pilot:{preset:'green'}}]}],
     enemies:[
       {type:'fuel-depot',id:'reactor',station:'reactor',name:'Reactor Platform',label:'Reactor Platform',at:[6600,3000,0],stats:{hull:260,arm:40}},
       {type:'academy-commandant',id:'vex',name:'Vex',label:'Commandant Vex',at:[6000,3000,Math.PI],role:'guard',asset:'reactor',flagship:true,stats:{hull:120,arm:20}},

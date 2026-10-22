@@ -172,7 +172,7 @@ window.SR=(function(){
     scenes[name].enter(params||{},prev);
   }
   /* home from a mission: hyperspace out of a space fight, a stripe wipe from the ground */
-  function endMission(result){transition(active==='space'?'hyperspace':'stripes',{},()=>go('base',{debrief:result}));}
+  function endMission(result){transition(active==='space'||active==='space35'?'hyperspace':'stripes',{},()=>go('base',{debrief:result}));}
   function frame(now){
     requestAnimationFrame(frame);
     const s=scenes[active];
@@ -190,8 +190,8 @@ window.SR=(function(){
   function boot(){setup();go('base',{boot:true});}
   /* development tools (docs/MAIN-SWITCH-HANDOFF.md S0): ?dev in the URL. Players never see them */
   const dev=typeof location!=="undefined"&&/[?&]dev(=|&|$)/.test(location.search);
-  /* the Type 3.5 test bench (hc35-bench.js), dev only: the same scene setup, straight into the bench; the base and its save are never entered */
-  function bootArena(){if(!dev){boot();return;}setup();go('arena',{});}
+  /* Type 3.5's test opportunity (space35.js), dev only: the same scene setup, straight into it; the base and its save are never entered */
+  function bootArena(){if(!dev){boot();return;}setup();go('space35',{});}
   /* ---------- shared briefing furniture ----------
      Every scene builds its mission-brief objectives and squad cards
      through these, so the player sees one consistent language. */

@@ -256,26 +256,45 @@ const modOn=(mods,k)=>mods.some(m=>m.k===k&&!m.fake);
 const known=m=>!m.hidden||m.found||m.dug;
 
 /* =====================================================================
-   Ship classes (§4.3): neither has a db.json row; shaped like one (placeholders), through the classExtra hook
-   hitK: the hit box and body × (the FL-400's art is longer than its size class)
+   Ship classes (§4.3): the Brickbat and the FL-400 are database rows since MAIN-SWITCH S2 (bx-17-brickbat, ga-fl-400). The
+   Brickbat flies as its row; the FL-400 keeps 3.5's own motion over its row through the classExtra hook (the dial
+   doesn't describe a capital ship: docs/SHIPS-REVIEW.md), and hitK: the hit box and body × (her art is longer than
+   her size class)
    ===================================================================== */
 const HC35_CLASSES={
-  brickbat:{id:'bx-17-brickbat',name:'BX-17 Brickbat',kind:'starship',manufacturer:'core',role:'Utility freighter (rebel bomber)',size:6,
-    straight_max:3,straight_min:1,bank_max:2,bank_min:2,turn_max:2,turn_min:1,shield_front:15,shield_rear:15,armour:25,hull:45,
-    weapon_slots:1,hard_points:2,default_weapon_1:'bls-t-light-repeaters',default_weapon_2:null,legacy_keys:'brickbat',special_rules:'',description:'',notes:'Type 3.5 placeholder'},
-  fl400:{id:'ga-fl-400',name:'GA FL-400 Fleet Freighter',kind:'starship',manufacturer:'genastro',role:'Fleet freighter',size:10,
-    straight_max:3,straight_min:0.2,bank_max:null,bank_min:7,   /* a high top so an engine critical can't stall it: the layer sets its pace */turn_max:null,turn_min:null,shield_front:60,shield_rear:60,armour:40,hull:400,
-    weapon_slots:0,hard_points:0,default_weapon_1:null,default_weapon_2:null,legacy_keys:'fl400',hitK:2.4,capital:true,special_rules:'',description:'',notes:'Type 3.5 placeholder'},
+  fl400:Object.assign({},SRDB.ship('ga-fl-400'),{straight_min:0.2,bank_max:null,bank_min:7,   /* a high top so an engine critical can't stall it: the layer sets its pace */
+    turn_max:null,turn_min:null,hitK:2.4,capital:true}),
 };
 
 /* =====================================================================
    The player's wings (§4.3), as the designer listed them (Wing 3 has four: C-76)
    ===================================================================== */
+const CROSS_MISSILES='primary:bls-t-light-repeaters|secondary:missiles';   // the demo's Crosses are modified ones (decision 9: a stock Cross has none)
 const WINGS35=[
-  {id:'dagger',name:'Dagger',ships:[{id:'joss',cls:'cross',name:'Joss',pilot:{id:'joss-marrek'},traits:['reckless',{k:'friend',with:'petra'}]},{id:'wren',cls:'cross',name:'Wren',pilot:{preset:'regular'}},{id:'petra',cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
+  {id:'dagger',name:'Dagger',ships:[{id:'joss',cls:'cross',config:CROSS_MISSILES,name:'Joss',pilot:{id:'joss-marrek'},traits:['reckless',{k:'friend',with:'petra'}]},{id:'wren',cls:'cross',config:CROSS_MISSILES,name:'Wren',pilot:{preset:'regular'}},{id:'petra',cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
   {id:'anvil',name:'Anvil',ships:[{id:'sera',cls:'talon',name:'Sera',pilot:{id:'sera-kest'},traits:['protective']},{id:'brask',cls:'brickbat',name:'Brask',pilot:{preset:'regular'}},{id:'ollo',cls:'brickbat',name:'Ollo',pilot:{preset:'green'},traits:['green','proud']}]},
-  {id:'amber',name:'Amber',ships:[{id:'hale',cls:'cross',name:'Hale',pilot:{preset:'veteran'},traits:['by-the-book']},{id:'kit',cls:'talon',name:'Kit',pilot:{preset:'green'}},{id:'tam',cls:'talon',name:'Tam',pilot:{preset:'regular'}},{id:'mags',cls:'brickbat',name:'Mags',pilot:{preset:'regular'}}]},
+  {id:'amber',name:'Amber',ships:[{id:'hale',cls:'cross',config:CROSS_MISSILES,name:'Hale',pilot:{preset:'veteran'},traits:['by-the-book']},{id:'kit',cls:'talon',name:'Kit',pilot:{preset:'green'}},{id:'tam',cls:'talon',name:'Tam',pilot:{preset:'regular'}},{id:'mags',cls:'brickbat',name:'Mags',pilot:{preset:'regular'}}]},
 ];
+/* the ships the plan gives a loadout (bombs, cargo pods or a boarding party): the Brickbat, and the Graf (MAIN-SWITCH S2:
+   the usual boarding craft, so a boarding party by default). S4 makes it a read-out of each ship's configuration */
+const LOAD_CLS={brickbat:'bombs',graf:'board'};
+const loads=sd=>sd.config!=null?!!loadOfConfig(sd.config):!!LOAD_CLS[sd.cls];   // a ship with a configuration: what it has fitted (S6)
+const loadOf=(pw,sd)=>sd.config!=null?loadOfConfig(sd.config):pw.loadout[sd.id]||LOAD_CLS[sd.cls];
+/* the configuration each loadout stands for, by class (MAIN-SWITCH S4: the planning windows read a ship's fit). A Brickbat
+   has no passenger room, so it boards with a boarding pod; a Graf carries a boarding party inside (the designer, 21 October) */
+const LOAD_FIT={
+  bombs:{brickbat:'primary:bls-t-light-repeaters|pylon:bombs|pylon:bombs',graf:'pylon:bombs|pylon:bombs'},
+  pods:{brickbat:'primary:bls-t-light-repeaters|pylon:cargo-pods',graf:'pylon:cargo-pods'},
+  board:{brickbat:'primary:bls-t-light-repeaters|pylon:boarding-pod',graf:'internal:boarding-party'}};
+const fitOf=(sd,lo)=>(LOAD_FIT[lo]||{})[sd.cls]||'';
+/* a configuration's loadout: what it lets the ship do in 3.5 (board first, then haul, then bomb) */
+function loadOfConfig(c){const C=SRDB.parseConfig(c);if(SRDB.boards(C))return 'board';if(C.pylon.includes('cargo-pods'))return 'pods';if(C.pylon.includes('bombs'))return 'bombs';return null;}
+/* the wings that fly: the demo's above (the test opportunity and the tests), or the campaign's for a campaign mission
+   (MAIN-SWITCH S6; useWings(list)). A campaign ship carries its own config, shipId, pilotId, hullFrac, hullBonus and
+   shieldBonus; its leader is first */
+const WINGS_DEMO=JSON.parse(JSON.stringify(WINGS35));
+function useWings(list){WINGS35.length=0;for(const w of list||JSON.parse(JSON.stringify(WINGS_DEMO)))WINGS35.push(w);}
+const campaignWings=()=>WINGS35.some(w=>w.ships.some(sd=>sd.shipId));
 const LOADOUTS={bombs:{name:'Bombs',line:'Two racks of three. The only thing that cracks a capital hull.'},pods:{name:'Cargo pods',line:'Carries two containers home.'},
   board:{name:'Boarding party',line:'Marines: boards a disabled ship.'}};
 
@@ -307,7 +326,7 @@ const PRIMARIES={
 const primaryKeysOf=opp=>SR_OPS.primaries(opp).map(p=>p.verb).filter(k=>PRIMARIES[k]);
 const PRIMARY_KEYS=primaryKeysOf(OPPORTUNITIES.vulnerable_freighter);
 const LATER_PRIMARIES=[{name:'Snatch the Paymaster',family:'Take it'},{name:'Misjump',family:'Deny it'},{name:'Turn the Crew',family:'Use it'},{name:'Trojan Freighter',family:'Use it'},{name:'Cover Op',family:'Bait with it'}];   // locked cards in their families
-const NEED_TEXT={bombs:'A Brickbat with Bombs',board:'A Brickbat with a Boarding party',pods:'A Brickbat with Cargo pods',tagger:'One ship named to plant the tracker',notRemote:'A response to ambush (not Remote)'};
+const NEED_TEXT={bombs:'A Brickbat with Bombs',board:'A Graf or Brickbat to board',pods:'A Brickbat with Cargo pods',tagger:'One ship named to plant the tracker',notRemote:'A response to ambush (not Remote)'};
 const FAMILIES=['Take it','Deny it','Use it','Bait with it'];
 const OPTIONALS={
   protect:{name:'Protect a ship at all costs',line:'Name one: it must come home.',needs:'ship'},
@@ -372,7 +391,7 @@ function defaultPlan(opp){
   const p={primary:null,optionals:[],roes:[],wings:{},assets:[],assetAt:{},tagger:null,presHull:0.3};
   const ji=opp.jumpIn;
   WINGS35.forEach((w,i)=>{
-    const lo={};for(const sd of w.ships)if(sd.cls==='brickbat')lo[sd.id]='bombs';
+    const lo={};for(const sd of w.ships)if(loads(sd))lo[sd.id]=loadOf({loadout:{}},sd);
     p.wings[w.id]={role:'strike',loadout:lo,jumpIn:{x:ji.x+(i-1)*500,y:ji.y-Math.abs(i-1)*150},exec:{k:'hold',arg:null},second:null};
   });
   return p;
@@ -380,7 +399,7 @@ function defaultPlan(opp){
 /* what the plan has: Brickbat loadouts across the Strike and Reserve wings */
 function planHas(plan){
   const h={bombs:0,pods:0,board:0};
-  for(const w of WINGS35){const pw=plan.wings[w.id];if(!pw||pw.role==='home')continue;for(const sd of w.ships)if(sd.cls==='brickbat')h[pw.loadout[sd.id]||'bombs']++;}
+  for(const w of WINGS35){const pw=plan.wings[w.id];if(!pw||pw.role==='home')continue;for(const sd of w.ships)if(loads(sd))h[loadOf(pw,sd)]++;}
   return h;
 }
 function needsMet(plan,mods){
@@ -400,7 +419,7 @@ function compile(opp,mods,plan,seed){
     const pw=plan.wings[w.id];if(!pw||pw.role==='home')continue;
     const ji=pw.jumpIn||opp.jumpIn,face=Math.atan2(lane[1][1]-ji.y,lane[1][0]-ji.x);
     (pw.role==='strike'?wings:reserves).push({id:w.id,name:w.name,at:[ji.x,ji.y,face],leader:w.ships[0].id,order:execToHc(pw.exec,plan),tactic:'auto',
-      ships:w.ships.map(sd=>Object.assign({},sd,{marines:pw.loadout[sd.id]==='board',load35:sd.cls==='brickbat'?(pw.loadout[sd.id]||'bombs'):null}))});
+      ships:w.ships.map(sd=>Object.assign({},sd,{marines:loads(sd)&&loadOf(pw,sd)==='board',load35:loads(sd)?loadOf(pw,sd):null}))});
   }
   const esc=[];let en=0;
   const nEsc=opp.key==='freighter'?Math.max(0,(m('heavy')?2:1)*opp.escorts.reduce((a,e)=>a+e.n,0)-(m('limping')?1:0)):0;
@@ -460,12 +479,19 @@ const OPP_PLANS={patrol_sweep:{
   clear:{dagger:[{k:'destroy',arg:'patrol'},null],anvil:[{k:'destroy',arg:'patrol'},null],amber:[{k:'destroy',arg:'patrol'},null]},
   ambush:{dagger:[{k:'ambush',arg:'reinforcements'},null],anvil:[{k:'destroy',arg:'patrol'},{trig:'phase3',k:'ambush',arg:'reinforcements'}],amber:[{k:'ambush',arg:'reinforcements'},null]}}};
 /* the plan the leaders propose for a primary: the roles, orders and loadouts filled in; the jump-ins and assets kept */
+const PLAN_PART=['dagger','anvil','amber'];   // the demo's wings, in order: the parts a campaign's wings take in a leaders' plan (S6)
 function leaderPlan(prim,keep,oppId){
   const O=OPPORTUNITIES[oppId||'vulnerable_freighter'],P=Object.assign(defaultPlan(O),keep?{assets:keep.assets.slice(),assetAt:Object.assign({},keep.assetAt),presHull:keep.presHull}:{});
   P.primary=prim;const T=(OPP_PLANS[O.id]||LEADER_PLANS)[prim];if(!T)return P;
-  for(const w of WINGS35){const pw=P.wings[w.id],t=T[w.id];if(keep&&keep.wings[w.id])pw.jumpIn=Object.assign({},keep.wings[w.id].jumpIn);
-    if(!t){pw.role='home';continue;}pw.role='strike';pw.exec=Object.assign({},t[0]);pw.second=t[1]?Object.assign({},t[1]):null;}
+  WINGS35.forEach((w,i)=>{const pw=P.wings[w.id],t=T[w.id]||T[PLAN_PART[i]];if(keep&&keep.wings[w.id])pw.jumpIn=Object.assign({},keep.wings[w.id].jumpIn);
+    if(!t){pw.role='home';return;}pw.role='strike';pw.exec=Object.assign({},t[0]);pw.second=t[1]?Object.assign({},t[1]):null;});
   for(const sid in T.lo||{})for(const w of WINGS35)if(sid in P.wings[w.id].loadout)P.wings[w.id].loadout[sid]=T.lo[sid];
+  // the Graf is the usual boarding craft (MAIN-SWITCH S2, decision 9): a plan that boards gives a flying Graf the boarding
+  // party, and the Brickbat that would have carried it takes bombs (the demo's wings have no Graf, so their plans are as written)
+  if(Object.values(T.lo||{}).includes('board'))for(const w of WINGS35){const pw=P.wings[w.id];if(pw.role==='home')continue;
+    const g=w.ships.find(sd=>sd.cls==='graf'&&sd.config==null);if(!g)continue;
+    for(const w2 of WINGS35)for(const sid in P.wings[w2.id].loadout)if(P.wings[w2.id].loadout[sid]==='board')P.wings[w2.id].loadout[sid]='bombs';
+    pw.loadout[g.id]='board';break;}
   P.roes=(T.roes||[]).slice();P.optionals=(T.optionals||[]).map(k=>({k,ship:null}));P.tagger=T.tagger||null;
   if(T.assets&&!(keep&&keep.assets.length))for(const a of T.assets)if(P.assets.length<ASSET_SLOTS&&!P.assets.includes(a))P.assets.push(a);
   return P;
@@ -477,7 +503,7 @@ function critique(plan,wid,mods,ctx){
   const w=WINGS35.find(x=>x.id===wid),pw=plan.wings[wid];if(!w||!pw)return '';
   if(pw.role==='home')return CALM_TAKES.home;
   if(pw.role==='reserve')return CALM_TAKES.reserve;
-  const ex=pw.exec||{},has=planHas(plan),lo=w.ships.filter(s=>s.cls==='brickbat').map(s=>pw.loadout[s.id]||'bombs');
+  const ex=pw.exec||{},has=planHas(plan),lo=w.ships.filter(loads).map(s=>loadOf(pw,s));
   if((ex.k==='disable'||(ex.k==='destroy'&&plan.primary!=='ambush'))&&!lo.includes('bombs')&&!has.bombs)return 'We can\'t crack that hull with repeaters, Base.';
   if(ex.k==='disable'&&!lo.includes('bombs'))return 'We can\'t crack that hull with repeaters, Base.';
   if(ex.k==='board'&&!lo.includes('board'))return 'Nobody here to board her, Base.';
@@ -1485,6 +1511,28 @@ function rewardOf(){
   if(L.fallback)out.missed=PRIMARIES[L.fallback.from].reward.bonus;else{out.bonus=R.bonus;add(R.bonus);}
   return out;
 }
+/* the mission's end as the campaign reads it (MAIN-SWITCH S6): each of your ships and what became of its pilot, the
+   primary and the secondaries, the pay (the stand-ins, rewardOf), the assets spent, and the noise it made.
+   A pilot whose ship went down: picked up (a pod aboard a ship that came home) is injured; captured is captured;
+   lost, left behind or with no pod is lost (the Infirmary's Critical Condition still applies, in the base) */
+function outcome(){
+  const S=SIM.S;if(!S||!L)return null;
+  const prim=S.objectives[0];
+  const ships=S.ships.filter(s=>s.faction==='reb'&&s.wing&&!s.quiet&&!s.prop35).map(s=>{
+    const home=s.alive||s.jumped,p=L.pods.find(x=>x.ship===s.id);
+    const fate=home?'ok':!p?'lost':p.state==='aboard'?'injured':p.state==='captured'?'captured':'lost';
+    return {id:s.id,wing:s.wing,home,hullFrac:Math.max(0,s.hull)/s.maxHull,kills:s.st.kills,hits:s.st.hits,shots:s.st.shots,
+      hurt:1-Math.max(0,s.hull)/s.maxHull,fate,lead:(F.wingOf(s.wing)||{}).leader===s.id};});
+  const spent=[],kept=[];
+  for(const a of L.plan.assets||[]){
+    const pw=Object.keys(POWERS35).find(k=>(POWERS35[k].asset||[]).includes(a));
+    (a==='relay'||(pw&&L.used[pw])?spent:kept).push(a);   // a relay is left behind where it was placed
+  }
+  const witnesses=S.ships.filter(s=>s.faction==='heg'&&s.jumped).length;   // escorts and a freighter that jumped away
+  return {primary:{k:L.primK,picked:L.plan.primary,state:prim?prim.state:'failed',replaced:!!L.fallback},
+    win:!!prim&&prim.state==='done',outcome:S.over?S.over.outcome:null,secondaries:L.opt.map(o=>({k:o.k,state:o.state})),
+    reward:rewardOf(),ships,assets:{spent,kept},broadcast:!!L.used.broadcast,witnesses,t:S.t};
+}
 /* =====================================================================
    P4: the comms delay (§5.4) and the commander powers (§5.5)
    Every power is a transmission: queued, it lands after (COMMS_BASE + distance / COMMS_SPD + the recipient's ACK) ×
@@ -2231,7 +2279,7 @@ function verbOf(s){
 /* =====================================================================
    The panel (getters, grouped) and the export
    ===================================================================== */
-return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,LOADOUTS,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
+return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,useWings,campaignWings,outcome,LOADOUTS,LOAD_CLS,loads,loadOf,LOAD_FIT,fitOf,loadOfConfig,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,

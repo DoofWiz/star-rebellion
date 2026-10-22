@@ -6,6 +6,9 @@
 /* the title screen's tool button: the debug-menu look (.sr-menu__item--debug), on the splash */
 #splash .splash__tool{--c:transparent;--ct:var(--sr-psi);box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--sr-psi) 60%,transparent);}
 #splash .splash__tool:hover{--c:color-mix(in srgb,var(--sr-psi) 14%,transparent);}
+/* the Missions tab's dev-only Type 3.5 buttons (?dev, MAIN-SWITCH S1): the same tool look */
+.bf-dev35{--c:transparent;--ct:var(--sr-psi);box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--sr-psi) 60%,transparent);margin-top:8px;}
+.bf-dev35:hover{--c:color-mix(in srgb,var(--sr-psi) 14%,transparent);}
 
 /* ===== Type 3: High Command (docs/archive/ARENA-HC-HANDOFF.md §3, game/js/arena-hc.js): ids "hc…", classes "hc-…" =====
    The approved High Command HUD on the kit's tokens. Colour law: gold = you can act on this (COMMANDS is the one
@@ -320,9 +323,9 @@
 #arHc35>*{pointer-events:auto;}
 #arHc35 .sr-banner{pointer-events:none;}
 #arHc35 .h35-scrim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,6,13,.78);}
-#arHc35 .h35-label{margin:14px 0 6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
+:is(#arHc35,.h35-more) .h35-label{margin:14px 0 6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
 #arHc35 .h35-hint{margin:0 0 4px;font-size:var(--sr-fs-sm);color:var(--sr-text-2);}
-#arHc35 .h35-sub,#arHc35 .h35-fine2{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+:is(#arHc35,.h35-more) .h35-sub,:is(#arHc35,.h35-more) .h35-fine2{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
 /* the board */
 #arHc35 .h35-portrait{width:72px;height:72px;}
 /* the dossier */
@@ -344,18 +347,27 @@
 #arHc35 .h35-ord__lbl{width:58px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);letter-spacing:.06em;}
 /* the debrief */
 #arHc35 .h35-debrief{max-height:100%;display:flex;flex-direction:column;}
+/* a campaign mission's end: just the result (MAIN-SWITCH S6), the detail on the base report's More information */
+#arHc35 .h35-result{width:min(440px,calc(100vw - 32px));text-align:center;}
+#arHc35 .h35-result .sr-window__body{display:flex;flex-direction:column;align-items:center;gap:18px;padding:28px 20px 22px;}
+#arHc35 .h35-result__name{font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-result .sr-stamp{font-size:28px;padding:10px 18px;transform:rotate(-4deg);}
+.h35-log{display:flex;flex-direction:column;gap:2px;max-height:320px;overflow:auto;background:var(--sr-night);border-radius:var(--sr-r);padding:6px 10px;}
+.h35-log p{margin:0;display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;font-size:var(--sr-fs-xs);line-height:1.4;color:var(--sr-text);}
+.h35-log time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;}
+.h35-log p.is-good span{color:var(--sr-c-good);}
 #arHc35 .h35-debrief .sr-window__body{overflow:auto;}
 #arHc35 .h35-debrief .sr-window__head .sr-stamp{margin-left:auto;transform:rotate(-4deg);}
-#arHc35 .h35-rew--deb{font-size:var(--sr-fs-sm);margin:0;} #arHc35 .h35-rew__miss{color:var(--sr-text-3);font-weight:700;}
-#arHc35 .h35-leaders{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}   /* how your leaders played it (feedback 2, §3.3) */
-#arHc35 .h35-lead{background:var(--sr-night);border-radius:var(--sr-r);padding:8px 10px;}
-#arHc35 .h35-lead__name{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-gold);margin-bottom:6px;}
-#arHc35 .h35-lead ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
-#arHc35 .h35-lead li{display:grid;grid-template-columns:34px 16px minmax(0,1fr);gap:4px;font-size:var(--sr-fs-xs);line-height:1.35;color:var(--sr-text);}
-#arHc35 .h35-lead time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;} #arHc35 .h35-lead i{font-style:normal;color:var(--sr-shield);text-align:center;}
-#arHc35 .h35-lead em{display:block;font-style:normal;color:var(--sr-text-3);}
-#arHc35 .h35-lead li.is-fallback i,#arHc35 .h35-lead li.is-fallback b{color:var(--sr-gold);} #arHc35 .h35-lead li.is-request i{color:var(--sr-text-3);}
-#arHc35 .h35-why p{margin:0 0 8px;padding:8px 12px;border-left:4px solid var(--sr-gold);background:var(--sr-night);border-radius:0 var(--sr-r) var(--sr-r) 0;font-size:var(--sr-fs-sm);}
+:is(#arHc35,.h35-more) .h35-rew--deb{font-size:var(--sr-fs-sm);margin:0;} :is(#arHc35,.h35-more) .h35-rew__miss{color:var(--sr-text-3);font-weight:700;}
+:is(#arHc35,.h35-more) .h35-leaders{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}   /* how your leaders played it (feedback 2, §3.3) */
+:is(#arHc35,.h35-more) .h35-lead{background:var(--sr-night);border-radius:var(--sr-r);padding:8px 10px;}
+:is(#arHc35,.h35-more) .h35-lead__name{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-gold);margin-bottom:6px;}
+:is(#arHc35,.h35-more) .h35-lead ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+:is(#arHc35,.h35-more) .h35-lead li{display:grid;grid-template-columns:34px 16px minmax(0,1fr);gap:4px;font-size:var(--sr-fs-xs);line-height:1.35;color:var(--sr-text);}
+:is(#arHc35,.h35-more) .h35-lead time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;} :is(#arHc35,.h35-more) .h35-lead i{font-style:normal;color:var(--sr-shield);text-align:center;}
+:is(#arHc35,.h35-more) .h35-lead em{display:block;font-style:normal;color:var(--sr-text-3);}
+:is(#arHc35,.h35-more) .h35-lead li.is-fallback i,:is(#arHc35,.h35-more) .h35-lead li.is-fallback b{color:var(--sr-gold);} :is(#arHc35,.h35-more) .h35-lead li.is-request i{color:var(--sr-text-3);}
+:is(#arHc35,.h35-more) .h35-why p{margin:0 0 8px;padding:8px 12px;border-left:4px solid var(--sr-gold);background:var(--sr-night);border-radius:0 var(--sr-r) var(--sr-r) 0;font-size:var(--sr-fs-sm);}
 /* the mission HUD's phase plate sits where High Command's clock does */
 #arHc .hc-clock:has(.h35-phase){padding:0;background:none;border:0;box-shadow:none;text-shadow:none;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;}
 #arHc .h35-phase .sr-phase__name{font-size:var(--sr-fs-md);}
@@ -564,6 +576,19 @@
 #arHc35 .h35-seg{display:flex;border:2px solid var(--sr-ink);border-radius:7px;overflow:hidden;background:var(--sr-ink);gap:2px;}
 #arHc35 .h35-seg button{flex:1;min-width:0;height:34px;padding:0 6px;border:0;background:var(--sr-plate);color:var(--sr-text-2);font:700 15px/1 var(--sr-font-ui);white-space:nowrap;cursor:pointer;}
 #arHc35 .h35-seg--lo button{height:28px;padding:0 3px;font-size:12.5px;letter-spacing:-.01em;}
+/* what a ship has fitted, read from its configuration, with Refit (MAIN-SWITCH S4); the demo refit is a small pop-up */
+#arHc35 .h35-fit{grid-column:1/-1;position:relative;display:flex;align-items:center;gap:8px;margin:2px 0 0 6px;min-height:28px;}
+#arHc35 .h35-fit__lbl{flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:700;color:var(--sr-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc35 .h35-fit__refit{flex:none;height:26px;padding:0 10px;font:700 12px var(--sr-font-ui);color:var(--sr-shield);background:transparent;border:1.5px solid color-mix(in srgb,var(--sr-shield) 55%,transparent);border-radius:6px;cursor:pointer;}
+#arHc35 .h35-fit__refit[aria-expanded="true"],#arHc35 .h35-fit__refit:hover{background:color-mix(in srgb,var(--sr-shield) 16%,transparent);}
+#arHc35 .h35-fit__pop{position:absolute;z-index:5;right:0;top:calc(100% + 4px);min-width:200px;display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--sr-night);border:2px solid var(--sr-shield);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+#arHc35 .h35-fit__t{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-fit__pop button{height:28px;text-align:left;padding:0 8px;font:700 12.5px var(--sr-font-ui);color:var(--sr-text);background:var(--sr-plate);border:1.5px solid var(--sr-seam);border-radius:6px;cursor:pointer;}
+#arHc35 .h35-fit__pop button[aria-pressed="true"]{border-color:var(--sr-gold);color:var(--sr-gold);}
+#arHc35 .h35-fit__base{flex:none;font-size:11.5px;font-weight:700;color:var(--sr-text-2);}
+/* a campaign mission's Intel strip, at the top of window 1 (MAIN-SWITCH S6) */
+#arHc35 .h35-campintel{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 8px;}
+#arHc35 .h35-campintel__t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--sr-shield);}
 #arHc35 .h35-seg button:hover{color:#fff;} #arHc35 .h35-seg button:focus-visible{outline:2px solid var(--sr-shield);outline-offset:-2px;}
 #arHc35 .h35-seg button[aria-pressed="true"]{background:var(--sr-rebel);color:#fff;}
 /* the leader's take: a portrait and a speech bubble; orange when it's a critique */
@@ -597,7 +622,7 @@
 #arHc35 .h35-holo__body.is-tight .h35-srow{grid-template-columns:80px minmax(0,1fr);min-height:48px;padding-top:0;padding-bottom:0;}
 #arHc35 .h35-holo__body.is-tight .h35-srow.has-lo{padding-bottom:4px;}
 #arHc35 .h35-holo__body.is-tight .h35-srow__art{width:80px;height:40px;}
-#arHc35 .h35-rew{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 0;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+:is(#arHc35,.h35-more) .h35-rew{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 0;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
 #arHc35 .h35-rew__lbl{min-width:84px;color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.06em;font-size:var(--sr-fs-micro);}
 #arHc35 .h35-rew--bonus{margin:2px 0 6px;} #arHc35 .h35-rew--bonus .h35-rew__lbl{color:var(--sr-gold);}
 #arHc35 .sr-window.h35-holo{animation:none;}   /* the kit's pop is for a window opening: a re-render isn't one (feedback 2, §1) */

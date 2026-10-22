@@ -1,6 +1,6 @@
 /* Type 3.5: High Command Hands Off, on the test bench (docs/ARENA-HC35-HANDOFF.md §11; game/js/sim-hc35.js, arena-hc35.js
    and High Command's renderer arena-hc.js, through DBGarena.hc35 and DBGarena.hc): node tools/hc35-smoke.js
-   (needs NODE_PATH=$(npm root -g)). Loads game/index.html?dev#arena, the bench hc35-bench.js opens the board.
+   (needs NODE_PATH=$(npm root -g)). Loads game/index.html?dev#arena: the space35 scene (space35.js) opens the test opportunity's board.
    Split from the Arena's test (archive/tools/arena-smoke.js) in the switch to main (docs/MAIN-SWITCH-HANDOFF.md S0):
    the v2, SB and Type 3 sections stayed in the archive, and so did K0's High Command record and K4 18 (Type 3's
    Reinforce command). HC35 1 (High Command byte-identical with the hooks) and C-73/C-74's visual pass (V1) run on
@@ -138,7 +138,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   q('[data-act="brief"]').click();out.step1=[B.screen,B.step,qa('[data-primary]').length,qa('.h35-ocard.is-locked').length,!q('[data-act="launch"]')];   // Launch only on step 4
   q('[data-primary="destroy"]').click();q('[data-act="next"]').click();out.step1b=[B.step,B.part,qa('[data-opt]').length,qa('[data-roe]').length];   // window 1, part 2: the secondaries
   q('[data-act="next"]').click();out.step2=[B.step,qa('[data-opt]').length,qa('[data-roe]').length];
-  q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wcol').length,qa('[data-role]').length,qa('button[data-lo]').length,qa('.h35-aslot').length];
+  q('[data-act="next"]').click();out.step3=[B.step,qa('.h35-wcol').length,qa('[data-role]').length,qa('[data-refit35]').length,qa('.h35-aslot').length];
   q('[data-act="next"]').click();out.step4=[B.step,qa('[data-ord="exec"]').length,!!q('[data-act="launch"]'),q('[data-act="launch"]').getAttribute('aria-disabled')];
   // the wings as listed: Dagger 2 Cross + 1 Talon, Anvil 1 Talon + 2 Brickbat, Amber 1 Cross + 2 Talon + 1 Brickbat
   out.wings=X.L35.WINGS35.map(w=>w.ships.map(s=>s.cls).join(','));
@@ -154,7 +154,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   return out;
  });
  ok(t35b.board[0]==='board'&&t35b.board[1]&&t35b.board[2]===1&&t35b.board[3]&&t35b.dossier[0]==='board'&&t35b.dossier[1]&&t35b.dossier[2],'HC35 2: the board (one gold primary), its holo freighter and Dig deeper '+JSON.stringify([t35b.board,t35b.dossier]));
- ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===4&&t35b.step1b.join()==='1,2,7,0'&&t35b.step2.join()==='2,0,5'&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===9&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
+ ok(t35b.step1[0]==='brief'&&t35b.step1[1]===1&&t35b.step1[2]===7&&t35b.step1[3]===4&&t35b.step1b.join()==='1,2,7,0'&&t35b.step2.join()==='2,0,5'&&t35b.step3[0]===3&&t35b.step3[1]===3&&t35b.step3[2]===9&&t35b.step3[3]===3&&t35b.step3[4]===3&&t35b.step4[0]===4&&t35b.step4[1]===3&&t35b.step4[2]&&t35b.step4[3]===null,
   'HC35 2: the four briefing steps, window 1 in two parts '+JSON.stringify([t35b.step1,t35b.step1b,t35b.step2,t35b.step3,t35b.step4]));
  ok(t35b.wings.join('|')==='cross,cross,talon|talon,brickbat,brickbat|cross,talon,talon,brickbat','HC35 2: the wings as the designer listed them '+JSON.stringify(t35b.wings));
  ok(t35b.live[0]==='live'&&t35b.live[1]==='hc35_freighter'&&t35b.live[2]===10&&t35b.live[3]&&t35b.live[4]&&t35b.end.every(Boolean),'HC35 2: Launch, the mission, the debrief '+JSON.stringify([t35b.live,t35b.end]));

@@ -23,14 +23,54 @@ const newSeed=()=>((B.seed*2654435761+12345)>>>0)%1000000;
 const PANEL_W=440;   // the briefing panel's width, px (the plan view fits the room right of it)
 
 /* =====================================================================
-   Opening and closing (the test bench, hc35-bench.js, calls these)
+   Opening and closing (the space35 scene calls these, game/js/space35.js)
+   With a campaign mission (docs/MAIN-SWITCH-HANDOFF.md S1) it opens on window 1 of that opportunity, never the board,
+   and its way out (the debrief, or Back from window 1) hands the scene its result: B.camp. Without one, the test
+   opportunity: the board, the demo's freighter and Patrol Sweep (dev only)
    ===================================================================== */
-function open(){
+function open(o){
+  B.camp=o&&o.mission?{mission:o.mission,done:o.onDone||null}:null;
   HC.open({mode:'hc35',overlay:OV});
   ROOT.hidden=false;
-  showBoard(true);
+  if(!B.camp){showBoard(true);return;}
+  const M=B.camp.mission;B.oppId=L35.OPPORTUNITIES[M.opp]?M.opp:'vulnerable_freighter';
+  L35.useWings(M.wings&&M.wings.length?M.wings:null);   // the player's wings (S6); a test flight without them flies the demo's
+  B.seed=M.seed||(Date.now()%999983)+1;rollAttempt();B.step=1;B.part=1;
+  if(M.intel!=null){B.intel=M.intel;B.intel0=M.intel;}   // Dig deeper spends the campaign's Intel (S6)
+  L35.detach();API.buildPanel();enterBrief();
 }
+/* the campaign's way out: the result (null: called off before launch). S1 flies a test wing and changes nothing in the
+   campaign (kind 'space35', test); S6 turns this into the campaign's mission result */
+function campResult(){
+  const S=SIM.S,L=L35.L,M=B.camp.mission;if(!S||!S.over||!L)return null;
+  const prim=S.objectives[0],won=!!prim&&prim.state==='done';
+  const base={missionId:M.missionId,name:M.name,opp:B.oppId,seed:B.seed,win:won,outcome:S.over.outcome||null,stamp:stampOf()[0]};
+  if(!L35.campaignWings())return Object.assign({kind:'space35',test:true},base);   // the demo's wings flew: a test flight
+  // the campaign's own (S6): the shape space.js returns (kind 'space': people, fighters, salvage), plus 3.5's extras
+  const o=L35.outcome(),defs=L35.WINGS35.flatMap(w=>w.ships),def=id=>defs.find(d=>d.id===id)||{};
+  const people=o.ships.map(sh=>{const d=def(sh.id);
+    return {id:d.pilotId,fate:sh.fate,state:sh.fate==='ok'?'ok':sh.fate==='injured'?'injured':sh.fate==='captured'?'captured':'lost',
+      // XP as a flown mission today (+0.15 a win, +0.05 a loss) and 0.02 a kill; skill use from what they did (placeholders, C-91)
+      xp:Math.round(((won?0.15:0.05)+0.02*sh.kills)*100)/100,kills:sh.kills||undefined,
+      sk:{aim:Math.round(sh.hits/4)/10||undefined,foc:Math.round(sh.hurt*10)/10||undefined,pre:sh.lead?0.5:undefined},lead:sh.lead||undefined};}).filter(p=>p.id);
+  const fighters=o.ships.map(sh=>{const d=def(sh.id);return d.shipId?{fighterId:d.shipId,name:d.shipName||d.name,hull:Math.round(sh.hullFrac*100),destroyed:!sh.home}:null;}).filter(Boolean);
+  const rew={};for(const k in o.reward.earned||{})rew[k]=Math.round(o.reward.earned[k]);
+  // the objectives flown, for the base's report (it lists the mission's own otherwise)
+  const objs=[{t:(L35.PRIMARIES[o.primary.k]||{name:o.primary.k}).name+(o.primary.replaced?' (fallback)':' (primary)'),done:o.primary.state==='done'}]
+    .concat(o.secondaries.map(x=>({t:(L35.OPTIONALS[x.k]||{name:x.k}).name,done:x.state==='done'})));
+  return Object.assign({kind:'space',space35:true,days:M.days||2,people,fighters,salvage:0,
+    primary:o.primary,secondaries:o.secondaries,objs,more:'<div class="h35-more">'+debriefBody()+commsHtml()+'</div>',rew35:rew,surrendered:o.reward.surrendered?o.reward.surrendered.n:0,
+    assets:o.assets,broadcast:o.broadcast,witnesses:o.witnesses,intelSpent:B.intel0!=null?Math.max(0,B.intel0-B.intel):0},base);
+}
+function campDone(r){const d=B.camp&&B.camp.done,res=r===undefined?campResult():r;close();if(d)d(res);}
+/* Back from window 1, or the window's ✕: the board, or (a campaign mission) home with nothing flown */
+function toBoard(){if(B.camp){campDone(null);return;}showBoard(false);}
+const title35=()=>B.camp?B.camp.mission.name:opp().title;
+/* an asset a campaign mission can take: one in the inventory (G.assets, crafted at the Arsenal: S5). Spoofed Orders come from
+   intel work and the pirates are a Black Market hire, neither built yet (C-89); the demo takes anything */
+const assetHave=k=>!B.camp||!B.camp.mission.assets||(B.camp.mission.assets[k]||0)>0;
 function close(){
+  if(B.camp)L35.useWings(null);   // the demo's wings again
   ROOT.hidden=true;B.screen='off';REQEL.hidden=true;L35.detach();B.pick=null;B.choose=null;B.abortArm=false;
   const ti=byId('hcCmds').querySelector('.hc-cmds__title');if(ti)ti.textContent='Commands';   // High Command's own bar again
 }
@@ -97,8 +137,10 @@ function boardHtml(){
   const fine='<div class="h35-mfine"><span>Nothing here touches your campaign. Seed '+B.seed+'</span><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div>';
   return '<div class="bf-stage h35-missions'+(B.screen==='brief'?' is-dim':'')+'">'+top+board+holo+rail+comms+fine+'</div>';
 }
+/* a campaign mission's Intel strip (window 1): what you know, and Dig deeper at 1 of the campaign's Intel each (S6) */
+function campIntelHtml(){const hid=B.mods.some(m=>!L35.known(m));return '<div class="h35-campintel"><span class="h35-campintel__t">Intel</span>'+modTags()+digHtml(hid)+'</div>';}
 function digHtml(hid){
-  let pips='';for(let i=0;i<L35.TUNE.INTEL_START.get();i++)pips+='<i class="'+(i<B.intel?'is-on':'')+'"></i>';
+  let pips='';for(let i=0;i<(B.camp&&B.intel0!=null?Math.min(10,B.intel0):L35.TUNE.INTEL_START.get());i++)pips+='<i class="'+(i<B.intel?'is-on':'')+'"></i>';
   return '<div class="h35-dig"><button type="button" class="sr-btn sr-btn--sm" data-act="dig" data-tip="h35:dig"'+(B.intel>0&&hid?'':' aria-disabled="true" data-why="'+(hid?'No Intel left':'Nothing more to find')+'"')+'>Dig deeper</button><span class="h35-intel" data-tip="h35:intel">'+pips+'</span></div>';
 }
 /* the holo-table's projector (SVG ellipses), as the vanilla table */
@@ -218,15 +260,15 @@ function briefHtml(){
   if(last)body='<div class="h35-holo__split"><div class="h35-holo__col" data-keep="c4">'+step4()+'</div><div class="h35-pane" data-pane="1" aria-hidden="true"></div></div>';
   else body='<div class="h35-holo__body is-step'+B.step+'" data-keep="b'+B.step+'.'+(B.step===1?B.part:1)+'">'+(B.step===1?(B.part===2?step1b():step1()):B.step===2?step2():step3())+'</div>';
   const win='<div class="sr-window h35-holo'+(last?' is-wide':'')+(anim?' '+anim:'')+'" role="dialog" aria-label="Plan">'+FRAME+
-    '<div class="h35-holo__head"><div class="h35-holo__title">PLAN: '+esc(opp().title.toUpperCase())+'</div>'+
-    '<button type="button" class="h35-holo__x" data-act="board" aria-label="Close" data-tip="@" data-tt="Back to the mission board" data-tb="Your plan is kept.">✕</button>'+trackHtml()+'</div>'+
+    '<div class="h35-holo__head"><div class="h35-holo__title">PLAN: '+esc(title35().toUpperCase())+'</div>'+
+    '<button type="button" class="h35-holo__x" data-act="board" aria-label="Close" data-tip="@" data-tt="'+(B.camp?'Back to the base':'Back to the mission board')+'" data-tb="'+(B.camp?'Nothing is flown.':'Your plan is kept.')+'">✕</button>'+trackHtml()+'</div>'+
     body+
-    '<div class="h35-holo__foot"><button type="button" class="h35-fbtn h35-fbtn--back" data-act="prev" data-tip="@" data-tt="'+(atStart()?'Back to the mission board':'Back')+'" data-tb="Esc">◀ '+(atStart()?'Back to board':'Back')+'</button>'+
+    '<div class="h35-holo__foot"><button type="button" class="h35-fbtn h35-fbtn--back" data-act="prev" data-tip="@" data-tt="'+(atStart()?(B.camp?'Back to the base':'Back to the mission board'):'Back')+'" data-tb="Esc">◀ '+(atStart()?(B.camp?'Back to base':'Back to board'):'Back')+'</button>'+
     needsHtml(nw||(last&&!ok?miss:null))+
     (last?'<button type="button" class="h35-fbtn h35-fbtn--go" data-act="launch" data-tip="h35:launch"'+(ok?'':' aria-disabled="true" data-why="'+esc(miss)+'"')+'>Launch ▶</button>':
       '<button type="button" class="h35-fbtn h35-fbtn--go" data-act="next" data-tip="@" data-tt="Next: '+esc(nextName())+'" data-tb="Enter"'+(nw?' aria-disabled="true" data-why="'+esc(nw)+'"':'')+'>Next: '+esc(nextName())+' ▶</button>')+
     '</div><i class="h35-holo__beam" aria-hidden="true"></i><i class="h35-holo__ped" aria-hidden="true"></i></div>';
-  return (last?'':boardHtml())+'<div class="h35-holowrap'+(last?' is-wide':'')+'">'+win+'</div>';
+  return (last||B.camp?'':boardHtml())+'<div class="h35-holowrap'+(last?' is-wide':'')+'">'+win+'</div>';
 }
 /* a step: forward, back, or a done node; the window slides that way and flickers once */
 function goStep(n,part){
@@ -239,7 +281,7 @@ function goStep(n,part){
 /* Next and Back walk window 1's two parts too */
 const atStart=()=>B.step===1&&B.part!==2;
 function nextStep(){if(B.step===1&&B.part!==2)goStep(1,2);else goStep(B.step+1);}
-function backStep(){if(atStart()){if(B.screen==='brief')B.briefT[0]+=(performance.now()-B.stepAt)/1000;showBoard(false);}else if(B.step===2)goStep(1,2);else goStep(B.step-1);}
+function backStep(){if(atStart()){if(B.screen==='brief')B.briefT[0]+=(performance.now()-B.stepAt)/1000;toBoard();}else if(B.step===2)goStep(1,2);else goStep(B.step-1);}
 /* Launch: the window folds into the beam (180 ms), then the mission; with reduced motion, at once */
 function launchFromWindow(){
   if(!ready()){API.flash('Not ready');return;}
@@ -292,7 +334,7 @@ function objCard(k,ro){
 }
 /* window 1, part 1: the primary objective, a column for each family, the ones to come locked in theirs (one shown) */
 function step1(){
-  let h='<h2 class="h35-ask">What\'s the job?</h2><div class="h35-fams">';
+  let h=(B.camp?campIntelHtml():'')+'<h2 class="h35-ask">What\'s the job?</h2><div class="h35-fams">';
   const keys=L35.primaryKeysOf(opp()),fams=L35.FAMILIES.filter(f=>(opp().families||[]).includes(SR_OPS.FAMILY_OF_NAME[f]));
   for(const f of fams){
     const ks=keys.filter(k=>L35.PRIMARIES[k].family===f),later=isFr()?L35.LATER_PRIMARIES.filter(x=>x.family===f):[];
@@ -385,22 +427,36 @@ function step3(){
   h+='</div>';
   if(B.pickAsset!=null){   // the picker rises from the slot clicked
     h+='<div class="h35-apop" role="listbox" aria-label="Assets" style="--slot:'+B.pickAsset+'">';
-    for(const k in L35.ASSETS){if(P.assets.includes(k)||(k==='nuke'&&P.assets.includes('ram'))||(k==='ram'&&P.assets.includes('nuke')))continue;const A=L35.ASSETS[k];
+    for(const k in L35.ASSETS){if(P.assets.includes(k)||(k==='nuke'&&P.assets.includes('ram'))||(k==='ram'&&P.assets.includes('nuke')))continue;if(!assetHave(k))continue;const A=L35.ASSETS[k];
       h+='<button type="button" class="h35-apop__row" role="option" data-asset="'+k+'" data-tip="asset:'+k+'">'+assetThumb(k)+'<span><b>'+esc(A.name)+'</b><small>'+esc(A.line)+'</small>'+(A.power?'<small>unlocks <em>'+esc(A.power)+'</em></small>':'')+'</span></button>';}
     h+='</div>';}
   return h+'</section>';
 }
-/* a ship row: the art top-down at its size, nose right; the class, the pilot (★ the leader) and their level; a Brickbat's loadout */
+/* a ship row: the art top-down at its size, nose right; the class, the pilot (★ the leader) and their level; what a
+   Brickbat or Graf has fitted, read from its configuration (MAIN-SWITCH S4: no changes at mission time), with Refit.
+   The demo's ships have no hangar, so their Refit is the demo refit: a pick of the fits 3.5 knows. The campaign's own
+   wings (S8) link to the base's Refit instead */
 function shipRow(w,sd,pw){
-  const lo=sd.cls==='brickbat'?pw.loadout[sd.id]||'bombs':null;
+  const lo=L35.loads(sd)?L35.loadOf(pw,sd):null;
+  let fit='';
+  if(lo&&sd.config!=null){   // a campaign ship: what she has fitted, changed only at Refit in the base (S6)
+    const c=SRDB.parseConfig(sd.config),n={};for(const id of c.pylon.concat(c.internal))n[id]=(n[id]||0)+1;
+    fit='<div class="h35-fit"><span class="h35-fit__lbl" data-tip="lo:'+lo+'">'+esc(Object.keys(n).map(id=>SRDB.itemName(id)+(n[id]>1?' ×'+n[id]:'')).join(' · '))+'</span><span class="h35-fit__base" data-tip="@" data-tt="Refit" data-tb="Change what she carries at Refit, in the hangar, before the mission.">Refit at base</span></div>';
+  } else if(lo){
+    const c=SRDB.parseConfig(L35.fitOf(sd,lo)),items=c.pylon.concat(c.internal),n={};for(const id of items)n[id]=(n[id]||0)+1;
+    const words=Object.keys(n).map(id=>SRDB.itemName(id)+(n[id]>1?' ×'+n[id]:'')).join(' · ')||L35.LOADOUTS[lo].name;
+    const open=B.refit&&B.refit.ship===sd.id;
+    fit='<div class="h35-fit"><span class="h35-fit__lbl" data-tip="lo:'+lo+'">'+esc(words)+'</span><button type="button" class="h35-fit__refit" data-refit35="'+w.id+'|'+sd.id+'" aria-expanded="'+open+'">Refit</button>'+
+      (open?'<div class="h35-fit__pop"><div class="h35-fit__t">Demo refit · '+esc(sd.name)+'</div>'+['bombs','pods','board'].map(k=>{const cc=SRDB.parseConfig(L35.fitOf(sd,k)),nm=cc.pylon.concat(cc.internal).filter((x,i,a)=>a.indexOf(x)===i).map(SRDB.itemName).join(', ');
+        return '<button type="button" data-lo="'+k+'" aria-pressed="'+(lo===k)+'" data-ship="'+sd.id+'" data-wing="'+w.id+'" data-tip="lo:'+k+'">'+esc(nm||L35.LOADOUTS[k].name)+'</button>';}).join('')+'</div>':'')+'</div>';
+  }
   return '<div class="h35-srow'+(lo?' has-lo':'')+'"><canvas class="h35-srow__art" width="208" height="104" data-ship="'+sd.cls+'" data-lo="'+(lo||'')+'"></canvas>'+
-    '<div class="h35-srow__txt"><div class="h35-srow__cls">'+esc(fullCls(sd.cls))+'</div><div class="h35-srow__pilot">'+esc(sd.name)+(sd===w.ships[0]?' ★':'')+' <span>'+esc(pilotWord(sd))+'</span></div></div>'+
-    (lo?seg('h35-seg--lo',['bombs','pods','board'].map(k=>'<button type="button" data-lo="'+k+'" aria-pressed="'+(lo===k)+'" data-ship="'+sd.id+'" data-wing="'+w.id+'" data-tip="lo:'+k+'">'+esc(L35.LOADOUTS[k].name)+'</button>')):'')+'</div>';
+    '<div class="h35-srow__txt"><div class="h35-srow__cls">'+esc(fullCls(sd.cls))+'</div><div class="h35-srow__pilot">'+esc(sd.name)+(sd===w.ships[0]?' ★':'')+' <span>'+esc(pilotWord(sd))+'</span></div></div>'+fit+'</div>';
 }
 /* an asset's thumbnail: K2's prop drawing where it has one (the rams and the pirates fly as Brickbats), else its glyph */
 const PROP_ART={ram:'civ',nuke:'civ',pirates:'hunter'};
 const assetThumb=k=>'<span class="h35-athumb">'+(PROP_ART[k]?'<canvas width="144" height="96" data-ship="brickbat" data-livery="'+PROP_ART[k]+'"></canvas>':assetGlyph(k))+'</span>';
-function pilotWord(sd){const p=sd.pilot||{};if(p.id){const r=SRDB.pilots[p.id];return r?'L'+r.level:'';}return (p.preset||'regular');}
+function pilotWord(sd){const p=sd.pilot||{};if(p.id){const r=SRDB.pilots[p.id];return r?'L'+r.level:'';}if(sd.pilotId)return 'L'+(p.level||1);return (p.preset||'regular');}   // a campaign pilot: their level (S6)
 /* the leader's one-line take (§4.4): the critique rules, rewritten live as the plan changes */
 function leaderTake(w){return L35.critique(B.plan,w.id,B.mods,{inRing,unreachable});}
 /* can this wing reach its Executive target before the freighter jumps, at cruise? */
@@ -547,25 +603,45 @@ function onOver(){
   record();
   render();
 }
+/* the stamp: JOB DONE (the primary and every optional), PARTIAL (a fallback, or not all the optionals), FAILED, ABORTED */
+function stampOf(){
+  const S=SIM.S,L=L35.L,o=S.over||{},prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[],fb=L&&L.fallback;
+  return o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won&&!fb&&opts.every(x=>x.state==='done')?['JOB DONE','']:won?['PARTIAL','sr-stamp--action']:['FAILED','sr-stamp--bad'];
+}
 function debriefHtml(){
-  const S=SIM.S,L=L35.L,o=S.over||{},P=L?L.plan:B.plan;
-  const prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[],fb=L&&L.fallback;
+  const S=SIM.S,prim=S.objectives[0],won=prim&&prim.state==='done';
+  // a campaign mission: just the result, then Next to the base's report, which keeps this detail behind More information
+  if(B.camp)return '<div class="h35-scrim"><div class="sr-window h35-result"><div class="sr-window__body"><div class="h35-result__name">'+esc(title35())+'</div>'+
+    '<span class="sr-stamp '+(won?'sr-stamp--action':'sr-stamp--bad')+'">'+(won?'Mission Success':'Mission Failed')+'</span></div>'+
+    '<div class="sr-window__foot"><span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="camp">Next</button></div></div></div>';
   // the stamp: JOB DONE (the primary and every optional), PARTIAL (a fallback, or not all the optionals), FAILED, ABORTED
-  const stamp=o.outcome==='aborted'?['ABORTED','sr-stamp--foe']:won&&!fb&&opts.every(x=>x.state==='done')?['JOB DONE','']:won?['PARTIAL','sr-stamp--action']:['FAILED','sr-stamp--bad'];
+  const stamp=stampOf();
+  return '<div class="h35-scrim"><div class="sr-window sr-window--lg h35-debrief"><div class="sr-window__head"><div class="sr-window__title">Debrief · '+esc(title35())+'</div><span class="sr-stamp '+stamp[1]+'">'+stamp[0]+'</span></div>'+
+    '<div class="sr-window__body">'+debriefBody()+'</div>'+
+    '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="saverec">Save flight record</button>'+
+    '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
+}
+/* the debrief's detail: the objectives (with a fallback), loot, rewards, losses, the phases, what decided it, the leaders'
+   calls. The demo's debrief shows it; a campaign mission's base report keeps it, with the comms, behind More information */
+function debriefBody(){
+  const S=SIM.S,L=L35.L,P=L?L.plan:B.plan;
+  const prim=S.objectives[0],won=prim&&prim.state==='done',opts=L?L.opt:[],fb=L&&L.fallback;
   const ph=L?L.phaseT:[0];
   const phs=[0,1,2].map(i=>ph[i]==null?null:((ph[i+1]!=null?ph[i+1]:S.t)-ph[i])).map((v,i)=>v==null?'':'<span class="sr-tag sr-tag--info">Phase '+(i+1)+' · '+fmtClock(v)+'</span>').join('');
   const chk=(ok,txt)=>'<div class="sr-check'+(ok?'':' is-no')+'"><span class="sr-check__box">'+(ok?'✓':'')+'</span>'+esc(txt)+'</div>';
   const lost=losses();
-  return '<div class="h35-scrim"><div class="sr-window sr-window--lg h35-debrief"><div class="sr-window__head"><div class="sr-window__title">Debrief · '+esc(opp().title)+'</div><span class="sr-stamp '+stamp[1]+'">'+stamp[0]+'</span></div>'+
-    '<div class="sr-window__body"><div class="h35-label">Objectives</div>'+(fb?chk(false,L35.PRIMARIES[fb.from].name+' (primary): off at '+fmtClock(fb.t)+', '+fb.why)+chk(won,L35.PRIMARIES[fb.to].name+' (the fallback)'):chk(won,L35.PRIMARIES[P.primary].name+' (primary)'))+
+  return '<div class="h35-label">Objectives</div>'+(fb?chk(false,L35.PRIMARIES[fb.from].name+' (primary): off at '+fmtClock(fb.t)+', '+fb.why)+chk(won,L35.PRIMARIES[fb.to].name+' (the fallback)'):chk(won,L35.PRIMARIES[P.primary].name+' (primary)'))+
     opts.map(x=>chk(x.state==='done',L35.OPTIONALS[x.k].name+(x.ship?' · '+(SIM.fn.byId(x.ship)||{name:x.ship}).name:''))).join('')+
     '<div class="h35-label">Loot</div><div>'+esc(lootOf())+'</div>'+rewardRow()+
     '<div class="h35-label">Losses</div><div>'+(lost.length?lost.map(x=>esc(x.name)+' <span class="h35-fine2">('+esc(x.pod)+')</span>').join(', '):'None')+'</div>'+
     '<div class="h35-label">Time in each phase</div><div class="sr-card__meta">'+phs+'</div>'+
-    '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div>'+leadersHtml()+'</div>'+
-    '<div class="sr-window__foot"><button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button><button type="button" class="sr-btn" data-act="newopp">New opportunity</button>'+
-    '<button type="button" class="sr-btn sr-btn--sm" data-act="saverec">Save flight record</button>'+
-    '<span class="sr-spacer"></span><button type="button" class="sr-btn sr-btn--primary" data-act="again">Plan again</button></div></div></div>';
+    '<div class="h35-label">What decided it</div><div class="h35-why">'+whyLines().map(l=>'<p>'+esc(l)+'</p>').join('')+'</div>'+leadersHtml();
+}
+/* the mission's comms: the event feed, in order */
+function commsHtml(){
+  const S=SIM.S;if(!S||!S.events.length)return '';
+  return '<div class="h35-label">Mission comms</div><div class="h35-log">'+S.events.map(e=>'<p class="is-'+esc(e.tone||'info')+'"><time>'+fmtClock(e.t)+'</time><span>'+esc(e.text)+'</span></p>').join('')+'</div>';
 }
 /* what it paid (feedback 2, §1.1, §3): the reward of the primary you ended on; the Accomplished bonus, or the one missed */
 function rewardRow(){
@@ -955,7 +1031,7 @@ function onKey(ev){
   if(B.screen==='live'&&!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){const i=PKEYS.indexOf(k.toLowerCase());if(i>=0){const p=barPowers()[i];if(p){ev.preventDefault();startPower(p.k);return true;}}}
   if(B.screen==='board'||B.screen==='debrief'||B.screen==='brief'){
     const typing=ev.target&&/^(INPUT|SELECT|TEXTAREA)$/.test(ev.target.tagName||'');
-    if(B.screen==='brief'&&k==='Escape'&&(B.pickAsset!=null||B.needsPop)){ev.preventDefault();B.pickAsset=null;B.needsPop=false;render();return true;}
+    if(B.screen==='brief'&&k==='Escape'&&(B.pickAsset!=null||B.needsPop||B.refit)){ev.preventDefault();B.pickAsset=null;B.needsPop=false;B.refit=null;render();return true;}
     if(B.screen==='brief'&&!typing){
       if(k==='Escape'||k==='ArrowLeft'){ev.preventDefault();backStep();return true;}
       if(k==='ArrowRight'&&B.step<4){ev.preventDefault();nextStep();return true;}
@@ -1019,10 +1095,12 @@ ROOT.addEventListener('click',ev=>{
   if(a==='needs'){B.needsPop=!B.needsPop;render();return;}
   if(B.needsPop&&!ev.target.closest('.h35-needs__pop')){B.needsPop=false;if(!a)render();}   // the readiness list: any other click closes it
   if(B.pickAsset!=null&&!ev.target.closest('.h35-apop')&&!(b&&b.dataset.slot!=null)){B.pickAsset=null;render();if(!b)return;}   // so does the asset picker
+  if(B.refit&&!ev.target.closest('.h35-fit')){B.refit=null;render();if(!b)return;}   // and the demo refit (S4)
   if(!b)return;
   if(b.closest('[data-stop]')&&!b.dataset.act)return;
   if(b.getAttribute('aria-disabled')==='true'){if(b.dataset.why)API.flash(b.dataset.why);return;}
-  if(a==='board'){if(B.screen==='brief')B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;showBoard(false);return;}   // the plan is kept
+  if(a==='board'){if(B.screen==='brief')B.briefT[B.step-1]+=(performance.now()-B.stepAt)/1000;toBoard();return;}   // the plan is kept
+  if(a==='camp'){campDone();return;}
   if(b.dataset.msel&&b.dataset.msel!==B.oppId&&L35.OPPORTUNITIES[b.dataset.msel]){B.oppId=b.dataset.msel;rollAttempt();showBoard(false);return;}
   if(a==='newopp'){B.seed=newSeed();rollAttempt();showBoard(false);return;}
   if(a==='dig'){dig();return;}
@@ -1035,12 +1113,13 @@ ROOT.addEventListener('click',ev=>{
   if(a==='saverec'){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))API.flash('No flight record yet');return;}
   if(b.dataset.step){goStep(+b.dataset.step);return;}
   const P=B.plan;if(!P)return;
-  if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan,B.oppId);render();return;}   // the leaders propose a plan; you edit from there
+  if(b.dataset.primary){B.plan=L35.leaderPlan(b.dataset.primary,B.plan,B.oppId);B.plan.assets=B.plan.assets.filter(assetHave);render();return;}   // the leaders propose a plan; you edit from there
   if(b.dataset.opt){const k=b.dataset.opt,i=P.optionals.findIndex(x=>x.k===k);if(i>=0)P.optionals.splice(i,1);else if(P.optionals.length<OPT_MAX)P.optionals.push({k,ship:null});render();return;}
   if(b.dataset.pres){stepPres(+b.dataset.pres);render();const f=ROOT.querySelector('[data-presfield]');if(f)f.focus();return;}
   if(b.dataset.roe){const k=b.dataset.roe,i=P.roes.indexOf(k);if(i>=0)P.roes.splice(i,1);else P.roes.push(k);render();return;}
   if(b.dataset.role){P.wings[b.dataset.wing].role=b.dataset.role;render();return;}
-  if(b.dataset.lo){P.wings[b.dataset.wing].loadout[b.dataset.ship]=b.dataset.lo;render();return;}
+  if(b.dataset.lo){P.wings[b.dataset.wing].loadout[b.dataset.ship]=b.dataset.lo;B.refit=null;render();return;}   // the demo refit (S4)
+  if(b.dataset.refit35){const [wid,sid]=b.dataset.refit35.split('|');B.refit=B.refit&&B.refit.ship===sid?null:{wing:wid,ship:sid};render();return;}
   if(b.dataset.slot!=null){B.pickAsset=B.pickAsset===+b.dataset.slot?null:+b.dataset.slot;render();return;}
   if(b.dataset.unasset!=null){const k=P.assets.splice(+b.dataset.unasset,1)[0];delete P.assetAt[k];render();return;}
   if(b.dataset.asset){if(P.assets.length<L35.ASSET_SLOTS)P.assets.push(b.dataset.asset);B.pickAsset=null;render();return;}
@@ -1310,7 +1389,7 @@ function tipFor(key){
   if(k==='opt'){const o=L35.OPTIONALS[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Optional: the primary comes first',tone:'info'};}
   if(k==='roe'){const o=L35.ROES[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Rule of engagement',tone:'info'};}
   if(k==='mod'){const o=L35.MODS[a];if(!o)return null;return {title:o.name,body:o.line,foot:o.tone==='warn'?'Against you':'In your favour',tone:o.tone==='warn'?'warn':'info'};}
-  if(k==='lo'){const o=L35.LOADOUTS[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Brickbat loadout',tone:'info'};}
+  if(k==='lo'){const o=L35.LOADOUTS[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Fitted at Refit, in the hangar: no changes at mission time',tone:'info'};}
   if(k==='asset'){const o=L35.ASSETS[a];if(!o)return null;return {title:o.name,body:o.line,foot:o.power?'Unlocks '+o.power:'Passive',tone:'cost'};}
   if(k==='ord'){const o=L35.ORDERS35[a];if(!o)return {title:'Executive Order',body:'What the wing is there to do.'};return {title:o.name,body:ORD_TIP[a]||'',foot:'Executive or Secondary Order',tone:'info'};}
   if(k==='role'){const r=ROLE_TIP[a];return r?{title:r[0],body:r[1]}:null;}
@@ -1487,7 +1566,7 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
 
 /* ---------- DBGarena.hc35 ---------- */
 const dbg={B,L35,get L(){return L35.L;},get S(){return SIM.S;},
-  fn:{open,close,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,toWorld,toLayout,fitPlan,record,OV,syncTarget,subTip,hoverSubs,
+  fn:{open,close,campResult,campDone,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,toWorld,toLayout,fitPlan,record,OV,syncTarget,subTip,hoverSubs,
     go(screen){if(screen==='brief')enterBrief();else if(screen==='board'||screen==='dossier')showBoard(false);},   // (the dossier lives in the board's rail now)
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++)SIM.step();if(SIM.S.over&&B.screen==='live')API.onOver();API.syncHud(true);return SIM.S.t;}}};
 window.SR_ARENA_HC35={open,close,dbg,get active(){return B.screen!=='off';}};
