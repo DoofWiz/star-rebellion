@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-14';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-15';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -193,6 +193,24 @@ const OPPORTUNITIES={
       {id:'home',type:'point',name:'our jump point',side:'reb'}],
     events:{alarm:['spotted','shots','signal','warp-close'],distress:{from:'freighter.comms',secs:20},response:{cast:'response',after:150}}},
   // Patrol Sweep (playtest 3, §3.7): data only. A force to clear and its reinforcements to ambush; no key object
+  // Torch the Depots (the Space Combat FTUE, 22 October): the prologue's first space mission. Four fuel depots over
+  // Akkaro and a ring of sentry drones round each; nobody to call, so no response. One ship (Joss), which should massively
+  // outperform the drones, and keeps her missiles for the depots (missilesFor). The mission's own reward pays (missionPays)
+  torch_depots:{id:'torch_depots',title:'Torch the Depots',type:'depots',typeLabel:'Raid',
+    source:{id:'venn',name:'Maro Venn',level:1,reliability:'Venn built half that yard. He knows it.'},
+    lead:'Four orbital fuel depots over Akkaro, watched by sentry drones and nothing else.',   // placeholder copy
+    lane:[[2600,1500],[5600,1500]],   // a raid has no lane: High Command's frame wants two points
+    extract:{x:300,y:900,label:'Our jump point'},relay:{x:0,y:3000},
+    response:null,escorts:[],cargo:0,hazard:[],modN:[0,0],
+    rocks:[{x:2300,y:2600,r:110},{x:4700,y:300,r:95},{x:6100,y:2400,r:120}],
+    jumpIn:{x:1500,y:1500},
+    families:['take','deny','use','bait'],key:null,missilesFor:'depots',missionPays:true,
+    cast:[{id:'depots',type:'structure',name:'the fuel depots',side:'heg',tags:['destructible'],
+            of:[{type:'fuel-depot',id:'depot1',name:'Depot 1',stats:{hull:14,arm:0},at:[3000,1400]},{type:'fuel-depot',id:'depot2',name:'Depot 2',stats:{hull:14,arm:0},at:[3900,700]},
+                {type:'fuel-depot',id:'depot3',name:'Depot 3',stats:{hull:14,arm:0},at:[4400,2200]},{type:'fuel-depot',id:'depot4',name:'Depot 4',stats:{hull:14,arm:0},at:[5300,1300]}]},
+          {id:'sentries',type:'force',name:'the sentry drones',side:'heg',tags:[],guards:'depots',ring:420,nuisance:true,dmgK:0.35,of:[{type:'drone-monitor',n:4,name:'Sentry',stats:{hull:3,arm:0}}]},   // easy kills, and plenty of them (the FTUE doc)
+          {id:'home',type:'point',name:'our jump point',side:'reb',at:[300,900]}],
+    events:{}},
   patrol_sweep:{id:'patrol_sweep',title:'Patrol Sweep',type:'patrol',typeLabel:'Patrol',
     source:{id:'cass',name:'Cass',level:2,reliability:'Cass sees most things. Not all.'},
     lead:'A Hegemony patrol is hunting our smugglers in the Ashfall belt.',   // placeholder copy
@@ -324,6 +342,8 @@ const PRIMARIES={
   ambush:{family:'Bait with it',name:'Ambush the Responders',pitch:'Use it as bait to draw them in',caveat:'Timing: the response arrives in Phase 3',wins:'Destroy three of the Hegemony response.',needs:['notRemote'],loot:'Response kills',
     reward:{base:{c:100},per:{c:60},perText:'a response kill',bonus:{c:150}}},
 };
+/* what a primary asks, in the words of its opportunity: Destroy on a cast thing that isn't the freighter names it */
+function winsOf(k,opp){const P=PRIMARIES[k];if(!P)return '';if(k==='destroy'&&opp&&opp.key!=='freighter'){const p=SR_OPS.primaries(opp).find(x=>x.verb==='destroy'),t=p&&(opp.cast||[]).find(x=>x.id===p.obj);if(t)return 'Destroy '+t.name+'.';}return P.wins;}
 /* the primaries an opportunity offers, derived from its cast (SR_OPS.primaries): the freighter's are the seven */
 const primaryKeysOf=opp=>SR_OPS.primaries(opp).map(p=>p.verb).filter(k=>PRIMARIES[k]);
 const PRIMARY_KEYS=primaryKeysOf(OPPORTUNITIES.vulnerable_freighter);
@@ -437,14 +457,21 @@ function compile(opp,mods,plan,seed){
   // assets ride in hc35plan, in layout units, and the layer scales them the same way (begin)
   const points={ourjump:{x:opp.extract.x,y:opp.extract.y,label:opp.extract.label}};
   const P=PRIMARIES[plan.primary],fr=opp.key==='freighter';
-  const castFoes=[];if(!fr)for(const t of opp.cast||[])if(t.type==='force'&&t.of&&!t.arrives){let i=0;const a=t.at||[lane[0][0],lane[0][1]];   // Patrol Sweep: its forces, from the cast
+  const castFoes=[];
+  // a structure (Torch the Depots): each piece where the cast puts it
+  if(!fr)for(const t of opp.cast||[])if(t.type==='structure'&&t.of)for(const f of t.of)castFoes.push({type:f.type,id:f.id,name:f.name,label:f.name,at:[f.at[0],f.at[1],0],cast:t.id,stats:f.stats});
+  if(!fr)for(const t of opp.cast||[])if(t.type==='force'&&t.of&&!t.arrives){let i=0;const a=t.at||[lane[0][0],lane[0][1]];   // Patrol Sweep: its forces, from the cast
+    const gd=t.guards&&(opp.cast||[]).find(x=>x.id===t.guards);
+    if(gd){gd.of.forEach((d,j)=>{let k=0;const per=t.of.reduce((s2,f)=>s2+(f.n||1),0);   // guards: a ring of them round each piece of what they guard
+      for(const f of t.of)for(let n=0;n<(f.n||1);n++,k++){const a2=j*0.7+k*2*Math.PI/per,r=t.ring||400;
+        castFoes.push({type:f.type,id:t.id+j+'_'+k,name:(f.name||'Sentry')+' '+(j+1)+String.fromCharCode(97+k),at:[d.at[0]+Math.cos(a2)*r,d.at[1]+Math.sin(a2)*r,a2],role:'guard',asset:d.id,cast:t.id,stats:f.stats});}});continue;}
     for(const f of t.of)for(let n=0;n<(f.n||1);n++,i++)castFoes.push({type:f.type,id:t.id+i,name:(f.name||'Hostile')+(f.n>1?' '+(n+1):''),label:f.lead?f.name:undefined,at:[a[0]+((i%4)-1.5)*260,a[1]+Math.floor(i/4)*260,Math.PI],role:'hunt',cast:t.id,lead:!!f.lead});}
   return {id:'hc35_freighter',title:'Type 3.5: '+opp.title,rulesets:['hc35'],hc35:true,desc:opp.lead,
     rocks,wings,allies:[],
     enemies:fr?[{type:'fl400',id:'fl400',name:opp.target.name,label:opp.target.label,at:[lane[0][0],lane[0][1],h0],role:'freighter',preset:'regular',flees:false}].concat(esc):castFoes,
     points,extract:'ourjump',
-    objectives:[{id:'primary',kind:'hc35',text:P?P.name+': '+P.wins:'No primary',primary:true,key:plan.primary}],
-    reinforce:{secs:1e9,edge:opp.response.edge,force:[]},rules:[],cp:0,
+    objectives:[{id:'primary',kind:'hc35',text:P?P.name+': '+winsOf(plan.primary,opp):'No primary',primary:true,key:plan.primary}],
+    reinforce:{secs:1e9,edge:(opp.response||{edge:'N'}).edge,force:[]},rules:[],cp:0,
     hc35plan:{opp:opp.id,mods:mods.map(x=>Object.assign({},x)),plan:JSON.parse(JSON.stringify(plan)),seed,lane,reserves}};   // reserves: in layout units, scaled when called
 }
 /* an Executive Order as the High Command order it rides on (the layer drives the rest) */
@@ -477,7 +504,8 @@ const LEADER_PLANS={
   tag:{dagger:[{k:'hold',arg:FAR_HOLD},{trig:'phase2',k:'withdraw'}],anvil:null,amber:[{k:'tag'},null],tagger:'kit',optionals:['ghost']},
   ambush:{dagger:[{k:'ambush',arg:'response'},null],anvil:[{k:'disable',arg:'engines'},{trig:'phase3',k:'ambush',arg:'response'}],amber:[{k:'ambush',arg:'response'},null],assets:['mines']},
 };
-const OPP_PLANS={patrol_sweep:{
+const OPP_PLANS={torch_depots:{destroy:{dagger:[{k:'destroy',arg:'depots'},null],anvil:[{k:'destroy',arg:'depots'},null],amber:[{k:'destroy',arg:'depots'},null]}},
+  patrol_sweep:{
   clear:{dagger:[{k:'destroy',arg:'patrol'},null],anvil:[{k:'destroy',arg:'patrol'},null],amber:[{k:'destroy',arg:'patrol'},null]},
   ambush:{dagger:[{k:'ambush',arg:'reinforcements'},null],anvil:[{k:'destroy',arg:'patrol'},{trig:'phase3',k:'ambush',arg:'reinforcements'}],amber:[{k:'ambush',arg:'reinforcements'},null]}}};
 /* the plan the leaders propose for a primary: the roles, orders and loadouts filled in; the jump-ins and assets kept */
@@ -506,7 +534,8 @@ function critique(plan,wid,mods,ctx){
   if(pw.role==='home')return CALM_TAKES.home;
   if(pw.role==='reserve')return CALM_TAKES.reserve;
   const ex=pw.exec||{},has=planHas(plan),lo=w.ships.filter(loads).map(s=>loadOf(pw,s));
-  if((ex.k==='disable'||(ex.k==='destroy'&&plan.primary!=='ambush'))&&!lo.includes('bombs')&&!has.bombs)return 'We can\'t crack that hull with repeaters, Base.';
+  const onFr=!ex.arg||ex.arg==='freighter';   // a Destroy on anything else (the depots) needs no bombs
+  if((ex.k==='disable'||(ex.k==='destroy'&&onFr&&plan.primary!=='ambush'))&&!lo.includes('bombs')&&!has.bombs)return 'We can\'t crack that hull with repeaters, Base.';
   if(ex.k==='disable'&&!lo.includes('bombs'))return 'We can\'t crack that hull with repeaters, Base.';
   if(ex.k==='board'&&!lo.includes('board'))return 'Nobody here to board her, Base.';
   if(lo.includes('board')&&!WINGS35.some(o=>plan.wings[o.id].role!=='home'&&plan.wings[o.id].exec&&(plan.wings[o.id].exec.k==='suppress'||plan.wings[o.id].exec.k==='defend')))return 'We\'re sitting ducks while we clamp on. Who\'s keeping the guns off us?';   // she needn't be stopped now, but a boarder's exposed
@@ -578,7 +607,8 @@ function begin(){
     if(m('limping'))L.cruise*=0.6;
     fr.vx=Math.cos(fr.h)*L.cruise;fr.vy=Math.sin(fr.h)*L.cruise;fr.subs35=L.subs;
     fr.abCd={};for(const a of Object.keys(SIM.ABILITIES))fr.abCd[a]=1e9;fr.chaffLeft=0;}   // a freighter has no pilot's tricks
-  for(const e of R.enemies)if(e.cast){const s=F.byId(e.id);if(s){s.cast35=e.cast;if(e.lead)L.callerId=s.id;}}   // a cast force's ships (Patrol Sweep); its lead calls for help
+  for(const e of R.enemies)if(e.cast){const s=F.byId(e.id);if(s){s.cast35=e.cast;if(e.lead)L.callerId=s.id;
+    const ct=(L.opp.cast||[]).find(c=>c.id===e.cast);if(ct&&ct.dmgK!=null)for(const q of s.wpns||[])q.w=Object.assign({},q.w,{dmg:q.w.dmg.map(v=>v*ct.dmgK)});}}   // a cast's weaker guns (Torch the Depots' sentries)   // a cast force's ships (Patrol Sweep); its lead calls for help
   for(const e of R.enemies)if(e.role==='guard'&&e.asset==='fl400'){const s=F.byId(e.id);if(s){s.role35='escort';s.side35=e.side||0;}}
   L.escN=S.ships.filter(s=>s.role35==='escort').length;L.escN0=L.escN;
   // the escort the Source briefed: what you'd expect without the hidden Heavy Escort or Ace Escort
@@ -594,6 +624,7 @@ function begin(){
 function findShipDef(id){for(const w of SIM.S.R.wings||[])for(const sd of w.ships)if(sd.id===id)return sd;return null;}
 function attach(){
   HK.classExtra=HC35_CLASSES;
+  HK.nuisance=s=>!!s&&!!s.cast35&&!!L&&(L.nuis||(L.nuis=new Set((L.opp.cast||[]).filter(c=>c.nuisance).map(c=>c.id)))).has(s.cast35);   // their fire neither pins nor rattles a pilot (Torch the Depots' sentries)
   HK.bodyHit=(t,p0,p1)=>L&&t.id===L.fr?frBodyHit(t,p0,p1):undefined;   // past her shields, a shot lands on her hull (22 October)
   HK.loadoutExtra=(row,list)=>plasmaLoadout(row,list);   // attached means a 3.5 build (the ships are made before begin())
   HK.think=s=>live()?think(s):false;
@@ -752,6 +783,7 @@ const cargoLost=()=>L.subs.filter(x=>x.k==='cargo'&&(x.hp<=0||x.taken)).map(x=>x
 /* ---------- who may fire on what (P3 adds the rules) ---------- */
 function canFire(s,t,q){
   if(s.gunsDown35)return false;   // its guns are out (L4)
+  if(q&&q.w&&q.w.needsLock&&s.faction==='reb'&&L.opp.missilesFor&&(t.cast35!==L.opp.missilesFor||SIM.S.missiles.some(m=>m.owner===s.id&&m.target===t.id)))return false;   // Torch the Depots: missiles for the depots (the FTUE doc)
   if(t.unseen||s.dock35)return false;   // in a hangar, out of reach; clamped on, helpless
   if(t.id===L.fr&&(L.surrender||L.prize))return false;   // a surrendered ship or our prize: hold fire
   if(s.id===L.fr)return false;
@@ -841,7 +873,7 @@ function thinkWing(s){
       if(s.sub35==='power'&&L.primK==='crash'&&!crashWindow()){if(defend(s))return true;return setB(s,{kind:'holdoff',win:true,why:'waiting for the gravity window'});}   // 22 October: hold fire till she'll fall
       w.order={kind:'attack',target:{type:'ship',id:L.fr}};return false;
     case 'destroy':{const o=exObj(ex);
-      if(o&&o!=='freighter'&&o!=='area'){const fs=forceShips(o),e=nearestFoe(s,x=>fs.includes(x));if(e)return setB(s,{kind:'engage',target:e.id,why:'going for '+thingName(o)});return holdBy(s,w);}
+      if(o&&o!=='freighter'&&o!=='area'){const fs=forceShips(o),cur=s.beh&&s.beh.kind==='engage'&&F.byId(s.beh.target),e=cur&&cur.struct&&cur.alive&&fs.includes(cur)?cur:nearestFoe(s,x=>fs.includes(x),true);if(e&&e.struct&&defend(s))return true;if(e)return setB(s,{kind:'engage',target:e.id,why:'going for '+thingName(o)});return holdBy(s,w);}
       if(o==='area'){const p=exAt(ex)||w.rally||F.wingCentre(w),e=nearestFoe(s,x=>!x.struct&&dist(x,p)<HOLD35_R);if(e)return setB(s,{kind:'engage',target:e.id,why:'clearing the area'});if(defend(s))return true;return setB(s,{kind:'waitpt',dest:p,why:'watching the area'});}
       if(!frLive)return holdBy(s,w);w.order={kind:'attack',target:{type:'ship',id:L.fr}};s.sub35=s.load35==='bombs'?'core':null;return false;}
     case 'suppress':
@@ -931,9 +963,9 @@ function threatens(s){const b=s.beh||{},t=b.target&&F.byId(b.target);return b.ki
 /* a hostile attacking one of this wing's ships, within AID_R of this ship (playtest 3, §3.4) */
 function mateAttacker(s,w){let b=null,bd=N.AID_R;for(const m of F.wingShips(w)){if(m===s)continue;const a=attackerOf(m);if(a){const d=dist(s,a);if(d<bd){bd=d;b=a;}}}return b;}
 function defend(s){const a=attackerOf(s);return a?setB(s,{kind:'engage',target:a.id,why:'self-defence'}):false;}
-function nearestFoe(s,f){let b=null,bd=1e18;for(const t of SIM.S.ships){if(!t.alive||t.faction===s.faction||t.struct||t.quiet||(f&&!f(t)))continue;const d=dist(s,t);if(d<bd){bd=d;b=t;}}return b;}
+function nearestFoe(s,f,st){let b=null,bd=1e18;for(const t of SIM.S.ships){if(!t.alive||t.faction===s.faction||(t.struct&&!st)||t.quiet||(f&&!f(t)))continue;const d=dist(s,t);if(d<bd){bd=d;b=t;}}return b;}
 function farPoint(s){const fr=FR();if(!fr)return {x:s.x,y:s.y};const a=Math.atan2(s.y-fr.y,s.x-fr.x);return {x:fr.x+Math.cos(a)*7000,y:fr.y+Math.sin(a)*7000};}
-function ambushPoint(){const Z=SIM.zone,p=arrivalAt();return {x:p.x,y:L.opp.response.edge==='S'?Z.y1-1800:Z.y0+1800};}   // inside the edge the response warps in at, by its arrival point
+function ambushPoint(){const Z=SIM.zone,p=arrivalAt();return {x:p.x,y:(L.opp.response||{}).edge==='S'?Z.y1-1800:Z.y0+1800};}   // inside the edge the response warps in at, by its arrival point
 /* the side of the freighter a ship is on: +1 left of its heading, −1 right (the sign of the cross product, §3.2) */
 const sideOf=(fr,s)=>Math.cos(fr.h)*(s.y-fr.y)-Math.sin(fr.h)*(s.x-fr.x)>=0?1:-1;
 /* where a boarder or hauler clamps on: on the side it came from, at the hull's edge (the sim's true outline) plus 0.6 ×
@@ -1020,6 +1052,7 @@ function setPhase(n,text){
 function responseSecs(){let t=N.RESPONSE_SECS;if(modOn(L.mods,'rich'))t*=0.75;if(modOn(L.mods,'rapid'))t*=0.5;return t;}
 /* the response (Phase 3): warps in beyond the play area's edge, near the freighter's jump point */
 function spawnResponse(){
+  if(!L.opp.response)return;   // nobody to come (Torch the Depots)
   const S=SIM.S,Z=SIM.zone,R=L.opp.response,arr=(L.opp.cast||[]).find(t=>t.arrives),n=R.force.reduce((a,f)=>a+(f.n||1),0),grp=++S.grpN;let i=0;
   const A=arrivalAt(),cx=clamp(A.x,Z.x0+2000,Z.x1-2000);
   callout('RESPONSE INBOUND','foe',{x:cx,y:A.y});
@@ -1416,7 +1449,8 @@ function primaryTick(fr){
   const S=SIM.S,o=L.prim,k=L.primK;if(o.state!=='live')return;
   const gone=!fr||!fr.alive,dead=gone&&!!fr&&!fr.jumped;
   let done=false,fail=false;
-  if(k==='destroy'){done=dead;fail=L.escaped||L.prizeHome;}
+  if(k==='destroy'&&L.primObj&&L.primObj!=='freighter'){done=!forceShips(L.primObj).length&&forceN0(L.primObj)>0;}   // Torch the Depots: every one of them
+  else if(k==='destroy'){done=dead;fail=L.escaped||L.prizeHome;}
   else if(k==='crash'){done=dead&&L.crashed;winTick();
     const stuck=!gone&&L.disabled&&dist(fr,L.planet)>L.planet.pull&&Math.hypot(fr.vx,fr.vy)<5;   // dead in space outside the pull: it will never fall
     fail=(dead&&!L.crashed)||L.escaped||stuck||(!gone&&!L.disabled&&L.winPassed)||(!gone&&!L.disabled&&!L.powerSeen&&!bombsLeft());}   // or nothing left to open her up with (once the power plant shows, guns can finish it)
@@ -1462,7 +1496,7 @@ function winTick(){const fr=FR();if(!fr||!fr.alive||L.disabled||L.winPassed)retu
 function canStill(k,obj){
   const fr=FR(),gone=!fr||!fr.alive,dead=gone&&fr&&!fr.jumped,live=!gone&&!L.escaped&&!L.prize,stop=true;   // after playtest 2 she needn't be stopped to board
   switch(k){
-    case 'destroy':return dead||(live&&!L.surrender);
+    case 'destroy':if(L.primObj&&L.primObj!=='freighter')return forceShips(L.primObj).length>0;return dead||(live&&!L.surrender);
     case 'crash':winTick();return live&&(L.disabled?dist(fr,L.planet)<L.planet.pull||Math.hypot(fr.vx,fr.vy)>=5:!L.winPassed&&(L.powerSeen||bombsLeft()));
     case 'steal':return live&&!L.scuttleOut&&(L.boarded||boarderLeft())&&stop;
     case 'strip':return live&&podsLeft()&&cargoLeft()>0&&stop;
@@ -1487,7 +1521,7 @@ const FB_LINE={clear:'We\'ll clear the escort instead.',destroy:'We\'ll finish h
 function fallBack(from,to,why,obj){
   const S=SIM.S,o=L.prim;
   L.fallback={from,to,t:+S.t.toFixed(2),why,obj:obj||null};L.primK=to;if(obj)L.primObj=obj;
-  o.text=PRIMARIES[to].name+' (for '+PRIMARIES[from].name+'): '+PRIMARIES[to].wins;o.key=to;
+  o.text=PRIMARIES[to].name+' (for '+PRIMARIES[from].name+'): '+winsOf(to,L.opp);o.key=to;
   const sr=fieldWings()[0];
   if(sr)decide(sr.id,PRIMARIES[from].name+' is off: '+why+'. '+FB_LINE[to],'fallback',PRIMARIES[from].name+' could no longer be done');
   SIM.pushEvent('objective','Fallback: '+PRIMARIES[to].name+' in place of '+PRIMARIES[from].name,{tone:'info'});
@@ -1513,7 +1547,7 @@ function fieldExec(wid,k){
   const busyWith=lo=>fieldWings().find(x=>x.id!==wid&&execState(x.id)==='busy'&&F.wingShips(x).some(s=>s.load35===lo));   // cover a wing at work, never one covering us
   const cover=lo=>{const o=busyWith(lo);return o?{k:'defend',arg:o.id}:null;};
   switch(k){
-    case 'destroy':return has('bombs')||!escorts?{k:'destroy',arg:null}:{k:'suppress',arg:'escorts'};
+    case 'destroy':if(L.primObj&&L.primObj!=='freighter')return {k:'destroy',arg:L.primObj};return has('bombs')||!escorts?{k:'destroy',arg:null}:{k:'suppress',arg:'escorts'};
     case 'crash':return has('bombs')&&!L.disabled?{k:'disable',arg:'power'}:escorts?{k:'suppress',arg:'escorts'}:cover('bombs')||{k:'hold',arg:null};
     case 'steal':return has('board')?{k:'board',arg:null}:has('bombs')&&!L.engOut?{k:'disable',arg:'engines'}:cover('board')||(escorts?{k:'suppress',arg:'escorts'}:{k:'suppress',arg:'turrets'});
     case 'strip':return has('pods')?{k:'haul',arg:null}:has('bombs')&&!L.engOut?{k:'disable',arg:'engines'}:cover('pods')||(escorts?{k:'suppress',arg:'escorts'}:{k:'hold',arg:null});
@@ -1774,7 +1808,9 @@ function insist(){
 function groupOf(t){const S=SIM.S;return S.ships.filter(s=>s.alive&&s.faction==='heg'&&s.id!==L.fr&&(t.role35?s.role35===t.role35:s.grp===t.grp));}
 /* how far along a wing's Executive Order is, 0–1 (for "We're nearly there, Base") */
 function progressOf(wid){
-  const ex=L.exec[wid],fr=FR(),S=SIM.S;if(!ex||!fr)return 0;
+  const ex=L.exec[wid],fr=FR(),S=SIM.S;
+  if(ex&&ex.k==='destroy'){const o=exObj(ex);if(o&&o!=='freighter'&&o!=='area'){const n0=forceN0(o);return n0?1-forceShips(o).length/n0:0;}}   // a cast thing: how many are gone
+  if(!ex||!fr)return 0;
   switch(ex.k){
     case 'disable':{const l=L.subs.filter(x=>x.k===subKey(ex.arg||'engines'));return 1-l.reduce((a,x)=>a+Math.max(0,x.hp),0)/Math.max(1,l.reduce((a,x)=>a+x.max,0));}
     case 'destroy':return 1-Math.max(0,fr.hull)/fr.maxHull;
@@ -2322,7 +2358,7 @@ return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
   POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
   REQ35,ANS,answerReq,reqTrigger,personaOf,SUB_NAME,verbOf,VERBS,
-  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,FR_BODY,frBodyHit,crashWindow,winTick,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
+  winsOf,fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,FR_BODY,frBodyHit,crashWindow,winTick,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
     canComeAtAll:(plan,mods)=>!plan.optionals.some(o=>o.k==='distress')&&!(mods||[]).some(m=>m.k==='remote'&&!m.hidden),responseEta:()=>N.DISTRESS_SECS+N.RESPONSE_SECS,
     arrivalName:()=>{const r=(L.opp.cast||[]).find(t=>t.arrives);return r?thingName(r.arrives.at):'the jump point';}}};
 })();

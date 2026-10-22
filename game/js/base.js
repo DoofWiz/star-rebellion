@@ -383,12 +383,12 @@ function craftHTML(){
 /* ---------- the player's wings in Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S6) ----------
    Every wing with a ship free to fly and its pilot, the leader first, as 3.5 flies them: the pilot's skills, nerve and
    traits (the one mapping table: SR_OPS.traitsOf), the ship's configuration, stored hull %, Heavy Frames */
-function wings35(){
+function wings35(only){   // only(fighter): the ships this mission takes (a starfighter mission: no transports)
   const out=[],sim=id=>'pf_'+id,flying={};
   for(const w of wingsOf()){
     if(wingBusy(w))continue;
     const ms=w.members.filter(m=>m.pilotId).map(m=>({p:G.people.find(x=>x.id===m.pilotId),f:G.fighters.find(x=>x.id===m.shipId)}))
-      .filter(x=>x.p&&x.f&&!offDuty(x.p)&&x.p.assign!=='mission'&&x.p.assign!=='spec'&&!Rebel.expHas(x.p,'grieving')&&!x.f.out&&!(x.f.refit>0));   // as ablePilots: grieving pilots stay home
+      .filter(x=>x.p&&x.f&&!offDuty(x.p)&&x.p.assign!=='mission'&&x.p.assign!=='spec'&&!Rebel.expHas(x.p,'grieving')&&!x.f.out&&!(x.f.refit>0)&&(!only||only(x.f)));   // as ablePilots: grieving pilots stay home
     ms.sort((a,b)=>(b.p.id===w.leaderId)-(a.p.id===w.leaderId));
     if(ms.length){for(const x of ms)flying[x.p.id]=sim(x.f.id);out.push({id:w.id,name:w.name,ms});}
   }
@@ -1099,7 +1099,10 @@ const SRC_EVENTS={
 };
 /* Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S1): the missions a test wing can fly in Type 3.5, with ?dev, and the opportunity
    each flies as. The flight changes nothing in the campaign until S6; S7 makes them cast templates on the Sources */
-const M35={intercept:'vulnerable_freighter'};
+const M35={intercept:'vulnerable_freighter',depotrun:'torch_depots'};
+/* the ones every player flies in Type 3.5 (the Space Combat FTUE: Torch the Depots, the prologue's first space mission):
+   Plan mission opens 3.5's planning windows in place of the plan window. The rest stay ?dev only until S8 */
+const M35_LIVE={depotrun:1};
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
@@ -6242,7 +6245,7 @@ function msBriefHTML(m){
   else{
     const ok=canPlan(m),why=ok?'':(pc.find(c=>!c.ok&&!c.soft)||{}).why||'';
     plan=rbtn('data-mplan="'+m.id+'"','Plan mission',!ok,'sr-btn--primary sr-btn--lg')+(why?'<div class="bf-plan__why">'+IC('lock')+esc(why)+'</div>':'');
-    if(SR.dev&&M35[m.id])plan+=rbtn('data-m35="'+m.id+'" title="Your wings fly it in Type 3.5, and it counts (dev only until S8)"','Fly it in Type 3.5 (dev)',false,'sr-btn--sm splash__tool bf-dev35');   // dev only (S1, S6)
+    if(SR.dev&&M35[m.id]&&!M35_LIVE[m.id])plan+=rbtn('data-m35="'+m.id+'" title="Your wings fly it in Type 3.5, and it counts (dev only until S8)"','Fly it in Type 3.5 (dev)',false,'sr-btn--sm splash__tool bf-dev35');   // dev only (S1, S6)
   }
   return h+'<div class="bf-plan">'+plan+'</div></div>';
 }
@@ -6265,14 +6268,19 @@ function msClick(ev){
 function fly35(id){
   const m=id==='test'?null:G.missions.find(x=>x.id===id&&M35[x.id]);
   if(id!=='test'&&!m)return;
-  const ws=m?wings35():[];
+  const ws=m?wings35(m.fighterReq==='starfighter'?f=>!SEATS[f.cls]:null):[];   // Torch the Depots: Dustfall flies, the Marta stays home
   if(m&&!ws.length){flashMsg('No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
   // S6: your wings fly it and it counts (the days, the pay, the hurt), with your Intel and your crafted assets
-  SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{})}:null;
+  SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{}),
+    rew:Object.assign({},m.rew||{}),   // the mission's own reward, for an opportunity that pays it (Torch the Depots)
+    ftue:m.id==='depotrun'&&!ftue35Seen(),onFtue:ftue35Done}:null;   // the Space Combat FTUE: the first time you plan it
   closeWin();closeTilePop();
   SR.transition('hyperspace',{},()=>SR.go('space35',SR.mission?{mission:SR.mission}:{}));
 }
 
+/* the Space Combat FTUE (the designer's doc, 22 October): seen once you've launched its mission; Pro.replayTuts clears it */
+const ftue35Seen=()=>!!(G.prologue&&G.prologue.flags&&G.prologue.flags.tut&&G.prologue.flags.tut.space35);
+function ftue35Done(){if(G.prologue&&G.prologue.flags){G.prologue.flags.tut=G.prologue.flags.tut||{};G.prologue.flags.tut.space35=1;}}
 /* ---------- the Intelligence tab: The Network (docs/ui/SCREENS-HANDOFF-2.md §3) ----------
    A full stage view after Missions: the Intelligence Centre, its Agents and their cells of Sources as a graph,
    the Bureau's Exposure, interrogations with their clocks, and Leads. Numbers the Network doc fixes are
@@ -9147,6 +9155,7 @@ function whereHTML(m){
 const DROP_COST=160;   // supplies for a Supply Drop
 let PL=null;
 function openPlan(m){
+  if(M35_LIVE[m.id]){fly35(m.id);return;}   // planned and flown in Type 3.5
   const r=reqOf(m);
   PL={m,req:r,v:{},slots:[],assets:[],pick:null};
   if(r.transport){
@@ -9867,7 +9876,7 @@ function applyDebrief(r){
     Items.take(G.armory,'charge',r.chargeUsed);
   }
   if(r.space35){   // Type 3.5 (S6): what the mission paid (the stand-ins: the rewards proposal waits for the designer), whatever the primary
-    applyRew(salvaged(r.rew35||{}),got);
+    applyRew(salvaged(r.missionPays?(r.win&&m?m.rew||{}:{}):r.rew35||{}),got);   // an opportunity that pays the mission's own reward (Torch the Depots): on a win
     if(r.broadcast)expGain(5,'the Firebrand Broadcast');   // placeholder (C-91)
     for(let i=0;i<(r.witnesses||0);i++){expGain(2,'a witness got away');   // placeholders: +2 each, a 25% Bureau Lead (C-91)
       if(rng()<0.25){G.bureauLeads=G.bureauLeads||[];G.bureauLeads.push({target:{kind:'cell',id:(m&&m.loc)||'veray'},from:null,day:G.day,cold:0,space35:1});}}

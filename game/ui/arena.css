@@ -701,3 +701,24 @@
 @keyframes h35-reqin{0%{box-shadow:0 0 0 0 rgba(255,200,58,.9);}100%{box-shadow:0 0 0 14px rgba(255,200,58,0);}}
 #arHc .h35-ans__note{display:block;font-style:normal;font-size:11px;color:var(--sr-hazard);}
 @media (prefers-reduced-motion:reduce){#arHc .h35-req.is-new{animation:none;outline:2px solid var(--sr-gold);}}
+
+/* ---------- the Space Combat FTUE (game/js/ftue35.js): the intro window, its pointer, coach cards and the click ring ---------- */
+#ftue35{position:fixed;inset:0;z-index:9000;pointer-events:none;}
+#ftue35 .f35-intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto;}
+#ftue35 .f35-intro[hidden],#ftue35 [hidden]{display:none;}
+#ftue35 .f35-scrim{position:absolute;inset:0;background:rgba(4,6,18,.72);}
+#ftue35 .f35-win{position:relative;width:min(620px,calc(100vw - 32px));}
+#ftue35 .f35-page{margin-left:auto;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;color:var(--sr-text-3);}
+#ftue35 .f35-art{border-radius:var(--sr-r);overflow:hidden;border:var(--sr-line) solid var(--sr-ink);margin-bottom:14px;}
+#ftue35 .f35-art canvas{display:block;width:100%;height:auto;}
+#ftue35 .f35-text{margin:0;font:600 var(--sr-fs-md)/1.5 var(--sr-font-ui);color:var(--sr-text);}
+#ftue35 .f35-text b{color:var(--sr-gold);font-weight:800;}
+#ftue35 .sr-coach.f35-coach{position:absolute;display:block;width:330px;pointer-events:none;}
+#ftue35 .f35-coach .sr-btn{pointer-events:auto;}
+#ftue35 .f35-n{margin-left:auto;font:800 11px/1 var(--sr-font-ui);opacity:.6;}
+#ftue35 .sr-pointer.f35-ptr{position:absolute;}
+#ftue35 .f35-ptr.below{flex-direction:column-reverse;}
+#ftue35 .f35-ptr.below .sr-pointer__arrow{border-top-color:transparent;border-bottom:12px solid var(--sr-gold);margin-top:0;margin-bottom:4px;}
+#ftue35 .f35-ring{position:absolute;border:3px solid var(--sr-gold);border-radius:12px;box-shadow:0 0 0 4px rgba(255,196,64,.25);animation:f35-pulse 1.3s ease-in-out infinite;}
+@keyframes f35-pulse{0%,100%{box-shadow:0 0 0 2px rgba(255,196,64,.5);}50%{box-shadow:0 0 0 10px rgba(255,196,64,0);}}
+@media (prefers-reduced-motion:reduce){#ftue35 .f35-ring{animation:none;}}

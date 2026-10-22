@@ -441,7 +441,7 @@ function projTick(dt){
     if(best){
       const r=hitShip(best.t,p.owner,p.w,p.vx,p.vy,best.h,false,null);
       if(B){B.hits++;B.live--;
-        if(!B.hitT[best.t.id]){B.hitT[best.t.id]=1;adjCool(best.t,((r.r.ad>0||r.r.hd>0)?-12:-5)*BURST_EVERY/2);}}
+        if(!B.hitT[best.t.id]){B.hitT[best.t.id]=1;if(!(HK.nuisance&&HK.nuisance(byId(p.owner))))adjCool(best.t,((r.r.ad>0||r.r.hd>0)?-12:-5)*BURST_EVERY/2);}}   // nor rattles
       continue;
     }
     if(rockHit(p0,p1)||p.age>=p.life){if(B)B.live--;continue;}
@@ -1414,7 +1414,7 @@ function pickLine(s,key,t){
   const bank=ASSESS[key]||ASSESS.form;let h=0;for(const ch of s.id+key)h=(h*31+ch.charCodeAt(0))>>>0;
   return bank[h%bank.length].replace('{t}',t||'it');
 }
-function pinnedBy(s){return foesOf(s).filter(t=>!t.struct&&inArc(t,s)&&dist(t,s)<=gunRange(t)*1.05);}
+function pinnedBy(s){return foesOf(s).filter(t=>!t.struct&&!(HK.nuisance&&HK.nuisance(t))&&inArc(t,s)&&dist(t,s)<=gunRange(t)*1.05);}   // a layer's nuisance (sentry drones) never pins
 function assessOf(s){
   const b=s.beh||{},t=byId(b.target||b.charge||b.station),nm=t?(t.label||t.name):(b.anchor&&b.anchor.label)||(b.point&&S.points[b.point]&&S.points[b.point].label);
   if(s.panic)return pickLine(s,s.panic.mode);

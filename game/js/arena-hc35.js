@@ -38,6 +38,7 @@ function open(o){
   B.seed=M.seed||(Date.now()%999983)+1;rollAttempt();B.step=1;B.part=1;
   if(M.intel!=null){B.intel=M.intel;B.intel0=M.intel;}   // Dig deeper spends the campaign's Intel (S6)
   L35.detach();API.buildPanel();enterBrief();
+  if(M.ftue&&window.SR_FTUE35)SR_FTUE35.start({B,root:ROOT,onDone:M.onFtue});   // the Space Combat FTUE (ftue35.js): the first time
 }
 /* the campaign's way out: the result (null: called off before launch). S1 flies a test wing and changes nothing in the
    campaign (kind 'space35', test); S6 turns this into the campaign's mission result */
@@ -59,7 +60,7 @@ function campResult(){
   const objs=[{t:(L35.PRIMARIES[o.primary.k]||{name:o.primary.k}).name+(o.primary.replaced?' (fallback)':' (primary)'),done:o.primary.state==='done'}]
     .concat(o.secondaries.map(x=>({t:(L35.OPTIONALS[x.k]||{name:x.k}).name,done:x.state==='done'})));
   return Object.assign({kind:'space',space35:true,days:M.days||2,people,fighters,salvage:0,
-    primary:o.primary,secondaries:o.secondaries,objs,more:'<div class="h35-more">'+debriefBody()+commsHtml()+'</div>',rew35:rew,surrendered:o.reward.surrendered?o.reward.surrendered.n:0,
+    primary:o.primary,secondaries:o.secondaries,objs,missionPays:!!opp().missionPays,more:'<div class="h35-more">'+debriefBody()+commsHtml()+'</div>',rew35:rew,surrendered:o.reward.surrendered?o.reward.surrendered.n:0,
     assets:o.assets,broadcast:o.broadcast,witnesses:o.witnesses,intelSpent:B.intel0!=null?Math.max(0,B.intel0-B.intel):0},base);
 }
 function campDone(r){const d=B.camp&&B.camp.done,res=r===undefined?campResult():r;close();if(d)d(res);}
@@ -70,6 +71,7 @@ const title35=()=>B.camp?B.camp.mission.name:opp().title;
    intel work and the pirates are a Black Market hire, neither built yet (C-89); the demo takes anything */
 const assetHave=k=>!B.camp||!B.camp.mission.assets||(B.camp.mission.assets[k]||0)>0;
 function close(){
+  if(window.SR_FTUE35)SR_FTUE35.stop();
   if(B.camp)L35.useWings(null);   // the demo's wings again
   ROOT.hidden=true;B.screen='off';REQEL.hidden=true;L35.detach();B.pick=null;B.choose=null;B.abortArm=false;
   const ti=byId('hcCmds').querySelector('.hc-cmds__title');if(ti)ti.textContent='Commands';   // High Command's own bar again
@@ -332,6 +334,7 @@ function objCard(k,ro){
     '<div class="h35-ocard__pays">'+rewardHtml(k)+'</div>';
   return ro?'<div class="h35-ocard is-picked is-ro" data-tip="obj:'+k+'">'+inner+'</div>':'<button type="button" class="h35-ocard'+(pk?' is-picked':'')+'" data-primary="'+k+'" data-tip="obj:'+k+'" aria-pressed="'+pk+'">'+inner+'</button>';
 }
+const NONE_HERE={'Take it':'Nothing to take','Deny it':'Nothing to deny','Use it':'Nothing to use','Bait with it':'Nothing to bait'};   // placeholder copy
 /* window 1, part 1: the primary objective, a column for each family, the ones to come locked in theirs (one shown) */
 function step1(){
   let h=(B.camp?campIntelHtml():'')+'<h2 class="h35-ask">What\'s the job?</h2><div class="h35-fams">';
@@ -340,6 +343,7 @@ function step1(){
     const ks=keys.filter(k=>L35.PRIMARIES[k].family===f),later=isFr()?L35.LATER_PRIMARIES.filter(x=>x.family===f):[];
     h+='<section class="h35-panel h35-fam"><div class="h35-panel__head"'+(later.length?' data-tip="@" data-tt="'+esc(f)+'" data-tb="Later: '+esc(later.map(x=>x.name).join(', '))+' (not in this demo)."':'')+'>'+esc(f)+'</div>'+
       ks.map(k=>objCard(k)).join('')+
+      (!ks.length&&!later.length?'<div class="h35-ocard is-locked is-none"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(NONE_HERE[f]||'Nothing here')+'</div><div class="h35-ocard__pitch">not in this opportunity</div></div></div></div>':'')+
       (later.length?'<div class="h35-ocard is-locked" data-tip="na:demo"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(later[0].name)+'</div><div class="h35-ocard__pitch">not in this demo</div></div></div></div>':'')+'</section>';
   }
   return h+'</div>';
@@ -367,7 +371,9 @@ function conflictTags(k){
 }
 const nameOf=k=>(L35.PRIMARIES[k]||L35.OPTIONALS[k]||L35.ROES[k]||{name:k}).name;
 /* a primary's rewards (feedback 2, §1.1): what it pays, and the bonus for doing the one you picked */
+const missionRew=()=>opp().missionPays&&B.camp&&B.camp.mission.rew?B.camp.mission.rew:null;
 function rewardHtml(k){
+  const mr=missionRew();if(mr)return '<div class="h35-rew"><span class="h35-rew__lbl">Pays</span>'+(chips(mr)||'')+'</div>';
   const R=L35.PRIMARIES[k].reward;if(!R)return '';
   const per=R.per?' <span class="h35-rew__per">+ '+chips(R.per)+' '+esc(R.perText)+'</span>':'';
   return '<div class="h35-rew"><span class="h35-rew__lbl">Pays</span>'+(chips(R.base)||'')+per+(R.extra?' <span class="h35-rew__per">+ '+esc(R.extra)+'</span>':'')+
@@ -462,6 +468,7 @@ function leaderTake(w){return L35.critique(B.plan,w.id,B.mods,{inRing,unreachabl
 /* can this wing reach its Executive target before the freighter jumps, at cruise? */
 function unreachable(wid){
   const pw=B.plan.wings[wid],L=L35.L,ex=pw.exec;if(!L||!ex||['hold','ambush','withdraw','defend','escort'].includes(ex.k))return false;
+  if(L.opp.key!=='freighter')return false;   // nothing on a lane to catch (Torch the Depots)
   const m=toWorld(pw.jumpIn),v=560;let acc=0;   // a fighter's cruise, world units a second (a rough read)
   for(let i=1;i<L.lane.length;i++){const a=L.lane[i-1],b=L.lane[i],d=Math.hypot(b.x-a.x,b.y-a.y);
     for(let u=0;u<=d;u+=300){const x=a.x+(b.x-a.x)*u/d,y=a.y+(b.y-a.y)*u/d;if(Math.hypot(x-m.x,y-m.y)/v<=(acc+u)/L.cruise)return false;}acc+=d;}
@@ -469,7 +476,7 @@ function unreachable(wid){
 }
 /* step 4: each wing's Executive Order and Secondary; jump-in and asset markers on the map */
 function playsOutHtml(){
-  const E=opp().events||{},N=L35.N,resp=L35.fn.canComeAtAll(B.plan,B.mods),at=L35.L?L35.fn.arrivalName():'the jump point',st=(t,tt,tb)=>'<span class="h35-po__st" data-tip="@" data-tt="'+esc(tt)+'" data-tb="'+esc(tb)+'">'+t+'</span>';
+  const E=opp().events||{},N=L35.N,resp=!!opp().response&&L35.fn.canComeAtAll(B.plan,B.mods),at=L35.L?L35.fn.arrivalName():'the jump point',st=(t,tt,tb)=>'<span class="h35-po__st" data-tip="@" data-tt="'+esc(tt)+'" data-tb="'+esc(tb)+'">'+t+'</span>';
   if(!E.alarm)return '';
   return '<div class="hc-card h35-po"><div class="h35-label">How this plays out</div>'+
     st('<b>Alarm</b> (they spot you, shots are fired, or you give the signal)','The alarm','Being seen inside an escort\'s ring, the first shot, a jump-in too close, or your signal. It starts Phase 2.')+' → '+
@@ -645,7 +652,8 @@ function commsHtml(){
 }
 /* what it paid (feedback 2, §1.1, §3): the reward of the primary you ended on; the Accomplished bonus, or the one missed */
 function rewardRow(){
-  const L=L35.L;if(!L||!L35.rewardOf)return '';const r=L35.rewardOf(),P=L35.PRIMARIES;
+  const L=L35.L;if(!L||!L35.rewardOf)return '';
+  const mr=missionRew();if(mr){const won=SIM.S.objectives[0]&&SIM.S.objectives[0].state==='done';return '<div class="h35-label">Rewards</div><div class="h35-rew h35-rew--deb">'+(won?chips(mr):'<span class="h35-fine2">Nothing</span>')+'</div>';}const r=L35.rewardOf(),P=L35.PRIMARIES;
   const got=chips(r.earned)||'<span class="h35-fine2">Nothing</span>';
   const bonus=r.bonus?'<span class="h35-rew__per">incl. Accomplished + '+chips(r.bonus)+'</span>':r.missed?'<span class="h35-rew__miss">Missed: '+esc(P[r.picked].name)+'\'s Accomplished + '+chips(r.missed)+(L.fallback?' (you fell back to '+esc(P[r.k].name)+')':'')+'</span>':'';
   return '<div class="h35-label">Rewards</div><div class="h35-rew h35-rew--deb">'+got+' '+bonus+(r.surrendered?' <span class="h35-rew__per">incl. Surrendered cargo ('+r.surrendered.n+') + '+chips(r.surrendered.pay)+'</span>':'')+'</div>';
@@ -808,9 +816,9 @@ function drawWorld(c,view,o){
   if(L.phase===1)for(const e of S.ships)if(e.alive&&e.role35==='escort'){c.save();c.beginPath();c.arc(e.x,e.y,L35.TUNE.DETECT_R.get(),0,6.283);c.fillStyle=TH.rgba(C.heg,0.05);c.fill();c.setLineDash([6/z,8/z]);c.lineWidth=1.4/z;c.strokeStyle=TH.rgba(C.heg,0.45);c.stroke();c.restore();}
   if(plan){
     // the response edge: a foe-blue dashed band
-    const Zn=SIM.zone,e=L.opp.response.edge,g=420;c.save();c.fillStyle=TH.rgba(C.heg,0.07);c.strokeStyle=TH.rgba(C.heg,0.5);c.setLineDash([12/z,10/z]);c.lineWidth=1.6/z;
+    if(L.opp.response){const Zn=SIM.zone,e=L.opp.response.edge,g=420;c.save();c.fillStyle=TH.rgba(C.heg,0.07);c.strokeStyle=TH.rgba(C.heg,0.5);c.setLineDash([12/z,10/z]);c.lineWidth=1.6/z;
     if(e==='N'){c.fillRect(Zn.x0,Zn.y0,Zn.x1-Zn.x0,g);c.strokeRect(Zn.x0,Zn.y0,Zn.x1-Zn.x0,g);}else if(e==='S'){c.fillRect(Zn.x0,Zn.y1-g,Zn.x1-Zn.x0,g);}
-    c.restore();API.label(c,(Zn.x0+Zn.x1)/2,(e==='N'?Zn.y0+g/2:Zn.y1-g/2)+5/z,'RESPONSE',C.hegHi,z,11);
+    c.restore();API.label(c,(Zn.x0+Zn.x1)/2,(e==='N'?Zn.y0+g/2:Zn.y1-g/2)+5/z,'RESPONSE',C.hegHi,z,11);}
     // the relay, a cyan antenna
     const rl=L.relay;if(rl&&!B.plan.assets.includes('relay')){drawGlyphAt(c,rl.x,rl.y,'relay',C.shield,z);API.label(c,rl.x,rl.y+30/z,'HAVEN RELAY',C.shield,z,10);}
     // the placed assets (§4.3): each where you drag it, with its reach
@@ -833,7 +841,7 @@ function drawWorld(c,view,o){
         c.save();c.beginPath();c.arc(pt.x,pt.y,(hot?15:13)/z,0,6.283);c.fillStyle=TH.rgba(C.ink,0.85);c.fill();c.setLineDash([4/z,3/z]);c.lineWidth=2/z;c.strokeStyle=C.gold;c.stroke();c.restore();
         API.label(c,pt.x,pt.y+28/z,(L35.ORDERS35[pw.exec.k].name+' · '+w.name).toUpperCase(),C.gold,z,10,'Bungee');}}
     // where the response arrives, and when (playtest 3, §3.2–3.3)
-    if(L35.fn.canComeAtAll(B.plan,B.mods)){const ap=L35.fn.ambushPoint();API.ring(c,ap.x,ap.y,1200,TH.rgba(C.heg,0.75),z,2,[12,8]);
+    if(L.opp.response&&L35.fn.canComeAtAll(B.plan,B.mods)){const ap=L35.fn.ambushPoint();API.ring(c,ap.x,ap.y,1200,TH.rgba(C.heg,0.75),z,2,[12,8]);
       API.label(c,ap.x,ap.y-1200-14/z,'RESPONSE ARRIVES HERE · ABOUT '+fmtClock(L35.fn.responseEta())+' AFTER THE ALARM',C.hegHi,z,11);}
   }
 }
@@ -918,6 +926,8 @@ function planTarget(o,w){
   if(o.k==='defend'){const ow=B.plan.wings[o.arg];return ow?toWorld(ow.jumpIn):null;}
   if(o.k==='withdraw')return S.points.ourjump;
   if(o.k==='hold'||o.k==='ambush'){return o.arg&&o.arg.x!=null?toWorld(o.arg):null;}
+  if(o.k==='destroy'&&typeof o.arg==='string'&&o.arg!=='freighter'&&o.arg!=='area'){const fs=L35.fn.forceShips(o.arg),m=toWorld(B.plan.wings[w.id].jumpIn);let b=null,bd=1e18;
+    for(const t of fs){const d=Math.hypot(t.x-m.x,t.y-m.y);if(d<bd){bd=d;b=t;}}return b?{x:b.x,y:b.y}:null;}   // the nearest of them (Torch the Depots)
   const fr=SIM.fn.byId('fl400');if(!fr)return null;
   // where the freighter will be when the wing gets there: its lane at the time of arrival (a rough read)
   const L=L35.L,m=toWorld(B.plan.wings[w.id].jumpIn);let best=null,bd=1e18,acc=0;
@@ -1024,6 +1034,7 @@ function pointer(kind,p,ev){
 }
 function onKey(ev){
   if(B.screen==='off')return false;
+  if(window.SR_FTUE35&&SR_FTUE35.modal())return false;   // the FTUE's intro window has the keys
   const k=ev.key;
   if(B.screen==='live'&&(k==='p'||k==='P')){ev.preventDefault();B.planOverlay=!B.planOverlay;B.planUser=true;API.syncHud(true);return true;}
   if(B.screen==='live'&&k==='Escape'&&(B.pick||B.choose||B.abortArm)){ev.preventDefault();B.pick=null;B.choose=null;B.abortArm=false;API.syncHud(true);return true;}
@@ -1385,7 +1396,7 @@ const H35_TIP={intel:['Intel','Each pip digs once into what Cass might have miss
   missed:['Cass may have missed something','Her reliability is the gamble: there may be modifiers she didn\'t see.'],plan2:['Plan mission','Open the planning windows.']};
 function tipFor(key){
   const [k,a]=String(key).split(':');
-  if(k==='obj'){const o=L35.PRIMARIES[a];if(!o)return null;return {title:o.name,body:o.wins,foot:o.caveat,tone:'info'};}
+  if(k==='obj'){const o=L35.PRIMARIES[a];if(!o)return null;return {title:o.name,body:L35.winsOf(a,opp()),foot:o.caveat,tone:'info'};}
   if(k==='opt'){const o=L35.OPTIONALS[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Optional: the primary comes first',tone:'info'};}
   if(k==='roe'){const o=L35.ROES[a];if(!o)return null;return {title:o.name,body:o.line,foot:'Rule of engagement',tone:'info'};}
   if(k==='mod'){const o=L35.MODS[a];if(!o)return null;return {title:o.name,body:o.line,foot:o.tone==='warn'?'Against you':'In your favour',tone:o.tone==='warn'?'warn':'info'};}

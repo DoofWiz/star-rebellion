@@ -258,7 +258,8 @@ are logged as placeholders.
 
 ### S11. The prologue, then retiring `space.js` ⏸
 
-- **Small 3.5 opportunities** replace Torch the Depots (beat 8: one ship against depots, a one-ship wing) and Take Out
+- **Small 3.5 opportunities** replace Torch the Depots (beat 8: one ship against depots, a one-ship wing; **built early,
+  with the Space Combat FTUE: DESIGN_BLOCKERS C-93**) and Take Out
   Instructor, and the Haven Rock sim deck launches 3.5.
 - When nothing reaches `space.js`, it and its tests go to the archive. **Rewrite or replace** the smoke tests that drove
   it (about 14, including `prologue-smoke`, `economy-smoke` and `missions-smoke`, which play Torch the Depots to a

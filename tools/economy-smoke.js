@@ -168,7 +168,18 @@ process.on('unhandledRejection',e=>{console.log('FAIL (threw)\n'+(FAILS||[]).joi
   P.run=function(a,beat){if(a&&a.grant)EC.grants.push({beat,grant:a.grant});return run0.apply(this,arguments);};
  },ECON_HEADROOM);
 
+ // Torch the Depots plans and flies in Type 3.5 (the Space Combat FTUE): the tutorial closed, Destroy picked, launched,
+ // the depots knocked out (the economy and the beats, not the fight: tools/weapons35-smoke.js and ftue35-smoke.js fly it), home
+ const fly35Win=async id=>{
+  await E(id=>{const f=window.DBGbase.fn,m=window.DBGbase.G.missions.find(x=>x.id===id);f.closeWin();f.openPlan(m);},id);
+  await scene('space35');
+  await E(()=>{if(window.SR_FTUE35)window.SR_FTUE35.stop();const X=window.SR_ARENA_HC35.dbg;document.querySelector('#arHc35 [data-primary="destroy"]').click();X.fn.launch();
+   for(const s of X.S.ships)if(s.cast35==='depots'&&s.alive)window.SIMHC.fn.kill(s,null);X.fn.run(180);});
+  await E(()=>document.querySelector('#arHc35 [data-act="camp"]').click());
+  await scene('base');await wait(500);
+ };
  const runMission=async(id,ground,extra)=>{
+  if(id==='depotrun'){await fly35Win(id);return '';}
   await E(([id,extra])=>{
    const f=window.DBGbase.fn,m=window.EC.mis(id),G=window.DBGbase.G;
    f.closeWin();f.openPlan(m);f.plAutoFill();
