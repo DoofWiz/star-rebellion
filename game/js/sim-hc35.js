@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-13';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-14';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -40,6 +40,8 @@ let WAIT_ORBIT=900;       // a wing waiting at its point circles this wide. plac
 const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points (the core is the hull, 400)
   HAZARD_DMG:60,HAZARD_R:900,          // a hazard module going up hits everything this close
   GUN_VS_CAP:0.25,                     // fighter guns against a capital hull: × damage (bombs are what crack it)
+  MIS_VS_CAP:0.5,                      // a fighter's missile against a capital hull: × damage (22 October: missiles are for the hull)
+  CRASH_LEAD:10,                       // a Crash goes for the power plant this many s before her drift would still carry her into the pull
   BOMB_K:0.3,BOMB_DMG:34,BOMB_R:1500,BOMB_GAP:0.5,BOMB_N:6,BOMB_MIN:7,   // bombs: speed × a missile's, damage, release range, gap, a sortie, smallest size they hit
   PD_R:2200,PD_GAP:0.35,PD_SPREAD:0.06,   // point defence: reach, seconds a bolt, spread (radians)
   DRIFT_DECAY:0.04,                    // a disabled freighter loses this share of its drift a second
@@ -55,7 +57,7 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   AID_BASE:0.3,AID_THRESH:0.5,ASK_THRESH:0.3,AID_NOISE:0.1,AID_UNASKED:-0.1,PACE_K:0.95,   // the help decisions' weights (the rest in ops-core.js WEIGHTS). placeholder
   INTIM_R:1900,                        // an intimidating wing orbits the freighter this wide
   HOLDOFF_R:3200,                      // a boarder or hauler waits this far off a freighter that isn't disabled yet
-  DISTRESS_SECS:20,RESPONSE_SECS:150,QUICK_SPOOL:60,   // the distress call, the response clock, Quick Jumper's spool
+  DISTRESS_SECS:20,RESPONSE_SECS:150,   // the distress call, the response clock
   // comms (§5.4): delay = (COMMS_BASE + distance / COMMS_SPD + the leader's ACK) × ION_K under Ion Storm; COMMS_OFF 1: no delay
   COMMS_BASE:2.5,COMMS_SPD:3000,ACK_GREEN:1.5,ACK_REG:1,ACK_VET:0.7,ION_K:2,ARRIVE_SPOOL:4,COMMS_OFF:0,
   // command points (§5.5): this many at the start of each phase; what's left at a phase change is lost
@@ -115,7 +117,7 @@ const T35={
 };
 /* more numbers, as getters: [name, label, min, max, step, group] (one table: every placeholder on the panel) */
 const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array HP',10,300,10,'Freighter'],PD_HP:['Turret HP',10,200,5,'Freighter'],CARGO_HP:['Container HP',5,100,5,'Freighter'],
-  HAZARD_DMG:['Hazard module blast',0,200,5,'Freighter'],HAZARD_R:['Hazard blast reach',100,3000,50,'Freighter'],GUN_VS_CAP:['Guns vs a capital hull ×',0,1,0.05,'Freighter'],
+  HAZARD_DMG:['Hazard module blast',0,200,5,'Freighter'],HAZARD_R:['Hazard blast reach',100,3000,50,'Freighter'],GUN_VS_CAP:['Guns vs a capital hull ×',0,1,0.05,'Freighter'],MIS_VS_CAP:['Missiles vs a capital hull ×',0,2,0.05,'Freighter'],CRASH_LEAD:['Crash: goes in this many s early',0,60,1,'Freighter'],
   BOMB_K:['Bomb speed × a missile\'s',0.1,1,0.05,'Freighter'],BOMB_DMG:['Bomb damage',5,120,1,'Freighter'],BOMB_R:['Bomb release range',300,4000,50,'Freighter'],BOMB_GAP:['Seconds between bombs',0.1,3,0.05,'Freighter'],BOMB_N:['Bombs a sortie',1,12,1,'Freighter'],
   PD_R:['Point defence reach',500,6000,100,'Freighter'],PD_GAP:['Point defence: s a bolt',0.05,2,0.05,'Freighter'],PD_SPREAD:['Point defence spread',0,0.4,0.01,'Freighter'],
   DRIFT_DECAY:['Drift lost a second',0,0.5,0.01,'Freighter'],PULL_ACC:['Planet pull (at its edge)',0,200,1,'Freighter'],
@@ -125,7 +127,7 @@ const NUM35={ENG_HP:['Engines HP',20,400,10,'Freighter'],COMMS_HP:['Comms array 
   DOCK_R:['Docking reach',200,3000,50,'Freighter'],DOCK_OFF:['Clamp off the spine',100,600,10,'Freighter'],BOARD35_SECS:['Boarding a ship (s)',5,120,1,'Freighter'],SCUTTLE_SECS:['Scuttle timer (s)',5,120,1,'Freighter'],
   PRIZE_K:['Prize speed home × her cruise',0.2,4,0.05,'Freighter'],PRIZE_TURN:['Prize turn (rad/s)',0.02,1,0.01,'Freighter'],REPAIR_SECS:['Prize crew: seconds to repair a system',5,180,5,'Freighter'],REPAIR_HP:['Prize crew: a repaired system × its HP',0.1,1,0.05,'Freighter'],HAUL_SECS:['Seconds a container',1,60,1,'Freighter'],POD_CAP:['Containers a pod ship carries',1,6,1,'Freighter'],
   TAG_R:['Tag: within',200,3000,50,'Freighter'],TAG_SECS:['Tag: hold (s)',1,60,1,'Freighter'],AMBUSH_KILLS:['Ambush: kills to win',1,10,1,'Freighter'],INTIM_R:['Intimidate orbit',600,5000,50,'Freighter'],HOLDOFF_R:['Boarders hold off at',1000,8000,100,'Freighter'],
-  DISTRESS_SECS:['Distress call (s)',1,90,1,'Phases'],RESPONSE_SECS:['Response clock (s)',10,600,5,'Phases'],QUICK_SPOOL:['Quick Jumper spool (s)',5,180,5,'Phases'],
+  DISTRESS_SECS:['Distress call (s)',1,90,1,'Phases'],RESPONSE_SECS:['Response clock (s)',10,600,5,'Phases'],
   COMMS_OFF:['Comms delay off (1 = off)',0,1,1,'Comms'],COMMS_BASE:['Comms: base delay (s)',0,10,0.5,'Comms'],COMMS_SPD:['Comms: speed (units a second)',500,20000,100,'Comms'],
   ACK_GREEN:['Ack: green leader (s)',0,5,0.1,'Comms'],ACK_REG:['Ack: regular leader (s)',0,5,0.1,'Comms'],ACK_VET:['Ack: veteran leader (s)',0,5,0.1,'Comms'],ION_K:['Ion Storm × delay',1,4,0.1,'Comms'],ARRIVE_SPOOL:['An asset\'s arrival (s)',0,20,0.5,'Comms'],
   CP1:['CP in Phase 1',0,9,1,'Powers'],CP2:['CP in Phase 2',0,9,1,'Powers'],CP3:['CP in Phase 3',0,9,1,'Powers'],
@@ -223,7 +225,7 @@ const MODS={
   heavy:{name:'Heavy Escort',line:'Twice the escort.',subtle:1,ex:['limping','green'],tone:'warn'},
   green:{name:'Green Escort',line:'The escort are cadets: green pilots, low morale.',subtle:1,ex:['heavy'],tone:'good'},
   ace:{name:'Ace Escort',line:'Commandant Vex rides with the escort.',subtle:2,ex:[],tone:'warn'},
-  quick:{name:'Quick Jumper',line:'Alarmed, it spools a jump where it is. Hit the engines to stop it.',subtle:1,ex:['limping'],tone:'warn'},
+  quick:{name:'Quick Jumper',line:'Alarmed, it spools its jump on the run: at its jump point it\'s gone at once. Hit the engines to stop it.',subtle:1,ex:['limping'],tone:'warn'},
   guns:{name:'Hidden Guns',line:'Its point defence is heavier and longer than it looks.',subtle:3,ex:[],tone:'warn'},
   rocks:{name:'Asteroid Field',line:'Rocks along the last third of its lane.',subtle:0,ex:[],tone:'info'},
   ion:{name:'Ion Storm',line:'Comms are slow out here, and sensors short.',subtle:0,ex:[],tone:'info'},
@@ -471,7 +473,7 @@ const LEADER_PLANS={
   strip:{dagger:[{k:'suppress',arg:'escorts'},{trig:'phase3',k:'defend',arg:'anvil'}],anvil:[{k:'disable',arg:'engines'},{trig:'done',k:'haul'}],amber:[{k:'haul'},null],
     lo:{brask:'bombs',ollo:'pods',mags:'pods'},roes:['jumpdone']},
   destroy:{dagger:[{k:'defend',arg:'anvil'},null],anvil:[{k:'destroy'},null],amber:[{k:'suppress',arg:'turrets'},{trig:'done',k:'destroy'}],lo:{brask:'bombs',ollo:'bombs',mags:'bombs'}},
-  crash:{dagger:[{k:'suppress',arg:'escorts'},null],anvil:[{k:'disable',arg:'engines'},{trig:'done',k:'disable',arg:'power'}],amber:[{k:'defend',arg:'anvil'},null],roes:['signal']},
+  crash:{dagger:[{k:'suppress',arg:'escorts'},null],anvil:[{k:'disable',arg:'power'},null],amber:[{k:'defend',arg:'anvil'},null],roes:['signal']},   // 22 October: no engines (she has to reach the pull), the power plant in the window
   tag:{dagger:[{k:'hold',arg:FAR_HOLD},{trig:'phase2',k:'withdraw'}],anvil:null,amber:[{k:'tag'},null],tagger:'kit',optionals:['ghost']},
   ambush:{dagger:[{k:'ambush',arg:'response'},null],anvil:[{k:'disable',arg:'engines'},{trig:'phase3',k:'ambush',arg:'response'}],amber:[{k:'ambush',arg:'response'},null],assets:['mines']},
 };
@@ -592,6 +594,7 @@ function begin(){
 function findShipDef(id){for(const w of SIM.S.R.wings||[])for(const sd of w.ships)if(sd.id===id)return sd;return null;}
 function attach(){
   HK.classExtra=HC35_CLASSES;
+  HK.bodyHit=(t,p0,p1)=>L&&t.id===L.fr?frBodyHit(t,p0,p1):undefined;   // past her shields, a shot lands on her hull (22 October)
   HK.loadoutExtra=(row,list)=>plasmaLoadout(row,list);   // attached means a 3.5 build (the ships are made before begin())
   HK.think=s=>live()?think(s):false;
   HK.goal=s=>live()?goal(s):null;
@@ -617,13 +620,34 @@ function detach(){for(const k of Object.keys(HK))delete HK[k];L=null;}
 /* ---------- damage: shields and armour as any ship, then the subsystem the hit lands on (or that the shooter is told to
    hit), else the core. Fighter guns barely scratch a capital hull (GUN_VS_CAP); bombs are what crack it ---------- */
 function damageFreighter(t,dmg,skip,front,hit){
-  const by=hit&&hit.by?F.byId(hit.by):null,bomb=!!(hit&&hit.bomb);
-  if(by&&by.faction==='reb'&&!bomb)dmg*=N.GUN_VS_CAP;
-  let rem=dmg,sd=0,ad=0,hd=0;const zone=front?'F':'R';
-  if(!skip&&!bomb){for(const k of ['F','R']){if(rem<=0)break;if(t.segs[k].at!==zone)continue;const take=Math.min(t.segs[k].val,rem);t.segs[k].val-=take;rem-=take;sd+=take;}}
-  if(rem>0&&t.arm>0){const a=Math.min(t.arm,rem*(bomb?0.5:1));t.arm-=a;rem-=a;ad+=a;}   // a bomb's blast gets past armour
+  const by=hit&&hit.by?F.byId(hit.by):null,bomb=!!(hit&&hit.bomb),kind=hit&&hit.kind;
+  if(by&&by.faction==='reb'&&!bomb)dmg*=kind==='missile'?N.MIS_VS_CAP:N.GUN_VS_CAP;
+  const zone=front?'F':'R';
+  if(!bomb){const r=F.soak(t,dmg,skip,zone,kind);if(r.hd>0)routeHit(t,r.hd,hit,by,false);return r;}   // the weapon's type against each layer (22 October)
+  let rem=dmg,ad=0,hd=0;
+  if(rem>0&&t.arm>0){const a=Math.min(t.arm,rem*0.5);t.arm-=a;rem-=a;ad+=a;}   // a bomb's blast gets past armour
   if(rem>0){hd=rem;routeHit(t,rem,hit,by,bomb);}
-  return {sd,ad,hd,zone};
+  return {sd:0,ad,hd,zone};
+}
+/* the FL-400's hull as boxes in her art's units (sr-art.js gafreighter): [x0, x1, half-width]: the drive block and its
+   turrets, the spine and the cargo, the bridge. A shot that gets past her shields lands on these, not on the bubble */
+const FR_BODY=[[-57,-36,18],[-42,38,14.4],[37,57,10.8]];
+function frBodyHit(t,p0,p1){
+  const k=FL_UNIT(),a=toHull(t,p0),b=toHull(t,p1),dx=b.x-a.x,dy=b.y-a.y;let best=null;
+  for(const [x0,x1,hw] of FR_BODY){
+    let tn=0,tf=1,n=null,out=false;
+    for(const [p,d,lo,hi,ax] of [[a.x,dx,x0,x1,'x'],[a.y,dy,-hw,hw,'y']]){
+      if(Math.abs(d)<1e-12){if(p<lo||p>hi){out=true;break;}continue;}
+      let ta=(lo-p)/d,tb=(hi-p)/d,sg=-1;if(ta>tb){const q=ta;ta=tb;tb=q;sg=1;}
+      if(ta>tn){tn=ta;n={ax,sg};}if(tb<tf)tf=tb;if(tn>tf){out=true;break;}
+    }
+    if(out||(best&&tn>=best.u))continue;
+    best={u:tn,n};
+  }
+  if(!best)return null;
+  const lx=a.x+dx*best.u,ly=a.y+dy*best.u,c=Math.cos(t.h),sn=Math.sin(t.h);
+  let nx=best.n?(best.n.ax==='x'?best.n.sg:0):-dx,ny=best.n?(best.n.ax==='y'?best.n.sg:0):-dy;const nl=Math.hypot(nx,ny)||1;nx/=nl;ny/=nl;   // started inside: face the shot
+  return {u:best.u,x:t.x+(lx*c-ly*sn)*k,y:t.y+(lx*sn+ly*c)*k,nx:nx*c-ny*sn,ny:nx*sn+ny*c};
 }
 function routeHit(t,dmg,hit,by,bomb){
   let sb=null;
@@ -639,9 +663,9 @@ function routeHit(t,dmg,hit,by,bomb){
 function subDown(fr,sb,by){
   const S=SIM.S,p=subWorld(fr,sb);
   S.fx.push({x:p.x,y:p.y,t0:S.t,kind:'boom',size:sb.k==='cargo'&&sb.hazard?1.2:0.8,src:'mhit'});
-  if(sb.k==='engines'){L.engOut=true;L.spool=null;L.resolve=Math.max(0,L.resolve-N.RES_ENGINES);
+  if(sb.k==='engines'){L.engOut=true;L.spool=null;L.preSpool=null;L.resolve=Math.max(0,L.resolve-N.RES_ENGINES);
     SIM.pushEvent('sub','The freighter\'s engines are out: she\'s crawling on her thrusters, and can\'t jump',{x:p.x,y:p.y,tone:'good'});}
-  else if(sb.k==='power'){L.disabled=true;L.spool=null;L.drift={vx:fr.vx,vy:fr.vy};L.resolve=Math.max(0,L.resolve-N.RES_ENGINES);
+  else if(sb.k==='power'){L.disabled=true;L.spool=null;L.preSpool=null;L.drift={vx:fr.vx,vy:fr.vy};L.resolve=Math.max(0,L.resolve-N.RES_ENGINES);
     if(L.distress&&!L.distress.landed)L.distress.cut=true;
     SIM.pushEvent('sub','The freighter\'s power plant is down: she\'s dead in space'+(dist(fr,L.planet)<L.planet.pull?', and the planet has her':''),{x:p.x,y:p.y,tone:'good'});}
   else if(sb.k==='comms'){SIM.pushEvent('sub','The freighter\'s comms array is down'+(L.distress&&!L.distress.landed?': the distress call is cut':''),{x:p.x,y:p.y,tone:'good'});
@@ -680,18 +704,16 @@ function sys35Tick(){
 const sub35=(s,k)=>s.sys35&&s.sys35.find(x=>x.k===k);
 const sub35Up=(s,k)=>{const x=sub35(s,k);return !x||x.hp>0;};
 function damageShip(t,dmg,skip,front,hit){
-  let rem=dmg,sd=0,ad=0,hd=0;const zone=front?'F':'R';
+  const zone=front?'F':'R';
   if(hit&&hit.by){const b=F.byId(hit.by);if(b&&b.faction!==t.faction)t.firedOnT=SIM.S.t;}   // a shot, not a bump
-  if(!skip){const keys=['F','R'].filter(k=>t.segs[k].at===zone).sort((a,b)=>(a===zone?1:0)-(b===zone?1:0));
-    for(const k of keys){if(rem<=0)break;const take=Math.min(t.segs[k].val,rem);t.segs[k].val-=take;rem-=take;sd+=take;}}
-  if(rem>0&&t.arm>0){ad=Math.min(t.arm,rem);t.arm-=ad;rem-=ad;}
-  if(rem>0){
-    hd=rem;const by=hit&&hit.by?F.byId(hit.by):null;
+  const r=F.soak(t,dmg,skip,zone,hit&&hit.kind),hd=r.hd;   // the weapon's type against each layer (22 October)
+  if(hd>0){
+    const by=hit&&hit.by?F.byId(hit.by):null;
     const aim=by&&by.sub35&&SUBS35[by.sub35]&&((by.beh&&by.beh.target===t.id)||by.fireAt===t.id)?sub35(t,by.sub35):null;
     if(aim&&aim.hp>0){aim.hp-=hd*N.AIM_SUB;t.hull-=hd*N.AIM_HULL;if(aim.hp<=0)sub35Down(t,aim,by);}
     else{t.hull-=hd;const sp=sub35(t,front?'guns':'engines');if(sp&&sp.hp>0&&N.SPILL_SUB>0){sp.hp-=hd*N.SPILL_SUB;if(sp.hp<=0)sub35Down(t,sp,by);}}
   }
-  return {sd,ad,hd,zone};
+  return r;
 }
 function sub35Down(s,x,by){
   x.hp=0;x.downT=+SIM.S.t.toFixed(2);
@@ -736,6 +758,7 @@ function canFire(s,t,q){
   if(s.faction!=='reb')return true;
   if(s.prop35==='ram'||s.prop35==='tug')return false;
   if(t.id===L.fr&&(s.load35==='board'||s.load35==='pods'||s.dock35))return false;   // boarders and haulers never shoot the freighter (§3.2)
+  if(t.id===L.fr&&s.sub35==='power'&&L.primK==='crash'&&!L.disabled&&!crashWindow())return false;   // a Crash holds fire on her till the gravity window opens (22 October)
   if(L.rookie&&s.id===L.rookie.leader&&t.id===L.rookie.target&&SIM.S.t<L.rookie.until)return false;   // Blood the Rookie: Let her
   if(s.wing&&!signalled(s.wing)&&!firedOn(s,3))return false;   // Hold for My Signal (unless fired on)
   if(t.id===L.fr&&L.roe('tight')&&!['engines','comms','turrets','power'].includes(s.sub35))return false;   // Weapons Tight: engines, comms, turrets, the power plant only
@@ -814,7 +837,9 @@ function thinkWing(s){
   const frLive=fr&&fr.alive&&!L.prize;
   s.sub35=null;
   switch(ex.k){
-    case 'disable':s.sub35=ex.arg||'engines';if(!frLive||!subUp(s.sub35))return holdBy(s,w);w.order={kind:'attack',target:{type:'ship',id:L.fr}};return false;
+    case 'disable':s.sub35=ex.arg||'engines';if(!frLive||!subUp(s.sub35))return holdBy(s,w);
+      if(s.sub35==='power'&&L.primK==='crash'&&!crashWindow()){if(defend(s))return true;return setB(s,{kind:'holdoff',win:true,why:'waiting for the gravity window'});}   // 22 October: hold fire till she'll fall
+      w.order={kind:'attack',target:{type:'ship',id:L.fr}};return false;
     case 'destroy':{const o=exObj(ex);
       if(o&&o!=='freighter'&&o!=='area'){const fs=forceShips(o),e=nearestFoe(s,x=>fs.includes(x));if(e)return setB(s,{kind:'engage',target:e.id,why:'going for '+thingName(o)});return holdBy(s,w);}
       if(o==='area'){const p=exAt(ex)||w.rally||F.wingCentre(w),e=nearestFoe(s,x=>!x.struct&&dist(x,p)<HOLD35_R);if(e)return setB(s,{kind:'engage',target:e.id,why:'clearing the area'});if(defend(s))return true;return setB(s,{kind:'waitpt',dest:p,why:'watching the area'});}
@@ -982,7 +1007,8 @@ function alarm(why,text){
   // the distress call goes out if the comms array is alive
   if(callerUp()&&L.beacon){L.distress={t0:SIM.S.t,landed:false,cut:false};
     if(!L.opt.some(o=>o.k==='distress')&&!Object.values(L.exec).some(e=>e&&e.k==='disable'&&e.arg==='comms'))reqTrigger('distress',{},'once');}
-  if(modOn(L.mods,'quick')&&!L.disabled&&!L.engOut){const fr=FR();if(fr){L.spool=SIM.S.t;L.spoolWhy='quick';L.spoolAt={x:fr.x,y:fr.y};SIM.pushEvent('fjump','The freighter is spooling a jump where it is',{x:fr.x,y:fr.y,tone:'hazard'});callout('JUMP SPOOLING','foe',fr,{feed:false});}}
+  // Quick Jumper: she spools as she runs, and jumps the moment she's at her jump point (22 October: never short of it)
+  if(modOn(L.mods,'quick')&&!L.disabled&&!L.engOut){const fr=FR();if(fr){L.preSpool=SIM.S.t;SIM.pushEvent('fjump','The freighter is spooling its jump as it runs',{x:fr.x,y:fr.y,tone:'hazard'});callout('JUMP SPOOLING','foe',fr,{feed:false});}}
 }
 function setPhase(n,text){
   if(L.phase>=n)return;
@@ -1123,7 +1149,7 @@ function revealTick(fr){
   if(L.phase>=2){if(modOn(L.mods,'green'))revealMod('green','The escort are cadets: Green Escort');
     const fk=L.mods.find(m=>m.fake&&!m.foundFake);if(fk){fk.foundFake=S.t;fk.found=true;SIM.pushEvent('intel','Cass was wrong: there\'s no '+MODS[fk.k].name+'. Unreliable Source',{tone:'hazard'});reqTrigger('intel',{text:'Cass was wrong about the '+MODS[fk.k].name},'fake');
       const u=L.mods.find(m=>m.k==='unreliable');if(u)u.found=true;}}
-  if(L.spoolWhy==='quick')revealMod('quick','It\'s spooling a jump where it is: Quick Jumper');
+  if(L.preSpool!=null)revealMod('quick','It\'s spooling its jump as it runs: Quick Jumper');
   if(L.distress&&L.distress.landed){if(modOn(L.mods,'rapid'))revealMod('rapid','Help\'s close for them: Rapid Response');if(modOn(L.mods,'remote'))revealMod('remote','Nobody near to answer: Remote');}
   if(modOn(L.mods,'fanatical')&&L.resolve<=0)revealMod('fanatical','They won\'t give up: Fanatical Crew');
   if(modOn(L.mods,'demoralised')&&L.offered)revealMod('demoralised','The crew\'s heart isn\'t in it: Demoralised Crew');
@@ -1208,9 +1234,11 @@ function stepFreighter(fr,dt){
     const a=L.lane[L.leg-1],sx=p.x-a.x,sy=p.y-a.y,sl=Math.hypot(sx,sy)||1,along=((fr.x-a.x)*sx+(fr.y-a.y)*sy)/sl;
     const there=dist(fr,p)<LANE_ARRIVE||along>=sl-LANE_ARRIVE*0.5;
     if(there&&L.leg<L.lane.length-1)L.leg++;
-    else if(there&&!L.engOut){L.spool=S.t;L.spoolAt={x:fr.x,y:fr.y};SIM.pushEvent('fjump','The freighter is spooling its jump',{x:fr.x,y:fr.y,tone:'hazard'});callout('JUMP SPOOLING','foe',fr,{feed:false});}
+    else if(there&&!L.engOut){L.spool=S.t;L.spoolAt={x:fr.x,y:fr.y};
+      L.spoolDur=L.preSpool!=null?Math.max(0,JUMP_SECS-(S.t-L.preSpool)):JUMP_SECS;   // Quick Jumper spooled on the way
+      SIM.pushEvent('fjump','The freighter is spooling its jump',{x:fr.x,y:fr.y,tone:'hazard'});callout('JUMP SPOOLING','foe',fr,{feed:false});}
   }
-  if(L.spool!=null&&S.t-L.spool>=(L.spoolWhy==='quick'?N.QUICK_SPOOL:JUMP_SECS)){
+  if(L.spool!=null&&S.t-L.spool>=(L.spoolDur!=null?L.spoolDur:JUMP_SECS)){
     if(HK.canJump&&HK.canJump(fr)===false)return;   // an Interdictor holds it (P4)
     fr.alive=false;fr.jumped=true;fr.jumpT=S.t;L.escaped=true;
     SIM.pushEvent('fjump','The freighter jumped out',{x:fr.x,y:fr.y,tone:'hazard'});
@@ -1292,7 +1320,7 @@ function bombTick(fr,dt){
   for(const b of L.bombs){
     b.age+=dt;const p0={x:b.x,y:b.y},p1={x:b.x+b.vx*dt,y:b.y+b.vy*dt};
     let hit=null;
-    for(const t of S.ships){if(!t.alive||t.faction==='reb'||t.row.size<N.BOMB_MIN)continue;const h=F.hullHit(t,p0,p1);if(h){hit={t,h};break;}}
+    for(const t of S.ships){if(!t.alive||t.faction==='reb'||t.row.size<N.BOMB_MIN)continue;const h=F.shotHit(t,p0,p1,true);if(h){hit={t,h};break;}}
     if(hit){const by=F.byId(b.owner);F.hitShip(hit.t,b.owner,{id:'bombs35',name:'Bombs',kind:'bomb',rng:N.BOMB_R,dmg:[N.BOMB_DMG,N.BOMB_DMG],skipShield:true,crit:0,needsLock:false},b.vx,b.vy,Object.assign({},hit.h,{bomb:true,aimSub:b.aimSub,by:b.owner}),true,0);continue;}
     if(b.age>=b.life){S.fx.push({x:b.x,y:b.y,t0:S.t,kind:'boom',size:0.4,src:'mmiss'});continue;}
     b.px=b.x;b.py=b.y;b.x=p1.x;b.y=p1.y;kept.push(b);
@@ -1389,9 +1417,9 @@ function primaryTick(fr){
   const gone=!fr||!fr.alive,dead=gone&&!!fr&&!fr.jumped;
   let done=false,fail=false;
   if(k==='destroy'){done=dead;fail=L.escaped||L.prizeHome;}
-  else if(k==='crash'){done=dead&&L.crashed;
+  else if(k==='crash'){done=dead&&L.crashed;winTick();
     const stuck=!gone&&L.disabled&&dist(fr,L.planet)>L.planet.pull&&Math.hypot(fr.vx,fr.vy)<5;   // dead in space outside the pull: it will never fall
-    fail=(dead&&!L.crashed)||L.escaped||stuck||(!gone&&!L.disabled&&!L.powerSeen&&!bombsLeft());}   // or nothing left to open her up with (once the power plant shows, guns can finish it)
+    fail=(dead&&!L.crashed)||L.escaped||stuck||(!gone&&!L.disabled&&L.winPassed)||(!gone&&!L.disabled&&!L.powerSeen&&!bombsLeft());}   // or nothing left to open her up with (once the power plant shows, guns can finish it)
   else if(k==='steal'){done=!!L.prizeHome;fail=dead||L.escaped||(!L.boarded&&!L.prize&&!boarderLeft());}
   else if(k==='pirate'){done=!!L.transferred;fail=dead||L.escaped||(modOn(L.mods,'fanatical')&&L.resolve<=0);}
   else if(k==='strip'){
@@ -1421,12 +1449,21 @@ const boarderLeft=()=>SIM.S.ships.some(s=>s.alive&&s.faction==='reb'&&s.load35==
 const podsLeft=()=>SIM.S.ships.some(s=>s.alive&&s.faction==='reb'&&s.load35==='pods')||uncalled('pods');
 /* a reserve wing not called yet with a ship of this loadout */
 const uncalled=lo=>!!(L.X.reserves&&L.X.reserves.some(r=>!L.called[r.id]&&r.ships.some(sd=>sd.load35===lo)));
+/* the gravity window (22 October: a Crash holds fire on the power plant till it's open): she's in the planet's pull, or
+   her power plant out within CRASH_LEAD s would leave her drifting into it (a drift runs about 1 / DRIFT_DECAY s) */
+function crashWindow(){
+  const fr=FR(),P=L.planet;if(!fr||!fr.alive)return false;if(dist(fr,P)<P.pull*0.97)return true;
+  const k=N.CRASH_LEAD+0.9/N.DRIFT_DECAY,ex=fr.vx*k,ey=fr.vy*k,l2=ex*ex+ey*ey;if(l2<1)return false;
+  const u=clamp(((P.x-fr.x)*ex+(P.y-fr.y)*ey)/l2,0,1);return Math.hypot(fr.x+ex*u-P.x,fr.y+ey*u-P.y)<P.pull*0.95;
+}
+/* she's been through the window and out the other side, powered: a Crash can't happen now */
+function winTick(){const fr=FR();if(!fr||!fr.alive||L.disabled||L.winPassed)return;if(crashWindow())L.winSeen=true;else if(L.winSeen)L.winPassed=true;}
 /* can this primary still be done (or is it done already)? */
 function canStill(k,obj){
   const fr=FR(),gone=!fr||!fr.alive,dead=gone&&fr&&!fr.jumped,live=!gone&&!L.escaped&&!L.prize,stop=true;   // after playtest 2 she needn't be stopped to board
   switch(k){
     case 'destroy':return dead||(live&&!L.surrender);
-    case 'crash':return live&&(L.disabled?dist(fr,L.planet)<L.planet.pull||Math.hypot(fr.vx,fr.vy)>=5:L.powerSeen||bombsLeft());
+    case 'crash':winTick();return live&&(L.disabled?dist(fr,L.planet)<L.planet.pull||Math.hypot(fr.vx,fr.vy)>=5:!L.winPassed&&(L.powerSeen||bombsLeft()));
     case 'steal':return live&&!L.scuttleOut&&(L.boarded||boarderLeft())&&stop;
     case 'strip':return live&&podsLeft()&&cargoLeft()>0&&stop;
     case 'pirate':return live&&!(modOn(L.mods,'fanatical')&&L.resolve<=0)&&L.fanaticT==null;
@@ -1439,7 +1476,7 @@ function failWhy(k,fr){
   const gone=!fr||!fr.alive,dead=gone&&fr&&!fr.jumped;
   if(L.escaped)return 'she jumped out';
   if(L.prizeHome)return 'we took her home';
-  if(k==='crash'){if(dead&&!L.crashed)return 'she blew up before she could fall';if(L.disabled)return 'she\'s dead in space outside the pull';return 'we\'re out of bombs to stop her with';}
+  if(k==='crash'){if(dead&&!L.crashed)return 'she blew up before she could fall';if(L.disabled)return 'she\'s dead in space outside the pull';if(L.winPassed)return 'she\'s through the gravity window';return 'we\'re out of bombs to stop her with';}
   if(k==='steal'){if(dead)return 'she\'s gone';return 'we\'ve lost the boarding party';}
   if(k==='strip'){if(dead)return 'she\'s gone';return 'nothing left to haul with';}
   if(k==='pirate'){if(dead)return 'she\'s gone';return 'they won\'t give up';}
@@ -1477,7 +1514,7 @@ function fieldExec(wid,k){
   const cover=lo=>{const o=busyWith(lo);return o?{k:'defend',arg:o.id}:null;};
   switch(k){
     case 'destroy':return has('bombs')||!escorts?{k:'destroy',arg:null}:{k:'suppress',arg:'escorts'};
-    case 'crash':return has('bombs')&&!L.disabled?{k:'disable',arg:L.engOut?'power':'engines'}:escorts?{k:'suppress',arg:'escorts'}:cover('bombs')||{k:'hold',arg:null};
+    case 'crash':return has('bombs')&&!L.disabled?{k:'disable',arg:'power'}:escorts?{k:'suppress',arg:'escorts'}:cover('bombs')||{k:'hold',arg:null};
     case 'steal':return has('board')?{k:'board',arg:null}:has('bombs')&&!L.engOut?{k:'disable',arg:'engines'}:cover('board')||(escorts?{k:'suppress',arg:'escorts'}:{k:'suppress',arg:'turrets'});
     case 'strip':return has('pods')?{k:'haul',arg:null}:has('bombs')&&!L.engOut?{k:'disable',arg:'engines'}:cover('pods')||(escorts?{k:'suppress',arg:'escorts'}:{k:'hold',arg:null});
     case 'pirate':return ws.every(s=>s.load35==='board'||s.load35==='pods')?cover('bombs')||{k:'hold',arg:null}:{k:'intimidate',arg:null};
@@ -2252,7 +2289,7 @@ function verbOf(s){
       if(s.load35==='pods')return v_('haul','Hauling '+Math.min(N.POD_CAP,(s.pods?s.pods.length:0)+1)+'/'+N.POD_CAP,(s.haulT||0)/N.HAUL_SECS);
       return v_('board','Boarding '+pct(L.board||0),L.board||0);
     case 'holdoff':if(b.cover){const c=F.byId(b.cover);return v_('defend','Covering '+(c?c.name:'the boarders'));}
-      return v_('holdoff',s.prop35==='pirate'?'Waiting for the holds to open':s.load35==='pods'?'Waiting to haul':'Waiting to board');
+      return v_('holdoff',b.win?'Waiting for the gravity window':s.prop35==='pirate'?'Waiting for the holds to open':s.load35==='pods'?'Waiting to haul':'Waiting to board');
     case 'intim':return v_('intim','Intimidating',1-L.resolve/N.RESOLVE_START);
     case 'overwatch35':return v_('overwatch','Overwatching the transfer',L.transfer!=null?L.transfer/N.TRANSFER_SECS:null);
     case 'tag':return v_('tag','Tagging '+pct(L.tag.prog/N.TAG_SECS),L.tag.prog/N.TAG_SECS);
@@ -2285,7 +2322,7 @@ return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
   POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
   REQ35,ANS,answerReq,reqTrigger,personaOf,SUB_NAME,verbOf,VERBS,
-  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
+  fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,FR_BODY,frBodyHit,crashWindow,winTick,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
     canComeAtAll:(plan,mods)=>!plan.optionals.some(o=>o.k==='distress')&&!(mods||[]).some(m=>m.k==='remote'&&!m.hidden),responseEta:()=>N.DISTRESS_SECS+N.RESPONSE_SECS,
     arrivalName:()=>{const r=(L.opp.cast||[]).find(t=>t.arrives);return r?thingName(r.arrives.at):'the jump point';}}};
 })();

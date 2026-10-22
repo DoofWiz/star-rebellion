@@ -559,7 +559,7 @@ function clockHtml(){
 /* seconds until the freighter reaches its jump point and spools, at its current pace */
 function etaJump(){
   const L=L35.L,fr=SIMHC.fn.byId('fl400');if(!L||!fr)return 0;
-  if(L.spool!=null)return Math.max(0,L35.TUNE.JUMP_SECS.get()-(SIM.S.t-L.spool));
+  if(L.spool!=null)return Math.max(0,(L.spoolDur!=null?L.spoolDur:L35.TUNE.JUMP_SECS.get())-(SIM.S.t-L.spool));
   let d=0,p=fr;for(let i=L.leg;i<L.lane.length;i++){d+=Math.hypot(L.lane[i].x-p.x,L.lane[i].y-p.y);p=L.lane[i];}
   const v=Math.max(1,Math.hypot(fr.vx,fr.vy));return d/v+L35.TUNE.JUMP_SECS.get();
 }
@@ -1314,7 +1314,7 @@ function frCard(fr){
   if(L.primK==='pirate'||Object.values(L.exec).some(x=>x&&x.k==='intimidate'))h+='<div class="hc-pbar is-res" data-k="Resolve"><span>Crew resolve</span><i><b style="width:'+Math.round(Math.max(0,L.resolve))+'%;background:'+C.heg+'"></b></i><em>'+Math.round(Math.max(0,L.resolve))+'</em></div>';
   const ch=[];const D=L.distress;
   if(L.disabled)ch.push('DEAD IN SPACE');else if(L.engOut)ch.push('THRUSTERS ONLY');if(L.disabled&&L.drift&&Math.hypot(fr.vx,fr.vy)>2)ch.push('DRIFTING');
-  if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil(L35.TUNE.JUMP_SECS.get()-(S.t-L.spool)))+' s');
+  if(L.spool!=null&&!L.disabled)ch.push('JUMP SPOOLING '+Math.max(0,Math.ceil((L.spoolDur!=null?L.spoolDur:L35.TUNE.JUMP_SECS.get())-(S.t-L.spool)))+' s');
   if(L.board>0&&!L.boarded)ch.push('BOARDING '+Math.round(L.board*100)+'%');
   if(D&&!D.landed&&!D.cut)ch.push('DISTRESS '+Math.round(Math.min(1,(S.t-D.t0)/N.DISTRESS_SECS)*100)+'%');
   if(L.surrender&&!L.prize)ch.push('SURRENDERING');

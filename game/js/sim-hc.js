@@ -19,7 +19,7 @@
 window.SIMHC=(function(){
 const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
-const SIM_VERSION='hc-2';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc-3';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -165,16 +165,26 @@ const totalShield=s=>s.segs.F.val+s.segs.R.val;
 const mute=s=>s.row.kind!=='starship';
 function applyDamage(t,dmg,skipShield,fromFront,hit){
   if(HK.damage){const r=HK.damage(t,dmg,skipShield,fromFront,hit);if(r)return r;}
-  let rem=dmg,sd=0,ad=0,hd=0;
-  const zone=fromFront?'F':'R';
-  if(!skipShield){
-    const keys=['F','R'].filter(k=>t.segs[k].at===zone).sort((a,b)=>(a===zone?1:0)-(b===zone?1:0));
-    for(const k of keys){if(rem<=0)break;const take=Math.min(t.segs[k].val,rem);t.segs[k].val-=take;rem-=take;sd+=take;}
-  }
-  if(rem>0&&t.arm>0){ad=Math.min(t.arm,rem);t.arm-=ad;rem-=ad;}
-  if(rem>0){hd=rem;t.hull-=hd;}
-  return {sd,ad,hd,zone};
+  const r=soak(t,dmg,skipShield,fromFront?'F':'R',hit&&hit.kind);
+  if(r.hd>0)t.hull-=r.hd;
+  return r;
 }
+/* weapon types against shields, armour and hull (the designer, 22 October): × damage on each layer, through soak().
+   Plasma (the plasma cannons) is great against shields and poor against armour; ballistic is poor against shields and
+   shreds armour; a missile is poor against shields and great against armour and hull. Anything else (the repeaters,
+   the pulse emitters) is the even line. Placeholders, on the panel (Weapons) */
+const DMG_VS={plasma:{sh:1.5,ar:0.5,hu:1},ballistic:{sh:0.4,ar:1.6,hu:1},missile:{sh:0.3,ar:1.6,hu:1.4}},DMG_EVEN={sh:1,ar:1,hu:1};
+const dmgKind=w=>!w?null:w.plasma?'plasma':w.kind==='missile'||w.kind==='ballistic'?w.kind:null;   // the database calls the repeaters plasma: only a true plasma weapon counts (C-89 item 45)
+/* a hit's damage through the shield facing it, then the armour; what's left for the hull, by the weapon's type */
+function soak(t,dmg,skip,zone,kind){
+  const M=DMG_VS[kind]||DMG_EVEN;let rem=dmg,sd=0,ad=0;
+  if(!skip){const keys=['F','R'].filter(k=>t.segs[k].at===zone).sort((a,b)=>(a===zone?1:0)-(b===zone?1:0));
+    for(const k of keys){if(rem<=0)break;const take=Math.min(t.segs[k].val,rem*M.sh);t.segs[k].val-=take;rem-=take/M.sh;sd+=take;}}
+  if(rem>1e-9&&t.arm>0){const take=Math.min(t.arm,rem*M.ar);t.arm-=take;rem-=take/M.ar;ad+=take;}
+  return {sd,ad,hd:rem>1e-9?rem*M.hu:0,zone};
+}
+/* the shield a shot from (vx, vy) meets: what's left of the halves facing it */
+function shieldFacing(t,vx,vy){const zone=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0?'F':'R';let v=0,m=0;for(const k of ['F','R'])if(t.segs[k].at===zone){v+=t.segs[k].val;m+=t.segs[k].max;}return {v,m};}
 function applicableCrits(s){
   const out=[];
   for(const id in CRITDEFS){
@@ -227,6 +237,17 @@ function hullHit(t,p0,p1){
   return {u,x:t.x+hx*cw-hy*sw,y:t.y+hx*sw+hy*cw,nx:nx*cw-ny*sw,ny:nx*sw+ny*cw};
 }
 let IMPACT_MIN=0.2;       // copied from sim-sb.js. placeholder
+/* where a shot meets a ship: the hull's ellipse (the shield's bubble) while the shield facing it is up; once it's down, a
+   layer may give the hull's own shape (Type 3.5: the freighter's), so a shot lands on the ship and not in the air round
+   it (the designer, 22 October). Her shape reaches past the ellipse at bow and stern: a shot there meets the hull, shields
+   up or down. throughShield: a weapon that skips shields */
+function shotHit(t,p0,p1,throughShield){
+  if(!HK.bodyHit)return hullHit(t,p0,p1);
+  const open=throughShield||shieldFacing(t,p1.x-p0.x,p1.y-p0.y).v<=0;
+  if(open){const b=HK.bodyHit(t,p0,p1);if(b!==undefined)return b;}
+  const h=hullHit(t,p0,p1);if(h)return h;
+  const b=HK.bodyHit(t,p0,p1);return b===undefined?null:b;
+}
 function impactOf(vx,vy,hit){const vl=Math.hypot(vx,vy)||1;return IMPACT_MIN+(1-IMPACT_MIN)*Math.max(0,-(vx*hit.nx+vy*hit.ny)/vl);}
 function rockHit(a,b){   // copied from sim-sb.js (space.js losBlocked ~382, as a segment test)
   for(const r of S.rocks){
@@ -316,6 +337,7 @@ function missileDoctrine(s){
   const tr=abilityTriggers(s,'missile');
   const go=doc==='MANUAL'?(s.misArm||0)>S.t:doc==='EMERG'?tr.emerg:true;
   if(!go)return;
+  if(doc!=='MANUAL'&&!missileOpening(s,shot.t))return;
   if(doc==='MANUAL')s.misArm=0;
   fireMissile(s,shot.q,shot.t);
   (s.abLog=s.abLog||[]).push({k:'missile',t:+S.t.toFixed(2),how:doc==='MANUAL'?'manual':tr.emerg?'emerg':'want'});
@@ -328,7 +350,13 @@ function spreadOf(s,w,d,lk){
   if(!mute(s))deg*=1+SPREAD_NERVE_K*(1-s.pilot.cool/100);
   deg+=SPREAD_CRIT*critCount(s,'targeting');
   deg*=1-LOCK_AIM*Math.min(1,lk||0);   // a lock steadies the guns (C-72)
-  return deg*(w.spreadK||1)*Math.PI/180;   // a layer's weapon may scatter more (Type 3.5's plasma)
+  return deg*(w.spreadK||1)*(w.kind==='ballistic'?BALLISTIC_SPREAD:1)*Math.PI/180;   // a layer's weapon may scatter more (Type 3.5's plasma); ballistic does
+}
+let BALLISTIC_SPREAD=1.6;   // ballistic guns scatter this × more (the designer, 22 October). placeholder
+/* a missile's chance: only at a target whose shield facing the shooter is down or nearly (MIS_SHIELD_OK of it), as a
+   missile does little to a shield (the designer, 22 October). Not when the player fires it by hand */
+let MIS_SHIELD_OK=0.25;   // placeholder
+function missileOpening(s,t){const f=shieldFacing(t,t.x-s.x,t.y-s.y);return f.m<=0||f.v<=f.m*MIS_SHIELD_OK;
 }
 function aimAngle(s,t,w){
   const rx=t.x-s.x,ry=t.y-s.y,vx=t.vx||0,vy=t.vy||0,V=projSpd(w);
@@ -385,7 +413,7 @@ function hitShip(t,shooterId,w,vx,vy,hit,homing,lockAt){
   const share=homing?1:shotShare()*(w.boltK||1),raw=roll*share*imp*(1+lk*LOCK_DMG_MAX);
   const dmg=homing?Math.max(1,Math.round(raw)):raw;
   const fromFront=(-vx*Math.cos(t.h)-vy*Math.sin(t.h))>0;
-  const r=applyDamage(t,dmg,w.skipShield,fromFront,HK.damage?Object.assign({by:shooterId},hit):hit);   // a damage hook is told who fired
+  const r=applyDamage(t,dmg,w.skipShield,fromFront,Object.assign(HK.damage?{by:shooterId}:{},hit,{kind:dmgKind(w)}));   // a damage hook is told who fired; every hit its weapon's type
   if(imp>=0.8&&S.rng()<(CRIT_DIRECT+(w.crit||0))*(homing?1:share/CRIT_REF))applyCritical(t);
   t.hitT=S.t;t.lastHitBy=shooterId;
   if(s){s.st.hits++;s.st.dmg+=dmg;}
@@ -405,7 +433,7 @@ function projTick(dt){
     for(const t of S.ships){
       if(!t.alive||t.faction===p.faction)continue;
       if(Math.abs(t.x-p0.x)>400||Math.abs(t.y-p0.y)>400)continue;   // a cheap reject before the ellipse
-      const h=hullHit(t,p0,p1);
+      const h=shotHit(t,p0,p1,p.w.skipShield);
       if(h&&h.u<bu){bu=h.u;best={t,h};}
     }
     if(best&&rockHit(p0,{x:best.h.x,y:best.h.y}))best=null;
@@ -449,7 +477,7 @@ function missileTick(dt){
     else if(t&&t.alive){const V=misSpd(),tau=Math.min(1.5,dist(m,t)/V),want=Math.atan2(t.y+(t.vy||0)*tau*0.5-m.y,t.x+(t.vx||0)*tau*0.5-m.x),dh=angNorm(want-m.h),cap=MIS_TURN*dt;m.h+=Math.max(-cap,Math.min(cap,dh));}   // leads its target a little
     const p0={x:m.x,y:m.y},p1={x:m.x+Math.cos(m.h)*misSpd()*dt,y:m.y+Math.sin(m.h)*misSpd()*dt};
     if(t&&t.alive){
-      const h=hullHit(t,p0,p1);
+      const h=shotHit(t,p0,p1,m.w.skipShield);
       if(h&&!rockHit(p0,{x:h.x,y:h.y})){
         const r=hitShip(t,m.owner,m.w,p1.x-p0.x,p1.y-p0.y,h,true,m.lock);
         adjCool(t,(r.r.ad>0||r.r.hd>0)?-12:-5);
@@ -2289,6 +2317,11 @@ const TACTIC_W={form:[0,2,0.05,'formation'],space:[0.5,6,0.1,'spacing ×'],engag
   disengage:[0,0.9,0.05,'falls back under hull'],leash:[0.3,2,0.05,'reach ×']};
 for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
+/* the weapon types' table, every number on the panel too */
+for(const k in DMG_VS)for(const [lk,lb] of [['sh','shields'],['ar','armour'],['hu','hull']])
+  TUNE['DV_'+k+'_'+lk]={get:()=>DMG_VS[k][lk],set:v=>{DMG_VS[k][lk]=Math.max(0.05,v);},min:0.05,max:3,step:0.05,label:k[0].toUpperCase()+k.slice(1)+' vs '+lb+' ×',group:'Weapons'};
+TUNE.BALLISTIC_SPREAD={get:()=>BALLISTIC_SPREAD,set:v=>{BALLISTIC_SPREAD=v;},min:1,max:4,step:0.1,label:'Ballistic spread ×',group:'Weapons'};
+TUNE.MIS_SHIELD_OK={get:()=>MIS_SHIELD_OK,set:v=>{MIS_SHIELD_OK=v;},min:0,max:1,step:0.05,label:'Missiles wait for the shield under ×',group:'Weapons'};
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
@@ -2299,6 +2332,7 @@ const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
   Rules:['PRES_HULL','GUARDIAN_SECS','GUARDIAN_R','ESCAPE_K','FORM_SECS','BRING_HULL','SAVIOUR_HULL'],
   Morale:['BARK_GAP','MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
   Commands:['CP_OVERRIDE','CP_RECALL','CP_REINFORCE','CP_SUPPORT','CP_RECON','CP_DECOY','OVERRIDE_SECS','OVERRIDE_COOL','RECON_SECS','DECOY_SECS','DECOY_R','RECALL_BOOST','HELP_SECS','RECALL_HULL','PIN_CLEAR']};
+GROUPS.Weapons=Object.keys(TUNE).filter(k=>TUNE[k].group==='Weapons');   // the weapon types (22 October)
 for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
@@ -2313,6 +2347,6 @@ return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),RANGE_MULT_:()=>RANGE_MULT,BURST_N_:()=>BURST_N,ESCORT_R_:()=>ESCORT_R,
     PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
-    rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,
+    rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,soak,shieldFacing,shotHit,dmgKind,missileOpening,spreadOf,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,
     presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,addWing,mkShip,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
 })();

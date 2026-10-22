@@ -28,7 +28,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  await pgH.goto(base+'?dev#arena');await pgH.waitForTimeout(800);
  // HC35 1: High Command is byte-identical with the 3.5 hooks in: hc1–hc3 after 90 s, seed 7, one scripted order at 5 s.
  // The baselines were recorded on space-combat-testing before any 3.5 change (C-75); Type 3's order tray issued the order then
- const HC35_BASE={hc1_nightfall:'6823701e',hc2_lastlight:'9a4e5999',hc3_meltdown:'ba50c171'};   // re-recorded for Boost Shields' cooldown and AUTO rule and mass-split collisions (feedback 1 K2, C-79)
+ const HC35_BASE={hc1_nightfall:'36bcc72e',hc2_lastlight:'fcae4af0',hc3_meltdown:'344375cb'};   // re-recorded for the weapon types, missiles that wait for a weak shield and hits on the hull itself (hc-3, 22 October)
  const t35a=await pgH.evaluate((FIX)=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
   const orders={hc1_nightfall:['dagger','attack',{type:'class',cls:'mote'}],hc2_lastlight:['ash','defend',{type:'ship',id:'lastlight'}],hc3_meltdown:['hammer','board',{type:'station',id:'reactor'}]};
@@ -73,7 +73,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
    const kit=by('Kit');F.throwChaff(kit);tick(1);
    SIM.command('decoy',{x:rl.x,y:rl.y});tick(1);
    const ss=by('Sera'),t=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);
-   if(t){ss.x=t.x-900;ss.y=t.y;ss.px=ss.x;ss.py=ss.y;ss.h=ss.vh=0;t.chaffLeft=0;let m=0;while(m++<80&&!seen.includes('missileLaunch')){ss.locks={[t.id]:1};tick(1);}}
+   if(t){ss.x=t.x-900;ss.y=t.y;ss.px=ss.x;ss.py=ss.y;ss.h=ss.vh=0;t.chaffLeft=0;let m=0;while(m++<80&&!seen.includes('missileLaunch')){ss.locks={[t.id]:1};t.segs.F.val=t.segs.R.val=0;tick(1);}}   // a missile waits for a weak shield (22 October)
    const a=by('Petra'),b2=by('Wren');a.px=a.x-200;a.py=a.y;a.vx=4000;a.vy=0;b2.x=a.x+20;b2.y=a.y;b2.px=b2.x;b2.py=b2.y;b2.vx=b2.vy=0;F.collideTick();f.fxSense();
    out.ev=['muzzle','boltHit','explode','jumpOut','chaff','command','missileLaunch','collide'].map(k=>k+':'+seen.includes(k));
    // a station's death is the big one; a wave arriving warps in
@@ -833,9 +833,10 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
     const was=X.S;X.fn.launch();if(X.S===was||S().t!==0)(out.stale||(out.stale=[])).push(prim);L().cp=9;};
   const keep={RES_THREAT:N.RES_THREAT,RES_ENGINES:N.RES_ENGINES,RES_TURRET:N.RES_TURRET,RES_ESCORT:N.RES_ESCORT,COMMS_OFF:N.COMMS_OFF};
   N.REQ_OFF=1;N.RES_THREAT=0;N.RES_ENGINES=0;N.RES_TURRET=0;N.RES_ESCORT=0;N.COMMS_OFF=1;   // no surrender to muddy it
-  // 1: Crash, the engines shot out far from the planet: dead in space outside the pull. Destroy takes over; every wing re-tasks
+  // 1: Crash, the power plant shot out far from the planet: dead in space outside the pull. Destroy takes over; every wing
+  // re-tasks (since 22 October the leaders wait for the gravity window, so the test knocks it out)
   go('crash',{dagger:{k:'suppress',arg:'escorts'},anvil:{k:'disable',arg:'engines'},amber:{k:'defend',arg:'anvil'}},{seed:31});
-  SIM.runFor(5);const e=L().subs.find(x=>x.k==='engines');e.hp=0;L35.fn.subDown(fr(),e,null);
+  SIM.runFor(5);const e=L().subs.find(x=>x.k==='power');e.hp=0;L35.fn.subDown(fr(),e,null);
   for(let i=0;i<200&&!L().fallback;i++)SIM.runFor(1);
   const fb=L().fallback||{},dec=L().dec;
   out.crash=[fb.from==='crash',fb.to==='destroy',/outside the pull/.test(fb.why||''),L().primK==='destroy',L().prim.state==='live',dec.some(d=>d.kind==='fallback'&&/Crash is off/.test(d.line)),
@@ -1003,6 +1004,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   out.dead=[!!L().disabled,fell,L().prim.state==='done'];
   // 3: boarding a ship on the move: no Disable; Mags closes, clamps on, rides with her, helpless; the board fills
   go('steal',{amber:{k:'board'}},{mags:'board'});L35.alarm('fired','test');
+  for(const e of S().ships)if(e.role35==='escort'){e.alive=false;e.jumped=true;}for(const x of L().subs)if(x.k==='pd')x.hp=0;   // the clamp, not a fight: a crit on the way in decides it otherwise
   const m=by('mags'),f=fr();m.x=f.x+Math.cos(f.h+Math.PI/2)*900;m.y=f.y+Math.sin(f.h+Math.PI/2)*900;   // 900 off: the approach and the clamp, not a long chase
  m.px=m.x;m.py=m.y;
   let dockT=null;for(let i=0;i<20*60&&dockT==null;i++){SIM.step();if(m.dock35)dockT=S().t;}
