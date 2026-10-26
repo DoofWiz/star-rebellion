@@ -10,7 +10,8 @@
    5  window 1 shows all four families, three with nothing in them; Destroy names the depots and pays the mission's own
       reward; nobody comes (no response)
    6  the fight: one Cross with missiles against the depots and their sentries wins, its missiles only at the depots, and
-      the mission's reward lands */
+      the mission's reward lands
+   7  it's always Sera who flies it (the pilot the story gives you), alone in a starfighter, whatever the wings say */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -86,6 +87,12 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  ok(r7.state==='done'&&r7.seen===1,'3: the base marks it seen, the mission done '+JSON.stringify(r7));
  ok(r7.dm-before.m===(r7.rew.m||0)&&r7.di-before.i===(r7.rew.i||0),'6: the mission\'s own reward lands '+JSON.stringify([r7.dm-before.m,r7.di-before.i,r7.rew]));
  ok(r5.fams==='take,deny,use,bait'&&r5.wins==='Destroy the fuel depots.'&&r5.resp===null,'5: four families; Destroy names the depots; no response '+JSON.stringify(r5));
+ // 7. it's always Sera (the designer, 26 October): Joss in Dustfall and Sera in the Marta, she still flies, alone, in Dustfall;
+ // unfit to fly, there's no flight
+ const r8=await E(()=>{const f=window.DBGbase.fn,G=window.DBGbase.G,P=id=>G.people.find(p=>p.id===id),fly=()=>f.wings35(x=>x.cls==='cross','sera').map(w=>w.ships.map(s=>s.pilotId+'/'+s.shipId).join());
+  P('joss').ship='dustfall';P('sera').ship='graf';const a=fly();P('sera').assign='mission';const b=fly();
+  P('sera').assign='standby';P('joss').ship='graf';P('sera').ship='dustfall';return {a,b};});
+ ok(r8.a.join()==='sera/dustfall'&&!r8.b.length,'7: always Sera, alone in a starfighter; not when she cannot fly '+JSON.stringify(r8));
  // 4. the second time: no FTUE; 5: the windows
  await E(()=>{const D=window.DBGbase,f=D.fn,G=D.G;for(let i=0;i<12&&f.getWin();i++)f.closeWin();G.missions=G.missions.filter(m=>m.id!=='depotrun');f.addMission('depotrun',true);
   for(const p of G.people)if(p.role==='Pilot'){p.assign='standby';p.cond=[];p.out=null;}for(const x of G.fighters){x.out=null;x.refit=0;x.hull=100;}f.syncUI();

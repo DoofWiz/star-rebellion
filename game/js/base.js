@@ -383,9 +383,15 @@ function craftHTML(){
 /* ---------- the player's wings in Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S6) ----------
    Every wing with a ship free to fly and its pilot, the leader first, as 3.5 flies them: the pilot's skills, nerve and
    traits (the one mapping table: SR_OPS.traitsOf), the ship's configuration, stored hull %, Heavy Frames */
-function wings35(only){   // only(fighter): the ships this mission takes (a starfighter mission: no transports)
+function wings35(only,who){   // only(fighter): the ships this mission takes (a starfighter mission: no transports); who: the one pilot it must be
   const out=[],sim=id=>'pf_'+id,flying={};
-  for(const w of wingsOf()){
+  const fit=p=>!!p&&!offDuty(p)&&p.assign!=='mission'&&p.assign!=='spec'&&!Rebel.expHas(p,'grieving'),free=f=>!!f&&!f.out&&!(f.refit>0)&&(!only||only(f));
+  if(who){   // a mission that's hers (Torch the Depots: Sera, the designer's call): she flies alone, in her ship or the first free one that fits
+    const p=G.people.find(x=>x.id===who);if(!fit(p))return [];
+    const own=G.fighters.find(f=>f.id===p.ship),f=free(own)?own:G.fighters.find(free);if(!f)return [];
+    const w=wingOfPilot(p.id)||wingsOf()[0];flying[p.id]=sim(f.id);out.push({id:w?w.id:'w_'+p.id,name:w?w.name:'Dagger',ms:[{p,f}]});
+  }
+  else for(const w of wingsOf()){
     if(wingBusy(w))continue;
     const ms=w.members.filter(m=>m.pilotId).map(m=>({p:G.people.find(x=>x.id===m.pilotId),f:G.fighters.find(x=>x.id===m.shipId)}))
       .filter(x=>x.p&&x.f&&!offDuty(x.p)&&x.p.assign!=='mission'&&x.p.assign!=='spec'&&!Rebel.expHas(x.p,'grieving')&&!x.f.out&&!(x.f.refit>0)&&(!only||only(x.f)));   // as ablePilots: grieving pilots stay home
@@ -1103,6 +1109,8 @@ const M35={intercept:'vulnerable_freighter',depotrun:'torch_depots'};
 /* the ones every player flies in Type 3.5 (the Space Combat FTUE: Torch the Depots, the prologue's first space mission):
    Plan mission opens 3.5's planning windows in place of the plan window. The rest stay ?dev only until S8 */
 const M35_LIVE={depotrun:1};
+/* the one pilot a mission must fly with, whatever the wings say: Sera is the pilot the story gives you for the depots */
+const FLY35_PILOT={depotrun:'sera'};
 /* ---------- signals: follow them up, get missions (or better) ---------- */
 const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
@@ -6268,8 +6276,8 @@ function msClick(ev){
 function fly35(id){
   const m=id==='test'?null:G.missions.find(x=>x.id===id&&M35[x.id]);
   if(id!=='test'&&!m)return;
-  const ws=m?wings35(m.fighterReq==='starfighter'?f=>!SEATS[f.cls]:null):[];   // Torch the Depots: Dustfall flies, the Marta stays home
-  if(m&&!ws.length){flashMsg('No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
+  const who=m&&FLY35_PILOT[m.id],ws=m?wings35(m.fighterReq==='starfighter'?f=>!SEATS[f.cls]:null,who):[];   // Torch the Depots: Sera in a starfighter (Dustfall); the Marta stays home
+  if(m&&!ws.length){const p=who&&G.people.find(x=>x.id===who);flashMsg(who?esc(p?p.name.split(' ')[0]:who)+' has to fly this one, and she can’t right now':'No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
   // S6: your wings fly it and it counts (the days, the pay, the hurt), with your Intel and your crafted assets
   SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{}),
     rew:Object.assign({},m.rew||{}),   // the mission's own reward, for an opportunity that pays it (Torch the Depots)
