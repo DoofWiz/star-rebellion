@@ -7,7 +7,10 @@
    3  past her shields a shot lands on the freighter's hull itself, not on the bubble round her
    4  a jump point is a jump point: Quick Jumper spools on the run and jumps only at her jump point
    5  the Crash: the leaders' plan leaves her engines alone; a Disable on the power plant waits for the gravity window,
-      holding fire on her, and goes in once it opens; through the window and out, the Crash is off */
+      holding fire on her, and goes in once it opens; through the window and out, the Crash is off
+   6  (27 October) a good pilot waits for the opening; a green one may fire early, an eager one more, a steady one less
+      (C-92 item 5); a fried shield emitter stops Boost Shields, and the leaders' "we'll never catch it" uses each
+      wing's own cruise (C-90 item 9) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -94,6 +97,17 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  ok(r.wait.every(Boolean),'5: far from the pull, Anvil waits for the gravity window and holds fire on her '+JSON.stringify(r.wait));
  ok(r.go.every(Boolean),'5: in the window, Anvil goes in '+JSON.stringify(r.go));
  ok(r.passed.every(Boolean),'5: through the window and out, the Crash is off '+JSON.stringify(r.passed));
+ const r2=await pg.evaluate(()=>{const X=window.DBGarena.hc35,SIM=window.SIMHC,F=SIM.fn,out={};
+  const p=(level,tr)=>({pilot:{level,tr:(tr||[]).map(k=>({k}))}});
+  out.rash=[F.missileRash(p(1)),F.missileRash(p(3)),F.missileRash(p(5)),F.missileRash(p(9)),F.missileRash(p(1,['reckless'])),F.missileRash(p(1,['cautious'])),F.missileRash(p(8,['reckless']))].map(v=>+v.toFixed(3));
+  const s=X.S.ships.find(x=>x.faction==='reb'&&x.alive&&!x.struct&&x.segs.F.max>0);s.abCd={};s.crits.push('emitter');
+  const fried=SIM.useAbility(s.id,'shields');s.crits=s.crits.filter(c=>c!=='emitter');s.abCd={};const fine=SIM.useAbility(s.id,'shields');
+  out.emitter=[fried.ok,fried.why,fine.ok];
+  out.cruise=[Math.round(X.fn.wingCruise('dagger')),Math.round(X.fn.wingCruise('anvil'))];
+  return out;});
+ ok(JSON.stringify(r2.rash)==='[0.6,0.3,0,0,1.2,0.3,0.18]','6: missiles before the opening, a second: level 1, 3, 5, 9; a reckless and a cautious level 1; a reckless level 8 '+JSON.stringify(r2.rash));
+ ok(r2.emitter[0]===false&&/emitter/.test(r2.emitter[1]||'')&&r2.emitter[2]===true,'6: a fried emitter stops Boost Shields '+JSON.stringify(r2.emitter));
+ ok(r2.cruise[0]===560&&r2.cruise[1]===420,'6: a wing cruises at its slowest ship: Dagger (Crosses, a Talon) 560, Anvil (Brickbats) 420 '+JSON.stringify(r2.cruise));
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
  console.log(JSON.stringify({fails,r},null,0));

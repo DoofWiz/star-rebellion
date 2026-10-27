@@ -789,7 +789,7 @@ const GLYPH={
   v_hook:'M12 2v10a5 5 0 11-5 5M7 17l-2.5-1.5'
 };
 const glyph=(k,cls)=>'<svg class="hc-glyph'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+GLYPH[k]+'"/></svg>';
-const TIME_BTNS=[{k:'pause',name:'Pause',line:'Stop the clock. Orders, tactics, rules and commands all work while paused; pause is free and unlimited.',key:'Space · 1'},
+const TIME_BTNS=[{k:'pause',name:'Pause',line:'Stop the clock. You can still use powers and answer requests while paused; pause is free and unlimited.',key:'Space · 1'},
   {k:'slow',name:'Slow',line:()=>'Run at '+SIM.TIMESCALES[1]+'× speed.',key:'2'},
   {k:'play',name:'Play',line:()=>'Run in real time ('+SIM.TIMESCALES[2]+'×).',key:'3'},
   {k:'fast',name:'Fast forward',line:()=>'Run at '+SIM.TIMESCALES[3]+'× speed.',key:'4'}];

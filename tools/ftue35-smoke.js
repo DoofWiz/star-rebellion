@@ -79,6 +79,17 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  // 5 (checked live): the plan-time read of the opportunity
  const r5=await E(()=>{const X=window.SR_ARENA_HC35.dbg;return {fams:X.L35.OPPORTUNITIES.torch_depots.families.join(),wins:X.L35.winsOf('destroy',X.L35.OPPORTUNITIES.torch_depots),resp:X.L35.OPPORTUNITIES.torch_depots.response};});
  // 6. the fight: home with the result
+ // C-93 item 4: her missiles go to the depots first; a ship gets one when it gains her the advantage (a spare missile and
+ // an open shield, or its guns on her while she's hurt). Everything put back before the fight runs
+ const r6b=await E(()=>{const X=window.SR_ARENA_HC35.dbg,S=X.S,L35=X.L35,s=S.ships.find(x=>x.id==='pf_dustfall'),q=s.wpns.find(x=>x.w.needsLock),
+   dep=S.ships.find(x=>x.cast35==='depots'&&x.alive),e=S.ships.find(x=>x.faction==='heg'&&!x.struct&&x.alive),keep=[q.ammo,s.hull,e.x,e.y,e.h,e.px,e.py,e.vx,e.vy];
+  const nDep=S.ships.filter(x=>x.cast35==='depots'&&x.alive).length;
+  q.ammo=nDep;const depot=L35.missileWorth(s,dep,q),drone=L35.missileWorth(s,e,q);
+  s.hull=Math.round(s.maxHull*0.3);e.x=e.px=s.x+Math.cos(s.h)*250;e.y=e.py=s.y+Math.sin(s.h)*250;e.h=s.h+Math.PI;
+  const hurt=L35.missileWorth(s,e,q);
+  [q.ammo,s.hull,e.x,e.y,e.h,e.px,e.py,e.vx,e.vy]=keep;
+  return [depot,drone,hurt];});
+ ok(r6b[0]===true&&r6b[1]===false&&r6b[2]===true,'C-93.4: a missile for a depot; none for a drone while the depots need them all; one at a drone with its guns on her when she\'s hurt '+JSON.stringify(r6b));
  const r6=await E(()=>{const X=window.SR_ARENA_HC35.dbg;X.fn.run(1200);const S=X.S;return {over:S.over&&S.over.outcome,prim:X.L.prim.state,mis:S.events.filter(e=>/fires a missile/.test(e.text)).map(e=>e.text.replace(/.* at /,'')),respond:S.ships.some(s=>s.role35==='response'),t:Math.round(S.t),reb:S.ships.filter(s=>s.faction==='reb').map(s=>[s.id,s.alive,Math.round(s.hull),s.beh&&s.beh.kind,s.beh&&s.beh.why,s.wpns.map(q=>q.w.id+':'+q.ammo).join('+'),s.st.shots,s.st.hits]),dep:S.ships.filter(s=>s.cast35==='depots').map(s=>s.alive),ex:JSON.stringify(X.L.exec),ev:S.events.slice(-6).map(e=>Math.round(e.t)+' '+e.text)};});
  ok(r6.over==='won'&&r6.prim==='done','6: one Cross wins Torch the Depots '+JSON.stringify(r6));
  ok(r6.mis.length>0&&r6.mis.every(t=>/^Depot \d$/.test(t))&&!r6.respond,'6: missiles only at the depots; nobody comes '+JSON.stringify(r6.mis));

@@ -474,10 +474,16 @@ function pilotWord(sd){const p=sd.pilot||{};if(p.id){const r=SRDB.pilots[p.id];r
 /* the leader's one-line take (§4.4): the critique rules, rewritten live as the plan changes */
 function leaderTake(w){return L35.critique(B.plan,w.id,B.mods,{inRing,unreachable});}
 /* can this wing reach its Executive target before the freighter jumps, at cruise? */
+/* a wing's cruise, world units a second: its slowest ship's (C-90 item 9: it was a flat 560, wrong for the Talon and the Brickbat) */
+function wingCruise(wid){
+  const w=L35.WINGS35.find(x=>x.id===wid),k=SIM.TUNE.CRUISE.get();
+  const vs=(w?w.ships:[]).map(sd=>{const row=L35.HC35_CLASSES[sd.cls]||SRDB.ship(sd.cls);return row?SIM.fn.capsOf({row,crits:[]}).vMax*k:0;}).filter(v=>v>0);
+  return vs.length?Math.min(...vs):560;
+}
 function unreachable(wid){
   const pw=B.plan.wings[wid],L=L35.L,ex=pw.exec;if(!L||!ex||['hold','ambush','withdraw','defend','escort'].includes(ex.k))return false;
   if(L.opp.key!=='freighter')return false;   // nothing on a lane to catch (Torch the Depots)
-  const m=toWorld(pw.jumpIn),v=560;let acc=0;   // a fighter's cruise, world units a second (a rough read)
+  const m=toWorld(pw.jumpIn),v=wingCruise(wid);let acc=0;
   for(let i=1;i<L.lane.length;i++){const a=L.lane[i-1],b=L.lane[i],d=Math.hypot(b.x-a.x,b.y-a.y);
     for(let u=0;u<=d;u+=300){const x=a.x+(b.x-a.x)*u/d,y=a.y+(b.y-a.y)*u/d;if(Math.hypot(x-m.x,y-m.y)/v<=(acc+u)/L.cruise)return false;}acc+=d;}
   return true;
@@ -1586,7 +1592,7 @@ const OV={home,onOver,record,drawBody,shipHidden,cmdsHtml,cmdsClick,tipFor,mapCl
 
 /* ---------- DBGarena.hc35 ---------- */
 const dbg={B,L35,get L(){return L35.L;},get S(){return SIM.S;},
-  fn:{open,close,campResult,campDone,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,toWorld,toLayout,fitPlan,record,OV,syncTarget,subTip,hoverSubs,
+  fn:{open,close,campResult,campDone,showBoard,enterBrief,launch,planAgain,render,dig,ready,checklist,inRing,unreachable,wingCruise,toWorld,toLayout,fitPlan,record,OV,syncTarget,subTip,hoverSubs,
     go(screen){if(screen==='brief')enterBrief();else if(screen==='board'||screen==='dossier')showBoard(false);},   // (the dossier lives in the board's rail now)
     run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++)SIM.step();if(SIM.S.over&&B.screen==='live')API.onOver();API.syncHud(true);return SIM.S.t;}}};
 window.SR_ARENA_HC35={open,close,dbg,get active(){return B.screen!=='off';}};

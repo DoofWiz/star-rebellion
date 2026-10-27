@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-17';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-18';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -817,9 +817,21 @@ const cargoLeft=()=>L.subs.filter(x=>x.k==='cargo'&&x.hp>0&&!x.taken&&!x.hazard)
 const cargoLost=()=>L.subs.filter(x=>x.k==='cargo'&&(x.hp<=0||x.taken)).map(x=>x.i);
 
 /* ---------- who may fire on what (P3 adds the rules) ---------- */
+/* Torch the Depots: her missiles go to the depots first, one in flight per depot (the FTUE doc). A ship gets one only when
+   it gains her the advantage (C-93 item 4, the designer: "she prioritises missiles for the depots, but will use them on
+   ships if she will gain the advantage from doing so"): she has more than the depots left need and its shield is open,
+   or it has its guns on her and she's hurt (under MIS_HURT of her hull) */
+const MIS_HURT=0.5;   // placeholder
+function missileWorth(s,t,q){
+  const F=SIM.fn,mine=SIM.S.missiles.filter(m=>m.owner===s.id);
+  if(t.cast35===L.opp.missilesFor)return !mine.some(m=>m.target===t.id);
+  const need=SIM.S.ships.filter(x=>x.alive&&x.cast35===L.opp.missilesFor&&!mine.some(m=>m.target===x.id)).length;
+  if(q.ammo>need&&F.missileOpening(s,t))return true;
+  return s.hull<s.maxHull*MIS_HURT&&F.inArc(t,s)&&F.dist(t,s)<=F.gunRange(t)*1.05;
+}
 function canFire(s,t,q){
   if(s.gunsDown35)return false;   // its guns are out (L4)
-  if(q&&q.w&&q.w.needsLock&&s.faction==='reb'&&L.opp.missilesFor&&(t.cast35!==L.opp.missilesFor||SIM.S.missiles.some(m=>m.owner===s.id&&m.target===t.id)))return false;   // Torch the Depots: missiles for the depots (the FTUE doc)
+  if(q&&q.w&&q.w.needsLock&&s.faction==='reb'&&L.opp.missilesFor&&!missileWorth(s,t,q))return false;   // Torch the Depots: missiles for the depots first
   if(t.unseen||s.dock35)return false;   // in a hangar, out of reach; clamped on, helpless
   if(t.id===L.fr&&(L.surrender||L.prize))return false;   // a surrendered ship or our prize: hold fire
   if(s.id===L.fr)return false;
@@ -861,7 +873,7 @@ function thinkWing(s){
   if((L.retreat||ex.k==='withdraw')&&!s.panic)return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:L.retreat?'retreating':'heading home',rule:'home35',hard:true});
   // a pod ship with containers aboard takes them home once it's full or its haul is over
   if(s.pods&&s.pods.length&&(ex.k!=='haul'||s.pods.length>=N.POD_CAP))return setB(s,{kind:'withdraw',dest:F.withdrawPoint(s),why:'carrying '+s.pods.length+' home',hard:true});
-  if(s.recall||s.panic||(s.beh&&s.beh.rule&&!/35$/.test(s.beh.rule)))return false;   // High Command's own ladder outranks the plan
+  if(s.panic||(s.beh&&s.beh.rule&&!/35$/.test(s.beh.rule)))return false;   // High Command's own ladder outranks the plan
   // a volunteer's ram; a Brickbat picking up a pod; a wing holding for the reserves (request answers)
   if(L.vol[s.id]){const t=F.byId(L.vol[s.id].id);if(t&&t.alive)return setB(s,{kind:'ram35',target:t.id,why:'putting her into it',rule:'vol35',hard:true});}
   if(L.fetch[s.id]){const p=L.pods.find(x=>x.id===L.fetch[s.id]);if(p&&p.state==='drift')return setB(s,{kind:'fetch35',dest:{x:p.x,y:p.y},why:'picking up '+p.name,rule:'fetch35',hard:true});delete L.fetch[s.id];}
@@ -2401,7 +2413,7 @@ function verbOf(s){
 /* =====================================================================
    The panel (getters, grouped) and the export
    ===================================================================== */
-return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,useWings,campaignWings,outcome,fuelOfPlan,RESERVE_FUEL,LOADOUTS,LOAD_CLS,loads,loadOf,LOAD_FIT,fitOf,loadOfConfig,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
+return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,useWings,campaignWings,outcome,fuelOfPlan,RESERVE_FUEL,missileWorth,LOADOUTS,LOAD_CLS,loads,loadOf,LOAD_FIT,fitOf,loadOfConfig,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,

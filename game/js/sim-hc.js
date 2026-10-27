@@ -22,7 +22,7 @@
 window.SIMHC=(function(){
 const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
-const SIM_VERSION='hc-4';   // hc-4: Type 3's rules, command points and commands removed (27 October 2026). Bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc-5';   // hc-5: a green pilot may fire a missile before the opening, and a fried shield emitter stops Boost Shields (C-92 item 5, C-90 item 9). hc-4: Type 3's rules, command points and commands removed (27 October 2026). Bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -340,10 +340,11 @@ function missileDoctrine(s){
   const tr=abilityTriggers(s,'missile');
   const go=doc==='MANUAL'?(s.misArm||0)>S.t:doc==='EMERG'?tr.emerg:true;
   if(!go)return;
-  if(doc!=='MANUAL'&&!missileOpening(s,shot.t))return;
+  const rash=doc!=='MANUAL'&&!missileOpening(s,shot.t);
+  if(rash&&!(S.rng()<missileRash(s)*TICK/1000))return;   // a good pilot waits for the opening; a green one may not (C-92 item 5)
   if(doc==='MANUAL')s.misArm=0;
   fireMissile(s,shot.q,shot.t);
-  (s.abLog=s.abLog||[]).push({k:'missile',t:+S.t.toFixed(2),how:doc==='MANUAL'?'manual':tr.emerg?'emerg':'want'});
+  (s.abLog=s.abLog||[]).push({k:'missile',t:+S.t.toFixed(2),how:doc==='MANUAL'?'manual':rash?'rash':tr.emerg?'emerg':'want'});
 }
 function aimBonus(s){return SRDB.skillBonus(s.pilot.skills?s.pilot.skills.aim:0,s.pilot.level);}
 function spreadOf(s,w,d,lk){
@@ -360,6 +361,16 @@ let BALLISTIC_SPREAD=1.6;   // ballistic guns scatter this × more (the designer
    missile does little to a shield (the designer, 22 October). Not when the player fires it by hand */
 let MIS_SHIELD_OK=0.25;   // placeholder
 function missileOpening(s,t){const f=shieldFacing(t,t.x-s.x,t.y-s.y);return f.m<=0||f.v<=f.m*MIS_SHIELD_OK;
+}
+/* how often a pilot fires before the opening, a second (C-92 item 5, the designer: "a 'good' pilot waits for an opening
+   against a downed shield. A novice pilot (low level) should make more mistakes. Some traits should be able to interact").
+   MIS_RASH at level 1, falling to nothing at MIS_GOOD_LVL; an eager pilot (reckless, brave, hothead) twice as often and
+   never quite cured of it, a steady one (steady, cautious, veteran) half as often */
+let MIS_RASH=0.6,MIS_GOOD_LVL=5;   // placeholders
+const MIS_RASH_PER={eager:2,even:1,steady:0.5};
+function missileRash(s){
+  const p=s.pilot,lv=Math.max(0,Math.min(1,((p.level||1)-1)/Math.max(1,MIS_GOOD_LVL-1))),per=personalityOf(p);
+  return MIS_RASH*Math.max(1-lv,per==='eager'?0.15:0)*(MIS_RASH_PER[per]||1);
 }
 function aimAngle(s,t,w){
   const rx=t.x-s.x,ry=t.y-s.y,vx=t.vx||0,vy=t.vy||0,V=projSpd(w);
@@ -1089,6 +1100,7 @@ function useAbility(s,k,manual){
   if(!s.alive||!abilitiesOf(s).includes(k))return {ok:false,why:'not this pilot\'s'};
   if(HK.abilityOk){const why=HK.abilityOk(s,k);if(why)return {ok:false,why};}   // a layer's say (Type 3.5: a subsystem that's down)
   if(k==='chaff'&&(s.chaffLeft!=null?s.chaffLeft:CHAFF_N)<=0)return {ok:false,why:'no chaff left'};
+  if(k==='shields'&&critCount(s,'emitter'))return {ok:false,why:'the shield emitter is fried'};   // Shield Emitter Fried (C-90 item 9: it did nothing)
   if(k==='missile'){   // pressed: fire now if locked, else arm it for the next lock
     const q=misWpn(s);if(!q)return {ok:false,why:'no missiles left'};
     const shot=missileShot(s);
@@ -1958,6 +1970,8 @@ for(const k in DMG_VS)for(const [lk,lb] of [['sh','shields'],['ar','armour'],['h
   TUNE['DV_'+k+'_'+lk]={get:()=>DMG_VS[k][lk],set:v=>{DMG_VS[k][lk]=Math.max(0.05,v);},min:0.05,max:3,step:0.05,label:k[0].toUpperCase()+k.slice(1)+' vs '+lb+' ×',group:'Weapons'};
 TUNE.BALLISTIC_SPREAD={get:()=>BALLISTIC_SPREAD,set:v=>{BALLISTIC_SPREAD=v;},min:1,max:4,step:0.1,label:'Ballistic spread ×',group:'Weapons'};
 TUNE.MIS_SHIELD_OK={get:()=>MIS_SHIELD_OK,set:v=>{MIS_SHIELD_OK=v;},min:0,max:1,step:0.05,label:'Missiles wait for the shield under ×',group:'Weapons'};
+TUNE.MIS_RASH={get:()=>MIS_RASH,set:v=>{MIS_RASH=v;},min:0,max:3,step:0.05,label:'A level-1 pilot fires early (/s)',group:'Weapons'};
+TUNE.MIS_GOOD_LVL={get:()=>MIS_GOOD_LVL,set:v=>{MIS_GOOD_LVL=v;},min:2,max:20,step:1,label:'Waits for the opening from level',group:'Weapons'};
 /* the panel's groups (§5 T4: one HC group, sectioned) */
 const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
@@ -1975,7 +1989,7 @@ return {key:'hc',name:'High Command',SIM_VERSION,
   ORDERS,HC_TACTICS,PERSONALITY,CRITDEFS,TUNE,GROUPS,ASSESS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),stateHash,endMission,pushEvent,moraleOf,assessOf,
-  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{autoPick,missileRash,missileOpening,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),RANGE_MULT_:()=>RANGE_MULT,BURST_N_:()=>BURST_N,ESCORT_R_:()=>ESCORT_R,
     CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,

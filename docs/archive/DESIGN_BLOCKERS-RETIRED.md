@@ -2469,3 +2469,147 @@ phase, added as each is built. **Every other reading in C-75 to C-87 stands as i
 - Work through `docs/TRAITS-35-REVIEW.md` (item 36).
 
 **Your call:** _open_
+
+## Resolved after the sweep (27 October 2026)
+
+### C-90 🟡 The clean-up report: what needs a decision
+`docs/CLEANUP-REPORT.md` has every finding with where it is, why it looks redundant and the risk. These are the ones
+I can't settle without you:
+
+1. **The UI kit's source is behind the game.** `tools/ui-kit/sr-theme.css` lacks the game's `100dvh` window height
+   and the whole tablet layout. Running `tools/ui-kit/build.py` would undo the iPad pass.
+   - Interim: nothing is rebuilt.
+   - Shall I copy the game's changes back into the source?
+2. ~~**The four standalone prototypes**~~ Archived (Resolved log, C-90.2).
+3. **Type 3's systems in the sim** (rules, command points, commands, emergencies, tactics): only the fixtures
+   exercise them now.
+   - 3.5 calls none of them directly.
+   - Keep them for 3.5 to draw on later, or plan their removal for S9?
+   - Removing them changes the hash baselines.
+4. ~~**Names that will collide**~~ Renamed (Resolved log, C-90.4): Tips, Heat, mounts and hardpoints.
+5. **3.5's player-facing text is outside the workbook.** `text.py` doesn't read `arena-hc35.js`, `sim-hc35.js`,
+   `sim-hc.js` or `ops-core.js`; it was lab copy (C-78).
+   - Bring it into the workbook at S1, when it reaches players?
+6. **Old docs.** Do you want these moved now?
+   - Built handoffs with few links: ONBOARDING, MARKET-ARSENAL, GALAXY with its reference page, LEGACY_AUDIT (this
+     report replaces it). They could go to `docs/archive/`.
+   - The heavily cited ones could get a "Status: built" line instead.
+7. ~~**Stale numbers in README, GDD, ROADMAP and REBELS_PLAN**~~ Fixed to the build's numbers (Resolved log, C-90.7).
+8. **Type 3's blocker entries:**
+   - C-66, C-67, C-69, C-71 and C-72 are now mostly records of an archived ruleset.
+   - C-70 item 13 is answered by decision 9.
+   - C-72 item 19 is moot.
+   - May I move them to `docs/archive/DESIGN_BLOCKERS-ARENA.md` as I did v2's and SB's? C-68, C-73, C-74 and C-75
+     stay: the sim and the visual pass are live.
+9. **Two bugs the audit found, for when their phase comes:**
+   - High Command's emitter critical does nothing (Boost Shields never checks it): S6.
+   - Type 3.5's `unreachable()` assumes a cruise speed of 560 (wrong for the Talon and the Brickbat): S7 or S8.
+   - ~~A wing leader in trouble is offered to themselves for help~~ Fixed in S7 (C-94 item 8).
+
+**Your call** (the designer, 27 October 2026): items 1, 5, 6 and 8 stand as built. Item 2: archive the prototypes. Item 3: remove Type 3's systems. Item 4: Tips confirmed; give the other two new names so none are the same (to review later); hardpoints are a count each ship has, each kind of attachment uses some, and weapons go in **mounts**, a separate count (one count, any weapon: a ship with two mounts can't take a third weapon). Item 7: no numbers are fixed, so the build's latest numbers are right. Item 9: fix both bugs. _Building._
+
+### C-93 🟡 The Space Combat FTUE: what I chose
+Your doc "Space Combat FTUE" (Google Drive, FTUE folder). Built: Torch the Depots plans and flies in Type 3.5 for every
+player, and the first time it's planned the FTUE runs. Code: `game/js/ftue35.js` (the FTUE), `torch_depots` in
+`game/js/sim-hc35.js`. Tests: `tools/ftue35-smoke.js`; `prologue-smoke` and `economy-smoke` fly it in 3.5 now.
+
+**The mission**
+1. **It's 3.5's for everyone.** Plan mission on Torch the Depots (from the Missions tab, a comm or the new-mission card)
+   opens 3.5's planning windows in place of the plan window (`M35_LIVE` in `base.js`). The other 3.5 mission
+   (Intercept Transport) stays `?dev` until S8. `space.js`'s depot scenario is no longer reached by players; it and
+   its tests stay until S11 (this is S11's Torch the Depots, done early).
+2. **One ship.** A mission that needs a starfighter (the old one did: one pilot, one starfighter) flies only your wings'
+   starfighters. At the depots that's **Sera in Dustfall**; Joss and the Marta (a transport) stay home, and Sera leads
+   the wing for the day.
+   - **Answered** (Resolved log, C-93.2): it's always Sera. She flies alone, in her own ship if it's a starfighter, else
+     the first free one (Dustfall), whatever the wings say (`FLY35_PILOT`); if she can't fly, the mission says so.
+3. **The opportunity** (`torch_depots`, placeholders throughout, as data like Patrol Sweep):
+   - **Four depots** (hull 14, no armour).
+   - **Sixteen sentry drones**, four round each depot: hull 3, their guns at × 0.35, and a nuisance (their fire
+     neither pins a pilot nor rattles their nerve), so one ship massively outperforms them.
+   - **No response:** nobody to call.
+   - **Window 1 shows all four families** (the steps point at each), with "Nothing to take", "Nothing to use" and
+     "Nothing to bait" cards; Destroy (the fuel depots) is the one objective.
+   - **The result:** one level-3 Cross won 12 seeds in 12, in 1.5 to 10 minutes of sim time (about 3 minutes on screen
+     at the default speed), home on 24 to 40 of her 40 hull.
+4. **Missiles for the depots** (your note): she fires them only at a depot, one in flight per depot.
+5. **It pays the mission's own reward** (5 Intel, 0.2 XP, the prologue's +400 Materials), not 3.5's stand-in; window 1
+   shows it on the Destroy card.
+6. ~~**Fuel isn't paid** for a 3.5 flight yet.~~ Paid (Resolved log, C-93.6): Sera's Dustfall burns 24 at the depots.
+
+**The FTUE**
+7. **The intro window:** four pages, Previous and Next ("Got it" on the last). Your "smooth gifs" are drawn live, in a
+   loop that fades in and out, with the game's own ship art: page 2 a wing of three in formation with its leader
+   ringed, page 3 the wing flying at the enemy and opening fire, page 1 a small "Objective, Team, Plan" loop; page 4
+   has none. Reduced motion shows a still frame. **Answered** (Resolved log, C-93.7): page 1's loop stays, and they stay
+   live rather than GIF files.
+8. **The 16 steps,** in your order: a coach card beside what it explains (Next for steps 1 to 5, Got it for the
+   pop-ups), or a pointer with a pulsing ring at what to click (steps 6, 7, 9, 11, 14, 16).
+   - Your step 7's "Secondaries button" is window 1's **Next: Secondaries** (there's no separate button).
+   - The pointers say the button's own name ("Next: Secondaries", "Next: Rules", "Next: Wings & assets", "Next: The
+     plan", "Start the mission").
+   - Copy is yours, lightly edited (step 6 drops a doubled "in this case").
+9. **How it behaves:** a step shows only while its window is on screen, is skipped once you're past it (pick Destroy
+   early and step 6 is done), and waits if you go back. The intro window has the keys while it's up.
+10. **Seen once you launch.** Back out midway and it starts again next time. Stored as
+    `G.prologue.flags.tut.space35` (no save change); `Pro.replayTuts()` clears it.
+11. **"Like Ground Missions":** there's no planning FTUE window for ground missions to match (they're taught by the
+    prologue's coach cards), so this uses the same coach card and pointer look.
+12. **The text is outside the workbook**, like the rest of 3.5's (C-90 item 5).
+
+**Found on the way**
+13. **Patrol Sweep:** a Destroy on a cast force read its progress as 0, so its leaders said "we're getting nowhere"
+    after 90 s whatever happened. It reads how many are gone now (one fight fingerprint changed; `SIM_VERSION`
+    `hc35-15`).
+
+**Needs from you:** nothing (items 2 and 7 answered).
+**Your call** (the designer, 27 October 2026): items 1, 3, 5 and 8 to 13 stand as built. Item 4: she prioritises missiles for the depots, but uses them on ships when she gains the advantage. Item 6: every mission the player creates has a travel time, and sending ships always costs fuel. _Building._
+
+### C-92 🟡 Your freighter notes of 22 October: what I chose
+Your run of seed 534180 (Crash) and your weapon notes. `SIM_VERSION` is now `hc-3` / `hc35-14`: an older record replays
+with a warning and diverges at the first changed shot (yours at 0:19). Tests: `tools/weapons35-smoke.js`.
+
+1. **The Crash waits for the gravity window.** The leaders' Crash plan and a wing finding work no longer go for her
+   engines (she has to reach the pull). A Disable on the power plant, when the primary is Crash, holds fire on her and
+   stands off ("Waiting for the gravity window") until the window opens.
+   - **The window:** she's in the pull, or her power plant going down within `CRASH_LEAD` (10 s) would leave her
+     drifting into it.
+   - **Through the window and out**, still powered, the Crash is off ("she's through the gravity window") and the
+     fallback takes over.
+   - **The result:** the leaders' Crash over 10 seeds (the signal at once) fell into the planet 1 time in 10 before, 7
+     now; held for the signal, your seed falls at 1:30.
+   - **The 3 that still fail** run out of bombs: the lane only grazes the pull (about 240 units inside it), the 12 bombs
+     leave the power plant on 22 to 57 HP, and the blasts take her engines, so she crawls back out. **Your call:** fewer
+     power plant HP (`POWER_HP` 90), more bombs, a lane that dips deeper (the Near a Planet modifier's), or leave it
+     as the difficulty it is.
+2. **A shot past her shields lands on her hull.** Every ship was hit on one ellipse (its shield's bubble), and the
+   freighter's is wide of her hull. Now, with the shield facing a shot down, the shot meets her own shape: three boxes
+   from her art (the drive block with its turrets, the spine and cargo, the bridge). Her art also reaches past the
+   ellipse at bow and stern, so a shot there meets her hull, shields up or down. Bombs land on it too. Only the
+   freighter has a shape; fighters keep their ellipse, which fits them.
+3. **A jump point is a jump point.** The early jump was the hidden Quick Jumper, which spooled a jump wherever she was
+   (60 s). Now she spools on the run and jumps the moment she reaches her jump point (the 8 s spool already done). No
+   other jump happens short of it (the prize crew's is at our jump point). Its text is new; `QUICK_SPOOL` is gone.
+4. **Weapon types** (your note; placeholders, the panel's new **Weapons** group): × damage on each layer.
+
+   | Type | Shields | Armour | Hull |
+   |---|---|---|---|
+   | Plasma | 1.5 | 0.5 | 1 |
+   | Ballistic | 0.4 | 1.6 | 1 |
+   | Missile | 0.3 | 1.6 | 1.4 |
+   | Anything else | 1 | 1 | 1 |
+
+   - What a layer doesn't take goes on to the next at the next layer's rate.
+   - Ballistic scatters 1.6 × (`BALLISTIC_SPREAD`).
+   - **A conflict:** the database calls the BLS-T repeaters (every fighter's main gun) and the Hegemony's pulse emitters
+     `plasma`, but 3.5 already has true plasma: the PX cannons on your Talons and the response's Pursuers. I treated
+     only those as plasma; the repeaters and emitters are the even line. Made plasma, every fighter's main gun would be
+     poor against armour. **Your call:** are the repeaters plasma, or a type of their own (laser)?
+   - **Another:** the door-mounted gun is ballistic but `bypasses_shields` in the database, so the shield rule never
+     touches it. Keep the bypass?
+5. **Missiles wait for an opening.** A pilot fires a missile only at a target whose shield facing them is down or under
+   a quarter (`MIS_SHIELD_OK`), not by hand. On a capital hull a missile does × 0.5 (`MIS_VS_CAP`) where guns do
+   × 0.25, then × 1.4 on her hull: your Crosses spend theirs on the freighter once her shield's gone.
+
+**Needs from you:** items 1 (the Crash that runs out of bombs) and 4 (the repeaters; the door gun).
+**Your call** (the designer, 27 October 2026): items 1, 3 and 4 stand as built (the Crash that runs out of bombs is the difficulty it is; the repeaters stay the even line; the door gun keeps its bypass). Item 2 applies to every ship: a shot past a shield that's down or absent reaches the hull. Item 5: a good pilot waits for an opening against a downed shield; a novice makes more mistakes, and some traits change it. _Building._
