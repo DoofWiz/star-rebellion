@@ -2,7 +2,7 @@
    (needs NODE_PATH=$(npm root -g)).
    1  players see nothing new: without ?dev the Missions tab has no Type 3.5 buttons, and SR.go('space35', {mission})
       hides the designer panel
-   2  with ?dev, Intercept Transport's briefing offers "Fly it in Type 3.5 (dev)". With no wing free to fly it says so and
+   2  Intercept Transport's Plan mission opens Type 3.5 for every player (S7; no dev button). With no wing free to fly it says so and
       stays. With one, SR.go('space35') opens window 1 of the freighter (never the board, titled for the mission) with the
       player's own wing in window 3; it flies to a Mission Success / Mission Failed pop-up, and Next returns to the base
       with the mission's days gone by. The base's report lists the ships flown, and More information opens the flight's
@@ -51,15 +51,15 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  {const {ctx,pg}=await page('?dev#test');
   // no wing free to fly: it says so and stays
   await toBoard(pg);await pg.evaluate(()=>{window.DBGbase.G.wings=[];window.DBGbase.G.fighters=[];});
-  await pg.evaluate(()=>{const b=document.querySelector('[data-m35="intercept"]');if(b)b.click();});await pg.waitForTimeout(300);
+  await pg.evaluate(()=>window.DBGbase.fn.fly35('intercept'));await pg.waitForTimeout(300);
   out.noWing=await pg.evaluate(()=>window.SR.active);
   // a wing: Joss in a Cross (before the frontier a ship and its pilot join the first wing on their own)
   await pg.evaluate(()=>{const D=window.DBGbase,f=D.fn,G=D.G;const s=f.newFighter({id:'s35c',name:'Test Cross',cls:'cross',hull:100});G.fighters.push(s);
    const p=G.people.find(x=>x.role==='Pilot');window.__p35=JSON.stringify(p);p.ship='s35c';p.assign='standby';f.syncUI();});   // a clean copy for step 3
   out.sel=await toBoard(pg);
-  out.btns=await pg.evaluate(()=>({fly:!!document.querySelector('[data-m35="intercept"]'),test:!!document.querySelector('[data-m35="test"]'),plan:!!document.querySelector('[data-mplan="intercept"]')}));
+  out.btns=await pg.evaluate(()=>({fly:!document.querySelector('[data-m35="intercept"]'),test:!!document.querySelector('[data-m35="test"]'),plan:!!document.querySelector('[data-mplan="intercept"]')}));
   const day0=await pg.evaluate(()=>window.DBGbase.G.day);
-  await pg.click('[data-m35="intercept"]');
+  await pg.click('[data-mplan="intercept"]');
   out.into=await scene(pg,'space35');await pg.waitForTimeout(500);
   out.brief=await pg.evaluate(()=>{const X=window.DBGspace35.hc35,B=X.B,q=s=>document.querySelector('#arHc35 '+s);
    return {screen:B.screen,camp:!!B.camp,opp:B.oppId,title:(q('.h35-holo__title')||{}).textContent,board:!!q('.bf-board'),panel:!document.getElementById('hcPanel').hidden,
@@ -94,7 +94,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
    G.fighters.push(f.newFighter({id:'s35d',name:'Test Talon',cls:'talon',hull:100}));f.syncUI();});
   await toBoard(pg);
   const before3=await campaign(pg);
-  await pg.click('[data-m35="intercept"]');out.back=[await scene(pg,'space35')];await pg.waitForTimeout(400);
+  await pg.click('[data-mplan="intercept"]');out.back=[await scene(pg,'space35')];await pg.waitForTimeout(400);
   await pg.click('#arHc35 [data-act="prev"]');
   out.back.push(await scene(pg,'base'));await pg.waitForTimeout(400);
   out.back.push(before3===await campaign(pg));
@@ -103,8 +103,8 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   out.test=await pg.evaluate(()=>{const X=window.DBGspace35.hc35,B=X.B;return [B.screen,!B.camp,!!document.querySelector('#arHc35 .bf-board'),X.L35.WINGS35.map(w=>w.id).join()];});
   await ctx.close();}
  ok(out.noWing==='base','2: with no wing free to fly, it stays at the base '+out.noWing);
- ok(out.sel&&out.btns.fly&&out.btns.test&&out.btns.plan,'2: with ?dev, Intercept Transport offers Fly it in Type 3.5 beside Plan mission, and the board a Test opportunity '+JSON.stringify(out.btns));
- ok(out.into&&out.brief.screen==='brief'&&out.brief.camp&&out.brief.opp==='vulnerable_freighter'&&/INTERCEPT TRANSPORT/.test(out.brief.title||'')&&!out.brief.board&&out.brief.panel&&/Back to base/.test(out.brief.back||'')&&out.brief.fromCampaign&&out.brief.wings.join('|')==='s35c'&&out.brief.intel,
+ ok(out.sel&&out.btns.fly&&out.btns.test&&out.btns.plan,'2: Intercept Transport has Plan mission and no dev button (S7: live); with ?dev the board has a Test opportunity '+JSON.stringify(out.btns));
+ ok(out.into&&out.brief.screen==='brief'&&out.brief.camp&&/^intercept_transport@halt-[1-3]$/.test(out.brief.opp)&&/INTERCEPT TRANSPORT/.test(out.brief.title||'')&&!out.brief.board&&out.brief.panel&&/Back to base/.test(out.brief.back||'')&&out.brief.fromCampaign&&out.brief.wings.join('|')==='s35c'&&out.brief.intel,
   '2: SR.go(\'space35\') opens window 1 of the freighter, titled for the mission, the player\'s wing, the Intel strip, the panel (dev) '+JSON.stringify(out.brief));
  ok(out.flight.live[0]==='live'&&out.flight.live[2]===1,'2: the player\'s wing launches '+JSON.stringify(out.flight.live));
  ok(out.flight.deb.every(x=>x===true||x==='Intercept Transport'||x==='debrief'),'2: the end: a Mission Success / Failed pop-up, titled for the mission, with Next only '+JSON.stringify(out.flight.deb));

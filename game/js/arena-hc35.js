@@ -33,7 +33,7 @@ function open(o){
   HC.open({mode:'hc35',overlay:OV});
   ROOT.hidden=false;
   if(!B.camp){showBoard(true);return;}
-  const M=B.camp.mission;B.oppId=L35.OPPORTUNITIES[M.opp]?M.opp:'vulnerable_freighter';
+  const M=B.camp.mission,O=L35.instanceOf(M.opp,M.source);B.oppId=O?O.id:'vulnerable_freighter';   // S7: as its Source revealed it
   L35.useWings(M.wings&&M.wings.length?M.wings:null);   // the player's wings (S6); a test flight without them flies the demo's
   B.seed=M.seed||(Date.now()%999983)+1;rollAttempt();B.step=1;B.part=1;
   if(M.intel!=null){B.intel=M.intel;B.intel0=M.intel;}   // Dig deeper spends the campaign's Intel (S6)
@@ -140,7 +140,9 @@ function boardHtml(){
   return '<div class="bf-stage h35-missions'+(B.screen==='brief'?' is-dim':'')+'">'+top+board+holo+rail+comms+fine+'</div>';
 }
 /* a campaign mission's Intel strip (window 1): what you know, and Dig deeper at 1 of the campaign's Intel each (S6) */
-function campIntelHtml(){const hid=B.mods.some(m=>!L35.known(m));return '<div class="h35-campintel"><span class="h35-campintel__t">Intel</span>'+modTags()+digHtml(hid)+'</div>';}
+function campIntelHtml(){const hid=B.mods.some(m=>!L35.known(m)),so=opp().source||{};   // S7: who told us, and how much they see
+  const who=so.name?'<span class="sr-tag sr-tag--info" data-tip="@" data-tt="'+esc(so.name)+', level '+(so.level||1)+'" data-tb="A Source sees more of what is hidden as their level rises.'+(hid?' They may have missed something: Dig deeper.':'')+'">From '+esc(so.name)+' · Lv '+(so.level||1)+'</span>':'';
+  return '<div class="h35-campintel"><span class="h35-campintel__t">Intel</span>'+who+modTags()+digHtml(hid)+'</div>';}
 function digHtml(hid){
   let pips='';for(let i=0;i<(B.camp&&B.intel0!=null?Math.min(10,B.intel0):L35.TUNE.INTEL_START.get());i++)pips+='<i class="'+(i<B.intel?'is-on':'')+'"></i>';
   return '<div class="h35-dig"><button type="button" class="sr-btn sr-btn--sm" data-act="dig" data-tip="h35:dig"'+(B.intel>0&&hid?'':' aria-disabled="true" data-why="'+(hid?'No Intel left':'Nothing more to find')+'"')+'>Dig deeper</button><span class="h35-intel" data-tip="h35:intel">'+pips+'</span></div>';
@@ -344,7 +346,7 @@ function step1(){
     h+='<section class="h35-panel h35-fam"><div class="h35-panel__head"'+(later.length?' data-tip="@" data-tt="'+esc(f)+'" data-tb="Later: '+esc(later.map(x=>x.name).join(', '))+' (not in this demo)."':'')+'>'+esc(f)+'</div>'+
       ks.map(k=>objCard(k)).join('')+
       (!ks.length&&!later.length?'<div class="h35-ocard is-locked is-none"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(NONE_HERE[f]||'Nothing here')+'</div><div class="h35-ocard__pitch">not in this opportunity</div></div></div></div>':'')+
-      (later.length?'<div class="h35-ocard is-locked" data-tip="na:demo"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(later[0].name)+'</div><div class="h35-ocard__pitch">not in this demo</div></div></div></div>':'')+'</section>';
+      (later.length?'<div class="h35-ocard is-locked" data-tip="na:demo"><div class="h35-ocard__top">'+g35('lock')+'<div><div class="h35-ocard__name">'+esc(later[0].name)+'</div><div class="h35-ocard__pitch">'+(B.camp?'coming later':'not in this demo')+'</div></div></div></div>':'')+'</section>';
   }
   return h+'</div>';
 }
@@ -715,8 +717,9 @@ function whyLines(){
   if(D&&D.landed&&!L.arrayT)out.push('The distress call got out at '+fmtClock(D.t)+(L35.modOn(L.mods,'remote')?', but nobody was near to hear it.':'. That\'s why the response came.'));
   if(D&&D.cut)out.push('The comms array died with the distress call still sending: no response came.');
   for(const r of L.powRes)out.push(r.k==='ram'?'Your ram '+r.text+' at '+fmtClock(r.t)+'.':'Your '+(L35.POWERS35[r.k]||{name:r.k}).name+' at '+fmtClock(r.t)+' '+r.text+'.');   // "Your ram was shot down 300 m short at 0:36" (§3.2)
-  for(const m of L.mods){if(m.fake&&m.foundFake!=null)out.push('Cass was wrong: there was no '+L35.MODS[m.k].name+'.');
-    else if(!m.fake&&m.foundT!=null&&L35.MODS[m.k].tone==='warn')out.push('Cass missed '+L35.MODS[m.k].name+'. Now you know.');}
+  const who=(opp().source||{}).name||'Cass';   // S7: the Source that revealed it
+  for(const m of L.mods){if(m.fake&&m.foundFake!=null)out.push(who+' was wrong: there was no '+L35.MODS[m.k].name+'.');
+    else if(!m.fake&&m.foundT!=null&&L35.MODS[m.k].tone==='warn')out.push(who+' missed '+L35.MODS[m.k].name+'. Now you know.');}
   if(L.alarmWhy==='jumpin')out.push('A wing dropped in inside their sensor ring. Phase 1 lasted '+Math.round(L.phaseT[1]||0)+' s.');
   if(L.primK==='pirate'&&L.prim.state!=='done'){const turned=L.req.log.find(q=>q.k==='surrender'&&q.answer==='no'&&q.by==='player');
     const why=L.transferred?'':L.surrender==='take'?'Nobody stood guard for the transfer.':turned?'You turned down their offer at '+fmtClock(turned.sentT)+'.':L.fanaticT!=null?'The crew never folded: they were fanatics.':

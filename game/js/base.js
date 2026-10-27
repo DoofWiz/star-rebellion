@@ -1105,10 +1105,10 @@ const SRC_EVENTS={
 };
 /* Type 3.5 (docs/MAIN-SWITCH-HANDOFF.md S1): the missions a test wing can fly in Type 3.5, with ?dev, and the opportunity
    each flies as. The flight changes nothing in the campaign until S6; S7 makes them cast templates on the Sources */
-const M35={intercept:'vulnerable_freighter',depotrun:'torch_depots'};
+const M35={intercept:'intercept_transport',tanker:'tanker_grab',patrol:'patrol_sweep',depotrun:'torch_depots'};   // S7: the templates' variants
 /* the ones every player flies in Type 3.5 (the Space Combat FTUE: Torch the Depots, the prologue's first space mission):
    Plan mission opens 3.5's planning windows in place of the plan window. The rest stay ?dev only until S8 */
-const M35_LIVE={depotrun:1};
+const M35_LIVE={depotrun:1,intercept:1,tanker:1,patrol:1};   // S7 (the designer's call): the Sources' space opportunities fly in 3.5, not the off-screen dice
 /* the one pilot a mission must fly with, whatever the wings say: Sera is the pilot the story gives you for the depots */
 const FLY35_PILOT={depotrun:'sera'};
 /* ---------- signals: follow them up, get missions (or better) ---------- */
@@ -1116,12 +1116,16 @@ const MPOOL={
   toi:{name:'Take Out Instructor',from:'Ferren Halt',need:2,days:2,riskTxt:'High',lead:'space',leadTxt:'Fly it yourself',
     desc:'A Hegemony flight instructor, Commandant Dral Vex, trains the next class of Hegemony aces in this location. Kill the instructor to set their flight school back.',
     rew:{c:400,i:2,xp:0.2}},
-  intercept:{name:'Intercept Transport',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
+  intercept:{name:'Intercept Transport',from:'Ferren Halt',need:1,days:3,riskTxt:'Moderate',lead:'space',leadTxt:'Fly it yourself',   // S7: flown in Type 3.5 (one wing will do)
     desc:'A Hegemony supply transport crosses the drift with light escort. Kill the escort, board her, take everything that isn’t bolted down.',
     rew:{c:600,s:140,xp:0.15}},
-  tanker:{name:'Tanker Grab',from:'Ferren Halt',need:2,days:3,riskTxt:'Moderate',
+  tanker:{name:'Tanker Grab',from:'Ferren Halt',need:1,days:3,riskTxt:'Moderate',lead:'space',leadTxt:'Fly it yourself',
     desc:'Halt’s manifests were real: a fuel tanker, twice the load, half the escort. Take it whole.',
     rew:{c:320,s:240,xp:0.15}},
+  // S7: Patrol Sweep, a Type 3.5 template, revealed by Orrin Pell (the designer's call). Placeholder copy and reward
+  patrol:{name:'Patrol Sweep',from:'Orrin Pell',need:1,days:2,riskTxt:'Moderate',lead:'space',leadTxt:'Fly it yourself',
+    desc:'A Hegemony patrol sweeps the Ballakan approaches on a schedule Pell can set his watch by. Catch it in the belt and wipe it out, or let it call for help and ambush whoever answers.',
+    rew:{c:300,s:80,i:2,xp:0.15}},
   skim:{name:'Escort the Skim',from:'Sen. Vokk',need:2,days:2,riskTxt:'Low',
     desc:'Vokk’s shell-company transfer needs quiet guns for two days. Boring flying, beautiful money.',
     rew:{c:700,xp:0.1}},
@@ -1295,7 +1299,7 @@ const REGION_DECOR={
    Access cap and the Support cap. Tuning values live in ACC_CAP. */
 const ACC_CAP=[0,20,40,60,80,100];
 const supCol=i=>[K.hegDeep,K.heg,K.steel,K.rebelHi,K.rebel][Math.max(0,Math.min(4,i))];   // low support = Hegemony blue … high = rebel red
-const MLOC={toi:'veray',intercept:'veray',tanker:'veray',fighters:'veray',skim:'kess',chart:'callis',
+const MLOC={toi:'veray',intercept:'veray',tanker:'veray',patrol:'ballakan',fighters:'veray',skim:'kess',chart:'callis',
   garrison:'akkaro',depotrun:'akkaro',stealcross:'akkaro',orehaul:'dreymar',foundry:'volund'};
 for(const k in MLOC)if(MPOOL[k])MPOOL[k].loc=MLOC[k];
 MPOOL.stealcross.region='dustfall';MPOOL.stealcross.lib=10;   // a first foothold, not a liberation
@@ -1316,6 +1320,7 @@ const MEXTRA={
   toi:{src:'halt',objectives:['Eliminate Commandant Dral Vex','(Optional) Bring every pilot home']},
   intercept:{src:'halt',objectives:['Destroy or scatter the escort','Board the transport and strip her cargo']},
   tanker:{src:'halt',objectives:['Disable the tanker’s escort','Take the tanker whole']},
+  patrol:{src:'pell',objectives:['Clear the patrol, or ambush its reinforcements']},
   skim:{src:'vokk',objectives:['Escort the transfer for two days']},
   fighters:{src:'halt',objectives:['Reach pad nine unseen','Fly a Talon out']},
   chart:{src:'marr',objectives:['Fly the survey corridor','Map the cordon']},
@@ -1412,7 +1417,7 @@ function ctxNames(m){
   if(!d||m.ctx.locName===undefined)return;
   const reg=d.regions&&m.region?d.regions.find(r=>r.id===m.region):null;
   m.ctx.place=reg?reg.name:d.name;m.ctx.locName=d.name;
-  if(m.oppId)m.from='Intelligence \u00b7 '+d.name;
+  if(m.tipId)m.from='Intelligence \u00b7 '+d.name;
 }
 function spawnMission(tid,ctx){
   const T=MTYPE_DEFS[tid];
@@ -1425,7 +1430,7 @@ function spawnMission(tid,ctx){
   const rew={};
   for(const key in T.rew)rew[key]=(key==='xp'||key==='i')?T.rew[key]:Math.round(T.rew[key]*k);
   const m={id:tid+'_'+G.mseq,tid,story:ctx.story||null,state:'avail',progress:null,name:T.name,
-    from:ctx.oppId?'Intelligence · '+(d?d.name:''):(si?si.name:'the network'),srcName:si?si.name:'',src:ctx.src||null,oppId:ctx.oppId||null,
+    from:ctx.tipId?'Intelligence · '+(d?d.name:''):(si?si.name:'the network'),srcName:si?si.name:'',src:ctx.src||null,tipId:ctx.tipId||null,
     need:3,days:T.days,riskTxt:sec>=3?'High':T.riskTxt,lead:'ground',ground:true,type:'ground',scenario:T.scenario,
     loc:ctx.loc,region:ctx.region||undefined,lib:Math.max(5,Math.round(T.lib*REV_W.libMul/5)*5),req:JSON.parse(JSON.stringify(T.req)),rew,bonus:T.bonus,
     npcRole:T.npcRole,ctx:{target,place:reg?reg.name:(d?d.name:'the target'),locName:d?d.name:'',sec}};
@@ -1783,6 +1788,10 @@ function storySignal(src){
   if(proSrc(src))return Pro.rearm(src);   // Cass and Venn: the prologue's current beat says what they signal
   if(src.id==='cask'&&!hasStory('stealintel')){
     src.signal={kind:'mission',mid:'stealintel',text:'\u201cThe Data Flats farm holds the registry backups: every name, every quota, every dissident file. There is a fence, some Policebots, and a terminal bank in the east hall that nobody patrols at night. You will need someone who can actually crack a databank.\u201d'};
+    return true;
+  }
+  if(src.id==='pell'&&storyDone('rescue')&&!G.missions.some(m=>m.id==='patrol')){   // S7: Pell's second job, Patrol Sweep (placeholder copy)
+    src.signal={kind:'mission',mid:'patrol',text:'\u201cThere\u2019s a Hegemony patrol sweeps the Ballakan approaches every third night, regular as the tide tables. Six fighters and a lead who thinks he owns the lane. They bunch up in the belt past the landing. Bloody their nose there, if you like. Mind: they\u2019ll call for help.\u201d'};
     return true;
   }
   if(src.id==='pell'&&!hasStory('rescue')){
@@ -2154,7 +2163,7 @@ function advanceDay(){
       news('<b>Tessaly Brandt</b> is on the wire: the AutoCom Plant is moving something big.','a');sAlert();
     }
   }
-  genOpportunities();
+  genTips();
   for(const m of G.missions){
     if(m.state!=='prog')continue;
     m.progress.daysLeft--;
@@ -2940,37 +2949,37 @@ function scoutPlanet(id){
    Need Access 2+ in a world and a staffed Intelligence Center.
    A lead shows on the galaxy map; click it to read it and put it on the mission board.
    The marker stays until the job is done. */
-const OPP_TYPES=['fuel','intel','autofactory','rescue'];
-function oppText(t,o){
+const TIP_TYPES=['fuel','intel','autofactory','rescue'];
+function tipText(t,o){
   const d=pdef(o.loc),r=o.region&&d.regions&&d.regions.find(x=>x.id===o.region);
   return t.replace(/\{target\}/g,o.target).replace(/\{place\}/g,r?r.name:d.name).replace(/\{loc\}/g,d.name);
 }
-function oppsEligible(){return hasRoom('comms')&&!!headOf('comms');}
-function genOpportunities(){
-  G.opps=(G.opps||[]).filter(o=>!o.done);
-  G.missions=G.missions.filter(m=>!((m.opp||m.oppId)&&m.state==='done'));
-  if(!oppsEligible()||G.opps.length>=4)return;
+function tipsEligible(){return hasRoom('comms')&&!!headOf('comms');}
+function genTips(){
+  G.tips=(G.tips||[]).filter(o=>!o.done);
+  G.missions=G.missions.filter(m=>!(m.tipId&&m.state==='done'));
+  if(!tipsEligible()||G.tips.length>=4)return;
   for(const d of PLANETDEF){
     const st=pst(d.id);
     if(!st||d.base||!st.access||(st.acc||0)<2)continue;
-    if(G.opps.some(o=>o.loc===d.id))continue;
+    if(G.tips.some(o=>o.loc===d.id))continue;
     if(rng()>0.10+0.04*((st.acc||0)-2))continue;
-    const tid=OPP_TYPES[Math.floor(rng()*OPP_TYPES.length)],T=MTYPE_DEFS[tid];
+    const tid=TIP_TYPES[Math.floor(rng()*TIP_TYPES.length)],T=MTYPE_DEFS[tid];
     let region=null;
     if(d.regions){
       const open=d.regions.filter(r=>((st.lib&&st.lib[r.id])||0)<Math.min(100,locCap(st)));
       if(open.length)region=pickRegion(d,st);
     }
-    G.oppN=(G.oppN||0)+1;
-    G.opps.push({id:'opp'+G.oppN,loc:d.id,region:region?region.id:null,tid,target:T.variants[Math.floor(rng()*T.variants.length)],found:false,done:false});
-    news('Intelligence: a lead has surfaced at <b>'+d.name+'</b>. It is marked on the galaxy map.','a');
-    flashMsg('New lead at <b>'+d.name+'</b>','action');sAlert();
+    G.tipN=(G.tipN||0)+1;
+    G.tips.push({id:'tip'+G.tipN,loc:d.id,region:region?region.id:null,tid,target:T.variants[Math.floor(rng()*T.variants.length)],found:false,done:false});
+    news('Intelligence: a tip has come in about <b>'+d.name+'</b>. It is marked on the galaxy map.','a');
+    flashMsg('New tip about <b>'+d.name+'</b>','action');sAlert();
     break;
   }
 }
-function openOpp(id){
-  const o=(G.opps||[]).find(x=>x.id===id);
-  if(o)openWin('opp',o);
+function openTip(id){
+  const o=(G.tips||[]).find(x=>x.id===id);
+  if(o)openWin('tip',o);
 }
 /* ---------- Patrol Local Space (Hangar task) ---------- */
 const PATROL_DAYS=2;
@@ -3126,7 +3135,7 @@ const REV_W={momentum:0.55,libMul:1.6,mission:1.2,firstLoc:3,secondLoc:1,midRepe
 function missionCredit(m){
   let gain=REV_W.mission;
   const info={gain:0,lib:null,first:false,renown0:G.renown||0,parts:{mission:REV_W.mission}};
-  if(m.opp||m.oppId){const o=(G.opps||[]).find(x=>x.id===(m.oppId||m.id));if(o)o.done=true;}
+  if(m.tipId){const o=(G.tips||[]).find(x=>x.id===m.tipId);if(o)o.done=true;}
   const st=m.loc?pst(m.loc):null,d=m.loc?pdef(m.loc):null;
   if(st){
     st.ops=(st.ops||0)+1;
@@ -3982,7 +3991,7 @@ function locStatsHTML(d,st){
     '<div class="bs-stat"><span class="bs-stat__l">Support</span>'+(d.pop&&d.pop!=='0'&&d.pop!=='—'?pipRow(sup,5,supCol(sup-1)):'<span class="sr-faint">no population</span>')+'</div>'+
     '<div class="bs-stat"><span class="bs-stat__l">Liberation</span>'+(lib===null?'<span class="sr-faint">no liberation front charted</span>':libWheel(lib))+'</div>'+
   '</div>';
-  if(!d.base&&(st.acc||0)>=2)h+='<p class="sr-fine" style="margin:2px 0 6px">'+(oppsEligible()?'Our intelligence is watching this world for leads.':'Leads from our own intelligence need a <b>staffed Comms Array</b>.')+'</p>';
+  if(!d.base&&(st.acc||0)>=2)h+='<p class="sr-fine" style="margin:2px 0 6px">'+(tipsEligible()?'Our intelligence is watching this world for tips.':'Tips from our own intelligence need a <b>staffed Comms Array</b>.')+'</p>';
   if(d.regions){
     h+='<div class="sr-h3">Regions</div>'+d.regions.map(r=>{
       const pct=(st.lib&&st.lib[r.id])||0;
@@ -4005,7 +4014,7 @@ function locStatsHTML(d,st){
 let baseView='base',gxWorld=null,gxRegion=null,gxDiveT=0,gxLegend=false,gxLoreOpen=false;
 let gxZoom=1,gxCam=null,gxCamLastT=0,gxHitL=[],gxSrcPos={};
 const GXL_KEY='sr-galaxy-layers';
-function loadGxLayers(){const d={network:1,leads:1,missions:1,lib:1,heg:0,flights:1};try{const v=localStorage.getItem(GXL_KEY);if(v)Object.assign(d,JSON.parse(v));}catch(e){}return d;}
+function loadGxLayers(){const d={network:1,tips:1,missions:1,lib:1,heg:0,flights:1};try{const v=localStorage.getItem(GXL_KEY);if(v)Object.assign(d,JSON.parse(v));}catch(e){}return d;}
 let gxLayers=loadGxLayers();
 function saveGxLayers(){try{localStorage.setItem(GXL_KEY,JSON.stringify(gxLayers));}catch(e){}}
 /* navigation */
@@ -4195,7 +4204,7 @@ function drawGalaxy(now){
     if(!d.base)gxHitL.push({t:'p',id:d.id,x,y,r:Math.max(24,R+10)});
   }
   /* intelligence leads */
-  if(gxLayers.leads)for(const o of (G.opps||[])){
+  if(gxLayers.tips)for(const o of (G.tips||[])){
     if(o.done)continue;
     const pd=pdef(o.loc);if(!pd)continue;
     const[px,py]=gxPos(pd),R=gxR(o.loc);
@@ -4204,7 +4213,7 @@ function drawGalaxy(now){
     ctx.beginPath();ctx.moveTo(x,y-8);ctx.lineTo(x+6,y);ctx.lineTo(x,y+8);ctx.lineTo(x-6,y);ctx.closePath();ctx.fill();ctx.stroke();
     if(!o.found){ctx.globalAlpha=.5;ctx.beginPath();ctx.arc(x,y,12+(RM?0:p*2),0,7);ctx.lineWidth=2;ctx.strokeStyle=K.gold;ctx.stroke();ctx.globalAlpha=1;}
     hold(x,y,10);
-    lab(o.found?'Lead':'New lead',[[x-12,y+4,'right'],[x+12,y+4,'left'],[x,y-14,'center']],K.goldHi,11,700,5);
+    lab(o.found?'Tip':'New tip',[[x-12,y+4,'right'],[x+12,y+4,'left'],[x,y-14,'center']],K.goldHi,11,700,5);
     gxHitL.push({t:'o',id:o.id,x,y,r:14});
   }
   /* available missions: gold pins */
@@ -4561,7 +4570,7 @@ function drawWorld(now){
     const[x,y]=rid?anchorFor(rid,'job'):[cx+R*.3+i*26,cy+R*.4];
     TH.marker(ctx,x+(i%2)*22,y,{icon:'soldier',color:K.gold,t,size:26});
   });
-  for(const o of (G.opps||[])){
+  for(const o of (G.tips||[])){
     if(o.done||o.loc!==d.id)continue;
     const[x,y]=o.region?anchorFor(o.region,'job'):[cx,cy-R*.6];
     ctx.fillStyle=K.gold;ctx.strokeStyle=K.ink;ctx.lineWidth=1.8;ctx.lineJoin='round';
@@ -4718,17 +4727,17 @@ function gxRegionRow(d,st,r,cap){
 function gxRegionJobs(d,st,r){
   const out=[];
   for(const m of G.missions)if(m.state==='avail'&&m.loc===d.id&&missionRegion(d,m)===r.id)out.push(m);
-  for(const o of (G.opps||[]))if(!o.done&&o.loc===d.id&&o.region===r.id&&!G.missions.some(m=>m.oppId===o.id))out.push(Object.assign({opp:1,name:(MTYPE_DEFS[o.tid]||{}).name||'Lead'},o));
+  for(const o of (G.tips||[]))if(!o.done&&o.loc===d.id&&o.region===r.id&&!G.missions.some(m=>m.tipId===o.id))out.push(Object.assign({tip:1,name:(MTYPE_DEFS[o.tid]||{}).name||'Tip'},o));
   return out;
 }
 function gxRegionSrcs(d,r){
   return G.sources.filter(x=>x.alive&&SRCPOS[x.id]===d.id&&(SRC_REGION[x.id]||firstSettId(d))===r.id);
 }
 function gxJobHTML(m){
-  if(m.opp){
+  if(m.tip){
     const T=MTYPE_DEFS[m.tid]||{};
-    return '<div class="gx-job"><div class="gx-job__t">'+IC('intel')+esc(T.name||'Lead')+'</div>'+
-      '<div class="gx-job__d">'+esc(oppText(T.hook||'A lead from our own intelligence.',m))+'</div>'+
+    return '<div class="gx-job"><div class="gx-job__t">'+IC('intel')+esc(T.name||'Tip')+'</div>'+
+      '<div class="gx-job__d">'+esc(tipText(T.hook||'A tip from our own intelligence.',m))+'</div>'+
       '<div class="gx-job__meta">'+bundleList(T.rew||{}).join(' ')+'</div></div>';
   }
   return '<div class="gx-job"><div class="gx-job__t">'+IC(typeOf(m)==='space'?'ship':'soldier')+esc(m.name)+'</div>'+
@@ -4843,7 +4852,7 @@ function renderGxRail(){
     '<div class="sr-stack">'+(flights.join('')||'<div class="sr-empty">Every ship is on the pads.</div>')+'</div></section>'+
     '<div class="sr-railhint">Click any row to find it on the map</div>';
 }
-const GX_LAYERDEF=[['network','signal','Network','Sources and their signals'],['leads','intel','Leads','Gold diamonds from our own intelligence'],
+const GX_LAYERDEF=[['network','signal','Network','Sources and their signals'],['tips','intel','Tips','Gold diamonds from our own intelligence'],
   ['missions','missions','Missions','Jobs waiting on the board'],['lib','revolution','Liberation','How far each front has come'],
   ['heg','eye','Hegemony security','Their reach, in blue'],['flights','ship','Flights','Our ships out on missions']];
 function renderGxTools(){
@@ -4903,7 +4912,7 @@ function gxWorldOrders(){
     const jobs=gxRegionJobs(d,st,reg);
     if(jobs.length){
       const j=jobs[0];
-      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:j.opp?'intel':'missions',family:'util',label:'Run the job',rule:j.name}));
+      orders.push(gxOrder({act:j.tip?'tip:'+j.id:'plan:'+j.id,key:nk(),icon:j.tip?'intel':'missions',family:'util',label:'Run the job',rule:j.name}));
     }
     const srcs=gxRegionSrcs(d,reg);
     if(srcs.length){
@@ -4913,7 +4922,7 @@ function gxWorldOrders(){
     }
     if(jobs.length>1){
       const j=jobs[1];
-      orders.push(gxOrder({act:j.opp?'opp:'+j.id:'plan:'+j.id,key:nk(),icon:'missions',label:j.name,rule:j.name}));
+      orders.push(gxOrder({act:j.tip?'tip:'+j.id:'plan:'+j.id,key:nk(),icon:'missions',label:j.name,rule:j.name}));
     }
     orders.push('<span class="sr-orders__sep"></span>');
     orders.push(gxOrder({act:'back',key:'',icon:'back',label:'Back to '+d.name,rule:'Esc also steps back.'}));
@@ -5004,7 +5013,7 @@ function gxWorldAct(act){
   if(act==='raise'){raiseAccess(gxWorld);return;}
   if(act.indexOf('contact:')===0){const sc=G.sources.find(x=>x.id===act.slice(8)&&x.alive);if(sc){sComm();srcContact(sc);}return;}
   if(act.indexOf('plan:')===0){const m=G.missions.find(x=>x.id===act.slice(5));if(m&&m.state==='avail')openPlan(m);return;}
-  if(act.indexOf('opp:')===0){openOpp(act.slice(4));return;}
+  if(act.indexOf('tip:')===0){openTip(act.slice(4));return;}
 }
 function gxWorldHover(px,py){
   if(!gxWorld)return false;
@@ -5516,7 +5525,7 @@ const gearIcon=a=>gearIconId(a.id);
 let cutArm=null;
 let shipSheetShip=null;
 const accentOf={newhero:'progress',comm:'friend',ship:'friend',cassIntro:'friend',candidate:'friend',recruit:'friend',chain:'friend',person:'friend',escalate:'foe',reward:'progress',arrive:'good',contract:'progress'};
-const sizeOf={wingjoin:'sm',newhero:'sm',plan:'lg',srcTutIntro:'sm',agentTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',opp:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
+const sizeOf={wingjoin:'sm',newhero:'sm',plan:'lg',srcTutIntro:'sm',agentTutIntro:'sm',srcTut:'sm',comm:'sm',newmission:'sm',tip:'sm',arrive:'sm',reward:'sm',spec:'sm',chain:'sm',locBrief:'sm',escalate:'sm',cassIntro:'sm',ship:'',recruit:'sm',candidate:'sm',person:'',silence:'sm',contract:'sm'};
 
 function meterRow(label,val,cls){
   return '<div class="sr-meter'+(cls?' '+cls:'')+'"><span>'+label+'</span><span class="sr-meter__track"><span class="sr-meter__fill" style="display:block;width:'+Math.min(100,val)+'%"></span></span><span class="sr-meter__val">'+Math.round(val)+'</span></div>';
@@ -5834,17 +5843,17 @@ function renderWin(){
       (canAttempt(m)?'':precondHTML(m)))+
       wFoot(rbtn('data-close','Later',false,'sr-btn--ghost')+rbtn('data-mplan="'+m.id+'"','Plan mission',!canPlan(m),'sr-btn--primary'));
   }
-  else if(winMode==='opp'){
-    const o=winArg,d=pdef(o.loc),mm=G.missions.find(x=>x.oppId===o.id);
+  else if(winMode==='tip'){
+    const o=winArg,d=pdef(o.loc),mm=G.missions.find(x=>x.tipId===o.id);
     if(o.tid&&MTYPE_DEFS[o.tid]){
       const T=MTYPE_DEFS[o.tid];
-      h=wHead('Intelligence lead',{tags:wTag(d.name)})+wBody(
+      h=wHead('Intelligence tip',{tags:wTag(d.name)})+wBody(
         '<div class="sr-card"><div class="sr-card__top"><span class="sr-card__title">'+T.name+'</span></div>'+
         '<div class="sr-card__meta" style="margin:8px 0 0">'+wTag(whereHTML({loc:o.loc,region:o.region}))+wTag('from our own intelligence','info')+'</div>'+
-        '<div class="sr-card__body">'+oppText(T.hook,o)+'</div></div>'+
+        '<div class="sr-card__body">'+tipText(T.hook,o)+'</div></div>'+
         '<div class="sr-h3">Expected</div><div class="sr-card__meta">'+bundleHTML(T.rew)+wTag('+XP','progress')+(o.region?wTag('pushes liberation in '+d.regions.find(r=>r.id===o.region).name,'friend'):'')+'</div>')+
-        wFoot(rbtn('data-close','Later',false,'sr-btn--ghost')+(mm?rbtn('data-mplan="'+mm.id+'"','Plan mission',false,'sr-btn--primary'):rbtn('data-oppadd="'+o.id+'"','Add to the Mission Board',false,'sr-btn--primary')));
-    } else h=wHead('Intelligence lead')+wBody('<p class="sr-p">This lead has gone cold.</p>')+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
+        wFoot(rbtn('data-close','Later',false,'sr-btn--ghost')+(mm?rbtn('data-mplan="'+mm.id+'"','Plan mission',false,'sr-btn--primary'):rbtn('data-tipadd="'+o.id+'"','Add to the Mission Board',false,'sr-btn--primary')));
+    } else h=wHead('Intelligence tip')+wBody('<p class="sr-p">This tip has gone cold.</p>')+wFoot(rbtn('data-close','Close',false,'sr-btn--primary'));
   }
   else if(winMode==='arrive'){
     h=wHead(winArg.win?'Returning to Haven Rock':'Limping back to Haven Rock',{x:false})+
@@ -6280,7 +6289,8 @@ function fly35(id){
   if(m&&!ws.length){const p=who&&G.people.find(x=>x.id===who);flashMsg(who?esc(p?p.name.split(' ')[0]:who)+' has to fly this one, and she can’t right now':'No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
   // S6: your wings fly it and it counts (the days, the pay, the hurt), with your Intel and your crafted assets
   SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{}),
-    rew:Object.assign({},m.rew||{}),   // the mission's own reward, for an opportunity that pays it (Torch the Depots)
+    rew:Object.assign({},m.rew||{}),   // the mission's own reward, for an opportunity that pays it (Torch the Depots, a Source's)
+    source:(()=>{const x=srcInfo(m.src);return x?{id:x.id,name:x.name,level:x.level||1,type:x.type||''}:null;})(),   // S7: who revealed it (their level sets what's hidden)
     ftue:m.id==='depotrun'&&!ftue35Seen(),onFtue:ftue35Done}:null;   // the Space Combat FTUE: the first time you plan it
   closeWin();closeTilePop();
   SR.transition('hyperspace',{},()=>SR.go('space35',SR.mission?{mission:SR.mission}:{}));
@@ -8335,7 +8345,7 @@ cv.addEventListener('click',ev=>{
       if(d2<h.r){const score=pri[h.t]*1000+d2;if(score<bd){bd=score;best=h;}}
     }
     if(!best){if(srcSel){srcSel=null;syncUI();}return;}
-    if(best.t==='o'){openOpp(best.id);return;}
+    if(best.t==='o'){openTip(best.id);return;}
     if(best.t==='c'){openWin('candidate',best.id);return;}
     if(best.t==='s'){srcSel={t:'s',id:best.id};cutArm=null;syncUI();tabletRail();return;}
     const st=pst(best.id);
@@ -8691,14 +8701,14 @@ $('winsB').addEventListener('click',ev=>{
   }
   const specBtn=t.getAttribute('data-spec');
   if(specBtn){const [pid,k]=specBtn.split(':');startSpec(pid,k);return;}
-  const oppadd=t.getAttribute('data-oppadd');
-  if(oppadd){
-    const o=(G.opps||[]).find(x=>x.id===oppadd);
-    if(o&&o.tid&&!G.missions.some(m=>m.oppId===o.id)){
+  const tipadd=t.getAttribute('data-tipadd');
+  if(tipadd){
+    const o=(G.tips||[]).find(x=>x.id===tipadd);
+    if(o&&o.tid&&!G.missions.some(m=>m.tipId===o.id)){
       o.found=true;
-      const m=spawnMission(o.tid,{loc:o.loc,region:o.region,target:o.target,oppId:o.id});
+      const m=spawnMission(o.tid,{loc:o.loc,region:o.region,target:o.target,tipId:o.id});
       pushMission(m,true);sAlert();
-      openWin('opp',o);
+      openWin('tip',o);
     }
     return;
   }
@@ -10225,6 +10235,13 @@ const MIGRATIONS=[
   function(){
     G.assets=G.assets||{};G.captured=G.captured||[];
   },
+  /* 18 -> 19: the intel jobs (G.opps, "leads" on screen) are Tips (MAIN-SWITCH S7, the designer's call): G.tips, a
+     mission's link to one m.tipId */
+  function(){
+    G.tips=G.tips||G.opps||[];delete G.opps;
+    if(G.oppN!=null){G.tipN=G.oppN;delete G.oppN;}
+    for(const m of G.missions||[]){if(m.oppId){m.tipId=m.oppId;delete m.oppId;}if(m.opp){m.tipId=m.tipId||m.id;delete m.opp;}}
+  },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes
 /* bring the loaded campaign (global G) up to saveVersion(); returns the version it came in at */
@@ -10323,7 +10340,7 @@ if(location.hash==='#test'){
       openArsenal,closeArsenal,renderArsenal,sellItem,sellWhy,sellPrice,applyGearPick,kitNameId,marketable,KIT_:()=>KIT,
       getArOpen:()=>arOpen,getArCat:()=>arCat,getArSel:()=>arSel,setArSel:(t,id)=>{arSel={t,id};arLast[arCat]=arSel;renderArsenal();},setArCat:c=>{arCat=c;arSel=arLast[c]||null;renderArsenal();},
       openMarket,closeMarket,renderMarket,ensureMarket,rollMarket,buyLot,lotPrice,marketWeek,nyxAccess,stLine,isOwnSlot,mercBunkFree,freeBunks,
-      padFree,inboundShips,shipSerial,refitFit,rackAdd,craft,RECIPES_:()=>RECIPES,wings35,fly35,shipTab_:v=>{if(v)shipTab=v;return shipTab;},newFighter,defaultConfig,configOfWeapons,
+      padFree,inboundShips,shipSerial,refitFit,rackAdd,craft,RECIPES_:()=>RECIPES,wings35,fly35,storySignal,followSignal,genTips,openTip,srcInfo,shipTab_:v=>{if(v)shipTab=v;return shipTab;},newFighter,defaultConfig,configOfWeapons,
       wingsOf,wingById,wingOfShip,wingOfPilot,wingBusy,wingsTidy,wingNeed,wingJoin,wingStart,wingMove,wingRemove,wingSeat,wingLeader,wingRename,wingAddShip,wingDropShip,WING_MAX_:()=>WING_MAX,SHIP_PRICE_:()=>SHIP_PRICE,SHIPWPN_PRICE_:()=>SHIPWPN_PRICE,
       getBmOpen:()=>bmOpen,getBmSel:()=>bmSel,setBmSel:i=>{bmSel=i;bmLine=null;renderMarket();},
       raiseAccess,addSupport,revGain,missionCredit,syncLocalOps,pst,pdef,locCap,renderWin,getPL:()=>PL,getWinArg:()=>winArg,rqLen:()=>RQ.length,canAttempt,precondList,

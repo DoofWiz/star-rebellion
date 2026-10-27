@@ -127,6 +127,8 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  pg4.on('pageerror',e=>errs.push('pageerror(hc35): '+e.message));
  pg4.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))errs.push('console(hc35): '+m.text());});
  await pg4.goto(base+'?dev#arena');await pg4.waitForTimeout(800);
+ // these tests predate S7's scaling: whatever wings they send, they fight the authored escort and response
+ await pg4.evaluate(()=>{const O=window.DBGarena.hc35.L35.OPPORTUNITIES;for(const k in O)O[k].scale=null;});
  // HC35 2: the loop by DOM, the Missions tab → the four planning windows → Launch → the mission → debrief → Plan again
  // (feedback 1 K6: the dossier now lives in the board's rail and holo-table)
  const t35b=await pg4.evaluate(()=>{

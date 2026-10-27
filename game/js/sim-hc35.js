@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-15';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-17';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -179,6 +179,7 @@ const OPPORTUNITIES={
     relay:{x:0,y:3000},
     response:{edge:'N',near:'jump',force:[{type:'vc-mote-patrol',n:3,name:'Response'},{type:'drone-pursuer',n:2,name:'Hunter'}]},
     escorts:[{type:'vc-mote-patrol',n:2,name:'Escort',role:'escort',side:-1},{type:'vc-mote-patrol',n:2,name:'Escort',role:'escort',side:1}],
+    scale:{perWing:{escorts:1.4,response:1.7},min:{escorts:1,response:2}},   // S7 (decision 3): sized to the wings sent (placeholder)
     cargo:12,hazard:[2,9],
     modN:[2,3],
     rocks:[{x:5200,y:1300,r:110},{x:2000,y:3900,r:120},{x:6400,y:3300,r:95}],
@@ -217,6 +218,7 @@ const OPPORTUNITIES={
     lane:[[5200,2600],[6400,2400]],   // the patrol's ground, for the map (no freighter)
     extract:{x:300,y:900,label:'Our jump point'},relay:{x:0,y:3000},
     response:{edge:'N',force:[{type:'vc-mote-patrol',n:4,name:'Reinforcement'}]},escorts:[],cargo:0,hazard:[],
+    scale:{perWing:{response:1.4,patrol:2.4},min:{response:2,patrol:3}},   // S7: sized to the wings sent (placeholder)
     modN:[0,0],
     rocks:[{x:4600,y:2000,r:120},{x:5100,y:2900,r:100},{x:5600,y:1800,r:130},{x:6000,y:3100,r:110},{x:6500,y:2300,r:90},{x:5300,y:2400,r:80},{x:4900,y:3400,r:95}],
     jumpIn:{x:2600,y:2200},
@@ -251,7 +253,7 @@ const MODS={
   rapid:{name:'Rapid Response',line:'A Hegemony picket is close. Help comes fast.',subtle:1,ex:['remote'],tone:'warn'},
   remote:{name:'Remote',line:'No help for them out here, until it\'s over.',subtle:1,ex:['rapid'],tone:'good'},
   insider:{name:'Insider Aboard',line:'One of ours is on the crew.',subtle:2,ex:[],tone:'good'},
-  unreliable:{name:'Unreliable Source',line:'Something Cass told you isn\'t so.',subtle:3,ex:[],tone:'warn'},
+  unreliable:{name:'Unreliable Source',line:'Something your source told you isn\'t so.',subtle:3,ex:[],tone:'warn'},
 };
 const MOD_KEYS=Object.keys(MODS);
 function mulberry(seed){let a=seed>>>0;return ()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -444,7 +446,7 @@ function compile(opp,mods,plan,seed){
       ships:w.ships.map(sd=>Object.assign({},sd,{marines:loads(sd)&&loadOf(pw,sd)==='board',load35:loads(sd)?loadOf(pw,sd):null}))});
   }
   const esc=[];let en=0;
-  const nEsc=opp.key==='freighter'?Math.max(0,(m('heavy')?2:1)*opp.escorts.reduce((a,e)=>a+e.n,0)-(m('limping')?1:0)):0;
+  const nEsc=opp.key==='freighter'?Math.max(0,(m('heavy')?2:1)*scaledN(opp,'escorts',opp.escorts.reduce((a,e)=>a+e.n,0),plan)-(m('limping')?1:0)):0;   // S7: sized to the wings sent
   for(let i=0;i<nEsc;i++){
     const side=i%2?1:-1,row=Math.floor(i/2),off=(260+row*260)*side;
     esc.push({type:m('green')?'academy-cadet':'vc-mote-patrol',id:'esc'+(++en),name:'Escort '+en,role:'guard',asset:'fl400',
@@ -465,14 +467,15 @@ function compile(opp,mods,plan,seed){
     if(gd){gd.of.forEach((d,j)=>{let k=0;const per=t.of.reduce((s2,f)=>s2+(f.n||1),0);   // guards: a ring of them round each piece of what they guard
       for(const f of t.of)for(let n=0;n<(f.n||1);n++,k++){const a2=j*0.7+k*2*Math.PI/per,r=t.ring||400;
         castFoes.push({type:f.type,id:t.id+j+'_'+k,name:(f.name||'Sentry')+' '+(j+1)+String.fromCharCode(97+k),at:[d.at[0]+Math.cos(a2)*r,d.at[1]+Math.sin(a2)*r,a2],role:'guard',asset:d.id,cast:t.id,stats:f.stats});}});continue;}
-    for(const f of t.of)for(let n=0;n<(f.n||1);n++,i++)castFoes.push({type:f.type,id:t.id+i,name:(f.name||'Hostile')+(f.n>1?' '+(n+1):''),label:f.lead?f.name:undefined,at:[a[0]+((i%4)-1.5)*260,a[1]+Math.floor(i/4)*260,Math.PI],role:'hunt',cast:t.id,lead:!!f.lead});}
+    const of=opp.scale&&opp.scale.perWing&&opp.scale.perWing[t.id]!=null?scaleForce(t.of,scaledN(opp,t.id,t.of.reduce((a,f)=>a+(f.n||1),0),plan)):t.of;   // S7: sized to the wings sent
+    for(const f of of)for(let n=0;n<(f.n||1);n++,i++)castFoes.push({type:f.type,id:t.id+i,name:(f.name||'Hostile')+(f.n>1?' '+(n+1):''),label:f.lead?f.name:undefined,at:[a[0]+((i%4)-1.5)*260,a[1]+Math.floor(i/4)*260,Math.PI],role:'hunt',cast:t.id,lead:!!f.lead});}
   return {id:'hc35_freighter',title:'Type 3.5: '+opp.title,rulesets:['hc35'],hc35:true,desc:opp.lead,
     rocks,wings,allies:[],
     enemies:fr?[{type:'fl400',id:'fl400',name:opp.target.name,label:opp.target.label,at:[lane[0][0],lane[0][1],h0],role:'freighter',preset:'regular',flees:false}].concat(esc):castFoes,
     points,extract:'ourjump',
     objectives:[{id:'primary',kind:'hc35',text:P?P.name+': '+winsOf(plan.primary,opp):'No primary',primary:true,key:plan.primary}],
     reinforce:{secs:1e9,edge:(opp.response||{edge:'N'}).edge,force:[]},rules:[],cp:0,
-    hc35plan:{opp:opp.id,mods:mods.map(x=>Object.assign({},x)),plan:JSON.parse(JSON.stringify(plan)),seed,lane,reserves}};   // reserves: in layout units, scaled when called
+    hc35plan:{opp:opp.id,base:opp.base||null,source:opp.base?opp.source:null,mods:mods.map(x=>Object.assign({},x)),plan:JSON.parse(JSON.stringify(plan)),seed,lane,reserves}};   // reserves: in layout units, scaled when called
 }
 /* an Executive Order as the High Command order it rides on (the layer drives the rest) */
 function execToHc(ex,plan){
@@ -504,6 +507,39 @@ const LEADER_PLANS={
   tag:{dagger:[{k:'hold',arg:FAR_HOLD},{trig:'phase2',k:'withdraw'}],anvil:null,amber:[{k:'tag'},null],tagger:'kit',optionals:['ghost']},
   ambush:{dagger:[{k:'ambush',arg:'response'},null],anvil:[{k:'disable',arg:'engines'},{trig:'phase3',k:'ambush',arg:'response'}],amber:[{k:'ambush',arg:'response'},null],assets:['mines']},
 };
+/* S7: cast templates (decision 5). Vulnerable Freighter is the template; Intercept Transport and Tanker Grab are its
+   variants, with their own target, escort and reward (the campaign mission's own, missionPays). Placeholders */
+function variant(base,o){return Object.assign(JSON.parse(JSON.stringify(OPPORTUNITIES[base])),{template:base},o);}
+OPPORTUNITIES.intercept_transport=variant('vulnerable_freighter',{id:'intercept_transport',title:'Intercept Transport',
+  lead:'A Hegemony transport is running supplies out of Veray Yards tonight, holds full, light escort.',   // placeholder copy
+  target:{cls:'fl400',livery:'heg',name:'HTS-4410',label:'FL-400 Transport'}});
+OPPORTUNITIES.tanker_grab=variant('vulnerable_freighter',{id:'tanker_grab',title:'Tanker Grab',
+  lead:'A fuel tanker on the Veray run: twice the load, half the escort.',   // placeholder copy
+  target:{cls:'fl400',livery:'heg',name:'HFT-0907',label:'FL-400 Fuel Tanker'},
+  escorts:[{type:'vc-mote-patrol',n:2,name:'Escort',role:'escort',side:-1}],
+  scale:{perWing:{escorts:0.7,response:1.7},min:{escorts:1,response:2}}});
+/* the response as it comes: sized to the wings sent (S7) */
+function respForce(){const f=L.opp.response.force;return scaleForce(f,scaledN(L.opp,'response',f.reduce((a,x)=>a+(x.n||1),0),L.plan));}
+/* an opportunity as a Source reveals it (S7): a template or variant with that Source's name and level (the level sets
+   what's hidden: rollMods), paying the campaign mission's own reward. Its id is base@source-level; the compiled scenario
+   carries the source, so a flight record replays it */
+function instanceOf(base,src){
+  if(!src||!OPPORTUNITIES[base])return OPPORTUNITIES[base]||null;
+  if(!(OPPORTUNITIES[base].modN&&OPPORTUNITIES[base].modN[1]>0))return OPPORTUNITIES[base];   // nothing to hide (Torch the Depots): the opportunity as it is
+  const lv=Math.max(1,Math.min(3,src.level||1)),id=base+'@'+src.id+'-'+lv;
+  if(!OPPORTUNITIES[id]){const o=OPPORTUNITIES[base];
+    OPPORTUNITIES[id]=Object.assign({},o,{id,base,missionPays:true,source:{id:src.id,name:src.name||src.id,level:lv,reliability:src.reliability||(src.name||src.id)+' sees what a '+(src.type||'source').toLowerCase()+' sees.'}});}
+  return OPPORTUNITIES[id];
+}
+const oppPlans=O=>OPP_PLANS[O.id]||(O.base&&(OPP_PLANS[O.base]||OPPORTUNITIES[O.base]&&OPPORTUNITIES[O.base].template&&OPP_PLANS[OPPORTUNITIES[O.base].template]))||(O.template&&OPP_PLANS[O.template])||null;
+/* scaling (S7, decision 3): a count the template gives per wing sent (Strike and Reserve), at least its minimum */
+const wingsSent=plan=>WINGS35.filter(w=>plan.wings[w.id]&&plan.wings[w.id].role!=='home').length;
+function scaledN(opp,key,base,plan){const S=opp.scale;if(!S||!S.perWing||S.perWing[key]==null||!plan)return base;return Math.max((S.min&&S.min[key])||1,Math.round(S.perWing[key]*wingsSent(plan)));}
+// a force list scaled to n ships, in its proportions (a lead stays one)
+function scaleForce(list,n){const fixed=list.filter(f=>f.lead),flex=list.filter(f=>!f.lead),t0=flex.reduce((a,f)=>a+(f.n||1),0),m=Math.max(0,n-fixed.reduce((a,f)=>a+(f.n||1),0));
+  if(!t0)return list.map(f=>Object.assign({},f));let left=m;const out=flex.map((f,i)=>{const k=i===flex.length-1?left:Math.round(m*(f.n||1)/t0);left-=k;return Object.assign({},f,{n:Math.max(0,k)});});
+  return fixed.map(f=>Object.assign({},f)).concat(out.filter(f=>f.n>0));}
+const srcName=()=>(L&&L.opp&&L.opp.source&&L.opp.source.name)||'Cass';   // who told us (S7: the Source that revealed it)
 const OPP_PLANS={torch_depots:{destroy:{dagger:[{k:'destroy',arg:'depots'},null],anvil:[{k:'destroy',arg:'depots'},null],amber:[{k:'destroy',arg:'depots'},null]}},
   patrol_sweep:{
   clear:{dagger:[{k:'destroy',arg:'patrol'},null],anvil:[{k:'destroy',arg:'patrol'},null],amber:[{k:'destroy',arg:'patrol'},null]},
@@ -512,7 +548,7 @@ const OPP_PLANS={torch_depots:{destroy:{dagger:[{k:'destroy',arg:'depots'},null]
 const PLAN_PART=['dagger','anvil','amber'];   // the demo's wings, in order: the parts a campaign's wings take in a leaders' plan (S6)
 function leaderPlan(prim,keep,oppId){
   const O=OPPORTUNITIES[oppId||'vulnerable_freighter'],P=Object.assign(defaultPlan(O),keep?{assets:keep.assets.slice(),assetAt:Object.assign({},keep.assetAt),presHull:keep.presHull}:{});
-  P.primary=prim;const T=(OPP_PLANS[O.id]||LEADER_PLANS)[prim];if(!T)return P;
+  P.primary=prim;const T=(oppPlans(O)||LEADER_PLANS)[prim];if(!T)return P;
   WINGS35.forEach((w,i)=>{const pw=P.wings[w.id],t=T[w.id]||T[PLAN_PART[i]];if(keep&&keep.wings[w.id])pw.jumpIn=Object.assign({},keep.wings[w.id].jumpIn);
     if(!t){pw.role='home';return;}pw.role='strike';pw.exec=Object.assign({},t[0]);pw.second=t[1]?Object.assign({},t[1]):null;});
   for(const sid in T.lo||{})for(const w of WINGS35)if(sid in P.wings[w.id].loadout)P.wings[w.id].loadout[sid]=T.lo[sid];
@@ -577,7 +613,7 @@ const subUp=k=>L.subs.some(x=>x.k===subKey(k)&&x.hp>0);
 function nearestSub(fr,k,p){let b=null,bd=1e18;for(const x of subsLive(subKey(k))){if(x.k==='cargo'&&x.taken)continue;const w=subWorld(fr,x),d=(w.x-p.x)**2+(w.y-p.y)**2;if(d<bd){bd=d;b=x;}}return b;}
 
 function begin(){
-  const S=SIM.S,R=S.R,X=R.hc35plan,Z=SIM.zone,k=(Z.x1-Z.x0)/(F.LAYOUT_MAP_()*F.W0_()),opp=OPPORTUNITIES[X.opp];
+  const S=SIM.S,R=S.R,X=R.hc35plan,Z=SIM.zone,k=(Z.x1-Z.x0)/(F.LAYOUT_MAP_()*F.W0_()),opp=OPPORTUNITIES[X.opp]||(X.base&&instanceOf(X.base,X.source));
   const W=p=>({x:p[0]*k+Z.x0,y:p[1]*k+Z.y0});
   const m=key=>modOn(X.mods,key);
   L={S,X,opp,k,mods:X.mods,plan:X.plan,seed:X.seed,lane:X.lane.map(W),leg:1,W,
@@ -1053,7 +1089,7 @@ function responseSecs(){let t=N.RESPONSE_SECS;if(modOn(L.mods,'rich'))t*=0.75;if
 /* the response (Phase 3): warps in beyond the play area's edge, near the freighter's jump point */
 function spawnResponse(){
   if(!L.opp.response)return;   // nobody to come (Torch the Depots)
-  const S=SIM.S,Z=SIM.zone,R=L.opp.response,arr=(L.opp.cast||[]).find(t=>t.arrives),n=R.force.reduce((a,f)=>a+(f.n||1),0),grp=++S.grpN;let i=0;
+  const S=SIM.S,Z=SIM.zone,R={edge:L.opp.response.edge,force:respForce()},arr=(L.opp.cast||[]).find(t=>t.arrives),n=R.force.reduce((a,f)=>a+(f.n||1),0),grp=++S.grpN;let i=0;
   const A=arrivalAt(),cx=clamp(A.x,Z.x0+2000,Z.x1-2000);
   callout('RESPONSE INBOUND','foe',{x:cx,y:A.y});
   for(const f of R.force)for(let k=0;k<(f.n||1);k++){
@@ -1178,9 +1214,9 @@ const secArg=o=>o.arg&&typeof o.arg==='string'?' ('+(WINGS35.find(w=>w.id===o.ar
 function revealTick(fr){
   const S=SIM.S;
   const seen=L.phase>=2||S.ships.some(r=>r.alive&&r.faction==='reb'&&!r.struct&&S.ships.some(e=>e.alive&&e.role35==='escort'&&dist(e,r)<DETECT_R*1.3));
-  if(seen&&L.biggerT==null&&L.escN>L.briefedEsc){L.biggerT=S.t;revealMod(modOn(L.mods,'heavy')?'heavy':'ace','That escort\'s bigger than Cass said: '+(modOn(L.mods,'heavy')?'Heavy Escort':'Ace Escort'));}
+  if(seen&&L.biggerT==null&&L.escN>L.briefedEsc){L.biggerT=S.t;revealMod(modOn(L.mods,'heavy')?'heavy':'ace','That escort\'s bigger than '+srcName()+' said: '+(modOn(L.mods,'heavy')?'Heavy Escort':'Ace Escort'));}
   if(L.phase>=2){if(modOn(L.mods,'green'))revealMod('green','The escort are cadets: Green Escort');
-    const fk=L.mods.find(m=>m.fake&&!m.foundFake);if(fk){fk.foundFake=S.t;fk.found=true;SIM.pushEvent('intel','Cass was wrong: there\'s no '+MODS[fk.k].name+'. Unreliable Source',{tone:'hazard'});reqTrigger('intel',{text:'Cass was wrong about the '+MODS[fk.k].name},'fake');
+    const fk=L.mods.find(m=>m.fake&&!m.foundFake);if(fk){fk.foundFake=S.t;fk.found=true;SIM.pushEvent('intel',srcName()+' was wrong: there\'s no '+MODS[fk.k].name+'. Unreliable Source',{tone:'hazard'});reqTrigger('intel',{text:'Cass was wrong about the '+MODS[fk.k].name},'fake');
       const u=L.mods.find(m=>m.k==='unreliable');if(u)u.found=true;}}
   if(L.preSpool!=null)revealMod('quick','It\'s spooling its jump as it runs: Quick Jumper');
   if(L.distress&&L.distress.landed){if(modOn(L.mods,'rapid'))revealMod('rapid','Help\'s close for them: Rapid Response');if(modOn(L.mods,'remote'))revealMod('remote','Nobody near to answer: Remote');}
@@ -1462,7 +1498,7 @@ function primaryTick(fr){
     done=home>0&&(gone||!carriers.length);fail=home===0&&(gone||(!S.ships.some(s=>s.alive&&!s.prop35&&s.load35==='pods')));}
   else if(k==='tag'){done=L.escaped&&L.tag.planted;fail=dead||(L.escaped&&!L.tag.planted);}
   else if(k==='clear'){const n=forceShips(L.primObj).length;done=n===0&&forceN0(L.primObj)>0;}
-  else if(k==='ambush'){done=L.respKills>=N.AMBUSH_KILLS;fail=!canCome()||(L.responded&&!forceShips(arrId()).length);}   // nobody can come, or they've come and gone short of the kills
+  else if(k==='ambush'){done=L.respKills>=Math.min(N.AMBUSH_KILLS,respForce().reduce((a,x)=>a+(x.n||1),0));fail=!canCome()||(L.responded&&!forceShips(arrId()).length);}   // nobody can come, or they've come and gone short of the kills
   if(fail&&!done){const fb=fallbackFor(k);if(fb){fallBack(k,fb.verb,failWhy(k,fr),fb.obj);return;}}   // feedback 2, §3: the leaders take the next best job
   if(done){o.state='done';o.doneT=S.t;SIM.pushEvent('objective',PRIMARIES[k].name+': done',{tone:'good',x:fr?fr.x:null,y:fr?fr.y:null});}
   else if(fail){o.state='failed';o.failT=S.t;o.failWhy=failWhy(k,fr);SIM.pushEvent('objective','Failed: '+PRIMARIES[k].name,{tone:'hazard',x:fr?fr.x:null,y:fr?fr.y:null});}
@@ -1649,14 +1685,17 @@ function aidTick(){
 function aidFrom(s,wid,tr,asked,across){
   const S=SIM.S,lead=leadOf(wid);if(!lead)return false;
   const cands=wingShipsOf(wid).filter(c=>c!==s&&!c.panic&&!c.prop35).map(c=>({unit:opsUnit(c),job:jobOf(c),dist:dist(c,s),self:c===lead}));
+  const own=lead===s;   // the leader in trouble: they call their own wingmates in (never "Joss refused Joss": S7)
+  if(own&&!cands.length)return false;   // alone in their wing: the other wings may come
   if(!asked)SR_OPS.WEIGHTS.AID_BASE=N.AID_BASE+N.AID_UNASKED;
   const d=SR_OPS.decideAid(opsUnit(lead),opsUnit(s),tr,cands,{urgent:urgentNow()},S.rng);SR_OPS.WEIGHTS.AID_BASE=N.AID_BASE;
   const why=(asked?'asked':'unasked')+(across?', across wings':'')+(d.top.length?': '+d.top.join(', '):'');
-  if(d.refused){if(asked){F.say(lead,'Hold your position, '+s.name+'.','info',true);aidLog(wid,lead.name+' refused '+s.name,'refused','refused',why,s);}return false;}
+  if(d.refused){if(asked&&!own){F.say(lead,'Hold your position, '+s.name+'.','info',true);aidLog(wid,lead.name+' refused '+s.name,'refused','refused',why,s);}return false;}   // a leader who won't call anyone in handles it alone
   for(const id of d.send){L.aid.protect[id]={unit:s.id,t0:S.t,clearT:null,by:lead.id};const h=F.byId(id);if(h)h.thinkT=F.THINK_SECS_();}
   const names=d.send.map(id=>F.byId(id).name),selfGo=d.send.includes(lead.id);
-  F.say(lead,selfGo&&d.send.length===1?'On my way, '+s.name+'.':names.filter(n=>n!==lead.name).join(' and ')+', go.','info',true);
   const others=names.filter(n=>n!==lead.name);
+  if(own){F.say(lead,others.join(' and ')+', on me!','info',true);aidLog(wid,lead.name+' called '+others.join(' and ')+' in','sent','sent',why,s);return true;}
+  F.say(lead,selfGo&&d.send.length===1?'On my way, '+s.name+'.':others.join(' and ')+', go.','info',true);
   aidLog(wid,others.length?lead.name+' sent '+others.join(' and ')+' to cover '+s.name+(selfGo?' and went too':''):lead.name+' went to cover '+s.name,'sent',selfGo?'went':'sent',why,s);
   return true;
 }
@@ -2358,7 +2397,7 @@ return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,
   POWERS35,POWER_KEYS,CHOICE_NAME,ASSET_AT,assetAt,powers,powerWhy,use,commsDelay,ackOf,progressOf,interdictOn,
   REQ35,ANS,answerReq,reqTrigger,personaOf,SUB_NAME,verbOf,VERBS,
-  winsOf,fn:{think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,FR_BODY,frBodyHit,crashWindow,winTick,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
+  winsOf,instanceOf,scaledN,wingsSent,fn:{respForce,scaleForce,think,goal,step,laneW,findShipDef,subWorld,toHull,FL_UNIT,FR_BODY,frBodyHit,crashWindow,winTick,subsLive,subUp,cargoLeft,cargoLost,dockPoint,spawnResponse,damageFreighter,subDown,sub35Down,primaryTick,findWork,reqTrigger,reqValid,countKill,blast,send,land,canJump,edgeNear,groupOf,ambushPoint,arrivalAt,thingName,forceShips,troubleOf,exAt,
     canComeAtAll:(plan,mods)=>!plan.optionals.some(o=>o.k==='distress')&&!(mods||[]).some(m=>m.k==='remote'&&!m.hidden),responseEta:()=>N.DISTRESS_SECS+N.RESPONSE_SECS,
     arrivalName:()=>{const r=(L.opp.cast||[]).find(t=>t.arrives);return r?thingName(r.arrives.at):'the jump point';}}};
 })();
