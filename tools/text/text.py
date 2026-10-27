@@ -5,6 +5,7 @@ The game's dialog, briefings, tooltips and labels are written straight into the 
 This tool finds them, puts them in a workbook you can edit in Google Sheets, and writes your edits back into the code.
 
     python3 tools/text/text.py export  [out.xlsx]            # needs: pip install openpyxl
+    python3 tools/text/text.py export-claude [out.xlsx]      # only the lines Claude wrote (needs git)
     python3 tools/text/text.py import  in.xlsx [--dry-run]   # shows or applies your edits
     python3 tools/text/text.py find    "words"               # where does this line live?
     python3 tools/text/text.py report                        # how many lines per tab and kind
@@ -13,13 +14,17 @@ A line that is built from pieces shows the game's own values as {placeholders}: 
 placeholder, in the same order, and change the words around them. See docs/TEXT.md.
 """
 import argparse
+import bisect
+import glob
 import hashlib
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import html
 from html.parser import HTMLParser
 
@@ -32,11 +37,20 @@ SOURCES = [
     ("Base", ["game/js/base.js"]),
     ("Ground", ["game/js/ground.js"]),
     ("Space", ["game/js/space.js"]),
+    # Type 3.5, the game's space combat: its sim and screens, the FTUE, and High Command's sim and renderer under it.
+    # ops-core.js (its only words are the objective families, which the code also uses as keys), space35.js (none) and
+    # flight-rec.js (the test bench's panel) carry no lines for the sheet.
+    ("Space 3.5", ["game/js/sim-hc35.js", "game/js/arena-hc35.js", "game/js/ftue35.js", "game/js/sim-hc.js",
+                   "game/js/arena-hc.js"]),
     ("Rebels", ["game/js/rebel.js", "game/js/rebel-exp.js", "game/js/rebel-injury.js", "game/js/rebel-rest.js", "game/js/support.js"]),
     ("Title", ["game/js/intro.js"]),
     ("Shared", ["game/js/core.js", "game/js/items.js", "game/js/enemies.js", "game/js/data.js", "game/ui/sr-hud.js"]),
     ("Page", ["game/index.html"]),
 ]
+# Tabs whose code compares against words that are labels elsewhere (Type 3.5's demo board checks its tab names,
+# 'Missions' and 'Space'; High Command keys its panel groups 'Flight', 'Morale'): the names they use as ids are ids in
+# their own files only, so a base.js label such as 'Space' stays in the sheet.
+LOCAL_NAMES = {"Space 3.5"}
 
 # --------------------------------------------------------------------------
 # JavaScript lexer: just enough to find every string and template literal reliably
@@ -588,8 +602,43 @@ WORD = re.compile(r"[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ’'\-]*")
 DIALOG_WHERE = re.compile(r"line|quip|bark|say|greet|pitch|dialog|chat|speech|taunt|shout|comms|ST_|reply", re.I)
 
 
-# lists of words that are not lines: random rebel names
-SKIP = [("rebel.js", r"(FIRST|LAST)\["), ("", r"$^")]
+SVG_PATH = re.compile(r"[MmLlHhVvCcSsQqTtAaZz\d\s.,-]+")
+
+
+def svg_path(text):
+    """'M4 4h16v16H4z' and '{DISH}M3 3l18 18': a drawing, not words."""
+    t = re.sub(r"\{[^{}]*\}", " ", text).strip()
+    return bool(t) and t[0] in "Mm" and re.search(r"\d", t) is not None and SVG_PATH.fullmatch(t) is not None
+
+
+# Lines that are not text, each (file it ends with, a regex its Where starts with, and optionally a test of its text:
+# a regex it contains, or a function). "" for the file means every file.
+SKIP = [
+    ("rebel.js", r"(FIRST|LAST)\["),                     # random rebel names
+    ("", r"", svg_path),                                  # an SVG path
+    ("", r"", r"\b(sans-serif|monospace)\b"),             # a canvas font
+    # Type 3.5 and High Command: the designer's tuning panels on the test bench (?dev), not the game's words
+    ("sim-hc35.js", r"(T35|NUM35|GROUPS35)\b"),
+    ("sim-hc.js", r"(TUNE|TACTIC_W)\b|\.group$|\.label$"),
+    ("sim-hc.js", r"$", r"^Other$"),                    # the panel's last group
+    ("arena-hc35.js", r"panelHtml\(\)"),
+    ("arena-hc.js", r"(ICON_UI|SHD_UI|FX_UI|KEYMAP)\b|.*\b(fxPanelHtml|buildPanel|copySettings|syncReadout)\(\)$|"
+                    r"Error\(\) in load\(\)|flash\(\) in (fxPerfTick|tileTick|panelAct|dumpMetrics)\(\)"),
+]
+
+
+def skipped(path, where, text):
+    """Is this line one of SKIP's? text None (collecting every literal, to check edits read back): only the rules
+    without a test of the text apply, as an edit can change what the text looks like."""
+    for rule in SKIP:
+        if not path.endswith(rule[0]) or not re.match(rule[1], where or ""):
+            continue
+        test = rule[2] if len(rule) > 2 else None
+        if test is None:
+            return True
+        if text is not None and (test(text) if callable(test) else re.search(test, text)):
+            return True
+    return False
 
 
 def visible(text):
@@ -780,9 +829,9 @@ def js_rows(path, src, base=0, whole=None, everything=False, scan=None, names=fr
         kind = "Text" if everything else classify(scan, ln, items, where, src, names)
         if not kind:
             continue
-        if any(path.endswith(f) and re.match(w, where) for f, w in SKIP):
-            continue
         text = show(items)
+        if skipped(path, where, None if everything else text):
+            continue
         if len(text) > 120 and len(" ".join(visible(re.sub(r"\{[^{}]*\}", " ", text)).split())) < len(text) * 0.35:
             kind = "Markup"
         rows.append(Row(file=path, line=line_no(whole, base + scan.toks[ln["s"]].s), kind=kind, where=where,
@@ -808,7 +857,7 @@ def html_rows(path, src, everything=False, names=frozenset()):
 def collect(root=ROOT, files=None, everything=False):
     """All rows, in tab order, with ids. files: {path: source} to scan instead of reading disk.
     everything: every literal, not just the ones that look like text (to check an edit read back)."""
-    rows, srcs, scans, names = [], {}, {}, set()
+    rows, srcs, scans, names, local = [], {}, {}, set(), {}
     for tab, paths in SOURCES:
         for path in paths:
             full = os.path.join(root, path)
@@ -819,14 +868,18 @@ def collect(root=ROOT, files=None, everything=False):
                     srcs[path] = f.read()
             if path in srcs and path.endswith(".js"):
                 scans[path] = Scan(srcs[path])
-                names |= code_words(scans[path])
+                if tab in LOCAL_NAMES:
+                    local.setdefault(tab, set()).update(code_words(scans[path]))
+                else:
+                    names |= code_words(scans[path])
     for tab, paths in SOURCES:
         for path in paths:
             if path not in srcs:
                 continue
             src = srcs[path]
-            got = (html_rows(path, src, everything, names) if path.endswith(".html") else
-                   js_rows(path, src, everything=everything, scan=scans[path], names=names))
+            names_here = names | local.get(tab, set())
+            got = (html_rows(path, src, everything, names_here) if path.endswith(".html") else
+                   js_rows(path, src, everything=everything, scan=scans[path], names=names_here))
             got.sort(key=lambda r: r.line)
             seen = {}
             stem = os.path.splitext(os.path.basename(path))[0]
@@ -1072,7 +1125,6 @@ def node_check(path, src):
 
 def db_names(root=ROOT):
     """Every piece of text in the game database, with the table and column it sits in."""
-    import json
     out = {}
     try:
         with open(os.path.join(root, "game/data/db.json"), encoding="utf-8") as f:
@@ -1218,7 +1270,8 @@ def _need_openpyxl():
         sys.exit("openpyxl is required: pip install openpyxl")
 
 
-def export_xlsx(rows, out):
+def export_xlsx(rows, out, extra=(), guide=None):
+    """extra: more columns, each (name, width, {row id: value}), placed before File. guide: the Guide tab's lines."""
     _need_openpyxl()
     from openpyxl import Workbook
     from openpyxl.formatting.rule import FormulaRule
@@ -1236,26 +1289,31 @@ def export_xlsx(rows, out):
     g = wb.active
     g.title = "Guide"
     g.column_dimensions["A"].width = 120
-    for i, (txt, style) in enumerate(GUIDE, start=1):
+    for i, (txt, style) in enumerate(guide or GUIDE, start=1):
         c = g.cell(row=i, column=1, value=txt)
         c.alignment = Alignment(wrap_text=True, vertical="top")
         c.font = F(bold=True, size=14) if style == "title" else F(bold=True) if style == "h" else F()
     g.sheet_view.showGridLines = False
     counts = {}
+    at = HEAD.index("File")
+    head = HEAD[:at] + [x[0] for x in extra] + HEAD[at:]
+    width = dict(WIDTH, **{x[0]: x[1] for x in extra})
     for tab, _ in SOURCES:
         rs = [r for r in rows if r.tab == tab]
         if not rs:
             continue
         ws = wb.create_sheet(tab)
-        for j, h in enumerate(HEAD, start=1):
+        for j, h in enumerate(head, start=1):
             c = ws.cell(row=1, column=j, value=h)
             c.font = F(bold=True, color="FFFFFF")
             c.fill = head_fill
-            ws.column_dimensions[L(j)].width = WIDTH[h]
+            ws.column_dimensions[L(j)].width = width[h]
         for i, r in enumerate(rs, start=2):
             vals = {"Kind": r.kind, "Where": r.where, "Text": r.text, "Original": r.text, "Placeholders": r.legend or None,
                     "File": r.file, "Line": r.line, "ID": r.id}
-            for j, h in enumerate(HEAD, start=1):
+            for name, _, by_id in extra:
+                vals[name] = by_id.get(r.id)
+            for j, h in enumerate(head, start=1):
                 c = ws.cell(row=i, column=j, value=vals[h])
                 c.alignment = Alignment(wrap_text=h in ("Text", "Original", "Where", "Placeholders"), vertical="top")
                 if h == "Text":
@@ -1264,11 +1322,11 @@ def export_xlsx(rows, out):
                     c.font = F(color="666666")
                     c.fill = grey
         last = len(rs) + 1
-        tcol, ocol = L(HEAD.index("Text") + 1), L(HEAD.index("Original") + 1)
+        tcol, ocol = L(head.index("Text") + 1), L(head.index("Original") + 1)
         ws.conditional_formatting.add("%s2:%s%d" % (tcol, tcol, last),
                                       FormulaRule(formula=["EXACT(%s2,%s2)=FALSE" % (tcol, ocol)], fill=yellow))
         ws.freeze_panes = "A2"
-        ws.auto_filter.ref = "A1:%s%d" % (L(len(HEAD)), last)
+        ws.auto_filter.ref = "A1:%s%d" % (L(len(head)), last)
         counts[tab] = len(rs)
     wb.save(out)
     return counts
@@ -1326,6 +1384,261 @@ def changed(texts, origs, rows):
             continue
         out[rid] = txt
     return out
+
+
+# --------------------------------------------------------------------------
+# Who wrote it: the Claude-only workbook (export-claude)
+# --------------------------------------------------------------------------
+# The designer's own lines, which export-claude leaves out (their call, 27 October):
+# - the lines they wrote in the text workbook, imported by these commits (add each new import's commit here);
+DESIGNER_IMPORTS = {"c0cd64d": "imported from your workbook (c0cd64d)",
+                    "4b37702": "imported from your workbook (4b37702)"}
+# - copy transcribed from their own design docs on Google Drive, where the code says the words are theirs, as
+#   (commit that wrote it in, file, Where): only the lines still as that commit wrote them;
+DESIGNER_TRANSCRIBED = [
+    ("f5da114", "game/js/rebel.js", r"CT\[\d+\]\.(n|q|e)$", "your Rebels doc: the Character Traits (f5da114)"),
+    ("6ab6390", "game/js/rebel-exp.js", r"RT\[\d+\] T\(\)$", "your Rebels doc: the Rebel Traits (6ab6390)"),
+    ("fd568aa", "game/js/ftue35.js", r"(INTRO|STEPS)\[", "your Space Combat FTUE doc (fd568aa)"),
+]
+# - lines found word for word in their own documents, as they came from them: the GDD as reassembled from their
+#   Notion (Claude's later notes in it are not theirs), and the database's text from their docs, as it was before the
+#   Space Rework (3657860) added Claude's own ships and attachments. docs/GDriveMasterSheet is only a link.
+DESIGNER_DOCS = [("docs/GDD.md", "0623f35", "word for word in your GDD"),
+                 ("game/data/db.json", "3657860^", "word for word in the game database")]
+# Lines found word for word in a Claude Chat handoff stay in, marked for a check: the words may be the designer's.
+HANDOFF_DOCS = ["docs/*HANDOFF*.md", "docs/*FEEDBACK*.md", "docs/OPPORTUNITY-SYSTEM.md", "docs/ui/*.md",
+                "docs/ui/*.html", "docs/archive/*HANDOFF*.md", "docs/archive/*FEEDBACK*.md", "docs/art/*HANDOFF*.md"]
+MATCH_WORDS = 4   # a match counts from this many words: a short label ("Back", "Pulling out") would match anywhere
+CLAUDE, HANDOFF = "Claude", "Claude Chat handoff (check)"
+
+
+def _git(root, *args):
+    r = subprocess.run(["git", "-C", root] + list(args), capture_output=True)
+    if r.returncode:
+        raise RuntimeError("git %s: %s" % (" ".join(args), r.stderr.decode("utf-8", "replace").strip()))
+    return r.stdout.decode("utf-8", "replace")
+
+
+def blame(root, path):
+    """The commit that last wrote each line of the file as it is now ([None, line 1's, line 2's, ...]), and
+    {commit: (unix time, summary)}. Lines not committed yet carry the all-zero commit."""
+    out = _git(root, "blame", "--porcelain", "--", path)
+    lines, info, cur = [None], {}, None
+    for ln in out.split("\n"):
+        m = re.match(r"([0-9a-f]{40}) \d+ (\d+)", ln)
+        if m:
+            cur, n = m.group(1), int(m.group(2))
+            lines += [None] * (n + 1 - len(lines))
+            lines[n] = cur
+            info.setdefault(cur, [0, ""])
+        elif cur and ln.startswith("author-time "):
+            info[cur][0] = int(ln.split()[1])
+        elif cur and ln.startswith("summary "):
+            info[cur][1] = ln[8:]
+    return lines, info
+
+
+def texts_at(root, rev, path):
+    """(Where, text) of every literal line in path as it was at rev (empty if it did not exist)."""
+    try:
+        src = _git(root, "show", "%s:%s" % (rev, path)).replace("\r\n", "\n")
+        got = html_rows(path, src, everything=True) if path.endswith(".html") else js_rows(path, src, everything=True)
+    except (RuntimeError, LexError):
+        return []
+    return [(r.where, r.text) for r in got]
+
+
+def introduced(root, rev, only=None):
+    """{file: {(Where, text)}}: the lines a commit wrote into each game file it changed (new or reworded), or only
+    into the files listed."""
+    files = [f for f in _git(root, "show", "--name-only", "--format=", rev).split("\n")
+             if f.startswith("game/") and f.endswith((".js", ".html")) and (only is None or f in only)]
+    out = {}
+    for f in files:
+        before = {t for _, t in texts_at(root, rev + "^", f)}
+        out[f] = {(w, t) for w, t in texts_at(root, rev, f) if t not in before}
+    return out
+
+
+def norm(s):
+    """Words only, for matching: no tags, quotes, punctuation or case."""
+    s = html.unescape(TAG.sub(" ", s)).replace("’", "'").replace("‘", "'").replace("'", "")
+    return " ".join(re.sub(r"[\W_]+", " ", s.lower()).split())
+
+
+class Corpus:
+    """Some documents' words, for a quick 'is this run of words in there?'."""
+
+    def __init__(self, pieces):
+        self.s = " " + " ¦ ".join(norm(p) for p in pieces) + " "
+        w = self.s.split()
+        self.tri = {" ".join(w[i:i + 3]) for i in range(len(w) - 2)}
+
+    def has(self, chunk):
+        ws = chunk.split()
+        if any(" ".join(ws[i:i + 3]) not in self.tri for i in range(len(ws) - 2)):
+            return False
+        return (" " + chunk + " ") in self.s
+
+
+def chunks(text):
+    """A line's runs of words: split at its placeholders and at the ends of its sentences and clauses."""
+    t = TAG.sub(" ", re.sub(r"\{[^{}]*\}", "\n", text))
+    return [c for c in (norm(p) for p in re.split(r"[\n.!?…;:·•|]+", html.unescape(t))) if c]
+
+
+def found_in(text, corpus):
+    """The line is in the documents word for word: every run of three words or more is there, and those runs are
+    at least MATCH_WORDS words and most of the line."""
+    cs = chunks(text)
+    total = sum(len(c.split()) for c in cs)
+    sig = [c for c in cs if len(c.split()) >= 3]
+    n = sum(len(c.split()) for c in sig)
+    if not sig or n < MATCH_WORDS or n < 0.6 * total:
+        return False
+    return all(corpus.has(c) for c in sig)
+
+
+def _doc_text(root, path, rev=None):
+    """A document's text, as pieces: the file now, or as it was at rev."""
+    if rev:
+        s = _git(root, "show", "%s:%s" % (rev, path))
+    else:
+        with open(os.path.join(root, path), encoding="utf-8", errors="replace") as f:
+            s = f.read()
+    if path.endswith(".json"):
+        out = []
+
+        def walk(v):
+            if isinstance(v, str):
+                out.append(v)
+            elif isinstance(v, dict):
+                for x in v.values():
+                    walk(x)
+            elif isinstance(v, list):
+                for x in v:
+                    walk(x)
+        walk(json.loads(s))
+        return out
+    if path.endswith(".html"):
+        s = re.sub(r"(?is)<(script|style)\b.*?</\1>", " ", s)
+        s = re.sub(r"data:[\w/+.-]+;base64,[A-Za-z0-9+/=]+", " ", s)
+    return [s]
+
+
+def who_wrote(rows, root=ROOT):
+    """Sort rows into the designer's and Claude's. Returns ({id: (origin, found in, last changed)} for Claude's,
+    {id: why it is the designer's} for the rest)."""
+    srcs, blames, info = {}, {}, {}
+    for f in sorted({r.file for r in rows}):
+        with open(os.path.join(root, f), encoding="utf-8") as fh:
+            srcs[f] = fh.read()
+        blames[f], inf = blame(root, f)
+        info.update(inf)
+    imports = {}   # commit: ({file: texts it wrote there}, every text it wrote)
+    for c in DESIGNER_IMPORTS:
+        by_file = {f: {t for _, t in v} for f, v in introduced(root, c).items()}
+        imports[c] = (by_file, set().union(*by_file.values()))
+    transcribed = {c: introduced(root, c, [f]) for c, f, _, _ in DESIGNER_TRANSCRIBED}
+    designer = [(why, Corpus(_doc_text(root, d, rev))) for d, rev, why in DESIGNER_DOCS]
+    docs = dict.fromkeys(os.path.relpath(d, root).replace(os.sep, "/")
+                         for pat in HANDOFF_DOCS for d in sorted(glob.glob(os.path.join(root, pat))))
+    handoffs = [(d, Corpus(_doc_text(root, d))) for d in docs]
+    starts = {}
+    for f, s in srcs.items():
+        st, i = [0], s.find("\n")
+        while i >= 0:
+            st.append(i + 1)
+            i = s.find("\n", i + 1)
+        starts[f] = st
+    mine, theirs = {}, {}
+    for r in rows:
+        a, b = r.html[:2] if r.html else ((r.span or 0) + r.rng[0], (r.span or 0) + r.rng[1])
+        first, last = (bisect.bisect_right(starts[r.file], a), bisect.bisect_right(starts[r.file], max(a, b - 1)))
+        commits = {blames[r.file][n] for n in range(first, last + 1) if n < len(blames[r.file]) and blames[r.file][n]}
+        words = len(norm(re.sub(r"\{[^{}]*\}", " ", r.text)).split())
+        # an import's line: the import wrote these words (a line beside it on the same source line is not its), and
+        # still holds the line, or the words are long enough to know again where they have moved since
+        why = None
+        for c, reason in DESIGNER_IMPORTS.items():
+            by_file, every = imports[c]
+            if (r.text in by_file.get(r.file, ()) and any(x.startswith(c) for x in commits) or
+                    words >= MATCH_WORDS and r.text in every):
+                why = reason
+                break
+        for c, f, w, reason in DESIGNER_TRANSCRIBED:
+            if why is None and r.file == f and re.match(w, r.where or "") and \
+                    any(t == r.text and re.match(w, ww or "") for ww, t in transcribed[c].get(f, ())):
+                why = reason
+        if why is None:
+            why = next((w for w, c in designer if found_in(r.text, c)), None)
+        if why:
+            theirs[r.id] = why
+            continue
+        doc = next((d for d, c in handoffs if found_in(r.text, c)), None)
+        latest = max(commits, key=lambda x: info.get(x, [0])[0], default=None)
+        if latest is None or set(latest) == {"0"}:
+            last = "not committed yet"
+        else:
+            t, subj = info[latest]
+            last = "%s %s %s" % (latest[:7], time.strftime("%Y-%m-%d", time.gmtime(t)), subj)
+        mine[r.id] = (HANDOFF if doc else CLAUDE, doc, last[:100])
+    return mine, theirs
+
+
+def claude_guide(kept, left):
+    """The Guide tab of the Claude-only workbook."""
+    reasons = {}
+    for why in left.values():
+        reasons[why] = reasons.get(why, 0) + 1
+    origins = {}
+    for o, _, _ in kept.values():
+        origins[o] = origins.get(o, 0) + 1
+    g = [("STAR REBELLION: THE TEXT CLAUDE WROTE", "title"),
+         ("Every line of game text Claude wrote, %d in all, for you to review and rewrite. Your own lines are left out "
+          "(%d of them). Edit the Text column and send the workbook back, or run `python3 tools/text/text.py import` on "
+          "it: it imports exactly like the full workbook." % (len(kept), len(left)), "text"),
+         ("", "text"),
+         ("WHO WROTE IT", "h"),
+         ("Origin: Claude (%d) is a line Claude wrote. Claude Chat handoff (check) (%d) is a line whose words are also, "
+          "word for word, in a handoff doc from Claude Chat (named in Found in): those docs carry your notes too, so "
+          "the words may be yours." % (origins.get(CLAUDE, 0), origins.get(HANDOFF, 0)), "text"),
+         ("Last changed: the commit that last wrote the line, its date and what it was for.", "text"),
+         ("Left out as yours:", "text")]
+    g += [("  %s: %d" % kv, "text") for kv in sorted(reasons.items(), key=lambda kv: -kv[1])]
+    g += [("A match counts from %d words, so a short label such as Back stays in even if your docs use it." % MATCH_WORDS,
+           "text"), ("", "text")]
+    return g + GUIDE[3:]
+
+
+def selftest_claude(tmp, rows):
+    """The Claude-only workbook's extra columns import like the full one; the matching finds runs of words."""
+    fails = []
+    c = Corpus(["The crew’s heart isn't in it. <b>They’ll fold</b> under pressure."])
+    if not found_in("The crew's heart isn’t in it. They'll fold under pressure.", c):
+        fails.append("a line in the docs was not found")
+    if found_in("Back", c) or found_in("{t.first} is down! They'll fold under pressure, Base, and so will you.", c):
+        fails.append("a line not in the docs was found")
+    rs = [r for r in rows if r.tab == "Space 3.5"]
+    if not rs:
+        return fails + ["no Space 3.5 rows"]
+    xl = os.path.join(tmp, "c.xlsx")
+    export_xlsx(rs, xl, extra=[("Origin", 22, {r.id: CLAUDE for r in rs}), ("Last changed", 40, {})],
+                guide=claude_guide({r.id: (CLAUDE, None, "") for r in rs}, {}))
+    from openpyxl import load_workbook
+    wb = load_workbook(xl)
+    ws = wb["Space 3.5"]
+    head = [c.value for c in ws[1]]
+    k = next(i for i in range(2, ws.max_row + 1) if "{" not in ws.cell(row=i, column=head.index("Text") + 1).value)
+    target = ws.cell(row=k, column=head.index("ID") + 1).value
+    ws.cell(row=k, column=head.index("Text") + 1).value = "Zq " + ws.cell(row=k, column=head.index("Text") + 1).value
+    wb.save(xl)
+    texts, origs = read_xlsx(xl)
+    ch = changed(texts, origs, rows)
+    if list(ch) != [target]:
+        return fails + ["Claude workbook round trip found %d edits, expected 1" % len(ch)]
+    _, problems, _ = apply_edits(ch, root=tmp)
+    return fails + problems
 
 
 # --------------------------------------------------------------------------
@@ -1419,6 +1732,11 @@ def selftest():
                 lost = set(r.id for r in rows) - after
                 if len(lost) != 1:
                     fails.append("workbook round trip changed %d lines, expected 1" % len(lost))
+            # the Claude-only workbook, with its extra columns, on a fresh copy
+            for _, paths in SOURCES:
+                for path in paths:
+                    shutil.copy(os.path.join(ROOT, path), os.path.join(tmp, path))
+            fails += selftest_claude(tmp, collect(tmp))
         print("text selftest: %d lines, %d rebuilt, %s" % (len(ids), len(moved), "ok" if not fails else "%d problem(s)" % len(fails)))
         for f in fails:
             print("  " + f)
@@ -1432,6 +1750,9 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     e = sub.add_parser("export", help="write every line of game text to a workbook")
     e.add_argument("out", nargs="?", default="star-rebellion-text.xlsx")
+    c = sub.add_parser("export-claude", help="the lines Claude wrote, without the designer's own (needs git)")
+    c.add_argument("out", nargs="?", default="star-rebellion-claude-text.xlsx")
+    c.add_argument("--left-out", action="store_true", help="also list every line left out, and why")
     i = sub.add_parser("import", help="write the edited Text column back into the code")
     i.add_argument("path")
     i.add_argument("--dry-run", action="store_true")
@@ -1446,6 +1767,27 @@ def main():
     if a.cmd == "export":
         counts = export_xlsx(collect(), a.out)
         print("Wrote %s: %d lines (%s)" % (a.out, sum(counts.values()), ", ".join("%s %d" % kv for kv in counts.items())))
+    elif a.cmd == "export-claude":
+        rows = collect()
+        mine, theirs = who_wrote(rows)
+        keep = [r for r in rows if r.id in mine]
+        counts = export_xlsx(keep, a.out, extra=[("Origin", 22, {k: v[0] for k, v in mine.items()}),
+                                                 ("Found in", 26, {k: v[1] for k, v in mine.items() if v[1]}),
+                                                 ("Last changed", 44, {k: v[2] for k, v in mine.items()})],
+                             guide=claude_guide(mine, theirs))
+        print("Wrote %s: %d lines Claude wrote (%s)" % (a.out, len(keep), ", ".join("%s %d" % kv for kv in counts.items())))
+        for o in (CLAUDE, HANDOFF):
+            print("  %-28s %5d" % (o, sum(1 for v in mine.values() if v[0] == o)))
+        print("Left out as the designer's: %d" % len(theirs))
+        reasons = {}
+        for why in theirs.values():
+            reasons[why] = reasons.get(why, 0) + 1
+        for why, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
+            print("  %-52s %5d" % (why, n))
+        if a.left_out:
+            for r in rows:
+                if r.id in theirs:
+                    print("%s:%d  [%s]  %s  -- %s" % (r.file, r.line, r.where, r.text.replace("\n", "\\n")[:100], theirs[r.id]))
     elif a.cmd == "import":
         texts, origs = read_xlsx(a.path)
         rows = collect()
@@ -1496,14 +1838,13 @@ def main():
         print("%d match(es)" % len(hits))
     elif a.cmd == "report":
         rows = collect()
-        print("%-8s %6s %6s %6s %6s %6s" % ("Tab", "Dialog", "Text", "Label", "Markup", "All"))
+        print("%-10s %6s %6s %6s %6s %6s" % ("Tab", "Dialog", "Text", "Label", "Markup", "All"))
         for tab, _ in SOURCES:
             rs = [r for r in rows if r.tab == tab]
             k = {x: sum(1 for r in rs if r.kind == x) for x in KINDS}
-            print("%-8s %6d %6d %6d %6d %6d" % (tab, k["Dialog"], k["Text"], k["Label"], k["Markup"], len(rs)))
-        print("%-8s %34d" % ("All", len(rows)))
+            print("%-10s %6d %6d %6d %6d %6d" % (tab, k["Dialog"], k["Text"], k["Label"], k["Markup"], len(rs)))
+        print("%-10s %34d" % ("All", len(rows)))
     elif a.cmd == "spans":
-        import json
         out = {}
         for _, paths in SOURCES:
             for path in paths:

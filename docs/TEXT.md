@@ -17,8 +17,11 @@ Or hand the downloaded workbook to Claude and ask it to import your text edits.
 
 One tab per part of the game: **Missions** (every reusable mission type's words, and the guards' names and lines),
 **Prologue** (the onboarding's comms, signals, guided-step lines and callouts: `PRO_TEXT` in `game/js/prologue.js`),
-**Base**, **Ground**, **Space**, **Rebels** (traits, experiences, injuries, ranks), **Title**, **Shared** (HUD and kit)
-and **Page** (the static labels in `game/index.html`). Each row is one line:
+**Base**, **Ground**, **Space**, **Space 3.5** (Type 3.5, the game's space combat: the opportunities, modifiers,
+objectives, rules, assets and powers, the planning windows, the leaders' takes and requests, the HUD's callouts and
+log, the debrief, the Space Combat FTUE, and High Command's sim and map under it: `sim-hc35.js`, `arena-hc35.js`,
+`ftue35.js`, `sim-hc.js`, `arena-hc.js`), **Rebels** (traits, experiences, injuries, ranks), **Title**, **Shared**
+(HUD and kit) and **Page** (the static labels in `game/index.html`). Each row is one line:
 
 | Column | What it is |
 |---|---|
@@ -28,6 +31,37 @@ and **Page** (the static labels in `game/index.html`). Each row is one line:
 | Original | What the game says now. |
 | Placeholders | What a numbered placeholder such as `{1}` stands for. |
 | File, Line, ID | Where it is. The ID is how the import finds the line again: do not edit or delete it. |
+
+## Only the lines Claude wrote
+
+```
+python3 tools/text/text.py export-claude star-rebellion-claude-text.xlsx   # needs git; --left-out lists what it drops
+```
+
+The same workbook as `export` (same tabs, columns and IDs, sorted the same way) with only the lines Claude wrote, so
+you can review and rewrite those without wading through your own. It imports exactly like the full one. Three more
+columns say where a line came from:
+
+| Column | What it is |
+|---|---|
+| Origin | **Claude**, or **Claude Chat handoff (check)**: the same words are in a Claude Chat handoff or feedback doc, which carry your notes too, so they may be yours. |
+| Found in | That handoff doc. |
+| Last changed | The commit that last wrote the line (`git blame`), its date and what it was for. |
+
+Left out as yours:
+
+- **Lines you imported** from the text workbook (the commits in `DESIGNER_IMPORTS` in `tools/text/text.py`: c0cd64d
+  and 4b37702; add each new import's commit there). Only the words that import wrote: another line that merely
+  shares a source line with one of yours stays in.
+- **Copy taken from your own design docs** where the code says the words are yours: the Character Traits and Rebel
+  Traits (your Rebels doc) and the Space Combat FTUE's intro and steps (your FTUE doc), as long as they still read as
+  they were written in (`DESIGNER_TRANSCRIBED`).
+- **Lines found word for word in your own documents**: the GDD as it was reassembled from your Notion (Claude's later
+  notes in it don't count) and the game database's text from before the Space Rework. Quotes, punctuation, case and
+  HTML are ignored, and a match counts only from four words up, so a short label such as "Back" never drops out by
+  accident. `docs/GDriveMasterSheet` is only a link, so the Drive docs themselves aren't read.
+
+Everything else is Claude's.
 
 ## Mission types (the Missions tab)
 
@@ -92,8 +126,11 @@ them together (the database through `tools/db/build.py`).
   (see [DATABASE.md](DATABASE.md)).
 - The random rebel name lists (`FIRST`, `LAST` in `game/js/rebel.js`).
 - Text drawn into the canvas art (`game/art/`) and the generated UI kit files (`sr-theme.js`).
-- Words the code also uses as names: a rebel's role (`Soldier`, `Pilot`), a combat phase (`PLANNING`). The code
-  compares against them, so renaming one is a code change, not a text edit.
+- Words the code also uses as names: a rebel's role (`Soldier`, `Pilot`), a combat phase (`PLANNING`), Type 3.5's
+  objective families (`Take it`, `Deny it`). The code compares against them, so renaming one is a code change, not a
+  text edit.
+- The test bench's tuning panels (`?dev#arena`): Type 3.5's and High Command's slider labels and groups, the FX and
+  icon numbers, the keys list. They are for tuning, not the player.
 - A line built entirely out of code, or a single lower-case word: these look like ids and are skipped. If a line you
   can see in the game is missing, search for it (`text.py find "words"`) and ask for it to be added.
 

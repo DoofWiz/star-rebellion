@@ -2613,3 +2613,9 @@ with a warning and diverges at the first changed shot (yours at 0:19). Tests: `t
 
 **Needs from you:** items 1 (the Crash that runs out of bombs) and 4 (the repeaters; the door gun).
 **Your call** (the designer, 27 October 2026): items 1, 3 and 4 stand as built (the Crash that runs out of bombs is the difficulty it is; the repeaters stay the even line; the door gun keeps its bypass). Item 2 applies to every ship: a shot past a shield that's down or absent reaches the hull. Item 5: a good pilot waits for an opening against a downed shield; a novice makes more mistakes, and some traits change it. _Building._
+
+### C-78 🟡 Type 3.5: text
+Every line in Type 3.5 is lab copy you'll rewrite: the opportunity's lead, the modifiers' lines, the objective and
+rule cards, the wings' takes, the critique lines, the request lines, the power cards and the debrief's lines. None of
+it reaches the campaign without the normal `[TEXT NEEDED]` flow.
+**Your call** (the designer, 27 October 2026): an export of all the copy in the game that Claude wrote, not the designer's own, to review and edit; anything AI-written needs their look. _Building._

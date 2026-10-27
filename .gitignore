@@ -1,1 +1,3 @@
 __pycache__/
+# workbooks exported for editing (tools/text, tools/db): working copies, not sources
+*.xlsx
