@@ -23,11 +23,11 @@ const clone=v=>{try{return JSON.parse(JSON.stringify(v));}catch(e){return null;}
 const tuneOf=T=>{const o={};if(T)for(const k in T){try{o[k]=T[k].get();}catch(e){}}return o;};
 
 /* ---------- the inputs: what the player can do to the sim, by the API function it goes through ---------- */
-// key → [object getter, function name]. The harness replays them through the same calls
+// key → [object getter, function name]. The harness replays them through the same calls (Type 3's commands, responses,
+// rules, Jump Out and Leave now went with Type 3's systems, 27 October 2026; an older record's are skipped)
 const INPUTS={
-  'hc.setOrder':[SIM,'setOrder'],'hc.setTactic':[SIM,'setTactic'],'hc.command':[SIM,'command'],'hc.respond':[SIM,'respond'],
-  'hc.useAbility':[SIM,'useAbility'],'hc.setDoctrine':[SIM,'setDoctrine'],'hc.addRule':[SIM,'addRule'],'hc.removeRule':[SIM,'removeRule'],
-  'hc.jumpOut':[SIM,'jumpOut'],'hc.leaveNow':[SIM,'leaveNow'],'hc.endMission':[SIM,'endMission'],
+  'hc.setOrder':[SIM,'setOrder'],'hc.setTactic':[SIM,'setTactic'],
+  'hc.useAbility':[SIM,'useAbility'],'hc.setDoctrine':[SIM,'setDoctrine'],'hc.endMission':[SIM,'endMission'],
   '35.use':[L35,'use'],'35.answerReq':[L35,'answerReq'],
 };
 function apply(inp){   // [tick, key, args]: run one recorded input (the harness)
@@ -41,7 +41,7 @@ function apply(inp){   // [tick, key, args]: run one recorded input (the harness
 function sample(){
   const S=SIM().S,L=L35()&&L35().L&&L35().L.S===S?L35().L:null;
   const fr=S.ships.find(s=>s.id==='fl400');
-  const o={k:S.tick,t:r1(S.t),cp:L?L.cp:S.cp,
+  const o={k:S.tick,t:r1(S.t),cp:L?L.cp:null,
     s:S.ships.filter(s=>s.alive).map(s=>{const b=s.beh||{},sh=SIM().fn.totalShield(s);
       return [s.id,r0(s.x),r0(s.y),Math.round(s.h*100)/100,b.kind||'',r0(s.hull),r0(sh),b.why||'',b.target||''];})};
   if(L){o.ph=L.phase;o.det=r0(L.detect);o.res=r0(L.resolve);if(fr&&fr.alive)o.fr=[r0(fr.x),r0(fr.y),Math.round(fr.h*100)/100,L.leg,r0(Math.hypot(fr.vx,fr.vy))];

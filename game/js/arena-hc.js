@@ -27,9 +27,9 @@ const REG=[];
 
 /* ---------- state: one object, rebuilt per scenario ---------- */
 const A={active:false,phase:'PICK',scen:null,variant:0,seed:1,speed:2,lastSpeed:2,acc:0,lastFrame:0,
-  sel:null,selShip:null,tray:null,panel:null,drawer:false,arm:null,follow:false,camHeld:false,
+  sel:null,selShip:null,panel:null,follow:false,camHeld:false,
   realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0,
-  mode:null,ov:null};   // mode 'hc35' (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1): ov is its overlay (SR_ARENA_HC35); absent, High Command as ever
+  mode:null,ov:null};   // mode 'hc35' (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1): ov is its overlay (SR_ARENA_HC35), set by open() before anything draws
 
 /* ---------- canvas and camera (arena-sb.js's kit, copied) ---------- */
 const cv=byId('hcCv'),ctx=cv.getContext('2d');
@@ -425,10 +425,10 @@ function fxSense(){
     if(!on)continue;
     if(was===undefined){if(s.alive&&!s.struct&&s.spawn&&Math.hypot(s.x-s.spawn.x,s.y-s.spawn.y)<400)FX.event('warpIn',{ship:shipView(s,ipos(s),boost)});continue;}   // still where it arrived
     if(!was||s.alive)continue;
-    if(A.ov&&A.ov.fxSkip&&A.ov.fxSkip(s))continue;   // Type 3.5 plays the freighter's capital death itself
+    if(A.ov.fxSkip(s))continue;   // Type 3.5 plays the freighter's capital death itself
     const p={x:s.x,y:s.y,h:s.h};
     if(s.jumped){if(S.t-(s.jumpT||0)<1)FX.event('jumpOut',{ship:shipView(s,p,boost)});}
-    else if(!s.boarded&&!s.leftBehind&&S.t-(s.deadT==null?S.t:s.deadT)<1)
+    else if(!s.boarded&&S.t-(s.deadT==null?S.t:s.deadT)<1)
       FX.event('explode',{x:s.x,y:s.y,size:s.row.size,art:s.struct?stationArt(s):SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],livery:s.faction==='reb'?'rebel':'heg',
         faction:s.faction,struct:s.struct,h:s.h,vh:s.vh,speed:Math.hypot(s.vx||0,s.vy||0),stage:dmgStage(s),iconBoost:s.struct?1:fxMin(shipLenW(s)),   // vh, speed: a death spiral carries on its flight (C-74)
         w:s.w||0,turnW:s.turnW||0,turnCap:s.struct?0:SIM.fn.turnCap(SIM.fn.capsOf(s),Math.max(1,Math.hypot(s.vx||0,s.vy||0)))});   // and its turn: the spin and the curl follow it (feedback 1, §3.9)
@@ -436,13 +436,7 @@ function fxSense(){
   for(const e of S.events){
     if(e.id<=fxEvN)continue;fxEvN=e.id;
     if(!on||e.x==null)continue;
-    if(e.kind==='command'&&e.key){
-      const d={x:e.x,y:e.y,key:e.key};
-      if(e.key==='recall'){const sh=e.ship&&SIM.fn.byId(e.ship),q=sh?SIM.fn.withdrawPoint(sh):SIM.fn.extractPoint();d.tx=q.x;d.ty=q.y;}   // toward the rally point
-      if(e.key==='recon'){const Zn=SIM.zone;Object.assign(d,{edge:S.reinforce.edge||'E',x0:Zn.x0,x1:Zn.x1,y0:Zn.y0,y1:Zn.y1});}
-      FX.event('command',d);
-    }
-    else if(e.kind==='objective')FX.event('objective',{x:e.x,y:e.y,failed:e.tone==='hazard'});
+    if(e.kind==='objective')FX.event('objective',{x:e.x,y:e.y,failed:e.tone==='hazard'});
     else if(e.kind==='capture')FX.event('capture',{x:e.x,y:e.y,done:true});
     else if(e.kind==='steady')FX.event('steady',{x:e.x,y:e.y});
   }
@@ -519,21 +513,6 @@ function render(now){
       if(go)dashLine(ctx,p,s.intent,reb?C.rebel:C.heg,z,1.3,[5,8],reb?QUIET_ALPHA:QUIET_ALPHA*0.8);continue;}
     dashLine(ctx,p,s.intent,reb?(s.quiet?C.steel:C.rebel):C.heg,z,reb?1.8:1.2,[7,7],reb?0.85:0.32);
   }
-  const recon=S.reconUntil>S.t;
-  if(recon)for(const s of S.ships){   // Recon Sweep: every Hegemony intent at full strength, with its target named
-    if(!s.alive||s.faction!=='heg'||s.struct||!s.beh)continue;
-    const t=SIM.fn.byId(s.beh.target);if(!t)continue;
-    const p=pos(s);dashLine(ctx,p,t,C.heg,z,1.8,[3,6],0.9);
-    label(ctx,(p.x+t.x)/2,(p.y+t.y)/2-8/z,s.name+' → '+t.name,C.hegHi,z,10);
-  }
-  if(recon&&!S.reinforce.spawned){const e=S.reinforce.edge||'E',g=260,Zn=SIM.zone;ctx.save();ctx.fillStyle=TH.rgba(C.hazard,0.12);   // the play area's edge they come from (C-70)
-    const zw=Zn.x1-Zn.x0,zh=Zn.y1-Zn.y0;if(e==='E')ctx.fillRect(Zn.x1-g,Zn.y0,g,zh);if(e==='W')ctx.fillRect(Zn.x0,Zn.y0,g,zh);if(e==='N')ctx.fillRect(Zn.x0,Zn.y0,zw,g);if(e==='S')ctx.fillRect(Zn.x0,Zn.y1-g,zw,g);ctx.restore();
-    label(ctx,e==='E'?Zn.x1-g/2:e==='W'?Zn.x0+g/2:(Zn.x0+Zn.x1)/2,e==='N'?Zn.y0+g/2:e==='S'?Zn.y1-g/2:(Zn.y0+Zn.y1)/2,'REINFORCEMENTS IN '+fmtClock(SIM.clockLeft()),C.hazard,z,13,'Bungee');}
-  for(const d of S.decoys){   // a Decoy Signal: a false contact, in information cyan
-    const k=(now/600)%1;ring(ctx,d.x,d.y,(30+60*k)/z*0.6+20,TH.rgba(C.shield,1-k),z,2.4);
-    ctx.save();ctx.translate(d.x,d.y);ctx.rotate(Math.PI/4);ctx.strokeStyle=C.shield;ctx.lineWidth=2.4/z;ctx.strokeRect(-12/z,-12/z,24/z,24/z);ctx.restore();
-    label(ctx,d.x,d.y-34/z,'DECOY · '+Math.ceil(d.until-S.t)+' s',C.shield,z,11);
-  }
   // the bodies: one view a ship a frame (C-73); boarded stations stay on the map, dark and claimed
   const body=[];
   for(const s of S.ships){
@@ -541,18 +520,18 @@ function render(now){
     const p=pos(s);if(!inV(p.x,p.y,Math.max(shieldR(s,boost)*2,1500)))continue;   // room for a trail that reaches into view
     body.push({s,p,v:!fx?null:s.struct?(stationArt(s)?stationView(s,p,boost):null):shipView(s,p,boost)});
   }
-  for(const b of body)if(b.s.alive&&!b.s.struct&&!(A.ov&&A.ov.shipHidden&&A.ov.shipHidden(b.s))){if(fx)FX.drawTrail(ctx,b.v,view);else drawTrail(ctx,b.s,z);}
+  for(const b of body)if(b.s.alive&&!b.s.struct&&!A.ov.shipHidden(b.s)){if(fx)FX.drawTrail(ctx,b.v,view);else drawTrail(ctx,b.s,z);}
   for(const {s,p,v} of body){
     const ak=artK(s);
     if(A.selShip===s.id||sw.includes(s.wing))ring(ctx,p.x,p.y,uiR(s)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
-    if(ak<=0&&!(A.ov&&A.ov.shipHidden&&A.ov.shipHidden(s)))continue;   // an icon: drawn in screen space below
+    if(ak<=0&&!A.ov.shipHidden(s))continue;   // an icon: drawn in screen space below
     if(ak<1){ctx.save();ctx.globalAlpha=ak;}
-    if(A.ov&&A.ov.drawBody&&A.ov.drawBody(ctx,s,p,z,boost,view)){}
+    if(A.ov.drawBody(ctx,s,p,z,boost,view)){}
     else if(v&&s.struct)FX.station(ctx,v,view);
     else if(v&&v.art)FX.shipBody(ctx,v,view);
     else drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
     if(ak<1)ctx.restore();
-    if(s.alive&&ak>=0.5){const base=statusShown(s,sw,sf),md=A.ov&&A.ov.shieldMode?A.ov.shieldMode(s,base):base?'full':null;if(md)drawShields(ctx,s,p.x,p.y,p.h,z,boost,md);}   // Type 3.5 has its own rule (§3.3)
+    if(s.alive&&ak>=0.5){const base=statusShown(s,sw,sf),md=A.ov.shieldMode(s,base);if(md)drawShields(ctx,s,p.x,p.y,p.h,z,boost,md);}   // Type 3.5 has its own rule (§3.3)
     if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
     else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
   }
@@ -566,15 +545,15 @@ function render(now){
     }
     FX.drawLayer(ctx,'over',view);
   } else{drawShots(ctx,z,a,S);drawChaff(ctx,z,S);}
-  if(A.ov&&A.ov.drawWorld)A.ov.drawWorld(ctx,view,{z,boost,now,fx});
+  A.ov.drawWorld(ctx,view,{z,boost,now,fx});
   drawLocks(ctx,z,S,boost,now,fx?view:null);
   // screen space: hull pips and names, floaters
   ctx.setTransform(dpr,0,0,dpr,0,0);
   if(fx)FX.drawLayer(ctx,'screen',view);
-  if(A.ov&&A.ov.drawScreen)A.ov.drawScreen(ctx,view,{z,boost,now,fx});
+  A.ov.drawScreen(ctx,view,{z,boost,now,fx});
   ctx.font='700 11px "Exo 2",sans-serif';ctx.textAlign='center';
   for(const s of S.ships){
-    if(!s.alive||A.ov&&A.ov.shipHidden&&A.ov.shipHidden(s))continue;   // Type 3.5's plan view hides your wings (their markers stand in)
+    if(!s.alive||A.ov.shipHidden(s))continue;   // Type 3.5's plan view hides your wings (their markers stand in)
     const p=pos(s),q=toScreen(p.x,p.y),r=uiR(s)*z,ak=artK(s);
     if(ak<1){drawIcon(ctx,s,q,p.h,1-ak,A.selShip===s.id||sw.includes(s.wing));if(ak<0.5)continue;}   // icon mode: the icon carries the name and the health tick
     if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4,bands:'gor'});
@@ -695,7 +674,7 @@ function frame(now){
     RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));
     if(A.follow&&!A.camHeld)followCam(realDt);
   }
-  if(A.ov&&A.ov.tick)A.ov.tick(now);   // Type 3.5's screens animate (the dossier's turning freighter)
+  A.ov.tick(now);   // Type 3.5's screens animate (the dossier's turning freighter)
   // the visual pass's clocks: game time runs smooth with the timescale (not in 50 ms steps), real time always
   shieldTick();   // the shields' refill watch (§3.3), with FX on or off
   if(FX){fxSense();FX.update(SIM.S&&SIM.S.over?realDt/1000:gameDt,realDt);fxPerfTick(realDt);}   // past the end, the last booms play out
@@ -869,7 +848,7 @@ function buildRoster(){
   let h='';
   for(const w of S.wings){
     h+='<div class="hc-wing" data-wing="'+w.id+'"><button type="button" class="hc-wing__head" data-wing-head="'+w.id+'"><span class="hc-wing__name">'+esc(w.name)+'</span>'+
-      '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span>'+(A.ov&&A.ov.wingChip?'<span class="hc-chip hc-chip--extra" data-chip="extra" hidden></span>':'')+'</button><div class="hc-wing__tiles">';
+      '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span><span class="hc-chip hc-chip--extra" data-chip="extra" hidden></span></button><div class="hc-wing__tiles">';
     for(const id of w.ships)h+=tileHtml(SIM.fn.byId(id));
     h+='</div></div>';
   }
@@ -938,10 +917,10 @@ function syncRoster(){
     const box=el.querySelector('[data-wing="'+w.id+'"]');if(!box)continue;
     box.classList.toggle('is-sel',selWings().includes(w.id));
     const oc=box.querySelector('[data-chip="order"]'),tc=box.querySelector('[data-chip="tactic"]');
-    const ot=A.ov&&A.ov.orderChip?A.ov.orderChip(w):SIM.ORDERS[w.order.kind].name+(w.order.target?' · '+SIM.targetLabel(w.order):'');   // Type 3.5: the Executive Order
+    const ot=A.ov.orderChip(w);   // Type 3.5: the Executive Order
     if(oc.textContent!==ot)oc.textContent=ot;
-    const tt=A.ov&&A.ov.tacticChip?A.ov.tacticChip(w):w.tactic==='auto'?'AUTO · '+(SIM.HC_TACTICS[w.autoPick||'spread'].name.split(' ')[0]):SIM.HC_TACTICS[w.tactic].name;if(tc.textContent!==tt)tc.textContent=tt;
-    if(A.ov&&A.ov.tacticChip){tc.hidden=!tt;tc.classList.toggle('is-off',!!tt);}   // Type 3.5: OFF PLAN, or nothing
+    const tt=A.ov.tacticChip(w);if(tc.textContent!==tt)tc.textContent=tt;
+    tc.hidden=!tt;tc.classList.toggle('is-off',!!tt);   // Type 3.5: OFF PLAN, or nothing
     const xc=box.querySelector('[data-chip="extra"]');if(xc){const xt=A.ov.wingChip(w)||'';if(xc.textContent!==xt)xc.textContent=xt;xc.hidden=!xt;}   // Type 3.5: the crates aboard
     for(const sid of w.ships){
       const s=SIM.fn.byId(sid),t=box.querySelector('[data-ship="'+sid+'"]');if(!s||!t)continue;
@@ -964,11 +943,10 @@ function syncRoster(){
     }
   }
 }
-/* the ship's current order as a corner glyph (and a word on hover): gold-less, cyan when a rule set it, hazard in an emergency */
-const BEH={interpose:['defend','COVERING'],engage:['attack','ENGAGE'],withdraw:['withdraw','WITHDRAW'],escort:['escort','ESCORT'],form:['regroup','FORM UP'],defend:['defend','DEFEND'],
-  hold:['hold','HOLD'],capture:['capture','CAPTURE'],board:['board','BOARD'],fallback:['withdraw','FALL BACK'],flee:['withdraw','FLEEING'],freeze:['hold','FROZEN'],idle:['hold','IDLE']};
-function behWord(s){const v=A.ov&&A.ov.verbOf&&A.ov.verbOf(s);if(v)return v.words;const b=s.beh||{};return (BEH[b.kind]||['hold',String(b.kind||'').toUpperCase()])[1];}   // Type 3.5: its vocabulary (feedback 1, §3.4)
-function behGlyph(s){const v=A.ov&&A.ov.verbOf&&A.ov.verbOf(s);if(v)return v.g;const b=s.beh||{};return (BEH[b.kind]||['hold'])[0];}
+/* the ship's current job as a corner glyph and a word, in Type 3.5's vocabulary (feedback 1, §3.4): cyan when a rule
+   set it, hazard in an emergency. Without a 3.5 fight (High Command's own fixtures) a tile shows no word */
+function behWord(s){const v=A.ov.verbOf(s);return v?v.words:'';}
+function behGlyph(s){const v=A.ov.verbOf(s);return v?v.g:'hold';}
 const behTone=s=>s.panic||s.emerg?'hazard':s.beh&&s.beh.rule?'rule':'';
 byId('hcRoster').addEventListener('click',ev=>{
   const h=ev.target.closest('[data-wing-head]');
@@ -1033,8 +1011,6 @@ function tipFor(key){
   {const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips first
   const [k,a]=String(key).split(':');
   if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
-  if(k==='abil'){const B=SIM.ABILITIES[a];return {name:B.name+' · '+B.cd+' s recharge',line:B.line};}
-  if(k==='doc')return {name:a,line:{AUTO:'The pilot uses it whenever it helps.',EMERG:'Only under its emergency trigger.',MANUAL:'Never by itself: press Use.'}[a]};
   if(k==='focus')return {name:'Event focus',line:'Jump the camera to the newest event you have not viewed.',key:'Tab'};
   if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
   return {name:key,line:''};
@@ -1112,12 +1088,12 @@ byId('hcPilot').addEventListener('click',ev=>{
   const b=ev.target.closest('button');if(!b)return;
   const s=SIM.fn.byId(A.panel);if(!s)return;
   if(b.dataset.act==='close'){A.panel=null;syncHud(true);return;}
-  if(A.ov.pilotClick)A.ov.pilotClick(s,b);
+  A.ov.pilotClick(s,b);
 });
 
 /* the commands bar: the overlay's powers */
 function syncDrawer(){
-  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on&&A.ov.cmdsHtml?A.ov.cmdsHtml():'';
+  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?A.ov.cmdsHtml():'';
   if(body.dataset.h!==h){hideTipIn(body);body.innerHTML=h;body.dataset.h=h;}
   el.hidden=!on;
 }
@@ -1129,11 +1105,11 @@ function syncHud(){
   if(!A.active)return;
   syncTop();syncFeed();syncRoster();syncTime();syncPilot();syncDrawer();syncReadout();
   {   // the overlay may hide the whole HUD (its board and briefing)
-    const off=!!(A.ov&&A.ov.hudHidden&&A.ov.hudHidden());
-    if(off||!(A.ov&&A.ov.cmdsHtml))byId('hcCmds').hidden=true;   // the commands bar carries the overlay's powers, if it has any
+    const off=!!A.ov.hudHidden();
+    if(off)byId('hcCmds').hidden=true;   // the commands bar carries the overlay's powers
     for(const id of ['hcTop','hcRoster','hcPilot'])if(off)byId(id).hidden=true;
     byId('hcFeed').hidden=off;
-    if(A.ov&&A.ov.syncHud)A.ov.syncHud(performance.now());
+    A.ov.syncHud(performance.now());
   }
   placeRail();
 }
@@ -1189,7 +1165,7 @@ function shipAt(x,y){
 let ovDrag=false;   // the overlay took this press (a plan-view marker)
 cv.addEventListener('pointerdown',ev=>{
   if(!SIM.S)return;
-  if(A.ov&&A.ov.pointer&&A.ov.pointer('down',evPt(ev),ev)){ovDrag=true;cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);return;}
+  if(A.ov.pointer('down',evPt(ev),ev)){ovDrag=true;cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);return;}
   if(A.phase==='PICK')return;
   cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);
   const p=evPt(ev),panning=ev.button===2||ev.button===1||ev.pointerType==='touch';
@@ -1197,7 +1173,7 @@ cv.addEventListener('pointerdown',ev=>{
 });
 cv.addEventListener('pointermove',ev=>{
   if(ovDrag){A.ov.pointer('move',evPt(ev),ev);return;}
-  if(A.ov&&A.ov.pointer&&!pan)A.ov.pointer('hover',evPt(ev),ev);
+  if(!pan)A.ov.pointer('hover',evPt(ev),ev);
   if(!pan)return;
   const p=evPt(ev);
   if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
@@ -1242,7 +1218,7 @@ cv.addEventListener('wheel',ev=>{
   const after=toWorld(p.px,p.py);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam();
 },{passive:false});
 function mapClick(p,ev){
-  if(A.ov.mapClick&&A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
+  if(A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
   const s=shipAt(p.x,p.y);
   if(s&&s.faction==='reb'&&s.wing){clickShip(s);return;}
   if(!s){A.selShip=null;syncHud(true);}
@@ -1254,7 +1230,7 @@ const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray c
 function onKey(ev){
   if(SR.active!=='space35'||!A.active)return false;
   if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
-  if(A.ov.onKey&&A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
+  if(A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
   if(A.phase==='PICK')return false;
   const k=ev.key;
   if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}

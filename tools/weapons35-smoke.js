@@ -77,7 +77,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   const fb=L().fallback||{};out.passed=[!!L().winPassed,fb.from==='crash',/gravity window/.test(fb.why||'')];
   return out;
  });
- ok(r.ver[0]==='hc-3'&&/^hc35-1[4-9]$/.test(r.ver[1]),'SIM_VERSIONs bumped '+JSON.stringify(r.ver));
+ ok(/^hc-[3-9]$/.test(r.ver[0])&&/^hc35-1[4-9]$/.test(r.ver[1]),'SIM_VERSIONs bumped '+JSON.stringify(r.ver));
  ok(JSON.stringify(r.sh)==='[4,6,1.6,1.2]','1: on a shield: even 4, plasma 6, ballistic 1.6, missile 1.2 '+JSON.stringify(r.sh));
  ok(JSON.stringify(r.ar)==='[4,2,6.4,6.4]','1: on armour: even 4, plasma 2, ballistic 6.4, missile 6.4 '+JSON.stringify(r.ar));
  ok(JSON.stringify(r.hu)==='[4,4,4,5.6]','1: on the hull: missile 5.6, the rest 4 '+JSON.stringify(r.hu));
