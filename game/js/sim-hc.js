@@ -149,7 +149,7 @@ const cfgWeapons=c=>SRDB.configWeapons(SRDB.parseConfig(c));
 function loadout(row,list,config){
   const own=list||(config?cfgWeapons(config):null);
   if(HK.loadoutExtra){const x=HK.loadoutExtra(row,own);if(x)return x;}
-  const ids=(own||(row.config!=null?cfgWeapons(row.config):[row.default_weapon_1,row.default_weapon_2])).filter(id=>id&&SRDB.weapons[id]).slice(0,row.weapon_slots||2);
+  const ids=(own||(row.config!=null?cfgWeapons(row.config):[row.default_weapon_1,row.default_weapon_2])).filter(id=>id&&SRDB.weapons[id]).slice(0,row.mounts||2);
   return ids.map((id,i)=>{const w=wdefOf(SRDB.weapons[id]);w.rng*=RANGE_MULT;return {key:'w'+i,w,ammo:w.ammo,cd:0};});
 }
 const CRITDEFS={

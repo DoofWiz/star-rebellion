@@ -130,7 +130,7 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.tapT=!!tgt;
   if(tgt){
     const tj=f.startJob(sl.id,'slicer.datatap',tgt);
-    G().intel=0;const r0=G().risk;f.advanceDay();out.tap=[!!tj,G().intel>=1,G().risk>r0];
+    G().intel=0;const r0=G().heat;f.advanceDay();out.tap=[!!tj,G().intel>=1,G().heat>r0];
     f.stopJob(tj.id);
   }
   // ---- Mission Control supports a mission; a Tactician brings the briefing and the free round with Battle Plan

@@ -47,7 +47,7 @@ the cell. Columns marked `(auto)` are formulas for reading only and are ignored 
 |---|---|
 | `ships` | Starships, drones (no pilot) and structures (never move). Stock model stats, its **hardpoints** by type and its stock **configuration** (what is fitted where), and whether the player can own one. |
 | `weapons` | Every ship weapon, and the hardpoint it mounts on (`slot`: primary guns, secondary missiles). Ammo and damage live here, not on the ship. |
-| `attachments` | What goes on a pylon or inside the hull: Bombs (the Graf and the Brickbat only: `ships`), Cargo pods, a Boarding party (needs passenger room), a Boarding pod. |
+| `attachments` | What uses up a ship's hardpoints: Bombs (the Graf and the Brickbat only: `ships`), Cargo pods, a Boarding party (needs passenger room), a Boarding pod. |
 | `items` | Personal kit (weapons, armour, gadgets, other) and the built-in weapons of units and vehicles. |
 | `enemies` | The ground enemy roster: people, robots and vehicles; faction, tier, stats, and what each type carries (item ids). |
 | `vehicle_seats` | Each vehicle's seats: who drives, which gun the seat fires, whether it is enclosed. |
@@ -87,11 +87,12 @@ the ship, and traits or morale may push the effective value outside 1 to 6.
   line up; `CLS[key].id` is the database id.
 - **Movement:** engine damage and mag-clamps lower top speed but never below the slowest straight move. A bank or turn
   whose slowest speed is above the cap drops off the dial, so a Cross with three engine hits can only fly straight at 1.
-- **Hardpoints and configurations** (`docs/MAIN-SWITCH-HANDOFF.md` S2, `docs/SHIPS-REVIEW.md`): a ship row's `hardpoints`
-  are counts by type (`primary:1|secondary:1|pylon:4|internal:0`): weapons on primary or secondary, attachments on a pylon
-  or internal. Its `config` is what a stock one has fitted where (`primary:bls-t-light-repeaters|pylon:bombs`).
-  `build.py validate` checks every configuration fits its ship (the right slot, not too many, passenger room for a
-  boarding party); the game reads them through `SRDB.parseConfig`, `SRDB.configWhy` and `SRDB.configWeapons`.
+- **Mounts, hardpoints and configurations** (the designer, C-90 item 4; `docs/SHIPS-REVIEW.md`): a ship row's `mounts`
+  is how many weapons she carries (any weapon in any mount) and its `hardpoints` what her attachments use up (each
+  attachment's own `hardpoints` says how many). Its `config` is what a stock one has fitted, a plain list
+  (`bls-t-light-repeaters|bombs|bombs`). `build.py validate` checks every configuration fits its ship (a mount for each
+  weapon, enough hardpoints, passenger room for a boarding party, the ships an attachment is limited to); the game
+  reads them through `SRDB.parseConfig`, `SRDB.configWhy` and `SRDB.configWeapons`.
 - **Weapons:** damage, ammo, range, accuracy, crit, shield bypass and lock all come from the weapon. Every ship's
   configuration is its own: `G.fighters[i].config` (the stock one, or the `starting_fleet` entry's for named ships:
   Dustfall comes with missiles, Marta with her door gun), and `G.fighters[i].loadout` lists its weapons in mount order

@@ -291,7 +291,7 @@ const HC35_CLASSES={
 /* =====================================================================
    The player's wings (§4.3), as the designer listed them (Wing 3 has four: C-76)
    ===================================================================== */
-const CROSS_MISSILES='primary:bls-t-light-repeaters|secondary:missiles';   // the demo's Crosses are modified ones (decision 9: a stock Cross has none)
+const CROSS_MISSILES='bls-t-light-repeaters|missiles';   // the demo's Crosses are modified ones (decision 9: a stock Cross has none)
 const WINGS35=[
   {id:'dagger',name:'Dagger',ships:[{id:'joss',cls:'cross',config:CROSS_MISSILES,name:'Joss',pilot:{id:'joss-marrek'},traits:['reckless',{k:'friend',with:'petra'}]},{id:'wren',cls:'cross',config:CROSS_MISSILES,name:'Wren',pilot:{preset:'regular'}},{id:'petra',cls:'talon',name:'Petra',pilot:{id:'petra-voss'}}]},
   {id:'anvil',name:'Anvil',ships:[{id:'sera',cls:'talon',name:'Sera',pilot:{id:'sera-kest'},traits:['protective']},{id:'brask',cls:'brickbat',name:'Brask',pilot:{preset:'regular'}},{id:'ollo',cls:'brickbat',name:'Ollo',pilot:{preset:'green'},traits:['green','proud']}]},
@@ -305,12 +305,12 @@ const loadOf=(pw,sd)=>sd.config!=null?loadOfConfig(sd.config):pw.loadout[sd.id]|
 /* the configuration each loadout stands for, by class (MAIN-SWITCH S4: the planning windows read a ship's fit). A Brickbat
    has no passenger room, so it boards with a boarding pod; a Graf carries a boarding party inside (the designer, 21 October) */
 const LOAD_FIT={
-  bombs:{brickbat:'primary:bls-t-light-repeaters|pylon:bombs|pylon:bombs',graf:'pylon:bombs|pylon:bombs'},
-  pods:{brickbat:'primary:bls-t-light-repeaters|pylon:cargo-pods',graf:'pylon:cargo-pods'},
-  board:{brickbat:'primary:bls-t-light-repeaters|pylon:boarding-pod',graf:'internal:boarding-party'}};
+  bombs:{brickbat:'bls-t-light-repeaters|bombs|bombs',graf:'bombs|bombs'},
+  pods:{brickbat:'bls-t-light-repeaters|cargo-pods',graf:'cargo-pods'},
+  board:{brickbat:'bls-t-light-repeaters|boarding-pod',graf:'boarding-party'}};
 const fitOf=(sd,lo)=>(LOAD_FIT[lo]||{})[sd.cls]||'';
 /* a configuration's loadout: what it lets the ship do in 3.5 (board first, then haul, then bomb) */
-function loadOfConfig(c){const C=SRDB.parseConfig(c);if(SRDB.boards(C))return 'board';if(C.pylon.includes('cargo-pods'))return 'pods';if(C.pylon.includes('bombs'))return 'bombs';return null;}
+function loadOfConfig(c){const C=SRDB.parseConfig(c);if(SRDB.boards(C))return 'board';if(C.hardpoint.includes('cargo-pods'))return 'pods';if(C.hardpoint.includes('bombs'))return 'bombs';return null;}
 /* the wings that fly: the demo's above (the test opportunity and the tests), or the campaign's for a campaign mission
    (MAIN-SWITCH S6; useWings(list)). A campaign ship carries its own config, shipId, pilotId, hullFrac, hullBonus and
    shieldBonus; its leader is first */

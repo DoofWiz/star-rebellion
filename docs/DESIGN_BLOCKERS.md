@@ -85,7 +85,7 @@ bar, fire-support art and ships parked in the iso hangar.
 | M-30 | 🟡 | One map per mission type | Every deployment of a type plays on the same layout; only the names change |
 | M-31 | ⚪ | Ship names: a bought ship is "Hauler 2" | Mission lines read "the Hauler 2"; a non-Graf transport would still be drawn as a Graf |
 | M-32 | 🟡 | Support unlocks that wait on systems not built (the Network, crafting, research…) | 97 of 161 niche unlocks and 3 of 16 base effects; 12 niches have nothing live yet |
-| M-33 | 🟡 | Haven Rock art: no Tech Lab furniture or simulator pod in the kit; the base alert has no rule | The Tech Lab draws a stand-in; the alert fires at 70 network exposure |
+| M-33 | 🟡 | Haven Rock art: no Tech Lab furniture or simulator pod in the kit; the base alert has no rule | The Tech Lab draws a stand-in; the alert fires at 70 network heat |
 | M-34 | 🟡 | Prologue: stubbed beats (security forces arrive, the first Campaign, the farewell) | Everything after Raid the Bunker; the prologue ends at its frontier until they are written |
 | M-40 | 🟡 | The switch to main, for later: phone and iPad for 3.5, the capture system, the Fleet feature, real crafting, Spoofed Orders and the pirates (to scope), the Wing Leader post, squadrons, K7's HUD layout, the design doc's parked items | Nothing in the switch |
 | M-39 | 🟡 | The opportunity system beyond Type 3.5: ground missions and the editor | Ground missions on the grammar; the opportunity editor |
@@ -270,11 +270,7 @@ I can't settle without you:
    - 3.5 calls none of them directly.
    - Keep them for 3.5 to draw on later, or plan their removal for S9?
    - Removing them changes the hash baselines.
-4. **Names that will collide:**
-   - ~~S7 renames `G.opps` to **leads**, but the Bureau already has "Current Leads"~~ Answered: they're **Tips** (Resolved log, C-94.7).
-   - Two meters are called exposure: `G.risk` (the network's) and `G.exposure` (the Bureau's, which S6 uses).
-   - `db.json`'s `hard_points` (a count, read by nothing) against S2's `hardpoints` (slot types).
-   - Which names do you want for the other two?
+4. ~~**Names that will collide**~~ Renamed (Resolved log, C-90.4): Tips, Heat, mounts and hardpoints.
 5. **3.5's player-facing text is outside the workbook.** `text.py` doesn't read `arena-hc35.js`, `sim-hc35.js`,
    `sim-hc.js` or `ops-core.js`; it was lab copy (C-78).
    - Bring it into the workbook at S1, when it reaches players?
@@ -311,7 +307,7 @@ goes on a panel when built:
 | The trait mapping | `SR_OPS.TRAIT_MAP`: each rebel trait's help weight or relationship (C-89 item 36) | S6 (built) |
 | Scaling to the force sent | data on the template (`scale: {perWing, min}`): the numbers in C-94 item 5 | S7 (built) |
 | A Reserve's fuel | half, for a Reserve that's never called | S8 |
-| Hardpoint counts | primary and secondary from `weapon_slots` and the art's missile mount; pylons = `hard_points`; internal = 1 with passenger room (`docs/SHIPS-REVIEW.md`) | S2 (built) |
+| Mounts and hardpoints | `mounts` (was `weapon_slots`) and `hardpoints` (was `hard_points`), counts; each attachment's hardpoints: Bombs 1, Cargo pods 1, Boarding party 1, Boarding pod 2 (C-90.4) | S2, reworked 27 October (built) |
 | The Brickbat | 2,400 credits; 30 fuel a sortie (no passenger room: your answer) | S2 (built) |
 | The FL-400 | 80 fuel a sortie (unused: not ownable) | S2 (built) |
 | The attachments | Bombs, a rack of three; Cargo pods carry 2 containers | S2 (built) |
@@ -858,7 +854,7 @@ The Approach window and standby (`docs/ui/SCREENS-HANDOFF-2.md` §2).
 
 1. **Standby contacts never give up.** The handoff leaves it undecided whether a contact left waiting on the
    Galaxy map eventually walks away; until you call it, they wait forever.
-3. **"+4 exposure" still moves `G.risk`.** The row is worded for §3's Exposure system, which doesn't exist yet;
+3. **"+4 network heat" moves `G.heat`** (was "+4 exposure" on `G.risk`, renamed by C-90.4). The row was worded for §3's Exposure system;
    recruiting bumps the network risk number exactly as before. When §3 lands, this becomes `G.exposure`.
 
 **Needs from you:** a call on (1); and on (3), whether taking on a Source should add to the Bureau's Exposure (`G.exposure`) instead.
@@ -1010,7 +1006,7 @@ and in the registry but are never granted).
 **Blocks:** Wanted, Hegemony Informant, Defector, Rebel Celebrity, Propaganda Poster, Hero of the Rebellion, Made a
 Name for Themselves, Symbol of the Rebellion (Rebel Traits); Streetwise and Former Criminal
 (Character Traits, which reduce it).
-**Why:** today there is one number, network exposure (`G.risk`), and only Sources move it. The traits describe
+**Why:** today there is one number, network heat (`G.heat`, was `G.risk`), and only Sources move it. The traits describe
 Risk per person and per situation.
 **Needs from you:**
 1. One network-wide meter that rebels add to, or a notoriety number per rebel?
@@ -1318,8 +1314,8 @@ The Haven Rock handoff (art update 4) now draws the base map and every walk-in v
   per tile, a Technician's post at each bench (💻), and two small screens per tile on the map.
 - **The Training Hall's simulator pod** isn't in the kit's Training Hall (target wall, dummies, mat, weight rack),
   so the walk-in view no longer shows it. The Simulator button in the room window still works.
-- **The base alert.** There are no raids yet, so the whole base pulses red when network exposure (`G.risk`)
-  reaches **70** (`BASE_ALERT_RISK` in `base.js`). I picked 70, where a Source starts to risk a burn.
+- **The base alert.** There are no raids yet, so the whole base pulses red when network heat (`G.heat`)
+  reaches **70** (`BASE_ALERT_HEAT` in `base.js`). I picked 70, where a Source starts to risk a burn.
 
 Smaller choices: the Maintenance Bay's pad holds the most damaged ship (the one the bay repairs); Surgery in a
 one-tile Infirmary isn't drawn, because the kit only gives it a tile in a bigger room; free rebels walk the longest
@@ -1401,6 +1397,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-90.4 | **No two systems share a name** (the designer, 27 October 2026: Tips confirmed; "Introduce new names so none are the same, and I can review later"; "Hardpoints are a count… Each kind of attachment consumes a number of hardpoints… a number of weapon placements… let's call these 'mounts'"; mounts are one count, any weapon). **Tips** (C-94.7) stays. **Heat**: the network's meter (`G.risk`, shown as "network exposure") is now network heat, `G.heat` (the Data Tap's rule `datatap_heat`, `BASE_ALERT_HEAT`); only the Bureau's meter is Exposure. **Mounts and hardpoints**: a ship's `weapon_slots` is now `mounts` (any weapon in any mount), its `hard_points` is now `hardpoints`, the count, and S2's typed `hardpoints` (primary, secondary, pylon, internal) is gone; each attachment's `hardpoints` says how many it uses (placeholders: Bombs 1, Cargo pods 1, Boarding party 1 and passenger room, Boarding pod 2, so a Brickbat carries two bomb racks or one boarding pod); a weapon has no slot; a configuration is a plain list (`bls-t-light-repeaters\|bombs\|bombs`). Refit lists her weapon mounts and her hardpoints used | 2026-10-27 | `db.json` and `build.py`, `SRDB` (`hardpointsUsed`), Refit; MIGRATIONS 19 → 20 (a ship's slots become mounts and hardpoints) and 20 → 21 (`G.risk` to `G.heat`); `ships-smoke`, `refit-smoke` |
 | C-90.2 | **The standalone prototypes are archived** (the designer, 27 October 2026: "Archive them") | 2026-10-27 | `base.html`, `ground-combat.html`, `space-combat.html` and `space-combat-gdd.html` moved to `archive/prototypes/` (a row in `archive/README.md`); README's four sections are a pointer now |
 | C-90.7 | **The build's numbers are right** (the designer, 27 October 2026: "No numbers are fixed, so whatever the latest numbers in the build are, is what's accurate") | 2026-10-27 | README, GDD, ROADMAP and REBELS_PLAN quote the build: sortie fuel 24–42 a ship, the hangar's leak +4 Fuel a day, Steal Fuel 240 Fuel and 300 credits, Auto Factory 450 credits and 160 Materials, three starting pads (a large and two small), the Supply Drop's 160 supplies, the trait counts; the full list is in `docs/CLEANUP-REPORT.md` §3.5. Wording that isn't a number (the old space combat's rules, the leads naming) is left for its own work |
 | C-13 | **Retired in the blockers sweep: outdated** (the designer agreed, 27 October 2026). The four CSS bugs are fixed in the game's own stylesheet. Nothing here needs a decision; the only remaining note is for whoever re-exports the art kit's canvas CSS. | 2026-10-27 | The full entry is in `docs/archive/DESIGN_BLOCKERS-RETIRED.md` |

@@ -163,8 +163,8 @@ function gearLayout(items,cols){
 }
 const EXCAVATE={m:40,days:1};
 /* Ships, fuel, seats and weapons come from the game database (SRDB). A fighter in G.fighters is one physical
-   ship: {id,name,cls,hull,out,config,loadout}. config is what it has fitted where on its hardpoints (MAIN-SWITCH S2:
-   {primary, secondary, pylon, internal}, SRDB.parseConfig); loadout is its weapons in mount order, which space.js and
+   ship: {id,name,cls,hull,out,config,loadout}. config is what it has fitted: weapons in its mounts, attachments on its
+   hardpoints ({mount, hardpoint}, SRDB.parseConfig: C-90 item 4); loadout is its weapons in mount order, which space.js and
    the Arsenal read. Refit (the ship inspector's tab, S4: refitFit) edits the config, and loadout follows. */
 const fuelPer=cls=>{const r=SRDB.ship(cls);return r&&r.fuel_per_sortie?r.fuel_per_sortie:5;};   // fuel burned per sortie
 const fuelOf=f=>Math.ceil(fuelPer(f.cls)*(hangarUp('refuel')?0.75:1));
@@ -174,11 +174,9 @@ function shipStats(f){
   return {label:r.name+' · '+r.role,shd:r.shield_front+'F / '+r.shield_rear+'A',arm:r.armour,hull:r.hull,
     wpns:(f.loadout&&f.loadout.length?f.loadout:[]).map(id=>[wpnLabel(id)])};
 }
-/* a configuration with these weapons on their mounts (each on its slot: missiles secondary, guns primary), keeping the
-   attachments of keep (a configuration) */
+/* a configuration with these weapons in its mounts, keeping the attachments of keep (a configuration) */
 function configOfWeapons(ids,keep){
-  const c=SRDB.parseConfig(keep||'');c.primary=[];c.secondary=[];
-  for(const id of ids||[])if(id)c[SRDB.slotOf(id)==='secondary'?'secondary':'primary'].push(id);
+  const c=SRDB.parseConfig(keep||'');c.mount=(ids||[]).filter(Boolean);
   return c;
 }
 /* what a ship starts with: the starting-fleet entry's configuration if it is one of those named ships (Dustfall comes
@@ -290,21 +288,22 @@ function wingDropShip(sid){   // a free ship leaves its wing: an asset again
   w.members=w.members.filter(x=>x!==m);wingsTidy();return null;
 }
 /* ---------- Refit (docs/MAIN-SWITCH-HANDOFF.md S4): the ship inspector's tab ----------
-   Her hardpoints by type and what's fitted on each, swapped from what is on the hangar racks (G.shipKit: the ship
+   Her weapon mounts and hardpoints and what's fitted on them (C-90 item 4), swapped from what is on the hangar racks (G.shipKit: the ship
    weapons and the attachments the fleet owns; crafted ones join them in S5). A change takes no time with an Aerogineer
    in the Workshop, 2 days without (the ship is grounded meanwhile). A fit that doesn't suit the ship is refused with
-   the reason (SRDB.configWhy: the wrong hardpoint, none free, no passenger room, a ship that can't carry it) */
+   the reason (SRDB.configWhy: no mount free, not enough hardpoints, no passenger room, a ship that can't carry it) */
 let shipTab='sheet';   // the ship inspector's tab: 'sheet' or 'refit'
-const RF_SLOT={primary:'Guns',secondary:'Missiles',pylon:'Pylons',internal:'Inside the hull'};
-const RF_NO={primary:'gun mount',secondary:'missile mount',pylon:'pylon',internal:'passenger room'};   // what she lacks, in the Can't fit list
+const RF_SLOT={mount:'Weapon mounts',hardpoint:'Hardpoints'};
+const RF_NO={mount:'weapon mounts',hardpoint:'hardpoints'};   // what she lacks, in the Can't fit list
+const hpWord=n=>n+' hardpoint'+(n===1?'':'s');
 function rackAdd(id,n){G.shipKit=G.shipKit||[];const e=G.shipKit.find(x=>x.id===id);if(e)e.n+=n||1;else G.shipKit.push({id,n:n||1});}
 const rackHas=id=>((G.shipKit||[]).find(x=>x.id===id)||{n:0}).n;
-/* fit id on hardpoint k's mount i (null: clear it). Returns why it can't be done, or null */
+/* fit id as the i-th item on k, her mounts or her hardpoints (null: clear it). Returns why it can't be done, or null */
 function refitFit(f,k,i,id){
   if(!f)return 'No such ship';
   if(f.out)return 'She is out on a mission';
   const row=SRDB.ship(f.cls),c=SRDB.parseConfig(f.config||SRDB.stockConfig(row)),cur=c[k]&&c[k][i]||null;
-  if(!c[k])return 'No such hardpoint';
+  if(!c[k])return 'No such mount';
   if((id||null)===cur)return null;
   if(id){
     const next=SRDB.parseConfig(c);if(i<next[k].length)next[k][i]=id;else next[k].push(id);
@@ -328,16 +327,18 @@ function refitHTML(f){
   const tryWhy=(k,i,id)=>{if(busy)return busy;const n=SRDB.parseConfig(c);if(i<n[k].length)n[k][i]=id;else n[k].push(id);return SRDB.configWhy(row,n);};
   let h='<p class="sr-p">'+(aero?'An <b>Aerogineer</b> in the Workshop: changes are done at once.':'No Aerogineer in the Workshop: a change grounds her for <b>2 days</b>.')+
     (f.refit>0?' <span class="bs-bad">In refit: '+f.refit+' day'+(f.refit>1?'s':'')+' left.</span>':'')+'</p>';
+  const used={mount:c.mount.length,hardpoint:SRDB.hardpointsUsed(c)};
   for(const k of SRDB.SLOTS){
     if(!hp[k])continue;
-    h+='<div class="sr-h3">'+RF_SLOT[k]+' <span class="sr-fine">'+c[k].length+' / '+hp[k]+'</span></div>';
+    h+='<div class="sr-h3">'+RF_SLOT[k]+' <span class="sr-fine">'+used[k]+' / '+hp[k]+(k==='hardpoint'?' used':'')+'</span></div>';
     const fits=rack.filter(e=>SRDB.slotOf(e.id)===k);
     for(let i=0;i<hp[k];i++){
       const cur=c[k][i]||null,att=cur&&SRDB.attachment(cur);
       const acts=(cur?B('data-rfx="'+k+'|'+i+'|"','Take off',busy):'')+
         fits.filter(e=>e.id!==cur).map(e=>{const why=tryWhy(k,i,e.id);return B('data-rfx="'+k+'|'+i+'|'+e.id+'"',(cur?'Swap for ':'Fit ')+SRDB.itemName(e.id)+' ×'+e.n,why)+(why&&!busy?'<span class="sr-fine rf-why">'+esc(why)+'</span>':'');}).join('');
-      h+='<div class="wg-row rf-row">'+swpnArt(cur||'',' kf')+'<span class="wg-who"><b>'+(cur?esc(SRDB.itemName(cur)):'<i>Empty</i>')+'</b><small>'+(att&&att.description?esc(att.description):cur?'Ship weapon':'Nothing fitted')+'</small></span><span class="wg-acts">'+acts+'</span></div>';
-      if(i>=c[k].length)break;   // one empty mount shown at a time
+      if(!cur&&used[k]>=hp[k])break;   // full: no empty row
+      h+='<div class="wg-row rf-row">'+swpnArt(cur||'',' kf')+'<span class="wg-who"><b>'+(cur?esc(SRDB.itemName(cur)):'<i>Empty</i>')+'</b><small>'+(att?(att.description?esc(att.description)+' ':'')+'Uses '+hpWord(att.hardpoints)+'.':cur?'Ship weapon':'Nothing fitted')+'</small></span><span class="wg-acts">'+acts+'</span></div>';
+      if(i>=c[k].length)break;   // one empty row shown at a time
     }
   }
   // what's on the racks that she can't take, and why
@@ -498,7 +499,7 @@ function newGame(){
   ];
   for(const rm of rooms)for(let r=rm.r;r<rm.r+rm.h;r++)for(let c=rm.c;c<rm.c+rm.w;c++)grid[r][c]={t:'room',room:rm.key};
   const g0={
-    day:1,credits:1000,supplies:480,materials:400,fuel:240,intel:3,renown:8,risk:10,morale:65,introDone:false,
+    day:1,credits:1000,supplies:480,materials:400,fuel:240,intel:3,renown:8,heat:10,morale:65,introDone:false,
     rows,cols,grid,rooms,
     fighters:[],
     vehicles:[],
@@ -2448,7 +2449,7 @@ const JOBS={
   'slicer.datatap':{
     targets:()=>worldsOpen().filter(d=>!sjobs().some(j=>j.k==='slicer.datatap'&&j.tid===d.id)).map(d=>({id:d.id,label:d.name})),
     cost:()=>({}),days:()=>0,ongoing:1,
-    day(){G.intel+=RU.datatap_intel;if(!on('slicer.ghost'))G.risk=Math.min(100,G.risk+RU.datatap_exposure);},
+    day(){G.intel+=RU.datatap_intel;if(!on('slicer.ghost'))G.heat=Math.min(100,G.heat+RU.datatap_heat);},
   },
   'slicer.blackout':{
     targets:()=>worldsOpen().map(d=>({id:d.id,label:d.name})),
@@ -2469,7 +2470,7 @@ const JOBS={
     news('The recruitment drive in <b>'+pdef(j.tid).name+'</b> brings in <b>'+a.name+'</b> and <b>'+b.name+'</b>.','g');
   }),
   'propagandist.herostories':Object.assign(campaign(j=>{
-    addSupport(j.tid,1);viral({loc:j.tid,amt:1});G.risk=Math.min(100,G.risk+5);
+    addSupport(j.tid,1);viral({loc:j.tid,amt:1});G.heat=Math.min(100,G.heat+5);
     news('<b>'+pdef(j.tid).name+'</b> hears what the revolution did there. Support +1, and the Hegemony is listening too.','p');
   }),{targets:()=>worldsOpen().filter(d=>(G.wins||{})[d.id]&&!campaignAt(d.id)).map(d=>({id:d.id,label:d.name+' · won day '+G.wins[d.id]}))}),
   'instructor.crosstrain':{
@@ -2798,7 +2799,7 @@ function srcVisit(src){
   const c0=src.cult,l0=src.level;
   src.cult=Math.min(100,src.cult+10);
   src.risk=Math.min(100,src.risk+6);
-  G.risk=Math.min(100,G.risk+1);
+  G.heat=Math.min(100,G.heat+1);
   const lvl=checkCultLevel(src);
   rollSignal(src);
   const lines=['You make the crossing to '+src.loc+' yourself. '+src.name.split(' ')[0]+' needed a face, not a frequency.',
@@ -2891,7 +2892,7 @@ function acceptCandidate(id){
   G.sources.push(nsrc);
   news('<b>'+cd.name+'</b> joins the network.','g');
   Pro.emit('source',nsrc);
-  G.risk=Math.min(100,G.risk+4);
+  G.heat=Math.min(100,G.heat+4);
   closeWin();syncUI();
 }
 /* the network is full: the candidate stays on the Galaxy map as a potential contact until a slot frees up */
@@ -3419,8 +3420,8 @@ const hullCol=h=>h>=100?K.go:h>=60?K.gold:K.hazard;
 
 /* ---------- Haven Rock: who is where on the map and in the walk-in views (docs/art/HANDOFF.md, "Haven Rock") ----------
    Everything here is read from the save at draw time; nothing is stored. */
-const BASE_ALERT_RISK=70;   // network exposure at which the whole base pulses red (DESIGN_BLOCKERS M-33)
-const baseAlert=()=>(G.risk||0)>=BASE_ALERT_RISK;
+const BASE_ALERT_HEAT=70;   // network heat at which the whole base pulses red (DESIGN_BLOCKERS M-33)
+const baseAlert=()=>(G.heat||0)>=BASE_ALERT_HEAT;
 /* a cluster's real tiles as [[r,c],...] and its finished upgrades (the art reads both; upgrades still queued aren't drawn) */
 function clusterCells(cl){const out=[];for(const q of cl)for(let r=q.r;r<q.r+q.h;r++)for(let c=q.c;c<q.c+q.w;c++)out.push([r,c]);return out;}
 const clusterUps=cl=>[...new Set(cl.flatMap(q=>q.up||[]))];
@@ -3790,7 +3791,7 @@ function renderRoomBar(){
   } else if(rm.key==='diplo'){
     info='Teams out '+(G.dip||[]).length+'/'+dipCapacity();
   } else if(rm.key==='command'){
-    info='Revolution progress '+Math.round(G.renown)+'/100 · network exposure '+Math.round(G.risk);
+    info='Revolution progress '+Math.round(G.renown)+'/100 · network heat '+Math.round(G.heat);
   } else if(rm.key==='workshop'){
     info='Repair pace '+repairBase()+'%/day untended';
   } else if(rm.key==='techlab'){
@@ -6345,7 +6346,7 @@ function assignCell(src){
 function captureSource(src){
   if(proSrc(src))return;   // the prologue's sources build up Risk as normal but are never Burned before the frontier
   src.alive=false;src.captured=1;
-  G.risk=Math.min(100,G.risk+15);
+  G.heat=Math.min(100,G.heat+15);
   moraleAll(-6,'loss');
   const a=agentOf(src.agent);
   const expected=[];
@@ -6855,7 +6856,7 @@ function candHTML(cd){
     (full?'<span class="cm-cap__full">Full</span>':'')+'<span class="cm-cap__pips">'+pips+'</span><b>'+alive+'/'+cap+'</b></div>';
   const drow=(c,txt,val)=>'<span class="cm-drow" style="--c:'+c+'"><i></i>'+(val!==undefined?'<b>'+val+'</b>&nbsp;':'')+txt+'</span>';
   const incRows=Object.keys(cd.inc||{}).filter(k=>CAND_RES[k]&&cd.inc[k]).map(k=>drow(CAND_RES[k][1],CAND_RES[k][0]+' a day','+'+cd.inc[k])).join('')+
-    drow('var(--sr-hazard)','exposure','+4');
+    drow('var(--sr-hazard)','network heat','+4');
   const cmChoice=(n,attrs,title,rows,primary,dis)=>'<button type="button" class="cm-choice'+(primary?' is-primary':'')+'" '+attrs+(dis?' disabled':'')+'>'+
     '<span class="sr-kbd sr-choice__key">'+n+'</span><span class="cm-choice__t">'+title+'</span>'+(rows?'<span class="cm-choice__rows">'+rows+'</span>':'')+'</button>';
   const take=(n,dis)=>cmChoice(n,'data-cand="'+cd.id+'"','Take them on.',
@@ -7300,8 +7301,8 @@ function syncUI(){
   hub.style.setProperty('--p',pr);
   hub.setAttribute('aria-label','Revolution Level '+lvl+(lvl>=2?'':', '+Math.round(pr)+'% toward Level 2'));
   $('revTip').innerHTML=lvl>=2?
-    '<b>Revolution Level 2</b>The Hegemony has noticed. Level 2 content is a future build.<br>Network exposure: '+Math.round(G.risk)+'.':
-    '<b>Revolution Level 1</b>Criminals, as far as the Hegemony cares.<br>Progress '+Math.round(G.renown)+'/100 toward Level 2: missions across many worlds, liberated regions, local Support and a growing network.<br>Network exposure: '+Math.round(G.risk)+'.';
+    '<b>Revolution Level 2</b>The Hegemony has noticed. Level 2 content is a future build.<br>Network heat: '+Math.round(G.heat)+'.':
+    '<b>Revolution Level 1</b>Criminals, as far as the Hegemony cares.<br>Progress '+Math.round(G.renown)+'/100 toward Level 2: missions across many worlds, liberated regions, local Support and a growing network.<br>Network heat: '+Math.round(G.heat)+'.';
   if(lastRenown!==null&&(G.renown||0)>lastRenown){
     hub.classList.remove('is-rising');void hub.offsetWidth;hub.classList.add('is-rising');
     clearTimeout(risingTO);risingTO=setTimeout(()=>hub.classList.remove('is-rising'),1200);
@@ -10241,6 +10242,15 @@ const MIGRATIONS=[
     G.tips=G.tips||G.opps||[];delete G.opps;
     if(G.oppN!=null){G.tipN=G.oppN;delete G.oppN;}
     for(const m of G.missions||[]){if(m.oppId){m.tipId=m.oppId;delete m.oppId;}if(m.opp){m.tipId=m.tipId||m.id;delete m.opp;}}
+  },
+  /* 19 -> 20: a ship's weapons go in its mounts and its attachments on its hardpoints (C-90 item 4): an owned ship's
+     {primary, secondary, pylon, internal} becomes {mount, hardpoint} */
+  function(){
+    for(const f of G.fighters||[])if(f.config)f.config=SRDB.parseConfig(f.config);
+  },
+  /* 20 -> 21: the network's meter is Heat (C-90 item 4: only the Bureau's is Exposure): G.risk becomes G.heat */
+  function(){
+    if(G.heat===undefined)G.heat=G.risk||0;delete G.risk;
   },
 ];
 const saveVersion=()=>MIGRATIONS.length;   // the version this build writes

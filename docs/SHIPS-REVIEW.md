@@ -5,6 +5,12 @@ gameplay may make some stats redundant").
 
 **Nothing has been removed.** This is a recommendation for each stat. You decide; I act after you've read it.
 
+> **Since 27 October (C-90 item 4, the designer):** weapons go in **mounts** and attachments use up **hardpoints**, both
+> plain counts. `weapon_slots` is now `mounts` (any weapon in any mount); `hard_points` is now `hardpoints`, the count,
+> and S2's typed `hardpoints` (primary, secondary, pylon, internal) is gone; each attachment's `hardpoints` says how many it
+> uses (Bombs 1, Cargo pods 1, Boarding party 1 with passenger room, Boarding pod 2: placeholders); a weapon has no slot.
+> A configuration is a plain list, `bls-t-light-repeaters|bombs|bombs`. The S2 tables below are kept as they were.
+
 **What reads the database today:**
 - **The old space combat** (`space.js`, live until S11).
 - **Type 3.5:** High Command's sim, `sim-hc.js`, with the 3.5 layer `sim-hc35.js`.

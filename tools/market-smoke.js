@@ -254,13 +254,13 @@ const url='file://'+path.resolve(__dirname,'../game/index.html')+'#test';
   out.wpnBuy=[wc0-G().credits===wp2,rack(wkey).n===1,lots()[wi2].stock===0,
     G().news.some(n=>n.html.indexOf('hangar racks')>=0)];
   f.closeMarket();
-  // Refit (the ship inspector's tab, MAIN-SWITCH S4): take her gun off onto the racks, then fit the bought weapon on its
-  // hardpoint (one gun mount: the bought repeaters can't go on as a second)
+  // Refit (the ship inspector's tab, MAIN-SWITCH S4): take her gun off onto the racks, then fit the bought weapon in the
+  // free mount
   f.openArsenal();f.setArCat('ships');f.setArSel('ship',bought.id);
   $('#arActs [data-arrefit]').click();
   out.refitOpen=f.getWin()==='ship'&&f.shipTab_()==='refit'&&$$('#winsB [data-rfx]').length>=1;
-  const n0=bought.loadout.length,old0=SRDB.parseConfig(bought.config).primary[0],r0=rack(old0).n;
-  $('#winsB [data-rfx="primary|0|"]').click();
+  const n0=bought.loadout.length,old0=SRDB.parseConfig(bought.config).mount[0],r0=rack(old0).n;
+  $('#winsB [data-rfx="mount|0|"]').click();
   out.unfit=[bought.loadout.length===n0-1,rack(old0).n===r0+1];
   const w0=rack(wkey).n,fitBtn=$$('#winsB [data-rfx]').find(e=>!e.disabled&&e.getAttribute('data-rfx').endsWith('|'+wkey));
   out.fitBtn=!!fitBtn;

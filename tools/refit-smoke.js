@@ -1,10 +1,11 @@
-/* Refit on the hardpoints (docs/MAIN-SWITCH-HANDOFF.md S4, §5 test 5): node tools/refit-smoke.js
+/* Refit on the mounts and hardpoints (docs/MAIN-SWITCH-HANDOFF.md S4, §5 test 5; C-90 item 4): node tools/refit-smoke.js
    (needs NODE_PATH=$(npm root -g)).
-   1  Refit is the ship inspector's tab (a ship's window, and the Arsenal's Refit): her hardpoints by type and what's fitted
+   1  Refit is the ship inspector's tab (a ship's window, and the Arsenal's Refit): her weapon mounts and her hardpoints and what's fitted
    2  a valid fit applies from the hangar racks: 2 days without an Aerogineer (grounded meanwhile), at once with one; what
       comes off goes on the racks; the weapons follow (loadout)
    3  an invalid fit is refused with the reason: bombs on a Cross (only the Graf and the Brickbat carry them), a boarding
-      party in a Brickbat (no passenger room), a second gun on one gun mount, a ship out on a mission
+      party in a Brickbat (no passenger room), a third weapon on two mounts, a boarding pod beside a bomb rack on a
+      Brickbat's two hardpoints, a ship out on a mission
    4  Type 3.5's window 3: a Brickbat's loadout is a read-out of its fit (Bombs ×2, a boarding pod), with Refit (the demo's
       refit pop-up) instead of the old segmented control */
 const {chromium}=require('playwright');
@@ -32,22 +33,23 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   $('#winsB [data-shiptab="refit"]').click();
   out.tab=[f.shipTab_(),/Refit/.test(($('#winsB .sr-window__title')||{}).textContent||''),$$('#winsB .sr-h3').map(e=>e.textContent.replace(/\s+/g,' ').trim())];
   // 2. a valid fit, without an Aerogineer: two days grounded
-  const pb=$$('#winsB [data-rfx]').find(e=>!e.disabled&&e.getAttribute('data-rfx')==='pylon|0|bombs');
+  const pb=$$('#winsB [data-rfx]').find(e=>!e.disabled&&e.getAttribute('data-rfx')==='hardpoint|0|bombs');
   out.fitBtn=!!pb;if(pb)pb.click();
-  out.fit=[SRDB.parseConfig(graf.config).pylon.join(),rack('bombs'),graf.refit,f.plWhyShip(graf,new Set(),{acc:'ship'})];
+  out.fit=[SRDB.parseConfig(graf.config).hardpoint.join(),rack('bombs'),graf.refit,f.plWhyShip(graf,new Set(),{acc:'ship'})];
   // with an Aerogineer (a Mechanic in the Aerogineer niche, level 3, in a Workshop): at once
   G.rooms.push({id:'rm_ws_t',key:'workshop',r:6,c:8,w:1,h:1,up:[]});
   const ag=window.Rebel.migrate({id:'ag1',name:'Ada Gineer',role:'Support',level:3,xp:0,assign:'room:workshop',bio:'Grease monkey who can rebuild a hauler drive.',morale:60,charTrait:'brave'});
   ag.niche='aerogineer';G.people.push(ag);
   delete graf.refit;
-  out.aero=[f.refitFit(graf,'internal',0,'boarding-party'),SRDB.parseConfig(graf.config).internal.join(),graf.refit===undefined,rack('boarding-party')];
+  out.aero=[f.refitFit(graf,'hardpoint',1,'boarding-party'),SRDB.parseConfig(graf.config).hardpoint.join(),graf.refit===undefined,rack('boarding-party')];
   // what comes off goes on the racks; the weapons follow
-  out.off=[f.refitFit(graf,'pylon',0,null),rack('bombs'),SRDB.parseConfig(graf.config).pylon.length];
-  out.wpn=[f.refitFit(cross,'secondary',0,'missiles'),cross.loadout.join(),rack('missiles')];
+  out.off=[f.refitFit(graf,'hardpoint',0,null),rack('bombs'),SRDB.parseConfig(graf.config).hardpoint.join()];
+  out.wpn=[f.refitFit(cross,'mount',1,'missiles'),cross.loadout.join(),rack('missiles')];
   // 3. refused, with the reason
-  out.why=[f.refitFit(cross,'pylon',0,'bombs'),f.refitFit(bb,'internal',0,'boarding-party'),f.refitFit(cross,'primary',1,'bls-t-light-repeaters')];
-  out.pod=[f.refitFit(bb,'pylon',0,'boarding-pod'),SRDB.boards(bb.config)];
-  bb.out=true;out.out=f.refitFit(bb,'pylon',1,null);bb.out=false;
+  out.why=[f.refitFit(cross,'hardpoint',0,'bombs'),f.refitFit(bb,'hardpoint',0,'boarding-party'),f.refitFit(cross,'mount',2,'bls-t-light-repeaters'),f.refitFit(bb,'hardpoint',0,'boarding-pod')];
+  // a boarding pod uses both her hardpoints: one bomb rack off first
+  out.pod=[f.refitFit(bb,'hardpoint',1,null),f.refitFit(bb,'hardpoint',0,'boarding-pod'),SRDB.boards(bb.config),SRDB.parseConfig(bb.config).hardpoint.join()];
+  bb.out=true;out.out=f.refitFit(bb,'hardpoint',0,null);bb.out=false;
   // the refusal is on the tab too
   f.closeWin();f.shipTab_('refit');f.openWin('ship',cross);
   const nb=$$('#winsB [data-rfx]').find(e=>e.getAttribute('data-rfx').endsWith('|bombs'));
@@ -56,13 +58,13 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   return out;
  });
  ok(r.sheet[0]==='ship'&&r.sheet[1],'1: the ship inspector has a Refit tab '+JSON.stringify(r.sheet));
- ok(r.tab[0]==='refit'&&r.tab[1]&&r.tab[2].some(t=>/^Guns/.test(t))&&r.tab[2].some(t=>/^Pylons 0 \/ 5/.test(t))&&r.tab[2].some(t=>/^Inside the hull/.test(t)),'1: Refit lists her hardpoints by type '+JSON.stringify(r.tab));
+ ok(r.tab[0]==='refit'&&r.tab[1]&&r.tab[2].some(t=>/^Weapon mounts 0 \/ 2/.test(t))&&r.tab[2].some(t=>/^Hardpoints 0 \/ 5 used/.test(t))&&r.tab[2].length===2,'1: Refit lists her weapon mounts and her hardpoints '+JSON.stringify(r.tab));
  ok(r.fitBtn&&r.fit[0]==='bombs'&&r.fit[1]===1&&r.fit[2]===2&&r.fit[3]==='In refit','2: a fit from the racks; 2 days grounded without an Aerogineer '+JSON.stringify(r.fit));
- ok(r.aero[0]===null&&r.aero[1]==='boarding-party'&&r.aero[2]&&r.aero[3]===0,'2: at once with an Aerogineer '+JSON.stringify(r.aero));
- ok(r.off[0]===null&&r.off[1]===2&&r.off[2]===0,'2: what comes off goes on the racks '+JSON.stringify(r.off));
+ ok(r.aero[0]===null&&r.aero[1]==='bombs,boarding-party'&&r.aero[2]&&r.aero[3]===0,'2: at once with an Aerogineer '+JSON.stringify(r.aero));
+ ok(r.off[0]===null&&r.off[1]===2&&r.off[2]==='boarding-party','2: what comes off goes on the racks '+JSON.stringify(r.off));
  ok(r.wpn[0]===null&&r.wpn[1]==='bls-t-light-repeaters,missiles'&&r.wpn[2]===0,'2: the weapons follow the fit '+JSON.stringify(r.wpn));
- ok(/can't carry bombs/.test(r.why[0]||'')&&/passenger room|internal hardpoint|no inside/.test(r.why[1]||'')&&/1 primary hardpoint/.test(r.why[2]||''),'3: refused with the reason '+JSON.stringify(r.why));
- ok(r.pod[0]===null&&r.pod[1]===true,'3: a Brickbat boards with a boarding pod '+JSON.stringify(r.pod));
+ ok(/can't carry bombs/.test(r.why[0]||'')&&/passenger room/.test(r.why[1]||'')&&/2 weapon mounts/.test(r.why[2]||'')&&/2 hardpoints; that needs 3/.test(r.why[3]||''),'3: refused with the reason '+JSON.stringify(r.why));
+ ok(r.pod[0]===null&&r.pod[1]===null&&r.pod[2]===true&&r.pod[3]==='boarding-pod','3: a Brickbat boards with a boarding pod, which uses both her hardpoints '+JSON.stringify(r.pod));
  ok(/out on a mission/.test(r.out||''),'3: not while she is out on a mission '+JSON.stringify(r.out));
  ok(r.ui[0]&&r.ui[1],'3: the tab greys a refused fit and says why '+JSON.stringify(r.ui));
 

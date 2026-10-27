@@ -448,14 +448,14 @@ function shipRow(w,sd,pw){
   const lo=L35.loads(sd)?L35.loadOf(pw,sd):null;
   let fit='';
   if(lo&&sd.config!=null){   // a campaign ship: what she has fitted, changed only at Refit in the base (S6)
-    const c=SRDB.parseConfig(sd.config),n={};for(const id of c.pylon.concat(c.internal))n[id]=(n[id]||0)+1;
+    const c=SRDB.parseConfig(sd.config),n={};for(const id of c.hardpoint)n[id]=(n[id]||0)+1;
     fit='<div class="h35-fit"><span class="h35-fit__lbl" data-tip="lo:'+lo+'">'+esc(Object.keys(n).map(id=>SRDB.itemName(id)+(n[id]>1?' ×'+n[id]:'')).join(' · '))+'</span><span class="h35-fit__base" data-tip="@" data-tt="Refit" data-tb="Change what she carries at Refit, in the hangar, before the mission.">Refit at base</span></div>';
   } else if(lo){
-    const c=SRDB.parseConfig(L35.fitOf(sd,lo)),items=c.pylon.concat(c.internal),n={};for(const id of items)n[id]=(n[id]||0)+1;
+    const c=SRDB.parseConfig(L35.fitOf(sd,lo)),items=c.hardpoint,n={};for(const id of items)n[id]=(n[id]||0)+1;
     const words=Object.keys(n).map(id=>SRDB.itemName(id)+(n[id]>1?' ×'+n[id]:'')).join(' · ')||L35.LOADOUTS[lo].name;
     const open=B.refit&&B.refit.ship===sd.id;
     fit='<div class="h35-fit"><span class="h35-fit__lbl" data-tip="lo:'+lo+'">'+esc(words)+'</span><button type="button" class="h35-fit__refit" data-refit35="'+w.id+'|'+sd.id+'" aria-expanded="'+open+'">Refit</button>'+
-      (open?'<div class="h35-fit__pop"><div class="h35-fit__t">Demo refit · '+esc(sd.name)+'</div>'+['bombs','pods','board'].map(k=>{const cc=SRDB.parseConfig(L35.fitOf(sd,k)),nm=cc.pylon.concat(cc.internal).filter((x,i,a)=>a.indexOf(x)===i).map(SRDB.itemName).join(', ');
+      (open?'<div class="h35-fit__pop"><div class="h35-fit__t">Demo refit · '+esc(sd.name)+'</div>'+['bombs','pods','board'].map(k=>{const cc=SRDB.parseConfig(L35.fitOf(sd,k)),nm=cc.hardpoint.filter((x,i,a)=>a.indexOf(x)===i).map(SRDB.itemName).join(', ');
         return '<button type="button" data-lo="'+k+'" aria-pressed="'+(lo===k)+'" data-ship="'+sd.id+'" data-wing="'+w.id+'" data-tip="lo:'+k+'">'+esc(nm||L35.LOADOUTS[k].name)+'</button>';}).join('')+'</div>':'')+'</div>';
   }
   return '<div class="h35-srow'+(lo?' has-lo':'')+'"><canvas class="h35-srow__art" width="208" height="104" data-ship="'+sd.cls+'" data-lo="'+(lo||'')+'"></canvas>'+

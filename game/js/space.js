@@ -38,7 +38,7 @@ for(const r of SRDB.raw.ships){
   const keys=String(r.legacy_keys).split('|').filter(Boolean);
   const c=Object.assign({id:r.id,key:keys[0],label:r.name,role:r.role,kind:r.kind,dbSize:r.size,size:SRDB.visualSize(r.size),
     shdF:r.shield_front,shdR:r.shield_rear,arm:r.armour,hull:r.hull,dial:()=>SRDB.dial(r),
-    minSpd:r.straight_min,maxSpd:r.straight_max,slots:r.weapon_slots,people:r.extra_people,
+    minSpd:r.straight_min,maxSpd:r.straight_max,slots:r.mounts,people:r.extra_people,
     loadout:[r.default_weapon_1,r.default_weapon_2].filter(Boolean),
     struct:r.kind==='structure'?1:0,mute:r.kind==='starship'?0:1});
   for(const k of keys)CLS[k]=c;

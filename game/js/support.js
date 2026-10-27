@@ -161,11 +161,11 @@
     X('ordnance',19,'','warhead','Signature Warhead','job','Craft one unique heavy charge, one per mission, that destroys a fixed objective or a vehicle outright.',{base:1,lead:1,needs:'crafting'}),
     // Technician
     X('slicer',3,'','prehack','Pre-hack','job','Before a mission, slice into its systems: the first Hegemony Auto on the map starts it under rebel control (or a terminal hack starts one round from done).',{live:1}),
-    X('slicer',7,'A','datatap','Data Tap','job','Keep a data tap on a Hegemony network at one world: +1 Intel a day there, and network exposure creeps up.',{live:1}),
+    X('slicer',7,'A','datatap','Data Tap','job','Keep a data tap on a Hegemony network at one world: +1 Intel a day there, and network heat creeps up.',{live:1}),
     X('slicer',7,'B','overwatch','Overwatch','job','Supports one mission live: Field Technician hacks in it take one round.',{live:1}),
     X('slicer',11,'','maptheft','Map Theft','job','Before a mission, download the facility layout: the whole mission map is revealed.',{live:1}),
     X('slicer',15,'A','backdoors','Backdoors','rule','A Field Technician’s hack that is broken off keeps its progress instead of starting again. (Hacked Autos already stay ours.)',{live:1}),
-    X('slicer',15,'B','ghost','Ghost Protocol','rule','Slicer Jobs no longer raise network exposure.',{live:1}),
+    X('slicer',15,'B','ghost','Ghost Protocol','rule','Slicer Jobs no longer raise network heat.',{live:1}),
     X('slicer',19,'','blackout','Blackout','job','Once every 30 days, take a world’s Hegemony network down for 5 days: no enemy reinforcements on missions there.',{lead:1,cd:30,live:1}),
     X('armourer',3,'','attachments','Attachments','job','Craft basic weapon attachments: scopes, extended magazines and grips.',{needs:'attach'}),
     X('armourer',7,'A','precision','Precision Work','job','Craft attachments for long-range weapons, which suit the Marksman.',{needs:'attach'}),
@@ -221,7 +221,7 @@
     // Diplomat
     X('propagandist',3,'','broadcasts','Broadcasts','job','Run a 5-day campaign at one world: local Support rises by ½ a flag and a new recruit may answer.',{live:1}),
     X('propagandist',7,'A','drive','Recruitment Drive','job','A campaign aimed at recruits: two candidates answer, one a level higher.',{live:1}),
-    X('propagandist',7,'B','herostories','Hero Stories','job','Publicise the last mission won at a world: a whole flag of Support there. Raises network exposure.',{live:1}),
+    X('propagandist',7,'B','herostories','Hero Stories','job','Publicise the last mission won at a world: a whole flag of Support there. Raises network heat.',{live:1}),
     X('propagandist',11,'','rallying','Rallying Cry','rule','Missions at a world with a campaign running start steadier (+10 Cool).',{live:1}),
     X('propagandist',15,'A','viral','Viral','rule','Campaigns also lift Support at half strength on every other world where we have Access.',{live:1}),
     X('propagandist',15,'B','martyrs','Martyrs','rule','A rebel’s death raises Support where they fell, and the base mourns them less.',{live:1}),
