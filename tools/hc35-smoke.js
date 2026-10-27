@@ -27,8 +27,11 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  pgH.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource/.test(m.text()))errs.push('console(fixtures): '+m.text());});
  await pgH.goto(base+'?dev#arena');await pgH.waitForTimeout(800);
  // HC35 1: High Command is byte-identical with the 3.5 hooks in: hc1–hc3 after 90 s, seed 7, one scripted order at 5 s.
- // The baselines were recorded on space-combat-testing before any 3.5 change (C-75); Type 3's order tray issued the order then
- const HC35_BASE={hc1_nightfall:'36bcc72e',hc2_lastlight:'fcae4af0',hc3_meltdown:'344375cb'};   // re-recorded for the weapon types, missiles that wait for a weak shield and hits on the hull itself (hc-3, 22 October)
+ // The baselines were first recorded on space-combat-testing before any 3.5 change (C-75); Type 3's order tray issued the order then
+ // re-recorded (hc-4, 27 October 2026) when Type 3's rules, command points and commands came out: the hash's command-point
+ // slot is a constant 0 now (hc1 and hc2 play exactly as before; their hashes moved with that slot alone), and hc3 no
+ // longer has Bring It Down standing (was 36bcc72e, fcae4af0, 344375cb at hc-3, 22 October)
+ const HC35_BASE={hc1_nightfall:'fd8aed21',hc2_lastlight:'bfa4c604',hc3_meltdown:'bca99336'};
  const t35a=await pgH.evaluate((FIX)=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
   const orders={hc1_nightfall:['dagger','attack',{type:'class',cls:'mote'}],hc2_lastlight:['ash','defend',{type:'ship',id:'lastlight'}],hc3_meltdown:['hammer','board',{type:'station',id:'reactor'}]};
@@ -63,7 +66,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
    out.draw=[draws===6,FX.stats().spritesCached>0];
    // the sim's tags: every bolt hit names its surface; crashes and missile ends are marked
    out.tags=[S().fx.filter(x=>x.kind!=='boom'&&!x.src).every(x=>['shield','armour','hull'].includes(x.surface))];
-   // events from what the sim did: muzzle and bolt hits in view, a kill, a jump, a missile, chaff, a crash, a command
+   // events from what the sim did: muzzle and bolt hits in view, a kill, a jump, a missile, chaff, a crash
    ld('hc1_nightfall',5);f.fxSense();seen.length=0;
    const rl=by('relay'),jo=by('Joss');c.x=rl.x;c.y=rl.y;c.z=0.6;
    jo.x=rl.x-700;jo.y=rl.y;jo.h=jo.vh=0;jo.px=jo.x;jo.py=jo.y;SIM.setOrder('dagger','attack',{type:'ship',id:'relay'});
@@ -71,11 +74,10 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
    const g=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);F.kill(g,null);tick(1);
    const lark=by('lark');lark.alive=false;lark.jumped=true;lark.jumpT=S().t;tick(1);
    const kit=by('Kit');F.throwChaff(kit);tick(1);
-   SIM.command('decoy',{x:rl.x,y:rl.y});tick(1);
    const ss=by('Sera'),t=S().ships.find(x=>x.faction==='heg'&&x.alive&&!x.struct);
    if(t){ss.x=t.x-900;ss.y=t.y;ss.px=ss.x;ss.py=ss.y;ss.h=ss.vh=0;t.chaffLeft=0;let m=0;while(m++<80&&!seen.includes('missileLaunch')){ss.locks={[t.id]:1};t.segs.F.val=t.segs.R.val=0;tick(1);}}   // a missile waits for a weak shield (22 October)
    const a=by('Petra'),b2=by('Wren');a.px=a.x-200;a.py=a.y;a.vx=4000;a.vy=0;b2.x=a.x+20;b2.y=a.y;b2.px=b2.x;b2.py=b2.y;b2.vx=b2.vy=0;F.collideTick();f.fxSense();
-   out.ev=['muzzle','boltHit','explode','jumpOut','chaff','command','missileLaunch','collide'].map(k=>k+':'+seen.includes(k));
+   out.ev=['muzzle','boltHit','explode','jumpOut','chaff','missileLaunch','collide'].map(k=>k+':'+seen.includes(k));   // (Type 3's command pulse went with its commands, 27 October 2026)
    // a station's death is the big one; a wave arriving warps in
    seen.length=0;rl.hull=0;F.kill(rl,null);tick(1);out.ev.push('station:'+seen.includes('explode'));
    ld('hc2_lastlight',5);f.fxSense();seen.length=0;let w=0;while(w++<600&&!S().ships.some(x=>x.faction==='heg'&&x.alive))tick(1);

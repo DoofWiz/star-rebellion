@@ -1,10 +1,13 @@
 'use strict';
 /* =====================================================================
-   STAR REBELLION — Arena Type 3: High Command (docs/archive/ARENA-HC-HANDOFF.md)
-   The Arena's third ruleset. The player does not fly ships: they are
-   Mission Control. Ships fly themselves in real time, grouped into wings;
-   the player issues each wing an order and a tactic, sets standing mission
-   rules, and spends scarce command points on interventions. Pause is free.
+   STAR REBELLION — High Command's sim (docs/archive/ARENA-HC-HANDOFF.md)
+   Ships fly themselves in real time, grouped into wings; each wing flies
+   an order and a tactic. Type 3.5 (sim-hc35.js) flies the game's space
+   combat on it through the hooks below. Type 3, High Command as its own
+   ruleset, was archived (archive/arena/arena-hc.js); its mission rules,
+   command points, commands and emergency responses were removed from
+   here on 27 October 2026 (C-90 item 3). tools/hc-fixtures.js keeps its
+   three scenarios as the sim's own regression fixtures.
 
    This file is the sim: no DOM, no drawing. game/js/arena-hc.js is its HUD
    and renderer. Nothing below the Arena chassis is shared with sim2.js or
@@ -19,7 +22,7 @@
 window.SIMHC=(function(){
 const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
-const SIM_VERSION='hc-3';   // bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc-4';   // hc-4: Type 3's rules, command points and commands removed (27 October 2026). Bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -52,7 +55,7 @@ let CALM_SECS=3;          // ...given each this many seconds a ship goes unhurt 
 
 let S=null;
 /* hooks for a layer over this sim (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1; exported as SIMHC.hooks). Each one is
-   absent unless a layer sets it, and absent, High Command runs exactly as before: tools/arena-smoke.js HC35 1 checks
+   absent unless a layer sets it, and absent, High Command runs exactly as before: tools/hc35-smoke.js HC35 1 checks
    the hc1–hc3 hashes. classExtra{cls: row} · loadoutExtra(row, list) · think(s) → true skips · goal(s) → a goal ·
    damage(t, dmg, skipShield, fromFront, hit) → a result · canJump(s) → false blocks · canFire(s, t, q) → false blocks ·
    step(dt) · event(kind, text, o, e) · noCollide(a, b) and noAvoid(s, o) → true exempts the pair · noSep(s) → true: it
@@ -567,8 +570,6 @@ const ORDERS={
   capture:  {name:'Capture',  targeted:true, line:'Fly to a capturable objective and hold close to it until it is taken.'},
   board:    {name:'Board',    targeted:true, line:'Marine-carrying ships dock with a station or platform and board it.'},
 };
-const ORDER_KEYS=Object.keys(ORDERS);
-const ORDERS_LIVE=ORDER_KEYS;   // every order is live (T1 built three; T2 the rest)
 /* the wing tactics: each a weight set on the same scoring (placeholders, every number on the panel) */
 /* (C-69, playtest 1) Every ship fights in attack runs now; a tactic shapes the runs and the formation the wing travels
    in, never a turning fight. Weights: form/space (travel formation), engage (fighting range), focus (one target for
@@ -584,8 +585,6 @@ const HC_TACTICS={
   hitrun:   {name:'Hit and Run',    line:'Harass: break off early, extend long, and only one ship in the target\'s guns at a time. Low risk, low damage.',form:0.6,space:1.6,engage:1.0,focus:1,flank:0,screen:0,extend:1.8,pass:1.8,pursue:0,sync:0,harass:1,disengage:0.3,leash:1.2},
   defensive:{name:'Defensive',      line:'Stay close to the charge or the leader, take only short safe passes, and break off early when hurt.',form:1.2,space:1.4,engage:0.8,focus:1,flank:0,screen:0,extend:0.7,pass:1.3,pursue:0,sync:0,harass:0,disengage:0.5,leash:0.7},
 };
-const TACTIC_KEYS=Object.keys(HC_TACTICS);
-const PICKABLE=TACTIC_KEYS.filter(k=>k!=='auto');
 /* the attack run (C-69): RUN in at speed with the guns on it → PASS through → EXTEND out past EXTEND_K × gun reach →
    TURN back at corner speed → RUN again. A pilot who spends STALE_SECS turning without the target in its guns, or
    finds something on its six, breaks off (extends) and comes back with a fresh run */
@@ -691,7 +690,6 @@ function scaleLayout(R,k,ox,oy){
   out.rocks=(R.rocks||[]).map(r=>Object.assign({},r,{x:r.x*k+ox,y:r.y*k+oy,r:r.r*(1+(k-1)*0.5)}));
   out.points={};for(const key in R.points||{})out.points[key]=X(R.points[key]);
   out.objectives=(R.objectives||[]).map(o=>o.at?Object.assign({},o,{at:X(o.at)}):o);
-  if(R.reserves)out.reserves=Object.assign({},R.reserves,{at:P(R.reserves.at),ships:(R.reserves.ships||[]).map(sd=>Object.assign({},sd,{at:P(sd.at)}))});
   return out;
 }
 function build(scn,opt){
@@ -705,13 +703,12 @@ function build(scn,opt){
   S={scn,R,seed:opt.seed>>>0,rng:mulberry(opt.seed>>>0),t:0,tick:0,ships:[],wings:[],rocks:(R.rocks||[]).map(r=>Object.assign({},r)),
     points:JSON.parse(JSON.stringify(R.points||{})),objectives:[],events:[],evN:0,proj:[],bursts:[],missiles:[],fx:[],floaters:[],burstN:0,
     reinforce:Object.assign({secs:240,edge:'E',force:[]},R.reinforce||{},{spawned:false}),getOut:false,
-    waves:(R.waves||[]).map(w=>Object.assign({},w,{spawned:false})),
-    cp:R.cp!=null?R.cp:HC_CP,cpMax:R.cp!=null?R.cp:HC_CP,rules:[],over:null,
-    m:{orders:0,byOrder:{},tactics:0,byTactic:{},cpSpent:0,byCommand:{},ruleTriggers:0,byRule:{},emergencies:[],alerts:[]},
+    waves:(R.waves||[]).map(w=>Object.assign({},w,{spawned:false})),over:null,
+    m:{orders:0,byOrder:{},tactics:0,byTactic:{}},
     variantLabel:R.variantLabel};
   for(const r of S.rocks)if(!r.verts){const rr=mulberry(Math.round(r.x*7+r.y*13));r.verts=[];const n=8+Math.floor(rr()*4);for(let k=0;k<n;k++)r.verts.push(0.72+rr()*0.4);r.rot=rr()*Math.PI*2;}
   S.barks=[];S.barkN=0;
-  S.pn=0;S.misN=0;S.chaff=[];S.chaffN=0;S.decoys=[];S.decoyN=0;S.reconUntil=0;S.reservesUsed=false;
+  S.pn=0;S.misN=0;S.chaff=[];S.chaffN=0;
   for(const wd of R.wings||[])addWing(wd);
   for(const a of R.allies||[]){   // quiet friendlies: not in a wing, not commandable (Convoy Lark); an installation (a station row) is yours to defend
     const row=rowOf(a.cls||'graf'),inst=row.kind==='structure';
@@ -722,8 +719,6 @@ function build(scn,opt){
   for(const e of R.enemies||[])spawnEnemies(Object.assign({grp:++S.grpN},e),()=>++eN);
   S.eN=eN;
   for(const o of R.objectives||[])S.objectives.push(Object.assign({state:'live',prog:0},o));
-  S.ruleN=0;
-  for(const r of R.rules||[])S.rules.push({id:++S.ruleN,rule:r.rule,scope:r.scope||'all',param:r.param||null,on:true,t:0});
   for(const s of S.ships)s.thinkT=THINK_SECS;   // everyone decides on the first step
   return S;
 }
@@ -773,7 +768,7 @@ function pushEvent(kind,text,o){
   return e;
 }
 /* the pilots' voices (C-69, playtest 1): a line becomes a speech bubble by the ship for 2 s (the HUD draws it). Only
-   your pilots speak; each speaks at most every BARK_GAP s unless it matters (an emergency, a kill, a rule, steadying) */
+   your pilots speak; each speaks at most every BARK_GAP s unless it matters (an emergency, a kill, steadying) */
 let BARK_GAP=4;           // placeholder
 function say(s,text,tone,urgent){
   if(!s||!s.alive||s.faction!=='reb'||s.quiet||!text)return false;
@@ -818,7 +813,7 @@ function withdrawPoint(s){
 }
 function jammed(pointKey){const j=S.R.jam;if(!j||j.point!==pointKey)return false;const b=byId(j.by);return !!(b&&b.alive);}
 
-/* the behaviours a ship can be in: what it is doing and why (the order, a rule, an emergency, a command) */
+/* the behaviours a ship can be in: what it is doing and why (the order, or a panic) */
 function think(s){
   if(s.struct||!s.alive)return;
   if(HK.think){const was=s.beh;if(HK.think(s)){if(s.faction==='reb'&&!s.quiet&&s.wing&&s.beh)afterThink(s,was);return;}}   // a layer's ship still assesses, speaks and uses its abilities (feedback 1, §3.4)
@@ -826,14 +821,9 @@ function think(s){
   if(s.quiet){thinkConvoy(s);return;}
   const w=wingOf(s.wing);if(!w)return;
   const T=tacticOf(w),P=PERSONALITY[s.persona],o=w.order;
-  let beh=null;
   const stamp=b=>{if(b)b.orderT=o.t||0;return b;};
-  // the ladder: an emergency (a panicking pilot) outranks a mission rule, which outranks the wing order; a command
-  // (Recall, Override: T3) outranks everything
-  beh=commandBehaviour(s,w);
-  if(!beh)beh=panicBehaviour(s);
-  if(!beh)beh=ruleBehaviour(s,w,T,P);
-  if(!beh)beh=stamp(orderBehaviour(s,w,o,T,P));
+  // the ladder: a panicking pilot's panic outranks the wing order
+  const beh=panicBehaviour(s)||stamp(orderBehaviour(s,w,o,T,P));
   const was=s.beh;
   setBeh(s,beh);
   afterThink(s,was);
@@ -844,24 +834,8 @@ function afterThink(s,was){
   if(s.beh!==was&&(!was||was.kind!==s.beh.kind||was.target!==s.beh.target)&&s.beh.kind!=='form'&&!s.beh.rule)say(s,s.assess,'info',false);
   abilityTick(s);
 }
-/* a command or a free response holds a ship until it runs out: Recall flies it out, Override holds it to its
-   designation (and steady), a wingmate sent to help goes for whoever has the friend pinned */
-function commandBehaviour(s,w){
-  if(s.recall)return {kind:'withdraw',dest:withdrawPoint(s),why:'command: recall',hard:true};
-  if(s.override&&S.t>=s.override.until)s.override=null;
-  if(s.helping){
-    const x=byId(s.helping.id);
-    if(!x||!x.alive||S.t>=s.helping.until||!x.emerg){s.helping=null;}
-    else{
-      const a=bestTarget(s,pinnedBy(x).concat(x.lastHitBy&&byId(x.lastHitBy)&&byId(x.lastHitBy).alive?[byId(x.lastHitBy)]:[]),{distW:0.4});
-      return a?{kind:'engage',target:a.id,why:'helping '+x.name,hard:true}:{kind:'escort',charge:x.id,why:'helping '+x.name,hard:true};
-    }
-  }
-  if(s.override&&s.override.target){const t=byId(s.override.target);if(t&&t.alive)return {kind:'engage',target:t.id,why:'command: override',hard:true};}
-  return null;
-}
 /* commitment: a ship that has just turned onto a target stays on it for COMMIT_SECS unless it dies, the order
-   changes, or something outranks the order (a rule, an emergency, a command), so wings don't thrash between targets */
+   changes, or something outranks the order (a hard job: a panic, or a layer's), so wings don't thrash between targets */
 let COMMIT_SECS=2.5;      // placeholder
 function setBeh(s,beh){
   const cur=s.beh;
@@ -892,10 +866,9 @@ function orderBehaviour(s,w,o,T,P){
       let t=null;
       if(T.focus>=0.5&&lead&&lead!==s&&lead.beh&&lead.beh.target&&pool.some(p=>p.id===lead.beh.target))t=byId(lead.beh.target);
       if(!t)t=bestTarget(s,pool,{distW:0.6});
-      // a ship under close attack turns on its attacker first, unless that is the target anyway (Patriot Override
-      // holds it to the designation)
-      if(threat&&threat!==t&&!s.override&&(t.struct||dist(s,t)>gunRange(s)*1.2))return {kind:'engage',target:threat.id,why:'self-defence'};
-      if(mor==='SHAKEN'&&!s.override&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
+      // a ship under close attack turns on its attacker first, unless that is the target anyway
+      if(threat&&threat!==t&&(t.struct||dist(s,t)>gunRange(s)*1.2))return {kind:'engage',target:threat.id,why:'self-defence'};
+      if(mor==='SHAKEN'&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
       return {kind:'engage',target:t.id,why:'order'};
     }
     if(local)return {kind:'engage',target:local.id,why:'order: no targets left'};
@@ -910,7 +883,7 @@ function orderBehaviour(s,w,o,T,P){
   if(o.kind==='intercept'){
     const t=byId(o.target&&o.target.id);
     if(!t||!t.alive)return local?{kind:'engage',target:local.id,why:'order: target gone'}:{kind:'form',why:'order: target gone'};
-    if(mor==='SHAKEN'&&!s.override&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
+    if(mor==='SHAKEN'&&outnumbered(s,t))return {kind:'form',why:'shaken: hangs back'};
     return {kind:'engage',target:t.id,why:'order',hard:true};   // an intercept never trades its target for a closer one
   }
   if(o.kind==='defend'){
@@ -1025,45 +998,24 @@ function moraleTick(){
   }
 }
 function panicBehaviour(s){
-  if(!s.panic||s.override)return null;
+  if(!s.panic)return null;
   const th=nearestThreat(s);
   return s.panic.mode==='flee'?{kind:'flee',from:th?th.id:null,why:'panic',hard:true}:{kind:'freeze',why:'panic',hard:true};
 }
 function nearestThreat(s){let b=null,bd=1e18;for(const t of foesOf(s)){if(t.struct)continue;const d=dist(s,t);if(d<bd){bd=d;b=t;}}return b;}
-/* the emergency record: the feed entry carries the response options (T3 fills them in) */
+/* the emergency record (s.emerg): a panic or a pin, on the feed and in the pilot's words. Type 3.5 reads it (its
+   verbs, the tiles' hazard frame); Type 3's responses to it (the commands, a wingmate, ride it out) are gone */
 function raiseEmergency(s,kind){
   if(s.emerg&&s.emerg.kind===kind)return;
   s.emerg={kind,t0:S.t,resp:null};
   const quote=assessOf(s);
   const e=pushEvent('emergency',s.name+(kind==='panic'?(s.panic&&s.panic.mode==='flee'?' is panicking: fleeing':' is panicking: frozen'):' is pinned')+' · "'+quote+'"',
-    {ship:s.id,x:s.x,y:s.y,tone:'hazard',opts:emergencyOpts(s)});
+    {ship:s.id,x:s.x,y:s.y,tone:'hazard'});
   s.emerg.ev=e.id;
   say(s,quote,'hazard',true);
-  S.m.emergencies.push({ship:s.id,kind,t:+S.t.toFixed(2),resp:null});
-  S.m.alerts.push({t:S.t,ship:s.id,answered:null});
 }
 function clearEmergency(s,how){if(s.emerg){s.emerg=null;s.unpinT=null;}}
-/* the response options for a pilot in an emergency (§3.2): the CP interventions that fit, the recommended one
-   first, then the free ones (send a wingmate, ride it out) */
-function emergencyOpts(s){
-  if(!s||!s.alive)return [];
-  const hf=s.hull/s.maxHull,sf=maxShield(s)?totalShield(s)/maxShield(s):1,panic=!!s.panic;
-  let rec=panic?'override':hf<RECALL_HULL?'recall':sf<0.3&&maxShield(s)>0?'support':'override';
-  const cmds=['override','recall'].concat(maxShield(s)>0?['support']:[]);
-  const out=[rec].concat(cmds.filter(k=>k!==rec)).map(k=>({key:k,name:COMMANDS[k].name,cost:COMMANDS[k].cost(),rec:k===rec,ok:S.cp>=COMMANDS[k].cost()}));
-  const mate=wingmateFor(s);
-  out.push({key:'wingmate',name:'Send a wingmate',cost:0,free:true,ok:!!mate,why:mate?null:'no wingmate free',mate:mate?mate.name:null});
-  out.push({key:'ride',name:'Ride it out',cost:0,free:true,ok:true});
-  return out;
-}
-let RECALL_HULL=0.4;      // under this hull, Recall is the recommended response. placeholder
 let PIN_CLEAR=3;          // a pinned emergency clears this long after the pin breaks. placeholder
-function wingmateFor(s){
-  const w=wingOf(s.wing);if(!w)return null;
-  let b=null,bd=1e18;
-  for(const m of wingShips(w)){if(m===s||m.emerg||m.panic||m.recall||m.helping)continue;const d=dist(m,s);if(d<bd){bd=d;b=m;}}
-  return b;
-}
 /* a pinned pilot (PIN_N hostiles with their guns on them, and taking hits) is an emergency too */
 function pinTick(){
   for(const s of S.ships){
@@ -1075,105 +1027,6 @@ function pinTick(){
       else if(S.t-s.unpinT>=PIN_CLEAR){pushEvent('steady',s.name+' is clear',{ship:s.id,x:s.x,y:s.y,tone:'good'});clearEmergency(s,'clear');}
     }
   }
-}
-
-/* =====================================================================
-   Commands (§3.3, §4.4): scarce command points spent on interventions. v1 builds Override, Recall, Emergency
-   Support (shields only), Recon Sweep, Decoy Signal and Abort; the rest are DESIGN OPEN stubs (C-67)
-   ===================================================================== */
-let CMD_COST={override:1,recall:2,reinforce:3,support:1,recon:1,scramble:2,hack:3,decoy:1,abort:0};   // placeholders
-let OVERRIDE_SECS=12;     // Patriot Override holds a pilot to the designation (and steady) this long. placeholder
-let OVERRIDE_COOL=55;     // ...and lifts their nerve to at least this. placeholder
-let RECON_SECS=25;        // Recon Sweep shows every Hegemony intent and the reinforcements' edge this long. placeholder
-let DECOY_SECS=12,DECOY_R=2500;   // Decoy Signal: how long it draws, and from how far. placeholders
-let HELP_SECS=15;         // a wingmate sent to help stays on it this long at most. placeholder
-const COMMANDS={
-  override:{name:'Patriot Override',target:'ship',cost:()=>CMD_COST.override,line:()=>'One of your pilots steadies (nerve to '+OVERRIDE_COOL+') and holds to the wing\'s designation for '+OVERRIDE_SECS+' s, ignoring closer targets and fear.'},
-  recall:{name:'Emergency Recall',target:'ship',cost:()=>CMD_COST.recall,line:()=>'Pull a ship (or a whole wing) out at full burn to the extraction point.'},
-  reinforce:{name:'Reinforcement Request',target:'none',cost:()=>CMD_COST.reinforce,line:()=>'Call in the scenario\'s reserve wing at your edge.'},
-  support:{name:'Emergency Support',target:'ship',cost:()=>CMD_COST.support,line:()=>'Recharge one ship\'s shields to full. (v1: shields only.)'},
-  recon:{name:'Recon Sweep',target:'none',cost:()=>CMD_COST.recon,line:()=>'For '+RECON_SECS+' s, see every Hegemony pilot\'s intent and target, and where their reinforcements will come from.'},
-  scramble:{name:'Comm Scramble',target:'none',cost:()=>CMD_COST.scramble,open:true,line:()=>'Jam the Hegemony\'s comms. // DESIGN OPEN: what it does to their coordination.'},
-  hack:{name:'Comm Hack',target:'none',cost:()=>CMD_COST.hack,open:true,line:()=>'Feed the Hegemony false orders. // DESIGN OPEN: v2 stub.'},
-  decoy:{name:'Decoy Signal',target:'point',cost:()=>CMD_COST.decoy,line:()=>'Plant a false contact on the map: Hegemony pilots within '+DECOY_R+' chase it for '+DECOY_SECS+' s.'},
-  abort:{name:'Abort Mission',target:'none',cost:()=>CMD_COST.abort,line:()=>'End the mission now. Always free: the honourable way out.'},
-};
-const COMMAND_KEYS=Object.keys(COMMANDS);
-/* why a command can't be used right now (null: it can) */
-function commandRefusal(k,tg){
-  const C2=COMMANDS[k];if(!C2)return 'no such command';
-  if(S.over)return 'the mission is over';
-  if(C2.open)return 'DESIGN OPEN: not built in v1';
-  if(k==='reinforce'&&(!S.R.reserves||S.reservesUsed))return S.R.reserves?'the reserves are already in':'no reserves in this scenario';
-  if(S.cp<C2.cost())return 'not enough command points';
-  if(C2.target==='ship'){
-    const ids=tg&&tg.wing?(wingOf(tg.wing)?wingShips(wingOf(tg.wing)).map(x=>x.id):[]):[tg&&tg.id];
-    if(k==='recall'&&tg&&tg.wing)return ids.length?null:'that wing has no ships';
-    const x=byId(ids[0]);if(!x||!x.alive||x.faction!=='reb'||x.quiet)return 'pick one of your ships';
-    if(k==='support'&&maxShield(x)<=0)return x.name+' has no shields';
-    if(k==='recall'&&x.recall)return x.name+' is already recalled';
-  }
-  if(C2.target==='point'&&!(tg&&tg.x!=null))return 'pick a place on the map';
-  return null;
-}
-function command(k,tg){
-  const why=commandRefusal(k,tg);if(why)return {ok:false,why};
-  const cost=COMMANDS[k].cost();
-  S.cp-=cost;S.m.cpSpent+=cost;S.m.byCommand[k]=(S.m.byCommand[k]||0)+1;
-  answerAlert();
-  const x=tg&&tg.id?byId(tg.id):null;
-  if(k==='override'){
-    adjCool(x,Math.max(0,OVERRIDE_COOL-x.pilot.cool));x.panic=null;
-    const w=wingOf(x.wing),o=w&&w.order,t=tg.on?byId(tg.on):null;
-    let des=t&&t.alive?t.id:null;
-    if(!des&&o&&(o.kind==='attack'||o.kind==='intercept')){const pool=foesOf(x).filter(f=>o.kind==='intercept'?f.id===o.target.id:matches(o.target,f));const b=bestTarget(x,pool,{distW:0.6});if(b)des=b.id;}
-    x.override={until:S.t+OVERRIDE_SECS,target:des};x.thinkT=THINK_SECS;
-    respondLog(x,'override');
-    pushEvent('command','Patriot Override: '+x.name+' holds'+(des?' on '+byId(des).name:''),{ship:x.id,x:x.x,y:x.y,tone:'info',key:k});
-  } else if(k==='recall'){
-    const list=tg.wing?wingShips(wingOf(tg.wing)):[x];
-    for(const y of list){y.recall=true;y.boostT=Math.max(y.boostT||0,RECALL_BOOST);y.thinkT=THINK_SECS;respondLog(y,'recall');}
-    pushEvent('command','Emergency Recall: '+(tg.wing?wingOf(tg.wing).name:x.name)+' pulls out',{ship:list[0].id,x:list[0].x,y:list[0].y,tone:'info',key:k});
-  } else if(k==='support'){
-    x.segs.F.val=x.segs.F.max;x.segs.R.val=x.segs.R.max;x.shFx={zone:'F',t:S.t};
-    respondLog(x,'support');
-    pushEvent('command','Emergency Support: '+x.name+'\'s shields recharged',{ship:x.id,x:x.x,y:x.y,tone:'info',key:k});
-  } else if(k==='recon'){
-    S.reconUntil=S.t+RECON_SECS;
-    const RF=S.reinforce,f=RF.force.map(e=>(e.n||1)+' '+(e.name||e.type)).join(', ');
-    const {x:ex,y:ey}=zoneEdge(RF.edge||'E',-400);
-    pushEvent('command','Recon Sweep: every Hegemony intent shown'+(RF.spawned?'':'; reinforcements due from the '+({E:'east',W:'west',N:'north',S:'south'}[RF.edge])+' ('+f+')'),{tone:'info',x:ex,y:ey,key:k});
-  } else if(k==='decoy'){
-    S.decoys.push({x:tg.x,y:tg.y,until:S.t+DECOY_SECS,id:++S.decoyN});
-    pushEvent('command','Decoy Signal planted',{x:tg.x,y:tg.y,tone:'info',key:k});
-  } else if(k==='reinforce'){
-    S.reservesUsed=true;addWing(S.R.reserves);
-    pushEvent('command','Reinforcements: '+S.R.reserves.name+' arrives',{x:S.R.reserves.at[0],y:S.R.reserves.at[1],tone:'good',key:k});
-  } else if(k==='abort'){
-    endMission('abort');
-  }
-  return {ok:true};
-}
-let RECALL_BOOST=6;       // a recalled ship burns at boost this long. placeholder
-function respondLog(x,how){
-  if(!x||!x.emerg)return;
-  const r=S.m.emergencies.slice().reverse().find(e=>e.ship===x.id&&e.resp==null);
-  if(r){r.resp=how;r.after=+(S.t-r.t).toFixed(2);}
-  x.emerg.resp=how;
-}
-function answerAlert(){const a=S.m.alerts.find(x=>x.answered==null);if(a)a.answered=+(S.t-a.t).toFixed(2);}
-/* the free responses: send the nearest free wingmate to help, or let the pilot ride it out */
-function respond(id,key){
-  const x=byId(id);if(!x||!x.alive)return {ok:false,why:'no such ship'};
-  if(key==='wingmate'){
-    const m=wingmateFor(x);if(!m)return {ok:false,why:'no wingmate free'};
-    m.helping={id:x.id,until:S.t+HELP_SECS};m.thinkT=THINK_SECS;
-    answerAlert();respondLog(x,'wingmate');
-    pushEvent('command',m.name+' goes to help '+x.name,{ship:m.id,x:m.x,y:m.y,tone:'info'});
-    return {ok:true,mate:m.id};
-  }
-  if(key==='ride'){answerAlert();respondLog(x,'ride');return {ok:true};}
-  return command(key,{id});
 }
 
 /* =====================================================================
@@ -1275,113 +1128,6 @@ function setDoctrine(id,k,doc){
 }
 
 /* =====================================================================
-   Mission rules (§4.3): standing interrupts, scoped ALL or one wing; each outranks the wing order
-   ===================================================================== */
-const RULES={
-  preservation:{name:'Preservation Order',short:'PRESERVATION',line:()=>'Any ship under '+Math.round(PRES_HULL*100)+'% hull withdraws to the extraction point and jumps.'},
-  guardian:{name:'Guardian Directive',short:'GUARDIAN',line:()=>'When a friendly objective (a convoy, a station you hold) is attacked, intercept the attacker.'},
-  formation:{name:'Formation Discipline',short:'FORMATION',line:()=>'When a target escapes past '+ESCAPE_K+'× gun range, break off and return to formation.'},
-  bringdown:{name:'Bring It Down Tasking',short:'BRING IT DOWN',line:()=>'Once the enemy flagship is disabled (under '+Math.round(BRING_HULL*100)+'% hull or crippled), every ship focuses fire on it.'},
-  saviour:{name:'Saviour Protocol',short:'SAVIOUR',needs:'ship',line:()=>'When the named friendly falls under '+Math.round(SAVIOUR_HULL*100)+'% hull, go to its rescue: intercept its attacker.'},
-};
-const RULE_KEYS=Object.keys(RULES);
-let PRES_HULL=0.3;        // Preservation Order's hull threshold. placeholder
-let GUARDIAN_SECS=2;      // an objective hit this recently counts as attacked. placeholder
-let GUARDIAN_R=6000;      // ...and its attacker is intercepted if this close. placeholder
-let ESCAPE_K=2.2;         // Formation Discipline: a target this far (× gun range) has escaped. placeholder
-let FORM_SECS=5;          // ...and the ship stays in formation this long. placeholder
-let BRING_HULL=0.5;       // Bring It Down: a flagship under this hull (or crippled) is disabled. placeholder
-let SAVIOUR_HULL=0.3;     // Saviour Protocol: the named friendly is critical under this hull. placeholder
-function ruleLabel(r){
-  const R=RULES[r.rule];
-  let t=R.short;
-  if(r.rule==='preservation')t+=' '+Math.round(PRES_HULL*100)+'%';
-  if(r.rule==='saviour'){const x=byId(r.param);t+=' '+(x?x.name.toUpperCase():'?');}
-  const w=wingOf(r.scope);
-  return t+' · '+(w?w.name.toUpperCase():'ALL');
-}
-function addRule(rule,scope,param){
-  if(!RULES[rule])return {ok:false,why:'no such rule'};
-  if(RULES[rule].needs==='ship'&&!byId(param))return {ok:false,why:'name a friendly ship'};
-  scope=scope&&wingOf(scope)?scope:'all';
-  const r={id:++S.ruleN,rule,scope,param:param||null,on:true,t:S.t};
-  S.rules.push(r);S.m.rulesSet=(S.m.rulesSet||0)+1;
-  return {ok:true,id:r.id};
-}
-function removeRule(id){const i=S.rules.findIndex(r=>r.id===id);if(i<0)return {ok:false};S.rules.splice(i,1);return {ok:true};}
-const rulesFor=w=>S.rules.filter(r=>r.on&&(r.scope==='all'||r.scope===w.id));
-function hullRuleDue(s){
-  const w=wingOf(s.wing);if(!w)return false;
-  for(const r of rulesFor(w)){
-    if(r.rule==='preservation'&&s.hull/s.maxHull<PRES_HULL&&!(s.beh&&s.beh.rule==='preservation'))return true;
-    if(r.rule==='saviour'){const x=byId(r.param);if(x&&x.alive&&x!==s&&x.hull/x.maxHull<SAVIOUR_HULL&&!(s.beh&&s.beh.rule))return true;}
-  }
-  return false;
-}
-function flagshipDisabled(){
-  for(const t of S.ships)if(t.flagship&&t.alive&&t.faction==='heg'&&(t.hull/t.maxHull<BRING_HULL||critCount(t,'engine')||critCount(t,'controls')))return t;
-  return null;
-}
-function friendlyObjectives(){return S.ships.filter(x=>x.alive&&x.faction==='reb'&&(x.quiet||x.struct||S.objectives.some(o=>o.kind==='protect'&&o.ship===x.id)));}
-function ruleBehaviour(s,w,T,P){
-  let hit=null;
-  for(const k of ['preservation','saviour','guardian','bringdown','formation']){   // the order they outrank each other in
-    for(const r of rulesFor(w)){
-      if(r.rule!==k)continue;
-      const b=ruleTry(s,r,T);
-      if(b){hit={b,r};break;}
-    }
-    if(hit)break;
-  }
-  if(!hit){s.ruleOn=null;return null;}
-  if(s.ruleOn!==hit.r.id){   // edge-triggered: a rule takes a ship once, then holds it
-    s.ruleOn=hit.r.id;
-    S.m.ruleTriggers++;S.m.byRule[hit.r.rule]=(S.m.byRule[hit.r.rule]||0)+1;
-    // one line per wing and rule a moment: "Guardian Directive: Rook, Vale and Jory go for Raider 3"
-    const key=hit.r.rule+'|'+s.wing+'|'+hit.b.say,L=S.lastRuleEv;
-    if(L&&L.key===key&&S.t-L.t<1&&S.events.includes(L.ev)){L.names.push(s.name);L.ev.text=RULES[hit.r.rule].name+': '+listNames(L.names)+' '+plural(hit.b.say);}
-    else{const ev=pushEvent('rule',RULES[hit.r.rule].name+': '+s.name+' '+hit.b.say,{ship:s.id,x:s.x,y:s.y,tone:'info'});S.lastRuleEv={key,t:S.t,ev,names:[s.name]};}
-    hit.b.rule=hit.r.rule;const keep=s.beh;s.beh=hit.b;say(s,assessOf(s),'info',true);s.beh=keep;   // the pilot says it in their words
-  }
-  hit.b.hard=true;hit.b.rule=hit.r.rule;
-  return hit.b;
-}
-const plural=say=>say.replace(/^(\w+)/,v=>v==='goes'?'go':v==='focuses'?'focus':v.replace(/s$/,''));
-const listNames=n=>n.length<2?n[0]:n.slice(0,-1).join(', ')+' and '+n[n.length-1];
-function ruleTry(s,r,T){
-  if(r.rule==='preservation'){
-    if(s.preserved||s.hull/s.maxHull<PRES_HULL){s.preserved=true;return {kind:'withdraw',dest:withdrawPoint(s),why:'rule: preservation',say:'pulls out ('+Math.round(Math.max(0,s.hull)/s.maxHull*100)+'% hull)'};}
-    return null;
-  }
-  if(r.rule==='saviour'){
-    const x=byId(r.param);
-    if(!x||!x.alive||x===s||x.hull/x.maxHull>=SAVIOUR_HULL)return null;
-    const a=byId(x.lastHitBy);
-    if(a&&a.alive&&S.t-x.hitT<4)return {kind:'engage',target:a.id,why:'rule: saviour',say:'goes to '+x.name+"'s rescue"};
-    return {kind:'escort',charge:x.id,why:'rule: saviour',say:'covers '+x.name};
-  }
-  if(r.rule==='guardian'){
-    for(const x of friendlyObjectives()){
-      const a=byId(x.lastHitBy);
-      if(a&&a.alive&&S.t-x.hitT<=GUARDIAN_SECS&&dist(s,a)<GUARDIAN_R)return {kind:'engage',target:a.id,why:'rule: guardian',say:'goes for '+a.name+', on '+x.name};
-    }
-    return null;
-  }
-  if(r.rule==='bringdown'){
-    const f=flagshipDisabled();
-    if(f)return {kind:'engage',target:f.id,why:'rule: bring it down',say:'focuses fire on '+f.name};
-    return null;
-  }
-  if(r.rule==='formation'){
-    if(s.formUntil&&S.t<s.formUntil)return {kind:'form',why:'rule: formation',say:'returns to formation'};
-    const b=s.beh,t=b&&b.kind==='engage'?byId(b.target):null;
-    if(t&&!t.struct&&dist(s,t)>gunRange(s)*ESCAPE_K&&!(b.rule)){s.formUntil=S.t+FORM_SECS;return {kind:'form',why:'rule: formation',say:'lets '+t.name+' go and returns to formation'};}
-    return null;
-  }
-  return null;
-}
-
-/* =====================================================================
    The pilot's voice (§2.3): a one-line assessment per state, in the pilot panel and the feed.
    [TEXT NEEDED]: placeholder lines (C-67), designer-facing until the text flow takes them.
    ===================================================================== */
@@ -1389,7 +1135,6 @@ const ASSESS={
   pinned:['Two on me, I can\'t shake them!','I\'m pinned, need help here!'],
   flee:['I can\'t, I\'m getting out of here!','Too much, too much, breaking off!'],
   freeze:['I can\'t move, I can\'t think...','Hands won\'t work, lead...'],
-  preserve:['Hull\'s bad. Pulling out, per orders.','Bleeding air. Heading home.'],
   withdraw:['Heading for the jump.','Pulling out.'],
   winning:['Got them on the run.','That\'s one more. Who\'s next?'],
   hurt:['Taking hits, still in it.','Shields are gone, still flying.'],
@@ -1419,7 +1164,6 @@ function assessOf(s){
   const b=s.beh||{},t=byId(b.target||b.charge||b.station),nm=t?(t.label||t.name):(b.anchor&&b.anchor.label)||(b.point&&S.points[b.point]&&S.points[b.point].label);
   if(s.panic)return pickLine(s,s.panic.mode);
   if(pinnedBy(s).length>=PIN_N)return pickLine(s,'pinned');
-  if(b.rule==='preservation')return pickLine(s,'preserve');
   if(b.kind==='withdraw')return pickLine(s,'withdraw');
   if(b.kind==='fallback')return pickLine(s,'fallback');
   if(b.why==='shaken: hangs back')return pickLine(s,'shaken');
@@ -1487,8 +1231,6 @@ function thinkEnemy(s){
   abilityTick(s);
   // preservation (C-72): a hurt pilot pulls back home and stays out of it; drones fight on
   if(!s.retreat&&!mute(s)&&s.hull/s.maxHull<HEG_RETREAT){s.retreat=true;pushEvent('heg',s.name+' pulls back, hurt',{ship:null,x:s.x,y:s.y,tone:'good'});}
-  const dc=S.decoys.find(d=>Math.hypot(d.x-s.x,d.y-s.y)<DECOY_R);
-  if(dc&&!s.panic){setBeh(s,{kind:'decoyed',dest:{x:dc.x,y:dc.y},why:'decoy',hard:true});return;}
   if(s.panic){const th=nearestThreat(s);setBeh(s,{kind:'flee',from:th?th.id:null,why:'panic',hard:true});return;}
   if(s.retreat){setBeh(s,{kind:'hegback',dest:s.home||s,why:'hurt: pulling back'});return;}
   const home=s.asset&&byId(s.asset)?byId(s.asset):s.home||s;
@@ -1614,8 +1356,6 @@ function goalOf(s){
     g={x:s.x+ax*1200,y:s.y+ay*1200,spd:1};s.holdFire=true;
   } else if(b.kind==='freeze'){   // panic: straight on, slow, guns silent
     g={x:s.x+Math.cos(s.vh)*600,y:s.y+Math.sin(s.vh)*600,spd:0};s.holdFire=true;
-  } else if(b.kind==='decoyed'){
-    g=Object.assign(dist(s,b.dest)>300?{x:b.dest.x,y:b.dest.y}:orbitGoal(s,b.dest,240),{spd:1,face:b.dest});
   } else if(b.kind==='convoy'){
     g=arriveGoal(s,b.dest,CONVOY_SPD);
   } else if(b.kind==='wait'){
@@ -1944,7 +1684,6 @@ function jumpCheck(){
 /* =====================================================================
    The reinforcement clock (§2.1): always on. At zero a dangerous Hegemony force arrives and it is time to get out
    ===================================================================== */
-function clockLeft(){return Math.max(0,S.reinforce.secs-S.t);}
 /* waves (hc2): forces that arrive on their own clock before the reinforcements, without flipping the objective */
 function waveTick(){
   for(const wv of S.waves){
@@ -1983,9 +1722,7 @@ function objTick(){
     else if(o.kind==='protect'){const s=byId(o.ship);if(!s||!s.alive)fail=true;else if(S.getOut)done=true;}
     else if(o.kind==='board'){const s=byId(o.station);if(s&&s.boarded)done=true;else if(!s||!s.alive)fail=true;}
     const at=objPlace(o);
-    if(done){o.state='done';o.doneT=S.t;
-      if(o.cpReward){S.cp=Math.min(S.cpMax,S.cp+o.cpReward);}
-      pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{tone:'good',x:at.x,y:at.y});}
+    if(done){o.state='done';o.doneT=S.t;pushEvent('objective',o.text,{tone:'good',x:at.x,y:at.y});}
     if(fail){o.state='failed';pushEvent('objective','Failed: '+o.text,{tone:'hazard',x:at.x,y:at.y});}
   }
 }
@@ -1995,14 +1732,7 @@ function objPlace(o){
   const sh=byId(o.ship||o.station||(o.targets&&o.targets[0]));if(sh)return {x:sh.x,y:sh.y};
   const p=S.points[o.point||o.to||'jump'];return p?{x:p.x,y:p.y}:{x:W/2,y:H/2};
 }
-function objText(){
-  if(S.over)return S.over.why;
-  if(S.getOut)return 'GET OUT: withdraw every wing to the jump point';
-  const live=S.objectives.filter(o=>o.state==='live');
-  if(!live.length)return 'Objectives complete: withdraw to the jump point';
-  return live[0].text;
-}
-/* the mission ends when nothing of yours is left on the map (down or jumped), or on Abort */
+/* the mission ends when nothing of yours is left on the map (down or jumped), or when a layer ends it */
 function overCheck(){
   if(S.over)return;
   const mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct);
@@ -2010,37 +1740,12 @@ function overCheck(){
   endMission(null);
 }
 function endMission(how){
-  let left=0;
-  if(how==='leave')for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct){s.alive=false;s.leftBehind=true;left++;}   // Leave now: whoever hasn't jumped is lost
   const prim=S.objectives.filter(o=>o.primary);
-  const won=how!=='abort'&&prim.every(o=>o.state==='done');
+  const won=prim.every(o=>o.state==='done');
   const lost=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.alive&&!s.jumped).length;
-  const outcome=how==='abort'?'aborted':won?'won':'lost';
-  S.over={outcome,win:won,how:how||'done',why:outcome==='aborted'?'Mission aborted':won?'Mission complete':'Mission failed',lost,leftBehind:left,jumped:S.ships.filter(s=>s.jumped).length,t:+S.t.toFixed(2)};
-  pushEvent('over',S.over.why+' · '+lost+' lost'+(left?' ('+left+' left behind)':''),{tone:won?'good':'hazard'});
-}
-/* Jump Out (C-69): once the primaries are done or the clock has run out, every wing withdraws to the jump point; the
-   mission completes as the last ship jumps. Leave now ends it at once, counting anyone not yet out as lost */
-const objectivesDone=()=>S.objectives.filter(o=>o.primary).every(o=>o.state==='done');
-function jumpOutState(){
-  if(!S||S.over)return null;
-  if(!objectivesDone()&&!S.getOut)return null;
-  const key=S.R.extract||'jump',mine=S.ships.filter(s=>s.faction==='reb'&&!s.struct&&!s.quiet);
-  return {why:objectivesDone()?'complete':'getout',jammed:jammed(key),started:S.jumpOutT!=null,away:mine.filter(s=>s.jumped).length,left:mine.filter(s=>s.alive).length,of:mine.length};
-}
-function jumpOut(){
-  const st=jumpOutState();
-  if(!st)return {ok:false,why:'the objectives aren\'t done yet'};
-  if(st.jammed)return {ok:false,why:'the jump point is jammed'};
-  for(const w of S.wings)if(wingShips(w).length){setOrder(w.id,'withdraw');for(const s of wingShips(w))s.recall=false;}
-  S.jumpOutT=S.t;S.m.byCommand.jumpout=(S.m.byCommand.jumpout||0)+1;
-  pushEvent('command','All wings: jump out',{x:extractPoint().x,y:extractPoint().y,tone:'good'});
-  return {ok:true};
-}
-function leaveNow(){
-  if(!S||S.over)return {ok:false,why:'the mission is over'};
-  S.m.byCommand.leave=(S.m.byCommand.leave||0)+1;
-  endMission('leave');return {ok:true};
+  const outcome=won?'won':'lost';
+  S.over={outcome,win:won,how:how||'done',why:won?'Mission complete':'Mission failed',lost,jumped:S.ships.filter(s=>s.jumped).length,t:+S.t.toFixed(2)};
+  pushEvent('over',S.over.why+' · '+lost+' lost',{tone:won?'good':'hazard'});
 }
 
 /* ---------- capture and boarding: progress while the ships are there and the point isn't contested ---------- */
@@ -2058,7 +1763,7 @@ function captureTick(dt){
     if(p.prog>=1){
       p.owner='reb';
       pushEvent('capture',(wingOf(mine[0].wing)||{name:mine[0].name}).name+' takes the '+(p.label||k).toLowerCase(),{x:p.x,y:p.y,tone:'good'});
-      if(o&&o.state==='live'){o.state='done';o.doneT=S.t;if(o.cpReward)S.cp=Math.min(S.cpMax,S.cp+o.cpReward);pushEvent('objective',o.text+(o.cpReward?' · +'+o.cpReward+' CP':''),{x:p.x,y:p.y,tone:'good'});}
+      if(o&&o.state==='live'){o.state='done';o.doneT=S.t;pushEvent('objective',o.text,{x:p.x,y:p.y,tone:'good'});}
     }
   }
 }
@@ -2098,15 +1803,12 @@ function step(){
     s.trail.push({x:s.x,y:s.y});if(s.trail.length>26)s.trail.shift();
     // breathing room: an unhurt pilot recovers toward their resting nerve (kills, not quiet, make them EAGER)
     if(S.t-s.hitT>=CALM_SECS&&S.t-s.calmT>=CALM_SECS){s.calmT=S.t;if(s.pilot.cool<s.pilot.rest)adjCool(s,Math.min(CALM_GAIN,s.pilot.rest-s.pilot.cool));}
-    // a hull-threshold rule fires the step it is crossed, not at the next think
-    if(s.faction==='reb'&&s.wing&&!s.preserved&&hullRuleDue(s))s.thinkT=THINK_SECS;
   }
   for(const s of S.ships)if(s.alive&&!s.struct){lockTick(s,dt);fireTick(s,dt);missileDoctrine(s);if(incomingMissile(s)&&!mute(s))abilityTick(s);}   // a missile coming: the abilities answer it at once, not at the next think (C-72)
   emitBursts(dt);projTick(dt);missileTick(dt);chaffTick(dt);
   S.fx=S.fx.filter(f=>S.t-f.t0<1);
   moraleTick();pinTick();
   captureTick(dt);boardTick(dt);
-  S.decoys=S.decoys.filter(d=>d.until>S.t);
   jumpCheck();
   waveTick();
   reinforceTick();
@@ -2128,12 +1830,10 @@ function orderAllowed(w,kind){
 function setOrder(wid,kind,target){
   const w=wingOf(wid);if(!w)return {ok:false,why:'no such wing'};
   const why=orderAllowed(w,kind);if(why)return {ok:false,why};
-  if(ORDERS[kind].targeted&&!target)target=defaultTarget(w,kind);
   if(ORDERS[kind].targeted&&!target)return {ok:false,why:'no target'};
   w.order={kind,target:target||null,t:S.t};
   if(kind==='hold')w.hold=target&&target.type==='pos'?{x:target.x,y:target.y}:wingCentre(w);
   S.m.orders++;S.m.byOrder[kind]=(S.m.byOrder[kind]||0)+1;
-  answerAlert();
   for(const sid of w.ships){const s=byId(sid);if(s)s.thinkT=THINK_SECS;}   // re-decide on the next step
   return {ok:true};
 }
@@ -2142,59 +1842,17 @@ function setTactic(wid,key){
   w.tactic=key;S.m.tactics++;S.m.byTactic[key]=(S.m.byTactic[key]||0)+1;
   return {ok:true};
 }
-/* what a targeted order aims at by default: the first thing its chip row offers */
-function defaultTarget(w,kind){const c=targetChips(w,kind);return c.length?c[0].target:null;}
-/* the TARGET chips (§3.4): objectives, ship classes present, stations; allies for Escort */
-function targetChips(w,kind){
-  const out=[];
-  if(kind==='escort'){
-    for(const s of S.ships)if(s.alive&&s.faction==='reb'&&!s.struct&&s.wing!==w.id)out.push({label:s.name,kind:'ally',target:{type:'ship',id:s.id}});
-    return out;
-  }
-  if(kind==='defend'){
-    for(const s of S.ships)if(s.alive&&s.faction==='reb'&&s.wing!==w.id&&(s.quiet||s.struct||s.wing))out.push({label:s.name,kind:'ally',target:{type:'ship',id:s.id}});
-    for(const k in S.points)out.push({label:S.points[k].label||k,kind:'point',target:{type:'point',id:k}});
-    const c=wingCentre(w);out.push({label:'Here',kind:'point',target:{type:'pos',x:Math.round(c.x),y:Math.round(c.y)}});
-    return out;
-  }
-  if(kind==='intercept'){
-    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&!t.struct)out.push({label:t.name,kind:t.flagship?'objective':'class',target:{type:'ship',id:t.id}});
-    return out;
-  }
-  if(kind==='capture'){
-    for(const k in S.points)if(S.points[k].capture&&S.points[k].owner!=='reb')out.push({label:S.points[k].label||k,kind:'objective',target:{type:'point',id:k}});
-    return out;
-  }
-  if(kind==='board'){
-    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&t.struct)out.push({label:t.label||t.name,kind:'station',target:{type:'station',id:t.id}});
-    return out;
-  }
-  if(kind==='attack'){
-    for(const o of S.objectives)if(o.state==='live'&&o.kind==='destroy')for(const id of o.targets){const t=byId(id);if(t&&t.alive)out.push({label:t.label||t.name,kind:'objective',target:{type:'obj',id}});}
-    const seen={};
-    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&!t.struct&&!seen[t.cls]){seen[t.cls]=1;out.push({label:rowOf(t.cls).name.split(' ').pop()+'s',kind:'class',target:{type:'class',cls:t.cls}});}
-    for(const t of S.ships)if(t.alive&&t.faction==='heg'&&t.struct&&!out.some(c=>c.target.id===t.id))out.push({label:t.label||t.name,kind:'station',target:{type:'station',id:t.id}});
-  }
-  return out;
-}
-function targetLabel(o){
-  if(!o||!o.target)return '';
-  const t=o.target;
-  if(t.type==='class'){const r=rowOf(t.cls);return r?r.name.split(' ').pop()+'s':t.cls;}
-  if(t.type==='point'){const p=S.points[t.id];return p?p.label:'here';}
-  if(t.type==='pos')return 'here';
-  const s=byId(t.id);return s?(s.label||s.name):t.id;
-}
 
 /* ---------- determinism ---------- */
+/* the '#0#' is where Type 3's command points stood (removed 27 October 2026). A Type 3.5 fight always had 0 there
+   (its scenarios set cp 0, and 3.5 keeps its own), so keeping the slot keeps every 3.5 hash, and every saved flight record's checkpoints, as
+   they were */
 function stateHash(){
   const str=S.ships.map(s=>[s.id,s.x.toFixed(2),s.y.toFixed(2),s.h.toFixed(3),(+s.hull).toFixed(2),(+s.arm).toFixed(2),totalShield(s).toFixed(2),Math.round(s.pilot.cool),s.alive?1:0,s.jumped?1:0,s.st.shots,s.st.hits].join(',')).join('|')+
-    '#'+S.proj.length+'/'+S.missiles.length+'#'+S.cp+'#'+S.objectives.map(o=>o.state).join(',')+'#'+(S.over?S.over.outcome:'');
+    '#'+S.proj.length+'/'+S.missiles.length+'#0#'+S.objectives.map(o=>o.state).join(',')+'#'+(S.over?S.over.outcome:'');
   let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
   return (h>>>0).toString(16);
 }
-
-let HC_CP=5;              // the command point pool when a scenario sets none. placeholder
 
 /* the panel's numbers: every one a named constant with a getter (the SALVAGE_PER_HP_ pattern) */
 const TUNE={
@@ -2257,7 +1915,6 @@ const TUNE={
   AUTO_ODDS:{get:()=>AUTO_ODDS,set:v=>{AUTO_ODDS=v;},min:1,max:4,step:0.1,label:'AUTO goes Defensive at odds'},
   LEAD_LOSS:{get:()=>LEAD_LOSS,set:v=>{LEAD_LOSS=v;},min:0,max:1,step:0.05,label:'Leaderless cohesion ×'},
   PROMOTE_SECS:{get:()=>PROMOTE_SECS,set:v=>{PROMOTE_SECS=v;},min:0,max:30,step:1,label:'Promote after (s)'},
-  HC_CP:{get:()=>HC_CP,set:v=>{HC_CP=v;},min:0,max:10,step:1,label:'Command points (no scenario value)'},
   NERVE_K:{get:()=>NERVE_K,set:v=>{NERVE_K=v;},min:0,max:2,step:0.05,label:'Nerve losses ×'},
   CALM_SECS:{get:()=>CALM_SECS,set:v=>{CALM_SECS=v;},min:1,max:10,step:0.5,label:'Calm nerve every (s)'},
   COMMIT_SECS:{get:()=>COMMIT_SECS,set:v=>{COMMIT_SECS=v;},min:0,max:8,step:0.5,label:'Stay on a target at least (s)'},
@@ -2278,27 +1935,6 @@ const TUNE={
   SHAKEN_DISENGAGE:{get:()=>SHAKEN_DISENGAGE,set:v=>{SHAKEN_DISENGAGE=v;},min:1,max:3,step:0.1,label:'SHAKEN falls back sooner ×'},
   BARK_GAP:{get:()=>BARK_GAP,set:v=>{BARK_GAP=v;},min:0,max:20,step:0.5,label:'A pilot speaks at most every (s)'},
   PIN_N:{get:()=>PIN_N,set:v=>{PIN_N=v;},min:1,max:5,step:1,label:'Pinned by (guns on it)'},
-  PRES_HULL:{get:()=>PRES_HULL,set:v=>{PRES_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Preservation: hull under'},
-  GUARDIAN_SECS:{get:()=>GUARDIAN_SECS,set:v=>{GUARDIAN_SECS=v;},min:0.5,max:10,step:0.5,label:'Guardian: hit within (s)'},
-  GUARDIAN_R:{get:()=>GUARDIAN_R,set:v=>{GUARDIAN_R=v;},min:500,max:12000,step:100,label:'Guardian: reach'},
-  ESCAPE_K:{get:()=>ESCAPE_K,set:v=>{ESCAPE_K=v;},min:1,max:5,step:0.1,label:'Formation: escaped at (× gun range)'},
-  FORM_SECS:{get:()=>FORM_SECS,set:v=>{FORM_SECS=v;},min:1,max:20,step:1,label:'Formation: re-form for (s)'},
-  BRING_HULL:{get:()=>BRING_HULL,set:v=>{BRING_HULL=v;},min:0.1,max:1,step:0.05,label:'Bring It Down: flagship under'},
-  SAVIOUR_HULL:{get:()=>SAVIOUR_HULL,set:v=>{SAVIOUR_HULL=v;},min:0.05,max:0.9,step:0.05,label:'Saviour: friendly under'},
-  CP_OVERRIDE:{get:()=>CMD_COST.override,set:v=>{CMD_COST.override=v;},min:0,max:5,step:1,label:'Patriot Override (CP)'},
-  CP_RECALL:{get:()=>CMD_COST.recall,set:v=>{CMD_COST.recall=v;},min:0,max:5,step:1,label:'Emergency Recall (CP)'},
-  CP_REINFORCE:{get:()=>CMD_COST.reinforce,set:v=>{CMD_COST.reinforce=v;},min:0,max:5,step:1,label:'Reinforcement Request (CP)'},
-  CP_SUPPORT:{get:()=>CMD_COST.support,set:v=>{CMD_COST.support=v;},min:0,max:5,step:1,label:'Emergency Support (CP)'},
-  CP_RECON:{get:()=>CMD_COST.recon,set:v=>{CMD_COST.recon=v;},min:0,max:5,step:1,label:'Recon Sweep (CP)'},
-  CP_DECOY:{get:()=>CMD_COST.decoy,set:v=>{CMD_COST.decoy=v;},min:0,max:5,step:1,label:'Decoy Signal (CP)'},
-  OVERRIDE_SECS:{get:()=>OVERRIDE_SECS,set:v=>{OVERRIDE_SECS=v;},min:2,max:40,step:1,label:'Override holds (s)'},
-  OVERRIDE_COOL:{get:()=>OVERRIDE_COOL,set:v=>{OVERRIDE_COOL=v;},min:25,max:100,step:1,label:'Override lifts nerve to'},
-  RECON_SECS:{get:()=>RECON_SECS,set:v=>{RECON_SECS=v;},min:5,max:90,step:5,label:'Recon lasts (s)'},
-  DECOY_SECS:{get:()=>DECOY_SECS,set:v=>{DECOY_SECS=v;},min:2,max:40,step:1,label:'Decoy lasts (s)'},
-  DECOY_R:{get:()=>DECOY_R,set:v=>{DECOY_R=v;},min:300,max:6000,step:100,label:'Decoy draws from'},
-  RECALL_BOOST:{get:()=>RECALL_BOOST,set:v=>{RECALL_BOOST=v;},min:0,max:20,step:1,label:'Recall burns at boost (s)'},
-  HELP_SECS:{get:()=>HELP_SECS,set:v=>{HELP_SECS=v;},min:3,max:40,step:1,label:'A sent wingmate helps (s)'},
-  RECALL_HULL:{get:()=>RECALL_HULL,set:v=>{RECALL_HULL=v;},min:0,max:1,step:0.05,label:'Recall recommended under hull'},
   PIN_CLEAR:{get:()=>PIN_CLEAR,set:v=>{PIN_CLEAR=v;},min:0.5,max:10,step:0.5,label:'Pin clears after (s)'},
   TS_SLOW:{get:()=>TIMESCALES[1],set:v=>{TIMESCALES[1]=v;},min:0.1,max:1,step:0.05,label:'Slow speed (×)'},
   TS_FAST:{get:()=>TIMESCALES[3],set:v=>{TIMESCALES[3]=v;},min:1.5,max:6,step:0.5,label:'Fast speed (×)'},
@@ -2315,7 +1951,7 @@ const TUNE={
 const TACTIC_W={form:[0,2,0.05,'formation'],space:[0.5,6,0.1,'spacing ×'],engage:[0.4,1.6,0.05,'fighting range ×'],focus:[0,1,1,'focus fire (0/1)'],
   flank:[0,1.5,0.05,'flank'],extend:[0.3,3,0.1,'extends ×'],pass:[0.3,3,0.1,'breaks off ×'],pursue:[0,1,1,'tail chases (0/1)'],
   disengage:[0,0.9,0.05,'falls back under hull'],leash:[0.3,2,0.05,'reach ×']};
-for(const tk of PICKABLE)for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
+for(const tk of Object.keys(HC_TACTICS).filter(k=>k!=='auto'))for(const wk in TACTIC_W){const [lo,hi,st,lb]=TACTIC_W[wk];
   TUNE['T_'+tk+'_'+wk]={get:()=>HC_TACTICS[tk][wk],set:v=>{HC_TACTICS[tk][wk]=v;},min:lo,max:hi,step:st,label:HC_TACTICS[tk].name+': '+lb,group:'Tactics'};}
 /* the weapon types' table, every number on the panel too */
 for(const k in DMG_VS)for(const [lk,lb] of [['sh','shields'],['ar','armour'],['hu','hull']])
@@ -2323,29 +1959,26 @@ for(const k in DMG_VS)for(const [lk,lb] of [['sh','shields'],['ar','armour'],['h
 TUNE.BALLISTIC_SPREAD={get:()=>BALLISTIC_SPREAD,set:v=>{BALLISTIC_SPREAD=v;},min:1,max:4,step:0.1,label:'Ballistic spread ×',group:'Weapons'};
 TUNE.MIS_SHIELD_OK={get:()=>MIS_SHIELD_OK,set:v=>{MIS_SHIELD_OK=v;},min:0,max:1,step:0.05,label:'Missiles wait for the shield under ×',group:'Weapons'};
 /* the panel's groups (§5 T4: one HC group, sectioned) */
-const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST','HC_CP'],
+const GROUPS={Run:['HC_MAP','HC_SPREAD','TS_SLOW','TS_FAST'],
   Flight:['THINK_SECS','ROUND_SECS','SPEED_SCALE','CORNER','TURN_SCALE','TURN_CROSS','TURN_BLEED','THRUST_K','TURN_K','SLIP_NOSE','CRUISE','CONVOY_SPD','FORM_GAP','SEP_R','SPAWN_GAP','DISENGAGE_R','AVOID_T','AVOID_PAD','AVOID_W','COLLIDE_DMG','COLLIDE_K','COLLIDE_BOUNCE'],
   Fighting:['SHIELD_CD','SHOW_DMG','ENGAGE_FRAC','RANGE_MULT','THREAT_R','COMMIT_SECS','GUN_DPS','LOCK_CONE','LOCK_RATE','LOCK_LOSS','MISSILE_LOCK','MIS_RANGE_K','MIS_SPD_K','MIS_TURN','MIS_BREAK_T','MIS_SHAKE','MIS_LIFE','LOCK_AIM','LOCK_GUN_K','CHAFF_N','CHAFF_P','CHAFF_T','EXTEND_K','PASS_K','EXT_MAX','STALE_SECS','AUTO_SECS','AUTO_HOLD','AUTO_HURT','AUTO_ODDS'],
   Orders:['ESCORT_R','DEFEND_WATCH','INTERPOSE_K','DEFEND_R','HOLD_R','CAPTURE_R','CAPTURE_SECS','BOARD_R','BOARD_SECS','JUMP_R'],
   Hegemony:['DETECT_R','GUARD_R','LEASH_R','RAID_TURN_R','HEG_RETREAT','LURE_DIST','STANDOFF_R','CLEAR_R','STRIKE_WAIT'],
   Leaders:['LEAD_LOSS','PROMOTE_SECS'],
-  Rules:['PRES_HULL','GUARDIAN_SECS','GUARDIAN_R','ESCAPE_K','FORM_SECS','BRING_HULL','SAVIOUR_HULL'],
-  Morale:['BARK_GAP','MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','NERVE_K','CALM_SECS'],
-  Commands:['CP_OVERRIDE','CP_RECALL','CP_REINFORCE','CP_SUPPORT','CP_RECON','CP_DECOY','OVERRIDE_SECS','OVERRIDE_COOL','RECON_SECS','DECOY_SECS','DECOY_R','RECALL_BOOST','HELP_SECS','RECALL_HULL','PIN_CLEAR']};
+  Morale:['BARK_GAP','MORALE_EAGER','MORALE_SHAKEN','MORALE_PANIC','STEADY_AT','PANIC_FLEE','SHAKEN_ODDS','SHAKEN_DISENGAGE','PIN_N','PIN_CLEAR','NERVE_K','CALM_SECS']};
 GROUPS.Weapons=Object.keys(TUNE).filter(k=>TUNE[k].group==='Weapons');   // the weapon types (22 October)
 for(const g in GROUPS)for(const k of GROUPS[g])if(TUNE[k])TUNE[k].group=g;
 for(const k in TUNE)if(!TUNE[k].group)TUNE[k].group='Other';
 
-return {key:'hc',name:'Type 3: High Command',SIM_VERSION,
+return {key:'hc',name:'High Command',SIM_VERSION,
   get S(){return S;},get W(){return W;},get H(){return H;},get zone(){return Z;},MARGIN,RU,SU,TICK,TIMESCALES,hooks:HK,
-  ORDERS,ORDER_KEYS,ORDERS_LIVE,HC_TACTICS,TACTIC_KEYS,PICKABLE,PERSONALITY,CRITDEFS,TUNE,GROUPS,RULES,RULE_KEYS,ASSESS,
-  COMMANDS,COMMAND_KEYS,ABILITIES,DOCTRINES,
+  ORDERS,HC_TACTICS,PERSONALITY,CRITDEFS,TUNE,GROUPS,ASSESS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
-  build,step,runFor,setOrder,setTactic,jumpOutState,jumpOut,leaveNow,command,commandRefusal,respond,emergencyOpts,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),targetChips,targetLabel,objText,clockLeft,stateHash,endMission,pushEvent,addRule,removeRule,ruleLabel,moraleOf,assessOf,
-  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,flagshipDisabled,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
-    THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,HC_CP_:()=>HC_CP,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
+  build,step,runFor,setOrder,setTactic,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),stateHash,endMission,pushEvent,moraleOf,assessOf,
+  fn:{autoPick,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+    THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),RANGE_MULT_:()=>RANGE_MULT,BURST_N_:()=>BURST_N,ESCORT_R_:()=>ESCORT_R,
-    PRES_HULL_:()=>PRES_HULL,CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
+    CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,
     // for a layer (Type 3.5): the pieces it drives the fight with
     rowOf,spawnAtEdge,spawnEnemies,zoneEdge,scaleLayout,hitShip,applyDamage,soak,shieldFacing,shotHit,dmgKind,missileOpening,spreadOf,floater,say,setBeh,orbitGoal,holdOrbit,arriveGoal,bestTarget,foesOf,hullHit,hullAxes,rockHit,wdefOf,
     presetPilot,adjCool,personalityOf,endMission,projSpd,aimAngle,muzzleAt,thinkEnemy,mulberry,addWing,mkShip,LAYOUT_MAP_:()=>LAYOUT_MAP,W0_:()=>W0,H0_:()=>H0}};
