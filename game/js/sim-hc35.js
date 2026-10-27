@@ -1622,6 +1622,15 @@ function rewardOf(){
    primary and the secondaries, the pay (the stand-ins, rewardOf), the assets spent, and the noise it made.
    A pilot whose ship went down: picked up (a pod aboard a ship that came home) is injured; captured is captured;
    lost, left behind or with no pod is lost (the Infirmary's Critical Condition still applies, in the base) */
+/* the fuel a plan burns (C-93 item 6: sending ships always costs fuel): each ship sent pays its own (sd.fuel, the campaign's
+   wings carry it), a Reserve's ships RESERVE_FUEL of theirs in case they're never called (C-91's placeholder); called,
+   they pay the rest */
+const RESERVE_FUEL=0.5;   // placeholder
+function fuelOfPlan(P){
+  let strike=0,reserve=0;
+  for(const w of WINGS35){const role=P&&P.wings[w.id]&&P.wings[w.id].role;for(const sd of w.ships){if(role==='strike')strike+=sd.fuel||0;else if(role==='reserve')reserve+=sd.fuel||0;}}
+  return {strike,reserve,need:strike+Math.ceil(reserve*RESERVE_FUEL),most:strike+reserve};
+}
 function outcome(){
   const S=SIM.S;if(!S||!L)return null;
   const prim=S.objectives[0];
@@ -1638,7 +1647,8 @@ function outcome(){
   const witnesses=S.ships.filter(s=>s.faction==='heg'&&s.jumped).length;   // escorts and a freighter that jumped away
   return {primary:{k:L.primK,picked:L.plan.primary,state:prim?prim.state:'failed',replaced:!!L.fallback},
     win:!!prim&&prim.state==='done',outcome:S.over?S.over.outcome:null,secondaries:L.opt.map(o=>({k:o.k,state:o.state})),
-    reward:rewardOf(),ships,assets:{spent,kept},broadcast:!!L.used.broadcast,witnesses,t:S.t};
+    reward:rewardOf(),ships,assets:{spent,kept},broadcast:!!L.used.broadcast,witnesses,t:S.t,
+    reserve:(L.X.reserves||[]).filter(r=>!L.called[r.id]).flatMap(r=>r.ships.map(sd=>sd.id))};   // the ships of a Reserve never called (their fuel: RESERVE_FUEL)
 }
 /* =====================================================================
    P4: the comms delay (§5.4) and the commander powers (§5.5)
@@ -2391,7 +2401,7 @@ function verbOf(s){
 /* =====================================================================
    The panel (getters, grouped) and the export
    ===================================================================== */
-return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,useWings,campaignWings,outcome,LOADOUTS,LOAD_CLS,loads,loadOf,LOAD_FIT,fitOf,loadOfConfig,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
+return {SIM_VERSION,OPPORTUNITIES,MODS,MOD_KEYS,HC35_CLASSES,WINGS35,WINGS_DEMO,useWings,campaignWings,outcome,fuelOfPlan,RESERVE_FUEL,LOADOUTS,LOAD_CLS,loads,loadOf,LOAD_FIT,fitOf,loadOfConfig,PRIMARIES,PRIMARY_KEYS,primaryKeysOf,OPP_PLANS,LATER_PRIMARIES,FAMILIES,CALM_TAKES,NEED_TEXT,OPTIONALS,ROES,CONFLICTS,SUGGESTS,ASSETS,ORDERS35,ORDER35_KEYS,TRIGGERS,
   TUNE:T35,GROUPS:GROUPS35,get ASSET_SLOTS(){return ASSET_SLOTS;},
   rollMods,modOn,known,defaultPlan,planHas,needsMet,compile,execToHc,mulberry,
   attach,detach,begin,get L(){return L;},live,alarm,setPhase,rewardOf,canStill,FALLBACKS,fieldExec,answerSurrender,revealMod,giveSignal,execState,leaderPlan,critique,LEADER_PLANS,N,

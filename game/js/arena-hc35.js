@@ -55,13 +55,15 @@ function campResult(){
       xp:Math.round(((won?0.15:0.05)+0.02*sh.kills)*100)/100,kills:sh.kills||undefined,
       sk:{aim:Math.round(sh.hits/4)/10||undefined,foc:Math.round(sh.hurt*10)/10||undefined,pre:sh.lead?0.5:undefined},lead:sh.lead||undefined};}).filter(p=>p.id);
   const fighters=o.ships.map(sh=>{const d=def(sh.id);return d.shipId?{fighterId:d.shipId,name:d.shipName||d.name,hull:Math.round(sh.hullFrac*100),destroyed:!sh.home}:null;}).filter(Boolean);
+  // the fuel burned (C-93 item 6): every ship that flew pays its own; a Reserve never called, RESERVE_FUEL of theirs
+  const fuelUsed=o.ships.reduce((n,sh)=>n+(def(sh.id).fuel||0),0)+Math.ceil(o.reserve.reduce((n,id)=>n+(def(id).fuel||0),0)*L35.RESERVE_FUEL);
   const rew={};for(const k in o.reward.earned||{})rew[k]=Math.round(o.reward.earned[k]);
   // the objectives flown, for the base's report (it lists the mission's own otherwise)
   const objs=[{t:(L35.PRIMARIES[o.primary.k]||{name:o.primary.k}).name+(o.primary.replaced?' (fallback)':' (primary)'),done:o.primary.state==='done'}]
     .concat(o.secondaries.map(x=>({t:(L35.OPTIONALS[x.k]||{name:x.k}).name,done:x.state==='done'})));
   return Object.assign({kind:'space',space35:true,days:M.days||2,people,fighters,salvage:0,
     primary:o.primary,secondaries:o.secondaries,objs,missionPays:!!opp().missionPays,more:'<div class="h35-more">'+debriefBody()+commsHtml()+'</div>',rew35:rew,surrendered:o.reward.surrendered?o.reward.surrendered.n:0,
-    assets:o.assets,broadcast:o.broadcast,witnesses:o.witnesses,intelSpent:B.intel0!=null?Math.max(0,B.intel0-B.intel):0},base);
+    assets:o.assets,broadcast:o.broadcast,witnesses:o.witnesses,fuelUsed,intelSpent:B.intel0!=null?Math.max(0,B.intel0-B.intel):0},base);
 }
 function campDone(r){const d=B.camp&&B.camp.done,res=r===undefined?campResult():r;close();if(d)d(res);}
 /* Back from window 1, or the window's ✕: the board, or (a campaign mission) home with nothing flown */
@@ -225,6 +227,10 @@ function checklist(){
   for(const n of L35.needsMet(P,B.mods))rows.push(n);
   const strike=L35.WINGS35.filter(w=>P.wings[w.id].role==='strike');
   rows.push({text:'At least one wing jumps in',ok:strike.length>0});
+  if(B.camp&&B.camp.mission.fuel!=null&&L35.campaignWings()){   // every ship sent burns fuel (C-93 item 6): the Strike's all of it, the Reserve's half up front
+    const f=L35.fuelOfPlan(P),have=B.camp.mission.fuel;
+    rows.push({text:'Fuel for the sortie: '+f.need+(f.most>f.need?' ('+f.most+' if the reserve is called)':''),ok:have>=f.most,why:have>=f.most?'':'have '+have});
+  }
   const ringed=strike.filter(w=>inRing(P.wings[w.id].jumpIn));
   rows.push({text:'Jump-ins outside their sensor rings',ok:!ringed.length,warn:true,why:ringed.length?ringed.map(w=>w.name).join(', '):''});   // a warning, not a block
   return rows;

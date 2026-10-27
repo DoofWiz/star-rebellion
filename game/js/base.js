@@ -401,7 +401,7 @@ function wings35(only,who){   // only(fighter): the ships this mission takes (a 
   }
   return out.map(w=>({id:w.id,name:w.name,ships:w.ms.map(({p,f})=>{
     const sk=pilotSkills(p),tr=Rebel.traitsFor(p,'s');
-    return {id:sim(f.id),shipId:f.id,shipName:f.name,pilotId:p.id,cls:f.cls,name:p.name.split(' ')[0],config:SRDB.parseConfig(f.config||''),
+    return {id:sim(f.id),shipId:f.id,shipName:f.name,pilotId:p.id,cls:f.cls,name:p.name.split(' ')[0],config:SRDB.parseConfig(f.config||''),fuel:fuelOf(f),
       hullFrac:Math.max(0.05,(f.hull==null?100:f.hull)/100),hullBonus:f.frame||0,
       pilot:{preset:'regular',level:p.level,aim:sk.aim,cunning:sk.cunning,focus:sk.focus,presence:sk.presence,initiative:pilotInit(p),
         cool:Math.max(15,Rebel.coolOf(p,'s')+Rebel.injFx(p).cool),traits:tr.map(t=>t.k).join('|')},
@@ -6290,6 +6290,7 @@ function fly35(id){
   if(m&&!ws.length){const p=who&&G.people.find(x=>x.id===who);flashMsg(who?esc(p?p.name.split(' ')[0]:who)+' has to fly this one, and she can’t right now':'No wing is free to fly: give your pilots and ships a wing in the Hangar','action');return;}
   // S6: your wings fly it and it counts (the days, the pay, the hurt), with your Intel and your crafted assets
   SR.mission=m?{kind:'space35',missionId:m.id,name:m.name,desc:m.desc,opp:M35[m.id],days:missionDays(m),wings:ws,intel:Math.floor(G.intel||0),assets:Object.assign({},G.assets||{}),
+    fuel:Math.floor(G.fuel||0),   // what the sortie can burn: every ship sent pays its fuel (C-93 item 6), checked in the plan's readiness
     rew:Object.assign({},m.rew||{}),   // the mission's own reward, for an opportunity that pays it (Torch the Depots, a Source's)
     source:(()=>{const x=srcInfo(m.src);return x?{id:x.id,name:x.name,level:x.level||1,type:x.type||''}:null;})(),   // S7: who revealed it (their level sets what's hidden)
     ftue:m.id==='depotrun'&&!ftue35Seen(),onFtue:ftue35Done}:null;   // the Space Combat FTUE: the first time you plan it
@@ -9901,6 +9902,7 @@ function applyDebrief(r){
       if(rng()<0.25){G.bureauLeads=G.bureauLeads||[];G.bureauLeads.push({target:{kind:'cell',id:(m&&m.loc)||'veray'},from:null,day:G.day,cold:0,space35:1});}}
     G.assets=G.assets||{};for(const a of (r.assets&&r.assets.spent)||[])if(G.assets[a])G.assets[a]--;   // a spent asset is used up; the rest come home
     if(r.intelSpent)G.intel=Math.max(0,G.intel-r.intelSpent);   // Dig deeper, 1 Intel each
+    if(r.fuelUsed){G.fuel=Math.max(0,G.fuel-r.fuelUsed);news('The sortie to <b>'+esc(r.name||'the mission')+'</b> burned <b>'+r.fuelUsed+' fuel</b>.','d');}   // every ship sent pays its fuel (C-93 item 6)
   }
   else if(r.win&&m)applyRew(salvaged(m.rew),got);
   if(r.salvage&&on('aerogineer.scavenger')){G.materials+=r.salvage;gotRes(got,'m',r.salvage,'salvaged');}   // Scavenger's Eye

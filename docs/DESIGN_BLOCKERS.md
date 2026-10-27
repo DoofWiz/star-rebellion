@@ -233,8 +233,8 @@ phase, added as each is built. **Every other reading in C-75 to C-87 stands as i
 41. **Exposure and Leads** (decision 11, placeholders): the Firebrand Broadcast adds 5 Exposure; each enemy that jumped
     away (an escort, the freighter) is a witness: +2 Exposure and a 25% chance of a Bureau Lead on the mission's cell.
     Dig deeper costs 1 Intel.
-42. **Fuel isn't paid** for a 3.5 flight yet. S8 pays it, and the proposal's fuel question is yours (C-91: the Reserve's
-    half; the proposal's option of fuel per wing).
+42. ~~**Fuel isn't paid** for a 3.5 flight yet.~~ Paid since 27 October (C-93.6 in the Resolved log): every ship sent
+    burns its fuel, a Reserve never called half of its.
 43. **Still a dev flight.** Only `?dev` reaches it, so the playable game is unchanged; S8 makes the planning the
     campaign's own.
 44. **The end of a flight** (your S6 note: "we just need a simple 'Mission Success' or 'Mission Failed' pop up, then
@@ -306,7 +306,7 @@ goes on a panel when built:
 | A 3.5 pilot's XP and skill use | +0.15 a win, +0.05 a loss, 0.02 a kill; Aim from hits, Focus from damage taken, Presence for a leader | S6 (built) |
 | The trait mapping | `SR_OPS.TRAIT_MAP`: each rebel trait's help weight or relationship (C-89 item 36) | S6 (built) |
 | Scaling to the force sent | data on the template (`scale: {perWing, min}`): the numbers in C-94 item 5 | S7 (built) |
-| A Reserve's fuel | half, for a Reserve that's never called | S8 |
+| A Reserve's fuel | half (`RESERVE_FUEL` 0.5), for a Reserve that's never called; the readiness asks for the whole in case it is | Built 27 October (C-93.6) |
 | Mounts and hardpoints | `mounts` (was `weapon_slots`) and `hardpoints` (was `hard_points`), counts; each attachment's hardpoints: Bombs 1, Cargo pods 1, Boarding party 1, Boarding pod 2 (C-90.4) | S2, reworked 27 October (built) |
 | The Brickbat | 2,400 credits; 30 fuel a sortie (no passenger room: your answer) | S2 (built) |
 | The FL-400 | 80 fuel a sortie (unused: not ownable) | S2 (built) |
@@ -326,8 +326,8 @@ goes on a panel when built:
    - The tanker's "twice the load" isn't in the fight: the FL-400's art has twelve cargo modules. It's in the reward.
 2. **A Source reveals one.** Ferren Halt's signal (Intercept Transport) and his event (Tanker Grab) put them on the
    Missions board as one-wing space missions, as before; now **Plan mission opens Type 3.5 for every player** (your
-   answer), so the off-screen dice roll is gone for them. Fuel isn't paid for a 3.5 flight until S8, though the board's
-   requirements still list it.
+   answer), so the off-screen dice roll is gone for them. Since 27 October every ship sent pays its fuel
+   (C-93.6).
 3. **The Source's level sets what's hidden** (its `subtle` rule): the opportunity flies as that Source revealed it
    (`intercept_transport@halt-2`), so a level-1 Halt hides more than a level-3 one. Window 1's Intel strip says who
    ("From Ferren Halt · Lv 2"), and the reveals and the debrief name them, not Cass.
@@ -384,7 +384,7 @@ player, and the first time it's planned the FTUE runs. Code: `game/js/ftue35.js`
 4. **Missiles for the depots** (your note): she fires them only at a depot, one in flight per depot.
 5. **It pays the mission's own reward** (5 Intel, 0.2 XP, the prologue's +400 Materials), not 3.5's stand-in; window 1
    shows it on the Destroy card.
-6. **Fuel isn't paid** for a 3.5 flight yet (S8), so the depots cost no fuel now.
+6. ~~**Fuel isn't paid** for a 3.5 flight yet.~~ Paid (Resolved log, C-93.6): Sera's Dustfall burns 24 at the depots.
 
 **The FTUE**
 7. **The intro window:** four pages, Previous and Next ("Got it" on the last). Your "smooth gifs" are drawn live, in a
@@ -1397,6 +1397,7 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-93.6 | **Sending ships always costs fuel** (the designer, 27 October 2026: "All missions the player creates should involve a travel time and that costs fuel. There should always be a fuel cost to sending ships on missions"). Every Type 3.5 flight now pays: each ship that flew burns her sortie fuel (the database's `fuel_per_sortie`, less the Refuelling Station's 25%), and a Reserve that's never called burns half of its (`RESERVE_FUEL` 0.5, C-91's placeholder). Window 4's readiness lists "Fuel for the sortie" and won't launch without enough for the whole force, Reserve included. The travel time was already there: every mission takes its days (`missionDays`, at least 1). Ground missions and the old space combat already paid their sortie fuel at launch | 2026-10-27 | `fuelOfPlan` and `RESERVE_FUEL` (`sim-hc35.js`), the readiness row and the result's `fuelUsed` (`arena-hc35.js`), `applyDebrief` (`base.js`); `results35-smoke` |
 | C-90.4 | **No two systems share a name** (the designer, 27 October 2026: Tips confirmed; "Introduce new names so none are the same, and I can review later"; "Hardpoints are a count… Each kind of attachment consumes a number of hardpoints… a number of weapon placements… let's call these 'mounts'"; mounts are one count, any weapon). **Tips** (C-94.7) stays. **Heat**: the network's meter (`G.risk`, shown as "network exposure") is now network heat, `G.heat` (the Data Tap's rule `datatap_heat`, `BASE_ALERT_HEAT`); only the Bureau's meter is Exposure. **Mounts and hardpoints**: a ship's `weapon_slots` is now `mounts` (any weapon in any mount), its `hard_points` is now `hardpoints`, the count, and S2's typed `hardpoints` (primary, secondary, pylon, internal) is gone; each attachment's `hardpoints` says how many it uses (placeholders: Bombs 1, Cargo pods 1, Boarding party 1 and passenger room, Boarding pod 2, so a Brickbat carries two bomb racks or one boarding pod); a weapon has no slot; a configuration is a plain list (`bls-t-light-repeaters\|bombs\|bombs`). Refit lists her weapon mounts and her hardpoints used | 2026-10-27 | `db.json` and `build.py`, `SRDB` (`hardpointsUsed`), Refit; MIGRATIONS 19 → 20 (a ship's slots become mounts and hardpoints) and 20 → 21 (`G.risk` to `G.heat`); `ships-smoke`, `refit-smoke` |
 | C-90.2 | **The standalone prototypes are archived** (the designer, 27 October 2026: "Archive them") | 2026-10-27 | `base.html`, `ground-combat.html`, `space-combat.html` and `space-combat-gdd.html` moved to `archive/prototypes/` (a row in `archive/README.md`); README's four sections are a pointer now |
 | C-90.7 | **The build's numbers are right** (the designer, 27 October 2026: "No numbers are fixed, so whatever the latest numbers in the build are, is what's accurate") | 2026-10-27 | README, GDD, ROADMAP and REBELS_PLAN quote the build: sortie fuel 24–42 a ship, the hangar's leak +4 Fuel a day, Steal Fuel 240 Fuel and 300 credits, Auto Factory 450 credits and 160 Materials, three starting pads (a large and two small), the Supply Drop's 160 supplies, the trait counts; the full list is in `docs/CLEANUP-REPORT.md` §3.5. Wording that isn't a number (the old space combat's rules, the leads naming) is left for its own work |

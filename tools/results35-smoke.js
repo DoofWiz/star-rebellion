@@ -5,7 +5,8 @@
    Out: a scripted mission's end lands in G: the days go by; a pilot whose ship came home gains XP; picked up is injured,
         captured is gone with a rescue lead (G.captured), lost is lost (the pods, decision 4); hulls are stored, a lost ship
         is gone; the stand-in pay arrives; the Firebrand Broadcast and the witnesses add Exposure; a spent asset is used
-        up and an unspent one comes home; Dig deeper's Intel is spent */
+        up and an unspent one comes home; Dig deeper's Intel is spent; every ship that flew burns its fuel, a Reserve never
+        called half of its (C-93 item 6), and the plan's readiness checks the fuel */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -29,7 +30,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   const a=pilot('ra','Ada Pilot',6,[{k:'friends',with:'rb'}]),bp=pilot('rb','Bo Pilot',2,[{k:'friends',with:'ra'}]),c=pilot('rc','Cy Pilot',3),d=pilot('rd','Di Pilot',3);
   ship('sa','cross','Ada Cross',70);ship('sb','talon','Bo Talon',100);ship('sc','talon','Cy Talon',100);ship('sd','talon','Di Talon',100);
   a.ship='sa';bp.ship='sb';c.ship='sc';d.ship='sd';f.wingsTidy();
-  G.assets={ram:1,mines:1};G.intel=5;G.exposure=0;G.credits=1000;
+  G.assets={ram:1,mines:1};G.intel=5;G.exposure=0;G.credits=1000;G.fuel=500;
   f.addMission('intercept',true);
   out.wings=f.wings35().map(w=>w.ships.map(s=>s.shipId+':'+s.hullFrac+':'+JSON.stringify(s.traits)));
   const day0=G.day,cred0=G.credits;
@@ -39,6 +40,8 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   // Dig deeper (1 Intel), the primary, the assets, launch
   const dig=q('[data-act="dig"]');if(dig&&dig.getAttribute('aria-disabled')!=='true')dig.click();else B.intel--;
   q('[data-primary="destroy"]').click();
+  const L35=window.SIMHC35,wid=L35.WINGS35[0].id;
+  out.fuelPlan=[JSON.stringify(L35.fuelOfPlan(B.plan)),JSON.stringify(L35.fuelOfPlan({wings:{[wid]:{role:'reserve'}}})),(q('.h35-needs__pill')||{dataset:{}}).dataset.tb||''];
   B.plan.assets=['ram','mines'];
   for(const w in B.plan.wings)B.plan.wings[w].exec={k:'destroy',arg:null};
   X.fn.launch();
@@ -62,7 +65,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   for(let i=0;i<12&&f.getWin();i++)f.closeWin();
   const P=id=>G.people.find(x=>x.id===id),Fs=id=>G.fighters.find(x=>x.id===id);
   out.after={active:SR.active,days:G.day-day0,ada:[!!P('ra'),(P('ra')||{}).xp],bo:[!!P('rb'),f.outDays?f.outDays(P('rb')):null],cy:[!P('rc'),(G.captured||[]).some(x=>x.id==='rc')],
-    di:!P('rd'),hull:[(Fs('sa')||{}).hull,!Fs('sd'),!!Fs('sb')],credits:G.credits-cred0,exposure:G.exposure,assets:Object.assign({},G.assets),intel:G.intel};
+    di:!P('rd'),hull:[(Fs('sa')||{}).hull,!Fs('sd'),!!Fs('sb')],credits:G.credits-cred0,exposure:G.exposure,burned:G.news.some(n=>/burned <b>120 fuel<\/b>/.test(n.html)),assets:Object.assign({},G.assets),intel:G.intel};
   return out;
  });
  const res=r.result||{},rew=res.rew35||{};
@@ -70,6 +73,8 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  ok(r.start[0]===70&&r.start[1]&&r.start[2]===6&&r.start[3]==='eager'&&r.start[4]===4,'In: a ship starts at its stored hull %; the pilot\'s level; Brave makes them eager '+JSON.stringify(r.start));
  ok(res.kind==='space'&&res.space35&&res.win===true&&(res.people||[]).map(p=>p.id+':'+p.state).join()==='ra:ok,rb:injured,rc:captured,rd:lost','Out: the pods map: home ok, picked up injured, captured, lost '+JSON.stringify(res.people));
  ok(JSON.stringify(res.assets)==='{"spent":["ram"],"kept":["mines"]}'&&res.broadcast===true&&res.witnesses===r.jumpedN&&r.jumpedN>=1&&res.intelSpent===1,'Out: assets spent and kept, the Broadcast, the witnesses, the Intel '+JSON.stringify([res.assets,res.broadcast,res.witnesses,res.intelSpent]));
+ ok(r.fuelPlan[0]==='{"strike":120,"reserve":0,"need":120,"most":120}'&&r.fuelPlan[1]==='{"strike":0,"reserve":120,"need":60,"most":120}'&&/Fuel for the sortie: 120/.test(r.fuelPlan[2]),'C-93.6: the plan burns each ship\'s fuel (a Cross 24, three Talons 32), a Reserve half up front; the readiness lists it '+JSON.stringify(r.fuelPlan));
+ ok(res.fuelUsed===120,'C-93.6: the result says what the flight burned '+res.fuelUsed);
  ok((res.objs||[])[0]&&res.objs[0].t==='Destroy (primary)'&&res.objs[0].done===true,'Out: the objectives flown, for the base report '+JSON.stringify(res.objs));
  const a=r.after;
  ok(a.active==='base'&&a.days>=1,'the base, the mission\'s days gone by '+JSON.stringify([a.active,a.days]));
@@ -80,6 +85,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  ok(a.hull[0]===50&&a.hull[1]&&!a.hull[2],'hulls: Ada\'s Cross at 50%, the lost ships gone '+JSON.stringify(a.hull));
  ok(a.credits===(r.missRew.c||0)&&a.credits>0,'S7: a Source opportunity pays the mission reward '+JSON.stringify([a.credits,r.missRew]));
  ok(a.exposure===5+2*r.jumpedN+2,'Exposure: +5 the Broadcast, +2 a witness, +2 the operation (flown now: S7) '+JSON.stringify([a.exposure,r.jumpedN]));
+ ok(a.burned,'C-93.6: the sortie\'s fuel is paid, with a news line');
  ok(a.assets.ram===0&&a.assets.mines===1,'the spent ram is used up, the unspent minefield comes home '+JSON.stringify(a.assets));
  ok(a.intel===5-1+(r.missRew.i||0),'Dig deeper spent 1 Intel '+JSON.stringify([a.intel,r.missRew.i]));
  await b.close();
