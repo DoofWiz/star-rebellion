@@ -37,8 +37,8 @@ starfighter squadron and no Heroes yet.
    animation into Level 2. See *Progress to Level 2* below.
 2. ~~**Intel semantics.**~~ **Decided:** Intel is the Access currency only in Level 1; the
    early-warning role returns with Alerts at Level 2.
-3. ~~Starting hangar~~ **Decided:** four landing pads from the start. The game
-   currently starts with capacity 2 and one spare berth, so this is a code change.
+3. ~~Starting hangar~~ **Decided:** three landing pads from the start (a large pad and two small). The game
+   used to start with capacity 2 and one spare berth, so this was a code change.
 4. ~~**Resources.**~~ **Decided:** add Materials and Fuel, both used lightly (Fuel per ship
    mission; Materials for construction and upgrades).
 5. ~~**Galaxy scale.**~~ **Decided:** keep the current worlds and give each 2–4 regions; two
@@ -92,7 +92,7 @@ Original scope:
 
 ### Phase 2 — Mission framework — **built** (Directives skipped: WIP in the docs)
 Built: mission types with requirements and objectives, the briefing/planning board with
-team, transport, pilot and ship slots (click or drag), Fuel and Materials, the four-pad hangar,
+team, transport, pilot and ship slots (click or drag), Fuel and Materials, the three-pad hangar,
 the arrival cinematic, reward screen and automatic source call-back, and Opportunities
 (Access 2+, staffed Comms Array, persistent map markers). See `docs/GDD.md` §8.
 Original scope:
@@ -146,7 +146,7 @@ mission gives yet. See `docs/GDD.md` §8. Original scope:
   Pursuer, Mag-Clamper, VC Mote Patrolcraft. Security rating scales spawns.
 - **Hacking Autos:** a hacked Auto fights for you and joins the roster if it extracts.
   This needs hacking gear.
-- **Fire support menu:** *Supply Drop* (40 supplies: 5 stims, 2 grenades, 2 rocket
+- **Fire support menu:** *Supply Drop* (160 supplies: 5 stims, 2 grenades, 2 rocket
   launchers) and *Reinforcements* (second transport) are cheapest and fit Level 1.
   *Door Gunner* needs a gunship-type asset. *Strafing Run* needs a starfighter, so it
   is a stretch goal.
@@ -171,7 +171,7 @@ Armour items. See `docs/GDD.md` §8. Original scope:
   at least **Field Technician**; the rest of the soldier list (Gunner, Commando, Assault,
   Combat Medic, Demolitions Specialist, Marksman, Commander, Vanguard, Driver) can ship in
   stages.
-- **Starting hangar:** change to four landing pads to match the docs, and rebalance
+- **Starting hangar:** change to three landing pads (a large pad and two small), and rebalance
   the onboarding around it (the derelict Marta no longer fills the only spare berth).
 
 ### Phase 5b — Support specialties — **built (first pass)**
@@ -230,4 +230,4 @@ Decided 2026-10-05 (DESIGN_BLOCKERS C-4, resolved log):
 - Fleet Combat is out of scope for a long time; Specialties and Locations/Regions are being written in the
   gdocs.
 - The README's reduced day one (capacity 2, one spare berth) contradicts the docs. **The docs are right:**
-  four landing pads.
+  three landing pads (a large pad and two small), as the game now starts.

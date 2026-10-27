@@ -564,10 +564,10 @@ so expansions compete for floor space.
 ### Economy scale (rebalanced ×4, Intel unchanged)
 All credit, supply, material and fuel numbers sit in the range set by Rescue Dissident's 500
 credits: the campaign starts with **1000 credits, 480 supplies, 400 materials, 240 fuel** (Intel 3,
-unchanged: Intel is a count of leads, not a bankroll). Rooms cost 200-480 credits plus
-80-200 materials; restoring the hauler costs 240 credits and 160 materials; a sortie burns
-16-24 fuel per ship; repairs cost 4-8 materials per ship per day; the hangar weeps +4 fuel a
-day; sources pay 12-120 a day depending on type. Tier 1 missions pay roughly 300-700 credits
+unchanged: Intel is a count of leads, not a bankroll). Rooms cost 200-500 credits plus
+80-160 materials (a Hangar section 960 and 800); restoring the hauler costs 240 credits and 160 materials; a sortie burns
+24-42 fuel per ship; repairs cost 8 materials per ship per day; the hangar weeps +4 fuel a
+day; sources pay 16-140 a day depending on type (some add 8-12 fuel or materials). Tier 1 missions pay roughly 300-500 credits
 (Rescue Dissident 500, Steal the Cross 500, Blow Up Auto Factory 450, Steal Fuel 300 plus 240
 fuel, Steal Intelligence 400 plus 6 Intel), with materials, supplies or fuel as secondary
 rewards. Map loot is scaled the same way. Old saves are multiplied ×4 once on load.
@@ -576,7 +576,7 @@ rewards. Map loot is scaled the same way. Old saves are multiplied ×4 once on l
 - **Materials** (⚙) pay for construction, excavation, repairs and restoring the hauler. **Supplies**
   (▤) remain for people-related costs (infirmary, training hall, barracks annex). **Fuel** (◐)
   is burned per ship on every sortie, by ship type (database: Marta 42, FT-4 Cross 24, Talon 32; see
-  [DATABASE.md](DATABASE.md)). A trickle of +1 Fuel a day
+  [DATABASE.md](DATABASE.md)). A trickle of +4 Fuel a day
   weeps from the hangar-cave tanks so the player can't soft-lock.
 - Sources and missions can pay Materials and Fuel (Steal Fuel-type jobs, tanker grabs, ore, quarry
   and timber ops).
@@ -608,14 +608,14 @@ Given by Cass Wender once the depot run is done (he also reaches out on his own)
 the Marta**, who flies from the LZ and lands on the loading apron (this wakes the depot),
 (3) **defend her while the tanks fill: 5 rounds** (or ~6 seconds each out of combat), and only
 while at least one rebel holds the apron. Reinforcement waves arrive after rounds 1 and 3,
-(4) **board and lift off**. The mission pays **60 Fuel and 40 credits**, plus loot, and adds 10%
+(4) **board and lift off**. The mission pays **240 Fuel and 300 credits**, plus loot, and adds 15%
 to Redrock Flats' liberation. Failing offers a retry with no cost. The reusable pieces (call-in
 transport, timed defend, extract from wherever the transport lands) are in `ground.js` for the
 next missions.
 
 ### Blow Up Auto Factory (built, Tier 1)
 Offered by **Tessaly Brandt** (Menk) once she is a source, or through her signals. Played at
-the **Kiln Ridge AutoCom Plant, Menk** (region: Kiln Ridge, +20% liberation, capped by Access/Support):
+the **Kiln Ridge AutoCom Plant, Menk** (region: Kiln Ridge, +30% liberation, capped by Access/Support):
 - **Needs an Explosive Charge** in the armory (a Pre Condition). The Redrock depot and a blasting
   shed at the AutoCom Plant both hold charges. One soldier carries it (marked ✸); if they go down,
   the nearest rebel picks it up. Only the carrier can plant it.
@@ -623,9 +623,9 @@ the **Kiln Ridge AutoCom Plant, Menk** (region: Kiln Ridge, +20% liberation, cap
   ring), then **Detonate**. Detonating with anyone inside the zone is refused. The blast hurts
   anyone in range, wrecks cover and sets off fuel drums.
 - **Optional: stay unseen.** If the plant never raised the alarm before the charge blew, the
-  mission pays a bonus (+2 Intel, +60 credits). The blast then alerts the plant and a riot
+  mission pays a bonus (+2 Intel, +250 credits). The blast then alerts the plant and a riot
   response lands at the gate; the squad extracts at the Marta.
-- Reward: 100 credits and 40 Materials, plus loot. The charge is used up once planted.
+- Reward: 450 credits and 160 Materials, plus loot. The charge is used up once planted.
 - **New Level 1 enemies** introduced: **Auto Policebots** (flimsy, never panic), **Patrolmen**,
   **Riot Shieldmen** (their shield blocks every shot from the front, so flank them) and **Riot
   Riflemen**. The Riot Bruiser and Bureau Officer are still to come.
@@ -756,7 +756,7 @@ Offered by **Tessaly Brandt** once the AutoCom Plant's Power Plant is gone. Play
 (region: Menk Crossing, +15% liberation, capped by Access/Support):
 - A **Strider Mk I** stands in a locked holding yard. Any soldier can **override its leash panel**
   (two rounds). The override is quiet; it only alarms the depot if the squad was already seen.
-- Once freed the Strider is a **Bot you command**: 220 hp, heavy autocannon, big and loud, with the
+- Once freed the Strider is a **Bot you command**: 190 hp, heavy autocannon, big and loud, with the
   vehicle action list. **If it is destroyed the mission fails.** It and the squad must reach the Marta.
 - **Optional: stay unseen** (bonus +300 credits). Reward: 450 credits, 200 Materials.
 - **The Strider joins the vehicle pool** as a Bot (older saves move it there from the roster). It no longer
@@ -764,7 +764,7 @@ Offered by **Tessaly Brandt** once the AutoCom Plant's Power Plant is gone. Play
 
 ### Steal Intelligence (built, Tier 1)
 Offered by **Ione Cask** (Parity IV). Played at the **Data Flats server farm** (region: Data Flats,
-+15% liberation, capped by Access/Support):
++25% liberation, capped by Access/Support):
 - **Gated by a Field Technician.** The mission can be opened and read even without one, but it
   cannot be started. The briefing explains: *"Missing Field Technician: train a soldier to level 3
   and use the Training Center to give them the Field Technician specialty to attempt this
@@ -776,7 +776,7 @@ Offered by **Ione Cask** (Parity IV). Played at the **Data Flats server farm** (
 
 ### Rescue Dissident (built, Tier 1) and the recruit pool
 Offered by **Orrin Pell** (Ballakan). Played at the **Tollgate security outpost** (region: Tollgate
-Landing, +15% liberation, capped by Access/Support):
+Landing, +25% liberation, capped by Access/Support):
 - **Release the prisoner** from the detention cage (a Work order at the cell lock). Once freed
   they follow orders like any rebel but are frail; if they go down the mission fails. They must
   reach the Marta with the squad.
@@ -896,7 +896,7 @@ numbers (DESIGN_BLOCKERS C-4). Rewards scale with Security as above, and loot co
 |---|---|---|
 | Steal Intelligence | blank | 400 credits, 6 Intel (built) |
 | Rescue Dissident | 500 credits, the dissident as a Support recruit | as the doc (built) |
-| Blow Up Auto Factory | blank | 450 credits, 160–200 Materials; +300 credits for staying unseen (built) |
+| Blow Up Auto Factory | blank | 450 credits, 160 Materials; +250 credits and 2 Intel for staying unseen (built) |
 | Steal Fuel | (x) Fuel | 240 Fuel, 300 credits (built) |
 | Destroy Checkpoint | materials, supplies | *guess:* 120 Materials, 160 Supplies, 150 credits |
 | Ambush: VIP | the prisoner as a Support recruit | as the doc, plus 400 credits (built) |

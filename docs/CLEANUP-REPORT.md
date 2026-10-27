@@ -153,13 +153,22 @@ diverged:**
 | What | Where | Why it looks redundant | Risk |
 |---|---|---|---|
 | **The UI kit's source is behind the game's copy** | `tools/ui-kit/sr-theme.css` against `game/ui/sr-theme.css` | The game's copy has the `100dvh` window height and the whole tablet (`@container`, 901–1100 px) block. **Running `tools/ui-kit/build.py` would overwrite them** | **High if anyone rebuilds the kit.** Copy the game's changes back into the source first |
-| The four standalone prototypes | `base.html`, `ground-combat.html`, `space-combat.html`, `space-combat-gdd.html` (repo root) | Nothing loads them; README keeps them as "references and iteration history". They hold old copies of code (`workDone`, `drawProps`), so a search finds two | None for the game. README's sections would need trimming. Your call (C-90) |
+| The four standalone prototypes | `base.html`, `ground-combat.html`, `space-combat.html`, `space-combat-gdd.html` (repo root) | Nothing loads them; README keeps them as "references and iteration history". They hold old copies of code (`workDone`, `drawProps`), so a search finds two | **Done** (the designer, 27 October 2026: archive them): moved to `archive/prototypes/`; README's sections replaced by a pointer |
 | `game/ui/sr-icons.svg` | | The UI kit's build output. Nothing loads it; `game/index.html` inlines the same sprite | None; keep it as the build artifact |
 | `index.html` (root) | | A redirect to `game/index.html` | Keep: it is live |
 
 ### 3.5 Stale or contradictory docs
 
 These are written up here and not fixed: most need your numbers, or are your design docs.
+
+**Numbers done, 2026-10-27** (the designer: the build's numbers are right). README, GDD, ROADMAP and REBELS_PLAN
+now quote the build: sortie fuel 24-42, the hangar's +4 Fuel a day, Steal Fuel's 240 Fuel and 300 credits, Auto
+Factory's 450 credits and 160 Materials (+250 credits and 2 Intel unseen), the starting hangar's large pad and two
+small, the hauler's 240 credits and 160 materials, and the other numbers in those passages (room costs, repairs,
+source pay, liberation %, Supply Drop, bunks, trait counts). The same pass renamed Cook to Torch the Depots and made
+the Sources' icons red in README. The four prototypes' README sections went with the prototypes to
+`archive/prototypes/` (C-90), which took the stale branch names and the Storeroom's Gear Grid line with them. The
+items below that are not numbers are still open.
 
 - **README.md:**
   - "Cook the Depots" (three places): the game says Torch the Depots.

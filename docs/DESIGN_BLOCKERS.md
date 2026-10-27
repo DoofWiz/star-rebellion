@@ -264,9 +264,7 @@ I can't settle without you:
    and the whole tablet layout. Running `tools/ui-kit/build.py` would undo the iPad pass.
    - Interim: nothing is rebuilt.
    - Shall I copy the game's changes back into the source?
-2. **The four standalone prototypes** at the repo root (`base.html`, `ground-combat.html`, `space-combat.html`,
-   `space-combat-gdd.html`): nothing loads them.
-   - Archive them as well, or keep them as the README's "iteration history"?
+2. ~~**The four standalone prototypes**~~ Archived (Resolved log, C-90.2).
 3. **Type 3's systems in the sim** (rules, command points, commands, emergencies, tactics): only the fixtures
    exercise them now.
    - 3.5 calls none of them directly.
@@ -284,10 +282,7 @@ I can't settle without you:
    - Built handoffs with few links: ONBOARDING, MARKET-ARSENAL, GALAXY with its reference page, LEGACY_AUDIT (this
      report replaces it). They could go to `docs/archive/`.
    - The heavily cited ones could get a "Status: built" line instead.
-7. **Stale numbers in README, GDD, ROADMAP and REBELS_PLAN** (the report's §3.5). Several are your numbers that
-   contradict each other (sortie fuel, the hangar's fuel leak, Steal Fuel's and Auto Factory's pay, the starting
-   pads).
-   - Which are right? I'll fix the docs to match.
+7. ~~**Stale numbers in README, GDD, ROADMAP and REBELS_PLAN**~~ Fixed to the build's numbers (Resolved log, C-90.7).
 8. **Type 3's blocker entries:**
    - C-66, C-67, C-69, C-71 and C-72 are now mostly records of an archived ruleset.
    - C-70 item 13 is answered by decision 9.
@@ -1406,6 +1401,8 @@ of base mood, USAF pilot ladder, recruiting through the Command Center) are reco
 
 | ID | Decision | Date | What was built |
 |---|---|---|---|
+| C-90.2 | **The standalone prototypes are archived** (the designer, 27 October 2026: "Archive them") | 2026-10-27 | `base.html`, `ground-combat.html`, `space-combat.html` and `space-combat-gdd.html` moved to `archive/prototypes/` (a row in `archive/README.md`); README's four sections are a pointer now |
+| C-90.7 | **The build's numbers are right** (the designer, 27 October 2026: "No numbers are fixed, so whatever the latest numbers in the build are, is what's accurate") | 2026-10-27 | README, GDD, ROADMAP and REBELS_PLAN quote the build: sortie fuel 24–42 a ship, the hangar's leak +4 Fuel a day, Steal Fuel 240 Fuel and 300 credits, Auto Factory 450 credits and 160 Materials, three starting pads (a large and two small), the Supply Drop's 160 supplies, the trait counts; the full list is in `docs/CLEANUP-REPORT.md` §3.5. Wording that isn't a number (the old space combat's rules, the leads naming) is left for its own work |
 | C-13 | **Retired in the blockers sweep: outdated** (the designer agreed, 27 October 2026). The four CSS bugs are fixed in the game's own stylesheet. Nothing here needs a decision; the only remaining note is for whoever re-exports the art kit's canvas CSS. | 2026-10-27 | The full entry is in `docs/archive/DESIGN_BLOCKERS-RETIRED.md` |
 | C-18 | **Retired in the blockers sweep: outdated** (the designer agreed, 27 October 2026). The ship attachment list was settled by the switch: hardpoints, bombs, cargo pods, a boarding party and a boarding pod are now in the ships database, and the placeholder plates and tank are gone. The Floatin' Truck isn't in the game; its attachments belong with vehicles in M-15. | 2026-10-27 | The full entry is in `docs/archive/DESIGN_BLOCKERS-RETIRED.md` |
 | C-19 | **Retired in the blockers sweep: outdated** (the designer agreed, 27 October 2026). Ships living in the Arsenal is fine for now. The Fleet feature is already logged for later in M-40 (switch decision 8). | 2026-10-27 | The full entry is in `docs/archive/DESIGN_BLOCKERS-RETIRED.md` |
