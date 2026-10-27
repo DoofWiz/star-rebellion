@@ -10,7 +10,9 @@
       holding fire on her, and goes in once it opens; through the window and out, the Crash is off
    6  (27 October) a good pilot waits for the opening; a green one may fire early, an eager one more, a steady one less
       (C-92 item 5); a fried shield emitter stops Boost Shields, and the leaders' "we'll never catch it" uses each
-      wing's own cruise (C-90 item 9) */
+      wing's own cruise (C-90 item 9)
+   7  (27 October) every ship is hit on her art's outline: a shot across a Talon's wing, outside the old hit ellipse,
+      hits her with her shield down, and stops on the bubble with it up (C-92 item 2) */
 const {chromium}=require('playwright');
 const path=require('path');
 const base='file://'+path.resolve(__dirname,'../game/index.html');
@@ -104,10 +106,18 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
   const fried=SIM.useAbility(s.id,'shields');s.crits=s.crits.filter(c=>c!=='emitter');s.abCd={};const fine=SIM.useAbility(s.id,'shields');
   out.emitter=[fried.ok,fried.why,fine.ok];
   out.cruise=[Math.round(X.fn.wingCruise('dagger')),Math.round(X.fn.wingCruise('anvil'))];
+  // 7: a shot across her wing, square to her, between the old ellipse's half-width and her art's
+  const tl=X.S.ships.find(x=>x.faction==='reb'&&x.alive&&x.row.id==='sf-11-talon'),A=F.hullAxes(tl),Bx=F.bodyAxes(tl),off=(A.b+Bx.b)/2,c=Math.cos(tl.h),sn=Math.sin(tl.h);
+  const p0={x:tl.x-sn*off-c*400,y:tl.y+c*off-sn*400},p1={x:tl.x-sn*off+c*400,y:tl.y+c*off+sn*400};
+  const keep=[tl.segs.F.val,tl.segs.R.val];
+  const up=F.shotHit(tl,p0,p1,false);tl.segs.F.val=0;tl.segs.R.val=0;const down=F.shotHit(tl,p0,p1,false);
+  SIM.TUNE.HULL_FIT.set(0);const old=F.shotHit(tl,p0,p1,false);SIM.TUNE.HULL_FIT.set(0.9);[tl.segs.F.val,tl.segs.R.val]=keep;
+  out.wing=[Bx.b>A.b*1.5,!!down,!!up,old===null,SIM.TUNE.GUN_DPS.get()];
   return out;});
  ok(JSON.stringify(r2.rash)==='[0.6,0.3,0,0,1.2,0.3,0.18]','6: missiles before the opening, a second: level 1, 3, 5, 9; a reckless and a cautious level 1; a reckless level 8 '+JSON.stringify(r2.rash));
  ok(r2.emitter[0]===false&&/emitter/.test(r2.emitter[1]||'')&&r2.emitter[2]===true,'6: a fried emitter stops Boost Shields '+JSON.stringify(r2.emitter));
  ok(r2.cruise[0]===560&&r2.cruise[1]===420,'6: a wing cruises at its slowest ship: Dagger (Crosses, a Talon) 560, Anvil (Brickbats) 420 '+JSON.stringify(r2.cruise));
+ ok(r2.wing[0]&&r2.wing[1]&&r2.wing[2]&&r2.wing[3]&&r2.wing[4]===0.4,'7: a shot across a Talon\'s wing hits her outline (her art\'s), shield up or down; the old ellipse missed it; guns at 0.4 '+JSON.stringify(r2.wing));
  await b.close();
  ok(!errs.length,'no page errors: '+errs.slice(0,5).join(' | '));
  console.log(JSON.stringify({fails,r},null,0));

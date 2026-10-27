@@ -22,7 +22,7 @@
 window.SIMHC=(function(){
 const Math=window.SR_DMATH;   // deterministic maths: a run computes the same in every browser and in node (det-math.js)
 const TH=SR.theme,C=TH.C;
-const SIM_VERSION='hc-5';   // hc-5: a green pilot may fire a missile before the opening, and a fried shield emitter stops Boost Shields (C-92 item 5, C-90 item 9). hc-4: Type 3's rules, command points and commands removed (27 October 2026). Bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc-6';   // hc-6: every ship is hit on her art's outline, and guns do 0.4 a second, was 0.5 (C-92 item 2). hc-5: a green pilot may fire a missile before the opening, and a fried shield emitter stops Boost Shields (C-92 item 5, C-90 item 9). hc-4: Type 3's rules, command points and commands removed (27 October 2026). Bump in any commit that changes how the sim plays (the flight recorder's harness warns on a mismatch)
 
 /* ---------- the world (space.js ~20: W, H, MARGIN, RU, SU), set bigger: HC_MAP × space.js's 4200 × 3000 ---------- */
 const W0=4200,H0=3000,MARGIN=120,RU=300,SU=150;
@@ -223,8 +223,17 @@ function adjCool(s,d){
 /* ---------- the hull, intersection and impact: copied from sim-sb.js ~419–449 ---------- */
 let HULL_LEN=22,HULL_WID=10,SHIP_SCALE=1.35;   // copied from sim-sb.js (placeholders there)
 function hullAxes(s){const v=SRDB.visualSize(s.row.size)*SHIP_SCALE*(s.row.hitK||1),k=s.evadeT&&S.t<s.evadeT?Math.SQRT1_2:1;return {a:HULL_LEN*v*k,b:(s.struct?HULL_LEN*v:HULL_WID*v)*k};}   // a Barrel Roll halves the profile
-function hullHit(t,p0,p1){
-  const {a,b}=hullAxes(t);
+/* every ship's own outline, from her art (C-92 item 2, the designer: a shot past a shield that's down or absent reaches the
+   hull, on every ship; the art's outline, with the fights retuned to match). The hit ellipse (hullAxes) sits well inside
+   most ships' art, so a shot could cross a wing or a nose and fly on. ART_FIT is each art's half-length and half-width,
+   measured from sr-art.js at a heading of 0, over the hit ellipse's; HULL_FIT trims the measure's antialiased edge (0:
+   the old ellipse, for comparing). Keyed by the ship's row id (the FL-400 has a shape of her own: Type 3.5's bodyHit) */
+const ART_FIT={'ft-4-cross':[1.92,2.75],'sf-11-talon':[1.56,1.94],'vc-mote':[1.28,1.67],'vk-3-scimitar':[1.50,2.72],'vt-2-fledgling':[1.44,1.67],
+  'drone-monitor':[0.88,1.36],'drone-pursuer':[1.30,1.60],'drone-mag-clamper':[1.48,1.97],'bx-17-brickbat':[1.98,2.24],'graf-hauler':[1.98,2.07]};
+let HULL_FIT=0.9;   // placeholder
+function bodyAxes(t){const A=hullAxes(t),f=ART_FIT[t.row.id];return f&&HULL_FIT?{a:A.a*f[0]*HULL_FIT,b:A.b*f[1]*HULL_FIT}:A;}
+function hullHit(t,p0,p1,ax){
+  const {a,b}=ax||hullAxes(t);
   const c=Math.cos(-t.h),sn=Math.sin(-t.h);
   const lx0=(p0.x-t.x)*c-(p0.y-t.y)*sn,ly0=(p0.x-t.x)*sn+(p0.y-t.y)*c;
   const lx1=(p1.x-t.x)*c-(p1.y-t.y)*sn,ly1=(p1.y-t.y)*c+(p1.x-t.x)*sn;
@@ -240,16 +249,17 @@ function hullHit(t,p0,p1){
   return {u,x:t.x+hx*cw-hy*sw,y:t.y+hx*sw+hy*cw,nx:nx*cw-ny*sw,ny:nx*sw+ny*cw};
 }
 let IMPACT_MIN=0.2;       // copied from sim-sb.js. placeholder
-/* where a shot meets a ship: the hull's ellipse (the shield's bubble) while the shield facing it is up; once it's down, a
-   layer may give the hull's own shape (Type 3.5: the freighter's), so a shot lands on the ship and not in the air round
-   it (the designer, 22 October). Her shape reaches past the ellipse at bow and stern: a shot there meets the hull, shields
-   up or down. throughShield: a weapon that skips shields */
+/* where a shot meets a ship: the shield's bubble (the hit ellipse) while the shield facing it is up; once it's down, or
+   she has none, the hull's own outline (her art's: bodyAxes, or a layer's shape, Type 3.5's freighter), so a shot lands
+   on the ship and not in the air round it or through her wing (the designer, 22 and 27 October). Her outline reaching
+   past the bubble meets the hull, shields up or down. throughShield: a weapon that skips shields */
 function shotHit(t,p0,p1,throughShield){
-  if(!HK.bodyHit)return hullHit(t,p0,p1);
   const open=throughShield||shieldFacing(t,p1.x-p0.x,p1.y-p0.y).v<=0;
-  if(open){const b=HK.bodyHit(t,p0,p1);if(b!==undefined)return b;}
-  const h=hullHit(t,p0,p1);if(h)return h;
-  const b=HK.bodyHit(t,p0,p1);return b===undefined?null:b;
+  const own=HK.bodyHit?HK.bodyHit(t,p0,p1):undefined;
+  const body=own!==undefined?own:hullHit(t,p0,p1,bodyAxes(t));
+  if(open)return body;
+  const h=hullHit(t,p0,p1);
+  return !h?body:!body?h:body.u<h.u?body:h;
 }
 function impactOf(vx,vy,hit){const vl=Math.hypot(vx,vy)||1;return IMPACT_MIN+(1-IMPACT_MIN)*Math.max(0,-(vx*hit.nx+vy*hit.ny)/vl);}
 function rockHit(a,b){   // copied from sim-sb.js (space.js losBlocked ~382, as a segment test)
@@ -262,7 +272,7 @@ function rockHit(a,b){   // copied from sim-sb.js (space.js losBlocked ~382, as 
 }
 
 /* ---------- guns: copied from sim-sb.js ~270–640 (streams of bolts, spread, lock as a dial, missiles) ---------- */
-let BURST_N=8,BURST_EVERY=0.75,BURST_GAP=0.06,GUN_DPS=0.5,MISSILE_EVERY=2.0;   // copied placeholders (C-65)
+let BURST_N=8,BURST_EVERY=0.75,BURST_GAP=0.06,GUN_DPS=0.4,MISSILE_EVERY=2.0;   // copied placeholders (C-65); GUN_DPS was 0.5 until ships were hit on their art's outline (C-92 item 2)
 let PROJ_SPD=2000,SPREAD_BASE=6,RANGE_SPREAD=3,SPREAD_AIM_K=0.1,SPREAD_NERVE_K=1.5,SPREAD_CRIT=3;
 let MISSILE_LOCK=0.6,MISSILE_MINR=1.5,MISSILE_SPD=800,MISSILE_TURN=2.4,LOCK_GAIN=0.4,LOCK_DECAY=0.5,LOCK_DMG_MAX=1.0,CRIT_DIRECT=0.10;
 const CRIT_REF=0.25,KIND_SPD={plasma:1,laser:1,ballistic:1.25};
@@ -1970,6 +1980,7 @@ for(const k in DMG_VS)for(const [lk,lb] of [['sh','shields'],['ar','armour'],['h
   TUNE['DV_'+k+'_'+lk]={get:()=>DMG_VS[k][lk],set:v=>{DMG_VS[k][lk]=Math.max(0.05,v);},min:0.05,max:3,step:0.05,label:k[0].toUpperCase()+k.slice(1)+' vs '+lb+' ×',group:'Weapons'};
 TUNE.BALLISTIC_SPREAD={get:()=>BALLISTIC_SPREAD,set:v=>{BALLISTIC_SPREAD=v;},min:1,max:4,step:0.1,label:'Ballistic spread ×',group:'Weapons'};
 TUNE.MIS_SHIELD_OK={get:()=>MIS_SHIELD_OK,set:v=>{MIS_SHIELD_OK=v;},min:0,max:1,step:0.05,label:'Missiles wait for the shield under ×',group:'Weapons'};
+TUNE.HULL_FIT={get:()=>HULL_FIT,set:v=>{HULL_FIT=v;},min:0,max:1.2,step:0.05,label:'A hull outline × her art (0: the old ellipse)',group:'Weapons'};
 TUNE.MIS_RASH={get:()=>MIS_RASH,set:v=>{MIS_RASH=v;},min:0,max:3,step:0.05,label:'A level-1 pilot fires early (/s)',group:'Weapons'};
 TUNE.MIS_GOOD_LVL={get:()=>MIS_GOOD_LVL,set:v=>{MIS_GOOD_LVL=v;},min:2,max:20,step:1,label:'Waits for the opening from level',group:'Weapons'};
 /* the panel's groups (§5 T4: one HC group, sectioned) */
@@ -1989,7 +2000,7 @@ return {key:'hc',name:'High Command',SIM_VERSION,
   ORDERS,HC_TACTICS,PERSONALITY,CRITDEFS,TUNE,GROUPS,ASSESS,ABILITIES,DOCTRINES,
   say:(id,text,tone,urgent)=>say(byId(id),text,tone,urgent),
   build,step,runFor,setOrder,setTactic,useAbility:(id,k)=>useAbility(byId(id),k,true),setDoctrine,abilitiesOf:id=>abilitiesOf(byId(id)),abilityTriggers:(id,k)=>abilityTriggers(byId(id),k),stateHash,endMission,pushEvent,moraleOf,assessOf,
-  fn:{autoPick,missileRash,missileOpening,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
+  fn:{autoPick,missileRash,missileOpening,shotHit,bodyAxes,runGoal,onSix,turnCap,fly,kill:destroyShip,critCount,foesOf,withdrawPoint,byId,wingOf,wingShips,wingCentre,anchorOf,pinnedBy,outnumbered,tacticOf,capsOf,gunRange,inArc,dist,maxShield,totalShield,lockOf,personalityOf,pickLeader,think,goalOf,jammed,extractPoint,mulberry,
     THINK_SECS_:()=>THINK_SECS,spreadOf,guardThreats,collideTick,missileShot,incomingMissile,misRange,misSpd,lockTarget,lockRange,throwChaff,misWpn,evadeVec,bodyR,rockR,LEAD_LOSS_:()=>LEAD_LOSS,PROMOTE_SECS_:()=>PROMOTE_SECS,TICK_:()=>TICK,HC_MAP_:()=>HC_MAP,HC_SPREAD_:()=>HC_SPREAD,
     CRUISE_:()=>CRUISE,FORM_GAP_:()=>FORM_GAP,ENGAGE_FRAC_:()=>ENGAGE_FRAC,MISSILE_LOCK_:()=>MISSILE_LOCK,JUMP_R_:()=>jumpR(),RANGE_MULT_:()=>RANGE_MULT,BURST_N_:()=>BURST_N,ESCORT_R_:()=>ESCORT_R,
     CAPTURE_R_:()=>CAPTURE_R,BOARD_R_:()=>BOARD_R,MORALE_:()=>({EAGER:MORALE_EAGER,SHAKEN:MORALE_SHAKEN,PANIC:MORALE_PANIC}),boardR,

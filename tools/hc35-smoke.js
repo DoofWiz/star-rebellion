@@ -31,7 +31,7 @@ const base='file://'+path.resolve(__dirname,'../game/index.html');
  // re-recorded (hc-4, 27 October 2026) when Type 3's rules, command points and commands came out: the hash's command-point
  // slot is a constant 0 now (hc1 and hc2 play exactly as before; their hashes moved with that slot alone), and hc3 no
  // longer has Bring It Down standing (was 36bcc72e, fcae4af0, 344375cb at hc-3, 22 October)
- const HC35_BASE={hc1_nightfall:'ccfafdf',hc2_lastlight:'83466823',hc3_meltdown:'d6f7dad7'};   // re-recorded 27 October: green pilots may fire missiles early, a fried emitter stops Boost Shields (hc-5)
+ const HC35_BASE={hc1_nightfall:'8ec40b92',hc2_lastlight:'95f8f08',hc3_meltdown:'eedda448'};   // re-recorded 27 October: green pilots may fire missiles early, a fried emitter stops Boost Shields (hc-5); ships hit on their art's outline, guns 0.4 (hc-6)
  const t35a=await pgH.evaluate((FIX)=>{
   const H=window.DBGarena.hc,f=H.fn,SIM=H.SIM,out={hash:{}};
   const orders={hc1_nightfall:['dagger','attack',{type:'class',cls:'mote'}],hc2_lastlight:['ash','defend',{type:'ship',id:'lastlight'}],hc3_meltdown:['hammer','board',{type:'station',id:'reactor'}]};

@@ -13,7 +13,7 @@
 window.SIMHC35=(function(){
 const Math=window.SR_DMATH;   // deterministic maths, as sim-hc.js (det-math.js)
 const SIM=window.SIMHC,F=SIM.fn,HK=SIM.hooks;
-const SIM_VERSION='hc35-18';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
+const SIM_VERSION='hc35-19';   // bump in any commit that changes how the layer plays (the flight recorder's harness warns on a mismatch)
 const TH=SR.theme,C=TH.C;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -78,7 +78,7 @@ const N={ENG_HP:120,COMMS_HP:60,PD_HP:40,CARGO_HP:25,   // subsystem hit points 
   CAP_TURN:0.05,CAP_TURN_ALARM:0.08,CAP_REALIGN:3,
   DOCK_STAGE:600,DOCK_SPD:0.3,DOCK_SNAP:80,
   RAM_SPD:1.4,RAM_HULL:120,RAM_ARM:60,RAM_CORE:60,
-  PD_TRAVERSE:0.9,PD_ON_TARGET:0.08,PD_RETARGET:2,PD_LAG:0.4,PD_SPREAD_BASE:0.02,PD_TRANSV_K:0.25,PD_SPREAD_MAX:0.35,PD_ARC:3.49,
+  PD_TRAVERSE:0.9,PD_ON_TARGET:0.08,PD_RETARGET:2,PD_LAG:0.4,PD_SPREAD_BASE:0.055,PD_TRANSV_K:0.45,PD_SPREAD_MAX:0.35,PD_ARC:3.49,
   INTIM_STANDOFF:600,EXEC_STALL:90,POD_CAPTURE_R:2500,
   // feedback 2, L2: a retreating ship keeps this share of a hostile's push, and only sideways; a ship fights back at
   // whoever hit it in the last DEFEND_HIT seconds, or has guns on it
@@ -209,7 +209,7 @@ const OPPORTUNITIES={
     cast:[{id:'depots',type:'structure',name:'the fuel depots',side:'heg',tags:['destructible'],
             of:[{type:'fuel-depot',id:'depot1',name:'Depot 1',stats:{hull:14,arm:0},at:[3000,1400]},{type:'fuel-depot',id:'depot2',name:'Depot 2',stats:{hull:14,arm:0},at:[3900,700]},
                 {type:'fuel-depot',id:'depot3',name:'Depot 3',stats:{hull:14,arm:0},at:[4400,2200]},{type:'fuel-depot',id:'depot4',name:'Depot 4',stats:{hull:14,arm:0},at:[5300,1300]}]},
-          {id:'sentries',type:'force',name:'the sentry drones',side:'heg',tags:[],guards:'depots',ring:420,nuisance:true,dmgK:0.35,of:[{type:'drone-monitor',n:4,name:'Sentry',stats:{hull:3,arm:0}}]},   // easy kills, and plenty of them (the FTUE doc)
+          {id:'sentries',type:'force',name:'the sentry drones',side:'heg',tags:[],guards:'depots',ring:420,nuisance:true,dmgK:0.25,of:[{type:'drone-monitor',n:4,name:'Sentry',stats:{hull:3,arm:0}}]},   // easy kills, and plenty of them (the FTUE doc)
           {id:'home',type:'point',name:'our jump point',side:'reb',at:[300,900]}],
     events:{}},
   patrol_sweep:{id:'patrol_sweep',title:'Patrol Sweep',type:'patrol',typeLabel:'Patrol',

@@ -2619,3 +2619,24 @@ Every line in Type 3.5 is lab copy you'll rewrite: the opportunity's lead, the m
 rule cards, the wings' takes, the critique lines, the request lines, the power cards and the debrief's lines. None of
 it reaches the campaign without the normal `[TEXT NEEDED]` flow.
 **Your call** (the designer, 27 October 2026): an export of all the copy in the game that Claude wrote, not the designer's own, to review and edit; anything AI-written needs their look. _Building._
+
+### C-92 🟡 A shot past a shield reaches the hull, on every ship: what I found
+Your freighter notes of 22 October; items 1, 3, 4 and 5 are resolved (the Resolved log), and the full entry is in
+`docs/archive/DESIGN_BLOCKERS-RETIRED.md`.
+
+2. **A shot past her shields lands on her hull**, and your call of 27 October: this must hold for every ship, so a shot
+   past a shield that's down or absent reaches the hull.
+   - **What I found.** Only the freighter has a shape of her own. Every other ship is hit on one ellipse, the same with
+     its shield up or down, and I measured it against each ship's art: it sits well inside, about half the art's length
+     and width (a Talon's ellipse is 31 × 14 against art of 49 × 28; a Brickbat's 37 × 17 against 73 × 38; only the
+     Monitor drone's runs past its nose, by 3). So a shot that crosses a wing or a nose flies on, shields up or down.
+     That's the bug you saw.
+   - **What I tried.** Every ship gets an outline from its art, as the freighter has (`ART_FIT`, with a panel
+     setting). It works, but it makes every ship 2 to 4 times the target, so every fight changes: Sera loses Torch the
+     Depots (the drones hit her far more), and point defence hits a Brickbat's bomb run 78% of the time where K2 aimed
+     for 25–40%. I've set it aside (a small change, ready to put back); the game is as it was.
+   - **Your call:** (a) the outline from the art for every ship, and I retune the fights to match (gun damage, the
+     depots' drones, point defence); (b) the ships drawn smaller, to fit the outline they're hit on, so nothing in a
+     fight changes; or (c) leave it.
+
+**Your call:** _open_
