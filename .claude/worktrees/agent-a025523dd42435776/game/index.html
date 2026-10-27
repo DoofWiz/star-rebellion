@@ -1,0 +1,441 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#04060d">
+<meta name="apple-mobile-web-app-title" content="Star Rebellion">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Star Rebellion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Exo+2:wght@500;600;700;800&display=swap">
+<style>
+/* page furniture only; every scene is styled by ui/sr-theme.css, ui/sr-hud.css and ui/scenes.css */
+:root{color-scheme:dark;}
+html{height:100%;-webkit-text-size-adjust:100%;touch-action:manipulation;overscroll-behavior:none;}
+body{height:100%;margin:0;background:var(--sr-void);color:var(--sr-text);font-family:var(--sr-font-ui);overflow:hidden;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
+[hidden]{display:none!important;}
+canvas{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+.scene{box-sizing:border-box;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}
+</style>
+<link rel="stylesheet" href="ui/sr-theme.css">
+<link rel="stylesheet" href="ui/sr-kit.css">
+<link rel="stylesheet" href="ui/sr-report.css">
+<link rel="stylesheet" href="ui/sr-personnel.css">
+<link rel="stylesheet" href="ui/sr-comm.css">
+<link rel="stylesheet" href="ui/sr-briefing.css">
+<link rel="stylesheet" href="ui/sr-shipfile.css">
+<link rel="stylesheet" href="ui/sr-intel.css">
+<link rel="stylesheet" href="ui/sr-plan.css">
+<link rel="stylesheet" href="ui/sr-hud.css">
+<link rel="stylesheet" href="ui/scenes.css">
+<link rel="stylesheet" href="ui/arena.css">
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><symbol id="i-credits" viewBox="0 0 24 24"><path d="M12 2.5 20.5 7.25v9.5L12 21.5 3.5 16.75v-9.5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5l3.2 4.5-3.2 4.5-3.2-4.5Z" fill="currentColor"/></symbol><symbol id="i-supplies" viewBox="0 0 24 24"><path d="M4 8h16v12H4Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 8l2-4h12l2 4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 12h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-materials" viewBox="0 0 24 24"><path d="M8 3.5h8l4.25 8.5L16 20.5H8L3.75 12Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-fuel" viewBox="0 0 24 24"><path d="M12 3s6.5 6.6 6.5 11.2a6.5 6.5 0 0 1-13 0C5.5 9.6 12 3 12 3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 14.5a2.8 2.8 0 0 0 2.8 2.8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-intel" viewBox="0 0 24 24"><path d="M12 2.75 20.5 12 12 21.25 3.5 12Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8.25 15.75 12 12 15.75 8.25 12Z" fill="currentColor"/></symbol><symbol id="i-revolution" viewBox="0 0 24 24"><path d="M6 21.5V3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 4h12.5l-3 4.25 3 4.25H6Z" fill="currentColor"/></symbol><symbol id="i-revflame" viewBox="0 0 24 24"><path d="M6 21.5V3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 4c2.6-.9 4.6.9 7.4 0l6-.6-3.1 2.9 4.1 1.6-4 1.6 2.6 3.1-5.6-.5C10.6 13 8.6 11.3 6 12.2Z" fill="currentColor"/><path d="M19.3 15.2a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" fill="currentColor"/><path d="M16.900000000000002 17.4a0.7 0.7 0 1 0 1.4 0a0.7 0.7 0 1 0 -1.4 0" fill="currentColor"/></symbol><symbol id="i-day" viewBox="0 0 24 24"><path d="M4 6h16v14H4Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 10.5h16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 3.5v5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 3.5v5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-signal" viewBox="0 0 24 24"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 1 0 -4 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 8a5.6 5.6 0 0 0 0 8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 8a5.6 5.6 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5a9.9 9.9 0 0 0 0 14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 5a9.9 9.9 0 0 1 0 14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-move" viewBox="0 0 24 24"><path d="M5 19 18 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 5.5h8.5V14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-sprint" viewBox="0 0 24 24"><path d="M4 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-hold" viewBox="0 0 24 24"><path d="M2.5 12S6 6 12 6s9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.4 12a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0" fill="currentColor"/></symbol><symbol id="i-cover" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.8-3.2 8.3-7.5 9.9-4.3-1.6-7.5-5.1-7.5-9.9V6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 12.2l2.4 2.4 4.6-4.8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-lockin" viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 17.0 0a8.5 8.5 0 1 0 -17.0 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0 -2.4 0" fill="currentColor"/></symbol><symbol id="i-loot" viewBox="0 0 24 24"><path d="M8.5 8V6a3.5 3.5 0 0 1 7 0v2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 8h14l-1.2 12.5H6.2Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-work" viewBox="0 0 24 24"><path d="M14.7 3.4a5 5 0 0 0-4.5 6.9l-6.5 6.5a2.1 2.1 0 0 0 3 3l6.5-6.5a5 5 0 0 0 6.9-4.5l-3 3-2.8-.6-.6-2.8 3-3a5 5 0 0 0-2-.6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-sneak" viewBox="0 0 24 24"><path d="M2.5 9.2c3.6-3.2 15.4-3.2 19 0v2.6c-2.1 4.6-5.5 6.2-9.5 6.2s-7.4-1.6-9.5-6.2Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.4 11.6c.9-1.4 3.6-1.4 4.4 0-.9 1.2-3.5 1.2-4.4 0Z" fill="currentColor"/><path d="M13.2 11.6c.9-1.4 3.6-1.4 4.4 0-.9 1.2-3.5 1.2-4.4 0Z" fill="currentColor"/></symbol><symbol id="i-attack" viewBox="0 0 24 24"><path d="M5 12a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 16.5V22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 12h5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.5 12H22" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.6 12a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0" fill="currentColor"/></symbol><symbol id="i-grenade" viewBox="0 0 24 24"><path d="M5.5 14.5a6.5 6.5 0 1 0 13.0 0a6.5 6.5 0 1 0 -13.0 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 8V5h4v3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 5.2l3.5-2.2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-stim" viewBox="0 0 24 24"><path d="M15 3l6 6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 6l-9.5 9.5-3.5.5.5-3.5L15 3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 7.5l2 2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 9.5l2 2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-clear" viewBox="0 0 24 24"><path d="M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-execute" viewBox="0 0 24 24"><path d="M4 5.5l8.5 6.5L4 18.5Z" fill="currentColor"/><path d="M12.5 5.5 21 12l-8.5 6.5Z" fill="currentColor"/></symbol><symbol id="i-gun" viewBox="0 0 24 24"><path d="M2 10.2h13.6l2.6-1.7H22v3.4l-2.8 1H9.6l-2 4H4.4l1.2-4H2Z" fill="currentColor"/></symbol><symbol id="i-pistol" viewBox="0 0 24 24"><path d="M3 7.5h15v4h-5.5l-1.6 5.5H6.8l1.6-5.5H3Z" fill="currentColor"/></symbol><symbol id="i-plasma" viewBox="0 0 24 24"><path d="M13.5 2 4 14h7l-1.5 8L19 10h-7Z" fill="currentColor"/></symbol><symbol id="i-ballistic" viewBox="0 0 24 24"><path d="M6 21v-9.5L8 6l2 5.5V21Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 21v-9.5L16 6l2 5.5V21Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-missile" viewBox="0 0 24 24"><path d="M4.5 19.5l2.6-5.8L16 4.8 20 4l-.8 4-8.9 8.9Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.1 13.7 4 13l1.5-2.6 3.8.2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.3 16.9 11 20l2.6-1.5-.2-3.8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-ship" viewBox="0 0 24 24"><path d="M12 2l8 18.5-8-4.2-8 4.2Z" fill="currentColor"/></symbol><symbol id="i-turret" viewBox="0 0 24 24"><path d="M4 20.5h16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 20.5v-4h10v4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 16.5v-3.5a3 3 0 0 1 6 0v3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11.5l7-4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-leave" viewBox="0 0 24 24"><path d="M10 4.5H5v15h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 12H9.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-enter" viewBox="0 0 24 24"><path d="M14 4.5h5v15h-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 12H4.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-switch" viewBox="0 0 24 24"><path d="M4 8h13" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 4.5 17.5 8 14 11.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 16H7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 12.5 6.5 16 10 19.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-vehicle" viewBox="0 0 24 24"><path d="M2.5 15.5V12l2.8-5h10.4l3 5h2.8v3.5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.3 12h13.4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.8 17a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0" fill="currentColor"/><path d="M14.8 17a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0" fill="currentColor"/></symbol><symbol id="i-unjam" viewBox="0 0 24 24"><path d="M5 13h10l3-2h2.5v3l-2 .8H10l-1.6 3H5.6l1-3H5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 4l1.5 3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 3v3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 4l-1.5 3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-hack" viewBox="0 0 24 24"><path d="M3 5h18v12H3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 9.5l2.5 2L7 13.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M11.5 13.5H15" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 20.5h7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-firesupport" viewBox="0 0 24 24"><path d="M5.5 13a6.5 6.5 0 1 0 13.0 0a6.5 6.5 0 1 0 -13.0 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.5v7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 13h7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 1.5l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1Z" fill="currentColor"/></symbol><symbol id="i-extract" viewBox="0 0 24 24"><path d="M12 21V8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 12.5l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 3.5h14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-targetlock" viewBox="0 0 24 24"><path d="M3.5 8.5v-5h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 3.5h5v5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 15.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 20.5h-5v-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5 16.5 12 12 16.5 7.5 12Z" fill="currentColor"/></symbol><symbol id="i-evade" viewBox="0 0 24 24"><path d="M3 18l4-6 4 3 4-8 3 4 3-3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-angle" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.8-3.2 8.3-7.5 9.9-4.3-1.6-7.5-5.1-7.5-9.9V6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 12a3.5 3.5 0 0 1 6.2-2.2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.9 7.5v2.6h-2.6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-boost" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.8-3.2 8.3-7.5 9.9-4.3-1.6-7.5-5.1-7.5-9.9V6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8.5v7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 12h7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-patch" viewBox="0 0 24 24"><path d="M4.6 13.9 13.9 4.6a3.3 3.3 0 0 1 4.7 0l.8.8a3.3 3.3 0 0 1 0 4.7l-9.3 9.3a3.3 3.3 0 0 1-4.7 0l-.8-.8a3.3 3.3 0 0 1 0-4.7Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 10h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 14h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 12h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-roll" viewBox="0 0 24 24"><path d="M3.5 12a8.5 4 0 1 0 17 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 12a8.5 4 0 0 0-14-3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 6.5l1.5 2.6 2.8-.8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.5 14.5 12 12 14.5 9.5 12Z" fill="currentColor"/></symbol><symbol id="i-pass" viewBox="0 0 24 24"><path d="M6 5v14" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 5l9 7-9 7Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-people" viewBox="0 0 24 24"><path d="M5.8 8a3.2 3.2 0 1 0 6.4 0a3.2 3.2 0 1 0 -6.4 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 19.5c.6-3.6 3-5.5 6-5.5s5.4 1.9 6 5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 4.9a3.2 3.2 0 0 1 0 6.2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 14.2c2.2.6 3.6 2.4 4 5.3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-dial" viewBox="0 0 24 24"><path d="M12 20V8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 12 12 7.5 16.5 12" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 20a7 7 0 0 1 2-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 20a7 7 0 0 0-2-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-cool" viewBox="0 0 24 24"><path d="M12 3v18" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.2 7.5l15.6 9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.2 16.5l15.6-9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 4.5 12 7l2.5-2.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 19.5 12 17l2.5 2.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-panic" viewBox="0 0 24 24"><path d="M12 3.2 21.8 20H2.2Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9.5v4.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17.2h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.2 12a2.8 2.8 0 1 0 5.6 0a2.8 2.8 0 1 0 -5.6 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.2s-8.2-5-8.2-10.8A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.2 2.4c0 5.8-8.2 10.8-8.2 10.8Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-skull" viewBox="0 0 24 24"><path d="M4.8 11a7.2 7.2 0 1 1 14.4 0v4.2h-3V19H7.8v-3.8h-3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 11.2h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 11.2h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 19v-2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 19v-2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-lock" viewBox="0 0 24 24"><path d="M5.5 11h13v10h-13Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-sword" viewBox="0 0 24 24"><path d="M20 4 9.5 14.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4h-4.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v4.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 11.5l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.2 15.8 4 20" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.8-3.2 8.3-7.5 9.9-4.3-1.6-7.5-5.1-7.5-9.9V6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-d20" viewBox="0 0 24 24"><path d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2.5 7.5 15h9Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 7.3 7.5 15 3.5 16.7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 7.3 16.5 15l4 1.7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 15 12 21.5 16.5 15" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-soldier" viewBox="0 0 24 24"><path d="M5 13.5a7 7 0 0 1 14 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 13.5h17" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 13.5v3.5a4 4 0 0 0 8 0v-3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-pilot" viewBox="0 0 24 24"><path d="M5 14a7 7 0 0 1 14 0v4.5H5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 11.5h7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.5 11l2.5 1" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M21.5 11l-2.5 1" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-support" viewBox="0 0 24 24"><path d="M4.5 14v-2a7.5 7.5 0 0 1 15 0v2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 14h3v5.5h-3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.5 14h3v5.5h-3Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 19.5c0 1.5-2 2.5-5 2.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-marine" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.8-3.2 8.3-7.5 9.9-4.3-1.6-7.5-5.1-7.5-9.9V6Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10.5h8v3H8Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-galaxy" viewBox="0 0 24 24"><path d="M7 12a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.3 8.6C2.8 9.8 1.6 11.3 2.2 12.5c1 2 6.4 1.4 12-1.4S23 4.9 22 2.9c-.5-1-2.2-1.2-4.4-.6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-missions" viewBox="0 0 24 24"><path d="M6.5 4.5h11v17h-11Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 2.5h5v3.5h-5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 11h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.5 15h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-base" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7v10h-17Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 21v-5.5h4V21" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-hangar" viewBox="0 0 24 24"><path d="M3 20.5V11a9 9 0 0 1 18 0v9.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M1.5 20.5h21" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 20.5V15h8v5.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-zoomin" viewBox="0 0 24 24"><path d="M3.5 10.5a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 20.5 15.5 15.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 10.5h6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 7.5v6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-zoomout" viewBox="0 0 24 24"><path d="M3.5 10.5a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 20.5 15.5 15.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 10.5h6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 4h5v5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-follow" viewBox="0 0 24 24"><path d="M2.5 7h12v10h-12Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.5 10.5l7-3.5v10l-7-3.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-soundon" viewBox="0 0 24 24"><path d="M3.5 9h4l5-4v14l-5-4h-4Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.2 8.8a4.6 4.6 0 0 1 0 6.4" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M18.8 6.2a8.3 8.3 0 0 1 0 11.6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-soundoff" viewBox="0 0 24 24"><path d="M3.5 9h4l5-4v14l-5-4h-4Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16.5 9.5l5 5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M21.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6.5h16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 12h16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 17.5h16" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-help" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M9.4 9.4a2.6 2.6 0 1 1 3.6 2.4c-.6.3-1 .9-1 1.6v.6" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 17.2h.01" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-restart" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 3.5v4.5H9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-debug" viewBox="0 0 24 24"><path d="M8 8.5a4 4 0 0 1 8 0V16a4 4 0 0 1-8 0Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 12.5H8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 12.5h4.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 7l3.5 2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 7 16 9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 19l3.5-2.2" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.5 19 16 16.8" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-comms" viewBox="0 0 24 24"><path d="M3.5 4.5h17v11.5h-10l-6 4.5Z" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol><symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
+<div class="scene sr-app sr-root" id="sc-base">
+<div class="sr-shell has-revhub">
+  <header class="sr-topbar sr-topbar--hub">
+    <div class="sr-topbar__side">
+      <div class="sr-topbar__id"><div class="sr-topbar__title">Haven Rock</div><div class="sr-topbar__sub">Hidden base</div></div>
+      <div class="sr-resbar">
+        <span class="sr-res sr-res--credits" id="resCW" title="Credits"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-credits"/></svg></span><span class="sr-res__txt"><span class="sr-res__val" id="resC">0</span><span class="sr-res__lbl">Credits</span></span></span>
+        <span class="sr-res sr-res--supplies" id="resSW" title="Supplies — food, medicine, morale"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-supplies"/></svg></span><span class="sr-res__txt"><span class="sr-res__val" id="resS">0</span><span class="sr-res__lbl">Supplies</span></span></span>
+      </div>
+    </div>
+    <div class="sr-revhub" id="revHub" style="--p:0" tabindex="0" aria-label="Revolution Level 1"><span class="sr-revhub__ring"></span><span class="sr-revhub__core"><svg class="sr-ico"><use href="#i-revflame"/></svg><span class="sr-revhub__lvl" id="revNum">I</span><span class="sr-revhub__lbl">REV</span></span><span class="sr-revhub__tip" id="revTip"></span></div>
+    <div class="sr-topbar__side">
+      <div class="sr-resbar">
+        <span class="sr-res sr-res--materials" id="resMW" title="Materials — build and repair"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-materials"/></svg></span><span class="sr-res__txt"><span class="sr-res__val" id="resM">0</span><span class="sr-res__lbl">Materials</span></span></span>
+        <span class="sr-res sr-res--fuel" id="resFW" title="Fuel — burned by every sortie"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-fuel"/></svg></span><span class="sr-res__txt"><span class="sr-res__val" id="resF">0</span><span class="sr-res__lbl">Fuel</span></span></span>
+        <span class="sr-res sr-res--intel" id="resIW" title="Intel — spend it to scout worlds; the reserve is our early warning"><span class="sr-res__ico"><svg class="sr-ico"><use href="#i-intel"/></svg></span><span class="sr-res__txt"><span class="sr-res__val" id="resI">0</span><span class="sr-res__lbl">Intel</span></span></span>
+      </div>
+      <div class="sr-topbar__tools">
+        <span class="sr-day"><svg class="sr-ico"><use href="#i-day"/></svg>Day <b id="dayLbl">1</b></span>
+        <button class="sr-btn sr-btn--icon sr-desk-only" id="soundBtn" aria-label="Sound on" title="Sound on"><svg class="sr-ico"><use href="#i-soundon"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="menuBtn" aria-label="Menu" aria-haspopup="true" aria-expanded="false"><svg class="sr-ico"><use href="#i-menu"/></svg></button>
+        <div class="sr-menu" id="baseMenu" role="menu" hidden>
+          <button class="sr-menu__item" id="menuNews" role="menuitem"><svg class="sr-ico"><use href="#i-comms"/></svg>All news</button>
+          <button class="sr-menu__item" id="menuSound" role="menuitem"><svg class="sr-ico"><use href="#i-soundon"/></svg><span>Sound: on</span></button>
+          <button class="sr-menu__item" id="menuShake" role="menuitem"><svg class="sr-ico"><use href="#i-fit"/></svg><span>Screen shake: on</span></button>
+          <button class="sr-menu__item" id="menuGore" role="menuitem"><svg class="sr-ico"><use href="#i-heart"/></svg><span>Blood: on</span></button>
+          <button class="sr-menu__item" id="menuPro" role="menuitem" hidden><svg class="sr-ico"><use href="#i-debug"/></svg><span>Debug: Prologue</span></button>
+          <div class="sr-menu__sep"></div>
+          <button class="sr-menu__item sr-menu__item--danger" id="restartBtn" role="menuitem"><svg class="sr-ico"><use href="#i-restart"/></svg><span>Restart</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="sr-stage">
+    <canvas id="cv"></canvas>
+    <div class="kit-view ar-view" id="arView" hidden>
+      <div class="ar-body">
+        <div class="ar-dossier" id="arDossier"></div>
+        <div class="ar-main" id="arMain"></div>
+      </div>
+    </div>
+    <div class="kit-view bf-stage" id="msView" hidden>
+      <div class="bf-board" id="msBoard"></div>
+      <div class="bf-holo" id="msHolo"></div>
+    </div>
+    <div class="kit-view in-stage" id="inView" hidden></div>
+    <div class="kit-view bm-view" id="bmView" hidden>
+      <div class="bm-stall" id="bmStall"></div>
+    </div>
+    <div class="sr-slot-tl">
+      <div class="sr-window sr-window--sm bs-dock" id="roomViewBar" hidden></div>
+      <div id="gxDock" hidden></div>
+    </div>
+    <div class="sr-slot-tc">
+      <div class="sr-tabs" role="tablist">
+        <button class="sr-tab" id="navBase" role="tab" aria-selected="true"><svg class="sr-ico"><use href="#i-base"/></svg>Base</button>
+        <button class="sr-tab" id="navSources" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-galaxy"/></svg>Galaxy<span class="sr-badge" id="srcBadge" hidden>0</span></button>
+        <button class="sr-tab" id="navMissions" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-missions"/></svg>Missions<span class="sr-badge" id="misBadge" hidden>0</span></button>
+        <button class="sr-tab" id="navIntel" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-eye"/></svg>Intelligence<span class="sr-badge" id="inBadge" hidden>0</span></button>
+        <button class="sr-tab" id="navArsenal" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-loot"/></svg>Arsenal</button>
+        <button class="sr-tab" id="navMarket" role="tab" aria-selected="false"><svg class="sr-ico"><use href="#i-credits"/></svg><span class="nav-market-l">Black Market</span><span class="nav-market-s">Market</span><span class="sr-badge" id="bmBadge" hidden>6</span></button>
+        <button class="sr-tab sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Crew and flight" aria-expanded="false"><svg class="sr-ico"><use href="#i-people"/></svg></button>
+      </div>
+      <div class="sr-toast" id="flashB" hidden role="status"></div>
+    </div>
+    <div id="gxChips" hidden></div>
+    <div class="sr-slot-tr" id="gxTools" hidden></div>
+    <div class="sr-slot-bl">
+      <div class="sr-comms" id="feed" aria-live="polite">
+        <div id="feedLines" class="bs-feedlines"></div>
+        <button class="sr-btn sr-btn--ghost sr-btn--sm sr-comms__more" id="newsBtn"><svg class="sr-ico"><use href="#i-comms"/></svg>All news</button>
+      </div>
+    </div>
+    <div class="sr-slot-br">
+      <!-- out of combat there is no command bar: Advance day on its own (docs/ui/SCREENS-HANDOFF.md §0.1) -->
+      <div class="bf-go" id="baseGo">
+        <button class="sr-btn sr-btn--primary sr-btn--lg sr-btn--go" id="dayBtn">Advance day<svg class="sr-ico"><use href="#i-execute"/></svg></button>
+      </div>
+    </div>
+    <div class="bs-estsplash" id="estSplash" hidden><div class="bs-est__big">BASE ESTABLISHED</div><div class="bs-est__sub">Haven Rock</div></div>
+    <div class="sr-window sr-window--sm bs-pop" id="tilePop" hidden></div>
+    <div class="sr-scrim" id="winsB" hidden><div class="sr-window" id="winCardB"></div></div>
+  </div>
+  <aside class="sr-rail" id="panel">
+    <div class="sr-rail__scroll" id="railGx" hidden></div>
+    <div class="sr-rail__scroll in-rail" id="railIntel" hidden></div>
+    <div class="sr-rail__scroll" id="railBase">
+      <section>
+        <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-pilot"/></svg>Pilots<span class="sr-section__count" id="pilotCount"></span></div>
+        <div class="sr-stack" id="pilotList"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico"><use href="#i-soldier"/></svg>Soldiers<span class="sr-section__count" id="soldierCount"></span></div>
+        <div class="sr-stack" id="soldierList"></div>
+      </section>
+      <section id="heroSec" hidden>
+        <div class="sr-section__head sr-section__head--action"><svg class="sr-ico"><use href="#i-star"/></svg>Heroes<span class="sr-section__count" id="heroCount"></span></div>
+        <div class="sr-stack" id="heroList"></div>
+      </section>
+      <section id="marSec" hidden>
+        <div class="sr-section__head sr-section__head--progress"><svg class="sr-ico"><use href="#i-marine"/></svg>Marines<span class="sr-section__count" id="marineCount"></span></div>
+        <div class="sr-stack" id="marineList"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--good"><svg class="sr-ico"><use href="#i-support"/></svg>Support<span class="sr-section__count" id="supportCount"></span></div>
+        <div class="sr-stack" id="supportList"></div>
+      </section>
+      <div class="sr-railhint" id="crewHint">Double-click anyone for their file</div>
+      <section>
+        <div class="sr-section__head sr-section__head--info"><svg class="sr-ico"><use href="#i-ship"/></svg>Flight<span class="sr-section__count" id="fleetCount"></span></div>
+        <div class="sr-stack" id="fleetList"></div>
+        <div class="sr-railhint" id="fleetHint">Double-click a ship to step into the hangar</div>
+      </section>
+      <section id="vehSec" hidden>
+        <div class="sr-section__head sr-section__head--info"><svg class="sr-ico"><use href="#i-vehicle"/></svg>Vehicles and Bots<span class="sr-section__count" id="vehCount"></span></div>
+        <div class="sr-stack" id="vehList"></div>
+      </section>
+      <div id="railArsenal" hidden></div>
+      <div id="railMarket" hidden></div>
+      <div id="railMissions" hidden></div>
+    </div>
+  </aside>
+</div>
+<div class="sr-pointer" id="tutPtr" hidden><span class="sr-pointer__label"></span><span class="sr-pointer__arrow"></span></div>
+<div class="sr-coach" id="tutCoach" role="status" hidden></div>
+</div>
+<div class="scene sr-app sr-root" id="sc-space" hidden>
+<div class="sr-shell" id="app">
+  <header class="sr-topbar">
+    <div class="sr-topbar__id">
+      <div class="sr-topbar__title" id="spTop">Star Rebellion</div>
+      <div class="sr-topbar__sub" id="spSub">Mission</div>
+    </div>
+    <div class="sr-topbar__mid">
+      <div class="sr-phase" id="phasePlate" data-phase="plan" data-status="alert" aria-live="polite">
+        <span class="sr-phase__status"><svg class="sr-ico" aria-hidden="true"><use href="#i-targetlock"/></svg><span class="sr-phase__text">Engaged</span></span>
+        <span class="sr-phase__name">Planning</span>
+        <span class="sr-phase__round">Round 1</span>
+      </div>
+    </div>
+    <div class="sr-topbar__tools">
+      <div class="sr-btngroup sr-desk-only">
+        <button class="sr-btn sr-btn--icon" id="zoomOut" aria-label="Zoom out"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomout"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomIn" aria-label="Zoom in"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomin"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomFit" aria-label="Fit map"><svg class="sr-ico" aria-hidden="true"><use href="#i-fit"/></svg></button>
+      </div>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="followBtn" aria-label="Follow camera" aria-pressed="true"><svg class="sr-ico" aria-hidden="true"><use href="#i-follow"/></svg></button>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="muteBtn" aria-label="Sound on"><svg class="sr-ico" aria-hidden="true"><use href="#i-soundon"/></svg></button>
+      <button class="sr-btn sr-btn--icon" id="menuBtn" aria-label="Menu: controls, restart, debug"><svg class="sr-ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+    <div class="sr-menu" id="sMenu" role="menu" hidden></div>
+  </header>
+  <div class="sr-stage sr-hud" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
+    <div class="sr-slot-tl">
+      <div class="sr-objectives" id="objBox" hidden>
+        <div class="sr-objectives__head"><svg class="sr-ico" aria-hidden="true"><use href="#i-star"/></svg>Objectives</div>
+        <div id="objList"></div>
+      </div>
+    </div>
+    <div class="sr-slot-tr">
+      <button class="sr-btn sr-btn--icon sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Flight and contacts"><svg class="sr-ico" aria-hidden="true"><use href="#i-people"/></svg><span class="sr-badge" id="drawerBadge" hidden>!</span></button>
+      <canvas class="sr-minimap" id="mm" aria-label="Minimap"></canvas>
+      <div class="sr-comms" id="comms" aria-live="polite"></div>
+      <button class="sr-btn sr-btn--ghost sr-btn--sm sr-comms__more" id="logBtn">All reports</button>
+    </div>
+    <div class="sr-slot-bc" id="sBottom">
+      <button class="sr-pill" id="lockPill" hidden></button>
+      <div id="vsHost" class="sr-hud__host" hidden></div>
+      <div id="ctlDock" class="sr-hud__host" hidden></div>
+    </div>
+    <div class="sr-banner" id="csBanner" aria-hidden="true"><div class="sr-banner__txt"><span class="big">Take Out Instructor</span><span class="sr-banner__sub small">Eliminate Commandant Vex</span></div></div>
+    <button class="sr-btn sr-btn--sm sr-btn--ghost" id="csSkip" hidden>Skip</button>
+  </div>
+  <aside class="sr-rail" id="panel">
+    <div class="sr-rail__scroll">
+      <button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-phone-only sr-rail__close" id="railClose" aria-label="Close"><svg class="sr-ico" aria-hidden="true"><use href="#i-clear"/></svg></button>
+      <section>
+        <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg>Your flight<span class="sr-section__count" id="flightCount"></span></div>
+        <div class="sr-stack" id="rosterR"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--foe"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg>Hegemony contacts<span class="sr-section__count" id="foeCount"></span></div>
+        <div class="sr-stack" id="rosterE"></div>
+      </section>
+      <div class="sr-railhint">Double-click a ship for its pilot and systems</div>
+    </div>
+  </aside>
+</div>
+<div class="sr-scrim" id="infoWins" hidden>
+  <div class="sp-wins">
+    <div class="sr-window sf-win" id="sfWin" role="dialog" aria-label="Starfighter"></div>
+  </div>
+</div>
+<div class="sr-scrim" id="briefing">
+  <div class="sr-window">
+    <div class="sr-brief__hero">
+      <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg><span id="spEyebrow">Space operation</span></span>
+      <h3 class="sr-brief__title" id="spTitle">&#8212;</h3>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="spFlavour"></p>
+      <div class="sr-h3">Objectives</div>
+      <div id="spObj"></div>
+      <div class="sr-h3">Your flight</div>
+      <div class="sr-team" id="spFlight"></div>
+      <p class="sr-fine">Drag to pan, scroll to zoom. Double-click any fighter for its pilot and ship.</p>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg" id="deployBtn">Start</button></div>
+  </div>
+</div>
+<div class="sr-scrim" id="endscreen" hidden>
+  <div class="sr-window">
+    <div class="sr-brief__hero sr-brief__hero--stamp">
+      <div>
+        <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-ship"/></svg><span id="endEyebrow">Mission report</span></span>
+        <h3 class="sr-brief__title" id="endTitle">&#8212;</h3>
+      </div>
+      <span class="sr-stamp sr-stamp--action" id="endStamp">Secured</span>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="endText">&#8212;</p>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg" id="endRestartBtn">Continue</button></div>
+  </div>
+</div>
+</div>
+<div class="scene sr-app sr-root" id="sc-ground" hidden>
+<div class="sr-shell" id="app">
+  <header class="sr-topbar">
+    <div class="sr-topbar__id">
+      <div class="sr-topbar__title" id="gTitle">Steal the Cross</div>
+      <div class="sr-topbar__sub" id="gSub">Dustfall · Akkaro — Revolution I</div>
+    </div>
+    <div class="sr-topbar__mid">
+      <div class="sr-phase" id="phasePlate" data-phase="free" data-status="calm" aria-live="polite">
+        <span class="sr-phase__status"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="sr-phase__text">Town is calm</span></span>
+        <span class="sr-phase__name">Free move</span>
+        <span class="sr-phase__round">Round 1</span>
+      </div>
+    </div>
+    <div class="sr-topbar__tools">
+      <div class="sr-btngroup sr-desk-only">
+        <button class="sr-btn sr-btn--icon" id="zoomOut" aria-label="Zoom out"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomout"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomIn" aria-label="Zoom in"><svg class="sr-ico" aria-hidden="true"><use href="#i-zoomin"/></svg></button>
+        <button class="sr-btn sr-btn--icon" id="zoomFit" aria-label="Fit map"><svg class="sr-ico" aria-hidden="true"><use href="#i-fit"/></svg></button>
+      </div>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="followBtn" aria-label="Follow camera" aria-pressed="true"><svg class="sr-ico" aria-hidden="true"><use href="#i-follow"/></svg></button>
+      <button class="sr-btn sr-btn--icon sr-desk-only" id="muteBtn" aria-label="Sound on"><svg class="sr-ico" aria-hidden="true"><use href="#i-soundon"/></svg></button>
+      <button class="sr-btn sr-btn--icon" id="menuBtn" aria-label="Menu: controls, restart, debug"><svg class="sr-ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+    <div class="sr-menu" id="gMenu" role="menu" hidden></div>
+  </header>
+  <div class="sr-stage sr-hud" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
+    <div class="sr-slot-tl">
+      <div class="sr-fs" id="fsBox" hidden>
+        <div class="sr-hud__host" id="fsBtnHost"></div>
+        <div class="sr-window sr-window--sm" id="fsMenu" hidden></div>
+      </div>
+      <div class="sr-objectives" id="objBox" hidden>
+        <div class="sr-objectives__head"><svg class="sr-ico" aria-hidden="true"><use href="#i-star"/></svg>Objectives</div>
+        <div id="objList"></div>
+      </div>
+      <div class="sr-coach" id="tutCard" hidden>
+        <div class="sr-coach__head"><span class="sr-coach__title" id="tutStep"></span><span class="sr-coach__dots" id="tutDots"></span></div>
+        <div id="tutText"></div>
+        <div class="sr-coach__foot" id="tutFoot" hidden><button class="sr-btn sr-btn--primary sr-btn--sm" id="tutGotIt">Got it</button></div>
+      </div>
+    </div>
+    <div class="sr-slot-tr">
+      <button class="sr-btn sr-btn--icon sr-drawerbtn sr-phone-only" id="drawerBtn" aria-label="Squad and enemies"><svg class="sr-ico" aria-hidden="true"><use href="#i-people"/></svg><span class="sr-badge" id="drawerBadge" hidden>!</span></button>
+      <canvas class="sr-minimap" id="mm" aria-label="Minimap"></canvas>
+      <div class="sr-comms" id="comms" aria-live="polite"></div>
+      <button class="sr-btn sr-btn--ghost sr-btn--sm sr-comms__more" id="logBtn">All reports</button>
+    </div>
+    <div class="sr-slot-bc" id="gBottom">
+      <button class="sr-pill" id="pickPill" hidden></button>
+      <div id="vsHost" class="sr-hud__host" hidden></div>
+      <div id="ctlDock" class="sr-hud__host" hidden></div>
+    </div>
+    <div class="sr-banner" id="csBanner" aria-hidden="true"><div class="sr-banner__txt"><span class="big">Steal the Cross</span><span class="sr-banner__sub small">Sheriff&#8217;s law is Hegemony law</span></div></div>
+    <button class="sr-btn sr-btn--sm sr-btn--ghost" id="csSkip" hidden>Skip</button>
+  </div>
+  <aside class="sr-rail" id="panel">
+    <div class="sr-rail__scroll">
+      <button class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost sr-phone-only sr-rail__close" id="railClose" aria-label="Close"><svg class="sr-ico" aria-hidden="true"><use href="#i-clear"/></svg></button>
+      <section>
+        <div class="sr-section__head sr-section__head--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-soldier"/></svg>Squad<span class="sr-section__count" id="squadCount"></span></div>
+        <div class="sr-stack" id="rosterR"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--foe"><svg class="sr-ico" aria-hidden="true"><use href="#i-eye"/></svg><span id="foeHead">Sheriff&#8217;s Men</span><span class="sr-section__count" id="foeCount"></span></div>
+        <div class="sr-stack" id="rosterE"></div>
+      </section>
+      <section>
+        <div class="sr-section__head sr-section__head--good"><svg class="sr-ico" aria-hidden="true"><use href="#i-loot"/></svg>Loot carried</div>
+        <div class="sr-stack" id="lootTally"></div>
+      </section>
+    </div>
+  </aside>
+</div>
+<div class="sr-scrim" id="gCassComm" hidden>
+  <div class="sr-window sr-window--sm sr-window--friend">
+    <div class="sr-window__head"><span class="sr-window__title">Incoming transmission</span><span class="sr-window__tags"><span class="sr-tag sr-tag--friend">Cass Wender</span></span></div>
+    <div class="sr-window__body">
+      <canvas id="gCommStatic" class="sr-signal"></canvas>
+      <div class="sr-quote"><div class="sr-quote__who"><svg class="sr-ico" aria-hidden="true"><use href="#i-signal"/></svg>Cass Wender</div>&#8220;See? Told you I could get your guys in there! We didn&#8217;t exchange names earlier: I&#8217;m Cass. Best smuggler this side of the Drift. You paid good money to get these firebrands of yours to this spot, and looks like you&#8217;ve got some unwelcome visitors in your new digs! Good thing you paid for the air cover package. I&#8217;ll watch your guys&#8217; backs while they do their thing. Whatever their thing is.&#8221;</div>
+    </div>
+    <div class="sr-window__foot"><span class="sr-window__note">carrier locked &#183; unregistered freighter</span><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary" id="cassAckBtn">Acknowledge</button></div>
+  </div>
+</div>
+<div class="sr-scrim" id="briefing">
+  <div class="sr-window">
+    <div class="sr-brief__hero">
+      <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-soldier"/></svg><span id="gEyebrow">Ground operation</span></span>
+      <h3 class="sr-brief__title" id="gTitleB">&#8212;</h3>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="gFlavour"></p>
+      <div class="sr-h3">Objectives</div>
+      <div id="gObj"></div>
+      <div class="sr-h3">The team</div>
+      <div class="sr-team" id="gSquad"></div>
+      <p class="sr-fine" id="gHint"></p>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn sr-btn--primary sr-btn--lg" id="enterBtn">Start</button></div>
+  </div>
+</div>
+<div class="sr-scrim" id="endscreen" hidden>
+  <div class="sr-window">
+    <div class="sr-brief__hero sr-brief__hero--stamp">
+      <div>
+        <span class="sr-tag sr-tag--friend"><svg class="sr-ico" aria-hidden="true"><use href="#i-soldier"/></svg><span id="endEyebrow">Mission report</span></span>
+        <h3 class="sr-brief__title" id="endTitle">&#8212;</h3>
+      </div>
+      <span class="sr-stamp sr-stamp--action" id="endStamp">Secured</span>
+    </div>
+    <div class="sr-window__body">
+      <p class="sr-p" id="endText">&#8212;</p>
+      <div class="sr-stack" id="endLoot"></div>
+    </div>
+    <div class="sr-window__foot"><span class="sr-spacer"></span><button class="sr-btn" id="endRestartBtn">Continue</button><button class="sr-btn sr-btn--primary sr-btn--lg" id="endRetryBtn" hidden>Retry mission</button></div>
+  </div>
+</div>
+</div>
+<!-- Type 3.5's scene (space35.js): campaign missions, and the test opportunity with ?dev (?dev#arena). Arena v2, SB Test and Type 3's picker are archived (archive/README.md) -->
+<div class="scene sr-app sr-root" id="sc-space35" hidden>
+<div class="hc-root sr-root" id="arHc" hidden>
+<div class="hc-shell">
+  <div class="hc-stage" id="hcStage">
+    <canvas id="hcCv"></canvas>
+    <div class="hc-top" id="hcTop" hidden>
+      <div class="hc-obj" id="hcObjBox"><div id="hcObj"></div><div class="hc-rules" id="hcRules"></div></div>
+      <div class="hc-clockbox"><div class="hc-clock" id="hcClock">4:00</div><div class="hc-time" id="hcTime"></div><div class="hc-banner" id="hcBanner" hidden>PAUSED &#8212; ISSUING ORDERS</div></div>
+    </div>
+    <div class="hc-feed" id="hcFeed" aria-live="polite"></div>
+    <div class="hc-pilot" id="hcPilot" hidden></div>
+    <div class="hc-cmds" id="hcCmds" hidden><div class="hc-cmds__top"><span class="hc-cmds__title">Commands</span><div class="hc-cp" id="hcCp"></div></div><div id="hcCmdsBody"></div></div>
+    <div class="hc-roster" id="hcRoster" hidden></div>
+    <div class="hc-tip" id="hcTip" role="tooltip" hidden></div>
+    <div class="hc-toast" id="hcToast" hidden></div>
+    <div class="hc-scrim" id="hcEnd" hidden></div>
+  </div>
+  <aside class="hc-panel" id="hcPanel">
+    <div class="hc-panel__head"><button type="button" class="sr-btn sr-btn--icon sr-btn--sm sr-btn--ghost" id="hcPanelToggle" aria-label="Designer panel" aria-expanded="true">&#9776;</button><span class="hc-panel__title">Designer panel</span></div>
+    <div class="hc-panel__scroll" id="hcPanelBody"></div>
+  </aside>
+</div>
+</div>
+<script src="ui/sr-theme.js"></script>
+<script src="art/sr-art.js"></script>
+<script src="art/sr-space-fx.js"></script>
+<script src="ui/sr-hud.js"></script>
+<script src="data/db.js"></script>
+<script src="js/data.js"></script>
+<script src="js/items.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/core.js"></script>
+<script src="js/rebel.js"></script>
+<script src="js/rebel-exp.js"></script>
+<script src="js/rebel-injury.js"></script>
+<script src="js/rebel-rest.js"></script>
+<script src="js/support.js"></script>
+<script src="js/mission-text.js"></script>
+<script src="js/prologue.js"></script>
+<script src="js/base.js"></script>
+<script src="js/space.js"></script>
+<script src="js/det-math.js"></script>
+<script src="js/sim-hc.js"></script>
+<script src="js/arena-hc.js"></script>
+<script src="js/ops-core.js"></script>
+<script src="js/sim-hc35.js"></script>
+<script src="js/arena-hc35.js"></script>
+<script src="js/ftue35.js"></script>
+<script src="js/flight-rec.js"></script>
+<script src="js/space35.js"></script>
+<script src="js/ground.js"></script>
+<script src="js/intro.js"></script>
+<script>
+// the harnesses boot straight into the game; players get the title screen first. With ?dev, #arena (or the title's
+// Test bench button) opens Type 3.5's test opportunity, a development tool; without it, neither exists
+if(SR.dev&&location.hash==='#arena')SR.bootArena();
+else if(location.hash==='#test'||location.hash==='#deploy')SR.boot();
+else SR_INTRO.show(()=>SR.boot(),SR.dev?()=>SR.bootArena():null);
+</script>

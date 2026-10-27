@@ -1,0 +1,641 @@
+/* =====================================================================
+   The Arena (docs/archive/ARENA-HANDOFF.md): a designer's lab scene, and its tool
+   button on the title screen. Built on the theme's shell, windows, buttons.
+   ===================================================================== */
+
+/* the title screen's tool button: the debug-menu look (.sr-menu__item--debug), on the splash */
+#splash .splash__tool{--c:transparent;--ct:var(--sr-psi);box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--sr-psi) 60%,transparent);}
+#splash .splash__tool:hover{--c:color-mix(in srgb,var(--sr-psi) 14%,transparent);}
+/* the Missions tab's dev-only Type 3.5 buttons (?dev, MAIN-SWITCH S1): the same tool look */
+.bf-dev35{--c:transparent;--ct:var(--sr-psi);box-shadow:none;border:1.5px dashed color-mix(in srgb,var(--sr-psi) 60%,transparent);margin-top:8px;}
+.bf-dev35:hover{--c:color-mix(in srgb,var(--sr-psi) 14%,transparent);}
+
+/* ===== Type 3: High Command (docs/archive/ARENA-HC-HANDOFF.md §3, game/js/arena-hc.js): ids "hc…", classes "hc-…" =====
+   The approved High Command HUD on the kit's tokens. Colour law: gold = you can act on this (COMMANDS is the one
+   gold primary), rebel red = yours, Hegemony blue = theirs, hazard orange = danger, shield cyan = info, steel = quiet
+   friendlies. */
+#arHc{position:absolute;inset:0;z-index:6;background:var(--sr-void);color:var(--sr-text);font-family:var(--sr-font-ui);}
+#arHc .hc-shell{position:absolute;inset:0;display:flex;}
+#arHc .hc-stage{flex:1 1 auto;position:relative;min-width:0;overflow:hidden;background:#04060d;}
+#arHc .hc-stage>canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+#arHc .hc-glyph{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;}
+#arHc .hc-glyph--sm{width:14px;height:14px;}
+#arHc .hc-glyph--xs{width:10px;height:10px;stroke-width:3;}
+#arHc .hc-card{background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+/* the top band: objectives (left), the clock (centre), command points and COMMANDS (right) */
+#arHc .hc-top{position:absolute;left:12px;right:12px;top:12px;z-index:3;display:grid;grid-template-columns:minmax(0,400px) 1fr minmax(0,400px);align-items:start;gap:12px;pointer-events:none;}
+#arHc .hc-top>*{pointer-events:auto;}
+#arHc .hc-obj{padding:12px 14px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font-size:var(--sr-fs-md);}   /* bigger (C-70) */
+#arHc .hc-obj__head,#arHc .hc-rules__head{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-text-3);margin:0 0 6px;}
+#arHc .hc-obj__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;}
+#arHc .hc-rules{margin-top:8px;padding-top:6px;border-top:1.5px solid var(--sr-seam);}
+#arHc .hc-rules:empty{display:none;}
+#arHc .hc-rules__chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+#arHc .hc-rules__none{color:var(--sr-text-3);font-weight:600;}
+#arHc .hc-rchip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 3px 0 8px;border-radius:999px;border:1.5px solid var(--sr-shield);color:var(--sr-shield);
+  font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.05em;white-space:nowrap;}
+#arHc .hc-clockbox{justify-self:center;display:flex;flex-direction:column;align-items:center;gap:4px;}
+#arHc .hc-clock{font:400 var(--sr-fs-2xl)/1 var(--sr-font-display);color:var(--sr-hazard);letter-spacing:.04em;padding:6px 16px;
+  background:color-mix(in srgb,var(--sr-night) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);text-shadow:0 3px 0 var(--sr-ink);}
+#arHc .hc-clock.is-out{font-size:var(--sr-fs-lg);animation:hc-throb 1s ease-in-out infinite;}
+#arHc .hc-banner{font:400 var(--sr-fs-sm)/1 var(--sr-font-display);color:var(--sr-gold);letter-spacing:.06em;padding:5px 10px;border-radius:999px;
+  background:color-mix(in srgb,var(--sr-night) 92%,transparent);border:2px solid var(--sr-gold);}
+@keyframes hc-throb{0%,100%{opacity:1;}50%{opacity:.55;}}
+/* the time controls sit under the clock (C-70) */
+#arHc .hc-clockbox .hc-time{padding:4px;}
+#arHc .hc-clockbox .hc-time .hc-tbtn{width:38px;height:34px;}
+/* the commands bar (C-70): fixed, bottom centre in the roster's middle gap, with the command points */
+#arHc .hc-cp{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);}
+#arHc .hc-cp__lbl{color:var(--sr-text-3);letter-spacing:.08em;}
+#arHc .hc-cp__pips{display:flex;gap:7px;}
+#arHc .hc-cp__pips i{width:13px;height:13px;transform:rotate(45deg);border:2px solid var(--sr-gold);border-radius:2px;}
+#arHc .hc-cp__pips i.is-on{background:var(--sr-gold);}
+#arHc .hc-cp b{font-size:var(--sr-fs-sm);color:var(--sr-text);}
+/* the left rail: the event feed */
+#arHc .hc-feed{position:absolute;left:12px;top:190px;width:320px;z-index:2;display:flex;flex-direction:column;gap:5px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;pointer-events:auto;}   /* five entries, then a scroll (C-70) */
+#arHc .hc-feed>.hc-ev{flex:0 0 auto;}
+#arHc .hc-ev{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;padding:5px 6px 5px 8px;font:600 var(--sr-fs-xs)/1.25 var(--sr-font-ui);
+  background:color-mix(in srgb,var(--sr-hull) 88%,transparent);border:2px solid var(--sr-ink);border-left:4px solid var(--sr-shield);border-radius:var(--sr-r);}
+#arHc .hc-ev.is-hazard{border-left-color:var(--sr-hazard);} #arHc .hc-ev.is-hazard .hc-ev__txt{color:var(--sr-hazard);font-weight:800;}
+#arHc .hc-ev.is-good{border-left-color:var(--sr-go);}
+#arHc .hc-ev.is-viewed{opacity:.62;}
+#arHc .hc-ev__t{color:var(--sr-text-3);font-variant-numeric:tabular-nums;}
+#arHc .hc-view{display:inline-flex;align-items:center;gap:3px;height:22px;padding:0 6px;border-radius:var(--sr-r-sm);border:1.5px solid var(--sr-shield);background:transparent;
+  color:var(--sr-shield);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;cursor:pointer;}
+#arHc .hc-view:hover,#arHc .hc-view:focus-visible{background:color-mix(in srgb,var(--sr-shield) 18%,transparent);outline:none;}
+/* the bottom: the wing roster */
+#arHc .hc-roster{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;align-items:flex-start;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;pointer-events:auto;padding:2px 4px 2px 2px;}   /* a column in the bottom-left corner (C-71) */
+#arHc .hc-wing{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 92%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc .hc-wing.is-sel{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
+#arHc .hc-wing__head{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:2px 4px;background:transparent;border:0;color:var(--sr-text);cursor:pointer;text-align:left;}
+#arHc .hc-wing__name{font:400 var(--sr-fs-md)/1 var(--sr-font-display);color:var(--sr-rebel);letter-spacing:.03em;}
+#arHc .hc-chip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;}
+#arHc .hc-chip--order{border:1.5px solid var(--sr-gold);color:var(--sr-gold);}
+#arHc .hc-chip--tactic{border:1.5px solid var(--sr-shield);color:var(--sr-shield);}
+#arHc .hc-wing__tiles{display:flex;gap:6px;}
+#arHc .hc-tile{position:relative;display:flex;flex-direction:column;gap:3px;width:116px;padding:5px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-night);color:var(--sr-text);cursor:pointer;text-align:left;font:700 var(--sr-fs-micro)/1.1 var(--sr-font-ui);}
+#arHc .hc-tile:hover,#arHc .hc-tile:focus-visible{border-color:var(--sr-plate-hi);outline:none;}
+#arHc .hc-tile.is-sel{border-color:var(--sr-gold);}
+#arHc .hc-tile.is-crit{box-shadow:0 0 0 2px var(--sr-hazard);}
+#arHc .hc-tile.is-down{opacity:.4;}
+#arHc .hc-tile__cam{width:102px;height:56px;border-radius:4px;background:var(--sr-void);display:block;}
+#arHc .hc-tile__name{font-size:var(--sr-fs-xs);color:var(--sr-rebel-hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc .hc-tile__bars{display:flex;flex-direction:column;gap:2px;}
+#arHc .hc-bar{display:block;height:4px;border-radius:2px;background:var(--sr-void);overflow:hidden;}
+#arHc .hc-bar b{display:block;height:100%;transition:width .6s cubic-bezier(.22,.8,.3,1),background-color .3s;}
+#arHc .hc-bar--hull b{background:var(--sr-go);}
+#arHc .hc-bar,#arHc .hc-pbar i{position:relative;}
+/* feedback 1 §3.10: a wing that arrives mid-mission slides in at the foot of the column, its header flashing gold twice */
+#arHc .hc-wing.is-arriving{animation:hc-arrive .2s ease-out;}
+#arHc .hc-wing.is-arriving .hc-wing__head{animation:hc-arrflash .35s ease-in-out 2;}
+@keyframes hc-arrive{from{transform:translateY(24px);opacity:0;}to{transform:none;opacity:1;}}
+@keyframes hc-arrflash{50%{box-shadow:inset 0 0 0 2px var(--sr-gold);background:color-mix(in srgb,var(--sr-gold) 22%,transparent);}}
+#arHc .hc-chip--extra{color:var(--sr-gold);}
+/* feedback 1 §3.5: Type 3.5's target readout, top right until K7 places it */
+#arHc .h35-tgt{position:absolute;top:96px;right:12px;width:276px;z-index:3;padding:10px 12px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);pointer-events:none;}
+#arHc .h35-tgt__head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px;}
+#arHc .h35-tgt__head b{font:400 var(--sr-fs-md)/1 var(--sr-font-display);color:var(--sr-heg-hi);}
+#arHc .h35-tgt__sch{display:block;width:260px;height:84px;margin:0 auto 6px;}
+#arHc .h35-tgt__sch.is-small{height:60px;}   /* a small ship's schematic (feedback 2, L4) */
+#arHc .h35-subs{display:flex;flex-wrap:wrap;gap:4px;}
+#arHc .h35-tgt__rows{display:flex;flex-direction:column;gap:2px;margin-bottom:6px;}
+#arHc .h35-tgt__row{display:flex;align-items:center;gap:6px;color:var(--sr-text);}
+#arHc .h35-tgt__row i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1.5px var(--sr-ink);flex:none;}
+#arHc .h35-tgt__chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+#arHc .h35-tgt .hc-pbar{grid-template-columns:76px 1fr 52px;}
+/* feedback 1 §3.3: a rising shield bar's glint, and the red hull bar's pulse under 15% */
+#arHc .hc-bar.is-glint::after,#arHc .hc-pbar.is-glint i::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(232,255,255,.85) 50%,transparent 70%);background-size:220% 100%;animation:hc-glint .7s ease-out;pointer-events:none;}
+@keyframes hc-glint{from{background-position:120% 0;}to{background-position:-100% 0;}}
+#arHc .is-pulse b{animation:hc-hpulse .9s ease-in-out infinite;}
+@keyframes hc-hpulse{50%{opacity:.45;}}
+@media (prefers-reduced-motion:reduce){#arHc .hc-wing.is-arriving,#arHc .hc-wing.is-arriving .hc-wing__head{animation:none;}#arHc .hc-bar b,#arHc .hc-pbar b{transition:none;}#arHc .hc-bar.is-glint::after,#arHc .hc-pbar.is-glint i::after{animation:none;}#arHc .is-pulse b{animation:none;}}
+#arHc .hc-bar--shd b{background:var(--sr-shield);}
+#arHc .hc-tile__foot{display:flex;justify-content:space-between;gap:4px;color:var(--sr-text-3);}
+#arHc .hc-tile__ord{position:absolute;top:8px;left:8px;display:inline-flex;padding:2px;border-radius:4px;background:color-mix(in srgb,var(--sr-ink) 80%,transparent);color:var(--sr-text-2);}
+#arHc .hc-tile__ord:empty{display:none;}
+#arHc .hc-tile__ord[data-tone="rule"]{color:var(--sr-shield);} #arHc .hc-tile__ord[data-tone="hazard"]{color:var(--sr-hazard);}
+#arHc .hc-tile__word{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc .hc-tile__mor[data-m="EAGER"]{color:var(--sr-go);} #arHc .hc-tile__mor[data-m="SHAKEN"]{color:var(--sr-gold);} #arHc .hc-tile__mor[data-m="PANICKED"]{color:var(--sr-hazard);}
+/* the bottom right: time controls */
+#arHc .hc-time{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:6px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc .hc-tbtn{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-plate);color:var(--sr-text);cursor:pointer;}
+#arHc .hc-tbtn:hover,#arHc .hc-tbtn:focus-visible{border-color:var(--sr-gold);outline:none;}
+#arHc .hc-tbtn.is-on{background:var(--sr-gold);color:var(--sr-gold-ink);}
+#arHc .hc-time__div{width:2px;height:28px;background:var(--sr-seam);margin:0 2px;}
+/* the pilot panel: anchored panel-left, over the feed */
+#arHc .hc-pilot{position:absolute;left:12px;bottom:200px;z-index:4;width:min(372px,calc(100% - 24px));overflow:auto;padding:10px 12px;
+  background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-float);font-size:var(--sr-fs-xs);}
+#arHc .hc-x{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:var(--sr-r-sm);border:1.5px solid var(--sr-seam);background:transparent;color:var(--sr-text-2);cursor:pointer;}
+/* hover cards and the toast */
+#arHc .hc-tip{position:absolute;z-index:8;width:auto;max-width:280px;padding:9px 11px;background:var(--sr-ink);color:var(--sr-text);border:2px solid var(--sr-steel);border-radius:var(--sr-r);box-shadow:0 10px 30px rgba(0,0,0,.5);font:600 var(--sr-fs-xs)/1.4 var(--sr-font-ui);pointer-events:none;}   /* the kit's .sr-tip look (feedback 1, §3.6) */
+#arHc .hc-tip .sr-tip__title{font-size:var(--sr-fs-sm);margin-bottom:3px;}
+#arHc .hc-tip__foot{margin-top:6px;padding-top:6px;border-top:1px solid var(--sr-seam);font-weight:800;color:var(--sr-shield);}
+#arHc .hc-tip__foot[data-tone="warn"]{color:var(--sr-hazard);} #arHc .hc-tip__foot[data-tone="cost"]{color:var(--sr-gold);}
+#arHc .hc-toast{position:absolute;top:120px;left:50%;transform:translateX(-50%);z-index:9;padding:8px 14px;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:var(--sr-lift);font:700 var(--sr-fs-sm)/1.2 var(--sr-font-ui);}
+/* the picker and the end card (the SB driver's, re-skinned) */
+#arHc .hc-scrim{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,6,13,.74);}
+#arHc .hc-win{width:min(760px,100%);max-height:100%;overflow:auto;background:var(--sr-hull);border:2px solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);padding:18px 20px;}
+#arHc .hc-win h2{margin:0 0 6px;font-size:var(--sr-fs-xl);}
+#arHc .hc-win p{margin:0 0 12px;color:var(--sr-text-2);font-size:var(--sr-fs-sm);}
+#arHc .hc-btns{display:flex;flex-wrap:wrap;gap:6px;}
+/* the designer panel */
+#arHc .hc-panel{flex:0 0 300px;display:flex;flex-direction:column;min-height:0;background:var(--sr-night);border-left:2px solid var(--sr-ink);}
+#arHc .hc-panel.is-collapsed{flex-basis:44px;}
+#arHc .hc-panel.is-collapsed .hc-panel__scroll,#arHc .hc-panel.is-collapsed .hc-panel__title{display:none;}
+#arHc .hc-panel__head{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:2px solid var(--sr-ink);font-weight:800;font-size:var(--sr-fs-sm);}
+#arHc .hc-panel__scroll{flex:1 1 auto;overflow:auto;padding:8px 10px 24px;}
+#arHc .hc-grp{margin:0 0 14px;}
+#arHc .hc-grp__head{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-psi);text-transform:uppercase;letter-spacing:.08em;margin:6px 0 8px;}
+#arHc .hc-row{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;margin:0 0 8px;font-size:var(--sr-fs-xs);}
+#arHc .hc-row label{color:var(--sr-text-2);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#arHc .hc-row output{font-weight:800;font-variant-numeric:tabular-nums;}
+#arHc .hc-row input[type=range]{grid-column:1 / -1;width:100%;accent-color:var(--sr-psi);}
+#arHc .hc-row--toggle{grid-template-columns:auto 1fr;}
+#arHc .hc-btns .sr-btn{min-height:30px;padding:0 10px;font-size:var(--sr-fs-xs);}
+#arHc .hc-readout{font:600 var(--sr-fs-xs)/1.45 var(--sr-font-ui);color:var(--sr-text-2);white-space:pre-wrap;font-variant-numeric:tabular-nums;}
+@media (prefers-reduced-motion:reduce){#arHc .hc-clock.is-out{animation:none;}}
+@media (max-width:1100px){
+  #arHc .hc-panel{position:absolute;right:0;top:0;bottom:0;z-index:11;flex-basis:auto;width:min(300px,86vw);}
+  #arHc .hc-panel.is-collapsed{width:44px;}
+  #arHc .hc-stage{margin-right:44px;}
+  #arHc .hc-feed{width:240px;}
+}
+/* the pilot panel and the commands bar */
+#arHc .sr-btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;}
+#arHc .hc-free{font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-go);text-transform:uppercase;letter-spacing:.05em;}
+#arHc .hc-pilot{padding:0;overflow:auto;}
+#arHc .hc-pilot.is-emerg{border-color:var(--sr-hazard);box-shadow:0 0 0 2px var(--sr-hazard),var(--sr-float);}
+#arHc .hc-pilot__cam{display:block;width:100%;height:auto;aspect-ratio:680/150;border-radius:var(--sr-r-lg) var(--sr-r-lg) 0 0;background:var(--sr-void);border-bottom:2px solid var(--sr-ink);}
+#hcPilotBody{padding:8px 12px 12px;}
+#arHc .hc-pilot__head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#arHc .hc-pilot__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);color:var(--sr-rebel);}
+#arHc .hc-pilot__sub{color:var(--sr-text-3);font-weight:700;}
+#arHc .hc-mor{height:20px;padding:0 7px;display:inline-flex;align-items:center;border-radius:999px;border:1.5px solid var(--sr-text-2);color:var(--sr-text-2);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;}
+#arHc .hc-mor[data-m="EAGER"]{border-color:var(--sr-go);color:var(--sr-go);}
+#arHc .hc-mor[data-m="SHAKEN"]{border-color:var(--sr-gold);color:var(--sr-gold);}
+#arHc .hc-mor[data-m="PANICKED"]{border-color:var(--sr-hazard);color:var(--sr-hazard);background:color-mix(in srgb,var(--sr-hazard) 15%,transparent);}
+#arHc .hc-pilot__bars{display:flex;flex-direction:column;gap:3px;margin:8px 0;}
+#arHc .hc-pbar{display:grid;grid-template-columns:56px 1fr 44px;align-items:center;gap:6px;color:var(--sr-text-3);font-weight:700;}
+#arHc .hc-pbar i{display:block;height:7px;border-radius:4px;background:var(--sr-void);box-shadow:inset 0 0 0 1px var(--sr-ink);overflow:hidden;}
+#arHc .hc-pbar b{display:block;height:100%;transition:width .6s cubic-bezier(.22,.8,.3,1);}
+#arHc .hc-pbar.is-hull b{background:var(--sr-go);} #arHc .hc-pbar.is-arm b{background:var(--sr-steel);} #arHc .hc-pbar.is-shd b{background:var(--sr-shield);}
+#arHc .hc-pbar em{font-style:normal;color:var(--sr-text);text-align:right;font-variant-numeric:tabular-nums;}
+#arHc .hc-pilot__line{color:var(--sr-text-2);font-weight:600;line-height:1.4;}
+#arHc .hc-pilot__line b{color:var(--sr-text);}
+#arHc .hc-pilot__line q{color:var(--sr-text);font-style:italic;}
+#arHc .hc-pilot__line .is-rule{color:var(--sr-shield);font-weight:800;}
+/* the commands bar (C-71): skill icons, bottom, centred right of the wing cards (script places it) */
+#arHc .hc-cmds{position:absolute;left:0;bottom:12px;z-index:4;box-sizing:border-box;padding:8px 10px 10px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc .hc-cmds.is-armed{box-shadow:0 0 0 2px var(--sr-gold),var(--sr-lift);}
+#arHc .hc-cmds__top{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:26px;margin:0 2px 8px;}
+#arHc .hc-cmds__title{font:400 var(--sr-fs-md)/1 var(--sr-font-display);letter-spacing:.04em;}
+#arHc #hcCmdsBody{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;}
+#arHc #hcCmdsBody .hc-cmds__list{display:contents;}
+#arHc #hcCmdsBody .hc-cmds__arm{flex:1 0 100%;display:flex;align-items:center;justify-content:center;gap:6px;margin:0;}
+#arHc #hcCmdsBody .hc-cmd{position:relative;flex-direction:column;justify-content:flex-start;gap:5px;width:76px;min-height:84px;padding:12px 3px 5px;font-size:var(--sr-fs-micro);line-height:1.1;}
+#arHc #hcCmdsBody .hc-cmd__glyph{width:34px;height:34px;stroke-width:1.8;}
+#arHc #hcCmdsBody .hc-cmd__name{text-align:center;min-width:0;}
+#arHc #hcCmdsBody .hc-cmd__cost,#arHc #hcCmdsBody .hc-free{position:absolute;top:3px;right:4px;}
+#arHc #hcCmdsBody .hc-cmd__cost{display:inline-flex;align-items:center;gap:3px;}
+#arHc #hcCmdsBody .hc-cmd__cost i{width:7px;height:7px;}
+#arHc #hcCmdsBody .hc-cmd__cost b{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-gold);}
+#arHc #hcCmdsBody .hc-cmd[aria-disabled="true"] .hc-cmd__cost b{color:var(--sr-text-3);}
+#arHc #hcCmdsBody .hc-cmd--abort{position:absolute;top:6px;left:132px;margin:0;width:auto;min-height:24px;flex-direction:row;gap:6px;padding:0 10px;font-size:var(--sr-fs-micro);}   /* small, in the title row: the one command not to hit by accident */
+#arHc #hcCmdsBody .hc-cmd--abort .hc-cmd__glyph{width:14px;height:14px;}
+#arHc #hcCmdsBody .hc-cmd--abort .hc-free{position:static;order:3;}
+#arHc #hcCmdsBody .hc-cmd:not([aria-disabled="true"]):hover{border-color:var(--sr-gold);}
+#arHc .hc-cmds__arm{margin:0 0 6px;color:var(--sr-text-2);font-weight:700;}
+#arHc .hc-cmds__arm{color:var(--sr-gold);}
+#arHc .hc-cmds__arm .sr-btn{min-height:24px;margin-left:6px;}
+#arHc .hc-cmds__list{display:flex;flex-direction:column;gap:4px;}
+#arHc .hc-cmd{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:0 10px;border-radius:var(--sr-r);border:2px solid var(--sr-ink);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+#arHc .hc-cmd:hover,#arHc .hc-cmd:focus-visible{border-color:var(--sr-gold);outline:none;}
+#arHc .hc-cmd.is-armed{border-color:var(--sr-gold);box-shadow:0 0 0 2px var(--sr-gold);}
+#arHc .hc-cmd[aria-disabled="true"]{background:var(--sr-night);color:var(--sr-text-3);cursor:not-allowed;}
+#arHc .hc-cmd__name{flex:1 1 auto;}
+#arHc .hc-cmd__cost{display:inline-flex;gap:4px;}
+#arHc .hc-cmd__cost i{width:9px;height:9px;transform:rotate(45deg);background:var(--sr-gold);border-radius:1px;}
+#arHc .hc-cmd[aria-disabled="true"] .hc-cmd__cost i{background:var(--sr-seam);}
+#arHc .hc-cmd--abort{margin-top:8px;background:transparent;border-color:var(--sr-hazard);color:var(--sr-hazard);}
+#arHc .hc-cmd--abort.is-armed{background:var(--sr-hazard);color:var(--sr-ink);box-shadow:none;}
+#arHc .hc-sec,#arHc .hc-fx{margin:0 0 6px;}
+#arHc .hc-sec summary,#arHc .hc-fx summary{cursor:pointer;font:800 var(--sr-fs-xs)/1.8 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .hc-sec[open] summary,#arHc .hc-fx[open] summary{color:var(--sr-text);margin-bottom:4px;}
+#arHc .hc-keys{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .hc-keys .sr-kbd{justify-self:start;}
+/* eight or more ships: smaller tiles, so a full roster fits beside the time controls */
+#arHc .hc-roster.is-many .hc-tile{width:84px;padding:4px;}
+#arHc .hc-roster.is-many .hc-tile__cam{width:74px;height:41px;}
+#arHc .hc-roster.is-many .hc-tile__foot{font-size:10px;}
+#arHc .hc-roster.is-many .hc-wing__name{font-size:var(--sr-fs-sm);}
+#arHc .hc-roster.is-many .hc-wing{width:min-content;}   /* the header's chips wrap under the name rather than widen the card (C-70) */
+#arHc .hc-dump{width:100%;min-height:140px;margin:0 0 10px;font:12px/1.35 ui-monospace,monospace;color:var(--sr-text);background:var(--sr-void);border:1.5px solid var(--sr-seam);border-radius:var(--sr-r-sm);}
+#arHc .hc-pilot,#arHc .hc-cmds{transition-property:none;}   /* placed by script: never eased (the reduced-motion rule gives everything a 1 ms transition) */
+
+/* =====================================================================
+   Type 3.5: High Command Hands Off (docs/ARENA-HC35-HANDOFF.md §7): the board, the dossier, the briefing, the
+   mission HUD's own pieces. Kit classes and tokens only; laid over High Command's stage (#hcStage)
+   ===================================================================== */
+#arHc35{position:absolute;inset:0;z-index:9;pointer-events:none;font-family:var(--sr-font-ui);color:var(--sr-text);}
+#arHc35>*{pointer-events:auto;}
+#arHc35 .sr-banner{pointer-events:none;}
+#arHc35 .h35-scrim{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,6,13,.78);}
+:is(#arHc35,.h35-more) .h35-label{margin:14px 0 6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-hint{margin:0 0 4px;font-size:var(--sr-fs-sm);color:var(--sr-text-2);}
+:is(#arHc35,.h35-more) .h35-sub,:is(#arHc35,.h35-more) .h35-fine2{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+/* the board */
+#arHc35 .h35-portrait{width:72px;height:72px;}
+/* the dossier */
+#arHc35 .h35-dig{display:flex;align-items:center;gap:10px;margin-top:14px;}
+#arHc35 .h35-intel{display:inline-flex;gap:4px;}
+#arHc35 .h35-intel i{width:12px;height:12px;border-radius:3px;border:2px solid var(--sr-ink);background:transparent;box-shadow:inset 0 0 0 2px var(--sr-shield);}
+#arHc35 .h35-intel i.is-on{background:var(--sr-shield);}
+@keyframes h35-pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--sr-gold) 35%,transparent);}}
+#arHc35 .h35-noneed{font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+#arHc35 .h35-sel{height:30px;max-width:100%;padding:0 8px;border:2px solid var(--sr-ink);border-radius:var(--sr-r);background:var(--sr-plate);color:var(--sr-text);font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);}
+#arHc35 .h35-wing{margin:0 0 10px;padding:10px 12px;}
+#arHc35 .h35-wing.is-home{opacity:.6;}
+#arHc35 .h35-wing__head{display:flex;align-items:center;gap:10px;}
+#arHc35 .h35-wing__name{font:400 var(--sr-fs-lg)/1 var(--sr-font-display);color:var(--sr-rebel);}
+#arHc35 .h35-wing__sub{margin-left:auto;font-size:var(--sr-fs-xs);color:var(--sr-text-2);}
+#arHc35 .h35-take{margin-top:12px;padding:8px 12px;font-size:var(--sr-fs-sm);}
+#arHc35 .h35-ord{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;}
+#arHc35 .h35-po{margin:0 0 10px;padding:8px 12px;font:600 13px/1.45 var(--sr-font-ui);color:var(--sr-text-2);} #arHc35 .h35-po .h35-label{margin:0 0 4px;} #arHc35 .h35-po b{color:#fff;} #arHc35 .h35-po__st{cursor:help;}
+#arHc35 .h35-ord__lbl{width:58px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);letter-spacing:.06em;}
+/* the debrief */
+#arHc35 .h35-debrief{max-height:100%;display:flex;flex-direction:column;}
+/* a campaign mission's end: just the result (MAIN-SWITCH S6), the detail on the base report's More information */
+#arHc35 .h35-result{width:min(440px,calc(100vw - 32px));text-align:center;}
+#arHc35 .h35-result .sr-window__body{display:flex;flex-direction:column;align-items:center;gap:18px;padding:28px 20px 22px;}
+#arHc35 .h35-result__name{font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-result .sr-stamp{font-size:28px;padding:10px 18px;transform:rotate(-4deg);}
+.h35-log{display:flex;flex-direction:column;gap:2px;max-height:320px;overflow:auto;background:var(--sr-night);border-radius:var(--sr-r);padding:6px 10px;}
+.h35-log p{margin:0;display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;font-size:var(--sr-fs-xs);line-height:1.4;color:var(--sr-text);}
+.h35-log time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;}
+.h35-log p.is-good span{color:var(--sr-c-good);}
+#arHc35 .h35-debrief .sr-window__body{overflow:auto;}
+#arHc35 .h35-debrief .sr-window__head .sr-stamp{margin-left:auto;transform:rotate(-4deg);}
+:is(#arHc35,.h35-more) .h35-rew--deb{font-size:var(--sr-fs-sm);margin:0;} :is(#arHc35,.h35-more) .h35-rew__miss{color:var(--sr-text-3);font-weight:700;}
+:is(#arHc35,.h35-more) .h35-leaders{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;}   /* how your leaders played it (feedback 2, §3.3) */
+:is(#arHc35,.h35-more) .h35-lead{background:var(--sr-night);border-radius:var(--sr-r);padding:8px 10px;}
+:is(#arHc35,.h35-more) .h35-lead__name{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);text-transform:uppercase;letter-spacing:.08em;color:var(--sr-gold);margin-bottom:6px;}
+:is(#arHc35,.h35-more) .h35-lead ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;}
+:is(#arHc35,.h35-more) .h35-lead li{display:grid;grid-template-columns:34px 16px minmax(0,1fr);gap:4px;font-size:var(--sr-fs-xs);line-height:1.35;color:var(--sr-text);}
+:is(#arHc35,.h35-more) .h35-lead time{color:var(--sr-text-3);font-variant-numeric:tabular-nums;} :is(#arHc35,.h35-more) .h35-lead i{font-style:normal;color:var(--sr-shield);text-align:center;}
+:is(#arHc35,.h35-more) .h35-lead em{display:block;font-style:normal;color:var(--sr-text-3);}
+:is(#arHc35,.h35-more) .h35-lead li.is-fallback i,:is(#arHc35,.h35-more) .h35-lead li.is-fallback b{color:var(--sr-gold);} :is(#arHc35,.h35-more) .h35-lead li.is-request i{color:var(--sr-text-3);}
+:is(#arHc35,.h35-more) .h35-why p{margin:0 0 8px;padding:8px 12px;border-left:4px solid var(--sr-gold);background:var(--sr-night);border-radius:0 var(--sr-r) var(--sr-r) 0;font-size:var(--sr-fs-sm);}
+/* the mission HUD's phase plate sits where High Command's clock does */
+#arHc .hc-clock:has(.h35-phase){padding:0;background:none;border:0;box-shadow:none;text-shadow:none;font:inherit;display:flex;flex-direction:column;align-items:center;gap:4px;}
+#arHc .h35-phase .sr-phase__name{font-size:var(--sr-fs-md);}
+#arHc .h35-detect{width:220px;height:8px;border:2px solid var(--sr-ink);border-radius:999px;background:var(--sr-night);overflow:hidden;}
+#arHc .h35-detect b{display:block;height:100%;background:var(--sr-heg);}
+#arHc .h35-prim{margin-left:auto;height:20px;font-size:10px;}
+/* ---------- feedback 1 §3.6: the Missions tab mock (the vanilla briefing room's bf- classes, fitted to the stage) ---------- */
+#arHc35 .h35-missions{position:absolute;inset:0;overflow:hidden;}
+#arHc35 .h35-missions.is-dim{filter:blur(2px) brightness(.45);pointer-events:none;}   /* behind a planning window (the windows handoff, §1) */
+#arHc35 .h35-mtop{position:absolute;left:0;right:0;top:0;height:72px;display:flex;align-items:center;gap:18px;padding:0 20px;background:linear-gradient(180deg,rgba(7,8,24,.9),rgba(7,8,24,.4));border-bottom:2px solid rgba(54,227,242,.18);}
+#arHc35 .h35-mtop__t h1{margin:0;font-size:30px;line-height:1;}
+#arHc35 .h35-mtop__t span{display:block;margin-top:4px;font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-shield);}
+#arHc35 .h35-tabs{display:flex;gap:6px;margin:0 auto;}
+#arHc35 .h35-tab{min-width:84px;justify-content:center;opacity:.85;cursor:default;}
+#arHc35 .h35-tab.is-on{background:var(--sr-gold);color:var(--sr-gold-ink);opacity:1;}
+#arHc35 .h35-pills{display:flex;gap:6px;}
+#arHc35 .h35-pill{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 9px;background:var(--sr-night);border:2px solid var(--sr-ink);border-radius:999px;color:var(--c);font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);}
+#arHc35 .h35-pill .sr-ico{width:15px;height:15px;}
+#arHc35 .h35-mboard{left:16px;top:88px;bottom:118px;width:290px;}
+#arHc35 .h35-mboard .bf-filters .sr-btn{flex:1;justify-content:center;cursor:default;} #arHc35 .h35-filt.is-on{background:var(--sr-shield);color:var(--sr-ink);}
+#arHc35 .h35-thumb{width:56px;height:56px;padding:0;overflow:hidden;}
+#arHc35 .h35-thumb canvas{width:56px;height:56px;display:block;}
+#arHc35 .bf-card:has(.h35-thumb){grid-template-columns:56px minmax(0,1fr);}
+#arHc35 .bf-card[aria-disabled="true"]{cursor:default;}
+#arHc35 .h35-newopp{align-self:flex-start;margin-top:4px;}
+#arHc35 .h35-mboard .bf-card.is-sel{border-color:var(--sr-gold);}
+#arHc35 .h35-mboard .bf-card.is-sel::after{right:-28px;width:24px;background:var(--sr-gold);box-shadow:0 0 8px var(--sr-gold);}   /* the review's gold connector into the projection */
+#arHc35 .h35-mholo{left:322px;right:372px;top:84px;bottom:110px;}
+#arHc35 .h35-mholo .bf-proj{width:min(640px,100%);height:auto;aspect-ratio:640/520;}
+#arHc35 .h35-mholo .bf-table{width:min(520px,100%);}
+#arHc35 .h35-mholo .bf-beam{width:min(470px,90%);}
+#arHc35 .h35-mholo .bf-title{bottom:120px;}
+#arHc35 .h35-mholo .bf-callout{max-width:170px;min-width:120px;font-size:12px;}
+#arHc35 .h35-holofr{position:absolute;left:31%;top:52%;width:24%;height:auto;transform:translate(-50%,-50%) rotate(-14deg);filter:drop-shadow(0 0 6px rgba(54,227,242,.6));}
+#arHc35 .h35-mrail{position:absolute;right:16px;top:84px;bottom:16px;width:340px;padding:14px 16px;background:color-mix(in srgb,var(--sr-hull) 94%,transparent);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-lift);}
+#arHc35 .h35-portrait--xs{width:32px;height:32px;border-radius:50%;flex:none;}
+#arHc35 .bf-fact .sr-ico{width:16px;height:16px;color:var(--c,var(--sr-text-2));}
+#arHc35 .h35-mtags{display:flex;flex-wrap:wrap;gap:6px;}
+#arHc35 .h35-missed{background:none;border:2px dashed var(--sr-text-3);color:var(--sr-text-2);}
+#arHc35 .h35-mrail .h35-dig{display:flex;align-items:center;gap:8px;margin-top:4px;}
+#arHc35 .h35-mrail .bf-plan .sr-btn--primary{min-height:52px;font-size:var(--sr-fs-lg);}
+#arHc35 .h35-mcomms{position:absolute;left:16px;bottom:44px;width:290px;padding:8px 12px;background:rgba(7,8,24,.75);border:2px solid rgba(54,227,242,.25);border-radius:var(--sr-r);font:600 var(--sr-fs-xs)/1.4 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-mcomms__h{display:flex;align-items:center;gap:6px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--sr-shield);margin-bottom:4px;}
+#arHc35 .h35-mcomms__h .sr-ico{width:14px;height:14px;} #arHc35 .h35-mcomms p{margin:0;} #arHc35 .h35-mcomms em{font-style:normal;color:var(--sr-text-3);}
+#arHc35 .h35-mfine{position:absolute;left:16px;bottom:10px;display:flex;align-items:center;gap:8px;font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+/* ---------- the holographic planning windows: one block of tokens, so K7's restyle is a swap ---------- */
+/* the windows handoff (docs/ARENA-HC35-WINDOWS-HANDOFF.md, §1): a chamfered holo plate with a V-notch where the beam
+   comes in, the step track, the footer on the pedestal's ledge, the readiness pill */
+#arHc35 .h35-holowrap{--holo:var(--sr-shield);--ch:22px;position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;padding:75px 24px 0;pointer-events:none;}
+#arHc35 .sr-window.h35-holo{background:none;border:0;border-radius:0;box-shadow:none;overflow:visible;max-height:none;}
+#arHc35 .h35-holo{position:relative;width:min(1310px,100%);height:min(850px,calc(100% - 80px));display:flex;flex-direction:column;pointer-events:auto;transform-origin:50% 100%;}
+#arHc35 .h35-fr{position:absolute;inset:0;pointer-events:none;filter:drop-shadow(0 0 14px rgba(54,227,242,.35));}
+#arHc35 .h35-fr>i{position:absolute;inset:0;--c:var(--ch);clip-path:polygon(var(--c) 0,calc(100% - var(--c)) 0,100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,
+  calc(50% + 70px) 100%,50% calc(100% - 36px),calc(50% - 70px) 100%,var(--c) 100%,0 calc(100% - var(--c)),0 var(--c));}
+#arHc35 .h35-fr>i:nth-child(1){background:var(--sr-ink);}   /* the 2 px ink outline */
+#arHc35 .h35-fr>i:nth-child(2){inset:2px;--c:calc(var(--ch) - 1px);background:color-mix(in srgb,var(--sr-shield) 85%,transparent);}   /* the 2 px cyan edge */
+#arHc35 .h35-fr>i:nth-child(3),#arHc35 .h35-fr>i:nth-child(5){background:linear-gradient(180deg,rgba(14,27,60,.94),rgba(10,18,48,.94));}
+#arHc35 .h35-fr>i:nth-child(3){inset:4px;--c:calc(var(--ch) - 2px);}
+#arHc35 .h35-fr>i:nth-child(4){inset:9px;--c:calc(var(--ch) - 4px);background:color-mix(in srgb,var(--sr-shield) 30%,transparent);}   /* the thin inner line */
+#arHc35 .h35-fr>i:nth-child(5){inset:10.5px;--c:calc(var(--ch) - 5px);
+  background:repeating-linear-gradient(0deg,rgba(54,227,242,.03) 0 1px,transparent 1px 3px),repeating-linear-gradient(0deg,rgba(54,227,242,.04) 0 1px,transparent 1px 32px),
+    repeating-linear-gradient(90deg,rgba(54,227,242,.04) 0 1px,transparent 1px 32px),linear-gradient(180deg,rgba(14,27,60,.94),rgba(10,18,48,.94));}   /* scanlines 3%, the circuit grid 4% */
+#arHc35 .h35-fr::before,#arHc35 .h35-fr::after{content:"";position:absolute;bottom:-2px;height:4px;border-radius:4px;background:var(--holo);box-shadow:0 0 18px 4px color-mix(in srgb,var(--holo) 70%,transparent);}   /* the projector glow, broken by the notch */
+#arHc35 .h35-fr::before{left:8%;right:calc(50% + 74px);} #arHc35 .h35-fr::after{right:8%;left:calc(50% + 74px);}
+#arHc35 .h35-holo__head,#arHc35 .h35-holo__body,#arHc35 .h35-holo__split{position:relative;z-index:1;}
+#arHc35 .h35-holo__head{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 70px 4px;}
+#arHc35 .h35-holo__title{font:400 36px/1 var(--sr-font-display);color:#fff;text-shadow:0 2px 0 var(--sr-ink);letter-spacing:.01em;text-align:center;}
+#arHc35 .h35-holo__x{position:absolute;top:14px;right:26px;width:46px;height:46px;border:0;border-radius:10px;background:none;color:#fff;font:400 30px/1 var(--sr-font-display);cursor:pointer;}
+#arHc35 .h35-holo__x:hover,#arHc35 .h35-holo__x:focus-visible{background:var(--sr-plate);box-shadow:inset 0 0 0 2px var(--sr-seam);}
+#arHc35 .h35-holo__body{flex:1;min-height:0;overflow-y:auto;padding:6px 36px 40px;scrollbar-width:thin;}   /* a safety net: windows 1-3 fit (§2-§4) */
+/* the step track */
+#arHc35 .h35-track{display:flex;align-items:center;margin:0;padding:0;list-style:none;}
+#arHc35 .h35-node{display:flex;align-items:center;}
+#arHc35 .h35-node button{display:flex;align-items:center;padding:0;border:0;background:none;color:var(--sr-text-3);font:700 18px/1 var(--sr-font-ui);cursor:default;}
+#arHc35 .h35-node b{position:relative;z-index:1;display:grid;place-items:center;flex:none;width:46px;height:46px;border-radius:50%;border:3px solid currentColor;background:var(--sr-night);font-weight:400;}
+#arHc35 .h35-node b em{font:400 22px/1 var(--sr-font-display);font-style:normal;}
+#arHc35 .h35-node span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:36px;margin-left:-6px;padding:0 16px 0 18px;border:2px solid var(--sr-seam);border-left:0;border-radius:0 18px 18px 0;background:var(--sr-plate);white-space:nowrap;}
+#arHc35 .h35-node.is-done button{color:var(--sr-go);cursor:pointer;} #arHc35 .h35-node.is-done span{border-color:color-mix(in srgb,var(--sr-go) 70%,transparent);background:var(--sr-night);}
+#arHc35 .h35-node__ok{position:absolute;right:-5px;bottom:-5px;width:19px;height:19px;border-radius:50%;background:var(--sr-go);color:var(--sr-ink);border:2px solid var(--sr-ink);font:800 11px/15px var(--sr-font-ui);font-style:normal;text-align:center;}
+#arHc35 .h35-node.is-on button{color:var(--sr-gold);} #arHc35 .h35-node.is-on span{border-color:var(--sr-gold);background:var(--sr-night);}
+#arHc35 .h35-node.is-on b::before{content:"";position:absolute;inset:-13px;z-index:-1;border-radius:50%;background:repeating-conic-gradient(var(--sr-gold) 0 3deg,transparent 3deg 12deg);
+  -webkit-mask:radial-gradient(circle,transparent 58%,#000 60%,#000 98%,transparent 100%);mask:radial-gradient(circle,transparent 58%,#000 60%,#000 98%,transparent 100%);opacity:.8;animation:h35-spin 14s linear infinite;}   /* the sunburst */
+#arHc35 .h35-node.is-on b{box-shadow:0 0 16px rgba(255,200,58,.45);}
+#arHc35 .h35-node__parts{display:inline-flex;gap:4px;} #arHc35 .h35-node__parts u{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.3;}
+#arHc35 .h35-node__parts u.is-on{opacity:1;}
+#arHc35 .h35-link{position:relative;display:block;flex:none;width:60px;height:16px;margin:0 6px;color:var(--sr-text-3);}
+#arHc35 .h35-link u{position:absolute;top:50%;width:8px;height:8px;margin-top:-4px;border-top:2px solid currentColor;border-right:2px solid currentColor;transform:rotate(45deg);}
+#arHc35 .h35-link u:nth-child(1){left:14%;} #arHc35 .h35-link u:nth-child(2){left:44%;} #arHc35 .h35-link u:nth-child(3){left:74%;}
+#arHc35 .h35-link.is-done::before{content:"";position:absolute;left:0;right:0;top:6px;height:4px;border-radius:2px;background:var(--sr-go);} #arHc35 .h35-link.is-done u{display:none;}
+#arHc35 .h35-link.is-next{color:var(--sr-gold);} #arHc35 .h35-link.is-next::before{content:"";position:absolute;left:0;right:0;top:7px;height:2px;background:repeating-linear-gradient(90deg,var(--sr-gold) 0 7px,transparent 7px 12px);opacity:.7;}
+#arHc35 .h35-link.is-next u{animation:h35-drift 1.6s linear infinite;} #arHc35 .h35-link.is-next u:nth-child(2){animation-delay:-.53s;} #arHc35 .h35-link.is-next u:nth-child(3){animation-delay:-1.06s;}
+@keyframes h35-spin{to{transform:rotate(1turn);}}
+@keyframes h35-drift{from{left:0;opacity:0;}20%{opacity:1;}80%{opacity:1;}to{left:85%;opacity:0;}}
+/* the footer: on the pedestal's ledge, straddling the frame's bottom edge */
+#arHc35 .h35-holo__foot{position:absolute;z-index:3;left:28px;right:28px;bottom:-32px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:center;}
+#arHc35 .h35-fbtn{display:flex;align-items:center;justify-content:center;gap:10px;height:64px;padding:0 22px;border:2px solid var(--sr-ink);border-radius:10px;font:400 22px/1 var(--sr-font-display);text-transform:uppercase;white-space:nowrap;cursor:pointer;}
+#arHc35 .h35-fbtn--back{min-width:240px;background:linear-gradient(180deg,#1d3168,#132250);color:#fff;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--sr-shield) 70%,transparent),0 4px 0 var(--sr-ink);}
+#arHc35 .h35-fbtn--go{min-width:270px;background:linear-gradient(180deg,var(--sr-gold-hi),var(--sr-gold));color:var(--sr-gold-ink);box-shadow:0 5px 0 var(--sr-gold-deep),0 0 20px rgba(255,200,58,.35);}
+#arHc35 .h35-fbtn:hover{filter:brightness(1.08);} #arHc35 .h35-fbtn[aria-disabled="true"]{filter:grayscale(.5) brightness(.75);cursor:not-allowed;}
+#arHc35 .h35-needs{position:relative;display:flex;flex-direction:column;align-items:center;min-width:0;}
+#arHc35 .h35-needs__pill{max-width:100%;min-width:min(320px,100%);height:50px;padding:0 22px;border:2px solid color-mix(in srgb,var(--sr-shield) 55%,transparent);border-radius:8px;background:rgba(10,18,48,.96);color:#fff;font:600 20px/1 var(--sr-font-ui);white-space:nowrap;cursor:pointer;box-shadow:0 0 0 2px var(--sr-ink);}
+#arHc35 .h35-needs__pill b{font-weight:700;} #arHc35 .h35-needs__pill.is-miss b{color:var(--sr-hazard);} #arHc35 .h35-needs__pill.is-ok b{color:var(--sr-go);}
+#arHc35 .h35-needs__pop{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);z-index:5;min-width:340px;padding:10px 14px;background:rgba(7,8,24,.96);border:2px solid var(--sr-shield);border-radius:10px;}
+#arHc35 .h35-needs__pop .sr-check.is-warn .sr-check__box{color:var(--sr-gold);}
+#arHc35 .h35-holo__why{position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;text-align:center;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-hazard);text-shadow:0 1px 0 var(--sr-ink);}
+/* the pedestal and the beam coming up into the notch */
+#arHc35 .h35-holo__ped{position:absolute;z-index:0;left:50%;bottom:-78px;width:min(560px,62%);height:60px;transform:translateX(-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 35%,rgba(54,227,242,.55),rgba(15,127,143,.3) 42%,rgba(7,8,24,.85) 64%,rgba(7,8,24,0) 72%);}
+#arHc35 .h35-holo__beam{position:absolute;z-index:2;left:50%;bottom:-46px;width:16px;height:84px;transform:translateX(-50%);pointer-events:none;border-radius:8px;
+  background:linear-gradient(0deg,rgba(191,255,255,.2),#e8ffff 45%,rgba(54,227,242,.15));filter:blur(1.5px);box-shadow:0 0 24px 6px rgba(54,227,242,.45);}
+/* window 4: the plan map shows through its pane, so the frame is its edges only */
+#arHc35 .h35-holo.is-wide{width:min(1600px,100%);background:transparent;box-shadow:inset 0 0 0 2px var(--sr-ink),inset 0 0 0 4px color-mix(in srgb,var(--sr-shield) 85%,transparent),0 0 28px rgba(54,227,242,.25);}
+#arHc35 .h35-holo.is-wide .h35-fr{display:none;}
+#arHc35 .h35-holo.is-wide .h35-holo__split{padding-bottom:40px;}
+/* the one tooltip, in the windows' look (§1): ink, a cyan border and pointer, beside the element */
+#arHc .hc-tip.is-holo{z-index:20;width:300px;max-width:300px;padding:12px 14px;background:rgba(7,8,24,.96);border:2px solid var(--sr-shield);border-radius:8px;}
+#arHc .hc-tip.is-holo .sr-tip__title{font:800 20px/1.15 var(--sr-font-ui);color:var(--sr-shield);margin-bottom:6px;}
+#arHc .hc-tip.is-holo .sr-tip__rule{font:600 15px/1.35 var(--sr-font-ui);color:#fff;white-space:pre-line;}
+#arHc .hc-tip.is-holo .hc-tip__foot{margin-top:8px;padding-top:8px;border-top:1px solid color-mix(in srgb,var(--sr-shield) 60%,transparent);font:700 14px/1.3 var(--sr-font-ui);}
+#arHc .hc-tip.is-holo::before{content:"";position:absolute;border:8px solid transparent;}
+#arHc .hc-tip.is-holo[data-side="right"]::before{left:-18px;top:var(--py,50%);margin-top:-8px;border-right-color:var(--sr-shield);}
+#arHc .hc-tip.is-holo[data-side="left"]::before{right:-18px;top:var(--py,50%);margin-top:-8px;border-left-color:var(--sr-shield);}
+#arHc .hc-tip.is-holo[data-side="below"]::before{top:-18px;left:var(--px,50%);margin-left:-8px;border-bottom-color:var(--sr-shield);}
+#arHc35 .h35-holo.is-wide .h35-holo__head{background:color-mix(in srgb,var(--sr-hull) calc(var(--holo-a)*100%),transparent);}
+/* the windows' insides (the handoff, §2–§3): section panels, objective cards, toggle rows */
+#arHc35 .h35-g{width:24px;height:24px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#arHc35 .h35-panel{min-width:0;padding:10px 12px 12px;background:color-mix(in srgb,var(--sr-night) 85%,transparent);border:1.5px solid color-mix(in srgb,var(--sr-shield) 40%,transparent);border-radius:10px;}
+#arHc35 .h35-panel__head{display:flex;align-items:baseline;gap:8px;margin:0 2px 10px;font:400 20px/1.1 var(--sr-font-display);color:#fff;text-transform:uppercase;}
+#arHc35 .h35-panel__head small{font:600 16px/1 var(--sr-font-ui);text-transform:none;color:var(--sr-text-2);}
+#arHc35 .h35-count{margin-left:auto;font:400 20px/1 var(--sr-font-display);color:var(--sr-go);}
+#arHc35 .h35-ask{margin:0 0 12px;text-align:center;font:400 26px/1.1 var(--sr-font-display);color:#fff;}
+#arHc35 .h35-fams{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start;}
+#arHc35 .h35-fam .h35-panel__head{justify-content:center;}
+#arHc35 .h35-noneed{margin:0;font-size:13px;color:var(--sr-text-3);}
+/* an objective card */
+#arHc35 .h35-ocard{position:relative;display:block;width:100%;margin:0 0 8px;padding:10px 12px;text-align:left;font:inherit;color:var(--sr-text);background:var(--sr-plate);border:2px solid var(--sr-seam);border-radius:8px;cursor:pointer;}
+#arHc35 .h35-ocard:last-child{margin-bottom:0;}
+#arHc35 button.h35-ocard:hover,#arHc35 button.h35-ocard:focus-visible{border-color:var(--sr-shield);outline:0;}
+#arHc35 .h35-ocard.is-picked{border:2.5px solid var(--sr-gold);box-shadow:0 0 18px rgba(255,200,58,.35);}
+#arHc35 .h35-ocard.is-picked .h35-ocard__name{color:var(--sr-gold);}
+#arHc35 .h35-ocard__tab{position:absolute;top:-2px;right:-2px;width:30px;height:28px;background:var(--sr-gold);color:var(--sr-gold-ink);clip-path:polygon(0 0,100% 0,100% 100%);font:800 13px/1 var(--sr-font-ui);font-style:normal;text-align:right;padding:3px 4px 0 0;border-radius:0 6px 0 0;}
+#arHc35 .h35-ocard__top{display:flex;align-items:center;gap:10px;}
+#arHc35 .h35-ocard__top .h35-g{width:44px;height:44px;stroke-width:1.6;color:#fff;}
+#arHc35 .h35-ocard__top>div{min-width:0;}
+#arHc35 .h35-ocard__name{font:800 20px/1.1 var(--sr-font-ui);color:#fff;}
+#arHc35 .h35-ocard__pitch{margin-top:2px;font:600 15px/1.25 var(--sr-font-ui);color:var(--sr-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#arHc35 .h35-ocard__needs{display:flex;flex-direction:column;gap:2px;margin-top:8px;padding-top:7px;border-top:1px solid var(--sr-seam);}
+#arHc35 .h35-ocard__lbl{font:600 13px/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-need{font:700 14px/1.25 var(--sr-font-ui);color:var(--sr-text-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+#arHc35 .h35-need b{margin-right:6px;} #arHc35 .h35-need.is-ok{color:var(--sr-go);} #arHc35 .h35-need.is-no{color:var(--sr-hazard);}
+#arHc35 .h35-ocard__pays .h35-rew__lbl{min-width:0;}
+#arHc35 .h35-ocard.is-locked{opacity:.5;cursor:default;}
+#arHc35 .h35-ocard.is-locked .h35-ocard__name{font-size:18px;}
+/* too tall at this size: the column's unpicked cards drop their Pays (it's in their tip), their pitch to one line */
+#arHc35 .h35-fam.is-tight .h35-ocard:not(.is-picked) .h35-ocard__pays{display:none;}
+#arHc35 .h35-fam.is-tight .h35-ocard__pitch{-webkit-line-clamp:1;}
+#arHc35 .h35-fam.is-tighter .h35-ocard.is-locked{display:none;}
+/* window 1 part 2 and window 2: the list, and its second panel */
+#arHc35 .h35-duo{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px;align-items:start;}
+#arHc35 .h35-trows{display:flex;flex-direction:column;gap:7px;}
+#arHc35 .h35-trow{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 196px;align-items:center;column-gap:10px;min-height:60px;padding:0 10px 0 0;background:var(--sr-plate);border:2px solid var(--sr-seam);border-radius:8px;}
+#arHc35 .h35-trow.is-on{border-color:var(--sr-go);background:color-mix(in srgb,var(--sr-go) 8%,var(--sr-plate));}
+#arHc35 .h35-trow.is-cap{opacity:.5;}
+#arHc35 .h35-trow__main{display:flex;align-items:center;gap:14px;height:56px;padding:0 6px 0 14px;border:0;background:none;color:#fff;font:700 19px/1.15 var(--sr-font-ui);text-align:left;cursor:pointer;border-radius:6px;}
+#arHc35 .h35-trow__main[aria-disabled="true"]{cursor:not-allowed;}
+#arHc35 .h35-trow__main:focus-visible{outline:2px solid var(--sr-shield);outline-offset:-2px;}
+#arHc35 .h35-trow__main .h35-g{width:30px;height:30px;}
+#arHc35 .h35-trow__name{flex:1;min-width:0;}
+#arHc35 .h35-sw{position:relative;flex:none;width:56px;height:30px;border-radius:15px;background:var(--sr-night);box-shadow:inset 0 0 0 2px var(--sr-seam);}
+#arHc35 .h35-sw i{position:absolute;top:4px;left:4px;width:22px;height:22px;border-radius:50%;background:var(--sr-text-3);transition:left .12s,background .12s;}
+#arHc35 .h35-trow.is-on .h35-sw{background:var(--sr-go);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--sr-ink) 40%,transparent);}
+#arHc35 .h35-trow.is-on .h35-sw i{left:30px;background:#fff;}
+#arHc35 .h35-trow__tags{display:flex;flex-direction:column;align-items:stretch;gap:4px;}
+#arHc35 .h35-trow__more{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 14px 8px 58px;margin-top:-10px;font:600 16px/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-ctag{padding:6px 10px;border:2px solid var(--sr-hazard);border-radius:6px;background:rgba(7,8,24,.9);color:var(--sr-hazard);font:700 14px/1.2 var(--sr-font-ui);}
+#arHc35 .h35-stag{align-self:flex-end;padding:4px 10px;border:1.5px solid var(--sr-shield);border-radius:6px;color:var(--sr-shield);font:700 13px/1.2 var(--sr-font-ui);white-space:nowrap;}
+/* the gold-bordered fields: the Preservation stepper, the pilot pick */
+#arHc35 .h35-field{display:inline-flex;align-items:center;height:32px;border:2px solid var(--sr-gold);border-radius:6px;background:rgba(7,8,24,.6);color:var(--sr-gold);font:700 17px/1 var(--sr-font-ui);}
+#arHc35 .h35-field b{min-width:48px;text-align:center;}
+#arHc35 .h35-field button{width:26px;height:100%;border:0;background:none;color:var(--sr-gold);font:800 18px/1 var(--sr-font-ui);cursor:pointer;}
+#arHc35 .h35-field button:hover{background:color-mix(in srgb,var(--sr-gold) 18%,transparent);}
+#arHc35 .h35-field:focus-visible{outline:2px solid var(--sr-shield);outline-offset:2px;}
+#arHc35 select.h35-field{padding:0 8px;max-width:100%;}
+/* the second panels */
+#arHc35 .h35-panel--side .h35-ocard{cursor:default;}
+#arHc35 .h35-change{margin-top:10px;}
+#arHc35 .h35-sofar{display:flex;flex-direction:column;gap:8px;}
+#arHc35 .h35-sofar__row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;background:var(--sr-plate);border:2px solid var(--sr-seam);border-radius:8px;font:700 17px/1.2 var(--sr-font-ui);color:#fff;}
+#arHc35 .h35-sofar__row .sr-tag{margin-left:auto;} #arHc35 .h35-sofar__row .h35-ctag{flex-basis:100%;}
+/* window 3 (the handoff, §4): the wing columns, their rows lined up across them (subgrid), and the assets bar */
+#arHc35 .h35-wcols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto 1fr auto auto;gap:0 14px;}
+#arHc35 .h35-wcol{grid-row:span 4;display:grid;grid-template-rows:subgrid;row-gap:8px;}
+#arHc35 .h35-wcol.is-home>:not(.h35-seg--role){opacity:.55;}
+#arHc35 .h35-wcol__head{display:flex;align-items:center;gap:12px;}
+#arHc35 .h35-wcol__face{width:64px;height:64px;flex:none;border-radius:50%;box-shadow:0 0 0 3px var(--sr-rebel),0 0 0 5px var(--sr-ink);background:var(--sr-night);}
+#arHc35 .h35-wcol__call{font:400 32px/1 var(--sr-font-display);color:var(--sr-rebel);text-transform:uppercase;text-shadow:0 2px 0 var(--sr-ink);}
+#arHc35 .h35-wcol__lead{margin-top:2px;font:700 16px/1.1 var(--sr-font-ui);color:#fff;}
+#arHc35 .h35-wcol__ships{display:flex;flex-direction:column;gap:6px;align-self:start;}
+#arHc35 .h35-srow{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:center;column-gap:10px;min-height:56px;padding:2px 10px 2px 4px;background:var(--sr-plate);border:2px solid var(--sr-seam);border-radius:8px;}
+#arHc35 .h35-srow.has-lo{padding-bottom:6px;}
+#arHc35 .h35-srow__art{width:104px;height:52px;}
+#arHc35 .h35-srow__cls{font:800 17px/1.15 var(--sr-font-ui);color:#fff;}
+#arHc35 .h35-srow__pilot{font:600 14px/1.2 var(--sr-font-ui);color:var(--sr-text-2);} #arHc35 .h35-srow__pilot span{color:var(--sr-text-3);}
+#arHc35 .h35-srow .h35-seg--lo{grid-column:1/-1;margin:2px 0 0 6px;}
+/* the segmented controls: the chosen one rebel red (C-85) */
+#arHc35 .h35-seg{display:flex;border:2px solid var(--sr-ink);border-radius:7px;overflow:hidden;background:var(--sr-ink);gap:2px;}
+#arHc35 .h35-seg button{flex:1;min-width:0;height:34px;padding:0 6px;border:0;background:var(--sr-plate);color:var(--sr-text-2);font:700 15px/1 var(--sr-font-ui);white-space:nowrap;cursor:pointer;}
+#arHc35 .h35-seg--lo button{height:28px;padding:0 3px;font-size:12.5px;letter-spacing:-.01em;}
+/* what a ship has fitted, read from its configuration, with Refit (MAIN-SWITCH S4); the demo refit is a small pop-up */
+#arHc35 .h35-fit{grid-column:1/-1;position:relative;display:flex;align-items:center;gap:8px;margin:2px 0 0 6px;min-height:28px;}
+#arHc35 .h35-fit__lbl{flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:700;color:var(--sr-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc35 .h35-fit__refit{flex:none;height:26px;padding:0 10px;font:700 12px var(--sr-font-ui);color:var(--sr-shield);background:transparent;border:1.5px solid color-mix(in srgb,var(--sr-shield) 55%,transparent);border-radius:6px;cursor:pointer;}
+#arHc35 .h35-fit__refit[aria-expanded="true"],#arHc35 .h35-fit__refit:hover{background:color-mix(in srgb,var(--sr-shield) 16%,transparent);}
+#arHc35 .h35-fit__pop{position:absolute;z-index:5;right:0;top:calc(100% + 4px);min-width:200px;display:flex;flex-direction:column;gap:4px;padding:8px;background:var(--sr-night);border:2px solid var(--sr-shield);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+#arHc35 .h35-fit__t{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--sr-text-2);}
+#arHc35 .h35-fit__pop button{height:28px;text-align:left;padding:0 8px;font:700 12.5px var(--sr-font-ui);color:var(--sr-text);background:var(--sr-plate);border:1.5px solid var(--sr-seam);border-radius:6px;cursor:pointer;}
+#arHc35 .h35-fit__pop button[aria-pressed="true"]{border-color:var(--sr-gold);color:var(--sr-gold);}
+#arHc35 .h35-fit__base{flex:none;font-size:11.5px;font-weight:700;color:var(--sr-text-2);}
+/* a campaign mission's Intel strip, at the top of window 1 (MAIN-SWITCH S6) */
+#arHc35 .h35-campintel{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 8px;}
+#arHc35 .h35-campintel__t{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--sr-shield);}
+#arHc35 .h35-seg button:hover{color:#fff;} #arHc35 .h35-seg button:focus-visible{outline:2px solid var(--sr-shield);outline-offset:-2px;}
+#arHc35 .h35-seg button[aria-pressed="true"]{background:var(--sr-rebel);color:#fff;}
+/* the leader's take: a portrait and a speech bubble; orange when it's a critique */
+#arHc35 .h35-wcol__take{display:flex;align-items:center;gap:12px;}
+#arHc35 .h35-wcol__face--sm{width:44px;height:44px;flex:none;border-radius:50%;box-shadow:0 0 0 2px var(--sr-rebel);background:var(--sr-night);}
+#arHc35 .h35-bubble{position:relative;flex:1;min-width:0;padding:8px 12px;border:2px solid var(--sr-steel,#8a97b8);border-radius:10px;background:rgba(7,8,24,.85);color:#fff;font:600 15px/1.3 var(--sr-font-ui);}
+#arHc35 .h35-bubble::before{content:"";position:absolute;left:-9px;top:50%;margin-top:-7px;border:7px solid transparent;border-left:0;border-right:9px solid var(--sr-steel,#8a97b8);}
+#arHc35 .h35-wcol__take.is-warn .h35-bubble{border-color:var(--sr-hazard);color:var(--sr-hazard);} #arHc35 .h35-wcol__take.is-warn .h35-bubble::before{border-right-color:var(--sr-hazard);}
+/* the assets bar */
+#arHc35 .h35-abar{position:relative;margin-top:12px;padding-bottom:10px;}
+#arHc35 .h35-abar .h35-panel__head{margin-bottom:8px;}
+#arHc35 .h35-aslots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+#arHc35 .h35-aslot{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:6px 12px 6px 6px;border-radius:8px;}
+#arHc35 .h35-aslot.is-filled{background:var(--sr-plate);border:2px solid var(--sr-seam);}
+#arHc35 .h35-aslot.is-empty{justify-content:center;border:2px dashed color-mix(in srgb,var(--sr-shield) 70%,transparent);background:none;color:var(--sr-shield);font:700 19px/1 var(--sr-font-ui);cursor:pointer;}
+#arHc35 .h35-aslot.is-empty:hover,#arHc35 .h35-aslot.is-target{background:color-mix(in srgb,var(--sr-shield) 10%,transparent);}
+#arHc35 .h35-aslot__txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+#arHc35 .h35-aslot__txt b,#arHc35 .h35-apop__row b{font:800 17px/1.15 var(--sr-font-ui);color:#fff;}
+#arHc35 .h35-aslot__txt small,#arHc35 .h35-apop__row small{display:block;font:600 13px/1.25 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-aslot em,#arHc35 .h35-apop em{font-style:normal;color:var(--sr-shield);}
+#arHc35 .h35-aslot__ok{position:absolute;top:-2px;right:-2px;width:22px;height:22px;border-radius:0 6px 0 6px;background:var(--sr-go);color:var(--sr-ink);font:800 13px/22px var(--sr-font-ui);font-style:normal;text-align:center;}
+#arHc35 .h35-aslot__x{position:absolute;bottom:4px;right:6px;width:26px;height:26px;border:0;border-radius:6px;background:var(--sr-night);color:#fff;font:700 14px/1 var(--sr-font-ui);cursor:pointer;opacity:0;}
+#arHc35 .h35-aslot:hover .h35-aslot__x,#arHc35 .h35-aslot__x:focus-visible{opacity:1;}
+#arHc35 .h35-athumb{display:grid;place-items:center;flex:none;width:72px;height:48px;border-radius:6px;background:rgba(7,8,24,.75);color:#fff;}
+#arHc35 .h35-athumb canvas{width:72px;height:48px;} #arHc35 .h35-athumb .hc-glyph{width:28px;height:28px;}
+#arHc35 .h35-apop{position:absolute;z-index:6;bottom:calc(100% - 4px);left:calc(12px + var(--slot) * (100% - 24px + 12px) / 3);width:min(420px,calc((100% - 24px - 24px) / 3 + 120px));max-height:430px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:10px;
+  background:rgba(7,8,24,.97);border:2px solid var(--sr-shield);border-radius:10px;box-shadow:0 0 24px rgba(54,227,242,.3);scrollbar-width:thin;}
+#arHc35 .h35-apop__row{display:flex;align-items:center;gap:12px;padding:6px 8px 6px 6px;border:2px solid var(--sr-seam);border-radius:8px;background:var(--sr-plate);text-align:left;font:inherit;color:#fff;cursor:pointer;}
+#arHc35 .h35-apop__row:hover,#arHc35 .h35-apop__row:focus-visible{border-color:var(--sr-shield);outline:0;}
+/* too tall at this size: the art and the rows shrink (§4) */
+#arHc35 .h35-holo__body.is-tight .h35-srow{grid-template-columns:80px minmax(0,1fr);min-height:48px;padding-top:0;padding-bottom:0;}
+#arHc35 .h35-holo__body.is-tight .h35-srow.has-lo{padding-bottom:4px;}
+#arHc35 .h35-holo__body.is-tight .h35-srow__art{width:80px;height:40px;}
+:is(#arHc35,.h35-more) .h35-rew{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:6px 0 0;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc35 .h35-rew__lbl{min-width:84px;color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.06em;font-size:var(--sr-fs-micro);}
+#arHc35 .h35-rew--bonus{margin:2px 0 6px;} #arHc35 .h35-rew--bonus .h35-rew__lbl{color:var(--sr-gold);}
+#arHc35 .sr-window.h35-holo{animation:none;}   /* the kit's pop is for a window opening: a re-render isn't one (feedback 2, §1) */
+#arHc35 .h35-holo .h35-take{position:relative;margin-top:14px;border-radius:12px;}
+#arHc35 .h35-holo .h35-take::before{content:"";position:absolute;left:22px;top:-9px;border:8px solid transparent;border-top:0;border-bottom-color:var(--sr-ink);}   /* the leader's take, as a speech bubble */
+#arHc35 .h35-holo__split{flex:1;min-height:0;display:flex;}
+#arHc35 .h35-holo__col{width:360px;flex:none;overflow-y:auto;padding:12px 14px;background:color-mix(in srgb,var(--sr-hull) calc(var(--holo-a)*100%),transparent);border-right:3px solid var(--sr-ink);scrollbar-width:thin;}
+#arHc35 .h35-pane{flex:1;pointer-events:none;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--holo) 45%,transparent);}   /* the cut-out: the plan map shows through */
+#arHc35 .h35-holo.is-wide{pointer-events:none;} #arHc35 .h35-holo.is-wide .h35-holo__head,#arHc35 .h35-holo.is-wide .h35-holo__foot,#arHc35 .h35-holo.is-wide .h35-holo__col{pointer-events:auto;}
+/* motion: it rises out of the beam with two flickers; a step slides 24 px its way; Launch folds it back */
+#arHc35 .h35-holo.is-open{animation:h35-rise .22s ease-out,h35-flick .3s steps(1) .05s;}
+#arHc35 .h35-holo.is-fwd .h35-holo__body,#arHc35 .h35-holo.is-fwd .h35-holo__col{animation:h35-slidef .2s ease-out;} #arHc35 .h35-holo.is-back .h35-holo__body,#arHc35 .h35-holo.is-back .h35-holo__col{animation:h35-slideb .2s ease-out;}
+#arHc35 .h35-holo.is-fwd,#arHc35 .h35-holo.is-back{animation:h35-flick1 .16s steps(1);}
+#arHc35 .h35-holo.is-closing{animation:h35-fold .18s ease-in forwards;}
+@keyframes h35-rise{from{transform:scaleY(.02);}to{transform:none;}}
+@keyframes h35-flick{0%{opacity:.4;}25%{opacity:1;}50%{opacity:.55;}75%{opacity:1;}}
+@keyframes h35-flick1{0%{opacity:.6;}50%{opacity:1;}}
+@keyframes h35-slidef{from{transform:translateX(24px);opacity:.3;}to{transform:none;opacity:1;}}
+@keyframes h35-slideb{from{transform:translateX(-24px);opacity:.3;}to{transform:none;opacity:1;}}
+@keyframes h35-fold{to{transform:scaleY(.02);opacity:0;}}
+@keyframes h35-fade{from{opacity:0;}to{opacity:1;}}
+@media (prefers-reduced-motion:reduce){#arHc35 .h35-holo.is-open,#arHc35 .h35-holo.is-fwd .h35-holo__body,#arHc35 .h35-holo.is-back .h35-holo__body,#arHc35 .h35-holo.is-fwd .h35-holo__col,#arHc35 .h35-holo.is-back .h35-holo__col{animation:h35-fade .12s ease-out;}
+  #arHc35 .h35-holo.is-fwd,#arHc35 .h35-holo.is-back{animation:none;}#arHc35 .h35-node.is-on b{animation:none;}
+  #arHc35 .h35-node.is-on b::before,#arHc35 .h35-link.is-next u{animation:none;}}
+#arHc .h35-phase{white-space:nowrap;}
+#arHc .hc-clockbox:has(.h35-phase){min-width:max-content;}
+#arHc .hc-chip--tactic.is-off{color:var(--sr-hazard);border-color:var(--sr-hazard);background:color-mix(in srgb,var(--sr-hazard) 14%,transparent);}
+#arHc .h35-plantog{margin-left:6px;}
+#arHc .hc-clock .h35-plantog{pointer-events:auto;}
+#arHc .h35-platefoot{display:flex;align-items:center;gap:8px;}
+#arHc .h35-plantog{width:auto;height:26px;padding:0 10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);letter-spacing:.06em;}
+#arHc .h35-plantog.is-on{background:var(--sr-shield-deep);color:#e6fdff;}
+/* Type 3.5 P4: the powers bar's extras: key hints, the comms queue above it, the targeting pill, the CP refresh */
+#arHc #hcCmdsBody .h35-key{position:absolute;top:3px;left:5px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+#arHc #hcCmdsBody .hc-cmd.is-armed{border-color:var(--sr-gold);box-shadow:0 0 0 2px var(--sr-gold);}
+#arHc .h35-cpnext{margin-left:6px;font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);text-transform:uppercase;letter-spacing:.05em;}
+#arHc .h35-pickpill{height:30px;}
+#arHc .h35-choose{flex-wrap:wrap;}
+#arHc .h35-choose>span{font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .h35-txq{flex:1 0 100%;display:flex;flex-direction:column;gap:3px;margin:0 2px 2px;}
+#arHc .h35-tx{display:grid;grid-template-columns:minmax(70px,auto) 1fr 120px 52px;align-items:center;gap:8px;padding:3px 8px;border:2px solid var(--sr-ink);border-radius:6px;background:var(--sr-night);font:700 var(--sr-fs-micro)/1.1 var(--sr-font-ui);}
+#arHc .h35-tx__to{color:var(--sr-shield);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;}
+#arHc .h35-tx__what{color:var(--sr-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#arHc .h35-tx i{display:block;height:6px;border-radius:999px;background:var(--sr-shield-deep);overflow:hidden;}
+#arHc .h35-tx i b{display:block;height:100%;background:var(--sr-shield);}
+#arHc .h35-tx em{font-style:normal;text-align:right;color:var(--sr-text-2);}
+#arHc .h35-tx.is-in{border-color:var(--sr-go);}
+#arHc .h35-tx.is-in i b{background:var(--sr-go);}
+#arHc .h35-tx.is-no{border-color:var(--sr-hazard);}
+#arHc .h35-tx.is-no em{color:var(--sr-hazard);}
+#arHc .hc-pilot__acts{display:flex;gap:6px;margin:6px 0 2px;}
+/* Type 3.5 P5: the request cards, right column, newest on top: your pilot speaking (a rebel-red stripe) */
+#arHc .h35-reqs{position:absolute;top:150px;right:12px;z-index:6;display:flex;flex-direction:column;gap:10px;width:340px;pointer-events:auto;}
+#arHc .h35-req{position:relative;padding:12px 14px 12px;border-top:5px solid var(--sr-rebel);}
+#arHc .h35-req__top{display:flex;align-items:center;gap:10px;}
+#arHc .h35-portrait--req{width:40px;height:40px;border-radius:50%;}
+#arHc .h35-req__who{display:flex;align-items:center;gap:8px;flex:1;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);}
+#arHc .h35-req__ring{width:30px;height:30px;transform:rotate(-90deg);}
+#arHc .h35-req__rbg{fill:none;stroke:var(--sr-night);stroke-width:4;}
+#arHc .h35-req__rfg{fill:none;stroke:var(--sr-shield);stroke-width:4;stroke-linecap:round;transition:stroke .2s;}
+#arHc .h35-req__rfg.is-low{stroke:var(--sr-hazard);}
+#arHc .h35-req__q{margin:10px 0 4px;}
+#arHc .h35-req__acts{display:flex;flex-direction:column;}
+#arHc .h35-ans{align-items:center;margin-top:6px;padding:8px 12px;}
+#arHc .h35-def{margin-left:auto;height:20px;font-size:var(--sr-fs-micro);}
+#arHc .h35-req__sent,#arHc .h35-req__done{margin-top:8px;font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#arHc .h35-req__sent em{font-style:normal;color:var(--sr-shield);margin-left:6px;}
+#arHc .h35-req__sent i{display:block;height:6px;margin-top:6px;border-radius:999px;background:var(--sr-shield-deep);overflow:hidden;}
+#arHc .h35-req__sent i b{display:block;height:100%;width:0;background:var(--sr-shield);}
+#arHc .h35-req[data-state="done"]{opacity:.85;}
+/* the flight recorder's Runs group (designer panel) */
+#arHc .hc-run{display:flex;align-items:center;gap:8px;justify-content:space-between;max-width:100%;margin:4px 0;font-size:var(--sr-fs-micro);color:var(--sr-text-2);}
+#arHc .hc-run span{flex:1 1 0;width:0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* playtest 3, §3.5: a new request card pulses in; Take's hazard note */
+#arHc .h35-req.is-new{animation:h35-reqin .9s ease-out 2;}
+@keyframes h35-reqin{0%{box-shadow:0 0 0 0 rgba(255,200,58,.9);}100%{box-shadow:0 0 0 14px rgba(255,200,58,0);}}
+#arHc .h35-ans__note{display:block;font-style:normal;font-size:11px;color:var(--sr-hazard);}
+@media (prefers-reduced-motion:reduce){#arHc .h35-req.is-new{animation:none;outline:2px solid var(--sr-gold);}}
+
+/* ---------- the Space Combat FTUE (game/js/ftue35.js): the intro window, its pointer, coach cards and the click ring ---------- */
+#ftue35{position:fixed;inset:0;z-index:9000;pointer-events:none;}
+#ftue35 .f35-intro{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:auto;}
+#ftue35 .f35-intro[hidden],#ftue35 [hidden]{display:none;}
+#ftue35 .f35-scrim{position:absolute;inset:0;background:rgba(4,6,18,.72);}
+#ftue35 .f35-win{position:relative;width:min(620px,calc(100vw - 32px));}
+#ftue35 .f35-page{margin-left:auto;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);letter-spacing:.08em;color:var(--sr-text-3);}
+#ftue35 .f35-art{border-radius:var(--sr-r);overflow:hidden;border:var(--sr-line) solid var(--sr-ink);margin-bottom:14px;}
+#ftue35 .f35-art canvas{display:block;width:100%;height:auto;}
+#ftue35 .f35-text{margin:0;font:600 var(--sr-fs-md)/1.5 var(--sr-font-ui);color:var(--sr-text);}
+#ftue35 .f35-text b{color:var(--sr-gold);font-weight:800;}
+#ftue35 .sr-coach.f35-coach{position:absolute;display:block;width:330px;pointer-events:none;}
+#ftue35 .f35-coach .sr-btn{pointer-events:auto;}
+#ftue35 .f35-n{margin-left:auto;font:800 11px/1 var(--sr-font-ui);opacity:.6;}
+#ftue35 .sr-pointer.f35-ptr{position:absolute;}
+#ftue35 .f35-ptr.below{flex-direction:column-reverse;}
+#ftue35 .f35-ptr.below .sr-pointer__arrow{border-top-color:transparent;border-bottom:12px solid var(--sr-gold);margin-top:0;margin-bottom:4px;}
+#ftue35 .f35-ring{position:absolute;border:3px solid var(--sr-gold);border-radius:12px;box-shadow:0 0 0 4px rgba(255,196,64,.25);animation:f35-pulse 1.3s ease-in-out infinite;}
+@keyframes f35-pulse{0%,100%{box-shadow:0 0 0 2px rgba(255,196,64,.5);}50%{box-shadow:0 0 0 10px rgba(255,196,64,0);}}
+@media (prefers-reduced-motion:reduce){#ftue35 .f35-ring{animation:none;}}

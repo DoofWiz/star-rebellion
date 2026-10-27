@@ -1,0 +1,154 @@
+/* =====================================================================
+   STAR REBELLION — Mission report window (sr-report.css)
+   Builds on sr-theme.css. Prefix rp-. it-/kf- are art slots filled from SR_ART.
+   ===================================================================== */
+
+.it-art{display:block;width:128px;height:80px;}            /* holds a canvas from SR_ART.item(id) (same rule as sr-kit.css) */
+.it-art>canvas,.it-art>img{display:block;width:100%;height:100%;}
+.kf{display:block;width:40px;height:40px;border-radius:50%;flex:none;overflow:hidden;background:var(--sr-hull);box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+.kf>canvas,.kf>img{display:block;width:100%;height:100%;}   /* portraitURL(p) */
+
+/* ---------- window ---------- */
+.rp-win.sr-window{width:880px;max-height:none;}
+.rp-win--fail.sr-window{--accent:var(--sr-c-bad);}
+
+/* hero */
+.rp-hero{position:relative;display:flex;align-items:flex-end;gap:16px;min-height:150px;padding:20px 22px 18px;overflow:hidden;
+  background:linear-gradient(180deg,#3b2a6e 0%,#5a3a7a 40%,#b8603e 78%,#e08a3a 100%);border-bottom:var(--sr-line) solid var(--sr-ink);}
+.rp-win--fail .rp-hero{background:linear-gradient(180deg,#2a1730 0%,#4a1e2e 50%,#6e2a26 100%);}
+.rp-hero__land{position:absolute;left:0;right:0;bottom:0;width:100%;height:76px;}
+.rp-hero__txt{position:relative;flex:1;min-width:0;}
+.rp-hero__txt .sr-brief__title{font-size:44px;}
+.rp-hero__meta{margin-top:8px;font:700 var(--sr-fs-sm)/1 var(--sr-font-ui);color:rgba(255,255,255,.82);text-shadow:0 1px 0 var(--sr-ink);}
+.rp-hero .sr-stamp{position:relative;flex:none;font-size:30px;margin:0 6px 6px 0;background:var(--sr-ink);animation:sr-stamp .45s var(--sr-ease-pop) .55s both;}
+
+/* body */
+.rp-body{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);gap:18px;padding:18px;}
+.rp-col{display:flex;flex-direction:column;gap:16px;min-width:0;}
+.rp-sec{display:flex;flex-direction:column;gap:8px;animation:rp-rise .45s var(--sr-ease-pop) both;animation-delay:var(--d,0s);}
+.rp-sec__head{display:flex;align-items:center;gap:8px;font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-text-2);text-transform:uppercase;letter-spacing:.06em;}
+.rp-sec__head .sr-ico{width:16px;height:16px;color:var(--sr-text-3);}
+.rp-sec__head b{margin-left:auto;color:var(--sr-go);letter-spacing:0;}
+.rp-sec__head b.is-bad{color:var(--sr-c-bad);}
+.rp-objs .sr-obj{padding:3px 0;}
+.rp-obj-fail{color:var(--sr-c-bad);}
+.rp-obj-fail .sr-obj__mark{border-style:solid;background:var(--sr-c-bad);color:var(--sr-ink);border-color:var(--sr-ink);}
+
+/* haul */
+.rp-haul{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+.rp-tile{position:relative;display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);box-shadow:var(--sr-bevel);
+  animation:rp-pop .4s var(--sr-ease-pop) both;animation-delay:var(--d,0s);}
+.rp-tile__top{display:flex;align-items:center;gap:6px;font:700 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-tile__top .sr-ico{width:16px;height:16px;}
+.rp-tile__n{font:400 26px/1 var(--sr-font-display);color:var(--c,var(--sr-text));text-shadow:0 2px 0 var(--sr-ink);}
+.rp-tile__split{font:600 var(--sr-fs-micro)/1.3 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-tile--item{align-items:center;text-align:center;}
+.rp-tile--item .it-art{width:80px;height:50px;margin:-4px 0 -2px;}
+.rp-tile--item .rp-tile__n{font-size:18px;}
+
+/* crew */
+.rp-crew{display:flex;flex-direction:column;gap:6px;}
+.rp-mate{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 10px 7px 7px;background:var(--sr-plate);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);animation:rp-rise .4s var(--sr-ease-pop) both;animation-delay:var(--d,0s);}
+.rp-mate__name{display:flex;align-items:baseline;gap:8px;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);color:var(--sr-text);}
+.rp-mate__name span{font:600 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-xp{position:relative;height:10px;margin-top:6px;background:var(--sr-void);border:2px solid var(--sr-ink);border-radius:999px;overflow:hidden;}
+.rp-xp i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;}
+.rp-xp .was{width:var(--from);background:color-mix(in srgb,var(--sr-psi) 45%,var(--sr-night));}
+.rp-xp .now{left:var(--from);width:var(--gain);background:var(--sr-psi);box-shadow:inset 0 2px 0 rgba(255,255,255,.3);transform-origin:left center;animation:rp-grow .9s ease-out both;animation-delay:var(--d,0s);}
+.rp-xp.is-up .was{display:none;}
+.rp-xp.is-up .now{left:0;background:var(--sr-gold);}
+.rp-mate__gain{font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);color:var(--sr-psi);text-align:right;white-space:nowrap;}
+.rp-mate__gain small{display:block;margin-top:3px;font:700 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-lvl{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;font:400 var(--sr-fs-xs)/1 var(--sr-font-display);color:var(--sr-ink);background:var(--sr-gold);
+  border:2px solid var(--sr-ink);border-radius:999px;animation:rp-pop .45s var(--sr-ease-pop) both;animation-delay:calc(var(--d,0s) + .7s);}
+.rp-mate .sr-tag{height:22px;}
+.rp-mate.is-lost{background:repeating-linear-gradient(-45deg,var(--sr-night) 0 10px,#1c1530 10px 20px);}
+.rp-mate.is-lost .kf{filter:grayscale(1) brightness(.6);}
+.rp-mate.is-lost .rp-mate__name{color:var(--sr-text-3);text-decoration:line-through;text-decoration-thickness:2px;}
+
+/* revolution */
+.rp-rev{display:flex;flex-direction:column;gap:12px;padding:12px;background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-lg);}
+.rp-meter{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:center;}
+.rp-ring{position:relative;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;
+  background:conic-gradient(var(--c) calc(var(--to) * 1%),color-mix(in srgb,var(--c) 22%,var(--sr-night)) 0);box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+.rp-ring::after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--sr-hull);box-shadow:0 0 0 2px var(--sr-ink);}
+.rp-ring>*{position:relative;z-index:1;}
+.rp-ring .sr-ico{width:18px;height:18px;color:var(--c);}
+.rp-ring b{font:400 13px/1 var(--sr-font-display);color:var(--sr-text);}
+.rp-meter__top{display:flex;align-items:baseline;gap:8px;font:800 var(--sr-fs-sm)/1.1 var(--sr-font-ui);color:var(--sr-text);}
+.rp-meter__top em{margin-left:auto;font-style:normal;font:400 18px/1 var(--sr-font-display);color:var(--c);text-shadow:0 2px 0 var(--sr-ink);}
+.rp-bar{position:relative;height:12px;margin-top:6px;background:var(--sr-void);border:2px solid var(--sr-ink);border-radius:999px;overflow:hidden;}
+.rp-bar i{position:absolute;top:0;bottom:0;left:0;border-radius:999px;}
+.rp-bar .was{width:calc(var(--from) * 1%);background:color-mix(in srgb,var(--c) 50%,var(--sr-night));}
+.rp-bar .now{left:calc(var(--from) * 1%);width:calc((var(--to) - var(--from)) * 1%);background:var(--c);transform-origin:left center;animation:rp-grow .9s ease-out both;animation-delay:var(--d,0s);}
+.rp-meter__sub{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px;font:600 var(--sr-fs-xs)/1.3 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-meter__sub .sr-tag{height:20px;font-size:var(--sr-fs-micro);}
+.rp-next{display:flex;align-items:center;gap:10px;padding:12px;border:2px dashed var(--sr-seam);border-radius:var(--sr-r-lg);font:600 var(--sr-fs-sm)/1.4 var(--sr-font-ui);color:var(--sr-text-2);}
+.rp-next .sr-ico{width:20px;height:20px;flex:none;color:var(--sr-text-3);}
+.rp-next b{color:var(--sr-text);}
+
+/* footer */
+.rp-win .sr-window__note{font:700 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+
+@keyframes rp-rise{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes rp-pop{0%{opacity:0;transform:scale(.7);}70%{opacity:1;transform:scale(1.06);}100%{transform:none;}}
+@keyframes rp-grow{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+@media (prefers-reduced-motion:reduce){.rp-win *{animation:none !important;}}
+
+/* ===== additions from the review rounds ===== */
+/* hero: planet + location pin instead of a tag; objectives pill on wins */
+.rp-loc{display:flex;align-items:flex-end;gap:10px;margin-bottom:6px;}
+.rp-loc__item{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.rp-loc__item canvas,.rp-loc__item svg{width:36px;height:36px;display:block;}
+.rp-loc__lbl{font:800 12px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:#fff;text-shadow:0 2px 0 var(--sr-ink);}
+.rp-loc__dots{width:26px;margin-bottom:30px;border-top:3px dotted rgba(255,255,255,.6);}
+.rp-objpill{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 5px;background:var(--sr-go);color:var(--sr-ink);border:2px solid var(--sr-ink);border-radius:999px;
+  font:800 var(--sr-fs-sm)/1 var(--sr-font-ui);text-shadow:none;}
+.rp-objpill .sr-ico{width:14px;height:14px;}
+/* resources: one tile per resource gained (credits, supplies, materials, fuel), up to 4 in a row */
+.rp-res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;}
+.rp-res .rp-tile{padding:9px 9px 10px;}
+.rp-res .rp-tile__n{font-size:22px;}
+.rp-drows{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding-top:7px;border-top:2px dashed var(--sr-seam);}
+.rp-drow{display:flex;align-items:center;gap:7px;font:700 12px/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+.rp-drow i{width:8px;height:8px;flex:none;background:var(--c);border:2px solid var(--sr-ink);border-radius:2px;transform:rotate(45deg);box-shadow:0 0 6px var(--c);}
+.rp-drow b{min-width:34px;font:800 13px/1 var(--sr-font-ui);color:var(--c);}
+/* loot: every item, ship, vehicle or bot gained; 4 per row, two rows max, the last becomes "+N more" */
+.rp-loot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+.rp-loot__tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px 7px;background:var(--sr-plate);border:var(--sr-line) solid var(--sr-ink);
+  border-radius:var(--sr-r-lg);box-shadow:var(--sr-bevel);animation:rp-pop .4s var(--sr-ease-pop) both;animation-delay:var(--d,0s);}
+.rp-loot__tile .it-art{width:68px;height:42px;}
+.rp-loot__name{max-width:100%;font:700 11px/1.15 var(--sr-font-ui);color:var(--sr-text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rp-loot__q{position:absolute;top:4px;right:6px;font:400 14px/1 var(--sr-font-display);color:var(--sr-text);text-shadow:0 2px 0 var(--sr-ink);}
+.rp-loot__tile.is-foe{background:linear-gradient(180deg,#22336e,var(--sr-plate));}        /* Hegemony loot */
+.rp-loot__tile.is-asset{background:linear-gradient(135deg,color-mix(in srgb,var(--sr-gold) 22%,var(--sr-plate)),var(--sr-plate) 70%);}  /* ship / vehicle / bot */
+.rp-loot__badge{position:absolute;top:4px;left:5px;padding:2px 5px;font:800 9px/1 var(--sr-font-ui);letter-spacing:.05em;text-transform:uppercase;color:var(--sr-ink);
+  background:var(--sr-gold);border:2px solid var(--sr-ink);border-radius:999px;}
+.rp-loot__more{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed var(--sr-seam);border-radius:var(--sr-r-lg);}
+.rp-loot__more b{font:400 18px/1 var(--sr-font-display);color:var(--sr-text-2);}
+.rp-loot__more span{font:700 11px/1.2 var(--sr-font-ui);color:var(--sr-text-3);}
+/* crew: injured / lost marked on the portrait and in words, no pill, no recovery time */
+.rp-mate__ava{position:relative;width:40px;height:40px;flex:none;}
+.rp-mate__badge{position:absolute;right:-5px;bottom:-5px;display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--c);border:2px solid var(--sr-ink);color:var(--sr-ink);}
+.rp-mate__badge .sr-ico{width:12px;height:12px;}
+.rp-mate__state{font:800 11px/1 var(--sr-font-ui);letter-spacing:.07em;text-transform:uppercase;color:var(--c);}
+/* revolution: the hub's ember look; liberation uses .gx-wheel from sr-theme */
+.rp-revring{position:relative;width:48px;height:48px;border-radius:50%;background:conic-gradient(var(--sr-ember-hi) 0,var(--sr-ember) calc(var(--to) * 1%),#2b1014 0);
+  box-shadow:0 0 0 3px var(--sr-ink),0 0 14px rgba(255,90,31,.45);}
+.rp-revring>span{position:absolute;inset:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;
+  background:radial-gradient(circle at 50% 30%,#8a1f12 0,var(--sr-ember-deep) 55%,var(--sr-ember-core) 100%);box-shadow:0 0 0 3px var(--sr-ink);}
+.rp-revring .sr-ico{width:14px;height:14px;color:var(--sr-ember-hi);}
+.rp-revring b{font:400 13px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 2px 0 var(--sr-ink);}
+.rp-meter.is-rev .now{background:linear-gradient(90deg,var(--sr-ember),var(--sr-ember-hi));}
+.rp-meter{grid-template-columns:48px minmax(0,1fr);}
+@container sr-app (max-width:900px){
+  .rp-win.sr-window{width:100%;height:100%;border-radius:0;border-width:0;}
+  .rp-body{grid-template-columns:minmax(0,1fr);padding:14px;gap:16px;overflow-y:auto;flex:1;min-height:0;}
+  .rp-res{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .rp-loot{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .rp-hero .sr-stamp{position:absolute;right:12px;bottom:14px;font-size:20px;margin:0;}
+  .rp-hero__txt .sr-brief__title{font-size:32px;}
+  .rp-win .sr-window__foot .sr-btn{flex:1;justify-content:center;}
+}
+

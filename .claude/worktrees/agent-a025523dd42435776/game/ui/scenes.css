@@ -1,0 +1,573 @@
+/* Scene-specific layout the shared kit doesn't cover. */
+.scene.sr-app{position:fixed;inset:0;width:auto;height:auto;}
+
+/* ===== base scene: layout and small pieces the kit does not cover ===== */
+#sc-base .sr-topbar__tools{position:relative;}
+#sc-base #baseMenu{top:calc(100% + 10px);right:0;}
+#sc-base .sr-cmdbar__go{border-left:0;padding-left:4px;}
+#sc-base .sr-cmdbar__count[hidden]{display:none;}
+#sc-base #cv{cursor:pointer;touch-action:none;}
+/* modal windows fit under the top bar; the body scrolls, the head and foot stay */
+#sc-base .sr-topbar{z-index:55;}   /* the bar and the hub that hangs from it stay bright above the scrim: resources matter while a window is open */
+#sc-base .sr-scrim{padding:48px 24px 24px;}
+#sc-base .sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 72px);}
+/* docked room window (top-left) and tile popover (placed by script) */
+#sc-base .sr-slot-tl{--bs-top:var(--sr-gutter);top:var(--bs-top);z-index:21;}   /* above the comms feed */
+#sc-base .bs-dock{width:min(360px,calc(100cqw - 2 * var(--sr-gutter)));max-height:calc(100cqh - var(--sr-topbar-h) - var(--bs-top) - var(--sr-gutter) - 52px);}   /* leaves the All news button reachable */
+#sc-base .bs-pop{position:absolute;z-index:35;width:min(380px,calc(100cqw - 24px));max-height:calc(100cqh - var(--sr-topbar-h) - 64px);}
+#sc-base .bs-dock .sr-window__body,#sc-base .bs-pop .sr-window__body{padding:14px;}
+#sc-base .bs-foot{flex-wrap:wrap;gap:8px;padding:10px 14px;}
+#sc-base .bs-foot .sr-btn{min-height:36px;}
+@container sr-app (max-width:1500px){#sc-base .sr-slot-tl{--bs-top:calc(var(--sr-gutter) + 44px + 64px);}}   /* clear of the tabs */
+/* kit tone extras for news, cards and slots */
+.sr-card--info{--c:var(--sr-c-info);}
+.sr-comm--bad{--c:var(--sr-c-bad);} .sr-comm--info{--c:var(--sr-c-info);} .sr-comm--progress{--c:var(--sr-c-progress);}
+.sr-log .is-bad{color:var(--sr-c-bad);} .sr-log .is-info{color:var(--sr-c-info);}
+.sr-slot.is-off{opacity:.5;cursor:default;}
+.sr-slot.is-off:hover{border-color:var(--sr-seam);background:transparent;}
+/* window heads: tags sit inline; on narrow windows they drop to a second row so the title never collides with them */
+#sc-base .sr-window__head{flex-wrap:wrap;}
+#sc-base .sr-window__title{flex:1 1 auto;}
+#sc-base .sr-window__foot{flex-wrap:wrap;gap:8px 10px;}   /* long labels wrap to a second row instead of overflowing */
+/* text helpers */
+#sc-base .bs-desc{margin:0 0 10px;font:500 14px/1.5 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-base .bs-info{margin:0 0 12px;font:600 14px/1.7 var(--sr-font-ui);color:var(--sr-text);}
+#sc-base .bs-info b{color:var(--sr-text);}
+:is(#sc-base,.sr-pfile) .bs-good{color:var(--sr-go);} :is(#sc-base,.sr-pfile) .bs-bad{color:var(--sr-c-bad);} :is(#sc-base,.sr-pfile) .bs-gold{color:var(--sr-gold);}
+#sc-base .bs-sub{display:block;margin-top:2px;font:600 12px/1.35 var(--sr-font-ui);color:var(--sr-text-3);}
+#sc-base .bs-from{margin-left:auto;font:600 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+#sc-base .bs-from+.sr-tag{margin-left:0;}
+#sc-base .sr-card__top .bs-op{margin-left:0;}
+#sc-base .bs-per{font:600 13px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+#sc-base .bs-inline{margin:0;align-self:center;}
+#sc-base .bs-center{text-align:center;margin:8px 0 14px;}
+#sc-base .bs-bio{font-style:italic;}
+#sc-base p.bs-bio{margin:14px 0 4px;color:var(--sr-text-2);}
+#sc-base .bs-quote{margin:0 0 10px;font:italic 500 15px/1.6 var(--sr-font-ui);color:var(--sr-text);}
+#sc-base .bs-cards{margin:0 0 10px;}
+#sc-base .bs-cards:last-child{margin-bottom:0;}
+#sc-base .bs-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+#sc-base .bs-rh{margin:4px 0 -2px;font:800 12px/1 var(--sr-font-ui);color:var(--sr-text-3);}
+#sc-base .bs-tagwrap{height:auto;white-space:normal;margin-top:14px;padding:8px 12px;border-radius:var(--sr-r);line-height:1.4;font-size:13px;}
+#sc-base .bs-rowtags{display:flex;gap:6px;margin-left:auto;}
+:is(#sc-base,.sr-pfile) .bs-meters{display:grid;gap:8px;margin:0 0 12px;}
+#sc-base .bs-build{padding:9px 12px;}
+#sc-base .bs-build .sr-card__body{margin:3px 0 8px;font-size:13px;line-height:1.45;}
+#sc-base .bs-build__row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+#sc-base .bs-build__row .sr-card__meta{margin:0;}
+#sc-base .sr-card__body.bs-bio{margin:8px 0 10px;}
+#sc-base .sr-card.is-locked .sr-card__body{color:var(--sr-text-3);}
+/* the feed stack: lines + the All news button */
+#sc-base .bs-feedlines{display:flex;flex-direction:column;gap:5px;}
+#sc-base .bs-feedlines:empty{display:none;}
+/* pointer: arrow flips up when the target sits low on the screen */
+#sc-base #tutPtr{z-index:var(--sr-z-toast);}
+/* the prologue's guided-step callout (game/js/prologue.js): the coach card beside its target, over windows */
+#sc-base #tutCoach{position:absolute;z-index:var(--sr-z-toast);pointer-events:none;width:300px;}
+#sc-base #tutCoach .pro-coach__btn{pointer-events:auto;}
+#sc-base #tutCoach .pro-coach__txt b{font-weight:800;}
+/* a mechanic the prologue has just opened: its tab pulses once and wears a New tag until it is opened */
+#sc-base .sr-tab.pro-new{animation:pro-pulse 1.2s var(--sr-ease-out) 1;}
+#sc-base .sr-tab .pro-newtag{margin-left:6px;}
+@keyframes pro-pulse{0%{box-shadow:0 0 0 0 var(--sr-go);}100%{box-shadow:0 0 0 14px transparent;}}
+@media (prefers-reduced-motion:reduce){#sc-base .sr-tab.pro-new{animation:none;}}
+#sc-base #tutPtr.below{flex-direction:column-reverse;}
+#sc-base #tutPtr.below .sr-pointer__arrow{border-top-color:transparent;border-bottom:12px solid var(--sr-gold);margin-top:0;margin-bottom:4px;filter:drop-shadow(0 -2px 0 var(--sr-ink));}
+/* galaxy */
+#sc-base .bs-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;margin:12px 0 8px;}
+#sc-base .bs-stat{display:flex;align-items:center;gap:12px;min-height:30px;}
+#sc-base .bs-stat__l{flex:none;width:82px;font:800 13px/1 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-base .bs-wheel{--p:0;position:relative;display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;
+  background:conic-gradient(var(--sr-rebel) calc(var(--p) * 1%),var(--sr-void) 0);box-shadow:0 0 0 var(--sr-line) var(--sr-ink);}
+#sc-base .bs-wheel::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--sr-plate);}
+#sc-base .bs-wheel b{position:relative;z-index:1;font:800 11px/1 var(--sr-font-ui);color:var(--sr-text);}
+#sc-base .bs-region{--rc:var(--sr-heg);display:grid;grid-template-columns:minmax(0,1fr) auto 90px 40px;gap:6px 12px;align-items:center;padding:8px 12px;margin-bottom:6px;
+  background:var(--sr-night);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:inset 4px 0 0 var(--rc);}
+#sc-base .bs-region.is-liberated{--rc:var(--sr-rebel);} #sc-base .bs-region.is-contested{--rc:var(--sr-hazard);}
+#sc-base .bs-region__n{font:700 14px/1.2 var(--sr-font-ui);} #sc-base .bs-region__n em{font:600 12px/1 var(--sr-font-ui);font-style:normal;color:var(--sr-text-3);margin-left:6px;}
+#sc-base .bs-region__bar{position:relative;height:12px;}
+#sc-base .bs-region__bar u{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1px;background:var(--sr-gold);border-radius:2px;box-shadow:0 0 0 1px var(--sr-ink);}
+#sc-base .bs-region__p{font:800 13px/1 var(--sr-font-ui);text-align:right;color:var(--sr-text-2);}
+/* personnel file / recruit dossier */
+:is(#sc-base,.sr-pfile) .bs-dz{display:flex;gap:16px;align-items:center;}
+:is(#sc-base,.sr-pfile) .bs-dz__name{font:800 18px/1.1 var(--sr-font-ui);}
+:is(#sc-base,.sr-pfile) .bs-dz__tags{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 5px;}
+:is(#sc-base,.sr-pfile) .bs-dz__role{font-size:13px;font-weight:600;}
+/* the Personnel File's paper doll: the whole rebel in their kit, beside the file (above it on a phone) */
+:is(#sc-base,.sr-pfile) .bs-file{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;align-items:start;}
+:is(#sc-base,.sr-pfile) .bs-file:not(:has(.bs-doll)){grid-template-columns:minmax(0,1fr);}
+:is(#sc-base,.sr-pfile) .bs-doll{position:sticky;top:0;border-radius:14px;background:radial-gradient(ellipse at 50% 85%,rgba(255,200,58,.14),transparent 62%),var(--sr-night,#101330);border:2px solid var(--sr-seam,#2b3060);padding:8px 4px 0;}
+:is(#sc-base,.sr-pfile) .bs-doll img{display:block;width:100%;height:auto;}
+@container (max-width:560px){:is(#sc-base,.sr-pfile) .bs-file{grid-template-columns:minmax(0,1fr);}:is(#sc-base,.sr-pfile) .bs-doll{position:static;max-width:280px;margin:0 auto;}}
+@media (max-width:600px){:is(#sc-base,.sr-pfile) .bs-file{grid-template-columns:minmax(0,1fr);}:is(#sc-base,.sr-pfile) .bs-doll{position:static;max-width:280px;margin:0 auto;}}
+/* mission planning */
+#sc-base .bs-plan{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);grid-template-areas:"l r" "ro r";grid-template-rows:auto 1fr;gap:0 22px;align-items:start;}
+#sc-base .bs-plan .planL{grid-area:l;} #sc-base .bs-plan .planRo{grid-area:ro;} #sc-base .bs-plan .planR{grid-area:r;}
+#sc-base .bs-plan .sr-p{margin-bottom:10px;font-size:14px;}
+#sc-base .bs-plan .sr-obj{padding:3px 0;}
+#sc-base .sr-slot .sr-avatar{width:36px;height:36px;font-size:12px;}
+#sc-base .bs-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+#sc-base .bs-hero .sr-stamp{flex:none;}
+/* gear grid */
+#sc-base .bs-geargrid{display:grid;grid-auto-rows:66px;gap:6px;}
+#sc-base .bs-gearcell{display:flex;flex-direction:column;justify-content:space-between;padding:7px 10px;overflow:hidden;background:var(--sr-plate);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-sm);box-shadow:inset 4px 0 0 var(--sr-go),0 2px 0 var(--sr-ink);}
+#sc-base .bs-gearcell__n{display:flex;align-items:center;gap:6px;min-width:0;font:800 13px/1.2 var(--sr-font-ui);}
+#sc-base .bs-gearcell__n>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-base .bs-gearcell__n .sr-ico{width:16px;height:16px;color:var(--sr-gold);flex:none;}
+/* returning home */
+#sc-base .bs-arrsky{position:relative;height:170px;overflow:hidden;background:linear-gradient(var(--sr-void),var(--sr-hull) 85%,var(--sr-plate));border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);}
+#sc-base .bs-arrstar{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--sr-steel);}
+#sc-base .bs-arrstar.s1{left:18%;top:20%;} #sc-base .bs-arrstar.s2{left:70%;top:14%;} #sc-base .bs-arrstar.s3{left:44%;top:34%;}
+#sc-base .bs-arrrock{position:absolute;left:-10%;right:-10%;bottom:-40px;height:84px;border-radius:50%;background:var(--sr-night);border-top:var(--sr-line) solid var(--sr-ink);box-shadow:0 -3px 16px rgba(255,200,58,.25);}
+#sc-base .bs-arrship{position:absolute;left:50%;top:8px;color:var(--sr-gold);transform:translateX(-50%) rotate(180deg);animation:bs-arrLand 2.6s ease-in both;}
+#sc-base .bs-arrship .sr-ico{width:30px;height:30px;}
+@keyframes bs-arrLand{0%{top:-30px;opacity:0;}15%{opacity:1;}100%{top:104px;}}
+/* BASE ESTABLISHED splash (prologue win): dims the base, pops the name, hands over to Cass */
+#sc-base .bs-estsplash{position:absolute;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:rgba(7,8,24,.72);cursor:pointer;transition:opacity .4s ease;}
+#sc-base .bs-estsplash.is-out{opacity:0;}
+#sc-base .bs-est__big{font:400 56px/1 var(--sr-font-display);color:var(--sr-gold);text-shadow:0 4px 0 var(--sr-ink);animation:bs-estPop .55s var(--sr-ease-pop) both;}
+#sc-base .bs-est__sub{font:400 24px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 3px 0 var(--sr-ink);animation:bs-estPop .55s .12s var(--sr-ease-pop) both;}
+@keyframes bs-estPop{0%{transform:scale(.55);opacity:0;}100%{transform:scale(1);opacity:1;}}
+@media (prefers-reduced-motion:reduce){
+  #sc-base .bs-est__big,#sc-base .bs-est__sub{animation:none;}
+  #sc-base .bs-estsplash{transition:none;}
+}
+/* revolution level 2 */
+#sc-base .bs-esc{text-align:center;padding:6px 0 0;}
+#sc-base .bs-escrings{position:relative;width:130px;height:130px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;}
+#sc-base .bs-escrings i{position:absolute;inset:0;border:3px solid var(--sr-ember);border-radius:50%;animation:bs-escRing 2.6s ease-out infinite;}
+#sc-base .bs-escrings i:nth-child(2){animation-delay:.85s;} #sc-base .bs-escrings i:nth-child(3){animation-delay:1.7s;}
+#sc-base .bs-escn{font:400 72px/1 var(--sr-font-display);color:#fff4e6;text-shadow:0 4px 0 var(--sr-ink),0 0 24px rgba(255,90,31,.9);animation:bs-escPop 1s var(--sr-ease-pop) both;}
+@keyframes bs-escRing{0%{transform:scale(.35);opacity:.9;}100%{transform:scale(1.5);opacity:0;}}
+@keyframes bs-escPop{0%{transform:scale(.2);opacity:0;}100%{transform:scale(1);opacity:1;}}
+/* the Personnel File (ui/sr-personnel.css): the window wants the whole stage, and its detail buttons act as buttons */
+#sc-base .sr-scrim.bs-winwide{padding:12px 10px;}
+#sc-base .bs-winwide>.pf-win.sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 24px);}
+/* the planning board fits the stage: the head and the foot stay put and the board scrolls when the stage is short
+   (a long briefing, a small screen); at 1440×900 with a usual briefing nothing scrolls */
+#sc-base .pf-pop{width:250px;}   /* the handoff's 300px would run off the window's right edge */
+#sc-base .pf-medical,#sc-base .pf-spec__head{cursor:pointer;}
+#sc-base .pf-medical:hover,#sc-base .pf-spec__head:hover,#sc-base .pf-tip.is-open>.pf-medical,#sc-base .pf-tip.is-open>.pf-spec__head{border-color:var(--sr-gold);}
+#sc-base .pf-rank.is-ready{border-color:var(--sr-gold);box-shadow:0 0 12px rgba(255,212,90,.35);}
+#sc-base .pf-rank__flag{font:800 9px/1 var(--sr-font-ui);font-style:normal;letter-spacing:.05em;text-transform:uppercase;color:var(--sr-gold);white-space:nowrap;}
+#sc-base .pf-peg:disabled{cursor:default;opacity:.7;}
+#sc-base .pf-pop .sr-btn{margin-top:6px;}
+#sc-base .pf-sec{display:flex;flex-direction:column;gap:8px;} #sc-base .pf-col{gap:12px;}
+#sc-base .pf-body{min-height:0;overflow-y:auto;}   /* fits at 900px tall; only a shorter screen scrolls */
+#sc-base .pf-skill{padding:7px 10px 8px;} #sc-base .pf-skill .pf-bar{margin-top:5px;} #sc-base .pf-skill__fx{margin-top:5px;}
+#sc-base .pf-stage.is-hurt .pf-pegs--l{top:96px;}   /* clear of the Injured ribbon */
+/* the Missions tab (ui/sr-briefing.css): the rail is the briefing, the bar is the lone Advance day */
+#sc-base .sr-shell.is-missions .sr-rail__scroll>*:not(#railMissions){display:none;}
+#sc-base .bf-board .bf-list{flex:1;min-height:0;overflow-y:auto;padding:2px 22px 4px 2px;margin-right:-22px;}
+#sc-base .bf-card.has-flag .bf-card__name{padding-right:58px;}
+#sc-base .bf-card__meta .bf-risk{margin-right:2px;}
+#sc-base .bf-loc>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-base .bf-proj.is-locked{animation-duration:1.4s;}
+#sc-base .bf-callout span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+#sc-base .bf-brief.is-tight .bf-obj span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#sc-base .bf-brief.is-tighter .bf-req em{display:none;}
+#sc-base .bf-brief.is-tighter .bf-quote{-webkit-line-clamp:2;}
+#sc-base .bf-plan .sr-btn:disabled{opacity:.55;}
+/* phones: sr-briefing.css has no phone block of its own. The board and a smaller table stack and scroll; the
+   briefing is the drawer (a card opens it); callouts are left out at this size */
+@container sr-app (max-width:900px){
+  #sc-base .bf-board{position:relative;left:auto;top:auto;bottom:auto;width:auto;margin:150px 12px 0;}
+  #sc-base .bf-board .bf-list{overflow:visible;margin-right:0;padding-right:2px;}
+  #sc-base .bf-card.is-sel{transform:none;} #sc-base .bf-card.is-sel::after{display:none;}
+  #sc-base .bf-holo{position:relative;left:auto;right:auto;top:auto;bottom:auto;height:330px;margin:12px 12px 0;overflow:hidden;}
+  #sc-base .bf-proj{transform:translateX(-50%) scale(.52);transform-origin:50% 0;top:0;}
+  #sc-base .bf-callout{display:none;}
+  #sc-base .bf-proj svg polyline{display:none;}
+  #sc-base .bf-beam{width:260px;height:250px;bottom:40px;}
+  #sc-base .bf-table{width:300px;height:70px;}
+  #sc-base .bf-title{bottom:78px;}
+  #sc-base .sr-rail__scroll.bf-rail{overflow-y:auto;}
+}
+/* the comm burst (ui/sr-comm.css): the waveform is today's canvas, the sections carry their own margins */
+#sc-base .cm-chan canvas{display:block;width:100%;height:30px;margin-top:6px;}
+#sc-base .cm-body{padding:0 0 16px;}
+#sc-base .cm-body>.cm-lead:last-child,#sc-base .cm-body>.cm-quiet:last-child{margin-bottom:0;}
+#sc-base .cm-choices{display:flex;flex-direction:column;gap:8px;margin:14px 16px 0;}
+#sc-base .cm-log b{color:var(--sr-text-2);}
+#sc-base .cm-chan__top b{white-space:nowrap;} #sc-base .cm-chan__top span{text-align:right;}
+/* phones: windows scroll as a whole; the room window and its neighbours get out of each other's way */
+@container sr-app (max-width:900px) or (max-height:520px){
+  #sc-base .sr-scrim{padding:30px 8px 8px;}
+  #sc-base .sr-window{max-height:calc(100cqh - var(--sr-topbar-h) - 38px);}   /* the foot stays on screen; the body scrolls */
+  #sc-base .sr-scrim.bs-winfull{padding:0;} #sc-base .bs-winfull>.sr-window{max-height:none;}   /* the report and the personnel file take the whole screen */
+  #sc-base .pf-pop{width:auto;}   /* popovers drop below their button, full width */
+  #sc-base .sr-slot-tl{left:8px;--bs-top:calc(var(--sr-gutter) + 22px + 62px);}
+  #sc-base .bs-dock{width:min(380px,calc(100cqw - 16px));max-height:calc(100cqh - var(--sr-topbar-h) - var(--bs-top) - 84px);}   /* portrait: Advance day sits full-width below */
+  #sc-base .bs-plan{grid-template-columns:minmax(0,1fr);grid-template-areas:"l" "r" "ro";grid-template-rows:auto;gap:0;}
+  #sc-base .bs-stats{grid-template-columns:1fr;}
+  #sc-base .bs-region{grid-template-columns:minmax(0,1fr) auto;}
+  #sc-base .bs-region__bar{grid-column:1 / 2;}
+  #sc-base .bs-region__p{grid-column:2 / 3;}
+  #sc-base .bs-pop{width:min(340px,calc(100cqw - 16px));}
+}
+@container sr-app (max-height:520px) and (orientation:landscape){
+  #sc-base .bs-dock{max-height:calc(100cqh - var(--sr-topbar-h) - var(--bs-top) - 8px);}   /* landscape: Advance day is at the right */
+  #sc-base .sr-window__head{padding-top:8px;padding-bottom:8px;}
+  #sc-base .sr-window__foot{padding-top:8px;padding-bottom:8px;}
+  #sc-base .sr-window__foot .sr-btn--lg{min-height:44px;}
+  #sc-base .sr-window__body{padding:12px 16px;}
+}
+/* ===== mission scenes (ground + space share the HUD slots, banner, comms and rail furniture) ===== */
+:is(#sc-ground,#sc-space) #cv{cursor:crosshair;touch-action:none;}
+/* cinematic letterbox */
+:is(#sc-ground,#sc-space) .lb{position:absolute;left:0;right:0;height:0;background:#000;z-index:8;transition:height .6s ease;pointer-events:none;}
+:is(#sc-ground,#sc-space) #lbTop{top:0;}
+:is(#sc-ground,#sc-space) #lbBot{bottom:0;}
+:is(#sc-ground,#sc-space) .cine .lb{height:9%;}
+/* phase banners ride high so they never sit on the acting units; the mission-title banner stays centred */
+:is(#sc-ground,#sc-space) .sr-banner{place-items:start center;padding-top:16%;}
+:is(#sc-ground,#sc-space) #csBanner{place-items:center;padding:0;opacity:0;transition:opacity .5s ease;z-index:9;}
+:is(#sc-ground,#sc-space) #csBanner.show{opacity:1;}
+:is(#sc-ground,#sc-space) #csBanner .sr-banner__txt{animation:none;--c:var(--sr-text);text-align:center;}
+:is(#sc-ground,#sc-space) #csBanner .big{display:block;}
+:is(#sc-ground,#sc-space) #csBanner .small{color:var(--sr-gold);}
+:is(#sc-ground,#sc-space) #csSkip{position:absolute;left:50%;bottom:calc(9% + 12px);transform:translateX(-50%);z-index:var(--sr-z-hud);}
+/* comms feed and the full log: spans written by the game's log() */
+:is(#sc-ground,#sc-space) .sr-comm .r,:is(#sc-ground,#sc-space) .sr-log .r{color:var(--sr-c-friend);font-weight:800;}
+:is(#sc-ground,#sc-space) .sr-comm .h,:is(#sc-ground,#sc-space) .sr-log .h{color:var(--sr-c-foe);font-weight:800;}
+:is(#sc-ground,#sc-space) .sr-comm .a,:is(#sc-ground,#sc-space) .sr-log .a{color:var(--sr-c-action);font-weight:700;}
+:is(#sc-ground,#sc-space) .sr-comm .g,:is(#sc-ground,#sc-space) .sr-log .g{color:var(--sr-c-good);font-weight:700;}
+:is(#sc-ground,#sc-space) .sr-comm .b,:is(#sc-ground,#sc-space) .sr-log .b{color:var(--sr-c-bad);font-weight:800;}
+:is(#sc-ground,#sc-space) .sr-comm .d,:is(#sc-ground,#sc-space) .sr-log .d{color:var(--sr-text-3);}
+:is(#sc-ground,#sc-space) .sr-comm--bad{--c:var(--sr-c-bad);}
+:is(#sc-ground,#sc-space) .sr-log p{margin:0 0 6px;}
+/* bottom slot parts */
+:is(#sc-ground,#sc-space) .sr-brief__hero--stamp{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;}
+:is(#sc-ground,#sc-space) .sr-brief__hero--stamp .sr-stamp{flex:none;margin:6px 6px 0 0;}
+/* rail */
+:is(#sc-ground,#sc-space) .sr-rail__close{align-self:flex-end;margin:-4px 0 -12px;}
+:is(#sc-ground,#sc-space) .sr-unit .sr-unit__side{min-width:0;}
+:is(#sc-ground,#sc-space) .sr-unit--ghost b{font-weight:800;}
+/* menu under the top bar */
+:is(#sc-ground,#sc-space) .sr-menu{top:calc(100% + 6px);right:var(--sr-s3);}
+/* phones: the minimap and comms already drop out; the log lives in the menu */
+@container sr-app (max-width:900px) or (max-height:520px){
+  :is(#sc-ground,#sc-space) .sr-comms__more{display:none;}
+}
+/* ===== ground only ===== */
+#sc-ground #pickPill{cursor:pointer;font-family:inherit;}
+#sc-ground .sr-fs{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+#sc-ground #fsBtnHost{display:block;position:relative;}
+#sc-ground .sr-fs .sr-badge{top:-8px;right:-8px;}
+/* the Fire support menu: calls grouped by where they come from; each row shows the call's colour (--k), name,
+   timing, danger close, and a footprint of how it's aimed. Called ones show their status; locked ones a padlock */
+#sc-ground #fsMenu{width:min(380px,100%);max-height:min(70vh,560px);overflow:auto;}
+#sc-ground .fsm-body{display:flex;flex-direction:column;gap:12px;padding:10px 12px 12px;}
+#sc-ground .fsm-group{display:flex;flex-direction:column;gap:6px;}
+#sc-ground .fsm-src{display:flex;align-items:center;gap:7px;padding:0 2px;font:800 var(--sr-fs-xs)/1 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-ground .fsm-src .sr-ico{width:14px;height:14px;color:var(--sr-rebel);}
+#sc-ground .fsm-src b{color:var(--sr-text);letter-spacing:.02em;}
+#sc-ground .fsm-src span{color:var(--sr-text-3);font-weight:600;}
+#sc-ground .fsm-src span::before{content:"◆";margin-right:6px;font-size:7px;vertical-align:2px;color:var(--sr-seam);}
+#sc-ground .fsm-row{--k:var(--sr-rebel);display:grid;grid-template-columns:40px minmax(0,1fr) 56px;align-items:center;gap:11px;width:100%;padding:8px 8px 8px 9px;
+  text-align:left;color:var(--sr-text);font:inherit;cursor:pointer;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--k) 16%,var(--sr-plate)),var(--sr-plate) 60%);
+  border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r);box-shadow:var(--sr-bevel),0 3px 0 var(--sr-ink);
+  transition:transform var(--sr-t-fast) var(--sr-ease-pop),box-shadow var(--sr-t-fast);}
+#sc-ground .fsm-row:hover,#sc-ground .fsm-row:focus-visible{transform:translateY(-2px);box-shadow:var(--sr-bevel),0 0 0 2px var(--sr-gold),0 5px 0 var(--sr-ink);outline:none;}
+#sc-ground .fsm-ic{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--k);color:var(--sr-ink);border:var(--sr-line) solid var(--sr-ink);box-shadow:inset 0 -3px 0 rgba(0,0,0,.22);}
+#sc-ground .fsm-ic .sr-ico{width:21px;height:21px;}
+#sc-ground .fsm-txt{display:flex;flex-direction:column;gap:4px;min-width:0;}
+#sc-ground .fsm-txt b{font:800 15px/1.1 var(--sr-font-ui);}
+#sc-ground .fsm-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font:600 var(--sr-fs-xs)/1.2 var(--sr-font-ui);color:var(--sr-text-2);}
+#sc-ground .fsm-danger{display:inline-flex;align-items:center;gap:4px;color:var(--sr-hazard);font-weight:800;}
+#sc-ground .fsm-danger .sr-ico{width:15px;height:15px;}
+#sc-ground .fsm-status{color:var(--k);font-weight:800;}
+#sc-ground .fsm-fp{width:56px;height:40px;padding:0;background:var(--sr-void);border-radius:8px;box-shadow:inset 0 0 0 1.5px var(--sr-ink);
+  color:var(--k);fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  background-image:radial-gradient(circle,rgba(179,187,227,.16) 1px,transparent 1.2px);background-size:8px 8px;}
+#sc-ground .fsm-row.is-off{cursor:default;transform:none;background:var(--sr-night);box-shadow:inset 0 0 0 1.5px var(--sr-seam);border-color:var(--sr-ink);}
+#sc-ground .fsm-row.is-off .fsm-ic{background:transparent;color:var(--k);border-color:var(--k);border-style:dashed;box-shadow:none;}
+#sc-ground .fsm-row.is-off .fsm-fp{opacity:.45;}
+#sc-ground .fsm-row.is-locked{--k:var(--sr-text-3);}
+#sc-ground .fsm-row.is-locked .fsm-txt b{color:var(--sr-text-2);}
+#sc-ground .fsm-pick{display:inline-flex;align-items:center;gap:6px;color:var(--k);}
+#sc-ground .fsm-pick .sr-ico{width:16px;height:16px;}
+#sc-ground .fsm-step{margin-left:2px;padding:3px 7px;border-radius:999px;background:var(--sr-ink);color:var(--sr-gold);font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);}
+#sc-ground #endLoot{margin-top:6px;}
+#sc-ground .sr-coach.is-folded{padding:8px 12px;}
+#sc-ground .sr-coach.is-folded .sr-coach__head{margin:0;}
+#sc-ground .sr-coach.is-folded #tutText{display:none;}
+/* ===== space only ===== */
+#sc-space .sr-comm .s,#sc-space .sr-log .s{color:var(--sr-shield);font-weight:700;}
+#sc-space .sr-comm .p,#sc-space .sr-log .p{color:var(--sr-psi);font-weight:700;}
+#sc-space #lockPill{cursor:pointer;font-family:inherit;}
+/* rail rows: name and pilot, then stacked S / A / H bars; Init, plotted maneuver and nerve ride on the right */
+#sc-space .sr-unit{cursor:pointer;align-items:start;}
+#sc-space .sr-unit>.sr-avatar{align-self:center;}
+#sc-space .sr-unit.is-down{cursor:default;}
+#sc-space .sr-unit__top{flex-direction:column;align-items:flex-start;gap:3px;}
+#sc-space .sr-unit__side{align-items:flex-end;}
+.sp-rows{display:flex;flex-direction:column;gap:4px;margin-top:1px;}
+.sp-row{display:flex;align-items:center;gap:7px;}
+.sp-row__l{flex:none;width:10px;font:800 var(--sr-fs-micro)/1 var(--sr-font-ui);color:var(--sr-text-3);}
+.sp-row .sr-hp{gap:5px;flex-wrap:nowrap;}
+.sp-row .sr-hp__cells{flex-wrap:nowrap;}
+#sc-space .sr-hp__cell.is-on.is-guest{background:var(--sr-psi);}   /* the stacked, angled-in shield segment */
+.sp-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.sp-rows+.sp-tags{margin-top:6px;}
+.sp-bad{color:var(--sr-c-bad);font-weight:800;}
+/* maneuver dial inside the command bar */
+#sc-space .sr-cmdbar>.sr-dial{align-self:center;}
+#sc-space .sr-dial__k:disabled{pointer-events:none;}
+#sc-space .sr-dial__h{white-space:nowrap;}
+/* info window: the Starfighter sheet (sr-shipfile.css); this only centres it over the stage */
+.sp-wins{display:flex;gap:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap;width:100%;}
+/* phones: the dial shrinks to fit beside Execute */
+@container sr-app (max-width:900px) or (max-height:520px){
+  #sc-space .sr-dial{grid-template-columns:repeat(var(--cols,6),minmax(0,1fr));flex:1;min-width:0;gap:3px;}
+  #sc-space .sr-dial__k{height:32px;min-width:0;}
+  #sc-space .sr-dial__h{white-space:normal;line-height:1.05;font-size:var(--sr-fs-micro);}
+  #sc-space #infoWins .sr-window{max-height:none;}
+}
+@container sr-app (max-height:520px) and (orientation:landscape){
+  #sc-space .sr-dial{max-width:300px;}
+  #sc-space .sr-dial__k{height:25px;}
+}
+
+/* long ranks (Private First Class, Senior Master Sergeant) must not run under the status tag */
+#sc-base .sr-unit__main{min-width:0;flex:1;}
+#sc-base .sr-unit__top{gap:6px;}
+#sc-base .sr-unit__role{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* several New Recruit cards side by side */
+#sc-base .bs-recgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;align-items:start;}
+#sc-base .bs-reccard{margin:0;}
+
+/* dossier: morale, experience and skills as bars */
+:is(#sc-base,.sr-pfile) .bs-meters{display:grid;gap:9px;margin:12px 0 16px;}
+:is(#sc-base,.sr-pfile) .bs-meters .sr-meter{grid-template-columns:104px 1fr 38px;}
+
+/* rank line beside the bars, and the rank details that float over the personnel file */
+#sc-base #winCardB{position:relative;}
+:is(#sc-base,.sr-pfile) .bs-rank{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+:is(#sc-base,.sr-pfile) .bs-rank:hover,:is(#sc-base,.sr-pfile) .bs-rank:focus-visible{border-color:var(--sr-gold);}
+:is(#sc-base,.sr-pfile) .bs-rank__ico{display:inline-flex;flex:none;}
+:is(#sc-base,.sr-pfile) .bs-rank__name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+:is(#sc-base,.sr-pfile) .bs-rank__prog{color:var(--sr-text-3);font-size:var(--sr-fs-xs);}
+:is(#sc-base,.sr-pfile) .bs-rank__flag{flex:none;color:var(--sr-ink);background:var(--sr-go);border-radius:999px;padding:4px 9px;font-size:var(--sr-fs-xs);}
+:is(#sc-base,.sr-pfile) .bs-rank.is-ready{border-color:var(--sr-go);}
+:is(#sc-base,.sr-pfile) .bs-rank__go{display:inline-flex;flex:none;color:var(--sr-text-3);}
+:is(#sc-base,.sr-pfile) .bs-rank__go .sr-ico{width:16px;height:16px;}
+@media (prefers-reduced-motion:no-preference){:is(#sc-base,.sr-pfile) .bs-rank.is-ready .bs-rank__flag{animation:bs-readypulse 1.8s ease-in-out infinite;}}
+@keyframes bs-readypulse{50%{filter:brightness(1.25);}}
+#sc-base .bs-overlay{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:16px;}
+#sc-base .bs-overlay__scrim{position:absolute;inset:0;border:0;background:rgba(5,8,20,.72);cursor:default;}
+#sc-base .bs-overlay__panel{position:relative;width:min(380px,100%);max-height:100%;display:flex;flex-direction:column;background:var(--sr-hull);border:var(--sr-line) solid var(--sr-ink);border-radius:var(--sr-r-xl);box-shadow:var(--sr-float);overflow:hidden;}
+
+/* gear slots in the dossier and the picker that floats over it */
+:is(#sc-base,.sr-pfile) .bs-gearslots{display:grid;gap:6px;margin:0 0 14px;}
+:is(#sc-base,.sr-pfile) .bs-gearslot{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:700 var(--sr-fs-sm)/1.1 var(--sr-font-ui);cursor:pointer;text-align:left;}
+:is(#sc-base,.sr-pfile) .bs-gearslot:hover:not(:disabled),:is(#sc-base,.sr-pfile) .bs-gearslot:focus-visible{border-color:var(--sr-gold);}
+:is(#sc-base,.sr-pfile) .bs-gearslot:disabled{opacity:.6;cursor:default;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__k{flex:none;width:140px;white-space:nowrap;color:var(--sr-text-3);font-size:var(--sr-fs-xs);text-transform:uppercase;letter-spacing:.04em;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__v{flex:1;min-width:0;display:flex;align-items:center;gap:8px;overflow:hidden;}
+:is(#sc-base,.sr-pfile) .bs-gearslot__v span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#sc-base .bs-gearpicks{display:grid;gap:8px;}
+#sc-base .bs-gearpick{display:grid;gap:3px;width:100%;padding:9px 11px;border:2px solid var(--sr-ink);border-radius:var(--sr-r-md);background:var(--sr-night);color:var(--sr-text);font:600 var(--sr-fs-sm)/1.25 var(--sr-font-ui);text-align:left;cursor:pointer;}
+#sc-base .bs-gearpick:hover:not(:disabled),#sc-base .bs-gearpick:focus-visible{border-color:var(--sr-gold);}
+#sc-base .bs-gearpick.is-on{border-color:var(--sr-go);}
+#sc-base .bs-gearpick:disabled{opacity:.5;cursor:default;}
+#sc-base .bs-gearpick__n{display:flex;align-items:center;gap:8px;font-weight:800;}
+
+/* ---------- Arsenal view glue (the components live in sr-kit.css) ---------- */
+/* while the Arsenal is up, the rail shows Loadouts instead of the crew lists */
+#sc-base .sr-shell.is-arsenal .sr-rail__scroll>*:not(#railArsenal){display:none;}
+#sc-base #railArsenal section{display:flex;flex-direction:column;gap:8px;}
+/* a slot the role doesn't have (pilots have no Primary) */
+#sc-base .ar-slot.is-none{display:grid;place-items:center;height:40px;border:0;background:transparent;color:var(--sr-text-3);font:700 11px/1 var(--sr-font-ui);cursor:default;}
+#sc-base .ar-dossier .sr-h3{margin:0;}
+#sc-base .ar-main{overflow-y:auto;}
+
+/* ---------- Black Market view glue (the components live in sr-kit.css) ---------- */
+/* while the stall is up, the rail shows the fence instead of the crew lists */
+#sc-base .sr-shell.is-market .sr-rail__scroll>*:not(#railMarket){display:none;}
+/* no SR_ART yet (DESIGN_BLOCKERS M-20): the role avatar stands in for Sweet Tooth's head */
+#sc-base .kf .sr-avatar{width:100%;height:100%;border-radius:50%;}
+#sc-base .bm-fence .kf .sr-avatar{font:400 44px/1 var(--sr-font-display);color:var(--sr-gold);}
+#sc-base .bm-fence .bm-say,#sc-base .bm-fence .bm-box,#sc-base .bm-fence .bm-perk{width:100%;}
+#sc-base .bm-fence .kit-pips{margin-top:10px;justify-content:center;}
+#sc-base .bm-perk.is-on{border-style:solid;border-color:var(--sr-go);color:var(--sr-text-2);}
+#sc-base .bm-perk.is-on .sr-ico{color:var(--sr-go);}
+/* the comms feed sits outside .bm-view in this shell, so the width rules ride the shell class */
+#sc-base .sr-shell.is-market .sr-comms{width:300px;}
+@container sr-app (max-width:900px){
+  #sc-base .sr-shell.is-market .sr-comms{display:none;}
+}
+#sc-base .bm-restock{text-align:left;}
+/* sr-kit.css declares .bm-strip{display:none} AFTER its own @container override, so the override
+   never wins; re-assert the phone strip here (this sheet loads after sr-kit.css) */
+@container sr-app (max-width:900px){
+  #sc-base .bm-strip{display:flex;}
+}
+/* the Black Market's art never clips (docs/FEEDBACK-0.2-HANDOFF.md §4). The stall scrolls instead of squeezing its two
+   rows (each at least 250px: BM_CARD_MIN, placeholder); the art well keeps a floor (96px, placeholder) and the art
+   scales down inside it at 8:5, 192 × 120 at most, sized from the well (a size container) so it never stretches.
+   The mercenary's block scales the same way, its own-kit art at 72 × 45 at most (the "Brings own kit" caption keeps
+   its room: this replaces the C-13 re-assert that sat here). */
+#sc-base .bm-grid{grid-template-rows:none;grid-auto-rows:minmax(250px,1fr);overflow-y:auto;overscroll-behavior:contain;}
+#sc-base .bm-card .kit-well{flex:1 1 auto;min-height:96px;container-type:size;}
+#sc-base .bm-card .kit-well .it-art{width:min(192px,100cqw,160cqh);height:min(120px,62.5cqw,100cqh);}
+#sc-base .bm-card .bm-merc{gap:min(14px,5cqw);max-width:100cqw;max-height:100cqh;}
+#sc-base .bm-card .bm-merc .kf{width:min(96px,50cqw,100cqh);height:min(96px,50cqw,100cqh);flex:none;}
+#sc-base .bm-card .bm-merc__kit .it-art{width:min(72px,38cqw,calc((100cqh - 22px)*1.6));height:min(45px,23.75cqw,calc(100cqh - 22px));}
+/* the news feed stays off the Black Market's and the Arsenal's cards: their views sit over it, as the Galaxy's panels
+   do (on a phone the market's feed was already hidden) */
+#sc-base .sr-shell:is(.is-market,.is-arsenal) .sr-comms{display:none;}
+@container sr-app (max-width:900px){   /* phones: the kit's 230px rows become a floor, so a weapon card (its trait row, a 96px
+  well) keeps its price row; the whole view scrolls there (DESIGN_BLOCKERS C-53) */
+  #sc-base .bm-grid{grid-auto-rows:minmax(230px,auto);overflow-y:visible;}
+  /* with rows sized by their content the well's height can't size the art (cqh reads 0 at the floor): the width
+     limits it here anyway, and 62.5% of a phone well's width sits inside its 96px floor */
+  #sc-base .bm-card .kit-well .it-art{width:min(192px,100cqw);height:min(120px,62.5cqw);}
+  #sc-base .bm-card .bm-merc__kit .it-art{width:min(72px,38cqw);height:min(45px,23.75cqw);}
+  #sc-base .bm-card .bm-merc{max-height:none;}
+}
+
+/* ---------- phone pass (390x844): five tabs, drawer views, overlays ---------- */
+#sc-base .nav-market-s{display:none;}
+@container sr-app (max-width:900px){
+  /* the fifth tab shortens to "Market", and the row scrolls rather than clipping Base off-screen */
+  #sc-base .nav-market-l{display:none;}
+  #sc-base .nav-market-s{display:inline;}
+  #sc-base .sr-slot-tc{max-width:calc(100% - 12px);}
+  #sc-base .sr-tabs{max-width:100%;overflow-x:auto;scrollbar-width:none;}
+  #sc-base .sr-tabs::-webkit-scrollbar{display:none;}
+  #sc-base .sr-tab{white-space:nowrap;flex:none;}
+  /* pickers anchor to the app viewport, not the scrolling stage (the container makes fixed local) */
+  #sc-base .kit-view .bs-overlay{position:fixed;inset:0;z-index:35;}
+  /* a narrow market card: smaller fence head leaves room for the own-kit column */
+  #sc-base .bm-card .bm-merc .kf{width:64px;height:64px;}
+}
+
+/* ---------- galaxy view (game-side helpers over the gx- kit) ---------- */
+/* a source running hot: the whole rail row carries the warning */
+.gx-hotrow{box-shadow:0 0 0 2px var(--sr-hazard),0 2px 0 var(--sr-ink);
+  background-image:repeating-linear-gradient(45deg,transparent 0 10px,rgba(255,138,31,.08) 10px 20px);}
+.gx-avatar-world img{display:block;width:100%;height:100%;border-radius:50%;}
+/* out of combat the buttons sit with what they act on (SCREENS-HANDOFF §0.1): the Galaxy's selected panel and the
+   Arsenal's dossier (the Black Market has its lot pop-up, sr-kit.css). A number key on each; a reason under the row for one that can't go. */
+.kit-acts{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.kit-acts__row{display:flex;flex-wrap:wrap;gap:8px;}
+.kit-acts__why{margin:0;}
+.kit-act,.gx-act{position:relative;gap:6px;}
+.kit-act .sr-kbd,.gx-act .sr-kbd{margin-right:2px;}
+.gx-act .sr-badge{top:-7px;right:-7px;}
+.gx-act .sr-cost{margin-left:2px;}
+.gx-act--attn{box-shadow:var(--sr-bevel),var(--sr-lift),0 0 0 3px var(--sr-gold);}
+.gx-act--danger{color:var(--sr-hazard);}
+#sc-base .gx-acts{flex-direction:column;align-items:stretch;gap:6px;}
+#gxDock .gx-dossier,#gxDock .gx-regioncard{pointer-events:auto;}
+#gxDock{display:flex;flex-direction:column;gap:10px;max-height:100%;}
+/* region chips float over the planet; the canvas keeps them in step */
+#gxChips{position:absolute;inset:0;pointer-events:none;z-index:4;transition:opacity .15s;}
+#gxChips .gx-rchip{pointer-events:auto;}
+.gx-rchip .gx-wheel{width:22px;height:22px;}
+.gx-rchip .gx-wheel::before{inset:4px;}
+.gx-rchip .gx-wheel .sr-ico{position:relative;width:11px;height:11px;color:var(--sr-rebel);}
+.gx-minimap canvas{display:block;width:100%;height:100%;}
+/* phones: galaxy panels become a bottom sheet above Advance day (provisional layout). Placed against the scene (the
+   app's container makes it the box a fixed element sits in): inside the top-left slot it ran off the top. */
+@media (max-width:700px){
+  #sc-base #gxDock{position:fixed;left:8px;right:8px;top:auto;bottom:calc(88px + env(safe-area-inset-bottom));max-height:60cqh;overflow:auto;}
+  #sc-base .sr-slot-tl:has(#gxDock:not([hidden])){left:0;right:0;}
+  #sc-base #gxDock .gx-dossier,#sc-base #gxDock .gx-regioncard{width:auto;}
+  #sc-base #gxTools .gx-minimap{display:none;}
+}
+/* kit portraits inside the kit's avatar rings */
+.sr-avatar .bs-face{width:100%;height:100%;border-radius:50%;display:block;}
+:is(#sc-base,.sr-pfile) .bs-dz__av{width:48px;height:48px;flex:none;}
+
+/* ---------- title screen ---------- */
+#splash{position:fixed;inset:0;z-index:200;background:#04060d;touch-action:manipulation;}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%;}
+#splash .splash__ui{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 11vh);
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  opacity:0;transform:translateY(12px);transition:opacity .45s ease,transform .45s ease;pointer-events:none;}
+#splash.is-ready .splash__ui{opacity:1;transform:none;pointer-events:auto;}
+#splash.is-leaving{opacity:0;transition:opacity .45s ease;}
+@media (prefers-reduced-motion: reduce){
+  #splash .splash__ui,#splash.is-leaving{transition:none;}
+
+}
+
+/* the art bridge renders SR_ART to data-URL imgs; size them like the canvases they stand in for */
+#sc-base .it-art>img{display:block;width:100%;height:100%;object-fit:contain;}
+#sc-base .kf>img{display:block;width:100%;height:100%;border-radius:50%;}
+/* armour and shield bars ride over the health bar as thinner rows (Ground Combat doc: armour and shields) */
+.sr-hp--layer{margin-bottom:-3px;}
+.sr-hp--layer .sr-hp__cell{height:4px;}
+.sr-hp--layer .sr-hp__num{font-size:10px;color:var(--hp);}
+/* maker badges and Gear doc trait icons, drawn by the art kit (SR_ART.makerBadge, SR_ART.icon) */
+.kit-mk__badge{width:18px;height:18px;flex:none;}
+.kit-traits{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0;}
+.kit-trait{width:22px;height:22px;flex:none;}
+.bm-card .kit-traits{margin-top:6px;}
+.bm-card .kit-trait{width:18px;height:18px;}
+/* fire-mode toggle in the attack window (art handoff): chunky segments, the selected mode gold and pressed in */
+.fm-toggle{display:flex;flex-direction:column;gap:4px;padding:6px 8px;border-radius:10px;background:#10132e;border:2px solid #3a4488;align-self:stretch;justify-content:center;}
+.fm-toggle__lab{font:800 10px/1 var(--sr-font-ui);letter-spacing:.08em;text-transform:uppercase;color:#b3bbe3;}
+.fm-toggle__row{display:flex;gap:4px;}
+.fm-btn{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;padding:5px 6px 4px;border-radius:8px;border:2px solid var(--sr-ink);background:#252c62;color:#f1f3ff;font:800 9px/1 var(--sr-font-ui);text-transform:uppercase;cursor:pointer;box-shadow:0 3px 0 var(--sr-ink);transform:translateY(-2px);}
+.fm-btn img{width:22px;height:22px;}
+.fm-btn.is-on{background:var(--sr-gold);color:#2a1a00;box-shadow:0 1px 0 var(--sr-ink);transform:translateY(0);}
+.fm-btn:focus-visible{outline:2px solid var(--sr-gold);outline-offset:2px;}
+/* the vitals shapes match the art kit's bar: armour as slanted steel plates with a highlight, shield as glowing hexes */
+.sr-hp--arm .sr-hp__cell{background:#2a2f45;transform:skewX(-18deg);border-radius:1px;}
+.sr-hp--arm .sr-hp__cell.is-on{background:#a8b4c8;box-shadow:inset 0 1px 0 rgba(255,255,255,.6);}
+.sr-hp--shd .sr-hp__cell{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);background:rgba(20,40,60,.8);}
+.sr-hp--shd .sr-hp__cell.is-on{background:#36e3f2;box-shadow:0 0 6px #36e3f2;}
+/* the Loadouts rail gains the Back column (DESIGN_BLOCKERS C-25); sr-kit.css stays as the canvas exported it */
+.ar-slots,.ar-slothead{grid-template-columns:1.3fr repeat(6,minmax(0,1fr));}
+/* trait icons sit on a dark chip, the glyph drawn bare by SR_ART.icon */
+.kit-trait{box-sizing:border-box;padding:1px;border-radius:6px;background:#1a1f47;border:1.5px solid #3a4488;width:28px;height:28px;}
+.bm-card .kit-trait{width:22px;height:22px;}
+/* the scene-transition overlay (SR.transition): over everything, never in the way of a click */
+.sr-transition{position:fixed;inset:0;width:100vw;height:100vh;z-index:9999;pointer-events:none;}
+
+/* the ship window is the Starfighter sheet (sr-shipfile.css); only the fleet-list face remains ours */
+#sc-base .bs-shipface{border-radius:50%;background:var(--sr-night,#101330);}
+
+/* the Hangar's Wings window and the Assign window (docs/MAIN-SWITCH-HANDOFF.md S3) */
+.wg-card{margin-top:10px;}
+.wg-card .sr-card__top{gap:8px;align-items:center;}
+.wg-name{flex:1 1 auto;min-width:0;max-width:220px;font:700 var(--sr-fs-lg) var(--sr-font-display);letter-spacing:.02em;color:var(--sr-text);background:transparent;border:0;border-bottom:2px dashed color-mix(in srgb,var(--sr-text) 25%,transparent);padding:2px 4px;}
+.wg-name:focus{outline:none;border-bottom-color:var(--sr-gold);}
+.wg-tags{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end;}
+.wg-row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-top:1px solid color-mix(in srgb,var(--sr-text) 10%,transparent);}
+.wg-row:first-of-type{border-top:0;}
+.wg-row.is-lead .wg-who b{color:var(--sr-gold);}
+.wg-row .kf{width:40px;height:40px;display:grid;place-items:center;}
+.wg-who{display:flex;flex-direction:column;min-width:0;}
+.wg-who small{color:var(--sr-text-2);font-size:var(--sr-fs-xs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wg-star{color:var(--sr-gold);}
+.wg-acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center;}
+.wg-move{grid-column:1 / -1;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;padding-top:4px;}
+
+/* the Arsenal's Crafting tab, a placeholder (docs/MAIN-SWITCH-HANDOFF.md S5) */
+.cr-note{display:flex;align-items:center;gap:8px;margin:0 0 10px;}
+.cr-list{display:flex;flex-direction:column;gap:8px;}
+.cr-card{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:8px 10px;}
+.cr-card.is-sel{outline:2px solid var(--sr-gold);}
+.cr-pick{display:flex;align-items:center;gap:10px;min-width:0;background:none;border:0;padding:0;text-align:left;color:var(--sr-text);font:inherit;cursor:pointer;}
+.cr-pick .it-art{width:40px;height:40px;flex:none;display:grid;place-items:center;}
+.cr-who{display:flex;flex-direction:column;min-width:0;}
+.cr-who small{color:var(--sr-text-2);font-size:var(--sr-fs-xs);}
+.cr-cost{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
+
+/* the mission report: a Type 3.5 flight's ships, and its More information (MAIN-SWITCH S6) */
+.rp-ships{display:flex;flex-direction:column;gap:6px;}
+.rp-ship{display:grid;grid-template-columns:minmax(0,1fr) 90px auto;align-items:center;gap:10px;padding:8px 12px;background:var(--sr-night);border-radius:var(--sr-r);font-size:var(--sr-fs-sm);}
+.rp-ship b{font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rp-ship__hull{height:8px;border-radius:4px;background:var(--sr-seam);overflow:hidden;}
+.rp-ship__hull i{display:block;height:100%;width:var(--h);background:var(--sr-shield);}
+.rp-ship.is-lost b{color:var(--sr-text-3);text-decoration:line-through;}
+.rp-ship__state{grid-column:2 / -1;justify-self:end;font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:var(--sr-fs-xs);color:var(--sr-text-3);}
+.rp-more{overflow:auto;max-height:min(70vh,640px);}

@@ -1,0 +1,1395 @@
+'use strict';
+/* =====================================================================
+   STAR REBELLION — High Command's renderer and HUD (docs/archive/ARENA-HC-HANDOFF.md §3), hosting Type 3.5
+   It drives game/js/sim-hc.js in real time and draws the map and the HUD on the game's own kit (sr-theme
+   "Chunky Ops"): the objectives and rules (top left), the clock (top centre), the event feed with VIEW (left
+   rail), the wing roster with a camera tile per ship (bottom), the time controls (bottom right), the pilot panel,
+   and the map. Type 3.5 (arena-hc35.js) is its only mode now: its overlay supplies the objectives, the clock, the
+   powers bar and the pilot panel's body, and steers the map through the hooks marked "Type 3.5".
+   Type 3 as a playable ruleset (its scenarios, the order tray and wheel, the commands drawer, the rules picker,
+   its end card and metrics) was archived in the switch to main (docs/MAIN-SWITCH-HANDOFF.md S0): the whole file
+   as it was is archive/arena/arena-hc.js. The scene is space35.js (SR.go('space35')).
+
+   Nothing here calls newGame(), saveSnap(), persist() or SR.endMission(), nothing touches G.
+   ===================================================================== */
+(function(){
+const ROOT=document.getElementById('arHc');
+if(!ROOT||!window.SIMHC)return;
+const byId=SR.util.scoped(ROOT);
+const TH=SR.theme,C=TH.C;
+const SA=window.SR_ART;
+const SIM=window.SIMHC;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const PREFS_KEY='sr-arena-hc-prefs';   // High Command's own key; never the campaign's
+
+/* the scenarios High Command builds: Type 3.5's plan compiler registers each one (loadScenario) */
+const REG=[];
+
+/* ---------- state: one object, rebuilt per scenario ---------- */
+const A={active:false,phase:'PICK',scen:null,variant:0,seed:1,speed:2,lastSpeed:2,acc:0,lastFrame:0,
+  sel:null,selShip:null,panel:null,follow:false,camHeld:false,
+  realSecs:0,pausedSecs:0,pauses:0,metrics:[],hudAt:0,
+  mode:null,ov:null};   // mode 'hc35' (Type 3.5, docs/ARENA-HC35-HANDOFF.md §5.1): ov is its overlay (SR_ARENA_HC35), set by open() before anything draws
+
+/* ---------- canvas and camera (arena-sb.js's kit, copied) ---------- */
+const cv=byId('hcCv'),ctx=cv.getContext('2d');
+let dpr=1,cssW=1,cssH=1;
+const cam={x:4200,y:3000,z:0.15};
+function fitCanvas(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;cssW=Math.max(1,r.width);cssH=Math.max(1,r.height);cv.width=Math.round(cssW*dpr);cv.height=Math.round(cssH*dpr);}
+function fitCanvasIfNeeded(){const r=cv.getBoundingClientRect();if(Math.abs(r.width-cssW)>0.5||Math.abs(r.height-cssH)>0.5)fitCanvas();}
+const fitZoom=()=>Math.min(cssW/SIM.W,cssH/SIM.H)*0.98;
+function camFit(){cam.z=fitZoom();cam.x=SIM.W/2;cam.y=SIM.H/2;}
+/* the opening view: your wings (and the convoy), framed with room round them, rather than the whole map */
+const FRAME_PAD=1400;   // world units of room round your ships in the opening view. placeholder
+function camFrame(){
+  const mine=SIM.S.ships.filter(s=>s.alive&&s.faction==='reb');
+  if(!mine.length){camFit();return;}
+  let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;for(const p of mine){x0=Math.min(x0,p.x);y0=Math.min(y0,p.y);x1=Math.max(x1,p.x);y1=Math.max(y1,p.y);}
+  cam.x=(x0+x1)/2;cam.y=(y0+y1)/2;cam.z=Math.min(0.6,cssW/(x1-x0+2*FRAME_PAD),cssH/(y1-y0+2*FRAME_PAD));
+  clampCam();
+}
+function clampCam(){cam.z=Math.max(fitZoom()*0.8,Math.min(1.6,cam.z));cam.x=Math.max(0,Math.min(SIM.W,cam.x));cam.y=Math.max(0,Math.min(SIM.H,cam.y));}
+const toWorld=(px,py)=>({x:(px-cssW/2)/cam.z+cam.x,y:(py-cssH/2)/cam.z+cam.y});
+const toScreen=(x,y)=>({x:(x-cam.x)*cam.z+cssW/2,y:(y-cam.y)*cam.z+cssH/2});
+const iconBoost=()=>1;   // true scale at every zoom (Type 3.5 playtest 1, §3.1: was up to 3.2 × zoomed out); past ICON_PX a ship becomes an icon
+/* icon mode (§3.1): when a ship's drawn length falls below ICON_PX on screen, its body is a screen-constant icon,
+   cross-faded over ±ICON_FADE of that zoom; each class crosses at its own zoom, so the freighter stays art long after
+   the fighters are icons. Stations stay art. FX_MIN_PX keeps a kill visible however far out you are */
+const ICONS={ICON_PX:18,ICON_FADE:0.15,ICON_SIZE:22,FX_MIN_PX:28};   // placeholders (C-81), on the panel's FX group
+const ICON_UI=[['ICON_PX','Icon below (px long)',4,80,1],['ICON_FADE','Icon cross-fade (±)',0,0.5,0.05],['ICON_SIZE','Icon size (px)',10,40,1],['FX_MIN_PX','Smallest boom (px)',0,80,1]];
+const lenCache=new Map();
+function shipLenW(s){   // the drawn length in world units: the art's length at the scale the map draws it
+  const k=s.cls+'|'+s.row.size;if(lenCache.has(k))return lenCache.get(k);
+  const art=SA&&SA.SHIP_FOR_GAME?SA.SHIP_FOR_GAME[s.cls]:null,L=art&&SA.shipLen?SA.shipLen(art):40;
+  const sc=(0.7+0.09*(art==='gafreighter'?5:s.row.size))*1.6*0.85*1.35*(art==='gafreighter'&&SA.sizeK?SA.sizeK(art):1);
+  const v=L*sc;lenCache.set(k,v);return v;
+}
+function artK(s){   // 1: drawn as art; 0: an icon; between: the cross-fade
+  if(s.struct)return 1;
+  const px=shipLenW(s)*cam.z,lo=ICONS.ICON_PX*(1-ICONS.ICON_FADE),hi=ICONS.ICON_PX*(1+ICONS.ICON_FADE);
+  return hi<=lo?(px>=ICONS.ICON_PX?1:0):Math.max(0,Math.min(1,(px-lo)/(hi-lo)));
+}
+/* the radius the map's rings, pips and names sit at: the hull's, or the icon's (screen-constant) in icon mode */
+function uiR(s){return artK(s)<0.5?Math.max(shieldR(s,1),(ICONS.ICON_SIZE/2+4)/cam.z):shieldR(s,1);}
+/* an effect's boost: true scale, but never smaller than FX_MIN_PX on screen */
+const fxMin=lenW=>Math.max(1,ICONS.FX_MIN_PX/Math.max(1,(lenW||60)*cam.z));
+function camTo(x,y,z){cam.x=x;cam.y=y;if(z)cam.z=z;clampCam();A.camHeld=true;}
+
+/* ---------- icons (§3.1): one shape a class, filled in its side's colour, rotated to its heading, screen-constant ---------- */
+const ICON_PATH={
+  cross:'M11 0L-9-10L-5 0L-9 10Z',talon:'M11 0L-9-6L-6 0L-9 6Z',brickbat:'M10 0L4-6L-10-9L-10 9L4 6Z',
+  mote:'M10 0L-8-8L-4 0L-8 8Z',fledgling:'M10 0L-8-8L-4 0L-8 8Z',scim:'M11 0L-9-9L-9-3L-4 0L-9 3L-9 9Z',drone:'M7 0L0-6L-7 0L0 6Z'};
+const iconPaths=new Map();
+function iconPath(k){let p=iconPaths.get(k);if(!p){p=new Path2D(ICON_PATH[k]||ICON_PATH.mote);iconPaths.set(k,p);}return p;}
+const hpBand=f=>TH.hpCol(f,'gor');   // §3.3: green, orange, red
+function drawIcon(c,s,q,h,alpha,sel){
+  const art=SA&&SA.SHIP_FOR_GAME?SA.SHIP_FOR_GAME[s.cls]:null,D=SA&&SA.SHIPS&&SA.SHIPS[art];
+  const k=ICONS.ICON_SIZE/22,haz=!!s.prop35,col=haz?C.hazard:s.faction==='reb'?C.rebel:C.heg;
+  c.save();c.globalAlpha=alpha;c.translate(q.x,q.y);
+  if(art==='gafreighter'){   // a long capsule with a heading tick
+    c.save();c.rotate(h);c.scale(k,k);c.beginPath();c.moveTo(-15,-5);c.lineTo(11,-5);c.arc(11,0,5,-Math.PI/2,Math.PI/2);c.lineTo(-15,5);c.arc(-15,0,5,Math.PI/2,Math.PI*1.5);c.closePath();
+    c.fillStyle=haz?C.hazard:s.faction==='reb'?C.rebelDeep:C.hegDeep;c.fill();c.lineWidth=2.4;c.strokeStyle=C.ink;c.stroke();c.lineWidth=1.6;c.strokeStyle=haz?C.hazard:s.faction==='reb'?C.rebel:C.heg;c.stroke();
+    c.beginPath();c.moveTo(16,0);c.lineTo(23,0);c.lineWidth=2;c.stroke();c.restore();}
+  else{const key=D&&D.drone?'drone':ICON_PATH[s.cls]?s.cls:ICON_PATH[art]?art:'mote';
+    c.save();c.rotate(h);c.scale(k,k);c.lineJoin='round';c.fillStyle=col;c.fill(iconPath(key));c.lineWidth=2/k;c.strokeStyle=C.ink;c.stroke(iconPath(key));c.restore();}
+  // two tiny shield ticks, nose and tail, for a selected ship
+  if(sel&&SIM.fn.maxShield(s)>0){const R=ICONS.ICON_SIZE*0.62;c.lineWidth=2;c.lineCap='round';
+    for(const [z0,a0] of [['F',h],['R',h+Math.PI]]){const sg=s.segs[z0],f=sg.max?Math.max(0,sg.val)/sg.max:0;if(f<=0)continue;
+      c.globalAlpha=alpha*(0.4+0.6*f);c.strokeStyle=C.shield;c.beginPath();c.arc(0,0,R,a0-0.5,a0+0.5);c.stroke();}c.globalAlpha=alpha;}
+  // the 3-cell health tick under it, green / orange / red (red pulses under 15%)
+  const f=Math.max(0,s.hull)/(s.maxHull||1),n=Math.ceil(f*3),hc=hpBand(f),y=ICONS.ICON_SIZE*0.62+3;
+  if(f<0.15)c.globalAlpha=alpha*(0.55+0.45*Math.sin(performance.now()/120));
+  for(let i=0;i<3;i++){c.fillStyle=C.ink;c.fillRect(-9+i*6.5-1,y-1,6,5);c.fillStyle=i<n?hc:C.hull;c.fillRect(-9+i*6.5,y,4,3);}
+  c.globalAlpha=alpha;
+  if(!s.struct&&!s.quiet){c.font='700 10px "Exo 2",sans-serif';c.textAlign='center';c.lineWidth=3;c.strokeStyle=C.ink;c.strokeText(s.name,0,y+15);c.fillStyle=shipColHi(s);c.fillText(s.name,0,y+15);}
+  c.restore();
+}
+/* ---------- the backdrop and the ships' bodies: copied from arena-sb.js (stars, rocks, the sprite cache) ---------- */
+/* the starfield is one tile repeated over the map (C-71: at 32 × a field of single stars ran thin); the stars in view
+   only, every m-th one when a zoomed-out view would cover more than STAR_BUDGET */
+const STAR_TW=8400,STAR_TH=6000,STAR_N=1680,STAR_BUDGET=6000;   // placeholders
+const starBands=[[],[],[],[]];
+function makeStars(){for(const b of starBands)b.length=0;const r=SIM.fn.mulberry(99);for(let i=0;i<STAR_N;i++){const st={x:r()*STAR_TW,y:r()*STAR_TH,r:0.7+r()*1.1,band:Math.floor(r()*4)};starBands[st.band].push(st);}}
+function eachStar(x0,y0,x1,y1,band,fn){
+  x0=Math.max(0,x0);y0=Math.max(0,y0);x1=Math.min(SIM.W,x1);y1=Math.min(SIM.H,y1);if(x1<=x0||y1<=y0)return;
+  const i0=Math.floor(x0/STAR_TW),i1=Math.floor(x1/STAR_TW),j0=Math.floor(y0/STAR_TH),j1=Math.floor(y1/STAR_TH);
+  const m=Math.max(1,Math.ceil((i1-i0+1)*(j1-j0+1)*STAR_N/STAR_BUDGET));
+  const list=band==null?starBands.flat():starBands[band];
+  for(let i=i0;i<=i1;i++)for(let j=j0;j<=j1;j++){const ox=i*STAR_TW,oy=j*STAR_TH;
+    for(let n=0;n<list.length;n+=m){const st=list[n],x=st.x+ox,y=st.y+oy;if(x<x0||x>x1||y<y0||y>y1)continue;fn(x,y,st);}}
+}
+function drawBackdrop(c){
+  c.fillStyle=C.void;c.fillRect(0,0,SIM.W,SIM.H);
+  c.fillStyle='#dfe6ff';
+  const hw=cssW/2/cam.z+8,hh=cssH/2/cam.z+8,x0=cam.x-hw,x1=cam.x+hw,y0=cam.y-hh,y1=cam.y+hh,k=1/Math.max(cam.z,0.35);   // only the stars in view (C-70)
+  for(let b=0;b<4;b++){c.globalAlpha=0.3+0.13*b;c.beginPath();eachStar(x0,y0,x1,y1,b,(x,y,st)=>{const r=st.r*k;c.rect(x-r,y-r,2*r,2*r);});c.fill();}
+  c.globalAlpha=1;
+  c.strokeStyle=TH.rgba(C.seam,0.9);c.lineWidth=3/cam.z;c.setLineDash([16/cam.z,12/cam.z]);
+  c.strokeRect(SIM.MARGIN,SIM.MARGIN,SIM.W-2*SIM.MARGIN,SIM.H-2*SIM.MARGIN);c.setLineDash([]);
+}
+function drawRock(c,r){
+  c.save();c.translate(r.x,r.y);c.rotate(r.rot||0);c.beginPath();
+  const n=r.verts.length;
+  for(let i=0;i<n;i++){const a=i/n*Math.PI*2,rr=r.r*r.verts[i];i?c.lineTo(Math.cos(a)*rr,Math.sin(a)*rr):c.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);}
+  c.closePath();
+  const B=SA&&SA.BIOME&&SA.BIOME.rock;
+  c.fillStyle=B?B.boulder:'#4a4458';c.fill();c.lineWidth=3/Math.max(cam.z,0.5);c.strokeStyle=C.ink;c.stroke();
+  c.restore();
+}
+const sprites=new Map();
+const ANG_B=72,ROLL_B=4,DMG_B=4,SCALE_B=Math.log(1.08),ART_R=52;
+/* the camera tiles keep their own cache, coarser in angle, so they never evict the map's sprites (C-67 item 36) */
+const tileSprites=new Map();
+let spriteCache=sprites,angB=ANG_B,spriteCap=900;
+function shipSprite(art,livery,px,angI,dmgI){
+  const pb=Math.exp(Math.round(Math.log(px)/SCALE_B)*SCALE_B);
+  const key=art+'|'+livery+'|'+pb.toFixed(3)+'|'+angI+'|'+dmgI;
+  let sp=spriteCache.get(key);
+  if(!sp){
+    const half=Math.ceil(pb*ART_R)+2,cv2=document.createElement('canvas');cv2.width=cv2.height=half*2;
+    SA.ship(cv2.getContext('2d'),art,half,half,angI*2*Math.PI/angB,pb,0,{livery,damage:dmgI/DMG_B,roll:0,boost:false});
+    sp={cv:cv2,half,pb};
+    if(spriteCache.size>spriteCap)spriteCache.delete(spriteCache.keys().next().value);
+    spriteCache.set(key,sp);
+  }
+  return sp;
+}
+const SHIP_SCALE=1.35;
+/* a body at (x, y, h); z: the zoom it is drawn at (the main map's or a camera tile's), boost: the icon boost */
+function drawShipBody(c,s,x,y,h,z,boost,alpha){
+  const art=SA&&SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],size=SRDB.visualSize(s.row.size);
+  c.save();c.globalAlpha=alpha==null?1:alpha;
+  if(art){
+    try{
+      const scale=size*1.6*boost*0.85*SHIP_SCALE,px=scale*z*dpr;
+      const angI=((Math.round(h/(2*Math.PI)*angB)%angB)+angB)%angB,dmgI=Math.round((1-Math.max(0,s.hull)/s.maxHull)*DMG_B);
+      const sp=shipSprite(art,s.faction==='reb'?'rebel':'heg',px,angI,dmgI),k=(px/sp.pb)/(z*dpr);
+      c.translate(x,y);c.rotate(h-angI*2*Math.PI/angB);c.scale(k,k);c.drawImage(sp.cv,-sp.half,-sp.half);
+    }catch(e){c.restore();c.save();plainDart(c,s,x,y,h,size*boost);}
+  } else plainDart(c,s,x,y,h,size*boost);
+  c.restore();
+}
+function plainDart(c,s,x,y,h,k){   // arena-sb.js plainDart: the relay and the depot have no art
+  k*=1.6*SHIP_SCALE;c.translate(x,y);c.rotate(h);c.scale(k,k);c.beginPath();
+  if(s.struct){for(let i=0;i<8;i++){const a=i/8*6.283+Math.PI/8;i?c.lineTo(Math.cos(a)*13,Math.sin(a)*13):c.moveTo(Math.cos(a)*13,Math.sin(a)*13);}c.closePath();}
+  else{c.moveTo(16,0);c.lineTo(-10,-9);c.lineTo(-6,0);c.lineTo(-10,9);c.closePath();}
+  c.fillStyle=s.faction==='reb'?C.plateHi:s.struct?'#26346e':C.hull;c.fill();c.lineWidth=2.4;c.strokeStyle=C.ink;c.stroke();
+  if(s.struct){c.beginPath();c.arc(0,0,4.5,0,7);c.fillStyle=C.heg;c.fill();}
+}
+const shipCol=s=>s.quiet?C.steel:s.faction==='reb'?C.rebel:C.heg;
+const shipColHi=s=>s.quiet?C.steel:s.faction==='reb'?C.rebelHi:C.hegHi;
+
+/* ---------- the map (§3.1) ---------- */
+function label(c,x,y,text,col,z,size,font){
+  c.save();c.font=(font||'800 ')+Math.round((size||11)/z)+'px '+(font&&font.includes('Bungee')?'':'"Exo 2",sans-serif');
+  if(font&&font.includes('Bungee'))c.font=Math.round((size||11)/z)+'px Bungee,"Exo 2",sans-serif';
+  c.textAlign='center';c.lineWidth=3.5/z;c.strokeStyle=C.ink;c.strokeText(text,x,y);c.fillStyle=col;c.fillText(text,x,y);c.restore();
+}
+function dashLine(c,a,b,col,z,w,dash,alpha){
+  c.save();c.globalAlpha=alpha==null?1:alpha;c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);
+  c.setLineDash(dash.map(d=>d/z));c.lineWidth=(w+2.4)/z;c.strokeStyle=TH.rgba(C.ink,0.55);c.stroke();
+  c.lineWidth=w/z;c.strokeStyle=col;c.stroke();c.restore();
+}
+function ring(c,x,y,r,col,z,w,dash,alpha){c.save();c.globalAlpha=alpha==null?1:alpha;c.beginPath();c.arc(x,y,r,0,6.283);if(dash)c.setLineDash(dash.map(d=>d/z));c.lineWidth=w/z;c.strokeStyle=col;c.stroke();c.restore();}
+function drawPoints(c,z,S){
+  for(const k in S.points){
+    const p=S.points[k],jam=SIM.fn.jammed(k);
+    if(k===(S.R.extract||'jump')||p.label==='Jump point'){
+      const R=SIM.fn.JUMP_R_(),spin=(performance.now()/2000)%6.283;
+      c.save();c.translate(p.x,p.y);c.rotate(spin);c.setLineDash([22/z,14/z]);c.lineWidth=3/z;c.strokeStyle=jam?C.hazard:C.go;c.beginPath();c.arc(0,0,R,0,6.283);c.stroke();c.restore();
+      ring(c,p.x,p.y,R*0.55,TH.rgba(jam?C.hazard:C.go,0.5),z,2);
+      label(c,p.x,p.y-R-12/z,(p.label||'Jump point').toUpperCase()+(jam?' · JAMMED':''),jam?C.hazard:C.go,z,12);
+    } else if(p.capture){
+      const o=S.objectives.find(x=>x.point===k),done=o&&o.state==='done',prog=o?o.prog||0:0;
+      c.save();c.translate(p.x,p.y);c.rotate(Math.PI/4);c.lineWidth=2.4/z;c.strokeStyle=done?C.rebel:C.shield;c.strokeRect(-14/z*2,-14/z*2,28/z*2,28/z*2);c.restore();
+      if(prog>0&&!done){c.save();c.beginPath();c.arc(p.x,p.y,48/z,-Math.PI/2,-Math.PI/2+prog*6.283);c.lineWidth=5/z;c.strokeStyle=C.shield;c.stroke();c.restore();}
+      label(c,p.x,p.y-40/z,(p.label||k).toUpperCase()+(done?' · OURS':''),done?C.rebelHi:C.shield,z,11);
+    } else label(c,p.x,p.y,(p.label||k).toUpperCase(),C.text2,z,11);
+  }
+}
+/* the ship status: shield arcs and hull pips, copied from sim-sb.js drawShields / drawStatus (lighter: one arc a zone) */
+function shieldR(s,boost){return (s.struct?44:30)*SHIP_SCALE*Math.max(1,SRDB.visualSize(s.row.size)*0.9)*boost;}
+/* the shields as two halves (feedback 1, §3.3): two arcs on an ellipse fitted to the hull (the sim's hit size, true
+   scale, plus SH_PAD), the nose half and the tail half, each 180° less a gap at the beam. Each arc's thickness and
+   alpha follow its half's strength; an empty half is a thin broken line. A hit flashes only the half it struck; a
+   refill (Boost, or 10% of the half back within 1 s) sweeps out from the arc's middle and swells it a moment.
+   mode 'quiet' (Type 3.5's always-on arcs on your ships): thinner and fainter */
+const SHD={SH_PAD:10,SH_GAP:10,SWEEP_SECS:0.6,SWEEP_GAIN:0.1};   // placeholders (C-81), on the panel's FX group
+const SHD_UI=[['SH_PAD','Shield arc off the hull',0,80,1],['SH_GAP','Shield gap at the beam (°)',0,40,1],['SWEEP_SECS','Shield refill sweep (s)',0.1,2,0.05],['SWEEP_GAIN','Refill that sweeps (× max, in 1 s)',0.02,0.5,0.01]];
+function shieldEll(s){const A=SIM.fn.hullAxes(s),k=s.evadeT&&SIM.S.t<s.evadeT?Math.SQRT1_2:1;return {a:A.a/k+SHD.SH_PAD,b:A.b/k+SHD.SH_PAD};}   // a barrel roll doesn't shrink the bubble
+/* where a hit from (x, y) sits on a ship's shield ellipse: its bearing from the hull's centre, out to the ellipse */
+function onShield(s,x,y){
+  const E=shieldEll(s),th=Math.atan2(y-s.y,x-s.x)-s.h,c=Math.cos(th),sn=Math.sin(th),r=E.a*E.b/Math.sqrt((E.b*c)**2+(E.a*sn)**2);
+  return {x:s.x+Math.cos(th+s.h)*r,y:s.y+Math.sin(th+s.h)*r};
+}
+const zoneOf=(s,zn)=>{let val=0,max=0;for(const k of ['F','R'])if(s.segs[k].at===zn&&s.segs[k].max>0){val+=Math.max(0,s.segs[k].val);max+=s.segs[k].max;}return {val,max};};
+/* the refill watch: each half's strength over the last second; a gain of SWEEP_GAIN × its max starts a sweep */
+const shHist=new Map(),shSweep=new Map();
+function shieldTick(){
+  const S=SIM.S;if(!S)return;
+  for(const s of S.ships){if(!s.alive||SIM.fn.maxShield(s)<=0)continue;
+    let H=shHist.get(s.id);if(!H)shHist.set(s.id,H={F:[],R:[]});
+    for(const zn of ['F','R']){const {val,max}=zoneOf(s,zn);if(!max)continue;const q=H[zn];
+      if(q.length&&q[q.length-1][0]>S.t)q.length=0;   // a restart or a replay: start again
+      q.push([S.t,val]);while(q.length&&S.t-q[0][0]>1)q.shift();
+      let lo=val;for(const e of q)lo=Math.min(lo,e[1]);
+      if(val-lo>=SHD.SWEEP_GAIN*max-1e-9&&val>lo){(shSweep.get(s.id)||shSweep.set(s.id,{}).get(s.id))[zn]={t0:S.t};q.length=0;q.push([S.t,val]);}}}
+}
+const sweepOf=(id,zn)=>{const w=shSweep.get(id),e=w&&w[zn];if(!e)return null;const k=(SIM.S.t-e.t0)/SHD.SWEEP_SECS;return k>=0&&k<=1?k:null;};
+function drawShields(c,s,x,y,h,z,boost,mode){
+  if(SIM.fn.maxShield(s)<=0)return;
+  const E=shieldEll(s),quiet=mode==='quiet',fx=s.shFx?Math.max(0,1-(SIM.S.t-s.shFx.t)/0.4):0,half=Math.PI/2-SHD.SH_GAP/2*Math.PI/180;
+  c.save();c.translate(x,y);c.rotate(h);c.lineCap='round';
+  for(const zn of ['F','R']){
+    const {val,max}=zoneOf(s,zn);if(!max)continue;
+    const f=val/max,mid=zn==='F'?0:Math.PI,sw=sweepOf(s.id,zn),sk=sw!=null?1+0.1*Math.sin(Math.PI*sw):1,ea=E.a*sk,eb=E.b*sk;
+    const arc=(a0,a1)=>{c.beginPath();c.ellipse(0,0,ea,eb,0,a0,a1);};
+    if(f<=0.02){arc(mid-half,mid+half);c.setLineDash([4/z,6/z]);c.lineWidth=1.2/z;c.strokeStyle=TH.rgba(C.shield,quiet?0.3:0.5);c.stroke();c.setLineDash([]);}
+    else{
+      const lw=(quiet?1+1.4*f:1.6+3.6*f)/z,al=quiet?0.25+0.35*f:0.45+0.55*f;
+      if(!quiet){arc(mid-half,mid+half);c.lineWidth=lw+2/z;c.strokeStyle=TH.rgba(C.ink,0.55*al);c.stroke();}
+      arc(mid-half,mid+half);c.lineWidth=lw;c.strokeStyle=TH.rgba(C.shield,al);c.stroke();
+    }
+    if(fx>0&&s.shFx.zone===zn){arc(mid-half,mid+half);c.lineWidth=(quiet?3:5)/z;c.strokeStyle=TH.rgba('#e8ffff',0.75*fx);c.stroke();}
+    if(sw!=null){const e=half*Math.min(1,sw*1.25),al=1-sw*0.8;   // the sweep: out from the middle to both ends
+      arc(mid-e,mid+e);c.lineWidth=(quiet?2.6:4.4)/z;c.strokeStyle=TH.rgba('#e8ffff',0.85*al);c.stroke();
+      for(const a of [mid-e,mid+e]){c.beginPath();c.arc(Math.cos(a)*ea,Math.sin(a)*eb,3.2/z,0,6.283);c.fillStyle=TH.rgba('#ffffff',al);c.fill();}}
+  }
+  c.restore();
+}
+function boltCols(p){   // sim-sb.js boltCols
+  const P=SA&&SA.PROJ&&SA.PROJ[p.style],st=P&&SA.STYLE&&SA.STYLE[P.style];
+  return st||[p.faction==='reb'?'#fff3c0':'#e8ffff',p.faction==='reb'?C.goldHi:C.shield];
+}
+function drawShots(c,z,a,S){   // sim-sb.js drawShots, without the muzzle flashes
+  const dt=SIM.TICK/1000;
+  c.save();c.lineCap='round';
+  for(const p of S.proj){
+    const x=p.x-p.vx*(1-a)*dt,y=p.y-p.vy*(1-a)*dt,sp=Math.hypot(p.vx,p.vy)||1,[core,glow]=boltCols(p);
+    const L=Math.min(22,Math.max(0,(x-p.x0)*(p.vx/(Math.hypot(p.vx,p.vy)||1))+(y-p.y0)*(p.vy/(Math.hypot(p.vx,p.vy)||1)))),tx=x-p.vx/sp*L,ty=y-p.vy/sp*L;
+    c.beginPath();c.moveTo(tx,ty);c.lineTo(x,y);c.globalAlpha=0.4;c.lineWidth=Math.max(5,3/z)/1;c.strokeStyle=glow;c.stroke();
+    c.globalAlpha=1;c.lineWidth=Math.max(2,1.2/z);c.strokeStyle=core;c.stroke();
+  }
+  for(const m of S.missiles){
+    const mp=ipos(m);
+    if(m.trail.length>1){c.beginPath();m.trail.slice(0,-1).forEach((q,i)=>i?c.lineTo(q.x,q.y):c.moveTo(q.x,q.y));c.lineTo(mp.x,mp.y);c.globalAlpha=0.6;c.lineWidth=3/z;c.strokeStyle=C.steel;c.stroke();c.globalAlpha=1;}
+    const mz=Math.max(1,0.6/z);c.save();c.translate(mp.x,mp.y);c.rotate(m.h);c.scale(mz,mz);
+    c.beginPath();c.arc(-9,0,7,0,6.283);c.fillStyle=TH.rgba(C.goldHi,0.45);c.fill();   // the motor
+    c.beginPath();c.moveTo(10,0);c.lineTo(-6,-4);c.lineTo(-6,4);c.closePath();c.fillStyle=m.faction==='reb'?C.psi:C.hazard;c.fill();c.lineWidth=1.5;c.strokeStyle=C.ink;c.stroke();
+    c.restore();
+  }
+  for(const f of S.fx){
+    const life=f.kind==='boom'?0.9:0.32,k=(S.t-f.t0)/life;if(k<0||k>1)continue;
+    c.globalAlpha=1-k;
+    if(f.kind==='boom'){const r=70*(f.size||1)*(0.25+k)/Math.max(0.6,z*1.4);c.beginPath();c.arc(f.x,f.y,r,0,6.283);c.strokeStyle=C.hazard;c.lineWidth=5/z;c.stroke();}
+    else{const col=f.kind==='shield'?C.shield:C.hazard;c.beginPath();c.arc(f.x,f.y,(5+8*(1-k))/z,0,6.283);c.fillStyle=col;c.fill();}
+  }
+  c.restore();
+}
+/* locks (C-70, playtest 2): your pilots' locks as four brackets closing on the target (amber while building, red with
+   LOCK once a missile can go); a Hegemony lock on one of your ships as a red LOCKED tag over it */
+/* with the visual pass (C-74) the brackets are its lock marks: thin arcs turning while the lock builds, still corner
+   ticks and a diamond once it holds, a pop ring at the flip (lockAt: when each shooter→target lock completed) */
+const lockAt=new Map();
+function drawLocks(c,z,S,boost,now,view){
+  const need=SIM.fn.MISSILE_LOCK_(),held=new Set();
+  for(const s of S.ships){
+    if(!s.alive||s.struct||s.quiet||!s.locks)continue;
+    // every ship locks since C-72: brackets for the selected wing and for ships with missiles; warnings from those only
+    const mis=!!SIM.fn.misWpn(s);if(s.faction==='reb'?!(mis||selWings().includes(s.wing)):!mis)continue;
+    let best=null,lk=0;for(const id in s.locks)if(s.locks[id]>lk){lk=s.locks[id];best=id;}
+    const t=best&&SIM.fn.byId(best);if(!t||!t.alive||lk<0.05)continue;
+    const p=ipos(t),R0=uiR(t)+6/z,k=Math.min(1,lk/need),R=R0*(1+1.6*(1-k)),ok=lk>=need;
+    const key=s.id+'>'+t.id;if(ok){held.add(key);if(!lockAt.has(key))lockAt.set(key,S.t);}
+    if(view&&(s.faction==='reb'||(lk>=0.25&&t.faction==='reb'))){
+      const reb=s.faction==='reb';
+      FX.lockMark(c,p.x,p.y,R0,k,{locked:ok,hostile:!reb,flipAge:ok?S.t-lockAt.get(key):null,alpha:reb&&!selWings().includes(s.wing)?0.7:1},view);
+      if(reb){if(ok)label(c,p.x,p.y+R0+16/z,'LOCK',C.hazard,z,11);continue;}
+    }
+    if(s.faction==='reb'){
+      const sel=selWings().includes(s.wing),al=sel?1:0.7,col=ok?C.hazard:C.gold,L=R*0.45;
+      c.save();c.translate(p.x,p.y);c.rotate(ok?0:(now/900)%(Math.PI/2));c.globalAlpha=al;c.strokeStyle=col;c.lineWidth=(ok?3:2.2)/z;c.lineCap='square';
+      for(let i=0;i<4;i++){c.rotate(Math.PI/2);c.beginPath();c.moveTo(R,R-L);c.lineTo(R,R);c.lineTo(R-L,R);c.stroke();}
+      c.restore();
+      if(ok)label(c,p.x,p.y+R+16/z,'LOCK',C.hazard,z,11);   // under the brackets: the hull pips sit over the target
+    } else if(lk>=0.25&&t.faction==='reb'){
+      const blink=ok?(Math.floor(now/180)%2?1:0.35):0.8;
+      c.save();c.globalAlpha=blink;label(c,p.x,p.y-uiR(t)-26/z,ok?'⚠ LOCKED':'⚠ LOCK',C.hazard,z,12);c.restore();
+    }
+  }
+  for(const k of lockAt.keys())if(!held.has(k))lockAt.delete(k);   // a lost lock pops again when it comes back
+}
+/* chaff (C-72): a glittering cloud that spreads and fades */
+function drawChaff(c,z,S){
+  for(const f of S.chaff||[]){
+    const k=(S.t-f.t0)/Math.max(0.1,f.until-f.t0),r=(40+160*k),rr=SIM.fn.mulberry(f.id*97);
+    c.save();c.globalAlpha=Math.max(0,1-k)*0.9;c.fillStyle=C.goldHi;
+    for(let i=0;i<26;i++){const a=rr()*6.283,d=r*Math.sqrt(rr()),sz=(1.5+rr()*2.5)/Math.max(z,0.15);c.fillRect(f.x+Math.cos(a)*d-sz/2,f.y+Math.sin(a)*d-sz/2,sz,sz);}
+    c.restore();
+  }
+}
+function drawTrail(c,s,z){
+  if(s.trail.length<2)return;
+  c.save();c.lineCap='round';c.strokeStyle=shipColHi(s);c.globalAlpha=0.35;c.lineWidth=2.5/z;c.beginPath();
+  const e=ipos(s);s.trail.slice(0,-1).forEach((p,i)=>i?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y));c.lineTo(e.x,e.y);c.stroke();c.restore();
+}
+/* smooth motion (C-70): the sim steps at 20 Hz; the map draws each body between where it was at the last step and
+   where it is now, RA of the way (the time banked toward the next step), so motion is smooth at any frame rate and
+   any speed, one step (50 ms of game time) behind the sim */
+let RA=1;
+/* quiet lines (C-70, playtest 2): the intent lines and attack designations only for the selected or hovered wing,
+   fainter. On for scenarios that ask (hc1); the panel's toggle overrides it */
+const QUIET_ALPHA=0.4;   // placeholder
+const linesQuiet=()=>A.quietPref!=null?A.quietPref:true;   // every scenario since C-72 (was hc1's own setting)
+/* what the selected wing(s) are fighting: the enemies their ships have as a target (C-72: their lines and status show) */
+function selFoes(sw){const out=new Set();if(!sw.length)return out;for(const s of SIM.S.ships){if(!s.alive||!sw.includes(s.wing))continue;const b=s.beh||{};if(b.target)out.add(b.target);if(s.fireAt)out.add(s.fireAt);}return out;}
+/* a ship's shields and pips show on the map only when it is selected, in a selected wing or fighting one; a station's
+   and the convoy's always (C-72, playtest 4); the roster's tiles keep every ship's */
+function statusShown(s,sw,sf){return s.struct||s.quiet||A.selShip===s.id||sw.includes(s.wing)||sf.has(s.id);}
+const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;return a+d*k;};
+function ipos(s){
+  if(s.px==null)return {x:s.x,y:s.y,h:s.h};
+  return {x:s.px+(s.x-s.px)*RA,y:s.py+(s.y-s.py)*RA,h:angLerp(s.ph==null?s.h:s.ph,s.h,RA)};
+}
+/* =====================================================================
+   The visual pass (C-73): game/art/sr-space-fx.js (Claude Chat's, docs/art/HC-VFX-HANDOFF.md) draws the backdrop,
+   rocks, hulls, stations, trails, bolts, missiles, chaff and every effect; this file keeps the command layer (rings,
+   lines, labels, shields, pips, locks) and tells the module what the sim did. Read-only over the sim, like the rest
+   of the map. The panel's FX switch off draws the flat look of C-72
+   ===================================================================== */
+const FX=window.SR_SPACE_FX||null;
+let FX_ON=true,FX_SHAKE=true,FX_CALM=false;   // panel toggles: the visual pass, camera shake, reduced motion
+const fxOn=()=>!!FX&&FX_ON;
+const fxReduced=()=>FX_CALM||!!(RMQ&&RMQ.matches);
+/* the view object, once a frame (the module's own clock gives `now`, so its blinks, pops and flash share one clock) */
+function fxView(z,cx,cy){
+  return {z,cx,cy,W:cssW,H:cssH,dpr,t:SIM.S?SIM.S.t:0,ra:RA,tick:SIM.TICK/1000,reduced:fxReduced(),mapW:SIM.W,mapH:SIM.H,margin:SIM.MARGIN};
+}
+/* a structure's art: its scenario entry's `station`, else its id, else none (the flat octagon) */
+const stArtSeen=new Map();
+function stationArt(s){
+  if(stArtSeen.has(s.id))return stArtSeen.get(s.id);
+  const sc=A.scen||{},e=[].concat(sc.enemies||[],sc.allies||[]).find(x=>x.id===s.id),k=(e&&e.station)||s.id;
+  const art=SA&&SA.STATIONS&&SA.STATIONS[k]?k:null;stArtSeen.set(s.id,art);return art;
+}
+const dmgStage=s=>{const f=Math.max(0,s.hull)/(s.maxHull||1);return f>0.7?0:f>0.45?1:f>0.2?2:3;};
+const BARREL_SECS=1.5;   // sim-hc.js useAbility: a barrel roll's evade window
+/* a ship's view (the brief's §9 object): p is where the map draws it this frame */
+function shipView(s,p,boost){
+  const S=SIM.S,c=SIM.fn.capsOf(s),v=Math.hypot(s.vx,s.vy),cap=SIM.fn.turnCap(c,Math.max(1,v))||1;
+  const art=SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls];
+  return {id:s.id,art,livery:s.faction==='reb'?'rebel':'heg',faction:s.faction,drone:!!(SA.SHIPS&&SA.SHIPS[art]&&SA.SHIPS[art].drone),
+    size:s.row.size,x:p.x,y:p.y,h:p.h,vh:s.vh,speedFrac:Math.min(1,v/(c.vMax||1)),turnFrac:Math.max(-1,Math.min(1,(s.turnW||0)/cap)),boost:s.boostT>0,
+    rollT:s.evadeT>S.t?Math.max(0,Math.min(1,1-(s.evadeT-S.t)/BARREL_SECS)):null,driftT:s.driftT&&S.t<s.driftT?s.driftT-S.t:0,
+    crits:s.crits,damageStage:dmgStage(s),hullFrac:Math.max(0,s.hull)/(s.maxHull||1),panic:s.panic?s.panic.mode:null,pinned:!!(s.emerg&&s.emerg.kind==='pinned'),lead:!!s.lead&&!s.quiet,
+    trail:s.trail.length>1?s.trail.slice(0,-1):null,iconBoost:boost};   // the trail's last point is the sim's, ahead of p
+}
+function stationView(s,p,boost){
+  const sc=A.scen||{},jam=sc.jam&&sc.jam.by===s.id&&s.alive&&SIM.S.points[sc.jam.point]?SIM.S.points[sc.jam.point]:null;
+  return {id:s.id,art:stationArt(s),x:p.x,y:p.y,h:p.h||0,size:s.row.size,damageStage:s.boarded?1:dmgStage(s),dark:!!s.boarded,ours:!!s.boarded,
+    jam:jam?{x:jam.x,y:jam.y}:null,iconBoost:boost};
+}
+const projStyle=st=>{const P=SA&&SA.PROJ&&SA.PROJ[st];return P&&P.style||null;};
+/* boarding: the marine Grafs docked on a station (sim-hc.js boardTick's own test), each to its nearest clamp pad */
+function boarders(st){return SIM.S.ships.filter(x=>x.alive&&x.marines&&x.beh&&x.beh.kind==='board'&&x.beh.station===st.id&&SIM.fn.dist(x,st)<=SIM.fn.boardR(st));}
+function padNear(st,p,from,boost){
+  const D=SA.STATIONS[stationArt(st)],sc=(0.7+0.09*st.row.size)*1.6*0.85*SHIP_SCALE*boost;   // sr-space-fx.js artScale
+  let best={x:p.x,y:p.y},bd=1e18;
+  for(const[a,r]of(D&&D.pads)||[]){const x=p.x+Math.cos(a+(p.h||0))*r*sc,y=p.y+Math.sin(a+(p.h||0))*r*sc,d=(x-from.x)**2+(y-from.y)**2;if(d<bd){bd=d;best={x,y};}}
+  return best;
+}
+/* what the sim did since the last frame, as the module's events. Everything is seen once (WeakSets on the sim's own
+   objects); stale entries (a debug run, a reload) are marked without effects */
+let fxSeen=new WeakSet(),fxLost=new WeakSet(),fxShips=new Map(),fxEvN=0,fxPrimed=false;
+function fxReset(){shHist.clear();shSweep.clear();fxFrames=0;lockAt.clear();fxSeen=new WeakSet();fxLost=new WeakSet();fxShips=new Map();fxEvN=0;fxPrimed=false;stArtSeen.clear();if(FX)FX.reset();}
+function fxSense(){
+  const S=SIM.S;if(!S||!FX)return;
+  const on=fxOn()&&fxPrimed,boost=fxMin(60),hw=cssW/2/cam.z+400,hh=cssH/2/cam.z+400;   // booms: true scale, but at least FX_MIN_PX
+  const near=(x,y)=>Math.abs(x-cam.x)<hw&&Math.abs(y-cam.y)<hh,small=cam.z>=FX.TUNE.lodOut;   // the cheap ones only in view
+  for(const p of S.proj)if(!fxSeen.has(p)){fxSeen.add(p);
+    if(on&&small&&p.age<0.2&&near(p.x0,p.y0))FX.event('muzzle',{x:p.x0,y:p.y0,h:Math.atan2(p.vy,p.vx),style:projStyle(p.style),r:15*boost});}
+  for(const f of S.fx)if(!fxSeen.has(f)){fxSeen.add(f);
+    if(!on||S.t-f.t0>0.5)continue;
+    if(f.src==='crash')FX.event('collide',{x:f.x,y:f.y,speed:f.speed,iconBoost:boost});
+    else if(f.src==='mhit')FX.event('missileHit',{x:f.x,y:f.y,size:f.size,iconBoost:boost});
+    else if(f.src==='mmiss')FX.event('missileMiss',{x:f.x,y:f.y,iconBoost:boost});
+    else if(f.kind!=='boom'&&!f.homing&&near(f.x,f.y)){const sf2=f.surface||(f.kind==='shield'?'shield':'hull'),t=sf2==='shield'&&f.ship?SIM.fn.byId(f.ship):null,q=t?onShield(t,f.x,f.y):f;   // a shield hit sits on the arc it struck
+      FX.event('boltHit',{x:q.x,y:q.y,surface:sf2,dir:f.h,style:projStyle(f.style),r:26*boost});}}
+  for(const m of S.missiles){
+    if(!fxSeen.has(m)){fxSeen.add(m);if(on)FX.event('missileLaunch',{x:m.x,y:m.y,faction:m.faction});}
+    if(m.lost&&!fxLost.has(m)){fxLost.add(m);if(on)FX.event('missileShaken',{x:m.x,y:m.y});}
+  }
+  for(const c of S.chaff||[])if(!fxSeen.has(c)){fxSeen.add(c);if(on)FX.event('chaff',{x:c.x,y:c.y});}
+  for(const s of S.ships){
+    const was=fxShips.get(s.id);fxShips.set(s.id,s.alive);
+    if(!on)continue;
+    if(was===undefined){if(s.alive&&!s.struct&&s.spawn&&Math.hypot(s.x-s.spawn.x,s.y-s.spawn.y)<400)FX.event('warpIn',{ship:shipView(s,ipos(s),boost)});continue;}   // still where it arrived
+    if(!was||s.alive)continue;
+    if(A.ov.fxSkip(s))continue;   // Type 3.5 plays the freighter's capital death itself
+    const p={x:s.x,y:s.y,h:s.h};
+    if(s.jumped){if(S.t-(s.jumpT||0)<1)FX.event('jumpOut',{ship:shipView(s,p,boost)});}
+    else if(!s.boarded&&S.t-(s.deadT==null?S.t:s.deadT)<1)
+      FX.event('explode',{x:s.x,y:s.y,size:s.row.size,art:s.struct?stationArt(s):SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],livery:s.faction==='reb'?'rebel':'heg',
+        faction:s.faction,struct:s.struct,h:s.h,vh:s.vh,speed:Math.hypot(s.vx||0,s.vy||0),stage:dmgStage(s),iconBoost:s.struct?1:fxMin(shipLenW(s)),   // vh, speed: a death spiral carries on its flight (C-74)
+        w:s.w||0,turnW:s.turnW||0,turnCap:s.struct?0:SIM.fn.turnCap(SIM.fn.capsOf(s),Math.max(1,Math.hypot(s.vx||0,s.vy||0)))});   // and its turn: the spin and the curl follow it (feedback 1, §3.9)
+  }
+  for(const e of S.events){
+    if(e.id<=fxEvN)continue;fxEvN=e.id;
+    if(!on||e.x==null)continue;
+    if(e.kind==='objective')FX.event('objective',{x:e.x,y:e.y,failed:e.tone==='hazard'});
+    else if(e.kind==='capture')FX.event('capture',{x:e.x,y:e.y,done:true});
+    else if(e.kind==='steady')FX.event('steady',{x:e.x,y:e.y});
+  }
+  fxPrimed=true;
+}
+/* the nebula's fallback: without GPU raster the nebula's one stretched image costs ~20 ms a frame at DPR 2 (measured
+   headless: 12–18 fps with it, 45–52 without; nothing else in the pass costs near that). Once the caches are warm,
+   frames slower than FX_SLOW_MS turn it off (the panel's slider shows 0); moving the slider yourself keeps your
+   choice for the session */
+let FX_SLOW_MS=30,FX_WARM=90;   // placeholders: ms a frame (≈ 33 fps); frames of a mission before it counts
+let fxFrameMs=0,fxFrames=0,fxNebAuto=false,fxNebUser=false;
+function fxPerfTick(realDt){
+  if(!fxOn()||A.phase!=='LIVE'||fxNebAuto||fxNebUser||!(FX.TUNE.nebulaAlpha>0)||realDt>100)return;   // a stall or a tab switch isn't a slow frame
+  if(++fxFrames<=FX_WARM){fxFrameMs=realDt;return;}
+  fxFrameMs=fxFrameMs*0.95+realDt*0.05;
+  if(fxFrameMs<=FX_SLOW_MS)return;
+  fxNebAuto=true;FX.TUNE.nebulaAlpha=0;flash('Nebula off: frames were slow ('+fxFrameMs.toFixed(0)+' ms)');
+  const el=byId('hcPanelBody').querySelector('[data-fx="nebulaAlpha"]'),out=byId('hcPanelBody').querySelector('[data-fxout="nebulaAlpha"]');
+  if(el)el.value='0';if(out)out.textContent=fmt(0,0.05);
+}
+/* an ability's tell, raised from badgeTick's diff of the pilot's ability log */
+function fxAbility(s,k){
+  if(!fxOn()||!fxPrimed||!['boost','kturn','barrel','shields','fieldrep','lockin'].includes(k))return;
+  const p=ipos(s);FX.event('ability',{x:p.x,y:p.y,key:k,ship:{art:SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[s.cls],livery:s.faction==='reb'?'rebel':'heg',size:s.row.size,iconBoost:iconBoost()}});
+}
+function render(now){
+  fitCanvasIfNeeded();
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  const S=SIM.S,fx=fxOn(),hw0=cssW/2/cam.z,hh0=cssH/2/cam.z;
+  // the backdrop covers the map: clear first only when the view shows past its edge (C-73)
+  if(!fx||!S||A.phase==='PICK'||cam.x-hw0<0||cam.y-hh0<0||cam.x+hw0>SIM.W||cam.y+hh0>SIM.H){ctx.fillStyle='#04060d';ctx.fillRect(0,0,cssW,cssH);}
+  if(!S||A.phase==='PICK')return;
+  const z=cam.z,a=A.phase==='LIVE'?Math.max(0,Math.min(1,A.acc/SIM.TICK)):1,dt=SIM.TICK/1000,boost=iconBoost();RA=a;
+  // camera shake (C-73): screen pixels, this frame only; the HUD layer (pips, names, badges) holds still
+  const view=fx?fxView(z,cam.x,cam.y):null,sh=fx?FX.camShake(view):null;
+  if(sh&&(sh.x||sh.y||sh.a)){view.cx=cam.x-sh.x/z;view.cy=cam.y-sh.y/z;ctx.translate(cssW/2+sh.x,cssH/2+sh.y);ctx.rotate(sh.a);ctx.scale(z,z);ctx.translate(-cam.x,-cam.y);}
+  else ctx.setTransform(dpr*z,0,0,dpr*z,dpr*(cssW/2-cam.x*z),dpr*(cssH/2-cam.y*z));
+  const vx0=cam.x-hw0-300,vx1=cam.x+hw0+300,vy0=cam.y-hh0-300,vy1=cam.y+hh0+300,inV=(x,y,r)=>x+r>vx0&&x-r<vx1&&y+r>vy0&&y-r<vy1;
+  if(fx){FX.backdrop(ctx,view);for(const r of S.rocks)if(inV(r.x,r.y,r.r*1.2))FX.rock(ctx,r,view);}
+  else{drawBackdrop(ctx);for(const r of S.rocks)drawRock(ctx,r);}
+  drawPoints(ctx,z,S);
+  if(fx)FX.drawLayer(ctx,'under',view);
+  const pos=ipos;
+  // the selected wing's engagement ring, and its attack designation in gold
+  const sw=selWings(),w=SIM.fn.wingOf(A.sel),quiet=linesQuiet(),sf=selFoes(sw);
+  for(const wid of sw){
+    const wg=SIM.fn.wingOf(wid),live=wg?SIM.fn.wingShips(wg).map(ipos):[];
+    if(live.length){
+      let cx=0,cy=0;for(const s of live){cx+=s.x;cy+=s.y;}cx/=live.length;cy/=live.length;
+      const R=Math.max(...SIM.fn.wingShips(wg).map(s=>SIM.fn.gunRange(s)))*SIM.fn.ENGAGE_FRAC_()*SIM.fn.tacticOf(wg).engage+Math.max(...live.map(s=>Math.hypot(s.x-cx,s.y-cy)));
+      ring(ctx,cx,cy,R,TH.rgba(C.rebel,0.55),z,2,[10,8]);
+    }
+  }
+  for(const wg of S.wings){   // every wing's attack designation; the selected wing's loudest
+    const o=wg.order;if(!o||o.kind!=='attack'||!o.target)continue;
+    const sel=sw.includes(wg.id);
+    if(quiet&&!sel)continue;   // quiet: only the selected wing's (C-70; hover no longer counts, C-72)
+    for(const t of S.ships){
+      if(!t.alive||t.faction!=='heg')continue;
+      if(o.target.type==='class'?t.cls!==o.target.cls||t.struct:t.id!==o.target.id)continue;
+      const p=pos(t),r=uiR(t)+12/z,spin=now/1400;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(spin);ring(ctx,0,0,r,C.gold,z,sel?3:2,[8,7],sel?1:0.55);ctx.restore();
+      if(sel&&(o.target.type!=='class'||t===S.ships.find(x=>x.alive&&x.faction==='heg'&&x.cls===o.target.cls&&!x.struct)))
+        label(ctx,p.x,p.y-r-12/z,(wg.name+' · ATTACK').toUpperCase(),C.gold,z,12,'Bungee');
+    }
+  }
+  // intent lines: where each ship plans to go (read-only); yours dashed red, theirs faint blue. Quiet (hc1, or the
+  // panel's toggle, C-70): only the selected or hovered wing's, and fainter
+  for(const s of S.ships){
+    if(!s.alive||s.struct||!s.intent)continue;
+    const p=pos(s),reb=s.faction==='reb';
+    if(quiet){   // quiet (C-72): the selected wing's lines, and the lines of the enemies going for it
+      const go=reb?!!s.wing&&sw.includes(s.wing):!!(s.beh&&s.beh.target&&SIM.fn.byId(s.beh.target)&&sw.includes(SIM.fn.byId(s.beh.target).wing));
+      if(go)dashLine(ctx,p,s.intent,reb?C.rebel:C.heg,z,1.3,[5,8],reb?QUIET_ALPHA:QUIET_ALPHA*0.8);continue;}
+    dashLine(ctx,p,s.intent,reb?(s.quiet?C.steel:C.rebel):C.heg,z,reb?1.8:1.2,[7,7],reb?0.85:0.32);
+  }
+  // the bodies: one view a ship a frame (C-73); boarded stations stay on the map, dark and claimed
+  const body=[];
+  for(const s of S.ships){
+    if(!s.alive&&!(s.struct&&s.boarded))continue;
+    const p=pos(s);if(!inV(p.x,p.y,Math.max(shieldR(s,boost)*2,1500)))continue;   // room for a trail that reaches into view
+    body.push({s,p,v:!fx?null:s.struct?(stationArt(s)?stationView(s,p,boost):null):shipView(s,p,boost)});
+  }
+  for(const b of body)if(b.s.alive&&!b.s.struct&&!A.ov.shipHidden(b.s)){if(fx)FX.drawTrail(ctx,b.v,view);else drawTrail(ctx,b.s,z);}
+  for(const {s,p,v} of body){
+    const ak=artK(s);
+    if(A.selShip===s.id||sw.includes(s.wing))ring(ctx,p.x,p.y,uiR(s)+8/z,A.selShip===s.id?C.gold:TH.rgba(C.gold,0.55),z,A.selShip===s.id?2.6:1.6);
+    if(ak<=0&&!A.ov.shipHidden(s))continue;   // an icon: drawn in screen space below
+    if(ak<1){ctx.save();ctx.globalAlpha=ak;}
+    if(A.ov.drawBody(ctx,s,p,z,boost,view)){}
+    else if(v&&s.struct)FX.station(ctx,v,view);
+    else if(v&&v.art)FX.shipBody(ctx,v,view);
+    else drawShipBody(ctx,s,p.x,p.y,p.h,z,boost);
+    if(ak<1)ctx.restore();
+    if(s.alive&&ak>=0.5){const base=statusShown(s,sw,sf),md=A.ov.shieldMode(s,base);if(md)drawShields(ctx,s,p.x,p.y,p.h,z,boost,md);}   // Type 3.5 has its own rule (§3.3)
+    if(s.quiet)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,s.name.toUpperCase(),C.steel,z,11);
+    else if(s.struct)label(ctx,p.x,p.y+shieldR(s,boost)+16/z,(s.label||s.name).toUpperCase(),s.faction==='reb'?C.rebelHi:C.hegHi,z,11);
+  }
+  if(fx){
+    for(const f of S.chaff||[])if(inV(f.x,f.y,260))FX.drawChaffCloud(ctx,f,view);
+    for(const p of S.proj)if(inV(p.x,p.y,40))FX.drawBolt(ctx,p,view);
+    for(const m of S.missiles)FX.drawMissile(ctx,m,view);   // every one: its smoke comes from here
+    for(const st of S.ships){   // boarding (C-73): the clamp and the marines crossing, from each docked Graf
+      if(!st.alive||!st.struct||!(st.boardProg>0)||!stationArt(st))continue;
+      const sp=pos(st);for(const g of boarders(st)){const gp=pos(g);FX.drawBoardLink(ctx,gp,padNear(st,sp,gp,boost),st.boardProg,view);}
+    }
+    FX.drawLayer(ctx,'over',view);
+  } else{drawShots(ctx,z,a,S);drawChaff(ctx,z,S);}
+  A.ov.drawWorld(ctx,view,{z,boost,now,fx});
+  drawLocks(ctx,z,S,boost,now,fx?view:null);
+  // screen space: hull pips and names, floaters
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(fx)FX.drawLayer(ctx,'screen',view);
+  A.ov.drawScreen(ctx,view,{z,boost,now,fx});
+  ctx.font='700 11px "Exo 2",sans-serif';ctx.textAlign='center';
+  for(const s of S.ships){
+    if(!s.alive||A.ov.shipHidden(s))continue;   // Type 3.5's plan view hides your wings (their markers stand in)
+    const p=pos(s),q=toScreen(p.x,p.y),r=uiR(s)*z,ak=artK(s);
+    if(ak<1){drawIcon(ctx,s,q,p.h,1-ak,A.selShip===s.id||sw.includes(s.wing));if(ak<0.5)continue;}   // icon mode: the icon carries the name and the health tick
+    if(statusShown(s,sw,sf))TH.hpPips(ctx,q.x,q.y-r-10,{hp:Math.max(0,s.hull),max:s.maxHull,arm:s.arm,maxArm:s.maxArm,cells:5,cw:6,ch:4,bands:'gor'});
+    if(!s.struct&&!s.quiet){ctx.lineWidth=3;ctx.strokeStyle=C.ink;ctx.strokeText(s.name,q.x,q.y+r+14);ctx.fillStyle=shipColHi(s);ctx.fillText(s.name,q.x,q.y+r+14);}
+  }
+  ctx.font='800 13px "Exo 2",sans-serif';
+  for(const f of S.floaters){
+    const k=(S.t-f.t)/1.6;if(k<0||k>1)continue;
+    const q=toScreen(f.x,f.y);ctx.globalAlpha=1-k*k;ctx.lineWidth=4;ctx.strokeStyle=C.ink;ctx.strokeText(f.text,q.x,q.y-k*26);ctx.fillStyle=f.col;ctx.fillText(f.text,q.x,q.y-k*26);
+  }
+  ctx.globalAlpha=1;
+  drawBadges(now,boost,z);
+  drawBubbles(now,pos,boost,z);
+  drawBox();
+}
+
+/* =====================================================================
+   Speech bubbles (C-69, playtest 1): a pilot's line pops up by their ship for 2 s, then pops down. One a ship, at
+   most BUBBLE_MAX on screen (the newest); real seconds, so they read the same at any speed
+   ===================================================================== */
+const BUBBLE_MS=2000,BUBBLE_MAX=4,BUBBLE_W=210,BUBBLE_POP=140;   // placeholders
+let bubbles=[],barkSeen=0;
+/* status symbols (C-70, playtest 2): a small badge pops up by a ship (either side) when it uses an ability or takes
+   an action: a missile away, breaking from a missile, dodging a crash, breaking off a run. BADGE_MS of real time,
+   the newest BADGE_MAX a ship */
+const BADGE_MS=2500,BADGE_MAX=3,BADGE_R=11;   // placeholders
+const BADGE={shields:['a_shields','shield','Boost Shields'],lockin:['a_lockin','psi','Lock In'],boost:['a_boost','gold','Boost'],drift:['a_drift','gold','Drift'],
+  kturn:['a_kturn','gold','K-Turn'],barrel:['a_barrel','gold','Barrel Roll'],fieldrep:['a_fieldrep','go','Field Repair'],missile:['a_missile','psi','Missile away'],
+  evade:['a_evade','hazard','Evading a missile'],chaff:['a_chaff','goldHi','Chaff'],dodge:['a_dodge','hazard','Dodging a crash'],breakoff:['a_break','text','Breaking off']};
+let badges=[];const badgeSeen=new Map();
+function badgeTick(now){
+  const S=SIM.S;if(!S)return;
+  for(const s of S.ships){
+    if(!s.alive||s.struct)continue;
+    const seen=badgeSeen.get(s.id)||{ab:(s.abLog||[]).length,mis:s.misBreakT,dodge:s.dodgeT,brk:s.breakT};
+    const add=k=>{badges=badges.filter(b=>!(b.ship===s.id&&b.k===k));badges.push({ship:s.id,k,born:now});};
+    const log=s.abLog||[];for(let i=seen.ab;i<log.length;i++){if(log[i].k!=='shields')add(log[i].k);if(badgeSeen.has(s.id))fxAbility(s,log[i].k);}   // Boost Shields: the refill shows it, no badge (feedback 1)
+    if(s.misBreakT!=null&&s.misBreakT!==seen.mis)add('evade');
+    if(s.dodgeT!=null&&s.dodgeT!==seen.dodge&&!(badges.some(b=>b.ship===s.id&&b.k==='dodge'&&now-b.born<BADGE_MS)))add('dodge');
+    if(s.breakT!=null&&s.breakT!==seen.brk)add('breakoff');
+    badgeSeen.set(s.id,{ab:log.length,mis:s.misBreakT,dodge:s.dodgeT,brk:s.breakT});
+  }
+  badges=badges.filter(b=>now-b.born<BADGE_MS);
+}
+const badgePaths=new Map();
+function badgePath(k){let p=badgePaths.get(k);if(!p){p=new Path2D(GLYPH[k]);badgePaths.set(k,p);}return p;}
+function drawBadges(now,boost,z){
+  const by=new Map();for(const b of badges){if(!by.has(b.ship))by.set(b.ship,[]);by.get(b.ship).push(b);}
+  ctx.save();
+  for(const [id,list] of by){
+    const s=SIM.fn.byId(id);if(!s||!s.alive)continue;
+    const p=ipos(s),q=toScreen(p.x,p.y),r=uiR(s)*z;
+    if(q.x<-40||q.y<-40||q.x>cssW+40||q.y>cssH+40)continue;
+    list.slice(-BADGE_MAX).forEach((b,i)=>{
+      const age=now-b.born,pop=RMQ&&RMQ.matches?1:Math.min(1,age/140,(BADGE_MS-age)/300);if(pop<=0)return;
+      const [g,tone]=BADGE[b.k]||['a_evade','text'],col=tone==='text'?C.text:C[tone]||C.text;
+      const x=q.x+r+BADGE_R+4+i*(BADGE_R*2+3),y=q.y-r*0.3;
+      if(fxOn()){FX.badge(ctx,b.k,x,y,BADGE_R,pop);return;}   // the filled glyphs (C-73)
+      ctx.save();ctx.translate(x,y);ctx.scale(pop,pop);
+      ctx.beginPath();ctx.arc(0,0,BADGE_R,0,6.283);ctx.fillStyle=C.night||C.hull;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=col;ctx.stroke();
+      ctx.translate(-BADGE_R*0.62,-BADGE_R*0.62);ctx.scale(BADGE_R*1.24/24,BADGE_R*1.24/24);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=col;ctx.stroke(badgePath(g));
+      ctx.restore();
+    });
+  }
+  ctx.restore();
+}
+const RMQ=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
+function bubbleTick(now){
+  const S=SIM.S;if(!S||!S.barks)return;
+  for(const b of S.barks){
+    if(b.id<=barkSeen)continue;
+    barkSeen=b.id;
+    bubbles=bubbles.filter(x=>x.ship!==b.ship);
+    bubbles.push({ship:b.ship,text:b.text,tone:b.tone,born:now,id:b.id});
+  }
+  bubbles=bubbles.filter(x=>now-x.born<BUBBLE_MS);
+  if(bubbles.length>BUBBLE_MAX)bubbles=bubbles.slice(-BUBBLE_MAX);
+}
+function wrap(c,text,w){const out=[];let line='';for(const word of String(text).split(' ')){const t=line?line+' '+word:word;if(c.measureText(t).width>w&&line){out.push(line);line=word;}else line=t;}if(line)out.push(line);return out;}
+function drawBubbles(now,pos,boost,z){
+  ctx.save();ctx.font='700 13px "Exo 2",sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+  const laid=[];
+  for(const b of bubbles){
+    const s=SIM.fn.byId(b.ship);if(!s||!s.alive)continue;
+    const age=now-b.born,pop=RMQ&&RMQ.matches?1:Math.min(1,age/BUBBLE_POP,(BUBBLE_MS-age)/BUBBLE_POP);   // no pop with reduced motion
+    if(pop<=0)continue;
+    const p=pos(s),q=toScreen(p.x,p.y),r=uiR(s)*z;
+    const lines=wrap(ctx,b.text,BUBBLE_W-22),w=Math.min(BUBBLE_W,Math.max(...lines.map(l=>ctx.measureText(l).width))+22),h=lines.length*16+12;
+    let bx=Math.max(8,Math.min(cssW-w-8,q.x+r*0.6+10)),by=Math.max(8,q.y-r-h-24);
+    for(let pass=0;pass<4;pass++)for(const o of laid)if(bx<o.x+o.w&&bx+w>o.x&&by<o.y+o.h+4&&by+h+4>o.y)by=Math.max(8,o.y-h-6);   // never on top of another
+    laid.push({x:bx,y:by,w,h});
+    ctx.save();ctx.translate(bx+14,by+h);ctx.scale(pop,pop);ctx.translate(-(bx+14),-(by+h));
+    const edge=b.tone==='hazard'?C.hazard:b.tone==='good'?C.go:C.rebelHi;
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,w,h,8):ctx.rect(bx,by,w,h);
+    ctx.moveTo(bx+10,by+h);ctx.lineTo(q.x,q.y-r*0.6);ctx.lineTo(bx+24,by+h);   // the tail points at the ship
+    ctx.fillStyle=C.hull;ctx.fill();ctx.lineWidth=2;ctx.strokeStyle=C.ink;ctx.stroke();
+    ctx.beginPath();ctx.roundRect?ctx.roundRect(bx+1.5,by+1.5,w-3,h-3,7):ctx.rect(bx+1.5,by+1.5,w-3,h-3);ctx.lineWidth=1.6;ctx.strokeStyle=edge;ctx.stroke();
+    ctx.fillStyle=C.text;lines.forEach((l,i)=>ctx.fillText(l,bx+11,by+6+i*16));
+    ctx.restore();
+  }
+  ctx.restore();
+  return laid;
+}
+
+/* =====================================================================
+   The loop: real time on the sim's fixed step, through the timescale
+   ===================================================================== */
+function frame(now){
+  const realDt=A.lastFrame?Math.min(250,now-A.lastFrame):16;A.lastFrame=now;
+  let gameDt=0;
+  if(A.phase==='LIVE'&&SIM.S){
+    A.realSecs+=realDt/1000;
+    const ts=SIM.TIMESCALES[A.speed];gameDt=realDt*ts/1000;
+    if(ts===0)A.pausedSecs+=realDt/1000;
+    if(!(A.hitstop>now))A.acc+=realDt*ts*(A.slowK||1);   // a hitstop (Type 3.5's ram impact) holds the sim for a beat; slowK: 3.5's must-answer slow-down
+    let n=0;
+    while(A.acc>=SIM.TICK&&n++<200&&A.phase==='LIVE'){A.acc-=SIM.TICK;SIM.step();if(SIM.S.over){onOver();break;}}
+    RA=Math.max(0,Math.min(1,A.acc/SIM.TICK));
+    if(A.follow&&!A.camHeld)followCam(realDt);
+  }
+  A.ov.tick(now);   // Type 3.5's screens animate (the dossier's turning freighter)
+  // the visual pass's clocks: game time runs smooth with the timescale (not in 50 ms steps), real time always
+  shieldTick();   // the shields' refill watch (§3.3), with FX on or off
+  if(FX){fxSense();FX.update(SIM.S&&SIM.S.over?realDt/1000:gameDt,realDt);fxPerfTick(realDt);}   // past the end, the last booms play out
+  bubbleTick(performance.now());badgeTick(performance.now());
+  render(performance.now());
+  if(A.panel){const pc=byId('hcPilotCam'),ps=SIM.fn.byId(A.panel);if(pc&&ps)drawTileCam(pc,ps,0.5);}
+  if(A.phase==='LIVE'&&now-(A.tileAt||0)>=100/Math.max(1,byId('hcRoster').querySelectorAll('.hc-tile').length)){A.tileAt=now;tileTick();}
+  if(A.phase==='LIVE'&&SIM.S&&rosterBuilt&&rosterBuilt!==rosterKey(SIM.S))syncRoster();   // a new wing's card in the frame it arrives (§3.10)
+  if(now-A.hudAt>120){A.hudAt=now;syncHud();}
+}
+/* follow: ease the camera onto the selected ship (or the selected wing's middle) */
+function followCam(dtMs){
+  const p=focusPoint();if(!p)return;
+  const k=1-Math.exp(-4*dtMs/1000);cam.x+=(p.x-cam.x)*k;cam.y+=(p.y-cam.y)*k;clampCam();
+}
+function focusPoint(){
+  const s=SIM.fn.byId(A.selShip);if(s&&s.alive)return ipos(s);
+  const w=SIM.fn.wingOf(A.sel);if(!w)return null;
+  const live=SIM.fn.wingShips(w);if(!live.length)return null;
+  let x=0,y=0;for(const q of live){const p=ipos(q);x+=p.x;y+=p.y;}return {x:x/live.length,y:y/live.length};
+}
+function setSpeed(i){
+  if(i<0||i>=SIM.TIMESCALES.length)return;
+  if(SIM.TIMESCALES[i]===0&&SIM.TIMESCALES[A.speed]!==0){A.pauses++;A.lastSpeed=A.speed;}
+  A.speed=i;syncHud(true);
+}
+function togglePause(){if(SIM.TIMESCALES[A.speed]===0)setSpeed(A.lastSpeed||2);else setSpeed(0);}
+
+/* =====================================================================
+   Loading and the end (the overlay owns the board and the debrief)
+   ===================================================================== */
+function load(id,variant,seed){
+  const scn=REG.find(s=>s.id===id);
+  if(!scn)throw new Error('Unknown arena scenario '+id);
+  if(!A.active)openUi();
+  if(A.phase==='LIVE')record();   // the one being left counts as abandoned
+  A.scen=scn;A.variant=variant||0;if(seed!=null)A.seed=seed>>>0;
+  SIM.build(scn,{seed:A.seed,variant:A.variant});
+  makeStars();fxReset();
+  bubbles=[];barkSeen=0;badges=[];badgeSeen.clear();
+  A.phase='LIVE';A.acc=0;A.lastFrame=0;A.realSecs=0;A.pausedSecs=0;A.pauses=0;A.recorded=false;
+  A.sel=null;A.group=null;A.box=null;A.selShip=null;A.panel=null;A.camHeld=false;
+  A.speed=0;A.lastSpeed=2;   // it opens paused: pause is free, so the first decision never runs against the clock
+  byId('hcEnd').hidden=true;
+  fitCanvas();buildPanel();rosterBuilt='';syncHud(true);camFrame();
+  return SIM.S;
+}
+/* a scenario built elsewhere (Type 3.5's plan compiler): registered under its id, replacing an older build */
+function loadScenario(obj,seed){const i=REG.findIndex(x=>x.id===obj.id);if(i>=0)REG[i]=obj;else REG.push(obj);return load(obj.id,0,seed);}
+function restart(same){A.ov.restart(same);}
+function showPicker(){A.ov.home();}
+function onOver(){A.phase='OVER';A.ov.onOver();syncHud(true);}
+byId('hcEnd').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(b.dataset.act==='closewin'){byId('hcEnd').hidden=true;return;}panelAct(b.dataset.act);});
+function backToTitle(){try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}location.reload();}
+const fmtClock=t=>{t=Math.max(0,Math.ceil(t-1e-9));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+
+/* =====================================================================
+   Glyphs: single-colour 24-unit paths (currentColor), so armed / set / disabled are CSS
+   ===================================================================== */
+const circ=(x,y,r)=>'M'+(x-r)+' '+y+'a'+r+' '+r+' 0 1 0 '+(2*r)+' 0a'+r+' '+r+' 0 1 0 '+(-2*r)+' 0';
+const GLYPH={
+  a_shields:'M12 3l7 3v5c0 5-3 8-7 10c-4-2-7-5-7-10V6zM12 8v7M8.5 11.5h7',
+  a_lockin:circ(12,12,8)+circ(12,12,3),
+  a_boost:'M4 6l6 6-6 6M12 6l6 6-6 6',
+  a_drift:'M5 19c1-8 6-13 14-13M15 3l4 3-4 3',
+  a_kturn:'M7 20V10a5 5 0 0110 0v2M13 9l4 4 4-4',
+  a_barrel:'M4 12c0-4 3.6-7 8-7s8 3 8 7-3.6 7-8 7c-3 0-5-2-5-4.5S9 10 12 10s4 1.6 4 3.5',
+  a_fieldrep:'M12 4v16M4 12h16',
+  a_missile:'M4 20l5-5M9 15l7-7 4-1-1 4-7 7zM7 11l6 6',
+  a_evade:'M12 4v10M12 18v2',
+  a_chaff:'M5 6h2M11 4h2M17 7h2M7 12h2M14 11h2M4 17h2M10 18h2M17 16h2',
+  a_dodge:'M5 19L19 5M5 5l5 5M14 14l5 5',
+  a_break:'M4 17l6-6 4 4 6-8M15 7h5v5',
+  attack:circ(12,12,6)+'M12 2v6M12 16v6M2 12h6M16 12h6',
+  defend:'M12 3l7 3v5c0 5-3 8-7 10c-4-2-7-5-7-10V6z',
+  intercept:'M4 6l6 6-6 6M11 6l6 6-6 6M20 5v14',
+  escort:'M12 7l4 9H8z'+circ(12,12,9),
+  withdraw:'M4 12h11M11 7l5 5-5 5M20 4v16',
+  regroup:'M4 4l5 5M20 4l-5 5M4 20l5-5M20 20l-5-5'+circ(12,12,2),
+  hold:circ(12,12,7)+circ(12,12,1.5),
+  capture:'M6 21V4M6 4h11l-3 4 3 4H6',
+  board:'M12 3v10M7 8l5 5 5-5M5 21h14M8 17h8',
+  auto:circ(12,12,9)+'M8.5 16l3.5-8 3.5 8M9.8 13.2h4.4',
+  tight:circ(12,7,2)+circ(8,14,2)+circ(16,14,2),
+  spread:circ(4,12,2)+circ(12,12,2)+circ(20,12,2),
+  screen:'M3 17h18M7 12l5-5 5 5',
+  pincer:'M3 5c7 0 9 7 9 7M3 19c7 0 9-7 9-7M14 12h7',
+  hitrun:'M3 17l5-9 4 6 4-6 5 9',
+  defensive:'M12 3l7 3v5c0 5-3 8-7 10c-4-2-7-5-7-10V6zM9 12h6',
+  pause:'M8 5v14M16 5v14',
+  slow:'M9 6l7 6-7 6z',
+  play:'M7 5l12 7-12 7z',
+  fast:'M3 5l9 7-9 7zM12 5l9 7-9 7z',
+  focus:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z'+circ(12,12,3),
+  follow:circ(12,12,8)+'M12 2v4M12 18v4M2 12h4M18 12h4',
+  view:'M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z'+circ(12,12,2.5),
+  close:'M6 6l12 12M18 6L6 18',
+  // Type 3.5's verbs (feedback 1, §3.4): placeholders until the glyph set's art (M-37)
+  v_bomb:'M12 2v4M9 4.5l3 2 3-2'+circ(12,14,5.5)+'M10 13.5l2 2',
+  v_disable:circ(12,12,8)+'M13 5.5l-3.5 6.5h5l-3.5 6.5',
+  v_suppress:'M4 20h16M7 20v-5h10v5M12 15v-3'+circ(12,8,3.6)+'M12 1.5v2.5',
+  v_holdoff:circ(12,12,9)+'M10 8.5v7M14 8.5v7',
+  v_grapple:'M12 3v11M8.5 6.5L12 3l3.5 3.5M5.5 13c0 4 3 7 6.5 7s6.5-3 6.5-7',
+  v_crate:'M4 9h16v11H4zM4 9l3-4h10l3 4M12 9v11M4 14.5h16',
+  v_carry:'M3 10h11v10H3zM3 15h11M16.5 9h5M19 6.5l2.5 2.5-2.5 2.5',
+  v_fist:'M7 11V7.5a1.5 1.5 0 013 0V10M10 10V6.5a1.5 1.5 0 013 0V10M13 10V7.5a1.5 1.5 0 013 0V11M16 11V9.5a1.5 1.5 0 013 0V14c0 4-3 7-7 7s-6-2.5-6-6v-2.5',
+  v_watch:'M12 3l7 3v5c0 5-3 8-7 10c-4-2-7-5-7-10V6z'+circ(12,11,2.6),
+  v_pin:'M12 21s-6-6-6-11a6 6 0 0112 0c0 5-6 11-6 11z'+circ(12,10,2.2),
+  v_pause:'M9 6v12M15 6v12',
+  v_eye:'M2 12s4-6.5 10-6.5S22 12 22 12s-4 6.5-10 6.5S2 12 2 12z'+circ(12,12,3),
+  v_ram:'M3 12h12M11 7l5 5-5 5M20 4v16',
+  v_hook:'M12 2v10a5 5 0 11-5 5M7 17l-2.5-1.5'
+};
+const glyph=(k,cls)=>'<svg class="hc-glyph'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true"><path d="'+GLYPH[k]+'"/></svg>';
+const TIME_BTNS=[{k:'pause',name:'Pause',line:'Stop the clock. Orders, tactics, rules and commands all work while paused; pause is free and unlimited.',key:'Space · 1'},
+  {k:'slow',name:'Slow',line:()=>'Run at '+SIM.TIMESCALES[1]+'× speed.',key:'2'},
+  {k:'play',name:'Play',line:()=>'Run in real time ('+SIM.TIMESCALES[2]+'×).',key:'3'},
+  {k:'fast',name:'Fast forward',line:()=>'Run at '+SIM.TIMESCALES[3]+'× speed.',key:'4'}];
+
+/* =====================================================================
+   The HUD
+   ===================================================================== */
+/* top left: the overlay's objectives and rules; top centre: its clock */
+function syncTop(){
+  const S=SIM.S,on=A.phase!=='PICK'&&S;
+  byId('hcTop').hidden=!on;
+  if(!on)return;
+  const o=byId('hcObj'),oh=A.ov.objHtml();if(o.dataset.h!==oh){o.innerHTML=oh;o.dataset.h=oh;}
+  const ru=byId('hcRules'),rh=A.ov.rulesHtml();if(ru.dataset.h!==rh){ru.innerHTML=rh;ru.dataset.h=rh;}
+  const ck=byId('hcClock'),c=A.ov.clockHtml();if(ck.dataset.h!==c){ck.innerHTML=c;ck.dataset.h=c;}byId('hcBanner').hidden=true;
+}
+/* left rail: the event feed; VIEW jumps the camera there */
+function syncFeed(){
+  const S=SIM.S,el=byId('hcFeed');
+  if(!S||A.phase==='PICK'){el.innerHTML='';return;}
+  const evs=S.events.slice(-40).reverse();
+  let h='';
+  for(const e of evs){
+    const where=e.x!=null||e.ship;
+    h+='<div class="hc-ev is-'+e.tone+(e.viewed?' is-viewed':'')+'" data-ev="'+e.id+'"><span class="hc-ev__t">'+fmtClock(e.t)+'</span><span class="hc-ev__txt">'+esc(e.text)+'</span>'+
+      (where?'<button type="button" class="hc-view" data-view="'+e.id+'" aria-label="View">'+glyph('view','hc-glyph--sm')+'VIEW</button>':'')+'</div>';
+  }
+  if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
+}
+function viewEvent(id){
+  const e=SIM.S.events.find(x=>x.id===id);if(!e)return false;
+  e.viewed=true;
+  const s=SIM.fn.byId(e.ship);
+  const p=s&&s.alive?s:(e.x!=null?{x:e.x,y:e.y}:s);
+  if(p)camTo(p.x,p.y,Math.max(cam.z,0.45));
+  if(s&&s.faction==='reb'&&!s.quiet&&s.wing){A.selShip=s.id;A.sel=s.wing;openPilot(s.id);}
+  syncHud(true);
+  return true;
+}
+byId('hcRoster').addEventListener('scroll',()=>placeRail(),{passive:true});   // the pilot panel follows its card
+byId('hcFeed').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-view]');if(b)viewEvent(+b.dataset.view);
+});
+
+/* bottom: the wing roster. A header per wing (name, order chip, tactic chip) and a tile per ship */
+let rosterBuilt='';
+const moraleWord=s=>SIM.moraleOf(s);
+function tileHtml(s){
+  return '<button type="button" class="hc-tile" data-ship="'+s.id+'"><canvas class="hc-tile__cam" width="204" height="112"></canvas>'+
+    '<span class="hc-tile__name"></span><span class="hc-tile__bars"><i class="hc-bar hc-bar--hull"><b></b></i><i class="hc-bar hc-bar--shd"><b></b></i></span>'+
+    '<span class="hc-tile__foot"><span class="hc-tile__word"></span><span class="hc-tile__mor"></span></span><span class="hc-tile__ord"></span></button>';
+}
+const rosterKey=S=>S.seed+'|'+S.scn.id+'|'+S.wings.map(w=>w.id).join(',');
+function buildRoster(){
+  const S=SIM.S,el=byId('hcRoster');
+  let h='';
+  for(const w of S.wings){
+    h+='<div class="hc-wing" data-wing="'+w.id+'"><button type="button" class="hc-wing__head" data-wing-head="'+w.id+'"><span class="hc-wing__name">'+esc(w.name)+'</span>'+
+      '<span class="hc-chip hc-chip--order" data-chip="order"></span><span class="hc-chip hc-chip--tactic" data-chip="tactic"></span><span class="hc-chip hc-chip--extra" data-chip="extra" hidden></span></button><div class="hc-wing__tiles">';
+    for(const id of w.ships)h+=tileHtml(SIM.fn.byId(id));
+    h+='</div></div>';
+  }
+  const had=rosterBuilt&&rosterBuilt.split('|')[0]===S.seed+''&&rosterBuilt.split('|')[1]===S.scn.id?rosterBuilt.split('|')[2].split(','):null;
+  el.innerHTML=h;rosterBuilt=rosterKey(S);tileN=0;tileMs=0;
+  if(had)for(const w of S.wings)if(!had.includes(w.id)){const box=el.querySelector('[data-wing="'+w.id+'"]');if(box)box.classList.add('is-arriving');}   // slides in, its header flashes
+  el.classList.toggle('is-many',S.wings.reduce((n,w)=>n+w.ships.length,0)>6);
+  for(const t of el.querySelectorAll('.hc-tile')){const s=SIM.fn.byId(t.dataset.ship);drawTileGlyph(t.querySelector('canvas'),s);}
+}
+/* the camera tiles (§3.1): each a small live view tracking its ship, drawn from the main sim at about 10 fps,
+   round-robin one tile a frame. If drawing them costs more than TILE_BUDGET ms a frame on average with 8 or more
+   ships, they fall back to static glyphs (C-67) */
+let TILES_LIVE=true;      // panel toggle
+let TILE_Z=0.34;          // a tile's zoom (tile pixels per world unit, before its 2× backing). placeholder
+let TILE_BUDGET=3;        // ms a frame the tiles may cost before they fall back. placeholder
+let TILE_WARM=4;          // rounds of tiles drawn before their cost counts. placeholder
+let tileIdx=0,tileMs=0,tileAuto=false,tileN=0;
+function tileTick(){
+  if(!TILES_LIVE||A.phase==='PICK'||!SIM.S)return;
+  const tiles=byId('hcRoster').querySelectorAll('.hc-tile');if(!tiles.length)return;
+  tileIdx=(tileIdx+1)%tiles.length;
+  const t=tiles[tileIdx],s=SIM.fn.byId(t.dataset.ship);if(!s)return;
+  const t0=performance.now();
+  drawTileCam(t.querySelector('canvas'),s);
+  tileN++;
+  if(tileN<=tiles.length*TILE_WARM)return;   // the first rounds build the sprite caches: not counted
+  tileMs=tileMs*0.9+(performance.now()-t0)*0.1;
+  if(tileMs>TILE_BUDGET&&tiles.length>=8){TILES_LIVE=false;tileAuto=true;flash('Camera tiles fell back to static glyphs ('+tileMs.toFixed(1)+' ms a tile)');
+    for(const x of tiles)drawTileGlyph(x.querySelector('canvas'),SIM.fn.byId(x.dataset.ship));
+    const cb=byId('hcPanelBody').querySelector('[data-toggle="tiles"]');if(cb)cb.checked=false;}
+}
+function drawTileCam(cvs,s,zoom){
+  const c=cvs.getContext('2d'),S=SIM.S,W2=cvs.width,H2=cvs.height,z=zoom?zoom*W2/340:TILE_Z*W2/96;
+  c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,W2,H2);
+  if(!s.alive){c.fillStyle=C.text3;c.font='800 '+Math.round(H2*0.22)+'px "Exo 2",sans-serif';c.textAlign='center';c.fillText(s.jumped?'JUMPED':'SIGNAL LOST',W2/2,H2*0.58);return;}
+  const sp0=ipos(s),cx=sp0.x,cy=sp0.y,hw=W2/2/z,hh=H2/2/z;
+  c.setTransform(z,0,0,z,W2/2-cx*z,H2/2-cy*z);
+  c.fillStyle='#dfe6ff';c.globalAlpha=0.5;c.beginPath();
+  eachStar(cx-hw,cy-hh,cx+hw,cy+hh,null,(x,y)=>c.rect(x-1/z,y-1/z,2/z,2/z));c.fill();c.globalAlpha=1;
+  const fx=fxOn(),tv=fx?Object.assign(fxView(z,cx,cy),{W:W2,H:H2,dpr:1,lod:0}):null;   // the visual pass at its cheapest (C-73)
+  for(const r of S.rocks)if(Math.abs(r.x-cx)<hw+r.r&&Math.abs(r.y-cy)<hh+r.r){if(fx)FX.rock(c,r,tv);else drawRock(c,r);}
+  const saveDpr=dpr;dpr=1;spriteCache=tileSprites;angB=36;spriteCap=500;
+  try{
+    for(const o of S.ships){if(!o.alive||Math.abs(o.x-cx)>hw+80||Math.abs(o.y-cy)>hh+80)continue;const op=ipos(o);
+      if(fx&&o.struct&&stationArt(o))FX.station(c,stationView(o,op,1),tv);
+      else if(fx&&!o.struct&&SA.SHIP_FOR_GAME&&SA.SHIP_FOR_GAME[o.cls])FX.shipBody(c,shipView(o,op,1),tv);
+      else drawShipBody(c,o,op.x,op.y,op.h,z,1);}
+  }finally{dpr=saveDpr;spriteCache=sprites;angB=ANG_B;spriteCap=900;}
+  c.lineCap='round';
+  for(const p of S.proj){if(Math.abs(p.x-cx)>hw||Math.abs(p.y-cy)>hh)continue;const sp=Math.hypot(p.vx,p.vy)||1;c.beginPath();c.moveTo(p.x-p.vx/sp*22,p.y-p.vy/sp*22);c.lineTo(p.x,p.y);c.lineWidth=2.4/z;c.strokeStyle=boltCols(p)[1];c.stroke();}
+  c.setTransform(1,0,0,1,0,0);
+  if(s.emerg){c.strokeStyle=C.hazard;c.lineWidth=4;c.strokeRect(2,2,W2-4,H2-4);}
+}
+/* a static tile camera: the ship's glyph in its livery (before the first live frame, and the perf fallback) */
+function drawTileGlyph(cvs,s){
+  const c=cvs.getContext('2d');c.setTransform(1,0,0,1,0,0);c.fillStyle=C.void;c.fillRect(0,0,cvs.width,cvs.height);
+  const saveDpr=dpr;dpr=1;
+  try{drawShipBody(c,s,cvs.width/2,cvs.height/2,-Math.PI/2,cvs.width/96,0.75);}finally{dpr=saveDpr;}
+}
+function syncRoster(){
+  const S=SIM.S,el=byId('hcRoster');
+  if(!S||A.phase==='PICK'){el.hidden=true;return;}
+  el.hidden=false;
+  if(rosterBuilt!==rosterKey(S))buildRoster();   // a wing that arrives mid-mission gets its card (feedback 1, §3.10)
+  for(const w of S.wings){
+    const box=el.querySelector('[data-wing="'+w.id+'"]');if(!box)continue;
+    box.classList.toggle('is-sel',selWings().includes(w.id));
+    const oc=box.querySelector('[data-chip="order"]'),tc=box.querySelector('[data-chip="tactic"]');
+    const ot=A.ov.orderChip(w);   // Type 3.5: the Executive Order
+    if(oc.textContent!==ot)oc.textContent=ot;
+    const tt=A.ov.tacticChip(w);if(tc.textContent!==tt)tc.textContent=tt;
+    tc.hidden=!tt;tc.classList.toggle('is-off',!!tt);   // Type 3.5: OFF PLAN, or nothing
+    const xc=box.querySelector('[data-chip="extra"]');if(xc){const xt=A.ov.wingChip(w)||'';if(xc.textContent!==xt)xc.textContent=xt;xc.hidden=!xt;}   // Type 3.5: the crates aboard
+    for(const sid of w.ships){
+      const s=SIM.fn.byId(sid),t=box.querySelector('[data-ship="'+sid+'"]');if(!s||!t)continue;
+      const lead=w.leader===sid;
+      const nm=(lead?'★ ':'')+s.name;
+      const nmEl=t.querySelector('.hc-tile__name');if(nmEl.textContent!==nm)nmEl.textContent=nm;
+      const hf=Math.max(0,s.hull)/s.maxHull,hb=t.querySelector('.hc-bar--hull b');hb.style.width=Math.round(hf*100)+'%';hb.style.background=TH.hpCol(hf,'gor');   // §3.3's colours
+      hb.parentNode.classList.toggle('is-pulse',s.alive&&hf>0&&hf<0.15);
+      const ms=SIM.fn.maxShield(s),sb=t.querySelector('.hc-bar--shd b'),sw=(ms?Math.round(SIM.fn.totalShield(s)/ms*100):0)+'%';
+      if(sb.style.width!==sw){if(parseFloat(sw)>parseFloat(sb.style.width||'0')+4)glint(sb.parentNode);sb.style.width=sw;}
+      const ord=s.jumped?'JUMPED':!s.alive?'DOWN':behWord(s);
+      const wEl=t.querySelector('.hc-tile__word');if(wEl.textContent!==ord)wEl.textContent=ord;
+      const gk=s.alive?behGlyph(s)+'|'+behTone(s):'';const oEl=t.querySelector('.hc-tile__ord');
+      if(oEl.dataset.g!==gk){oEl.dataset.g=gk;oEl.innerHTML=s.alive?glyph(behGlyph(s),'hc-glyph--sm'):'';oEl.dataset.tone=behTone(s);}
+      t.dataset.tip='@';t.dataset.tt=s.alive?s.name+': '+ord:s.name;t.dataset.tb=s.alive&&s.assess?'"'+s.assess+'"':'';
+      const mo=s.alive?moraleWord(s):'';const mEl=t.querySelector('.hc-tile__mor');if(mEl.textContent!==mo){mEl.textContent=mo;mEl.dataset.m=mo;}
+      t.classList.toggle('is-crit',s.alive&&(s.hull/s.maxHull<0.35||moraleWord(s)==='PANICKED'));
+      t.classList.toggle('is-down',!s.alive);
+      t.classList.toggle('is-sel',A.selShip===sid);
+    }
+  }
+}
+/* the ship's current job as a corner glyph and a word, in Type 3.5's vocabulary (feedback 1, §3.4): cyan when a rule
+   set it, hazard in an emergency. Without a 3.5 fight (High Command's own fixtures) a tile shows no word */
+function behWord(s){const v=A.ov.verbOf(s);return v?v.words:'';}
+function behGlyph(s){const v=A.ov.verbOf(s);return v?v.g:'hold';}
+const behTone=s=>s.panic||s.emerg?'hazard':s.beh&&s.beh.rule?'rule':'';
+byId('hcRoster').addEventListener('click',ev=>{
+  const h=ev.target.closest('[data-wing-head]');
+  if(h){selectWing(h.dataset.wingHead);return;}
+  const t=ev.target.closest('[data-ship]');
+  if(t){
+    const s=SIM.fn.byId(t.dataset.ship);if(!s)return;
+    clickShip(s);if(s.alive)camTo(s.x,s.y);
+  }
+});
+/* selecting (C-70, playtest 2): a click on one of your ships (map or roster) selects its wing; a second click on a ship
+   of the selected wing selects that ship (its pilot panel). A box selection may hold several wings (A.group) */
+function selWings(){return A.group&&A.group.length?A.group.slice():A.sel?[A.sel]:[];}
+function clickShip(s){
+  if(!s.wing){syncHud(true);return;}
+  const single=!(A.group&&A.group.length>1);
+  if(!single||A.sel!==s.wing){selectWing(s.wing);return;}
+  if(A.selShip!==s.id){A.selShip=s.id;openPilot(s.id);}
+}
+function selectGroup(ids){
+  ids=[...new Set(ids)].filter(id=>SIM.fn.wingOf(id));
+  if(!ids.length){A.sel=null;A.group=null;A.selShip=null;syncHud(true);return;}
+  if(ids.length===1){selectWing(ids[0]);return;}
+  A.group=ids;A.sel=ids[0];A.selShip=null;A.panel=null;syncHud(true);
+}
+function selectWing(id){
+  A.sel=id;A.group=null;A.selShip=null;
+  syncHud(true);
+}
+
+/* bottom right: the time controls */
+function timeHtml(){
+  let h='';
+  TIME_BTNS.forEach((b,i)=>{h+='<button type="button" class="hc-tbtn'+(A.speed===i?' is-on':'')+'" data-speed="'+i+'" data-tip="time:'+i+'" aria-pressed="'+(A.speed===i)+'" aria-label="'+b.name+'">'+glyph(b.k)+'</button>';});
+  h+='<span class="hc-time__div"></span>';
+  h+='<button type="button" class="hc-tbtn" data-act="focus" data-tip="focus" aria-label="Event focus">'+glyph('focus')+'</button>';
+  h+='<button type="button" class="hc-tbtn'+(A.follow?' is-on':'')+'" data-act="follow" data-tip="follow" aria-pressed="'+A.follow+'" aria-label="Follow">'+glyph('follow')+'</button>';
+  return h;
+}
+function syncTime(){
+  const el=byId('hcTime');el.hidden=A.phase==='PICK'||!SIM.S;
+  const h=timeHtml();if(el.dataset.h!==h){el.innerHTML=h;el.dataset.h=h;}
+}
+byId('hcTime').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.speed!=null)setSpeed(+b.dataset.speed);
+  else if(b.dataset.act==='focus')nextEvent();
+  else if(b.dataset.act==='follow'){A.follow=!A.follow;A.camHeld=false;syncHud(true);}
+});
+/* event focus: the newest unviewed event with a place, else the newest with a place */
+function nextEvent(){   // the newest unviewed event with a place, then the next newest, then the latest again
+  const S=SIM.S;if(!S)return false;
+  const evs=S.events.filter(e=>e.x!=null||e.ship);
+  const e=evs.slice().reverse().find(x=>!x.viewed)||evs[evs.length-1];
+  return e?viewEvent(e.id):false;
+}
+
+/* hover cards (§3.4): name and one plain line, live numbers through getters */
+/* the one tooltip (feedback 1, §3.6): every [data-tip] in #arHc and #arHc35 resolves here to {title, body, foot,
+   tone} ({name, line, key} still read). data-tip="@" is a literal: its data-tt title and data-tb body */
+function tipFor(key){
+  {const t=A.ov.tipFor(key);if(t)return t;}   // Type 3.5's powers and chips first
+  const [k,a]=String(key).split(':');
+  if(k==='time'){const b=TIME_BTNS[+a];return {name:b.name,line:typeof b.line==='function'?b.line():b.line,key:b.key};}
+  if(k==='focus')return {name:'Event focus',line:'Jump the camera to the newest event you have not viewed.',key:'Tab'};
+  if(k==='follow')return {name:'Follow',line:'Keep the camera on the selected ship or wing.',key:'F'};
+  return {name:key,line:''};
+}
+let tipT=0,tipEl=null,tipPend=null;
+const tipOf=el=>el.dataset.tip==='@'?{title:el.dataset.tt||'',body:el.dataset.tb||''}:tipFor(el.dataset.tip);
+function tipHtml(d,why){
+  const title=d.title!=null?d.title:d.name,body=d.body!=null?d.body:d.line,foot=d.foot||why||null,tone=why&&!d.foot?'warn':d.tone||'info';
+  return '<div class="sr-tip__title">'+esc(title||'')+(d.key?'<span class="sr-kbd">'+esc(d.key)+'</span>':'')+'</div>'+(body?'<div class="sr-tip__rule">'+esc(body)+'</div>':'')+
+    (foot?'<div class="hc-tip__foot" data-tone="'+tone+'">'+esc(foot)+'</div>':'');
+}
+function showTip(el){
+  const tip=byId('hcTip'),d=tipOf(el);if(!d||!(d.title||d.name))return;
+  tip.innerHTML=tipHtml(d,el.dataset.why);tip.hidden=false;tipEl=el;
+  const holo=!!el.closest('.h35-holo');tip.classList.toggle('is-holo',holo);   // Type 3.5's planning windows: their look, and beside the element
+  const st=byId('hcStage').getBoundingClientRect(),r=el.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  if(holo){let side='right',x=r.right-st.left+12;if(x+w>st.width-8){side='left';x=r.left-st.left-12-w;}if(x<8){side='below';x=Math.max(8,Math.min(st.width-8-w,r.left-st.left+r.width/2-w/2));}
+    let y=side==='below'?r.bottom-st.top+12:r.top-st.top+r.height/2-h/2;y=Math.max(8,Math.min(st.height-8-h,y));
+    tip.dataset.side=side;tip.style.setProperty('--py',Math.round(side==='below'?0:r.top-st.top+r.height/2-y)+'px');tip.style.setProperty('--px',Math.round(side==='below'?r.left-st.left+r.width/2-x:0)+'px');
+    tip.style.left=Math.round(x)+'px';tip.style.top=Math.round(y)+'px';return;}
+  // anchored to the element: above it, or below if there's no room; kept on screen
+  let x=r.left-st.left+r.width/2-w/2,y=r.top-st.top-h-8;if(y<8)y=r.bottom-st.top+8;if(y+h>st.height-8)y=Math.max(8,r.top-st.top-h-8);
+  tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x)))+'px';tip.style.top=Math.round(y)+'px';
+}
+function hideTip(){clearTimeout(tipT);tipEl=null;tipPend=null;const t=byId('hcTip');if(t)t.hidden=true;}
+/* a part of the HUD re-renders: only a tip shown or pending for something inside it goes (not one elsewhere) */
+function hideTipIn(root){if((tipEl&&root.contains(tipEl))||(tipPend&&root.contains(tipPend)))hideTip();}
+/* the same tip at a point on the map (stage px): for things drawn on the canvas, like Type 3.5's subsystems */
+function showTipAt(x,y,d){
+  const tip=byId('hcTip');tip.innerHTML=tipHtml(d);tip.classList.remove('is-holo');
+  tip.hidden=false;tipEl=null;const st=byId('hcStage').getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight;
+  let ty=y-h-14;if(ty<8)ty=y+18;tip.style.left=Math.round(Math.max(8,Math.min(st.width-8-w,x-w/2)))+'px';tip.style.top=Math.round(ty)+'px';
+}
+byId('hcStage').addEventListener('pointerover',ev=>{
+  const el=ev.target.closest&&ev.target.closest('[data-tip]');
+  if(!el||el===tipEl)return;hideTip();tipPend=el;tipT=setTimeout(()=>{tipPend=null;if(el.isConnected)showTip(el);},250);
+});
+byId('hcStage').addEventListener('pointerout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el&&!el.contains(ev.relatedTarget))hideTip();});
+for(const id of ['hcStage','hcPanel']){const host=document.getElementById(id);if(!host)continue;   // keyboard focus shows it too; the designer panel has it
+  host.addEventListener('focusin',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el){hideTip();showTip(el);}});
+  host.addEventListener('focusout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el)hideTip();});
+  if(id==='hcPanel'){host.addEventListener('pointerover',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(!el||el===tipEl)return;hideTip();tipPend=el;tipT=setTimeout(()=>{tipPend=null;if(el.isConnected)showTip(el);},250);});
+    host.addEventListener('pointerout',ev=>{const el=ev.target.closest&&ev.target.closest('[data-tip]');if(el&&!el.contains(ev.relatedTarget))hideTip();});}}
+let flashT=0;
+function flash(msg){const t=byId('hcToast');t.textContent=msg;t.hidden=false;clearTimeout(flashT);flashT=setTimeout(()=>{t.hidden=true;},2200);}
+
+function closeAll(){A.panel=null;hideTip();}
+
+/* =====================================================================
+   The pilot panel (§3.2): over the left rail, from a tile or VIEW
+   ===================================================================== */
+function openPilot(id){A.panel=id;pilotBuilt=null;syncHud(true);}
+let pilotBuilt=null;
+/* a pilot-panel bar; the hull's in the health colours (§3.3: green, orange, red, pulsing under 15%) */
+function bar(lbl,v,max,cls){const k=max>0?Math.max(0,Math.min(1,v/max)):0,hull=cls==='is-hull';
+  return '<div class="hc-pbar'+(cls?' '+cls:'')+(hull&&k>0&&k<0.15?' is-pulse':'')+'" data-k="'+lbl+'"><span>'+lbl+'</span><i><b style="width:'+Math.round(k*100)+'%'+(hull?';background:'+TH.hpCol(k,'gor'):'')+'"></b></i><em>'+(max>0?Math.max(0,Math.round(v))+'/'+max:'—')+'</em></div>';}
+/* a bar's fill eases to its new width (§3.3); a rising shield bar gets a glint along it */
+function easeBars(root,old){
+  for(const b of root.querySelectorAll('.hc-pbar')){const n=b.querySelector('b'),w=n.style.width,o=old[b.dataset.k];if(o==null||o===w)continue;
+    n.style.transition='none';n.style.width=o;void n.offsetWidth;n.style.transition='';n.style.width=w;
+    if(b.classList.contains('is-shd')&&parseFloat(w)>parseFloat(o))glint(b);}
+}
+function glint(el){el.classList.remove('is-glint');void el.offsetWidth;el.classList.add('is-glint');clearTimeout(el._gl);el._gl=setTimeout(()=>el.classList.remove('is-glint'),700);}
+function syncPilot(){
+  const el=byId('hcPilot'),s=A.panel&&A.phase!=='PICK'?SIM.fn.byId(A.panel):null;
+  if(!s){el.hidden=true;pilotBuilt=null;return;}
+  el.hidden=false;
+  if(pilotBuilt!==s.id){el.innerHTML='<canvas class="hc-pilot__cam" id="hcPilotCam" width="680" height="150"></canvas><div id="hcPilotBody"></div>';pilotBuilt=s.id;}
+  el.classList.toggle('is-emerg',!!(s.emerg&&s.alive));
+  const body=byId('hcPilotBody'),h=A.ov.pilotBody(s);
+  if(body.dataset.h!==h){hideTipIn(body);const old={};for(const b of body.querySelectorAll('.hc-pbar'))old[b.dataset.k]=b.querySelector('b').style.width;
+    body.innerHTML=h;body.dataset.h=h;easeBars(body,old);}
+}
+byId('hcPilot').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  const s=SIM.fn.byId(A.panel);if(!s)return;
+  if(b.dataset.act==='close'){A.panel=null;syncHud(true);return;}
+  A.ov.pilotClick(s,b);
+});
+
+/* the commands bar: the overlay's powers */
+function syncDrawer(){
+  const el=byId('hcCmds'),body=byId('hcCmdsBody'),on=A.phase==='LIVE'&&!!SIM.S,h=on?A.ov.cmdsHtml():'';
+  if(body.dataset.h!==h){hideTipIn(body);body.innerHTML=h;body.dataset.h=h;}
+  el.hidden=!on;
+}
+byId('hcCmds').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  A.ov.cmdsClick(b);
+});
+function syncHud(){
+  if(!A.active)return;
+  syncTop();syncFeed();syncRoster();syncTime();syncPilot();syncDrawer();syncReadout();
+  {   // the overlay may hide the whole HUD (its board and briefing)
+    const off=!!A.ov.hudHidden();
+    if(off)byId('hcCmds').hidden=true;   // the commands bar carries the overlay's powers
+    for(const id of ['hcTop','hcRoster','hcPilot'])if(off)byId(id).hidden=true;
+    byId('hcFeed').hidden=off;
+    A.ov.syncHud(performance.now());
+  }
+  placeRail();
+}
+const FEED_ROWS=5;   // the feed's height, in entries (C-70). placeholder
+/* the left rail (the feed, the pilot panel) starts under the objectives panel, however tall it grows */
+function placeRail(){
+  const st=byId('hcStage').getBoundingClientRect(),ob=byId('hcObjBox').getBoundingClientRect();
+  const top=Math.round(Math.max(80,(byId('hcTop').hidden?60:ob.bottom-st.top)+10));
+  const fd=byId('hcFeed');fd.style.top=top+'px';
+  // the wing cards: a column in the bottom-left corner (C-71), compacted when they don't fit under the feed's first row
+  const ro=byId('hcRoster'),roMax=Math.max(160,Math.round(st.height-12-top-RAIL_FEED_MIN));
+  if(!ro.hidden&&SIM.S){ro.style.maxHeight=roMax+'px';ro.classList.toggle('is-many',SIM.S.wings.reduce((n,w)=>n+w.ships.length,0)>6);if(ro.scrollHeight>ro.clientHeight+2)ro.classList.add('is-many');}
+  const rr=ro.hidden?{top:st.bottom,right:st.left}:ro.getBoundingClientRect();
+  // the feed shows five entries (fewer when the cards need the room); more scroll
+  const evs=fd.querySelectorAll('.hc-ev');let fh=0;
+  for(let i=0;i<Math.min(FEED_ROWS,evs.length);i++)fh+=evs[i].offsetHeight+(i?5:0);
+  const room=Math.round(rr.top-st.top-top-10);
+  fd.style.maxHeight=evs.length>FEED_ROWS||fh+2>room?Math.max(40,Math.min(Math.round(fh+2),room))+'px':'';
+  // the commands bar: centred in the room right of the cards, at the bottom (C-71)
+  const cm=byId('hcCmds');let bar=null;
+  if(!cm.hidden){
+    const x0=Math.round(rr.right-st.left+12),avail=Math.max(200,Math.round(st.width-x0-12));
+    cm.style.maxWidth=avail+'px';cm.style.bottom='12px';
+    cm.style.left=Math.round(x0+Math.max(0,(avail-cm.offsetWidth)/2))+'px';
+    bar=cm.getBoundingClientRect();
+  }
+  // the pilot panel opens beside the cards, level with its tile, above the bar
+  const beside=(el,anchor)=>{
+    if(el.hidden||!anchor)return;
+    const a=anchor.getBoundingClientRect(),gap=10,w=el.offsetWidth;
+    const left=Math.round(Math.min(st.width-8-w,rr.right-st.left+gap));
+    let bottom=Math.round(st.bottom-a.bottom);
+    if(bar&&left<bar.right-st.left&&left+w>bar.left-st.left)bottom=Math.max(bottom,Math.round(st.bottom-bar.top+gap));
+    el.style.left=left+'px';el.style.bottom=bottom+'px';
+    el.style.maxHeight=Math.round(Math.max(160,st.height-bottom-top))+'px';
+  };
+  beside(byId('hcPilot'),A.panel&&ro.querySelector('[data-ship="'+A.panel+'"]'));
+}
+const RAIL_FEED_MIN=60;   // the feed keeps at least this much height over the wing cards. placeholder
+
+/* =====================================================================
+   Input on the map: select a wing by its ship; the overlay takes the clicks it wants first
+   ===================================================================== */
+let pan=null;
+function evPt(ev){const r=cv.getBoundingClientRect();const px=ev.clientX-r.left,py=ev.clientY-r.top,w=toWorld(px,py);return {px,py,x:w.x,y:w.y};}
+function shipAt(x,y){
+  let best=null,bd=1e18;
+  for(const s of SIM.S.ships){if(!s.alive)continue;const d=Math.hypot(s.x-x,s.y-y),r=artK(s)<0.5?(ICONS.ICON_SIZE/2+3)/cam.z:Math.max(10/cam.z,shieldR(s,1)*1.1);if(d<r&&d<bd){bd=d;best=s;}}
+  return best;
+}
+/* the mouse (C-70, playtest 2): left-drag draws a selection box, right-drag (or middle-drag) pans, a right-click goes
+   to the overlay. A finger still pans. */
+let ovDrag=false;   // the overlay took this press (a plan-view marker)
+cv.addEventListener('pointerdown',ev=>{
+  if(!SIM.S)return;
+  if(A.ov.pointer('down',evPt(ev),ev)){ovDrag=true;cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);return;}
+  if(A.phase==='PICK')return;
+  cv.setPointerCapture&&cv.setPointerCapture(ev.pointerId);
+  const p=evPt(ev),panning=ev.button===2||ev.button===1||ev.pointerType==='touch';
+  pan={px:p.px,py:p.py,cx:cam.x,cy:cam.y,moved:false,button:ev.button,mode:panning?'pan':'box'};
+});
+cv.addEventListener('pointermove',ev=>{
+  if(ovDrag){A.ov.pointer('move',evPt(ev),ev);return;}
+  if(!pan)A.ov.pointer('hover',evPt(ev),ev);
+  if(!pan)return;
+  const p=evPt(ev);
+  if(Math.abs(p.px-pan.px)+Math.abs(p.py-pan.py)>4)pan.moved=true;
+  if(!pan.moved)return;
+  if(pan.mode==='pan'){cam.x=pan.cx-(p.px-pan.px)/cam.z;cam.y=pan.cy-(p.py-pan.py)/cam.z;clampCam();A.camHeld=true;}
+  else A.box={x0:pan.px,y0:pan.py,x1:p.px,y1:p.py};
+});
+cv.addEventListener('pointerup',ev=>{
+  if(ovDrag){ovDrag=false;A.ov.pointer('up',evPt(ev),ev);return;}
+  if(!pan)return;const was=pan;pan=null;
+  const p=evPt(ev);
+  if(was.mode==='box'&&was.moved){boxSelect(A.box);A.box=null;return;}
+  A.box=null;
+  if(was.moved)return;
+  if(was.button===2){mapRight(p);return;}
+  if(was.button===0||was.button==null)mapClick(p,ev);
+});
+cv.addEventListener('pointercancel',()=>{pan=null;A.box=null;ovDrag=false;});
+cv.addEventListener('contextmenu',ev=>ev.preventDefault());   // the right button is ours: pointerup handles a right-click
+/* a box: every wing with one of your ships inside it (as drawn); none clears the selection */
+function boxSelect(b){
+  if(!b)return;
+  const x0=Math.min(b.x0,b.x1),x1=Math.max(b.x0,b.x1),y0=Math.min(b.y0,b.y1),y1=Math.max(b.y0,b.y1),ids=[];
+  for(const s of SIM.S.ships){
+    if(!s.alive||s.faction!=='reb'||s.quiet||!s.wing)continue;
+    const q=ipos(s),sc=toScreen(q.x,q.y);
+    if(sc.x>=x0&&sc.x<=x1&&sc.y>=y0&&sc.y<=y1&&!ids.includes(s.wing))ids.push(s.wing);
+  }
+  selectGroup(ids);
+}
+function drawBox(){
+  const b=A.box;if(!b)return;
+  const x=Math.min(b.x0,b.x1),y=Math.min(b.y0,b.y1),w=Math.abs(b.x1-b.x0),h=Math.abs(b.y1-b.y0);
+  ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=TH.rgba(C.gold,0.08);ctx.fillRect(x,y,w,h);
+  ctx.setLineDash([6,4]);ctx.lineWidth=1.5;ctx.strokeStyle=C.gold;ctx.strokeRect(x+0.5,y+0.5,w,h);ctx.restore();
+}
+function mapRight(p){if(A.ov.mapRight)A.ov.mapRight(p);}
+cv.addEventListener('wheel',ev=>{
+  ev.preventDefault();
+  const p=evPt(ev),before=toWorld(p.px,p.py);
+  cam.z*=Math.exp(-ev.deltaY*0.0015);clampCam();A.camHeld=true;
+  const after=toWorld(p.px,p.py);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam();
+},{passive:false});
+function mapClick(p,ev){
+  if(A.ov.mapClick(p,ev,shipAt(p.x,p.y)))return;   // Type 3.5: targeting a power
+  const s=shipAt(p.x,p.y);
+  if(s&&s.faction==='reb'&&s.wing){clickShip(s);return;}
+  if(!s){A.selShip=null;syncHud(true);}
+}
+/* the keys (§3.5): the overlay's first; Space pause · 1–4 speeds · Tab next event · F follow · Q / E cycle wings · Esc closes */
+const KEYMAP=[['Space','pause / play'],['1–4','pause, slow, play, fast (tray closed)'],['Tab','next unviewed event'],['F','follow the selection'],
+  ['Q / E','previous / next wing'],['Esc','close'],
+  ['Click','a wing, then one of its ships'],['Left-drag','select the wings in a box'],['Right-drag','pan the map']];
+function onKey(ev){
+  if(SR.active!=='space35'||!A.active)return false;
+  if(ev.target&&/INPUT|TEXTAREA|SELECT/.test(ev.target.tagName))return false;
+  if(A.ov.onKey(ev))return true;   // Type 3.5's keys first (they take the board and briefing whole)
+  if(A.phase==='PICK')return false;
+  const k=ev.key;
+  if(k===' '){ev.preventDefault();if(A.phase==='LIVE')togglePause();return true;}
+  if(k==='Escape'){ev.preventDefault();closeAll();syncHud(true);return true;}
+  if(k==='Tab'){ev.preventDefault();nextEvent();return true;}
+  if(A.phase!=='LIVE')return false;
+  if(k==='f'||k==='F'){A.follow=!A.follow;A.camHeld=false;syncHud(true);return true;}
+  if(k==='q'||k==='Q'||k==='e'||k==='E'){const ws=SIM.S.wings.filter(w=>SIM.fn.wingShips(w).length);if(!ws.length)return true;
+    const i=ws.findIndex(w=>w.id===A.sel),n=ws.length,j=i<0?0:(i+((k==='e'||k==='E')?1:n-1))%n;selectWing(ws[j].id);const c=focusPoint();if(c)camTo(c.x,c.y);return true;}
+  const dig=ev.code&&/^Digit[1-9]$/.test(ev.code)?+ev.code.slice(5):/^[1-9]$/.test(k)?+k:0;
+  if(!dig)return false;
+  ev.preventDefault();
+  if(dig<=4)setSpeed(dig-1);
+  return true;
+}
+addEventListener('keydown',onKey);
+
+/* =====================================================================
+   The designer panel: Run, the High Command numbers (every one a SIMHC getter), read-outs
+   ===================================================================== */
+/* the FX group (C-73): the visual pass's switches and its TUNE numbers (sr-space-fx.js reads them live) */
+const FX_UI=[['trailSmokeAt','Smoke trail at hull ≤',0,1,0.05],['trailFireAt','Burning at hull ≤',0,1,0.05],['trailSmokeRate','Smoke trail puffs /s',1,30,1],
+  ['spiralChance','Death spiral chance',0,1,0.05],['spiralSecs','Death spiral (s)',0.4,5,0.1],['spiralSpin','Spiral tumble (rad/s)',0,20,0.5],['spinK','Spiral tumble × nose rate',0,4,0.05],['spinMin','Spiral tumble, least',0,5,0.05],['spinMax','Spiral tumble, most',0.5,20,0.5],['spinGrow','Spiral tumble grows ×',1,6,0.1],['spiralMaxSize','No spiral from size',1,20,1],['laserLen','Laser dart length',10,200,5],
+  ['flameLen','Engine flame length',0,6,0.1],['flameBoost','Flame × when boosting',1,4,0.1],['boltGlow','Bolt glow width',1,12,0.5],['boltCore','Bolt core width',0.5,6,0.25],
+  ['trailSecs','Trail life (s)',0.2,3,0.1],['sparkN','Sparks a hit',0,16,1],['shardN','Shards a shield hit',0,12,1],['boomDur','Kill boom (s)',0.3,2,0.05],['boomDebris','Debris a kill',0,20,1],
+  ['stationBoomDur','Station boom (s)',1,5,0.1],['missileSmoke','Missile smoke gap (s)',0.01,0.2,0.005],
+  ['chaffFlares','Chaff flares',0,16,1],['chaffGlints','Chaff glints',0,30,1],['shakeBoom','Shake: a kill',0,1,0.02],['shakeMissile','Shake: a missile hit',0,1,0.02],['shakeCollide','Shake: a crash',0,1,0.02],
+  ['shakeStation','Shake: a station',0,1.5,0.05],['shakeNear','Shake: full within',200,6000,100],['screenFlash','Big-kill screen flash',0,0.5,0.01],['nebulaAlpha','Nebula strength',0,1,0.05],
+  ['starFar','Far stars parallax',0,1,0.05],['poolCap','Particle cap',64,1024,32],['oneshotCap','One-shot cap',8,160,4],['lodOut','Detail off below zoom',0.05,1,0.01],['lodIn','Extra detail from zoom',0.3,2,0.05]];
+function fxPanelHtml(){
+  if(!FX)return '';
+  const tg=(k,on,lbl)=>'<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_'+k+'" data-toggle="'+k+'"'+(on?' checked':'')+'><label for="hcP_'+k+'">'+lbl+'</label></div>';
+  let h='<div class="hc-grp"><div class="hc-grp__head">FX</div>'+tg('fx',FX_ON,'Visual pass (off: the flat look)')+tg('shake',FX_SHAKE,'Camera shake')+tg('calm',FX_CALM,'Reduced motion');
+  h+='<details class="hc-fx"><summary>FX numbers</summary>';
+  for(const[k,lbl,mn,mx,st]of FX_UI)if(k in FX.TUNE)h+='<div class="hc-row"><label for="hcF_'+k+'" data-tip="@" data-tt="'+esc(k)+'">'+esc(lbl)+'</label><output data-fxout="'+k+'">'+fmt(FX.TUNE[k],st)+'</output>'+
+    '<input type="range" id="hcF_'+k+'" data-fx="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+FX.TUNE[k]+'"></div>';
+  h+='</details><details class="hc-fx"><summary>Map icons and shields</summary>';
+  for(const[k,lbl,mn,mx,st]of ICON_UI)h+='<div class="hc-row"><label for="hcI_'+k+'">'+esc(lbl)+'</label><output data-iconout="'+k+'">'+fmt(ICONS[k],st)+'</output><input type="range" id="hcI_'+k+'" data-icon="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+ICONS[k]+'"></div>';
+  for(const[k,lbl,mn,mx,st]of SHD_UI)h+='<div class="hc-row"><label for="hcS_'+k+'">'+esc(lbl)+'</label><output data-shdout="'+k+'">'+fmt(SHD[k],st)+'</output><input type="range" id="hcS_'+k+'" data-shd="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+SHD[k]+'"></div>';
+  return h+'</details></div>';
+}
+function fmt(v,step){return step&&step<1?(+v).toFixed(step<0.1?2:1):String(Math.round(v*100)/100);}
+function buildPanel(){
+  let h='<div class="hc-grp"><div class="hc-grp__head">Run</div><div class="hc-btns">'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="same">Restart (same seed)</button><button type="button" class="sr-btn sr-btn--sm" data-act="new">Restart (new seed)</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="picker">Opportunity board</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm" data-act="dump">Dump metrics</button><button type="button" class="sr-btn sr-btn--sm" data-act="copyset">Copy settings</button>'+
+    '<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="title">Back to title</button></div></div>';
+  h+='<div class="hc-grp"><div class="hc-grp__head">HC</div>';
+  const groups={};for(const k in SIM.TUNE)(groups[SIM.TUNE[k].group]=groups[SIM.TUNE[k].group]||[]).push(k);
+  const order=Object.keys(SIM.GROUPS).concat(['Tactics','Other']).filter(g=>groups[g]);
+  for(const g of order){
+    h+='<details class="hc-sec"'+(g==='Run'?' open':'')+'><summary>'+esc(g)+'</summary>';
+    for(const k of groups[g]){const t=SIM.TUNE[k];
+      h+='<div class="hc-row"><label for="hcP_'+k+'" data-tip="@" data-tt="'+esc(k)+'">'+esc(t.label)+'</label><output data-out="'+k+'">'+fmt(t.get(),t.step)+'</output>'+
+        '<input type="range" id="hcP_'+k+'" data-tune="'+k+'" min="'+t.min+'" max="'+t.max+'" step="'+t.step+'" value="'+t.get()+'"></div>';}
+    h+='</details>';
+  }
+  h+='<button type="button" class="sr-btn sr-btn--sm sr-btn--ghost" data-act="defaults">Reset numbers to defaults</button>';
+  h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_tiles" data-toggle="tiles"'+(TILES_LIVE?' checked':'')+'><label for="hcP_tiles">Live camera tiles</label></div>';
+  h+='<div class="hc-row hc-row--toggle"><input type="checkbox" id="hcP_quiet" data-toggle="quiet"'+(linesQuiet()?' checked':'')+'><label for="hcP_quiet">Lines only for the selected wing</label></div>';
+  h+='</div>'+A.ov.panelHtml()+fxPanelHtml()+'<div class="hc-grp"><div class="hc-grp__head">Keys</div><div class="hc-keys">'+KEYMAP.map(([a,b])=>'<span class="sr-kbd">'+esc(a)+'</span><span>'+esc(b)+'</span>').join('')+'</div></div>';
+  h+='<div class="hc-grp"><div class="hc-grp__head">Read-outs</div><div class="hc-readout" id="hcReadout"></div></div>';
+  if(window.SR_FLIGHT)h+=SR_FLIGHT.panelHtml(esc);   // the recorded runs, to download
+  byId('hcPanelBody').innerHTML=h;
+  syncReadout();
+}
+byId('hcPanelBody').addEventListener('input',ev=>{
+  const el=ev.target;
+  if(el.dataset.toggle==='tiles'){TILES_LIVE=el.checked;tileAuto=false;return;}
+  if(el.dataset.toggle==='quiet'){A.quietPref=el.checked;return;}
+  if(A.ov.panelInput(el))return;
+  if(el.dataset.toggle==='fx'){FX_ON=el.checked;return;}
+  if(el.dataset.toggle==='shake'){FX_SHAKE=el.checked;if(FX)FX.setShake(FX_SHAKE);return;}
+  if(el.dataset.toggle==='calm'){FX_CALM=el.checked;return;}
+  if(el.dataset.icon){const k=el.dataset.icon;ICONS[k]=+el.value;const out=byId('hcPanelBody').querySelector('[data-iconout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);return;}
+  if(el.dataset.shd){const k=el.dataset.shd;SHD[k]=+el.value;const out=byId('hcPanelBody').querySelector('[data-shdout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);return;}
+  if(el.dataset.fx){const k=el.dataset.fx;FX.TUNE[k]=+el.value;if(k==='nebulaAlpha')fxNebUser=true;const out=byId('hcPanelBody').querySelector('[data-fxout="'+k+'"]');if(out)out.textContent=fmt(+el.value,+el.step);savePrefs();return;}
+  const k=el.dataset.tune;if(!k)return;
+  const t=SIM.TUNE[k];t.set(+el.value);
+  const out=byId('hcPanelBody').querySelector('[data-out="'+k+'"]');if(out)out.textContent=fmt(t.get(),t.step);
+  savePrefs();
+});
+byId('hcPanelBody').addEventListener('click',ev=>{const b=ev.target.closest('button[data-act]');if(!b)return;if(A.ov.panelAct&&A.ov.panelAct(b.dataset.act))return;panelAct(b.dataset.act);});
+byId('hcPanelToggle').addEventListener('click',()=>{
+  const p=byId('hcPanel');p.classList.toggle('is-collapsed');
+  byId('hcPanelToggle').setAttribute('aria-expanded',String(!p.classList.contains('is-collapsed')));
+  setTimeout(fitCanvas,0);
+});
+function panelAct(a){
+  if(a==='same')restart(true);
+  else if(a==='new')restart(false);
+  else if(a==='picker')showPicker();
+  else if(a==='dump')dumpMetrics();
+  else if(a==='title')backToTitle();
+  else if(a==='copyset')copySettings();
+  else if(a==='saverec'){if(!(window.SR_FLIGHT&&SR_FLIGHT.download()))flash('No flight record yet');}   // the flight recorder (§3.7)
+  else if(/^run:\d+$/.test(a)&&window.SR_FLIGHT)SR_FLIGHT.downloadStored(+a.slice(4));
+  else if(a==='defaults'){for(const k in DEFAULTS)if(SIM.TUNE[k])SIM.TUNE[k].set(DEFAULTS[k]);if(FX)Object.assign(FX.TUNE,FX_DEFAULTS);savePrefs();buildPanel();}
+}
+const DEFAULTS={};for(const k in SIM.TUNE)DEFAULTS[k]=SIM.TUNE[k].get();
+const FX_DEFAULTS=FX?Object.assign({},FX.TUNE):{};
+/* Copy settings (C-69): every panel number as one JSON line, onto the clipboard and into a window to copy by hand */
+function settingsJson(){const o={};for(const k in SIM.TUNE)o[k]=+(+SIM.TUNE[k].get()).toFixed(4);Object.assign(o,fxMoved());return JSON.stringify(o);}
+/* the FX numbers moved off their defaults, as fx.<key> (C-73): in Copy settings and the saved preferences */
+function fxMoved(){const o={};if(FX)for(const k in FX_DEFAULTS)if(typeof FX.TUNE[k]==='number'&&FX.TUNE[k]!==FX_DEFAULTS[k])o['fx.'+k]=FX.TUNE[k];return o;}
+function copySettings(){
+  const txt=settingsJson();
+  try{navigator.clipboard&&navigator.clipboard.writeText(txt).catch(()=>{});}catch(e){}
+  const el=byId('hcEnd');
+  el.innerHTML='<div class="hc-win"><h2 class="sr-display">Settings</h2><p>Every panel number, as one line. It is on your clipboard if the browser allowed it; otherwise copy it from here.</p>'+
+    '<textarea class="hc-dump" readonly>'+esc(txt)+'</textarea><div class="hc-btns"><button type="button" class="sr-btn" data-act="closewin">Close</button></div></div>';
+  el.hidden=false;const ta=el.querySelector('textarea');try{ta.focus();ta.select();}catch(e){}
+  return txt;
+}
+function loadPrefs(){try{const o=JSON.parse(localStorage.getItem(PREFS_KEY)||'null');if(o)for(const k in o){if(SIM.TUNE[k]&&typeof o[k]==='number')SIM.TUNE[k].set(o[k]);else if(FX&&k.startsWith('fx.')&&k.slice(3) in FX_DEFAULTS&&typeof o[k]==='number')FX.TUNE[k.slice(3)]=o[k];}}catch(e){}}
+function syncReadout(){
+  const el=byId('hcReadout');if(!el)return;
+  const S=SIM.S;
+  if(!S||A.phase==='PICK'){el.textContent='';return;}
+  let t='Sim '+S.t.toFixed(1)+' s · tick '+S.tick+' · speed '+SIM.TIMESCALES[A.speed]+'×\nReal '+A.realSecs.toFixed(1)+' s, paused '+A.pausedSecs.toFixed(1)+' s ('+A.pauses+' pauses)';
+  for(const w of S.wings)t+='\n'+w.name+': cohesion '+w.cohesion;
+  t+='\nTiles '+(TILES_LIVE?'live':'static'+(tileAuto?' (fell back)':''))+' · '+tileMs.toFixed(2)+' ms a tile';
+  if(FX){const st=FX.stats();t+='\nFX '+(FX_ON?'on':'off')+' · nebula '+(FX.TUNE.nebulaAlpha>0?'on':'off'+(fxNebAuto?' (fell back)':''))+' · '+fxFrameMs.toFixed(1)+' ms a frame · '+st.particles+' particles, '+st.oneshots+' one-shots';}
+  if(el.textContent!==t)el.textContent=t;
+}
+/* the metrics: the overlay's record, one per mission */
+function record(){return A.ov.record();}
+function dumpMetrics(){const s=JSON.stringify(A.metrics);try{console.log('ARENA_METRICS_DUMP '+s);}catch(e){}flash('Metrics dumped to the console');return s;}
+function savePrefs(){try{const o={};for(const k in SIM.TUNE)o[k]=SIM.TUNE[k].get();Object.assign(o,fxMoved());localStorage.setItem(PREFS_KEY,JSON.stringify(o));}catch(e){}}
+
+/* ---------- inside the bench's scene: open and close (arena-hc35.js calls these) ---------- */
+function openUi(){
+  if(!A.prefsLoaded){A.prefsLoaded=true;loadPrefs();}
+  A.active=true;ROOT.hidden=false;
+  fitCanvas();
+}
+function closeUi(){
+  if(A.phase==='LIVE')record();
+  A.active=false;A.phase='PICK';ROOT.hidden=true;closeAll();
+}
+function open(o){
+  A.mode=o.mode;A.ov=o.overlay;
+  openUi();
+  A.phase='PICK';closeAll();if(o.scenario)loadScenario(o.scenario,o.seed);syncHud(true);
+}
+
+/* ---------- DBGspace35.hc (space35.js hands this out, with ?dev) ---------- */
+const dbg={A,SIM,get S(){return SIM.S;},get phase(){return A.phase;},get active(){return A.active;},get metrics(){return A.metrics;},
+  fn:{bubbles_:()=>bubbles.map(b=>({ship:b.ship,text:b.text,tone:b.tone,age:performance.now()-b.born})),bubbleTick,BUBBLE_:()=>({MS:BUBBLE_MS,MAX:BUBBLE_MAX}),camFrame,copySettings,settingsJson,load,restart,showPicker,setSpeed,togglePause,selectWing,viewEvent,openPilot,onKey,record,KEYMAP,nextEvent,mapClick,tipFor,dumpMetrics,syncHud,camFit,tileTick,
+    tiles_:()=>({live:TILES_LIVE,ms:tileMs,auto:tileAuto,TILE_Z,TILE_BUDGET}),setTiles(v){TILES_LIVE=!!v;},
+    frame,toScreen,toWorld,cam_:()=>cam,ipos,RA_:()=>RA,linesQuiet,statusShown,selFoes,badgeTick,badges_:()=>badges.map(b=>b.ship+':'+b.k),BADGE_:()=>({MS:BADGE_MS,MAX:BADGE_MAX}),clickShip,selectGroup,boxSelect,mapRight,selWings,
+    FX,fxOn,fxSense,fxReset,shipView,stationView,stationArt,boarders,padNear,fxPanelHtml,FX_UI,render,
+    fx_:()=>({on:FX_ON,shake:FX_SHAKE,calm:FX_CALM,primed:fxPrimed,stats:FX?FX.stats():null,frameMs:fxFrameMs,frames:fxFrames,nebAuto:fxNebAuto,nebUser:fxNebUser,SLOW:FX_SLOW_MS,WARM:FX_WARM}),fxPerfTick,setFx(o){if('on' in o)FX_ON=!!o.on;if('shake' in o){FX_SHAKE=!!o.shake;if(FX)FX.setShake(FX_SHAKE);}if('calm' in o)FX_CALM=!!o.calm;},
+    run(secs){const n=Math.round(secs*1000/SIM.TICK);for(let i=0;i<n&&!SIM.S.over;i++){SIM.step();}if(SIM.S.over&&A.phase==='LIVE')onOver();syncHud(true);return SIM.S.t;},
+    toClient(x,y){const r=cv.getBoundingClientRect(),q=toScreen(x,y);return {x:r.left+q.x,y:r.top+q.y};},loadScenario,mode_:()=>A.mode}};
+/* what a mode's overlay draws and steers with (Type 3.5): read-only helpers over this file's camera, canvas kit and HUD */
+const api={A,SIM,cam,ROOT,byId,esc,glyph,GLYPH,fmtClock,toScreen,toWorld,camTo,clampCam,fitZoom,iconBoost,shieldR,artK,uiR,shipLenW,drawIcon,ICONS,fxMin,label,ring,dashLine,ipos,
+  sweepOf,shieldEll,onShield,SHD,bar,easeBars,glint,showTipAt,hideTip,hideTipIn,selWings,selectWing,openPilot,flash,syncHud,setSpeed,togglePause,loadScenario,load,onOver,closeUi,backToTitle,buildPanel,
+  get dpr(){return dpr;},get cssW(){return cssW;},get cssH(){return cssH;},get RA(){return RA;},FX,stationArt,shipView,fxReduced,focusPoint};
+window.SR_ARENA_HC={open,close:closeUi,frame,get active(){return A.active;},dbg,api,loadScenario};
+})();
